@@ -31,6 +31,45 @@ class FieldStatus(StrEnum):
     RETIRED = "retired"
 
 
+class CheckOutcome(StrEnum):
+    PASS = "pass"
+    FAIL = "fail"
+    NOT_APPLICABLE = "not_applicable"
+
+
+class Severity(StrEnum):
+    INFO = "info"
+    WARN = "warn"
+    BLOCK = "block"
+
+
+class CheckResult(BaseModel):
+    check_id: str
+    layer: int = Field(ge=1, le=5)
+    outcome: CheckOutcome
+    severity: Severity = Severity.INFO
+    detail: str = ""
+    threshold_ref: str | None = None
+
+
+def is_blocking(r: CheckResult) -> bool:
+    return r.outcome == CheckOutcome.FAIL and r.severity == Severity.BLOCK
+
+
+def is_failing(r: CheckResult) -> bool:
+    return r.outcome == CheckOutcome.FAIL and r.severity in (Severity.WARN, Severity.BLOCK)
+
+
+class CheckConfig(BaseModel):
+    min_value: float | None = None
+    max_value: float | None = None
+    non_negative: bool = False
+    part_of: str | None = Field(default=None, description="field_id of the whole this field is part of.")
+    sum_of: list[str] = Field(default_factory=list, description="This field equals the sum of these field_ids.")
+    sum_tolerance: float = Field(default=0.01, description="Relative.")
+    prior_change_max: float | None = Field(default=0.5, description="Relative jump vs. prior value that warns.")
+
+
 class FieldDefinition(BaseModel):
     field_id: str = Field(default_factory=lambda: new_id("fld"))
     name: str
@@ -53,6 +92,7 @@ class FieldDefinition(BaseModel):
     version: int = 1
     effective_from: str | None = Field(default=None, description="ISO date the definition took effect.")
     status: FieldStatus = FieldStatus.DRAFT
+    check_config: CheckConfig = Field(default_factory=CheckConfig)
 
 
 class DataPointSchema(BaseModel):
@@ -94,6 +134,7 @@ class ExtractedField(BaseModel):
     reported_precision: int | None = None
     fx_rate: float | None = None
     fx_rate_ref: str | None = None
+    checks: list[CheckResult] = Field(default_factory=list)
 
     @model_validator(mode="before")
     @classmethod

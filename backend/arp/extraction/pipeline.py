@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 
+from arp.checks.runner import CheckContext, check_record
 from arp.config import Settings
 from arp.extraction.field_graph import extract_one_field
 from arp.extraction.pre_steps import prepare_company
@@ -36,6 +37,7 @@ async def _extract_company(
     verifier_llm: LLMClient | None = None,
     settings: Settings,
     documents: list[SourceDocument] | None = None,
+    history: RunHistory | None = None,  # noqa: F821 -- defined in a later task
 ) -> ExtractionRecordResult:
     """`documents`, when supplied, skips the registry fetch -- for callers
     (like the revenue-exposure resolver) that already fetched a company's
@@ -49,7 +51,6 @@ async def _extract_company(
     documents_by_id = {d.doc_id: d for d in documents}
     usages: list[LLMUsage] = []
     fields = []
-    any_needs_review = False
 
     for field in schema.fields:
         extracted, needs_review, field_usages = await extract_one_field(
@@ -67,13 +68,25 @@ async def _extract_company(
         )
         usages.extend(field_usages)
 
-        any_needs_review = any_needs_review or needs_review
         fields.extend(extracted)
+
+    key, scheme = issuer_key(company)
+    fields = await check_record(
+        schema,
+        fields,
+        CheckContext(
+            company=company,
+            issuer_key=key,
+            schema=schema,
+            documents_by_id=documents_by_id,
+            record_fields=fields,
+            history=history,
+        ),
+    )
 
     confidences = [f.confidence for f in fields if f.value is not None]
     overall_confidence = sum(confidences) / len(confidences) if confidences else 0.0
 
-    key, scheme = issuer_key(company)
     record = ExtractionRecord(
         company_id=company.company_id,
         ticker=company.ticker,
@@ -84,7 +97,7 @@ async def _extract_company(
         issuer_scheme=scheme,
         fields=fields,
         overall_confidence=overall_confidence,
-        needs_review=any_needs_review,
+        needs_review=any(f.review_reasons for f in fields),
     )
     # Cost is estimated per-call against the model that actually produced
     # each usage (extractor and verifier can now differ), then summed --
