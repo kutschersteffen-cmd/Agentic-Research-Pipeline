@@ -6,7 +6,8 @@ import re
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 
 from arp.api.auth import Principal, require_grant
 from arp.api.deps import settings_dep
@@ -68,7 +69,7 @@ def dataset(
     major: int | None = None,
     root: Path = Depends(_root),
     user: Principal = Depends(_reader),
-) -> Response:
+) -> FileResponse:
     if dataset == "portfolio_holdings" and "holdings_reader" not in user.roles:
         raise HTTPException(403, "Requires role 'holdings_reader'")
     m = _manifest(root, month, revision)
@@ -76,6 +77,9 @@ def dataset(
     entry = next((d for d in m.datasets if d.name == dataset and d.major == major), None)
     if entry is None:
         raise HTTPException(404, f"{m.snapshot_id} has no {dataset} v{major}")
-    data = dataset_path(root, m.month, m.revision, entry.name, fmt, major).read_bytes()
+    path = dataset_path(root, m.month, m.revision, entry.name, fmt, major)
+    sha = entry.files.get(fmt)
+    if sha is None or path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(root.resolve()):
+        raise HTTPException(404, f"{m.snapshot_id} has no {dataset} v{major} {fmt} file")
     # The manifest's hash, not the served bytes': a file changed on disk then fails the client's check.
-    return Response(data, media_type=MEDIA[fmt], headers={"ETag": f'"{entry.files[fmt]}"'})
+    return FileResponse(path, media_type=MEDIA[fmt], headers={"ETag": f'"{sha}"'})

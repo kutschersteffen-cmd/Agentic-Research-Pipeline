@@ -48,11 +48,15 @@ def pull_cmd(
     if not base_url:
         typer.echo("Pass --base-url or set ARP_HOLDINGS_API_URL.", err=True)
         raise typer.Exit(1)
-    client = SnapshotClient(base_url, settings.holdings_api_token)
+    client = None
     try:
+        client = SnapshotClient(base_url, settings.holdings_api_token)
         paths = client.pull(month, "all" if dataset == ["all"] else dataset, dest or settings.snapshot_pull_dir)
     except (SnapshotHashMismatch, ValueError, httpx.HTTPError) as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from None
+    finally:
+        if client is not None:
+            client.close()
     for p in paths:
         typer.echo(str(p))

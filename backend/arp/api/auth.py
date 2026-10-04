@@ -5,7 +5,7 @@ import json
 from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Literal, get_args
 
 from fastapi import Depends, HTTPException, Request
 from pydantic import BaseModel, Field, ValidationError
@@ -16,14 +16,15 @@ from arp.config import Settings
 ROLE_RANK: dict[str, int] = {"viewer": 0, "analyst": 1, "approver": 2}
 LOOPBACK_HOSTS = {"127.0.0.1", "::1"}
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-GRANTS = ("snapshot_reader", "holdings_reader")
+Grant = Literal["snapshot_reader", "holdings_reader"]
+GRANTS: tuple[str, ...] = get_args(Grant)
 
 
 class Principal(BaseModel):
     user_id: str
     name: str
     role: Literal["viewer", "analyst", "approver"]
-    roles: list[str] = Field(default_factory=list)  # grants beyond the role rank, e.g. snapshot_reader
+    roles: list[Grant] = Field(default_factory=list)  # grants beyond the role rank; a typo fails at load
 
 
 class _UserRow(Principal):

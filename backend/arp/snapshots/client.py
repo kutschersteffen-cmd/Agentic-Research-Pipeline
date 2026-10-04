@@ -8,6 +8,7 @@ import json
 import re
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -20,11 +21,24 @@ class SnapshotHashMismatch(RuntimeError):
     """A pulled file's sha256 differs from the manifest's."""
 
 
+LOOPBACK = {"localhost", "127.0.0.1", "::1"}
+
+
 class SnapshotClient:
     def __init__(self, base_url: str, token: str | None, *, http: httpx.Client | None = None) -> None:
+        """`base_url` may be "" only with an injected `http` client (tests pass a TestClient)."""
+        if base_url or http is None:
+            u = urlsplit(base_url)
+            if not (u.scheme == "https" or (u.scheme == "http" and u.hostname in LOOPBACK)):
+                raise ValueError(f"refusing {base_url!r}: https only, or http to localhost")
         self.base = base_url.rstrip("/") + "/api/v1/snapshots"
         self.headers = {"Authorization": f"Bearer {token}"} if token else {}
+        self._owns_http = http is None
         self.http = http or httpx.Client(timeout=60)
+
+    def close(self) -> None:
+        if self._owns_http:
+            self.http.close()
 
     def _get(self, path: str, **params) -> httpx.Response:
         r = self.http.get(self.base + path, params={k: v for k, v in params.items() if v is not None},
@@ -36,6 +50,8 @@ class SnapshotClient:
         return SnapshotManifest.model_validate(self._get(f"/{_month(month)}/manifest" if month else "/latest").json())
 
     def _fetch(self, m: SnapshotManifest, entry: DatasetEntry, fmt: str) -> bytes:
+        if fmt not in entry.files:
+            raise SnapshotHashMismatch(f"{entry.name}: the manifest has no {fmt} hash")
         data = self._get(f"/{m.month}/{entry.name}", format=fmt, revision=m.revision, major=entry.major).content
         if hashlib.sha256(data).hexdigest() != entry.files[fmt]:
             raise SnapshotHashMismatch(f"{entry.name}: hash differs from the manifest")

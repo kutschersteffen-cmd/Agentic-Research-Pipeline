@@ -129,3 +129,45 @@ def test_consumer_on_old_major_still_pulls(root, build, tmp_path, monkeypatch):
     build(revision=2, supersedes="2026-10.r1")
     paths = SnapshotClient("", None, http=as_(FULL)).pull("2026-10", ["esg_signals"], tmp_path / "dest", major=1)
     assert [p.name for p in paths] == ["esg_signals.v1.csv"]
+
+
+def test_symlinked_file_is_refused(root, tmp_path):
+    path = dataset_path(root, "2026-10", 1, "esg_signals", "csv", 1)
+    outside = tmp_path / "secret.csv"
+    outside.write_bytes(path.read_bytes())
+    path.unlink()
+    path.symlink_to(outside)
+    assert as_(FULL).get(f"{BASE}/2026-10/esg_signals").status_code == 404
+
+
+def test_file_missing_on_disk_is_404(root):
+    dataset_path(root, "2026-10", 1, "esg_signals", "jsonl", 1).unlink()
+    assert as_(FULL).get(f"{BASE}/2026-10/esg_signals", params={"format": "jsonl"}).status_code == 404
+
+
+def test_missing_format_hash(root, monkeypatch):
+    import arp.api.routers.snapshots as R
+
+    real = R.read_manifest
+
+    def no_csv_hash(*a, **kw):
+        m = real(*a, **kw)
+        return m and m.model_copy(update={"datasets": [d.model_copy(update={"files": {"jsonl": d.files["jsonl"]}})
+                                                       for d in m.datasets]})
+
+    monkeypatch.setattr(R, "read_manifest", no_csv_hash)
+    c = as_(FULL)
+    assert c.get(f"{BASE}/2026-10/esg_signals").status_code == 404
+    with pytest.raises(SnapshotHashMismatch, match="no csv hash"):
+        SnapshotClient("", None, http=c).pull("2026-10", ["esg_signals"], root / "dest")
+
+
+@pytest.mark.parametrize("url", ["http://arp.example", "ftp://localhost", "localhost:8000", ""])
+def test_client_refuses_plain_http_except_loopback(url):
+    with pytest.raises(ValueError):
+        SnapshotClient(url, None)
+
+
+@pytest.mark.parametrize("url", ["https://arp.example", "http://localhost:8000", "http://127.0.0.1", "http://[::1]:8000"])
+def test_client_accepts_https_and_loopback(url):
+    SnapshotClient(url, None).close()

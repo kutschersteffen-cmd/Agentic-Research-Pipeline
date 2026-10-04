@@ -229,3 +229,9 @@ def test_users_file_roles_and_require_grant(tmp_path):
     c = TestClient(app)
     assert c.get("/s", headers=bearer("tv")).json()["detail"] == "Requires role 'snapshot_reader'"
     assert c.get("/s", headers=bearer("ts")).json()["detail"] == "Requires role 'holdings_reader'"
+
+
+def test_unknown_grant_name_fails_at_load(tmp_path):
+    rows = [{"token": "ts", "user_id": "svc", "name": "S", "role": "viewer", "roles": ["snapshot_raeder"]}]
+    with pytest.raises(RuntimeError, match="roles"):
+        load_users(_write(tmp_path, rows))
