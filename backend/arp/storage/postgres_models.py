@@ -350,3 +350,81 @@ class IndexCheckpointModel(Base):
 
     name: Mapped[str] = mapped_column(String, primary_key=True)
     last_synced_at: Mapped[str] = mapped_column(String)
+
+
+class ReleaseModel(Base):
+    """One publication of a source document for an issuer in a run (E17).
+    `published_by` / `withdrawn_by` are internal user ids and never served."""
+
+    __tablename__ = "releases"
+    __table_args__ = (Index("ix_releases_doc", "doc_id"), Index("ix_releases_run", "run_id"))
+
+    release_id: Mapped[str] = mapped_column(String, primary_key=True)
+    doc_id: Mapped[str] = mapped_column(String)
+    content_key: Mapped[str] = mapped_column(String)
+    storage_uri: Mapped[str] = mapped_column(String)
+    issuer_key: Mapped[str] = mapped_column(String)
+    issuer_scheme: Mapped[str] = mapped_column(String)
+    run_id: Mapped[str] = mapped_column(String)
+    published_at: Mapped[str] = mapped_column(String)
+    published_by: Mapped[str] = mapped_column(String)
+    published_by_role: Mapped[str] = mapped_column(String)
+    withdrawn_at: Mapped[str | None] = mapped_column(String, nullable=True)
+    withdrawal_reason: Mapped[str | None] = mapped_column(String, nullable=True)
+    withdrawn_by: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class PublishedFactModel(Base):
+    """Insert-only versioned published fact (E72): a change closes the
+    current row (`valid_to`, `superseded_by`) and inserts the next version."""
+
+    __tablename__ = "published_facts"
+    __table_args__ = (
+        UniqueConstraint(
+            "issuer_key", "field_id", "period_end", "basis", "version", name="uq_published_facts_key_version"
+        ),
+        Index("ix_published_facts_current", "issuer_key", "field_id", "period_end", "basis", "valid_to"),
+        Index("ix_published_facts_valid_from", "valid_from"),
+    )
+
+    fact_id: Mapped[str] = mapped_column(String, primary_key=True)
+    issuer_key: Mapped[str] = mapped_column(String)
+    issuer_scheme: Mapped[str] = mapped_column(String)
+    field_id: Mapped[str] = mapped_column(String)
+    period_end: Mapped[str] = mapped_column(String)
+    basis: Mapped[str] = mapped_column(String, default="")
+    value: Mapped[object] = mapped_column(JSONB)
+    unit: Mapped[str | None] = mapped_column(String, nullable=True)
+    canonical_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    canonical_unit: Mapped[str | None] = mapped_column(String, nullable=True)
+    state: Mapped[str] = mapped_column(String)
+    citation: Mapped[dict] = mapped_column(JSONB)
+    source_run_id: Mapped[str] = mapped_column(String)
+    observed_at: Mapped[str] = mapped_column(String)
+    item_key: Mapped[str] = mapped_column(String)
+    restated: Mapped[bool] = mapped_column(default=False)
+    restated_by_doc_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    version: Mapped[int] = mapped_column()
+    valid_from: Mapped[str] = mapped_column(String)
+    valid_to: Mapped[str | None] = mapped_column(String, nullable=True)
+    superseded_by: Mapped[str | None] = mapped_column(ForeignKey("published_facts.fact_id"), nullable=True)
+    reconfirmed_at: Mapped[str | None] = mapped_column(String, nullable=True)
+    release_id: Mapped[str] = mapped_column(ForeignKey("releases.release_id"))
+    restored_from: Mapped[str | None] = mapped_column(String, nullable=True)
+
+
+class FactEventModel(Base):
+    """Outbox of fact changes, ordered by the autoincrement `event_id`."""
+
+    __tablename__ = "fact_events"
+    __table_args__ = (Index("ix_fact_events_at", "at"),)
+
+    event_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    event_type: Mapped[str] = mapped_column(String)
+    fact_id: Mapped[str] = mapped_column(String)
+    issuer_key: Mapped[str] = mapped_column(String)
+    field_id: Mapped[str] = mapped_column(String)
+    period_end: Mapped[str] = mapped_column(String)
+    basis: Mapped[str] = mapped_column(String)
+    release_id: Mapped[str] = mapped_column(String)
+    at: Mapped[str] = mapped_column(String)
