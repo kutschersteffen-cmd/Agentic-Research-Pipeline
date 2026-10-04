@@ -7,6 +7,7 @@ import type { ActiveSource } from "./SourcePanel";
 import { ReviewControls, decisionBadgeClass, decisionLabel } from "./ReviewControls";
 import { api } from "../api/client";
 import { focusNextCard, useCardKeys } from "../lib/cardKeys";
+import { flaggedReasons } from "../lib/reviewKeys";
 import type { ReviewTileCounts } from "../lib/stagedFlow";
 import type { Citation, ReviewDecision, ReviewableRunKind } from "../types";
 
@@ -69,7 +70,7 @@ export function ReviewItemFields({ item, onOpenSource }: { item: Record<string, 
   const field = (item.field ?? null) as { field_name?: string; value?: unknown; value_state?: ExtractedField["value_state"]; unit?: string | null; period_end?: string | null; citations?: unknown; confidence?: number } | null;
   const citations = item.citations ?? field?.citations;
   const confidence = typeof item.confidence === "number" ? item.confidence : field?.confidence;
-  const reasons = [item.reason_codes, item.route_reasons].flatMap((v) => (Array.isArray(v) ? (v as string[]) : []));
+  const reasons = flaggedReasons(item);
   const rest = Object.fromEntries(Object.entries(item).filter(([k]) => !known.has(k)));
   const hasRest = Object.keys(rest).length > 0;
 

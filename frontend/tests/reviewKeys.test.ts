@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canCosign, fieldItemKey, itemKeyOf } from "../src/lib/reviewKeys.ts";
+import { canCosign, fieldItemKey, flaggedReasons, itemKeyOf } from "../src/lib/reviewKeys.ts";
 
 const edit = { decision: "edit", user_id: "u1" };
 
@@ -32,4 +32,12 @@ test("fieldItemKey carries the period, or unspecified, or the old company key", 
   assert.equal(fieldItemKey(r, { field_id: "f", period_end: "2024-12-31" }), "lei:X:f:2024-12-31");
   assert.equal(fieldItemKey(r, { field_id: "f" }), "lei:X:f:unspecified");
   assert.equal(fieldItemKey({ company_id: "company" }, { field_id: "f", period_end: "2024-12-31" }), "company:f");
+});
+
+test("flaggedReasons merges review and route reasons once each, in order", () => {
+  assert.deepEqual(
+    flaggedReasons({ reason_codes: ["not_grounded", "check_failed"], route_reasons: ["not_grounded", "check_failed", "first_audit_pending"] }),
+    ["not_grounded", "check_failed", "first_audit_pending"],
+  );
+  assert.deepEqual(flaggedReasons({}), []);
 });
