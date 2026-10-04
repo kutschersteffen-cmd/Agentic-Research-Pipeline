@@ -117,3 +117,6 @@ class PortfolioMonitoringScheduleConfig(BaseModel):
     interval_hours: float = 6.0
     news_min_severity: Literal["low", "medium", "high"] = "medium"
     last_run_at: str | None = None
+    calendar_dates: list[str] = Field(default_factory=list)  # ISO dates; non-empty or a rule switches to calendar mode
+    calendar_rule: Literal["month_end", "quarter_end"] | None = None
+    last_calendar_fire: str | None = None

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -351,3 +352,6 @@ class EmergingThemesScheduleConfig(BaseModel):
     universe_path: str | None = None
     last_run_id: str | None = None
     next_run_at: str | None = None
+    calendar_dates: list[str] = Field(default_factory=list)  # ISO dates; non-empty or a rule switches to calendar mode
+    calendar_rule: Literal["month_end", "quarter_end"] | None = None
+    last_calendar_fire: str | None = None
