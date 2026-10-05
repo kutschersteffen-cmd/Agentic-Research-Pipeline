@@ -5,13 +5,13 @@ latest ESG load are `ok`. Re-running a month adds no alerts (the evaluators skip
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel
 
 from arp.bi import published
 from arp.config import Settings
+from arp.portfolio.climate.esg_intake import MONTH
 from arp.portfolio.loads import latest_load
 from arp.portfolio.monitoring.evaluator import evaluate_news_triggers, evaluate_threshold_rules, list_alerts
 from arp.stewardship import monitoring
@@ -43,7 +43,8 @@ def _blocked_reasons(store: PortfolioStore, month: str, portfolio_ids: list[str]
 def run_month(
     store: PortfolioStore, settings: Settings, month: str, *, portfolio_ids: list[str], esg_provider: str = "default"
 ) -> MonthlyRunResult:
-    datetime.strptime(month, "%Y-%m")  # ValueError if malformed
+    if not MONTH.fullmatch(month):  # load records are keyed "2026-09"; strptime would also take "2026-9"
+        raise ValueError("month must be YYYY-MM")
     reasons = _blocked_reasons(store, month, portfolio_ids, esg_provider)
     if reasons:
         return MonthlyRunResult(status="blocked", blocked_reasons=reasons)

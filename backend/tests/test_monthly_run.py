@@ -186,3 +186,32 @@ def test_esg_uploaded_after_month_end_is_used_by_publishers_and_stewardship(stor
     assert rows["portfolio_climate_metrics"] and all(r["waci"] == pytest.approx(4242.5) for r in rows["portfolio_climate_metrics"])
     issuers = samples[0]["issuers"]
     assert issuers and {i["fields"]["portfolio.climate_carbon_intensity"] for i in issuers} == {4242.5}
+
+
+def _cli(store, settings, monkeypatch, *args):
+    from typer.testing import CliRunner
+
+    from arp.cli import app
+
+    monkeypatch.setattr("arp.cli.portfolio._portfolio_store", lambda: store)
+    monkeypatch.setattr("arp.cli.portfolio.get_settings", lambda: settings)
+    return CliRunner().invoke(app, ["portfolio", *args])
+
+
+@pytest.mark.parametrize("bad", ["2026-9", "2026-13", "26-09", "2026-09-01"])
+def test_month_must_be_strict_yyyy_mm(store, settings, monkeypatch, bad):
+    from fastapi.testclient import TestClient
+
+    from arp.api.deps import get_portfolio_store, settings_dep
+    from arp.api.main import app
+
+    _ready(store)
+    with pytest.raises(ValueError):
+        run_month(store, settings, bad, portfolio_ids=_ids(store))
+    assert _cli(store, settings, monkeypatch, "monthly-run", "--month", bad).exit_code == 1
+    app.dependency_overrides[get_portfolio_store] = lambda: store
+    app.dependency_overrides[settings_dep] = lambda: settings
+    try:
+        assert TestClient(app).post("/api/portfolio/monthly-run", json={"month": bad}).status_code == 422
+    finally:
+        app.dependency_overrides.clear()
