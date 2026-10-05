@@ -164,3 +164,25 @@ def test_publishes_nothing_on_a_blocked_run(store, settings, monkeypatch):
     calls = _spy(store, monkeypatch)
     run_month(store, settings, MONTH, portfolio_ids=_ids(store))
     assert calls == []
+
+
+def test_esg_uploaded_after_month_end_is_used_by_publishers_and_stewardship(store, settings, monkeypatch):
+    from arp.portfolio import monthly_run
+    from arp.portfolio.climate.esg_intake import ESG_TEMPLATE_COLUMNS, FIELD_IDS, ingest_esg_bytes
+
+    body = ",".join(ESG_TEMPLATE_COLUMNS) + "\n" + "".join(
+        f"{c.company_id}," + ",".join("4242.5" for _ in FIELD_IDS) + "\n" for c in store.list_companies()
+    )
+    ingest_esg_bytes(store, body.encode(), "e.csv", provider="default", month=MONTH, source_ref=None)  # observed today, after 09-30
+    for pid in _ids(store):
+        _load(store, "holdings", pid)
+    calls = _spy(store, monkeypatch)
+    samples = []
+    real = monthly_run.from_portfolio
+    monkeypatch.setattr(monthly_run, "from_portfolio", lambda *a, **k: samples.append(real(*a, **k)) or samples[-1])
+    assert run_month(store, settings, MONTH, portfolio_ids=_ids(store)).status == "ran"
+    rows = {d: r for d, _, r in calls}
+    assert {r["value"] for r in rows["company_profile"] if r["field_id"] in FIELD_IDS} == {4242.5}
+    assert rows["portfolio_climate_metrics"] and all(r["waci"] == pytest.approx(4242.5) for r in rows["portfolio_climate_metrics"])
+    issuers = samples[0]["issuers"]
+    assert issuers and {i["fields"]["portfolio.climate_carbon_intensity"] for i in issuers} == {4242.5}

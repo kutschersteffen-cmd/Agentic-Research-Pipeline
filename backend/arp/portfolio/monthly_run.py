@@ -47,16 +47,18 @@ def run_month(
     reasons = _blocked_reasons(store, month, portfolio_ids, esg_provider)
     if reasons:
         return MonthlyRunResult(status="blocked", blocked_reasons=reasons)
+    # ESG for month M usually arrives after M ends: date observation lookups to the latest OK ESG load, not the month end
+    obs_as_of = max(published.month_end(month), latest_load(store, "esg", esg_provider, month).at[:10])
     raised = evaluate_threshold_rules(store, as_of=published.month_end(month))
     raised += evaluate_news_triggers(store, min_severity=settings.portfolio_monitoring_news_min_severity)
     live = [a for a in list_alerts(store) if a.status in LIVE]
-    sample = load_sample(settings.frameworks_dir, vote_items(settings.runs_dir), live, from_portfolio(store))
+    sample = load_sample(settings.frameworks_dir, vote_items(settings.runs_dir), live, from_portfolio(store, as_of=obs_as_of))
     records = EngagementStore(settings.engagements_dir).list_all()
     triggers = monitoring.evaluate(PolicyStore(settings.stewardship_streams_dir).active("monitoring_rules"), sample, records)
     trigger_store = TriggerStore(settings.stewardship_streams_dir)
     stored = trigger_store.record_run(month, triggers)
-    store.publish_rows("portfolio_climate_metrics", month, published.climate_metric_rows(store, month, portfolio_ids))
+    store.publish_rows("portfolio_climate_metrics", month, published.climate_metric_rows(store, month, portfolio_ids, obs_as_of))
     store.publish_rows("alerts", month, published.alert_rows(store))
     store.publish_rows("triggers", month, published.trigger_rows(trigger_store.list_triggers()))
-    store.publish_rows("company_profile", month, published.profile_rows(store, month))
+    store.publish_rows("company_profile", month, published.profile_rows(store, month, obs_as_of))
     return MonthlyRunResult(status="ran", alerts=len(raised), triggers=len(stored))
