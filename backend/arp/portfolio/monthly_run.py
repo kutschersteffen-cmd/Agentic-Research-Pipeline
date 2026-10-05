@@ -16,6 +16,7 @@ from arp.portfolio.loads import latest_load
 from arp.portfolio.monitoring.evaluator import evaluate_news_triggers, evaluate_threshold_rules, list_alerts
 from arp.stewardship import monitoring
 from arp.stewardship.alerts_feed import LIVE
+from arp.stewardship.policies import PolicyStore
 from arp.stewardship.process import load_sample, vote_items
 from arp.stewardship.trigger_store import TriggerStore
 from arp.stewardship.universe import from_portfolio
@@ -51,6 +52,6 @@ def run_month(
     live = [a for a in list_alerts(store) if a.status in LIVE]
     sample = load_sample(settings.frameworks_dir, vote_items(settings.runs_dir), live, from_portfolio(store))
     records = EngagementStore(settings.engagements_dir).list_all()
-    triggers = monitoring.evaluate(monitoring.load_graph(), sample, records)
+    triggers = monitoring.evaluate(PolicyStore(settings.stewardship_streams_dir).active("monitoring_rules"), sample, records)
     stored = TriggerStore(settings.stewardship_streams_dir).record_run(month, triggers)
     return MonthlyRunResult(status="ran", alerts=len(raised), triggers=len(stored))
