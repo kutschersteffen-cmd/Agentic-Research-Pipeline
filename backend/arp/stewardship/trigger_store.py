@@ -28,8 +28,11 @@ class TriggerStore:
         with self.path.open("a") as f:
             f.write(json.dumps({**row, "at": datetime.now(UTC).isoformat()}, ensure_ascii=False) + "\n")
 
+    def _rows(self) -> list[dict]:
+        return [json.loads(line) for line in self.path.read_text().splitlines() if line.strip()] if self.path.exists() else []
+
     def _fold(self) -> dict[str, UnifiedTrigger]:
-        rows = [json.loads(line) for line in self.path.read_text().splitlines() if line.strip()] if self.path.exists() else []
+        rows = self._rows()
         found: dict[str, UnifiedTrigger] = {}
         runs: dict[str, set[str]] = {}
         for row in rows:
@@ -70,6 +73,11 @@ class TriggerStore:
         self._append({"event": "run", "month": month, "triggers": triggers})
         found = self._fold()
         return [found[trigger_id(t["issuer_id"], t["rule"])] for t in triggers]
+
+    def stored_trigger(self, tid: str) -> dict | None:
+        """The trigger as the latest run that raised it recorded it (company, sector, theme, severity, reason, ...)."""
+        hits = [t for r in self._rows() if r["event"] == "run" for t in r["triggers"] if trigger_id(t["issuer_id"], t["rule"]) == tid]
+        return hits[-1] if hits else None
 
     def list_triggers(self, status: str | None = None) -> list[UnifiedTrigger]:
         return [t for t in self._fold().values() if status is None or t.status == status]
