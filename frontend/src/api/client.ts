@@ -235,6 +235,15 @@ export const api = {
     request<IntakeResult>(`/api/holdings/holders/${kind}/${encodeURIComponent(holderId)}/pull`, { method: "POST" }),
   holdingsTemplateUrl: (kind: string, format: string) => `${API_BASE}/api/holdings/template${buildQuery({ kind, format })}`,
 
+  uploadEsg: (f: { file: File; month: string; provider?: string }) => {
+    const form = new FormData();
+    form.append("file", f.file);
+    form.append("month", f.month);
+    if (f.provider) form.append("provider", f.provider);
+    return request<{ status: "written" | "unchanged"; rows: number }>("/api/portfolio/esg/upload", { method: "POST", body: form });
+  },
+  esgTemplateUrl: (format: string) => `${API_BASE}/api/portfolio/esg/template${buildQuery({ format })}`,
+
   getMe: () => request<Me>("/api/me"),
 
   // Search

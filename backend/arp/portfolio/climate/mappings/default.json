@@ -1,0 +1,1 @@
+{"provider": "default", "columns": {"company_id": "company_id", "climate_scope1_tco2e": "climate_scope1_tco2e", "climate_scope2_tco2e": "climate_scope2_tco2e", "climate_scope3_tco2e": "climate_scope3_tco2e", "climate_carbon_intensity": "climate_carbon_intensity", "climate_evic_eur_m": "climate_evic_eur_m", "climate_green_revenue_pct": "climate_green_revenue_pct"}, "decimal": "."}

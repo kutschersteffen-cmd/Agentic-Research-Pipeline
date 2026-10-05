@@ -29,6 +29,13 @@ export function HoldingsIntake() {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ message: string; errors: RowError[] } | null>(null);
+  const [esgMonth, setEsgMonth] = useState("");
+  const [esgFile, setEsgFile] = useState<File | null>(null);
+  const [esgProvider, setEsgProvider] = useState("default");
+  const [esgBusy, setEsgBusy] = useState(false);
+  const [esgError, setEsgError] = useState<{ message: string; errors: RowError[] } | null>(null);
+  const [esgNotice, setEsgNotice] = useState<string | null>(null);
+  const esgFileRef = useRef<HTMLInputElement>(null);
   const reasonRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -74,6 +81,26 @@ export function HoldingsIntake() {
       if (needsOverrideReason(err as Error)) reasonRef.current?.focus();
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function submitEsg(e: FormEvent) {
+    e.preventDefault();
+    if (!esgFile) return;
+    setEsgBusy(true);
+    setEsgError(null);
+    setEsgNotice(null);
+    try {
+      const r = await api.uploadEsg({ file: esgFile, month: esgMonth, provider: esgProvider });
+      const msg = r.status === "unchanged" ? "No change" : `ESG data written (${r.rows} companies)`;
+      setEsgNotice(msg);
+      announce(msg);
+      setEsgFile(null);
+      if (esgFileRef.current) esgFileRef.current.value = "";
+    } catch (err) {
+      setEsgError(parseIntakeError(err as Error));
+    } finally {
+      setEsgBusy(false);
     }
   }
 
@@ -165,6 +192,41 @@ export function HoldingsIntake() {
           <p>{error.message}</p>
           {error.errors.length > 0 && (
             <ul>{error.errors.map((x, i) => <li key={i}>{rowErrorText(x)}</li>)}</ul>
+          )}
+        </div>
+      )}
+
+      <h3>Upload ESG data</h3>
+      <p>
+        {FORMATS.map((f) => (
+          <span key={f}>
+            <FileLink url={api.esgTemplateUrl(f)} name={`esg-template.${f}`}>
+              ESG template (.{f})
+            </FileLink>{" "}
+          </span>
+        ))}
+      </p>
+      <form className="inline-fields" onSubmit={(e) => void submitEsg(e)}>
+        <label className="field-label">
+          Month
+          <input type="month" value={esgMonth} onChange={(e) => setEsgMonth(e.target.value)} required />
+        </label>
+        <label className="field-label">
+          File
+          <input ref={esgFileRef} type="file" accept=".csv,.xlsx" onChange={(e) => setEsgFile(e.target.files?.[0] ?? null)} required />
+        </label>
+        <label className="field-label">
+          Provider
+          <input value={esgProvider} onChange={(e) => setEsgProvider(e.target.value)} />
+        </label>
+        <button type="submit" disabled={esgBusy || !esgFile || !esgMonth}>{esgBusy ? "Uploading…" : "Upload"}</button>
+      </form>
+      {esgNotice && <p role="status">{esgNotice}</p>}
+      {esgError && (
+        <div className="error-text" role="alert">
+          <p>{esgError.message}</p>
+          {esgError.errors.length > 0 && (
+            <ul>{esgError.errors.map((x, i) => <li key={i}>{rowErrorText(x)}</li>)}</ul>
           )}
         </div>
       )}

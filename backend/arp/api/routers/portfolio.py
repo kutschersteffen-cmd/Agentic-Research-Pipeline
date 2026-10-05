@@ -1,16 +1,21 @@
 from __future__ import annotations
 
+from dataclasses import asdict
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from arp.api.auth import Principal, current_user, require_role
 from arp.api.deps import get_llm_client, get_portfolio_store, settings_dep
 from arp.api.routers.universe import save_universe
 from arp.config import Settings
+from arp.holdings.file_source import file_ref, read_rows
+from arp.holdings.intake import IntakeError
 from arp.llm.base import LLMClient
 from arp.portfolio import aggregation, analytics, qa_agent, qa_audit, resolution_review
+from arp.portfolio.climate import esg_intake
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.monitoring import evaluator as monitoring_evaluator
 from arp.portfolio.news.classifier import classify_article
@@ -42,6 +47,41 @@ async def seed_demo_dataset(
     """
     summary = await generate_demo_dataset(store, settings.portfolio_confidence_review_threshold)
     return summary.__dict__
+
+
+@router.post("/esg/upload")
+async def upload_esg(
+    file: UploadFile = File(...),
+    provider: str = Form("default"),
+    month: str = Form(...),
+    _: Principal = Depends(current_user),
+    settings: Settings = Depends(settings_dep),
+    store: PortfolioStore = Depends(get_portfolio_store),
+) -> dict:
+    data = await file.read(settings.max_upload_bytes + 1)
+    if len(data) > settings.max_upload_bytes:
+        raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
+
+    def intake():
+        mapping = esg_intake.load_esg_mapping(provider)
+        raw = read_rows(data, file.filename or "", mapping)
+        known = {c.company_id for c in store.list_companies()}
+        validated = esg_intake.validate_esg(raw, month=month, known_company_ids=known, decimal=mapping.decimal)
+        return esg_intake.ingest_esg(store, validated, provider=provider, month=month, source_ref=file_ref(data))
+
+    try:
+        return asdict(await run_in_threadpool(intake))
+    except IntakeError as e:
+        raise HTTPException(e.status, {"message": e.message, "errors": [asdict(x) for x in e.errors]}) from None
+    except ValueError as e:  # unreadable file, unknown provider, bad month
+        raise HTTPException(422, {"message": str(e), "errors": []}) from None
+
+
+@router.get("/esg/template")
+def esg_template(fmt: Literal["csv", "xlsx"] = Query("csv", alias="format")) -> Response:
+    media = "text/csv" if fmt == "csv" else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return Response(esg_intake.template(fmt), media_type=media,
+                    headers={"Content-Disposition": f'attachment; filename="esg-template.{fmt}"'})
 
 
 @router.get("/portfolios", response_model=list[Portfolio])
