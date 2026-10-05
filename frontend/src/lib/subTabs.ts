@@ -1,7 +1,7 @@
 /** Sub-tab ids that were merged away; old links and bookmarks still land somewhere sensible. */
 const LEGACY_SUB_TABS: Record<string, string> = { pivot: "dashboards", superset: "dashboards", genbi: "dashboards" };
 
-/** The sub-tab to open for a route param: a known id, a legacy id's replacement, else the first tab. */
+/** The sub-tab to open for a route param: a known id, a legacy id's replacement, else the first tab (Dashboards). */
 export function resolveSubTab<T extends string>(initialSub: string | undefined, tabs: readonly { id: T }[]): T {
   const id = initialSub === undefined ? undefined : (LEGACY_SUB_TABS[initialSub] ?? initialSub);
   return tabs.find((t) => t.id === id)?.id ?? tabs[0].id;
@@ -9,10 +9,9 @@ export function resolveSubTab<T extends string>(initialSub: string | undefined, 
 
 /** Risk Monitoring sub-tabs. */
 export const SUB_TABS = [
-  { id: "standard", label: "Standard Analytics & Visuals" },
+  { id: "dashboards", label: "Dashboards (Superset)" },
   { id: "monitoring", label: "Monitoring & Alerts" },
   { id: "profiles", label: "Company Profiles" },
   { id: "ask", label: "Ask the Portfolio" },
-  { id: "dashboards", label: "Dashboards (Superset)" },
   { id: "holdings", label: "Holdings Intake" },
 ] as const;

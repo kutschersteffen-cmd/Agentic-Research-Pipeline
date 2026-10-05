@@ -202,11 +202,11 @@ deployments must re-run `arp bi bootstrap` after upgrading: the AI designer need
 `holdings_history`.
 
 Set `VITE_SUPERSET_URL` in `frontend/.env`, then open Risk Monitoring, Dashboards (Superset). This one tab replaces
-Pivot Explorer, Generative BI and Superset BI (old links land on it); Standard Analytics, Monitoring & Alerts, Company
-Profiles, Ask the Portfolio and Governance & Audit are unchanged. The picker lists every Superset dashboard whose slug
+Pivot Explorer, Generative BI and Superset BI (old links land on it), and it is the default Risk Monitoring tab. The
+in-app Standard Analytics tab is gone; Monitoring & Alerts, Company Profiles and Ask the Portfolio are unchanged. The picker lists every Superset dashboard whose slug
 starts with `arp-` and opens on `arp-risk-exposure`. To add a dashboard you built by hand, set its slug to `arp-<name>`
-in Superset's dashboard Properties and reload the tab. The weighted-average climate pivots Pivot Explorer had now
-live only in Standard Analytics.
+in Superset's dashboard Properties and reload the tab. The weighted-average climate pivots Pivot Explorer had are
+available through the climate API endpoints.
 
 The UI embeds a draft through `POST /api/bi/embed-token {dashboard_id}`, which answers `{token, embedded_id}`
 (`service.embed_token` returns `(embedded_id, token)`). Only arp- dashboards (slug `arp-...`, the scratch one and

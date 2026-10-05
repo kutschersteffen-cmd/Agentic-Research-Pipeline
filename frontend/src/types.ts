@@ -997,8 +997,6 @@ export interface VoteReviewDecision {
 
 export type AggregationMetric = "market_value_sum" | "weighted_avg_datapoint" | "count";
 
-export const AGGREGATION_DIMENSIONS = ["portfolio_id", "asset_class", "company_id", "company_name", "sector", "country", "currency"] as const;
-
 export interface PortfolioSummary {
   portfolio_id: string;
   name: string;
@@ -1140,17 +1138,6 @@ export interface DemoSeedSummary {
   news_items: number;
   unresolved_security_ids: string[];
 }
-
-export interface FinancedEmissionsResult {
-  as_of: string;
-  financed_emissions_tco2e: number;
-  covered_market_value_eur: number;
-  uncovered_market_value_eur: number;
-  coverage_pct: number;
-  uncovered_holding_count: number;
-}
-
-export type CoverageBySource = Record<string, number>;
 
 export interface PivotRequest {
   name?: string;

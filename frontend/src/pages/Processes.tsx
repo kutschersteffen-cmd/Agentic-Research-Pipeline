@@ -39,7 +39,7 @@ const PROCESSES: Process[] = [
     cadence: "Annual, plus ad hoc before committees",
     outcome: "A tiered list of issuers to engage, each with a walk-vs-talk verdict and sector context.",
     steps: [
-      { tab: "portfolio-monitoring", sub: "standard", label: "Risk Monitoring", does: "WACI, financed emissions and data coverage by portfolio: where the carbon sits.", handsOn: "Holdings in scope", carried: true },
+      { tab: "portfolio-monitoring", sub: "dashboards", label: "Risk Monitoring", does: "WACI, financed emissions and data coverage by portfolio, in the Superset dashboards: where the carbon sits.", handsOn: "Holdings in scope", carried: true },
       { tab: "transitionBarrier", label: "Transition Barriers", does: "Read the sector × jurisdiction barriers first: what can a company in this sector realistically commit to?", handsOn: "Sector context", runTypes: ["transition_barrier_refresh"] },
       { tab: "transitionPlan", label: "Transition Plan", does: "Score 64 indicators per issuer, walk vs. talk, each with a grounded citation. Attach the scoring template in step 1 and every issuer is tiered as results arrive.", handsOn: "Indicator scores and tiers", carried: true, runTypes: ["transition_plan"] },
       { tab: "decision", label: "Decision Studio", does: "Build or tune the scoring template (per-indicator rules, gates, tiers); ratify it, then publish the tiers.", handsOn: "Published tiers", carried: true },

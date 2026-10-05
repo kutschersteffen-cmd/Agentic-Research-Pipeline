@@ -60,12 +60,10 @@ import type {
   IndexReviewResult,
   AnalyticRequest,
   CompanyRef,
-  CoverageBySource,
   DataPointSchema,
   DemoSeedSummary,
   EmergingThemeCandidate,
   EmergingThemesScheduleConfig,
-  FinancedEmissionsResult,
   NewsItem,
   NewsRiskFlag,
   PivotRequest,
@@ -718,14 +716,6 @@ export const api = {
 
   // Climate analytics
   getClimateSchema: () => request<DataPointSchema>("/api/climate/schema"),
-  getWaci: (params: { as_of?: string; group_by?: string; portfolio_id?: string[] }) =>
-    request<AggregationResult>(`/api/climate/waci${buildQuery(params)}`),
-  getWaciTrend: (params: { group_by?: string; portfolio_id?: string[] }) =>
-    request<TrendPoint[]>(`/api/climate/waci/trend${buildQuery(params)}`),
-  getFinancedEmissions: (params: { as_of?: string; portfolio_id?: string[] }) =>
-    request<FinancedEmissionsResult>(`/api/climate/financed-emissions${buildQuery(params)}`),
-  getClimateCoverage: (fieldId: string, asOf?: string) =>
-    request<CoverageBySource>(`/api/climate/coverage/${fieldId}${buildQuery({ as_of: asOf })}`),
 
   // Presentation & Reporting Tool
   uploadReportTemplate: (file: File) => {

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { PortfolioPaneProvider } from "../context/PortfolioPaneContext";
 import { PersistentSelectionPane } from "../components/PersistentSelectionPane";
-import { StandardAnalytics } from "./portfolio-monitoring/StandardAnalytics";
 import { MonitoringAlerts } from "./portfolio-monitoring/MonitoringAlerts";
 import { CompanyProfiles } from "./portfolio-monitoring/CompanyProfiles";
 import { AskThePortfolio } from "./portfolio-monitoring/AskThePortfolio";
@@ -51,7 +50,6 @@ function Inner({ initialSub, onSendUniverse }: { initialSub?: string; onSendUniv
         ))}
       </nav>
 
-      {sub === "standard" && <StandardAnalytics />}
       {sub === "monitoring" && <MonitoringAlerts />}
       {sub === "profiles" && <CompanyProfiles />}
       {sub === "ask" && <AskThePortfolio />}
