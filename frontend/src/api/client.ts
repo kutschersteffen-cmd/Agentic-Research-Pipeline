@@ -1,5 +1,6 @@
 import { clearToken, getToken } from "../lib/auth";
 import { filenameFromDisposition, inlineSafe } from "../lib/files";
+import { profileEmbedParams } from "../lib/biEmbed";
 import type { Me } from "../lib/reviewKeys";
 import type {
   CompanyBallot,
@@ -690,8 +691,11 @@ export const api = {
   designBI: (body: { brief: string }) => request<BIDesignResult>("/api/bi/design", { method: "POST", body: JSON.stringify(body) }),
   askBI: (question: string) => request<BIDesignResult>("/api/bi/ask", { method: "POST", body: JSON.stringify({ question }) }),
   biDashboards: () => request<DashboardItem[]>("/api/bi/dashboards"),
-  biEmbedToken: (dashboardId: number) =>
-    request<BIEmbedToken>("/api/bi/embed-token", { method: "POST", body: JSON.stringify({ dashboard_id: String(dashboardId) }) }),
+  biEmbedToken: (dashboardId: number, companyId: string | null = null) =>
+    request<BIEmbedToken>("/api/bi/embed-token", {
+      method: "POST",
+      body: JSON.stringify({ dashboard_id: String(dashboardId), ...profileEmbedParams(companyId) }),
+    }),
 
   // Projects (/api/projects)
   listProjects: () => request<ProjectSummary[]>("/api/projects"),

@@ -67,7 +67,7 @@ def test_trigger_rows_flatten_unified_triggers():
     t = UnifiedTrigger(trigger_id="t1", source="stewardship", issuer_id="bmw", type="x", theme="Climate", severity="high", reason="r")
     assert trigger_rows([t]) == [
         {"trigger_id": "t1", "source": "stewardship", "issuer_id": "bmw", "type": "x", "theme": "Climate", "severity": "high",
-         "reason": "r", "status": "open", "first_seen_month": "", "is_new": False}
+         "reason": "r", "status": "open", "first_seen_month": "", "is_new": False, "rule": ""}
     ]
 
 

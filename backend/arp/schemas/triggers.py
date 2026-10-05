@@ -22,6 +22,7 @@ class UnifiedTrigger(BaseModel):
     status: Literal["open", "acknowledged", "resolved"] = "open"
     first_seen_month: str = ""
     is_new: bool = False
+    rule: str = ""  # the monitoring rule that raised it; open-engagement needs (issuer_id, rule)
 
 
 def from_alert(alert: Alert) -> UnifiedTrigger:

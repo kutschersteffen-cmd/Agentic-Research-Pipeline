@@ -32,6 +32,7 @@ def test_record_run_marks_first_run_triggers_new(store):
     out = store.record_run("2026-09", [_t(), _t("BMW")])
     assert [t.is_new for t in out] == [True, True]
     assert all(t.source == "stewardship" and t.status == "open" and t.first_seen_month == "2026-09" for t in out)
+    assert out[0].rule == "r1"  # the Company Profile strip opens an engagement by (issuer_id, rule)
 
 
 def test_second_run_same_trigger_not_new(store):

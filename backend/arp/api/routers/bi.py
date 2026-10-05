@@ -8,13 +8,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal, current_user
-from arp.api.deps import get_llm_client, get_superset_client, settings_dep
+from arp.api.deps import get_llm_client, get_portfolio_store, get_superset_client, settings_dep
 from arp.bi import service
 from arp.bi.service import BIError, DashboardNotFound, DesignResult, NotAnARPDashboard
 from arp.bi.superset_client import SupersetClient, SupersetError
 from arp.config import Settings
 from arp.llm.base import LLMClient
 from arp.portfolio import qa_audit
+from arp.storage.portfolio_store import PortfolioStore
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class AskRequest(BaseModel, str_strip_whitespace=True):
 
 class EmbedRequest(BaseModel):
     dashboard_id: str = Field(pattern=r"^\d+$")  # numeric Superset dashboard id
+    company_id: str | None = None  # limit the company datasets to this one (must exist in the store)
 
 
 class EmbedToken(BaseModel):
@@ -95,9 +97,16 @@ async def ask(
 
 
 @router.post("/embed-token", response_model=EmbedToken)
-async def embed_token(req: EmbedRequest, client: SupersetClient = Depends(get_superset_client)) -> EmbedToken:
+async def embed_token(
+    req: EmbedRequest,
+    client: SupersetClient = Depends(get_superset_client),
+    store: PortfolioStore = Depends(get_portfolio_store),
+) -> EmbedToken:
+    # The id becomes an SQL clause in the guest token: only ids in the store get that far.
+    if req.company_id is not None and store.get_company(req.company_id) is None:
+        raise HTTPException(404, "Unknown company.")
     try:
-        embedded_id, token = await asyncio.to_thread(service.embed_token, client, req.dashboard_id)
+        embedded_id, token = await asyncio.to_thread(service.embed_token, client, req.dashboard_id, req.company_id)
         return EmbedToken(token=token, embedded_id=embedded_id)
     except DashboardNotFound as e:
         raise HTTPException(404, str(e)) from e

@@ -53,6 +53,7 @@ class TriggerStore:
                             severity=t["severity"],
                             reason=t["reason"],
                             first_seen_month=row["month"],
+                            rule=t["rule"],
                         ),
                     )
             elif row["trigger_id"] in found:

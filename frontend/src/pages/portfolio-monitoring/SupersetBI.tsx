@@ -23,9 +23,10 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** Mounts one dashboard through Superset's embed SDK. The iframe loads Superset's
  * /embedded/<uuid> page and asks this app for a guest token (and again whenever
  * the token nears expiry), so it shows the dashboard with the guest role.
- * Render it with `key={dashboardId}`: a new selection remounts it, which unmounts
+ * With `companyId` every token limits the company datasets to that issuer (RLS).
+ * Render it with `key={dashboardId}` (plus the company): a new selection remounts it, which unmounts
  * the old embed and drops any token response still in flight for it. */
-function EmbeddedDashboard({ dashboardId, title }: { dashboardId: number; title: string }) {
+export function EmbeddedDashboard({ dashboardId, title, companyId = null }: { dashboardId: number; title: string; companyId?: string | null }) {
   const mount = useRef<HTMLDivElement>(null);
   const [embeddedId, setEmbeddedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,14 +36,14 @@ function EmbeddedDashboard({ dashboardId, title }: { dashboardId: number; title:
     let live = true;
     setEmbeddedId(null);
     setError(null);
-    api.biEmbedToken(dashboardId).then(
+    api.biEmbedToken(dashboardId, companyId).then(
       (t) => live && setEmbeddedId(t.embedded_id),
       (e) => live && setError(embedErrorText(message(e))),
     );
     return () => {
       live = false;
     };
-  }, [dashboardId]);
+  }, [dashboardId, companyId]);
 
   useEffect(() => {
     if (!frameUrl || !embeddedId || !mount.current) return;
@@ -50,7 +51,7 @@ function EmbeddedDashboard({ dashboardId, title }: { dashboardId: number; title:
       id: embeddedId,
       supersetDomain: SUPERSET_URL,
       mountPoint: mount.current,
-      fetchGuestToken: async () => (await api.biEmbedToken(dashboardId)).token,
+      fetchGuestToken: async () => (await api.biEmbedToken(dashboardId, companyId)).token,
       // The native filter bar (fund, sector, country) is this tab's selection UI.
       dashboardUiConfig: { hideTitle: true, filters: { expanded: true } },
       iframeTitle: `Superset dashboard: ${title}`,
@@ -58,7 +59,7 @@ function EmbeddedDashboard({ dashboardId, title }: { dashboardId: number; title:
     return () => {
       embedded.then((d) => d.unmount(), () => undefined);
     };
-  }, [frameUrl, embeddedId, dashboardId, title]);
+  }, [frameUrl, embeddedId, dashboardId, title, companyId]);
 
   if (error) return <p className="error-text" role="alert">The dashboard could not be embedded: {error}</p>;
   return <div ref={mount} className="superset-embed" aria-busy={!frameUrl} />;

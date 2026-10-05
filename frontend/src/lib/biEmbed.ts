@@ -29,3 +29,9 @@ export function embedErrorText(error: string): string {
   if (/^40[34]:/.test(error)) return "This dashboard is no longer available here.";
   return error.replace(/^\d{3}:\s*/, "");
 }
+
+/** What the Company Profile adds to the embed-token request. The server checks the id
+ * against the store and builds the guest token's RLS clause from it; the client never writes SQL. */
+export function profileEmbedParams(companyId: string | null): { company_id?: string } {
+  return companyId ? { company_id: companyId } : {};
+}

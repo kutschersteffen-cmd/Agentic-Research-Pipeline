@@ -2984,4 +2984,5 @@ export interface UnifiedTrigger {
   status: "open" | "acknowledged" | "resolved";
   first_seen_month: string;
   is_new: boolean;
+  rule: string;
 }
