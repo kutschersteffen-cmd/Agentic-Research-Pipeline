@@ -71,7 +71,7 @@ The backend and frontend are fully decoupled: the CLI and the API call the exact
 | Path | Contents |
 |---|---|
 | `pages/` | One page per top-level function: `ThemeBuilder`, `TaxonomyLibrary`, `ExtractionBuilder`, `CompanyFinancials`, `IdentityResolution`, `DocumentDiscovery`, `PortfolioRisk`, `ClimateAnalytics`, `ReviewQueue`, `RunHistory`, `EngagementDashboard`, `VotingRuns`, `MonitoringDashboard`. |
-| `components/` | Shared building blocks: `BarChart`/`LineChart` (hand-rolled SVG, no charting library), `PivotTable`, `TrendTable`, `AggregationResultTable`, `RunProgress`, `ReviewControls`, `ConfidenceBadge`, `UniversePicker`, `PortfolioFilterPicker`, `InspectorModal`, `SourceDiscoveryPanel`, `EngagementIssuePanel`, `BallotReview`, `ResultView`, `ActivityEditorTable`. |
+| `components/` | Shared building blocks: `BarChart`/`LineChart` (hand-rolled SVG, no charting library), `PivotTable`, `AggregationResultTable`, `RunProgress`, `ReviewControls`, `ConfidenceBadge`, `UniversePicker`, `PortfolioFilterPicker`, `InspectorModal`, `SourceDiscoveryPanel`, `EngagementIssuePanel`, `BallotReview`, `ResultView`, `ActivityEditorTable`. |
 | `api/client.ts` | The single HTTP client every page calls through. |
 | `lib/palette.ts` | The chart color system — fixed-order categorical slots and a sequential blue ramp, validated against the app's light chart surface. |
 | `index.css` | The entire app's theming: one CSS custom-property token set (light theme, single fixed mode — no dark/light toggle). |
