@@ -19,6 +19,7 @@ Scope is climate, ESG and stewardship signals. Financial risk (VaR, factor, stre
 | Delete the **Governance & Audit** tab **and its backend** | UI, routes and `portfolio/governance.py` are removed. See "Governance & Audit removal" for what survives. |
 | Delete the **climate data conflict panel** | The panel and its review flow are removed. |
 | No role checks on write routes | Unchanged from today; out of scope. |
+| Company Profile is a hybrid | A fixed action strip (engagements, triggers) above an embedded Superset dashboard that analysts lay out by drag and drop. See section 6. |
 | Keep the `AlertRule` evaluator | Not replaced by stewardship's ZEN rule engine. |
 | Keep entity resolution as part of the tool | Its review queue moves into Holdings Intake. |
 | Superset for all dashboards and analytics | The in-app Standard Analytics tab is removed. |
@@ -80,7 +81,7 @@ CSV / Excel ─┘   (one validator)       │
 - Existing datasets: `holdings`, `holdings_history`, `company_facts`, `company_facts_pending`, `run_records`, `documents`.
 - WACI, financed emissions and coverage are computed in Python today (`climate/metrics.py`, `aggregation.py`). **Decision:** keep the formulas in Python and publish a `portfolio_climate_metrics` dataset (portfolio, as-of date, WACI, financed emissions, coverage, uncovered market value). Superset charts it. Do not re-implement the formulas in SQL.
 - New datasets: `alerts`, `triggers`, and optionally `entity_resolution_queue`.
-- Dashboards use the `arp-` slug prefix so the existing Dashboards tab embeds them: portfolio climate overview, trend over months, data coverage, alerts and triggers by status, issuer drill-down for stewardship.
+- Dashboards use the `arp-` slug prefix so the existing Dashboards tab embeds them: portfolio climate overview, trend over months, data coverage, alerts and triggers by status, issuer drill-down for stewardship, and the company profile dashboard (section 6).
 - Ask the Portfolio (LLM Q&A) keeps computing in Python. It is the one analytics surface not moving to Superset.
 
 ### 5. Governance & Audit removal
@@ -102,6 +103,28 @@ Removed: the tab, the `/api/portfolio/governance/*` routes, risk-category owners
 
 Open follow-up for the plan: `climate/validation.py` (the API-vs-extracted conflict check) only existed to feed the conflict panel. Delete it too only after the references in open question 2 are checked.
 
+### 6. Company Profile (hybrid)
+
+The current Company Profiles tab (`frontend/src/pages/portfolio-monitoring/CompanyProfiles.tsx`) shows a fixed list of fields for one issuer. It is replaced by two parts on one page.
+
+**Action strip (fixed, native UI), above the dashboard.** Always shows, for the selected issuer:
+
+- **Engagements:** open and stalled engagements with step and theme, and an **Open engagement** action. The backend action already exists (`POST /api/stewardship/monitoring/open-engagement`, `api/routers/stewardship.py`).
+- **Triggers:** stored stewardship triggers (section 3) with type, severity, reason, status and "new since last run", with actions to acknowledge, resolve or open an engagement from the trigger.
+- **Alerts:** open risk alerts for the issuer, with the existing status transition (`POST /api/portfolio/monitoring/alerts/{scope_id}/{alert_id}/transition`).
+- Issuer picker and as-of month. The picker drives the dashboard below.
+
+**Dashboard area (Superset), below the strip.** One Superset dashboard per profile layout, embedded through the existing embed SDK path (`SupersetBI.tsx`, guest token). Analysts build and rearrange it in Superset's own drag-and-drop editor with a company filter. No custom grid library is added to the frontend.
+
+- Needs a `company_profile` dataset: latest value per company and field from `company_facts`, plus holdings by portfolio, so charts can show emissions, intensity, EVIC, green revenue share, exposure by portfolio and trend over months.
+- `alerts` and `triggers` datasets (section 4) are also usable as profile charts.
+- A shipped default profile dashboard (`arp-company-profile`) is provisioned from code so the page is useful before anyone builds a layout. Analysts copy it to make their own; copies use the `arp-` slug prefix.
+- **How the selected issuer reaches the dashboard** is not verified. Two candidates: a row-level-security clause in the guest token (robust, but the filter cannot be changed inside Superset), or a native-filter value passed to the embed. The plan must test which one the embed SDK in this repo supports.
+
+**What is deliberately not built:** a custom in-app widget grid, widget registry or layout storage. If analysts need widgets Superset cannot draw (for example free-text notes or engagement timelines), those go in the action strip, not in the dashboard.
+
+**Permissions caveat:** who may edit dashboards in Superset is governed by Superset roles, not by this app. Role checks in this app remain out of scope.
+
 ## Out of scope
 
 Financial risk analytics, benchmark-relative analysis, SFDR PAI indicators, replacing the `AlertRule` engine, a PCAF data-quality score, role checks on write routes.
@@ -117,11 +140,13 @@ Resolved: backend governance code is deleted (with the entity-resolution depende
 
 - Requiring Postgres changes how the demo and local setup run (the demo dataset currently works on files).
 - Removing Standard Analytics before the Superset dashboards exist leaves a gap; the plan must order the work so dashboards land first.
+- The profile's issuer-to-dashboard link (section 6) is unverified and could force a different embed approach.
 - Stored stewardship triggers add a new store and a migration for any existing consumers (program selection, escalation).
 
 ## Testing approach
 
 - Unit tests for the ESG validator and mapping, idempotent re-load, and failed-load blocking.
+- A page-level check that the profile action strip renders for a seeded issuer and that the embed receives the issuer.
 - A test that both tools produce the shared trigger shape for the same issuer.
 - A run-level test for the monthly sequence on the seeded demo data.
 - Dashboard definitions provisioned from code and checked by the existing BI tests.
