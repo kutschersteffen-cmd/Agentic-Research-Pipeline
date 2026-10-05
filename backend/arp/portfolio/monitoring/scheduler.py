@@ -5,6 +5,8 @@ from datetime import UTC, datetime, timedelta
 
 from arp.config import Settings
 from arp.orchestration.interval_scheduler import IntervalScheduler
+from arp.portfolio.climate.esg_api_source import pull_esg
+from arp.portfolio.loads import latest_load
 from arp.portfolio.monitoring.evaluator import evaluate_news_triggers, evaluate_threshold_rules
 from arp.portfolio.monthly_run import run_month
 from arp.schemas.portfolio_monitoring import PortfolioMonitoringScheduleConfig
@@ -36,8 +38,17 @@ class PortfolioMonitoringScheduler(IntervalScheduler):
         evaluate_threshold_rules(self.store)
         evaluate_news_triggers(self.store, min_severity=config.news_min_severity)
         config.last_run_at = datetime.now(UTC).isoformat()
+        previous = (datetime.now(UTC).date().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+        if not (self.settings.esg_api_base_url and self.settings.esg_api_token):
+            logger.info("ESG pull skipped: ESG API not configured")
+        elif getattr(latest_load(self.store, "esg", "default", previous), "status", None) == "ok":
+            pass  # already loaded: a failed re-pull would record a failed load and block the month
+        else:
+            try:
+                pull_esg(self.store, self.settings, previous)
+            except Exception:
+                logger.exception("Scheduled ESG pull for %s failed", previous)
         try:
-            previous = (datetime.now(UTC).date().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
             result = run_month(self.store, self.settings, previous, portfolio_ids=[p.portfolio_id for p in self.store.list_portfolios()])
             logger.info("Monthly run %s: %s %s", previous, result.status, result.blocked_reasons)
         except Exception:

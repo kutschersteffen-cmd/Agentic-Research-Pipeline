@@ -215,3 +215,43 @@ def test_month_must_be_strict_yyyy_mm(store, settings, monkeypatch, bad):
         assert TestClient(app).post("/api/portfolio/monthly-run", json={"month": bad}).status_code == 422
     finally:
         app.dependency_overrides.clear()
+
+
+def _sched_run(store, settings, monkeypatch, pull):
+    from arp.portfolio.monitoring import scheduler as sched
+    from arp.schemas.portfolio_monitoring import PortfolioMonitoringScheduleConfig
+
+    calls = []
+    monkeypatch.setattr(sched, "pull_esg", lambda st, s, month, *a, **k: calls.append(("pull", month)) or pull())
+    monkeypatch.setattr(sched, "run_month", lambda st, s, month, **k: calls.append(("run", month)) or run_month(st, s, month, **k))
+    config = PortfolioMonitoringScheduleConfig(enabled=True, interval_hours=1, news_min_severity="medium")
+    asyncio.run(sched.PortfolioMonitoringScheduler(settings, store)._run(config))
+    return calls
+
+
+def test_scheduler_pulls_esg_for_the_previous_month_before_running_it(store, settings, monkeypatch):
+    configured = settings.model_copy(update={"esg_api_base_url": "https://x", "esg_api_token": "t"})
+    calls = _sched_run(store, configured, monkeypatch, pull=lambda: None)
+    assert [c for c, _ in calls] == ["pull", "run"] and calls[0][1] == calls[1][1]
+
+
+def test_scheduler_pull_failure_is_logged_and_the_run_still_happens(store, settings, monkeypatch):
+    def boom():
+        raise ConnectionError("down")
+
+    configured = settings.model_copy(update={"esg_api_base_url": "https://x", "esg_api_token": "t"})
+    assert [c for c, _ in _sched_run(store, configured, monkeypatch, pull=boom)] == ["pull", "run"]
+
+
+def test_scheduler_skips_the_pull_when_the_esg_api_is_not_configured(store, settings, monkeypatch):
+    unconfigured = settings.model_copy(update={"esg_api_base_url": None, "esg_api_token": None})
+    assert [c for c, _ in _sched_run(store, unconfigured, monkeypatch, pull=lambda: None)] == ["run"]
+
+
+def test_scheduler_does_not_repull_a_month_that_already_has_an_ok_esg_load(store, settings, monkeypatch):
+    from datetime import UTC, datetime, timedelta
+
+    previous = (datetime.now(UTC).date().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+    record_load(store, LoadRecord(kind="esg", source_id="default", month=previous, status="ok", content_hash="h"))
+    configured = settings.model_copy(update={"esg_api_base_url": "https://x", "esg_api_token": "t"})
+    assert "pull" not in [c for c, _ in _sched_run(store, configured, monkeypatch, pull=lambda: None)]  # a failed pull would block it

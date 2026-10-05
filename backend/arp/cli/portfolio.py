@@ -10,6 +10,7 @@ from arp.cli._shared import _portfolio_directories, _portfolio_store
 from arp.config import get_settings
 from arp.llm.factory import build_llm_client
 from arp.portfolio import analytics, qa_agent
+from arp.portfolio.climate.esg_api_source import pull_esg
 from arp.portfolio.constituent_import import import_constituent_files
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.monitoring import evaluator as monitoring_evaluator
@@ -242,6 +243,17 @@ def portfolio_monthly_run(
     typer.echo(result.model_dump_json(indent=2))
     if result.status == "blocked":
         raise typer.Exit(1)
+
+
+@portfolio_app.command("esg-pull")
+def portfolio_esg_pull(month: str = typer.Option(..., help="YYYY-MM"), provider: str = typer.Option("default")) -> None:
+    """Pulls the month's ESG file from the internal ESG API through the same intake as an upload."""
+    try:
+        result = pull_esg(_portfolio_store(), get_settings(), month, provider)
+    except Exception as exc:  # unconfigured, bad month/provider, fetch failure or a rejected file: all exit 1
+        typer.echo(f"ESG pull failed: {type(exc).__name__}: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"{result.status}: {result.rows} row(s)")
 
 
 @portfolio_app.command("monitoring-alerts-list")

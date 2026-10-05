@@ -9,7 +9,7 @@ import httpx
 
 from arp.config import Settings
 from arp.holdings.file_source import file_ref
-from arp.portfolio.climate.esg_intake import EsgIntakeResult, ingest_esg_bytes
+from arp.portfolio.climate.esg_intake import MONTH, EsgIntakeResult, ingest_esg_bytes, load_esg_mapping
 from arp.portfolio.loads import LoadRecord, record_load
 
 Fetcher = Callable[[str, dict], bytes]
@@ -22,6 +22,10 @@ def _http_fetch(url: str, headers: dict) -> bytes:
 
 
 def pull_esg(store, settings: Settings, month: str, provider: str = "default", fetcher: Fetcher | None = None) -> EsgIntakeResult:
+    load_esg_mapping(provider)  # ValueError for anything but a known [A-Za-z0-9_-]+ mapping: both go into the URL
+    if not MONTH.fullmatch(month):
+        raise ValueError("month must be YYYY-MM")
+
     def fail(detail: str) -> None:  # never the token, the URL or str(exc): only a fixed message or the exception type
         record_load(store, LoadRecord(kind="esg", source_id=provider, month=month, status="failed", content_hash="", detail=detail))
 

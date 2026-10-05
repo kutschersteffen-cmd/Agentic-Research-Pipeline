@@ -109,3 +109,31 @@ def test_holdings_validation_failure_records_failed_load(tmp_path):
         ingest(store, v, kind="index", holder_id="IX1", as_of="2026-10-31", source="file", source_ref=None, principal=None,
                override_reason=None, run_store=RunStore(tmp_path / "runs"), idmap=IdentifierMapStore(tmp_path / "id.jsonl"))
     assert latest_load(store, "holdings", "IX1", "2026-10").status == "failed"
+
+
+@pytest.mark.parametrize("provider", ["x&token=1", "../default", "a/b", ""])
+def test_invalid_provider_rejected_before_the_url_is_built(store, provider):
+    called = []
+    with pytest.raises(ValueError):
+        pull_esg(store, SETTINGS, MONTH, provider=provider, fetcher=lambda u, h: called.append(u) or CSV)
+    assert called == []
+
+
+def _cli(store, settings, monkeypatch, *args):
+    from typer.testing import CliRunner
+
+    from arp.cli import app
+
+    monkeypatch.setattr("arp.cli.portfolio._portfolio_store", lambda: store)
+    monkeypatch.setattr("arp.cli.portfolio.get_settings", lambda: settings)
+    monkeypatch.setattr("arp.portfolio.climate.esg_api_source._http_fetch", lambda url, headers: CSV)
+    return CliRunner().invoke(app, ["portfolio", "esg-pull", *args])
+
+
+def test_cli_esg_pull_exit_codes(store, monkeypatch):
+    assert _cli(store, SETTINGS, monkeypatch, "--month", MONTH).exit_code == 0
+    assert len(obs(store)) == 6
+    assert _cli(store, SETTINGS, monkeypatch, "--month", MONTH, "--provider", "default").exit_code == 0  # unchanged
+    assert _cli(store, SETTINGS, monkeypatch, "--month", "2026-9").exit_code == 1
+    assert _cli(store, SETTINGS, monkeypatch, "--month", MONTH, "--provider", "x&y").exit_code == 1
+    assert _cli(store, Settings(esg_api_base_url=None, esg_api_token=None), monkeypatch, "--month", MONTH).exit_code == 1
