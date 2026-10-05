@@ -336,9 +336,6 @@ class Settings(BaseSettings):
     portfolio_confidence_review_threshold: float = Field(
         default=0.6, description="Security-to-issuer entity resolution matches below this confidence are routed to review."
     )
-    climate_validation_tolerance_pct: float = Field(
-        default=0.15, description="Disagreement between the internal ESG API and extracted-from-disclosures values beyond this share is flagged conflicting_sources."
-    )
 
     # Continuous monitoring & alerting (arp/portfolio/monitoring/). Clones
     # discovery/scheduler.py's AsyncIOScheduler + JSON-persisted-config

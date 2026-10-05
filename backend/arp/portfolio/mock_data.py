@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
-from arp.portfolio.climate import mock_esg_source, validation
+from arp.portfolio.climate import mock_esg_source
 from arp.portfolio.entity_resolution import SecurityMaster, resolve_all
 from arp.portfolio.news.mock_source import MockNewsSource
 from arp.schemas.common import CompanyRef
@@ -201,7 +201,7 @@ def _build_holdings(securities_by_id: dict[str, SecurityRef]) -> dict[str, dict[
 
 
 async def generate_demo_dataset(
-    store: PortfolioStore, confidence_review_threshold: float = 0.6, climate_validation_tolerance_pct: float = 0.15
+    store: PortfolioStore, confidence_review_threshold: float = 0.6
 ) -> DemoDatasetSummary:
     """Seeds a realistic, deterministic multi-portfolio demo dataset into
     `store`: companies, securities (with one deliberately unresolved
@@ -245,16 +245,9 @@ async def generate_demo_dataset(
         for as_of_date in SNAPSHOT_DATES:
             period = f"snapshot:{as_of_date}"
             internal_obs = mock_esg_source.generate_internal_api_observations(company, period, as_of_date)
-            extracted_obs = mock_esg_source.generate_extracted_observations(
-                company, internal_obs, period, as_of_date, mismatch=company.company_id in _CLIMATE_MISMATCH_COMPANIES
-            )
-            extracted_by_field = {o.field_id: o for o in extracted_obs}
             for obs in internal_obs:
-                resolved = validation.cross_check_and_store(
-                    store, obs, extracted_by_field.get(obs.field_id), tolerance_pct=climate_validation_tolerance_pct
-                )
-                if resolved is not None:
-                    observation_count += 1
+                store.append_observation(obs)
+                observation_count += 1
 
     news_source = MockNewsSource()
     already_ingested = {(n.company_id, n.headline) for n in store.list_news()}

@@ -52,16 +52,13 @@ def test_engagement_validate_and_verify_ignore_supplied_names(tmp_path):
     assert res.json()["issues"][0]["commitments"][0]["validated_by"] == PRINCIPAL.name
 
 
-def test_portfolio_governance_ignores_supplied_names(tmp_path):
+def test_resolution_review_ignores_supplied_names(tmp_path):
     store = PortfolioStore(tmp_path)
     client = _client(portfolio, {deps.get_portfolio_store: lambda: store, deps.settings_dep: lambda: Settings()})
-    res = client.put(
-        "/api/portfolio/governance/policy",
-        json={"setting_name": "climate_validation_tolerance_pct", "new_value": 0.1, "changed_by": MALLORY},
+    res = client.post(
+        "/api/portfolio/resolution-review/decisions", json={"item_key": "s1", "decision": "accept", "decided_by": MALLORY}
     )
-    assert res.status_code == 200 and res.json()["changed_by"] == PRINCIPAL.name
-    res = client.put("/api/portfolio/governance/owners/climate_conflict", json={"owner": "sam", "assigned_by": MALLORY})
-    assert res.status_code == 200 and res.json()["assigned_by"] == PRINCIPAL.name
+    assert res.status_code == 200 and res.json()["decided_by"] == PRINCIPAL.name
 
 
 @pytest.fixture
