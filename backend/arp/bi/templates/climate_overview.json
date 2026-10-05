@@ -1,0 +1,14 @@
+{
+  "slug": "arp-climate-overview",
+  "title": "Climate overview",
+  "goal": "Portfolio carbon footprint month by month: WACI, financed emissions and how much of the portfolio the data covers.",
+  "charts": [
+    {"title": "WACI over time by portfolio", "viz_type": "echarts_timeseries_line", "dataset": "portfolio_climate_metrics", "metrics": ["Avg WACI"], "groupby": ["as_of_date", "portfolio_id"]},
+    {"title": "Financed emissions over time by portfolio", "viz_type": "echarts_timeseries_line", "dataset": "portfolio_climate_metrics", "metrics": ["Avg financed emissions (tCO2e)"], "groupby": ["as_of_date", "portfolio_id"]},
+    {"title": "Data coverage over time by portfolio", "viz_type": "echarts_timeseries_line", "dataset": "portfolio_climate_metrics", "metrics": ["Avg coverage"], "groupby": ["as_of_date", "portfolio_id"]},
+    {"title": "Climate metrics by portfolio and month", "viz_type": "table", "dataset": "portfolio_climate_metrics", "metrics": ["Avg WACI", "Avg financed emissions (tCO2e)", "Avg coverage"], "groupby": ["portfolio_id", "as_of_date"]}
+  ],
+  "native_filters": [
+    {"name": "Portfolio", "dataset": "portfolio_climate_metrics", "column": "portfolio_id"}
+  ]
+}

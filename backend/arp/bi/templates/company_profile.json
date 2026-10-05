@@ -1,0 +1,15 @@
+{
+  "slug": "arp-company-profile",
+  "title": "Company profile",
+  "goal": "One company at a time: emissions, carbon intensity, EVIC and green revenue share per monthly run, and how much the portfolios hold in it.",
+  "charts": [
+    {"title": "Scope 1 emissions (tCO2e)", "viz_type": "echarts_timeseries_bar", "dataset": "company_profile", "metrics": ["Avg value"], "groupby": ["month"], "filters": {"field_id": "climate_scope1_tco2e"}},
+    {"title": "Carbon intensity", "viz_type": "echarts_timeseries_bar", "dataset": "company_profile", "metrics": ["Avg value"], "groupby": ["month"], "filters": {"field_id": "climate_carbon_intensity"}},
+    {"title": "EVIC (EUR m)", "viz_type": "echarts_timeseries_bar", "dataset": "company_profile", "metrics": ["Avg value"], "groupby": ["month"], "filters": {"field_id": "climate_evic_eur_m"}},
+    {"title": "Green revenue share (%)", "viz_type": "echarts_timeseries_bar", "dataset": "company_profile", "metrics": ["Avg value"], "groupby": ["month"], "filters": {"field_id": "climate_green_revenue_pct"}},
+    {"title": "Exposure by portfolio", "viz_type": "echarts_timeseries_bar", "dataset": "holdings", "metrics": ["Exposure (EUR)"], "groupby": ["portfolio_name"]}
+  ],
+  "native_filters": [
+    {"name": "Company", "dataset": "company_profile", "column": "company_id"}
+  ]
+}

@@ -113,8 +113,9 @@ def test_bootstrap_provisions_templates(monkeypatch):
 
     result, _ = _bootstrap_offline(monkeypatch, provision)
     assert result.exit_code == 0, result.output
-    assert json.loads(result.stdout)["templates"] == {"arp-risk-exposure": "created"}
-    assert seen == ["arp-risk-exposure"]
+    slugs = ["arp-alerts-triggers", "arp-climate-overview", "arp-company-profile", "arp-risk-exposure"]
+    assert json.loads(result.stdout)["templates"] == dict.fromkeys(slugs, "created")
+    assert seen == slugs
 
 
 def test_bootstrap_template_error_exits_nonzero(monkeypatch):

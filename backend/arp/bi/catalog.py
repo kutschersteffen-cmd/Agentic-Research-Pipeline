@@ -154,6 +154,11 @@ VIEW_DATASETS: dict[str, DatasetDef] = {
         metrics=[
             MetricDef(name="Avg WACI", expression="AVG(waci)", description="Mean weighted-average carbon intensity."),
             MetricDef(name="Avg coverage", expression="AVG(coverage_pct)", description="Mean data coverage, 0 to 1."),
+            MetricDef(
+                name="Avg financed emissions (tCO2e)",
+                expression="AVG(financed_emissions_tco2e)",
+                description="Mean financed emissions; one row per portfolio and month, so group by as_of_date.",
+            ),
         ],
     ),
     "alerts": DatasetDef(
@@ -180,6 +185,7 @@ VIEW_DATASETS: dict[str, DatasetDef] = {
                 expression="COUNT(CASE WHEN status = 'open' THEN 1 END)",
                 description="Alerts with status open.",
             ),
+            MetricDef(name="Alerts", expression="COUNT(*)", description="Alerts in the selected month(s); group by month."),
         ],
     ),
     "triggers": DatasetDef(
@@ -207,6 +213,7 @@ VIEW_DATASETS: dict[str, DatasetDef] = {
                 expression="COUNT(CASE WHEN status = 'open' THEN 1 END)",
                 description="Triggers with status open.",
             ),
+            MetricDef(name="Triggers", expression="COUNT(*)", description="Triggers in the selected month(s); group by month."),
         ],
     ),
     "company_profile": DatasetDef(

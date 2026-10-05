@@ -114,3 +114,21 @@ def test_native_filter_unknown_filter_column_fails_before_any_write():
     with pytest.raises(templates.BIError, match="unknown filter column 'nope'"):
         templates.provision(client, t)
     assert not any(c[0].startswith("create") for c in client.calls)
+
+
+def test_all_templates_load_and_validate_against_catalog():
+    loaded = {t.slug: t for t in load_templates()}
+    assert {"arp-climate-overview", "arp-alerts-triggers", "arp-company-profile"} <= set(loaded)
+    metas = offline_metas()
+    for slug, t in loaded.items():
+        assert slug.startswith("arp-")
+        assert validate_plan(ChartPlan(title=t.title, charts=t.charts), metas, max_charts=len(t.charts)) == [], slug
+        assert all(f.column in metas[f.dataset].columns for f in t.native_filters), slug
+
+
+def test_company_profile_template_has_company_id_filter():
+    # Native filters apply by column name to every chart in scope (see compile_native_filters),
+    # so one company_id filter covers both the company_profile and holdings charts.
+    t = {t.slug: t for t in load_templates()}["arp-company-profile"]
+    assert any(f.column == "company_id" for f in t.native_filters)
+    assert {c.dataset for c in t.charts} == {"company_profile", "holdings"}
