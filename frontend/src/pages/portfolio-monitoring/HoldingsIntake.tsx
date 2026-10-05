@@ -3,7 +3,7 @@ import { api } from "../../api/client";
 import { FileLink } from "../../components/FileLink";
 import { announce } from "../../lib/announce";
 import { ResolutionReviewPanel } from "./ResolutionReviewPanel";
-import { ageLabel, needsOverrideReason, parseIntakeError, rowErrorText } from "../../lib/holdings";
+import { ageLabel, needsOverrideReason, parseIntakeError, previousMonth, rowErrorText } from "../../lib/holdings";
 import type { HolderStatus, IntakeResult, RowError } from "../../types";
 
 const KINDS = ["index", "portfolio"] as const;
@@ -13,6 +13,71 @@ const summary = (r: IntakeResult): string =>
   [r.status === "unchanged" ? "No change" : `Revision ${r.revision} written (${r.rows} rows)`, r.unresolved.length ? `${r.unresolved.length} ISINs sent to review` : ""]
     .filter(Boolean)
     .join("; ");
+
+type RunStatus = Awaited<ReturnType<typeof api.monthlyRunStatus>>;
+
+/** Read-only view of what a month's run needs (computed on demand by the backend), plus a manual run. */
+function MonthlyRunPanel() {
+  const [month, setMonth] = useState(() => previousMonth(new Date()));
+  const [status, setStatus] = useState<RunStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+
+  const load = (m: string) => api.monthlyRunStatus(m).then((s) => { setStatus(s); setError(null); }, (e: Error) => { setStatus(null); setError(e.message); });
+  useEffect(() => {
+    if (month) void load(month);
+  }, [month]);
+
+  async function run() {
+    setRunning(true);
+    setNotice(null);
+    try {
+      const r = await api.runMonth(month);
+      const msg = r.status === "ran" ? `Month ${month} ran: ${r.alerts} new alerts, ${r.triggers} triggers` : `Month ${month} is blocked`;
+      setNotice(msg);
+      announce(msg);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRunning(false);
+      void load(month);
+    }
+  }
+
+  return (
+    <section>
+      <h3>Monthly run</h3>
+      <div className="inline-fields">
+        <label className="field-label">
+          Month
+          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+        </label>
+        <button className="secondary" onClick={() => void run()} disabled={running || !month}>{running ? "Running…" : "Run now"}</button>
+      </div>
+      {error && <p className="error-text" role="alert">{error}</p>}
+      {notice && <p role="status">{notice}</p>}
+      {status && (
+        <>
+          <table className="data-table">
+            <thead><tr><th>Load</th><th>Status</th></tr></thead>
+            <tbody>
+              {Object.entries(status.holdings).map(([pid, s]) => (
+                <tr key={pid}><td>Holdings {pid}</td><td>{s}</td></tr>
+              ))}
+              <tr><td>ESG ({status.esg.provider})</td><td>{status.esg.status}</td></tr>
+            </tbody>
+          </table>
+          {status.blocked_reasons.length > 0 ? (
+            <ul>{status.blocked_reasons.map((r) => <li key={r}>{r}</li>)}</ul>
+          ) : (
+            <p className="muted">All loads are ok: the month can run.</p>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
 
 /** Holdings intake (E77): holder staleness, template downloads and the file upload. All server text is rendered as text. */
 export function HoldingsIntake() {
@@ -140,6 +205,8 @@ export function HoldingsIntake() {
           ))}
         </tbody>
       </table>
+
+      <MonthlyRunPanel />
 
       <ResolutionReviewPanel />
 

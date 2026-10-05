@@ -242,6 +242,15 @@ export const api = {
     if (f.provider) form.append("provider", f.provider);
     return request<{ status: "written" | "unchanged"; rows: number }>("/api/portfolio/esg/upload", { method: "POST", body: form });
   },
+  monthlyRunStatus: (month: string) =>
+    request<{ month: string; holdings: Record<string, string>; esg: { provider: string; status: string }; blocked_reasons: string[] }>(
+      `/api/portfolio/monthly-run/status${buildQuery({ month })}`,
+    ),
+  runMonth: (month: string) =>
+    request<{ status: "ran" | "blocked"; blocked_reasons: string[]; alerts: number; triggers: number }>("/api/portfolio/monthly-run", {
+      method: "POST",
+      body: JSON.stringify({ month }),
+    }),
   esgTemplateUrl: (format: string) => `${API_BASE}/api/portfolio/esg/template${buildQuery({ format })}`,
 
   getMe: () => request<Me>("/api/me"),

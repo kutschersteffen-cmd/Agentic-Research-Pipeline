@@ -31,21 +31,27 @@ class MonthlyRunResult(BaseModel):
     triggers: int = 0
 
 
-def _blocked_reasons(store: PortfolioStore, month: str, portfolio_ids: list[str], esg_provider: str) -> list[str]:
-    reasons = []
-    for kind, source in [("holdings", p) for p in portfolio_ids] + [("esg", esg_provider)]:
+def load_status(store: PortfolioStore, month: str, portfolio_ids: list[str], esg_provider: str = "default") -> dict:
+    """The month's latest load per source and the reasons a run of it is blocked. Computed on demand, never stored."""
+    if not MONTH.fullmatch(month):  # load records are keyed "2026-09"; strptime would also take "2026-9"
+        raise ValueError("month must be YYYY-MM")
+
+    def status(kind: str, source: str) -> str:
         load = latest_load(store, kind, source, month)
-        if load is None or load.status != "ok":
-            reasons.append(f"{kind} load for {source} in {month}: {'missing' if load is None else 'failed'}")
-    return reasons
+        return "missing" if load is None else load.status
+
+    holdings = {p: status("holdings", p) for p in portfolio_ids}
+    esg = status("esg", esg_provider)
+    reasons = [f"holdings load for {p} in {month}: {s}" for p, s in holdings.items() if s != "ok"]
+    if esg != "ok":
+        reasons.append(f"esg load for {esg_provider} in {month}: {esg}")
+    return {"month": month, "holdings": holdings, "esg": {"provider": esg_provider, "status": esg}, "blocked_reasons": reasons}
 
 
 def run_month(
     store: PortfolioStore, settings: Settings, month: str, *, portfolio_ids: list[str], esg_provider: str = "default"
 ) -> MonthlyRunResult:
-    if not MONTH.fullmatch(month):  # load records are keyed "2026-09"; strptime would also take "2026-9"
-        raise ValueError("month must be YYYY-MM")
-    reasons = _blocked_reasons(store, month, portfolio_ids, esg_provider)
+    reasons = load_status(store, month, portfolio_ids, esg_provider)["blocked_reasons"]
     if reasons:
         return MonthlyRunResult(status="blocked", blocked_reasons=reasons)
     # ESG for month M usually arrives after M ends: date observation lookups to the latest OK ESG load, not the month end

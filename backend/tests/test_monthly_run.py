@@ -274,3 +274,27 @@ def test_scheduler_reruns_a_month_only_after_a_newer_load(store, settings, monke
     assert tick() == []  # already ran, nothing loaded since
     load("esg", "default")
     assert tick() == ["run"]
+
+
+def test_status_route_reports_loads_and_the_reasons_run_month_would_block_on(store, settings):
+    from fastapi.testclient import TestClient
+
+    from arp.api.deps import get_portfolio_store, settings_dep
+    from arp.api.main import app
+
+    first, *rest = _ids(store)
+    _load(store, "holdings", first)
+    _load(store, "esg", "default", "failed")
+    app.dependency_overrides[get_portfolio_store] = lambda: store
+    app.dependency_overrides[settings_dep] = lambda: settings
+    try:
+        c = TestClient(app)
+        body = c.get("/api/portfolio/monthly-run/status", params={"month": MONTH}).json()
+        assert body["holdings"] == {first: "ok", **{p: "missing" for p in rest}}
+        assert body["esg"] == {"provider": "default", "status": "failed"}
+        assert body["blocked_reasons"] == run_month(store, settings, MONTH, portfolio_ids=_ids(store)).blocked_reasons
+        assert list(c.get("/api/portfolio/monthly-run/status", params={"month": MONTH, "portfolio_ids": first}).json()["holdings"]) == [first]
+        assert c.get("/api/portfolio/monthly-run/status", params={"month": "2026-9"}).status_code == 422
+    finally:
+        app.dependency_overrides.clear()
+    assert TriggerStore(settings.stewardship_streams_dir).list_triggers() == []  # read-only: nothing persisted

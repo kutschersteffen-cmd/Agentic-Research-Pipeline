@@ -18,7 +18,7 @@ from arp.portfolio import aggregation, analytics, qa_agent, qa_audit, resolution
 from arp.portfolio.climate import esg_intake
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.monitoring import evaluator as monitoring_evaluator
-from arp.portfolio.monthly_run import MonthlyRunResult, run_month
+from arp.portfolio.monthly_run import MonthlyRunResult, load_status, run_month
 from arp.portfolio.news.classifier import classify_article
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import (
@@ -377,6 +377,19 @@ class MonthlyRunRequest(BaseModel):
     month: str
     portfolio_ids: list[str] | None = None
     esg_provider: str = "default"
+
+
+@router.get("/monthly-run/status")
+def get_monthly_run_status(
+    month: str, portfolio_ids: list[str] | None = Query(None), esg_provider: str = "default",
+    store: PortfolioStore = Depends(get_portfolio_store),
+) -> dict:
+    """Read-only: the month's load statuses and what would block its run."""
+    ids = portfolio_ids if portfolio_ids is not None else [p.portfolio_id for p in store.list_portfolios()]
+    try:
+        return load_status(store, month, ids, esg_provider)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 
 @router.post("/monthly-run", response_model=MonthlyRunResult)
