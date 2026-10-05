@@ -13,6 +13,7 @@ from arp.portfolio import analytics, qa_agent
 from arp.portfolio.constituent_import import import_constituent_files
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.monitoring import evaluator as monitoring_evaluator
+from arp.portfolio.monthly_run import run_month
 from arp.portfolio.news.classifier import classify_article
 from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotSpec
 from arp.schemas.portfolio_monitoring import AlertRule, AlertStatus, AlertTransition
@@ -221,6 +222,26 @@ def portfolio_monitoring_evaluate_now() -> None:
     news_alerts = monitoring_evaluator.evaluate_news_triggers(store, min_severity=settings.portfolio_monitoring_news_min_severity)
     typer.echo(f"Raised {len(threshold_alerts)} threshold alert(s), {len(news_alerts)} news alert(s).")
 
+
+
+@portfolio_app.command("monthly-run")
+def portfolio_monthly_run(
+    month: str = typer.Option(..., help="YYYY-MM"),
+    portfolio: list[str] = typer.Option(None, "--portfolio", help="Restrict to these portfolio_ids; repeatable. Default: all."),
+    esg_provider: str = typer.Option("default"),
+) -> None:
+    """Runs the monthly monitoring: alerts, then stewardship triggers. Blocked unless the month's loads are ok."""
+    store = _portfolio_store()
+    try:
+        result = run_month(
+            store, get_settings(), month, portfolio_ids=portfolio or [p.portfolio_id for p in store.list_portfolios()], esg_provider=esg_provider
+        )
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(result.model_dump_json(indent=2))
+    if result.status == "blocked":
+        raise typer.Exit(1)
 
 
 @portfolio_app.command("monitoring-alerts-list")

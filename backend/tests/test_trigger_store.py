@@ -105,3 +105,37 @@ def test_trigger_routes(tmp_path, monkeypatch):
         )
     finally:
         app.dependency_overrides.pop(get_stream_store, None)
+
+
+def test_resolved_trigger_reappearing_next_month_reopens(store):
+    tid = store.record_run("2026-09", [_t()])[0].trigger_id
+    store.transition(tid, "resolved", "alice")
+    store.record_run("2026-10", [_t("BMW")])
+    assert store.list_triggers("resolved")[0].trigger_id == tid
+    out = store.record_run("2026-11", [_t()])
+    assert out[0].status == "open" and out[0].is_new is True
+
+
+def test_resolved_trigger_still_present_stays_resolved(store):
+    tid = store.record_run("2026-09", [_t()])[0].trigger_id
+    store.transition(tid, "resolved", "alice")
+    assert store.record_run("2026-10", [_t()])[0].status == "resolved"
+
+
+def test_record_run_rejects_trigger_without_issuer_or_rule_before_writing(store, tmp_path):
+    for bad in ({"type": "x"}, {"issuer_id": "A"}, {"rule": "r"}):
+        with pytest.raises(ValueError):
+            store.record_run("2026-09", [_t(), bad])
+    assert not (tmp_path / "triggers" / "events.jsonl").exists()
+
+
+def test_triggers_route_rejects_bogus_status(tmp_path):
+    from arp.api.deps import get_stream_store
+    from arp.api.main import app
+    from arp.stewardship.process import StreamStore
+
+    app.dependency_overrides[get_stream_store] = lambda: StreamStore(tmp_path)
+    try:
+        assert TestClient(app).get("/api/stewardship/triggers?status=bogus").status_code == 422
+    finally:
+        app.dependency_overrides.pop(get_stream_store, None)

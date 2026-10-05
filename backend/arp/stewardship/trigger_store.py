@@ -34,8 +34,13 @@ class TriggerStore:
         runs: dict[str, set[str]] = {}
         for row in rows:
             if row["event"] == "run":
+                earlier = [m for m in runs if m < row["month"]]
+                prev = runs[max(earlier)] if earlier else set()
                 for t in row["triggers"]:
                     tid = trigger_id(t["issuer_id"], t["rule"])
+                    # A resolved trigger that comes back after a month without it is open again.
+                    if tid in found and tid not in prev and tid not in runs.get(row["month"], ()):
+                        found[tid].status = "open"
                     runs.setdefault(row["month"], set()).add(tid)
                     found.setdefault(
                         tid,
@@ -59,6 +64,8 @@ class TriggerStore:
         return found
 
     def record_run(self, month: str, triggers: list[dict]) -> list[UnifiedTrigger]:
+        if any(not t.get("issuer_id") or not t.get("rule") for t in triggers):
+            raise ValueError("Every trigger needs issuer_id and rule")
         self._append({"event": "run", "month": month, "triggers": triggers})
         found = self._fold()
         return [found[trigger_id(t["issuer_id"], t["rule"])] for t in triggers]

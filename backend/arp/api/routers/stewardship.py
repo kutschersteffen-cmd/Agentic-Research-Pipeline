@@ -350,7 +350,7 @@ def monitoring_triggers(
 
 
 @router.get("/triggers")
-def list_stored_triggers(status: str | None = None, streams: StreamStore = Depends(get_stream_store)) -> dict:
+def list_stored_triggers(status: Literal["open", "acknowledged", "resolved"] | None = None, streams: StreamStore = Depends(get_stream_store)) -> dict:
     return {"triggers": [t.model_dump() for t in TriggerStore(streams.root).list_triggers(status)]}
 
 

@@ -18,6 +18,7 @@ from arp.portfolio import aggregation, analytics, qa_agent, qa_audit, resolution
 from arp.portfolio.climate import esg_intake
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.monitoring import evaluator as monitoring_evaluator
+from arp.portfolio.monthly_run import MonthlyRunResult, run_month
 from arp.portfolio.news.classifier import classify_article
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import (
@@ -370,6 +371,23 @@ def evaluate_monitoring_now(store: PortfolioStore = Depends(get_portfolio_store)
     threshold_alerts = monitoring_evaluator.evaluate_threshold_rules(store)
     news_alerts = monitoring_evaluator.evaluate_news_triggers(store, min_severity=settings.portfolio_monitoring_news_min_severity)
     return {"threshold_alerts_raised": len(threshold_alerts), "news_alerts_raised": len(news_alerts)}
+
+
+class MonthlyRunRequest(BaseModel):
+    month: str
+    portfolio_ids: list[str] | None = None
+    esg_provider: str = "default"
+
+
+@router.post("/monthly-run", response_model=MonthlyRunResult)
+def post_monthly_run(
+    body: MonthlyRunRequest, store: PortfolioStore = Depends(get_portfolio_store), settings: Settings = Depends(settings_dep)
+) -> MonthlyRunResult:
+    ids = body.portfolio_ids if body.portfolio_ids is not None else [p.portfolio_id for p in store.list_portfolios()]
+    try:
+        return run_month(store, settings, body.month, portfolio_ids=ids, esg_provider=body.esg_provider)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 
 @router.get("/resolution-review")
