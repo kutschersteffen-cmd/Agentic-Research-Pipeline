@@ -255,3 +255,22 @@ def test_scheduler_does_not_repull_a_month_that_already_has_an_ok_esg_load(store
     record_load(store, LoadRecord(kind="esg", source_id="default", month=previous, status="ok", content_hash="h"))
     configured = settings.model_copy(update={"esg_api_base_url": "https://x", "esg_api_token": "t"})
     assert "pull" not in [c for c, _ in _sched_run(store, configured, monkeypatch, pull=lambda: None)]  # a failed pull would block it
+
+
+def test_scheduler_reruns_a_month_only_after_a_newer_load(store, settings, monkeypatch):
+    from datetime import UTC, datetime, timedelta
+
+    previous = (datetime.now(UTC).date().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+
+    def load(kind, source):
+        record_load(store, LoadRecord(kind=kind, source_id=source, month=previous, status="ok", content_hash="h"))
+
+    for pid in _ids(store):
+        load("holdings", pid)
+    load("esg", "default")
+    unconfigured = settings.model_copy(update={"esg_api_base_url": None, "esg_api_token": None})
+    tick = lambda: [c for c, _ in _sched_run(store, unconfigured, monkeypatch, pull=lambda: None)]  # noqa: E731
+    assert tick() == ["run"]
+    assert tick() == []  # already ran, nothing loaded since
+    load("esg", "default")
+    assert tick() == ["run"]

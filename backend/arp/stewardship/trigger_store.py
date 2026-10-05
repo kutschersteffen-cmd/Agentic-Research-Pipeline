@@ -74,6 +74,9 @@ class TriggerStore:
         found = self._fold()
         return [found[trigger_id(t["issuer_id"], t["rule"])] for t in triggers]
 
+    def last_run_at(self, month: str) -> str | None:
+        return max((r["at"] for r in self._rows() if r["event"] == "run" and r["month"] == month), default=None)
+
     def stored_trigger(self, tid: str) -> dict | None:
         """The trigger as the latest run that raised it recorded it (company, sector, theme, severity, reason, ...)."""
         hits = [t for r in self._rows() if r["event"] == "run" for t in r["triggers"] if trigger_id(t["issuer_id"], t["rule"]) == tid]
