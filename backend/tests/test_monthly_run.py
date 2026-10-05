@@ -298,3 +298,10 @@ def test_status_route_reports_loads_and_the_reasons_run_month_would_block_on(sto
     finally:
         app.dependency_overrides.clear()
     assert TriggerStore(settings.stewardship_streams_dir).list_triggers() == []  # read-only: nothing persisted
+
+
+def test_seeded_demo_records_the_loads_its_latest_month_needs(store, settings):
+    from arp.portfolio.mock_data import SNAPSHOT_DATES
+
+    seed_month = SNAPSHOT_DATES[-1][:7]
+    assert run_month(store, settings, seed_month, portfolio_ids=_ids(store)).status == "ran"

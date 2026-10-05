@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 
 from arp.portfolio.climate import mock_esg_source
 from arp.portfolio.entity_resolution import SecurityMaster, resolve_all
+from arp.portfolio.loads import LoadRecord, record_load
 from arp.portfolio.news.mock_source import MockNewsSource
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import Holding, Portfolio, SecurityRef
@@ -239,6 +240,8 @@ async def generate_demo_dataset(
         for as_of_date, rows in by_date.items():
             store.save_snapshot(portfolio_id, as_of_date, rows)
             holding_rows += len(rows)
+            # the monthly run is blocked without an ok load per portfolio and month
+            record_load(store, LoadRecord(kind="holdings", source_id=portfolio_id, month=as_of_date[:7], status="ok", content_hash="demo"))
 
     observation_count = 0
     for company in companies:
@@ -248,6 +251,8 @@ async def generate_demo_dataset(
             for obs in internal_obs:
                 store.append_observation(obs)
                 observation_count += 1
+
+    record_load(store, LoadRecord(kind="esg", source_id="default", month=SNAPSHOT_DATES[-1][:7], status="ok", content_hash="demo"))
 
     news_source = MockNewsSource()
     already_ingested = {(n.company_id, n.headline) for n in store.list_news()}
