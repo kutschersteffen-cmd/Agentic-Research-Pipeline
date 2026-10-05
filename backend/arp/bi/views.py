@@ -97,6 +97,41 @@ _VIEWS = {
                bi.safe_ts(first_seen_at) AS first_seen_at, bi.safe_ts(last_seen_at) AS last_seen_at
         FROM document_registry
     """,
+    # Datasets the monthly run publishes into bi_published (arp/bi/published.py), one JSON object per row.
+    # `p.row` is qualified because ROW is also an SQL keyword.
+    "portfolio_climate_metrics": """
+        SELECT p.row->>'portfolio_id' AS portfolio_id,
+               bi.safe_date(p.row->>'as_of_date') AS as_of_date,
+               (p.row->>'waci')::double precision AS waci,
+               (p.row->>'financed_emissions_tco2e')::double precision AS financed_emissions_tco2e,
+               (p.row->>'coverage_pct')::double precision AS coverage_pct,
+               (p.row->>'uncovered_market_value_eur')::double precision AS uncovered_market_value_eur
+        FROM bi_published p WHERE p.dataset = 'portfolio_climate_metrics'
+    """,
+    "alerts": """
+        SELECT p.month AS month, p.row->>'alert_id' AS alert_id, p.row->>'portfolio_id' AS portfolio_id,
+               p.row->>'company_id' AS company_id, p.row->>'category' AS category, p.row->>'status' AS status,
+               bi.safe_ts(p.row->>'triggered_at') AS triggered_at,
+               (p.row->>'observed_value')::double precision AS observed_value,
+               (p.row->>'threshold_value')::double precision AS threshold_value,
+               p.row->>'rationale' AS rationale
+        FROM bi_published p WHERE p.dataset = 'alerts'
+    """,
+    "triggers": """
+        SELECT p.month AS month, p.row->>'trigger_id' AS trigger_id, p.row->>'source' AS source,
+               p.row->>'issuer_id' AS issuer_id, p.row->>'type' AS type, p.row->>'theme' AS theme,
+               p.row->>'severity' AS severity, p.row->>'status' AS status,
+               p.row->>'first_seen_month' AS first_seen_month, (p.row->>'is_new')::boolean AS is_new,
+               p.row->>'reason' AS reason
+        FROM bi_published p WHERE p.dataset = 'triggers'
+    """,
+    "company_profile": """
+        SELECT p.month AS month, p.row->>'company_id' AS company_id, p.row->>'company_name' AS company_name,
+               p.row->>'field_id' AS field_id, p.row->>'field_name' AS field_name,
+               CASE WHEN jsonb_typeof(p.row->'value') = 'number' THEN (p.row->>'value')::double precision END AS value,
+               p.row->>'unit' AS unit, bi.safe_date(p.row->>'as_of') AS as_of, p.row->>'source' AS source
+        FROM bi_published p WHERE p.dataset = 'company_profile'
+    """,
 }
 
 

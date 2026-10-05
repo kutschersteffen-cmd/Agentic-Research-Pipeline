@@ -5,12 +5,12 @@ latest ESG load are `ok`. Re-running a month adds no alerts (the evaluators skip
 
 from __future__ import annotations
 
-import calendar
 from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel
 
+from arp.bi import published
 from arp.config import Settings
 from arp.portfolio.loads import latest_load
 from arp.portfolio.monitoring.evaluator import evaluate_news_triggers, evaluate_threshold_rules, list_alerts
@@ -43,15 +43,20 @@ def _blocked_reasons(store: PortfolioStore, month: str, portfolio_ids: list[str]
 def run_month(
     store: PortfolioStore, settings: Settings, month: str, *, portfolio_ids: list[str], esg_provider: str = "default"
 ) -> MonthlyRunResult:
-    first = datetime.strptime(month, "%Y-%m")  # ValueError if malformed
+    datetime.strptime(month, "%Y-%m")  # ValueError if malformed
     reasons = _blocked_reasons(store, month, portfolio_ids, esg_provider)
     if reasons:
         return MonthlyRunResult(status="blocked", blocked_reasons=reasons)
-    raised = evaluate_threshold_rules(store, as_of=f"{month}-{calendar.monthrange(first.year, first.month)[1]:02d}")
+    raised = evaluate_threshold_rules(store, as_of=published.month_end(month))
     raised += evaluate_news_triggers(store, min_severity=settings.portfolio_monitoring_news_min_severity)
     live = [a for a in list_alerts(store) if a.status in LIVE]
     sample = load_sample(settings.frameworks_dir, vote_items(settings.runs_dir), live, from_portfolio(store))
     records = EngagementStore(settings.engagements_dir).list_all()
     triggers = monitoring.evaluate(PolicyStore(settings.stewardship_streams_dir).active("monitoring_rules"), sample, records)
-    stored = TriggerStore(settings.stewardship_streams_dir).record_run(month, triggers)
+    trigger_store = TriggerStore(settings.stewardship_streams_dir)
+    stored = trigger_store.record_run(month, triggers)
+    store.publish_rows("portfolio_climate_metrics", month, published.climate_metric_rows(store, month, portfolio_ids))
+    store.publish_rows("alerts", month, published.alert_rows(store))
+    store.publish_rows("triggers", month, published.trigger_rows(trigger_store.list_triggers()))
+    store.publish_rows("company_profile", month, published.profile_rows(store, month))
     return MonthlyRunResult(status="ran", alerts=len(raised), triggers=len(stored))

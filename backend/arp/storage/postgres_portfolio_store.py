@@ -186,6 +186,19 @@ class PostgresPortfolioStore:
     def append_holdings_audit(self, row: dict) -> None:
         self._files.append_holdings_audit(row)
 
+    # --- Superset datasets (arp/bi/published.py) ---
+
+    def publish_rows(self, dataset: str, month: str, rows: list[dict]) -> None:
+        """Replaces what was published for this (dataset, month); other months and datasets stay."""
+        from sqlalchemy import delete
+
+        from arp.storage.postgres_models import BiPublishedModel
+
+        with self._session() as session:
+            session.execute(delete(BiPublishedModel).where(BiPublishedModel.dataset == dataset, BiPublishedModel.month == month))
+            session.add_all([BiPublishedModel(dataset=dataset, month=month, row=r) for r in rows])
+            session.commit()
+
     # --- portfolios -----------------------------------------------------
 
     def save_portfolio(self, portfolio: Portfolio) -> None:

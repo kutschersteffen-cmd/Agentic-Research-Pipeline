@@ -142,3 +142,25 @@ def test_run_follows_the_activated_monitoring_rules(store, settings):
     issuers = [i["issuer_id"] for i in from_portfolio(store)["issuers"]]
     stored = {t.trigger_id for t in TriggerStore(settings.stewardship_streams_dir).list_triggers()}
     assert issuers and {trigger_id(i, rule) for i in issuers} <= stored
+
+
+def _spy(store, monkeypatch):
+    calls = []
+    monkeypatch.setattr(store, "publish_rows", lambda dataset, month, rows: calls.append((dataset, month, rows)), raising=False)
+    return calls
+
+
+def test_publishes_four_datasets_after_a_non_blocked_run(store, settings, monkeypatch):
+    calls = _spy(store, monkeypatch)
+    _ready(store)
+    run_month(store, settings, MONTH, portfolio_ids=_ids(store))
+    assert [(d, m) for d, m, _ in calls] == [
+        (d, MONTH) for d in ("portfolio_climate_metrics", "alerts", "triggers", "company_profile")
+    ]
+    assert all(rows for _, _, rows in calls)
+
+
+def test_publishes_nothing_on_a_blocked_run(store, settings, monkeypatch):
+    calls = _spy(store, monkeypatch)
+    run_month(store, settings, MONTH, portfolio_ids=_ids(store))
+    assert calls == []

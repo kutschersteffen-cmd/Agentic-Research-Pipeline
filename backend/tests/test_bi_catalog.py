@@ -11,6 +11,10 @@ def test_every_dataset_has_metrics_and_descriptions():
         "company_facts_pending",
         "run_records",
         "documents",
+        "portfolio_climate_metrics",
+        "alerts",
+        "triggers",
+        "company_profile",
     }
     for ds in VIEW_DATASETS.values():
         assert ds.description and ds.metrics

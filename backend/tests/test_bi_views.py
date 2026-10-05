@@ -88,6 +88,30 @@ def test_views_match_catalog_columns(engine):
         assert cols == list(dataset.columns), name
 
 
+def test_published_views_cast_bi_published_rows_by_dataset(engine):
+    import json
+
+    from sqlalchemy import text
+
+    rows = {
+        "portfolio_climate_metrics": {"portfolio_id": "p1", "as_of_date": "2026-09-30", "waci": 12.5, "financed_emissions_tco2e": 3.0,
+                                      "coverage_pct": 0.5, "uncovered_market_value_eur": 7.0},
+        "alerts": {"alert_id": "a1", "portfolio_id": "p1", "status": "open", "triggered_at": "2026-09-30T00:00:00+00:00"},
+        "triggers": {"trigger_id": "t1", "status": "open", "is_new": True},
+        "company_profile": {"company_id": "bmw", "field_id": "f", "value": 4.5, "as_of": "2026-09-01"},
+    }
+    with engine.begin() as conn:
+        for dataset, row in rows.items():
+            conn.execute(
+                text("INSERT INTO bi_published (dataset, month, row) VALUES (:d, '2026-09', CAST(:r AS jsonb))"),
+                {"d": dataset, "r": json.dumps(row)},
+            )
+    assert tuple(_q(engine, "SELECT waci, as_of_date::text FROM bi.portfolio_climate_metrics")[0]) == (12.5, "2026-09-30")
+    assert tuple(_q(engine, "SELECT status, portfolio_id, month FROM bi.alerts")[0]) == ("open", "p1", "2026-09")
+    assert tuple(_q(engine, "SELECT trigger_id, is_new FROM bi.triggers")[0]) == ("t1", True)
+    assert tuple(_q(engine, "SELECT value, as_of::text FROM bi.company_profile")[0]) == (4.5, "2026-09-01")
+
+
 def test_holdings_view_matches_base_tables_total(engine):
     _seed(engine)
     # latest snapshot only (the January row is excluded)

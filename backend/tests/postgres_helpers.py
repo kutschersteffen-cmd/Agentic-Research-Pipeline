@@ -21,6 +21,7 @@ from __future__ import annotations
 # reference portfolios and securities, securities reference companies, and
 # a company_fact references the fact it supersedes.
 _DELETE_ORDER = (
+    "BiPublishedModel",
     "FactEventModel",
     "PublishedFactModel",
     "ReleaseModel",
