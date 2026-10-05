@@ -1,6 +1,7 @@
 """Whole-file validation of holdings rows: all errors are collected, and any error rejects the file."""
 
 import math
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 
@@ -47,7 +48,11 @@ def parse_decimal(value, decimal: str) -> float | None:
             raise ValueError(value)
         return result
     other = "," if decimal == "." else "."
-    text = str(value).replace(" ", "").replace(" ", "").replace("'", "").replace(other, "")
+    text = str(value).replace(" ", "").replace(" ", "").replace("'", "")
+    # "12,5" under a "." mapping is a decimal comma, not 125: only well-formed thousands groups may carry the other separator
+    if other in text and not re.fullmatch(rf"[-+]?\d{{1,3}}(\{other}\d{{3}})+(\{decimal}\d+)?", text):
+        raise ValueError(value)
+    text = text.replace(other, "")
     if not text:
         return None
     result = float(text.replace(decimal, "."))

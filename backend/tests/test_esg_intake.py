@@ -103,3 +103,38 @@ def test_upload_route_end_to_end(tmp_path):
         assert c.get("/api/portfolio/esg/template?format=csv").text.startswith("company_id,")
     finally:
         app.dependency_overrides.pop(get_portfolio_store, None)
+
+
+def _file_store(tmp_path):
+    from arp.schemas.common import CompanyRef
+
+    st = PortfolioStore(tmp_path / "pf3")
+    st.save_company(CompanyRef(company_id="acme", name="Acme"))
+    return st
+
+
+def _csv(value):
+    return (",".join(ESG_TEMPLATE_COLUMNS) + "\nacme," + ",".join(f'"{value}"' for _ in FIELD_IDS) + "\n").encode()
+
+
+def test_comma_decimal_with_default_mapping_rejects_whole_file(tmp_path):
+    from arp.portfolio.climate.esg_intake import ingest_esg_bytes
+
+    st = _file_store(tmp_path)
+    with pytest.raises(IntakeError) as e:
+        ingest_esg_bytes(st, _csv("12,5"), "e.csv", provider="default", month=MONTH, source_ref=None)
+    assert {x.column for x in e.value.errors} == set(FIELD_IDS)
+    assert st.load_observations("acme", FIELD_IDS[0]) == []
+    assert latest_load(st, "esg", "default", MONTH).status == "failed"
+
+
+def test_thousands_group_with_default_mapping_is_accepted(tmp_path):
+    from arp.portfolio.climate.esg_intake import ingest_esg_bytes
+
+    st = _file_store(tmp_path)
+    assert ingest_esg_bytes(st, _csv("1,234.5"), "e.csv", provider="default", month=MONTH, source_ref=None).status == "written"
+    assert st.latest_observation("acme", FIELD_IDS[0]).value == 1234.5
+
+
+def test_malformed_thousands_group_with_decimal_comma_is_row_error():
+    assert validate_esg([row(**{FIELD_IDS[0]: "12.5"})], month=MONTH, known_company_ids=KNOWN, decimal=",").errors
