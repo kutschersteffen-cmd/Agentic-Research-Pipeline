@@ -75,6 +75,8 @@ class Settings(BaseSettings):
     snapshot_pull_dir: Path = REPO_ROOT / "data" / "snapshots"  # where `arp snapshots pull` writes
     holdings_api_url: str | None = None  # base URL of the ARP instance snapshots are pulled from
     holdings_api_token: str | None = None
+    esg_api_base_url: str | None = None  # corporate ESG provider; ARP_ESG_API_URL
+    esg_api_token: str | None = None  # Bearer token, ARP_ESG_API_TOKEN: never logged or stored in a load detail
     holdings_pull_day: int = Field(default=2, ge=1, le=28)
     publishing_schedule_enabled: bool = Field(default=False)  # daily re-ground sample, pull, snapshot, corrections
     publish_state_dir: Path = REPO_ROOT / "data" / "publish"

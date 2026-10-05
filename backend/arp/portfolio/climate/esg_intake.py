@@ -14,7 +14,7 @@ from typing import Literal
 
 import openpyxl
 
-from arp.holdings.file_source import Mapping
+from arp.holdings.file_source import Mapping, read_rows
 from arp.holdings.intake import IntakeError
 from arp.holdings.validate import RowError, _blank, parse_decimal
 from arp.portfolio.climate import schemas
@@ -54,6 +54,8 @@ def validate_esg(raw: list[dict], *, month: str, known_company_ids: set[str], de
     if not MONTH.fullmatch(month):
         raise ValueError("month must be YYYY-MM")
     errors: list[RowError] = []
+    if not raw:  # an empty "ok" load would unblock the monthly run on no data
+        errors.append(RowError(None, "file", "no data rows"))
     if raw and not any("company_id" in r for r in raw):
         errors.append(RowError(None, "company_id", "missing required column"))
     rows: list[dict] = []
@@ -105,6 +107,20 @@ def ingest_esg(store, validated: ValidatedEsg, *, provider: str, month: str, sou
     record_load(store, LoadRecord(kind="esg", source_id=provider, month=month, status="ok", content_hash=digest,
                                   detail=f"{len(validated.rows)} rows"))
     return EsgIntakeResult("written", len(validated.rows))
+
+
+def ingest_esg_bytes(store, data: bytes, filename: str, *, provider: str, month: str, source_ref: str | None) -> EsgIntakeResult:
+    """The one path for upload and API pull: bytes -> read_rows -> validate_esg -> ingest_esg."""
+    mapping = load_esg_mapping(provider)
+    try:
+        raw = read_rows(data, filename, mapping)
+    except ValueError as exc:
+        record_load(store, LoadRecord(kind="esg", source_id=provider, month=month, status="failed", content_hash="",
+                                      detail=str(exc)[:200]))
+        raise
+    known = {c.company_id for c in store.list_companies()}
+    validated = validate_esg(raw, month=month, known_company_ids=known, decimal=mapping.decimal)
+    return ingest_esg(store, validated, provider=provider, month=month, source_ref=source_ref)
 
 
 def template(fmt: Literal["csv", "xlsx"]) -> bytes:
