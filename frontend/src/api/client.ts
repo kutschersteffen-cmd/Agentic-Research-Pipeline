@@ -29,6 +29,7 @@ import type {
   StewardshipFlow,
   StewardshipStream,
   TriggerEvent,
+  UnifiedTrigger,
   VoteRecord,
   VoteReviewDecision,
   VotingPreview,
@@ -478,6 +479,10 @@ export const api = {
     request("/api/revenue-catalogue/suggest-mapping", { method: "POST", body: JSON.stringify(body) }),
 
   // Engagement (stewardship)
+  listTriggers: (status?: UnifiedTrigger["status"]) =>
+    request<{ triggers: UnifiedTrigger[] }>(`/api/stewardship/triggers${status ? `?status=${status}` : ""}`),
+  transitionTrigger: (triggerId: string, body: { status: UnifiedTrigger["status"]; decided_by: string; reason?: string }) =>
+    request<UnifiedTrigger>(`/api/stewardship/triggers/${encodeURIComponent(triggerId)}/transition`, { method: "POST", body: JSON.stringify(body) }),
   listStewardshipStreams: () => request<{ streams: StewardshipStream[] }>("/api/stewardship/streams"),
   createStewardshipStream: (body: { name: string; vehicle_type: string; client_policy?: unknown }) =>
     request<{ stream_id: string }>("/api/stewardship/streams", { method: "POST", body: JSON.stringify(body) }),

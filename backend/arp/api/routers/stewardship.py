@@ -46,6 +46,7 @@ from arp.stewardship.process import (
 from arp.stewardship.program import ProgramParams, approve, build_proposal, monitor, record_run, simulate
 from arp.stewardship.style import check as style_check
 from arp.stewardship.tiers import TierStore, tier_contexts
+from arp.stewardship.trigger_store import TriggerStore
 from arp.stewardship.universe import HouseUniverseSetting
 from arp.storage.decision_store import DecisionStore
 from arp.storage.engagement_store import EngagementStore
@@ -346,6 +347,27 @@ def monitoring_triggers(
     sample, records = load_sample(), engagements.list_all()
     rules = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, records)
     return {"triggers": rules + tracking.triggers(records, settings.engagement_sla_days)}
+
+
+@router.get("/triggers")
+def list_stored_triggers(status: str | None = None, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    return {"triggers": [t.model_dump() for t in TriggerStore(streams.root).list_triggers(status)]}
+
+
+class TriggerTransitionRequest(BaseModel):
+    status: Literal["open", "acknowledged", "resolved"]
+    decided_by: str
+    reason: str = ""
+
+
+@router.post("/triggers/{trigger_id}/transition")
+def post_trigger_transition(trigger_id: str, body: TriggerTransitionRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    try:
+        return TriggerStore(streams.root).transition(trigger_id, body.status, body.decided_by, body.reason).model_dump()
+    except KeyError as exc:
+        raise HTTPException(404, "Unknown trigger") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 
 class MonitoringPreviewRequest(BaseModel):

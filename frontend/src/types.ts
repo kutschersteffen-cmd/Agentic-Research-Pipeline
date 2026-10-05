@@ -2972,3 +2972,16 @@ export interface IntakeResult {
   unresolved: string[];
   review_run_id: string | null;
 }
+
+export interface UnifiedTrigger {
+  trigger_id: string;
+  source: "risk_alert" | "stewardship";
+  issuer_id: string;
+  type: string;
+  theme: string;
+  severity: "low" | "medium" | "high";
+  reason: string;
+  status: "open" | "acknowledged" | "resolved";
+  first_seen_month: string;
+  is_new: boolean;
+}
