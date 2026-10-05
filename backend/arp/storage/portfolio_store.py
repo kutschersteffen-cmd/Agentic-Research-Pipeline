@@ -400,7 +400,7 @@ class PortfolioStore:
             return []
         return sorted(p.name for p in d.iterdir() if p.is_dir())
 
-    # --- governance & workflow (arp/portfolio/governance.py) ---
+    # --- event log (arp/portfolio/resolution_review.py) ---
 
     def governance_events_path(self) -> Path:
         """One unified append-only log for every governance event type

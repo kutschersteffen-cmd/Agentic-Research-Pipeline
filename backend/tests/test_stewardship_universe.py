@@ -19,7 +19,7 @@ from arp.storage.portfolio_store import PortfolioStore
 @pytest.fixture(scope="module")
 def universe(tmp_path_factory):
     store = PortfolioStore(tmp_path_factory.mktemp("pf"))
-    asyncio.run(generate_demo_dataset(store, 0.85, 5.0))
+    asyncio.run(generate_demo_dataset(store, 0.85))
     return from_portfolio(store)
 
 
