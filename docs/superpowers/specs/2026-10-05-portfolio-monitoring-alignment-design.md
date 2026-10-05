@@ -16,7 +16,9 @@ Scope is climate, ESG and stewardship signals. Financial risk (VaR, factor, stre
 | Decision | Effect |
 |---|---|
 | Delete the PCAF-style 1-5 data-quality score | The app has no such score today, so this only means it is not added. |
-| Delete the **Governance & Audit** tab | Removed from the UI. See "Governance & Audit removal" for what happens to its content. |
+| Delete the **Governance & Audit** tab **and its backend** | UI, routes and `portfolio/governance.py` are removed. See "Governance & Audit removal" for what survives. |
+| Delete the **climate data conflict panel** | The panel and its review flow are removed. |
+| No role checks on write routes | Unchanged from today; out of scope. |
 | Keep the `AlertRule` evaluator | Not replaced by stewardship's ZEN rule engine. |
 | Keep entity resolution as part of the tool | Its review queue moves into Holdings Intake. |
 | Superset for all dashboards and analytics | The in-app Standard Analytics tab is removed. |
@@ -60,8 +62,8 @@ CSV / Excel ─┘   (one validator)       │
 ### 2. Entity resolution and review panels
 
 - Entity resolution stays. Its review queue (securities below the confidence threshold) moves from the deleted Governance tab into Holdings Intake, next to the load that produced it.
-- Climate data conflicts (API value vs extracted value beyond tolerance) move the same way, as a second panel. This is a proposal; drop it if conflicts are not wanted.
-- Thresholds (entity-resolution review threshold, conflict tolerance) remain as configuration, not UI.
+- The climate data conflict panel is **deleted**, not moved.
+- The entity-resolution review threshold remains as configuration (settings), not UI and not a versioned policy.
 - Known weakness to track: name matching uses `difflib.SequenceMatcher` on raw names, with no LEI or ticker path and no legal-suffix normalisation (`portfolio/entity_resolution.py`).
 
 ### 3. Alignment of the two rule systems (engines are not merged)
@@ -83,25 +85,33 @@ CSV / Excel ─┘   (one validator)       │
 
 ### 5. Governance & Audit removal
 
+Removed: the tab, the `/api/portfolio/governance/*` routes, risk-category ownership, the policy-change history, climate-conflict review, and `backend/arp/portfolio/governance.py` with its store methods (`list_governance_events` and the append path in the file and Postgres stores) and `schemas/governance.py`.
+
+**Dependency that must be resolved, not just deleted.** `governance.py` is not only the tab's backend:
+
+- `record_decision` and `latest_decisions` are how accept / override / reject on the entity-resolution review queue are stored. Entity resolution is kept, so this decision log must move into the entity-resolution module (keep the append-only log and per-item latest decision; drop the climate-conflict item type).
+- `get_current_policy` supplies the review threshold to `routers/portfolio.py` (line 42) and `cli/portfolio.py` (line 34). Replace it with plain settings values.
+- `list_pending_reviews` feeds the queue in the UI; keep only the entity-resolution part.
+
 | Content on the tab | Outcome |
 |---|---|
-| Methodology settings | Kept as config files |
-| Risk category ownership | Dropped. Alerts lose the owner field |
-| Entity-resolution review queue | Moved to Holdings Intake |
-| Climate data conflicts | Moved to Holdings Intake (proposal) |
+| Methodology settings | Settings values; no change history |
+| Risk category ownership | Deleted. Alerts have no owner field |
+| Entity-resolution review queue | Kept, moved to Holdings Intake; decisions stored by the entity-resolution module |
+| Climate data conflicts | Deleted |
 
-`backend/arp/portfolio/governance.py` is also referenced by `storage/portfolio_store.py`, `storage/postgres_portfolio_store.py`, `cli/portfolio.py` and `api/routers/portfolio.py`. Whether that backend code is deleted or only the tab is a decision for the plan (see open questions).
+Open follow-up for the plan: `climate/validation.py` (the API-vs-extracted conflict check) only existed to feed the conflict panel. Delete it too only after the references in open question 2 are checked.
 
 ## Out of scope
 
-Financial risk analytics, benchmark-relative analysis, SFDR PAI indicators, replacing the `AlertRule` engine, a PCAF data-quality score.
+Financial risk analytics, benchmark-relative analysis, SFDR PAI indicators, replacing the `AlertRule` engine, a PCAF data-quality score, role checks on write routes.
 
 ## Open questions
 
-1. Which provider's API format is the monthly pull built for (columns, authentication)? Until decided, build a pluggable provider mapping and one generic reference mapping.
-2. Delete `governance.py` and its store methods, or remove only the tab and keep the backend?
-3. Keep climate-conflict review (section 2) or drop it?
-4. Write routes for rules, evaluate-now, demo seed, universe and news classify have only an authentication check, no role check (`api/routers/portfolio.py`). Fixing this is not part of this spec; decide whether it belongs in the same plan.
+1. **Provider API.** The format is unknown. It is a corporate internal API that requires authentication. The plan builds a pluggable provider mapping (column mapping, units, paging) and an authentication hook (credentials from environment or secret store, never in the repo), plus one generic reference mapping to test against. The real mapping is filled in once the API is specified.
+2. `climate/validation.py` is referenced beyond the conflict panel: a grep for "validation" also hit `portfolio/mock_data.py`, `cli/portfolio.py` and `config.py` (not yet read to see whether those are the conflict check or unrelated uses). Read them before deciding to delete it.
+
+Resolved: backend governance code is deleted (with the entity-resolution dependency above); the climate conflict panel is deleted; role checks on write routes are out of scope.
 
 ## Risks
 
