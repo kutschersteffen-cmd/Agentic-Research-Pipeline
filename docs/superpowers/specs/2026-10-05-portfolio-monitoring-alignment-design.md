@@ -132,7 +132,7 @@ Financial risk analytics, benchmark-relative analysis, SFDR PAI indicators, repl
 ## Open questions
 
 1. **Provider API.** The format is unknown. It is a corporate internal API that requires authentication. The plan builds a pluggable provider mapping (column mapping, units, paging) and an authentication hook (credentials from environment or secret store, never in the repo), plus one generic reference mapping to test against. The real mapping is filled in once the API is specified.
-2. `climate/validation.py` is referenced beyond the conflict panel: a grep for "validation" also hit `portfolio/mock_data.py`, `cli/portfolio.py` and `config.py` (not yet read to see whether those are the conflict check or unrelated uses). Read them before deciding to delete it.
+2. Resolved: `climate/validation.py` is called only by `portfolio/mock_data.py` (demo generation), so it is deleted with the conflict panel. The generic event-log store methods stay, because the entity-resolution decision log and monthly load records use them.
 
 Resolved: backend governance code is deleted (with the entity-resolution dependency above); the climate conflict panel is deleted; role checks on write routes are out of scope.
 
