@@ -3,8 +3,8 @@
 Two sources, chosen by a person and stored as a house setting:
 
 - `sample`: the synthetic sample (fictional companies, rich company data and
-  meetings), the default.
-- `portfolio`: the companies held in the house portfolios (Risk Monitoring).
+  meetings), selectable for demos.
+- `portfolio`: the companies held in the house portfolios (Risk Monitoring), the default.
   Issuer ids are then the portfolio company ids, which Decision Studio
   publications, Proxy Voting ballots and Risk Monitoring alerts use too, so
   every handoff into stewardship matches.
@@ -38,7 +38,7 @@ class HouseUniverseSetting:
     def get(self) -> dict:
         if self.path.exists():
             return json.loads(self.path.read_text())
-        return {"source": "sample", "set_by": None, "set_at": None}
+        return {"source": "portfolio", "set_by": None, "set_at": None}
 
     def set(self, source: str, set_by: str) -> dict:
         if source not in SOURCES:

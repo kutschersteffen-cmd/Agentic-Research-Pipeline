@@ -93,3 +93,16 @@ def _signed_in_approver():
     yield
     app.dependency_overrides.pop(authorize, None)
     app.dependency_overrides.pop(current_user, None)
+
+
+@pytest.fixture
+def sample_house_universe(tmp_path, monkeypatch):
+    """The house stewardship program on the synthetic sample (it defaults to the portfolio holdings)."""
+    from arp.config import get_settings
+    from arp.stewardship.universe import HouseUniverseSetting
+
+    monkeypatch.setenv("ARP_STEWARDSHIP_STREAMS_DIR", str(tmp_path / "house_universe_streams"))
+    get_settings.cache_clear()
+    HouseUniverseSetting(get_settings().stewardship_streams_dir).set("sample", "tests")
+    yield
+    get_settings.cache_clear()

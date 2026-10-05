@@ -11,6 +11,8 @@ from arp.stewardship.process import SAMPLE_PATH, confirm_tiers, tier_review  # n
 from arp.stewardship.tiers import TIERS, TierStore, evaluate, load_graph, review_tiers, tier_contexts  # noqa: E402
 from arp.storage.engagement_store import EngagementStore  # noqa: E402
 
+pytestmark = pytest.mark.usefixtures("sample_house_universe")
+
 
 def _ctx(issuer_id="X", weight=None, aum=None, emitter=None, open_engagements=0, escalated=False) -> dict:
     return {

@@ -24,6 +24,9 @@ from tests.conftest import PRINCIPAL
 SAMPLE = json.loads(SAMPLE_PATH.read_text())
 
 
+pytestmark = pytest.mark.usefixtures("sample_house_universe")
+
+
 def _one(fields: dict, holding: dict | None = None) -> dict:
     return {
         "issuers": [{"issuer_id": "X", "name": "X", "region": "EU", "sector": "S", "fields": fields, "holding": holding or {}}]

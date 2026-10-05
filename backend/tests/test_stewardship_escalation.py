@@ -40,6 +40,9 @@ from tests.conftest import PRINCIPAL
 SAMPLE = json.loads(SAMPLE_PATH.read_text())
 
 
+pytestmark = pytest.mark.usefixtures("sample_house_universe")
+
+
 def _ctx(step=0, tier=None, high=False, missed=0, months=0, stalled=False) -> dict:
     return {
         "source": "sample",
