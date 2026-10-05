@@ -255,8 +255,7 @@ def test_upsert_semantics_are_not_duplicate_inserts(store):
 
 def test_public_surfaces_match():
     """The `AttributeError` class of bug: a caller reaching a method only
-    one backend has (it was `list_observation_keys`, via
-    /api/portfolio/climate-conflicts). Compares classes, so this runs
+    one backend has (it was `list_observation_keys`). Compares classes, so this runs
     without a database."""
     from arp.storage.postgres_portfolio_store import PostgresPortfolioStore
 

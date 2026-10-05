@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { resolveSubTab } from "../src/lib/subTabs.ts";
+import { resolveSubTab, SUB_TABS } from "../src/lib/subTabs.ts";
 
 const TABS = [{ id: "standard" }, { id: "monitoring" }, { id: "dashboards" }] as const;
 
@@ -17,4 +17,9 @@ test("resolveSubTab maps the removed pivot, superset and genbi ids to dashboards
 test("resolveSubTab falls back to standard for unknown or missing ids", () => {
   assert.equal(resolveSubTab("nope", TABS), "standard");
   assert.equal(resolveSubTab(undefined, TABS), "standard");
+});
+
+test("the governance sub-tab is gone and its id falls back to the default", () => {
+  assert.ok(!SUB_TABS.some((t) => t.id === "governance"));
+  assert.equal(resolveSubTab("governance", SUB_TABS), "standard");
 });

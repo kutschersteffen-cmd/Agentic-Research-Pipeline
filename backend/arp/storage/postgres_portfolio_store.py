@@ -78,12 +78,7 @@ class PostgresPortfolioStore:
         return self._files.latest_observation(company_id, field_id, as_of)
 
     def list_observation_keys(self) -> list[tuple[str, str]]:
-        """Every (company_id, field_id) with a recorded observation. Was
-        missing here, which broke GET /api/portfolio/climate-conflicts and
-        the governance queue (both reach it via
-        datapoint_mapping.list_conflicting_observations) with an
-        AttributeError whenever this backend was configured -- even though
-        the observations themselves were always delegated below."""
+        """Every (company_id, field_id) with a recorded observation."""
         return self._files.list_observation_keys()
 
     def news_path(self):

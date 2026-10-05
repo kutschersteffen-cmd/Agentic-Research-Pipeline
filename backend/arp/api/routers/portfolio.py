@@ -10,7 +10,7 @@ from arp.api.deps import get_llm_client, get_portfolio_store, settings_dep
 from arp.api.routers.universe import save_universe
 from arp.config import Settings
 from arp.llm.base import LLMClient
-from arp.portfolio import aggregation, analytics, datapoint_mapping, qa_agent, qa_audit, resolution_review
+from arp.portfolio import aggregation, analytics, qa_agent, qa_audit, resolution_review
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.monitoring import evaluator as monitoring_evaluator
 from arp.portfolio.news.classifier import classify_article
@@ -121,13 +121,6 @@ def securities_needing_review(store: PortfolioStore = Depends(get_portfolio_stor
     review-queue counterpart to `POST /demo/seed`'s deliberately
     unresolved demo instrument (see `entity_resolution.py`)."""
     return [r.model_dump() for r in store.list_resolutions_needing_review()]
-
-
-@router.get("/climate-conflicts")
-def climate_conflicts(store: PortfolioStore = Depends(get_portfolio_store)) -> list[dict]:
-    """Data points whose internal-API value disagreed with an independent
-    extraction beyond tolerance."""
-    return [obs.model_dump() for obs in datapoint_mapping.list_conflicting_observations(store)]
 
 
 class AnalyticRequest(BaseModel):

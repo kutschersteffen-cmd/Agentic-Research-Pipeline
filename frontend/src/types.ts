@@ -1014,21 +1014,6 @@ export interface SecurityResolution {
   resolved_at: string;
 }
 
-export interface DataPointObservation {
-  company_id: string;
-  field_id: string;
-  field_name: string;
-  value: number | string | boolean | null;
-  unit?: string | null;
-  period: string;
-  observed_at: string;
-  source: "internal_api" | "extracted" | "catalogue" | "estimated_proxy";
-  conflicting_sources: boolean;
-  conflicting_value?: number | string | boolean | null;
-  conflicting_source_label?: string | null;
-  notes: string;
-}
-
 export interface AggregationRow {
   group_value: string;
   market_value_eur?: number | null;
@@ -1132,34 +1117,16 @@ export interface Alert {
   owner?: string | null;
 }
 
-export type GovernanceItemType = "entity_resolution" | "climate_conflict";
-export type GovernanceDecisionType = "accept" | "override" | "reject";
-export type PolicySettingName = "portfolio_confidence_review_threshold" | "climate_validation_tolerance_pct";
+export type ResolutionReviewItem = SecurityResolution;
 
-export interface GovernanceDecision {
-  item_type: GovernanceItemType;
+export interface ResolutionDecision {
+  item_type: "entity_resolution";
   item_key: string;
-  decision: GovernanceDecisionType;
+  decision: "accept" | "override" | "reject";
   decided_by: string;
   reason: string;
-  override_value?: number | string | boolean | null;
+  override_value?: string | null;
   decided_at: string;
-}
-
-export interface RiskCategoryOwner {
-  category: string;
-  owner: string;
-  assigned_by: string;
-  assigned_at: string;
-}
-
-export interface PolicyChange {
-  setting_name: PolicySettingName;
-  old_value: number;
-  new_value: number;
-  changed_by: string;
-  reason: string;
-  changed_at: string;
 }
 
 export interface DemoSeedSummary {

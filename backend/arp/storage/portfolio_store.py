@@ -295,9 +295,7 @@ class PortfolioStore:
 
     def list_observation_keys(self) -> list[tuple[str, str]]:
         """Every (company_id, field_id) pair with at least one recorded
-        observation -- a pure directory listing, no resolution logic (see
-        `datapoint_mapping.list_conflicting_observations` for the cascade-
-        aware conflict scan built on top of this)."""
+        observation -- a pure directory listing, no resolution logic."""
         datapoints_dir = self.portfolios_dir / "datapoints"
         if not datapoints_dir.exists():
             return []

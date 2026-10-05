@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../../api/client";
 import { FileLink } from "../../components/FileLink";
 import { announce } from "../../lib/announce";
+import { ResolutionReviewPanel } from "./ResolutionReviewPanel";
 import { ageLabel, needsOverrideReason, parseIntakeError, rowErrorText } from "../../lib/holdings";
 import type { HolderStatus, IntakeResult, RowError } from "../../types";
 
@@ -112,6 +113,8 @@ export function HoldingsIntake() {
           ))}
         </tbody>
       </table>
+
+      <ResolutionReviewPanel />
 
       <h3>Templates</h3>
       <p>

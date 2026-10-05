@@ -6,3 +6,13 @@ export function resolveSubTab<T extends string>(initialSub: string | undefined, 
   const id = initialSub === undefined ? undefined : (LEGACY_SUB_TABS[initialSub] ?? initialSub);
   return tabs.find((t) => t.id === id)?.id ?? tabs[0].id;
 }
+
+/** Risk Monitoring sub-tabs. */
+export const SUB_TABS = [
+  { id: "standard", label: "Standard Analytics & Visuals" },
+  { id: "monitoring", label: "Monitoring & Alerts" },
+  { id: "profiles", label: "Company Profiles" },
+  { id: "ask", label: "Ask the Portfolio" },
+  { id: "dashboards", label: "Dashboards (Superset)" },
+  { id: "holdings", label: "Holdings Intake" },
+] as const;

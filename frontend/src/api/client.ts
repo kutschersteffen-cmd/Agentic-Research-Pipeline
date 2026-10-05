@@ -59,25 +59,19 @@ import type {
   AnalyticRequest,
   CompanyRef,
   CoverageBySource,
-  DataPointObservation,
   DataPointSchema,
   DemoSeedSummary,
   EmergingThemeCandidate,
   EmergingThemesScheduleConfig,
   FinancedEmissionsResult,
-  GovernanceDecision,
-  GovernanceDecisionType,
-  GovernanceItemType,
   NewsItem,
   NewsRiskFlag,
   PivotRequest,
   PivotResult,
-  PolicyChange,
-  PolicySettingName,
   PortfolioSummary,
   QAAnswer,
-  RiskCategoryOwner,
-  SecurityResolution,
+  ResolutionDecision,
+  ResolutionReviewItem,
   SearchResponse,
   TransitionPlanAssessmentRecord,
   ExtractionProfile,
@@ -651,14 +645,12 @@ export const api = {
   seedPortfolioDemo: () => request<DemoSeedSummary>("/api/portfolio/demo/seed", { method: "POST" }),
   seedTransitionPlanDemo: () => request<{ run_id: string; company_count: number }>("/api/transition-plan/demo/seed", { method: "POST" }),
   listPortfolios: () => request<PortfolioSummary[]>("/api/portfolio/portfolios"),
-  listSecuritiesNeedingReview: () => request<SecurityResolution[]>("/api/portfolio/securities-needing-review"),
   holdingsUniverse: (body: { portfolio_ids: string[]; as_of?: string }) =>
     request<{ path: string; company_count: number; as_of: string; unresolved: number }>("/api/portfolio/universe", {
       method: "POST",
       body: JSON.stringify(body),
     }),
   listPortfolioCompanies: () => request<CompanyRef[]>("/api/portfolio/companies"),
-  listConflictingObservations: () => request<DataPointObservation[]>("/api/portfolio/climate-conflicts"),
   runPortfolioAggregate: (body: AnalyticRequest) =>
     request<AggregationResult | TrendPoint[]>("/api/portfolio/aggregate", { method: "POST", body: JSON.stringify(body) }),
   runPortfolioPivot: (body: PivotRequest) => request<PivotResult>("/api/portfolio/pivot", { method: "POST", body: JSON.stringify(body) }),
@@ -676,24 +668,9 @@ export const api = {
     }),
   evaluateMonitoringNow: () =>
     request<{ threshold_alerts_raised: number; news_alerts_raised: number }>("/api/portfolio/monitoring/evaluate-now", { method: "POST" }),
-  listPendingGovernanceReviews: () =>
-    request<{ entity_resolution: SecurityResolution[]; climate_conflict: DataPointObservation[] }>("/api/portfolio/governance/pending-reviews"),
-  recordGovernanceDecision: (body: {
-    item_type: GovernanceItemType;
-    item_key: string;
-    decision: GovernanceDecisionType;
-    reason?: string;
-    override_value?: number | string | boolean | null;
-  }) => request<GovernanceDecision>("/api/portfolio/governance/decisions", { method: "POST", body: JSON.stringify(body) }),
-  listGovernanceDecisions: (itemType?: GovernanceItemType) =>
-    request<GovernanceDecision[]>(`/api/portfolio/governance/decisions${buildQuery({ item_type: itemType })}`),
-  getGovernancePolicy: () =>
-    request<{ values: Record<PolicySettingName, number>; history: PolicyChange[] }>("/api/portfolio/governance/policy"),
-  updateGovernancePolicy: (body: { setting_name: PolicySettingName; new_value: number; reason?: string }) =>
-    request<PolicyChange>("/api/portfolio/governance/policy", { method: "PUT", body: JSON.stringify(body) }),
-  listGovernanceOwners: () => request<RiskCategoryOwner[]>("/api/portfolio/governance/owners"),
-  assignGovernanceOwner: (category: string, body: { owner: string }) =>
-    request<RiskCategoryOwner>(`/api/portfolio/governance/owners/${encodeURIComponent(category)}`, { method: "PUT", body: JSON.stringify(body) }),
+  listResolutionReview: () => request<ResolutionReviewItem[]>("/api/portfolio/resolution-review"),
+  recordResolutionDecision: (body: { item_key: string; decision: string; reason?: string; override_value?: string }) =>
+    request<ResolutionDecision>("/api/portfolio/resolution-review/decisions", { method: "POST", body: JSON.stringify(body) }),
 
   // Superset BI designer (/api/bi): drafts dashboards in Superset itself
   designBI: (body: { brief: string }) => request<BIDesignResult>("/api/bi/design", { method: "POST", body: JSON.stringify(body) }),
