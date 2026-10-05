@@ -1,0 +1,83 @@
+<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Provenance Loupe</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&family=Geist+Mono:wght@400;500&display=swap" rel=stylesheet>
+<style>
+:root{--ink:#141414;--bg:#f3f3f0;--pan:#fff;--hl:#dcdcd7;--mu:#5c5c57;--or:#ea4c14;--wash:#ffe6db;--oi:#b8400f}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 Geist,-apple-system,Segoe UI,Helvetica,Arial,sans-serif}
+.m{font-family:"Geist Mono",ui-monospace,monospace;font-size:12px}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 520px;gap:48px;max-width:1360px;margin:0 auto;padding:32px 40px}
+header{border-bottom:1px solid var(--ink);padding-bottom:16px;margin-bottom:24px}
+h1{font-size:clamp(2rem,1.2rem + 2.4vw,3.25rem);line-height:1.02;letter-spacing:-.035em;font-weight:600;margin:6px 0 8px}
+h2{font:500 12px "Geist Mono",monospace;text-transform:uppercase;letter-spacing:.08em;color:var(--mu);margin:28px 0 6px}
+p{max-width:62ch;margin-bottom:10px}
+table{border-collapse:collapse;width:100%;margin-bottom:8px}
+td,th{padding:9px 0;border-top:1px solid var(--hl);text-align:left;font-weight:400}
+td:last-child,th:last-child{text-align:right}
+.n{font:inherit;font-weight:600;font-variant-numeric:tabular-nums;color:inherit;background:none;border:0;border-bottom:1px solid var(--ink);padding:0 1px;cursor:crosshair;border-radius:0}
+.n:hover,.n:focus-visible,.n[aria-pressed=true]{background:var(--ink);color:#fff;outline:0}
+.n:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+aside{position:sticky;top:24px;align-self:start;background:var(--pan);border:1px solid var(--ink)}
+.bar{display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--ink);background:var(--ink);color:#fff}
+.pdf{margin:16px;padding:20px 24px;background:#fbfbf9;border:1px solid var(--hl);font:11.5px/1.65 "Geist Mono",monospace;color:#3a3a37;position:relative;min-height:190px}
+.pdf b{font:600 12px Geist,sans-serif;color:var(--ink);display:block;margin-bottom:6px}
+.pdf mark{background:var(--ink);color:#fff;padding:1px 2px;outline:6px solid #14141422}
+.pdf .pg{position:absolute;right:10px;bottom:6px;color:var(--mu)}
+.sec{padding:0 16px 14px}
+.sec h3{font:500 11px "Geist Mono",monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--mu);margin-bottom:6px}
+.d{display:grid;grid-template-columns:64px 1fr;gap:4px 10px;font:12px/1.5 "Geist Mono",monospace}
+.d dt{color:var(--mu)}.d dd{margin:0}
+del{text-decoration:line-through;text-decoration-thickness:1px}
+ins{text-decoration:none;border-bottom:2px solid var(--ink);font-weight:500}
+.chip{display:inline-block;border:1px solid var(--ink);padding:1px 6px;font:500 11px "Geist Mono",monospace}
+.v{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:7px 8px;border-top:1px solid var(--hl);font:12px "Geist Mono",monospace}
+.v.f{background:var(--wash);border-left:3px solid var(--or);color:var(--oi)}
+.v.f b{color:var(--or)}
+.v:last-child{border-bottom:1px solid var(--hl)}
+.hint{padding:10px 16px;border-top:1px solid var(--hl);color:var(--mu)}
+@media(max-width:1000px){.wrap{display:block;padding:16px}
+aside{position:fixed;left:0;right:0;bottom:0;top:auto;max-height:68vh;overflow:auto;z-index:5;border-width:1px 0 0;transform:translateY(0)}
+body{padding-bottom:68vh}}
+@media(prefers-reduced-motion:no-preference){aside{transition:opacity .15s}.pdf mark{animation:in .25s}@keyframes in{from{outline-color:transparent}}}
+</style>
+<div class=wrap><main>
+<header><div class=m>NORTHWIND HEAVY INDUSTRIES · FY2025 ANNUAL REPORT · AGENT DRAFT 14</div>
+<h1>Every number has a source.</h1><p>Hover, focus or tap an underlined figure. The loupe opens the exact page span and diffs the model's quote against the verbatim text.</p></header>
+<h2>Capital allocation</h2>
+<p>Northwind committed <button class=n data-i=0>EUR 412m</button> to green capex, up from <button class=n data-i=1>EUR 268m</button> a year earlier. R&amp;D spend reached <button class=n data-i=2>EUR 187m</button>, or <button class=n data-i=3>4.6%</button> of revenue.</p>
+<h2>Segments</h2>
+<table><tr><td>Drive Systems</td><td><button class=n data-i=4>EUR 1,904m</button></td></tr>
+<tr><td>Grid &amp; Storage</td><td><button class=n data-i=5>EUR 1,326m</button></td></tr>
+<tr><td>Industrial Services</td><td><button class=n data-i=6>EUR 842m</button></td></tr></table>
+<p>Group revenue was <button class=n data-i=7>EUR 4,072m</button>; adjusted EBIT margin <button class=n data-i=8>11.3%</button>.</p>
+</main>
+<aside id=L aria-live=polite><div class="bar m"><span id=t></span><span id=pg></span></div>
+<div class=pdf id=pdf></div>
+<div class=sec><h3>Grounding diff</h3><dl class=d><dt>model</dt><dd id=q></dd><dt>source</dt><dd id=s></dd><dt>hash</dt><dd><span class=chip id=h></span></dd></dl></div>
+<div class=sec><h3>Re-verify</h3><div id=rv></div></div>
+<div class="hint m">hover · focus · tap — esc closes</div></aside></div>
+<script>
+const D=[
+["Green capex","14","Sustainability","In 2025 the Group committed ","EUR 412 million","to green capital expenditure, chiefly electrolyser lines.","EUR 412m","EUR 412 million","a91f3c07"],
+["Prior-year capex","14","Sustainability","The comparable figure for 2024 was ","EUR 268 million","after the Leipzig plant was deferred.","EUR 268m","EUR 268 million","5be20d4a"],
+["R&D spend","22","Innovation","Research and development expenses amounted to ","EUR 187 million","including EUR 31 million capitalised.","EUR 187m","EUR 187 million","c7740e12"],
+["R&D ratio","22","Innovation","This corresponds to an R&D ratio of ","4.6 per cent","of Group revenue.","4.6%","4.6 per cent","0d38be95"],
+["Drive Systems","31","Segment report","Drive Systems generated revenue of ","EUR 1,904 million","(2024: EUR 1,811 million).","EUR 1,904m","EUR 1,904 million","e1c9a6f3"],
+["Grid & Storage","33","Segment report","Grid & Storage contributed ","EUR 1,362 million","driven by utility-scale battery orders.","EUR 1,326m","EUR 1,362 million","7f02bd68"],
+["Industrial Services","35","Segment report","Industrial Services revenue was ","EUR 842 million","with a service backlog of EUR 2.1bn.","EUR 842m","EUR 842 million","b46d1190"],
+["Group revenue","8","Key figures","Consolidated revenue totalled ","EUR 4,072 million","for the year ended 31 December 2025.","EUR 4,072m","EUR 4,072 million","29ae5c7d"],
+["Adj. EBIT margin","9","Key figures","Adjusted EBIT margin improved to ","11.3 per cent","reflecting mix and procurement savings.","11.3%","11.3 per cent","f8631a0b"]];
+const $=i=>document.getElementById(i),B=[...document.querySelectorAll('.n')],e=s=>s.replace(/&/g,'&amp;');
+function show(i){const d=D[i],bad=d[6]!==d[7].replace(' million','m').replace('per cent','%');
+B.forEach((b,k)=>b.setAttribute('aria-pressed',k==i));
+$('t').textContent='LOUPE · '+d[0].toUpperCase();$('pg').textContent='p.'+d[1];
+$('pdf').innerHTML='<b>'+d[2]+'</b>… '+e(d[3])+'<mark>'+e(d[4])+'</mark> '+e(d[5])+' …<span class=pg>'+d[1]+' / 96</span>';
+$('q').innerHTML=bad?'<del>'+e(d[6])+'</del>':e(d[6]);
+$('s').innerHTML=bad?'<ins>'+e(d[7])+'</ins>':e(d[7]);
+$('h').textContent='sha256:'+d[8]+'…';
+const r=[['quote located','pass'],['span offset match','pass'],[bad?'digits equal':'normalised equal',bad?'FAILED':'pass']];
+if(i==5)r[2]=['digits 1,326 ≠ 1,362','FAILED'];
+$('rv').innerHTML=r.map(x=>'<div class="v'+(x[1]=='FAILED'?' f':'')+'"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('');}
+B.forEach(b=>{const f=()=>show(b.dataset.i);b.onmouseenter=b.onfocus=b.onclick=f});
+addEventListener('keydown',k=>{if(k.key=='Escape'){B.forEach(b=>b.setAttribute('aria-pressed',false));document.activeElement.blur()}});
+show(5);
+</script>

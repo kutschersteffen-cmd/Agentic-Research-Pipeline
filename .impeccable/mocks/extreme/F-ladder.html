@@ -1,0 +1,84 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Rank-Range Ladder</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&family=Geist+Mono:wght@400;500&display=swap" rel=stylesheet>
+<style>
+:root{--ink:#141414;--gr:#f3f3f0;--hl:#dcdcd7;--mu:#5c5c57;--or:#ea4c14;--w:#fff}
+*{box-sizing:border-box;margin:0}
+body{background:var(--gr);color:var(--ink);font:15px/1.45 Geist,system-ui,sans-serif;padding:20px 28px}
+h1{font-size:1.5rem;letter-spacing:-.02em;font-weight:600;line-height:1.1}
+.m{font:500 12px/1.3 "Geist Mono",monospace;color:var(--mu)}
+header{display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.lg{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.lg i{display:inline-block;width:26px;height:10px;vertical-align:-1px;margin-right:6px;background:var(--ink)}
+.lg .h{background:repeating-linear-gradient(135deg,var(--ink) 0 2px,var(--gr) 2px 4px);border:1px solid var(--ink)}
+.lg .o{background:var(--or)}
+main{display:grid;grid-template-columns:270px 1fr;gap:24px;align-items:start}
+aside{background:var(--w);border:1px solid var(--hl);padding:16px 18px}
+aside h2{font:500 12px "Geist Mono",monospace;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+label{display:block;margin-bottom:14px;font-size:14px}
+label span{display:flex;justify-content:space-between}
+label em{font:normal 400 11px "Geist Mono",monospace;color:var(--mu)}
+input{width:100%;accent-color:var(--ink);margin-top:4px}
+button{font:600 13px Geist,sans-serif;background:var(--ink);color:var(--w);border:0;padding:8px 14px;border-radius:0;cursor:pointer}
+#sum{margin-top:16px;padding-top:12px;border-top:1px solid var(--hl)}
+#sum b{font-weight:600}
+#wrap{overflow-x:auto;padding-bottom:4px}
+#lad{position:relative;min-width:640px}
+.cols{display:grid;grid-template-columns:150px 1fr}
+#ax{position:relative;height:22px;margin-right:44px}
+#ax span{position:absolute;transform:translateX(-50%);font:400 11px "Geist Mono",monospace;color:var(--mu)}
+#bd{position:relative;margin:0 44px 24px 150px;height:calc(var(--n)*24px)}
+.band{position:absolute;top:0;bottom:0;border-left:1px solid var(--ink)}
+.band:nth-child(odd){background:#0000000a}.band:nth-child(even){background:#00000003}
+.band b{position:absolute;bottom:-20px;left:6px;font:500 11px "Geist Mono",monospace;color:var(--mu)}
+.r{position:absolute;left:-150px;right:-44px;height:24px;transition:top .5s cubic-bezier(.2,.7,.2,1)}
+.r>.n{position:absolute;left:0;width:144px;font-size:13px;line-height:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.r.u>.n{color:var(--or);font-weight:600}
+.t{position:absolute;left:150px;right:44px;top:0;bottom:0}
+.bar{position:absolute;top:7px;height:10px;background:var(--ink);opacity:.82;transition:left .5s cubic-bezier(.2,.7,.2,1),width .5s cubic-bezier(.2,.7,.2,1)}
+.r.u .bar{background:var(--or);opacity:1}
+.bar::before,.bar::after{content:"";position:absolute;top:0;bottom:0;width:9px;display:none;background:repeating-linear-gradient(135deg,var(--gr) 0 2px,transparent 2px 4px)}
+.bar.hl::before{left:0;display:block}.bar.hr::after{right:0;display:block}
+.bar{min-width:6px}
+.r:hover .bar{opacity:1}
+.r:hover{background:#0000000d}
+.tip{font:400 11px "Geist Mono",monospace;position:absolute;top:0;line-height:24px;color:var(--mu);white-space:nowrap}
+@media(max-width:900px){main{grid-template-columns:1fr}body{padding:16px}}
+@media(prefers-reduced-motion:reduce){.r,.bar{transition:none}}
+</style>
+<header><div><p class=m>DECISION STUDIO / ENTITY TIERING</p><h1>Rank-range ladder</h1></div>
+<div class="lg m"><span><i></i>rank range, 4 specs</span><span><i class=h></i>edge set by inferred direction</span><span><i class=o></i>tier unstable: you decide</span></div></header>
+<main>
+<aside><h2>Criteria weights</h2><div id=sl></div><button id=rs>Reset weights</button>
+<p id=sum></p></aside>
+<div id=wrap><div id=lad><div class=cols><div></div><div id=ax></div></div><div id=bd></div></div></div>
+</main>
+<script>
+const C=[["Emissions intensity",0],["Transition plan",0],["Disclosure quality",0],["Supply-chain exposure",1],["Peer momentum",1]],// 1 = direction inferred
+SP=[[1,1,1,0,0],[1,1,1,1,0],[1,1,1,0,1],[1,1,1,1,1]],// 4 specifications; those using inferred criteria hatch the edge they set
+NM="Alder Marine,Borealis Steel,Cobalt Grid,Dunmore Foods,Estuary Power,Fennel Chem,Garnet Mining,Halcyon Air,Ironbark Cement,Juniper Rail,Kestrel Oil,Lumen Retail,Meridian Pulp,Northwind Gas,Orchard Agri,Pelican Freight,Quarry Lane,Redwood Paper,Sable Shipping,Tidewater Utility,Umber Glass,Vantage Auto,Willow Textile,Yarrow Fertiliser,Zephyr Aviation".split(","),
+N=NM.length,W0=[3,3,2,2,2];let s=7;const rnd=()=>(s=(s*1103515245+12345)%2147483648)/2147483648;
+const V=NM.map(()=>{const b=rnd();return C.map(()=>Math.min(1,Math.max(0,.55*b+.45*rnd())))});
+const TB=[5,12,19,N],TN=["T1 engage","T2 prioritise","T3 monitor","T4 park"],H=24,w=W0.slice(),tier=r=>TB.findIndex(b=>r<=b);
+const sl=document.getElementById("sl"),bd=document.getElementById("bd"),ax=document.getElementById("ax"),sum=document.getElementById("sum");
+bd.style.setProperty("--n",N);
+sl.innerHTML=C.map((c,i)=>`<label><span>${c[0]}<em>${c[1]?"inferred dir.":"stated dir."} · <output>${w[i]}</output></em></span><input type=range min=0 max=10 value=${w[i]} data-i=${i}></label>`).join("");
+let px=0;TB.forEach((b,i)=>{const l=px/N*100,wd=(b-px)/N*100;bd.insertAdjacentHTML("beforeend",`<div class=band style="left:${l}%;width:${wd}%"><b>${TN[i]}</b></div>`);px=b});
+for(let r=1;r<=N;r+=(r==1?4:5))ax.insertAdjacentHTML("beforeend",`<span style="left:${(r-.5)/N*100}%">${r}</span>`);
+const rows=NM.map((n,i)=>{const d=document.createElement("div");d.className="r";d.innerHTML=`<div class=n>${n}</div><div class=t><div class=bar></div><span class=tip></span></div>`;bd.append(d);return d});
+function calc(){
+ const R=SP.map(m=>{const sc=V.map(v=>v.reduce((a,x,c)=>a+x*w[c]*m[c],0)),o=sc.map((x,i)=>i).sort((a,b)=>sc[b]-sc[a]||a-b),r=[];o.forEach((e,k)=>r[e]=k+1);return r});
+ const E=NM.map((_,i)=>{const rs=R.map(r=>r[i]),lo=Math.min(...rs),hi=Math.max(...rs);
+  const inf=k=>SP[k].some((m,c)=>m&&C[c][1]&&SP.every((q,j)=>j==k||!q[c]||0)||0);
+  const spOf=v=>rs.map((x,k)=>x==v&&k).filter(k=>k!==false),usesInf=v=>spOf(v).every(k=>SP[k].some((m,c)=>m&&C[c][1]));
+  return{i,lo,hi,mid:(lo+hi)/2,u:tier(lo)!=tier(hi),hl:lo!=hi&&usesInf(lo),hr:lo!=hi&&usesInf(hi)}});
+ const O=E.slice().sort((a,b)=>a.mid-b.mid||a.lo-b.lo||a.i-b.i);
+ O.forEach((e,k)=>{const d=rows[e.i];d.style.top=k*H+"px";d.classList.toggle("u",e.u);
+  const b=d.querySelector(".bar");b.style.left=(e.lo-1)/N*100+"%";b.style.width=(e.hi-e.lo+1)/N*100+"%";
+  b.classList.toggle("hl",e.hl);b.classList.toggle("hr",e.hr);
+  const t=d.querySelector(".tip");t.style.left=e.hi/N*100+.5+"%";t.textContent=e.lo==e.hi?"#"+e.lo:e.lo+"–"+e.hi});
+ const u=E.filter(e=>e.u).length;
+ sum.innerHTML=`<b style="${u?"color:var(--or)":""}">${u} of ${N}</b> entities straddle a tier boundary.<br><span class=m>${u?"These need a human decision.":"Nothing waits on anyone."}</span>`}
+sl.oninput=e=>{const i=+e.target.dataset.i;w[i]=+e.target.value;e.target.parentNode.querySelector("output").textContent=w[i];calc()};
+document.getElementById("rs").onclick=()=>{sl.querySelectorAll("input").forEach((x,i)=>{x.value=w[i]=W0[i];x.parentNode.querySelector("output").textContent=w[i]});calc()};
+calc();
+</script>
