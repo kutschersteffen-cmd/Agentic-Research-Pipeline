@@ -1,0 +1,61 @@
+.lab-ladder { --nw: 150px; --tw: 56px; color: var(--text); }
+.lab-ladder * { box-sizing: border-box; }
+.lab-ladder .lad-note { font: 500 var(--text-xs)/1.3 var(--font-mono); color: var(--muted); margin: 0 0 var(--s-3); }
+.lab-ladder .lad-legend { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); margin-bottom: var(--s-4);
+  font: 500 var(--text-xs)/1.3 var(--font-mono); color: var(--muted); }
+.lab-ladder .lad-legend i { display: inline-block; width: 26px; height: 10px; margin-right: 6px; vertical-align: -1px; background: var(--text); }
+.lab-ladder .lad-legend .k-hatch { background: repeating-linear-gradient(135deg, var(--text) 0 2px, var(--bg) 2px 4px); border: 1px solid var(--text); }
+.lab-ladder .lad-legend .k-hi { background: var(--hi); }
+
+.lab-ladder .lad-main { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: var(--s-6); align-items: start; }
+.lab-ladder .lad-side { background: var(--panel); border: 1px solid var(--panel-border); padding: var(--s-4) 18px; }
+.lab-ladder .lad-side h2 { font: 500 var(--text-xs) var(--font-mono); text-transform: uppercase; letter-spacing: .06em; margin: 0 0 var(--s-3); }
+.lab-ladder label { display: block; margin-bottom: var(--s-4); font-size: var(--text-sm); }
+.lab-ladder .lad-lbl { display: flex; margin-bottom: var(--s-1); justify-content: space-between; gap: var(--s-2); }
+.lab-ladder .lad-lbl em { font: normal 400 var(--text-xs) var(--font-mono); color: var(--muted); white-space: nowrap; }
+.lab-ladder input[type="range"] { width: 100%; min-height: 44px; margin: 0; accent-color: var(--accent); }
+.lab-ladder input[type="range"]:focus-visible, .lab-ladder button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.lab-ladder button { font: 600 var(--text-sm) var(--font-display); background: var(--accent); color: var(--on-accent);
+  border: 0; border-radius: 0; padding: var(--s-2) var(--s-4); min-height: 44px; cursor: pointer; }
+.lab-ladder .lad-sum { margin: var(--s-4) 0 0; padding-top: var(--s-3); border-top: 1px solid var(--panel-border); font-size: var(--text-sm); }
+.lab-ladder .lad-sum span { font: 500 var(--text-xs) var(--font-mono); color: var(--muted); }
+.lab-ladder .lad-sum .act { color: var(--hi-ink); }
+
+.lab-ladder .lad-chart { min-width: 0; padding-bottom: 28px; }
+.lab-ladder .lad-axis { position: relative; height: 22px; margin: 0 var(--tw) 0 var(--nw); }
+.lab-ladder .lad-axis span { position: absolute; transform: translateX(-50%); font: 400 var(--text-xs) var(--font-mono); color: var(--muted); }
+.lab-ladder .lad-body { position: relative; margin: 0 var(--tw) 0 var(--nw); }
+.lab-ladder .band { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--text); }
+.lab-ladder .band:nth-child(odd) { background: var(--accent-tint); }
+.lab-ladder .band b { position: absolute; bottom: -22px; left: 6px; font: 500 var(--text-xs) var(--font-mono); color: var(--muted); white-space: nowrap; }
+.lab-ladder .row { position: absolute; left: calc(-1 * var(--nw)); right: calc(-1 * var(--tw)); height: 24px;
+  transition: top .5s cubic-bezier(.2,.7,.2,1); }
+.lab-ladder .row:hover { background: var(--accent-tint); }
+.lab-ladder .nm { position: absolute; left: 0; width: calc(var(--nw) - 6px); font-size: var(--text-xs); line-height: 24px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lab-ladder .row.u .nm { color: var(--hi-ink); font-weight: 600; }
+.lab-ladder .trk { position: absolute; left: var(--nw); right: var(--tw); top: 0; bottom: 0; }
+.lab-ladder .bar { position: absolute; top: 7px; height: 10px; min-width: 6px; background: var(--text); opacity: .82;
+  transition: left .5s cubic-bezier(.2,.7,.2,1), width .5s cubic-bezier(.2,.7,.2,1); }
+.lab-ladder .row.u .bar { background: var(--hi); opacity: 1; }
+.lab-ladder .row:hover .bar { opacity: 1; }
+.lab-ladder .bar.hl::before, .lab-ladder .bar.hr::after { content: ""; position: absolute; top: 0; bottom: 0; width: 9px;
+  background: repeating-linear-gradient(135deg, var(--panel) 0 2px, transparent 2px 4px); }
+.lab-ladder .bar.hl::before { left: 0; }
+.lab-ladder .bar.hr::after { right: 0; }
+/* the track keeps --tw of room past rank N, so a label at the last rank stays inside the row */
+.lab-ladder .tip { position: absolute; top: 0; line-height: 24px; font: 400 var(--text-xs)/24px var(--font-mono); color: var(--muted); white-space: nowrap;
+  transition: left .5s cubic-bezier(.2,.7,.2,1); }
+.lab-ladder .sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; list-style: none; }
+
+@media (max-width: 900px) {
+  .lab-ladder .lad-main { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .lab-ladder { --nw: 92px; --tw: 52px; }
+  .lab-ladder .band b { font-size: 10px; }
+  .lab-ladder .band b span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lab-ladder .row, .lab-ladder .bar, .lab-ladder .tip { transition: none; }
+}

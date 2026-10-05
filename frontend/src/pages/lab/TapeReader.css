@@ -1,0 +1,42 @@
+.lab-tape { --rh: 24px; font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1; }
+.lab-tape .note { margin: 0 0 var(--s-2); color: var(--muted); font-size: var(--text-xs); }
+.lab-tape .tape { outline: 0; border: 1px solid var(--panel-border); background: var(--panel); }
+.lab-tape .tape:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.lab-tape .bar { display: flex; align-items: center; gap: var(--s-4); flex-wrap: wrap; padding: var(--s-2) var(--s-4); border-bottom: 2px solid var(--text); }
+.lab-tape .bar .keys { margin-left: auto; color: var(--muted); }
+.lab-tape .bar .btns { display: flex; gap: var(--s-2); }
+.lab-tape .bar button { font: inherit; min-height: 44px; min-width: 96px; padding: 0 var(--s-4); border: 1px solid var(--text); border-radius: 0; background: var(--panel); color: var(--text); cursor: pointer; }
+.lab-tape .bar button:hover { background: var(--well); }
+.lab-tape .bar button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.lab-tape kbd { font: inherit; border: 1px solid var(--text); padding: 1px 5px; color: var(--text); }
+.lab-tape .row { display: grid; grid-template-columns: 96px 120px 150px minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, 1.3fr) 104px 76px; gap: 0 12px; align-items: center; padding: 0 var(--s-4); height: var(--rh); white-space: nowrap; }
+.lab-tape .row > * { overflow: hidden; text-overflow: ellipsis; }
+.lab-tape .hd { background: var(--text); color: var(--panel); height: 28px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
+.lab-tape .sc { height: min(60vh, 560px); min-height: 280px; overflow: auto; position: relative; }
+.lab-tape .in { position: relative; }
+.lab-tape .in .row { position: absolute; left: 0; right: 0; border-bottom: 1px solid var(--panel-border); cursor: default; }
+.lab-tape .row.sel { background: var(--text); color: var(--panel); }
+.lab-tape .row.sel .d { color: var(--panel-border); }
+.lab-tape .d { color: var(--muted); }
+.lab-tape .ok .st { font-weight: 500; }
+.lab-tape .no { color: var(--muted); }
+.lab-tape .no .v { text-decoration: line-through; }
+.lab-tape .ov { font-weight: 500; }
+.lab-tape .ov::before, .lab-tape .mk { content: ""; display: inline-block; width: 8px; height: 8px; background: var(--hi); margin-right: 6px; }
+.lab-tape .st { text-align: right; }
+.lab-tape .foot { display: flex; gap: var(--s-6); flex-wrap: wrap; padding: var(--s-3) var(--s-4); border-top: 2px solid var(--text); background: var(--bg); }
+.lab-tape .foot b { font-weight: 500; }
+@media (max-width: 900px) {
+  .lab-tape .row { grid-template-columns: 80px 1fr 1fr 90px 64px; }
+  .lab-tape .row > :nth-child(2), .lab-tape .row > :nth-child(4), .lab-tape .row > :nth-child(5) { display: none; }
+  .lab-tape .bar .keys { display: none; }
+  .lab-tape .bar .btns { width: 100%; }
+  .lab-tape .bar button { flex: 1; }
+}
+@media (max-width: 600px) {
+  .lab-tape .row { grid-template-columns: 64px minmax(0, 1fr) 76px; gap: 0 8px; padding: 0 var(--s-2); }
+  .lab-tape .row > :nth-child(n+4) { display: none; }
+  .lab-tape .row > :nth-child(8) { display: block; }
+  .lab-tape .row > :nth-child(2) { display: none; }
+  .lab-tape .row > :nth-child(3) { display: block; }
+}

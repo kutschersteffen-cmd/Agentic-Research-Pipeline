@@ -1,0 +1,46 @@
+.lab-loupe { color: var(--text); }
+.lab-loupe .lp-note { font-size: var(--text-xs); margin: 0 0 var(--s-3); }
+.lab-loupe .lp-m { font-family: var(--font-mono); font-size: 12px; }
+.lab-loupe .lp-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 480px); gap: var(--s-12); }
+.lab-loupe header { border-bottom: 1px solid var(--text); padding-bottom: var(--s-4); margin-bottom: var(--s-6); }
+.lab-loupe h2 { font: 500 12px var(--font-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: var(--s-6) 0 6px; }
+.lab-loupe p { max-width: 62ch; margin: 0 0 10px; }
+.lab-loupe table { border-collapse: collapse; width: 100%; margin-bottom: var(--s-2); }
+.lab-loupe td { padding: 9px 0; border-top: 1px solid var(--panel-border); }
+.lab-loupe td:last-child { text-align: right; }
+.lab-loupe .n { font: inherit; font-weight: 600; font-variant-numeric: tabular-nums; color: inherit; background: none; border: 0; border-bottom: 1px solid var(--text); padding: 0 1px; min-height: 24px; cursor: crosshair; border-radius: 0; }
+.lab-loupe .n:hover, .lab-loupe .n[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+.lab-loupe .n:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.lab-loupe aside { position: sticky; top: var(--s-6); align-self: start; background: var(--panel); border: 1px solid var(--text); }
+.lab-loupe .lp-bar { display: flex; gap: var(--s-3); justify-content: space-between; align-items: center; padding: 8px 14px; background: var(--text); color: var(--bg); }
+.lab-loupe .lp-bar span:first-child { flex: 1; }
+.lab-loupe .lp-x { font: inherit; background: none; border: 0; color: inherit; cursor: pointer; min-height: 32px; padding: 0 var(--s-2); }
+.lab-loupe .lp-pdf { margin: var(--s-4); padding: 20px 24px; background: var(--well); border: 1px solid var(--panel-border); font: 11.5px/1.65 var(--font-mono); color: var(--muted); position: relative; min-height: 190px; }
+.lab-loupe .lp-pdf b { font: 600 12px var(--font-display); color: var(--text); display: block; margin-bottom: 6px; }
+.lab-loupe .lp-pdf mark { background: var(--text); color: var(--bg); padding: 1px 2px; outline: 6px solid color-mix(in srgb, var(--text) 13%, transparent); }
+.lab-loupe .lp-pg { position: absolute; right: 10px; bottom: 6px; }
+.lab-loupe .lp-sec { padding: 0 var(--s-4) 14px; }
+.lab-loupe .lp-sec h3 { font: 500 11px var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.lab-loupe .lp-d { display: grid; grid-template-columns: 64px 1fr; gap: 4px 10px; font: 12px/1.5 var(--font-mono); margin: 0; }
+.lab-loupe .lp-d dt { color: var(--muted); }
+.lab-loupe .lp-d dd { margin: 0; overflow-wrap: anywhere; }
+.lab-loupe del { text-decoration: line-through; text-decoration-thickness: 1px; }
+.lab-loupe ins { text-decoration: none; border-bottom: 2px solid var(--text); font-weight: 500; }
+.lab-loupe .lp-chip { display: inline-block; border: 1px solid var(--text); padding: 1px 6px; font: 500 11px var(--font-mono); }
+.lab-loupe .lp-v { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 7px 8px; border-top: 1px solid var(--panel-border); font: 12px var(--font-mono); }
+.lab-loupe .lp-v:last-child { border-bottom: 1px solid var(--panel-border); }
+.lab-loupe .lp-v.f { background: var(--await); border-left: 3px solid var(--hi); color: var(--hi-ink); }
+.lab-loupe .lp-v.f b { color: var(--hi-ink); }
+.lab-loupe .lp-hint { padding: 10px var(--s-4); border-top: 1px solid var(--panel-border); color: var(--muted); }
+.lab-loupe .lp-hint:first-child { border-top: 0; }
+@media (max-width: 1000px) {
+  .lab-loupe .lp-wrap { display: block; }
+  .lab-loupe aside { position: fixed; left: 0; right: 0; bottom: 0; top: auto; max-height: 68vh; overflow: auto; z-index: 5; border-width: 1px 0 0; }
+  .lab-loupe aside[data-open="0"] { display: none; }
+  .lab-loupe .lp-wrap:has(aside[data-open="1"]) { padding-bottom: 68vh; }
+  .lab-loupe .lp-pdf { padding: 14px; min-height: 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lab-loupe .lp-pdf mark { animation: lp-in .25s; }
+  @keyframes lp-in { from { outline-color: transparent; } }
+}
