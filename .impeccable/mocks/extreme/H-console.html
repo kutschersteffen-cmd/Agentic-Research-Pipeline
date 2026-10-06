@@ -1,0 +1,143 @@
+<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Phosphor Console</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;700&display=swap" rel=stylesheet>
+<style>
+:root{--bg:#0c0d0f;--pn:#131417;--hl:#26272c;--wl:#18191c;--ink:#e8e8e3;--mu:#9a9ba0;--lime:#c6ff3d;--ok:#26c281;--mid:#f2c94c;--lo:#ff4d4d}
+*{box-sizing:border-box;margin:0;border-radius:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:13px/1.5 "Geist Mono",ui-monospace,monospace;display:flex;flex-direction:column;overflow:hidden}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,#0000 0 3px,#0000000f 3px 4px);z-index:5}
+header{display:flex;gap:16px;align-items:center;padding:6px 14px;border-bottom:1px solid var(--hl);color:var(--mu)}
+header b{color:var(--ink);letter-spacing:.08em}
+header .sp{flex:1}
+kbd{font:inherit;border:1px solid var(--hl);padding:0 6px;color:var(--ink);background:var(--wl)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:left}
+main{flex:1;display:grid;grid-template-columns:minmax(260px,1fr) 1.4fr minmax(260px,1fr);gap:1px;background:var(--hl);min-height:0}
+.pane{background:var(--bg);display:flex;flex-direction:column;min-height:0;position:relative}
+.pane>h2{font-weight:500;font-size:12px;line-height:1;letter-spacing:.1em;color:var(--mu);padding:8px 14px;border-bottom:1px solid var(--hl);display:flex;justify-content:space-between}
+.pane.on>h2{color:var(--ink);box-shadow:inset 0 -1px 0 var(--ink)}
+.pane.on>h2 span:first-child::before{content:"[*] "}
+.body{overflow:auto;flex:1}
+.row{display:grid;grid-template-columns:2ch 1fr auto;gap:0 10px;width:100%;padding:8px 14px;border-bottom:1px solid var(--hl);align-items:baseline}
+.row:hover{background:var(--wl)}
+.row.sel{background:var(--pn);box-shadow:inset 2px 0 var(--ink)}
+.row small{grid-column:2/-1;color:var(--mu);font-size:12px}
+.dot{color:var(--mu)}
+.wait .dot,.wait .st{color:var(--lime);text-shadow:0 0 6px #c6ff3d66}
+.st{color:var(--mu)}
+.ok{color:var(--ok)}.lo{color:var(--lo)}
+.ev{padding:12px 14px;border-bottom:1px solid var(--hl);width:100%;display:block}
+.ev:hover{background:var(--wl)}
+.ev.sel{background:var(--pn);box-shadow:inset 2px 0 var(--ink)}
+.ev q{display:block;quotes:none;margin:4px 0;color:var(--ink)}
+.ev .m{color:var(--mu);font-size:12px}
+.cf{display:inline-block;width:6ch;letter-spacing:-.1em;color:var(--mu)}
+.v{padding:16px 14px}
+.v h3{font-size:20px;line-height:1.2;font-weight:700;margin:4px 0 10px}
+.v p{color:var(--mu);margin-bottom:12px}
+.v dl{display:grid;grid-template-columns:auto 1fr;gap:2px 14px;margin-bottom:16px}
+.v dt{color:var(--mu)}
+.act{display:flex;gap:8px;flex-wrap:wrap}
+.act button{border:1px solid var(--hl);padding:6px 12px;background:var(--wl)}
+.act button:hover{border-color:var(--ink)}
+.act .a{border-color:var(--lime);color:var(--lime);text-shadow:0 0 6px #c6ff3d55}
+.act .a:hover{background:var(--lime);color:var(--bg);text-shadow:none}
+.act button:disabled{opacity:.35;pointer-events:none}
+.stamp{margin-top:16px;padding:8px 10px;border:1px dashed var(--hl);color:var(--mu)}
+footer{border-top:1px solid var(--hl);display:flex;gap:16px;padding:6px 14px;background:var(--pn);white-space:nowrap;overflow:hidden}
+footer .cmd{color:var(--ink);overflow:hidden;text-overflow:ellipsis;flex:1}
+footer .cmd::before{content:"$ ";color:var(--mu)}
+footer .q{color:var(--mu)}footer .h{color:var(--mu)}
+#pal{position:fixed;inset:0;background:#000a;z-index:9;display:none;align-items:flex-start;justify-content:center;padding-top:12vh}
+#pal.open{display:flex}
+#pal div{width:min(640px,92vw);background:var(--pn);border:1px solid var(--ink);box-shadow:0 0 24px #c6ff3d14}
+#pal input{width:100%;font:inherit;font-size:15px;background:none;border:0;border-bottom:1px solid var(--hl);color:var(--ink);padding:12px 14px;outline:0}
+#pal ul{list-style:none;max-height:50vh;overflow:auto}
+#pal li{padding:6px 14px;display:flex;justify-content:space-between;gap:12px;cursor:pointer}
+#pal li.sel{background:var(--ink);color:var(--bg)}
+#pal li span{opacity:.6}
+#pal li mark{background:none;color:inherit;text-decoration:underline}
+.ro{color:var(--mu);padding:6px 14px;font-size:12px;border-top:1px solid var(--hl)}
+@media(max-width:900px){body{overflow:auto}main{display:block}.pane{border-bottom:1px solid var(--hl)}.body{max-height:none}footer .h{display:none}header .sp,header .hd{display:none}}
+@media(prefers-reduced-motion:reduce){body::after{display:none}*{text-shadow:none!important;transition:none!important}}
+</style>
+<header><b>ARP://CONSOLE</b><span class=hd>session ratify-2026-10-05</span><span class=sp></span><span id=cnt></span><span><kbd>:</kbd> palette</span></header>
+<main>
+<section class="pane on" id=p0><h2><span>RUNS</span><span>j/k</span></h2><div class=body id=runs></div></section>
+<section class=pane id=p1><h2><span>EVIDENCE</span><span>j/k</span></h2><div class=body id=evs></div></section>
+<section class=pane id=p2><h2><span>VERDICT</span><span>a / x / u</span></h2><div class=body id=ver></div></section>
+</main>
+<footer><span class=cmd id=cmd></span><span class=q id=q></span><span class=h>tab pane · a approve · x reject · : palette</span></footer>
+<div id=pal><div><input id=pi placeholder="arp ..." autocomplete=off aria-label="Command palette"><ul id=pl></ul><p class=ro>enter: run in pane · esc: close · UI actions map 1:1 to CLI</p></div></div>
+<script>
+const R=[
+{id:"r-0412",n:"transition-barrier refresh",s:"Steel / EU",st:"await",ev:[["OGU-R1","EU CBAM text: free allocation phase-out confirmed","H",.92,"eur-lex 2023/956 art.31"],["STL-C3","Capex guidance disagrees with plan page 41","M",.61,"ArcelorMittal CMD 2025"],["STL-T2","H2-DRI offtake unsigned; MoU only","L",.44,"press release 2026-03"]],v:"Rate Steel/EU as HIGH barrier. 2 of 3 cells are backed by primary text.",c:"arp decision ratify r-0412"},
+{id:"r-0411",n:"voting review",s:"AGM batch 14",st:"await",ev:[["VOT-07","Resolution 9 conflicts with climate policy s.3.2","H",.88,"proxy statement p.22"],["VOT-11","Director tenure 14y exceeds policy cap","H",.95,"board bios"]],v:"Vote AGAINST resolutions 9 and 11 per policy.",c:"arp voting cast r-0411"},
+{id:"r-0409",n:"theme classify-lifecycle",s:"Emerging themes",st:"await",ev:[["THM-31","Green hydrogen: pilot -> early commercial","M",.7,"IEA outlook 2026"],["THM-33","Grid storage lifecycle ambiguous","L",.38,"2 conflicting sources"]],v:"Promote THM-31; send THM-33 back for more sources.",c:"arp theme resume r-0409"},
+{id:"r-0408",n:"documents reground",s:"Cement filings",st:"run",ev:[["DOC-88","Re-anchoring 41 of 60 quotes","M",.68,"in progress"]],v:"Running. Nothing to decide yet.",c:"arp runs show r-0408"},
+{id:"r-0405",n:"climate waci",s:"Portfolio P3",st:"done",ev:[["WACI","Weighted avg carbon intensity 118 tCO2e/$M","H",.97,"holdings 2026-09-30"]],v:"Ratified by S. Kutscher, 2026-10-03.",c:"arp climate waci --portfolio P3"},
+{id:"r-0402",n:"publish run",s:"Q3 report",st:"done",ev:[["PUB-1","All 14 claims carry signed evidence","H",.99,"audit log"]],v:"Published 2026-10-02.",c:"arp publish run r-0402"}];
+const CMDS=["arp runs list","arp runs show <id>","arp runs diff <a> <b>","arp runs cancel <id>","arp decision list","arp decision ratify <id>","arp decision audit <id>","arp voting ballots","arp voting review <id>","arp voting cast <id>","arp transition-barrier scores --rating H","arp transition-barrier staleness","arp transition-barrier refresh","arp theme classify-lifecycle","arp documents reground","arp climate waci --portfolio P3","arp engagement record-list","arp engagement issue-escalate","arp golden-set run","arp publish run","arp publish withdraw","arp calibration run","arp discover run"];
+const $=i=>document.getElementById(i),pane=[$("p0"),$("p1"),$("p2")];
+const S={r:0,e:0,f:0,dec:{}};
+const lab={await:"awaits you",run:"running",done:"done"};
+const st=r=>S.dec[r.id]||r.st;
+const cur=()=>R[S.r];
+function say(c,msg){$("cmd").textContent=c;$("q").textContent=msg||""}
+function esc(s){return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
+function draw(){
+ const w=R.filter(r=>st(r)=="await").length;
+ $("cnt").innerHTML=w?`<span style="color:var(--lime)">${w} await a person</span>`:"queue clear";
+ $("runs").innerHTML=R.map((r,i)=>{const s=st(r),a=s=="await";
+  return`<button class="row ${a?"wait":""} ${i==S.r?"sel":""}" data-r=${i}><span class=dot>${a?"●":s=="run"?"◐":s=="rejected"?"✕":"○"}</span><span>${r.id} ${r.n}</span><span class="st ${s=="approved"?"ok":s=="rejected"?"lo":""}">${s=="await"?lab.await:s}</span><small>${r.s}</small></button>`}).join("");
+ const r=cur();
+ $("evs").innerHTML=r.ev.map((e,i)=>{const k=Math.round(e[3]*5);
+  return`<button class="ev ${i==S.e?"sel":""}" data-e=${i}><span class=m>${e[0]} · <span class=${e[2]=="H"?"ok":e[2]=="L"?"lo":""} style="${e[2]=="M"?"color:var(--mid)":""}">${e[2]}</span> · <span class=cf>${"█".repeat(k)}${"░".repeat(5-k)}</span> ${e[3]}</span><q>${esc(e[1])}</q><span class=m>src: ${esc(e[4])}</span></button>`}).join("");
+ const s=st(r),a=s=="await";
+ $("ver").innerHTML=`<div class=v><span class=m style="color:var(--mu)">${r.id} · ${r.s}</span><h3>${a?"Awaiting your decision":s=="run"?"In progress":s=="rejected"?"Rejected":"Settled"}</h3><p>${esc(r.v)}</p>
+ <dl><dt>evidence</dt><dd>${r.ev.length} cells</dd><dt>min confidence</dt><dd>${Math.min(...r.ev.map(e=>e[3]))}</dd><dt>signer</dt><dd>${a?"unsigned":s=="approved"?"you, just now":"s.kutscher"}</dd></dl>
+ <div class=act><button class=a data-a=approve ${a?"":"disabled"}>[a] approve</button><button data-a=reject ${a?"":"disabled"}>[x] reject</button>${S.dec[r.id]?"<button data-a=undo>[u] undo</button>":""}</div>
+ <p class=stamp>${a?"Nothing ships unsigned.":"Recorded to audit log."}</p></div>`;
+ pane.forEach((p,i)=>p.classList.toggle("on",i==S.f));
+}
+function act(k){const r=cur();
+ if(k=="undo"){delete S.dec[r.id];say(`arp decision audit ${r.id}`,"undone");return draw()}
+ if(st(r)!="await")return;
+ S.dec[r.id]=k=="approve"?"approved":"rejected";
+ say(k=="approve"?r.c:`arp decision reject ${r.id}`,k+"d");
+ const n=R.findIndex(x=>st(x)=="await");if(n>-1){S.r=n;S.e=0}
+ draw()}
+function pick(i){S.r=i;S.e=0;say(`arp runs show ${R[i].id}`);draw()}
+document.addEventListener("click",ev=>{const t=ev.target.closest("[data-r],[data-e],[data-a]");if(!t)return;
+ if(t.dataset.r!=null){S.f=0;pick(+t.dataset.r)}
+ else if(t.dataset.e!=null){S.f=1;S.e=+t.dataset.e;say(`arp transition-barrier sources --code ${cur().ev[S.e][0]}`);draw()}
+ else{S.f=2;act(t.dataset.a)}});
+let pf=CMDS,ps=0;
+const fz=(q,s)=>{let i=0,o="";for(const c of s){if(i<q.length&&c.toLowerCase()==q[i].toLowerCase()){o+=`<mark>${c}</mark>`;i++}else o+=esc(c)}return i==q.length?o:null};
+function plist(){const q=$("pi").value.replace(/\s+/g,"").replace(/^arp/,"");
+ pf=CMDS.map(c=>[c,fz(q,c.replace(/^arp /,""))]).filter(x=>x[1]!=null);ps=Math.min(ps,Math.max(0,pf.length-1));
+ $("pl").innerHTML=pf.map((x,i)=>`<li class="${i==ps?"sel":""}" data-i=${i}>arp ${x[1]}</li>`).join("")||"<li><span>no match</span></li>";
+ if(pf[ps])say(pf[ps][0])}
+function popen(o){$("pal").classList.toggle("open",o);if(o){$("pi").value="";ps=0;plist();$("pi").focus()}}
+function prun(i){const c=pf[i]&&pf[i][0];if(!c)return;popen(false);say(c,"ran in palette");
+ const m=c.match(/(runs show|decision ratify|voting review)/);if(m){S.r=Math.max(0,R.findIndex(r=>st(r)=="await"));S.e=0}
+ if(c=="arp decision list"||c=="arp voting ballots"){const n=R.findIndex(r=>st(r)=="await");if(n>-1)S.r=n}
+ draw()}
+$("pi").oninput=()=>{ps=0;plist()};
+$("pl").onclick=e=>{const l=e.target.closest("li");if(l&&l.dataset.i)prun(+l.dataset.i)};
+document.addEventListener("keydown",e=>{
+ if($("pal").classList.contains("open")){
+  if(e.key=="Escape")popen(false);
+  else if(e.key=="Enter")prun(ps);
+  else if(e.key=="ArrowDown"||(e.ctrlKey&&e.key=="n")){ps=Math.min(pf.length-1,ps+1);plist();e.preventDefault()}
+  else if(e.key=="ArrowUp"||(e.ctrlKey&&e.key=="p")){ps=Math.max(0,ps-1);plist();e.preventDefault()}
+  return}
+ if(e.metaKey||e.ctrlKey||e.altKey)return;
+ const k=e.key;
+ if(k==":"){e.preventDefault();popen(true)}
+ else if(k=="Tab"){e.preventDefault();S.f=(S.f+(e.shiftKey?2:1))%3;draw()}
+ else if(k=="j"||k=="k"){const d=k=="j"?1:-1;
+  if(S.f==1){S.e=Math.max(0,Math.min(cur().ev.length-1,S.e+d));say(`arp transition-barrier sources --code ${cur().ev[S.e][0]}`);draw()}
+  else pick(Math.max(0,Math.min(R.length-1,S.r+d)))}
+ else if(k=="a")act("approve");else if(k=="x")act("reject");else if(k=="u")act("undo")});
+say("arp runs list","ready");draw();
+</script>

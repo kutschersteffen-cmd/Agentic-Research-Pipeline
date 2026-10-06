@@ -1,0 +1,94 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Run Gantt with Backpressure Heat</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&family=Geist+Mono:wght@400;500&display=swap" rel=stylesheet>
+<style>
+:root{--ink:#141414;--g:#f3f3f0;--hl:#dcdcd7;--mu:#5c5c57;--o:#ea4c14;--mono:"Geist Mono",ui-monospace,monospace}
+*{box-sizing:border-box;margin:0;border-radius:0}
+html,body{height:100%}
+body{background:var(--g);color:var(--ink);font:15px/1.45 Geist,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;display:flex;flex-direction:column;padding:clamp(12px,2vw,24px);gap:12px}
+header{display:flex;flex-wrap:wrap;gap:12px 40px;align-items:flex-end;justify-content:space-between;border-bottom:2px solid var(--ink);padding-bottom:12px}
+h1{font-size:clamp(1.4rem,1rem + 1.6vw,2.2rem);font-weight:600;letter-spacing:-.035em;line-height:1.02}
+h1 small{display:block;font:400 .8125rem/1.3 var(--mono);color:var(--mu);letter-spacing:0;margin-top:6px}
+.m{display:flex;flex-wrap:wrap;gap:12px 32px;font-family:var(--mono)}
+.m div{min-width:84px}
+.m b{display:block;font-weight:500;font-size:clamp(1.1rem,.8rem + 1vw,1.7rem);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.m span{font-size:.72rem;color:#4a4a46;text-transform:uppercase;letter-spacing:.08em}
+.m .h b{color:var(--o)}
+.cv{flex:1;min-height:360px;position:relative;border:1px solid var(--hl);background:#fff}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+footer{display:flex;flex-wrap:wrap;gap:6px 28px;font:400 .8125rem/1.3 var(--mono);min-height:2.6em;align-items:center;justify-content:space-between}
+#r{color:var(--ink)}#r i{font-style:normal;color:var(--o)}
+.k{color:var(--mu);display:flex;gap:16px;flex-wrap:wrap}
+.k s{display:inline-block;width:10px;height:10px;margin-right:6px;vertical-align:-1px;text-decoration:none}
+</style>
+<header>
+<h1>Run 0417 · backpressure heat<small>4,000 companies · 1 row ≈ 1 company · 6 stages</small></h1>
+<div class=m>
+<div><b id=tp>0</b><span>cos / min</span></div>
+<div><b id=eta>--</b><span>ETA</span></div>
+<div><b id=dn>0</b><span>done</span></div>
+<div><b id=rt>0</b><span>retries</span></div>
+<div class=h><b id=bl>0</b><span>need a human</span></div>
+</div>
+</header>
+<div class=cv><canvas id=c></canvas></div>
+<footer><div id=r>Hover a row to read company, stage, retries.</div>
+<div class=k><span><s style="background:#d9d9d3"></s>running</span><span><s style="background:#2a2a28"></s>done</span><span><s style="background:var(--o)"></s>blocked on a person</span><span>┆ resume checkpoint</span><span>kink = retry</span></div></footer>
+<script>
+const N=4000,S=["resolve","discover","extract","verify","ground","review"],ND=[3,8,14,10,9,6],
+BP=[0,0,.002,.003,.004,.022],RP=[.05,.12,.28,.1,.15,.08],CK=[[1,.5],[3,.35],[4,.8]],
+END=130,RM=matchMedia("(prefers-reduced-motion:reduce)"),LD=520,GUT=44,TOP=26;
+let s=20261005;const R=()=>(s=s*1664525+1013904223>>>0)/4294967296;
+const st=new Float32Array(N*6),du=new Float32Array(N*6),rt=new Uint8Array(N*6),bk=new Int8Array(N).fill(-1);
+const P=["Ar","Bel","Cor","Dun","Eld","Fen","Gal","Hart","Isk","Jov","Kel","Lum","Mar","Nor","Orr","Pel","Quin","Rav","Sol","Tev","Umb","Vex","Wyn"],
+Q=["tek","works","ra","lyn","dyne","corp","labs","io","ity","ton","gen","mark"];
+const nm=i=>{let a=i*2654435761>>>0;return P[a%23]+Q[(a>>>8)%12]};
+let tot=0,rtT=0,first=true;
+for(let i=0;i<N;i++){let t=Math.pow(i/N,.9)*44+R()*4;
+ for(let k=0;k<6;k++){let r=0;while(r<3&&R()<RP[k])r++;rt[i*6+k]=r;
+  const d=ND[k]*(.6+R())*(1+.45*r);st[i*6+k]=t;du[i*6+k]=d;t+=d+R();rtT+=r;
+  if(bk[i]<0&&R()<BP[k]){bk[i]=k;break}}}
+const cv=document.getElementById("c"),x=cv.getContext("2d"),$=id=>document.getElementById(id);
+let W,H,K,hov=-1,T=0,t0=0,last=[];
+function size(){const b=cv.parentNode.getBoundingClientRect(),d=devicePixelRatio||1;W=b.width;H=b.height;cv.width=W*d;cv.height=H*d;x.setTransform(d,0,0,d,0,0);K=N/(H-TOP-4)}
+const lane=k=>{const w=(W-GUT-8)/6;return[GUT+k*w,w]};
+const lerp=(a,b,p)=>{const c=n=>Math.round(((a>>n&255)*(1-p)+(b>>n&255)*p));return`rgb(${c(16)},${c(8)},${c(0)})`};
+function prog(i,k,t){const q=(t-st[i*6+k])/du[i*6+k];const c=q<0?0:q>1?1:q;return bk[i]===k?Math.min(c,.55):c}
+function draw(t){
+ x.clearRect(0,0,W,H);x.fillStyle="#fff";x.fillRect(0,0,W,H);
+ const rows=H-TOP-4,pulse=.65+.35*Math.sin(performance.now()/260*(RM.matches?0:1)),blk=[];let done=0,rc=0,blN=0;
+ for(let r=0;r<rows;r++){const a=Math.floor(r*K),b=Math.min(N,Math.floor((r+1)*K)),y=TOP+r;
+  for(let k=0;k<6;k++){let sum=0,bl=0,re=0,n=b-a;
+   for(let i=a;i<b;i++){const p=prog(i,k,t);sum+=p;if(bk[i]===k&&p>=.55)bl=1;re=Math.max(re,t>st[i*6+k]?rt[i*6+k]:0)}
+   const p=sum/n,[lx,w]=lane(k),fw=w*p;
+   if(bl){blk.push(lx,y,fw||w*.55);continue}
+   if(p>0){x.fillStyle=p>.995?"#2a2a28":lerp(0xd9d9d3,0x3a3a37,p);x.fillRect(lx,y,fw,1)}
+   if(re&&p>0&&p<1){x.fillStyle="#141414";x.fillRect(Math.min(lx+w-2,lx+fw+re*3),y,2,1);x.fillStyle="#fff";x.fillRect(lx+fw+1,y,re*3-1,1)}
+   else if(re&&p>=1&&(r*7+k)%3==0){x.fillStyle="#9a9a95";x.fillRect(lx+w*.72+re*2,y,2,1)}}}
+ for(let i=0;i<N;i++){const f=bk[i]<0?5:bk[i];if(bk[i]<0&&t>=st[i*6+5]+du[i*6+5])done++;if(bk[i]>=0&&t>=st[i*6+bk[i]]+du[i*6+bk[i]]*.55)blN++;for(let k=0;k<6;k++)if(t>st[i*6+k])rc+=rt[i*6+k]*Math.min(1,(t-st[i*6+k])/du[i*6+k])|0}
+ x.save();x.shadowColor="#ea4c14";x.shadowBlur=10;x.fillStyle=`rgba(234,76,20,${pulse})`;
+ for(let j=0;j<blk.length;j+=3)x.fillRect(blk[j],blk[j+1],blk[j+2],1);x.restore();
+ x.fillStyle="#ea4c14";for(let j=0;j<blk.length;j+=3)x.fillRect(blk[j],blk[j+1],Math.min(blk[j+2],3),1);
+ x.strokeStyle="#dcdcd7";x.fillStyle="#5c5c57";x.font='500 11px "Geist Mono",monospace';x.lineWidth=1;
+ for(let k=0;k<6;k++){const[lx,w]=lane(k);x.fillText(S[k].toUpperCase(),lx+4,16);x.beginPath();x.moveTo(lx+.5,TOP-4);x.lineTo(lx+.5,H);x.stroke()}
+ x.beginPath();x.moveTo(lane(5)[0]+lane(5)[1]+.5,TOP-4);x.lineTo(lane(5)[0]+lane(5)[1]+.5,H);x.stroke();
+ for(let y=0;y<=N;y+=1000){const yy=TOP+y/K;x.fillText(y?y/1000+"k":"0",4,Math.min(yy+10,H-3))}
+ x.strokeStyle="#141414";x.setLineDash([2,3]);for(const[k,f]of CK){const[lx,w]=lane(k),cx=Math.round(lx+w*f)+.5;x.beginPath();x.moveTo(cx,TOP-4);x.lineTo(cx,H);x.stroke()}x.setLineDash([]);
+ if(hov>=0){const y=TOP+hov/K;x.fillStyle="#14141466";x.fillRect(GUT,y-.5,W-GUT,2)}
+ return[done,rc,blN]}
+function hud(t,[done,rc,blN]){
+ last.push([t,done]);if(last.length>30)last.shift();
+ const a=last[0],tp=last.length>1&&t>a[0]?(done-a[1])/(t-a[0]):0,rem=N-done-blN,fin=t>=END;
+ $("tp").textContent=fin?"0":Math.round(tp);$("dn").textContent=done.toLocaleString();$("rt").textContent=rc.toLocaleString();$("bl").textContent=blN;
+ $("eta").textContent=fin?(blN?"holds":"0:00"):tp>0?Math.floor(rem/tp)+"m":"--"}
+function frame(n){if(!t0)t0=n;T=RM.matches?END:Math.min(END,(n-t0)/110);hud(T,draw(T));if(T<END&&!RM.matches)requestAnimationFrame(frame);else done=1}
+let done=0;
+function go(){size();hud(T||END,draw(T||END))}
+function rd(){if(hov<0){$("r").textContent="Hover a row to read company, stage, retries.";return}
+ const i=hov;let k=0;while(k<5&&bk[i]!==k&&T>=st[i*6+k]+du[i*6+k])k++;
+ const p=prog(i,k,T),b=bk[i]===k&&p>=.55,r=rt[i*6+k];
+ $("r").innerHTML=`#${String(i+1).padStart(4,"0")} ${nm(i)} · ${S[k]} ${Math.round(p*100/(b?.55:1))}% · retries ${r}`+(b?` · <i>● waiting on a person</i>`:T<st[i*6]?" · queued":"")}
+cv.onmousemove=e=>{const y=e.offsetY-TOP;hov=y<0||y>H-TOP-4?-1:Math.min(N-1,Math.floor(y*K));rd();if(done)hud(T,draw(T))};
+cv.onmouseleave=()=>{hov=-1;rd();if(done)hud(T,draw(T))};
+addEventListener("resize",()=>{go()});
+size();RM.matches?go():requestAnimationFrame(frame);
+</script>

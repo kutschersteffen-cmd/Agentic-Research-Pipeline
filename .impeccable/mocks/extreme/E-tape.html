@@ -1,0 +1,71 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Tape Reader</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&family=Geist+Mono:wght@400;500&display=swap" rel=stylesheet>
+<style>
+:root{--ink:#141414;--gr:#f3f3f0;--pn:#fff;--hl:#dcdcd7;--mu:#5c5c57;--or:#ea4c14;--rh:24px}
+*{box-sizing:border-box;margin:0}
+html{height:100%}
+body{background:var(--gr);color:var(--ink);font:13px/1 "Geist Mono",ui-monospace,monospace;display:flex;flex-direction:column;height:100vh}
+header{display:flex;align-items:baseline;gap:24px;padding:16px 16px 12px;border-bottom:2px solid var(--ink);flex-wrap:wrap}
+h1{font:600 22px/1 Geist,sans-serif;letter-spacing:-.03em}
+header span{color:var(--mu)}
+.k{margin-left:auto}
+kbd{font:inherit;border:1px solid var(--ink);padding:1px 5px;color:var(--ink)}
+.row{display:grid;grid-template-columns:96px 120px 150px minmax(0,1.3fr) minmax(0,1.3fr) minmax(0,1.3fr) 104px 76px;gap:0 12px;align-items:center;padding:0 16px;height:var(--rh);white-space:nowrap}
+.row>*{overflow:hidden;text-overflow:ellipsis}
+.hd{background:var(--ink);color:var(--gr);height:28px;font-weight:500;text-transform:uppercase;font-size:11px;letter-spacing:.06em}
+#sc{flex:1;overflow:auto;background:var(--pn);position:relative;outline:0}
+#in{position:absolute;left:0;right:0;top:0}
+#in .row{position:absolute;left:0;right:0;border-bottom:1px solid var(--hl)}
+.row.sel{background:var(--ink);color:var(--pn)}
+.row.sel .d{color:#bbb}
+.d{color:var(--mu)}
+.ok .st{font-weight:500}.no{color:var(--mu)}.no .v{text-decoration:line-through}
+.ov{font-weight:500}
+.ov::before{content:"";display:inline-block;width:8px;height:8px;background:var(--or);margin-right:6px}
+.st{text-align:right}
+footer{display:flex;gap:24px;padding:10px 16px;border-top:2px solid var(--ink);background:var(--gr);flex-wrap:wrap}
+footer b{font-weight:500}
+.mk{display:inline-block;width:8px;height:8px;background:var(--or);margin-right:6px}
+@media(max-width:900px){.row{grid-template-columns:80px 1fr 1fr 90px 64px}.row>:nth-child(2),.row>:nth-child(4),.row>:nth-child(5){display:none}.k{display:none}}
+</style>
+<header><h1>Tape Reader</h1><span>review queue / per-field audit events</span><span class=k><kbd>j</kbd><kbd>k</kbd> move &nbsp;<kbd>a</kbd> approve &nbsp;<kbd>r</kbd> reject</span></header>
+<div class="row hd"><span>Time</span><span>Entity</span><span>Field</span><span>Proposed</span><span>Verified</span><span>Overridden</span><span>Source #</span><span class=st>Status</span></div>
+<div id=sc tabindex=0><div id=in></div></div>
+<footer id=sl></footer>
+<script>
+const N=4000,H=24,sc=document.getElementById("sc"),inn=document.getElementById("in"),sl=document.getElementById("sl");
+const ENT=["Meridian Labs","Orrin Bio","Calder Fund","Halcyon Corp","Vantage Ltd","Kestrel AI","Brightwater","Northgate"];
+const FLD=["revenue_fy25","headcount","hq_city","ceo_name","founded","funding_total","ticker","sector","last_round","cap_table.lead"];
+const OLD=["14.2M","1,204","Rotterdam","M. Okafor","2011","$88M","MRDN","Biotech","Series C","Sequoia"];
+const NEW=["14.9M","1,310","Rotterdam NL","M. Okafor-Reyes","2012","$91.5M","MRDN.L","Biotech/AI","Series D","Index"];
+const rng=s=>{s=Math.imul(s+0x6D2B79F5|0,1);let t=Math.imul(s^s>>>15,s|1);t^=t+Math.imul(t^t>>>7,t|61);t=Math.imul(t^t>>>15,0x9E3779B1);t^=t>>>13;t=Math.imul(t,0x85EBCA6B);return((t^t>>>16)>>>0)/4294967296};
+const hex=(i,k)=>Math.floor(rng(i*7+k)*0xffffff).toString(16).padStart(6,"0");
+const cache=new Map(),state=new Map();
+function ev(i){let e=cache.get(i);if(e)return e;
+ const f=Math.floor(rng(i+1)*FLD.length),t=new Date(Date.UTC(2026,9,5,18,0,0)-i*37000);
+ const p=rng(i+2)<.5?OLD[f]:NEW[f],v=rng(i+3)<.8?NEW[f]:p;
+ e={t:t.toISOString().slice(11,19),ent:ENT[Math.floor(rng(i+4)*ENT.length)],f:FLD[f],p,v,o:rng(i+5)<.12?NEW[f]+" *":"",h:hex(i,9)+hex(i,3).slice(0,2)};
+ cache.set(i,e);return e}
+let ov=0;for(let i=0;i<N;i++)if(ev(i).o)ov++;cache.clear();
+let sel=0,pend=N;
+const esc=s=>s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+function draw(){
+ const top=sc.scrollTop,a=Math.max(0,Math.floor(top/H)-4),b=Math.min(N,Math.ceil((top+sc.clientHeight)/H)+4);
+ let h="";for(let i=a;i<b;i++){const e=ev(i),s=state.get(i),c=(i==sel?"sel ":"")+(s=="a"?"ok ":s=="r"?"no ":"");
+  h+=`<div class="row ${c}" style="top:${i*H}px" data-i=${i}><span class=d>${e.t}</span><span>${e.ent}</span><span>${e.f}</span><span class=v>${esc(e.p)}</span><span class=v>${esc(e.v)}</span><span class="${e.o?"ov":"d"}">${e.o?esc(e.o):"&ndash;"}</span><span class=d>${e.h}</span><span class=st>${s=="a"?"APPROVED":s=="r"?"REJECTED":"PENDING"}</span></div>`}
+ inn.innerHTML=h;
+ let ap=0,rj=0;state.forEach(x=>x=="a"?ap++:rj++);
+ sl.innerHTML=`<span>row <b>${sel+1}</b>/${N}</span><span>pending <b>${N-ap-rj}</b></span><span>approved <b>${ap}</b></span><span>rejected <b>${rj}</b></span><span><i class=mk></i>human overrides <b>${ov}</b></span>`}
+inn.style.height=N*H+"px";
+function go(i){sel=Math.max(0,Math.min(N-1,i));const y=sel*H;
+ if(y<sc.scrollTop)sc.scrollTop=y;else if(y+H>sc.scrollTop+sc.clientHeight)sc.scrollTop=y+H-sc.clientHeight;draw()}
+function mark(x){state.set(sel,x);go(sel+1)}
+addEventListener("keydown",e=>{if(e.metaKey||e.ctrlKey||e.altKey)return;const k=e.key;
+ if(k=="j"||k=="ArrowDown"){e.preventDefault();go(sel+1)}else if(k=="k"||k=="ArrowUp"){e.preventDefault();go(sel-1)}
+ else if(k=="a")mark("a");else if(k=="r")mark("r")});
+inn.onclick=e=>{const r=e.target.closest(".row");if(r)go(+r.dataset.i)};
+sc.addEventListener("scroll",()=>requestAnimationFrame(draw));addEventListener("resize",draw);
+draw();
+// seed a few decisions so the screenshot shows state
+[0,1,2,4].forEach((i,n)=>state.set(i,n==2?"r":"a"));sel=3;draw();
+</script>
