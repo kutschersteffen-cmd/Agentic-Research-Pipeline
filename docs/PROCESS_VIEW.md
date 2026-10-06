@@ -33,7 +33,7 @@ or a single step run by hand.
 | **Argus** (`#/argus`) | Extract cited data points and score them with ratified Decision Studio templates | Extract and score |
 | **Transition Intelligence Platform** (`#/transitionIntel`) | Monitor holdings; assess climate and transition risk | Monthly monitoring · Climate transition review |
 | **R&D Lab** (`#/rdLab`) | Themes and strategies, scored and built into indices | Launch a thematic product · Research a strategy |
-| **Data Hub** (`#/dataHub`) | Input feeds and stored documents, resolved to one issuer | Onboard a portfolio |
+| **Data Hub** (`#/dataHub`) | Input feeds and stored data; the security master maps every security to its internal issuer, once, for the whole tool | Map securities to issuers |
 
 | Process | Cadence | Steps | Done when |
 |---|---|---|---|
@@ -45,7 +45,17 @@ or a single step run by hand.
 | **Climate transition review** | Annual, plus ad hoc before committees | Risk Monitoring → Transition Barriers → Transition Plan → Decision Studio → Steward · Selection → Reports | A tiered list of issuers to engage, each with a walk-vs-talk verdict and sector context |
 | **Launch a thematic product** | Per product idea | Emerging Themes → Taxonomy Library → Thematic Universe → Review Queue → Decision Studio → Index Construction → Reports | A ratified theme, a reviewed universe and an effective-dated index calibration |
 | **Research a strategy** | Per paper or idea | Strategy Replication → Decision Studio → Index Construction → Reports | Tested out of sample, compared with alternatives, and built as an index if it holds |
-| **Onboard a portfolio** | When a fund or mandate is added | Identity Resolution → Document Discovery → Extraction (Argus) → Data Library | Every holding resolves to one issuer, with current disclosures ready for Argus |
+| **Map securities to issuers** | When the security master or a holding changes | Load security master → Map holdings → Unmatched → Data Library | Every held security mapped to exactly one internal issuer by the security master, and nothing mapped any other way |
+
+**The security master is the golden source for issuer identity.** It is loaded only in Data Hub
+(`#/securityMaster`, approvers only; CSV/Excel now, an API source later) into the identifier map
+(`data/identifier_map.jsonl`): an internal issuer id per row, with any of ISIN, CUSIP, SEDOL, FIGI, LEI
+and CIK. A load replaces the master whole (the previous one is archived) and is refused if any row is
+invalid or one identifier points at two issuers over the same dates. Matching is exact everywhere:
+holdings map by ISIN (or the row's LEI) through it, and extraction and Argus's Identify step use the
+internal issuer id whenever the master knows the company's LEI, ISIN or CIK. Nothing is matched by name
+and no issuer is assigned by hand; an unmatched security is listed in Data Hub and fixed in the master.
+Holdings are mapped as they load, so reload them after a master change.
 
 The workspaces, processes and steps live in `frontend/src/lib/processes.ts`: one
 registry to edit when a process changes. Old links (`#/processes/<id>`,

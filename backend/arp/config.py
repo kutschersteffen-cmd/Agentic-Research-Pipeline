@@ -335,9 +335,6 @@ class Settings(BaseSettings):
     identity_resolution_max_search_results: int = Field(default=5)
 
     # Portfolio risk & exposure monitoring
-    portfolio_confidence_review_threshold: float = Field(
-        default=0.6, description="Security-to-issuer entity resolution matches below this confidence are routed to review."
-    )
 
     # Continuous monitoring & alerting (arp/portfolio/monitoring/). Clones
     # discovery/scheduler.py's AsyncIOScheduler + JSON-persisted-config

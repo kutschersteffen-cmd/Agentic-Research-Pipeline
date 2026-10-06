@@ -1115,16 +1115,20 @@ export interface Alert {
   owner?: string | null;
 }
 
-export type ResolutionReviewItem = SecurityResolution;
-
-export interface ResolutionDecision {
-  item_type: "entity_resolution";
-  item_key: string;
-  decision: "accept" | "override" | "reject";
-  decided_by: string;
-  reason: string;
-  override_value?: string | null;
-  decided_at: string;
+export interface SecurityMasterStatus {
+  issuers: number;
+  identifiers: Record<"ISIN" | "CUSIP" | "SEDOL" | "FIGI" | "LEI" | "CIK", number>;
+  last_load: { status: "ok" | "failed"; detail: string; at: string; content_hash: string } | null;
+}
+export interface UnmatchedSecurity {
+  holder_id: string;
+  kind: "index" | "portfolio";
+  as_of: string;
+  isin: string | null;
+  security_id: string;
+  reason: "not in security master" | "ambiguous";
+  issuer_key: string;
+  candidates: string[];
 }
 
 export interface DemoSeedSummary {
@@ -2957,7 +2961,6 @@ export interface IntakeResult {
   revision: number;
   rows: number;
   unresolved: string[];
-  review_run_id: string | null;
 }
 
 export interface UnifiedTrigger {

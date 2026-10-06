@@ -13,7 +13,6 @@ from arp.portfolio.loads import latest_load
 from arp.schemas.common import CompanyRef
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.portfolio_store import PortfolioStore
-from arp.storage.run_store import RunStore
 
 MONTH = "2026-09"
 TOKEN = "s3cret-token-value"
@@ -89,8 +88,7 @@ def _ingest(tmp_path, store):
     v = validate([{"_row": 2, "isin": "US0378331005", "weight": 100, "market_value": 1, "currency": "EUR"}],
                  kind="index", as_of="2026-10-31", today=date(2027, 1, 31))
     return ingest(store, v, kind="index", holder_id="IX1", as_of="2026-10-31", source="file", source_ref="f.csv",
-                  principal=None, override_reason=None, run_store=RunStore(tmp_path / "runs"),
-                  idmap=IdentifierMapStore(tmp_path / "id.jsonl"))
+                  principal=None, override_reason=None, idmap=IdentifierMapStore(tmp_path / "id.jsonl"))
 
 
 def test_holdings_ingest_records_load_and_unchanged_reingest_keeps_ok(tmp_path):
@@ -107,7 +105,7 @@ def test_holdings_validation_failure_records_failed_load(tmp_path):
     v = validate([{"_row": 2, "isin": "bad", "weight": 100}], kind="index", as_of="2026-10-31", today=date(2027, 1, 31))
     with pytest.raises(IntakeError):
         ingest(store, v, kind="index", holder_id="IX1", as_of="2026-10-31", source="file", source_ref=None, principal=None,
-               override_reason=None, run_store=RunStore(tmp_path / "runs"), idmap=IdentifierMapStore(tmp_path / "id.jsonl"))
+               override_reason=None, idmap=IdentifierMapStore(tmp_path / "id.jsonl"))
     assert latest_load(store, "holdings", "IX1", "2026-10").status == "failed"
 
 

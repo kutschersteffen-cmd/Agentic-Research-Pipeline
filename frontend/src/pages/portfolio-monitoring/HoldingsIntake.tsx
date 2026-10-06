@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../../api/client";
 import { FileLink } from "../../components/FileLink";
 import { announce } from "../../lib/announce";
-import { ResolutionReviewPanel } from "./ResolutionReviewPanel";
 import { ageLabel, needsOverrideReason, parseIntakeError, previousMonth, rowErrorText } from "../../lib/holdings";
 import type { HolderStatus, IntakeResult, RowError } from "../../types";
 
@@ -10,7 +9,7 @@ const KINDS = ["index", "portfolio"] as const;
 const FORMATS = ["csv", "xlsx"] as const;
 
 const summary = (r: IntakeResult): string =>
-  [r.status === "unchanged" ? "No change" : `Revision ${r.revision} written (${r.rows} rows)`, r.unresolved.length ? `${r.unresolved.length} ISINs sent to review` : ""]
+  [r.status === "unchanged" ? "No change" : `Revision ${r.revision} written (${r.rows} rows)`, r.unresolved.length ? `${r.unresolved.length} ISINs not in the security master (see Data Hub · Security Master)` : ""]
     .filter(Boolean)
     .join("; ");
 
@@ -207,8 +206,6 @@ export function HoldingsIntake() {
       </table>
 
       <MonthlyRunPanel />
-
-      <ResolutionReviewPanel />
 
       <h3>Templates</h3>
       <p>

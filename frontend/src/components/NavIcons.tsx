@@ -62,6 +62,13 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <path d="M4.5 12c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5" />
     </svg>
   ),
+  // A key: one identifier opens exactly one issuer.
+  securityMaster: (
+    <svg {...ICON_PROPS}>
+      <circle cx="8" cy="12" r="4" />
+      <path d="M12 12h9M18 12v3M21 12v2" />
+    </svg>
+  ),
   search: (
     <svg {...ICON_PROPS}>
       <circle cx="10.5" cy="10.5" r="6.5" />

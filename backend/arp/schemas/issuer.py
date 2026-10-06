@@ -21,8 +21,15 @@ def lei_is_valid(lei: str) -> bool:
     return bool(_LEI_RE.fullmatch(lei)) and int("".join(str(int(c, 36)) for c in lei)) % 97 == 1
 
 
-def issuer_key(company: CompanyRef) -> tuple[str, str]:
+def issuer_key(company: CompanyRef, idmap=None) -> tuple[str, str]:
+    """The security master's internal issuer id when one of the company's identifiers maps to exactly one
+    issuer (the golden source); else its LEI; else a provisional key. `idmap` is an IdentifierMapStore."""
     lei = normalise_lei(company.lei or "")
+    if idmap is not None:
+        for scheme, value in (("LEI", lei), ("ISIN", company.isin or ""), ("CIK", company.cik or "")):
+            keys = idmap.resolve(scheme, value) if value else []
+            if len(keys) == 1:
+                return keys[0], "INTERNAL"
     if lei_is_valid(lei):
         return lei, "LEI"
     return f"ARP:{uuid.uuid5(ARP_NAMESPACE, company.company_id)}", "ARP_PROVISIONAL"
@@ -32,7 +39,7 @@ class IdentifierMap(BaseModel):
     """One external identifier of an issuer; valid_to is exclusive (ISO dates)."""
 
     issuer_key: str
-    scheme: Literal["LEI", "CIK", "ISIN"]
+    scheme: Literal["LEI", "CIK", "ISIN", "CUSIP", "SEDOL", "FIGI"]
     value: str
     valid_from: str | None = None
     valid_to: str | None = None

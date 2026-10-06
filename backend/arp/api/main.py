@@ -44,6 +44,7 @@ from arp.api.routers import (
     review,
     runs,
     search,
+    security_master,
     snapshots,
     stewardship,
     taxonomies,
@@ -141,6 +142,7 @@ app.include_router(review.router, dependencies=[Depends(authorize)])
 app.include_router(publish.router, dependencies=[Depends(authorize)])
 app.include_router(snapshots.router, dependencies=[Depends(authorize)])
 app.include_router(holdings.router, dependencies=[Depends(authorize)])
+app.include_router(security_master.router, dependencies=[Depends(authorize)])
 
 
 @app.exception_handler(RuntimeError)

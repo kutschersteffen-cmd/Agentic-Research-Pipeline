@@ -174,7 +174,7 @@ async def _extract_company(
     all_held = bool(documents) and not kept
     if all_held:  # nothing left to extract from: every field is a held no-evidence row
         to_extract, fields = [], [no_evidence_field(f)[0] for f in schema.fields]
-    key, scheme = issuer_key(company)
+    key, scheme = issuer_key(company, identifier_map)
     recorded = history.recorded_periods(key) if history else set()
     for d in kept:
         d.period_plan = plan_periods(d, fiscal_year_end=company.fiscal_year_end, recorded=recorded)

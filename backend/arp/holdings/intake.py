@@ -1,4 +1,4 @@
-"""One holdings intake for file and API rows (E77): ISIN-to-LEI identity, review of unresolved ISINs,
+"""One holdings intake for file and API rows (E77): issuer identity from the security master (exact match only),
 API-over-file precedence, write-once revisions, an audit row per write, and holder staleness."""
 
 from __future__ import annotations
@@ -11,10 +11,9 @@ from datetime import date, timedelta
 from typing import TYPE_CHECKING, Literal
 
 from arp.holdings.validate import RowError, Validated, iso_date
-from arp.orchestration.review_queue import FINAL_STATES, effective_decisions, item_states, queue_for_review
 from arp.portfolio.loads import LoadRecord, record_load
-from arp.schemas.common import JobStatus, RunManifest, new_id, now_iso
-from arp.schemas.issuer import ARP_NAMESPACE, lei_is_valid, normalise_lei
+from arp.schemas.common import now_iso
+from arp.schemas.issuer import ARP_NAMESPACE, normalise_lei
 from arp.schemas.portfolio import HolderConfig, Holding, Portfolio, SecurityRef, SecurityResolution
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
@@ -34,44 +33,19 @@ class IntakeResult:
     revision: int
     rows: int
     unresolved: list[str] = field(default_factory=list)
-    review_run_id: str | None = None
 
 
 def provisional_issuer_key(isin: str) -> str:
     return f"ARP:{uuid.uuid5(ARP_NAMESPACE, 'isin:' + isin)}"
 
 
-def isin_decisions(run_store) -> dict[str, str]:
-    """ISIN -> LEI from every final `security` correction, later runs winning."""
-    out: dict[str, str] = {}
-    runs = sorted(run_store.list_runs("holdings"), key=lambda m: m.created_at)
-    for m in runs:
-        for key, row in effective_decisions(run_store, m.run_id, cosign_required=set()).items():
-            if key.startswith("isin:") and row.get("decision") == "correct":
-                out[key.removeprefix("isin:")] = normalise_lei(str(row["corrected_value"]["value"]))
-    return out
-
-
-def open_isins(run_store) -> set[str]:
-    """ISINs with a queued item not yet final in any holdings run: never queued twice."""
-    out: set[str] = set()
-    for m in run_store.list_runs("holdings"):
-        states = item_states(run_store, m.run_id, cosign_required=set())
-        for q in run_store.read_jsonl(run_store.review_queue_path(m.run_id)):
-            s = states.get(q["item_key"])
-            if s is None or s.state not in FINAL_STATES:
-                out.add(q["item_key"].removeprefix("isin:"))
-    return out
-
-
-def resolve_issuer(isin: str, lei: str | None, *, idmap, decided: dict[str, str], on: str) -> tuple[str, str, bool]:
-    if lei and lei_is_valid(lei):
-        return lei, "LEI", False
-    keys = idmap.resolve("ISIN", isin, on=on)
-    if len(keys) == 1:
-        return keys[0], "LEI" if lei_is_valid(keys[0]) else "ARP_PROVISIONAL", False
-    if isin in decided:
-        return decided[isin], "LEI", False
+def resolve_issuer(isin: str, lei: str | None, *, idmap, on: str) -> tuple[str, str, bool]:
+    """The security master's issuer for the ISIN, else for the row's LEI; exact matches only. Anything the master
+    does not map to exactly one issuer is unmatched: a provisional key, listed in Data Hub, never guessed."""
+    for scheme, value in (("ISIN", isin), ("LEI", normalise_lei(lei or ""))):
+        keys = idmap.resolve(scheme, value, on=on) if value else []
+        if len(keys) == 1:
+            return keys[0], "INTERNAL", False
     return provisional_issuer_key(isin), "ARP_PROVISIONAL", True
 
 
@@ -86,7 +60,7 @@ def _precedence(store, holder: HolderConfig, kind: str, holder_id: str, as_of: s
 
 def ingest(
     store, validated: Validated, *, kind, holder_id: str, as_of: str, source, source_ref: str | None,
-    principal: Principal | None, override_reason: str | None, run_store, idmap,
+    principal: Principal | None, override_reason: str | None, idmap,
 ) -> IntakeResult:
     try:
         safe_id(holder_id, label="holder_id")
@@ -101,12 +75,11 @@ def ingest(
     holder = store.get_holder(kind, holder_id) or HolderConfig(holder_id=holder_id, kind=kind, source=source)
     _precedence(store, holder, kind, holder_id, as_of, source, override_reason)
 
-    decided = isin_decisions(run_store)
     holdings: list[Holding] = []
     unresolved: list[dict] = []
     for r in validated.rows:
         isin = r["isin"]
-        key, scheme, open_ = resolve_issuer(isin, r.get("lei"), idmap=idmap, decided=decided, on=as_of)
+        key, scheme, open_ = resolve_issuer(isin, r.get("lei"), idmap=idmap, on=as_of)
         currency = r.get("currency")
         fx = r.get("fx_rate_to_eur") if r.get("fx_rate_to_eur") is not None else (1.0 if currency == "EUR" else None)
         mv = r.get("market_value")
@@ -143,25 +116,11 @@ def ingest(
         latest = [h.model_dump(exclude={"source_ref"}) for h in store.load_revision(kind, holder_id, as_of, revisions[-1])]
         if latest == [h.model_dump(exclude={"source_ref"}) for h in holdings]:
             loaded(revisions[-1])
-            return IntakeResult("unchanged", revisions[-1], len(holdings), isins, None)
+            return IntakeResult("unchanged", revisions[-1], len(holdings), isins)
     revision = len(revisions) + 1
     store.save_revision(kind, holder_id, as_of, revision, holdings)
     store.save_snapshot(holder_id, as_of, holdings, kind=kind)
 
-    run_id = None
-    already = open_isins(run_store) if unresolved else set()
-    to_queue = [r for r in unresolved if r["isin"] not in already]
-    if to_queue:
-        run_id = new_id("hold")
-        run_store.save_manifest(RunManifest(
-            run_id=run_id, run_type="holdings", status=JobStatus.COMPLETED,
-            params={"kind": kind, "holder_id": holder_id, "as_of": as_of, "revision": revision},
-        ))
-        for r in to_queue:
-            queue_for_review(run_store, run_id, f"isin:{r['isin']}", {
-                "kind": "security", "isin": r["isin"], "name": r.get("name"), "holder_id": holder_id,
-                "holder_kind": kind, "as_of": as_of, "provisional_issuer_key": provisional_issuer_key(r["isin"]),
-            })
     store.append_holdings_audit({
         "at": now_iso(), "kind": kind, "holder_id": holder_id, "as_of": as_of, "revision": revision, "source": source,
         "source_ref": source_ref, "rows": len(holdings), "user_id": principal.user_id if principal else "system",
@@ -171,7 +130,7 @@ def ingest(
         store.save_portfolio(Portfolio(portfolio_id=holder_id, name=holder.name or holder_id))
     store.save_holder(holder.model_copy(update={"as_of": max(holder.as_of or "", as_of), "last_error": None}))
     loaded(revision)
-    return IntakeResult("written", revision, len(holdings), isins, run_id)
+    return IntakeResult("written", revision, len(holdings), isins)
 
 
 def previous_month_end(today: date) -> str:

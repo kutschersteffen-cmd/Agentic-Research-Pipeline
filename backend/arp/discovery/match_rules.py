@@ -36,11 +36,10 @@ def identifiers_of(company: CompanyRef) -> dict[str, str]:
 
 def apply_identifier_rules(company: CompanyRef, idmap: IdentifierMapStore | None) -> RuleOutcome | None:
     lei = normalise_lei(company.lei or "")
-    if lei_is_valid(lei):
-        return RuleOutcome(MatchRule.EXACT_LEI, True, lei, [])
     ids = identifiers_of(company)
+    # The security master (identifier map) is the golden source: an identifier it knows wins, LEI included.
     if idmap is not None:
-        for field, scheme in (("cik", "CIK"), ("isin", "ISIN")):
+        for field, scheme in (("lei", "LEI"), ("cik", "CIK"), ("isin", "ISIN")):
             if field not in ids:
                 continue
             keys = idmap.resolve(scheme, ids[field])
@@ -48,6 +47,8 @@ def apply_identifier_rules(company: CompanyRef, idmap: IdentifierMapStore | None
                 return RuleOutcome(MatchRule.IDENTIFIER_MAP, True, keys[0], [])
             if keys:
                 return RuleOutcome(MatchRule.AMBIGUOUS, False, None, keys)
+    if lei_is_valid(lei):
+        return RuleOutcome(MatchRule.EXACT_LEI, True, lei, [])
     if company.website or company.cik:
         return RuleOutcome(MatchRule.SUPPLIED, True, None, [])
     return None

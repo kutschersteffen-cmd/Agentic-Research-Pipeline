@@ -48,6 +48,7 @@ from arp.schemas.datapoints import DataPointSchema, ExtractionRecord, FieldDefin
 from arp.schemas.issuer import issuer_key
 from arp.schemas.review import field_item_key, period_key
 from arp.storage.atomic_io import atomic_write_text
+from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.locks import KeyedLock
 from arp.storage.run_store import RunStore
 from arp.storage.schema_registry import SchemaRegistry
@@ -142,7 +143,7 @@ async def _record(
     )
     h = input_hash(spec, route_documents(spec, [doc]), planned, input_settings(settings))
     fields = [f.model_copy(update={"provenance": provenance, "input_hash": h}) for f in fields]
-    key, scheme = issuer_key(company)
+    key, scheme = issuer_key(company, IdentifierMapStore(settings.identifier_map_path))
     fields = await check_record(schema, fields, CheckContext(
         company=company, issuer_key=key, schema=schema, documents_by_id={doc.doc_id: doc}, record_fields=fields,
     ))

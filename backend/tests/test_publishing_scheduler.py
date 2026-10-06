@@ -103,7 +103,7 @@ def test_scheduler_run_builds_snapshot(tmp_path, monkeypatch):
     raw = [{"_row": 2, "isin": "US0378331005", "weight": 100, "market_value": 600, "currency": "EUR"}]
     v = validate(raw, kind="index", as_of="2026-10-31", today=date(2026, 11, 2))
     ingest(store, v, kind="index", holder_id="IX1", as_of="2026-10-31", source="file", source_ref="f.csv",
-           principal=None, override_reason=None, run_store=rs, idmap=IdentifierMapStore(tmp_path / "idmap.jsonl"))
+           principal=None, override_reason=None, idmap=IdentifierMapStore(tmp_path / "idmap.jsonl"))
     settings = Settings(postgres_dsn=None, holdings_api_url=None, snapshot_store_dir=tmp_path / "snaps",
                         publish_state_dir=tmp_path / "state")
     monkeypatch.setattr(S, "_today", lambda: date(2026, 11, 2))
@@ -194,12 +194,12 @@ def test_corrections_cover_every_frozen_month(sched, tmp_path, monkeypatch):
     monkeypatch.setattr(B, "ts_now", lambda: f"2026-11-02T08:{next(ticks) % 60:02d}:00.000000+00:00")
     world.facts = [f.model_copy(update={"valid_from": "2026-08-01T00:00:00.000000+00:00"}) for f in world.facts]
     store = sched.portfolio_store
-    idmap, rs = IdentifierMapStore(tmp_path / "id.jsonl"), sched.run_store
+    idmap = IdentifierMapStore(tmp_path / "id.jsonl")
     for as_of in ("2026-09-30", "2026-10-31"):
         v = validate([{"_row": 2, "isin": "US0378331005", "weight": 100, "market_value": 6, "currency": "EUR"}],
                      kind="index", as_of=as_of, today=date(2026, 11, 2))
         ingest(store, v, kind="index", holder_id="IX1", as_of=as_of, source="file", source_ref="f.csv",
-               principal=None, override_reason=None, run_store=rs, idmap=idmap)
+               principal=None, override_reason=None, idmap=idmap)
         build_snapshot(as_of, root=sched.settings.snapshot_store_dir, portfolio_store=store,
                        facts_as_of=world.facts_as_of)
     world.restate("f1", 9.0)  # visible at both month ends
