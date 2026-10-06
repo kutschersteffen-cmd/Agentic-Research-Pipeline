@@ -5,6 +5,7 @@ import { ACTIVE_STATUSES, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } fro
 import { DECISION_STAGES, PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { openCount } from "./steward/common";
 import { useMe } from "../lib/reviewer";
+import { NeedsYou } from "../components/NeedsYou";
 
 // The start page, the five workspace pages and the process bar. Workspaces and
 // their processes live in lib/processes.ts; this file draws them and reads
@@ -227,9 +228,9 @@ export function StartPage() {
   const waiting = waitingRuns.reduce((n, r) => n + waitingCount(r), 0) + decisions;
   const failed = all.filter((r) => r.status === "failed" && recent(r.updated_at));
   const today = all.filter((r) => DONE.has(r.status) && isToday(r.updated_at));
-  // Waiting on a person first, then running, then failed: the order of what to do.
-  const rank = (r: RunManifest) => (waitingCount(r) > 0 && !ACTIVE_STATUSES.has(r.status) ? 0 : ACTIVE_STATUSES.has(r.status) ? 1 : 2);
-  const chips = [...new Set([...waitingRuns, ...active, ...failed])].sort((a, b) => rank(a) - rank(b) || (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 6);
+  // What waits on a person is listed in "Needs you" above; this row is what is running, then what failed.
+  const rank = (r: RunManifest) => (ACTIVE_STATUSES.has(r.status) ? 0 : 1);
+  const chips = [...new Set([...active, ...failed])].sort((a, b) => rank(a) - rank(b) || (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 6);
   const n = (v: number) => (known ? v : "—");
 
   return (
@@ -271,26 +272,26 @@ export function StartPage() {
           </button>
         </p>
       )}
+      <NeedsYou runs={runs} flow={flow} />
       <div className="hub-cards">
         {WORKSPACES.map((w) => (
           <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} />
         ))}
       </div>
       <StateLegend />
-      <nav className="hub-now" aria-label="Runs needing attention">
+      <nav className="hub-now" aria-label="Runs running or failed">
         <span className="hub-now-label">Now</span>
         {chips.map((r) => {
-          const w = waitingCount(r);
-          const state = ACTIVE_STATUSES.has(r.status) ? "now" : w > 0 ? "wait" : "failed";
+          const state = ACTIVE_STATUSES.has(r.status) ? "now" : "failed";
           const pct = r.company_count > 0 ? Math.round((r.completed_count / r.company_count) * 100) : 0;
           return (
             <a key={r.run_id} className={`hub-chip hub-chip-${state}`} href={runHref(r)}>
               <span className={`hub-dot hub-dot-${state}`} aria-hidden />
-              {runTypeLabel(r.run_type)} <span className="hub-chip-id">{r.run_id}</span> · {state === "now" ? `running ${pct}%` : state === "wait" ? `${w} waiting on you` : "failed"}
+              {runTypeLabel(r.run_type)} <span className="hub-chip-id">{r.run_id}</span> · {state === "now" ? `running ${pct}%` : "failed"}
             </a>
           );
         })}
-        {known && chips.length === 0 && <span className="muted">Nothing running or waiting.</span>}
+        {known && chips.length === 0 && <span className="muted">Nothing running or failed.</span>}
         <a className="hub-now-all" href="#/history">
           All runs →
         </a>
