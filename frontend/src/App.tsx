@@ -381,7 +381,7 @@ function App() {
         {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
         {active === "emergingThemes" && <EmergingThemesDetector onNavigate={go} />}
         {active === "backgroundAgents" && <BackgroundAgents />}
-        {active === "extraction" && <Extraction key="extraction" initialTab={route.params[0]} pendingUniverse={pendingFor("extraction")} />}
+        {active === "extraction" && <Extraction key="extraction" initialTab={route.params[0]} initialAuto={route.params[1] === "auto"} pendingUniverse={pendingFor("extraction")} />}
         {active === "transitionPlan" && <Extraction key="transitionPlan" initialProfile="transition_plan" pendingUniverse={pendingFor("transitionPlan")} />}
         {active === "transitionBarrier" && <TransitionBarrierAssessment />}
         {active === "identity" && <IdentityResolution onSendToDiscovery={(path, count) => sendUniverse("Identity Resolution")("discovery", path, count)} />}

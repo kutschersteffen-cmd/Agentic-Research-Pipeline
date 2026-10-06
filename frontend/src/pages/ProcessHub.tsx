@@ -6,6 +6,8 @@ import { DECISION_STAGES, PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, t
 import { openCount } from "./steward/common";
 import { useMe } from "../lib/reviewer";
 import { NeedsYou } from "../components/NeedsYou";
+import { announce } from "../lib/announce";
+import { previousMonth } from "../lib/holdings";
 
 // The start page, the five workspace pages and the process bar. Workspaces and
 // their processes live in lib/processes.ts; this file draws them and reads
@@ -334,12 +336,70 @@ function ProcessFlow({ p, runs, flow }: { p: Process; runs: RunManifest[] | null
       <p className="help-text">
         <strong>Done when:</strong> {p.outcome}
       </p>
+      {p.run && <RunProcess p={p} />}
       <ol className="hub-flow">
         {p.steps.map((s, i) => (
           <StepCard key={`${s.tab}-${s.sub ?? ""}-${i}`} s={s} i={i} p={p} runs={runs} flow={flow} />
         ))}
       </ol>
     </section>
+  );
+}
+
+type MonthResult = Awaited<ReturnType<typeof api.runMonth>>;
+
+/** End to end where an engine exists. It never skips a person: Extraction stops wherever something is flagged, and a
+ * blocked month says what it is missing. */
+function RunProcess({ p }: { p: Process }) {
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<(MonthResult & { month: string }) | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (p.run === "extraction") {
+    return (
+      <p className="hub-run">
+        <a className="button-link" href="#/extraction/companies/auto" onClick={() => writeWalk({ id: p.id, step: 0 })}>
+          Run process
+        </a>{" "}
+        <span className="muted">Pick the companies; Identify, Documents and Extract then follow on their own and stop wherever something is flagged.</span>
+      </p>
+    );
+  }
+
+  async function runMonth() {
+    const month = previousMonth(new Date());
+    setRunning(true);
+    setError(null);
+    setResult(null);
+    try {
+      const r = await api.runMonth(month);
+      setResult({ ...r, month });
+      announce(r.status === "ran" ? `Month ${month} ran` : `Month ${month} is blocked`);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="hub-run">
+      <button onClick={() => void runMonth()} disabled={running}>{running ? "Running…" : "Run process"}</button>{" "}
+      <span className="muted">Runs last month: alerts from the loaded holdings, ESG data and news, then stewardship triggers.</span>
+      {error && <p className="error-text" role="alert">{error}</p>}
+      {result?.status === "ran" && (
+        <p role="status">
+          {result.month} ran: {result.alerts} new alerts, {result.triggers} triggers. <a href="#/portfolio-monitoring/monitoring">Open alerts →</a>
+        </p>
+      )}
+      {result?.status === "blocked" && (
+        <div role="status">
+          <p>{result.month} is blocked:</p>
+          <ul>{result.blocked_reasons.map((r) => <li key={r}>{r}</li>)}</ul>
+          <a href="#/portfolio-monitoring/holdings">Load what is missing in Holdings Intake →</a>
+        </div>
+      )}
+    </div>
   );
 }
 

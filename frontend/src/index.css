@@ -1695,6 +1695,8 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
   .needs-you-list a { grid-template-columns: 2.5rem minmax(0, 1fr); }
   .needs-you-meta { grid-column: 2; white-space: normal; }
 }
+.hub-run { margin: 0 0 var(--s-3); }
+.hub-run ul { margin: var(--s-1) 0; }
 .hub-crumb { margin: 0 0 var(--s-1); font-size: var(--text-sm); color: var(--muted); }
 .hub-crumb a { color: var(--accent); }
 .hub-flow { list-style: none; display: flex; gap: 18px; margin: var(--s-4) 0 0; padding: 22px 18px; border: 1px solid var(--panel-border); border-radius: var(--r-md); background: radial-gradient(var(--panel-border) 1px, transparent 1px) 0 0 / 18px 18px, var(--panel); }

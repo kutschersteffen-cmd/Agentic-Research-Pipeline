@@ -15,6 +15,13 @@ to where it is decided. Below it, **Now** shows only runs that are running or fa
 Both are computed from the run store, the stewardship flow and the issues list; nothing
 new is stored.
 
+**Run process** appears only on processes with an engine behind them. Argus *Extract and
+score* opens Extraction with every handover automatic (`#/extraction/companies/auto`):
+pick the companies and Identify, Documents and Extract follow, stopping wherever something
+is flagged. Transition Intelligence *Monthly monitoring* runs last month and lists what
+blocked it, if anything. The other processes are human decisions step by step, so they
+have no such button.
+
 ## Principles
 
 1. **A process is a path through existing screens, not a new screen.** Each step
