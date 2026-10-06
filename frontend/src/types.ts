@@ -1120,6 +1120,20 @@ export interface SecurityMasterStatus {
   identifiers: Record<"ISIN" | "CUSIP" | "SEDOL" | "FIGI" | "LEI" | "CIK", number>;
   last_load: { status: "ok" | "failed"; detail: string; at: string; content_hash: string } | null;
 }
+export type OutputKind = "universe" | "run" | "publication" | "taxonomy" | "calibration";
+export interface OutputItem {
+  kind: OutputKind;
+  id: string;
+  name: string;
+  version: number | null;
+  as_of: string | null;
+  /** saved · completed/failed/… (runs) · published · draft/ratified (taxonomies) · draft/approved (calibrations) */
+  status: string;
+  by: string | null;
+  run_type?: string;
+  count?: number;
+  used_by: { kind: string; id: string; label: string; version?: number | null }[];
+}
 export interface FeedRow {
   feed: "security_master" | "holdings" | "index" | "esg" | "news";
   source_id: string;

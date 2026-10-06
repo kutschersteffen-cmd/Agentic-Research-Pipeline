@@ -1,17 +1,20 @@
 import { useState } from "react";
 import { api } from "../api/client";
+import { InputPicker } from "./InputPicker";
 
 interface Props {
   onResolved: (universePath: string, companyCount: number) => void;
 }
 
 /** Uploads a company universe CSV/JSON (company_id, name, ticker, website,
- * cik, country, sector) and hands the server-side path back to the caller,
- * so run-creation requests can reference up to thousands of companies by
- * path instead of inlining them. */
+ * cik, country, sector), or picks one saved earlier (by any screen that saves
+ * universes), and hands the server-side path back to the caller, so
+ * run-creation requests can reference up to thousands of companies by path
+ * instead of inlining them. */
 export function UniversePicker({ onResolved }: Props) {
   const [status, setStatus] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState("");
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -39,6 +42,17 @@ export function UniversePicker({ onResolved }: Props) {
         Columns: company_id, name, ticker, website, cik, country, sector. Only company_id and name are required;
         adding website and CIK makes document discovery more precise.
       </p>
+      <InputPicker
+        kind="universe"
+        label="Or pick a saved universe"
+        value={saved}
+        onChange={(o) => {
+          setSaved(o?.id ?? "");
+          if (!o) return;
+          setStatus(`Using ${o.name}`);
+          onResolved(o.id, o.count ?? 0);
+        }}
+      />
       {status && <p className="status-text">{status}</p>}
     </div>
   );

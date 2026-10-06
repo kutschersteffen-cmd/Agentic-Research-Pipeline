@@ -122,6 +122,8 @@ def create_theme_run(
     revenue_catalogue_path: str | None = None,
     catalogue_mapping: list[ActivityCatalogueMapping] | None = None,
     enable_rd_exposure: bool = False,
+    taxonomy_id: str | None = None,
+    taxonomy_version: int | None = None,
 ) -> str:
     """Creates the run manifest synchronously (fast, file-only) so an API
     caller gets a run_id back immediately; execute_theme_run does the actual
@@ -145,6 +147,9 @@ def create_theme_run(
             "use_sample_exiobase": use_sample_exiobase,
             "revenue_catalogue_path": revenue_catalogue_path,
             "enable_rd_exposure": enable_rd_exposure,
+            # The saved taxonomy version the theme came from, if any: the output catalog's "used by" link.
+            "taxonomy_id": taxonomy_id,
+            "taxonomy_version": taxonomy_version,
         },
         len(companies),
         model=settings.llm_model,

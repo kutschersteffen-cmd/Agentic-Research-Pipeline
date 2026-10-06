@@ -95,8 +95,12 @@ async def start_theme_run(
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
 
+    taxonomy = None
     if req.theme is not None:
         theme = req.theme
+        # A theme loaded unedited from a saved taxonomy names it too: recorded for "used by" only, never re-checked.
+        if req.taxonomy_id is not None:
+            taxonomy = taxonomy_store.get(req.taxonomy_id, req.taxonomy_version)
     elif req.taxonomy_id is not None:
         taxonomy = taxonomy_store.get(req.taxonomy_id, req.taxonomy_version)
         if taxonomy is None:
@@ -148,6 +152,8 @@ async def start_theme_run(
             revenue_catalogue_path=req.revenue_catalogue_path,
             catalogue_mapping=req.catalogue_mapping,
             enable_rd_exposure=req.enable_rd_exposure,
+            taxonomy_id=taxonomy.taxonomy_id if taxonomy else None,
+            taxonomy_version=taxonomy.version if taxonomy else None,
         )
 
     async def _run(run_id: str, llm, verifier_llm) -> None:

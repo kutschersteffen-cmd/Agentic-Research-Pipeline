@@ -51,6 +51,8 @@ import type {
   OverridesView,
   RunScoringKind,
   DataIssue,
+  OutputItem,
+  OutputKind,
   FeedRow,
   SecurityMasterStatus,
   UnmatchedSecurity,
@@ -235,6 +237,7 @@ export const api = {
     request<HolderStatus>(`/api/holdings/holders/${kind}/${encodeURIComponent(holderId)}`, { method: "PUT", body: JSON.stringify(body) }),
   pullHolder: (kind: string, holderId: string) =>
     request<IntakeResult>(`/api/holdings/holders/${kind}/${encodeURIComponent(holderId)}/pull`, { method: "POST" }),
+  listOutputs: (kind?: OutputKind) => request<{ outputs: OutputItem[] }>(`/api/outputs${buildQuery({ kind })}`),
   listIssues: () => request<{ issues: DataIssue[] }>("/api/issues"),
   pullNews: () => request<{ added: number; unmatched: number; received: number }>("/api/feeds/news/pull", { method: "POST" }),
   pullEsg: (provider: string) =>

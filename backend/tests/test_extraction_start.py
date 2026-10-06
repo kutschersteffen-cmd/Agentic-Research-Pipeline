@@ -92,6 +92,16 @@ def test_step_settings_reach_the_pipeline_and_are_recorded(calls, tmp_path):
     assert recorded.llm_model == "model-b" and recorded.grounding_fuzzy_threshold == base.grounding_fuzzy_threshold
 
 
+def test_the_saved_universe_a_run_read_is_recorded(calls, tmp_path):
+    store = RunStore(tmp_path)
+    universe = tmp_path / "u.json"
+    universe.write_text(json.dumps([{"company_id": "c1", "name": "Acme"}]))
+    started = _start(run_store=store, profile="tnfd", as_of="FY2025", universe_path=str(universe))
+    assert json.loads((store.run_dir(started["run_id"]) / "inputs.json").read_text()) == {"universe_path": str(universe)}
+    without = _start(run_store=store, profile="financials")  # companies passed directly: no saved universe to record
+    assert not (store.run_dir(without["run_id"]) / "inputs.json").exists()
+
+
 def test_step_settings_are_bounded():
     with pytest.raises(ValueError):
         StepSettings(grounding_fuzzy_threshold=0.2)
