@@ -41,12 +41,12 @@ def universes(runs_dir: Path) -> list[dict]:
     return out
 
 
-def runs(run_store: RunStore) -> list[dict]:
+def runs(manifests: list) -> list[dict]:
     return [{
         "kind": "run", "id": m.run_id, "version": None, "as_of": m.created_at, "status": m.status.value,
         "name": f"{m.run_type.replace('_', ' ')} · {m.params.get('theme_name') or m.run_id}", "run_type": m.run_type,
         "by": m.params.get("triggered_by"),
-    } for m in run_store.list_runs()]
+    } for m in manifests]
 
 
 def publications(decisions: DecisionStore) -> list[dict]:
@@ -70,10 +70,10 @@ def calibrations(store: IndexStore) -> list[dict]:
     } for c in store.list_calibrations()]
 
 
-def used_by(run_store: RunStore, decisions: DecisionStore, index: IndexStore, reports: ReportingStore) -> dict[tuple[str, str], list[dict]]:
+def used_by(manifests: list, run_store: RunStore, decisions: DecisionStore, index: IndexStore, reports: ReportingStore) -> dict[tuple[str, str], list[dict]]:
     """(input kind, input id) -> the consumers that recorded reading it."""
     links: dict[tuple[str, str], list[dict]] = defaultdict(list)
-    for m in run_store.list_runs():
+    for m in manifests:
         consumer = {"kind": "run", "id": m.run_id, "label": f"{m.run_type.replace('_', ' ')} run {m.run_id}"}
         inputs_file = run_store.run_dir(m.run_id) / "inputs.json"
         recorded = {**m.params, **(json.loads(inputs_file.read_text()) if inputs_file.exists() else {})}
@@ -105,10 +105,11 @@ def used_by(run_store: RunStore, decisions: DecisionStore, index: IndexStore, re
 def catalog(*, runs_dir: Path, run_store: RunStore, decisions: DecisionStore, taxonomy: TaxonomyStore, index: IndexStore,
             reports: ReportingStore, kind: str | None = None) -> list[dict]:
     """Every output (or one kind), newest first, each with `used_by`."""
+    manifests = run_store.list_runs()
     sources = {
-        "universe": lambda: universes(runs_dir), "run": lambda: runs(run_store), "publication": lambda: publications(decisions),
+        "universe": lambda: universes(runs_dir), "run": lambda: runs(manifests), "publication": lambda: publications(decisions),
         "taxonomy": lambda: taxonomies(taxonomy), "calibration": lambda: calibrations(index),
     }
     items = [i for k, load in sources.items() if kind in (None, k) for i in load()]
-    links = used_by(run_store, decisions, index, reports)
+    links = used_by(manifests, run_store, decisions, index, reports)
     return sorted(({**i, "used_by": links.get((i["kind"], i["id"]), [])} for i in items), key=lambda i: i["as_of"] or "", reverse=True)

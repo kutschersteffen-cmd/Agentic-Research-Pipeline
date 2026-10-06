@@ -398,11 +398,11 @@ class PortfolioStore:
             return []
         return sorted(p.name for p in d.iterdir() if p.is_dir())
 
-    # --- event log (arp/portfolio/resolution_review.py) ---
+    # --- event log (arp/portfolio/loads.py) ---
 
     def governance_events_path(self) -> Path:
         """One unified append-only log for every governance event type
-        (decision_recorded / policy_changed / owner_assigned) -- not
+        (today only load_recorded) -- not
         sharded per-item like alert_events_path, since a climate-conflict
         item_key ("{company_id}:{field_id}") contains a ":" that safe_id()
         rejects as a path segment, and this data is low-volume enough that

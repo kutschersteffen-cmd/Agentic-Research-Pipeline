@@ -81,7 +81,8 @@ def pull_news(store, settings: Settings, idmap: IdentifierMapStore, *, since: st
         fail("news API credentials not configured")
         raise ValueError("News API is not configured (ARP_NEWS_API_CLIENT_ID, ARP_NEWS_API_CLIENT_SECRET)")
     day = today.isoformat()
-    permids = sorted({r.value for r in idmap.rows() if r.scheme == "PERMID"
+    map_rows = idmap.rows()
+    permids = sorted({r.value for r in map_rows if r.scheme == "PERMID"
                       and not (r.valid_from and day < r.valid_from) and not (r.valid_to and day >= r.valid_to)})
     if not permids:
         fail("no PermIDs in the security master")
@@ -114,7 +115,7 @@ def pull_news(store, settings: Settings, idmap: IdentifierMapStore, *, since: st
         on = str(s["published_at"])[:10]
         issuers: set[str] = set()
         for p in s["permids"]:
-            keys = idmap.resolve("PERMID", p, on=on)
+            keys = idmap.resolve("PERMID", p, on=on, rows=map_rows)
             if len(keys) == 1:
                 issuers.add(keys[0])
         rows = [(f"news:{s['id']}:{k}", k) for k in sorted(issuers)] or [(f"news:{s['id']}", None)]

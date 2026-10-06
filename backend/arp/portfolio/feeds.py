@@ -7,21 +7,17 @@ from datetime import date
 
 from arp.holdings import security_master
 from arp.holdings.intake import holder_status, previous_month_end
-from arp.portfolio.loads import LoadRecord
+from arp.portfolio.loads import load_records
 from arp.storage.identifier_map import IdentifierMapStore
 
 
-def _latest_loads(store) -> dict[tuple[str, str], LoadRecord]:
-    """The last load attempt per (kind, source), over all months."""
-    out: dict[tuple[str, str], LoadRecord] = {}
-    for e in store.list_governance_events():
-        if e.get("event_type") == "load_recorded":
-            out[(e["kind"], e["source_id"])] = LoadRecord.model_validate({k: v for k, v in e.items() if k != "event_type"})
-    return out
-
-
 def overview(store, idmap: IdentifierMapStore, today: date) -> list[dict]:
-    loads = _latest_loads(store)
+    loads = {}  # the last load attempt per (kind, source), over all months
+    last_ok_month = {}
+    for r in load_records(store):
+        loads[(r.kind, r.source_id)] = r
+        if r.status == "ok":
+            last_ok_month[(r.kind, r.source_id)] = max(r.month, last_ok_month.get((r.kind, r.source_id), ""))
     expected_month = previous_month_end(today)[:7]
     rows = []
 
@@ -40,10 +36,9 @@ def overview(store, idmap: IdentifierMapStore, today: date) -> list[dict]:
         })
     # ESG sources, and holdings sources with loads but no holder config (e.g. seeded data): judged by their last ok month.
     configured = {h.holder_id for h in store.list_holders()}
-    events = [e for e in store.list_governance_events() if e.get("event_type") == "load_recorded" and e["status"] == "ok"]
     for (kind, source), rec in loads.items():
         if kind == "esg" or (kind == "holdings" and source not in configured):
-            ok_month = max((e["month"] for e in events if (e["kind"], e["source_id"]) == (kind, source)), default=None)
+            ok_month = last_ok_month.get((kind, source))
             behind = ok_month is None or ok_month < expected_month
             rows.append({
                 "feed": kind, "source_id": source, "channel": None, "as_of": ok_month, "last_load": rec, "stale": behind,

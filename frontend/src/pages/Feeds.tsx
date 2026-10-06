@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { announce } from "../lib/announce";
+import { when } from "../lib/runs";
 import type { FeedRow } from "../types";
 
 const LABEL: Record<FeedRow["feed"], string> = {
@@ -80,7 +81,7 @@ export function Feeds() {
                 <td>
                   {r.last_load ? (
                     <>
-                      {new Date(r.last_load.at).toLocaleDateString()} · {r.last_load.status === "ok" ? "ok" : <strong>failed</strong>}
+                      {when(r.last_load.at)} · {r.last_load.status === "ok" ? "ok" : <strong>failed</strong>}
                       {r.last_load.detail && <span className="muted"> · {r.last_load.detail}</span>}
                     </>
                   ) : (

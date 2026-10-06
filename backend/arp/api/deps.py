@@ -32,6 +32,7 @@ from arp.storage.decision_store import DecisionStore
 from arp.storage.document_blob_store import blob_store_for
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
+from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.index_store import IndexStore
 from arp.storage.opensearch_client import OpenSearchNotConfigured
 from arp.storage.opensearch_client import get_client as get_opensearch_client
@@ -83,6 +84,10 @@ def get_index_store() -> IndexStore:
 @lru_cache
 def get_portfolio_store():
     return build_portfolio_store(get_settings())
+
+
+def get_identifier_map(settings: Settings = Depends(settings_dep)) -> IdentifierMapStore:
+    return IdentifierMapStore(settings.identifier_map_path)
 
 
 def get_project_store() -> ProjectStore:

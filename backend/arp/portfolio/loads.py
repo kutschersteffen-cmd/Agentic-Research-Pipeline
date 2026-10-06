@@ -25,9 +25,12 @@ def record_load(store, rec: LoadRecord) -> None:
     store.append_governance_event("load_recorded", payload)
 
 
+def load_records(store) -> list[LoadRecord]:
+    """Every recorded load, oldest first."""
+    return [LoadRecord.model_validate({k: v for k, v in e.items() if k != "event_type"})
+            for e in store.list_governance_events() if e.get("event_type") == "load_recorded"]
+
+
 def latest_load(store, kind: str, source_id: str, month: str) -> LoadRecord | None:
-    hits = [
-        e for e in store.list_governance_events()
-        if e.get("event_type") == "load_recorded" and (e["kind"], e["source_id"], e["month"]) == (kind, source_id, month)
-    ]
-    return LoadRecord.model_validate({k: v for k, v in hits[-1].items() if k != "event_type"}) if hits else None
+    hits = [r for r in load_records(store) if (r.kind, r.source_id, r.month) == (kind, source_id, month)]
+    return hits[-1] if hits else None

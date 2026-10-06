@@ -8,11 +8,12 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+from collections import Counter
 from datetime import date
 
 from arp.holdings.file_source import Mapping, read_rows
 from arp.holdings.validate import RowError, isin_is_valid, iso_date
-from arp.portfolio.loads import LoadRecord, record_load
+from arp.portfolio.loads import LoadRecord, load_records, record_load
 from arp.schemas.common import now_iso
 from arp.schemas.issuer import IdentifierMap, lei_is_valid, normalise_lei
 from arp.storage.atomic_io import atomic_write_text
@@ -124,11 +125,12 @@ class MasterRejected(ValueError):
 def status(store, idmap: IdentifierMapStore) -> dict:
     """The current master (counts per scheme) and its last load attempt."""
     rows = idmap.rows()
-    loads = [e for e in store.list_governance_events() if e.get("event_type") == "load_recorded" and e.get("kind") == "security_master"]
+    loads = [r for r in load_records(store) if r.kind == "security_master"]
+    per_scheme = Counter(m.scheme for m in rows)
     return {
         "issuers": len({m.issuer_key for m in rows}),
-        "identifiers": {s: sum(1 for m in rows if m.scheme == s) for s in SCHEMES.values()},
-        "last_load": loads[-1] if loads else None,
+        "identifiers": {s: per_scheme[s] for s in SCHEMES.values()},
+        "last_load": loads[-1].model_dump() if loads else None,
     }
 
 
@@ -136,11 +138,12 @@ def unmatched(store, idmap: IdentifierMapStore) -> list[dict]:
     """Securities held in a latest snapshot that the current master does not map to exactly one issuer, per holder.
     Fixed by correcting the master, then reloading the holdings."""
     out = []
+    rows = idmap.rows()  # read once, not once per holding
     for h in store.list_holders():
         if not h.as_of:
             continue
         for row in store.load_snapshot(h.holder_id, h.as_of, kind=h.kind):
-            keys = idmap.resolve("ISIN", row.isin, on=h.as_of) if row.isin else []
+            keys = idmap.resolve("ISIN", row.isin, on=h.as_of, rows=rows) if row.isin else []
             if len(keys) != 1:
                 out.append({"holder_id": h.holder_id, "kind": h.kind, "as_of": h.as_of, "isin": row.isin,
                             "security_id": row.security_id, "reason": "ambiguous" if keys else "not in security master",

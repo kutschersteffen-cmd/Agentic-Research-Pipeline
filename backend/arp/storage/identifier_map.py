@@ -24,11 +24,11 @@ class IdentifierMapStore:
     def rows(self) -> list[IdentifierMap]:
         return [IdentifierMap.model_validate(r) for r in read_jsonl(self.path)]
 
-    def resolve(self, scheme: str, value: str, *, on: str | None = None) -> list[str]:
+    def resolve(self, scheme: str, value: str, *, on: str | None = None, rows: list[IdentifierMap] | None = None) -> list[str]:
         day = on or date.today().isoformat()
         want = normalise_identifier(scheme, value)
         keys: list[str] = []
-        for r in self.rows():
+        for r in (self.rows() if rows is None else rows):
             if r.scheme != scheme or normalise_identifier(scheme, r.value) != want:
                 continue
             if (r.valid_from and day < r.valid_from) or (r.valid_to and day >= r.valid_to):

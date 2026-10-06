@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../api/client";
 import { announce } from "../lib/announce";
 import { parseIntakeError, rowErrorText } from "../lib/holdings";
+import { when } from "../lib/runs";
 import type { RowError, SecurityMasterStatus, UnmatchedSecurity } from "../types";
 
 /** Data Hub's golden source: the security master maps every security (and issuer identifier) to one internal issuer
@@ -76,7 +77,7 @@ export function SecurityMaster() {
         )}
         {status?.last_load && (
           <p className="muted">
-            Last load {new Date(status.last_load.at).toLocaleString()}: {status.last_load.status === "ok" ? "loaded" : "rejected"}, {status.last_load.detail}
+            Last load {when(status.last_load.at)}: {status.last_load.status === "ok" ? "loaded" : "rejected"}, {status.last_load.detail}
           </p>
         )}
       </section>
