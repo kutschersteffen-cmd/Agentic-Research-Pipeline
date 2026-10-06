@@ -15,7 +15,8 @@ import { DataLibrary } from "./pages/DataLibrary";
 import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
 import { BackgroundAgents } from "./pages/BackgroundAgents";
 import { MonitoringDashboard } from "./pages/MonitoringDashboard";
-import { ProcessOverview, StartPage, stageDecisions } from "./pages/ProcessHub";
+import { ProcessBar, StartPage, WorkspaceOverview, stageDecisions } from "./pages/ProcessHub";
+import { WORKSPACES, workspaceOfProcess, type WorkspaceId } from "./lib/processes";
 import { EngagementDashboard } from "./pages/EngagementDashboard";
 import { VotingRuns } from "./pages/VotingRuns";
 import { STAGE_TABS, StewardWorkflow } from "./pages/StewardWorkflow";
@@ -30,7 +31,6 @@ import { Arcade } from "./pages/Arcade";
 import { Lab } from "./pages/Lab";
 import { DecisionStudio } from "./pages/DecisionStudio";
 import { IndexBuilder } from "./pages/IndexBuilder";
-import { ProcessBar, Processes } from "./pages/Processes";
 import { NAV_ICONS } from "./components/NavIcons";
 import type { ReviewableRunKind, RunManifest, UniverseHandoff } from "./types";
 import { runTypeLabel } from "./lib/runs";
@@ -38,10 +38,11 @@ import { runTypeLabel } from "./lib/runs";
 const TABS = [
   { id: "home", label: "Start" },
   { id: "stewardiq", label: "StewardIQ" },
-  { id: "themeMachine", label: "Theme Machine" },
-  { id: "designStudio", label: "Design Studio" },
+  { id: "argus", label: "Argus" },
+  { id: "transitionIntel", label: "Transition Intelligence Platform" },
+  { id: "rdLab", label: "R&D Lab" },
+  { id: "dataHub", label: "Data Hub" },
   { id: "dashboard", label: "Dashboard" },
-  { id: "processes", label: "Processes" },
   { id: "search", label: "Search" },
   { id: "theme", label: "Thematic Universe" },
   { id: "taxonomy", label: "Taxonomy Library" },
@@ -72,7 +73,6 @@ type TabId = (typeof TABS)[number]["id"];
 // Screens that share one sidebar item, switched by a tab strip above the page.
 // Every id keeps its own route, so deep links and Processes steps still land.
 const HUBS: { label: string; tabs: [TabId, string][] }[] = [
-  { label: "Dashboard", tabs: [["dashboard", "Overview"], ["processes", "Processes"]] },
   { label: "Library", tabs: [["library", "Data Library"], ["search", "Search"]] },
   { label: "Onboard issuers", tabs: [["identity", "1 Resolve identities"], ["discovery", "2 Find documents"]] },
   { label: "Runs", tabs: [["history", "Run history"], ["backgroundAgents", "Standing agents"]] },
@@ -80,25 +80,24 @@ const HUBS: { label: string; tabs: [TabId, string][] }[] = [
 const hubOf = (id: TabId) => HUBS.find((h) => h.tabs.some(([t]) => t === id));
 // Transition Plan is Extraction preset to its profile (Extraction's own
 // profile toggle switches it), so the sidebar shows Extraction for both.
-// The process overview pages are reached from the start page's boxes, so the
-// sidebar shows Start for them.
-const navIdOf = (id: TabId): TabId =>
-  id === "transitionPlan" ? "extraction" : id === "stewardiq" || id === "themeMachine" || id === "designStudio" ? "home" : id;
+const navIdOf = (id: TabId): TabId => (id === "transitionPlan" ? "extraction" : id);
+const isWorkspace = (id: string): id is WorkspaceId => WORKSPACES.some((w) => w.id === id);
 
 // Purely a sidebar presentation grouping -- ids must match TABS above; a hub
-// is listed by its first tab. Ordered by the stewardship team's day: what
-// waits on a person first, then their own work, then the research and
-// portfolio tools that feed it.
-// A `collapsed` group starts folded (and opens itself while one of its
-// screens is showing): the specialist tools the day-to-day work doesn't need.
+// is listed by its first tab. What waits on a person first, then the five
+// workspaces (each opens on its processes), then output. Every screen is
+// also listed under "All screens", which starts folded and opens itself
+// while one of its screens is showing.
 const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boolean }[] = [
-  { label: null, ids: ["home", "dashboard", "library"] },
+  { label: null, ids: ["home", "dashboard"] },
   { label: "Needs you", ids: ["review", "voting"] },
-  { label: "Stewardship", ids: ["stewardship", "engagement", "extraction", "transitionBarrier"] },
-  { label: "Research", ids: ["theme", "identity"] },
-  { label: "Portfolio", ids: ["portfolio-monitoring"] },
-  { label: "Output", ids: ["reporting", "history"] },
-  { label: "More tools", ids: ["decision", "taxonomy", "emergingThemes", "strategyReplication", "index", "lab", "arcade"], collapsed: true },
+  { label: "Workspaces", ids: ["stewardiq", "argus", "transitionIntel", "rdLab", "dataHub"] },
+  { label: "Output", ids: ["reporting", "library", "history"] },
+  {
+    label: "All screens",
+    ids: ["stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "emergingThemes", "taxonomy", "theme", "strategyReplication", "decision", "index", "identity", "lab", "arcade"],
+    collapsed: true,
+  },
 ];
 
 // Everything the command palette can jump to: every screen (under its hub's
@@ -123,6 +122,10 @@ const runItem = (r: RunManifest): PaletteItem => ({
  * `#/voting/<run id>` or `#/review/extraction/<run id>`. */
 function parseHash(hash = window.location.hash): { tab: TabId; params: string[] } {
   const [tab, ...params] = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+  // Old links: the Theme Machine and Design Studio boxes merged into R&D Lab;
+  // the Processes screen's processes now live on their workspace pages.
+  if (tab === "themeMachine" || tab === "designStudio") return { tab: "rdLab", params: [] };
+  if (tab === "processes") return { tab: workspaceOfProcess(params[0])?.id ?? "home", params: [] };
   return TABS.some((t) => t.id === tab) ? { tab: tab as TabId, params } : { tab: "home", params: [] };
 }
 
@@ -357,9 +360,8 @@ function App() {
           </nav>
         )}
         {active === "home" && <StartPage />}
-        {(active === "stewardiq" || active === "themeMachine" || active === "designStudio") && <ProcessOverview key={active} id={active} />}
+        {isWorkspace(active) && <WorkspaceOverview key={active} id={active} />}
         {active === "dashboard" && <MonitoringDashboard onNavigate={go} onOpenReview={openReview} />}
-        {active === "processes" && <Processes selected={route.params[0] ?? null} onSelect={(id) => navigate("processes", id)} />}
         {active === "search" && <Search />}
         {active === "lab" && <Lab selected={route.params[0] ?? null} />}
         {active === "arcade" && <Arcade selected={route.params[0] ?? null} />}
