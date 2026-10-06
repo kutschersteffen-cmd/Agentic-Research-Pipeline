@@ -191,7 +191,7 @@ export function HoldingsIntake() {
               <td>{ageLabel(h.age_days)}</td>
               <td>{h.last_pull_at ? new Date(h.last_pull_at).toLocaleString() : "—"}</td>
               <td>
-                <span className={h.stale ? "badge badge-high" : "badge"} title={h.last_error ?? undefined}>{h.stale ? "Stale" : "Current"}</span>
+                <span className={h.stale ? "badge badge-low" : "badge badge-neutral"} title={h.last_error ?? undefined}>{h.stale ? "Stale" : "Current"}</span>
               </td>
               <td>
                 {h.source === "api" && (
