@@ -99,22 +99,24 @@ export function SecurityMaster() {
       <section className="card">
         <h2>Unmatched securities {unmatched && `(${unmatched.length})`}</h2>
         <p className="help-text">Held in a latest snapshot, but not mapped to exactly one issuer by the current master.</p>
-        <table className="data-table">
-          <thead>
-            <tr><th>ISIN</th><th>Held by</th><th>As of</th><th>Reason</th></tr>
-          </thead>
-          <tbody>
-            {unmatched?.length === 0 && <tr><td colSpan={4} className="muted">Every held security is matched.</td></tr>}
-            {unmatched?.map((r) => (
-              <tr key={`${r.kind}/${r.holder_id}/${r.security_id}`}>
-                <td>{r.isin ?? r.security_id}</td>
-                <td>{r.holder_id} ({r.kind})</td>
-                <td>{r.as_of}</td>
-                <td>{r.reason}{r.candidates.length > 0 && `: ${r.candidates.join(", ")}`}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr><th>ISIN</th><th>Held by</th><th>As of</th><th>Reason</th></tr>
+            </thead>
+            <tbody>
+              {unmatched?.length === 0 && <tr><td colSpan={4} className="muted">Every held security is matched.</td></tr>}
+              {unmatched?.map((r) => (
+                <tr key={`${r.kind}/${r.holder_id}/${r.security_id}`}>
+                  <td>{r.isin ?? r.security_id}</td>
+                  <td>{r.holder_id} ({r.kind})</td>
+                  <td>{r.as_of}</td>
+                  <td>{r.reason}{r.candidates.length > 0 && `: ${r.candidates.join(", ")}`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   );

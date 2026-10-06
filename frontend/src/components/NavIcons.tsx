@@ -62,6 +62,13 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <path d="M4.5 12c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5" />
     </svg>
   ),
+  // Inputs arriving: three lines into one tray.
+  feeds: (
+    <svg {...ICON_PROPS}>
+      <path d="M6 3v7M12 3v7M18 3v7" />
+      <path d="M3 13h5l1.5 3h5L16 13h5v7H3Z" />
+    </svg>
+  ),
   // A key: one identifier opens exactly one issuer.
   securityMaster: (
     <svg {...ICON_PROPS}>

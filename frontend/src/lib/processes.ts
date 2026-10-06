@@ -207,6 +207,7 @@ export const WORKSPACES: Workspace[] = [
     purpose: "Input feeds and stored data; the security master maps every security to its issuer, once, for the whole tool.",
     runTypes: [],
     screens: [
+      ["#/feeds", "Feeds"],
       ["#/securityMaster", "Security Master"],
       ["#/portfolio-monitoring/holdings", "Holdings Intake"],
       ["#/library", "Data Library"],

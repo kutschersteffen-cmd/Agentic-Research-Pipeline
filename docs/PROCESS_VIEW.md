@@ -57,6 +57,11 @@ internal issuer id whenever the master knows the company's LEI, ISIN or CIK. Not
 and no issuer is assigned by hand; an unmatched security is listed in Data Hub and fixed in the master.
 Holdings are mapped as they load, so reload them after a master change.
 
+**Data Hub · Feeds** (`#/feeds`, `GET /api/feeds`) lists every input feed (security master, portfolio holdings,
+index constituents, ESG data, news) with its data date, last load and whether it is behind: its latest good load
+is older than last month end, or nothing is loaded. It only reads the existing load records; loading stays on
+Holdings Intake and the Security Master screen. News has no live source yet, so its row reads what is stored.
+
 The workspaces, processes and steps live in `frontend/src/lib/processes.ts`: one
 registry to edit when a process changes. Old links (`#/processes/<id>`,
 `#/themeMachine`, `#/designStudio`) open the matching workspace.

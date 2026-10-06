@@ -1120,6 +1120,15 @@ export interface SecurityMasterStatus {
   identifiers: Record<"ISIN" | "CUSIP" | "SEDOL" | "FIGI" | "LEI" | "CIK", number>;
   last_load: { status: "ok" | "failed"; detail: string; at: string; content_hash: string } | null;
 }
+export interface FeedRow {
+  feed: "security_master" | "holdings" | "index" | "esg" | "news";
+  source_id: string;
+  channel: "api" | "file" | null;
+  as_of: string | null;
+  last_load: { status: "ok" | "failed"; detail: string; at: string; month: string } | null;
+  stale: boolean;
+  detail: string;
+}
 export interface UnmatchedSecurity {
   holder_id: string;
   kind: "index" | "portfolio";

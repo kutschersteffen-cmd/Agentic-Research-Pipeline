@@ -108,3 +108,35 @@ def test_only_an_approver_loads_the_master(tmp_path):
         assert bad.status_code == 422 and bad.json()["detail"]["errors"][0]["row"] == 2
     finally:
         app.dependency_overrides.clear()
+
+
+def test_feeds_overview_shows_each_feed_and_whether_it_is_behind(env):
+    from datetime import date
+
+    from arp.portfolio import feeds
+    from arp.portfolio.loads import LoadRecord, record_load
+
+    store, idmap = env
+    store.save_holder(HolderConfig(holder_id="P1", kind="portfolio", source="api", as_of="2026-09-30"))
+    store.save_holder(HolderConfig(holder_id="IX1", kind="index", source="file", as_of="2026-08-31"))
+    record_load(store, LoadRecord(kind="esg", source_id="msci", month="2026-09", status="ok", content_hash="h"))
+    record_load(store, LoadRecord(kind="esg", source_id="msci", month="2026-10", status="failed", content_hash=""))
+    rows = {(r["feed"], r["source_id"]): r for r in feeds.overview(store, idmap, date(2026, 10, 15))}
+    assert rows[("security_master", "file")]["stale"] is True, "no master loaded"
+    assert (rows[("holdings", "P1")]["stale"], rows[("holdings", "P1")]["channel"]) == (False, "api")
+    assert rows[("index", "IX1")]["stale"] is True
+    esg = rows[("esg", "msci")]
+    assert (esg["as_of"], esg["stale"], esg["last_load"]["status"]) == ("2026-09", False, "failed"), "last ok month counts"
+    assert rows[("news", "default")]["stale"] is True
+
+
+def test_feeds_include_holdings_loaded_without_a_holder_config(env):
+    from datetime import date
+
+    from arp.portfolio import feeds
+    from arp.portfolio.loads import LoadRecord, record_load
+
+    store, idmap = env
+    record_load(store, LoadRecord(kind="holdings", source_id="pf_seed", month="2026-09", status="ok", content_hash="h"))
+    rows = {(r["feed"], r["source_id"]): r for r in feeds.overview(store, idmap, date(2026, 10, 15))}
+    assert (rows[("holdings", "pf_seed")]["as_of"], rows[("holdings", "pf_seed")]["stale"]) == ("2026-09", False)

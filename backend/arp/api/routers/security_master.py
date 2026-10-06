@@ -1,8 +1,10 @@
-"""The security master (Data Hub): the golden source mapping securities to internal issuer ids. Exact match only."""
+"""Data Hub: the security master (the golden source mapping securities to internal issuer ids, exact match only) and
+the overview of every input feed."""
 
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import date
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from starlette.concurrency import run_in_threadpool
@@ -11,9 +13,11 @@ from arp.api.auth import Principal, require_role
 from arp.api.deps import get_portfolio_store, settings_dep
 from arp.config import Settings
 from arp.holdings import security_master
+from arp.portfolio import feeds
 from arp.storage.identifier_map import IdentifierMapStore
 
 router = APIRouter(prefix="/api/security-master", tags=["security-master"])
+feeds_router = APIRouter(prefix="/api/feeds", tags=["feeds"])
 
 
 def _idmap(settings: Settings = Depends(settings_dep)) -> IdentifierMapStore:
@@ -23,6 +27,12 @@ def _idmap(settings: Settings = Depends(settings_dep)) -> IdentifierMapStore:
 @router.get("")
 def get_status(store=Depends(get_portfolio_store), idmap: IdentifierMapStore = Depends(_idmap)) -> dict:
     return security_master.status(store, idmap)
+
+
+@feeds_router.get("")
+def get_feeds(store=Depends(get_portfolio_store), idmap: IdentifierMapStore = Depends(_idmap)) -> dict:
+    """Every input feed with its last load and whether it is behind (Data Hub · Feeds)."""
+    return {"feeds": feeds.overview(store, idmap, date.today())}
 
 
 @router.get("/unmatched")
