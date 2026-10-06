@@ -222,7 +222,7 @@ export const WORKSPACES: Workspace[] = [
         cadence: "When the security master or a holding changes",
         outcome: "Every held security mapped to exactly one internal issuer by the security master, and nothing mapped any other way.",
         steps: [
-          { tab: "securityMaster", label: "Load security master", does: "Upload the master: internal issuer id plus ISIN, CUSIP, SEDOL, FIGI, LEI or CIK. Replaces the golden source whole.", handsOn: "Identifier map", carried: true },
+          { tab: "securityMaster", label: "Load security master", does: "Upload the master: internal issuer id plus ISIN, CUSIP, SEDOL, FIGI, LEI, CIK or PermID. Replaces the golden source whole.", handsOn: "Identifier map", carried: true },
           { tab: "portfolio-monitoring", sub: "holdings", label: "Map holdings", does: "Each holding's ISIN (or LEI) matched exactly to its internal issuer as it loads.", handsOn: "Mapped holdings", carried: true },
           { tab: "securityMaster", label: "Unmatched", does: "Held securities the master does not know: fix the master, not the holding.", handsOn: "Corrections to the master" },
           { tab: "library", label: "Data Library", does: "The issuer view every workspace reads." },

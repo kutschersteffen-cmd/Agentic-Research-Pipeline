@@ -1117,7 +1117,7 @@ export interface Alert {
 
 export interface SecurityMasterStatus {
   issuers: number;
-  identifiers: Record<"ISIN" | "CUSIP" | "SEDOL" | "FIGI" | "LEI" | "CIK", number>;
+  identifiers: Record<"ISIN" | "CUSIP" | "SEDOL" | "FIGI" | "LEI" | "CIK" | "PERMID", number>;
   last_load: { status: "ok" | "failed"; detail: string; at: string; content_hash: string } | null;
 }
 export type OutputKind = "universe" | "run" | "publication" | "taxonomy" | "calibration";

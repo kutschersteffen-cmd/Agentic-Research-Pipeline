@@ -46,9 +46,9 @@ def post_news_pull(
     since: str | None = None, settings: Settings = Depends(settings_dep), store=Depends(get_portfolio_store),
     idmap: IdentifierMapStore = Depends(_idmap),
 ) -> dict:
-    """Pulls new articles from the news API; each is tied to an issuer through the security master only."""
-    if not settings.news_api_url or not settings.news_api_token:
-        raise HTTPException(503, "news API is not configured (ARP_NEWS_API_URL, ARP_NEWS_API_TOKEN)")
+    """Pulls new stories from Refinitiv News; each is tied to an issuer through the security master's PermIDs only."""
+    if not settings.news_api_client_id or not settings.news_api_client_secret:
+        raise HTTPException(503, "news API is not configured (ARP_NEWS_API_CLIENT_ID, ARP_NEWS_API_CLIENT_SECRET)")
     try:
         return pull_news(store, settings, idmap, since=since)
     except httpx.HTTPError as e:

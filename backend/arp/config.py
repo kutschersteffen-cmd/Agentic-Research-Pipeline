@@ -77,8 +77,9 @@ class Settings(BaseSettings):
     holdings_api_token: str | None = None
     esg_api_base_url: str | None = None  # corporate ESG provider; ARP_ESG_API_URL
     esg_api_token: str | None = None  # Bearer token, ARP_ESG_API_TOKEN: never logged or stored in a load detail
-    news_api_url: str | None = None  # news vendor API; ARP_NEWS_API_URL (portfolio/news/api_source.py)
-    news_api_token: str | None = None  # Bearer token, ARP_NEWS_API_TOKEN: never logged or stored in a load detail
+    news_api_url: str = "https://api.refinitiv.com"  # Refinitiv Data Platform; ARP_NEWS_API_URL (portfolio/news/api_source.py)
+    news_api_client_id: str | None = None  # RDP service account, ARP_NEWS_API_CLIENT_ID
+    news_api_client_secret: str | None = None  # ARP_NEWS_API_CLIENT_SECRET: never logged or stored in a load detail
     holdings_pull_day: int = Field(default=2, ge=1, le=28)
     publishing_schedule_enabled: bool = Field(default=False)  # daily re-ground sample, pull, snapshot, corrections
     publish_state_dir: Path = REPO_ROOT / "data" / "publish"

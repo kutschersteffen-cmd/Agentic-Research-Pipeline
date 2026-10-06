@@ -18,8 +18,8 @@ from arp.schemas.issuer import IdentifierMap, lei_is_valid, normalise_lei
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.identifier_map import IdentifierMapStore, normalise_identifier
 
-# Column -> identifier scheme. The first four identify a security, the last two its issuer.
-SCHEMES = {"isin": "ISIN", "cusip": "CUSIP", "sedol": "SEDOL", "figi": "FIGI", "lei": "LEI", "cik": "CIK"}
+# Column -> identifier scheme. The first four identify a security, the last three its issuer (PermID: Refinitiv's).
+SCHEMES = {"isin": "ISIN", "cusip": "CUSIP", "sedol": "SEDOL", "figi": "FIGI", "lei": "LEI", "cik": "CIK", "permid": "PERMID"}
 COLUMNS = ("issuer_id", "issuer_name", *SCHEMES, "valid_from", "valid_to")
 _MAPPING = Mapping(provider="security_master", columns={c: c for c in COLUMNS})
 
@@ -32,6 +32,7 @@ def _format_error(scheme: str, value: str) -> str | None:
         "SEDOL": len(value) == 7 and value.isalnum(),
         "FIGI": len(value) == 12 and value.startswith("BBG") and value.isalnum(),
         "CIK": value.isdigit() and len(value) <= 10,
+        "PERMID": value.isdigit() and len(value) <= 15,
     }[scheme]
     return None if ok else f"not a valid {scheme}"
 

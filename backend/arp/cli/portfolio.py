@@ -259,14 +259,14 @@ def portfolio_esg_pull(month: str = typer.Option(..., help="YYYY-MM"), provider:
 
 @portfolio_app.command("news-pull")
 def portfolio_news_pull(since: str = typer.Option(None, help="YYYY-MM-DD; default: the newest stored article's date")) -> None:
-    """Pulls new articles from the news API, tied to issuers through the security master only. Run it from a scheduler."""
+    """Pulls new Refinitiv News stories, tied to issuers by the security master's PermIDs only. Run it from a scheduler."""
     settings = get_settings()
     try:
         result = pull_news(_portfolio_store(), settings, IdentifierMapStore(settings.identifier_map_path), since=since)
     except Exception as exc:  # unconfigured, fetch failure or an unexpected response: all exit 1
         typer.echo(f"News pull failed: {type(exc).__name__}: {exc}", err=True)
         raise typer.Exit(1) from exc
-    typer.echo(f"{result['added']} new article(s), {result['unmatched']} not matched to an issuer")
+    typer.echo(f"{result['added']} new stories, {result['unmatched']} not matched to an issuer")
 
 
 @portfolio_app.command("monitoring-alerts-list")
