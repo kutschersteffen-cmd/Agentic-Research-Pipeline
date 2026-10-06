@@ -103,11 +103,17 @@ export const WORKSPACES: Workspace[] = [
         id: "extract",
         title: "Extract and score",
         cadence: "Per universe, refreshed when disclosures change",
-        outcome: "Every figure cited to a verified source, every flagged one reviewed, and tiers from a ratified template.",
+        outcome: "Every company resolved and documented, every figure cited to a verified source, every flagged one reviewed, and tiers from a ratified template.",
+        // The Extraction screen's own staged flow; each step opens its tab. Companies with
+        // documents already on file skip Identify and Documents.
         steps: [
-          { tab: "extraction", label: "Extract", does: "Custom schema, Financials, TNFD or Transition plan profile over a universe and its documents.", handsOn: "Flagged figures", carried: true, runTypes: EXTRACTION_RUNS, reviewedElsewhere: true },
+          { tab: "extraction", sub: "companies", label: "Companies", does: "Pick the universe: upload, paste, or take one handed over from Data Hub, Risk Monitoring or Thematic Universe.", handsOn: "Companies", carried: true },
+          { tab: "extraction", sub: "identify", label: "Identify", does: "Resolve each company to one issuer; ambiguous matches wait for review.", handsOn: "Resolved companies", carried: true, runTypes: ["identity"] },
+          { tab: "extraction", sub: "documents", label: "Documents", does: "Discover and download annual, sustainability and proxy reports, or upload your own by type.", handsOn: "Documents", carried: true, runTypes: ["discovery"] },
+          { tab: "extraction", sub: "schema", label: "Schema", optional: true, does: "Custom profile only: the data points to extract and their types.", handsOn: "Schema", carried: true },
+          { tab: "extraction", sub: "extract", label: "Extract", does: "Custom schema, Financials, TNFD or Transition plan profile; every citation re-verified against its source.", handsOn: "Flagged figures", carried: true, runTypes: EXTRACTION_RUNS, reviewedElsewhere: true },
           { tab: "review", label: "Review", does: "Approve, edit or reject every flagged figure.", handsOn: "Reviewed figures", carried: true, runTypes: REVIEWABLE },
-          { tab: "extraction", label: "Score", optional: true, does: "Attach a ratified Decision Studio template at setup (or after the run); publish the tiers from the run's Scoring panel.", handsOn: "Published tiers", carried: true },
+          { tab: "extraction", sub: "extract", label: "Score", optional: true, does: "Attach a ratified Decision Studio template at setup (or after the run); publish the tiers from the run's Scoring panel.", handsOn: "Published tiers", carried: true },
           { tab: "decision", label: "Template", optional: true, does: "Build and ratify scoring templates in Decision Studio (R&D Lab); only ratified versions reach Argus." },
         ],
       },
