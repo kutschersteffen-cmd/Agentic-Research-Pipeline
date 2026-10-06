@@ -1,5 +1,5 @@
 """Data Hub: the security master (the golden source mapping securities to internal issuer ids, exact match only) and
-the overview of every input feed."""
+the overview of every input feed, the open issues and Smart Search over them."""
 
 from __future__ import annotations
 
@@ -8,14 +8,26 @@ from datetime import date
 
 import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
+from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
-from arp.api.auth import Principal, require_role
-from arp.api.deps import get_portfolio_store, get_run_store, settings_dep
+from arp import catalog, smart_search
+from arp.api.auth import Principal, current_user, require_role
+from arp.api.deps import (
+    get_decision_store,
+    get_index_store,
+    get_llm_client,
+    get_portfolio_store,
+    get_reporting_store,
+    get_run_store,
+    get_taxonomy_store,
+    settings_dep,
+)
 from arp.config import Settings
 from arp.holdings import security_master
 from arp.holdings.intake import IntakeError, previous_month_end
-from arp.portfolio import feeds, issues
+from arp.llm.base import LLMClient
+from arp.portfolio import feeds, issues, qa_audit
 from arp.portfolio.climate.esg_api_source import pull_esg
 from arp.portfolio.news.api_source import pull_news
 from arp.storage.identifier_map import IdentifierMapStore
@@ -24,6 +36,7 @@ from arp.storage.run_store import RunStore
 router = APIRouter(prefix="/api/security-master", tags=["security-master"])
 feeds_router = APIRouter(prefix="/api/feeds", tags=["feeds"])
 issues_router = APIRouter(prefix="/api/issues", tags=["issues"])
+search_router = APIRouter(prefix="/api/smart-search", tags=["smart-search"])
 
 
 def _idmap(settings: Settings = Depends(settings_dep)) -> IdentifierMapStore:
@@ -113,3 +126,36 @@ def get_issues(
 ) -> dict:
     """Every open data problem: feeds behind or failed, unmatched securities, undecided failing checks (Data Hub · Issues)."""
     return {"issues": issues.open_issues(store, idmap, run_store, date.today())}
+
+
+class SmartSearchRequest(BaseModel):
+    question: str
+
+
+@search_router.post("", response_model=smart_search.SearchAnswer)
+async def post_smart_search(
+    req: SmartSearchRequest, settings: Settings = Depends(settings_dep), store=Depends(get_portfolio_store),
+    idmap: IdentifierMapStore = Depends(_idmap), run_store: RunStore = Depends(get_run_store), decisions=Depends(get_decision_store),
+    taxonomy=Depends(get_taxonomy_store), index=Depends(get_index_store), reports=Depends(get_reporting_store),
+    llm: LLMClient = Depends(get_llm_client), principal: Principal = Depends(current_user),
+) -> smart_search.SearchAnswer:
+    """A plain-language question becomes a filter over issues, outputs or feeds (the model's only job); code applies it.
+    Every call leaves an audit row, like Ask the Portfolio."""
+    answer, error = None, None
+    try:
+        today = date.today()
+        lists = await run_in_threadpool(lambda: {
+            "issues": issues.open_issues(store, idmap, run_store, today),
+            "outputs": catalog.catalog(runs_dir=settings.runs_dir, run_store=run_store, decisions=decisions, taxonomy=taxonomy,
+                                       index=index, reports=reports),
+            "feeds": feeds.overview(store, idmap, today),
+        })
+        answer, _usage = await smart_search.smart_search(req.question, llm, **lists)
+        return answer
+    except Exception as exc:
+        error = f"{type(exc).__name__}: {exc}"
+        raise
+    finally:
+        qa_audit.record_answer(settings, endpoint="datahub.smart_search", principal=principal, question=req.question,
+                               answer_text=answer.answer_text if answer else None, vintage={}, error=error,
+                               resolvable=answer.resolvable if answer else None)

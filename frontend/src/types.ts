@@ -1134,6 +1134,14 @@ export interface OutputItem {
   count?: number;
   used_by: { kind: string; id: string; label: string; version?: number | null }[];
 }
+export interface SmartSearchAnswer {
+  question: string;
+  resolvable: boolean;
+  clarification_needed: string;
+  filter: { target: "issues" | "outputs" | "feeds" } & Record<string, unknown> | null;
+  rows: Record<string, unknown>[];
+  answer_text: string;
+}
 export interface FeedRow {
   feed: "security_master" | "holdings" | "index" | "esg" | "news";
   source_id: string;

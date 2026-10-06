@@ -22,6 +22,14 @@ is flagged. Transition Intelligence *Monthly monitoring* runs last month and lis
 blocked it, if anything. The other processes are human decisions step by step, so they
 have no such button.
 
+**Smart Search** (Data Hub, `#/smartSearch`) answers plain-language questions about open
+issues, stored outputs and input feeds ("unmatched holdings in PF-1", "outputs nobody
+uses"). The model only turns the question into a filter over a fixed vocabulary
+(`backend/arp/smart_search.py`); code applies it, counts the rows and shows the filter with
+the answer. It never sees the rows or states a number, and every call is audited like Ask
+the Portfolio. Questions outside that vocabulary (a figure's change over time, exposure
+amounts) get a pointer instead of a guess.
+
 ## Principles
 
 1. **A process is a path through existing screens, not a new screen.** Each step

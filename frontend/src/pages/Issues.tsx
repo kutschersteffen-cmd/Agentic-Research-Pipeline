@@ -16,7 +16,7 @@ const SEVERITY: Record<DataIssue["severity"], [string, string]> = {
 const SHOWN = 200;
 
 /** Where an issue is fixed. */
-function fixHref(i: DataIssue): string {
+export function fixHref(i: DataIssue): string {
   if (i.source === "feed") return "#/feeds";
   if (i.source === "security_master") return "#/securityMaster";
   return `#/review/extraction/${encodeURIComponent(i.run_id ?? "")}`;

@@ -212,6 +212,7 @@ export const WORKSPACES: Workspace[] = [
     screens: [
       ["#/feeds", "Feeds"],
       ["#/issues", "Issues"],
+      ["#/smartSearch", "Smart Search"],
       ["#/outputs", "Outputs"],
       ["#/securityMaster", "Security Master"],
       ["#/portfolio-monitoring/holdings", "Holdings Intake"],
