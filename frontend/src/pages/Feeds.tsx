@@ -37,7 +37,7 @@ export function Feeds() {
     try {
       if (r.feed === "news") {
         const res = await api.pullNews();
-        announce(`News: ${res.added} new articles${res.unmatched ? `, ${res.unmatched} not matched to an issuer` : ""}`);
+        announce(`News: ${res.added} new stories${res.unmatched ? `, ${res.unmatched} not matched to an issuer` : ""}`);
       } else if (r.feed === "esg") {
         const res = await api.pullEsg(r.source_id);
         announce(`ESG ${r.source_id}: ${res.status === "unchanged" ? "no change" : `${res.rows} rows written`}`);

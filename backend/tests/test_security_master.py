@@ -20,7 +20,9 @@ HEADER = ",".join(security_master.COLUMNS)
 
 
 def csv(*lines: str) -> bytes:
-    return ("\n".join([HEADER, *lines]) + "\n").encode()
+    """Rows without a permid (10 fields) get an empty one before the dates."""
+    rows = [",".join([*f[:8], "", *f[8:]]) if len(f := line.split(",")) == 10 else line for line in lines]
+    return ("\n".join([HEADER, *rows]) + "\n").encode()
 
 
 @pytest.fixture
@@ -41,6 +43,7 @@ def test_each_identifier_on_a_row_points_at_its_internal_issuer(env):
     ("ISS-1,Apple,US0378331006,,,,,,,", "isin"),  # check digit
     ("ISS-1,Apple,,,,,,,,", None),  # no identifier
     (f"ISS-1,Apple,{ISIN},,,,,,2026-13-01,", "valid_from"),
+    (f"ISS-1,Apple,{ISIN},,,,,,P123,,", "permid"),  # digits only
 ])
 def test_bad_rows_reject_the_whole_file_and_keep_the_old_master(env, line, column):
     store, idmap = env

@@ -1117,7 +1117,7 @@ export interface Alert {
 
 export interface SecurityMasterStatus {
   issuers: number;
-  identifiers: Record<"ISIN" | "CUSIP" | "SEDOL" | "FIGI" | "LEI" | "CIK", number>;
+  identifiers: Record<"ISIN" | "CUSIP" | "SEDOL" | "FIGI" | "LEI" | "CIK" | "PERMID", number>;
   last_load: { status: "ok" | "failed"; detail: string; at: string; content_hash: string } | null;
 }
 export type OutputKind = "universe" | "run" | "publication" | "taxonomy" | "calibration";
@@ -1133,6 +1133,14 @@ export interface OutputItem {
   run_type?: string;
   count?: number;
   used_by: { kind: string; id: string; label: string; version?: number | null }[];
+}
+export interface SmartSearchAnswer {
+  question: string;
+  resolvable: boolean;
+  clarification_needed: string;
+  filter: { target: "issues" | "outputs" | "feeds" } & Record<string, unknown> | null;
+  rows: Record<string, unknown>[];
+  answer_text: string;
 }
 export interface FeedRow {
   feed: "security_master" | "holdings" | "index" | "esg" | "news";

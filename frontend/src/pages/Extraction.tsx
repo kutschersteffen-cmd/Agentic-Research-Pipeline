@@ -66,9 +66,11 @@ interface Props {
   initialProfile?: ExtractionProfile;
   /** The step tab to open, from the route (`#/extraction/identify`). */
   initialTab?: string;
+  /** Every handover automatic, from a workspace's "Run process" (`#/extraction/companies/auto`). */
+  initialAuto?: boolean;
 }
 
-export function Extraction({ pendingUniverse, initialProfile = "custom", initialTab }: Props = {}) {
+export function Extraction({ pendingUniverse, initialProfile = "custom", initialTab, initialAuto }: Props = {}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flow, dispatch] = useReducer(flowReducer, initialFlow, (init) =>
@@ -104,6 +106,9 @@ export function Extraction({ pendingUniverse, initialProfile = "custom", initial
   useEffect(() => {
     if (initialTab && (TAB_IDS as readonly string[]).includes(initialTab) && (initialTab !== "schema" || hasCustom)) setTab(initialTab as Tab);
   }, [initialTab, hasCustom]);
+  useEffect(() => {
+    if (initialAuto) dispatch({ type: "allAuto", on: true });
+  }, [initialAuto]);
   const runJobs = jobs.filter((j) => j.id in flow.extractRuns);
   const activeJob = jobs.find((j) => j.id === activeJobId) ?? jobs[0];
   const reviewJob = runJobs.find((j) => j.id === activeJobId) ?? runJobs[0] ?? null;

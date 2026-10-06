@@ -85,7 +85,7 @@ export function SecurityMaster() {
         <h2>Load a new master</h2>
         <p className="help-text">
           CSV or Excel with columns <code>issuer_id</code> (your internal id, required), <code>issuer_name</code>, any of{" "}
-          <code>isin</code>, <code>cusip</code>, <code>sedol</code>, <code>figi</code>, <code>lei</code>, <code>cik</code>, and
+          <code>isin</code>, <code>cusip</code>, <code>sedol</code>, <code>figi</code>, <code>lei</code>, <code>cik</code>, <code>permid</code> (Refinitiv; ties news to the issuer), and
           optional <code>valid_from</code>/<code>valid_to</code> dates. The file replaces the whole master; the previous one
           is archived. Any invalid row, or one identifier on two issuers at once, rejects the file. Approvers only.{" "}
           <a href={api.securityMasterTemplateUrl()}>Template</a>

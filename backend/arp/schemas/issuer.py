@@ -39,7 +39,7 @@ class IdentifierMap(BaseModel):
     """One external identifier of an issuer; valid_to is exclusive (ISO dates)."""
 
     issuer_key: str
-    scheme: Literal["LEI", "CIK", "ISIN", "CUSIP", "SEDOL", "FIGI"]
+    scheme: Literal["LEI", "CIK", "ISIN", "CUSIP", "SEDOL", "FIGI", "PERMID"]
     value: str
     valid_from: str | None = None
     valid_to: str | None = None

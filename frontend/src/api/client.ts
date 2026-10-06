@@ -51,6 +51,7 @@ import type {
   OverridesView,
   RunScoringKind,
   DataIssue,
+  SmartSearchAnswer,
   OutputItem,
   OutputKind,
   FeedRow,
@@ -239,6 +240,8 @@ export const api = {
     request<IntakeResult>(`/api/holdings/holders/${kind}/${encodeURIComponent(holderId)}/pull`, { method: "POST" }),
   listOutputs: (kind?: OutputKind) => request<{ outputs: OutputItem[] }>(`/api/outputs${buildQuery({ kind })}`),
   listIssues: () => request<{ issues: DataIssue[] }>("/api/issues"),
+  smartSearch: (question: string) =>
+    request<SmartSearchAnswer>("/api/smart-search", { method: "POST", body: JSON.stringify({ question }) }),
   pullNews: () => request<{ added: number; unmatched: number; received: number }>("/api/feeds/news/pull", { method: "POST" }),
   pullEsg: (provider: string) =>
     request<{ status: "written" | "unchanged"; rows: number }>(`/api/feeds/esg/pull${buildQuery({ provider })}`, { method: "POST" }),

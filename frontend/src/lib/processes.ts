@@ -20,7 +20,8 @@ export type Step = {
   reviewedElsewhere?: boolean;
   optional?: boolean;
 };
-export type Process = { id: string; title: string; cadence: string; outcome: string; steps: Step[] };
+/** `run`: the process has an engine that runs it end to end ("Run process"); the others are walked step by step. */
+export type Process = { id: string; title: string; cadence: string; outcome: string; steps: Step[]; run?: "extraction" | "monthly" };
 export type WorkspaceId = "stewardiq" | "argus" | "transitionIntel" | "rdLab" | "dataHub";
 export type Workspace = {
   id: WorkspaceId;
@@ -102,6 +103,7 @@ export const WORKSPACES: Workspace[] = [
       {
         id: "extract",
         title: "Extract and score",
+        run: "extraction",
         cadence: "Per universe, refreshed when disclosures change",
         outcome: "Every company resolved and documented, every figure cited to a verified source, every flagged one reviewed, and tiers from a ratified template.",
         // The Extraction screen's own staged flow; each step opens its tab. Companies with
@@ -133,6 +135,7 @@ export const WORKSPACES: Workspace[] = [
       {
         id: "monitor",
         title: "Monthly monitoring",
+        run: "monthly",
         cadence: "Monthly, after the holdings and ESG loads",
         outcome: "Every threshold breach and news controversy on a holding is an alert with an owner.",
         steps: [
@@ -209,6 +212,7 @@ export const WORKSPACES: Workspace[] = [
     screens: [
       ["#/feeds", "Feeds"],
       ["#/issues", "Issues"],
+      ["#/smartSearch", "Smart Search"],
       ["#/outputs", "Outputs"],
       ["#/securityMaster", "Security Master"],
       ["#/portfolio-monitoring/holdings", "Holdings Intake"],
@@ -222,7 +226,7 @@ export const WORKSPACES: Workspace[] = [
         cadence: "When the security master or a holding changes",
         outcome: "Every held security mapped to exactly one internal issuer by the security master, and nothing mapped any other way.",
         steps: [
-          { tab: "securityMaster", label: "Load security master", does: "Upload the master: internal issuer id plus ISIN, CUSIP, SEDOL, FIGI, LEI or CIK. Replaces the golden source whole.", handsOn: "Identifier map", carried: true },
+          { tab: "securityMaster", label: "Load security master", does: "Upload the master: internal issuer id plus ISIN, CUSIP, SEDOL, FIGI, LEI, CIK or PermID. Replaces the golden source whole.", handsOn: "Identifier map", carried: true },
           { tab: "portfolio-monitoring", sub: "holdings", label: "Map holdings", does: "Each holding's ISIN (or LEI) matched exactly to its internal issuer as it loads.", handsOn: "Mapped holdings", carried: true },
           { tab: "securityMaster", label: "Unmatched", does: "Held securities the master does not know: fix the master, not the holding.", handsOn: "Corrections to the master" },
           { tab: "library", label: "Data Library", does: "The issuer view every workspace reads." },
