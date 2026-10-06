@@ -864,7 +864,7 @@ export const api = {
     form.append("name", name);
     return request<MechanismEnvelope>("/api/decision/mechanisms/from-indicators", { method: "POST", body: form });
   },
-  matchTemplates: (body: { run_type?: RunScoringKind; field_names?: string[]; columns?: string[] }) =>
+  matchTemplates: (body: { run_type?: RunScoringKind; field_names?: string[]; columns?: string[]; ratified_only?: boolean }) =>
     request<TemplateMatch[]>("/api/decision/templates/match", { method: "POST", body: JSON.stringify(body) }),
   attachRunFramework: (runId: string, frameworkId: string, version?: number) =>
     request(`/api/decision/runs/${runId}/framework`, { method: "PUT", body: JSON.stringify({ framework_id: frameworkId, version }) }),

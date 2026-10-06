@@ -380,7 +380,7 @@ function App() {
         {active === "voting" && <VotingRuns selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("voting", id)} />}
         {active === "reporting" && <ReportBuilder />}
         {active === "strategyReplication" && <StrategyReplication />}
-        {active === "decision" && <DecisionStudio />}
+        {active === "decision" && <DecisionStudio key={route.params.join("/")} initialSource={route.params[0]} initialRunId={route.params[1]} />}
         {active === "index" && <IndexBuilder />}
         {active === "library" && <DataLibrary />}
       </main>

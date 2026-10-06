@@ -113,6 +113,14 @@ class DecisionStore:
             return []
         return sorted(int(p.stem[1:]) for p in d.glob("v*.json") if p.stem[1:].isdigit())
 
+    def latest_ratified(self, framework_id: str) -> MechanismConfig | None:
+        """The highest ratified version, or None: the only versions a run may be scored with."""
+        for version in reversed(self.list_versions(framework_id)):
+            config = self.get(framework_id, version)
+            if config is not None and config.ratified:
+                return config
+        return None
+
     def list_frameworks(self) -> list[MechanismConfig]:
         if not self.frameworks_dir.exists():
             return []
