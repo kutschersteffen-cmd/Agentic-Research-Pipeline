@@ -8,6 +8,13 @@ as boxes; each box opens a workspace page (`#/<workspace id>`) that draws its
 processes step by step and lists its screens, so a process can be walked end to end
 or a single step run by hand.
 
+Above the boxes, **Needs you** lists everything waiting on a person, oldest first:
+each run with items to review, each proxy-voting run with ballots to decide, each
+Steward Workflow stage with open decisions, and blocking data issues. Every row links
+to where it is decided. Below it, **Now** shows only runs that are running or failed.
+Both are computed from the run store, the stewardship flow and the issues list; nothing
+new is stored.
+
 ## Principles
 
 1. **A process is a path through existing screens, not a new screen.** Each step
