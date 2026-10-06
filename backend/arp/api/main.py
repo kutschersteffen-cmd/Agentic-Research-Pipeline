@@ -34,6 +34,7 @@ from arp.api.routers import (
     holdings,
     identity,
     index,
+    outputs,
     overlap,
     portfolio,
     projects,
@@ -143,6 +144,7 @@ app.include_router(publish.router, dependencies=[Depends(authorize)])
 app.include_router(snapshots.router, dependencies=[Depends(authorize)])
 app.include_router(holdings.router, dependencies=[Depends(authorize)])
 app.include_router(security_master.router, dependencies=[Depends(authorize)])
+app.include_router(outputs.router, dependencies=[Depends(authorize)])
 app.include_router(security_master.feeds_router, dependencies=[Depends(authorize)])
 app.include_router(security_master.issues_router, dependencies=[Depends(authorize)])
 

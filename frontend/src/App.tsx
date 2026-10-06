@@ -30,6 +30,7 @@ import { Search } from "./pages/Search";
 import { SecurityMaster } from "./pages/SecurityMaster";
 import { Feeds } from "./pages/Feeds";
 import { Issues } from "./pages/Issues";
+import { Outputs } from "./pages/Outputs";
 import { Arcade } from "./pages/Arcade";
 import { Lab } from "./pages/Lab";
 import { DecisionStudio } from "./pages/DecisionStudio";
@@ -50,6 +51,7 @@ const TABS = [
   { id: "securityMaster", label: "Security Master" },
   { id: "feeds", label: "Feeds" },
   { id: "issues", label: "Issues" },
+  { id: "outputs", label: "Outputs" },
   { id: "theme", label: "Thematic Universe" },
   { id: "taxonomy", label: "Taxonomy Library" },
   { id: "emergingThemes", label: "Emerging Themes" },
@@ -101,7 +103,7 @@ const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boo
   { label: "Output", ids: ["reporting", "library", "history"] },
   {
     label: "All screens",
-    ids: ["feeds", "issues", "securityMaster", "stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "emergingThemes", "taxonomy", "theme", "strategyReplication", "decision", "index", "identity", "lab", "arcade"],
+    ids: ["feeds", "issues", "outputs", "securityMaster", "stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "emergingThemes", "taxonomy", "theme", "strategyReplication", "decision", "index", "identity", "lab", "arcade"],
     collapsed: true,
   },
 ];
@@ -372,6 +374,7 @@ function App() {
         {active === "securityMaster" && <SecurityMaster />}
         {active === "feeds" && <Feeds />}
         {active === "issues" && <Issues />}
+        {active === "outputs" && <Outputs />}
         {active === "lab" && <Lab selected={route.params[0] ?? null} />}
         {active === "arcade" && <Arcade selected={route.params[0] ?? null} />}
         {active === "theme" && <ThemeBuilder onSendToExtraction={(path, count) => sendUniverse("Thematic Universe")("extraction", path, count)} pendingTaxonomyId={pendingTaxonomyId} />}

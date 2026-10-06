@@ -72,6 +72,18 @@ guessed: it reads the feed overview, the identifier map and the check results st
 a severity, feed and master problems come before check findings, which may only be their symptom. Each issue links to
 where it is fixed (Feeds, Security Master, or the run in the Review Queue).
 
+**Data Hub · Outputs** (`#/outputs`, `GET /api/outputs?kind=`) is the output catalog: every stored result one step
+produces and another can use (saved universes, runs, published scores, taxonomies, index calibrations) in one shape,
+newest first, with its status, author and **Used by**: what has already read it. Nothing is copied: it reads the
+existing stores and the links consumers record (a run's universe and taxonomy, a Decision Studio table's source run,
+an index review's publications and calibration, a report's runs and decisions). Extraction runs started from one
+saved universe record it in `inputs.json`; theme runs record the taxonomy version their theme came from, unedited.
+Stewardship always reads the latest publication and records nothing.
+
+The same catalog backs one shared picker (`components/InputPicker.tsx`): newest first, with date, status and author;
+drafts and unfinished runs stay pickable but are marked. Every universe picker offers "Or pick a saved universe", and
+Thematic Universe preselects the newest ratified taxonomy.
+
 The workspaces, processes and steps live in `frontend/src/lib/processes.ts`: one
 registry to edit when a process changes. Old links (`#/processes/<id>`,
 `#/themeMachine`, `#/designStudio`) open the matching workspace.

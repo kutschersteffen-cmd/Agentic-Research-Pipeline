@@ -3,6 +3,7 @@ import { FileLink } from "../components/FileLink";
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
 import { UniversePicker } from "../components/UniversePicker";
+import { InputPicker } from "../components/InputPicker";
 import { ConfidenceBadge, VerdictBadge } from "../components/ConfidenceBadge";
 import { CitationList } from "../components/CitationList";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
@@ -105,8 +106,11 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
     setBusy(true);
     setError(null);
     try {
+      // Unedited from a saved taxonomy: name it, so the run shows under that taxonomy's "Used by".
+      const fromTaxonomy = loadedTaxonomy && JSON.stringify(theme) === JSON.stringify(loadedTaxonomy.theme);
       const res = await api.startThemeRun({
         theme,
+        ...(fromTaxonomy ? { taxonomy_id: loadedTaxonomy.taxonomy_id, taxonomy_version: loadedTaxonomy.version } : {}),
         universe_path: universePath,
         use_sample_icio: useSampleIcio,
         ...(cataloguePath && catalogueMappings.length > 0
@@ -239,14 +243,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
           Or load an existing, versioned taxonomy from the Taxonomy Library instead of drafting a new one:
         </p>
         <div className="inline-fields">
-          <select aria-label="Saved taxonomy" value={selectedTaxonomyId} onChange={(e) => setSelectedTaxonomyId(e.target.value)}>
-            <option value="">Select a saved taxonomy...</option>
-            {taxonomies.map((t) => (
-              <option key={t.taxonomy_id} value={t.taxonomy_id}>
-                {t.name} (v{t.version}, {t.status})
-              </option>
-            ))}
-          </select>
+          <InputPicker kind="taxonomy" label="Saved taxonomy" value={selectedTaxonomyId} onChange={(o) => setSelectedTaxonomyId(o?.id ?? "")} autoSelect />
           <button onClick={loadFromTaxonomy} disabled={!selectedTaxonomyId}>
             Load
           </button>

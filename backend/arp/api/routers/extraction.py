@@ -241,6 +241,8 @@ async def _dispatch(req: StartRequest, settings: Settings, run_store: RunStore, 
     (run_dir / "step_settings.json").write_text(StepSettings.effective(settings).model_dump_json())
     saved = req.model_copy(update={"companies": companies, "universe_path": None, "step_settings": StepSettings.effective(settings)})
     (run_dir / "start_request.json").write_text(saved.model_dump_json())
+    if req.universe_path:  # the saved universe it read: the output catalog's "used by" link
+        (run_dir / "inputs.json").write_text(json.dumps({"universe_path": req.universe_path}))
     return {**started, "run_type": run_type}
 
 
