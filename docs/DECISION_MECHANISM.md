@@ -486,8 +486,12 @@ A saved framework is a template. Three things make it usable as one:
   any inline framework, so an imported rule graph stays declarative.
 - **The rules step, last in every extraction pipeline.** Extraction,
   Financials, TNFD and Transition Plan runs take `decision_framework_id`
-  (and optionally a version) when they start. A template that needs columns
-  the run cannot produce is refused up front. Attaching writes a copy of
+  (and optionally a version) when they start. Only a ratified version
+  scores a run: a draft is refused, and without a version the latest
+  *ratified* one is pinned, so a draft saved on top of it never reaches a run.
+  The run screens list only ratified versions (`ratified_only` on
+  `templates/match`); drafts stay in Decision Studio. A template that needs
+  columns the run cannot produce is refused up front. Attaching writes a copy of
   that framework version and its audit trail into the run folder
   (`decision_framework.json`), so the rules that score a run travel with
   it. When every company is done, the shared batch runner

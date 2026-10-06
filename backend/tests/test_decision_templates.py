@@ -58,11 +58,14 @@ def client(tmp_path):
         yield c
 
 
-def _template(client) -> str:
-    """A framework derived on one extraction run, saved -- the template."""
+def _template(client, ratified: bool = True) -> str:
+    """A framework derived on one extraction run, saved -- the template. Ratified
+    by default: only a ratified version may score a run."""
     dataset = sources.from_extraction_run(client.run_store, _extraction_run(client.run_store))
     config, audit = derive_mechanism(dataset, name="Green capex scoring")
     client.store.save(config, audit)
+    if ratified:
+        client.store.ratify(config.framework_id, ratified_by="IC")
     return config.framework_id
 
 
@@ -117,6 +120,24 @@ def test_match_ranks_templates_by_fit_for_a_schema(client):
     assert set(gaps[0]["missing_columns"]) >= {"Green capex"}
 
 
+def test_runs_pick_only_ratified_versions(client):
+    draft_only = _template(client, ratified=False)
+    ratified = _template(client)
+    client.store.new_version(client.store.get(ratified))  # v2, a draft on top of ratified v1
+    body = {"run_type": "extraction", "field_names": FIELDS}
+
+    everything = client.post("/api/decision/templates/match", json=body).json()
+    assert {m["config"]["framework_id"] for m in everything} == {draft_only, ratified}, "the studio still sees drafts"
+    listed = client.post("/api/decision/templates/match", json={**body, "ratified_only": True}).json()
+    assert [(m["config"]["framework_id"], m["config"]["version"]) for m in listed] == [(ratified, 1)]
+
+    run_id = _extraction_run(client.run_store)
+    assert client.put(f"/api/decision/runs/{run_id}/framework", json={"framework_id": draft_only}).status_code == 400
+    assert client.put(f"/api/decision/runs/{run_id}/framework", json={"framework_id": ratified, "version": 2}).status_code == 400
+    pinned = client.put(f"/api/decision/runs/{run_id}/framework", json={"framework_id": ratified}).json()
+    assert pinned["version"] == 1, "no version means the latest ratified one, not the latest draft"
+
+
 def test_attached_template_scores_the_run_with_its_pinned_version(client):
     framework_id = _template(client)
     run_id = _extraction_run(client.run_store)
@@ -133,9 +154,10 @@ def test_attached_template_scores_the_run_with_its_pinned_version(client):
 
 
 def test_publishing_from_a_run_needs_a_finished_run_and_a_ratified_version(client):
-    framework_id = _template(client)
+    framework_id = _template(client, ratified=False)
     run_id = _extraction_run(client.run_store)
-    client.put(f"/api/decision/runs/{run_id}/framework", json={"framework_id": framework_id})
+    # A draft can no longer be attached through the API; runs scored before that rule still exist.
+    templates.attach_to_run(client.run_store, run_id, client.store.get(framework_id))
     body = {"published_by": "ana"}  # ignored: the principal publishes
 
     running = client.post(f"/api/decision/runs/{run_id}/publish", json=body)

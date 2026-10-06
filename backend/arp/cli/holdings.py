@@ -17,16 +17,12 @@ from arp.holdings.validate import validate
 from arp.snapshots.client import SnapshotClient, SnapshotHashMismatch
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.portfolio_store_factory import build_portfolio_store
-from arp.storage.postgres_projection_config import ProjectionConfig
-from arp.storage.run_store import RunStore
 
 holdings_app = typer.Typer(help="Holdings intake: file import, monthly API pull and templates (E77).")
 
 
 def _stores(settings: Settings):
-    return (build_portfolio_store(settings),
-            RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings)),
-            IdentifierMapStore(settings.identifier_map_path))
+    return build_portfolio_store(settings), IdentifierMapStore(settings.identifier_map_path)
 
 
 def _fail(message: str) -> None:
@@ -46,7 +42,7 @@ def import_cmd(
     """Imports a CSV or Excel holdings file; a rejected file prints one line per error."""
     settings = get_settings()
     principal = cli_principal(settings)
-    store, run_store, idmap = _stores(settings)
+    store, idmap = _stores(settings)
     if kind not in ("index", "portfolio"):
         _fail(f"--kind must be index or portfolio, not {kind!r}")
     data = file.read_bytes()
@@ -55,8 +51,7 @@ def import_cmd(
         validated = validate(read_rows(data, file.name, mapping), kind=kind, as_of=as_of, decimal=mapping.decimal,
                              weight_unit=mapping.weight_unit)
         result = ingest(store, validated, kind=kind, holder_id=holder, as_of=as_of, source="file",
-                        source_ref=file_ref(data), principal=principal, override_reason=override_reason,
-                        run_store=run_store, idmap=idmap)
+                        source_ref=file_ref(data), principal=principal, override_reason=override_reason, idmap=idmap)
     except IntakeError as e:
         for err in e.errors:
             typer.echo(f"row {err.row if err.row is not None else '-'}, {err.column or '-'}: {err.message}", err=True)
@@ -76,17 +71,17 @@ def pull_cmd(
     settings = get_settings()
     if not settings.holdings_api_url:
         _fail("holdings_api_url is not set (ARP_HOLDINGS_API_URL).")
-    store, run_store, idmap = _stores(settings)
+    store, idmap = _stores(settings)
     client = SnapshotClient(settings.holdings_api_url, settings.holdings_api_token)
     try:
         if holder is None:
-            out = pull_due(store, settings=settings, client=client, today=date.today(), run_store=run_store, idmap=idmap)
+            out = pull_due(store, settings=settings, client=client, today=date.today(), idmap=idmap)
         else:
             cfg = store.get_holder(kind, holder)
             if cfg is None:
                 _fail(f"unknown holder {kind}/{holder}")
             r = pull_holder(cfg, as_of or previous_month_end(date.today()), client=client,
-                            base_url=settings.holdings_api_url, store=store, run_store=run_store, idmap=idmap)
+                            base_url=settings.holdings_api_url, store=store, idmap=idmap)
             out = [{"holder_id": holder, "kind": kind, **asdict(r)}]
     except (ValueError, FileExistsError, httpx.HTTPError, SnapshotHashMismatch) as e:
         _fail(str(e))

@@ -14,7 +14,7 @@ from arp.config import Settings
 from arp.holdings.file_source import file_ref
 from arp.holdings.intake import IntakeError
 from arp.llm.base import LLMClient
-from arp.portfolio import aggregation, analytics, qa_agent, qa_audit, resolution_review
+from arp.portfolio import aggregation, analytics, qa_agent, qa_audit
 from arp.portfolio.climate import esg_intake
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.monitoring import evaluator as monitoring_evaluator
@@ -28,7 +28,6 @@ from arp.schemas.portfolio import (
     PivotSpec,
     Portfolio,
     PortfolioGroup,
-    ResolutionDecision,
     TrendPoint,
 )
 from arp.schemas.portfolio_monitoring import Alert, AlertRule, AlertStatus, AlertTransition
@@ -46,7 +45,7 @@ async def seed_demo_dataset(
     repeatedly: seeding is deterministic and snapshot-overwriting per
     date, so re-seeding always reproduces the same dataset.
     """
-    summary = await generate_demo_dataset(store, settings.portfolio_confidence_review_threshold)
+    summary = await generate_demo_dataset(store)
     return summary.__dict__
 
 
@@ -155,9 +154,8 @@ def holdings_universe(
 
 @router.get("/securities-needing-review")
 def securities_needing_review(store: PortfolioStore = Depends(get_portfolio_store)) -> list[dict]:
-    """Entity-resolution matches below the confidence threshold -- the
-    review-queue counterpart to `POST /demo/seed`'s deliberately
-    unresolved demo instrument (see `entity_resolution.py`)."""
+    """Securities the security master does not map to an issuer (exact match only), e.g. `POST /demo/seed`'s
+    deliberately unresolved demo instrument. Fixed in the master (Data Hub), never by hand here."""
     return [r.model_dump() for r in store.list_resolutions_needing_review()]
 
 
@@ -401,27 +399,3 @@ def post_monthly_run(
         return run_month(store, settings, body.month, portfolio_ids=ids, esg_provider=body.esg_provider)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
-
-
-@router.get("/resolution-review")
-def list_resolution_review(store: PortfolioStore = Depends(get_portfolio_store)) -> list[dict]:
-    return resolution_review.list_pending(store)
-
-
-class ResolutionDecisionRequest(BaseModel):
-    item_key: str
-    decision: Literal["accept", "override", "reject"]
-    reason: str = ""
-    override_value: str | None = None
-
-
-@router.post("/resolution-review/decisions", response_model=ResolutionDecision)
-def record_resolution_decision(
-    req: ResolutionDecisionRequest,
-    store: PortfolioStore = Depends(get_portfolio_store),
-    principal: Principal = Depends(current_user),
-) -> ResolutionDecision:
-    try:
-        return resolution_review.record_decision(store, req.item_key, req.decision, principal.name, req.reason, req.override_value)
-    except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc

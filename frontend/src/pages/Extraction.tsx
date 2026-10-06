@@ -49,6 +49,7 @@ import { ScoringSummary } from "./extraction/ScoringSummary";
 type Sub = "setup" | "run" | "review";
 type Inner = "identify" | "documents" | "extract";
 type Tab = FlowStep | "overview";
+const TAB_IDS: readonly Tab[] = ["overview", "companies", "identify", "documents", "schema", "extract"];
 
 const MARK: Partial<Record<StageState, StepTab["mark"]>> = { done: "done", ready: "waiting", review: "waiting", failed: "attention", stale: "attention" };
 const NO_SETTINGS: JobSettings = { stepSettings: {}, templateId: null };
@@ -63,9 +64,11 @@ interface Props {
   pendingUniverse?: UniverseHandoff | null;
   /** The profile the screen opens on, e.g. the Transition Plan menu item. */
   initialProfile?: ExtractionProfile;
+  /** The step tab to open, from the route (`#/extraction/identify`). */
+  initialTab?: string;
 }
 
-export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props = {}) {
+export function Extraction({ pendingUniverse, initialProfile = "custom", initialTab }: Props = {}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flow, dispatch] = useReducer(flowReducer, initialFlow, (init) =>
@@ -96,6 +99,11 @@ export function Extraction({ pendingUniverse, initialProfile = "custom" }: Props
   const [asOf, setAsOf] = useState(`FY${new Date().getFullYear() - 1}`);
 
   const hasCustom = jobs.some((j) => j.profile === "custom");
+  // `#/extraction/<step>` (a process step's link) opens that step's tab without remounting the flow.
+  // Schema exists only with a custom job.
+  useEffect(() => {
+    if (initialTab && (TAB_IDS as readonly string[]).includes(initialTab) && (initialTab !== "schema" || hasCustom)) setTab(initialTab as Tab);
+  }, [initialTab, hasCustom]);
   const runJobs = jobs.filter((j) => j.id in flow.extractRuns);
   const activeJob = jobs.find((j) => j.id === activeJobId) ?? jobs[0];
   const reviewJob = runJobs.find((j) => j.id === activeJobId) ?? runJobs[0] ?? null;

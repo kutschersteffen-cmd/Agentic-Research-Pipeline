@@ -8,12 +8,11 @@ from fastapi.testclient import TestClient
 
 from arp.api import deps
 from arp.api.auth import current_user
-from arp.api.routers import engagement, portfolio, stewardship, taxonomies
+from arp.api.routers import engagement, stewardship, taxonomies
 from arp.config import Settings
 from arp.schemas.taxonomy import DerivationMethod
 from arp.stewardship.process import StreamStore
 from arp.storage.engagement_store import EngagementStore
-from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from tests.conftest import PRINCIPAL
 from tests.test_taxonomy_store import _theme
@@ -50,15 +49,6 @@ def test_engagement_validate_and_verify_ignore_supplied_names(tmp_path):
     res = client.post(f"{base}/verify-commitment", json={"commitment_id": commitment_id, "verified_by": MALLORY})
     assert res.status_code == 200
     assert res.json()["issues"][0]["commitments"][0]["validated_by"] == PRINCIPAL.name
-
-
-def test_resolution_review_ignores_supplied_names(tmp_path):
-    store = PortfolioStore(tmp_path)
-    client = _client(portfolio, {deps.get_portfolio_store: lambda: store, deps.settings_dep: lambda: Settings()})
-    res = client.post(
-        "/api/portfolio/resolution-review/decisions", json={"item_key": "s1", "decision": "accept", "decided_by": MALLORY}
-    )
-    assert res.status_code == 200 and res.json()["decided_by"] == PRINCIPAL.name
 
 
 @pytest.fixture

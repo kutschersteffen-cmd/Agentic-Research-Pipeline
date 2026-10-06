@@ -3,18 +3,15 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
-from fastapi.testclient import TestClient
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store
 from arp.api.main import app
 from arp.holdings import load
-from arp.holdings.intake import IntakeError, holder_status, ingest, isin_decisions, previous_month_end
+from arp.holdings.intake import IntakeError, holder_status, ingest, previous_month_end
 from arp.holdings.validate import RowError, Validated, validate
-from arp.orchestration.review_queue import append_decision
 from arp.schemas.issuer import IdentifierMap
 from arp.schemas.portfolio import HolderConfig
-from arp.schemas.review import ReviewDecision
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.run_store import RunStore
@@ -45,74 +42,51 @@ def run(env, v=None, *, kind="index", holder="IX1", as_of="2026-10-31", source="
         ref="f.csv"):
     store, rs, idmap = env
     return ingest(store, v or rows(kind, as_of), kind=kind, holder_id=holder, as_of=as_of, source=source,
-                  source_ref=ref, principal=principal, override_reason=reason, run_store=rs, idmap=idmap)
+                  source_ref=ref, principal=principal, override_reason=reason, idmap=idmap)
 
 
 def held(env, isin, kind="index", holder="IX1", as_of="2026-10-31"):
     return next(h for h in env[0].load_snapshot(holder, as_of, kind=kind) if h.isin == isin)
 
 
-def client(who, rs):
-    app.dependency_overrides[get_run_store] = lambda: rs
-    app.dependency_overrides[current_user] = lambda: who
-    return TestClient(app)
-
-
-def decide(who, rs, run_id, body):
-    c = client(who, rs)
-    key = f"isin:{ISIN}"
-    etag = c.get(f"/api/review/runs/{run_id}/items/{key}/context").json()["etag"]
-    return c.post(f"/api/review/runs/{run_id}/items/{key}/decision", json={**body, "context_etag": etag})
-
-
-def test_isin_resolves_to_lei_through_identifier_map(env):
-    env[2].add(IdentifierMap(issuer_key=LEI, scheme="ISIN", value=ISIN))
+def test_isin_resolves_to_internal_issuer_through_security_master(env):
+    env[2].add(IdentifierMap(issuer_key="ISS-1", scheme="ISIN", value=ISIN))
     run(env)
-    h = held(env, ISIN)
-    assert (h.issuer_key, h.issuer_scheme) == (LEI, "LEI")
+    assert (held(env, ISIN).issuer_key, held(env, ISIN).issuer_scheme) == ("ISS-1", "INTERNAL")
 
 
-def test_unresolved_isin_appears_in_review_workbench(env):
-    env[2].add(IdentifierMap(issuer_key=LEI, scheme="ISIN", value=ISIN2))
+def test_row_lei_counts_only_through_the_security_master(env):
+    lei_rows = Validated([{**r, "lei": LEI} for r in rows().rows], [])
+    run(env, lei_rows)
+    assert held(env, ISIN).issuer_scheme == "ARP_PROVISIONAL", "a valid LEI the master does not know is not an issuer"
+    env[2].add(IdentifierMap(issuer_key="ISS-1", scheme="LEI", value=LEI))
+    run(env, Validated([{**r, "lei": LEI, "weight": 50} for r in rows().rows], []))
+    assert (held(env, ISIN).issuer_key, held(env, ISIN).issuer_scheme) == ("ISS-1", "INTERNAL")
+
+
+def test_unmatched_isin_is_provisional_and_never_queued_for_a_manual_issuer(env):
+    env[2].add(IdentifierMap(issuer_key="ISS-2", scheme="ISIN", value=ISIN2))
     result = run(env)
-    assert result.unresolved == [ISIN] and result.review_run_id
+    assert result.unresolved == [ISIN]
     h = held(env, ISIN)
     assert h.issuer_scheme == "ARP_PROVISIONAL" and h.issuer_key.startswith("ARP:")
-    r = client(PRINCIPAL, env[1]).get("/api/review/items")
-    assert r.status_code == 200, r.text
-    assert [(i["kind"], i["item_key"]) for i in r.json()["items"]] == [("security", f"isin:{ISIN}")]
+    assert env[1].list_runs("holdings") == [], "the fix is the security master, not a review item"
     assert [x.security_id for x in env[0].list_resolutions_needing_review()] == [ISIN]
 
 
-def test_resolved_isin_clears_needs_review(env):
-    store, rs, _ = env
-    result = run(env)
-    append_decision(rs, result.review_run_id, ReviewDecision(
-        item_key=f"isin:{ISIN}", decision="correct", reason_code="wrong_entity", reviewer="A", user_id="u_a",
-        role="analyst", corrected_value={"value": LEI}, snapshot_id="s1", step="first",
-    ))
+def test_ambiguous_isin_stays_unmatched(env):
+    env[2].add(IdentifierMap(issuer_key="ISS-1", scheme="ISIN", value=ISIN))
+    env[2].add(IdentifierMap(issuer_key="ISS-9", scheme="ISIN", value=ISIN))
+    assert ISIN in run(env).unresolved
+
+
+def test_master_fix_clears_needs_review_on_the_next_load(env):
+    store = env[0]
+    run(env)
+    env[2].add(IdentifierMap(issuer_key="ISS-1", scheme="ISIN", value=ISIN))
     run(env, rows(weights=(50, 50)))
     assert ISIN not in [x.security_id for x in store.list_resolutions_needing_review()]
     assert ISIN2 in [x.security_id for x in store.list_resolutions_needing_review()]
-
-
-def test_security_correction_needs_valid_lei(env):
-    store, rs, _ = env
-    result = run(env)
-    body = {"decision": "correct", "reason_code": "wrong_entity", "corrected_value": {"value": "BAD"}, "comment": "GLEIF"}
-    r = decide(ALICE, rs, result.review_run_id, body)
-    assert r.status_code == 422 and "valid LEI" in r.text
-    no_comment = {**body, "corrected_value": {"value": LEI.lower()}, "comment": ""}
-    assert decide(ALICE, rs, result.review_run_id, no_comment).status_code == 422
-    r = decide(ALICE, rs, result.review_run_id, {**body, "corrected_value": {"value": LEI}})
-    assert (r.json()["state"], r.json()["second_reasons"]) == ("first_done", ["correction"])
-    assert decide(ALICE, rs, result.review_run_id, {**body, "corrected_value": {"value": LEI}}).status_code == 409
-    assert isin_decisions(rs) == {}
-    r = decide(BOB, rs, result.review_run_id, {**body, "corrected_value": {"value": LEI.lower()}})
-    assert r.json()["state"] == "second_done", r.text  # stored normalised: a case-only difference agrees
-    assert isin_decisions(rs) == {ISIN: LEI}
-    run(env, rows(weights=(50, 50)))
-    assert (held(env, ISIN).issuer_key, held(env, ISIN).issuer_scheme) == (LEI, "LEI")
 
 
 def test_override_without_reason_refused(env):
@@ -197,15 +171,6 @@ def test_unsafe_holder_id_refused(env):
         run(env, holder="../evil")
     assert e.value.status == 422
     assert env[0].list_holders() == []
-
-
-def test_open_isin_not_queued_twice(env):
-    first = run(env)
-    second = run(env, rows(weights=(50, 50)))
-    assert second.unresolved == [ISIN, ISIN2] and second.review_run_id is None
-    items = client(PRINCIPAL, env[1]).get("/api/review/items").json()["items"]
-    assert sorted(i["item_key"] for i in items) == [f"isin:{ISIN2}", f"isin:{ISIN}"]
-    assert {i["run_id"] for i in items} == {first.review_run_id}
 
 
 def test_rejected_file_writes_nothing(env):

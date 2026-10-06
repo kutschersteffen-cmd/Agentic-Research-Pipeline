@@ -103,7 +103,8 @@ const BARRIER_REGIONS = ["", "European Union", "United States", "China"];
 const JOINABLE_RUN_TYPES = new Set(["transition_plan", "extraction", "financials", "tnfd"]);
 const RUN_TYPE_LABEL: Record<string, string> = { transition_plan: "Transition plan", extraction: "Extraction", financials: "Financials", tnfd: "TNFD" };
 
-export function DecisionStudio() {
+/** `initialSource`/`initialRunId` come from `#/decision/<source>/<run id>`, e.g. Argus's "build a template from this run". */
+export function DecisionStudio({ initialSource, initialRunId }: { initialSource?: string; initialRunId?: string } = {}) {
   const [sub, setSub] = useState<Tab>("data");
   // Tabs opened since the table was selected: the guide's "read the
   // result" steps count as done once their tab has been opened.
@@ -131,8 +132,8 @@ export function DecisionStudio() {
   const [published, setPublished] = useState<PublishedDecision | null>(null);
   const [idColumn, setIdColumn] = useState("");
   const [error, setError] = useState("");
-  const [source, setSource] = useState<string>("transition_plan_run");
-  const [runId, setRunId] = useState("");
+  const [source, setSource] = useState<string>(SOURCES.some((s) => s.id === initialSource) ? initialSource! : "transition_plan_run");
+  const [runId, setRunId] = useState(initialRunId ?? "");
   const [region, setRegion] = useState("");
   const [compareWith, setCompareWith] = useState("");
   const [baseVersion, setBaseVersion] = useState<number | null>(null);

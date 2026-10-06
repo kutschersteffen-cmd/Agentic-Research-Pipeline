@@ -122,7 +122,7 @@ The system is precise and restrained. Surfaces are flat and separated by hairlin
 - Status colours (green / amber / red) describe runs and ratings, never the person-must-act state.
 - Flat surfaces with hairline borders; shadows only for things that float.
 - Sans for reading, mono for numbers, IDs, labels and state.
-- The start page leads with the four processes; everything else is reached from them.
+- The start page leads with the five workspaces; everything else is reached from them.
 
 ## Colors
 
@@ -170,7 +170,7 @@ A near-monochrome palette with one reserved signal per theme and a small set of 
 
 ## Layout
 
-Spacing runs on a 4px base (4, 8, 12, 16, 24, 32, 48). Groups are tight (8–12px inside), sections are generous (24–48px between). A 248px sidebar holds navigation on wide screens; below 1024px it collapses into a drawer behind a top bar (53px), so tablets get the full width for tables and diagrams. The start page is a status line, then the four process cards (four columns on desktop, two below 1100px, one below 640px), then a row of run chips. Wide tables scroll inside their frame and show a shadow on any edge with more columns; tables never push the page sideways.
+Spacing runs on a 4px base (4, 8, 12, 16, 24, 32, 48). Groups are tight (8–12px inside), sections are generous (24–48px between). A 248px sidebar holds navigation on wide screens; below 1024px it collapses into a drawer behind a top bar (53px), so tablets get the full width for tables and diagrams. The start page is a status line, then the five workspace cards (five columns on wide screens, three below 1400px, two below 1100px, one below 640px), then a row of run chips. Wide tables scroll inside their frame and show a shadow on any edge with more columns; tables never push the page sideways.
 
 ## Elevation & Depth
 
@@ -220,7 +220,7 @@ Square, like the start page, on every screen: cards, framed tables, inputs and b
 - **Mobile / tablet:** below 1024px the sidebar becomes a drawer behind a top bar showing the current screen's name.
 
 ### Process Card (signature component)
-The start page's four cards (StewardIQ, Theme Machine, Data Engineer, Design Studio): an icon from one 48-grid family, the name, a one-line purpose, the process steps as dots on a line (ink = done, ring = running, signal = waiting on you, red diamond = failed, hollow = idle), one mono line naming the step that matters now, and a status in the signal colour when someone is needed.
+The start page's five cards (StewardIQ, Argus, Transition Intelligence Platform, R&D Lab, Data Hub): an icon from one 48-grid family, the name, a one-line purpose, the workspace's processes as dots on a line (ink = done, ring = running, signal = waiting on you, red diamond = failed, hollow = idle), one mono line naming the process that matters now, and a status in the signal colour when someone is needed.
 
 ## Do's and Don'ts
 

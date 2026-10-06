@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 from arp.api.auth import Principal, current_user, require_role
-from arp.api.deps import get_portfolio_store, get_run_store, settings_dep
+from arp.api.deps import get_portfolio_store, settings_dep
 from arp.config import Settings
 from arp.holdings.api_source import pull_holder
 from arp.holdings.file_source import file_ref, load_mapping, read_rows, template
@@ -22,7 +22,6 @@ from arp.schemas.common import now_iso
 from arp.schemas.portfolio import HolderConfig
 from arp.snapshots.client import SnapshotClient, SnapshotHashMismatch, SnapshotInvalid
 from arp.storage.identifier_map import IdentifierMapStore
-from arp.storage.run_store import RunStore
 from arp.storage.safe_path import safe_id
 
 router = APIRouter(prefix="/api/holdings", tags=["holdings"])
@@ -49,7 +48,6 @@ async def upload(
     user: Principal = Depends(current_user),
     settings: Settings = Depends(settings_dep),
     store=Depends(get_portfolio_store),
-    run_store: RunStore = Depends(get_run_store),
     idmap: IdentifierMapStore = Depends(_idmap),
 ) -> dict:
     data = await file.read(settings.max_upload_bytes + 1)
@@ -62,7 +60,7 @@ async def upload(
         validated = validate(raw, kind=kind, as_of=as_of, decimal=mapping.decimal, weight_unit=mapping.weight_unit)
         return ingest(
             store, validated, kind=kind, holder_id=holder_id, as_of=as_of, source="file", source_ref=file_ref(data),
-            principal=user, override_reason=override_reason, run_store=run_store, idmap=idmap,
+            principal=user, override_reason=override_reason, idmap=idmap,
         )
 
     try:
@@ -118,7 +116,6 @@ def pull(
     as_of: str | None = None,
     settings: Settings = Depends(settings_dep),
     store=Depends(get_portfolio_store),
-    run_store: RunStore = Depends(get_run_store),
     idmap: IdentifierMapStore = Depends(_idmap),
 ) -> dict:
     if not settings.holdings_api_url:
@@ -129,7 +126,7 @@ def pull(
     client = SnapshotClient(settings.holdings_api_url, settings.holdings_api_token)
     try:
         result = pull_holder(holder, as_of or previous_month_end(date.today()), client=client,
-                             base_url=settings.holdings_api_url, store=store, run_store=run_store, idmap=idmap)
+                             base_url=settings.holdings_api_url, store=store, idmap=idmap)
     except IntakeError as e:
         raise _intake_error(e) from None
     except FileExistsError:

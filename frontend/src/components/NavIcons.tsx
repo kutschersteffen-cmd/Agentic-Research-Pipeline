@@ -30,13 +30,57 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <rect x="13" y="13" width="8" height="8" rx="1.5" />
     </svg>
   ),
-  // Three steps joined left to right: a process, not a single screen.
-  processes: (
+  // The five workspaces: small versions of their start-page box icons.
+  stewardiq: (
     <svg {...ICON_PROPS}>
-      <circle cx="5" cy="12" r="2.5" />
-      <circle cx="12" cy="12" r="2.5" />
-      <circle cx="19" cy="12" r="2.5" />
-      <path d="M7.5 12h2M14.5 12h2" />
+      <path d="M12 3 20 6v6c0 4.5-3.4 8.2-8 9.5C7.4 20.2 4 16.5 4 12V6Z" />
+      <path d="m8.5 12 2.5 2.5 4.5-5" />
+    </svg>
+  ),
+  argus: (
+    <svg {...ICON_PROPS}>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
+  transitionIntel: (
+    <svg {...ICON_PROPS}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m6.5 15.5 4-3.5 3 2 4.5-5.5" />
+    </svg>
+  ),
+  rdLab: (
+    <svg {...ICON_PROPS}>
+      <path d="M9 3h6M10 3v6l-5.5 9.5A1.7 1.7 0 0 0 6 21h12a1.7 1.7 0 0 0 1.5-2.5L14 9V3" />
+      <path d="M7.5 15h9" />
+    </svg>
+  ),
+  dataHub: (
+    <svg {...ICON_PROPS}>
+      <ellipse cx="12" cy="5.5" rx="7.5" ry="2.5" />
+      <path d="M4.5 5.5v13c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5v-13" />
+      <path d="M4.5 12c0 1.4 3.4 2.5 7.5 2.5s7.5-1.1 7.5-2.5" />
+    </svg>
+  ),
+  // Inputs arriving: three lines into one tray.
+  feeds: (
+    <svg {...ICON_PROPS}>
+      <path d="M6 3v7M12 3v7M18 3v7" />
+      <path d="M3 13h5l1.5 3h5L16 13h5v7H3Z" />
+    </svg>
+  ),
+  // A warning triangle: something in the data needs a person.
+  issues: (
+    <svg {...ICON_PROPS}>
+      <path d="M12 3.5 21.5 20h-19Z" />
+      <path d="M12 10v4.5M12 17.5v.01" />
+    </svg>
+  ),
+  // A key: one identifier opens exactly one issuer.
+  securityMaster: (
+    <svg {...ICON_PROPS}>
+      <circle cx="8" cy="12" r="4" />
+      <path d="M12 12h9M18 12v3M21 12v2" />
     </svg>
   ),
   search: (

@@ -14,7 +14,7 @@ COLUMNS = ("weight", "shares", "free_float", "price", "market_value", "currency"
 
 
 def pull_holder(
-    holder: HolderConfig, as_of: str, *, client: SnapshotClient, base_url: str, store, run_store, idmap,
+    holder: HolderConfig, as_of: str, *, client: SnapshotClient, base_url: str, store, idmap,
     today: date | None = None,
 ) -> IntakeResult:
     """On any error past the request checks the holder is flagged; the previous month stays the readable one."""
@@ -38,7 +38,7 @@ def pull_holder(
         result = ingest(
             store, validated, kind=holder.kind, holder_id=holder.holder_id, as_of=as_of, source="api",
             source_ref=f"{base_url}/api/v1/snapshots/{manifest.month}/{dataset}?revision={manifest.revision}",
-            principal=None, override_reason=None, run_store=run_store, idmap=idmap,
+            principal=None, override_reason=None, idmap=idmap,
         )
     except Exception as exc:
         current = store.get_holder(holder.kind, holder.holder_id) or holder
@@ -49,15 +49,14 @@ def pull_holder(
     return result
 
 
-def pull_due(store, *, settings, client, today: date, run_store, idmap) -> list[dict]:
+def pull_due(store, *, settings, client, today: date, idmap) -> list[dict]:
     as_of = previous_month_end(today)
     out = []
     for h in store.list_holders():
         if h.source != "api" or (h.as_of or "") >= as_of:
             continue
         try:
-            r = pull_holder(h, as_of, client=client, base_url=settings.holdings_api_url, store=store,
-                            run_store=run_store, idmap=idmap, today=today)
+            r = pull_holder(h, as_of, client=client, base_url=settings.holdings_api_url, store=store, idmap=idmap, today=today)
         except Exception as exc:  # one failing holder never stops the others; pull_holder flagged it
             out.append({"holder_id": h.holder_id, "kind": h.kind, "status": "failed", "error": str(exc)[:500]})
             continue

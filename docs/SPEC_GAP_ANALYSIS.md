@@ -90,9 +90,9 @@ scope items are *already* satisfied by design rather than left as gaps:
   not a shortfall against it.
 
 **Built:** the issuer-ID join (`portfolio/entity_resolution.py::resolve_security`,
-exact ISIN match or confidence-scored name-fuzzy fallback), with unmatched/
-low-confidence matches explicitly routed to a review queue rather than
-silently assumed
+exact ISIN match only, against the security master loaded in Data Hub;
+unmatched securities are listed for a fix in the master, never matched by
+name or assigned by hand
 (`storage/portfolio_store.py::list_resolutions_needing_review`,
 `GET /api/portfolio/securities-needing-review`) — precisely the validation
 behavior §2 asks for. Point-in-time versioning is real and append-only on
@@ -199,8 +199,7 @@ Named ownership per risk category and logged methodology-version history
 are both built the same way: `RiskCategoryOwner`/`PolicyChange` events in
 the same unified append-only log, current state folded (latest per
 category / per setting wins) rather than a separate mutable snapshot. The
-two governance settings (`portfolio_confidence_review_threshold`,
-`climate_validation_tolerance_pct`) are now live-configurable through this
+governance setting (`climate_validation_tolerance_pct`) are now live-configurable through this
 mechanism instead of env-only.
 
 **Gap, stated explicitly**: entity resolution and climate cross-checking

@@ -21,14 +21,14 @@ class IdentifierMapStore:
     def add(self, row: IdentifierMap) -> None:
         append_jsonl(self.path, row.model_dump(mode="json"))
 
-    def _rows(self) -> list[IdentifierMap]:
+    def rows(self) -> list[IdentifierMap]:
         return [IdentifierMap.model_validate(r) for r in read_jsonl(self.path)]
 
     def resolve(self, scheme: str, value: str, *, on: str | None = None) -> list[str]:
         day = on or date.today().isoformat()
         want = normalise_identifier(scheme, value)
         keys: list[str] = []
-        for r in self._rows():
+        for r in self.rows():
             if r.scheme != scheme or normalise_identifier(scheme, r.value) != want:
                 continue
             if (r.valid_from and day < r.valid_from) or (r.valid_to and day >= r.valid_to):
@@ -38,4 +38,4 @@ class IdentifierMapStore:
         return keys
 
     def rows_for(self, issuer_key: str) -> list[IdentifierMap]:
-        return [r for r in self._rows() if r.issuer_key == issuer_key]
+        return [r for r in self.rows() if r.issuer_key == issuer_key]

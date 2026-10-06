@@ -389,6 +389,7 @@ class TemplateMatchRequest(BaseModel):
     )
     field_names: list[str] = Field(default_factory=list, description="extraction: the schema's field names.")
     columns: list[str] | None = Field(default=None, description="Or the table's columns directly.")
+    ratified_only: bool = Field(default=False, description="List each framework's latest ratified version, skipping frameworks with none.")
 
 
 class TemplateMatch(BaseModel):
@@ -410,9 +411,12 @@ def match_templates(req: TemplateMatchRequest, store: DecisionStore = Depends(ge
             raise HTTPException(400, str(exc)) from exc
     else:
         raise HTTPException(400, "Provide `columns` or `run_type`.")
+    configs = store.list_frameworks()
+    if req.ratified_only:
+        configs = [r for r in (store.latest_ratified(c.framework_id) for c in configs) if r is not None]
     matches = [
         TemplateMatch(config=c, required_columns=templates.required_columns(c), missing_columns=templates.missing_columns(c, columns))
-        for c in store.list_frameworks()
+        for c in configs
     ]
     return sorted(matches, key=lambda m: len(m.missing_columns))
 
@@ -510,10 +514,15 @@ def template_for_run(
 ) -> MechanismConfig:
     """Resolves the framework a run is being started (or re-scored) with and
     refuses one that needs columns the run cannot produce -- found now, not
-    after an hour of extraction. Resolving pins today's latest version."""
-    config = store.get(framework_id, version)
+    after an hour of extraction. Only a ratified version scores a run; without a
+    version, resolving pins today's latest ratified one."""
+    config = store.get(framework_id, version) if version is not None else store.latest_ratified(framework_id)
     if config is None:
+        if version is None and store.get(framework_id) is not None:
+            raise HTTPException(400, f"{framework_id} has no ratified version yet. Ratify one in Decision Studio to score runs with it.")
         raise HTTPException(404, f"Unknown framework: {framework_id}" + (f" v{version}" if version else ""))
+    if not config.ratified:
+        raise HTTPException(400, f"{config.name} v{config.version} is a draft. Ratify it in Decision Studio to score runs with it.")
     try:
         missing = templates.missing_columns(config, templates.expected_run_columns(run_type, field_names))
     except ValueError as exc:

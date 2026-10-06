@@ -50,6 +50,10 @@ import type {
   LevelOverride,
   OverridesView,
   RunScoringKind,
+  DataIssue,
+  FeedRow,
+  SecurityMasterStatus,
+  UnmatchedSecurity,
   TemplateMatch,
   Alert,
   AlertRule,
@@ -70,8 +74,6 @@ import type {
   PivotResult,
   PortfolioSummary,
   QAAnswer,
-  ResolutionDecision,
-  ResolutionReviewItem,
   SearchResponse,
   TransitionPlanAssessmentRecord,
   ExtractionProfile,
@@ -233,6 +235,16 @@ export const api = {
     request<HolderStatus>(`/api/holdings/holders/${kind}/${encodeURIComponent(holderId)}`, { method: "PUT", body: JSON.stringify(body) }),
   pullHolder: (kind: string, holderId: string) =>
     request<IntakeResult>(`/api/holdings/holders/${kind}/${encodeURIComponent(holderId)}/pull`, { method: "POST" }),
+  listIssues: () => request<{ issues: DataIssue[] }>("/api/issues"),
+  listFeeds: () => request<{ feeds: FeedRow[] }>("/api/feeds"),
+  securityMasterStatus: () => request<SecurityMasterStatus>("/api/security-master"),
+  unmatchedSecurities: () => request<{ rows: UnmatchedSecurity[] }>("/api/security-master/unmatched"),
+  uploadSecurityMaster: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<{ identifiers: number; issuers: number; content_hash: string }>("/api/security-master/upload", { method: "POST", body: form });
+  },
+  securityMasterTemplateUrl: () => `${API_BASE}/api/security-master/template`,
   holdingsTemplateUrl: (kind: string, format: string) => `${API_BASE}/api/holdings/template${buildQuery({ kind, format })}`,
 
   uploadEsg: (f: { file: File; month: string; provider?: string }) => {
@@ -690,9 +702,6 @@ export const api = {
     }),
   evaluateMonitoringNow: () =>
     request<{ threshold_alerts_raised: number; news_alerts_raised: number }>("/api/portfolio/monitoring/evaluate-now", { method: "POST" }),
-  listResolutionReview: () => request<ResolutionReviewItem[]>("/api/portfolio/resolution-review"),
-  recordResolutionDecision: (body: { item_key: string; decision: string; reason?: string; override_value?: string }) =>
-    request<ResolutionDecision>("/api/portfolio/resolution-review/decisions", { method: "POST", body: JSON.stringify(body) }),
 
   // Superset BI designer (/api/bi): drafts dashboards in Superset itself
   designBI: (body: { brief: string }) => request<BIDesignResult>("/api/bi/design", { method: "POST", body: JSON.stringify(body) }),
@@ -864,7 +873,7 @@ export const api = {
     form.append("name", name);
     return request<MechanismEnvelope>("/api/decision/mechanisms/from-indicators", { method: "POST", body: form });
   },
-  matchTemplates: (body: { run_type?: RunScoringKind; field_names?: string[]; columns?: string[] }) =>
+  matchTemplates: (body: { run_type?: RunScoringKind; field_names?: string[]; columns?: string[]; ratified_only?: boolean }) =>
     request<TemplateMatch[]>("/api/decision/templates/match", { method: "POST", body: JSON.stringify(body) }),
   attachRunFramework: (runId: string, frameworkId: string, version?: number) =>
     request(`/api/decision/runs/${runId}/framework`, { method: "PUT", body: JSON.stringify({ framework_id: frameworkId, version }) }),

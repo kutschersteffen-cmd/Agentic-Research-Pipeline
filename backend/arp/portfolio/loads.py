@@ -1,4 +1,4 @@
-"""Load records (holdings and ESG files), kept in the append-only event log as `load_recorded` events."""
+"""Load records (holdings, ESG and security master files), kept in the append-only event log as `load_recorded` events."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from arp.schemas.common import now_iso
 
 
 class LoadRecord(BaseModel):
-    kind: Literal["holdings", "esg"]
+    kind: Literal["holdings", "esg", "security_master"]
     source_id: str
     month: str
     status: Literal["ok", "failed"]

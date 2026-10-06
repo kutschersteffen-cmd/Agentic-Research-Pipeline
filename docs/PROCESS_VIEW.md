@@ -1,41 +1,77 @@
 # Process View
 
-The app has 16 functions and 22 screens. The sidebar sorts them by *kind of tool*
-(stewardship, research, portfolio, output), which suits someone who already knows
-what to open. The team thinks in *processes*, though: "we're onboarding a mandate",
-"it's proxy season", "the committee wants the climate review". This document maps
-those processes onto the screens. The **Processes** screen (`#/processes/<id>`)
-puts the map in the app.
+The app has 16 functions and some 30 screens. The team thinks in *processes*, though:
+"we're onboarding a mandate", "it's proxy season", "the committee wants the climate
+review". The app is organised around five **workspaces** that mirror the business,
+each running its processes over the existing screens. The start page shows the five
+as boxes; each box opens a workspace page (`#/<workspace id>`) that draws its
+processes step by step and lists its screens, so a process can be walked end to end
+or a single step run by hand.
 
 ## Principles
 
 1. **A process is a path through existing screens, not a new screen.** Each step
-   links into the screen that already does the work. The Processes view only holds
-   the order, the handoffs and the live status of each step.
-2. **Name the handoff.** Every arrow says what passes to the next step (a resolved
+   links into the screen that already does the work, often in another workspace:
+   processes cross boxes. The workspace page only holds the order, the handoffs and
+   the live status of each step.
+2. **Name the handoff.** Every step says what it hands to the next (a resolved
    universe, a ratified taxonomy, decided ballots). If you can't name it, it isn't a
    step.
-3. **Show which handoffs are manual.** A dashed arrow means the person re-uploads
+3. **Show which handoffs are manual.** A dashed line means the person re-uploads
    or re-selects something by hand today. Those are the gaps; we show them instead
    of drawing a smooth line over them.
 4. **"Done when" is an outcome a committee would accept**, not "the run finished".
-5. **Status comes from the run store.** No new state is kept: each step shows the
-   latest run of its type and the number of flagged items waiting.
+5. **Status comes from the run store and the house stewardship flow.** No new state
+   is kept: each step shows the latest run of its type, the items waiting on a
+   person, or its Steward Workflow stage's open decisions.
 
-## The processes
+## The workspaces and their processes
+
+| Workspace | Purpose | Processes |
+|---|---|---|
+| **StewardIQ** (`#/stewardiq`) | Engage, vote, escalate, report to clients | Engage and escalate · Proxy season · Client reporting |
+| **Argus** (`#/argus`) | Extract cited data points and score them with ratified Decision Studio templates | Extract and score |
+| **Transition Intelligence Platform** (`#/transitionIntel`) | Monitor holdings; assess climate and transition risk | Monthly monitoring · Climate transition review |
+| **R&D Lab** (`#/rdLab`) | Themes and strategies, scored and built into indices | Launch a thematic product · Research a strategy |
+| **Data Hub** (`#/dataHub`) | Input feeds and stored data; the security master maps every security to its internal issuer, once, for the whole tool | Map securities to issuers |
 
 | Process | Cadence | Steps | Done when |
 |---|---|---|---|
-| **Onboard a portfolio** | When a fund or mandate is added | Identity Resolution → Document Discovery → Extraction → Review Queue → Data Library | Every holding resolves to one issuer, with current disclosures and reviewed figures |
-| **Climate transition review** | Annual, plus ad hoc before committees | Risk Monitoring (WACI, financed emissions) → Transition Barriers → Transition Plan → Decision Studio → Steward · Selection → Reports | A tiered list of issuers to engage, each with a walk-vs-talk verdict and sector context |
-| **Engage and escalate** | Continuous | Risk Monitoring · Alerts → Steward · Monitoring → Engagement → Steward · Drafting → Steward · Tracking (↺) | Every issue has an owner, a next step and a documented escalation path |
+| **Engage and escalate** | Continuous | Steward · Monitoring → Selection → Engagement → Drafting → Tracking (↺) | Every issue has an owner, a next step and a documented escalation path |
 | **Proxy season** | Per meeting, peaks March–June | Proxy Voting → Steward · Voting → Steward · Checkpoint → Engagement | Intentions are published, votes cast are checked against policy, and outcomes feed engagement |
 | **Client reporting** | Quarterly | Steward · Client program → Client policy → Reporting → Reports | A client report of house activity plus the points where the client's policy differed |
+| **Extract and score** | Per universe | Companies → Identify → Documents → Schema (custom only) → Extract → Review → Score (optional) → Template in Decision Studio (optional); the first five are the Extraction screen's own tabs (`#/extraction/<step>`) | Every company resolved and documented, every figure cited and reviewed; tiers from a ratified template |
+| **Monthly monitoring** | Monthly | Holdings Intake → Monitoring & Alerts → Dashboards → Steward · Monitoring | Every breach and controversy on a holding is an alert with an owner |
+| **Climate transition review** | Annual, plus ad hoc before committees | Risk Monitoring → Transition Barriers → Transition Plan → Decision Studio → Steward · Selection → Reports | A tiered list of issuers to engage, each with a walk-vs-talk verdict and sector context |
 | **Launch a thematic product** | Per product idea | Emerging Themes → Taxonomy Library → Thematic Universe → Review Queue → Decision Studio → Index Construction → Reports | A ratified theme, a reviewed universe and an effective-dated index calibration |
 | **Research a strategy** | Per paper or idea | Strategy Replication → Decision Studio → Index Construction → Reports | Tested out of sample, compared with alternatives, and built as an index if it holds |
+| **Map securities to issuers** | When the security master or a holding changes | Load security master → Map holdings → Unmatched → Data Library | Every held security mapped to exactly one internal issuer by the security master, and nothing mapped any other way |
 
-The step definitions live in `frontend/src/pages/Processes.tsx`: one array to
-edit when a process changes.
+**The security master is the golden source for issuer identity.** It is loaded only in Data Hub
+(`#/securityMaster`, approvers only; CSV/Excel now, an API source later) into the identifier map
+(`data/identifier_map.jsonl`): an internal issuer id per row, with any of ISIN, CUSIP, SEDOL, FIGI, LEI
+and CIK. A load replaces the master whole (the previous one is archived) and is refused if any row is
+invalid or one identifier points at two issuers over the same dates. Matching is exact everywhere:
+holdings map by ISIN (or the row's LEI) through it, and extraction and Argus's Identify step use the
+internal issuer id whenever the master knows the company's LEI, ISIN or CIK. Nothing is matched by name
+and no issuer is assigned by hand; an unmatched security is listed in Data Hub and fixed in the master.
+Holdings are mapped as they load, so reload them after a master change.
+
+**Data Hub · Feeds** (`#/feeds`, `GET /api/feeds`) lists every input feed (security master, portfolio holdings,
+index constituents, ESG data, news) with its data date, last load and whether it is behind: its latest good load
+is older than last month end, or nothing is loaded. It only reads the existing load records; loading stays on
+Holdings Intake and the Security Master screen. News has no live source yet, so its row reads what is stored.
+
+**Data Hub · Issues** (`#/issues`, `GET /api/issues`) is every open data problem in one list, blocking first:
+feeds behind or whose last load failed, held securities the security master does not map, and failing checks
+(warn or block) on the latest extracted value of each field that no reviewer has decided yet. Nothing is re-run or
+guessed: it reads the feed overview, the identifier map and the check results stored with each extraction run. Within
+a severity, feed and master problems come before check findings, which may only be their symptom. Each issue links to
+where it is fixed (Feeds, Security Master, or the run in the Review Queue).
+
+The workspaces, processes and steps live in `frontend/src/lib/processes.ts`: one
+registry to edit when a process changes. Old links (`#/processes/<id>`,
+`#/themeMachine`, `#/designStudio`) open the matching workspace.
 
 ## Manual handoffs to close, most valuable first
 

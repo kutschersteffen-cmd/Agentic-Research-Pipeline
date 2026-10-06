@@ -31,9 +31,8 @@ def portfolio_seed_demo() -> None:
     internal-API/extraction cross-check, and ingested news items.
     Deterministic and safe to re-run.
     """
-    settings = get_settings()
     store = _portfolio_store()
-    summary = asyncio.run(generate_demo_dataset(store, settings.portfolio_confidence_review_threshold))
+    summary = asyncio.run(generate_demo_dataset(store))
     typer.echo(json.dumps(summary.__dict__, indent=2))
 
 

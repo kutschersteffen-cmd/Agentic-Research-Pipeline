@@ -137,7 +137,7 @@ class PublishingScheduler(IntervalScheduler):
         s = self.settings
         out = pull_due(
             self.portfolio_store, settings=s, client=SnapshotClient(s.holdings_api_url, s.holdings_api_token),
-            today=today, run_store=self.run_store, idmap=IdentifierMapStore(s.identifier_map_path),
+            today=today, idmap=IdentifierMapStore(s.identifier_map_path),
         )
         failed = [r for r in out if r["status"] == "failed"]
         return ("failed" if failed else "ok"), f"{len(out)} pulled, {len(failed)} failed"

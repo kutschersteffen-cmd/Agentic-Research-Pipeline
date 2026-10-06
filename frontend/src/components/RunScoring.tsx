@@ -10,12 +10,17 @@ interface PickerProps {
   fieldNames?: string[];
   value: string | null;
   onChange: (frameworkId: string | null) => void;
+  /** A finished run to offer as Decision Studio's starting table. */
+  runId?: string;
 }
 
-/** Choose a Decision Studio framework to score a run's results with. Every
- * saved framework is listed, fitting ones first; one that needs columns this
- * run will not produce is shown with the gap and cannot be picked. */
-export function ScoringTemplatePicker({ runType, fieldNames, value, onChange }: PickerProps) {
+/** Choose a Decision Studio framework to score a run's results with. Only
+ * ratified versions are listed (the server refuses drafts too), fitting ones
+ * first; one that needs columns this run will not produce is shown with the
+ * gap and cannot be picked. */
+export function ScoringTemplatePicker({ runType, fieldNames, value, onChange, runId }: PickerProps) {
+  // With a run, Decision Studio opens with it loaded as the table to build a template from.
+  const studioHref = runId ? `#/decision/${runType}_run/${encodeURIComponent(runId)}` : "#/decision";
   const [matches, setMatches] = useState<TemplateMatch[] | null>(null);
   const [error, setError] = useState("");
   const fieldKey = (fieldNames ?? []).join("\u0000");
@@ -23,7 +28,7 @@ export function ScoringTemplatePicker({ runType, fieldNames, value, onChange }: 
   useEffect(() => {
     let live = true;
     api
-      .matchTemplates({ run_type: runType, field_names: fieldKey ? fieldKey.split("\u0000") : [] })
+      .matchTemplates({ run_type: runType, field_names: fieldKey ? fieldKey.split("\u0000") : [], ratified_only: true })
       .then((m) => live && setMatches(m))
       .catch((e: Error) => live && setError(e.message));
     return () => {
@@ -40,7 +45,11 @@ export function ScoringTemplatePicker({ runType, fieldNames, value, onChange }: 
   if (error) return <p className="error-text" role="alert">{error}</p>;
   if (!matches) return <p className="status-text">Loading scoring templates…</p>;
   if (matches.length === 0) {
-    return <p className="help-text">No scoring templates saved yet. Build one in Decision Studio from an earlier run, then pick it here.</p>;
+    return (
+      <p className="help-text">
+        No ratified scoring templates yet. Build and ratify one in <a href={studioHref}>Decision Studio</a>, then pick it here.
+      </p>
+    );
   }
 
   return (
@@ -52,7 +61,6 @@ export function ScoringTemplatePicker({ runType, fieldNames, value, onChange }: 
           {matches.map((m) => (
             <option key={m.config.framework_id} value={m.config.framework_id} disabled={m.missing_columns.length > 0}>
               {m.config.name} v{m.config.version}
-              {m.config.ratified ? " (ratified)" : " (draft)"}
               {m.missing_columns.length > 0 ? ` — needs ${m.missing_columns.join(", ")}` : ""}
             </option>
           ))}
@@ -65,6 +73,9 @@ export function ScoringTemplatePicker({ runType, fieldNames, value, onChange }: 
           template do not change how this run is scored.
         </p>
       )}
+      <p className="help-text">
+        Templates are built and ratified in <a href={studioHref}>Decision Studio</a>; drafts stay there until ratified.
+      </p>
     </div>
   );
 }
@@ -182,7 +193,7 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
 
       {unattached && (
         <>
-          <ScoringTemplatePicker runType={runType} fieldNames={fieldNames} value={choice} onChange={setChoice} />
+          <ScoringTemplatePicker runType={runType} fieldNames={fieldNames} value={choice} onChange={setChoice} runId={runId} />
           <button onClick={attach} disabled={!choice}>
             Score this run
           </button>

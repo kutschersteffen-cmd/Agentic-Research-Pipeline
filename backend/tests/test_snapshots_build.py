@@ -45,7 +45,7 @@ def _rows(kind, weights=(60, 40)):
 def _ingest(env, kind, holder, weights=(60, 40)):
     store, rs, idmap = env
     ingest(store, _rows(kind, weights), kind=kind, holder_id=holder, as_of=AS_OF, source="file", source_ref="f.csv",
-           principal=None, override_reason=None, run_store=rs, idmap=idmap)
+           principal=None, override_reason=None, idmap=idmap)
 
 
 def _fact(field, value=1.0, prev=None, at="2026-10-01T09:00:00.000000+00:00"):

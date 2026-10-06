@@ -78,7 +78,7 @@ def env(tmp_path):
 def pull(env, client, as_of, today=date(2026, 12, 5)):
     store, rs, idmap = env
     holder = store.get_holder("portfolio", "P1")
-    return pull_holder(holder, as_of, client=client, base_url="https://up.example", store=store, run_store=rs,
+    return pull_holder(holder, as_of, client=client, base_url="https://up.example", store=store,
                        idmap=idmap, today=today)
 
 

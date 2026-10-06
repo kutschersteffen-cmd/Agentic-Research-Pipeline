@@ -1,46 +1,26 @@
 from arp.portfolio.entity_resolution import SecurityMaster, resolve_all, resolve_security
 from arp.schemas.portfolio import SecurityRef
 
+MASTER = SecurityMaster(isin_to_company_id={"DE001": "bmw"})
+
 
 def test_exact_isin_match():
-    master = SecurityMaster(isin_to_company_id={"DE001": "bmw"}, company_names={"bmw": "BMW AG"})
     security = SecurityRef(security_id="s1", isin="DE001", name="BMW AG", asset_class="equity", currency="EUR")
-    resolution = resolve_security(security, master, 0.6)
-    assert resolution.company_id == "bmw"
-    assert resolution.confidence == 1.0
-    assert resolution.method == "isin_exact"
-    assert resolution.needs_review is False
+    resolution = resolve_security(security, MASTER)
+    assert (resolution.company_id, resolution.confidence, resolution.method, resolution.needs_review) == ("bmw", 1.0, "isin_exact", False)
 
 
-def test_fuzzy_fallback_below_threshold_needs_review():
-    master = SecurityMaster(isin_to_company_id={"DE001": "bmw"}, company_names={"bmw": "BMW AG"})
-    security = SecurityRef(security_id="s2", isin="ZZ999", name="Totally Unrelated Basket Note", asset_class="other", currency="EUR")
-    resolution = resolve_security(security, master, 0.6)
-    assert resolution.method == "name_fuzzy"
-    assert resolution.needs_review is True
-    assert resolution.confidence < 0.6
+def test_unknown_isin_is_unresolved_never_matched_by_name():
+    security = SecurityRef(security_id="s2", isin="ZZ999", name="BMW AG", asset_class="equity", currency="EUR")
+    resolution = resolve_security(security, MASTER)
+    assert resolution.company_id is None and resolution.needs_review is True
 
 
-def test_fuzzy_fallback_above_threshold_no_review():
-    master = SecurityMaster(isin_to_company_id={}, company_names={"bmw": "Bayerische Motoren Werke AG"})
-    security = SecurityRef(security_id="s3", isin=None, name="Bayerische Motoren Werke AG", asset_class="equity", currency="EUR")
-    resolution = resolve_security(security, master, 0.6)
-    assert resolution.company_id == "bmw"
-    assert resolution.needs_review is False
-    assert resolution.confidence == 1.0
-
-
-def test_no_candidates_is_unresolved_and_needs_review():
-    master = SecurityMaster(isin_to_company_id={}, company_names={})
-    security = SecurityRef(security_id="s4", isin=None, name="Anything", asset_class="other", currency="EUR")
-    resolution = resolve_security(security, master, 0.6)
-    assert resolution.company_id is None
-    assert resolution.needs_review is True
+def test_no_isin_is_unresolved():
+    security = SecurityRef(security_id="s3", isin=None, name="BMW AG", asset_class="equity", currency="EUR")
+    assert resolve_security(security, MASTER).company_id is None
 
 
 def test_resolve_all_batches():
-    master = SecurityMaster(isin_to_company_id={"DE001": "bmw"}, company_names={"bmw": "BMW AG"})
     securities = [SecurityRef(security_id="s1", isin="DE001", name="BMW AG", asset_class="equity", currency="EUR")]
-    resolutions = resolve_all(securities, master, 0.6)
-    assert len(resolutions) == 1
-    assert resolutions[0].company_id == "bmw"
+    assert [r.company_id for r in resolve_all(securities, MASTER)] == ["bmw"]

@@ -1,113 +1,61 @@
-import { useCallback, useEffect, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useReducer, useState, type ReactElement } from "react";
 import { api } from "../api/client";
 import type { RunManifest, StewardshipFlow } from "../types";
 import { ACTIVE_STATUSES, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
+import { DECISION_STAGES, PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { openCount } from "./steward/common";
 import { useMe } from "../lib/reviewer";
 
-// The start page and the three process overview pages. A process is a named
-// group of screens in order; each step links to the screen that does it and
-// reads its live state from the runs list (or, for StewardIQ, the house
-// stewardship flow). Data Engineer has no overview page: its box opens
-// Extraction, which already draws its own pipeline.
-// `reviewedElsewhere`: the step's flagged items wait on a later step (Match's
-// in the Review Queue), so the dot shows only whether it is running.
-type Step = { label: string; screen: string; href: string; about: string; runTypes?: string[]; stage?: string; reviewedElsewhere?: boolean };
-type Process = { id: string; name: string; purpose: string; href: string; runTypes: string[]; steps: Step[]; icon: ReactElement };
+// The start page, the five workspace pages and the process bar. Workspaces and
+// their processes live in lib/processes.ts; this file draws them and reads
+// their live state from the runs list and the house stewardship flow.
 
 // One icon family on a 48 grid: the same stroke everywhere, and exactly one
 // element per icon in the highlight colour (.hub-ico .hi / .hi-fill).
 const ICON = { width: 52, height: 52, viewBox: "0 0 48 48", fill: "none", stroke: "currentColor", strokeWidth: 2.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, className: "hub-ico", "aria-hidden": true };
 
-const PROCESSES: Process[] = [
-  {
-    id: "stewardiq",
-    name: "StewardIQ",
-    purpose: "Engage companies, vote, and track what they commit to.",
-    href: "#/stewardiq",
-    runTypes: ["proxy_voting"],
-    icon: (
-      <svg {...ICON}>
-        <path d="M24 5 L39 10 V23 C39 32 32.5 39.5 24 43 C15.5 39.5 9 32 9 23 V10 Z" />
-        <path className="hi" d="M16.5 24 L22 29.5 L31.5 19" />
-      </svg>
-    ),
-    steps: [
-      { label: "Monitoring", screen: "Steward · Monitoring", href: "#/stewardship/monitoring", stage: "monitoring", about: "Triggers on holdings, checked against house policy." },
-      { label: "Selection", screen: "Steward · Selection", href: "#/stewardship/selection", stage: "selection", about: "Which companies the program engages this cycle." },
-      { label: "Drafting", screen: "Steward · Drafting", href: "#/stewardship/drafting", stage: "drafting", about: "Dossier, outreach letter and talking points." },
-      { label: "Voting", screen: "Proxy Voting", href: "#/voting", runTypes: ["proxy_voting"], about: "Ballots drafted by the policy, decided by a person." },
-      { label: "Checkpoint", screen: "Steward · Checkpoint", href: "#/stewardship/checkpoint", stage: "checkpoint", about: "Votes decided against the policy, with their reason." },
-      { label: "Tracking", screen: "Steward · Tracking", href: "#/stewardship/tracking", stage: "tracking", about: "Commitments verified or missed; missed ones escalate." },
-    ],
-  },
-  {
-    id: "themeMachine",
-    name: "Theme Machine",
-    purpose: "Spot emerging themes and match companies to them.",
-    href: "#/themeMachine",
-    runTypes: ["emerging_themes", "taxonomy_research", "theme"],
-    icon: (
-      <svg {...ICON}>
-        <circle cx="24" cy="24" r="19" strokeDasharray="2 4" opacity="0.55" />
-        <path d="M24 24 L12.5 14 M24 24 L35.5 14 M24 24 L24 36" />
-        <circle cx="11" cy="12.5" r="3.5" />
-        <circle cx="37" cy="12.5" r="3.5" />
-        <circle cx="24" cy="39.5" r="3.5" />
-        <circle className="hi-fill" cx="24" cy="24" r="5.5" />
-      </svg>
-    ),
-    steps: [
-      { label: "Spot", screen: "Emerging Themes", href: "#/emergingThemes", runTypes: ["emerging_themes"], about: "Candidate themes from filings and news." },
-      { label: "Define", screen: "Taxonomy Library", href: "#/taxonomy", runTypes: ["taxonomy_research"], about: "The theme's activities; ratify a version." },
-      { label: "Match", screen: "Thematic Universe", href: "#/theme", runTypes: ["theme"], reviewedElsewhere: true, about: "Companies matched to activities, with cited rationale." },
-      { label: "Review", screen: "Review Queue", href: "#/review", runTypes: ["theme"], about: "Resolve contested classifications." },
-    ],
-  },
-  {
-    id: "dataEngineer",
-    name: "Data Engineer",
-    purpose: "Extract data points from disclosures, each cited to its source.",
-    href: "#/extraction",
-    runTypes: ["extraction", "financials", "tnfd", "transition_plan"],
-    icon: (
-      <svg {...ICON}>
-        <path d="M11 5 H29 L37 13 V43 H11 Z" />
-        <path d="M29 5 V13 H37 M16 20 H31 M16 34 H26" />
-        <path className="hi" d="M16 27 H44 M40 23 L44 27 L40 31" />
-      </svg>
-    ),
-    // One per Extraction profile; only drawn as the box's progress strip.
-    steps: [
-      { label: "Custom schema", screen: "Extraction", href: "#/extraction", runTypes: ["extraction"], about: "" },
-      { label: "Financials", screen: "Extraction", href: "#/extraction", runTypes: ["financials"], about: "" },
-      { label: "TNFD", screen: "Extraction", href: "#/extraction", runTypes: ["tnfd"], about: "" },
-      { label: "Transition plan", screen: "Extraction", href: "#/transitionPlan", runTypes: ["transition_plan"], about: "" },
-    ],
-  },
-  {
-    id: "designStudio",
-    name: "Design Studio",
-    purpose: "Ratify scoring templates, then build the index.",
-    href: "#/designStudio",
-    runTypes: ["calibration"],
-    icon: (
-      <svg {...ICON}>
-        <path d="M6 42 H42 M11 42 V30 H17 V42 M21 42 V21 H27 V42" />
-        <path className="hi-fill" d="M31 42 V12 H37 V42 Z" />
-        <path d="M5 12 H28" strokeDasharray="2 3" opacity="0.6" />
-      </svg>
-    ),
-    steps: [
-      { label: "Build template", screen: "Decision Studio", href: "#/decision", about: "Load a table or a finished run; set indicators, gates and tiers." },
-      { label: "Ratify & publish", screen: "Decision Studio", href: "#/decision", about: "A named person ratifies the template, then the tiers are published." },
-      { label: "Construct index", screen: "Index Construction", href: "#/index", about: "Screen, select, weight and cap from the published scores." },
-      { label: "Calibrate", screen: "Index Construction", href: "#/index", runTypes: ["calibration"], about: "Save an effective-dated calibration." },
-    ],
-  },
-];
+const ICONS: Record<WorkspaceId, ReactElement> = {
+  stewardiq: (
+    <svg {...ICON}>
+      <path d="M24 5 L39 10 V23 C39 32 32.5 39.5 24 43 C15.5 39.5 9 32 9 23 V10 Z" />
+      <path className="hi" d="M16.5 24 L22 29.5 L31.5 19" />
+    </svg>
+  ),
+  argus: (
+    <svg {...ICON}>
+      <path d="M11 5 H29 L37 13 V43 H11 Z" />
+      <path d="M29 5 V13 H37 M16 20 H31 M16 34 H26" />
+      <path className="hi" d="M16 27 H44 M40 23 L44 27 L40 31" />
+    </svg>
+  ),
+  transitionIntel: (
+    <svg {...ICON}>
+      <circle cx="24" cy="24" r="18" />
+      <path d="M6 24 H42 M24 6 C17 12 17 36 24 42 M24 6 C31 12 31 36 24 42" opacity="0.55" />
+      <path className="hi" d="M12 32 L20 25 L26 29 L37 16" />
+    </svg>
+  ),
+  rdLab: (
+    <svg {...ICON}>
+      <circle cx="24" cy="24" r="19" strokeDasharray="2 4" opacity="0.55" />
+      <path d="M24 24 L12.5 14 M24 24 L35.5 14 M24 24 L24 36" />
+      <circle cx="11" cy="12.5" r="3.5" />
+      <circle cx="37" cy="12.5" r="3.5" />
+      <circle cx="24" cy="39.5" r="3.5" />
+      <circle className="hi-fill" cx="24" cy="24" r="5.5" />
+    </svg>
+  ),
+  dataHub: (
+    <svg {...ICON}>
+      <ellipse cx="24" cy="10" rx="15" ry="5" />
+      <path d="M9 10 V38 C9 41 15.7 43 24 43 C32.3 43 39 41 39 38 V10" />
+      <path d="M9 19 C9 22 15.7 24 24 24 C32.3 24 39 22 39 19" />
+      <path className="hi" d="M9 28.5 C9 31.5 15.7 33.5 24 33.5 C32.3 33.5 39 31.5 39 28.5" />
+    </svg>
+  ),
+};
 
-const PROCESS_OF_RUN_TYPE = new Map(PROCESSES.flatMap((p) => p.runTypes.map((t) => [t, p] as const)));
+const WORKSPACE_OF_RUN_TYPE = new Map(WORKSPACES.flatMap((w) => w.runTypes.map((t) => [t, w] as const)));
 
 /** Runs, refreshed every 3 s. Null until the first answer: a count nobody
  * received is unknown, never zero. */
@@ -138,12 +86,11 @@ function useRuns() {
   return { runs, error, retry: load };
 }
 
-/** The house stewardship flow, loaded once: its stages carry StewardIQ's numbers. */
-/** Open decisions across the StewardIQ stages the start page shows: the
+/** Open decisions across the Steward Workflow stages the processes own: the
  * sidebar's Steward Workflow badge uses the same count so the two agree. */
-export const stageDecisions = (flow: StewardshipFlow | null) =>
-  PROCESSES.flatMap((p) => p.steps).reduce((n, s) => n + (s.stage ? openCount(flow?.stages.find((x) => x.id === s.stage)) : 0), 0);
+export const stageDecisions = (flow: StewardshipFlow | null) => DECISION_STAGES.reduce((n, id) => n + openCount(flow?.stages.find((x) => x.id === id)), 0);
 
+/** The house stewardship flow, loaded once: its stages carry StewardIQ's numbers. */
 function useHouseFlow() {
   const [flow, setFlow] = useState<StewardshipFlow | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -170,12 +117,20 @@ function stepState(step: Step, runs: RunManifest[] | null, flow: StewardshipFlow
   return "idle";
 }
 
-/** The one line a process box leads with: what waits on a person first, then
+const RANK: StepState[] = ["wait", "now", "failed", "done", "idle"];
+/** A process's one state: the most urgent of its steps'. */
+const processState = (p: Process, runs: RunManifest[] | null, flow: StewardshipFlow | null): StepState => {
+  const states = p.steps.map((s) => stepState(s, runs, flow));
+  return RANK.find((r) => states.includes(r)) ?? "idle";
+};
+
+/** The one line a workspace box leads with: what waits on a person first, then
  * failures, then what is running. */
-function headline(p: Process, runs: RunManifest[] | null, flow: StewardshipFlow | null): { tone: string; text: string } {
+function headline(w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null): { tone: string; text: string } {
   if (!runs) return { tone: "", text: "Status unknown" };
-  const mine = runs.filter((r) => p.runTypes.includes(r.run_type));
-  const waiting = mine.reduce((n, r) => n + waitingCount(r), 0) + p.steps.reduce((n, s) => n + (s.stage ? openCount(flow?.stages.find((x) => x.id === s.stage)) : 0), 0);
+  const mine = runs.filter((r) => w.runTypes.includes(r.run_type));
+  const stages = new Set(w.processes.flatMap((p) => p.steps.map((s) => s.stage).filter(Boolean)));
+  const waiting = mine.reduce((n, r) => n + waitingCount(r), 0) + [...stages].reduce((n, id) => n + openCount(flow?.stages.find((x) => x.id === id)), 0);
   const failed = mine.filter((r) => r.status === "failed").length;
   const running = mine.filter((r) => ACTIVE_STATUSES.has(r.status)).length;
   if (waiting > 0) return { tone: "await", text: `${waiting} waiting on you${failed > 0 ? ` · ${failed} failed` : ""}` };
@@ -188,7 +143,8 @@ function headline(p: Process, runs: RunManifest[] | null, flow: StewardshipFlow 
 function runHref(r: RunManifest): string {
   if (r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type)) return `#/review/${r.run_type}/${encodeURIComponent(r.run_id)}`;
   if (r.run_type === "proxy_voting") return `#/voting/${encodeURIComponent(r.run_id)}`;
-  return PROCESS_OF_RUN_TYPE.get(r.run_type)?.href ?? "#/history";
+  const w = WORKSPACE_OF_RUN_TYPE.get(r.run_type);
+  return w ? `#/${w.id}` : "#/history";
 }
 
 const WEEK_MS = 7 * 24 * 3600 * 1000;
@@ -204,28 +160,28 @@ function ago(iso: string): string {
 
 const STATE_LABEL: Record<StepState, string> = { done: "has a finished run", now: "running", wait: "waiting on a person", failed: "last run failed", idle: "no activity yet" };
 
-/** A process as a card: icon, purpose, its steps as a row of dots, and one
- * line naming the step that matters now. */
-function ProcessCard({ p, runs, flow }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
-  const h = headline(p, runs, flow);
-  const last = runs?.filter((r) => p.runTypes.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
-  const states = p.steps.map((s) => stepState(s, runs, flow));
-  // The step named is the one a person should look at: a wait first, then running or failed.
+/** A workspace as a card: icon, purpose, one dot per process, and one line
+ * naming the process that matters now. */
+function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+  const h = headline(w, runs, flow);
+  const last = runs?.filter((r) => w.runTypes.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
+  const states = w.processes.map((p) => processState(p, runs, flow));
+  // The process named is the one a person should look at: a wait first, then running or failed.
   const firstWait = states.indexOf("wait");
   const at = firstWait >= 0 ? firstWait : states.findIndex((st) => st === "now" || st === "failed");
-  const now = at >= 0 ? `Step ${at + 1} of ${p.steps.length} · ${p.steps[at].label}` : !runs ? "" : last ? `Last run ${ago(last.updated_at)}` : "No runs yet";
+  const now = at >= 0 ? w.processes[at].title : !runs ? "" : last ? `Last run ${ago(last.updated_at)}` : "No runs yet";
   return (
-    <a className={`hub-card${h.tone ? ` hub-card-${h.tone}` : ""}`} href={p.href} aria-label={`${p.name}: ${h.text}${now ? `. ${now}` : ""}`}>
-      {p.icon}
+    <a className={`hub-card${h.tone ? ` hub-card-${h.tone}` : ""}`} href={`#/${w.id}`} aria-label={`${w.name}: ${h.text}${now ? `. ${now}` : ""}`}>
+      {ICONS[w.id]}
       <span className="hub-card-text">
-        <span className="hub-card-name">{p.name}</span>
-        <span className="hub-card-purpose">{p.purpose}</span>
+        <span className="hub-card-name">{w.name}</span>
+        <span className="hub-card-purpose">{w.purpose}</span>
       </span>
       <ol className="hub-dots">
-        {p.steps.map((s, i) => (
-          <li key={s.label} className={`hub-dot-${states[i]}`}>
+        {w.processes.map((p, i) => (
+          <li key={p.id} className={`hub-dot-${states[i]}`}>
             <span className="visually-hidden">
-              {s.label}: {STATE_LABEL[states[i]]}
+              {p.title}: {STATE_LABEL[states[i]]}
             </span>
           </li>
         ))}
@@ -316,8 +272,8 @@ export function StartPage() {
         </p>
       )}
       <div className="hub-cards">
-        {PROCESSES.map((p) => (
-          <ProcessCard key={p.id} p={p} runs={runs} flow={flow} />
+        {WORKSPACES.map((w) => (
+          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} />
         ))}
       </div>
       <StateLegend />
@@ -343,73 +299,176 @@ export function StartPage() {
   );
 }
 
-/** A process drawn as its steps in order, like Extraction's pipeline: each
- * card carries the step's live state and opens the screen that does it. */
-export function ProcessOverview({ id }: { id: string }) {
-  const p = PROCESSES.find((x) => x.id === id)!;
+// The process a person is walking through, remembered for this browser tab
+// only, so a step's screen can show where it sits and what comes next.
+const WALK_KEY = "arp.processWalk";
+type Walk = { id: string; step: number };
+
+function readWalk(): Walk | null {
+  try {
+    return JSON.parse(sessionStorage.getItem(WALK_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+function writeWalk(walk: Walk | null) {
+  try {
+    if (walk) sessionStorage.setItem(WALK_KEY, JSON.stringify(walk));
+    else sessionStorage.removeItem(WALK_KEY);
+  } catch {
+    /* storage unavailable: the bar just won't show */
+  }
+}
+
+/** One process drawn as its steps in order: each card carries the step's live
+ * state, what it hands on, and opens the screen that does it. */
+function ProcessFlow({ p, runs, flow }: { p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+  return (
+    <section className="hub-process" aria-labelledby={`process-${p.id}`}>
+      <div className="section-heading">
+        <h2 id={`process-${p.id}`}>{p.title}</h2>
+        <span className="chip">{p.cadence}</span>
+      </div>
+      <p className="help-text">
+        <strong>Done when:</strong> {p.outcome}
+      </p>
+      <ol className="hub-flow">
+        {p.steps.map((s, i) => (
+          <StepCard key={`${s.tab}-${s.sub ?? ""}-${i}`} s={s} i={i} p={p} runs={runs} flow={flow} />
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function StepCard({ s, i, p, runs, flow }: { s: Step; i: number; p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+  const state = stepState(s, runs, flow);
+  const mine = s.runTypes && runs ? runs.filter((r) => s.runTypes!.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)) : null;
+  const last = mine?.[0];
+  const waiting = mine && !s.reviewedElsewhere ? mine.reduce((n, r) => n + waitingCount(r), 0) : 0;
+  const stage = s.stage ? flow?.stages.find((x) => x.id === s.stage) : undefined;
+  const decisions = openCount(stage);
+  return (
+    <li className="hub-flow-item">
+      <a className={`hub-step hub-step-${state}`} href={stepHref(s)} onClick={() => writeWalk({ id: p.id, step: i })}>
+        <span className="hub-step-head">
+          <span className="hub-step-num">{i + 1}</span>
+          <span className="hub-step-title">
+            {s.label}
+            {s.optional && <span className="muted"> (optional)</span>}
+          </span>
+        </span>
+        {(waiting > 0 || decisions > 0) && (
+          <span className="hub-step-banner">{waiting > 0 ? `${waiting} waiting on you` : `${decisions} decision${decisions === 1 ? "" : "s"} open`}</span>
+        )}
+        <span className="hub-step-about">{s.does}</span>
+        {mine && (
+          <span className="hub-step-rows">
+            <span>
+              Last run<b>{last ? last.status.replace(/_/g, " ") : "none yet"}</b>
+            </span>
+            {last && (
+              <span>
+                Updated<b>{new Date(last.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</b>
+              </span>
+            )}
+          </span>
+        )}
+        {stage && stage.metrics.length > 0 && (
+          <span className="hub-step-rows">
+            {/* The same three the Steward Workflow stage card shows, so the
+                number behind the "decisions open" banner is on screen. */}
+            {stage.metrics.slice(0, 3).map((m) => (
+              <span key={m.label}>
+                {m.label}
+                <b>{m.value}</b>
+              </span>
+            ))}
+          </span>
+        )}
+        {s.handsOn && i < p.steps.length - 1 && (
+          <span className={s.carried ? "hub-step-handoff" : "hub-step-handoff manual"}>
+            Hands on: {s.handsOn}
+            {!s.carried && " · re-entered by hand"}
+          </span>
+        )}
+      </a>
+    </li>
+  );
+}
+
+/** A workspace: its processes, each drawn step by step, then every screen it
+ * owns so a single step can be run by hand. */
+export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
+  const w = WORKSPACES.find((x) => x.id === id)!;
   const { runs, error } = useRuns();
   const { flow, error: flowError } = useHouseFlow();
-  const usesFlow = p.steps.some((s) => s.stage);
+  const usesFlow = w.processes.some((p) => p.steps.some((s) => s.stage));
 
   return (
     <div className="page hub">
       <p className="hub-crumb">
-        <a href="#/home">Start</a> › {p.name}
+        <a href="#/home">Start</a> › {w.name}
       </p>
-      <h1>{p.name}</h1>
-      <p className="help-text">{p.purpose} Open a step to work in its screen.</p>
+      <h1>{w.name}</h1>
+      <p className="help-text">{w.purpose} Open a step to work in its screen; a bar there shows the next step.</p>
       {error && <p className="error-text" role="alert">Runs could not be loaded: {error}. Step states are unknown until the backend responds.</p>}
       {usesFlow && flowError && <p className="error-text" role="alert">The stewardship flow could not be loaded: {flowError}. Stage numbers are unknown.</p>}
-      <ol className="hub-flow">
-        {p.steps.map((s, i) => {
-          const state = stepState(s, runs, flow);
-          const mine = s.runTypes && runs ? runs.filter((r) => s.runTypes!.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)) : null;
-          const last = mine?.[0];
-          const waiting = mine ? mine.reduce((n, r) => n + waitingCount(r), 0) : 0;
-          const stage = s.stage ? flow?.stages.find((x) => x.id === s.stage) : undefined;
-          const decisions = openCount(stage);
-          return (
-            <li key={s.label} className="hub-flow-item">
-              <a className={`hub-step hub-step-${state}`} href={s.href}>
-                <span className="hub-step-head">
-                  <span className="hub-step-num">{i + 1}</span>
-                  <span className="hub-step-title">{s.label}</span>
-                </span>
-                {(waiting > 0 || decisions > 0) && (
-                  <span className="hub-step-banner">{waiting > 0 ? `${waiting} waiting on you` : `${decisions} decision${decisions === 1 ? "" : "s"} open`}</span>
-                )}
-                {mine && (
-                  <span className="hub-step-rows">
-                    <span>
-                      Last run<b>{last ? last.status.replace(/_/g, " ") : "none yet"}</b>
-                    </span>
-                    {last && (
-                      <span>
-                        Updated<b>{new Date(last.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</b>
-                      </span>
-                    )}
-                  </span>
-                )}
-                {stage && stage.metrics.length > 0 && (
-                  <span className="hub-step-rows">
-                    {/* The same three the Steward Workflow stage card shows, so the
-                        number behind the "decisions open" banner is on screen. */}
-                    {stage.metrics.slice(0, 3).map((m) => (
-                      <span key={m.label}>
-                        {m.label}
-                        <b>{m.value}</b>
-                      </span>
-                    ))}
-                  </span>
-                )}
-                {!mine && !stage?.metrics.length && <span className="hub-step-about">{s.about}</span>}
-                <span className="hub-step-foot">{s.screen} →</span>
-              </a>
-            </li>
-          );
-        })}
-      </ol>
+      {w.processes.map((p) => (
+        <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} />
+      ))}
       <StateLegend />
+      <nav className="hub-screens" aria-label={`${w.name} screens`}>
+        <span className="hub-now-label">Screens</span>
+        {w.screens.map(([href, label]) => (
+          <a key={href} className="hub-chip" href={href}>
+            {label}
+          </a>
+        ))}
+      </nav>
     </div>
+  );
+}
+
+/** "Step 2 of 5" above a screen reached from a process, with the next step
+ * one click away. Shows only while the current screen is a step of that
+ * process, so wandering off hides it and coming back restores it. */
+export function ProcessBar({ tab, sub }: { tab: string; sub?: string }) {
+  const [, rerender] = useReducer((n: number) => n + 1, 0);
+  const walk = readWalk();
+  const process = PROCESSES.find((p) => p.id === walk?.id);
+  if (!walk || !process) return null;
+  const matches = (s: Step) => s.tab === tab && (!s.sub || !sub || s.sub === sub);
+  const i = process.steps[walk.step] && matches(process.steps[walk.step]) ? walk.step : process.steps.findIndex(matches);
+  if (i < 0) return null;
+  const next = process.steps[i + 1];
+  const w = workspaceOfProcess(process.id)!;
+  return (
+    <nav className="process-bar" aria-label="Process progress">
+      <a href={`#/${w.id}`} className="process-bar-title">
+        {w.name} · {process.title}
+      </a>
+      <span>
+        Step {i + 1} of {process.steps.length}: <strong>{process.steps[i].label}</strong>
+      </span>
+      {next ? (
+        <a href={stepHref(next)} className="process-bar-next" onClick={() => writeWalk({ id: process.id, step: i + 1 })}>
+          Next: {next.label} →
+        </a>
+      ) : (
+        <span className="muted">Last step</span>
+      )}
+      <button
+        className="link-button"
+        aria-label="Stop following this process"
+        onClick={() => {
+          writeWalk(null);
+          rerender();
+        }}
+      >
+        ✕
+      </button>
+    </nav>
   );
 }

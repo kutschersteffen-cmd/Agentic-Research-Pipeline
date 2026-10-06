@@ -202,7 +202,7 @@ def _build_holdings(securities_by_id: dict[str, SecurityRef]) -> dict[str, dict[
 
 
 async def generate_demo_dataset(
-    store: PortfolioStore, confidence_review_threshold: float = 0.6
+    store: PortfolioStore
 ) -> DemoDatasetSummary:
     """Seeds a realistic, deterministic multi-portfolio demo dataset into
     `store`: companies, securities (with one deliberately unresolved
@@ -221,11 +221,8 @@ async def generate_demo_dataset(
     for s in securities:
         store.save_security(s)
 
-    master = SecurityMaster(
-        isin_to_company_id={s.isin: s.company_id for s in securities if s.isin and s.company_id},
-        company_names={c.company_id: c.name for c in companies},
-    )
-    resolutions = resolve_all(securities, master, confidence_review_threshold)
+    master = SecurityMaster(isin_to_company_id={s.isin: s.company_id for s in securities if s.isin and s.company_id})
+    resolutions = resolve_all(securities, master)
     for r in resolutions:
         store.save_resolution(r)
     unresolved_ids = [r.security_id for r in resolutions if r.needs_review]
