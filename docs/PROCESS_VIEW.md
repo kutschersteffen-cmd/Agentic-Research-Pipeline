@@ -62,6 +62,13 @@ index constituents, ESG data, news) with its data date, last load and whether it
 is older than last month end, or nothing is loaded. It only reads the existing load records; loading stays on
 Holdings Intake and the Security Master screen. News has no live source yet, so its row reads what is stored.
 
+**Data Hub · Issues** (`#/issues`, `GET /api/issues`) is every open data problem in one list, blocking first:
+feeds behind or whose last load failed, held securities the security master does not map, and failing checks
+(warn or block) on the latest extracted value of each field that no reviewer has decided yet. Nothing is re-run or
+guessed: it reads the feed overview, the identifier map and the check results stored with each extraction run. Within
+a severity, feed and master problems come before check findings, which may only be their symptom. Each issue links to
+where it is fixed (Feeds, Security Master, or the run in the Review Queue).
+
 The workspaces, processes and steps live in `frontend/src/lib/processes.ts`: one
 registry to edit when a process changes. Old links (`#/processes/<id>`,
 `#/themeMachine`, `#/designStudio`) open the matching workspace.

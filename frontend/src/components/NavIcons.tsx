@@ -69,6 +69,13 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <path d="M3 13h5l1.5 3h5L16 13h5v7H3Z" />
     </svg>
   ),
+  // A warning triangle: something in the data needs a person.
+  issues: (
+    <svg {...ICON_PROPS}>
+      <path d="M12 3.5 21.5 20h-19Z" />
+      <path d="M12 10v4.5M12 17.5v.01" />
+    </svg>
+  ),
   // A key: one identifier opens exactly one issuer.
   securityMaster: (
     <svg {...ICON_PROPS}>

@@ -10,14 +10,16 @@ from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFil
 from starlette.concurrency import run_in_threadpool
 
 from arp.api.auth import Principal, require_role
-from arp.api.deps import get_portfolio_store, settings_dep
+from arp.api.deps import get_portfolio_store, get_run_store, settings_dep
 from arp.config import Settings
 from arp.holdings import security_master
-from arp.portfolio import feeds
+from arp.portfolio import feeds, issues
 from arp.storage.identifier_map import IdentifierMapStore
+from arp.storage.run_store import RunStore
 
 router = APIRouter(prefix="/api/security-master", tags=["security-master"])
 feeds_router = APIRouter(prefix="/api/feeds", tags=["feeds"])
+issues_router = APIRouter(prefix="/api/issues", tags=["issues"])
 
 
 def _idmap(settings: Settings = Depends(settings_dep)) -> IdentifierMapStore:
@@ -64,3 +66,11 @@ async def upload(
         raise HTTPException(422, {"message": str(e), "errors": [asdict(x) for x in e.errors[:200]]}) from None
     except ValueError as e:  # unreadable or unsupported file
         raise HTTPException(422, {"message": str(e), "errors": []}) from None
+
+
+@issues_router.get("")
+def get_issues(
+    store=Depends(get_portfolio_store), idmap: IdentifierMapStore = Depends(_idmap), run_store: RunStore = Depends(get_run_store),
+) -> dict:
+    """Every open data problem: feeds behind or failed, unmatched securities, undecided failing checks (Data Hub · Issues)."""
+    return {"issues": issues.open_issues(store, idmap, run_store, date.today())}

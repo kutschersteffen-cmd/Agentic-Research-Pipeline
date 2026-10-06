@@ -1129,6 +1129,15 @@ export interface FeedRow {
   stale: boolean;
   detail: string;
 }
+export interface DataIssue {
+  source: "feed" | "security_master" | "check";
+  severity: "block" | "warn" | "info";
+  title: string;
+  detail: string;
+  subject: string;
+  ref: string;
+  run_id?: string;
+}
 export interface UnmatchedSecurity {
   holder_id: string;
   kind: "index" | "portfolio";

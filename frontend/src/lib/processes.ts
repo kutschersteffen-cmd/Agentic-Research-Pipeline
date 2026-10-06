@@ -208,6 +208,7 @@ export const WORKSPACES: Workspace[] = [
     runTypes: [],
     screens: [
       ["#/feeds", "Feeds"],
+      ["#/issues", "Issues"],
       ["#/securityMaster", "Security Master"],
       ["#/portfolio-monitoring/holdings", "Holdings Intake"],
       ["#/library", "Data Library"],
