@@ -1,5 +1,6 @@
 import { clearToken, getToken } from "../lib/auth";
 import { filenameFromDisposition, inlineSafe } from "../lib/files";
+import { profileEmbedParams } from "../lib/biEmbed";
 import type { Me } from "../lib/reviewKeys";
 import type {
   CompanyBallot,
@@ -29,6 +30,7 @@ import type {
   StewardshipFlow,
   StewardshipStream,
   TriggerEvent,
+  UnifiedTrigger,
   VoteRecord,
   VoteReviewDecision,
   VotingPreview,
@@ -58,26 +60,18 @@ import type {
   IndexReviewResult,
   AnalyticRequest,
   CompanyRef,
-  CoverageBySource,
-  DataPointObservation,
   DataPointSchema,
   DemoSeedSummary,
   EmergingThemeCandidate,
   EmergingThemesScheduleConfig,
-  FinancedEmissionsResult,
-  GovernanceDecision,
-  GovernanceDecisionType,
-  GovernanceItemType,
   NewsItem,
   NewsRiskFlag,
   PivotRequest,
   PivotResult,
-  PolicyChange,
-  PolicySettingName,
   PortfolioSummary,
   QAAnswer,
-  RiskCategoryOwner,
-  SecurityResolution,
+  ResolutionDecision,
+  ResolutionReviewItem,
   SearchResponse,
   TransitionPlanAssessmentRecord,
   ExtractionProfile,
@@ -240,6 +234,24 @@ export const api = {
   pullHolder: (kind: string, holderId: string) =>
     request<IntakeResult>(`/api/holdings/holders/${kind}/${encodeURIComponent(holderId)}/pull`, { method: "POST" }),
   holdingsTemplateUrl: (kind: string, format: string) => `${API_BASE}/api/holdings/template${buildQuery({ kind, format })}`,
+
+  uploadEsg: (f: { file: File; month: string; provider?: string }) => {
+    const form = new FormData();
+    form.append("file", f.file);
+    form.append("month", f.month);
+    if (f.provider) form.append("provider", f.provider);
+    return request<{ status: "written" | "unchanged"; rows: number }>("/api/portfolio/esg/upload", { method: "POST", body: form });
+  },
+  monthlyRunStatus: (month: string) =>
+    request<{ month: string; holdings: Record<string, string>; esg: { provider: string; status: string }; blocked_reasons: string[] }>(
+      `/api/portfolio/monthly-run/status${buildQuery({ month })}`,
+    ),
+  runMonth: (month: string) =>
+    request<{ status: "ran" | "blocked"; blocked_reasons: string[]; alerts: number; triggers: number }>("/api/portfolio/monthly-run", {
+      method: "POST",
+      body: JSON.stringify({ month }),
+    }),
+  esgTemplateUrl: (format: string) => `${API_BASE}/api/portfolio/esg/template${buildQuery({ format })}`,
 
   getMe: () => request<Me>("/api/me"),
 
@@ -475,6 +487,10 @@ export const api = {
     request("/api/revenue-catalogue/suggest-mapping", { method: "POST", body: JSON.stringify(body) }),
 
   // Engagement (stewardship)
+  listTriggers: (status?: UnifiedTrigger["status"]) =>
+    request<{ triggers: UnifiedTrigger[] }>(`/api/stewardship/triggers${status ? `?status=${status}` : ""}`),
+  transitionTrigger: (triggerId: string, body: { status: UnifiedTrigger["status"]; decided_by: string; reason?: string }) =>
+    request<UnifiedTrigger>(`/api/stewardship/triggers/${encodeURIComponent(triggerId)}/transition`, { method: "POST", body: JSON.stringify(body) }),
   listStewardshipStreams: () => request<{ streams: StewardshipStream[] }>("/api/stewardship/streams"),
   createStewardshipStream: (body: { name: string; vehicle_type: string; client_policy?: unknown }) =>
     request<{ stream_id: string }>("/api/stewardship/streams", { method: "POST", body: JSON.stringify(body) }),
@@ -651,14 +667,12 @@ export const api = {
   seedPortfolioDemo: () => request<DemoSeedSummary>("/api/portfolio/demo/seed", { method: "POST" }),
   seedTransitionPlanDemo: () => request<{ run_id: string; company_count: number }>("/api/transition-plan/demo/seed", { method: "POST" }),
   listPortfolios: () => request<PortfolioSummary[]>("/api/portfolio/portfolios"),
-  listSecuritiesNeedingReview: () => request<SecurityResolution[]>("/api/portfolio/securities-needing-review"),
   holdingsUniverse: (body: { portfolio_ids: string[]; as_of?: string }) =>
     request<{ path: string; company_count: number; as_of: string; unresolved: number }>("/api/portfolio/universe", {
       method: "POST",
       body: JSON.stringify(body),
     }),
   listPortfolioCompanies: () => request<CompanyRef[]>("/api/portfolio/companies"),
-  listConflictingObservations: () => request<DataPointObservation[]>("/api/portfolio/climate-conflicts"),
   runPortfolioAggregate: (body: AnalyticRequest) =>
     request<AggregationResult | TrendPoint[]>("/api/portfolio/aggregate", { method: "POST", body: JSON.stringify(body) }),
   runPortfolioPivot: (body: PivotRequest) => request<PivotResult>("/api/portfolio/pivot", { method: "POST", body: JSON.stringify(body) }),
@@ -676,31 +690,19 @@ export const api = {
     }),
   evaluateMonitoringNow: () =>
     request<{ threshold_alerts_raised: number; news_alerts_raised: number }>("/api/portfolio/monitoring/evaluate-now", { method: "POST" }),
-  listPendingGovernanceReviews: () =>
-    request<{ entity_resolution: SecurityResolution[]; climate_conflict: DataPointObservation[] }>("/api/portfolio/governance/pending-reviews"),
-  recordGovernanceDecision: (body: {
-    item_type: GovernanceItemType;
-    item_key: string;
-    decision: GovernanceDecisionType;
-    reason?: string;
-    override_value?: number | string | boolean | null;
-  }) => request<GovernanceDecision>("/api/portfolio/governance/decisions", { method: "POST", body: JSON.stringify(body) }),
-  listGovernanceDecisions: (itemType?: GovernanceItemType) =>
-    request<GovernanceDecision[]>(`/api/portfolio/governance/decisions${buildQuery({ item_type: itemType })}`),
-  getGovernancePolicy: () =>
-    request<{ values: Record<PolicySettingName, number>; history: PolicyChange[] }>("/api/portfolio/governance/policy"),
-  updateGovernancePolicy: (body: { setting_name: PolicySettingName; new_value: number; reason?: string }) =>
-    request<PolicyChange>("/api/portfolio/governance/policy", { method: "PUT", body: JSON.stringify(body) }),
-  listGovernanceOwners: () => request<RiskCategoryOwner[]>("/api/portfolio/governance/owners"),
-  assignGovernanceOwner: (category: string, body: { owner: string }) =>
-    request<RiskCategoryOwner>(`/api/portfolio/governance/owners/${encodeURIComponent(category)}`, { method: "PUT", body: JSON.stringify(body) }),
+  listResolutionReview: () => request<ResolutionReviewItem[]>("/api/portfolio/resolution-review"),
+  recordResolutionDecision: (body: { item_key: string; decision: string; reason?: string; override_value?: string }) =>
+    request<ResolutionDecision>("/api/portfolio/resolution-review/decisions", { method: "POST", body: JSON.stringify(body) }),
 
   // Superset BI designer (/api/bi): drafts dashboards in Superset itself
   designBI: (body: { brief: string }) => request<BIDesignResult>("/api/bi/design", { method: "POST", body: JSON.stringify(body) }),
   askBI: (question: string) => request<BIDesignResult>("/api/bi/ask", { method: "POST", body: JSON.stringify({ question }) }),
   biDashboards: () => request<DashboardItem[]>("/api/bi/dashboards"),
-  biEmbedToken: (dashboardId: number) =>
-    request<BIEmbedToken>("/api/bi/embed-token", { method: "POST", body: JSON.stringify({ dashboard_id: String(dashboardId) }) }),
+  biEmbedToken: (dashboardId: number, companyId: string | null = null) =>
+    request<BIEmbedToken>("/api/bi/embed-token", {
+      method: "POST",
+      body: JSON.stringify({ dashboard_id: String(dashboardId), ...profileEmbedParams(companyId) }),
+    }),
 
   // Projects (/api/projects)
   listProjects: () => request<ProjectSummary[]>("/api/projects"),
@@ -723,14 +725,6 @@ export const api = {
 
   // Climate analytics
   getClimateSchema: () => request<DataPointSchema>("/api/climate/schema"),
-  getWaci: (params: { as_of?: string; group_by?: string; portfolio_id?: string[] }) =>
-    request<AggregationResult>(`/api/climate/waci${buildQuery(params)}`),
-  getWaciTrend: (params: { group_by?: string; portfolio_id?: string[] }) =>
-    request<TrendPoint[]>(`/api/climate/waci/trend${buildQuery(params)}`),
-  getFinancedEmissions: (params: { as_of?: string; portfolio_id?: string[] }) =>
-    request<FinancedEmissionsResult>(`/api/climate/financed-emissions${buildQuery(params)}`),
-  getClimateCoverage: (fieldId: string, asOf?: string) =>
-    request<CoverageBySource>(`/api/climate/coverage/${fieldId}${buildQuery({ as_of: asOf })}`),
 
   // Presentation & Reporting Tool
   uploadReportTemplate: (file: File) => {

@@ -78,12 +78,7 @@ class PostgresPortfolioStore:
         return self._files.latest_observation(company_id, field_id, as_of)
 
     def list_observation_keys(self) -> list[tuple[str, str]]:
-        """Every (company_id, field_id) with a recorded observation. Was
-        missing here, which broke GET /api/portfolio/climate-conflicts and
-        the governance queue (both reach it via
-        datapoint_mapping.list_conflicting_observations) with an
-        AttributeError whenever this backend was configured -- even though
-        the observations themselves were always delegated below."""
+        """Every (company_id, field_id) with a recorded observation."""
         return self._files.list_observation_keys()
 
     def news_path(self):
@@ -190,6 +185,19 @@ class PostgresPortfolioStore:
 
     def append_holdings_audit(self, row: dict) -> None:
         self._files.append_holdings_audit(row)
+
+    # --- Superset datasets (arp/bi/published.py) ---
+
+    def publish_rows(self, dataset: str, month: str, rows: list[dict]) -> None:
+        """Replaces what was published for this (dataset, month); other months and datasets stay."""
+        from sqlalchemy import delete
+
+        from arp.storage.postgres_models import BiPublishedModel
+
+        with self._session() as session:
+            session.execute(delete(BiPublishedModel).where(BiPublishedModel.dataset == dataset, BiPublishedModel.month == month))
+            session.add_all([BiPublishedModel(dataset=dataset, month=month, row=r) for r in rows])
+            session.commit()
 
     # --- portfolios -----------------------------------------------------
 

@@ -321,6 +321,37 @@ def test_embed_token_allows_scratch():
     assert embed_token(client, "7") == ("uuid-1", "tok")
 
 
+# The profile dashboard is limited to one company by guest-token RLS, on every dataset with a company_id column.
+_COMPANY_TABLES = {d.table for d in VIEW_DATASETS.values() if "company_id" in d.columns}
+
+
+def test_embed_token_limits_company_datasets_by_rls():
+    client = FakeClient()
+    client.dashboards["arp-company-profile"] = {"id": 7, "published": False, "charts": [], "position": {}}
+    assert embed_token(client, "7", company_id="ACME") == ("uuid-1", "tok")
+    rls = client.calls[-1][2]
+    assert {r["dataset"] for r in rls} == {client.datasets[t] for t in _COMPANY_TABLES}
+    assert client.datasets["triggers"] not in {r["dataset"] for r in rls}  # issuer_id, no company_id: Superset would error
+    assert {r["clause"] for r in rls} == {"company_id = 'ACME'"}
+
+
+def test_embed_token_rls_doubles_single_quotes():
+    client = FakeClient()
+    client.dashboards["arp-company-profile"] = {"id": 7, "published": False, "charts": [], "position": {}}
+    embed_token(client, "7", company_id="O'Neil' OR '1'='1")
+    assert {r["clause"] for r in client.calls[-1][2]} == {"company_id = 'O''Neil'' OR ''1''=''1'"}
+
+
+def test_embed_token_rls_fails_closed_without_the_datasets():
+    """A missing dataset must not quietly drop its rule: that dataset would show every company."""
+    client = FakeClient()
+    client.dashboards["arp-company-profile"] = {"id": 7, "published": False, "charts": [], "position": {}}
+    del client.datasets["company_profile"]
+    with pytest.raises(BIError):
+        embed_token(client, "7", company_id="ACME")
+    assert not any(c[0] == "guest_token" for c in client.calls)
+
+
 def test_embed_token_serialises_ensure_embedded():
     """Superset's embedded upsert races: two first-time POSTs each create a UUID and
     only the last survives, so the other caller's embed 404s."""

@@ -9,10 +9,12 @@ import typer
 from arp.cli._shared import _portfolio_directories, _portfolio_store
 from arp.config import get_settings
 from arp.llm.factory import build_llm_client
-from arp.portfolio import analytics, governance, qa_agent
+from arp.portfolio import analytics, qa_agent
+from arp.portfolio.climate.esg_api_source import pull_esg
 from arp.portfolio.constituent_import import import_constituent_files
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.monitoring import evaluator as monitoring_evaluator
+from arp.portfolio.monthly_run import run_month
 from arp.portfolio.news.classifier import classify_article
 from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotSpec
 from arp.schemas.portfolio_monitoring import AlertRule, AlertStatus, AlertTransition
@@ -31,10 +33,7 @@ def portfolio_seed_demo() -> None:
     """
     settings = get_settings()
     store = _portfolio_store()
-    policy = governance.get_current_policy(store, settings)
-    summary = asyncio.run(
-        generate_demo_dataset(store, policy["portfolio_confidence_review_threshold"], policy["climate_validation_tolerance_pct"])
-    )
+    summary = asyncio.run(generate_demo_dataset(store, settings.portfolio_confidence_review_threshold))
     typer.echo(json.dumps(summary.__dict__, indent=2))
 
 
@@ -224,6 +223,37 @@ def portfolio_monitoring_evaluate_now() -> None:
     news_alerts = monitoring_evaluator.evaluate_news_triggers(store, min_severity=settings.portfolio_monitoring_news_min_severity)
     typer.echo(f"Raised {len(threshold_alerts)} threshold alert(s), {len(news_alerts)} news alert(s).")
 
+
+
+@portfolio_app.command("monthly-run")
+def portfolio_monthly_run(
+    month: str = typer.Option(..., help="YYYY-MM"),
+    portfolio: list[str] = typer.Option(None, "--portfolio", help="Restrict to these portfolio_ids; repeatable. Default: all."),
+    esg_provider: str = typer.Option("default"),
+) -> None:
+    """Runs the monthly monitoring: alerts, then stewardship triggers. Blocked unless the month's loads are ok."""
+    store = _portfolio_store()
+    try:
+        result = run_month(
+            store, get_settings(), month, portfolio_ids=portfolio or [p.portfolio_id for p in store.list_portfolios()], esg_provider=esg_provider
+        )
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(result.model_dump_json(indent=2))
+    if result.status == "blocked":
+        raise typer.Exit(1)
+
+
+@portfolio_app.command("esg-pull")
+def portfolio_esg_pull(month: str = typer.Option(..., help="YYYY-MM"), provider: str = typer.Option("default")) -> None:
+    """Pulls the month's ESG file from the internal ESG API through the same intake as an upload."""
+    try:
+        result = pull_esg(_portfolio_store(), get_settings(), month, provider)
+    except Exception as exc:  # unconfigured, bad month/provider, fetch failure or a rejected file: all exit 1
+        typer.echo(f"ESG pull failed: {type(exc).__name__}: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"{result.status}: {result.rows} row(s)")
 
 
 @portfolio_app.command("monitoring-alerts-list")

@@ -14,6 +14,8 @@ from arp.stewardship.client_report import build_pptx, client_report  # noqa: E40
 from arp.stewardship.policy_review import DATA  # noqa: E402
 from arp.stewardship.process import StreamStore, build_stream_policy  # noqa: E402
 
+pytestmark = pytest.mark.usefixtures("sample_house_universe")
+
 
 def _stream(tmp_path, built: bool) -> tuple[StreamStore, dict]:
     streams = StreamStore(tmp_path)

@@ -140,6 +140,104 @@ VIEW_DATASETS: dict[str, DatasetDef] = {
             ),
         ],
     ),
+    "portfolio_climate_metrics": DatasetDef(
+        table="portfolio_climate_metrics",
+        description="Monthly WACI, PCAF financed emissions and data coverage per portfolio, computed in Python by the monthly run.",
+        columns={
+            "portfolio_id": "Portfolio identifier.",
+            "as_of_date": "Date the metrics were computed for (month end).",
+            "waci": "Weighted-average carbon intensity.",
+            "financed_emissions_tco2e": "Attributed Scope 1+2 financed emissions in tCO2e (PCAF).",
+            "coverage_pct": "Share of market value covered by the emissions data, 0 to 1.",
+            "uncovered_market_value_eur": "Market value in EUR excluded for lacking EVIC or Scope 1/2 data.",
+        },
+        metrics=[
+            MetricDef(name="Avg WACI", expression="AVG(waci)", description="Mean weighted-average carbon intensity."),
+            MetricDef(name="Avg coverage", expression="AVG(coverage_pct)", description="Mean data coverage, 0 to 1."),
+            MetricDef(
+                name="Avg financed emissions (tCO2e)",
+                expression="AVG(financed_emissions_tco2e)",
+                description="Mean financed emissions; one row per portfolio and month, so group by as_of_date.",
+            ),
+        ],
+    ),
+    "alerts": DatasetDef(
+        table="alerts",
+        description=(
+            "Portfolio alerts as of each monthly run (one snapshot per month). "
+            "Filter to one month, or counts repeat across months."
+        ),
+        columns={
+            "month": "Monthly run (YYYY-MM) the snapshot belongs to.",
+            "alert_id": "Alert identifier.",
+            "portfolio_id": "Portfolio the alert is about; NULL for company-scoped alerts.",
+            "company_id": "Company the alert is about; NULL for portfolio-scoped alerts.",
+            "category": "Alert category.",
+            "status": "Alert status: open, acknowledged, escalated, resolved or false_positive.",
+            "triggered_at": "When the alert was raised.",
+            "observed_value": "Value that breached the threshold.",
+            "threshold_value": "Threshold that was breached.",
+            "rationale": "Why the alert was raised.",
+        },
+        metrics=[
+            MetricDef(
+                name="Open alerts",
+                expression="COUNT(CASE WHEN status = 'open' THEN 1 END)",
+                description="Alerts with status open.",
+            ),
+            MetricDef(name="Alerts", expression="COUNT(*)", description="Alerts in the selected month(s); group by month."),
+        ],
+    ),
+    "triggers": DatasetDef(
+        table="triggers",
+        description=(
+            "Stewardship and risk triggers as of each monthly run (one snapshot per month). "
+            "Filter to one month, or counts repeat across months."
+        ),
+        columns={
+            "month": "Monthly run (YYYY-MM) the snapshot belongs to.",
+            "trigger_id": "Trigger identifier.",
+            "source": "Where the trigger came from: risk_alert or stewardship.",
+            "issuer_id": "Issuer the trigger is about.",
+            "type": "Trigger type.",
+            "theme": "Stewardship theme.",
+            "severity": "low, medium or high.",
+            "status": "open, acknowledged or resolved.",
+            "first_seen_month": "Month (YYYY-MM) the trigger first appeared.",
+            "is_new": "Whether the trigger is new since the previous run.",
+            "reason": "Why the trigger fired.",
+        },
+        metrics=[
+            MetricDef(
+                name="Open triggers",
+                expression="COUNT(CASE WHEN status = 'open' THEN 1 END)",
+                description="Triggers with status open.",
+            ),
+            MetricDef(name="Triggers", expression="COUNT(*)", description="Triggers in the selected month(s); group by month."),
+        ],
+    ),
+    "company_profile": DatasetDef(
+        table="company_profile",
+        description=(
+            "Latest resolved value per company and data field as of each monthly run (one snapshot per month). "
+            "Filter to one month and one field_id."
+        ),
+        columns={
+            "month": "Monthly run (YYYY-MM) the snapshot belongs to.",
+            "company_id": "Company identifier.",
+            "company_name": "Company name.",
+            "field_id": "Data field identifier.",
+            "field_name": "Data field name.",
+            "value": "Numeric value; NULL when the field is not numeric.",
+            "unit": "Unit of the value.",
+            "as_of": "Date the value was observed.",
+            "source": "Source of the value.",
+        },
+        metrics=[
+            MetricDef(name="Avg value", expression="AVG(value)", description="Mean value. Only meaningful for a single field_id."),
+            MetricDef(name="Companies", expression="COUNT(DISTINCT company_id)", description="Distinct companies."),
+        ],
+    ),
 }
 
 # Same columns and metrics as `holdings`, built from it so they cannot drift.
@@ -180,4 +278,8 @@ TEMPORAL_COLUMNS: dict[str, frozenset[str]] = {
     "company_facts_pending": frozenset({"as_of", "valid_from"}),
     "run_records": frozenset({"generated_at"}),
     "documents": frozenset({"first_seen_at", "last_seen_at"}),
+    "portfolio_climate_metrics": frozenset({"as_of_date"}),
+    "alerts": frozenset({"triggered_at"}),
+    "triggers": frozenset(),
+    "company_profile": frozenset({"as_of"}),
 }

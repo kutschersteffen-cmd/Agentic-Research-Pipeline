@@ -46,6 +46,7 @@ from arp.stewardship.process import (
 from arp.stewardship.program import ProgramParams, approve, build_proposal, monitor, record_run, simulate
 from arp.stewardship.style import check as style_check
 from arp.stewardship.tiers import TierStore, tier_contexts
+from arp.stewardship.trigger_store import TriggerStore, trigger_id
 from arp.stewardship.universe import HouseUniverseSetting
 from arp.storage.decision_store import DecisionStore
 from arp.storage.engagement_store import EngagementStore
@@ -348,6 +349,27 @@ def monitoring_triggers(
     return {"triggers": rules + tracking.triggers(records, settings.engagement_sla_days)}
 
 
+@router.get("/triggers")
+def list_stored_triggers(status: Literal["open", "acknowledged", "resolved"] | None = None, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    return {"triggers": [t.model_dump() for t in TriggerStore(streams.root).list_triggers(status)]}
+
+
+class TriggerTransitionRequest(BaseModel):
+    status: Literal["open", "acknowledged", "resolved"]
+    decided_by: str
+    reason: str = ""
+
+
+@router.post("/triggers/{trigger_id}/transition")
+def post_trigger_transition(trigger_id: str, body: TriggerTransitionRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
+    try:
+        return TriggerStore(streams.root).transition(trigger_id, body.status, body.decided_by, body.reason).model_dump()
+    except KeyError as exc:
+        raise HTTPException(404, "Unknown trigger") from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
 class MonitoringPreviewRequest(BaseModel):
     graph: dict
 
@@ -381,13 +403,19 @@ def open_engagement_from_trigger(
     engagements: EngagementStore = Depends(get_engagement_store),
     principal: Principal = Depends(current_user),
 ) -> dict:
-    """Opens an engagement for a trigger the active rules raise. The theme and
+    """Opens an engagement for a trigger the active rules raise, or one a monthly run stored. The theme and
     severity come from the rule, not the request."""
     sample = load_sample()
-    triggers = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, engagements.list_all())
+    records = engagements.list_all()
+    triggers = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, records)
     trigger = next((t for t in triggers if t["issuer_id"] == body.issuer_id and t["rule"] == body.rule), None)
+    if trigger is None and (stored := TriggerStore(streams.root).stored_trigger(trigger_id(body.issuer_id, body.rule))):
+        # the stored engagement_id is as of the run: match open engagements now, as evaluate does
+        open_ids = [i.issue_id for r in records if r.company_id == stored["issuer_id"] for i in r.issues
+                    if i.theme == stored["theme"] and i.status in (IssueStatus.OPEN, IssueStatus.STALLED)]
+        trigger = {**stored, "engagement_id": open_ids[0] if open_ids else None}
     if trigger is None:
-        raise HTTPException(404, "The active monitoring rules raise no such trigger")
+        raise HTTPException(404, "No active monitoring rule or monthly run raised such a trigger")
     if trigger["engagement_id"] is not None:
         raise HTTPException(409, f"Already attached to engagement {trigger['engagement_id']}")
     _, issue = engagements.open_issue(

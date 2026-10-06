@@ -997,8 +997,6 @@ export interface VoteReviewDecision {
 
 export type AggregationMetric = "market_value_sum" | "weighted_avg_datapoint" | "count";
 
-export const AGGREGATION_DIMENSIONS = ["portfolio_id", "asset_class", "company_id", "company_name", "sector", "country", "currency"] as const;
-
 export interface PortfolioSummary {
   portfolio_id: string;
   name: string;
@@ -1012,21 +1010,6 @@ export interface SecurityResolution {
   method: "isin_exact" | "name_fuzzy" | "manual";
   needs_review: boolean;
   resolved_at: string;
-}
-
-export interface DataPointObservation {
-  company_id: string;
-  field_id: string;
-  field_name: string;
-  value: number | string | boolean | null;
-  unit?: string | null;
-  period: string;
-  observed_at: string;
-  source: "internal_api" | "extracted" | "catalogue" | "estimated_proxy";
-  conflicting_sources: boolean;
-  conflicting_value?: number | string | boolean | null;
-  conflicting_source_label?: string | null;
-  notes: string;
 }
 
 export interface AggregationRow {
@@ -1132,34 +1115,16 @@ export interface Alert {
   owner?: string | null;
 }
 
-export type GovernanceItemType = "entity_resolution" | "climate_conflict";
-export type GovernanceDecisionType = "accept" | "override" | "reject";
-export type PolicySettingName = "portfolio_confidence_review_threshold" | "climate_validation_tolerance_pct";
+export type ResolutionReviewItem = SecurityResolution;
 
-export interface GovernanceDecision {
-  item_type: GovernanceItemType;
+export interface ResolutionDecision {
+  item_type: "entity_resolution";
   item_key: string;
-  decision: GovernanceDecisionType;
+  decision: "accept" | "override" | "reject";
   decided_by: string;
   reason: string;
-  override_value?: number | string | boolean | null;
+  override_value?: string | null;
   decided_at: string;
-}
-
-export interface RiskCategoryOwner {
-  category: string;
-  owner: string;
-  assigned_by: string;
-  assigned_at: string;
-}
-
-export interface PolicyChange {
-  setting_name: PolicySettingName;
-  old_value: number;
-  new_value: number;
-  changed_by: string;
-  reason: string;
-  changed_at: string;
 }
 
 export interface DemoSeedSummary {
@@ -1173,17 +1138,6 @@ export interface DemoSeedSummary {
   news_items: number;
   unresolved_security_ids: string[];
 }
-
-export interface FinancedEmissionsResult {
-  as_of: string;
-  financed_emissions_tco2e: number;
-  covered_market_value_eur: number;
-  uncovered_market_value_eur: number;
-  coverage_pct: number;
-  uncovered_holding_count: number;
-}
-
-export type CoverageBySource = Record<string, number>;
 
 export interface PivotRequest {
   name?: string;
@@ -3004,4 +2958,18 @@ export interface IntakeResult {
   rows: number;
   unresolved: string[];
   review_run_id: string | null;
+}
+
+export interface UnifiedTrigger {
+  trigger_id: string;
+  source: "risk_alert" | "stewardship";
+  issuer_id: string;
+  type: string;
+  theme: string;
+  severity: "low" | "medium" | "high";
+  reason: string;
+  status: "open" | "acknowledged" | "resolved";
+  first_seen_month: string;
+  is_new: boolean;
+  rule: string;
 }

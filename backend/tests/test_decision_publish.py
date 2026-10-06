@@ -25,6 +25,9 @@ from tests.conftest import PRINCIPAL
 SAMPLE = Path(__file__).resolve().parents[1] / "arp" / "decision" / "sample_data" / "example_transition_universe.csv"
 
 
+pytestmark = pytest.mark.usefixtures("sample_house_universe")
+
+
 @pytest.fixture
 def client(tmp_path):
     settings = Settings(frameworks_dir=tmp_path / "frameworks", runs_dir=tmp_path / "runs")

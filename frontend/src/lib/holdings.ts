@@ -19,3 +19,9 @@ export function parseIntakeError(err: Error): { message: string; errors: RowErro
 
 /** A 409 that asks for an override reason (a file over an API month), not a lost revision race. */
 export const needsOverrideReason = (err: Error): boolean => err.message.startsWith("409") && /override/i.test(err.message);
+
+/** "YYYY-MM" of the month before `today` (local time): the month a monthly run usually covers. */
+export function previousMonth(today: Date): string {
+  const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}

@@ -175,10 +175,27 @@ async def ask_chart(question: str, llm: LLMClient, client: SupersetClient) -> De
 _EMBED_LOCK = threading.Lock()
 
 
-def embed_token(client: SupersetClient, dashboard_id: str, rls: list[dict] | None = None) -> tuple[str, str]:
+def _company_rls(client: SupersetClient, company_id: str) -> list[dict]:
+    """Guest-token RLS rules showing one company, on every dataset with a company_id column
+    (Superset errors on a clause naming a column the dataset lacks, e.g. `triggers`.issuer_id).
+    The caller checks `company_id` against the store; quotes are doubled all the same."""
+    clause = "company_id = '{}'".format(company_id.replace("'", "''"))
+    db = client.find_database(BI_DATABASE)
+    rules = []
+    for d in VIEW_DATASETS.values():
+        if "company_id" in d.columns:
+            ds = None if db is None else client.find_dataset(db, "bi", d.table)
+            if ds is None:  # fail closed: a dataset without its rule would show every company
+                raise BIError(f"Superset has no dataset bi.{d.table} -- run `arp bi bootstrap`.")
+            rules.append({"dataset": ds, "clause": clause})
+    return rules
+
+
+def embed_token(client: SupersetClient, dashboard_id: str, company_id: str | None = None) -> tuple[str, str]:
     """(embedded UUID, guest token) for embedding the dashboard. Guest tokens
     and the embed SDK name the embedded UUID, not the id, so embedding is
-    enabled first (idempotent). `rls` is the row-level-security hook; empty in v1.
+    enabled first (idempotent). With `company_id` the token's RLS limits the
+    company datasets to that company (the Company Profile page).
     Only arp- dashboards (slug `arp-...`, scratch and hand-built ones included) are embedded."""
     try:
         try:
@@ -189,8 +206,9 @@ def embed_token(client: SupersetClient, dashboard_id: str, rls: list[dict] | Non
             raise
         if not slug.startswith("arp-"):
             raise NotAnARPDashboard(f"Dashboard {dashboard_id} has no arp- slug; only arp- dashboards can be embedded.")
+        rls = [] if company_id is None else _company_rls(client, company_id)
         with _EMBED_LOCK:
             embedded_id = client.ensure_embedded(int(dashboard_id))
-        return embedded_id, client.guest_token(embedded_id, rls or [])
+        return embedded_id, client.guest_token(embedded_id, rls)
     except _ERRORS as e:
         raise BIError(f"Superset: {e}") from e

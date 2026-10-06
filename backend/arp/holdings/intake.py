@@ -3,6 +3,8 @@ API-over-file precedence, write-once revisions, an audit row per write, and hold
 
 from __future__ import annotations
 
+import hashlib
+import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -10,6 +12,7 @@ from typing import TYPE_CHECKING, Literal
 
 from arp.holdings.validate import RowError, Validated, iso_date
 from arp.orchestration.review_queue import FINAL_STATES, effective_decisions, item_states, queue_for_review
+from arp.portfolio.loads import LoadRecord, record_load
 from arp.schemas.common import JobStatus, RunManifest, new_id, now_iso
 from arp.schemas.issuer import ARP_NAMESPACE, lei_is_valid, normalise_lei
 from arp.schemas.portfolio import HolderConfig, Holding, Portfolio, SecurityRef, SecurityResolution
@@ -89,10 +92,12 @@ def ingest(
         safe_id(holder_id, label="holder_id")
     except UnsafeIdentifierError as e:
         raise IntakeError(422, str(e)) from None
-    if validated.errors:
-        raise IntakeError(422, "file rejected", validated.errors)
     if not iso_date(as_of):
         raise IntakeError(422, "as_of must be YYYY-MM-DD")
+    if validated.errors:
+        record_load(store, LoadRecord(kind="holdings", source_id=holder_id, month=as_of[:7], status="failed", content_hash="",
+                                      detail=f"{len(validated.errors)} row errors"))
+        raise IntakeError(422, "file rejected", validated.errors)
     holder = store.get_holder(kind, holder_id) or HolderConfig(holder_id=holder_id, kind=kind, source=source)
     _precedence(store, holder, kind, holder_id, as_of, source, override_reason)
 
@@ -126,11 +131,18 @@ def ingest(
         elif res is not None and res.needs_review:
             store.save_resolution(res.model_copy(update={"needs_review": False}))
 
+    def loaded(revision: int) -> None:
+        digest = hashlib.sha256(json.dumps([h.model_dump(exclude={"source_ref"}) for h in holdings], sort_keys=True,
+                                           default=str).encode()).hexdigest()
+        record_load(store, LoadRecord(kind="holdings", source_id=holder_id, month=as_of[:7], status="ok",
+                                      content_hash=digest, detail=f"{len(holdings)} rows, revision {revision}"))
+
     revisions = store.list_revisions(kind, holder_id, as_of)
     isins = [r["isin"] for r in unresolved]
     if revisions:
         latest = [h.model_dump(exclude={"source_ref"}) for h in store.load_revision(kind, holder_id, as_of, revisions[-1])]
         if latest == [h.model_dump(exclude={"source_ref"}) for h in holdings]:
+            loaded(revisions[-1])
             return IntakeResult("unchanged", revisions[-1], len(holdings), isins, None)
     revision = len(revisions) + 1
     store.save_revision(kind, holder_id, as_of, revision, holdings)
@@ -158,6 +170,7 @@ def ingest(
     if kind == "portfolio" and store.get_portfolio(holder_id) is None:  # file-store analytics read the registry
         store.save_portfolio(Portfolio(portfolio_id=holder_id, name=holder.name or holder_id))
     store.save_holder(holder.model_copy(update={"as_of": max(holder.as_of or "", as_of), "last_error": None}))
+    loaded(revision)
     return IntakeResult("written", revision, len(holdings), isins, run_id)
 
 

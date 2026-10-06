@@ -40,6 +40,19 @@ class SecurityResolution(BaseModel):
     resolved_at: str = Field(default_factory=now_iso)
 
 
+class ResolutionDecision(BaseModel):
+    """A human accept/override/reject decision on a flagged security resolution (`item_key` is the
+    security_id). `item_type` tags rows in the shared event log so legacy rows of other types can be skipped."""
+
+    item_type: Literal["entity_resolution"] = "entity_resolution"
+    item_key: str
+    decision: Literal["accept", "override", "reject"]
+    decided_by: str
+    reason: str = ""
+    override_value: str | None = None
+    decided_at: str = Field(default_factory=now_iso)
+
+
 HoldingKind = Literal["index", "portfolio"]
 HoldingSource = Literal["api", "file"]
 

@@ -155,6 +155,11 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         description="Index holdings beside portfolio holdings: kind, nullable money columns, no FK to portfolios",
         apply=_holdings_intake,
     ),
+    SchemaStep(
+        name="0004_bi_published_views",
+        description="Re-create the bi views so the datasets published into bi_published are readable",
+        apply=_create_bi_views,
+    ),
 )
 
 

@@ -201,12 +201,19 @@ One with fewer is deleted and rebuilt (its old charts stay), and the rebuild is 
 deployments must re-run `arp bi bootstrap` after upgrading: the AI designer needs every catalogue dataset, including
 `holdings_history`.
 
+Upgrading to the monthly run's published datasets: run `arp db init-postgres` (creates the `bi_published` table and its `bi` views), then
+`arp bi bootstrap` (bi_reader is granted per existing object, and the climate, alerts, triggers and company-profile
+datasets and dashboards are registered there). Until then Company Profile embeds fail closed with a 502 ("Superset has
+no dataset bi.alerts"). The published datasets fill only when a monthly run (`arp portfolio monthly-run --month
+YYYY-MM`) succeeds, and a month runs only with an ok holdings load for every portfolio and an ok ESG load for that month
+(upload it, or `arp portfolio esg-pull --month YYYY-MM`). Holdings Intake shows what a month is still missing.
+
 Set `VITE_SUPERSET_URL` in `frontend/.env`, then open Risk Monitoring, Dashboards (Superset). This one tab replaces
-Pivot Explorer, Generative BI and Superset BI (old links land on it); Standard Analytics, Monitoring & Alerts, Company
-Profiles, Ask the Portfolio and Governance & Audit are unchanged. The picker lists every Superset dashboard whose slug
+Pivot Explorer, Generative BI and Superset BI (old links land on it), and it is the default Risk Monitoring tab. The
+in-app Standard Analytics tab is gone; Monitoring & Alerts, Company Profiles and Ask the Portfolio are unchanged. The picker lists every Superset dashboard whose slug
 starts with `arp-` and opens on `arp-risk-exposure`. To add a dashboard you built by hand, set its slug to `arp-<name>`
-in Superset's dashboard Properties and reload the tab. The weighted-average climate pivots Pivot Explorer had now
-live only in Standard Analytics.
+in Superset's dashboard Properties and reload the tab. The weighted-average climate pivots Pivot Explorer had are
+available through the climate API endpoints.
 
 The UI embeds a draft through `POST /api/bi/embed-token {dashboard_id}`, which answers `{token, embedded_id}`
 (`service.embed_token` returns `(embedded_id, token)`). Only arp- dashboards (slug `arp-...`, the scratch one and

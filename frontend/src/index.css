@@ -1027,11 +1027,6 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .cast-list { margin-bottom: var(--s-4); }
 .modal-compact .cast-list { display: block; max-height: 40vh; overflow: auto; }
 
-.coverage-bar-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; font-size: var(--text-sm); }
-.coverage-bar-label { width: 110px; flex-shrink: 0; color: var(--muted); }
-.coverage-bar-track { flex: 1; background: var(--well); border-radius: var(--r-pill); height: 10px; overflow: hidden; }
-.coverage-bar-fill { display: block; background: var(--accent); height: 100%; }
-.coverage-bar-count { width: 40px; text-align: right; flex-shrink: 0; }
 
 .answer-text { white-space: pre-wrap; background: var(--well); padding: 10px 12px; border-radius: var(--r-sm); font-size: var(--text-base); }
 

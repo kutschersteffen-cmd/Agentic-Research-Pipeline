@@ -75,6 +75,8 @@ class Settings(BaseSettings):
     snapshot_pull_dir: Path = REPO_ROOT / "data" / "snapshots"  # where `arp snapshots pull` writes
     holdings_api_url: str | None = None  # base URL of the ARP instance snapshots are pulled from
     holdings_api_token: str | None = None
+    esg_api_base_url: str | None = None  # corporate ESG provider; ARP_ESG_API_URL
+    esg_api_token: str | None = None  # Bearer token, ARP_ESG_API_TOKEN: never logged or stored in a load detail
     holdings_pull_day: int = Field(default=2, ge=1, le=28)
     publishing_schedule_enabled: bool = Field(default=False)  # daily re-ground sample, pull, snapshot, corrections
     publish_state_dir: Path = REPO_ROOT / "data" / "publish"
@@ -335,9 +337,6 @@ class Settings(BaseSettings):
     # Portfolio risk & exposure monitoring
     portfolio_confidence_review_threshold: float = Field(
         default=0.6, description="Security-to-issuer entity resolution matches below this confidence are routed to review."
-    )
-    climate_validation_tolerance_pct: float = Field(
-        default=0.15, description="Disagreement between the internal ESG API and extracted-from-disclosures values beyond this share is flagged conflicting_sources."
     )
 
     # Continuous monitoring & alerting (arp/portfolio/monitoring/). Clones

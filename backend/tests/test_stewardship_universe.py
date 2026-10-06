@@ -19,7 +19,7 @@ from arp.storage.portfolio_store import PortfolioStore
 @pytest.fixture(scope="module")
 def universe(tmp_path_factory):
     store = PortfolioStore(tmp_path_factory.mktemp("pf"))
-    asyncio.run(generate_demo_dataset(store, 0.85, 5.0))
+    asyncio.run(generate_demo_dataset(store, 0.85))
     return from_portfolio(store)
 
 
@@ -51,7 +51,7 @@ def test_the_flow_runs_and_labels_portfolio_figures(universe, tmp_path, monkeypa
 
 def test_the_setting_needs_a_known_source_and_a_name(tmp_path):
     setting = HouseUniverseSetting(tmp_path)
-    assert setting.get()["source"] == "sample"
+    assert setting.get()["source"] == "portfolio"
     with pytest.raises(ValueError):
         setting.set("benchmark", "A. Reviewer")
     with pytest.raises(ValueError):
@@ -59,3 +59,24 @@ def test_the_setting_needs_a_known_source_and_a_name(tmp_path):
     assert setting.set("portfolio", "A. Reviewer")["source"] == "portfolio"
     assert setting.get()["set_by"] == "A. Reviewer"
     assert process.StreamStore(tmp_path).list() == []  # the setting is not mistaken for a client stream
+
+
+def test_default_source_is_portfolio(tmp_path):
+    assert HouseUniverseSetting(tmp_path).get() == {"source": "portfolio", "set_by": None, "set_at": None}
+    assert HouseUniverseSetting(tmp_path).set("sample", "A. Reviewer")["source"] == "sample"  # still selectable
+
+
+def test_empty_portfolio_returns_note_and_no_triggers(tmp_path, monkeypatch):
+    from arp.config import get_settings
+
+    monkeypatch.setenv("ARP_STEWARDSHIP_STREAMS_DIR", str(tmp_path / "streams"))
+    monkeypatch.setenv("ARP_PORTFOLIOS_DIR", str(tmp_path / "portfolios"))
+    get_settings.cache_clear()
+    try:
+        universe = process.house_universe()
+        sample = process.load_sample(tmp_path / "fw", votes=[], alerts=[])
+    finally:
+        get_settings.cache_clear()
+    assert universe["note"] == "No portfolio holdings loaded." and universe["source"] == "portfolio"
+    assert sample["issuers"] == [] and sample["meetings"] == []  # not the synthetic sample
+    assert monitoring.evaluate(monitoring.load_graph(), sample, []) == []

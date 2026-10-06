@@ -17,6 +17,8 @@ from arp.stewardship.process import HOUSE, StreamStore, flow  # noqa: E402
 from arp.storage.engagement_store import EngagementStore  # noqa: E402
 from tests.conftest import PRINCIPAL
 
+pytestmark = pytest.mark.usefixtures("sample_house_universe")
+
 
 @pytest.fixture
 def streams(tmp_path):

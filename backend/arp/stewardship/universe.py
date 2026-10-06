@@ -3,8 +3,8 @@
 Two sources, chosen by a person and stored as a house setting:
 
 - `sample`: the synthetic sample (fictional companies, rich company data and
-  meetings), the default.
-- `portfolio`: the companies held in the house portfolios (Risk Monitoring).
+  meetings), selectable for demos.
+- `portfolio`: the companies held in the house portfolios (Risk Monitoring), the default.
   Issuer ids are then the portfolio company ids, which Decision Studio
   publications, Proxy Voting ballots and Risk Monitoring alerts use too, so
   every handoff into stewardship matches.
@@ -38,7 +38,7 @@ class HouseUniverseSetting:
     def get(self) -> dict:
         if self.path.exists():
             return json.loads(self.path.read_text())
-        return {"source": "sample", "set_by": None, "set_at": None}
+        return {"source": "portfolio", "set_by": None, "set_at": None}
 
     def set(self, source: str, set_by: str) -> dict:
         if source not in SOURCES:
@@ -62,18 +62,19 @@ def _value_by_company(store: PortfolioStore, as_of: str) -> dict[str, float]:
     return out
 
 
-def from_portfolio(store: PortfolioStore) -> dict:
-    """The held companies in the shape of the synthetic sample."""
+def from_portfolio(store: PortfolioStore, as_of: str | None = None) -> dict:
+    """The held companies in the shape of the synthetic sample. `as_of` dates the observation lookups (default: the
+    latest holdings snapshot)."""
     dates = store.all_snapshot_dates()
     if not dates:
         return {"source": "portfolio", "note": "No portfolio holdings loaded.", "issuers": [], "engagements": [], "meetings": []}
-    as_of = dates[-1]
+    obs_as_of, as_of = as_of or dates[-1], dates[-1]
     now, before = _value_by_company(store, as_of), _value_by_company(store, dates[-2]) if len(dates) > 1 else {}
     total = sum(now.values())
     _, companies = portfolio_directories(store)
     observed: dict[str, dict] = defaultdict(dict)
     for company_id, field_id in store.list_observation_keys():
-        obs = store.latest_observation(company_id, field_id, as_of)
+        obs = store.latest_observation(company_id, field_id, obs_as_of)
         if obs is not None and isinstance(obs.value, int | float | bool):
             observed[company_id][f"portfolio.{field_id}"] = obs.value
     issuers = []

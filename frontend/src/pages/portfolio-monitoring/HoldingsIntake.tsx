@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../../api/client";
 import { FileLink } from "../../components/FileLink";
 import { announce } from "../../lib/announce";
-import { ageLabel, needsOverrideReason, parseIntakeError, rowErrorText } from "../../lib/holdings";
+import { ResolutionReviewPanel } from "./ResolutionReviewPanel";
+import { ageLabel, needsOverrideReason, parseIntakeError, previousMonth, rowErrorText } from "../../lib/holdings";
 import type { HolderStatus, IntakeResult, RowError } from "../../types";
 
 const KINDS = ["index", "portfolio"] as const;
@@ -12,6 +13,71 @@ const summary = (r: IntakeResult): string =>
   [r.status === "unchanged" ? "No change" : `Revision ${r.revision} written (${r.rows} rows)`, r.unresolved.length ? `${r.unresolved.length} ISINs sent to review` : ""]
     .filter(Boolean)
     .join("; ");
+
+type RunStatus = Awaited<ReturnType<typeof api.monthlyRunStatus>>;
+
+/** Read-only view of what a month's run needs (computed on demand by the backend), plus a manual run. */
+function MonthlyRunPanel() {
+  const [month, setMonth] = useState(() => previousMonth(new Date()));
+  const [status, setStatus] = useState<RunStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
+
+  const load = (m: string) => api.monthlyRunStatus(m).then((s) => { setStatus(s); setError(null); }, (e: Error) => { setStatus(null); setError(e.message); });
+  useEffect(() => {
+    if (month) void load(month);
+  }, [month]);
+
+  async function run() {
+    setRunning(true);
+    setNotice(null);
+    try {
+      const r = await api.runMonth(month);
+      const msg = r.status === "ran" ? `Month ${month} ran: ${r.alerts} new alerts, ${r.triggers} triggers` : `Month ${month} is blocked`;
+      setNotice(msg);
+      announce(msg);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRunning(false);
+      void load(month);
+    }
+  }
+
+  return (
+    <section>
+      <h3>Monthly run</h3>
+      <div className="inline-fields">
+        <label className="field-label">
+          Month
+          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+        </label>
+        <button className="secondary" onClick={() => void run()} disabled={running || !month}>{running ? "Running…" : "Run now"}</button>
+      </div>
+      {error && <p className="error-text" role="alert">{error}</p>}
+      {notice && <p role="status">{notice}</p>}
+      {status && (
+        <>
+          <table className="data-table">
+            <thead><tr><th>Load</th><th>Status</th></tr></thead>
+            <tbody>
+              {Object.entries(status.holdings).map(([pid, s]) => (
+                <tr key={pid}><td>Holdings {pid}</td><td>{s}</td></tr>
+              ))}
+              <tr><td>ESG ({status.esg.provider})</td><td>{status.esg.status}</td></tr>
+            </tbody>
+          </table>
+          {status.blocked_reasons.length > 0 ? (
+            <ul>{status.blocked_reasons.map((r) => <li key={r}>{r}</li>)}</ul>
+          ) : (
+            <p className="muted">All loads are ok: the month can run.</p>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
 
 /** Holdings intake (E77): holder staleness, template downloads and the file upload. All server text is rendered as text. */
 export function HoldingsIntake() {
@@ -28,6 +94,13 @@ export function HoldingsIntake() {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ message: string; errors: RowError[] } | null>(null);
+  const [esgMonth, setEsgMonth] = useState("");
+  const [esgFile, setEsgFile] = useState<File | null>(null);
+  const [esgProvider, setEsgProvider] = useState("default");
+  const [esgBusy, setEsgBusy] = useState(false);
+  const [esgError, setEsgError] = useState<{ message: string; errors: RowError[] } | null>(null);
+  const [esgNotice, setEsgNotice] = useState<string | null>(null);
+  const esgFileRef = useRef<HTMLInputElement>(null);
   const reasonRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -76,6 +149,26 @@ export function HoldingsIntake() {
     }
   }
 
+  async function submitEsg(e: FormEvent) {
+    e.preventDefault();
+    if (!esgFile) return;
+    setEsgBusy(true);
+    setEsgError(null);
+    setEsgNotice(null);
+    try {
+      const r = await api.uploadEsg({ file: esgFile, month: esgMonth, provider: esgProvider });
+      const msg = r.status === "unchanged" ? "No change" : `ESG data written (${r.rows} companies)`;
+      setEsgNotice(msg);
+      announce(msg);
+      setEsgFile(null);
+      if (esgFileRef.current) esgFileRef.current.value = "";
+    } catch (err) {
+      setEsgError(parseIntakeError(err as Error));
+    } finally {
+      setEsgBusy(false);
+    }
+  }
+
   return (
     <section>
       <h2>Holdings Intake</h2>
@@ -112,6 +205,10 @@ export function HoldingsIntake() {
           ))}
         </tbody>
       </table>
+
+      <MonthlyRunPanel />
+
+      <ResolutionReviewPanel />
 
       <h3>Templates</h3>
       <p>
@@ -162,6 +259,41 @@ export function HoldingsIntake() {
           <p>{error.message}</p>
           {error.errors.length > 0 && (
             <ul>{error.errors.map((x, i) => <li key={i}>{rowErrorText(x)}</li>)}</ul>
+          )}
+        </div>
+      )}
+
+      <h3>Upload ESG data</h3>
+      <p>
+        {FORMATS.map((f) => (
+          <span key={f}>
+            <FileLink url={api.esgTemplateUrl(f)} name={`esg-template.${f}`}>
+              ESG template (.{f})
+            </FileLink>{" "}
+          </span>
+        ))}
+      </p>
+      <form className="inline-fields" onSubmit={(e) => void submitEsg(e)}>
+        <label className="field-label">
+          Month
+          <input type="month" value={esgMonth} onChange={(e) => setEsgMonth(e.target.value)} required />
+        </label>
+        <label className="field-label">
+          File
+          <input ref={esgFileRef} type="file" accept=".csv,.xlsx" onChange={(e) => setEsgFile(e.target.files?.[0] ?? null)} required />
+        </label>
+        <label className="field-label">
+          Provider
+          <input value={esgProvider} onChange={(e) => setEsgProvider(e.target.value)} />
+        </label>
+        <button type="submit" disabled={esgBusy || !esgFile || !esgMonth}>{esgBusy ? "Uploading…" : "Upload"}</button>
+      </form>
+      {esgNotice && <p role="status">{esgNotice}</p>}
+      {esgError && (
+        <div className="error-text" role="alert">
+          <p>{esgError.message}</p>
+          {esgError.errors.length > 0 && (
+            <ul>{esgError.errors.map((x, i) => <li key={i}>{rowErrorText(x)}</li>)}</ul>
           )}
         </div>
       )}

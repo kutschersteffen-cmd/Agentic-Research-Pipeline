@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ageLabel, needsOverrideReason, parseIntakeError, rowErrorText } from "../src/lib/holdings.ts";
+import { ageLabel, needsOverrideReason, parseIntakeError, previousMonth, rowErrorText } from "../src/lib/holdings.ts";
 
 test("ageLabel", () => {
   assert.equal(ageLabel(null), "No data");
@@ -26,4 +26,9 @@ test("needsOverrideReason", () => {
   assert.equal(needsOverrideReason(new Error('409: {"message":"this month already has API data; an override needs a reason","errors":[]}')), true);
   assert.equal(needsOverrideReason(new Error("409: another write took this revision first; retry")), false);
   assert.equal(needsOverrideReason(new Error("422: override")), false);
+});
+
+test("previousMonth", () => {
+  assert.equal(previousMonth(new Date(2026, 9, 5)), "2026-09");
+  assert.equal(previousMonth(new Date(2026, 0, 31)), "2025-12");
 });

@@ -18,6 +18,9 @@ from arp.storage.engagement_store import EngagementStore  # noqa: E402
 SAMPLE = json.loads(SAMPLE_PATH.read_text())
 
 
+pytestmark = pytest.mark.usefixtures("sample_house_universe")
+
+
 @pytest.fixture
 def stream(tmp_path):
     streams = StreamStore(tmp_path)

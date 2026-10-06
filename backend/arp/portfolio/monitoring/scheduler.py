@@ -1,12 +1,19 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import logging
+from datetime import UTC, datetime, timedelta
 
 from arp.config import Settings
 from arp.orchestration.interval_scheduler import IntervalScheduler
+from arp.portfolio.climate.esg_api_source import pull_esg
+from arp.portfolio.loads import latest_load
 from arp.portfolio.monitoring.evaluator import evaluate_news_triggers, evaluate_threshold_rules
+from arp.portfolio.monthly_run import run_month
 from arp.schemas.portfolio_monitoring import PortfolioMonitoringScheduleConfig
+from arp.stewardship.trigger_store import TriggerStore
 from arp.storage.portfolio_store import PortfolioStore
+
+logger = logging.getLogger(__name__)
 
 
 class PortfolioMonitoringScheduler(IntervalScheduler):
@@ -32,3 +39,23 @@ class PortfolioMonitoringScheduler(IntervalScheduler):
         evaluate_threshold_rules(self.store)
         evaluate_news_triggers(self.store, min_severity=config.news_min_severity)
         config.last_run_at = datetime.now(UTC).isoformat()
+        previous = (datetime.now(UTC).date().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+        if not (self.settings.esg_api_base_url and self.settings.esg_api_token):
+            logger.info("ESG pull skipped: ESG API not configured")
+        elif getattr(latest_load(self.store, "esg", "default", previous), "status", None) == "ok":
+            pass  # already loaded: a failed re-pull would record a failed load and block the month
+        else:
+            try:
+                pull_esg(self.store, self.settings, previous)
+            except Exception:
+                logger.exception("Scheduled ESG pull for %s failed", previous)
+        ids = [p.portfolio_id for p in self.store.list_portfolios()]
+        ran_at = TriggerStore(self.settings.stewardship_streams_dir).last_run_at(previous)
+        loads = [latest_load(self.store, "holdings", p, previous) for p in ids] + [latest_load(self.store, "esg", "default", previous)]
+        if ran_at and all(load is None or load.at <= ran_at for load in loads):
+            return  # the month already ran on these loads: re-running would only append another trigger snapshot
+        try:
+            result = run_month(self.store, self.settings, previous, portfolio_ids=ids)
+            logger.info("Monthly run %s: %s %s", previous, result.status, result.blocked_reasons)
+        except Exception:
+            logger.exception("Scheduled monthly run failed")

@@ -1,0 +1,14 @@
+{
+  "slug": "arp-alerts-triggers",
+  "title": "Alerts and triggers",
+  "goal": "Portfolio alerts and stewardship or risk triggers per monthly run: how many, in which status and for which issuer.",
+  "charts": [
+    {"title": "Alerts by status", "viz_type": "echarts_timeseries_bar", "dataset": "alerts", "metrics": ["Alerts"], "groupby": ["month", "status"]},
+    {"title": "Alerts by company", "viz_type": "table", "dataset": "alerts", "metrics": ["Alerts"], "groupby": ["month", "company_id"]},
+    {"title": "Triggers by status", "viz_type": "echarts_timeseries_bar", "dataset": "triggers", "metrics": ["Triggers"], "groupby": ["month", "status"]},
+    {"title": "Triggers by issuer", "viz_type": "table", "dataset": "triggers", "metrics": ["Triggers"], "groupby": ["month", "issuer_id"]}
+  ],
+  "native_filters": [
+    {"name": "Month", "dataset": "alerts", "column": "month"}
+  ]
+}

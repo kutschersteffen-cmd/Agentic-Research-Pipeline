@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -17,6 +18,8 @@ from arp.schemas.portfolio_monitoring import Alert, AlertCategory, AlertStatus
 from arp.stewardship import monitoring
 from arp.stewardship.process import load_sample
 from arp.storage.portfolio_store import PortfolioStore
+
+pytestmark = pytest.mark.usefixtures("sample_house_universe")
 
 
 def test_held_companies_become_a_universe(tmp_path):

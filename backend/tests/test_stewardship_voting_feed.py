@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
 from arp.api.review_endpoints import submit_review
 from arp.schemas.common import RunManifest
 from arp.schemas.voting import CompanyBallot, PolicyRecommendation, Proposal, ProposalType, VotePosition, VoteRecord
@@ -15,6 +17,8 @@ from arp.stewardship.voting_feed import issuer_fields, items
 from arp.storage.run_store import RunStore
 from arp.voting.ballot_casting import ManualInstructionBallotPlatform
 from arp.voting.pipeline import cast_approved_votes
+
+pytestmark = pytest.mark.usefixtures("sample_house_universe")
 
 
 def _vote(n: str, policy: VotePosition) -> VoteRecord:

@@ -24,6 +24,9 @@ from tests.conftest import PRINCIPAL
 SAMPLE = json.loads(SAMPLE_PATH.read_text())
 
 
+pytestmark = pytest.mark.usefixtures("sample_house_universe")
+
+
 def _one(fields: dict, holding: dict | None = None) -> dict:
     return {
         "issuers": [{"issuer_id": "X", "name": "X", "region": "EU", "sector": "S", "fields": fields, "holding": holding or {}}]
@@ -84,4 +87,24 @@ def test_open_engagement_from_a_trigger_uses_the_rule_and_only_once(tmp_path):
         open_engagement_from_trigger(
             OpenFromTriggerRequest(issuer_id="SYN01", rule="clti_laggard"), streams, engagements, PRINCIPAL
         )
+    assert unknown.value.status_code == 404
+
+
+def test_a_stored_trigger_no_longer_raised_can_still_open_an_engagement(tmp_path):
+    from arp.stewardship.trigger_store import TriggerStore
+
+    streams, engagements = StreamStore(tmp_path / "s"), EngagementStore(tmp_path / "e")
+    stored = {"issuer_id": "GONE", "company": "Gone Co", "sector": "Utilities", "type": "score_change",
+              "theme": "climate_transition", "severity": "medium", "rule": "clti_laggard", "reason": "CLTI 20",
+              "engagement_id": None}
+    TriggerStore(streams.root).record_run("2026-09", [stored])
+    body = OpenFromTriggerRequest(issuer_id="GONE", rule="clti_laggard")
+    opened = open_engagement_from_trigger(body, streams, engagements, PRINCIPAL)
+    [issue] = engagements.get("GONE").issues
+    assert (issue.theme, issue.severity.value, opened["issue_id"]) == ("climate_transition", "medium", issue.issue_id)
+    with pytest.raises(HTTPException) as again:
+        open_engagement_from_trigger(body, streams, engagements, PRINCIPAL)
+    assert again.value.status_code == 409
+    with pytest.raises(HTTPException) as unknown:
+        open_engagement_from_trigger(OpenFromTriggerRequest(issuer_id="GONE", rule="other"), streams, engagements, PRINCIPAL)
     assert unknown.value.status_code == 404

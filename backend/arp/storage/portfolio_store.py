@@ -295,9 +295,7 @@ class PortfolioStore:
 
     def list_observation_keys(self) -> list[tuple[str, str]]:
         """Every (company_id, field_id) pair with at least one recorded
-        observation -- a pure directory listing, no resolution logic (see
-        `datapoint_mapping.list_conflicting_observations` for the cascade-
-        aware conflict scan built on top of this)."""
+        observation -- a pure directory listing, no resolution logic."""
         datapoints_dir = self.portfolios_dir / "datapoints"
         if not datapoints_dir.exists():
             return []
@@ -400,7 +398,7 @@ class PortfolioStore:
             return []
         return sorted(p.name for p in d.iterdir() if p.is_dir())
 
-    # --- governance & workflow (arp/portfolio/governance.py) ---
+    # --- event log (arp/portfolio/resolution_review.py) ---
 
     def governance_events_path(self) -> Path:
         """One unified append-only log for every governance event type
@@ -416,6 +414,11 @@ class PortfolioStore:
 
     def list_governance_events(self) -> list[dict]:
         return self._read_jsonl(self.governance_events_path())
+
+    # --- Superset datasets (arp/bi/published.py) ---
+
+    def publish_rows(self, dataset: str, month: str, rows: list[dict]) -> None:
+        pass  # ponytail: Superset needs Postgres
 
 
 def portfolio_directories(store: PortfolioStore) -> tuple[dict[str, SecurityRef], dict[str, CompanyRef]]:

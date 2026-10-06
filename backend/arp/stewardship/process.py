@@ -62,15 +62,15 @@ def portfolio_alerts() -> list:
 
 
 def house_universe() -> dict:
-    """The issuers the house program covers: the synthetic sample, or the companies
-    held in the house portfolios, as the house setting says (see universe.py)."""
+    """The issuers the house program covers: the companies held in the house portfolios (default), or
+    the synthetic sample, as the house setting says (see universe.py)."""
     from arp.config import get_settings
     from arp.storage.portfolio_store_factory import build_portfolio_store
 
     settings = get_settings()
-    if HouseUniverseSetting(settings.stewardship_streams_dir).get()["source"] == "portfolio":
-        return from_portfolio(build_portfolio_store(settings))
-    return json.loads(SAMPLE_PATH.read_text())
+    if HouseUniverseSetting(settings.stewardship_streams_dir).get()["source"] == "sample":
+        return json.loads(SAMPLE_PATH.read_text())
+    return from_portfolio(build_portfolio_store(settings))
 
 
 def load_sample(

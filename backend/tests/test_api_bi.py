@@ -14,6 +14,8 @@ from arp.api.routers import bi as bi_router
 from arp.bi.planner import PlannerRefusal
 from arp.bi.superset_client import SupersetError
 from arp.config import Settings
+from arp.schemas.common import CompanyRef
+from arp.storage.portfolio_store import PortfolioStore
 from tests.conftest import PRINCIPAL
 from tests.test_bi_service import PLAN, FakeClient, FakeLLM
 
@@ -32,8 +34,10 @@ class DownClient(FakeClient):
         raise SupersetError(500, SECRET_BODY)
 
 
-def _app(llm, superset) -> TestClient:
+def _app(llm, superset, portfolio_store=None) -> TestClient:
     app = FastAPI()
+    if portfolio_store is not None:
+        app.dependency_overrides[deps.get_portfolio_store] = lambda: portfolio_store
     app.include_router(bi_router.router)
     app.dependency_overrides[get_llm_client] = lambda: llm
     app.dependency_overrides[get_superset_client] = lambda: superset
@@ -124,6 +128,23 @@ def test_embed_token_404_for_unknown_dashboard():
     r = _app(FakeLLM(), fake).post("/api/bi/embed-token", json={"dashboard_id": "7"})
     assert r.status_code == 404 and "message" not in r.text  # Superset's body is not echoed
     assert fake.writes() == []
+
+
+def test_embed_token_rejects_a_company_not_in_the_store(tmp_path):
+    fake = _with_dashboard("arp-company-profile")
+    body = {"dashboard_id": "7", "company_id": "NOPE"}
+    r = _app(FakeLLM(), fake, PortfolioStore(tmp_path)).post("/api/bi/embed-token", json=body)
+    assert r.status_code == 404
+    assert not any(c[0] in ("guest_token", "ensure_embedded") for c in fake.calls)
+
+
+def test_embed_token_scopes_a_known_company(tmp_path):
+    store = PortfolioStore(tmp_path)
+    store.save_company(CompanyRef(company_id="O'Neil", name="O'Neil plc"))
+    fake = _with_dashboard("arp-company-profile")
+    r = _app(FakeLLM(), fake, store).post("/api/bi/embed-token", json={"dashboard_id": "7", "company_id": "O'Neil"})
+    assert r.status_code == 200
+    assert {x["clause"] for x in fake.calls[-1][2]} == {"company_id = 'O''Neil'"}
 
 
 @pytest.mark.parametrize("body", [{}, {"dashboard_id": ""}, {"dashboard_id": "  "}])
