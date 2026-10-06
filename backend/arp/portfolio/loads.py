@@ -10,7 +10,7 @@ from arp.schemas.common import now_iso
 
 
 class LoadRecord(BaseModel):
-    kind: Literal["holdings", "esg", "security_master"]
+    kind: Literal["holdings", "esg", "security_master", "news"]
     source_id: str
     month: str
     status: Literal["ok", "failed"]

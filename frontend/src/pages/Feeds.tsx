@@ -24,16 +24,27 @@ export function Feeds() {
   const [error, setError] = useState<string | null>(null);
   const [pulling, setPulling] = useState<string | null>(null);
 
-  const load = () => api.listFeeds().then((r) => { setRows(r.feeds); setError(null); }, (e: Error) => setError(e.message));
+  const load = () => api.listFeeds().then((r) => setRows(r.feeds), (e: Error) => setError(e.message));
   useEffect(() => {
     void load();
   }, []);
 
+  const key = (r: FeedRow) => `${r.feed}/${r.source_id}`;
+
   async function pull(r: FeedRow) {
-    setPulling(r.source_id);
+    setPulling(key(r));
+    setError(null);
     try {
-      const res = await api.pullHolder(r.feed === "index" ? "index" : "portfolio", r.source_id);
-      announce(`${r.source_id}: ${res.status === "unchanged" ? "no change" : `revision ${res.revision} written`}`);
+      if (r.feed === "news") {
+        const res = await api.pullNews();
+        announce(`News: ${res.added} new articles${res.unmatched ? `, ${res.unmatched} not matched to an issuer` : ""}`);
+      } else if (r.feed === "esg") {
+        const res = await api.pullEsg(r.source_id);
+        announce(`ESG ${r.source_id}: ${res.status === "unchanged" ? "no change" : `${res.rows} rows written`}`);
+      } else {
+        const res = await api.pullHolder(r.feed === "index" ? "index" : "portfolio", r.source_id);
+        announce(`${r.source_id}: ${res.status === "unchanged" ? "no change" : `revision ${res.revision} written`}`);
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -81,12 +92,12 @@ export function Feeds() {
                   {r.detail && <span className="muted"> {r.detail}</span>}
                 </td>
                 <td>
-                  {(r.feed === "holdings" || r.feed === "index") && r.channel === "api" && (
+                  {(r.feed === "news" || r.feed === "esg" || ((r.feed === "holdings" || r.feed === "index") && r.channel === "api")) && (
                     <button className="secondary" onClick={() => void pull(r)} disabled={pulling !== null}>
-                      {pulling === r.source_id ? "Pulling…" : "Pull now"}
+                      {pulling === key(r) ? "Pulling…" : "Pull now"}
                     </button>
                   )}{" "}
-                  {LOAD_HREF[r.feed] ? <a href={LOAD_HREF[r.feed]}>Load →</a> : <span className="muted">API not connected yet</span>}
+                  {LOAD_HREF[r.feed] && <a href={LOAD_HREF[r.feed]}>Load →</a>}
                 </td>
               </tr>
             ))}

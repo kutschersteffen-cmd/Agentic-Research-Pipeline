@@ -208,6 +208,12 @@ no dataset bi.alerts"). The published datasets fill only when a monthly run (`ar
 YYYY-MM`) succeeds, and a month runs only with an ok holdings load for every portfolio and an ok ESG load for that month
 (upload it, or `arp portfolio esg-pull --month YYYY-MM`). Holdings Intake shows what a month is still missing.
 
+News comes from the news API: set `ARP_NEWS_API_URL` and `ARP_NEWS_API_TOKEN`, then pull from Data Hub · Feeds
+("Pull now") or on a schedule with `arp portfolio news-pull`. Each article is tied to an issuer through the security
+master only (ISIN or LEI, exact match); the vendor's response format is assumed until it is known (see
+`backend/arp/portfolio/news/api_source.py`). ESG can be pulled the same way from Feeds once `ARP_ESG_API_URL` and
+`ARP_ESG_API_TOKEN` are set.
+
 Set `VITE_SUPERSET_URL` in `frontend/.env`, then open Risk Monitoring, Dashboards (Superset). This one tab replaces
 Pivot Explorer, Generative BI and Superset BI (old links land on it), and it is the default Risk Monitoring tab. The
 in-app Standard Analytics tab is gone; Monitoring & Alerts, Company Profiles and Ask the Portfolio are unchanged. The picker lists every Superset dashboard whose slug

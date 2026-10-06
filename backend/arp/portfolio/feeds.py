@@ -51,9 +51,9 @@ def overview(store, idmap: IdentifierMapStore, today: date) -> list[dict]:
             })
     news = store.list_news()
     latest = max((n.published_at for n in news), default=None)
-    # ponytail: news has no live source yet (mock only); this row reads what is stored. Add load records with the API source.
     rows.append({
         "feed": "news", "source_id": "default", "channel": "api", "as_of": latest[:10] if latest else None,
-        "last_load": None, "stale": latest is None, "detail": f"{len(news)} items stored" if news else "no news stored",
+        "last_load": loads.get(("news", "default")), "stale": latest is None,
+        "detail": f"{len(news)} items stored" if news else "no news stored",
     })
     return [{**r, "last_load": r["last_load"].model_dump() if r["last_load"] else None} for r in rows]

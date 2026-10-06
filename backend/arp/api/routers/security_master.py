@@ -6,6 +6,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import date
 
+import httpx
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from starlette.concurrency import run_in_threadpool
 
@@ -13,7 +14,10 @@ from arp.api.auth import Principal, require_role
 from arp.api.deps import get_portfolio_store, get_run_store, settings_dep
 from arp.config import Settings
 from arp.holdings import security_master
+from arp.holdings.intake import IntakeError, previous_month_end
 from arp.portfolio import feeds, issues
+from arp.portfolio.climate.esg_api_source import pull_esg
+from arp.portfolio.news.api_source import pull_news
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
 
@@ -35,6 +39,41 @@ def get_status(store=Depends(get_portfolio_store), idmap: IdentifierMapStore = D
 def get_feeds(store=Depends(get_portfolio_store), idmap: IdentifierMapStore = Depends(_idmap)) -> dict:
     """Every input feed with its last load and whether it is behind (Data Hub · Feeds)."""
     return {"feeds": feeds.overview(store, idmap, date.today())}
+
+
+@feeds_router.post("/news/pull")
+def post_news_pull(
+    since: str | None = None, settings: Settings = Depends(settings_dep), store=Depends(get_portfolio_store),
+    idmap: IdentifierMapStore = Depends(_idmap),
+) -> dict:
+    """Pulls new articles from the news API; each is tied to an issuer through the security master only."""
+    if not settings.news_api_url or not settings.news_api_token:
+        raise HTTPException(503, "news API is not configured (ARP_NEWS_API_URL, ARP_NEWS_API_TOKEN)")
+    try:
+        return pull_news(store, settings, idmap, since=since)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"news pull failed: {type(e).__name__}") from None
+    except ValueError as e:  # an unexpected response shape
+        raise HTTPException(502, str(e)) from None
+
+
+@feeds_router.post("/esg/pull")
+def post_esg_pull(
+    month: str | None = None, provider: str = "default", settings: Settings = Depends(settings_dep),
+    store=Depends(get_portfolio_store),
+) -> dict:
+    """Pulls a month's ESG file (default: last month) through the same intake as an upload."""
+    if not settings.esg_api_base_url or not settings.esg_api_token:
+        raise HTTPException(503, "ESG API is not configured (ARP_ESG_API_URL, ARP_ESG_API_TOKEN)")
+    try:
+        result = pull_esg(store, settings, month or previous_month_end(date.today())[:7], provider)
+    except IntakeError as e:
+        raise HTTPException(e.status, {"message": e.message, "errors": [asdict(x) for x in e.errors[:200]]}) from None
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"ESG pull failed: {type(e).__name__}") from None
+    except ValueError as e:
+        raise HTTPException(422, {"message": str(e), "errors": []}) from None
+    return asdict(result)
 
 
 @router.get("/unmatched")

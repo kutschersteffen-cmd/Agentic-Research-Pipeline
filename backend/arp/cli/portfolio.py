@@ -15,9 +15,11 @@ from arp.portfolio.constituent_import import import_constituent_files
 from arp.portfolio.mock_data import generate_demo_dataset
 from arp.portfolio.monitoring import evaluator as monitoring_evaluator
 from arp.portfolio.monthly_run import run_month
+from arp.portfolio.news.api_source import pull_news
 from arp.portfolio.news.classifier import classify_article
 from arp.schemas.portfolio import AggregationResult, AnalyticSpec, PivotSpec
 from arp.schemas.portfolio_monitoring import AlertRule, AlertStatus, AlertTransition
+from arp.storage.identifier_map import IdentifierMapStore
 
 portfolio_app = typer.Typer(help="Portfolio holdings aggregation, analytics, and NL Q&A.")
 
@@ -253,6 +255,18 @@ def portfolio_esg_pull(month: str = typer.Option(..., help="YYYY-MM"), provider:
         typer.echo(f"ESG pull failed: {type(exc).__name__}: {exc}", err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"{result.status}: {result.rows} row(s)")
+
+
+@portfolio_app.command("news-pull")
+def portfolio_news_pull(since: str = typer.Option(None, help="YYYY-MM-DD; default: the newest stored article's date")) -> None:
+    """Pulls new articles from the news API, tied to issuers through the security master only. Run it from a scheduler."""
+    settings = get_settings()
+    try:
+        result = pull_news(_portfolio_store(), settings, IdentifierMapStore(settings.identifier_map_path), since=since)
+    except Exception as exc:  # unconfigured, fetch failure or an unexpected response: all exit 1
+        typer.echo(f"News pull failed: {type(exc).__name__}: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"{result['added']} new article(s), {result['unmatched']} not matched to an issuer")
 
 
 @portfolio_app.command("monitoring-alerts-list")

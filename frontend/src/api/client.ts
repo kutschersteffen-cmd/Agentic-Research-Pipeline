@@ -236,6 +236,9 @@ export const api = {
   pullHolder: (kind: string, holderId: string) =>
     request<IntakeResult>(`/api/holdings/holders/${kind}/${encodeURIComponent(holderId)}/pull`, { method: "POST" }),
   listIssues: () => request<{ issues: DataIssue[] }>("/api/issues"),
+  pullNews: () => request<{ added: number; unmatched: number; received: number }>("/api/feeds/news/pull", { method: "POST" }),
+  pullEsg: (provider: string) =>
+    request<{ status: "written" | "unchanged"; rows: number }>(`/api/feeds/esg/pull${buildQuery({ provider })}`, { method: "POST" }),
   listFeeds: () => request<{ feeds: FeedRow[] }>("/api/feeds"),
   securityMasterStatus: () => request<SecurityMasterStatus>("/api/security-master"),
   unmatchedSecurities: () => request<{ rows: UnmatchedSecurity[] }>("/api/security-master/unmatched"),
