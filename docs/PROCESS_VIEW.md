@@ -60,7 +60,10 @@ Holdings are mapped as they load, so reload them after a master change.
 **Data Hub · Feeds** (`#/feeds`, `GET /api/feeds`) lists every input feed (security master, portfolio holdings,
 index constituents, ESG data, news) with its data date, last load and whether it is behind: its latest good load
 is older than last month end, or nothing is loaded. It only reads the existing load records; loading stays on
-Holdings Intake and the Security Master screen. News has no live source yet, so its row reads what is stored.
+Holdings Intake and the Security Master screen. "Pull now" fetches from the API for API-fed holders, ESG and news
+(`POST /api/feeds/esg/pull`, `POST /api/feeds/news/pull`). News articles are tied to issuers through the security
+master only (ISIN or LEI); an article it cannot match is stored without a company. The news and ESG vendors' formats
+are assumed until known.
 
 **Data Hub · Issues** (`#/issues`, `GET /api/issues`) is every open data problem in one list, blocking first:
 feeds behind or whose last load failed, held securities the security master does not map, and failing checks
