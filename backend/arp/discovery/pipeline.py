@@ -7,14 +7,15 @@ from arp.discovery.change_detector import ChangeDetector, poll_esef_filings
 from arp.discovery.crawler import CrawlConfig, HomepageUnreachableError, crawl_for_documents
 from arp.discovery.downloader import download_documents
 from arp.discovery.refresh import refresh_hook
-from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient, resolve_company_homepage
+from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient, homepage_from_cik, resolve_company_homepage
+from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.esef import EsefDocumentSource
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.orchestration.batch_runner import run_batch
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import hold_run
 from arp.schemas.common import CompanyRef, DocType
-from arp.schemas.discovery import DiscoveryCompanyResult, DiscoveryRunParams
+from arp.schemas.discovery import DiscoveredDocument, DiscoveryCompanyResult, DiscoveryRunParams
 from arp.storage.document_blob_store import blob_store_for
 from arp.storage.run_store import RunStore
 
@@ -28,12 +29,14 @@ async def _discover_for_company(
     search_client: WebSearchClient,
     change_detector: ChangeDetector,
     doc_types: list[DocType] | None,
+    edgar: EdgarDocumentSource | None = None,
 ) -> DiscoveryCompanyResult:
-    homepage = company.website
+    filings = await _edgar_filings(company, edgar, doc_types) if edgar and company.cik else []
+    homepage = company.website or await homepage_from_cik(settings.discovery_user_agent, company.cik)
     if not homepage:
         homepage = await resolve_company_homepage(company.name, search_client)
     if not homepage:
-        return DiscoveryCompanyResult(company_id=company.company_id, name=company.name, homepage_used=None)
+        return DiscoveryCompanyResult(company_id=company.company_id, name=company.name, homepage_used=None, documents_found=filings)
 
     crawl_config = CrawlConfig(
         user_agent=settings.discovery_user_agent,
@@ -44,7 +47,7 @@ async def _discover_for_company(
     try:
         candidates = await crawl_for_documents(homepage, crawl_config)
     except HomepageUnreachableError as exc:
-        return DiscoveryCompanyResult(company_id=company.company_id, name=company.name, homepage_used=homepage, homepage_unreachable=True, crawl_error=str(exc))
+        return DiscoveryCompanyResult(company_id=company.company_id, name=company.name, homepage_used=homepage, homepage_unreachable=True, crawl_error=str(exc), documents_found=filings)
     if doc_types:
         candidates = [c for c in candidates if c.doc_type in doc_types]
 
@@ -58,9 +61,20 @@ async def _discover_for_company(
         company_id=company.company_id,
         name=company.name,
         homepage_used=homepage,
-        documents_found=downloaded,
+        documents_found=filings + downloaded,
         new_events=events,
     )
+
+
+async def _edgar_filings(company: CompanyRef, edgar: EdgarDocumentSource, doc_types: list[DocType] | None) -> list[DiscoveredDocument]:
+    """The company's latest SEC filings, fetched and registered like any ingested document.
+    Best-effort: an EDGAR outage leaves the homepage crawl to find what it can."""
+    try:
+        docs = await edgar.fetch(company, doc_types)
+    except Exception as exc:  # noqa: BLE001 -- a failed EDGAR call must not fail the company
+        logger.warning("EDGAR fetch failed for %s: %s", company.company_id, exc)
+        return []
+    return [DiscoveredDocument(company_id=company.company_id, doc_type=d.doc_type, url=d.source_url or "", sha256=d.sha256) for d in docs]
 
 
 def create_discovery_run(
@@ -83,6 +97,7 @@ async def execute_discovery_run(
     doc_types: list[DocType] | None = None,
     search_client: WebSearchClient | None = None,
     esef_source: EsefDocumentSource | None = None,
+    edgar_source: EdgarDocumentSource | None = None,
 ) -> str:
     """Runs the document discovery pipeline over a company universe against
     an already-created run (see create_discovery_run).
@@ -102,6 +117,13 @@ async def execute_discovery_run(
         webhook_url=settings.discovery_webhook_url,
         on_events=refresh_hook(settings, run_store),
     )
+    if edgar_source is None:
+        from arp.retrieval.content_store_factory import content_store_for
+
+        edgar_source = EdgarDocumentSource(
+            settings.edgar_user_agent, settings.cache_dir, content_store=content_store_for(settings),
+            submissions_ttl_hours=settings.edgar_submissions_ttl_hours, indexing_config=IndexingConfig.from_settings(settings),
+        )
     if settings.esef_enabled:
         esef_source = esef_source or EsefDocumentSource(settings.esef_index_url, settings.cache_dir)
     else:
@@ -109,7 +131,8 @@ async def execute_discovery_run(
 
     async def _worker(company: CompanyRef) -> DiscoveryCompanyResult:
         result = await _discover_for_company(
-            company, settings=settings, search_client=search_client, change_detector=change_detector, doc_types=doc_types
+            company, settings=settings, search_client=search_client, change_detector=change_detector, doc_types=doc_types,
+            edgar=edgar_source,
         )
         if esef_source is not None:
             events = await poll_esef_filings(company, esef_source, change_detector, doc_types)
@@ -120,7 +143,7 @@ async def execute_discovery_run(
         job_manager.record_progress(
             run_id,
             completed_delta=1,
-            review_delta=1 if (not result.homepage_used or result.homepage_unreachable) else 0,
+            review_delta=0 if result.documents_found else 1,
         )
 
     def _on_error(company: CompanyRef, exc: Exception) -> None:

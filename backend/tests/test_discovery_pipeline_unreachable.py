@@ -90,3 +90,28 @@ async def test_execute_discovery_run_flags_unreachable_homepage_for_review(tmp_p
     rows = run_store.read_jsonl(run_store.results_path(run_id))
     assert len(rows) == 1
     assert rows[0]["homepage_unreachable"] is True
+
+
+async def test_discover_for_company_fetches_edgar_filings_by_cik(tmp_path, monkeypatch):
+    """A resolved CIK finds the SEC filings even when no homepage can be found (Apple, no website)."""
+    from arp.schemas.common import DocType, SourceDocument
+
+    class _FakeEdgar:
+        async def fetch(self, company, doc_types=None):
+            return [SourceDocument(company_id=company.company_id, doc_type=DocType.ANNUAL_REPORT_10K, title="10-K",
+                                   source_url="https://www.sec.gov/x.htm", full_text="annual report")]
+
+    async def _no_homepage(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(pipeline_module, "homepage_from_cik", _no_homepage)
+    settings = Settings(documents_dir=tmp_path / "documents", discovery_state_dir=tmp_path / "state")
+    change_detector = ChangeDetector(state_dir=settings.discovery_state_dir, global_events_path=settings.documents_dir / "_events.jsonl")
+
+    result = await _discover_for_company(
+        CompanyRef(company_id="apple", name="Apple", cik="320193"),
+        settings=settings, search_client=_NullSearchClient(), change_detector=change_detector, doc_types=None, edgar=_FakeEdgar(),
+    )
+
+    assert result.homepage_used is None
+    assert [d.url for d in result.documents_found] == ["https://www.sec.gov/x.htm"]

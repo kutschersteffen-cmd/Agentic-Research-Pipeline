@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from dataclasses import dataclass, field
 from urllib.parse import urljoin, urlparse
 from urllib.robotparser import RobotFileParser
@@ -77,10 +78,18 @@ class _RobotsCache:
         return self.parsers[origin].can_fetch(user_agent, url)
 
 
+def _mentions(haystack: str, kw: str) -> bool:
+    """Form codes with digits ("10k", "def 14a") must stand alone: "10k" inside an
+    id like "umc.cmc.10k6tes..." is not a 10-K. Plain words match anywhere."""
+    if not any(ch.isdigit() for ch in kw):
+        return kw in haystack
+    return re.search(rf"(?<![a-z0-9]){re.escape(kw)}(?![a-z0-9])", haystack) is not None
+
+
 def classify_link(url: str, link_text: str) -> DocType | None:
     haystack = f"{link_text} {url}".lower()
     for doc_type, keywords in _DOC_TYPE_PATTERNS:
-        if any(kw in haystack for kw in keywords):
+        if any(_mentions(haystack, kw) for kw in keywords):
             return doc_type
     if url.lower().endswith(_DOCUMENT_EXTENSIONS):
         return DocType.OTHER

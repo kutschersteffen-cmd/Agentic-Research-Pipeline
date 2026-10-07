@@ -25,3 +25,12 @@ def test_same_site_subdomain_matches():
 
 def test_same_site_different_domain_rejected():
     assert not _same_site("https://notacme.com/x", "acme.com")
+
+
+def test_classify_link_form_code_must_stand_alone():
+    from arp.discovery.crawler import classify_link
+    from arp.schemas.common import DocType
+
+    assert classify_link("https://tv.apple.com/us/show/maximum-pleasure-guaranteed/umc.cmc.10k6tes7rmc2ti0ho1ozgwezc", "Maximum Pleasure Guaranteed") is None
+    assert classify_link("https://acme.com/ir/acme-10k-2025.pdf", "Download") == DocType.ANNUAL_REPORT_10K
+    assert classify_link("https://acme.com/sustainability2025.pdf", "Download") == DocType.SUSTAINABILITY_REPORT
