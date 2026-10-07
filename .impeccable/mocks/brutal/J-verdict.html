@@ -1,0 +1,21 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Verdict</title><link href="https://fonts.googleapis.com/css2?family=Geist:wght@600;800;900&family=Geist+Mono:wght@500;700&display=swap" rel=stylesheet>
+<style>
+*{box-sizing:border-box;margin:0;border-radius:0}
+body{height:100vh;display:grid;grid-template-rows:auto 1fr;background:#000;color:#fff;font:600 15px/1.2 Geist,Helvetica,Arial,sans-serif;overflow:hidden}
+header{display:flex;justify-content:space-between;padding:12px 20px;font:700 13px "Geist Mono",monospace;text-transform:uppercase;border-bottom:6px solid #fff}
+.claim{display:grid;grid-template-rows:1fr auto;min-height:0}
+.q{padding:4vw 4vw 0;display:flex;flex-direction:column;justify-content:center;gap:2vw}
+.q small{font:700 13px "Geist Mono";color:#c6ff3d;text-transform:uppercase}
+.q h1{font:900 clamp(2.6rem,9vw,10rem)/.86 Geist;letter-spacing:-.06em}
+.q h1 mark{background:#c6ff3d;color:#000;padding:0 .08em}
+.q p{font:500 14px/1.4 "Geist Mono";max-width:60ch;color:#bbb}.q p mark{background:#c6ff3d;color:#000}
+.act{display:grid;grid-template-columns:1fr 1fr;border-top:6px solid #fff;height:22vh;min-height:110px}
+.act button{all:unset;cursor:pointer;display:flex;align-items:flex-end;justify-content:space-between;padding:16px 20px;font:900 clamp(2.4rem,8vw,8rem)/.8 Geist;letter-spacing:-.07em;text-transform:uppercase}
+.act kbd{font:700 13px "Geist Mono";letter-spacing:0}
+.no{background:#000;color:#ff4d4d;border-right:6px solid #fff}.no:hover{background:#ff4d4d;color:#000}
+.yes{background:#c6ff3d;color:#000}.yes:hover{background:#fff}
+@media(max-width:700px){.act{grid-template-columns:1fr;height:36vh}.no{border-right:0;border-bottom:6px solid #fff}}
+</style>
+<header><span>ARP / review queue</span><span>claim 4 / 4,000</span><span>one at a time</span></header>
+<div class=claim><div class=q><small>Calder Fund · revenue FY25 · grounded ✓ p.41</small><h1>Revenue was <mark>$14.9M</mark>.</h1><p>"…total revenue for the year ended 31 December 2025 was <mark>$14.9 million</mark>, up 12% on the prior year…" — Annual Report 2025, p.41</p></div>
+<div class=act><button class=no>Reject <kbd>[r]</kbd></button><button class=yes>Ratify <kbd>[a]</kbd></button></div></div>
