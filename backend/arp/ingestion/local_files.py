@@ -52,20 +52,53 @@ def parser_version() -> str:
     return "|".join(parts)
 
 
-@functools.lru_cache(maxsize=1)
-def _docling_converter():
-    """One converter, reused for every PDF in the process. Docling's
+@functools.lru_cache(maxsize=2)
+def _docling_converter(ocr: bool = True):
+    """One converter per OCR setting, reused for every document in the process. Docling's
     standard PDF pipeline loads a layout-detection (and, when tables are
     present, TableFormer) model, downloaded from Hugging Face Hub on first
     use anywhere on the machine -- paying that init cost per file instead
-    of once per process would be prohibitive. Docling's pipeline is
-    documented as thread-safe, so sharing this one instance across the
-    to_thread workers in fetch() below is intentional, not just
-    convenient.
+    of once per process would be prohibitive. Only call it through
+    _convert(): concurrent conversions crash the process.
     """
-    from docling.document_converter import DocumentConverter
+    from docling.datamodel.base_models import InputFormat
+    from docling.datamodel.pipeline_options import PdfPipelineOptions
+    from docling.document_converter import DocumentConverter, PdfFormatOption
 
-    return DocumentConverter()
+    options = PdfPipelineOptions(do_ocr=ocr)
+    return DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=options)})
+
+
+def _has_text_layer(path: Path, sample: int = 5, min_chars: int = 50) -> bool:
+    """Most sampled pages carry extractable text, so OCR would only re-read what is already
+    there (and costs most of the parse time). A scanned PDF has next to none."""
+    import pypdfium2
+
+    try:
+        pdf = pypdfium2.PdfDocument(str(path))
+    except pypdfium2.PdfiumError:
+        return False  # unreadable here: docling decides, and reports it invalid as before
+    try:
+        pages = range(min(len(pdf), sample))
+        texty = sum(len(pdf[i].get_textpage().get_text_range().strip()) >= min_chars for i in pages)
+        return len(pages) > 0 and texty * 2 >= len(pages)
+    finally:
+        pdf.close()
+
+
+# Concurrent docling conversions crash the whole process on Windows (access violation in
+# docling_parse's native PDF reader), killing the API server mid-run. One at a time; pdfium
+# (the text-layer check) is not thread-safe either.
+# ponytail: process-wide lock; a parse worker process (or pool) if parse throughput matters
+_DOCLING_LOCK = threading.Lock()
+
+
+def _convert(path: Path):
+    """OCR only for a PDF without a text layer (a scan). Text in images inside an otherwise
+    digital PDF (e.g. a chart's labels) is not read; tables and body text are."""
+    with _DOCLING_LOCK:
+        ocr = path.suffix.lower() == ".pdf" and not _has_text_layer(path)
+        return _docling_converter(ocr).convert(str(path)).document
 
 
 _UNIT_NOTE = re.compile(r"\bin\s+[^()\n,;:]+", re.I)
@@ -160,7 +193,7 @@ def _extract_pdf_text(path: Path) -> tuple[str, list[int], list[TableSpan]]:
     reported invalid and raises, same as before, and is caught by the
     caller as a normal per-file parse error.
     """
-    doc = _docling_converter().convert(str(path)).document
+    doc = _convert(path)
     parts: list[str] = []
     page_breaks: list[int] = []
     cursor = 0
@@ -179,7 +212,7 @@ def _extract_docx_text(path: Path) -> tuple[str, list[TableSpan]]:
     declaratively (no layout model), so this is fast. A .docx has no fixed
     pages, hence no page breaks: citations ground to the text, without a
     page number."""
-    doc = _docling_converter().convert(str(path)).document
+    doc = _convert(path)
     text = doc.export_to_markdown()
     return text, table_spans_from_docling(doc, text)
 

@@ -34,6 +34,10 @@ export function IdentityStage({
   const [results, setResults] = useState<IdentityResolutionResult[]>([]);
   const [counts, setCounts] = useState<{ pending: number; decisions: ReviewDecision[] }>({ pending: 0, decisions: [] });
   const [tile, setTile] = useState<keyof ReviewTileCounts | null>(null);
+  /** Flagged companies still waiting for a decision (null = not loaded), and the decisions made in the table. */
+  const [open, setOpen] = useState<Set<string> | null>(null);
+  const [decided, setDecided] = useState<Record<string, "approve" | "reject">>({});
+  const [deciding, setDeciding] = useState<string | null>(null);
   const finishedRef = useRef<string | null>(null);
   const handedRef = useRef<string | null>(null);
 
@@ -42,15 +46,50 @@ export function IdentityStage({
 
   async function refreshResults() {
     if (!runId) return;
-    const res = (await api.getIdentityResults(runId)) as { results: IdentityResolutionResult[] };
+    const [res, items] = await Promise.all([
+      api.getIdentityResults(runId) as Promise<{ results: IdentityResolutionResult[] }>,
+      api.listReviewItems(runId),
+    ]);
     setResults(res.results);
+    setOpen(new Set(items.items.map((i) => i.item_key)));
   }
+
+  /** Confirm or reject one flagged company straight from the table, as the Review view would. */
+  async function decide(key: string, decision: "approve" | "reject") {
+    if (!runId) return;
+    setDeciding(key);
+    setError(null);
+    try {
+      const ctx = await api.getItemContext(runId, key);
+      await api.decideItem(runId, key, {
+        decision,
+        reason_code: decision === "approve" ? "confirmed" : "wrong_entity",
+        corrected_value: null,
+        correction_citation: null,
+        comment: null,
+        context_etag: ctx.etag,
+      });
+      setDecided((d) => ({ ...d, [key]: decision }));
+      await refreshResults();
+    } catch (err) {
+      setError(`Could not record the decision: ${(err as Error).message}`);
+    } finally {
+      setDeciding(null);
+    }
+  }
+
+  // Once nothing flagged is left undecided, the stage no longer waits for review.
+  useEffect(() => {
+    if (open?.size === 0 && stage.state === "review" && stage.flagged > 0) dispatch({ type: "reviewed", stage: "identify" });
+  }, [open, stage.state, stage.flagged, dispatch]);
 
   async function start() {
     if (!source) return;
     setBusy(true);
     setError(null);
     setResults([]);
+    setOpen(null);
+    setDecided({});
     try {
       const res = await api.startIdentityRun({ universe_path: source.path });
       dispatch({ type: "runStarted", stage: "identify", runId: res.run_id });
@@ -92,6 +131,12 @@ export function IdentityStage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId, watching]);
 
+  // A remount (or a run that ended while elsewhere) still shows its results and review status.
+  useEffect(() => {
+    if (runId && !watching) refreshResults().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runId]);
+
   async function carryOn() {
     if (!runId) return;
     setBusy(true);
@@ -129,9 +174,12 @@ export function IdentityStage({
     <>
       {error && <p className="error-text" role="alert">{error}</p>}
       {stage.note && <p className="status-text">{stage.note}</p>}
+      {canContinue && !!open?.size && (
+        <p className="await-text">{open.size} flagged {open.size === 1 ? "company is" : "companies are"} left out until confirmed.</p>
+      )}
       {canContinue && (
         <div className="toolbar">
-          <button onClick={carryOn} disabled={busy}>Continue &rarr;</button>
+          <button onClick={carryOn} disabled={busy}>{busy ? "Handing over…" : "Continue to Documents →"}</button>
         </div>
       )}
     </>
@@ -148,7 +196,10 @@ export function IdentityStage({
               reviewer={reviewer}
               onOpenSource={onOpenSource}
               filter={tile}
-              onCounts={(pending, decisions) => setCounts({ pending, decisions })}
+              onCounts={(pending, decisions) => {
+                setCounts({ pending, decisions });
+                if (pending === 0) refreshResults().catch(() => {});
+              }}
             />
           </>
         ) : (
@@ -202,12 +253,24 @@ export function IdentityStage({
                       <td>{r.resolved_website ?? "-"}</td>
                       <td>{r.resolved_cik ?? "-"}</td>
                       <td>
-                        {r.flagged_for_review ? (
-                          <span className="await-text" title={r.rationale}>
-                            Needs review
-                          </span>
-                        ) : (
+                        {!r.flagged_for_review ? (
                           "ok"
+                        ) : decided[r.company_id] ? (
+                          decided[r.company_id] === "approve" ? "Confirmed" : "Rejected"
+                        ) : open && !open.has(r.company_id) ? (
+                          "Reviewed"
+                        ) : (
+                          <span className="toolbar">
+                            <span className="await-text" title={r.rationale}>
+                              Needs review
+                            </span>
+                            <button onClick={() => decide(r.company_id, "approve")} disabled={deciding != null}>
+                              {deciding === r.company_id ? "Saving…" : "Confirm"}
+                            </button>
+                            <button className="secondary" onClick={() => decide(r.company_id, "reject")} disabled={deciding != null}>
+                              Reject
+                            </button>
+                          </span>
                         )}
                       </td>
                     </tr>
@@ -217,7 +280,7 @@ export function IdentityStage({
             </div>
           )}
           <p className="muted">
-            Anything flagged for review must be approved (or edited with a corrected website/CIK) in the Review view before it's included in the list carried forward.
+            Confirm or reject flagged companies in the table. To correct a website or CIK instead, use the Review view.
           </p>
         </>
       )}

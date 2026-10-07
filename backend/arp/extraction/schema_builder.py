@@ -3,6 +3,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from arp.llm.base import LLMClient, LLMUsage
+from arp.normalise.units import lookup_unit, split_unit
 from arp.schemas.common import DocType
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
 
@@ -20,10 +21,17 @@ together capture what was asked. For each field:
   or multiple figures (e.g. take the most recently reported fiscal year), \
   and what to do when the figure is not disclosed (report as not found, \
   never estimate or infer).
-- Pick the correct data_type and, for numeric fields, a unit.
+- Pick the correct data_type and, for numeric fields, a unit: a plain unit   code such as "USD", "EUR", "%" or "tCO2e", or null when it varies by   company (e.g. each company's reporting currency). No scale words, no prose.
+- Never tell the extractor to convert, rescale or round a number ("convert   to millions", "$1.2 billion -> 1200"): it copies the number and its unit   exactly as printed, and the app converts afterwards.
 - Suggest 3-8 seed_keywords (including likely synonyms) that would appear \
   near this data point in text, to drive keyword-based evidence retrieval.
 - Suggest which document types are most likely to contain it."""
+
+
+def _readable_unit(unit: str | None) -> str | None:
+    """The drafted unit, or None when the unit normaliser can't read it: free text such as
+    "millions (report in the reporting currency)" would fail every conversion downstream."""
+    return unit if unit and lookup_unit(split_unit(unit)[2]) is not None else None
 
 
 class _FieldDraft(BaseModel):
@@ -55,7 +63,7 @@ async def draft_schema(criteria_text: str, llm: LLMClient) -> tuple[DataPointSch
             name=f.name,
             description=f.description,
             data_type=f.data_type,
-            unit=f.unit,
+            unit=_readable_unit(f.unit),
             extraction_instructions=f.extraction_instructions,
             allowed_values=f.allowed_values,
             seed_keywords=f.seed_keywords,

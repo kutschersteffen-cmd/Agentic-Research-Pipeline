@@ -2,7 +2,8 @@ import type { StageState } from "./stagedFlow";
 import type { DataPointSchema, ExtractionProfile, RunScoringKind, StepSettings } from "../types";
 
 export type BuiltIn = "financials" | "tnfd" | "transition_plan";
-export interface CustomJob { id: string; profile: "custom"; schema: DataPointSchema | null; request: string }
+/** `confirmed: false` = a drafted or edited schema the user has not confirmed yet; it cannot start. */
+export interface CustomJob { id: string; profile: "custom"; schema: DataPointSchema | null; request: string; confirmed?: boolean }
 export interface BuiltInJob { id: BuiltIn; profile: BuiltIn }
 export type Job = BuiltInJob | CustomJob;
 export interface JobSettings { stepSettings: StepSettings; templateId: string | null }
@@ -36,7 +37,7 @@ export function jobLabel(j: Job): string {
   return j.schema ? `Custom: ${j.schema.name}` : "Custom (no schema yet)";
 }
 
-export const jobReady = (j: Job): boolean => j.profile !== "custom" || j.schema != null;
+export const jobReady = (j: Job): boolean => j.profile !== "custom" || (j.schema != null && j.confirmed !== false);
 
 export const jobRunType = (j: Job): RunScoringKind => PROFILE_META[j.profile].runType;
 

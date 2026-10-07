@@ -19,7 +19,7 @@ Extract the value strictly according to the instructions. Rules:
   estimate, infer, or compute a value that is not explicitly stated.
 - Copy unit_text, period_text and basis_text verbatim from the evidence, \
   including a scale word from a table header (e.g. "in thousands").
-- Never convert units or scales yourself: value is the number as printed.
+- Never convert units or scales yourself: value is the number as printed   ("$2.0 billion" -> value 2.0, unit_text "$ billion"), even when the   field's extraction instructions ask for a conversion. The app converts.
 - Use state="zero" only when the document states the value is zero, and \
   state="not_applicable" only when it states the item does not apply.
 - raw_value_text must be the literal text each value was read from.

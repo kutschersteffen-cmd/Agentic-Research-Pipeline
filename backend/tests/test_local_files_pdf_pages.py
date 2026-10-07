@@ -35,7 +35,7 @@ def test_pdf_page_breaks_mark_the_start_of_each_page(monkeypatch, tmp_path):
     page1 = "Page one text."
     page2 = "Page two text, a bit longer than the first."
     page3 = "Page three."
-    monkeypatch.setattr(local_files, "_docling_converter", lambda: _FakeDoclingConverter([page1, page2, page3]))
+    monkeypatch.setattr(local_files, "_docling_converter", lambda ocr=True: _FakeDoclingConverter([page1, page2, page3]))
 
     path = tmp_path / "report.pdf"
     path.write_bytes(b"%PDF-1.4 fake bytes, never actually parsed since the converter is mocked")
@@ -72,7 +72,7 @@ def test_table_markdown_from_docling_passes_through_unmangled(monkeypatch, tmp_p
         "| Auto | 500 | 50 |\n"
         "| Software | 300 | 90 |"
     )
-    monkeypatch.setattr(local_files, "_docling_converter", lambda: _FakeDoclingConverter([table_markdown]))
+    monkeypatch.setattr(local_files, "_docling_converter", lambda ocr=True: _FakeDoclingConverter([table_markdown]))
 
     path = tmp_path / "segments.pdf"
     path.write_bytes(b"%PDF-1.4 fake bytes, never actually parsed since the converter is mocked")

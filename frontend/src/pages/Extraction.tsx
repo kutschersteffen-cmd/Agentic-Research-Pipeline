@@ -52,6 +52,14 @@ type Tab = FlowStep | "overview";
 const TAB_IDS: readonly Tab[] = ["overview", "companies", "identify", "documents", "schema", "extract"];
 
 const MARK: Partial<Record<StageState, StepTab["mark"]>> = { done: "done", ready: "waiting", review: "waiting", failed: "attention", stale: "attention" };
+/** What each extract status means to the user, and the status pill colour it borrows from run states. */
+const EXTRACT_STATUS: Partial<Record<StageState, [string, string]>> = {
+  running: ["Running", "running"],
+  done: ["Done", "completed"],
+  review: ["Needs review", "partially_completed"],
+  failed: ["Failed", "failed"],
+  stale: ["Inputs changed: re-run to update", "cancelled"],
+};
 const NO_SETTINGS: JobSettings = { stepSettings: {}, templateId: null };
 const noop = () => {};
 
@@ -251,6 +259,13 @@ export function Extraction({ pendingUniverse, initialProfile = "custom", initial
     // Skip means the stage does not run.
     else if (flowRef.current[step].state !== "skipped") (step === "identify" ? identifyRef : documentsRef).current?.start();
   }, []);
+  /** Companies' "Next": open the first stage not skipped and start it if it has not run yet. */
+  const onNext = () => {
+    const step = STAGES.find((id) => flow[id].state !== "skipped");
+    if (!step) return setTab(hasCustom ? "schema" : "extract");
+    setTab(step);
+    if (flow[step].state === "idle") onStart(step);
+  };
   const onFramework = useCallback((id: string, name: string | null) => setFrameworks((m) => (m[id] === name ? m : { ...m, [id]: name })), []);
 
   // Automatic handover advances the tab once, when the stage turns done; a later manual tab change stays.
@@ -286,15 +301,8 @@ export function Extraction({ pendingUniverse, initialProfile = "custom", initial
     { id: "run", label: "Run", disabled: !hasRuns },
     { id: "review", label: "Review", disabled: !hasRuns, badge: totalPending, mark: runJobs.some((j) => extract.jobs.find((l) => l.id === j.id)?.status === "review") ? "waiting" : null },
   ];
-  const jobTypes = [...new Set(jobs.map(jobRunType))];
-  const allTypes = ["identity", "discovery", ...jobTypes];
-  const tabRunTypes = { overview: allTypes, companies: allTypes, schema: allTypes, identify: ["identity"], documents: ["discovery"], extract: jobTypes }[tab];
+  const runTypes = ["identity", "discovery", ...new Set(jobs.map(jobRunType))];
   const overviewSelected = (overviewRun && Object.values(flow.extractRuns).includes(overviewRun) ? overviewRun : null) ?? latestExtractRun(flow);
-  const tabRunId =
-    tab === "identify" || tab === "documents" ? flow[tab].runId
-    : tab === "extract" ? (reviewJob ? extractRuns[reviewJob.id] : null)
-    : tab === "overview" ? overviewSelected
-    : null;
   const jobOfRun = (id: string) => jobs.find((j) => extractRuns[j.id] === id);
   const openRun = (id: string, s: Sub = "run") => {
     const job = jobOfRun(id);
@@ -317,17 +325,34 @@ export function Extraction({ pendingUniverse, initialProfile = "custom", initial
     </div>
   );
 
+  // The top bar's Next: Identify / Documents hand over first when they have a result waiting.
+  const stepIds = steps.map((t) => t.id as FlowStep);
+  // From Companies, Next lands on the first stage that is not skipped (onNext below).
+  const firstOpen: Tab = STAGES.find((id) => flow[id].state !== "skipped") ?? (hasCustom ? "schema" : "extract");
+  const next: Tab | undefined = tab === "overview" ? "companies" : tab === "companies" ? firstOpen : stepIds[stepIds.indexOf(tab) + 1];
+  const nextName = steps.find((t) => t.id === next)?.label;
+  const handsOver = (tab === "identify" || tab === "documents") && (flow[tab].state === "ready" || flow[tab].state === "review");
+  const nextLabel = `${handsOver ? "Continue to" : "Next:"} ${nextName} →`;
+  const nextBlocked =
+    tab === "companies" && !flow.companies ? "Choose the companies first"
+    : tab === "companies" && !flow.ready && !flow.onboard && !flow.readinessNote ? "Checking stored documents…"
+    : tab === "schema" && !jobs.every(jobReady) ? "Confirm every schema first"
+    : null;
+  async function goNext() {
+    if (tab === "companies") return onNext();
+    if (handsOver) await onContinue(tab as StageId);
+    if (next) setTab(next);
+  }
+
   const runsPanel = (
     <FlowRuns
-      key={tab}
-      runTypes={tabRunTypes}
+      runTypes={runTypes}
       runIds={flow.runIds}
-      selected={tabRunId}
-      onSelect={(id) => (tab === "overview" && id in runProfiles ? setOverviewRun(id) : openRun(id))}
+      selected={overviewSelected}
+      onSelect={(id) => (id in runProfiles ? setOverviewRun(id) : openRun(id))}
       onReview={(r) => openRun(r.run_id, "review")}
       onRerun={(r) => (r.run_type === "identity" ? onStart("identify") : r.run_type === "discovery" ? onStart("documents") : openRun(r.run_id, "run"))}
-      compact={tab === "companies" || tab === "schema"}
-      storageKey={`flowRuns:${tab}`}
+      storageKey="flowRuns:overview"
     />
   );
   const s = settings[activeJob.id] ?? NO_SETTINGS;
@@ -338,14 +363,19 @@ export function Extraction({ pendingUniverse, initialProfile = "custom", initial
       <p className="help-text">Extract data points from company disclosures, each checked by a verifier and every citation re-verified against its source. Pick one or more profiles: your own Custom schemas, or the built-in Financials, TNFD and Transition Plan. Each runs as its own extraction on the same companies.</p>
 
       <StepTabs label="Extraction steps" tabs={topTabs} active={tab} onSelect={(id) => setTab(id as Tab)} />
-      {tab !== "overview" && (
-        <>
+      <div className="toolbar">
+        {tab !== "overview" && (
           <button type="button" className="link-button" onClick={() => setTab("overview")}>
             ← Overview
           </button>
-          {runsPanel}
-        </>
-      )}
+        )}
+        {next && (
+          <button type="button" onClick={goNext} disabled={nextBlocked != null || busy} title={nextBlocked ?? undefined}>
+            {nextLabel}
+          </button>
+        )}
+        {nextBlocked && <span className="muted">{nextBlocked}</span>}
+      </div>
 
       {error && <p className="error-text" role="alert">{error}</p>}
 
@@ -372,7 +402,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom", initial
             />
           }
           scoring={<ScoringSummary rows={runJobs.map((j) => ({ job: j, runId: extractRuns[j.id], status: extract.jobs.find((l) => l.id === j.id)!.status }))} onOpen={openJob} onFramework={onFramework} />}
-          runs={tab === "overview" ? runsPanel : <></>}
+          runs={runsPanel}
           selectedRunId={overviewSelected}
           selectedProfile={overviewSelected ? runProfiles[overviewSelected] ?? null : null}
           onRestarted={(next) => {
@@ -412,11 +442,55 @@ export function Extraction({ pendingUniverse, initialProfile = "custom", initial
 
       {hasCustom && (
         <div role="tabpanel" aria-label="Schema" hidden={tab !== "schema"}>
-          <SchemaPanel jobs={jobs} onChange={changeJobs} nextCustomId={nextCustomId} defaultRequest={DEFAULT_CRITERIA} />
+          <SchemaPanel jobs={jobs} onChange={changeJobs} onNext={() => setTab("extract")} nextCustomId={nextCustomId} defaultRequest={DEFAULT_CRITERIA} />
         </div>
       )}
 
       <div role="tabpanel" aria-label="Extract" hidden={tab !== "extract"}>
+        <section className="card" aria-live="polite">
+          <h2>Status</h2>
+          {!hasRuns ? (
+            <p className="status-text">
+              {!inputs.length
+                ? "Not started: no companies handed over yet. Carry them through Identify and Documents, or skip those stages."
+                : !toStart.length
+                  ? "Not started: confirm the schema first."
+                  : `Ready to start: ${startsText(toStart.length, inputCount)}. Press Start extraction below.`}
+            </p>
+          ) : (
+            extract.jobs.filter((l) => l.id in extractRuns).map((l) => {
+              const [label, pill] = EXTRACT_STATUS[l.status] ?? [l.status, "pending"];
+              const [doneN, total] = (l.counts ?? "0/0").split("/").map(Number);
+              const toReview = pending[l.id] ?? 0;
+              return (
+                <div className="run-progress" key={l.id}>
+                  <div className="run-progress-header">
+                    <strong>{l.label}</strong>
+                    <span className={`status-pill status-${pill}`}>{label}</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div className="progress-bar-fill" style={{ transform: `scaleX(${total ? doneN / total : 0})` }} />
+                  </div>
+                  <div className="run-progress-stats">
+                    <span>{l.counts ? `${doneN} of ${total} companies processed` : "Starting…"}</span>
+                    {toReview > 0 && <span className="await-text">{toReview} items to review</span>}
+                    {startErrors[l.id] && <span className="error-text">Did not start: {startErrors[l.id]}</span>}
+                  </div>
+                  {l.status !== "running" && (
+                    <div className="toolbar">
+                      <button onClick={() => openJob(l.id)}>{toReview > 0 ? `Review ${toReview} items →` : "See results →"}</button>
+                      {(l.status === "failed" || l.status === "stale") && (
+                        <button className="secondary" onClick={() => { setActiveJobId(l.id); setSub((x) => ({ ...x, extract: "run" })); }}>
+                          Open run
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </section>
         {innerTabs("extract", extractTabs, "Extract")}
 
         <div hidden={sub.extract !== "setup"}>

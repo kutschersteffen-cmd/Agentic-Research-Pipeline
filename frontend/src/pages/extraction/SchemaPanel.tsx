@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../../api/client";
 import { SchemaFieldsEditor } from "../../components/SchemaFieldsEditor";
-import { addCustomJob, removeJob, type CustomJob, type Job } from "../../lib/jobs";
+import { addCustomJob, jobReady, removeJob, type CustomJob, type Job } from "../../lib/jobs";
 import type { DataPointSchema } from "../../types";
 
 export const DEFAULT_CRITERIA =
@@ -17,11 +17,13 @@ export const DEFAULT_CRITERIA =
 interface Props {
   jobs: Job[];
   onChange: (jobs: Job[]) => void;
+  /** Opens Extract once every schema is confirmed. */
+  onNext: () => void;
   nextCustomId: () => string;
   defaultRequest: string;
 }
 
-export function SchemaPanel({ jobs, onChange, nextCustomId, defaultRequest }: Props) {
+export function SchemaPanel({ jobs, onChange, onNext, nextCustomId, defaultRequest }: Props) {
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string | null>>({});
   const custom = jobs.filter((j): j is CustomJob => j.profile === "custom");
@@ -32,7 +34,7 @@ export function SchemaPanel({ jobs, onChange, nextCustomId, defaultRequest }: Pr
     setBusy((s) => ({ ...s, [j.id]: true }));
     setError(j.id, null);
     try {
-      patch(j.id, { schema: (await api.draftSchema(j.request)) as DataPointSchema });
+      patch(j.id, { schema: (await api.draftSchema(j.request)) as DataPointSchema, confirmed: false });
     } catch (err) {
       setError(j.id, (err as Error).message);
     } finally {
@@ -64,12 +66,26 @@ export function SchemaPanel({ jobs, onChange, nextCustomId, defaultRequest }: Pr
           {j.schema && (
             <>
               <h2>Review &amp; edit fields</h2>
-              <SchemaFieldsEditor fields={j.schema.fields} onChange={(fields) => patch(j.id, { schema: { ...j.schema!, fields } })} />
+              <SchemaFieldsEditor fields={j.schema.fields} onChange={(fields) => patch(j.id, { schema: { ...j.schema!, fields }, confirmed: false })} />
+              <div className="toolbar">
+                {j.confirmed === false ? (
+                  <button onClick={() => patch(j.id, { confirmed: true })} disabled={!j.schema.fields.length}>
+                    Confirm schema ({j.schema.fields.length} fields)
+                  </button>
+                ) : (
+                  <span className="status-text" role="status">{"✓"} Schema confirmed. Editing a field asks for confirmation again.</span>
+                )}
+              </div>
             </>
           )}
         </section>
       ))}
-      <button onClick={() => onChange(addCustomJob(jobs, nextCustomId(), ""))}>Add another schema</button>
+      <div className="toolbar">
+        <button className="secondary" onClick={() => onChange(addCustomJob(jobs, nextCustomId(), ""))}>Add another schema</button>
+        <button onClick={onNext} disabled={!custom.every(jobReady)}>
+          {custom.every(jobReady) ? "Next: Extract →" : "Confirm every schema to continue"}
+        </button>
+      </div>
     </>
   );
 }

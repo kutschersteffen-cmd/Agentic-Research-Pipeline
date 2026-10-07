@@ -168,13 +168,24 @@ def get_cached_document_text(row_id: int, store: DocumentContentStore = Depends(
 
 
 @router.get("/{company_id}")
-def list_documents(company_id: str, settings: Settings = Depends(settings_dep)) -> dict:
+def list_documents(
+    company_id: str, settings: Settings = Depends(settings_dep),
+    store: DocumentContentStore = Depends(get_document_content_store),
+) -> dict:
+    """Files in the company's folder (`documents`) and every registered document (`registered`),
+    including SEC filings, which are stored without a file in the folder."""
     try:
         company_dir = settings.documents_dir / safe_id(company_id, label="company_id")
     except UnsafeIdentifierError as exc:
         raise HTTPException(400, str(exc)) from exc
+    # ponytail: scans the whole registry; add a by-company query when it holds many thousand documents
+    registered = [
+        {"doc_id": d.doc_id, "doc_type": d.doc_type, "title": d.title, "source_url": d.source_url,
+         "local_path": d.local_path, "published_at": d.published_at, "last_seen_at": d.last_seen_at}
+        for d in store.list_all_documents() if d.company_id == company_id
+    ]
     if not company_dir.exists():
-        return {"documents": []}
+        return {"documents": [], "registered": registered}
     docs = []
     for doc_type_dir in sorted(company_dir.iterdir()):
         if not doc_type_dir.is_dir():
@@ -182,4 +193,4 @@ def list_documents(company_id: str, settings: Settings = Depends(settings_dep)) 
         for f in sorted(doc_type_dir.iterdir()):
             if f.is_file():
                 docs.append({"doc_type": doc_type_dir.name, "filename": f.name, "size_bytes": f.stat().st_size})
-    return {"documents": docs}
+    return {"documents": docs, "registered": registered}
