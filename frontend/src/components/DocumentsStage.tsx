@@ -6,7 +6,10 @@ import { DocumentUpload } from "./DocumentUpload";
 import { UniversePicker } from "./UniversePicker";
 import {
   autoContinueDue,
+  docList,
   docRows,
+  type CompanyDocs,
+  type DocListRow,
   flagReason,
   type DocRow,
   type FlowAction,
@@ -40,7 +43,8 @@ async function readiness(body: { companies: CompanyRef[] } | { universe_path: st
   const res = await api.documentReadiness(body);
   const records = new Map<string, CompanyRef>([...res.ready.map(({ readiness: _r, ...c }) => c), ...res.onboard].map((c) => [c.company_id, c]));
   const companies = Object.keys(res.readiness).flatMap((id) => records.get(id) ?? []);
-  const onDisk = Object.fromEntries(Object.entries(res.readiness).map(([id, r]) => [id, r.on_disk]));
+  // Registered counts EDGAR filings, which are stored without a file in the company folder.
+  const onDisk = Object.fromEntries(Object.entries(res.readiness).map(([id, r]) => [id, Math.max(r.on_disk, r.registered)]));
   return { companies, onDisk };
 }
 
@@ -67,6 +71,7 @@ export function DocumentsStage({
   const [decisions, setDecisions] = useState<Record<string, boolean>>({});
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [tile, setTile] = useState<keyof ReviewTileCounts | null>(null);
+  const [docs, setDocs] = useState<Record<string, DocListRow[]>>({});
   const finishedRef = useRef<string | null>(null);
   const loadedRef = useRef<string | null>(null);
   const handedRef = useRef<string | null>(null);
@@ -90,6 +95,11 @@ export function DocumentsStage({
     setResults(res);
     setOnDisk(list?.onDisk ?? {});
     setLoadedFor(id);
+    // ponytail: one request per company; batch the endpoint if lists grow past a few hundred
+    const foundBy = new Map(res.map((r) => [r.company_id, r.documents_found]));
+    Promise.all(cos.map(async (c) => [c.company_id, docList((await api.listDocuments(c.company_id)) as CompanyDocs, foundBy.get(c.company_id))] as const))
+      .then((pairs) => setDocs(Object.fromEntries(pairs)))
+      .catch((err) => setError(`Couldn't list the documents: ${(err as Error).message}`));
     return docRows(cos, res, list?.onDisk ?? {}, uploadedRef.current).filter((r) => r.flagged).length;
   }
 
@@ -165,6 +175,8 @@ export function DocumentsStage({
     try {
       const { onDisk: fresh } = await readiness({ companies: [company] });
       setOnDisk((o) => ({ ...o, ...fresh }));
+      const listed = docList((await api.listDocuments(id)) as CompanyDocs, results.find((r) => r.company_id === id)?.documents_found);
+      setDocs((d) => ({ ...d, [id]: listed }));
     } catch (err) {
       setError(`Couldn't re-check documents: ${(err as Error).message}`);
     }
@@ -177,7 +189,7 @@ export function DocumentsStage({
       const keep = new Set(rows.filter(isTicked).map((r) => r.companyId));
       const kept = companies.filter((c) => keep.has(c.company_id));
       if (kept.length === 0) {
-        dispatch({ type: "handedOver", stage: "documents", output: { path: "", count: 0, companies: kept } });
+        setError("No company is ticked. Tick the companies to keep in the Review view, or upload a document for them.");
         return;
       }
       const res = await api.universeFromCompanies(kept, "documents_ready");
@@ -209,7 +221,9 @@ export function DocumentsStage({
       {stage.note && <p className="status-text">{stage.note}</p>}
       {canContinue && (
         <div className="toolbar">
-          <button onClick={carryOn} disabled={busy}>Continue &rarr;</button>
+          <button onClick={carryOn} disabled={busy}>
+            {busy ? "Handing over…" : `Continue with ${rows.filter(isTicked).length} of ${rows.length} →`}
+          </button>
         </div>
       )}
     </>
@@ -294,7 +308,7 @@ export function DocumentsStage({
                   {rows.map((r) => (
                     <tr key={r.companyId}>
                       <td>{r.name}</td>
-                      <td>{r.onFile}</td>
+                      <td>{docs[r.companyId]?.length ?? r.onFile}</td>
                       <td>{r.flagged ? <span className="await-text">{flagReason(r)}</span> : marker(r)}</td>
                     </tr>
                   ))}
@@ -302,6 +316,50 @@ export function DocumentsStage({
               </table>
             </div>
           )}
+        </>
+      )}
+      {runId && !skipped && rows.length > 0 && (
+        <>
+          <h3>Documents found</h3>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Document</th>
+                  <th>Type</th>
+                  <th>Format</th>
+                  <th>Source</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.flatMap((r) => {
+                  const list = docs[r.companyId];
+                  if (!list) return [<tr key={r.companyId}><td>{r.name}</td><td colSpan={5} className="muted">Loading…</td></tr>];
+                  if (!list.length) return [<tr key={r.companyId}><td>{r.name}</td><td colSpan={5} className="await-text">No documents</td></tr>];
+                  return list.map((d, i) => (
+                    <tr key={`${r.companyId}/${d.key}`}>
+                      <td>{i === 0 ? r.name : ""}</td>
+                      <td>
+                        {d.url ? (
+                          <a href={d.url} target="_blank" rel="noreferrer">{d.title}</a>
+                        ) : d.filename ? (
+                          <a href={api.documentRawUrl(r.companyId, d.docType, d.filename)} target="_blank" rel="noreferrer">{d.title}</a>
+                        ) : (
+                          d.title
+                        )}
+                      </td>
+                      <td>{d.docType.replaceAll("_", " ")}</td>
+                      <td className="mono">{d.format}</td>
+                      <td>{d.source}</td>
+                      <td className="mono">{d.date ? d.date.slice(0, 10) : "—"}</td>
+                    </tr>
+                  ));
+                })}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
       {stage.state === "stale" && stage.output && (

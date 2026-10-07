@@ -82,6 +82,8 @@ export function CompaniesPanel({
     };
   }, [list, dispatch]);
 
+  const checking = !!flow.companies && !flow.ready && !flow.onboard && !flow.readinessNote;
+
   return (
     <section className="card">
       <h2>Choose the companies</h2>
@@ -123,18 +125,17 @@ export function CompaniesPanel({
           </label>
         </div>
         <button onClick={confirmSingle} disabled={busy || !singleCompany}>
-          Use this company
+          {busy ? "Saving…" : "Use this company"}
         </button>
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
 
       {flow.companies && (
         <>
-          {(flow.ready || flow.onboard) && (
-            <p className="status-text">
-              {flow.ready?.count ?? 0} ready · {flow.onboard?.count ?? 0} to onboard
-            </p>
-          )}
+          <p className="status-text" role="status">
+            {"✓"} {flow.companies.companies?.length === 1 ? flow.companies.companies[0].name : `${flow.companies.count} companies`} selected
+            {checking ? " · checking stored documents…" : ` · ${flow.ready?.count ?? 0} ready · ${flow.onboard?.count ?? 0} to onboard`}
+          </p>
           {flow.readinessNote && <p className="await-text">{flow.readinessNote}</p>}
           <label className="checkbox-label">
             <input type="checkbox" checked={flow.recheckReady} onChange={(e) => dispatch({ type: "recheckReady", on: e.target.checked })} />

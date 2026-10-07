@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  autoContinueDue, docRows, extractInputs, flagReason, pendingOnboard, flowReducer, initialFlow, latestExtractRun, mergeCompanies,
+  autoContinueDue, docList, docRows, extractInputs, flagReason, pendingOnboard, flowReducer, initialFlow, latestExtractRun, mergeCompanies,
   editedText, matchesTile, reviewCounts, runEndedAt, runScope, stageInput, valueOrigin,
 } from "../src/lib/stagedFlow.ts";
 import type { FlowAction, FlowState, StageOutput } from "../src/lib/stagedFlow.ts";
@@ -49,6 +49,13 @@ test("empty handover holds", () => {
   assert.equal(s.identify.state, "review");
   assert.equal(s.identify.note, "No companies to carry forward");
   assert.equal(s.identify.output, null);
+});
+
+test("reviewed clears the review hold, and only that", () => {
+  const s = run(initialFlow, started, finish(1), { type: "reviewed", stage: "identify" });
+  assert.equal(s.identify.state, "ready");
+  assert.equal(s.identify.note, null);
+  assert.equal(run(initialFlow, started, { type: "reviewed", stage: "identify" }).identify.state, "running");
 });
 
 test("skip passes input through", () => {
@@ -317,4 +324,32 @@ test("correct reads like edit", () => {
   const d = { item_key: "k", decision: "correct", corrected_value: { value: 5 }, decided_at: "" } as ReviewDecision;
   assert.equal(editedText(d), "5");
   assert.equal(reviewCounts(0, [d], 0).edited, 1);
+});
+
+test("docList names format and source, and lists an unregistered file once", () => {
+  const rows = docList({
+    documents: [{ doc_type: "annual_report", filename: "ar.pdf", size_bytes: 1 }, { doc_type: "annual_report", filename: "new.pdf", size_bytes: 1 }],
+    registered: [
+      { doc_id: "d1", doc_type: "annual_report_10k", title: "Apple 10-K (2025-10-31)", source_url: "https://www.sec.gov/Archives/x/aapl-20250927.htm", local_path: null, published_at: null, last_seen_at: "2026-10-07" },
+      { doc_id: "d2", doc_type: "annual_report", title: "ar.pdf", source_url: null, local_path: "data\\documents\\apple\\annual_report\\ar.pdf", published_at: null, last_seen_at: null },
+    ],
+  });
+  assert.deepEqual(rows.map((r) => [r.title, r.format, r.source]), [
+    ["Apple 10-K (2025-10-31)", "HTML", "SEC EDGAR"],
+    ["ar.pdf", "PDF", "Upload"],
+    ["new.pdf", "PDF", "Website or upload"],
+  ]);
+});
+
+test("docList lists a re-registered file once", () => {
+  const row = { doc_type: "10-K", title: "x.html", source_url: null, local_path: "d\\x.html", published_at: null, last_seen_at: null };
+  assert.equal(docList({ documents: [], registered: [{ ...row, doc_id: "a" }, { ...row, doc_id: "b" }] }).length, 1);
+});
+
+test("docList names the site a crawled file came from", () => {
+  const rows = docList(
+    { documents: [{ doc_type: "other", filename: "View-PDF.pdf", size_bytes: 1 }] },
+    [{ url: "https://www.apple.com/env/report.pdf", local_path: "data\\documents\\apple\\other\\View-PDF.pdf" }],
+  );
+  assert.equal(rows[0].source, "apple.com");
 });

@@ -39,6 +39,8 @@ export type FlowAction =
   /** `note` set = the results couldn't be checked; the stage holds for review with that note. */
   | { type: "runFinished"; stage: StageId; status: JobStatus; flagged: number; failed: number; note?: string }
   | { type: "handedOver"; stage: StageId; output: StageOutput }
+  /** Every flagged item got a decision: the stage is ready to hand over (automatic handover then continues). */
+  | { type: "reviewed"; stage: StageId }
   | { type: "useAnyway"; stage: StageId }
   | { type: "extractStarted"; job: string; runId: string }
   /** One job's run restarted from a step: the inputs did not change, so a stale flag stays. */
@@ -50,7 +52,7 @@ export type FlowAction =
 export const STAGES: StageId[] = ["identify", "documents"];
 
 /** What a mounted stage component lets its parent trigger (the overview chart's Start / Continue). */
-export interface StageHandle { start(): void; carryOn(): void }
+export interface StageHandle { start(): void; carryOn(): Promise<void> }
 
 const idleStage: Stage = { handover: "manual", state: "idle", runId: null, output: null, flagged: 0, note: null };
 
@@ -155,6 +157,8 @@ export function flowReducer(s: FlowState, a: FlowAction): FlowState {
           : { ...st, state: "done", output: a.output },
       };
     }
+    case "reviewed":
+      return s[a.stage].state === "review" ? { ...s, [a.stage]: { ...s[a.stage], state: "ready", note: null, flagged: 0 } } : s;
     case "useAnyway":
       return s[a.stage].state === "stale" && s[a.stage].output != null ? { ...s, [a.stage]: { ...s[a.stage], state: "done" } } : s;
     case "extractStarted":
@@ -285,4 +289,52 @@ export function flagReason(r: DocRow): string {
   if (r.unreachable || r.crawlError) return `Site unreachable: ${r.crawlError ?? "no response"}`;
   if (!r.homepageUsed) return "No documents · no homepage known";
   return `No documents found on ${r.homepageUsed}`;
+}
+
+export interface CompanyDocs {
+  documents: { doc_type: string; filename: string; size_bytes: number }[];
+  registered?: { doc_id: string; doc_type: string; title: string; source_url: string | null; local_path: string | null; published_at: string | null; last_seen_at: string | null }[];
+}
+export interface DocListRow { key: string; title: string; docType: string; format: string; source: string; date: string | null; url: string | null; filename: string | null }
+
+const baseName = (path: string) => path.split(/[\\/]/).pop() ?? path;
+const formatOf = (name: string) => {
+  const ext = /\.([a-z0-9]{2,5})(?:[?#].*)?$/i.exec(name)?.[1]?.toLowerCase();
+  return ext ? ({ htm: "HTML", html: "HTML", xhtml: "XHTML" } as Record<string, string>)[ext] ?? ext.toUpperCase() : "—";
+};
+const sourceOf = (url: string | null) => {
+  if (!url) return "Upload";
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    return host.endsWith("sec.gov") ? "SEC EDGAR" : host;
+  } catch {
+    return "Upload";
+  }
+};
+
+/** One row per document: registered ones (SEC filings, parsed files), then files on disk not registered yet.
+ * `found` (the discovery run's downloads) supplies the URL a crawled file came from. */
+export function docList(d: CompanyDocs, found: { url: string; local_path?: string | null }[] = []): DocListRow[] {
+  // A file re-registered with new content is one document: keep its first row per file.
+  const seen = new Set<string>();
+  const reg = (d.registered ?? []).filter((r) => !r.local_path || (!seen.has(r.local_path) && !!seen.add(r.local_path)));
+  const known = new Set(reg.flatMap((r) => (r.local_path ? [baseName(r.local_path)] : [])));
+  const origin = new Map(found.flatMap((f) => (f.local_path ? [[baseName(f.local_path), f.url] as const] : [])));
+  const crawled = (file: string | null) => (file && origin.has(file) ? sourceOf(origin.get(file)!) : null);
+  return [
+    ...reg.map((r) => ({
+      key: r.doc_id,
+      title: r.title,
+      docType: r.doc_type,
+      format: formatOf(r.local_path ?? r.source_url ?? ""),
+      source: (!r.source_url && crawled(r.local_path ? baseName(r.local_path) : null)) || sourceOf(r.source_url),
+      date: r.published_at ?? r.last_seen_at,
+      url: r.source_url && /^https?:\/\//i.test(r.source_url) ? r.source_url : null, // crawled URLs are untrusted
+      filename: r.local_path ? baseName(r.local_path) : null,
+    })),
+    ...d.documents.filter((f) => !known.has(f.filename)).map((f) => ({
+      key: `${f.doc_type}/${f.filename}`, title: f.filename, docType: f.doc_type, format: formatOf(f.filename),
+      source: crawled(f.filename) ?? "Website or upload", date: null, url: null, filename: f.filename,
+    })),
+  ];
 }
