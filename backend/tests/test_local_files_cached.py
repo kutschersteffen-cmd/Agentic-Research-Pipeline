@@ -148,7 +148,7 @@ def test_second_fetch_hits_the_content_cache_and_does_not_reparse(tmp_path, monk
 
 def test_grounding_resolves_the_page_from_cached_page_breaks(tmp_path, monkeypatch):
     fake_pages = ["Page one intro.", "Revenue grew due to green capex investment."]
-    monkeypatch.setattr(local_files, "_docling_converter", lambda: _FakeDoclingConverter(fake_pages))
+    monkeypatch.setattr(local_files, "_docling_converter", lambda ocr=True: _FakeDoclingConverter(fake_pages))
 
     doc_dir = tmp_path / "docs" / "acme" / DocType.ANNUAL_REPORT_10K.value
     doc_dir.mkdir(parents=True)

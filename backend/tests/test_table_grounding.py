@@ -107,7 +107,7 @@ def test_pdf_parse_returns_table_spans(monkeypatch, tmp_path):
     doc = SimpleNamespace(pages={1: object()}, tables=[_FakeTable(_ROWS, MD)],
                           export_to_markdown=lambda page_no: TEXT)
     converter = SimpleNamespace(convert=lambda path: SimpleNamespace(document=doc))
-    monkeypatch.setattr(local_files, "_docling_converter", lambda: converter)
+    monkeypatch.setattr(local_files, "_docling_converter", lambda ocr=True: converter)
     path = tmp_path / "r.pdf"
     path.write_bytes(b"%PDF fake")
     text, _breaks, spans = parse_file_to_text_with_pages(path)
