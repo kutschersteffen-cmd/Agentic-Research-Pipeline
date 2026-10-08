@@ -54,7 +54,7 @@ export function DecisionResultsTable({
   return (
     <div>
       <div className="toolbar">
-        <input placeholder="Filter by name…" value={filter} onChange={(e) => setFilter(e.target.value)} />
+        <input aria-label="Filter by name" placeholder="Filter by name…" value={filter} onChange={(e) => setFilter(e.target.value)} />
         <select value={orderBy} onChange={(e) => onOrderBy(e.target.value as "score" | "leverage")}>
           <option value="score">Order by score</option>
           <option value="leverage">Order by leverage</option>
