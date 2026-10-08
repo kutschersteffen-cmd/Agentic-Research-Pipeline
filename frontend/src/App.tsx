@@ -1,44 +1,47 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { api } from "./api/client";
 import { canLeave } from "./lib/leaveGuard";
 import { ReviewerField } from "./components/ReviewerField";
 import { SignedInAs } from "./components/SignedInAs";
-import { ThemeBuilder } from "./pages/ThemeBuilder";
-import { Extraction } from "./pages/Extraction";
-import { TransitionBarrierAssessment } from "./pages/TransitionBarrierAssessment";
-import { DocumentDiscovery } from "./pages/DocumentDiscovery";
-import { EmergingThemesDetector } from "./pages/EmergingThemesDetector";
-import { IdentityResolution } from "./pages/IdentityResolution";
-import { ReviewQueue } from "./pages/ReviewQueue";
-import { RunHistory } from "./pages/RunHistory";
-import { DataLibrary } from "./pages/DataLibrary";
-import { TaxonomyLibrary } from "./pages/TaxonomyLibrary";
-import { BackgroundAgents } from "./pages/BackgroundAgents";
-import { MonitoringDashboard } from "./pages/MonitoringDashboard";
 import { ProcessBar, StartPage, WorkspaceOverview, stageDecisions } from "./pages/ProcessHub";
 import { WORKSPACES, workspaceOfProcess, type WorkspaceId } from "./lib/processes";
-import { EngagementDashboard } from "./pages/EngagementDashboard";
-import { VotingRuns } from "./pages/VotingRuns";
-import { STAGE_TABS, StewardWorkflow } from "./pages/StewardWorkflow";
-import { PortfolioRiskMonitoringTool } from "./pages/PortfolioRiskMonitoringTool";
+import { STAGE_TABS } from "./pages/steward/common";
 import { SUB_TABS as RISK_TABS } from "./lib/subTabs";
 import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
 import { ThemeSwitch } from "./components/ThemeSwitch";
-import { ReportBuilder } from "./pages/ReportBuilder";
-import { StrategyReplication } from "./pages/StrategyReplication";
-import { Search } from "./pages/Search";
-import { SecurityMaster } from "./pages/SecurityMaster";
-import { Feeds } from "./pages/Feeds";
-import { Issues } from "./pages/Issues";
-import { SmartSearch } from "./pages/SmartSearch";
-import { Outputs } from "./pages/Outputs";
-import { Arcade } from "./pages/Arcade";
-import { Lab } from "./pages/Lab";
-import { DecisionStudio } from "./pages/DecisionStudio";
-import { IndexBuilder } from "./pages/IndexBuilder";
 import { NAV_ICONS } from "./components/NavIcons";
 import type { ReviewableRunKind, RunManifest, UniverseHandoff } from "./types";
 import { runTypeLabel } from "./lib/runs";
+
+// Pages load on demand so the first screen does not ship every page and its editors.
+const ThemeBuilder = lazy(() => import("./pages/ThemeBuilder").then((x) => ({ default: x.ThemeBuilder })));
+const Extraction = lazy(() => import("./pages/Extraction").then((x) => ({ default: x.Extraction })));
+const TransitionBarrierAssessment = lazy(() => import("./pages/TransitionBarrierAssessment").then((x) => ({ default: x.TransitionBarrierAssessment })));
+const DocumentDiscovery = lazy(() => import("./pages/DocumentDiscovery").then((x) => ({ default: x.DocumentDiscovery })));
+const EmergingThemesDetector = lazy(() => import("./pages/EmergingThemesDetector").then((x) => ({ default: x.EmergingThemesDetector })));
+const IdentityResolution = lazy(() => import("./pages/IdentityResolution").then((x) => ({ default: x.IdentityResolution })));
+const ReviewQueue = lazy(() => import("./pages/ReviewQueue").then((x) => ({ default: x.ReviewQueue })));
+const RunHistory = lazy(() => import("./pages/RunHistory").then((x) => ({ default: x.RunHistory })));
+const DataLibrary = lazy(() => import("./pages/DataLibrary").then((x) => ({ default: x.DataLibrary })));
+const TaxonomyLibrary = lazy(() => import("./pages/TaxonomyLibrary").then((x) => ({ default: x.TaxonomyLibrary })));
+const BackgroundAgents = lazy(() => import("./pages/BackgroundAgents").then((x) => ({ default: x.BackgroundAgents })));
+const MonitoringDashboard = lazy(() => import("./pages/MonitoringDashboard").then((x) => ({ default: x.MonitoringDashboard })));
+const EngagementDashboard = lazy(() => import("./pages/EngagementDashboard").then((x) => ({ default: x.EngagementDashboard })));
+const VotingRuns = lazy(() => import("./pages/VotingRuns").then((x) => ({ default: x.VotingRuns })));
+const StewardWorkflow = lazy(() => import("./pages/StewardWorkflow").then((x) => ({ default: x.StewardWorkflow })));
+const PortfolioRiskMonitoringTool = lazy(() => import("./pages/PortfolioRiskMonitoringTool").then((x) => ({ default: x.PortfolioRiskMonitoringTool })));
+const ReportBuilder = lazy(() => import("./pages/ReportBuilder").then((x) => ({ default: x.ReportBuilder })));
+const StrategyReplication = lazy(() => import("./pages/StrategyReplication").then((x) => ({ default: x.StrategyReplication })));
+const Search = lazy(() => import("./pages/Search").then((x) => ({ default: x.Search })));
+const SecurityMaster = lazy(() => import("./pages/SecurityMaster").then((x) => ({ default: x.SecurityMaster })));
+const Feeds = lazy(() => import("./pages/Feeds").then((x) => ({ default: x.Feeds })));
+const Issues = lazy(() => import("./pages/Issues").then((x) => ({ default: x.Issues })));
+const SmartSearch = lazy(() => import("./pages/SmartSearch").then((x) => ({ default: x.SmartSearch })));
+const Outputs = lazy(() => import("./pages/Outputs").then((x) => ({ default: x.Outputs })));
+const Arcade = lazy(() => import("./pages/Arcade").then((x) => ({ default: x.Arcade })));
+const Lab = lazy(() => import("./pages/Lab").then((x) => ({ default: x.Lab })));
+const DecisionStudio = lazy(() => import("./pages/DecisionStudio").then((x) => ({ default: x.DecisionStudio })));
+const IndexBuilder = lazy(() => import("./pages/IndexBuilder").then((x) => ({ default: x.IndexBuilder })));
 
 const TABS = [
   { id: "home", label: "Start" },
@@ -369,6 +372,7 @@ function App() {
             ))}
           </nav>
         )}
+        <Suspense fallback={<p className="muted" role="status">Loading…</p>}>
         {active === "home" && <StartPage />}
         {isWorkspace(active) && <WorkspaceOverview key={active} id={active} />}
         {active === "dashboard" && <MonitoringDashboard onNavigate={go} onOpenReview={openReview} />}
@@ -400,6 +404,7 @@ function App() {
         {active === "decision" && <DecisionStudio key={route.params.join("/")} initialSource={route.params[0]} initialRunId={route.params[1]} />}
         {active === "index" && <IndexBuilder />}
         {active === "library" && <DataLibrary />}
+        </Suspense>
       </main>
     </div>
   );

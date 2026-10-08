@@ -92,7 +92,7 @@ export function PersistentSelectionPane({ onSendUniverse }: { onSendUniverse?: (
                   </option>
                 ))}
               </select>
-              <input type="text" placeholder="Group name" value={groupName} onChange={(e) => setGroupName(e.target.value)} />
+              <input type="text" aria-label="Group name" placeholder="Group name" value={groupName} onChange={(e) => setGroupName(e.target.value)} />
               <button
                 onClick={() => {
                   saveCurrentAsGroup(groupName);

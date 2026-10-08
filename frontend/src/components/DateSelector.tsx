@@ -22,20 +22,20 @@ export function DateSelector() {
         </button>
       </div>
       {dateMode === "as_of" && (
-        <input type="text" placeholder="YYYY-MM-DD" value={asOfDate} onChange={(e) => setAsOfDate(e.target.value)} />
+        <input type="text" aria-label="As-of date" placeholder="YYYY-MM-DD" value={asOfDate} onChange={(e) => setAsOfDate(e.target.value)} />
       )}
       {dateMode === "trend" && (
         <div className="inline-fields">
           <div>
             <label className="field-label">
               From
-              <input type="text" placeholder="YYYY-MM-DD" value={trendFrom} onChange={(e) => setTrendFrom(e.target.value)} />
+              <input type="text" aria-label="Trend start date" placeholder="YYYY-MM-DD" value={trendFrom} onChange={(e) => setTrendFrom(e.target.value)} />
             </label>
           </div>
           <div>
             <label className="field-label">
               To
-              <input type="text" placeholder="YYYY-MM-DD" value={trendTo} onChange={(e) => setTrendTo(e.target.value)} />
+              <input type="text" aria-label="Trend end date" placeholder="YYYY-MM-DD" value={trendTo} onChange={(e) => setTrendTo(e.target.value)} />
             </label>
           </div>
         </div>

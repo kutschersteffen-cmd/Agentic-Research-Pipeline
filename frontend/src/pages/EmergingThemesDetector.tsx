@@ -294,11 +294,13 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                           {(c.status === "candidate" || c.status === "under_review") && (
                             <div className="toolbar">
                               <input
+                                aria-label="Reason"
                                 placeholder="Reason (required)"
                                 value={reasonInputs[c.theme_id] ?? ""}
                                 onChange={(e) => setReasonInputs({ ...reasonInputs, [c.theme_id]: e.target.value })}
                               />
                               <input
+                                aria-label="Existing ratified taxonomy id"
                                 placeholder="Existing ratified taxonomy_id (optional)"
                                 value={taxonomyIdInputs[c.theme_id] ?? ""}
                                 onChange={(e) => setTaxonomyIdInputs({ ...taxonomyIdInputs, [c.theme_id]: e.target.value })}

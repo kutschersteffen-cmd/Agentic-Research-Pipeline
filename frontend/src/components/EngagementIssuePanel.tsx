@@ -251,7 +251,7 @@ export function EngagementIssuePanel({
             Set escalation stage
           </button>
         </div>
-        <textarea rows={1} placeholder="Reason (optional)" value={escalateReason} onChange={(e) => setEscalateReason(e.target.value)} />
+        <textarea rows={1} aria-label="Escalation reason" placeholder="Reason (optional)" value={escalateReason} onChange={(e) => setEscalateReason(e.target.value)} />
       </div>
 
       <div className="panel-section">
@@ -441,9 +441,9 @@ export function EngagementIssuePanel({
           ))}
         </ul>
         <div className="inline-fields">
-          <input placeholder="Name" value={newContactName} onChange={(e) => setNewContactName(e.target.value)} />
-          <input placeholder="Role" value={newContactRole} onChange={(e) => setNewContactRole(e.target.value)} />
-          <input placeholder="Email (optional)" value={newContactEmail} onChange={(e) => setNewContactEmail(e.target.value)} />
+          <input aria-label="Contact name" placeholder="Name" value={newContactName} onChange={(e) => setNewContactName(e.target.value)} />
+          <input aria-label="Contact role" placeholder="Role" value={newContactRole} onChange={(e) => setNewContactRole(e.target.value)} />
+          <input aria-label="Contact email" placeholder="Email (optional)" value={newContactEmail} onChange={(e) => setNewContactEmail(e.target.value)} />
           <button onClick={addContact} disabled={busy || !newContactName.trim()}>
             Add contact
           </button>
