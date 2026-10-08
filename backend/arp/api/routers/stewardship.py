@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 import tempfile
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_decision_store, get_engagement_store, get_stream_store, settings_dep
 from arp.config import Settings
+from arp.schemas.common import now_iso
 from arp.schemas.engagement import (
     Commitment,
     CommitmentStatus,
@@ -539,7 +540,7 @@ def decide_client_exception(
         "decision": body.decision,
         "decided_by": principal.name,
         "note": body.note,
-        "decided_at": datetime.now(UTC).isoformat(),
+        "decided_at": now_iso(),
     }
     streams.save({**stream, "exception_decisions": [*stream.get("exception_decisions", []), row]})
     return row
@@ -627,7 +628,7 @@ def put_program(
             BenchmarkStore(streams.root).get(body.params.benchmark)
         except KeyError as exc:
             raise HTTPException(422, f"Unknown benchmark: {body.params.benchmark}") from exc
-    program = {"params": body.params.model_dump(), "updated_by": principal.user_id, "updated_at": datetime.now(UTC).isoformat()}
+    program = {"params": body.params.model_dump(), "updated_by": principal.user_id, "updated_at": now_iso()}
     streams.save({**stream, "program": program})
     return program
 

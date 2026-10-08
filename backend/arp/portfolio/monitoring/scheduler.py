@@ -9,6 +9,7 @@ from arp.portfolio.climate.esg_api_source import pull_esg
 from arp.portfolio.loads import latest_load
 from arp.portfolio.monitoring.evaluator import evaluate_news_triggers, evaluate_threshold_rules
 from arp.portfolio.monthly_run import run_month
+from arp.schemas.common import now_iso
 from arp.schemas.portfolio_monitoring import PortfolioMonitoringScheduleConfig
 from arp.stewardship.trigger_store import TriggerStore
 from arp.storage.portfolio_store import PortfolioStore
@@ -38,7 +39,7 @@ class PortfolioMonitoringScheduler(IntervalScheduler):
     async def _run(self, config: PortfolioMonitoringScheduleConfig) -> None:
         evaluate_threshold_rules(self.store)
         evaluate_news_triggers(self.store, min_severity=config.news_min_severity)
-        config.last_run_at = datetime.now(UTC).isoformat()
+        config.last_run_at = now_iso()
         previous = (datetime.now(UTC).date().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
         if not (self.settings.esg_api_base_url and self.settings.esg_api_token):
             logger.info("ESG pull skipped: ESG API not configured")

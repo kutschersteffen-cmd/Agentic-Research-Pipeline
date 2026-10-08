@@ -19,12 +19,12 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from arp.decision.publish import as_fields
 from arp.engagement.orchestrator import is_stalled
+from arp.schemas.common import now_iso
 from arp.schemas.engagement import EngagementRecord, IssueStatus, MilestoneStage
 from arp.stewardship import alerts_feed, escalation, monitoring, tracking, voting_feed
 from arp.stewardship.backtest import attach_impact, build_contexts
@@ -145,7 +145,7 @@ class StreamStore:
             {
                 "stream_id": stream_id,
                 "name": name,
-                "created_at": datetime.now(UTC).isoformat(),
+                "created_at": now_iso(),
                 "client_policy": client_policy,
                 "decisions": [],
                 "built_policy": None,

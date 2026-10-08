@@ -23,6 +23,7 @@ from pathlib import Path
 
 import zen
 
+from arp.schemas.common import now_iso
 from arp.schemas.engagement import EngagementRecord, EscalationStage, IssueStatus
 from arp.stewardship.backtest import _nest
 from arp.stewardship.policy_review import DATA
@@ -104,7 +105,7 @@ class TierStore:
     def confirm(self, proposal: dict, decided_by: str) -> dict:
         if not decided_by.strip():
             raise ValueError("A tier confirmation needs decided_by")
-        row = {**proposal, "confirmed_by": decided_by, "assigned_at": datetime.now(UTC).isoformat()}
+        row = {**proposal, "confirmed_by": decided_by, "assigned_at": now_iso()}
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a") as f:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")

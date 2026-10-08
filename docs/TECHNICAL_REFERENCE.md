@@ -265,7 +265,6 @@ Every run type (`theme`, `extraction`, `financials`, `voting`, `identity`, `disc
 | `tenacity` | `>=8.3` | Retry/backoff logic in the LangChain client. |
 | `APScheduler` | `>=3.10` | Interval-based scheduling for the document-discovery crawler. |
 | `python-multipart` | `>=0.0.9` | FastAPI file-upload form parsing (manual document/universe uploads). |
-| `python-dotenv` | `>=1.0` | Loads `.env` into `pydantic-settings`. |
 | `numpy` | `>=1.26` | Numeric backbone for the portfolio aggregation engine and embedding matrices. |
 | `openpyxl` | `>=3.1` | `.xlsx`/`.xlsm` parsing (disclosure tables, ETF holdings exports) and the local-file source's Excel reader. |
 | `fastembed` | `>=0.3` | ONNX embedding model for opt-in hybrid semantic retrieval — see §4. |

@@ -14,10 +14,9 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import UTC, datetime
 from pathlib import Path
 
-from arp.schemas.common import new_id
+from arp.schemas.common import new_id, now_iso
 from arp.schemas.engagement import (
     ESCALATION_ORDER,
     CorrespondenceEntry,
@@ -103,7 +102,7 @@ def create(
         raise ValueError("A draft needs text and created_by")
     record, issue = _issue(engagements, company_id, issue_id)
     proposed, why = propose_interaction_type(text, issue)
-    now = datetime.now(UTC).isoformat()
+    now = now_iso()
     return store.save(
         {
             "draft_id": new_id("drf"),
@@ -157,7 +156,7 @@ def update(
         draft["status"] = "draft"
         draft.pop("approved_by", None)
     action = "edited" if text is not None else "retagged"  # the checkpoint may retag without becoming an author
-    draft["history"].append({"at": datetime.now(UTC).isoformat(), "by": updated_by, "action": action})
+    draft["history"].append({"at": now_iso(), "by": updated_by, "action": action})
     return store.save(draft)
 
 
@@ -175,7 +174,7 @@ def approve(store: DraftStore, draft_id: str, approved_by: str, note: str = "") 
             f"{len(draft['style_flags'])} style flags are open: rewrite, or approve with a note saying why they stay"
         )
     draft |= {"status": "approved", "approved_by": approved_by}
-    draft["history"].append({"at": datetime.now(UTC).isoformat(), "by": approved_by, "action": "approved", "note": note})
+    draft["history"].append({"at": now_iso(), "by": approved_by, "action": "approved", "note": note})
     return store.save(draft)
 
 
@@ -202,5 +201,5 @@ def mark_sent(store: DraftStore, engagements: EngagementStore, draft_id: str, se
             draft["company_id"], draft["issue_id"], MilestoneStage.CONTACTED, reason=f"Outreach sent by {sent_by}."
         )
     draft["status"] = "sent"
-    draft["history"].append({"at": datetime.now(UTC).isoformat(), "by": sent_by, "action": "sent"})
+    draft["history"].append({"at": now_iso(), "by": sent_by, "action": "sent"})
     return store.save(draft)

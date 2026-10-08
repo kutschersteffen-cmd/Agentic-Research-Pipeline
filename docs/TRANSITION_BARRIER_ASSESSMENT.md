@@ -143,9 +143,7 @@ only for evidence text and the verification date.
 Not an oversight — most of them genuinely resist it:
 
 - **`structured_api_or_dashboard` (6).** Despite the name, most are dashboard front-ends,
-  not documented REST APIs. `backend/scripts/investigate_structured_sources.py` probes each
-  one and reports what automated retrieval would actually mean. Run it before writing any
-  retriever for them.
+  not documented REST APIs. Probe each one before writing a retriever for it.
 - **`periodic_pdf_report` (27).** Annual PDFs where the `locator` field is the extraction
   instruction — the natural place for an LLM extraction step, once the EUR-Lex loop is proven.
 - **`government_agency_publication` (21).** The weakest single-source reliability, especially

@@ -18,9 +18,9 @@ import hashlib
 import io
 import json
 import re
-from datetime import UTC, datetime
 from pathlib import Path
 
+from arp.schemas.common import now_iso
 from arp.storage.atomic_io import atomic_write_text
 
 SAMPLE = "sample"
@@ -141,7 +141,7 @@ class BenchmarkStore:
             **benchmark,
             "benchmark_id": slug,
             "uploaded_by": uploaded_by,
-            "uploaded_at": datetime.now(UTC).isoformat(),
+            "uploaded_at": now_iso(),
         }
         self.root.mkdir(parents=True, exist_ok=True)
         atomic_write_text(self._path(slug), json.dumps(record, ensure_ascii=False))

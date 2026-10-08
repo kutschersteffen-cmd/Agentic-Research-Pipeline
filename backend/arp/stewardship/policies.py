@@ -26,9 +26,9 @@ from __future__ import annotations
 import json
 from collections import Counter
 from collections.abc import Callable
-from datetime import UTC, datetime
 from pathlib import Path
 
+from arp.schemas.common import now_iso
 from arp.schemas.engagement import EngagementRecord
 from arp.stewardship import escalation, monitoring, style
 from arp.stewardship.backtest import backtest
@@ -167,7 +167,7 @@ class PolicyStore:
             "version": version,
             "note": note,
             "created_by": created_by,
-            "created_at": datetime.now(UTC).isoformat(),
+            "created_at": now_iso(),
             "content": content,
         }
         atomic_write_text(d / f"v{version}.json", json.dumps(record, indent=2, ensure_ascii=False))
@@ -180,7 +180,7 @@ class PolicyStore:
         meta = next(v for v in self.versions(policy_id) if v["version"] == version)
         if version > 0 and meta["created_by"].strip().lower() == approved_by.strip().lower():
             raise ValueError("Four-eyes rule: a version must be activated by someone other than the person who saved it")
-        row = {"version": version, "approved_by": approved_by, "approved_at": datetime.now(UTC).isoformat()}
+        row = {"version": version, "approved_by": approved_by, "approved_at": now_iso()}
         d = self._dir(policy_id)
         d.mkdir(parents=True, exist_ok=True)
         with (d / "activations.jsonl").open("a") as f:

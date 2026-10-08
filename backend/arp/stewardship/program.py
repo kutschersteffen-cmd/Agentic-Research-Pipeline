@@ -24,7 +24,6 @@ World until constituents are connected; every output says so.
 from __future__ import annotations
 
 import copy
-from datetime import UTC, datetime
 from math import fsum
 from pathlib import Path
 from typing import Literal
@@ -33,6 +32,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from arp.engagement.orchestrator import is_stalled
 from arp.index.weighting import apply_tilts, normalise
+from arp.schemas.common import now_iso
 from arp.schemas.engagement import EngagementRecord, IssueStatus
 from arp.schemas.index import IndexCandidate, MetricTilt
 from arp.schemas.reporting import (
@@ -500,7 +500,7 @@ def approve(root: Path, stream: dict, records: list[EngagementRecord], sla_days:
         "kpis": sim["kpis"],
         "proposed_by": saved["updated_by"],
         "approved_by": approved_by,
-        "approved_at": datetime.now(UTC).isoformat(),
+        "approved_at": now_iso(),
     }
     return {**stream, "program_versions": [*versions, version]}
 
@@ -598,7 +598,7 @@ def record_run(stream: dict, result: dict, recorded_by: str) -> dict:
     if not result.get("approved"):
         raise ValueError("No approved program to monitor")
     run = {
-        "as_of": datetime.now(UTC).isoformat(),
+        "as_of": now_iso(),
         "version": result["approved"]["version"],
         "kpis": result["kpis"],
         "alerts": sum(a["status"] in ("amber", "red") for a in result["alerts"]),

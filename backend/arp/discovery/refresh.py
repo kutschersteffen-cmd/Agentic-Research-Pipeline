@@ -7,7 +7,7 @@ import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from arp.schemas.common import CompanyRef
+from arp.schemas.common import CompanyRef, now_iso
 from arp.schemas.discovery import DocumentEvent, DocumentEventType
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
 
@@ -101,7 +101,7 @@ async def refresh_on_events(
             if parent and (event.company_id, schema.schema_id) == parent[:2]:
                 seen.add(key)
                 append_jsonl(fired_path, {"company_id": key[0], "schema_id": key[1], "sha256": sha, "run_id": parent[2],
-                                          "parent": True, "fired_at": datetime.now(UTC).isoformat()})
+                                          "parent": True, "fired_at": now_iso()})
                 continue
             if runs_today >= settings.event_refresh_max_runs_per_day:
                 logger.warning("Refresh: daily cap of %d runs reached; %s not refreshed",
@@ -115,7 +115,7 @@ async def refresh_on_events(
             seen.add(key)
             runs_today += 1
             append_jsonl(fired_path, {"company_id": key[0], "schema_id": key[1], "sha256": sha,
-                                      "run_id": run_id, "fired_at": datetime.now(UTC).isoformat()})
+                                      "run_id": run_id, "fired_at": now_iso()})
             launcher.launch(run_id, _job(run_id, schema, [company], settings, run_store, registry), run_store=run_store)
             run_ids.append(run_id)
     return run_ids

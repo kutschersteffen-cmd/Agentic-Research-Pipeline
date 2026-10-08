@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 
+from arp.schemas.common import now_iso
 from arp.schemas.triggers import UnifiedTrigger
 
 STATUSES = ("open", "acknowledged", "resolved")
@@ -26,7 +26,7 @@ class TriggerStore:
     def _append(self, row: dict) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a") as f:
-            f.write(json.dumps({**row, "at": datetime.now(UTC).isoformat()}, ensure_ascii=False) + "\n")
+            f.write(json.dumps({**row, "at": now_iso()}, ensure_ascii=False) + "\n")
 
     def _rows(self) -> list[dict]:
         return [json.loads(line) for line in self.path.read_text().splitlines() if line.strip()] if self.path.exists() else []
