@@ -7,6 +7,8 @@
   --bg: #f3f3f0;
   --panel: #ffffff;
   --panel-border: #dcdcd7;
+  /* Form-field edge: >=3:1 on the field and page (WCAG 1.4.11); --panel-border stays light for cards and rules. */
+  --field-border: #85857f;
   --well: #ebebe7;
   --text: #141414;
   --muted: #5c5c57;
@@ -90,6 +92,7 @@
     --bg: #0c0d0f;
     --panel: #131417;
     --panel-border: #26272c;
+    --field-border: #707178;
     --well: #18191c;
     --text: #e8e8e3;
     --muted: #9a9ba0;
@@ -118,6 +121,7 @@
   --bg: #0c0d0f;
   --panel: #131417;
   --panel-border: #26272c;
+  --field-border: #707178;
   --well: #18191c;
   --text: #e8e8e3;
   --muted: #9a9ba0;
@@ -392,7 +396,7 @@ a.nav-tab { text-decoration: none; }
 input[type="text"], input:not([type]), input[type="number"], input[type="date"], textarea, select {
   width: 100%;
   background: var(--panel);
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--field-border);
   color: var(--text);
   border-radius: var(--r-md);
   padding: 8px 10px;
