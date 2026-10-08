@@ -1300,6 +1300,7 @@ export type OutputFormat = "pptx" | "docx" | "pdf" | "house_deck";
 export interface LayoutInstructions {
   output_format: OutputFormat;
   theme?: "light" | "dark";
+  density?: "committee" | "present";
   target_length?: number | null;
   max_bullets_per_slide: number;
   include_title_slide: boolean;
@@ -1435,9 +1436,10 @@ export interface Storyline {
 export interface Finding {
   slide: number;
   slot?: string | null;
-  stage: "data" | "lint" | "fit" | "qa";
+  stage: "data" | "lint" | "fit" | "qa" | "design";
   rule: string;
   message: string;
+  severity?: "info" | "warn"; // info = a logged change (e.g. a relayout), not a problem
 }
 
 // ---- Investment Strategy Replication ---------------------------------------

@@ -9,20 +9,16 @@ from pydantic import BaseModel
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.fit import fit_deck
-from arp.reporting.house_style import get_variant, load_layouts
+from arp.reporting.house_style import design_sections, get_variant, load_layouts
 from arp.reporting.lint import lint_deck
 from arp.schemas.reporting import Deck, Finding, ReportRequest
 
 _MAX_IMAGES = 20  # keeps the request small; later slides go unchecked (qa_truncated)
 
 _SYSTEM = """You review rendered consulting slides (one image per slide, in deck order, slide 0 first).
-Check each slide for:
-- hierarchy clear
-- one focal point
-- orphan words
-- a lone bullet
-- a near-empty slide
-- the chart supports the headline
+
+""" + design_sections(["Review checklist"]) + """
+
 Return only edits that fix a real problem, each naming the slide index. An edit may change the layout and/or
 variant, and/or replace one slot's text. Use only the layouts, variants and slots listed. Never edit headlines.
 Keep every fact and number; invent none. Return no edits when the deck is fine."""

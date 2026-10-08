@@ -106,3 +106,78 @@ async def test_fill_slide_llm_failure_is_flagged_placeholder(fake_llm):
     slide, findings, _ = await fill_slide(_STORY, 2, _REQ, fake_llm({}))  # nothing scripted: the call raises
     assert slide.layout == "bullets" and slide.headline == _STORY.headline
     assert [(f.slide, f.stage, f.rule) for f in findings] == [(2, "data", "llm_failed")]
+
+
+def test_validate_slide_reports_structured_item_errors_and_heat_columns():
+    from arp.schemas.reporting import TableSpec
+
+    flow = SlideContent(headline="h", layout="flow", variant="default", slots={"items": ["only one stage"]})
+    assert any("flow" in e for e in slide_fill.validate_slide(flow, []))
+    tree = SlideContent(headline="h", layout="tree", variant="default", slots={"items": ["q :: Q? :: a :: nope", "a :: =A :: high"]})
+    assert any("unknown node 'nope'" in e for e in slide_fill.validate_slide(tree, []))
+    ds = QuantitativeDataset(dataset_id="d", name="D", columns=[DatasetColumn(name="k", kind=ColumnKind.CATEGORY)], rows=[{"k": "a"}])
+    heat = SlideContent(headline="h", layout="table", variant="heat", table=TableSpec(dataset_id="d", heat={"zz": [1, 2]}))
+    assert any("no column 'zz'" in e for e in slide_fill.validate_slide(heat, [ds]))
+
+
+async def test_rewrite_slot_rejects_a_rewrite_that_breaks_the_item_format(fake_llm):
+    slide = SlideContent(headline="h", layout="flow", variant="default", slots={"items": ["A :: a", "B :: b"]})
+    with pytest.raises(ValueError, match="flow"):
+        await rewrite_slot(slide, "items", "Shorten", _REQ, fake_llm({"SlotRewrite": [SlotRewrite(text=["A a", "B b"])]}))
+
+
+async def test_fill_slide_falls_back_to_cards_keeping_content_on_a_structure_error(fake_llm):
+    bad = SlideContent(headline="x", layout="flow", variant="default", slots={"items": ["Retrieve :: passages"], "takeaway_bar": "Why: because"})
+    slide, findings, _ = await fill_slide(_STORY, 1, _REQ, fake_llm({"SlideContent": [bad, bad]}))
+    assert (findings[0].stage, findings[0].rule) == ("data", "bad_structure") and "flow" in findings[0].message
+    assert (slide.layout, slide.slots["items"]) == ("cards", ["Retrieve: passages"]) and "Why: because" in slide.speaker_notes
+
+
+def test_system_prompt_shows_the_density_word_limits():
+    assert "statement (text, max 60 words)" in slide_fill._system_prompt("committee")
+    assert "statement (text, max 30 words)" in slide_fill._system_prompt("present")
+
+
+def test_slide_fill_does_not_import_the_renderer():
+    import subprocess
+    import sys
+
+    code = "import sys, arp.reporting.slide_fill; print('arp.reporting.html_render' in sys.modules)"
+    assert subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip() == "False"
+
+
+async def test_fill_prompt_includes_design_rules(fake_llm):
+    llm = fake_llm({"SlideContent": [_chart_slide("weight")]})
+    await fill_slide(_STORY, 1, _REQ, llm)
+    assert "## Content to layout" in llm.systems[0] and "## Rhythm" in llm.systems[0]
+    assert "## Review checklist" not in llm.systems[0]
+
+
+def test_table_heat_needs_exactly_low_and_high():
+    from pydantic import ValidationError
+
+    from arp.schemas.reporting import TableSpec
+
+    with pytest.raises(ValidationError):
+        TableSpec(dataset_id="d", heat={"s": [50]})
+
+
+async def test_fill_slide_with_inverted_heat_retries_then_placeholder(fake_llm):
+    from arp.schemas.reporting import TableSpec
+
+    bad = SlideContent(headline="x", layout="table", variant="heat", table=TableSpec(dataset_id="ds_w", heat={"weight": [5, 1]}))
+    assert any("low 5" in e for e in slide_fill.validate_slide(bad, [_DS]))
+    llm = fake_llm({"SlideContent": [bad, bad]})
+    slide, findings, _ = await fill_slide(_STORY, 1, _REQ, llm)
+    assert llm.calls == ["SlideContent", "SlideContent"] and "weight" in llm.prompts[1]
+    assert findings[0].rule == "bad_reference" and slide.layout == "bullets"
+
+
+async def test_cards_fallback_caps_at_four_and_says_the_chart_was_dropped(fake_llm):
+    bad = SlideContent(headline="x", layout="scatter_zone", variant="default", slots={"items": ["A :: a", "B :: b", "C :: c", "D :: d", "E"]},
+                       chart=ChartSpec(dataset_id="ds_w", chart_type="scatter", x_column="weight", y_column="weight"))
+    assert slide_fill.validate_slide(bad, [_DS]) == slide_fill.structure_errors(bad, slide_fill.get_variant("scatter_zone", "default").slots)
+    slide, findings, _ = await fill_slide(_STORY, 1, _REQ, fake_llm({"SlideContent": [bad, bad]}))
+    assert (slide.layout, slide.variant) == ("cards", "four") and slide.chart is None
+    assert slide.slots["items"] == ["A: a", "B: b", "C: c", "D: d; E"]
+    assert findings[0].rule == "bad_structure" and "chart/table dropped" in findings[0].message

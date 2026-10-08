@@ -98,14 +98,14 @@ def test_html_table_more_rows_caption():
     deck, ds = _table_deck(10, max_rows=3, row_offset=2)
     assert "+5 more rows" in render_deck_html(deck, ds)
     deck, ds = _table_deck(5, max_rows=3, row_offset=2)
-    assert "more rows" not in render_deck_html(deck, ds).split("<body>", 1)[1]
+    assert "more rows" not in render_deck_html(deck, ds).split("<body ", 1)[1]
 
 
 async def test_html_table_with_more_rows_still_fits():
     from arp.reporting.browser import measure
 
     deck, ds = _table_deck(40, max_rows=8)
-    assert await measure(render_deck_html(deck, ds)) == []
+    assert [f for f in await measure(render_deck_html(deck, ds)) if f.stage == "fit"] == []
 
 
 def _first_words(pdf: str, words: list[str]) -> dict[str, tuple[float, float]]:
@@ -177,3 +177,160 @@ def test_pptx_table_header_is_small_uppercase_mono(tmp_path):
     run = table.cell(0, 0).text_frame.paragraphs[0].runs[0]
     assert run.text == "K" and run.font.name == load_tokens().fonts.mono.split(",")[0].strip("'\" ") and not run.font.bold
     assert run._r.rPr.get("spc")
+
+
+def test_pptx_renders_every_v2_variant(tmp_path):
+    deck, ds = stress_deck("min")
+    assert len(Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides) == len(deck.slides)
+    deck, ds = stress_deck("max", "committee")
+    assert len(Presentation(build_house_pptx(deck, ds, tmp_path / "e.pptx")).slides) == len(deck.slides)
+
+
+def test_pptx_cards_are_separate_shapes(tmp_path):
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="three", slots={"items": ["One: first body", "Two: second", "Three: third"]})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx")).slides[0]
+    cards = [_shapes(s, f"slot:items:{i}") for i in range(3)]
+    assert all(len(c) == 1 for c in cards)
+    assert [p.text for p in cards[0][0].text_frame.paragraphs][-2:] == ["One", "first body"]
+
+
+def test_pptx_short_text_uses_short_role(tmp_path):
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="statement", variant="plain", slots={"statement": "Three short words"})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx")).slides[0]
+    spec = get_variant("statement", "plain").slots[0]
+    assert _shapes(s, "slot:statement")[0].text_frame.paragraphs[0].runs[0].font.size.pt == load_tokens().type[spec.type_role_short].size * 0.75
+
+
+def test_pptx_steps_have_a_connector_line(tmp_path):
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="steps", variant="three", slots={"items": ["A: a", "B: b", "C: c"]})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx")).slides[0]
+    assert len(_shapes(s, "slot:items:line")) == 1 and all(_shapes(s, f"slot:items:{i}") for i in range(3))
+
+
+def test_pptx_committee_patterns_are_native_shapes(tmp_path):
+    items = {"tree": ["q :: Ok? :: a :: b", "a :: =Yes :: high", "b :: =No :: low"],
+             "flow": ["One :: x :: *y", "Two :: z"], "profile": ["A :: 40%", "B :: 80%"]}
+    deck = Deck(title="T", slides=[
+        SlideContent(headline="h", eyebrow="Eb", layout="tree", variant="default", slots={"items": items["tree"], "takeaway_bar": "Why: because"}),
+        SlideContent(headline="h", layout="flow", variant="default", slots={"items": items["flow"], "takeaway_bar": "x"}),
+        SlideContent(headline="h", layout="profile", variant="default", slots={"meters": items["profile"], "total": "1", "left": ["P", "a"], "right": ["Q", "b"], "takeaway_bar": "x"}),
+    ])
+    tree, flow, prof = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx")).slides
+    assert len([sh for sh in tree.shapes if sh.name.startswith("slot:items:node")]) == 3
+    assert len([sh for sh in tree.shapes if sh.name.startswith("slot:items:edge") and not sh.name.endswith("label")]) == 2
+    assert _shapes(tree, "eyebrow")[0].text_frame.text == "EB" and _shapes(tree, "slot:takeaway_bar")
+    assert _shapes(flow, "slot:items:arrow:0")
+    col, box = _shapes(flow, "slot:items:0")[0], _shapes(flow, "slot:items:0:box:0")[0]
+    assert box.top - col.top < col.height / 2 and col.height == _shapes(flow, "slot:items:1")[0].height  # boxes under the title, equal panels
+    assert len([sh for sh in prof.shapes if sh.name.startswith("slot:meters:") and sh.name.endswith(":fill")]) == 2
+
+
+def test_pptx_malformed_structure_falls_back_to_a_list(tmp_path):
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="flow", variant="default", slots={"items": ["no separators", "at all"], "takeaway_bar": "x"})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx")).slides[0]
+    assert _shapes(s, "slot:items")[0].text_frame.text == "no separators\nat all"
+
+
+def test_pptx_heat_cells_are_tinted(tmp_path):
+    deck, ds = _table_deck(3, max_rows=3)
+    deck.slides[0].variant, deck.slides[0].table.heat = "compact", {"v": [1, 2]}
+    table = _shapes(Presentation(build_house_pptx(deck, ds, tmp_path / "d.pptx")).slides[0], "slot:table")[0].table
+    fills = [str(table.cell(r, 1).fill.fore_color.rgb) for r in (1, 2, 3)]
+    assert len(set(fills)) == 3 and str(table.cell(1, 0).fill.fore_color.rgb).lower() == "ffffff"
+
+
+def _card_body_pt(density, items, tmp_path):
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="three", slots={"items": items})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / f"{density}.pptx", density=density)).slides[0]
+    return _shapes(s, "slot:items:0")[0].text_frame.paragraphs[-1].runs[0].font.size.pt
+
+
+def test_pptx_committee_prose_is_body_and_present_short_text_steps_up(tmp_path):
+    t, spec = load_tokens(), get_variant("cards", "three").slots[0]
+    short = ["Two words", "Two words", "Two words"]
+    assert _card_body_pt("committee", short, tmp_path) == t.type["body"].size * 0.75
+    assert _card_body_pt("present", short, tmp_path) == t.type[spec.type_role_short].size * 0.75
+
+
+def test_pptx_card_with_longest_item_fits_its_outline(tmp_path):
+    from arp.reporting.house_pptx import _Builder
+
+    spec = get_variant("cards", "three").slots[0]
+    words = " ".join(["dolore"] * spec.max_words)
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="three", slots={"items": [f"Title here: {words}"] * 3})])
+    t, r = load_tokens(), slot_rect(load_tokens(), spec)
+    card = _shapes(Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx", density="present")).slides[0], "slot:items:0")[0]
+    b, w = _Builder(t, "light", "present"), (r.w - 2 * t.grid.gutter) / 3 - 2 * t.grid.gutter
+    need = 2 * t.grid.gutter + t.type["subhead"].size + 20 + b._est_h("Title here", t.type["subhead"], w) + 12 + b._est_h(words, b._role(spec, "cards", [words]), w)
+    assert need <= card.height / _PX <= r.h
+
+
+async def _html_boxes(html: str, selector: str) -> list[list[float]]:
+    from playwright.async_api import async_playwright
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch()
+        page = await browser.new_page(viewport={"width": 1920, "height": 1080})
+        await page.set_content(html)
+        await page.evaluate("document.fonts.ready")
+        boxes = await page.evaluate(f"[...document.querySelectorAll({selector!r})].map(e => {{ const r = e.getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; }})")
+        await browser.close()
+    return boxes
+
+
+@pytest.mark.parametrize("density", ["present", "committee"])
+async def test_pptx_cards_match_the_content_sized_html_stack(tmp_path, density):
+    from arp.reporting.house_pptx import _e
+
+    items = ["Review queue: indicators with no grounded citation", "Analyst decision: approve, edit or reject", "Audit trail: reviewer, time and history"]
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="three", slots={"items": items})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx", density=density)).slides[0]
+    html = await _html_boxes(render_deck_html(deck, [], density=density), "[data-slot=items] li")
+    for i, (x, y, w, h) in enumerate(html):
+        [card] = _shapes(s, f"slot:items:{i}")
+        assert abs(card.left - _e(x)) <= _e(2) and abs(card.top - _e(y)) <= _e(2) and abs(card.width - _e(w)) <= _e(2)
+        # _est_h keeps 16% width slack for a fallback face (boxes never clip): at most one extra body line.
+        body = load_tokens().type["body"]
+        assert _e(h) - _e(2) <= card.height <= _e(h + body.size * body.line_height + 2)
+
+
+@pytest.mark.parametrize("density", ["present", "committee"])
+async def test_pptx_steps_match_the_html_per_density(tmp_path, density):
+    from arp.reporting.house_pptx import _e
+
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="steps", variant="four", slots={"items": ["A: a", "B: b", "C: c", "D: d"]})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx", density=density)).slides[0]
+    nodes = await _html_boxes(render_deck_html(deck, [], density=density), "[data-slot=items] li")  # each node sits at its li's left edge
+    tops = [_shapes(s, f"slot:items:{i}:node")[0] for i in range(4)]
+    [line] = _shapes(s, "slot:items:line")
+    if density == "committee":  # vertical rows sharing the body, one node per row, the rule running down through them
+        assert len({n.left for n in tops}) == 1 and line.width == 0
+        for (x, y, _, h), n in zip(nodes, tops, strict=True):
+            assert abs(n.left - _e(x)) <= _e(2) and abs(n.top + n.height / 2 - _e(y + h / 2)) <= _e(2)
+    else:  # one horizontal row of nodes on a horizontal rule
+        assert len({n.top for n in tops}) == 1 and line.height == 0
+        assert all(abs(n.left - _e(x)) <= _e(2) for (x, _, _, _), n in zip(nodes, tops, strict=True))
+
+
+async def test_pptx_decision_rows_share_the_body_like_the_html(tmp_path):
+    from arp.reporting.house_pptx import _e
+
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="decisions", variant="default", slots={"items": ["Agree :: the sample", "Review :: the flags"]})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx")).slides[0]
+    html = await _html_boxes(render_deck_html(deck, []), "ol.decisions > li")
+    for i, (_, y, _, h) in enumerate(html):
+        [row] = _shapes(s, f"slot:items:{i}")
+        assert abs(row.top - _e(y)) <= _e(2) and abs(row.height - _e(h)) <= _e(2)
+
+
+@pytest.mark.parametrize("density", ["present", "committee"])
+async def test_pptx_card_rows_match_the_html(tmp_path, density):
+    from arp.reporting.house_pptx import _e
+
+    items = ["Review queue: indicators with no grounded citation", "Analyst decision: approve, edit or reject", "Audit trail: reviewer, time and history"]
+    deck = Deck(title="T", slides=[SlideContent(headline="h", layout="cards", variant="rows", slots={"items": items})])
+    s = Presentation(build_house_pptx(deck, [], tmp_path / "d.pptx", density=density)).slides[0]
+    for i, (x, y, w, h) in enumerate(await _html_boxes(render_deck_html(deck, [], density=density), "[data-slot=items] li")):
+        [row], [rule] = _shapes(s, f"slot:items:{i}"), _shapes(s, f"slot:items:{i}:rule")
+        assert abs(rule.top - _e(y)) <= _e(2) and abs(row.top - _e(y)) <= _e(2) and abs(row.height - _e(h)) <= _e(2)
+        assert abs(row.left - _e(x + 112)) <= _e(2) and abs(row.left + row.width - _e(x + w)) <= _e(2)

@@ -94,6 +94,7 @@ phase:
   don't need to exist before writing them down. Trivial changes skip planning.
 - **Implementation → ponytail.** Smallest working diff; follow the plan's tasks, not more.
 - **Frontend design → impeccable and ui-ux-pro-max**, as before.
+- **Decks and slides → the `deck-design` skill** (`.claude/skills/deck-design/SKILL.md`), with impeccable at design time.
 - **Review → ponytail.** Review with `/ponytail:ponytail-review` (over-engineering) plus
   `/code-review` (correctness). Do not use `superpowers:requesting-code-review` or
   `superpowers:receiving-code-review`.

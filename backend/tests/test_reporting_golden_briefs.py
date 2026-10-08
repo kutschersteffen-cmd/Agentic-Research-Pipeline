@@ -138,7 +138,52 @@ def test_client_brief_renders_without_an_llm(tmp_path, fake_llm, monkeypatch):
     notes = " ".join(str(v) for s in deck.slides for v in s.slots.values())
     request = ReportRequest(title="x", qualitative_notes=notes, datasets=seen["datasets"], layout=LayoutInstructions(output_format=OutputFormat.HOUSE_DECK))
     _, fit_findings = asyncio.run(fit_deck(deck, request, fake_llm({})))  # a rewrite call would hit the empty script and fail
-    assert deck.slides and fit_findings == []
+    assert deck.slides and [f for f in fit_findings if f.stage != "design"] == []  # no fit stage here: design warns stay advisory
     # over_word_limit and bold_label do not apply: they steer the LLM's rewrite, and the report's own summary
     # lines are longer than the slot guide and use 'Label: value' form, yet fit the slide (fit_findings is empty).
     assert [f for f in lint_deck(deck, request) if f.rule not in ("over_word_limit", "bold_label")] == []
+
+
+DESIGN_SECTIONS = ["Principles", "Layouts", "Content to layout", "Rhythm", "Focal point and whitespace", "Review checklist", "Examples"]
+
+
+def test_design_md_has_required_sections():
+    from arp.reporting.house_style import design_sections
+
+    text = design_sections()
+    assert [h for h in DESIGN_SECTIONS if f"\n## {h}\n" not in f"\n{text}"] == []
+
+
+def test_design_md_reads_plainly():
+    """The shared rules follow the writing rules they hand the model: no stock words, no 'not X but Y'."""
+    from arp.reporting.house_style import design_sections
+    from arp.reporting.lint import RULES
+    from arp.schemas.reporting import Deck
+
+    lines = [ln for ln in design_sections().splitlines() if ln.strip()]
+    deck = Deck(title="d", slides=[SlideContent(headline=ln, layout="statement", variant="plain") for ln in lines])
+    request = ReportRequest(title="d", qualitative_notes="")
+    assert [(f.rule, lines[f.slide]) for r in ("stock_ai_word", "not_x_but_y") for f in RULES[r](deck, request)] == []
+
+
+@pytest.mark.parametrize("fixture", ["tpa_pitch", "tpa_pitch_committee"])
+async def test_tpa_pitch_acceptance(fixture, tmp_path, fake_llm):
+    """Spec acceptance: the TPA pitch through approve_storyline comes out clean, in both densities."""
+    import importlib
+
+    from arp.reporting.house_style import get_variant
+
+    request, story, fills = getattr(importlib.import_module(f"tests.fixtures.{fixture}"), fixture)()
+    store = ReportingStore(tmp_path / "reports", tmp_path / "tpl")
+    service = ReportingService(store)
+    manifest = await service.create_and_plan(request, fake_llm({"Storyline": [story]}))
+    manifest = await service.approve_storyline(manifest.report_id, fake_llm({"SlideContent": fills, "QAResult": [QAResult(edits=[])]}))
+    assert manifest.status == ReportStatus.COMPLETED
+    _assert_clean_deck(store, manifest.report_id)
+    findings = store.load_findings(manifest.report_id)
+    assert [(f.slide, f.rule, f.message) for f in findings if f.stage == "design" and f.severity == "warn"] == []
+    deck = store.load_deck(manifest.report_id)
+    assert "bullets" not in [s.layout for s in deck.slides]
+    content = [s for s in deck.slides[1:] if s.layout != "section"]
+    assert all(len({s.layout for s in deck.slides[i : i + 3]}) > 1 for i in range(len(deck.slides) - 2)), [s.layout for s in deck.slides]
+    assert all(any(get_variant(s.layout, s.variant).visual for s in content[i : i + 3]) for i in range(len(content) - 2))

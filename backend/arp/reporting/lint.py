@@ -47,8 +47,9 @@ def over_word_limit(deck: Deck, request: ReportRequest) -> list[Finding]:
             items = [v] if isinstance(v, str) else v
             if sp.max_items and len(items) > sp.max_items:
                 out.append(_find(i, slot, "over_word_limit", f"Use at most {sp.max_items} items."))
-            if sp.max_words and any(_words(t) > sp.max_words for t in items):
-                out.append(_find(i, slot, "over_word_limit", f"Shorten to at most {sp.max_words} words{' per item' if sp.kind == 'list' else ''}."))
+            limit = (sp.committee_words if request.layout.density == "committee" else None) or sp.max_words
+            if limit and any(_words(t) > limit for t in items):
+                out.append(_find(i, slot, "over_word_limit", f"Shorten to at most {limit} words{' per item' if sp.kind == 'list' else ''}."))
     return out
 
 
@@ -96,9 +97,15 @@ def dash_overuse(deck: Deck, request: ReportRequest) -> list[Finding]:
 _LABEL = re.compile(r"^\s*(?:\*\*[^*:]+:\*\*|[A-Za-z][\w ]{0,30}:(?!\d))")
 
 
+# Layouts whose item format is itself a label ("Title: body", "a :: b"); the renderer turns the label into structure.
+_LABELLED_LAYOUTS = {"cards", "steps", "compare", "flow", "profile", "scatter_zone", "matrix2x2", "tree", "decisions"}
+
+
 def bold_label(deck: Deck, request: ReportRequest) -> list[Finding]:
     out = []
     for i, s in enumerate(deck.slides):
+        if s.layout in _LABELLED_LAYOUTS:
+            continue
         hits = [(slot, t) for slot, t in _texts(s) if isinstance(s.slots[slot], list) and _LABEL.match(t)]
         if len(hits) >= 2:
             out += [_find(i, slot, "bold_label", "Drop the 'Label:' prefixes; write each item as a sentence.") for slot in dict.fromkeys(sl for sl, _ in hits)]

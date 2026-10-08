@@ -71,3 +71,11 @@ async def test_qa_truncates_and_survives_failure(tmp_path, fake_llm):
     deck, findings = await visual_qa(_deck(22), _pngs(tmp_path, 22), _REQ, llm)
     assert len(llm.images[0]) == 20 and deck == _deck(22)
     assert [f.rule for f in findings] == ["qa_truncated", "qa_failed"]
+
+
+async def test_qa_prompt_includes_review_checklist(tmp_path, fake_llm):
+    from arp.reporting.house_style import design_sections
+
+    llm = fake_llm({"QAResult": [QAResult(edits=[])]})
+    await visual_qa(_deck(), _pngs(tmp_path, 2), _REQ, llm)
+    assert design_sections(["Review checklist"]) in llm.systems[0] and "## Content to layout" not in llm.systems[0]

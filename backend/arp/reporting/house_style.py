@@ -7,6 +7,7 @@ geometry (layouts); renderers and the fit/lint stages read it from here.
 from __future__ import annotations
 
 import json
+import re
 from functools import cache
 from pathlib import Path
 from typing import Literal, NamedTuple
@@ -58,6 +59,8 @@ class Colors(BaseModel):
     accent: str
     background: str
     categorical: list[str]
+    well: str  # recessed tint: takeaway bars, flow columns
+    status: dict[str, str]  # high / mid / low / neutral, DESIGN.md's status colours; only tinted, never the signal
 
 
 class Fonts(BaseModel):
@@ -96,13 +99,19 @@ class SlotSpec(BaseModel):
     rows: int
     max_words: int | None = None  # per item for list slots
     max_items: int | None = None
+    committee_words: int | None = None  # max_words at committee density, where prose sets at body size; None = max_words
     type_role: str
+    # Fill by design: at most `short_words` words (longest item, for lists) renders one step up, in `type_role_short`.
+    type_role_short: str | None = None
+    short_words: int | None = None
 
 
 class VariantSpec(BaseModel):
     id: str
     slots: list[SlotSpec]
     roomier: str | None = None
+    anchor: Literal["top", "middle", "bottom"] = "top"  # where the content's mass is meant to sit in the body area
+    visual: bool = False  # a chart, numbers or steps: counts toward the deck's visual rhythm
 
 
 class LayoutSpec(BaseModel):
@@ -153,3 +162,9 @@ def get_variant(layout: str, variant: str) -> VariantSpec:
         if v.id == variant:
             return v
     raise KeyError(f"unknown variant {layout}/{variant}; known: {[v.id for v in ly.variants]}")
+
+
+def design_sections(names: list[str] | None = None, skip: tuple[str, ...] = ()) -> str:
+    """The `## ` sections of style/design.md (all of them when `names` is None), in file order, minus `skip`."""
+    parts = re.split(r"(?m)^(?=## )", (_STYLE_DIR / "design.md").read_text())[1:]
+    return "".join(p for p in parts if (h := p.split("\n", 1)[0][3:].strip()) not in skip and (names is None or h in names)).strip()
