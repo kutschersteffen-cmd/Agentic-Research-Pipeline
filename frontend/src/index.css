@@ -466,6 +466,15 @@ button.secondary:hover:not(:disabled) { background: var(--accent-tint); border-c
 
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 10px 0; }
 
+/* Touch: every action meets the 44px target (WCAG 2.5.8 / HIG). Text-style
+   link buttons keep their line height and grow an invisible hit area instead. */
+@media (pointer: coarse) {
+  button:not(.link-button), a.button-link { min-height: 44px; }
+  a.button-link { display: inline-flex; align-items: center; }
+  button.link-button { position: relative; }
+  button.link-button::after { content: ""; position: absolute; inset: -12px -6px; }
+}
+
 /* The one reviewer identity (lib/reviewer.tsx). Every instance edits the
    same name; an empty one is flagged because nothing can be decided yet. */
 .reviewer-field { display: grid; gap: var(--s-1); font-size: var(--text-sm); color: var(--muted); }
@@ -579,7 +588,7 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
 .data-table button:not(.link-button, .danger, .danger-outline):hover:not(:disabled) { background: var(--accent-tint); border-color: var(--accent); }
 .data-table .link-button { padding: 0; white-space: nowrap; }
 .chart-bar { fill: var(--text); }
-.bar-chart { max-width: 760px; min-width: 520px; }
+.bar-chart { max-width: 760px; }
 .chart-scroll { overflow-x: auto; }
 .tb-dist { list-style: none; margin: var(--s-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
 .tb-dist li { display: grid; grid-template-columns: minmax(7rem, 12rem) 1fr; align-items: center; gap: var(--s-3); }
