@@ -207,7 +207,7 @@ export function TapeReader() {
       <div className="lab-tape">
         {toolbar}
         {error
-          ? <p className="msg err" role="alert">{error} <button type="button" onClick={() => void load()}>Retry</button></p>
+          ? <p className="msg err" role="alert">Error: {error} <button type="button" onClick={() => void load()}>Retry</button></p>
           : <p className="msg">Nothing is waiting for review.</p>}
       </div>
     );
@@ -261,7 +261,7 @@ export function TapeReader() {
           <small>Enter submits, Esc cancels.</small>
         </div>
       )}
-      <p className={status?.error ? "msg err" : "msg"} role={status?.error ? "alert" : "status"}>{status?.text ?? ""}</p>
+      <p className={status?.error ? "msg err" : "msg"} role={status?.error ? "alert" : "status"}>{status?.error ? "Error: " : ""}{status?.text ?? ""}</p>
     </div>
   );
 }
