@@ -12,6 +12,7 @@ from arp.config import get_settings
 from arp.extraction.financials_pipeline import run_financials_extraction
 from arp.extraction.pipeline import run_extraction
 from arp.extraction.schema_builder import draft_schema
+from arp.extraction.steps import StepSettings
 from arp.extraction.tnfd_pipeline import run_tnfd_extraction
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.orchestration.jobs import NotResumable, RunBusy, resume_run
@@ -85,6 +86,8 @@ def extract_run(
             xbrl_source=_xbrl_source() if settings.xbrl_facts_enabled else None,
         )
     ))
+    # What the run used, as the API records it: `arp xbrl verify` needs it to tell whether XBRL values were copied.
+    (_run_store().run_dir(run_id) / "step_settings.json").write_text(StepSettings.effective(settings).model_dump_json())
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 
 
