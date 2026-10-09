@@ -220,3 +220,47 @@ async def test_run_isolates_a_failing_company_and_resume_retries_it(tmp_path):
     src.broken = False
     await execute_xbrl_run(run_id, companies, settings=settings, run_store=run_store, tags=None, refresh=False, source=src)
     assert {r["company_id"] for r in lines(run_store.results_path(run_id))} == {"A", "B", "C"}
+
+
+class _Flaky(FakeSource):
+    """Company "2" fails while `broken`; records the manifest status seen on every call."""
+
+    def __init__(self, run_store, run_id) -> None:
+        super().__init__()
+        self.broken, self.seen, self._rs, self._id = True, [], run_store, run_id
+
+    async def fetch_company_facts_raw(self, cik):
+        self.seen.append(self._rs.load_manifest(self._id).status)
+        if cik == "2" and self.broken:
+            raise ValueError("bad")
+        return await super().fetch_company_facts_raw(cik)
+
+
+async def _first_run_with_failure(tmp_path):
+    settings = Settings(xbrl_dir=tmp_path / "xbrl")
+    run_store = RunStore(tmp_path / "runs")
+    companies = [_company("A", "1"), _company("B", "2"), _company("C", "3")]
+    run_id = create_xbrl_run(companies, None, False, run_store)
+    src = _Flaky(run_store, run_id)
+
+    async def run():
+        await execute_xbrl_run(run_id, companies, settings=settings, run_store=run_store, tags=None, refresh=False, source=src)
+        return run_store.load_manifest(run_id)
+
+    m = await run()
+    assert (m.completed_count, m.failed_count, m.status) == (2, 1, "partially_completed")
+    return run, src
+
+
+async def test_resume_recomputes_counts_and_runs_as_running(tmp_path):
+    run, src = await _first_run_with_failure(tmp_path)
+    src.broken, src.seen = False, []
+    m = await run()
+    assert (m.completed_count, m.failed_count, m.status) == (3, 0, "completed")
+    assert src.seen == ["running"]  # only B is retried, and the run was RUNNING meanwhile
+
+
+async def test_resume_with_persisting_failure_does_not_double_count(tmp_path):
+    run, _ = await _first_run_with_failure(tmp_path)
+    m = await run()
+    assert (m.completed_count, m.failed_count, m.status) == (2, 1, "partially_completed")

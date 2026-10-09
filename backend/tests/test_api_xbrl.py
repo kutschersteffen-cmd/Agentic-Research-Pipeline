@@ -316,3 +316,44 @@ def test_retry_of_executing_run_is_409(env, monkeypatch):
     JobManager(runs).finish_run(run_id)
     assert client.post(f"/api/xbrl/runs/{run_id}/retry").status_code == 200
     assert calls == [run_id]
+
+
+def _finished_with_failure(runs):
+    run_id = create_xbrl_run([CO], None, False, runs)
+    JobManager(runs).record_progress(run_id, failed_delta=1)
+    JobManager(runs).finish_run(run_id)
+    assert runs.load_manifest(run_id).status == "partially_completed"
+    return run_id
+
+
+def test_retry_marks_manifest_running_before_the_task_finishes(env, monkeypatch):
+    client, _, _, runs = env
+    release = asyncio.Event()
+
+    async def stub(run_id, companies, **kw):
+        await release.wait()
+        JobManager(runs).record_progress(run_id, failed_delta=-1)  # the retry succeeded
+        JobManager(runs).finish_run(run_id)
+
+    monkeypatch.setattr(xbrl_router, "execute_xbrl_run", stub)
+    run_id = _finished_with_failure(runs)
+    with client:
+        assert client.post(f"/api/xbrl/runs/{run_id}/retry").status_code == 200
+        assert client.get(f"/api/xbrl/runs/{run_id}").json()["status"] == "running"
+        client.portal.call(release.set)
+        client.portal.call(asyncio.sleep, 0.05)
+    assert runs.load_manifest(run_id).status == "completed"
+
+
+def test_retry_409_leaves_manifest_untouched(env, monkeypatch):
+    client, _, _, runs = env
+
+    async def stub(run_id, companies, **kw):
+        raise AssertionError("must not launch")
+
+    monkeypatch.setattr(xbrl_router, "execute_xbrl_run", stub)
+    run_id = _finished_with_failure(runs)
+    before = runs.load_manifest(run_id)
+    with run_lease(runs, run_id):
+        assert client.post(f"/api/xbrl/runs/{run_id}/retry").status_code == 409
+    assert runs.load_manifest(run_id) == before

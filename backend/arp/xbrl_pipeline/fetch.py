@@ -11,7 +11,7 @@ import httpx
 from arp.config import Settings
 from arp.ingestion.edgar import AnnualOriginal, EdgarDocumentSource
 from arp.ingestion.xbrl import XbrlFactSource
-from arp.orchestration.batch_runner import run_batch
+from arp.orchestration.batch_runner import read_done_keys, run_batch
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import hold_run
 from arp.schemas.common import CompanyRef
@@ -130,6 +130,17 @@ def create_xbrl_run(companies: list[CompanyRef], tags: list[str] | None, refresh
     return JobManager(run_store).create_run("xbrl_fetch", params, len(companies), companies=companies).run_id
 
 
+def _sync_counts(run_store: RunStore, run_id: str) -> None:
+    """Counts rebuilt from the files, so a resume never double counts: a company with a
+    result row is completed, one whose errors have no result row is failed."""
+    done = read_done_keys(run_store.results_path(run_id))
+    failed = {r.get("key") for r in run_store.read_jsonl(run_store.errors_path(run_id))} - done - {None}
+    with run_store.lock(run_id):
+        manifest = run_store.load_manifest(run_id)
+        manifest.completed_count, manifest.failed_count = len(done), len(failed)
+        run_store.save_manifest(manifest)
+
+
 async def execute_xbrl_run(
     run_id: str,
     companies: list[CompanyRef],
@@ -146,6 +157,8 @@ async def execute_xbrl_run(
     tag_set = frozenset(tags) if tags is not None else None
 
     with hold_run(run_store, run_id):
+        job_manager.mark_running(run_id)
+        _sync_counts(run_store, run_id)
         await run_batch(
             companies,
             item_key=lambda c: c.company_id,
@@ -157,5 +170,6 @@ async def execute_xbrl_run(
             on_success=lambda c, r: job_manager.record_progress(run_id, completed_delta=1),
             on_error=lambda c, exc: job_manager.record_progress(run_id, failed_delta=1),
         )
+        _sync_counts(run_store, run_id)
         job_manager.finish_run(run_id)
     return run_id

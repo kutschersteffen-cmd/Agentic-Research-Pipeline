@@ -127,6 +127,7 @@ async def retry_run(
             pass
     except RunBusy as exc:
         raise HTTPException(409, "This run is currently executing.") from exc
+    JobManager(run_store).mark_running(run_id)  # visible to the client before the task takes the lease
     _launch(run_id, companies, manifest.params.get("tags"), bool(manifest.params.get("refresh")),
             settings, run_store)
     return {"run_id": run_id, "company_count": len(companies)}

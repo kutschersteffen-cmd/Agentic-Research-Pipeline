@@ -95,6 +95,18 @@ class JobManager:
             self.store.save_manifest(manifest)
             return manifest
 
+    def mark_running(self, run_id: str) -> RunManifest:
+        """A (re)start: running again, with the last attempt's error and cancel request cleared."""
+        with self.store.lock(run_id):
+            manifest = self.store.load_manifest(run_id)
+            if manifest is None:
+                raise ValueError(f"Unknown run_id: {run_id}")
+            manifest.status = JobStatus.RUNNING
+            manifest.error = None
+            manifest.cancel_requested = False
+            self.store.save_manifest(manifest)
+            return manifest
+
     def request_cancel(self, run_id: str) -> RunManifest:
         with self.store.lock(run_id):
             manifest = self.store.load_manifest(run_id)
