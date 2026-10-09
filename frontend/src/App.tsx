@@ -405,7 +405,7 @@ function App() {
         {active === "strategyReplication" && <StrategyReplication />}
         {active === "decision" && <DecisionStudio key={route.params.join("/")} initialSource={route.params[0]} initialRunId={route.params[1]} />}
         {active === "index" && <IndexBuilder />}
-        {active === "xbrl" && <XbrlFacts />}
+        {active === "xbrl" && <XbrlFacts selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("xbrl", id)} />}
         {active === "library" && <DataLibrary />}
         </Suspense>
       </main>

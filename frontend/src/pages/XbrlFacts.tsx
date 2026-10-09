@@ -17,12 +17,11 @@ const factsCaption = (c: XbrlCompanyFiles, cik: ReactNode) => (
 );
 
 /** XBRL Facts: fetch companies' SEC XBRL facts, see the stored files and facts, choose the tags that matter. Areas stack as sections. */
-export function XbrlFacts() {
+export function XbrlFacts({ selectedRunId, onSelectRun }: { selectedRunId: string | null; onSelectRun: (runId: string) => void }) {
   const [tags, setTags] = useState<string[]>([]);
   const [filesKey, setFilesKey] = useState(0);
   const [cik, setCik] = useState<string | null>(null);
   const [company, setCompany] = useState<XbrlCompanyFiles | null>(null); // the chosen CIK as the latest list has it
-  const [fetchRun, setFetchRun] = useState<string | null>(null);
   const filesChanged = useCallback(() => setFilesKey((k) => k + 1), []);
   const choose = useCallback((next: string | null, show: boolean) => {
     setCik(next);
@@ -39,7 +38,7 @@ export function XbrlFacts() {
         Download each company’s XBRL facts and annual report from the SEC, keep every fact traceable to its filing, and
         choose which tags you need.
       </p>
-      <XbrlFetchArea tags={tags} onSettled={filesChanged} onRun={setFetchRun} />
+      <XbrlFetchArea tags={tags} onSettled={filesChanged} selectedRunId={selectedRunId} onSelectRun={onSelectRun} />
       <XbrlFilesArea refreshKey={filesKey} chosen={cik} onChoose={choose} onCompany={setCompany} />
       <section className="card" aria-labelledby="xbrl-facts-title">
         <h2 id="xbrl-facts-title" tabIndex={-1}>
@@ -56,7 +55,7 @@ export function XbrlFacts() {
           <p className="muted">Choose a company in Files to see its facts.</p>
         )}
       </section>
-      <XbrlRequiredArea fetchRunId={fetchRun} refreshKey={filesKey} />
+      <XbrlRequiredArea fetchRunId={selectedRunId} refreshKey={filesKey} />
       <XbrlVerifyArea />
       <XbrlTagsArea tags={tags} onChange={setTags} />
     </div>

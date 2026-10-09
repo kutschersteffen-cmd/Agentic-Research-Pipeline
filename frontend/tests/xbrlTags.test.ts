@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   ariaSort,
+  canRetryFetch,
   formatFactValue,
   nextSort,
   periodLabel,
@@ -105,4 +106,18 @@ test("sortVerifyRows puts mismatches, then missing, before matches", () => {
   ]);
   assert.equal(verifyDetailText("unit"), "Units differ");
   assert.equal(verifyDetailText(""), "–");
+});
+
+test("retry is offered unless a run is in progress or fully done", () => {
+  const run = (status: string, failed_count = 0, completed_count = 5, company_count = 5) => ({ status, failed_count, completed_count, company_count });
+  assert.equal(canRetryFetch(null, false), false);
+  assert.equal(canRetryFetch(run("completed"), false), false);
+  assert.equal(canRetryFetch(run("partially_completed", 2, 3), false), true);
+  assert.equal(canRetryFetch(run("failed", 0, 0), false), true);
+  assert.equal(canRetryFetch(run("cancelled"), false), true);
+  assert.equal(canRetryFetch(run("completed", 0, 3), false), true); // never reached two companies
+  assert.equal(canRetryFetch(run("running", 0, 1), false), false);
+  assert.equal(canRetryFetch(run("pending", 0, 0), false), false);
+  assert.equal(canRetryFetch(run("running", 0, 1), true), true); // stalled
+  assert.equal(canRetryFetch(run("completed"), true), false);
 });

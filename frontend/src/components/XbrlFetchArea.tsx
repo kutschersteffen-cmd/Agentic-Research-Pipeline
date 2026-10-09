@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { UniversePicker } from "./UniversePicker";
-import { reportText, statusText } from "../lib/xbrlTags";
+import { when } from "../lib/runs";
+import { canRetryFetch, reportText, statusText } from "../lib/xbrlTags";
 import type { RunManifest, XbrlCompanyStatus } from "../types";
 
 type ResultRow = XbrlCompanyStatus & { _key: string };
@@ -24,11 +25,22 @@ const msg = (err: unknown) => (err as Error).message;
 const inProgress = (m: RunManifest | null) => m?.status === "pending" || m?.status === "running";
 
 /** XBRL Facts, Fetch area: start a fetch over a universe, poll its status, retry failures. */
-export function XbrlFetchArea({ tags, onSettled, onRun }: { tags: string[]; onSettled?: () => void; onRun?: (runId: string) => void }) {
+export function XbrlFetchArea({
+  tags,
+  onSettled,
+  selectedRunId: runId,
+  onSelectRun,
+}: {
+  tags: string[];
+  onSettled?: () => void;
+  selectedRunId: string | null; // from the URL (#/xbrl/<run id>): refresh, Back and a pasted link reattach
+  onSelectRun: (runId: string) => void;
+}) {
   const [universe, setUniverse] = useState<{ path: string; count: number } | null>(null);
   const [mode, setMode] = useState<"all" | "selected">("all");
   const [refresh, setRefresh] = useState(false);
-  const [runId, setRunId] = useState<string | null>(null);
+  const [runs, setRuns] = useState<RunManifest[] | null>(null);
+  const [runsError, setRunsError] = useState<string | null>(null);
   const [manifest, setManifest] = useState<RunManifest | null>(null);
   const [results, setResults] = useState<{ total: number; results: ResultRow[] }>({ total: 0, results: [] });
   const [errors, setErrors] = useState<ErrorRow[]>([]);
@@ -37,6 +49,25 @@ export function XbrlFetchArea({ tags, onSettled, onRun }: { tags: string[]; onSe
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pollError, setPollError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    (api.listRuns("xbrl_fetch") as Promise<{ runs: RunManifest[] }>)
+      .then((res) => live && (setRuns([...res.runs].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))), setRunsError(null)))
+      .catch((err) => live && setRunsError(msg(err)));
+    return () => {
+      live = false;
+    };
+  }, [runId, manifest?.status, manifest?.completed_count]); // a new run, or progress, changes the labels
+
+  useEffect(() => {
+    // Another run was chosen (or none): drop the last one's table before its own arrives.
+    setManifest(null);
+    setResults({ total: 0, results: [] });
+    setErrors([]);
+    setPollError(null);
+    setError(null);
+  }, [runId]);
 
   useEffect(() => {
     if (!runId) return;
@@ -80,7 +111,7 @@ export function XbrlFetchArea({ tags, onSettled, onRun }: { tags: string[]; onSe
   const failed = [...latestError].filter(([key]) => !succeeded.has(key)).map(([key, error]) => ({ key, error }));
   // A started run counts as running until its first manifest arrives, so Start cannot fire twice.
   const running = runId !== null && (manifest === null || inProgress(manifest)) && !stalled;
-  const canRetry = manifest !== null && !inProgress(manifest) && manifest.failed_count > 0;
+  const canRetry = canRetryFetch(manifest, stalled);
   const noTags = mode === "selected" && tags.length === 0;
 
   async function start() {
@@ -89,11 +120,7 @@ export function XbrlFetchArea({ tags, onSettled, onRun }: { tags: string[]; onSe
     setError(null);
     try {
       const res = await api.startXbrlRun({ universe_path: universe.path, tags: mode === "selected" ? tags : undefined, refresh });
-      setManifest(null);
-      setResults({ total: 0, results: [] });
-      setErrors([]);
-      setRunId(res.run_id); // a new run id (re)starts polling
-      onRun?.(res.run_id);
+      onSelectRun(res.run_id); // the URL carries the run id; a new id (re)starts polling
     } catch (err) {
       setError(`Could not start the fetch (${msg(err)}).`);
     } finally {
@@ -111,7 +138,12 @@ export function XbrlFetchArea({ tags, onSettled, onRun }: { tags: string[]; onSe
       setManifest({ ...manifest, status: "running" });
       setPollKey((k) => k + 1);
     } catch (err) {
-      setError(`Could not retry (${msg(err)}).`);
+      const text = msg(err);
+      setError(`Could not retry (${text}).${/^409/.test(text) ? " This page keeps checking the run." : ""}`);
+      if (/^409/.test(text)) {
+        setStalled(false); // the run is executing after all: resume polling
+        setPollKey((k) => k + 1);
+      }
     } finally {
       setBusy(false);
     }
@@ -142,6 +174,24 @@ export function XbrlFetchArea({ tags, onSettled, onRun }: { tags: string[]; onSe
         Start fetch{universe ? ` for ${universe.count.toLocaleString()} companies` : ""}
       </button>
       <div aria-live="polite">{error && <p className="error-text">{error}</p>}</div>
+
+      <label className="field-label">
+        Fetch run
+        <select value={runId ?? ""} onChange={(e) => e.target.value && onSelectRun(e.target.value)} disabled={!runs && !runsError}>
+          <option value="" disabled>
+            {!runs && !runsError ? "Loading…" : runs?.length === 0 ? "No fetch run yet" : "Select a run to see its status…"}
+          </option>
+          {runId && !runs?.some((r) => r.run_id === runId) && <option value={runId}>{runId}</option>}
+          {runs?.map((r) => (
+            <option key={r.run_id} value={r.run_id}>
+              {r.run_id} · {when(r.created_at)} · {RUN_LABEL[r.status] ?? r.status} · {r.completed_count.toLocaleString()} fetched, {r.failed_count.toLocaleString()} failed of{" "}
+              {r.company_count.toLocaleString()} {r.company_count === 1 ? "company" : "companies"}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="help-text">Choose a run to see its status again, for example after a reload or a visit to another page.</p>
+      {runsError && <p className="error-text">Fetch runs could not be loaded ({runsError}).</p>}
 
       {runId && (
         <div className="xbrl-run">
@@ -220,9 +270,12 @@ export function XbrlFetchArea({ tags, onSettled, onRun }: { tags: string[]; onSe
             </>
           )}
           {canRetry && (
-            <button className="secondary" onClick={retryFailed} disabled={busy}>
-              Retry failed
-            </button>
+            <>
+              <button className="secondary" onClick={retryFailed} disabled={busy}>
+                Retry
+              </button>
+              <p className="help-text">Retry resumes this run: companies that already succeeded are skipped.</p>
+            </>
           )}
         </div>
       )}

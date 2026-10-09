@@ -106,3 +106,13 @@ export const OUTCOME_TEXT: Record<string, string> = {
 export const outcomeText = (o: string): string => OUTCOME_TEXT[o] ?? o;
 export const metricText = (m: string): string => (m === "revenue" ? "Revenue" : m === "capex" ? "Capex" : m);
 export const verifyDetailText = (d: string): string => (d === "unit" ? "Units differ" : d || "–");
+
+/** A fetch run is fully done when it completed, nothing failed and every company was reached. */
+export const fetchRunDone = (m: { status: string; failed_count: number; completed_count: number; company_count: number }): boolean =>
+  m.status === "completed" && m.failed_count === 0 && m.completed_count + m.failed_count >= m.company_count;
+
+/** Retry is offered when the run is not in progress (or polling stalled) and it is not fully done. */
+export const canRetryFetch = (
+  m: { status: string; failed_count: number; completed_count: number; company_count: number } | null,
+  stalled: boolean,
+): boolean => m !== null && (stalled || (m.status !== "pending" && m.status !== "running")) && !fetchRunDone(m);
