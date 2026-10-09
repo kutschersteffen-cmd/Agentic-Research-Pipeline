@@ -180,6 +180,13 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <path d="M4 8.5 L9 5.5 L13.5 7.5 L20 3.5" />
     </svg>
   ),
+  // A tag: XBRL facts are chosen by tag.
+  xbrl: (
+    <svg {...ICON_PROPS}>
+      <path d="M3 4h8l10 10-7 7L4 11Z" />
+      <circle cx="8" cy="8.5" r="1.5" />
+    </svg>
+  ),
   review: (
     <svg {...ICON_PROPS}>
       <path d="M9 6h11" />

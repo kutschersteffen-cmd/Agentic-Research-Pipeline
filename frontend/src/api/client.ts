@@ -509,6 +509,8 @@ export const api = {
   // Runs (generic)
   listRuns: (runType?: string) => request(`/api/runs${runType ? `?run_type=${runType}` : ""}`),
   getRun: (runId: string) => request(`/api/runs/${runId}`),
+  getRunErrors: (runId: string) =>
+    request<{ errors: { key: string; error: string }[] }>(`/api/runs/${encodeURIComponent(runId)}/errors`),
   exportRunCsvUrl: (runId: string) => `${API_BASE}/api/runs/${runId}/export.csv`,
   cancelRun: (runId: string) => request(`/api/runs/${runId}/cancel`, { method: "POST" }),
   resumeThemeRun: (runId: string) => request(`/api/themes/runs/${runId}/resume`, { method: "POST" }),

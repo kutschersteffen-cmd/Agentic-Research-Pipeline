@@ -42,6 +42,7 @@ const Arcade = lazy(() => import("./pages/Arcade").then((x) => ({ default: x.Arc
 const Lab = lazy(() => import("./pages/Lab").then((x) => ({ default: x.Lab })));
 const DecisionStudio = lazy(() => import("./pages/DecisionStudio").then((x) => ({ default: x.DecisionStudio })));
 const IndexBuilder = lazy(() => import("./pages/IndexBuilder").then((x) => ({ default: x.IndexBuilder })));
+const XbrlFacts = lazy(() => import("./pages/XbrlFacts").then((x) => ({ default: x.XbrlFacts })));
 
 const TABS = [
   { id: "home", label: "Start" },
@@ -76,6 +77,7 @@ const TABS = [
   { id: "strategyReplication", label: "Strategy Replication" },
   { id: "decision", label: "Decision Studio" },
   { id: "index", label: "Index Construction" },
+  { id: "xbrl", label: "XBRL Facts" },
   { id: "library", label: "Data Library" },
   { id: "arcade", label: "Arcade" },
   { id: "lab", label: "Lab" },
@@ -108,7 +110,7 @@ const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boo
   { label: "Output", ids: ["reporting", "library", "history"] },
   {
     label: "All screens",
-    ids: ["feeds", "issues", "smartSearch", "outputs", "securityMaster", "stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "emergingThemes", "taxonomy", "theme", "strategyReplication", "decision", "index", "identity", "lab", "arcade"],
+    ids: ["feeds", "issues", "smartSearch", "outputs", "securityMaster", "stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "emergingThemes", "taxonomy", "theme", "strategyReplication", "decision", "index", "xbrl", "identity", "lab", "arcade"],
     collapsed: true,
   },
 ];
@@ -403,6 +405,7 @@ function App() {
         {active === "strategyReplication" && <StrategyReplication />}
         {active === "decision" && <DecisionStudio key={route.params.join("/")} initialSource={route.params[0]} initialRunId={route.params[1]} />}
         {active === "index" && <IndexBuilder />}
+        {active === "xbrl" && <XbrlFacts />}
         {active === "library" && <DataLibrary />}
         </Suspense>
       </main>
