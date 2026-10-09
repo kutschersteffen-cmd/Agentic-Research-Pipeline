@@ -1,6 +1,6 @@
 # XBRL pipeline, EU market (ESEF): design
 
-Date: 2026-10-09. Status: draft for review. Scope: sub-project 2 of the XBRL pipeline (see `2026-10-09-xbrl-pipeline-design.md`): an ESEF adapter, plus the ESRS tags in the tag dropdown.
+Date: 2026-10-09. Status: implemented. Scope: sub-project 2 of the XBRL pipeline (see `2026-10-09-xbrl-pipeline-design.md`): an ESEF adapter, plus the ESRS tags in the tag dropdown.
 
 ## Purpose
 
@@ -33,7 +33,7 @@ Do for EU-listed companies what the SEC adapter does for US ones: download the t
 5. Flatten the JSON to the common fact rows. Write the catalogue and required rows. `meta.json` records `market`, the original's file name, the tag selection, and the count of dimensional facts that were skipped.
 6. A package problem never changes the company's status, as for SEC (`report`: stored, unchanged, none, error).
 
-If the stored `meta.json` shows the same original hash and the same tag selection, the status is `unchanged`.
+If the stored `meta.json` shows the same original hash and the same tag selection, the status is `unchanged`. `refresh` has no effect for ESEF: the index is always asked, and the hash decides. A package download failure gives report `error` while the company status stays ok (`package_error`); the report package is linked in the Files table only for http(s) URLs.
 
 ## Fact mapping
 
@@ -58,9 +58,9 @@ Not stored: facts with a `language` or other extra dimension keys, non-numeric v
 Candidate lists, tried in order, from the `ifrs-full` taxonomy:
 
 - Revenue: `Revenue`, `RevenueFromContractsWithCustomers`.
-- Capex: `PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities`, `PurchaseOfPropertyPlantAndEquipment`.
+- Capex: `PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities`.
 
-The exact names are confirmed against the stored `ifrs-full` snapshot when the plan is written; a name that is not in it is removed from the list rather than guessed. For each period-end year, the first candidate that has a full-year, non-dimensional fact wins. If none has, the row is `not_found`, as for SEC. Values keep their reported currency; verify already normalises units with `arp.normalise.units.convert`.
+The names were confirmed against the IFRS 2025 snapshot; `PurchaseOfPropertyPlantAndEquipment` is not in the schema and was dropped rather than guessed. For each period-end year, the first candidate that has a full-year, non-dimensional fact wins. If none has, the row is `not_found`, as for SEC. Values keep their reported currency; verify already normalises units with `arp.normalise.units.convert`.
 
 ## Tags and the dropdown
 
