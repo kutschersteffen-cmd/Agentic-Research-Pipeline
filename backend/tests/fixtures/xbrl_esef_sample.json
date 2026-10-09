@@ -1,0 +1,128 @@
+{
+ "documentInfo": {
+  "documentType": "https://xbrl.org/2021/xbrl-json"
+ },
+ "facts": {
+  "fact-1": {
+   "value": "1000",
+   "decimals": 0,
+   "dimensions": {
+    "concept": "ifrs-full:Revenue",
+    "entity": "scheme:5299001FIXTURELEI0001",
+    "period": "2022-01-01T00:00:00/2023-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "fact-2": {
+   "value": "500",
+   "decimals": 0,
+   "dimensions": {
+    "concept": "ifrs-full:Equity",
+    "entity": "scheme:5299001FIXTURELEI0001",
+    "period": "2022-01-02T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "fact-3": {
+   "value": "400",
+   "decimals": 0,
+   "dimensions": {
+    "concept": "ifrs-full:Revenue",
+    "entity": "scheme:5299001FIXTURELEI0001",
+    "period": "2022-01-01T00:00:00/2022-07-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "fact-4": {
+   "value": "90",
+   "decimals": 0,
+   "dimensions": {
+    "concept": "ifrs-full:Equity",
+    "entity": "scheme:5299001FIXTURELEI0001",
+    "period": "2022-01-02T00:00:00",
+    "unit": "iso4217:EUR",
+    "ifrs-full:ComponentsOfEquityAxis": "ifrs-full:RetainedEarningsMember"
+   }
+  },
+  "fact-5": {
+   "value": "AG",
+   "decimals": 0,
+   "dimensions": {
+    "concept": "ifrs-full:LegalFormOfEntity",
+    "entity": "scheme:5299001FIXTURELEI0001",
+    "period": "2022-01-01T00:00:00/2023-01-01T00:00:00",
+    "language": "de"
+   }
+  },
+  "fact-6": {
+   "value": "7",
+   "decimals": 0,
+   "dimensions": {
+    "concept": "avax:Custom",
+    "entity": "scheme:5299001FIXTURELEI0001",
+    "period": "2022-01-01T00:00:00/2023-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "fact-7": {
+   "value": "12",
+   "decimals": 0,
+   "dimensions": {
+    "concept": "esrs:GrossScope1GreenhouseGasEmissions",
+    "entity": "scheme:5299001FIXTURELEI0001",
+    "period": "2022-01-01T00:00:00/2023-01-01T00:00:00",
+    "unit": "xbrli:pure"
+   }
+  },
+  "fact-8": {
+   "value": "1000",
+   "decimals": 0,
+   "dimensions": {
+    "concept": "ifrs-full:Revenue",
+    "entity": "scheme:5299001FIXTURELEI0001",
+    "period": "2022-01-01T00:00:00/2023-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "fact-9": {
+   "value": "NaN",
+   "decimals": 0,
+   "dimensions": {
+    "concept": "ifrs-full:Assets",
+    "entity": "scheme:5299001FIXTURELEI0001",
+    "period": "2022-01-01T00:00:00/2023-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "fact-10": {
+   "value": "1,234",
+   "decimals": 0,
+   "dimensions": {
+    "concept": "ifrs-full:Liabilities",
+    "entity": "scheme:5299001FIXTURELEI0001",
+    "period": "2022-01-01T00:00:00/2023-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "fact-11": {
+   "value": "",
+   "decimals": 0,
+   "dimensions": {
+    "concept": "ifrs-full:Profit",
+    "entity": "scheme:5299001FIXTURELEI0001",
+    "period": "2022-01-01T00:00:00/2023-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  },
+  "fact-12": {
+   "value": null,
+   "decimals": 0,
+   "dimensions": {
+    "concept": "ifrs-full:Expenses",
+    "entity": "scheme:5299001FIXTURELEI0001",
+    "period": "2022-01-01T00:00:00/2023-01-01T00:00:00",
+    "unit": "iso4217:EUR"
+   }
+  }
+ }
+}
