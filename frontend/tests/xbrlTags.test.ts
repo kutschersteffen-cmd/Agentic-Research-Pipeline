@@ -5,6 +5,7 @@ import {
   canRetryFetch,
   formatFactValue,
   keyLabel,
+  safeHref,
   nextSort,
   periodLabel,
   rangeLabel,
@@ -127,4 +128,13 @@ test("keyLabel names the market's company key; statusText explains no_lei", () =
   assert.equal(keyLabel("sec"), "CIK");
   assert.equal(keyLabel("esef"), "LEI");
   assert.equal(statusText("no_lei"), "No LEI in the universe row");
+});
+
+test("safeHref passes only http(s) URLs", () => {
+  assert.equal(safeHref("https://x.eu/p.zip"), "https://x.eu/p.zip");
+  assert.equal(safeHref("http://x.eu/p.zip"), "http://x.eu/p.zip");
+  assert.equal(safeHref("HTTPS://x.eu/p.zip"), "HTTPS://x.eu/p.zip");
+  assert.equal(safeHref("javascript:alert(1)"), null);
+  assert.equal(safeHref("data:text/html,x"), null);
+  assert.equal(safeHref(null), null);
 });

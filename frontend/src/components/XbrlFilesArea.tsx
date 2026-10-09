@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, downloadFile } from "../api/client";
-import { keyLabel, rangeLabel, reportText, secFilingUrl } from "../lib/xbrlTags";
+import { keyLabel, safeHref, rangeLabel, reportText, secFilingUrl } from "../lib/xbrlTags";
 import type { XbrlCompanyFiles } from "../types";
 import { Pager } from "./XbrlFactsTable";
 
@@ -171,9 +171,15 @@ export function XbrlFilesArea(p: {
                               {r.filing_date && <span className="muted"> filed <span className="mono">{r.filing_date}</span></span>}
                             </span>
                             <span className="xbrl-sub">{r.inline_xbrl ? "Inline XBRL" : "Not inline XBRL"}</span>
-                            <a href={c.market === "esef" ? r.source_url : secFilingUrl(c.cik, r.accession)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                              {c.market === "esef" ? "Open filing" : "Open filing on SEC.gov"}<span className="visually-hidden"> (opens in a new tab)</span>
-                            </a>
+                            {(() => {
+                              const href = c.market === "esef" ? safeHref(r.source_url) : secFilingUrl(c.cik, r.accession);
+                              if (!href) return <span className="muted">No package link</span>;
+                              return (
+                                <a href={href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                                  {c.market === "esef" ? "Open package" : "Open filing on SEC.gov"}<span className="visually-hidden"> (opens in a new tab)</span>
+                                </a>
+                              );
+                            })()}
                           </span>
                         ) : (
                           <span className="muted">{reportText("none")}</span>

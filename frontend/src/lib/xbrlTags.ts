@@ -41,6 +41,8 @@ const REPORT: Record<string, string> = {
 };
 /** What identifies a company in each market: the SEC CIK, or the ESEF LEI. */
 export const keyLabel = (market: XbrlMarket): "CIK" | "LEI" => (market === "esef" ? "LEI" : "CIK");
+/** A third-party URL is only linked when it is http(s): never javascript: or data:. */
+export const safeHref = (url: string | null | undefined): string | null => (url && /^https?:\/\//i.test(url) ? url : null);
 export const statusText = (status: string): string => STATUS[status] ?? status;
 export const reportText = (report: string): string => REPORT[report] ?? report;
 
