@@ -31,7 +31,7 @@ Date: 2026-10-09. Status: draft for review. Scope: sub-projects 0 (core) and 1 (
 - `schemas.common.CompanyRef`: already carries `cik`, `ticker`, `lei`, `country`.
 - `ingestion/esef.py`: iXBRL parser (`parse_ixbrl`). It drops hidden and dimensional facts. Used by the EU adapter later, not here.
 
-Not changed: `extraction/*`, `ingestion/xbrl.py`, `ingestion/esef.py`.
+Not changed: `extraction/*`, `ingestion/esef.py`. `ingestion/xbrl.py` gains only an additive public surface: the constants `REVENUE_TAGS` and `CAPEX_TAGS` and the method `XbrlFactSource.fetch_company_facts_raw`, which returns the parsed JSON together with the served bytes so the original can be stored as served.
 
 ## Flow
 
@@ -160,8 +160,8 @@ The page follows `DESIGN.md` and `PRODUCT.md` and the repo's accessibility conve
 
 Purpose: prove the LLM extraction against the filer's own tagged values.
 
-- **Guard.** Refuses a run whose `step_settings.json` shows `xbrl_facts_enabled` on, or ESEF on. Such a run copied XBRL, so a comparison would be circular. The error says to re-run with both off.
-- **Inputs.** `runs/<run_id>/results.jsonl` rows. `ExtractedField` carries `field_id`, `canonical_value`, `canonical_unit` and `period_end`. Mapping a run's revenue and capex fields to the metrics, and the exact row nesting, are confirmed when the plan is written (open item).
+- **Guard.** Refuses a run whose `step_settings.json` is missing or shows `xbrl_facts_enabled` on. That flag also gates ESEF facts in the extraction pipeline, so one check covers both. Such a run copied XBRL, so a comparison would be circular. The error says to re-run with it off.
+- **Inputs.** `runs/<run_id>/results.jsonl` rows of the generic extraction pipeline (`ExtractionRecord`: `company_id` and `fields[]`, each with `field_id`, `canonical_value`, `canonical_unit`, `period_end`). The user maps revenue and capex to the run's `field_id`s (`revenue=<field_id>`, `capex=<field_id>`). Runs of the financials profile (`CompanyFinancialsRecord`) are out of scope for now.
 - **Outcomes** per company, year and metric: `match`, `mismatch`, `missing_in_run`, `missing_in_xbrl`. Values match within a relative tolerance, default 0.5%, units normalised first.
 - **Output.** `runs/<run_id>/xbrl_verify.jsonl` plus a one-screen summary: counts per outcome and the mismatches listed.
 
