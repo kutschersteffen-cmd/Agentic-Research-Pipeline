@@ -71,6 +71,7 @@ class Settings(BaseSettings):
     qa_audit_path: Path | None = Field(default=None, description="Q&A audit log; defaults to portfolios_dir/qa_audit.jsonl.")
     projects_dir: Path = Field(default=REPO_ROOT / "projects")
     documents_dir: Path = Field(default=REPO_ROOT / "data" / "documents")
+    xbrl_dir: Path = Field(default=REPO_ROOT / "data" / "xbrl")
     snapshot_store_dir: Path = REPO_ROOT / "data" / "snapshot_store"
     snapshot_pull_dir: Path = REPO_ROOT / "data" / "snapshots"  # where `arp snapshots pull` writes
     holdings_api_url: str | None = None  # base URL of the ARP instance snapshots are pulled from
@@ -553,6 +554,7 @@ class Settings(BaseSettings):
             self.portfolios_dir,
             self.projects_dir,
             self.documents_dir,
+            self.xbrl_dir,
             self.cache_dir,
             self.document_store_dir,
             self.discovery_state_dir,

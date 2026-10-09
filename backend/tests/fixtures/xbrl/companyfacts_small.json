@@ -1,0 +1,83 @@
+{
+  "cik": 1234567,
+  "entityName": "Example Corp",
+  "facts": {
+    "us-gaap": {
+      "Revenues": {
+        "label": "Revenues",
+        "description": "Revenues",
+        "units": {
+          "USD": [
+            {
+              "start": "2022-10-01",
+              "end": "2023-09-30",
+              "val": 1000,
+              "accn": "0000000001-23-000001",
+              "fy": 2023,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2023-11-01"
+            },
+            {
+              "start": "2023-10-01",
+              "end": "2024-09-28",
+              "val": 1200,
+              "accn": "0000000001-24-000001",
+              "fy": 2024,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2024-11-01"
+            },
+            {
+              "start": "2023-10-01",
+              "end": "2023-12-30",
+              "val": 300,
+              "accn": "0000000001-24-000002",
+              "fy": 2024,
+              "fp": "Q1",
+              "form": "10-Q",
+              "filed": "2024-02-01"
+            }
+          ]
+        }
+      },
+      "PaymentsToAcquirePropertyPlantAndEquipment": {
+        "label": "Payments to Acquire Property, Plant, and Equipment",
+        "description": "Capex",
+        "units": {
+          "USD": [
+            {
+              "start": "2023-10-01",
+              "end": "2024-09-28",
+              "val": 150,
+              "accn": "0000000001-24-000001",
+              "fy": 2024,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2024-11-01"
+            }
+          ]
+        }
+      }
+    },
+    "dei": {
+      "EntityCommonStockSharesOutstanding": {
+        "label": "Entity Common Stock, Shares Outstanding",
+        "description": "Shares outstanding",
+        "units": {
+          "shares": [
+            {
+              "end": "2024-10-18",
+              "val": 15000,
+              "accn": "0000000001-24-000001",
+              "fy": 2024,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2024-11-01"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
