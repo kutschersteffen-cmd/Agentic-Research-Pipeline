@@ -67,3 +67,42 @@ const n = (x: number) => x.toLocaleString("en-US");
 /** A pager's visible range, e.g. "21–40 of 1,234"; "0 of 0" when empty. */
 export const rangeLabel = (offset: number, count: number, total: number): string =>
   count ? `${n(offset + 1)}–${n(offset + count)} of ${n(total)}` : `0 of ${n(total)}`;
+
+/** Tolerance as typed (a percentage, "0.5"): the fraction the API takes, or null unless it is a number from 0 to 100. */
+export function toleranceFraction(percent: string): number | null {
+  const t = percent.trim().replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(t)) return null;
+  const p = Number(t);
+  return p <= 100 ? Number((p / 100).toPrecision(12)) : null;
+}
+
+/** The API's mapping (metric to the run's field id); null until at least one field id is given. */
+export function verifyMapping(revenueField: string, capexField: string): Record<string, string> | null {
+  const m: Record<string, string> = {};
+  if (revenueField.trim()) m.revenue = revenueField.trim();
+  if (capexField.trim()) m.capex = capexField.trim();
+  return Object.keys(m).length ? m : null;
+}
+
+const OUTCOME_ORDER = ["mismatch", "missing_in_run", "missing_in_xbrl", "match"];
+/** Verify rows with the ones needing a look first (mismatches, then missing), then by company, metric and year. */
+export function sortVerifyRows<T extends { outcome: string; company_id: string; metric: string; fiscal_year: number }>(rows: T[]): T[] {
+  const rank = (o: string) => OUTCOME_ORDER.indexOf(o);
+  return [...rows].sort(
+    (a, b) =>
+      rank(a.outcome) - rank(b.outcome) ||
+      a.company_id.localeCompare(b.company_id) ||
+      a.metric.localeCompare(b.metric) ||
+      a.fiscal_year - b.fiscal_year,
+  );
+}
+
+export const OUTCOME_TEXT: Record<string, string> = {
+  match: "Match",
+  mismatch: "Mismatch",
+  missing_in_run: "Missing in run",
+  missing_in_xbrl: "Missing in XBRL",
+};
+export const outcomeText = (o: string): string => OUTCOME_TEXT[o] ?? o;
+export const metricText = (m: string): string => (m === "revenue" ? "Revenue" : m === "capex" ? "Capex" : m);
+export const verifyDetailText = (d: string): string => (d === "unit" ? "Units differ" : d || "–");

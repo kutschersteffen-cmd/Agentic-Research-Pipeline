@@ -9,8 +9,12 @@ import {
   reportText,
   secFilingUrl,
   statusText,
+  sortVerifyRows,
   tagQuery,
+  toleranceFraction,
   toggleTag,
+  verifyDetailText,
+  verifyMapping,
   verifySummary,
 } from "../src/lib/xbrlTags.ts";
 
@@ -73,4 +77,32 @@ test("rangeLabel shows the visible rows and the total", () => {
   assert.equal(rangeLabel(20, 20, 1234), "21–40 of 1,234");
   assert.equal(rangeLabel(0, 3, 3), "1–3 of 3");
   assert.equal(rangeLabel(0, 0, 0), "0 of 0");
+});
+
+test("toleranceFraction converts a percentage and rejects out-of-range or non-numbers", () => {
+  assert.equal(toleranceFraction("0.5"), 0.005);
+  assert.equal(toleranceFraction(" 2,5 "), 0.025);
+  assert.equal(toleranceFraction("0"), 0);
+  assert.equal(toleranceFraction("100"), 1);
+  for (const bad of ["", "101", "-1", "abc", "1e2", "0.5%"]) assert.equal(toleranceFraction(bad), null);
+});
+
+test("verifyMapping needs at least one field id", () => {
+  assert.equal(verifyMapping(" ", ""), null);
+  assert.deepEqual(verifyMapping(" rev ", ""), { revenue: "rev" });
+  assert.deepEqual(verifyMapping("rev", "cx"), { revenue: "rev", capex: "cx" });
+});
+
+test("sortVerifyRows puts mismatches, then missing, before matches", () => {
+  const r = (company_id: string, outcome: string, fiscal_year = 2024, metric = "revenue") => ({ company_id, outcome, fiscal_year, metric });
+  const sorted = sortVerifyRows([r("b", "match"), r("a", "missing_in_xbrl"), r("c", "mismatch"), r("a", "missing_in_run"), r("a", "mismatch", 2023)]);
+  assert.deepEqual(sorted.map((x) => `${x.company_id}:${x.outcome}:${x.fiscal_year}`), [
+    "a:mismatch:2023",
+    "c:mismatch:2024",
+    "a:missing_in_run:2024",
+    "a:missing_in_xbrl:2024",
+    "b:match:2024",
+  ]);
+  assert.equal(verifyDetailText("unit"), "Units differ");
+  assert.equal(verifyDetailText(""), "–");
 });

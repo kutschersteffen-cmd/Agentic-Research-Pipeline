@@ -24,7 +24,7 @@ const msg = (err: unknown) => (err as Error).message;
 const inProgress = (m: RunManifest | null) => m?.status === "pending" || m?.status === "running";
 
 /** XBRL Facts, Fetch area: start a fetch over a universe, poll its status, retry failures. */
-export function XbrlFetchArea({ tags, onSettled }: { tags: string[]; onSettled?: () => void }) {
+export function XbrlFetchArea({ tags, onSettled, onRun }: { tags: string[]; onSettled?: () => void; onRun?: (runId: string) => void }) {
   const [universe, setUniverse] = useState<{ path: string; count: number } | null>(null);
   const [mode, setMode] = useState<"all" | "selected">("all");
   const [refresh, setRefresh] = useState(false);
@@ -93,6 +93,7 @@ export function XbrlFetchArea({ tags, onSettled }: { tags: string[]; onSettled?:
       setResults({ total: 0, results: [] });
       setErrors([]);
       setRunId(res.run_id); // a new run id (re)starts polling
+      onRun?.(res.run_id);
     } catch (err) {
       setError(`Could not start the fetch (${msg(err)}).`);
     } finally {

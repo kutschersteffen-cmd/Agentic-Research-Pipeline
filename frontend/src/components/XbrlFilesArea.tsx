@@ -37,11 +37,23 @@ function DownloadButton(p: { url: string; name: string; label: string; what: str
 }
 
 /** XBRL Facts, Files area: every fetched company with its stored files; choosing a row shows its facts. */
-export function XbrlFilesArea(p: { refreshKey: number; chosen: string | null; onChoose: (c: XbrlCompanyFiles, show: boolean) => void }) {
+export function XbrlFilesArea(p: {
+  refreshKey: number;
+  chosen: string | null;
+  onChoose: (cik: string | null, show: boolean) => void;
+  /** The chosen company as the latest list has it, so captions follow a re-fetch. */
+  onCompany: (c: XbrlCompanyFiles | null) => void;
+}) {
   const [offset, setOffset] = useState(0);
   const [data, setData] = useState<{ items: XbrlCompanyFiles[]; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { chosen, onChoose } = p;
+  const { chosen, onChoose, onCompany } = p;
+  const [seenKey, setSeenKey] = useState(p.refreshKey);
+  if (seenKey !== p.refreshKey) {
+    // A fetch just finished: the newest fetch is listed first, so start there, where a re-fetched company now is.
+    setSeenKey(p.refreshKey);
+    setOffset(0);
+  }
 
   useEffect(() => {
     let live = true;
@@ -58,10 +70,22 @@ export function XbrlFilesArea(p: { refreshKey: number; chosen: string | null; on
     };
   }, [offset, p.refreshKey]);
 
-  // The most recently fetched company is shown in Facts until the user picks another.
+  // The most recently fetched company is shown in Facts until the user picks another. The chosen company is looked
+  // up in every reloaded list, so a re-fetch updates its caption; one that vanished from a fully visible list
+  // clears the choice. (ponytail: a company chosen on another page keeps its last known data until that page loads.)
   useEffect(() => {
-    if (!chosen && data?.items.length) onChoose(data.items[0], false);
-  }, [chosen, data, onChoose]);
+    if (!data) return;
+    if (!chosen) {
+      if (data.items.length) onChoose(data.items[0].cik, false);
+      return;
+    }
+    const found = data.items.find((c) => c.cik === chosen);
+    if (found) onCompany(found);
+    else if (data.total <= PAGE) {
+      onCompany(null);
+      onChoose(null, false);
+    }
+  }, [chosen, data, onChoose, onCompany]);
 
   return (
     <section className="card" aria-labelledby="xbrl-files-title">
@@ -100,7 +124,7 @@ export function XbrlFilesArea(p: { refreshKey: number; chosen: string | null; on
                       key={c.cik}
                       className="clickable-row"
                       aria-current={c.cik === chosen ? "true" : undefined}
-                      onClick={() => onChoose(c, false)}
+                      onClick={() => onChoose(c.cik, false)}
                     >
                       <th scope="row" data-label="Company">
                         <span>
@@ -111,7 +135,7 @@ export function XbrlFilesArea(p: { refreshKey: number; chosen: string | null; on
                             aria-describedby="xbrl-files-hint"
                             onClick={(e) => {
                               e.stopPropagation();
-                              onChoose(c, true);
+                              onChoose(c.cik, true);
                             }}
                           >
                             {who}

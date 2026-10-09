@@ -1973,3 +1973,12 @@ th[aria-sort="ascending"] .xbrl-sort, th[aria-sort="descending"] .xbrl-sort { co
   .xbrl-downloads { justify-content: flex-end; text-align: right; }
 }
 #xbrl-facts-title { scroll-margin-top: calc(var(--topbar-h, 0px) + var(--s-4)); }
+
+/* Required and Verify. A not-found row says why in text across the value columns; the outcome counts are a
+   plain row of labelled numbers. */
+.xbrl-table td.xbrl-not-found { white-space: normal; }
+.xbrl-table td.xbrl-concept { white-space: normal; min-width: 13rem; max-width: 18rem; }
+.xbrl-counts { display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-6); margin: var(--s-3) 0; }
+.xbrl-counts > div { min-width: 7rem; }
+.xbrl-counts dt { color: var(--muted); font-size: var(--text-sm); }
+.xbrl-counts dd { margin: 0; font-size: 1.5rem; font-weight: 600; }

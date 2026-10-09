@@ -63,7 +63,7 @@ function SortIcon({ dir }: { dir: "ascending" | "descending" | "none" }) {
 }
 
 /** A tag id that may only break after the colon and between the words of the concept, never mid-word. */
-function TagId({ id }: { id: string }) {
+export function TagId({ id }: { id: string }) {
   const [prefix, concept = ""] = id.split(/:(.*)/s);
   return (
     <>

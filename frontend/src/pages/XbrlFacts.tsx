@@ -2,6 +2,8 @@ import { useCallback, useState, type ReactNode } from "react";
 import { XbrlFactsTable } from "../components/XbrlFactsTable";
 import { XbrlFetchArea } from "../components/XbrlFetchArea";
 import { XbrlFilesArea } from "../components/XbrlFilesArea";
+import { XbrlRequiredArea } from "../components/XbrlRequiredArea";
+import { XbrlVerifyArea } from "../components/XbrlVerifyArea";
 import { XbrlTagsArea } from "../components/XbrlTagsArea";
 import type { XbrlCompanyFiles } from "../types";
 
@@ -18,10 +20,12 @@ const factsCaption = (c: XbrlCompanyFiles, cik: ReactNode) => (
 export function XbrlFacts() {
   const [tags, setTags] = useState<string[]>([]);
   const [filesKey, setFilesKey] = useState(0);
-  const [company, setCompany] = useState<XbrlCompanyFiles | null>(null);
+  const [cik, setCik] = useState<string | null>(null);
+  const [company, setCompany] = useState<XbrlCompanyFiles | null>(null); // the chosen CIK as the latest list has it
+  const [fetchRun, setFetchRun] = useState<string | null>(null);
   const filesChanged = useCallback(() => setFilesKey((k) => k + 1), []);
-  const choose = useCallback((c: XbrlCompanyFiles, show: boolean) => {
-    setCompany(c);
+  const choose = useCallback((next: string | null, show: boolean) => {
+    setCik(next);
     if (show) {
       const h = document.getElementById("xbrl-facts-title");
       h?.scrollIntoView({ block: "start" });
@@ -35,23 +39,25 @@ export function XbrlFacts() {
         Download each company’s XBRL facts and annual report from the SEC, keep every fact traceable to its filing, and
         choose which tags you need.
       </p>
-      <XbrlFetchArea tags={tags} onSettled={filesChanged} />
-      <XbrlFilesArea refreshKey={filesKey} chosen={company?.cik ?? null} onChoose={choose} />
+      <XbrlFetchArea tags={tags} onSettled={filesChanged} onRun={setFetchRun} />
+      <XbrlFilesArea refreshKey={filesKey} chosen={cik} onChoose={choose} onCompany={setCompany} />
       <section className="card" aria-labelledby="xbrl-facts-title">
         <h2 id="xbrl-facts-title" tabIndex={-1}>
           Facts{company && <>: {company.name || company.company_id}</>}
         </h2>
-        {company ? (
+        {company && company.cik === cik ? (
           <>
             <p className="help-text">
               {factsCaption(company, <span className="mono">{company.cik}</span>)}
             </p>
-            <XbrlFactsTable key={company.cik} cik={company.cik} />
+            <XbrlFactsTable key={`${company.cik}|${company.fetched_at}`} cik={company.cik} />
           </>
         ) : (
           <p className="muted">Choose a company in Files to see its facts.</p>
         )}
       </section>
+      <XbrlRequiredArea fetchRunId={fetchRun} refreshKey={filesKey} />
+      <XbrlVerifyArea />
       <XbrlTagsArea tags={tags} onChange={setTags} />
     </div>
   );
