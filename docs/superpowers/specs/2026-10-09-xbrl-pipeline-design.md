@@ -22,6 +22,7 @@ Date: 2026-10-09. Status: draft for review. Scope: sub-projects 0 (core) and 1 (
 | Standing | Its own function in the repo (added to the README function table), not a mode of Data-Point Extraction. |
 | User control | The user explicitly chooses what is extracted: everything (default) or a chosen set of tags, at fetch time or afterwards. |
 | Surfaces | CLI, API and a frontend page, all sharing one code path. |
+| Tag list | The tag dropdown offers every tag that exists in the official taxonomies (`us-gaap`, `ifrs-full`, `dei`), not only tags found in fetched reports. Company-specific extension tags are added as they are seen. Other taxonomies arrive with their market adapters. |
 
 ## What already exists and is reused
 
@@ -92,9 +93,19 @@ Nothing is filtered at this step.
 - Output: `data/xbrl/<cik10>/required.jsonl`, one row per company, fiscal year and metric, holding the winning concept, value, unit and period.
 - If no concept matches, the row has status `not_found`. Nothing is guessed or estimated.
 
+### Tag registry
+
+The list of selectable tags is independent of any fetched report.
+
+- **Source.** The official taxonomies: `us-gaap` (FASB), `ifrs-full` (IFRS Foundation, used by ESEF and by foreign filers on the SEC) and `dei` (cover-page facts). The exact taxonomy files and their URLs are confirmed when the plan is written. Other taxonomies (UK, Japan, ...) are added with their market adapters.
+- **Storage.** A snapshot per taxonomy and year in `data/xbrl/taxonomy/<taxonomy>-<year>.jsonl`, one row per tag: concept name, label, data type, period type (instant or duration), balance (debit or credit), documentation text and a deprecated flag. Built by `arp xbrl taxonomy update`, never at page load.
+- **Extension tags.** A company's own tags (for example `xyz:CustomRevenue`) are not in any standard taxonomy. They are added to the registry from `catalog.json` as fetches see them, marked as extensions.
+- **Seen counts.** Each registry tag carries the number of fetched companies that use it, computed from the `catalog.json` files. A tag nobody has used shows 0, so a selection that will return nothing is visible before you run it.
+- **Search.** Server-side, by name or label, with filters for taxonomy, extension, seen-only and deprecated. Revenue and capex tags are pinned at the top of an empty search.
+
 ### 4. Select
 
-- `arp xbrl tags` lists all available concepts across the company list, with counts.
+- `arp xbrl tags` lists tags from the tag registry (see below), with how many fetched companies use each.
 - `arp xbrl select --name <n> --tags A,B,C` writes `data/xbrl/selections/<n>.jsonl`: the facts for those concepts across the company list.
 - A selection is a named file, so it can be re-run and read by later processing.
 
@@ -113,7 +124,8 @@ Nothing is filtered at this step.
 | Command | Does |
 |---|---|
 | `arp xbrl fetch --universe <file> [--tags A,B,C] [--refresh]` | Steps 1 to 3. Without `--tags`, mode All. |
-| `arp xbrl tags [--universe <file>]` | Lists available concepts |
+| `arp xbrl taxonomy update` | Builds or refreshes the tag registry snapshots |
+| `arp xbrl tags [--search <text>] [--taxonomy <t>] [--seen-only]` | Lists registry tags with seen counts |
 | `arp xbrl select --name <n> --tags A,B,C` | Step 4 |
 | `arp xbrl verify <run_id> [--tolerance 0.005]` | Compares an extraction run with the stored revenue and capex |
 
@@ -125,7 +137,8 @@ Router prefix `/api/xbrl`, authorised like the other routers.
 |---|---|
 | `POST /runs` | Start a fetch. Body: companies (or a universe), optional `tags`, `refresh`. Returns `run_id`. |
 | `GET /runs/{id}` and `GET /runs/{id}/results` | Manifest and per-company status rows, paged. |
-| `GET /tags` | Available concepts with counts, for a run or a universe. |
+| `GET /tags?q=&taxonomy=&seen_only=&offset=&limit=` | Registry tags matching the search, paged, each with its seen count. The page never receives the whole list. |
+| `POST /taxonomy/update` | Rebuilds the registry snapshots. |
 | `PUT /selections/{name}`, `GET /selections`, `GET /selections/{name}/facts` | Save, list and read named selections. |
 | `GET /required` | Revenue and capex rows for a run or a universe. |
 | `POST /verify` | Body: extraction `run_id`, optional tolerance. Returns the outcomes, or the circular-run error. |
@@ -137,7 +150,7 @@ Name and company identifiers are validated with `safe_id`, as in `routers/docume
 `XbrlFacts`, one page with four areas:
 
 1. **Fetch.** Choose companies (the existing universe), choose All or Selected tags, optional refresh, start. A status table shows `ok`, `unchanged`, `no_cik`, `not_found` and `error` per company, with a retry-failed action.
-2. **Tags.** Searchable, filterable list of all available concepts with counts and years covered. Checkboxes build a selection, which is saved by name or used for the next fetch.
+2. **Tags.** A searchable multi-select dropdown (combobox) over the whole tag registry. Options load from `GET /tags` as the user types, so tens of thousands of tags stay fast. Each option shows label, concept name, taxonomy and seen count. Filters: taxonomy, extension, seen-only. Chosen tags appear as removable chips. The chosen set is saved by name or used for the next fetch. It is keyboard-operable and announces result counts to screen readers.
 3. **Required.** Revenue and capex per company and year, with the winning concept shown and `not_found` marked in text.
 4. **Verify.** Choose an extraction run and see match, mismatch and missing counts, with the mismatches listed. A circular run shows the guard message in plain text.
 
@@ -154,6 +167,7 @@ Purpose: prove the LLM extraction against the filer's own tagged values.
 
 ## Known limits
 
+- Taxonomies change each year: tags are added, renamed and deprecated. A snapshot is per year, and facts match tags by concept name. A deprecated tag stays selectable, marked as deprecated, because older filings still use it.
 - `companyfacts` has no dimensional facts (segment, region) and no text blocks. These come from the per-filing iXBRL parse in the EU step, which can then be re-run on US filings.
 - Non-US filers have no `companyfacts`. They are covered by the later adapters.
 - Revenue and capex tagging varies between filers. A filer that uses a concept outside the fallback lists shows `not_found`, never a guess.
@@ -169,7 +183,8 @@ One small `companyfacts` fixture and tests that cover:
 5. `verify`: match, mismatch, missing, and the circular-run guard,
 6. selection modes: a fetch with `--tags` writes only those concepts to `facts.jsonl` but still stores the full original, and a later `select` for other tags works with no download,
 7. API: the endpoints above through FastAPI's test client, including `safe_id` rejection,
-8. frontend: the page's behaviour tests in the repo's existing frontend test style (to be confirmed in the plan), and the type check and lint the repo already runs.
+8. tag registry: a small taxonomy fixture builds a snapshot, search and paging return the expected tags, seen counts follow `catalog.json`, extension tags are added and marked, a never-used tag shows 0,
+9. frontend: the page's behaviour tests in the repo's existing frontend test style (to be confirmed in the plan), and the type check and lint the repo already runs.
 
 ## Documentation
 
