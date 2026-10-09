@@ -26,7 +26,7 @@ Do for EU-listed companies what the SEC adapter does for US ones: download the t
 
 ## Fetch, per company
 
-1. The company needs an `lei` (a `lei` column in the universe file). Without one the status is `no_lei`.
+1. The company needs an `lei` (a `lei` column in the universe file). The value is normalised with `strip().upper()` and must be 20 letters or digits. Without a valid one the status is `no_lei` and nothing is written.
 2. `GET {index}/api/entities/{lei}/filings`. A 404 gives `not_found`.
 3. Pick the latest annual filing: the greatest `period_end` among filings that have a `package_url` and a `json_url`, ignoring implausible dates. The index contains bad values (for example `4172-12-31`); a year outside 2015 to the current year plus one is ignored.
 4. Download `json_url` (the original, stored as served, with its sha256) and `package_url` (the report, stored as filed). Both are size-capped and SSRF-guarded as the existing download is.
@@ -45,7 +45,7 @@ xBRL-JSON gives each fact `concept`, `entity`, `period`, optional `unit`, and `v
 | `unit` | The unit with its namespace removed (`iso4217:EUR` gives `EUR`). |
 | `period_start`, `period_end` | From `period`. xBRL-JSON writes the end of a period as the start of the next day: one day is subtracted, so `2022-01-01T00:00:00/2023-01-01T00:00:00` gives 2022-01-01 to 2022-12-31 and an instant `2021-01-02T00:00:00` gives 2021-01-01. |
 | `fiscal_year` | The year of `period_end` (as for SEC tables, never the filer's own label). |
-| `fiscal_period` | `FY` for a duration of about a year, else empty. |
+| `fiscal_period` | `FY` for a duration of about a year and for an instant (a year-end position in an annual report, as SEC marks its annual rows); else empty. |
 | `form` | `ESEF`. |
 | `filed` | The date part of the index's `date_added`. |
 | `accession` | The index's `fxo_id`. |
