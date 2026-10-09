@@ -138,3 +138,10 @@ test("safeHref passes only http(s) URLs", () => {
   assert.equal(safeHref("data:text/html,x"), null);
   assert.equal(safeHref(null), null);
 });
+
+test("statusText names where not_found looked, by market when known", () => {
+  assert.equal(statusText("not_found", "sec"), "Not found at the SEC");
+  assert.equal(statusText("not_found", "esef"), "Not found in the ESEF filing index");
+  assert.equal(statusText("not_found"), "Not found at the SEC or in the ESEF filing index");
+  assert.equal(statusText("ok", "esef"), "Facts fetched");
+});

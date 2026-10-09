@@ -15,7 +15,7 @@ import type { XbrlFact, XbrlPivot } from "../types";
 import { StepTabs } from "./StepTabs";
 
 const PAGE = 50; // the API caps a page at 500
-const FORMS = ["10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "40-F", "8-K"];
+const FORMS = ["10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "40-F", "8-K", "ESEF"];
 const VIEWS = [
   { id: "flat", label: "Flat" },
   { id: "year", label: "By year" },

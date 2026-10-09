@@ -30,7 +30,7 @@ const STATUS: Record<string, string> = {
   unchanged: "Already up to date",
   no_cik: "No SEC CIK for this company",
   no_lei: "No LEI in the universe row",
-  not_found: "Not found at the SEC",
+  not_found: "Not found at the SEC or in the ESEF filing index",
   error: "Failed",
 };
 const REPORT: Record<string, string> = {
@@ -43,7 +43,11 @@ const REPORT: Record<string, string> = {
 export const keyLabel = (market: XbrlMarket): "CIK" | "LEI" => (market === "esef" ? "LEI" : "CIK");
 /** A third-party URL is only linked when it is http(s): never javascript: or data:. */
 export const safeHref = (url: string | null | undefined): string | null => (url && /^https?:\/\//i.test(url) ? url : null);
-export const statusText = (status: string): string => STATUS[status] ?? status;
+/** A status in words; not_found names where it looked when the row's market is known. */
+export const statusText = (status: string, market?: XbrlMarket): string =>
+  status === "not_found" && market
+    ? market === "esef" ? "Not found in the ESEF filing index" : "Not found at the SEC"
+    : (STATUS[status] ?? status);
 export const reportText = (report: string): string => REPORT[report] ?? report;
 
 export function verifySummary(rows: { outcome: string }[]): Record<string, number> {

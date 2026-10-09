@@ -253,7 +253,7 @@ export function XbrlFetchArea({
                   <tr key={r._key}>
                     <td data-label="Company">{r.company_id}</td>
                     <td data-label={keyLabel(r.market)} className="mono">{r.cik ?? ""}</td>
-                    <td data-label="Status">{statusText(r.status)}</td>
+                    <td data-label="Status">{statusText(r.status, r.market)}</td>
                     <td data-label="Annual report">{reportText(r.report)}</td>
                     <td data-label="Facts" className="mono">{r.fact_count.toLocaleString()}</td>
                   </tr>
