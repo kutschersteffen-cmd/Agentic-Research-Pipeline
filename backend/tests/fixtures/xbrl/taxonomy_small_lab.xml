@@ -1,0 +1,21 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<link:linkbase xmlns:link='http://www.xbrl.org/2003/linkbase' xmlns:xlink='http://www.w3.org/1999/xlink'>
+  <link:labelLink xlink:role='http://www.xbrl.org/2003/role/link' xlink:type='extended'>
+    <link:loc xlink:href='taxonomy_small.xsd#us-gaap_Revenues' xlink:label='loc_Revenues' xlink:type='locator' />
+    <link:label xlink:label='lab_Revenues' xlink:role='http://www.xbrl.org/2003/role/label' xlink:type='resource' xml:lang='en-US'>Revenues</link:label>
+    <link:label xlink:label='lab_Revenues_d' xlink:role='http://www.xbrl.org/2003/role/documentation' xlink:type='resource' xml:lang='en-US'>Amount of revenue recognized from goods sold.</link:label>
+    <link:labelArc xlink:arcrole='http://www.xbrl.org/2003/arcrole/concept-label' xlink:from='loc_Revenues' xlink:to='lab_Revenues' xlink:type='arc' />
+    <link:labelArc xlink:arcrole='http://www.xbrl.org/2003/arcrole/concept-label' xlink:from='loc_Revenues' xlink:to='lab_Revenues_d' xlink:type='arc' />
+    <link:loc xlink:href='taxonomy_small.xsd#us-gaap_PaymentsToAcquirePropertyPlantAndEquipment' xlink:label='loc_Capex' xlink:type='locator' />
+    <link:label xlink:label='lab_Capex' xlink:role='http://www.xbrl.org/2003/role/label' xlink:type='resource' xml:lang='en-US'>Payments to Acquire Property, Plant, and Equipment</link:label>
+    <link:labelArc xlink:arcrole='http://www.xbrl.org/2003/arcrole/concept-label' xlink:from='loc_Capex' xlink:to='lab_Capex' xlink:type='arc' />
+    <link:loc xlink:href='taxonomy_small.xsd#us-gaap_Assets' xlink:label='loc_Assets' xlink:type='locator' />
+    <link:label xlink:label='lab_Assets' xlink:role='http://www.xbrl.org/2003/role/label' xlink:type='resource' xml:lang='en-US'>Assets</link:label>
+    <link:label xlink:label='lab_Assets_tot' xlink:role='http://www.xbrl.org/2003/role/totalLabel' xlink:type='resource' xml:lang='en-US'>Total assets</link:label>
+    <link:labelArc xlink:arcrole='http://www.xbrl.org/2003/arcrole/concept-label' xlink:from='loc_Assets' xlink:to='lab_Assets' xlink:type='arc' />
+    <link:labelArc xlink:arcrole='http://www.xbrl.org/2003/arcrole/concept-label' xlink:from='loc_Assets' xlink:to='lab_Assets_tot' xlink:type='arc' />
+    <link:loc xlink:href='taxonomy_small.xsd#us-gaap_OldLeaseCost' xlink:label='loc_Old' xlink:type='locator' />
+    <link:label xlink:label='lab_Old' xlink:role='http://www.xbrl.org/2003/role/label' xlink:type='resource' xml:lang='en-US'>Old Lease Cost (Deprecated 2024)</link:label>
+    <link:labelArc xlink:arcrole='http://www.xbrl.org/2003/arcrole/concept-label' xlink:from='loc_Old' xlink:to='lab_Old' xlink:type='arc' />
+  </link:labelLink>
+</link:linkbase>

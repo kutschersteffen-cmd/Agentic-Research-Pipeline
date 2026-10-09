@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<xs:schema elementFormDefault='qualified' targetNamespace='http://fasb.org/us-gaap/2026' xmlns:xbrli='http://www.xbrl.org/2003/instance' xmlns:xs='http://www.w3.org/2001/XMLSchema'>
+  <xs:element id='us-gaap_Revenues' name='Revenues' nillable='true' substitutionGroup='xbrli:item' type='xbrli:monetaryItemType' xbrli:balance='credit' xbrli:periodType='duration' />
+  <xs:element id='us-gaap_PaymentsToAcquirePropertyPlantAndEquipment' name='PaymentsToAcquirePropertyPlantAndEquipment' nillable='true' substitutionGroup='xbrli:item' type='xbrli:monetaryItemType' xbrli:balance='credit' xbrli:periodType='duration' />
+  <xs:element id='us-gaap_Assets' name='Assets' nillable='true' substitutionGroup='xbrli:item' type='xbrli:monetaryItemType' xbrli:balance='debit' xbrli:periodType='instant' />
+  <xs:element id='us-gaap_OldLeaseCost' name='OldLeaseCost' nillable='true' substitutionGroup='xbrli:item' type='xbrli:monetaryItemType' xbrli:balance='debit' xbrli:periodType='duration' />
+  <xs:element abstract='true' id='us-gaap_RevenuesAbstract' name='RevenuesAbstract' nillable='true' substitutionGroup='xbrli:item' type='xbrli:stringItemType' xbrli:periodType='duration' />
+</xs:schema>
