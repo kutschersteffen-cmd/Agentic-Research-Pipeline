@@ -105,6 +105,8 @@ async def test_tags_matching_nothing_is_ok_with_empty_facts(tmp_path):
     st = await _fetch(FakeSource(), store, tags=frozenset({"us-gaap:Nope"}))
     assert (st.status, st.fact_count) == ("ok", 0)
     assert list(store.read_facts(CIK10)) == []
+    assert store.original(CIK10) is not None
+    assert store.read_required(CIK10)
 
 
 async def test_changed_tag_set_is_not_unchanged(tmp_path):
@@ -127,7 +129,8 @@ async def test_no_cik(tmp_path):
 async def test_same_cik_twice_stores_one_original_and_one_report(tmp_path):
     store, src = XbrlStore(tmp_path), FakeSource()
     await _fetch(src, store, company=_company("A"))
-    await _fetch(src, store, company=_company("B"))
+    st_b = await _fetch(src, store, company=_company("B"))
+    assert (st_b.status, st_b.report) == ("unchanged", "unchanged")
     d = store.company_dir(CIK10)
     assert len(list(d.glob("companyfacts-*.json"))) == 1
     assert len(list(d.glob("annual-*.htm"))) == 1
@@ -148,7 +151,7 @@ async def test_report_download_failure_leaves_company_ok(tmp_path):
     store = XbrlStore(tmp_path)
     st = await _fetch(FakeSource(annual_exc=RuntimeError("boom")), store)
     assert (st.status, st.report) == ("ok", "error")
-    assert store.read_facts(CIK10) is not None and store.meta(CIK10)
+    assert st.fact_count == 5 and len(list(store.read_facts(CIK10))) == 5 and store.meta(CIK10)
 
 
 async def test_with_retry_succeeds_after_two_429():
