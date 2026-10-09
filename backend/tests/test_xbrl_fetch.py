@@ -287,3 +287,17 @@ async def test_resume_with_persisting_failure_does_not_double_count(tmp_path):
     run, _ = await _first_run_with_failure(tmp_path)
     m = await run()
     assert (m.completed_count, m.failed_count, m.status) == (2, 1, "partially_completed")
+
+
+async def test_execute_run_dispatches_esef(tmp_path):
+    from tests.test_xbrl_esef_fetch import FakeSource as EsefFake  # noqa: PLC0415
+
+    settings = Settings(xbrl_dir=tmp_path / "xbrl")
+    run_store = RunStore(tmp_path / "runs")
+    companies = [CompanyRef(company_id="A", name="A", lei="529900FIXTURELEI0001"), CompanyRef(company_id="B", name="B")]
+    run_id = create_xbrl_run(companies, None, False, run_store, market="esef")
+    assert run_store.load_manifest(run_id).params["market"] == "esef"
+    await execute_xbrl_run(run_id, companies, settings=settings, run_store=run_store, tags=None, refresh=False,
+                           market="esef", source=EsefFake())
+    rows = {r["company_id"]: r for r in map(json.loads, run_store.results_path(run_id).read_text().splitlines())}
+    assert (rows["A"]["status"], rows["B"]["status"]) == ("ok", "no_lei")
