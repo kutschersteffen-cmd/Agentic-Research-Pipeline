@@ -19,7 +19,7 @@ def _prev_day(ts: str) -> str:
 def parse_period(period: str) -> tuple[str | None, str]:
     if "/" in period:
         start, end = period.split("/", 1)
-        return start[:10], _prev_day(end)
+        return date.fromisoformat(start[:10]).isoformat(), _prev_day(end)
     return None, _prev_day(period)
 
 
@@ -45,9 +45,14 @@ def flatten_xbrl_json(
         if not set(dims) <= _PLAIN:
             skipped += 1
             continue
+        if not isinstance(dims.get("concept"), str) or not isinstance(dims.get("period"), str):
+            continue  # no concept, or no period (an OIM "forever" fact)
+        try:
+            start, end = parse_period(dims["period"])
+        except ValueError:
+            continue
         taxonomy, _, concept = dims["concept"].partition(":")
         unit = dims["unit"].split(":", 1)[-1]
-        start, end = parse_period(dims["period"])
         key = (taxonomy, concept, unit, start, end)
         if key in seen:
             continue
@@ -66,8 +71,8 @@ def flatten_xbrl_json(
                 fiscal_year=int(end[:4]),
                 fiscal_period="FY" if annual else None,
                 form="ESEF",
-                filed=filing["date_added"][:10],
-                accession=filing["fxo_id"],
+                filed=(filing.get("date_added") or "")[:10] or None,
+                accession=filing.get("fxo_id"),
                 source_sha=source_sha,
                 market="esef",
             )

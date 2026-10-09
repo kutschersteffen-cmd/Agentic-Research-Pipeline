@@ -54,12 +54,15 @@ class XbrlStore:
 
     def set_meta(self, cik10: str, *, source_sha: str, tags: list[str] | None, company_id: str,
                  company_name: str | None, fact_count: int, market: Market = "sec",
-                 original_file: str | None = None, skipped_dimensional: int = 0) -> None:
+                 original_file: str | None = None, skipped_dimensional: int = 0,
+                 filing: dict | None = None) -> None:
         ids = list(dict.fromkeys([*self.company_ids(cik10), company_id]))
         meta = {"source_sha": source_sha, "tags": tags, "company_id": company_id, "company_ids": ids,
                 "company_name": company_name, "fact_count": fact_count, "fetched_at": now_iso(), "market": market,
                 "original_file": original_file or f"companyfacts-{source_sha[:16]}.json",
                 "skipped_dimensional": skipped_dimensional}
+        if filing is not None:
+            meta["filing"] = filing
         atomic_write_text(self.company_dir(cik10) / "meta.json", json.dumps(meta, indent=2))
 
     def add_company_id(self, cik10: str, company_id: str) -> None:

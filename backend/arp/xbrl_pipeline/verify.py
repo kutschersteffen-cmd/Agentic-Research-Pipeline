@@ -8,7 +8,7 @@ from arp.normalise.units import convert
 from arp.schemas.datapoints import ExtractionRecord
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.run_store import RunStore
-from arp.xbrl_pipeline.models import VerifyRow
+from arp.xbrl_pipeline.models import RequiredRow, VerifyRow
 from arp.xbrl_pipeline.store import XbrlStore
 
 
@@ -42,9 +42,14 @@ def verify_run(run_id: str, *, run_store: RunStore, store: XbrlStore, mapping: d
     assert_xbrl_off(run_id, run_store=run_store)
 
     # ponytail: linear scan, index by company above ~10k companies
-    xbrl = {(cid, r.metric, r.fiscal_year): r
-            for cik in store.ciks() for r in store.read_required(cik)
-            for cid in {r.company_id, *store.company_ids(cik)}}
+    # A dual filer (one company_id under a CIK and a LEI): a found row wins, else the first by sorted key.
+    xbrl: dict[tuple, RequiredRow] = {}
+    for cik in store.ciks():
+        for r in store.read_required(cik):
+            for cid in {r.company_id, *store.company_ids(cik)}:
+                known = xbrl.get((cid, r.metric, r.fiscal_year))
+                if known is None or (known.status != "found" and r.status == "found"):
+                    xbrl[(cid, r.metric, r.fiscal_year)] = r
 
     rows: list[VerifyRow] = []
     for raw in run_store.read_jsonl(run_store.results_path(run_id)):

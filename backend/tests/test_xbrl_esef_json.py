@@ -75,3 +75,18 @@ def test_catalog_counts_years_and_units():
     assert (rev.fact_count, rev.first_year, rev.last_year, rev.units, rev.label) == (
         2, 2022, 2022, ["EUR"], None)
     assert cat["GrossScope1GreenhouseGasEmissions"].units == ["pure"]
+
+
+def test_malformed_facts_and_filing_attributes_are_skipped_not_raised():
+    good = {"value": "5", "dimensions": {"concept": "ifrs-full:Revenue", "entity": "x", "unit": "iso4217:EUR",
+                                         "period": "2022-01-01T00:00:00/2023-01-01T00:00:00"}}
+    def bad(**dims):
+        return {"value": "1", "dimensions": {**good["dimensions"], **dims}}
+    no_period = {"value": "1", "dimensions": {k: v for k, v in good["dimensions"].items() if k != "period"}}
+    no_concept = {"value": "1", "dimensions": {k: v for k, v in good["dimensions"].items() if k != "concept"}}
+    doc = {"facts": {"g": good, "np": no_period, "nc": no_concept, "bd": bad(period="2022-13-45T00:00:00"),
+                     "bs": bad(period="nonsense/2023-01-01T00:00:00"), "cn": bad(concept=None)}}
+    rows, skipped = flatten_xbrl_json(doc, company_id="c1", lei=LEI, source_sha="s",
+                                      filing={"fxo_id": None, "date_added": None})
+    assert [(r.concept, r.value, r.filed, r.accession) for r in rows] == [("Revenue", 5.0, None, None)]
+    assert skipped == 0
