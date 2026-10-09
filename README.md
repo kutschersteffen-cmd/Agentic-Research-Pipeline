@@ -32,6 +32,7 @@ file-based state by default — no database required.
 | 16 | **Equity Index Construction** | Builds an index methodology by composing named rules — ordered screens, one selection rule (best-in-class to a market-cap *or* count coverage target with hysteresis buffers, an absolute threshold, or top-N), a weighting scheme, bounded multiplicative tilts, a deterministic capping waterfall (single-name, group, UCITS 5/10/40) and the path-dependent EU PAB/CTB decarbonisation trajectory. Zero LLM calls in the numbers: a model-derived thematic score enters only as a frozen, effective-dated snapshot. The composition saves as a versioned, effective-dated **calibration**, and a review resolves the version *in force on its review date*, so today's parameters cannot rewrite a past one. Optionally (`.[optimize]`) swaps the waterfall for a convex programme — least-squares projection, minimum tracking error, or score maximisation under a TE budget on an estimated or vendor risk model — or a mixed-integer one on SCIP for cardinality limits and a genuinely enforced minimum weight. Every constraint is re-verified in plain Python afterwards; a solver's own "optimal" is never taken as proof. |
 | 14 | **Standing agents** | Taxonomy Researcher and Calibration Agent run on a schedule and *propose* changes for human review — they never apply them. |
 | 17 | **Superset BI Designer** *(opt-in)* | Describe a dashboard in words and get an unpublished draft in Apache Superset. The LLM plans, deterministic code compiles, Superset computes: a closed catalogue of datasets and metrics bounds the plan, a validator rejects anything outside it, and the model never writes SQL or sees a number. Reads only the `bi` views over Postgres, so company facts are the reviewed ones. Drafts only; a person publishes. |
+| 18 | **XBRL Facts** | Separate from Data-Point Extraction, which it does not touch. Downloads each company's SEC `companyfacts` JSON and latest 10-K (inline XBRL) as filed, extracts every tagged fact (or only a chosen set), always resolves revenue and capex, and offers a searchable dropdown over the full us-gaap / ifrs-full / dei taxonomies. Files and facts show in tables (flat and by year), and an extraction run can be verified against the filer's tagged values (a run that copied XBRL is refused). CLI, API and page; files only, no database. |
 
 ## Architecture
 
@@ -301,6 +302,7 @@ arp report run --title "Electrification Review" --notes notes.txt --format pptx 
 arp report plan --title "Q3 Review" --notes notes.txt --format house_deck --out storyline.json   # drafts headlines, no slides yet
 arp report approve <report_id>      # builds output.pdf + output.pptx and findings; later: arp report rerun <report_id>
 arp discover run --universe companies.csv
+arp xbrl fetch --universe companies.csv     # SEC companyfacts + latest 10-K, files only; also: arp xbrl taxonomy update | tags | select | files | verify
 arp golden-set run                # regression-test before a prompt/model change
 arp runs list                     # also: arp runs show <run_id>, arp runs cancel <run_id>
 

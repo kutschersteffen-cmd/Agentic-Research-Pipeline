@@ -33,6 +33,7 @@ from arp.cli.transition_barrier import transition_barrier_app
 from arp.cli.transition_plan import transition_plan_app
 from arp.cli.universe import universe_app
 from arp.cli.voting import voting_app
+from arp.cli.xbrl import xbrl_app
 
 app = typer.Typer(help="Agentic Research Pipeline CLI -- the headless path for 1000s-of-companies batch runs.")
 app.add_typer(theme_app, name="theme")
@@ -66,3 +67,4 @@ app.add_typer(publish_app, name="publish")
 app.add_typer(snapshots_app, name="snapshots")
 app.add_typer(holdings_app, name="holdings")
 app.add_typer(retention_app, name="retention")
+app.add_typer(xbrl_app, name="xbrl")

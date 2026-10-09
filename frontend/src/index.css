@@ -1864,3 +1864,121 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .touchpad button:active { background: #c6ff3d; color: #05070a; }
 .touchpad button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (pointer: coarse), (max-width: 640px) { .touchpad { display: grid; } .arcade-game:has(.touchpad) { --cab-chrome: 15.5rem; } }
+
+/* XBRL Facts (pages/XbrlFacts.tsx) and its tag dropdown (components/TagCombobox.tsx). */
+.xbrl-choice { border: none; padding: 0; margin: 0; min-width: 0; }
+.xbrl-choice .checkbox-label { margin: 6px 0; }
+.xbrl-run { margin-top: var(--s-6); border-top: 1px solid var(--panel-border); padding-top: var(--s-2); }
+.xbrl-errors { padding-left: 1.2em; font-size: var(--text-sm); overflow-wrap: anywhere; }
+.xbrl-save { margin-top: var(--s-6); }
+.xbrl-save > .field-label { margin: 0; flex-basis: 100%; }
+.xbrl-selections { list-style: none; margin: 0; padding: 0; }
+.xbrl-selections li { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-2) 0; border-bottom: 1px solid var(--panel-border); }
+.xbrl-selections li button { margin-top: 0; }
+
+.tag-combobox-field { position: relative; }
+.tag-combobox-popup {
+  position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px);
+  background: var(--panel); border: 1px solid var(--field-border); box-shadow: var(--shadow-md);
+}
+.tag-combobox-list { list-style: none; margin: 0; padding: 0; max-height: min(22rem, 55vh); overflow: auto; overscroll-behavior: contain; }
+.tag-option {
+  display: flex; align-items: flex-start; gap: var(--s-3); min-height: 44px;
+  padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--panel-border); cursor: pointer;
+}
+.tag-option.active { background: var(--well); box-shadow: inset 2px 0 0 var(--accent); }
+.tag-option-check {
+  flex: none; display: grid; place-items: center; width: 18px; height: 18px; margin-top: 2px;
+  border: 1px solid var(--field-border); border-radius: var(--r-sm); color: var(--on-accent);
+}
+.tag-option[aria-selected="true"] .tag-option-check { background: var(--accent); border-color: var(--accent); }
+.tag-option-body { display: grid; gap: 2px; min-width: 0; }
+.tag-option-label { font-weight: 500; }
+.tag-option-id { font-family: var(--font-mono); font-size: var(--text-xs); overflow-wrap: anywhere; }
+.tag-option-meta { font-size: var(--text-xs); color: var(--muted); }
+.tag-combobox-status { margin: 0; padding: var(--s-2) var(--s-3); font-size: var(--text-sm); }
+.tag-chips { list-style: none; padding: 0; margin: var(--s-3) 0; }
+.tag-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; margin: 0; padding: 4px 8px 4px 10px;
+  background: var(--well); color: var(--text); border: 1px solid var(--field-border); border-radius: var(--r-sm);
+  font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 500; max-width: 100%; overflow-wrap: anywhere; text-align: left;
+}
+.tag-chip:hover:not(:disabled) { background: var(--accent-tint); border-color: var(--accent); }
+
+/* XBRL Files and Facts tables: financial data as filed. Digits right-aligned
+   in the mono face, the unit always beside the value, row headers in the
+   reading face. The facts tables scroll on both axes inside their own frame,
+   with the header row and the tag column pinned. */
+.data-table .num { text-align: right; }
+:is(.xbrl-files, .xbrl-table) tbody th {
+  color: var(--text); font-family: inherit; font-size: var(--text-base); text-transform: none;
+  letter-spacing: normal; font-weight: 400; vertical-align: top; text-align: left;
+}
+.xbrl-name { display: block; font-weight: 500; }
+.xbrl-sub { display: block; margin-top: 2px; color: var(--muted); font-size: var(--text-xs); font-weight: 400; }
+.xbrl-report { display: grid; justify-items: start; gap: 2px; }
+/* Five quiet text actions per row; a missing file or a failed download is
+   stated in text on its own line beneath them. */
+.xbrl-downloads { display: flex; flex-wrap: wrap; gap: 0 var(--s-4); max-width: 17rem; }
+.xbrl-download-note { order: 1; flex-basis: 100%; font-size: var(--text-xs); }
+.xbrl-files .clickable-row[aria-current] th { background: var(--accent-tint); }
+.xbrl-files button.xbrl-name { padding: 0; text-align: left; font-weight: 500; }
+.xbrl-files .clickable-row[aria-current] button.xbrl-name { text-decoration-thickness: 2px; }
+.xbrl-files td { white-space: nowrap; }
+.xbrl-files tbody th { min-width: 9rem; }
+.xbrl-files :is(.xbrl-downloads, .xbrl-report) { white-space: normal; }
+.xbrl-nowrap, .xbrl-report a { white-space: nowrap; }
+
+.xbrl-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 0 var(--s-4); align-items: end; margin-top: var(--s-2); }
+.xbrl-filters .field-label { margin: var(--s-2) 0 0; }
+.xbrl-filter-check { margin: var(--s-2) 0 0; min-height: 38px; }
+.xbrl-field-error { display: block; margin-top: 4px; font-size: var(--text-xs); }
+.xbrl-filter-wide { grid-column: 1 / -1; }
+@media (min-width: 560px) { .xbrl-filter-wide { grid-column: span 2; } }
+.xbrl-note { margin: var(--s-4) 0 var(--s-2); }
+
+/* position: relative makes the frame the containing block of the visually
+   hidden texts in far-right cells; otherwise they escape the scroll and
+   widen the page. */
+.xbrl-table-wrap { position: relative; max-height: min(70vh, 44rem); overflow: auto; border: 1px solid var(--panel-border); }
+.xbrl-table { margin-top: 0; }
+.xbrl-table thead th { position: sticky; top: 0; z-index: 2; background: var(--panel); white-space: nowrap; box-shadow: inset 0 -1px 0 var(--panel-border); }
+.xbrl-table td { white-space: nowrap; }
+.xbrl-table td.num { padding-left: var(--s-6); }
+.xbrl-table .xbrl-unit-col, .xbrl-gap { color: var(--muted); }
+/* Collapsed borders stay behind when a sticky cell moves, so the pinned
+   column draws its own edge. */
+.xbrl-table :is(.xbrl-tag-cell, thead th:first-child) { position: sticky; left: 0; background: var(--panel); box-shadow: inset -1px 0 0 var(--panel-border); }
+.xbrl-table .xbrl-tag-cell { z-index: 1; min-width: 15rem; max-width: 24rem; }
+.xbrl-table thead th:first-child { z-index: 3; box-shadow: inset -1px -1px 0 var(--panel-border); }
+.xbrl-unit { display: inline-block; margin-left: var(--s-2); padding: 0 4px; border: 1px solid var(--panel-border); border-radius: var(--r-sm); }
+@media (max-width: 560px) { .xbrl-table .xbrl-tag-cell { min-width: 9.5rem; max-width: 11rem; } }
+
+/* A sortable header is a real button that keeps the header's mono caps. */
+.data-table button.xbrl-sort {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 0; background: none; color: inherit;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; border: none; border-radius: var(--r-sm);
+}
+.data-table button.xbrl-sort:hover:not(:disabled) { background: none; color: var(--text); }
+th[aria-sort="ascending"] .xbrl-sort, th[aria-sort="descending"] .xbrl-sort { color: var(--text); }
+.xbrl-sort-icon { flex: none; }
+.xbrl-pager > .mono { margin-right: auto; color: var(--muted); }
+.xbrl-status { margin: var(--s-2) 0 0; }
+
+/* Files on a phone: one card per company, like the run tables. */
+@media (max-width: 560px) {
+  .xbrl-files.stack-on-phone tbody th { display: flex; justify-content: space-between; gap: var(--s-3); border: none; padding: 2px 0; }
+  .xbrl-files.stack-on-phone tbody th[data-label]::before { content: attr(data-label); color: var(--muted); font-size: var(--text-sm); }
+  .xbrl-files.stack-on-phone td.num > span { text-align: right; }
+  .xbrl-downloads { justify-content: flex-end; text-align: right; }
+}
+#xbrl-facts-title { scroll-margin-top: calc(var(--topbar-h, 0px) + var(--s-4)); }
+
+/* Required and Verify. A not-found row says why in text across the value columns; the outcome counts are a
+   plain row of labelled numbers. */
+.xbrl-table td.xbrl-not-found { white-space: normal; }
+.xbrl-table td.xbrl-concept { white-space: normal; min-width: 13rem; max-width: 18rem; }
+.xbrl-counts { display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-6); margin: var(--s-3) 0; }
+.xbrl-counts > div { min-width: 7rem; }
+.xbrl-counts dt { color: var(--muted); font-size: var(--text-sm); }
+.xbrl-counts dd { margin: 0; font-size: 1.5rem; font-weight: 600; }

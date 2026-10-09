@@ -43,6 +43,10 @@ _REVENUE_TAGS = [
     "Revenues",
 ]
 
+# Public aliases for the XBRL fact pipeline (arp.xbrl_pipeline).
+REVENUE_TAGS = _REVENUE_TAGS
+CAPEX_TAGS = _CAPEX_TAGS
+
 _ANNUAL_FORMS = {"10-K", "10-K/A"}
 XBRL_PARSER_VERSION = "xbrl_companyfacts_v1"  # the rendered text below; bump when its line format changes
 
@@ -263,6 +267,10 @@ class XbrlFactSource:
         filings-list metadata, so a longer TTL is appropriate) rather than
         cached forever like an immutable filing document."""
         return (await self._company_facts(cik))[0]
+
+    async def fetch_company_facts_raw(self, cik: str) -> tuple[dict | None, bytes | None]:
+        """(parsed JSON, raw bytes) -- the raw bytes are None for a cache file from before step 7b."""
+        return await self._company_facts(cik)
 
     async def fact_source(self, cik: str) -> CompanyFactsSource | None:
         """The company's facts as a FactSource. With a content store and a blob store

@@ -3016,3 +3016,100 @@ export interface UnifiedTrigger {
   is_new: boolean;
   rule: string;
 }
+
+// XBRL fact pipeline (wire format: snake_case, mirrors backend arp/xbrl_pipeline/models.py)
+export interface XbrlTag {
+  taxonomy: string;
+  concept: string;
+  label: string | null;
+  data_type: string | null;
+  period_type: string | null;
+  balance: string | null;
+  documentation: string | null;
+  deprecated: boolean;
+  extension: boolean;
+  seen_count: number;
+}
+
+export interface XbrlCompanyStatus {
+  company_id: string;
+  cik: string | null;
+  status: "ok" | "unchanged" | "no_cik" | "not_found";
+  source_sha: string | null;
+  fact_count: number;
+  report: "stored" | "unchanged" | "none" | "error";
+}
+
+export interface XbrlReportMeta {
+  accession: string;
+  form: string;
+  filing_date: string | null;
+  source_url: string;
+  primary_document: string;
+  filename: string;
+  sha256: string;
+  size: number;
+  inline_xbrl: boolean;
+}
+
+export interface XbrlCompanyFiles {
+  cik: string;
+  company_id: string;
+  name: string | null;
+  fetched_at: string;
+  fact_count: number;
+  tags: string[] | null;
+  original_size: number;
+  report: XbrlReportMeta | null;
+}
+
+export interface XbrlFact {
+  company_id: string;
+  cik: string;
+  taxonomy: string;
+  concept: string;
+  unit: string;
+  value: number;
+  period_start: string | null;
+  period_end: string;
+  fiscal_year: number | null;
+  fiscal_period: string | null;
+  form: string;
+  filed: string | null;
+  accession: string | null;
+  source_sha: string;
+  label: string | null;
+}
+
+export interface XbrlPivot {
+  years: number[]; // calendar year of the period end, newest first
+  rows: { tag_id: string; label: string | null; unit: string; values: Record<string, number | null> }[];
+  total: number;
+}
+
+export interface XbrlRequiredRow {
+  company_id: string;
+  cik: string;
+  metric: "revenue" | "capex";
+  fiscal_year: number | null;
+  status: "found" | "not_found";
+  concept: string | null;
+  value: number | null;
+  unit: string | null;
+  period_start: string | null;
+  period_end: string | null;
+  form: string | null;
+  filed: string | null;
+}
+
+export interface XbrlVerifyRow {
+  company_id: string;
+  metric: string;
+  fiscal_year: number;
+  outcome: "match" | "mismatch" | "missing_in_run" | "missing_in_xbrl";
+  run_value: number | null;
+  xbrl_value: number | null;
+  run_unit: string | null; // unit of the run's value; null when the run has none
+  unit: string | null; // the XBRL unit
+  detail: string;
+}

@@ -12,6 +12,7 @@ from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 import httpx
+from pydantic import BaseModel
 
 from arp.ingestion.base import DocumentSource
 from arp.ingestion.html_text import extract_html_text
@@ -45,6 +46,15 @@ def _edgar_parser_version() -> str:
     except PackageNotFoundError:
         parts.append("trafilatura=unknown")
     return "|".join(parts)
+
+
+class AnnualOriginal(BaseModel):
+    accession: str
+    form: str
+    filing_date: str | None
+    source_url: str
+    primary_document: str
+    content: bytes
 
 
 class EdgarDocumentSource(DocumentSource):
@@ -208,6 +218,30 @@ class EdgarDocumentSource(DocumentSource):
                 doc_id=doc_id, company_id=company_id, doc_type=doc_type.value, content_key=content_key,
                 title=title, local_path=None, source_url=source_url, storage_uri=storage_uri,
             ),
+        )
+
+    async def fetch_latest_annual_original(
+        self, cik: str, *, client: httpx.AsyncClient | None = None
+    ) -> AnnualOriginal | None:
+        """The first 10-K in the recent filings, as the original bytes; None if there is none."""
+        if client is None:
+            async with httpx.AsyncClient(headers=self._headers, timeout=30.0) as own:
+                return await self.fetch_latest_annual_original(cik, client=own)
+        cik10 = cik.zfill(10)
+        recent = ((await self._get_submissions(client, cik10)) or {}).get("filings", {}).get("recent", {})
+        forms = recent.get("form", [])
+        idx = next((i for i, f in enumerate(forms) if f == "10-K"), None)
+        if idx is None:
+            return None
+        accession = recent["accessionNumber"][idx]
+        primary = recent["primaryDocument"][idx]
+        url = _ARCHIVES_BASE.format(cik_int=int(cik10), accession_nodash=accession.replace("-", ""), primary_doc=primary)
+        await asyncio.sleep(self._delay)
+        resp = await client.get(url, headers=self._headers)
+        resp.raise_for_status()
+        return AnnualOriginal(
+            accession=accession, form="10-K", filing_date=recent.get("filingDate", [None] * len(forms))[idx],
+            source_url=url, primary_document=primary, content=resp.content,
         )
 
     async def _get_submissions(self, client: httpx.AsyncClient, cik10: str) -> dict | None:

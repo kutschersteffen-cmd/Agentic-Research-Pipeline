@@ -56,6 +56,7 @@ from arp.api.routers import (
     transition_plan,
     universe,
     voting,
+    xbrl,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -108,6 +109,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 
 app.include_router(themes.router, dependencies=[Depends(authorize)])
@@ -122,6 +124,7 @@ app.include_router(overlap.router, dependencies=[Depends(authorize)])
 app.include_router(revenue_catalogue.router, dependencies=[Depends(authorize)])
 app.include_router(engagement.router, dependencies=[Depends(authorize)])
 app.include_router(voting.router)
+app.include_router(xbrl.router, dependencies=[Depends(authorize)])
 app.include_router(stewardship.router, dependencies=[Depends(authorize)])
 app.include_router(financials.router, dependencies=[Depends(authorize)])
 app.include_router(tnfd.router, dependencies=[Depends(authorize)])
