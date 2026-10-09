@@ -53,23 +53,30 @@ TAXONOMY_SOURCES: dict[str, TaxonomySource] = {
 }
 
 
-def _parse(data: bytes) -> ET.Element:
-    # Third-party input: ElementTree never fetches external entities; refuse entity declarations outright.
-    if b"<!ENTITY" in data:
-        raise ValueError("taxonomy file declares XML entities")
+MAX_TAXONOMY_BYTES = 64 * 1024 * 1024
+_ENTITY_FORMS = tuple("<!ENTITY".encode(enc) for enc in ("utf-8", "utf-16-le", "utf-16-be"))
+
+
+def _parse(data: bytes, taxonomy: str) -> ET.Element:
+    # Third-party input: ElementTree never fetches external entities; refuse entity declarations
+    # (UTF-8 and UTF-16 spellings) and oversized files outright.
+    if len(data) > MAX_TAXONOMY_BYTES:
+        raise ValueError(f"taxonomy {taxonomy!r}: file larger than {MAX_TAXONOMY_BYTES} bytes")
+    if any(form in data for form in _ENTITY_FORMS):
+        raise ValueError(f"taxonomy {taxonomy!r}: file declares XML entities")
     return ET.fromstring(data)
 
 
 def parse_taxonomy(xsd: bytes, labels: bytes | Sequence[bytes], *, taxonomy: str) -> list[TagEntry]:
     names: dict[str, tuple[str, dict[str, str]]] = {}  # element id -> (concept, attributes)
-    for el in _parse(xsd).iter(f"{_XS}element"):
+    for el in _parse(xsd, taxonomy).iter(f"{_XS}element"):
         if el.get("abstract") != "true" and el.get("id") and el.get("name"):
             names[el.get("id", "")] = (el.get("name", ""), el.attrib)
 
     label: dict[str, str] = {}
     doc: dict[str, str] = {}
     for blob in [labels] if isinstance(labels, bytes) else labels:
-        for link in _parse(blob).iter(f"{_LINK}labelLink"):
+        for link in _parse(blob, taxonomy).iter(f"{_LINK}labelLink"):
             locs = {x.get(f"{_XLINK}label"): (x.get(f"{_XLINK}href") or "").partition("#")[2]
                     for x in link.iter(f"{_LINK}loc")}
             res = {x.get(f"{_XLINK}label"): (x.get(f"{_XLINK}role"), (x.text or "").strip())
@@ -129,7 +136,8 @@ class TaxonomyRegistry:
         rows = self._latest_snapshots()
         known = {f"{r['taxonomy']}:{r['concept']}" for r in rows}
         rows += [{"taxonomy": t, "concept": c, "label": cat_labels[i], "data_type": None, "period_type": None,
-                 "balance": None, "documentation": None, "extension": True}
+                 "balance": None, "documentation": None,
+                 "extension": i.partition(":")[0] not in TAXONOMY_SOURCES}
                  for i in seen if i not in known for t, _, c in [i.partition(":")]]
         for r in rows:
             r["seen_count"] = seen[f"{r['taxonomy']}:{r['concept']}"]

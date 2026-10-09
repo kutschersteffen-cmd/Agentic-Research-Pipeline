@@ -120,3 +120,42 @@ def test_update_taxonomies_names_taxonomy_without_url(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="dei"):
         asyncio.run(update_taxonomies(XbrlStore(tmp_path), fetch=None, taxonomies=["dei"]))  # type: ignore[arg-type]
     assert set(TAXONOMY_SOURCES) == {"us-gaap", "ifrs-full", "dei"}
+
+
+def _bare(tmp_path, ids):
+    store = XbrlStore(tmp_path)
+    store.set_meta("0000000001", source_sha="s", tags=None, company_id="c", company_name="n", fact_count=1)
+    store.write_catalog("0000000001", [_cat(*t.split(":")) for t in ids])
+    return TaxonomyRegistry(store)
+
+
+def test_standard_tag_without_snapshot_is_not_extension(tmp_path):
+    items, total = _bare(tmp_path, ["us-gaap:Revenues"]).search()
+    assert total == 1 and items[0].tag_id == "us-gaap:Revenues"
+    assert not items[0].extension and items[0].seen_count == 1
+
+
+def test_extension_only_returns_only_non_standard_prefix(tmp_path):
+    reg = _bare(tmp_path, ["us-gaap:Revenues", "xyz:CustomRevenue"])
+    assert [e.tag_id for e in reg.search(extension_only=True)[0]] == ["xyz:CustomRevenue"]
+
+
+def test_standard_tag_missing_from_snapshot_is_not_extension(tmp_path):
+    _, reg = _registry(tmp_path, catalogues=[["us-gaap:RetiredConcept"]])
+    items, _ = reg.search("retired")
+    assert [e.tag_id for e in items] == ["us-gaap:RetiredConcept"] and not items[0].extension
+
+
+def test_oversized_taxonomy_file_is_rejected(monkeypatch):
+    from arp.xbrl_pipeline import registry
+
+    monkeypatch.setattr(registry, "MAX_TAXONOMY_BYTES", 10)
+    with pytest.raises(ValueError, match="us-gaap"):
+        parse_taxonomy(XSD, LAB, taxonomy="us-gaap")
+
+
+@pytest.mark.parametrize("enc", ["utf-16", "utf-16-le", "utf-16-be", "utf-8"])
+def test_entity_declaration_is_rejected_in_any_encoding(enc):
+    evil = '<?xml version="1.0"?><!DOCTYPE x [<!ENTITY a "b">]><x/>'.encode(enc)
+    with pytest.raises(ValueError, match="entities"):
+        parse_taxonomy(evil, LAB, taxonomy="us-gaap")
