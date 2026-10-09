@@ -19,6 +19,9 @@ Date: 2026-10-09. Status: draft for review. Scope: sub-projects 0 (core) and 1 (
 | Storage | Files, in the repo's existing file-based layout. No database is required and the README's "no database required" stays as is. |
 | Required items | Revenue and capex. |
 | Relation to extraction | Separate. The extraction pipeline is not modified. The new store is an answer key and a tag catalogue only. |
+| Standing | Its own function in the repo (added to the README function table), not a mode of Data-Point Extraction. |
+| User control | The user explicitly chooses what is extracted: everything (default) or a chosen set of tags, at fetch time or afterwards. |
+| Surfaces | CLI, API and a frontend page, all sharing one code path. |
 
 ## What already exists and is reused
 
@@ -37,7 +40,26 @@ company list -> 1 FETCH -> 2 EXTRACT ALL -> 3 REQUIRED -> 4 SELECT
                 + sha256    as a flat row     capex
 ```
 
-New package: `backend/arp/xbrl_pipeline/`. New CLI group: `backend/arp/cli/xbrl.py`, registered in `cli/__init__.py`.
+New package: `backend/arp/xbrl_pipeline/` (the only place with logic). The CLI, API and frontend are thin layers over it:
+
+- CLI group `backend/arp/cli/xbrl.py`, registered in `cli/__init__.py`.
+- API router `backend/arp/api/routers/xbrl.py`, included in `api/main.py` with the same `authorize` dependency as the other routers.
+- Frontend page `frontend/src/pages/XbrlFacts.tsx`, lazy-loaded in `App.tsx`, with calls added to `frontend/src/api/client.ts`.
+
+### Run model
+
+A fetch is a run, recorded in `RunStore` like discovery runs (`create_*_run`, manifest, `results.jsonl`). The per-company status rows (see Batch behaviour) are that run's `results.jsonl`, so run history, progress polling and re-run of failures work the way they do for the other functions.
+
+### Selecting what is extracted
+
+The user chooses one of two modes, in the CLI, API or page:
+
+| Mode | Effect |
+|---|---|
+| **All** (default) | Every fact is written to `facts.jsonl`. |
+| **Selected tags** | Only facts whose concept is in the chosen set are written to `facts.jsonl`. |
+
+In both modes the original document is stored in full and `catalog.json` lists every concept, so the choice is never lossy. Revenue and capex (step 3) are resolved in both modes. Step 4 (select) reads the stored originals, not `facts.jsonl`, so a new selection can be cut at any time, including after a fetch that used a different one, with no new download.
 
 ### 1. Fetch
 
@@ -82,7 +104,7 @@ Nothing is filtered at this step.
 
 - Companies are fetched one at a time with the existing EDGAR delay (below the SEC limit of 10 requests per second).
 - 429 and 5xx responses are retried 3 times with backoff. A 404 is final.
-- Per-company status: `ok`, `unchanged`, `no_cik`, `not_found`, `error`. Written to `status.jsonl` in the run folder. One failure never stops the batch.
+- Per-company status: `ok`, `unchanged`, `no_cik`, `not_found`, `error`. Written as the run's `results.jsonl` rows. One failure never stops the batch.
 - A re-run retries only the companies that failed or were not reached.
 - `--refresh` builds the source with `ttl_hours=0` to bypass the cache.
 
@@ -90,10 +112,36 @@ Nothing is filtered at this step.
 
 | Command | Does |
 |---|---|
-| `arp xbrl fetch --universe <file> [--refresh]` | Steps 1 to 3 |
+| `arp xbrl fetch --universe <file> [--tags A,B,C] [--refresh]` | Steps 1 to 3. Without `--tags`, mode All. |
 | `arp xbrl tags [--universe <file>]` | Lists available concepts |
 | `arp xbrl select --name <n> --tags A,B,C` | Step 4 |
 | `arp xbrl verify <run_id> [--tolerance 0.005]` | Compares an extraction run with the stored revenue and capex |
+
+## API
+
+Router prefix `/api/xbrl`, authorised like the other routers.
+
+| Endpoint | Does |
+|---|---|
+| `POST /runs` | Start a fetch. Body: companies (or a universe), optional `tags`, `refresh`. Returns `run_id`. |
+| `GET /runs/{id}` and `GET /runs/{id}/results` | Manifest and per-company status rows, paged. |
+| `GET /tags` | Available concepts with counts, for a run or a universe. |
+| `PUT /selections/{name}`, `GET /selections`, `GET /selections/{name}/facts` | Save, list and read named selections. |
+| `GET /required` | Revenue and capex rows for a run or a universe. |
+| `POST /verify` | Body: extraction `run_id`, optional tolerance. Returns the outcomes, or the circular-run error. |
+
+Name and company identifiers are validated with `safe_id`, as in `routers/documents.py`.
+
+## Frontend page
+
+`XbrlFacts`, one page with four areas:
+
+1. **Fetch.** Choose companies (the existing universe), choose All or Selected tags, optional refresh, start. A status table shows `ok`, `unchanged`, `no_cik`, `not_found` and `error` per company, with a retry-failed action.
+2. **Tags.** Searchable, filterable list of all available concepts with counts and years covered. Checkboxes build a selection, which is saved by name or used for the next fetch.
+3. **Required.** Revenue and capex per company and year, with the winning concept shown and `not_found` marked in text.
+4. **Verify.** Choose an extraction run and see match, mismatch and missing counts, with the mismatches listed. A circular run shows the guard message in plain text.
+
+The page follows `DESIGN.md` and `PRODUCT.md` and the repo's accessibility conventions (labelled inputs, errors stated in text and not only by colour, 3:1 field borders, touch-sized controls). Design work in the plan uses the impeccable and ui-ux-pro-max skills.
 
 ## Verify
 
@@ -118,7 +166,14 @@ One small `companyfacts` fixture and tests that cover:
 2. required resolution (winning concept, `not_found` case),
 3. select (subset file),
 4. batch handling with a stubbed HTTP layer: 429 then success, 404, unchanged sha,
-5. `verify`: match, mismatch, missing, and the circular-run guard.
+5. `verify`: match, mismatch, missing, and the circular-run guard,
+6. selection modes: a fetch with `--tags` writes only those concepts to `facts.jsonl` but still stores the full original, and a later `select` for other tags works with no download,
+7. API: the endpoints above through FastAPI's test client, including `safe_id` rejection,
+8. frontend: the page's behaviour tests in the repo's existing frontend test style (to be confirmed in the plan), and the type check and lint the repo already runs.
+
+## Documentation
+
+Add the function to the README function table and to `docs/TECHNICAL_REFERENCE.md`, stating its separation from Data-Point Extraction and the `verify` guard.
 
 ## Later sub-projects (not in this spec)
 
