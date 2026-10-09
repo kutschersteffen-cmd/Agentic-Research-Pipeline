@@ -33,6 +33,7 @@ class EsefFiling:
     facts_json: bytes
     package: bytes
     package_url: str
+    package_error: bool = False  # the package download failed; facts are still usable
 
 
 class EsefSource(Protocol):
@@ -46,8 +47,11 @@ def normalise_lei(value: str | None) -> str | None:
 
 def pick_latest(filings: list[dict], *, this_year: int) -> dict | None:
     """Latest by period_end among records with both downloads; implausible years (the index has some) are ignored."""
-    ok = [f for f in filings if f.get("json_url") and f.get("package_url")
-          and 2015 <= int((f.get("period_end") or "0")[:4] or 0) <= this_year + 1]
+    def plausible(f: dict) -> bool:
+        year = (f.get("period_end") or "")[:4]
+        return year.isdigit() and 2015 <= int(year) <= this_year + 1
+
+    ok = [f for f in filings if f.get("json_url") and f.get("package_url") and plausible(f)]
     return max(ok, key=lambda f: f["period_end"], default=None)
 
 
@@ -65,17 +69,24 @@ class IndexEsefSource:
             return await self._latest(client, lei)
 
     async def _latest(self, client: httpx.AsyncClient, lei: str) -> EsefFiling | None:
-        latest = pick_latest(await list_esef_filings(client, self._index_url, lei), this_year=date.today().year)
+        listed = await with_retry(lambda: list_esef_filings(client, self._index_url, lei))
+        latest = pick_latest(listed, this_year=date.today().year)
         if latest is None:
             return None
         base = self._index_url + "/"
         json_url, package_url = urljoin(base, latest["json_url"]), urljoin(base, latest["package_url"])
-        facts = await download_capped(client, json_url, self._max_bytes)
-        package = await download_capped(client, package_url, self._max_bytes)
+        facts = await with_retry(lambda: download_capped(client, json_url, self._max_bytes))
+        try:
+            package = await with_retry(lambda: download_capped(client, package_url, self._max_bytes))
+        except Exception as exc:  # noqa: BLE001 -- a package problem never changes the company's status
+            logger.warning("ESEF package %s for %s not downloaded: %s", package_url, lei, exc)
+            return EsefFiling(latest, facts, b"", package_url, package_error=True)
         return EsefFiling(latest, facts, package, package_url)
 
 
 def _store_report(lei: str, filing: EsefFiling, store: XbrlStore) -> str:
+    if filing.package_error:
+        return "error"
     if not filing.package:
         return "none"
     a = filing.attributes
@@ -100,7 +111,7 @@ async def fetch_company_esef(
     lei = normalise_lei(company.lei)
     if lei is None:
         return status("no_lei")
-    filing = await with_retry(lambda: source.latest_filing(lei), sleep=sleep)
+    filing = await source.latest_filing(lei)  # the source retries its own downloads
     await sleep(FETCH_DELAY_SECONDS)
     if filing is None:
         return status("not_found", lei)

@@ -160,3 +160,25 @@ async def test_index_source_downloads_both_files():
 async def test_index_source_404_is_none():
     src = IndexEsefSource("https://8.8.8.8", client=_client(lambda r: httpx.Response(404)))
     assert await src.latest_filing(LEI) is None
+
+
+def test_pick_latest_ignores_malformed_period_end():
+    got = pick_latest([_f("n/a"), _f(None), _f("2023-12-31")], this_year=2026)
+    assert got["period_end"] == "2023-12-31"
+
+
+@pytest.mark.parametrize("package", [httpx.Response(404), httpx.Response(200, content=b"Z" * (len(JSON_BYTES) + 100))])
+async def test_package_failure_keeps_company_ok_with_report_error(tmp_path, package):
+    def handler(req):
+        p = req.url.path
+        if p.endswith("/filings"):
+            return httpx.Response(200, json={"data": [{"id": "1", "attributes": {
+                "fxo_id": ATTRS["fxo_id"], "date_added": ATTRS["date_added"], "period_end": "2022-12-31",
+                "json_url": "/a/x.json", "package_url": "/a/x.zip"}}]})
+        return httpx.Response(200, content=JSON_BYTES) if p.endswith(".json") else package
+
+    src = IndexEsefSource("https://8.8.8.8", client=_client(handler), max_bytes=len(JSON_BYTES) + 10)
+    store = XbrlStore(tmp_path)
+    st = await _run(src, store)
+    assert (st.status, st.report) == ("ok", "error")
+    assert list(store.read_facts(LEI)) and store.report_meta(LEI) is None
