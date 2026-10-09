@@ -4,6 +4,8 @@ import {
   ariaSort,
   canRetryFetch,
   formatFactValue,
+  keyLabel,
+  safeHref,
   nextSort,
   periodLabel,
   rangeLabel,
@@ -120,4 +122,26 @@ test("retry is offered unless a run is in progress or fully done", () => {
   assert.equal(canRetryFetch(run("pending", 0, 0), false), false);
   assert.equal(canRetryFetch(run("running", 0, 1), true), true); // stalled
   assert.equal(canRetryFetch(run("completed"), true), false);
+});
+
+test("keyLabel names the market's company key; statusText explains no_lei", () => {
+  assert.equal(keyLabel("sec"), "CIK");
+  assert.equal(keyLabel("esef"), "LEI");
+  assert.equal(statusText("no_lei"), "No LEI in the universe row");
+});
+
+test("safeHref passes only http(s) URLs", () => {
+  assert.equal(safeHref("https://x.eu/p.zip"), "https://x.eu/p.zip");
+  assert.equal(safeHref("http://x.eu/p.zip"), "http://x.eu/p.zip");
+  assert.equal(safeHref("HTTPS://x.eu/p.zip"), "HTTPS://x.eu/p.zip");
+  assert.equal(safeHref("javascript:alert(1)"), null);
+  assert.equal(safeHref("data:text/html,x"), null);
+  assert.equal(safeHref(null), null);
+});
+
+test("statusText names where not_found looked, by market when known", () => {
+  assert.equal(statusText("not_found", "sec"), "Not found at the SEC");
+  assert.equal(statusText("not_found", "esef"), "Not found in the ESEF filing index");
+  assert.equal(statusText("not_found"), "Not found at the SEC or in the ESEF filing index");
+  assert.equal(statusText("ok", "esef"), "Facts fetched");
 });

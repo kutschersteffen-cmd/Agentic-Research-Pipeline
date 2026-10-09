@@ -53,6 +53,14 @@ TAXONOMY_SOURCES: dict[str, TaxonomySource] = {
         "https://xbrl.sec.gov/dei/2026/dei-2026.xsd",
         ("https://xbrl.sec.gov/dei/2026/dei-2026_lab.xsd", "https://xbrl.sec.gov/dei/2026/dei-2026_doc.xsd"),
     ),
+    "esrs": TaxonomySource(
+        2023,
+        "https://xbrl.efrag.org/taxonomy/esrs/2023-12-22/common/esrs_cor.xsd",
+        (
+            "https://xbrl.efrag.org/taxonomy/esrs/2023-12-22/common/labels/lab_esrs-en.xml",
+            "https://xbrl.efrag.org/taxonomy/esrs/2023-12-22/common/labels/doc_esrs-en.xml",
+        ),
+    ),
 }
 
 # companyfacts also carries srt and invest, SEC-standard taxonomies without a snapshot here.

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { when } from "../lib/runs";
-import { formatFactValue, metricText, periodLabel } from "../lib/xbrlTags";
+import { formatFactValue, keyLabel, metricText, periodLabel } from "../lib/xbrlTags";
 import type { RunManifest, XbrlRequiredRow } from "../types";
 import { Pager, TagId } from "./XbrlFactsTable";
 
@@ -107,7 +107,7 @@ export function XbrlRequiredArea({ fetchRunId, refreshKey }: { fetchRunId: strin
                   <tr key={`${r.company_id}|${r.metric}|${r.fiscal_year}|${i}`}>
                     <th scope="row" className="xbrl-tag-cell">
                       <span className="xbrl-name">{r.company_id}</span>
-                      <span className="xbrl-sub mono">CIK {r.cik}</span>
+                      <span className="xbrl-sub mono">{keyLabel(r.market)} {r.cik}</span>
                       {r.status !== "found" && (
                         <span className="xbrl-sub" aria-hidden="true">
                           Not found

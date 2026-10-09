@@ -7,6 +7,7 @@ from arp.schemas.common import now_iso
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.jsonl_io import read_jsonl
 from arp.storage.safe_path import safe_id
+from arp.xbrl_pipeline.esef_json import flatten_xbrl_json
 from arp.xbrl_pipeline.flatten import flatten_company_facts
 from arp.xbrl_pipeline.models import FactRow
 from arp.xbrl_pipeline.store import XbrlStore
@@ -38,10 +39,14 @@ def cut_selection(store: XbrlStore, name: str, tags: frozenset[str]) -> int:
         original, meta = store.original(cik), store.meta(cik)
         if original is None or meta is None:
             continue
-        for row in flatten_company_facts(
-            original, company_id=meta["company_id"], cik=cik, source_sha=meta["source_sha"], concepts=tags
-        ):
-            lines.append(row.model_dump_json() + "\n")
+        if meta.get("market") == "esef":
+            rows, _ = flatten_xbrl_json(original, company_id=meta["company_id"], lei=cik,
+                                        source_sha=meta["source_sha"], filing=meta.get("filing") or {})
+            rows = [r for r in rows if r.tag_id in tags]
+        else:
+            rows = flatten_company_facts(
+                original, company_id=meta["company_id"], cik=cik, source_sha=meta["source_sha"], concepts=tags)
+        lines.extend(row.model_dump_json() + "\n" for row in rows)
     atomic_write_text(rows_path, "".join(lines))
     info = {"name": name, "tags": sorted(tags), "created_at": now_iso()}
     atomic_write_text(meta_path, json.dumps(info, indent=2))

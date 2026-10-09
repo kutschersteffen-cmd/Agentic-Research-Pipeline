@@ -1,3 +1,4 @@
+import type { XbrlMarket } from "../types";
 export type SortState = { key: string; order: "asc" | "desc" };
 
 export const toggleTag = (selected: string[], tagId: string): string[] =>
@@ -28,7 +29,8 @@ const STATUS: Record<string, string> = {
   ok: "Facts fetched",
   unchanged: "Already up to date",
   no_cik: "No SEC CIK for this company",
-  not_found: "Not found at the SEC",
+  no_lei: "No LEI in the universe row",
+  not_found: "Not found at the SEC or in the ESEF filing index",
   error: "Failed",
 };
 const REPORT: Record<string, string> = {
@@ -37,7 +39,15 @@ const REPORT: Record<string, string> = {
   none: "No annual report found",
   error: "Annual report download failed",
 };
-export const statusText = (status: string): string => STATUS[status] ?? status;
+/** What identifies a company in each market: the SEC CIK, or the ESEF LEI. */
+export const keyLabel = (market: XbrlMarket): "CIK" | "LEI" => (market === "esef" ? "LEI" : "CIK");
+/** A third-party URL is only linked when it is http(s): never javascript: or data:. */
+export const safeHref = (url: string | null | undefined): string | null => (url && /^https?:\/\//i.test(url) ? url : null);
+/** A status in words; not_found names where it looked when the row's market is known. */
+export const statusText = (status: string, market?: XbrlMarket): string =>
+  status === "not_found" && market
+    ? market === "esef" ? "Not found in the ESEF filing index" : "Not found at the SEC"
+    : (STATUS[status] ?? status);
 export const reportText = (report: string): string => REPORT[report] ?? report;
 
 export function verifySummary(rows: { outcome: string }[]): Record<string, number> {
@@ -61,7 +71,7 @@ export const nextSort = (current: SortState, key: string): SortState =>
 export const ariaSort = (current: SortState, key: string): "ascending" | "descending" | "none" =>
   current.key !== key ? "none" : current.order === "asc" ? "ascending" : "descending";
 
-export const TAXONOMIES = ["us-gaap", "ifrs-full", "dei"];
+export const TAXONOMIES = ["us-gaap", "ifrs-full", "dei", "esrs"];
 
 const n = (x: number) => x.toLocaleString("en-US");
 /** A pager's visible range, e.g. "21–40 of 1,234"; "0 of 0" when empty. */

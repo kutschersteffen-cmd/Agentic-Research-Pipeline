@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+Market = Literal["sec", "esef"]
+
 
 class FactRow(BaseModel):
     company_id: str
@@ -20,6 +22,7 @@ class FactRow(BaseModel):
     filed: str | None
     accession: str | None
     source_sha: str
+    market: Market = "sec"
 
     @property
     def tag_id(self) -> str:
@@ -53,6 +56,7 @@ class RequiredRow(BaseModel):
     period_end: str | None
     form: str | None
     filed: str | None
+    market: Market = "sec"
 
 
 class ReportMeta(BaseModel):
@@ -70,10 +74,11 @@ class ReportMeta(BaseModel):
 class CompanyStatus(BaseModel):
     company_id: str
     cik: str | None
-    status: Literal["ok", "unchanged", "no_cik", "not_found"]
+    status: Literal["ok", "unchanged", "no_cik", "no_lei", "not_found"]
     source_sha: str | None
     fact_count: int
     report: Literal["stored", "unchanged", "none", "error"]
+    market: Market = "sec"
 
 
 class CompanyFiles(BaseModel):
@@ -85,6 +90,7 @@ class CompanyFiles(BaseModel):
     tags: list[str] | None
     original_size: int
     report: ReportMeta | None
+    market: Market = "sec"
 
 
 class TagEntry(BaseModel):

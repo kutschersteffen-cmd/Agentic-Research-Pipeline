@@ -17,7 +17,7 @@ from arp.xbrl_pipeline.selection import cut_selection, parse_tag_ids
 from arp.xbrl_pipeline.store import XbrlStore
 from arp.xbrl_pipeline.verify import CircularRunError, UnsupportedRunError, assert_xbrl_off, verify_run
 
-xbrl_app = typer.Typer(help="XBRL fact pipeline: fetch SEC company facts, browse tags, cut selections, verify runs.")
+xbrl_app = typer.Typer(help="XBRL fact pipeline: fetch SEC company facts or EU ESEF filings, browse tags, cut selections, verify runs.")
 taxonomy_app = typer.Typer(help="Official XBRL taxonomy registry.")
 xbrl_app.add_typer(taxonomy_app, name="taxonomy")
 
@@ -43,17 +43,21 @@ def fetch(
     universe: Path = typer.Option(...),
     tags: str = typer.Option("", help="Comma-separated tags (us-gaap:Revenues,...); empty = mode All, keep every tag."),
     refresh: bool = typer.Option(False, help="Bypass the facts cache and re-download."),
+    market: str = typer.Option("sec", help="sec (SEC company facts) or esef (EU ESEF filings)."),
 ) -> None:
+    if market not in ("sec", "esef"):
+        typer.echo(f"--market must be sec or esef, got {market!r}", err=True)
+        raise typer.Exit(2)
     settings = get_settings()
     companies = load_company_universe(universe)
     tag_list = _split(tags) or None
     if tag_list:
         _validate_tags(tag_list)
     run_store = _run_store()
-    run_id = create_xbrl_run(companies, tag_list, refresh, run_store)
+    run_id = create_xbrl_run(companies, tag_list, refresh, run_store, market=market)
     asyncio.run(execute_xbrl_run(
         run_id, companies, settings=settings, run_store=run_store, tags=tag_list, refresh=refresh,
-        source=build_source(settings, refresh=refresh),
+        market=market, source=build_source(settings, refresh=refresh) if market == "sec" else None,
     ))
     rows = run_store.read_jsonl(run_store.results_path(run_id))
     counts = Counter(r["status"] for r in rows)

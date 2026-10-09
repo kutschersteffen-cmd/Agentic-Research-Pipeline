@@ -15,7 +15,7 @@ import type { XbrlFact, XbrlPivot } from "../types";
 import { StepTabs } from "./StepTabs";
 
 const PAGE = 50; // the API caps a page at 500
-const FORMS = ["10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "40-F", "8-K"];
+const FORMS = ["10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "40-F", "8-K", "ESEF"];
 const VIEWS = [
   { id: "flat", label: "Flat" },
   { id: "year", label: "By year" },
@@ -259,7 +259,9 @@ export function XbrlFactsTable({ cik }: { cik: string }) {
                       <td className="mono">{f.form}</td>
                       <td className="mono">{f.filed ?? "–"}</td>
                       <td className="mono">
-                        {f.accession ? (
+                        {f.accession && f.market === "esef" ? (
+                          f.accession
+                        ) : f.accession ? (
                           <a href={secFilingUrl(f.cik, f.accession)} target="_blank" rel="noopener noreferrer">
                             {f.accession}
                             <span className="visually-hidden"> (filing on SEC.gov, opens in a new tab)</span>

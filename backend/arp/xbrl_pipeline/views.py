@@ -17,7 +17,7 @@ _SORTS = {
 
 
 def is_annual(row: FactRow) -> bool:
-    return (row.form in _ANNUAL_FORMS and row.fiscal_period == "FY"
+    return ((row.form in _ANNUAL_FORMS or row.form == "ESEF") and row.fiscal_period == "FY"
             and _full_year({"start": row.period_start, "end": row.period_end}))
 
 
@@ -40,6 +40,7 @@ def list_company_files(store: XbrlStore, *, offset: int = 0, limit: int = 50) ->
             tags=meta.get("tags"),
             original_size=original.stat().st_size if original else 0,
             report=store.report_meta(cik10),
+            market=meta.get("market", "sec"),
         ))
     items.sort(key=lambda f: f.fetched_at, reverse=True)
     return items[offset:offset + limit], len(items)

@@ -7,8 +7,11 @@ from arp.xbrl_pipeline.models import CatalogEntry, FactRow
 
 def _concepts(facts: dict) -> Iterator[tuple[str, str, dict]]:
     for taxonomy, concepts in (facts.get("facts") or {}).items():
+        if not isinstance(concepts, dict):
+            continue
         for concept, body in concepts.items():
-            yield taxonomy, concept, body
+            if isinstance(body, dict):
+                yield taxonomy, concept, body
 
 
 def flatten_company_facts(

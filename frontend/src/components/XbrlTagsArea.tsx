@@ -102,7 +102,7 @@ export function XbrlTagsArea({ tags, onChange }: { tags: string[]; onChange: (ne
       )}
 
       <h3>Tag registry</h3>
-      <p className="help-text">Downloads the latest US GAAP, IFRS and DEI taxonomies so every official tag can be chosen.</p>
+      <p className="help-text">Downloads the latest US GAAP, IFRS, DEI and ESRS taxonomies so every official tag can be chosen.</p>
       <button className="secondary" onClick={updateRegistry} disabled={registry?.busy}>
         Update tag registry
       </button>

@@ -157,3 +157,21 @@ def test_non_generic_run_is_unsupported(tmp_path):
     runs.results_path("r1").write_text(json.dumps({"company_id": "ex", "financials": {}}) + "\n")
     with pytest.raises(UnsupportedRunError, match="run r1 does not contain generic extraction records"):
         _verify(runs, store)
+
+
+def test_verify_matches_esef_required_row(tmp_path):
+    runs, store = _setup(tmp_path, [_field("rev_f", 1004.0, 2024, unit="EUR")],
+                         [_req("revenue", 2024, 1000.0, unit="EUR")])
+    rows = _verify(runs, store)
+    assert [(r.outcome, r.unit, r.run_unit) for r in rows] == [("match", "EUR", "EUR")]
+
+
+@pytest.mark.parametrize("found_key", ["0001234567", "529900FIXTURELEI0001"])  # sorts before / after the other
+def test_dual_filer_prefers_the_found_row(tmp_path, found_key):
+    runs, store = _setup(tmp_path, [_field("rev_f", 1000.0, 2024)], [])
+    for key in ("0001234567", "529900FIXTURELEI0001"):
+        found = key == found_key
+        store.write_required(key, [_req("revenue", 2024, 1000.0 if found else None,
+                                        status="found" if found else "not_found")])
+        (store.company_dir(key) / "meta.json").write_text("{}")
+    assert [r.outcome for r in _verify(runs, store)] == ["match"]

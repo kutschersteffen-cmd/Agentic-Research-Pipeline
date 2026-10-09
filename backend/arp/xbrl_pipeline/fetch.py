@@ -5,7 +5,7 @@ import hashlib
 import json
 import logging
 from collections.abc import Awaitable, Callable
-from typing import Protocol, TypeVar
+from typing import TYPE_CHECKING, Protocol, TypeVar
 
 import httpx
 
@@ -17,10 +17,14 @@ from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import hold_run
 from arp.schemas.common import CompanyRef
 from arp.storage.run_store import RunStore
+from arp.storage.safe_path import safe_id
 from arp.xbrl_pipeline.flatten import build_catalog, flatten_company_facts
-from arp.xbrl_pipeline.models import CompanyStatus, ReportMeta
+from arp.xbrl_pipeline.models import CompanyStatus, Market, ReportMeta
 from arp.xbrl_pipeline.required import resolve_required
 from arp.xbrl_pipeline.store import XbrlStore
+
+if TYPE_CHECKING:
+    from arp.xbrl_pipeline.fetch_esef import EsefSource
 
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
@@ -85,6 +89,7 @@ async def _fetch_report(cik10: str, cik: str, *, source: SecSource, store: XbrlS
         known = store.report_meta(cik10)
         if known and known.accession == annual.accession:
             return "unchanged"
+        safe_id(annual.accession, label="accession")
         store.save_report(cik10, annual.content, ReportMeta(
             accession=annual.accession, form=annual.form, filing_date=annual.filing_date,
             source_url=annual.source_url, primary_document=annual.primary_document,
@@ -97,22 +102,25 @@ async def _fetch_report(cik10: str, cik: str, *, source: SecSource, store: XbrlS
         return "error"
 
 
+def _status(company_id: str, st: str, key: str | None = None, sha: str | None = None, n: int = 0,
+            report: str = "none", market: str = "sec") -> CompanyStatus:
+    return CompanyStatus(company_id=company_id, cik=key, status=st, source_sha=sha, fact_count=n,
+                         report=report, market=market)
+
+
 async def fetch_company(
     company: CompanyRef, *, source: SecSource, store: XbrlStore, tags: frozenset[str] | None, sleep=asyncio.sleep
 ) -> CompanyStatus:
-    def status(st: str, cik10: str | None = None, sha: str | None = None, n: int = 0, report: str = "none") -> CompanyStatus:
-        return CompanyStatus(company_id=company.company_id, cik=cik10, status=st, source_sha=sha, fact_count=n, report=report)
-
     cik = await source.resolve_cik(company.cik, company.ticker)
     if not cik or not cik.isdigit():
         if cik:
             logger.warning("%s: resolved CIK %r is not numeric, treating as no_cik", company.company_id, cik)
-        return status("no_cik")
+        return _status(company.company_id, "no_cik")
     cik10 = cik.zfill(10)
     data, raw = await with_retry(lambda: source.fetch_company_facts_raw(cik), sleep=sleep)
     await sleep(FETCH_DELAY_SECONDS)
     if data is None:
-        return status("not_found", cik10)
+        return _status(company.company_id, "not_found", cik10)
     sha = store.save_original(cik10, raw if raw is not None else json.dumps(data, sort_keys=True).encode())
     tag_list = sorted(tags) if tags is not None else None
     meta = store.meta(cik10)
@@ -128,11 +136,13 @@ async def fetch_company(
                        company_name=company.name, fact_count=count)
         result = "ok"
     report = await _fetch_report(cik10, cik, source=source, store=store, sleep=sleep)
-    return status(result, cik10, sha, count, report)
+    return _status(company.company_id, result, cik10, sha, count, report)
 
 
-def create_xbrl_run(companies: list[CompanyRef], tags: list[str] | None, refresh: bool, run_store: RunStore) -> str:
-    params = {"tags": tags, "refresh": refresh}
+def create_xbrl_run(
+    companies: list[CompanyRef], tags: list[str] | None, refresh: bool, run_store: RunStore, market: Market = "sec"
+) -> str:
+    params = {"tags": tags, "refresh": refresh, "market": market}
     return JobManager(run_store).create_run("xbrl_fetch", params, len(companies), companies=companies).run_id
 
 
@@ -155,10 +165,18 @@ async def execute_xbrl_run(
     run_store: RunStore,
     tags: list[str] | None,
     refresh: bool,
-    source: SecSource | None = None,
+    market: Market = "sec",
+    source: SecSource | EsefSource | None = None,
 ) -> str:
     job_manager = JobManager(run_store)
-    source = source or build_source(settings, refresh=refresh)
+    if market == "esef":  # refresh does not apply: the JSON is always re-downloaded and hashed
+        from arp.xbrl_pipeline.fetch_esef import IndexEsefSource, fetch_company_esef
+
+        source = source or IndexEsefSource(settings.esef_index_url)
+        fetch_one = fetch_company_esef
+    else:
+        source = source or build_source(settings, refresh=refresh)
+        fetch_one = fetch_company
     store = XbrlStore(settings.xbrl_dir)
     tag_set = frozenset(tags) if tags is not None else None
 
@@ -168,7 +186,7 @@ async def execute_xbrl_run(
         await run_batch(
             companies,
             item_key=lambda c: c.company_id,
-            worker=lambda c: fetch_company(c, source=source, store=store, tags=tag_set),
+            worker=lambda c: fetch_one(c, source=source, store=store, tags=tag_set),
             results_path=run_store.results_path(run_id),
             errors_path=run_store.errors_path(run_id),
             concurrency=1,  # SEC rate limit: one company at a time, paced by FETCH_DELAY_SECONDS

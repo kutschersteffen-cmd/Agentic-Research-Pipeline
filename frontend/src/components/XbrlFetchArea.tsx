@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { UniversePicker } from "./UniversePicker";
 import { when } from "../lib/runs";
-import { canRetryFetch, reportText, statusText } from "../lib/xbrlTags";
-import type { RunManifest, XbrlCompanyStatus } from "../types";
+import { canRetryFetch, keyLabel, reportText, statusText } from "../lib/xbrlTags";
+import type { RunManifest, XbrlCompanyStatus, XbrlMarket } from "../types";
 
 type ResultRow = XbrlCompanyStatus & { _key: string };
 type ErrorRow = { key: string; error: string };
@@ -37,6 +37,7 @@ export function XbrlFetchArea({
   onSelectRun: (runId: string) => void;
 }) {
   const [universe, setUniverse] = useState<{ path: string; count: number } | null>(null);
+  const [market, setMarket] = useState<XbrlMarket>("sec");
   const [mode, setMode] = useState<"all" | "selected">("all");
   const [refresh, setRefresh] = useState(false);
   const [runs, setRuns] = useState<RunManifest[] | null>(null);
@@ -119,7 +120,7 @@ export function XbrlFetchArea({
     setBusy(true);
     setError(null);
     try {
-      const res = await api.startXbrlRun({ universe_path: universe.path, tags: mode === "selected" ? tags : undefined, refresh });
+      const res = await api.startXbrlRun({ universe_path: universe.path, tags: mode === "selected" ? tags : undefined, refresh, market });
       onSelectRun(res.run_id); // the URL carries the run id; a new id (re)starts polling
     } catch (err) {
       setError(`Could not start the fetch (${msg(err)}).`);
@@ -152,6 +153,18 @@ export function XbrlFetchArea({
   return (
     <section className="card" aria-labelledby="xbrl-fetch-title">
       <h2 id="xbrl-fetch-title">Fetch</h2>
+      <fieldset className="xbrl-choice">
+        <legend className="field-label">Market</legend>
+        <label className="checkbox-label">
+          <input type="radio" name="xbrl-market" checked={market === "sec"} onChange={() => setMarket("sec")} />
+          US (SEC)
+        </label>
+        <label className="checkbox-label">
+          <input type="radio" name="xbrl-market" checked={market === "esef"} onChange={() => setMarket("esef")} />
+          EU (ESEF)
+        </label>
+      </fieldset>
+      {market === "esef" && <p className="help-text">The universe file needs an lei column.</p>}
       <UniversePicker onResolved={(path, count) => setUniverse({ path, count })} />
       <fieldset className="xbrl-choice">
         <legend className="field-label">Tags to fetch</legend>
@@ -222,6 +235,7 @@ export function XbrlFetchArea({
               <thead>
                 <tr>
                   <th>Company</th>
+                  <th>{keyLabel(results.results[0]?.market ?? market)}</th>
                   <th>Status</th>
                   <th>Annual report</th>
                   <th>Facts</th>
@@ -230,7 +244,7 @@ export function XbrlFetchArea({
               <tbody>
                 {results.results.length + failed.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="muted">
+                    <td colSpan={5} className="muted">
                       {inProgress(manifest) ? "Waiting for the first company…" : "No companies were processed."}
                     </td>
                   </tr>
@@ -238,7 +252,8 @@ export function XbrlFetchArea({
                 {results.results.map((r) => (
                   <tr key={r._key}>
                     <td data-label="Company">{r.company_id}</td>
-                    <td data-label="Status">{statusText(r.status)}</td>
+                    <td data-label={keyLabel(r.market)} className="mono">{r.cik ?? ""}</td>
+                    <td data-label="Status">{statusText(r.status, r.market)}</td>
                     <td data-label="Annual report">{reportText(r.report)}</td>
                     <td data-label="Facts" className="mono">{r.fact_count.toLocaleString()}</td>
                   </tr>
@@ -246,6 +261,7 @@ export function XbrlFetchArea({
                 {failed.map((f) => (
                   <tr key={f.key}>
                     <td data-label="Company">{f.key}</td>
+                    <td data-label={keyLabel(market)} />
                     <td data-label="Status" className="error-text">{statusText("error")}</td>
                     <td data-label="Annual report">Not attempted</td>
                     <td data-label="Facts" className="mono">0</td>

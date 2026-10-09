@@ -303,6 +303,35 @@ def esef_fact_sources(docs: list[SourceDocument]) -> list[EsefFactSource]:
     return out
 
 
+async def list_esef_filings(client: httpx.AsyncClient, index_url: str, lei: str) -> list[dict]:
+    """The index's filings for `lei`: each record's attributes plus its `id`; [] for an unknown LEI."""
+    resp = await client.get(f"{index_url.rstrip('/')}/api/entities/{lei}/filings")
+    if resp.status_code == 404:
+        return []
+    resp.raise_for_status()
+    return [{**(d.get("attributes") or {}), "id": d.get("id")} for d in resp.json().get("data") or []]
+
+
+async def download_capped(client: httpx.AsyncClient, url: str, max_bytes: int = MAX_PACKAGE_BYTES) -> bytes:
+    """The body at `url`, SSRF-guarded (an injected client may not carry the hook) and capped."""
+    request = client.build_request("GET", url)
+    await ssrf_guard_request_hook(request)
+    resp = await client.send(request, stream=True)
+    try:
+        resp.raise_for_status()
+        if int(resp.headers.get("content-length") or 0) > max_bytes:
+            raise ValueError(f"package larger than {max_bytes} bytes")
+        chunks, size = [], 0
+        async for chunk in resp.aiter_bytes():
+            size += len(chunk)
+            if size > max_bytes:
+                raise ValueError(f"package larger than {max_bytes} bytes")
+            chunks.append(chunk)
+        return b"".join(chunks)
+    finally:
+        await resp.aclose()
+
+
 class EsefDocumentSource(DocumentSource):
     """The latest ESEF annual report of a company with an LEI, from a filings.xbrl.org-style
     index (`GET {index_url}/api/entities/{lei}/filings`, JSON:API with `package_url`)."""
@@ -342,12 +371,7 @@ class EsefDocumentSource(DocumentSource):
             return await self._fetch(client, company)
 
     async def _fetch(self, client: httpx.AsyncClient, company: CompanyRef) -> list[SourceDocument]:
-        resp = await client.get(f"{self._index_url}/api/entities/{company.lei}/filings")
-        if resp.status_code == 404:
-            return []
-        resp.raise_for_status()
-        filings = [d.get("attributes") or {} for d in resp.json().get("data") or []]
-        filings = [f for f in filings if f.get("package_url")]
+        filings = [f for f in await list_esef_filings(client, self._index_url, company.lei) if f.get("package_url")]
         if not filings:
             return []
         latest = max(filings, key=lambda f: f.get("period_end") or "")
@@ -410,22 +434,7 @@ class EsefDocumentSource(DocumentSource):
 
     async def _download(self, client: httpx.AsyncClient, url: str) -> bytes:
         """The package bytes, SSRF-guarded (an injected client may not carry the hook) and capped."""
-        request = client.build_request("GET", url)
-        await ssrf_guard_request_hook(request)
-        resp = await client.send(request, stream=True)
-        try:
-            resp.raise_for_status()
-            if int(resp.headers.get("content-length") or 0) > self._max_bytes:
-                raise ValueError(f"package larger than {self._max_bytes} bytes")
-            chunks, size = [], 0
-            async for chunk in resp.aiter_bytes():
-                size += len(chunk)
-                if size > self._max_bytes:
-                    raise ValueError(f"package larger than {self._max_bytes} bytes")
-                chunks.append(chunk)
-            return b"".join(chunks)
-        finally:
-            await resp.aclose()
+        return await download_capped(client, url, self._max_bytes)
 
     def _index_and_archive(
         self, doc_id: str, company_id: str, title: str, content_key: str, text: str, raw: bytes, url: str, path: Path
