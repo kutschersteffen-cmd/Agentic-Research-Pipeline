@@ -7,6 +7,8 @@ from collections import Counter
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 
+import httpx
+
 from arp.ingestion.xbrl import CAPEX_TAGS, REVENUE_TAGS
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.jsonl_io import read_jsonl
@@ -174,3 +176,11 @@ async def update_taxonomies(
         registry.write_snapshot(name, src.year, entries)
         written[name] = len(entries)
     return written
+
+
+async def http_fetch(url: str, *, user_agent: str) -> bytes:
+    # sec.gov rejects requests without a descriptive User-Agent.
+    async with httpx.AsyncClient(follow_redirects=True, timeout=60.0, headers={"User-Agent": user_agent}) as client:
+        response = await client.get(url)
+        response.raise_for_status()
+        return response.content

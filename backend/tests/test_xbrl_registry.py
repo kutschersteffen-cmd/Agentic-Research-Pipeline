@@ -159,3 +159,31 @@ def test_entity_declaration_is_rejected_in_any_encoding(enc):
     evil = '<?xml version="1.0"?><!DOCTYPE x [<!ENTITY a "b">]><x/>'.encode(enc)
     with pytest.raises(ValueError, match="entities"):
         parse_taxonomy(evil, LAB, taxonomy="us-gaap")
+
+
+def test_http_fetch_sends_user_agent_and_follows_redirects(monkeypatch):
+    import httpx
+
+    from arp.xbrl_pipeline import registry
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/old":
+            return httpx.Response(302, headers={"location": "/new"})
+        assert request.headers["user-agent"] == "Me me@example.com"
+        return httpx.Response(200, content=b"body")
+
+    real = httpx.AsyncClient
+    monkeypatch.setattr(registry.httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(handler), **kw))
+    assert asyncio.run(registry.http_fetch("http://x/old", user_agent="Me me@example.com")) == b"body"
+
+
+def test_http_fetch_raises_on_non_2xx(monkeypatch):
+    import httpx
+
+    from arp.xbrl_pipeline import registry
+
+    real = httpx.AsyncClient
+    monkeypatch.setattr(registry.httpx, "AsyncClient",
+                        lambda **kw: real(transport=httpx.MockTransport(lambda r: httpx.Response(404)), **kw))
+    with pytest.raises(httpx.HTTPStatusError):
+        asyncio.run(registry.http_fetch("http://x/missing", user_agent="Me"))
