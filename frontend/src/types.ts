@@ -3109,6 +3109,7 @@ export interface XbrlVerifyRow {
   outcome: "match" | "mismatch" | "missing_in_run" | "missing_in_xbrl";
   run_value: number | null;
   xbrl_value: number | null;
-  unit: string | null;
+  run_unit: string | null; // unit of the run's value; null when the run has none
+  unit: string | null; // the XBRL unit
   detail: string;
 }

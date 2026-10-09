@@ -85,7 +85,8 @@ export function XbrlVerifyArea() {
       <h2 id="xbrl-verify-title">Verify</h2>
       <p className="help-text">
         Compare an extraction run’s revenue and capex with the XBRL values above. Only a run that did not use XBRL
-        can be checked. Say which field of the run holds each figure.
+        can be checked. Units are converted before comparing (for example USD million to USD); “Units differ” means
+        they could not be converted. Say which field of the run holds each figure.
       </p>
       <form onSubmit={verify} noValidate>
         <label className="field-label">
@@ -181,7 +182,8 @@ export function XbrlVerifyArea() {
                       <th scope="col">Fiscal year</th>
                       <th scope="col" className="num">Run value</th>
                       <th scope="col" className="num">XBRL value</th>
-                      <th scope="col">Unit</th>
+                      <th scope="col">Run unit</th>
+                      <th scope="col">XBRL unit</th>
                       <th scope="col">Detail</th>
                     </tr>
                   </thead>
@@ -192,8 +194,9 @@ export function XbrlVerifyArea() {
                         <td><strong>{outcomeText(r.outcome)}</strong></td>
                         <td>{metricText(r.metric)}</td>
                         <td className="mono">{r.fiscal_year}</td>
-                        <td className="num mono">{r.run_value == null ? <span className="xbrl-gap">None</span> : formatFactValue(r.run_value, r.unit ?? "")}</td>
+                        <td className="num mono">{r.run_value == null ? <span className="xbrl-gap">None</span> : formatFactValue(r.run_value, r.run_unit ?? "")}</td>
                         <td className="num mono">{r.xbrl_value == null ? <span className="xbrl-gap">None</span> : formatFactValue(r.xbrl_value, r.unit ?? "")}</td>
+                        <td className="mono xbrl-unit-col">{r.run_unit ?? "–"}</td>
                         <td className="mono xbrl-unit-col">{r.unit ?? "–"}</td>
                         <td>{verifyDetailText(r.detail)}</td>
                       </tr>
