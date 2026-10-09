@@ -36,7 +36,14 @@ import type {
   VotingPreview,
   HolderStatus,
   IntakeResult,
+  XbrlCompanyFiles,
+  XbrlFact,
+  XbrlPivot,
+  XbrlRequiredRow,
+  XbrlTag,
+  XbrlVerifyRow,
 } from "../types";
+import { tagQuery } from "../lib/xbrlTags";
 import type {
   AggregationResult,
   DatasetSummary,
@@ -391,6 +398,56 @@ export const api = {
   getDiscoverySchedule: () => request("/api/discovery/schedule"),
   updateDiscoverySchedule: (config: unknown) =>
     request("/api/discovery/schedule", { method: "PUT", body: JSON.stringify(config) }),
+
+  // XBRL
+  startXbrlRun: (body: { companies?: unknown[]; universe_path?: string; tags?: string[]; refresh?: boolean }) =>
+    request<{ run_id: string; company_count: number }>("/api/xbrl/runs", { method: "POST", body: JSON.stringify(body) }),
+  getXbrlRun: (runId: string) => request(`/api/xbrl/runs/${encodeURIComponent(runId)}`),
+  getXbrlResults: (runId: string, offset = 0, limit = 100) =>
+    request(`/api/xbrl/runs/${encodeURIComponent(runId)}/results${buildQuery({ offset: String(offset), limit: String(limit) })}`),
+  retryXbrlRun: (runId: string) =>
+    request<{ run_id: string; company_count: number }>(`/api/xbrl/runs/${encodeURIComponent(runId)}/retry`, { method: "POST" }),
+  searchXbrlTags: (p: Parameters<typeof tagQuery>[0]) =>
+    request<{ items: XbrlTag[]; total: number }>(`/api/xbrl/tags${tagQuery(p)}`),
+  updateXbrlTaxonomy: () => request("/api/xbrl/taxonomy/update", { method: "POST" }),
+  saveXbrlSelection: (name: string, tags: string[]) =>
+    request<{ name: string; tags: string[]; row_count: number }>(`/api/xbrl/selections/${encodeURIComponent(name)}`, {
+      method: "PUT",
+      body: JSON.stringify({ tags }),
+    }),
+  listXbrlSelections: () => request<Record<string, unknown>[]>("/api/xbrl/selections"),
+  getXbrlSelectionFacts: (name: string, offset = 0, limit = 100) =>
+    request<{ items: XbrlFact[]; total: number }>(
+      `/api/xbrl/selections/${encodeURIComponent(name)}/facts${buildQuery({ offset: String(offset), limit: String(limit) })}`,
+    ),
+  listXbrlCompanies: (offset = 0, limit = 50) =>
+    request<{ items: XbrlCompanyFiles[]; total: number }>(
+      `/api/xbrl/companies${buildQuery({ offset: String(offset), limit: String(limit) })}`,
+    ),
+  // Used with downloadFile() (bearer token), like the other file URLs.
+  xbrlDownloadUrl: (cik: string, kind: string) =>
+    `${API_BASE}/api/xbrl/companies/${encodeURIComponent(cik)}/files/${encodeURIComponent(kind)}`,
+  getXbrlFacts: (
+    cik: string,
+    p: { q?: string; taxonomy?: string; form?: string; period_year?: number; annual_only?: boolean;
+         sort?: string; order?: "asc" | "desc"; offset?: number; limit?: number } = {},
+  ) =>
+    request<{ items: XbrlFact[]; total: number }>(
+      `/api/xbrl/companies/${encodeURIComponent(cik)}/facts${buildQuery({
+        q: p.q, taxonomy: p.taxonomy, form: p.form,
+        period_year: p.period_year?.toString(), annual_only: p.annual_only ? "true" : undefined,
+        sort: p.sort, order: p.order, offset: p.offset?.toString(), limit: p.limit?.toString(),
+      })}`,
+    ),
+  getXbrlPivot: (cik: string, p: { q?: string; taxonomy?: string; offset?: number; limit?: number } = {}) =>
+    request<XbrlPivot>(
+      `/api/xbrl/companies/${encodeURIComponent(cik)}/pivot${buildQuery({
+        q: p.q, taxonomy: p.taxonomy, offset: p.offset?.toString(), limit: p.limit?.toString(),
+      })}`,
+    ),
+  getXbrlRequired: (runId: string) => request<XbrlRequiredRow[]>(`/api/xbrl/required${buildQuery({ run_id: runId })}`),
+  verifyXbrl: (body: { run_id: string; mapping: Record<string, string>; tolerance?: number }) =>
+    request<XbrlVerifyRow[]>("/api/xbrl/verify", { method: "POST", body: JSON.stringify(body) }),
 
   // Taxonomy Researcher (standing agent)
   startTaxonomyResearcherRun: (body: unknown) =>
