@@ -137,3 +137,20 @@ def test_is_annual_rules(tmp_path):
     assert not is_annual(base.model_copy(update={"form": "10-Q"}))
     assert not is_annual(base.model_copy(update={"fiscal_period": "Q1"}))
     assert not is_annual(base.model_copy(update={"period_start": "2023-01-01"}))  # 636 days
+
+
+def test_is_annual_accepts_esef_form():
+    from arp.xbrl_pipeline.models import FactRow
+    from arp.xbrl_pipeline.views import is_annual
+    row = FactRow(company_id="c", cik="x", taxonomy="ifrs-full", concept="Revenue", unit="EUR", value=1.0,
+                  period_start="2023-01-01", period_end="2023-12-31", fiscal_year=2023, fiscal_period="FY",
+                  form="ESEF", filed=None, accession=None, source_sha="s", market="esef")
+    assert is_annual(row)
+
+
+def test_company_files_reports_market(tmp_path):
+    store = _store(tmp_path)
+    assert list_company_files(store)[0][0].market == "sec"
+    sha = store.meta(CIK)["source_sha"]
+    store.set_meta(CIK, source_sha=sha, tags=None, company_id="ex", company_name="E", fact_count=1, market="esef")
+    assert list_company_files(store)[0][0].market == "esef"

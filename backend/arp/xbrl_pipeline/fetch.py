@@ -17,6 +17,7 @@ from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import hold_run
 from arp.schemas.common import CompanyRef
 from arp.storage.run_store import RunStore
+from arp.storage.safe_path import safe_id
 from arp.xbrl_pipeline.flatten import build_catalog, flatten_company_facts
 from arp.xbrl_pipeline.models import CompanyStatus, ReportMeta
 from arp.xbrl_pipeline.required import resolve_required
@@ -85,6 +86,7 @@ async def _fetch_report(cik10: str, cik: str, *, source: SecSource, store: XbrlS
         known = store.report_meta(cik10)
         if known and known.accession == annual.accession:
             return "unchanged"
+        safe_id(annual.accession, label="accession")
         store.save_report(cik10, annual.content, ReportMeta(
             accession=annual.accession, form=annual.form, filing_date=annual.filing_date,
             source_url=annual.source_url, primary_document=annual.primary_document,

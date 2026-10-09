@@ -9,7 +9,7 @@ from arp.schemas.common import now_iso
 from arp.storage.atomic_io import atomic_write_bytes, atomic_write_text
 from arp.storage.jsonl_io import read_jsonl
 from arp.storage.safe_path import safe_id
-from arp.xbrl_pipeline.models import CatalogEntry, FactRow, ReportMeta, RequiredRow
+from arp.xbrl_pipeline.models import CatalogEntry, FactRow, Market, ReportMeta, RequiredRow
 
 _FILES = {"facts": "facts.jsonl", "required": "required.jsonl", "catalog": "catalog.jsonl"}
 
@@ -36,9 +36,9 @@ class XbrlStore:
             return []
         return sorted(p.name for p in self.root.iterdir() if p.is_dir() and (p / "meta.json").exists())
 
-    def save_original(self, cik10: str, raw: bytes) -> str:
+    def save_original(self, cik10: str, raw: bytes, *, prefix: str = "companyfacts") -> str:
         sha = hashlib.sha256(raw).hexdigest()
-        path = self.company_dir(cik10) / f"companyfacts-{sha[:16]}.json"
+        path = self.company_dir(cik10) / f"{prefix}-{sha[:16]}.json"
         if not path.exists():
             atomic_write_bytes(path, raw)
         return sha
@@ -53,10 +53,13 @@ class XbrlStore:
         return meta.get("company_ids") or ([meta["company_id"]] if meta.get("company_id") else [])
 
     def set_meta(self, cik10: str, *, source_sha: str, tags: list[str] | None, company_id: str,
-                 company_name: str | None, fact_count: int) -> None:
+                 company_name: str | None, fact_count: int, market: Market = "sec",
+                 original_file: str | None = None, skipped_dimensional: int = 0) -> None:
         ids = list(dict.fromkeys([*self.company_ids(cik10), company_id]))
         meta = {"source_sha": source_sha, "tags": tags, "company_id": company_id, "company_ids": ids,
-                "company_name": company_name, "fact_count": fact_count, "fetched_at": now_iso()}
+                "company_name": company_name, "fact_count": fact_count, "fetched_at": now_iso(), "market": market,
+                "original_file": original_file or f"companyfacts-{source_sha[:16]}.json",
+                "skipped_dimensional": skipped_dimensional}
         atomic_write_text(self.company_dir(cik10) / "meta.json", json.dumps(meta, indent=2))
 
     def add_company_id(self, cik10: str, company_id: str) -> None:
@@ -71,7 +74,8 @@ class XbrlStore:
         meta = self.meta(cik10)
         if not meta:
             return None
-        path = self.company_dir(cik10) / f"companyfacts-{meta['source_sha'][:16]}.json"
+        name = meta.get("original_file") or f"companyfacts-{meta['source_sha'][:16]}.json"
+        path = self.company_dir(cik10) / name
         return path if path.exists() else None
 
     def original(self, cik10: str) -> dict | None:
@@ -79,8 +83,10 @@ class XbrlStore:
         return json.loads(path.read_text(encoding="utf-8")) if path else None
 
     def save_report(self, cik10: str, content: bytes, meta: ReportMeta) -> Path:
+        if Path(meta.filename).name != meta.filename:
+            raise ValueError(f"report filename must be a bare file name: {meta.filename!r}")
         d = self.company_dir(cik10)
-        path = d / f"annual-{safe_id(meta.accession, label='accession')}.htm"
+        path = d / meta.filename
         atomic_write_bytes(path, content)
         atomic_write_text(d / "report.json", meta.model_dump_json(indent=2))
         return path

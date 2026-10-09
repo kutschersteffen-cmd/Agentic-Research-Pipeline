@@ -107,3 +107,35 @@ def test_company_ids_merge_in_order_and_fall_back_to_legacy_meta(tmp_path):
     legacy.company_dir(CIK).mkdir(parents=True)
     (legacy.company_dir(CIK) / "meta.json").write_text(json.dumps({"company_id": "old"}))
     assert legacy.company_ids(CIK) == ["old"]
+
+
+def test_save_original_prefix_and_meta_original_file(tmp_path):
+    s = XbrlStore(tmp_path)
+    raw = b'{"a": 1}'
+    sha = s.save_original(CIK, raw, prefix="xbrl-json")
+    name = f"xbrl-json-{sha[:16]}.json"
+    s.set_meta(CIK, source_sha=sha, tags=None, company_id="c1", company_name=None, fact_count=1,
+               market="esef", original_file=name)
+    assert s.original(CIK) == {"a": 1}
+    assert s.file_path(CIK, "original").name == name
+    assert s.meta(CIK)["market"] == "esef" and s.meta(CIK)["skipped_dimensional"] == 0
+
+
+def test_original_falls_back_to_companyfacts_name(tmp_path):
+    s = XbrlStore(tmp_path)
+    sha = s.save_original(CIK, b'{"a": 1}')
+    s.set_meta(CIK, source_sha=sha, tags=None, company_id="c1", company_name=None, fact_count=1)
+    assert s.original(CIK) == {"a": 1}
+    assert s.file_path(CIK, "original").name == f"companyfacts-{sha[:16]}.json"
+
+
+def test_save_report_uses_meta_filename_and_rejects_paths(tmp_path):
+    s = XbrlStore(tmp_path)
+
+    def meta(filename):
+        return ReportMeta(accession="a", form="ESEF", filing_date=None, source_url="u", primary_document="d",
+                          filename=filename, sha256="x", size=1, inline_xbrl=True)
+
+    with pytest.raises(ValueError):
+        s.save_report(CIK, b"z", meta("../x.zip"))
+    assert s.save_report(CIK, b"z", meta("package-abc.zip")).name == "package-abc.zip"
