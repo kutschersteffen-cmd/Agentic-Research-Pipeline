@@ -114,7 +114,7 @@ def test_refuses_when_xbrl_was_on(tmp_path):
 def test_refuses_when_step_settings_missing(tmp_path):
     runs, store = _setup(tmp_path, [_field("rev_f", 1000.0, 2024)], [_req("revenue", 2024, 1000.0)],
                          settings=False)
-    with pytest.raises(CircularRunError, match="Only runs started from the app.*SEC XBRL facts first"):
+    with pytest.raises(CircularRunError, match="record their step settings.*SEC XBRL facts first.*ARP_XBRL_FACTS_ENABLED=false"):
         _verify(runs, store)
 
 

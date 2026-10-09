@@ -24,9 +24,10 @@ def assert_xbrl_off(run_id: str, *, run_store: RunStore) -> None:
     settings_path = run_store.run_dir(run_id) / "step_settings.json"
     if not settings_path.exists():
         raise CircularRunError(
-            f"{run_id}: step_settings.json is missing, so it cannot be proven that XBRL was off. Only runs "
-            "started from the app/API record their step settings; start (or re-run) the extraction from "
-            'the app with "SEC XBRL facts first" switched off.')
+            f"{run_id}: step_settings.json is missing, so it cannot be proven that XBRL was off. Runs started "
+            "from the app, the API or `arp extract run` record their step settings (older CLI runs do not); "
+            'start (or re-run) the extraction with "SEC XBRL facts first" switched off '
+            "(in the app, or ARP_XBRL_FACTS_ENABLED=false for the CLI).")
     try:
         data = json.loads(settings_path.read_text(encoding="utf-8"))
         enabled = data.get("xbrl_facts_enabled")
