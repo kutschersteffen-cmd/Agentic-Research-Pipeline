@@ -1,0 +1,59 @@
+from __future__ import annotations
+
+import json
+
+from arp.schemas.datapoints import ExtractionRecord
+from arp.storage.atomic_io import atomic_write_text
+from arp.storage.run_store import RunStore
+from arp.xbrl_pipeline.models import VerifyRow
+from arp.xbrl_pipeline.store import XbrlStore
+
+
+class CircularRunError(ValueError):
+    """The run may have copied XBRL values, so comparing against XBRL proves nothing."""
+
+
+def verify_run(run_id: str, *, run_store: RunStore, store: XbrlStore, mapping: dict[str, str],
+               tolerance: float = 0.005) -> list[VerifyRow]:
+    settings_path = run_store.run_dir(run_id) / "step_settings.json"
+    if not settings_path.exists():
+        raise CircularRunError(f"{run_id}: step_settings.json is missing, cannot prove XBRL was off")
+    if json.loads(settings_path.read_text(encoding="utf-8")).get("xbrl_facts_enabled"):
+        raise CircularRunError(f"{run_id}: ran with xbrl_facts_enabled, its values are copied from XBRL")
+
+    # ponytail: linear scan, index by company above ~10k companies
+    xbrl = {(r.company_id, r.metric, r.fiscal_year): r
+            for cik in store.ciks() for r in store.read_required(cik)}
+
+    rows: list[VerifyRow] = []
+    for raw in run_store.read_jsonl(run_store.results_path(run_id)):
+        rec = ExtractionRecord.model_validate(raw)
+        # Calendar year of period_end, never a filing's fy.
+        years = sorted({int(f.period_end[:4]) for f in rec.fields if f.period_end})
+        for metric, field_id in mapping.items():
+            for year in years:
+                run_field = next((f for f in rec.fields if f.field_id == field_id and f.period_end
+                                  and int(f.period_end[:4]) == year and f.canonical_value is not None), None)
+                x = xbrl.get((rec.company_id, metric, year))
+                x_value = x.value if x is not None and x.status == "found" else None
+                run_value = run_field.canonical_value if run_field else None
+                if run_value is None and x_value is None:
+                    continue
+                unit = x.unit if x_value is not None else run_field.canonical_unit
+                detail = ""
+                if run_value is None:
+                    outcome = "missing_in_run"
+                elif x_value is None:
+                    outcome = "missing_in_xbrl"
+                elif run_field.canonical_unit != x.unit:
+                    outcome, detail = "mismatch", "unit"
+                else:
+                    ok = abs(run_value - x_value) <= tolerance * abs(x_value)
+                    outcome = "match" if ok else "mismatch"
+                rows.append(VerifyRow(company_id=rec.company_id, metric=metric, fiscal_year=year,
+                                      outcome=outcome, run_value=run_value, xbrl_value=x_value,
+                                      unit=unit, detail=detail))
+
+    atomic_write_text(run_store.run_dir(run_id) / "xbrl_verify.jsonl",
+                      "".join(r.model_dump_json() + "\n" for r in rows))
+    return rows
