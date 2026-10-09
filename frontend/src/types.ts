@@ -3031,10 +3031,13 @@ export interface XbrlTag {
   seen_count: number;
 }
 
+export type XbrlMarket = "sec" | "esef";
+
 export interface XbrlCompanyStatus {
+  market: XbrlMarket;
   company_id: string;
   cik: string | null;
-  status: "ok" | "unchanged" | "no_cik" | "not_found";
+  status: "ok" | "unchanged" | "no_cik" | "no_lei" | "not_found";
   source_sha: string | null;
   fact_count: number;
   report: "stored" | "unchanged" | "none" | "error";
@@ -3053,6 +3056,7 @@ export interface XbrlReportMeta {
 }
 
 export interface XbrlCompanyFiles {
+  market: XbrlMarket;
   cik: string;
   company_id: string;
   name: string | null;
@@ -3064,6 +3068,7 @@ export interface XbrlCompanyFiles {
 }
 
 export interface XbrlFact {
+  market: XbrlMarket;
   company_id: string;
   cik: string;
   taxonomy: string;
@@ -3088,6 +3093,7 @@ export interface XbrlPivot {
 }
 
 export interface XbrlRequiredRow {
+  market: XbrlMarket;
   company_id: string;
   cik: string;
   metric: "revenue" | "capex";

@@ -1,3 +1,4 @@
+import type { XbrlMarket } from "../types";
 export type SortState = { key: string; order: "asc" | "desc" };
 
 export const toggleTag = (selected: string[], tagId: string): string[] =>
@@ -28,6 +29,7 @@ const STATUS: Record<string, string> = {
   ok: "Facts fetched",
   unchanged: "Already up to date",
   no_cik: "No SEC CIK for this company",
+  no_lei: "No LEI in the universe row",
   not_found: "Not found at the SEC",
   error: "Failed",
 };
@@ -37,6 +39,8 @@ const REPORT: Record<string, string> = {
   none: "No annual report found",
   error: "Annual report download failed",
 };
+/** What identifies a company in each market: the SEC CIK, or the ESEF LEI. */
+export const keyLabel = (market: XbrlMarket): "CIK" | "LEI" => (market === "esef" ? "LEI" : "CIK");
 export const statusText = (status: string): string => STATUS[status] ?? status;
 export const reportText = (report: string): string => REPORT[report] ?? report;
 
@@ -61,7 +65,7 @@ export const nextSort = (current: SortState, key: string): SortState =>
 export const ariaSort = (current: SortState, key: string): "ascending" | "descending" | "none" =>
   current.key !== key ? "none" : current.order === "asc" ? "ascending" : "descending";
 
-export const TAXONOMIES = ["us-gaap", "ifrs-full", "dei"];
+export const TAXONOMIES = ["us-gaap", "ifrs-full", "dei", "esrs"];
 
 const n = (x: number) => x.toLocaleString("en-US");
 /** A pager's visible range, e.g. "21–40 of 1,234"; "0 of 0" when empty. */

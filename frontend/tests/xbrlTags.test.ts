@@ -4,6 +4,7 @@ import {
   ariaSort,
   canRetryFetch,
   formatFactValue,
+  keyLabel,
   nextSort,
   periodLabel,
   rangeLabel,
@@ -120,4 +121,10 @@ test("retry is offered unless a run is in progress or fully done", () => {
   assert.equal(canRetryFetch(run("pending", 0, 0), false), false);
   assert.equal(canRetryFetch(run("running", 0, 1), true), true); // stalled
   assert.equal(canRetryFetch(run("completed"), true), false);
+});
+
+test("keyLabel names the market's company key; statusText explains no_lei", () => {
+  assert.equal(keyLabel("sec"), "CIK");
+  assert.equal(keyLabel("esef"), "LEI");
+  assert.equal(statusText("no_lei"), "No LEI in the universe row");
 });

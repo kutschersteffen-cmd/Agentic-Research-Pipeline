@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, downloadFile } from "../api/client";
-import { rangeLabel, reportText, secFilingUrl } from "../lib/xbrlTags";
+import { keyLabel, rangeLabel, reportText, secFilingUrl } from "../lib/xbrlTags";
 import type { XbrlCompanyFiles } from "../types";
 import { Pager } from "./XbrlFactsTable";
 
@@ -107,7 +107,8 @@ export function XbrlFilesArea(p: {
               <thead>
                 <tr>
                   <th scope="col">Company</th>
-                  <th scope="col">CIK</th>
+                  <th scope="col">Market</th>
+                  <th scope="col">Key</th>
                   <th scope="col">Fetched</th>
                   <th scope="col" className="num">Facts</th>
                   <th scope="col">Annual report</th>
@@ -143,7 +144,13 @@ export function XbrlFilesArea(p: {
                           {c.name && <span className="xbrl-sub mono">{c.company_id}</span>}
                         </span>
                       </th>
-                      <td data-label="CIK" className="mono">{c.cik}</td>
+                      <td data-label="Market">{c.market === "esef" ? "EU (ESEF)" : "US (SEC)"}</td>
+                      <td data-label="Key" className="mono">
+                        <span>
+                          {c.cik}
+                          <span className="xbrl-sub">{keyLabel(c.market)}</span>
+                        </span>
+                      </td>
                       <td data-label="Fetched" className="mono">
                         <span>
                           {c.fetched_at.slice(0, 10)}
@@ -164,8 +171,8 @@ export function XbrlFilesArea(p: {
                               {r.filing_date && <span className="muted"> filed <span className="mono">{r.filing_date}</span></span>}
                             </span>
                             <span className="xbrl-sub">{r.inline_xbrl ? "Inline XBRL" : "Not inline XBRL"}</span>
-                            <a href={secFilingUrl(c.cik, r.accession)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                              Open filing on SEC.gov<span className="visually-hidden"> (opens in a new tab)</span>
+                            <a href={c.market === "esef" ? r.source_url : secFilingUrl(c.cik, r.accession)} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                              {c.market === "esef" ? "Open filing" : "Open filing on SEC.gov"}<span className="visually-hidden"> (opens in a new tab)</span>
                             </a>
                           </span>
                         ) : (
