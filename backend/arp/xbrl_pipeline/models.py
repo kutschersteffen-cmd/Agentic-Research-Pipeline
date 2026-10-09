@@ -124,5 +124,6 @@ class VerifyRow(BaseModel):
     outcome: Literal["match", "mismatch", "missing_in_run", "missing_in_xbrl"]
     run_value: float | None
     xbrl_value: float | None
-    unit: str | None
+    unit: str | None  # the XBRL unit for found XBRL values
+    run_unit: str | None = None
     detail: str

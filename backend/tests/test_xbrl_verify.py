@@ -9,7 +9,7 @@ from arp.schemas.datapoints import ExtractedField, ExtractionRecord
 from arp.storage.run_store import RunStore
 from arp.xbrl_pipeline.models import RequiredRow, VerifyRow
 from arp.xbrl_pipeline.store import XbrlStore
-from arp.xbrl_pipeline.verify import CircularRunError, verify_run
+from arp.xbrl_pipeline.verify import CircularRunError, UnsupportedRunError, verify_run
 
 MAPPING = {"revenue": "rev_f", "capex": "capex_f"}
 
@@ -51,7 +51,7 @@ def test_match_within_tolerance(tmp_path):
     runs, store = _setup(tmp_path, [_field("rev_f", 1004.0, 2024)], [_req("revenue", 2024, 1000.0)])
     assert _verify(runs, store) == [VerifyRow(
         company_id="ex", metric="revenue", fiscal_year=2024, outcome="match",
-        run_value=1004.0, xbrl_value=1000.0, unit="USD", detail="")]
+        run_value=1004.0, xbrl_value=1000.0, unit="USD", run_unit="USD", detail="")]
 
 
 def test_mismatch_outside_tolerance(tmp_path):
@@ -84,6 +84,25 @@ def test_unit_difference_is_mismatch(tmp_path):
     assert [(r.outcome, r.detail) for r in rows] == [("mismatch", "unit")]
 
 
+@pytest.mark.parametrize("unit,value,outcome,detail", [
+    ("USD bn", 0.0000012, "match", ""),            # 0.0000012 bn = 1,200 USD
+    ("USD million", 0.0013, "mismatch", ""),       # 1,300 USD, off by more than the tolerance
+    ("foo", 1200.0, "mismatch", "unit"),           # unknown unit
+    ("shares", 1200.0, "mismatch", "unit"),        # not a unit of currency
+    ("EUR", 1200.0, "mismatch", "unit"),           # needs FX
+])
+def test_units_are_normalised_before_comparing(tmp_path, unit, value, outcome, detail):
+    runs, store = _setup(tmp_path, [_field("rev_f", value, 2024, unit=unit)], [_req("revenue", 2024, 1200.0)])
+    rows = _verify(runs, store)
+    assert [(r.outcome, r.detail, r.run_unit, r.unit, r.xbrl_value) for r in rows] == [
+        (outcome, detail, unit, "USD", 1200.0)]
+
+
+def test_run_unit_is_none_without_run_value(tmp_path):
+    runs, store = _setup(tmp_path, [_field("rev_f", None, 2024)], [_req("revenue", 2024, 1000.0)])
+    assert [(r.outcome, r.run_unit) for r in _verify(runs, store)] == [("missing_in_run", None)]
+
+
 def test_refuses_when_xbrl_was_on(tmp_path):
     runs, store = _setup(tmp_path, [_field("rev_f", 1000.0, 2024)], [_req("revenue", 2024, 1000.0)],
                          xbrl_on=True)
@@ -95,7 +114,7 @@ def test_refuses_when_xbrl_was_on(tmp_path):
 def test_refuses_when_step_settings_missing(tmp_path):
     runs, store = _setup(tmp_path, [_field("rev_f", 1000.0, 2024)], [_req("revenue", 2024, 1000.0)],
                          settings=False)
-    with pytest.raises(CircularRunError):
+    with pytest.raises(CircularRunError, match="Only runs started from the app.*SEC XBRL facts first"):
         _verify(runs, store)
 
 
@@ -112,4 +131,29 @@ def test_refuses_when_step_settings_malformed(tmp_path, text):
     runs, store = _setup(tmp_path, [_field("rev_f", 1000.0, 2024)], [_req("revenue", 2024, 1000.0)])
     (runs.run_dir("r1") / "step_settings.json").write_text(text)
     with pytest.raises(CircularRunError, match="cannot prove XBRL was off"):
+        _verify(runs, store)
+
+
+def test_verify_matches_any_company_id_that_fetched_the_cik(tmp_path):
+    runs, store = _setup(tmp_path, [], [_req("revenue", 2024, 1000.0)])
+    rec = ExtractionRecord(company_id="acme-inc", name="Ex", schema_id="s", run_id="r1",
+                           fields=[_field("rev_f", 1000.0, 2024)])
+    runs.results_path("r1").write_text(rec.model_dump_json() + "\n")
+    rows = [_req("revenue", 2024, 1000.0).model_copy(update={"company_id": "acme"})]
+    store.write_required("0001234567", rows)
+    store.set_meta("0001234567", source_sha="s", tags=None, company_id="acme", company_name=None, fact_count=1)
+    store.set_meta("0001234567", source_sha="s", tags=None, company_id="acme-inc", company_name=None, fact_count=1)
+    assert [(r.company_id, r.outcome) for r in _verify(runs, store)] == [("acme-inc", "match")]
+
+
+def test_verify_with_legacy_meta_uses_its_single_company_id(tmp_path):
+    runs, store = _setup(tmp_path, [_field("rev_f", 1000.0, 2024)], [_req("revenue", 2024, 1000.0)])
+    (store.company_dir("0001234567") / "meta.json").write_text(json.dumps({"company_id": "ex"}))
+    assert [r.outcome for r in _verify(runs, store)] == ["match"]
+
+
+def test_non_generic_run_is_unsupported(tmp_path):
+    runs, store = _setup(tmp_path, [_field("rev_f", 1000.0, 2024)], [_req("revenue", 2024, 1000.0)])
+    runs.results_path("r1").write_text(json.dumps({"company_id": "ex", "financials": {}}) + "\n")
+    with pytest.raises(UnsupportedRunError, match="run r1 does not contain generic extraction records"):
         _verify(runs, store)

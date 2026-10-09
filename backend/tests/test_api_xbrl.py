@@ -233,6 +233,15 @@ def test_required_for_run(env):
     assert client.get("/api/xbrl/required", params={"run_id": "nope"}).status_code == 404
 
 
+def test_required_matches_any_company_id_of_the_cik(env):
+    client, _, store, runs = env
+    store.write_required(CIK, [_required("ex", CIK, 1000.0)])
+    store.set_meta(CIK, source_sha="s", tags=None, company_id="ex-inc", company_name=None, fact_count=1)
+    run_id = create_xbrl_run([CompanyRef(company_id="ex-inc", name="Ex", cik=CIK)], None, False, runs)
+    rows = client.get("/api/xbrl/required", params={"run_id": run_id}).json()
+    assert [(r["company_id"], r["value"]) for r in rows] == [("ex", 1000.0)]
+
+
 def _extraction_run(runs, *, settings_text: str | None):
     run_id = create_xbrl_run([CO], None, False, runs)
     rec = ExtractionRecord(company_id="ex", name="Ex", schema_id="s", run_id=run_id, fields=[
@@ -357,3 +366,33 @@ def test_retry_409_leaves_manifest_untouched(env, monkeypatch):
     with run_lease(runs, run_id):
         assert client.post(f"/api/xbrl/runs/{run_id}/retry").status_code == 409
     assert runs.load_manifest(run_id) == before
+
+
+def test_start_run_rejects_empty_or_malformed_tags(env):
+    client, *_ = env
+    r = client.post("/api/xbrl/runs", json={"companies": [{"company_id": "ex", "name": "Ex"}], "tags": []})
+    assert (r.status_code, r.json()["detail"]) == (400, "tags must not be empty; omit it to extract everything")
+    r = client.post("/api/xbrl/runs", json={"companies": [{"company_id": "ex", "name": "Ex"}], "tags": ["Revenues"]})
+    assert r.status_code == 400 and "Revenues" in r.json()["detail"]
+
+
+@pytest.mark.parametrize("tags", [[], ["Revenues"]])
+def test_put_selection_rejects_empty_or_malformed_tags(env, tags):
+    client, *_ = env
+    assert client.put("/api/xbrl/selections/rev", json={"tags": tags}).status_code == 400
+    assert client.get("/api/xbrl/selections").json() == []
+
+
+def test_verify_non_generic_run_is_400(env):
+    client, _, store, runs = env
+    run_id = _extraction_run(runs, settings_text=json.dumps({"xbrl_facts_enabled": False}))
+    runs.results_path(run_id).write_text(json.dumps({"company_id": "ex", "financials": {}}) + "\n")
+    r = client.post("/api/xbrl/verify", json={"run_id": run_id, "mapping": {"revenue": "rev_f"}})
+    assert r.status_code == 400 and "generic extraction records" in r.json()["detail"]
+
+
+@pytest.mark.parametrize("tolerance", [-0.1, 1.5])
+def test_verify_tolerance_is_bounded(env, tolerance):
+    client, *_ = env
+    r = client.post("/api/xbrl/verify", json={"run_id": "x", "mapping": {"revenue": "f"}, "tolerance": tolerance})
+    assert r.status_code == 422

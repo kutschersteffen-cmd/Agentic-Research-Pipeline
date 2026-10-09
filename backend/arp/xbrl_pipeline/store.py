@@ -47,11 +47,25 @@ class XbrlStore:
         path = self.company_dir(cik10) / "meta.json"
         return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
+    def company_ids(self, cik10: str) -> list[str]:
+        """Every company_id that fetched this CIK, first fetch first."""
+        meta = self.meta(cik10) or {}
+        return meta.get("company_ids") or ([meta["company_id"]] if meta.get("company_id") else [])
+
     def set_meta(self, cik10: str, *, source_sha: str, tags: list[str] | None, company_id: str,
                  company_name: str | None, fact_count: int) -> None:
-        meta = {"source_sha": source_sha, "tags": tags, "company_id": company_id,
+        ids = list(dict.fromkeys([*self.company_ids(cik10), company_id]))
+        meta = {"source_sha": source_sha, "tags": tags, "company_id": company_id, "company_ids": ids,
                 "company_name": company_name, "fact_count": fact_count, "fetched_at": now_iso()}
         atomic_write_text(self.company_dir(cik10) / "meta.json", json.dumps(meta, indent=2))
+
+    def add_company_id(self, cik10: str, company_id: str) -> None:
+        """Meta-only write: another company_id maps to an already stored CIK."""
+        meta = self.meta(cik10) or {}
+        ids = self.company_ids(cik10)
+        if company_id not in ids:
+            meta["company_ids"] = [*ids, company_id]
+            atomic_write_text(self.company_dir(cik10) / "meta.json", json.dumps(meta, indent=2))
 
     def _original_path(self, cik10: str) -> Path | None:
         meta = self.meta(cik10)

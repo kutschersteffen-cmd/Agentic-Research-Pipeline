@@ -136,6 +136,29 @@ async def test_same_cik_twice_stores_one_original_and_one_report(tmp_path):
     assert len(list(d.glob("annual-*.htm"))) == 1
 
 
+async def test_unchanged_refetch_under_new_company_id_only_records_the_id(tmp_path):
+    store, src = XbrlStore(tmp_path), FakeSource()
+    await _fetch(src, store, company=_company("acme"))
+    facts = store.company_dir(CIK10) / "facts.jsonl"
+    before = (facts.read_bytes(), facts.stat().st_mtime_ns)
+    st = await _fetch(src, store, company=_company("acme-inc"))
+    assert st.status == "unchanged"
+    assert store.company_ids(CIK10) == ["acme", "acme-inc"]
+    assert (facts.read_bytes(), facts.stat().st_mtime_ns) == before
+    assert {r.company_id for r in store.read_required(CIK10)} == {"acme"}
+
+
+async def test_non_numeric_cik_is_no_cik(tmp_path):
+    st = await _fetch(FakeSource(cik="../x"), XbrlStore(tmp_path), company=_company(cik=None))
+    assert (st.status, st.cik) == ("no_cik", None)
+
+
+async def test_report_failure_is_logged(tmp_path, caplog):
+    st = await _fetch(FakeSource(annual_exc=ValueError("boom")), XbrlStore(tmp_path))
+    assert st.report == "error"
+    assert f"annual report for {CIK10} not stored: boom" in caplog.text
+
+
 async def test_report_not_inline_is_stored_and_flagged(tmp_path):
     store = XbrlStore(tmp_path)
     st = await _fetch(FakeSource(annual=_annual(content=b"<html>plain</html>")), store)

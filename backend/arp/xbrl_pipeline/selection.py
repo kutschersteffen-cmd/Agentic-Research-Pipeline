@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 from arp.schemas.common import now_iso
 from arp.storage.atomic_io import atomic_write_text
@@ -9,6 +10,19 @@ from arp.storage.safe_path import safe_id
 from arp.xbrl_pipeline.flatten import flatten_company_facts
 from arp.xbrl_pipeline.models import FactRow
 from arp.xbrl_pipeline.store import XbrlStore
+
+
+_TAG_ID = re.compile(r"^[\w.-]+:[\w.-]+$")
+
+
+def parse_tag_ids(tags: list[str]) -> frozenset[str]:
+    """Validate a requested tag selection: non-empty, every tag `taxonomy:Concept`."""
+    if not tags:
+        raise ValueError("tags must not be empty; omit it to extract everything")
+    bad = [t for t in tags if not _TAG_ID.match(t)]
+    if bad:
+        raise ValueError(f"malformed tag {bad[0]!r}: expected taxonomy:Concept, e.g. us-gaap:Revenues")
+    return frozenset(tags)
 
 
 def _paths(store: XbrlStore, name: str):

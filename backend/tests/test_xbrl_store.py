@@ -95,3 +95,15 @@ def test_fetch_company_facts_raw_returns_data_and_bytes(tmp_path):
     edgar = EdgarDocumentSource(user_agent="t t@example.com", cache_dir=cache)
     data, got = asyncio.run(XbrlFactSource(edgar, cache).fetch_company_facts_raw(CIK))
     assert data["entityName"] == "Example Corp" and got == raw.encode()
+
+
+def test_company_ids_merge_in_order_and_fall_back_to_legacy_meta(tmp_path):
+    s = XbrlStore(tmp_path)
+    assert s.company_ids(CIK) == []
+    for cid in ("a", "b", "a"):
+        s.set_meta(CIK, source_sha="x", tags=None, company_id=cid, company_name=None, fact_count=1)
+    assert s.company_ids(CIK) == ["a", "b"] and s.meta(CIK)["company_id"] == "a"
+    legacy = XbrlStore(tmp_path / "legacy")
+    legacy.company_dir(CIK).mkdir(parents=True)
+    (legacy.company_dir(CIK) / "meta.json").write_text(json.dumps({"company_id": "old"}))
+    assert legacy.company_ids(CIK) == ["old"]

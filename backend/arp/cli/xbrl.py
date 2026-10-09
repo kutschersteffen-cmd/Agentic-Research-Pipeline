@@ -13,9 +13,9 @@ from arp.config import get_settings
 from arp.universe import load_company_universe
 from arp.xbrl_pipeline.fetch import build_source, create_xbrl_run, execute_xbrl_run
 from arp.xbrl_pipeline.registry import TAXONOMY_SOURCES, TaxonomyRegistry, http_fetch, update_taxonomies
-from arp.xbrl_pipeline.selection import cut_selection
+from arp.xbrl_pipeline.selection import cut_selection, parse_tag_ids
 from arp.xbrl_pipeline.store import XbrlStore
-from arp.xbrl_pipeline.verify import CircularRunError, assert_xbrl_off, verify_run
+from arp.xbrl_pipeline.verify import CircularRunError, UnsupportedRunError, assert_xbrl_off, verify_run
 
 xbrl_app = typer.Typer(help="XBRL fact pipeline: fetch SEC company facts, browse tags, cut selections, verify runs.")
 taxonomy_app = typer.Typer(help="Official XBRL taxonomy registry.")
@@ -30,6 +30,14 @@ def _split(text: str) -> list[str]:
     return [t.strip() for t in text.split(",") if t.strip()]
 
 
+def _validate_tags(tag_list: list[str]) -> frozenset[str]:
+    try:
+        return parse_tag_ids(tag_list)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(2) from exc
+
+
 @xbrl_app.command("fetch")
 def fetch(
     universe: Path = typer.Option(...),
@@ -39,6 +47,8 @@ def fetch(
     settings = get_settings()
     companies = load_company_universe(universe)
     tag_list = _split(tags) or None
+    if tag_list:
+        _validate_tags(tag_list)
     run_store = _run_store()
     run_id = create_xbrl_run(companies, tag_list, refresh, run_store)
     asyncio.run(execute_xbrl_run(
@@ -86,10 +96,7 @@ def select(
     name: str = typer.Option(...),
     tags: str = typer.Option(..., help="Comma-separated tags to cut out of the stored originals."),
 ) -> None:
-    tag_set = frozenset(_split(tags))
-    if not tag_set:
-        typer.echo("--tags needs at least one tag", err=True)
-        raise typer.Exit(2)
+    tag_set = _validate_tags(_split(tags))
     count = cut_selection(_store(), name, tag_set)
     typer.echo(f"Selection '{name}': {count} fact(s) across {len(tag_set)} tag(s)")
 
@@ -127,6 +134,10 @@ def verify(
             typer.echo(f"--map must look like metric=field, got {item!r}", err=True)
             raise typer.Exit(2)
         mapping[metric.strip()] = field_id.strip()
-    rows = verify_run(run_id, run_store=run_store, store=_store(), mapping=mapping, tolerance=tolerance)
+    try:
+        rows = verify_run(run_id, run_store=run_store, store=_store(), mapping=mapping, tolerance=tolerance)
+    except UnsupportedRunError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
     counts = Counter(r.outcome for r in rows)
     typer.echo(f"{len(rows)} comparison(s): " + "  ".join(f"{k}={v}" for k, v in sorted(counts.items())))

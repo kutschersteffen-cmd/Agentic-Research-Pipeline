@@ -8,7 +8,7 @@ from typing import Literal
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from arp.api.deps import settings_dep
 from arp.config import Settings
@@ -21,9 +21,9 @@ from arp.universe import load_company_universe
 from arp.xbrl_pipeline.fetch import create_xbrl_run, execute_xbrl_run
 from arp.xbrl_pipeline.models import RequiredRow
 from arp.xbrl_pipeline.registry import TaxonomyRegistry, http_fetch, update_taxonomies
-from arp.xbrl_pipeline.selection import cut_selection, list_selections, read_selection_facts
+from arp.xbrl_pipeline.selection import cut_selection, list_selections, parse_tag_ids, read_selection_facts
 from arp.xbrl_pipeline.store import XbrlStore
-from arp.xbrl_pipeline.verify import CircularRunError, verify_run
+from arp.xbrl_pipeline.verify import CircularRunError, UnsupportedRunError, verify_run
 from arp.xbrl_pipeline.views import download_path, list_company_files, pivot_facts, query_facts
 
 logger = logging.getLogger(__name__)
@@ -92,6 +92,11 @@ async def start_run(
             raise HTTPException(400, "Could not read the universe file.") from exc
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
+    if req.tags is not None:
+        try:
+            parse_tag_ids(req.tags)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
     run_id = create_xbrl_run(companies, req.tags, req.refresh, run_store)
     _launch(run_id, companies, req.tags, req.refresh, settings, run_store)
     return {"run_id": run_id, "company_count": len(companies)}
@@ -158,8 +163,8 @@ class SelectionRequest(BaseModel):
 @router.put("/selections/{name}")
 def put_selection(name: str, req: SelectionRequest, store: XbrlStore = Depends(_store)) -> dict:
     try:
-        count = cut_selection(store, name, frozenset(req.tags))
-    except UnsafeIdentifierError as exc:
+        count = cut_selection(store, name, parse_tag_ids(req.tags))
+    except (UnsafeIdentifierError, ValueError) as exc:
         raise HTTPException(400, str(exc)) from exc
     return {"name": name, "tags": sorted(set(req.tags)), "row_count": count}
 
@@ -232,13 +237,14 @@ def get_required(
 ) -> list[RequiredRow]:
     _manifest(run_store, run_id)
     ids = {c.company_id for c in run_store.load_companies(run_id) or []}
-    return [r for cik in store.ciks() for r in store.read_required(cik) if r.company_id in ids]
+    # A CIK keeps the rows of its first fetch; any company_id that fetched it may ask for them.
+    return [r for cik in store.ciks() if ids & set(store.company_ids(cik)) for r in store.read_required(cik)]
 
 
 class VerifyRequest(BaseModel):
     run_id: str
     mapping: dict[str, str]
-    tolerance: float = 0.005
+    tolerance: float = Field(0.005, ge=0, le=1)
 
 
 @router.post("/verify")
@@ -249,3 +255,5 @@ def verify(req: VerifyRequest, run_store: RunStore = Depends(_run_store), store:
                           tolerance=req.tolerance)
     except CircularRunError as exc:
         raise HTTPException(409, str(exc)) from exc
+    except UnsupportedRunError as exc:
+        raise HTTPException(400, str(exc)) from exc

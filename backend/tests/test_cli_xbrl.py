@@ -155,3 +155,23 @@ def test_taxonomy_update_reports_http_errors_without_traceback(env, monkeypatch,
     result = _invoke("taxonomy", "update")
     assert result.exit_code == 1
     assert fragment in result.stderr and "Traceback" not in result.output
+
+
+def test_select_rejects_malformed_tag(env):
+    result = _invoke("select", "--name", "mine", "--tags", "us-gaap:Revenues,Revenues")
+    assert result.exit_code == 2 and "Revenues" in result.stderr and not (env / "xbrl" / "selections").exists()
+
+
+def test_fetch_rejects_malformed_tag_before_running(env, tmp_path):
+    uni = tmp_path / "u.csv"
+    uni.write_text("company_id,name,cik\nex,Ex,1\n")
+    result = _invoke("fetch", "--universe", str(uni), "--tags", "us-gaap:Revenues,Bad Tag")
+    assert result.exit_code == 2 and "Bad Tag" in result.stderr and not list((env / "runs").glob("*"))
+
+
+def test_verify_non_generic_run_exits_1_with_message(env):
+    _verify_setup(env, xbrl_facts_enabled=False)
+    (env / "runs" / "r1" / "results.jsonl").write_text(json.dumps({"company_id": "ex", "financials": {}}) + "\n")
+    result = _invoke("verify", "r1", "--map", "revenue=rev_f")
+    assert result.exit_code == 1 and "generic extraction records" in result.stderr
+    assert "Traceback" not in result.output

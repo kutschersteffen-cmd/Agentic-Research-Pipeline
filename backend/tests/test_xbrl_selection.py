@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from arp.storage.safe_path import UnsafeIdentifierError
-from arp.xbrl_pipeline.selection import cut_selection, list_selections, read_selection_facts
+from arp.xbrl_pipeline.selection import cut_selection, list_selections, parse_tag_ids, read_selection_facts
 from arp.xbrl_pipeline.store import XbrlStore
 
 FIXTURE = Path(__file__).parent / "fixtures" / "xbrl" / "companyfacts_small.json"
@@ -66,3 +66,19 @@ def test_list_and_read_paging(tmp_path):
     page, total = read_selection_facts(s, "a", offset=1, limit=1)
     assert total == 3 and page == all_rows[1:2]
     assert read_selection_facts(s, "a", offset=5) == ([], 3)
+
+
+def test_parse_tag_ids_accepts_taxonomy_concept_pairs():
+    assert parse_tag_ids(["us-gaap:Revenues", "ifrs-full:Revenue", "us-gaap:Revenues"]) == frozenset(
+        {"us-gaap:Revenues", "ifrs-full:Revenue"})
+
+
+@pytest.mark.parametrize("bad", ["Revenues", "us-gaap:", ":Revenues", "a b:C", "us-gaap:Rev enues", ""])
+def test_parse_tag_ids_rejects_malformed(bad):
+    with pytest.raises(ValueError, match="tag"):
+        parse_tag_ids(["us-gaap:Revenues", bad])
+
+
+def test_parse_tag_ids_rejects_empty_list():
+    with pytest.raises(ValueError, match="tags must not be empty"):
+        parse_tag_ids([])

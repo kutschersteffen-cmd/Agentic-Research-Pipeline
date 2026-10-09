@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 from collections.abc import Awaitable, Callable
 from typing import Protocol, TypeVar
 
@@ -22,6 +23,7 @@ from arp.xbrl_pipeline.required import resolve_required
 from arp.xbrl_pipeline.store import XbrlStore
 
 T = TypeVar("T")
+logger = logging.getLogger(__name__)
 
 FETCH_DELAY_SECONDS = 0.15
 _INLINE_MARKER = b"http://www.xbrl.org/2013/inlineXBRL"
@@ -90,7 +92,8 @@ async def _fetch_report(cik10: str, cik: str, *, source: SecSource, store: XbrlS
             inline_xbrl=_INLINE_MARKER in annual.content,
         ))
         return "stored"
-    except Exception:  # noqa: BLE001 -- a report problem never changes the company's status
+    except Exception as exc:  # noqa: BLE001 -- a report problem never changes the company's status
+        logger.warning("annual report for %s not stored: %s", cik10, exc, exc_info=True)
         return "error"
 
 
@@ -101,7 +104,9 @@ async def fetch_company(
         return CompanyStatus(company_id=company.company_id, cik=cik10, status=st, source_sha=sha, fact_count=n, report=report)
 
     cik = await source.resolve_cik(company.cik, company.ticker)
-    if not cik:
+    if not cik or not cik.isdigit():
+        if cik:
+            logger.warning("%s: resolved CIK %r is not numeric, treating as no_cik", company.company_id, cik)
         return status("no_cik")
     cik10 = cik.zfill(10)
     data, raw = await with_retry(lambda: source.fetch_company_facts_raw(cik), sleep=sleep)
@@ -112,6 +117,7 @@ async def fetch_company(
     tag_list = sorted(tags) if tags is not None else None
     meta = store.meta(cik10)
     if meta and meta["source_sha"] == sha and meta["tags"] == tag_list:
+        store.add_company_id(cik10, company.company_id)
         result, count = "unchanged", meta["fact_count"]
     else:
         count = store.write_facts(cik10, flatten_company_facts(
