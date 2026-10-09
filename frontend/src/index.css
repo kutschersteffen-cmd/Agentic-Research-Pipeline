@@ -1904,3 +1904,72 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
   font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 500; max-width: 100%; overflow-wrap: anywhere; text-align: left;
 }
 .tag-chip:hover:not(:disabled) { background: var(--accent-tint); border-color: var(--accent); }
+
+/* XBRL Files and Facts tables: financial data as filed. Digits right-aligned
+   in the mono face, the unit always beside the value, row headers in the
+   reading face. The facts tables scroll on both axes inside their own frame,
+   with the header row and the tag column pinned. */
+.data-table .num { text-align: right; }
+:is(.xbrl-files, .xbrl-table) tbody th {
+  color: var(--text); font-family: inherit; font-size: var(--text-base); text-transform: none;
+  letter-spacing: normal; font-weight: 400; vertical-align: top; text-align: left;
+}
+.xbrl-name { display: block; font-weight: 500; }
+.xbrl-sub { display: block; margin-top: 2px; color: var(--muted); font-size: var(--text-xs); font-weight: 400; }
+.xbrl-report { display: grid; justify-items: start; gap: 2px; }
+/* Five quiet text actions per row; a missing file or a failed download is
+   stated in text on its own line beneath them. */
+.xbrl-downloads { display: flex; flex-wrap: wrap; gap: 0 var(--s-4); max-width: 17rem; }
+.xbrl-download-note { order: 1; flex-basis: 100%; font-size: var(--text-xs); }
+.xbrl-files .clickable-row[aria-current] th { background: var(--accent-tint); }
+.xbrl-files button.xbrl-name { padding: 0; text-align: left; font-weight: 500; }
+.xbrl-files .clickable-row[aria-current] button.xbrl-name { text-decoration-thickness: 2px; }
+.xbrl-files td { white-space: nowrap; }
+.xbrl-files tbody th { min-width: 9rem; }
+.xbrl-files :is(.xbrl-downloads, .xbrl-report) { white-space: normal; }
+.xbrl-nowrap, .xbrl-report a { white-space: nowrap; }
+
+.xbrl-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 0 var(--s-4); align-items: end; margin-top: var(--s-2); }
+.xbrl-filters .field-label { margin: var(--s-2) 0 0; }
+.xbrl-filter-check { margin: var(--s-2) 0 0; min-height: 38px; }
+.xbrl-field-error { display: block; margin-top: 4px; font-size: var(--text-xs); }
+.xbrl-filter-wide { grid-column: 1 / -1; }
+@media (min-width: 560px) { .xbrl-filter-wide { grid-column: span 2; } }
+.xbrl-note { margin: var(--s-4) 0 var(--s-2); }
+
+/* position: relative makes the frame the containing block of the visually
+   hidden texts in far-right cells; otherwise they escape the scroll and
+   widen the page. */
+.xbrl-table-wrap { position: relative; max-height: min(70vh, 44rem); overflow: auto; border: 1px solid var(--panel-border); }
+.xbrl-table { margin-top: 0; }
+.xbrl-table thead th { position: sticky; top: 0; z-index: 2; background: var(--panel); white-space: nowrap; box-shadow: inset 0 -1px 0 var(--panel-border); }
+.xbrl-table td { white-space: nowrap; }
+.xbrl-table td.num { padding-left: var(--s-6); }
+.xbrl-table .xbrl-unit-col, .xbrl-gap { color: var(--muted); }
+/* Collapsed borders stay behind when a sticky cell moves, so the pinned
+   column draws its own edge. */
+.xbrl-table :is(.xbrl-tag-cell, thead th:first-child) { position: sticky; left: 0; background: var(--panel); box-shadow: inset -1px 0 0 var(--panel-border); }
+.xbrl-table .xbrl-tag-cell { z-index: 1; min-width: 15rem; max-width: 24rem; }
+.xbrl-table thead th:first-child { z-index: 3; box-shadow: inset -1px -1px 0 var(--panel-border); }
+.xbrl-unit { display: inline-block; margin-left: var(--s-2); padding: 0 4px; border: 1px solid var(--panel-border); border-radius: var(--r-sm); }
+@media (max-width: 560px) { .xbrl-table .xbrl-tag-cell { min-width: 9.5rem; max-width: 11rem; } }
+
+/* A sortable header is a real button that keeps the header's mono caps. */
+.data-table button.xbrl-sort {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 0; background: none; color: inherit;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; border: none; border-radius: var(--r-sm);
+}
+.data-table button.xbrl-sort:hover:not(:disabled) { background: none; color: var(--text); }
+th[aria-sort="ascending"] .xbrl-sort, th[aria-sort="descending"] .xbrl-sort { color: var(--text); }
+.xbrl-sort-icon { flex: none; }
+.xbrl-pager > .mono { margin-right: auto; color: var(--muted); }
+.xbrl-status { margin: var(--s-2) 0 0; }
+
+/* Files on a phone: one card per company, like the run tables. */
+@media (max-width: 560px) {
+  .xbrl-files.stack-on-phone tbody th { display: flex; justify-content: space-between; gap: var(--s-3); border: none; padding: 2px 0; }
+  .xbrl-files.stack-on-phone tbody th[data-label]::before { content: attr(data-label); color: var(--muted); font-size: var(--text-sm); }
+  .xbrl-files.stack-on-phone td.num > span { text-align: right; }
+  .xbrl-downloads { justify-content: flex-end; text-align: right; }
+}
+#xbrl-facts-title { scroll-margin-top: calc(var(--topbar-h, 0px) + var(--s-4)); }

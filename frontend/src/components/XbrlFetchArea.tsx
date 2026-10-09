@@ -24,7 +24,7 @@ const msg = (err: unknown) => (err as Error).message;
 const inProgress = (m: RunManifest | null) => m?.status === "pending" || m?.status === "running";
 
 /** XBRL Facts, Fetch area: start a fetch over a universe, poll its status, retry failures. */
-export function XbrlFetchArea({ tags }: { tags: string[] }) {
+export function XbrlFetchArea({ tags, onSettled }: { tags: string[]; onSettled?: () => void }) {
   const [universe, setUniverse] = useState<{ path: string; count: number } | null>(null);
   const [mode, setMode] = useState<"all" | "selected">("all");
   const [refresh, setRefresh] = useState(false);
@@ -57,7 +57,10 @@ export function XbrlFetchArea({ tags }: { tags: string[] }) {
         setResults(r);
         setErrors(e.errors);
         setPollError(null);
-        if (!inProgress(m)) return;
+        if (!inProgress(m)) {
+          onSettled?.(); // stored files changed: the Files list reloads
+          return;
+        }
         schedule(POLL_MS);
       } catch (err) {
         if (stopped) return;
@@ -70,12 +73,13 @@ export function XbrlFetchArea({ tags }: { tags: string[] }) {
       stopped = true;
       window.clearTimeout(timer);
     };
-  }, [runId, pollKey]);
+  }, [runId, pollKey, onSettled]); // onSettled must be stable (useCallback) or polling restarts
 
   const succeeded = new Set(results.results.map((r) => r._key));
   const latestError = new Map(errors.map((e) => [e.key, e.error])); // later rows win
   const failed = [...latestError].filter(([key]) => !succeeded.has(key)).map(([key, error]) => ({ key, error }));
-  const running = inProgress(manifest) && !stalled;
+  // A started run counts as running until its first manifest arrives, so Start cannot fire twice.
+  const running = runId !== null && (manifest === null || inProgress(manifest)) && !stalled;
   const canRetry = manifest !== null && !inProgress(manifest) && manifest.failed_count > 0;
   const noTags = mode === "selected" && tags.length === 0;
 

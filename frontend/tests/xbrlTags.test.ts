@@ -5,6 +5,7 @@ import {
   formatFactValue,
   nextSort,
   periodLabel,
+  rangeLabel,
   reportText,
   secFilingUrl,
   statusText,
@@ -66,4 +67,10 @@ test("nextSort and ariaSort", () => {
   assert.equal(ariaSort({ key: "a", order: "asc" }, "a"), "ascending");
   assert.equal(ariaSort({ key: "a", order: "desc" }, "a"), "descending");
   assert.equal(ariaSort({ key: "a", order: "asc" }, "b"), "none");
+});
+
+test("rangeLabel shows the visible rows and the total", () => {
+  assert.equal(rangeLabel(20, 20, 1234), "21–40 of 1,234");
+  assert.equal(rangeLabel(0, 3, 3), "1–3 of 3");
+  assert.equal(rangeLabel(0, 0, 0), "0 of 0");
 });

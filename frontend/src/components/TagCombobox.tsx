@@ -1,11 +1,10 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { api } from "../api/client";
 import { announce } from "../lib/announce";
-import { toggleTag } from "../lib/xbrlTags";
+import { TAXONOMIES, toggleTag } from "../lib/xbrlTags";
 import type { XbrlTag } from "../types";
 
 const PAGE = 50;
-const TAXONOMIES = ["us-gaap", "ifrs-full", "dei"];
 const tagIdOf = (t: XbrlTag) => `${t.taxonomy}:${t.concept}`;
 const seenText = (n: number) =>
   n === 0 ? "not seen in any fetched company" : `used by ${n.toLocaleString()} ${n === 1 ? "company" : "companies"}`;

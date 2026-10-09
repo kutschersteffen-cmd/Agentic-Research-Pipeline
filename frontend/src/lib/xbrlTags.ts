@@ -60,3 +60,10 @@ export const nextSort = (current: SortState, key: string): SortState =>
 
 export const ariaSort = (current: SortState, key: string): "ascending" | "descending" | "none" =>
   current.key !== key ? "none" : current.order === "asc" ? "ascending" : "descending";
+
+export const TAXONOMIES = ["us-gaap", "ifrs-full", "dei"];
+
+const n = (x: number) => x.toLocaleString("en-US");
+/** A pager's visible range, e.g. "21–40 of 1,234"; "0 of 0" when empty. */
+export const rangeLabel = (offset: number, count: number, total: number): string =>
+  count ? `${n(offset + 1)}–${n(offset + count)} of ${n(total)}` : `0 of ${n(total)}`;
