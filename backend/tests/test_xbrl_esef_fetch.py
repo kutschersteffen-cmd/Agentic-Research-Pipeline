@@ -37,7 +37,7 @@ class FakeSource:
         self.filing = EsefFiling(ATTRS, JSON_BYTES, _zip(), "https://idx.example/x.zip") if filing == "default" else filing
         self.asked: list[str] = []
 
-    async def latest_filing(self, lei):
+    async def latest_filing(self, lei, known_accession=None):
         self.asked.append(lei)
         return self.filing
 
@@ -62,6 +62,7 @@ async def test_ok_stores_json_zip_facts_required_and_meta(tmp_path):
     assert len(list(d.glob("xbrl-json-*.json"))) == 1 and len(list(d.glob("package-*.zip"))) == 1
     meta = store.meta(LEI)
     assert meta["market"] == "esef" and meta["original_file"].startswith("xbrl-json-")
+    assert meta["filing"] == {"fxo_id": ATTRS["fxo_id"], "date_added": ATTRS["date_added"]}
     rows = list(store.read_facts(LEI))
     assert rows and {r.market for r in rows} == {"esef"}
     assert any(r.metric == "revenue" and r.status == "found" for r in store.read_required(LEI))
@@ -182,3 +183,43 @@ async def test_package_failure_keeps_company_ok_with_report_error(tmp_path, pack
     st = await _run(src, store)
     assert (st.status, st.report) == ("ok", "error")
     assert list(store.read_facts(LEI)) and store.report_meta(LEI) is None
+
+
+def test_pick_latest_breaks_period_ties_on_date_added_then_fxo_id():
+    a, b = _f("2023-12-31", date_added="2024-03-01", fxo_id="a"), _f("2023-12-31", date_added="2024-05-01", fxo_id="b")
+    assert pick_latest([b, a], this_year=2026) is b and pick_latest([a, b], this_year=2026) is b
+    c, d = _f("2023-12-31", date_added="2024-05-01", fxo_id="c"), _f("2023-12-31", date_added="2024-05-01", fxo_id="d")
+    assert pick_latest([d, c], this_year=2026) is d and pick_latest([c, d], this_year=2026) is d
+
+
+def _index_handler(package, seen=None):
+    def handler(req):
+        p = req.url.path
+        if seen is not None:
+            seen.append(p)
+        if p.endswith("/filings"):
+            return httpx.Response(200, json={"data": [{"id": "1", "attributes": {
+                "fxo_id": ATTRS["fxo_id"], "date_added": ATTRS["date_added"], "period_end": "2022-12-31",
+                "json_url": "/a/x.json", "package_url": "/a/x.zip"}}]})
+        return httpx.Response(200, content=JSON_BYTES) if p.endswith(".json") else package
+    return handler
+
+
+async def test_package_that_is_not_a_zip_is_report_error(tmp_path):
+    src = IndexEsefSource("https://8.8.8.8", client=_client(_index_handler(
+        httpx.Response(200, content=b"<html>Service unavailable</html>"))))
+    store = XbrlStore(tmp_path)
+    st = await _run(src, store)
+    assert (st.status, st.report) == ("ok", "error")
+    assert store.report_meta(LEI) is None and not list(store.company_dir(LEI).glob("package-*"))
+
+
+async def test_unchanged_package_is_not_downloaded_again(tmp_path):
+    seen: list[str] = []
+    src = IndexEsefSource("https://8.8.8.8", client=_client(_index_handler(httpx.Response(200, content=_zip()), seen)))
+    store = XbrlStore(tmp_path)
+    assert (await _run(src, store)).report == "stored"
+    seen.clear()
+    st = await _run(src, store)
+    assert (st.status, st.report) == ("unchanged", "unchanged")
+    assert not [p for p in seen if p.endswith(".zip")]

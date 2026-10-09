@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import io
 import json
 import logging
 import re
+import zipfile
 from dataclasses import dataclass
 from datetime import date
 from typing import Protocol
@@ -37,7 +39,7 @@ class EsefFiling:
 
 
 class EsefSource(Protocol):
-    async def latest_filing(self, lei: str) -> EsefFiling | None: ...
+    async def latest_filing(self, lei: str, known_accession: str | None = None) -> EsefFiling | None: ...
 
 
 def normalise_lei(value: str | None) -> str | None:
@@ -46,13 +48,14 @@ def normalise_lei(value: str | None) -> str | None:
 
 
 def pick_latest(filings: list[dict], *, this_year: int) -> dict | None:
-    """Latest by period_end among records with both downloads; implausible years (the index has some) are ignored."""
+    """Latest by period_end among records with both downloads; implausible years (the index has some) are ignored.
+    Re-submissions for one period: the latest date_added wins, then fxo_id."""
     def plausible(f: dict) -> bool:
         year = (f.get("period_end") or "")[:4]
         return year.isdigit() and 2015 <= int(year) <= this_year + 1
 
     ok = [f for f in filings if f.get("json_url") and f.get("package_url") and plausible(f)]
-    return max(ok, key=lambda f: f["period_end"], default=None)
+    return max(ok, key=lambda f: (f["period_end"], f.get("date_added") or "", f.get("fxo_id") or ""), default=None)
 
 
 class IndexEsefSource:
@@ -60,15 +63,15 @@ class IndexEsefSource:
                  max_bytes: int = MAX_PACKAGE_BYTES) -> None:
         self._index_url, self._client, self._max_bytes = index_url.rstrip("/"), client, max_bytes
 
-    async def latest_filing(self, lei: str) -> EsefFiling | None:
+    async def latest_filing(self, lei: str, known_accession: str | None = None) -> EsefFiling | None:
         if self._client is not None:
-            return await self._latest(self._client, lei)
+            return await self._latest(self._client, lei, known_accession)
         async with httpx.AsyncClient(
             timeout=60.0, follow_redirects=True, event_hooks={"request": [ssrf_guard_request_hook]}
         ) as client:
-            return await self._latest(client, lei)
+            return await self._latest(client, lei, known_accession)
 
-    async def _latest(self, client: httpx.AsyncClient, lei: str) -> EsefFiling | None:
+    async def _latest(self, client: httpx.AsyncClient, lei: str, known_accession: str | None) -> EsefFiling | None:
         listed = await with_retry(lambda: list_esef_filings(client, self._index_url, lei))
         latest = pick_latest(listed, this_year=date.today().year)
         if latest is None:
@@ -76,6 +79,8 @@ class IndexEsefSource:
         base = self._index_url + "/"
         json_url, package_url = urljoin(base, latest["json_url"]), urljoin(base, latest["package_url"])
         facts = await with_retry(lambda: download_capped(client, json_url, self._max_bytes))
+        if known_accession is not None and latest.get("fxo_id") == known_accession:
+            return EsefFiling(latest, facts, b"", package_url)  # package already stored: not downloaded again
         try:
             package = await with_retry(lambda: download_capped(client, package_url, self._max_bytes))
         except Exception as exc:  # noqa: BLE001 -- a package problem never changes the company's status
@@ -87,12 +92,15 @@ class IndexEsefSource:
 def _store_report(lei: str, filing: EsefFiling, store: XbrlStore) -> str:
     if filing.package_error:
         return "error"
-    if not filing.package:
-        return "none"
     a = filing.attributes
     known = store.report_meta(lei)
-    if known and known.accession == a["fxo_id"]:
+    if known and known.accession == a.get("fxo_id"):
         return "unchanged"
+    if not filing.package:
+        return "none"
+    if not zipfile.is_zipfile(io.BytesIO(filing.package)):
+        logger.warning("ESEF package %s for %s is not a zip, not stored", filing.package_url, lei)
+        return "error"
     sha = hashlib.sha256(filing.package).hexdigest()
     store.save_report(lei, filing.package, ReportMeta(
         accession=a["fxo_id"], form="ESEF", filing_date=(a.get("date_added") or "")[:10] or None,
@@ -111,7 +119,9 @@ async def fetch_company_esef(
     lei = normalise_lei(company.lei)
     if lei is None:
         return status("no_lei")
-    filing = await source.latest_filing(lei)  # the source retries its own downloads
+    known = store.report_meta(lei)
+    # the source retries its own downloads, and skips the package when known_accession is still the latest
+    filing = await source.latest_filing(lei, known_accession=known.accession if known else None)
     await sleep(FETCH_DELAY_SECONDS)
     if filing is None:
         return status("not_found", lei)
@@ -129,7 +139,9 @@ async def fetch_company_esef(
         store.write_required(lei, resolve_required_esef(rows, company_id=company.company_id, lei=lei))
         store.set_meta(lei, source_sha=sha, tags=tag_list, company_id=company.company_id, company_name=company.name,
                        fact_count=count, market="esef", original_file=f"xbrl-json-{sha[:16]}.json",
-                       skipped_dimensional=skipped)
+                       skipped_dimensional=skipped,
+                       filing={"fxo_id": filing.attributes.get("fxo_id"),
+                               "date_added": filing.attributes.get("date_added")})
         result = "ok"
     try:
         report = _store_report(lei, filing, store)

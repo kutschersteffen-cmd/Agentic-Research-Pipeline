@@ -301,3 +301,12 @@ async def test_execute_run_dispatches_esef(tmp_path):
                            market="esef", source=EsefFake())
     rows = {r["company_id"]: r for r in map(json.loads, run_store.results_path(run_id).read_text().splitlines())}
     assert (rows["A"]["status"], rows["B"]["status"]) == ("ok", "no_lei")
+
+
+@pytest.mark.parametrize("accession", ["../../evil", "0001-23\\x"])
+async def test_unsafe_accession_gives_report_error_and_writes_nothing(tmp_path, accession):
+    store = XbrlStore(tmp_path)
+    st = await _fetch(FakeSource(annual=_annual(accession=accession)), store)
+    assert (st.status, st.report) == ("ok", "error")
+    assert store.report_meta(CIK10) is None
+    assert not list(tmp_path.rglob("annual-*")) and not list(tmp_path.parent.glob("evil*"))
