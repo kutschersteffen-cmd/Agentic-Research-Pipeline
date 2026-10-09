@@ -8,9 +8,9 @@ import type { RunManifest, XbrlCompanyStatus } from "../types";
 type ResultRow = XbrlCompanyStatus & { _key: string };
 type ErrorRow = { key: string; error: string };
 type Saved = { name: string; tags: string[]; created_at?: string };
-type Retry = { keys: string[]; errorsBefore: number; updatedBefore: string };
 
 const POLL_MS = 2500;
+const POLL_CAP_MS = 20 * 60 * 1000; // stop polling a run that never finishes; "Check again" resumes
 // ponytail: the status table reads the first 500 results (the API's page cap); page it if runs grow past that.
 const RESULT_LIMIT = 500;
 const RUN_LABEL: Record<string, string> = {
@@ -40,15 +40,7 @@ export function XbrlFacts() {
   );
 }
 
-/** A retry re-runs the failed companies inside the same run, and the backend leaves the run's status
- * as it was, so the retry is finished once each retried company has a new result or a new error. */
-function isFinished(m: RunManifest, results: ResultRow[], errors: ErrorRow[], retry: Retry | null): boolean {
-  if (m.status === "pending" || m.status === "running") return false;
-  if (!retry) return true;
-  if (m.status === "failed" && m.updated_at !== retry.updatedBefore) return true;
-  const done = new Set([...results.map((r) => r._key), ...errors.slice(retry.errorsBefore).map((e) => e.key)]);
-  return retry.keys.every((k) => done.has(k));
-}
+const inProgress = (m: RunManifest | null) => m?.status === "pending" || m?.status === "running";
 
 function FetchArea({ tags }: { tags: string[] }) {
   const [universe, setUniverse] = useState<{ path: string; count: number } | null>(null);
@@ -58,7 +50,8 @@ function FetchArea({ tags }: { tags: string[] }) {
   const [manifest, setManifest] = useState<RunManifest | null>(null);
   const [results, setResults] = useState<{ total: number; results: ResultRow[] }>({ total: 0, results: [] });
   const [errors, setErrors] = useState<ErrorRow[]>([]);
-  const [retry, setRetry] = useState<Retry | null>(null);
+  const [pollKey, setPollKey] = useState(0); // bumped to (re)start polling: new run, retry, "Check again"
+  const [stalled, setStalled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pollError, setPollError] = useState<string | null>(null);
@@ -67,6 +60,9 @@ function FetchArea({ tags }: { tags: string[] }) {
     if (!runId) return;
     let stopped = false;
     let timer: number | undefined;
+    const until = Date.now() + POLL_CAP_MS;
+    setStalled(false);
+    const schedule = (ms: number) => (Date.now() < until ? (timer = window.setTimeout(tick, ms)) : setStalled(true));
     const tick = async () => {
       try {
         const [m, r, e] = await Promise.all([
@@ -79,12 +75,12 @@ function FetchArea({ tags }: { tags: string[] }) {
         setResults(r);
         setErrors(e.errors);
         setPollError(null);
-        if (!isFinished(m, r.results, e.errors, retry)) timer = window.setTimeout(tick, POLL_MS);
-        else if (retry) setRetry(null);
+        if (!inProgress(m)) return;
+        schedule(POLL_MS);
       } catch (err) {
         if (stopped) return;
         setPollError(msg(err)); // keep trying, slower, in case the backend comes back
-        timer = window.setTimeout(tick, POLL_MS * 4);
+        schedule(POLL_MS * 4);
       }
     };
     tick();
@@ -92,13 +88,13 @@ function FetchArea({ tags }: { tags: string[] }) {
       stopped = true;
       window.clearTimeout(timer);
     };
-  }, [runId, retry]);
+  }, [runId, pollKey]);
 
   const succeeded = new Set(results.results.map((r) => r._key));
   const latestError = new Map(errors.map((e) => [e.key, e.error])); // later rows win
   const failed = [...latestError].filter(([key]) => !succeeded.has(key)).map(([key, error]) => ({ key, error }));
-  const finished = manifest !== null && isFinished(manifest, results.results, errors, retry);
-  const canRetry = finished && (failed.length > 0 || manifest?.status === "failed");
+  const running = inProgress(manifest) && !stalled;
+  const canRetry = manifest !== null && !inProgress(manifest) && manifest.failed_count > 0;
   const noTags = mode === "selected" && tags.length === 0;
 
   async function start() {
@@ -106,16 +102,11 @@ function FetchArea({ tags }: { tags: string[] }) {
     setBusy(true);
     setError(null);
     try {
-      const res = await api.startXbrlRun({
-        universe_path: universe.path,
-        tags: mode === "selected" ? tags : undefined,
-        refresh,
-      });
+      const res = await api.startXbrlRun({ universe_path: universe.path, tags: mode === "selected" ? tags : undefined, refresh });
       setManifest(null);
       setResults({ total: 0, results: [] });
       setErrors([]);
-      setRetry(null);
-      setRunId(res.run_id);
+      setRunId(res.run_id); // a new run id (re)starts polling
     } catch (err) {
       setError(`Could not start the fetch (${msg(err)}).`);
     } finally {
@@ -129,7 +120,9 @@ function FetchArea({ tags }: { tags: string[] }) {
     setError(null);
     try {
       await api.retryXbrlRun(runId);
-      setRetry({ keys: failed.map((f) => f.key), errorsBefore: errors.length, updatedBefore: manifest.updated_at });
+      // The server marks the run running before it answers; show that until the next poll confirms it.
+      setManifest({ ...manifest, status: "running" });
+      setPollKey((k) => k + 1);
     } catch (err) {
       setError(`Could not retry (${msg(err)}).`);
     } finally {
@@ -158,7 +151,7 @@ function FetchArea({ tags }: { tags: string[] }) {
       </label>
       {noTags && <p className="help-text">Choose at least one tag in the Tags section, or fetch all tags.</p>}
       {!universe && <p className="help-text">Upload or pick a company universe to start.</p>}
-      <button onClick={start} disabled={busy || !universe || noTags || (!finished && runId !== null && !pollError)}>
+      <button onClick={start} disabled={busy || !universe || noTags || (running && !pollError)}>
         Start fetch{universe ? ` for ${universe.count.toLocaleString()} companies` : ""}
       </button>
       <div aria-live="polite">{error && <p className="error-text">{error}</p>}</div>
@@ -167,17 +160,25 @@ function FetchArea({ tags }: { tags: string[] }) {
         <div className="xbrl-run">
           <p className="toolbar" aria-live="polite">
             <span className={`status-pill status-${manifest?.status ?? "pending"}`}>
-              {retry ? "Retrying failed companies" : RUN_LABEL[manifest?.status ?? "pending"] ?? manifest?.status}
+              {RUN_LABEL[manifest?.status ?? "pending"] ?? manifest?.status}
             </span>
             {manifest && (
               <span className="muted">
-                {results.total.toLocaleString()} of {manifest.company_count.toLocaleString()} companies fetched,{" "}
-                {failed.length.toLocaleString()} failed
+                {manifest.completed_count.toLocaleString()} of {manifest.company_count.toLocaleString()} companies fetched,{" "}
+                {manifest.failed_count.toLocaleString()} failed
               </span>
             )}
             <span className="muted mono">{runId}</span>
           </p>
           {pollError && <p className="error-text">Run status could not be loaded ({pollError}). Trying again.</p>}
+          {stalled && (
+            <p className="error-text">
+              Still running after {POLL_CAP_MS / 60000} minutes, so this page stopped checking; the run may still be going.{" "}
+              <button className="link-button" onClick={() => setPollKey((k) => k + 1)}>
+                Check again
+              </button>
+            </p>
+          )}
           {manifest?.error && <p className="error-text">The run stopped: {manifest.error}</p>}
           <div className="table-wrap">
             <table className="data-table stack-on-phone">
@@ -193,7 +194,7 @@ function FetchArea({ tags }: { tags: string[] }) {
                 {results.results.length + failed.length === 0 && (
                   <tr>
                     <td colSpan={4} className="muted">
-                      {finished ? "No companies were processed." : "Waiting for the first company…"}
+                      {inProgress(manifest) ? "Waiting for the first company…" : "No companies were processed."}
                     </td>
                   </tr>
                 )}
