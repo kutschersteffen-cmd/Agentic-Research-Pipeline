@@ -259,7 +259,9 @@ export function XbrlFactsTable({ cik }: { cik: string }) {
                       <td className="mono">{f.form}</td>
                       <td className="mono">{f.filed ?? "–"}</td>
                       <td className="mono">
-                        {f.accession ? (
+                        {f.accession && f.market === "esef" ? (
+                          f.accession
+                        ) : f.accession ? (
                           <a href={secFilingUrl(f.cik, f.accession)} target="_blank" rel="noopener noreferrer">
                             {f.accession}
                             <span className="visually-hidden"> (filing on SEC.gov, opens in a new tab)</span>
