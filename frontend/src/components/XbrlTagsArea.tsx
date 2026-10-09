@@ -12,6 +12,7 @@ export function XbrlTagsArea({ tags, onChange }: { tags: string[]; onChange: (ne
   const [name, setName] = useState("");
   const [saved, setSaved] = useState<Saved[] | null>(null);
   const [savedError, setSavedError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [registry, setRegistry] = useState<{ busy: boolean; ok: boolean; text: string } | null>(null);
 
@@ -30,6 +31,7 @@ export function XbrlTagsArea({ tags, onChange }: { tags: string[]; onChange: (ne
   async function save(e: React.FormEvent) {
     e.preventDefault();
     setSaveStatus(null);
+    setSaving(true);
     try {
       const res = await api.saveXbrlSelection(name.trim(), tags);
       setSaveStatus({ ok: true, text: `Saved “${res.name}”: ${tagCount(res.tags.length)}, ${res.row_count.toLocaleString()} facts from stored companies.` });
@@ -37,6 +39,8 @@ export function XbrlTagsArea({ tags, onChange }: { tags: string[]; onChange: (ne
       loadSaved();
     } catch (err) {
       setSaveStatus({ ok: false, text: `Could not save the selection (${msg(err)}).` });
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -67,15 +71,17 @@ export function XbrlTagsArea({ tags, onChange }: { tags: string[]; onChange: (ne
           onChange={(e) => setName(e.target.value)}
           aria-describedby="xbrl-selection-hint"
         />
-        <button type="submit" disabled={!name.trim() || tags.length === 0}>
-          Save as selection
+        <button type="submit" disabled={saving || !name.trim() || tags.length === 0}>
+          {saving ? "Saving…" : "Save as selection"}
         </button>
       </form>
       <p className="help-text" id="xbrl-selection-hint">
         Letters, digits, dot, underscore and hyphen, starting with a letter or digit, e.g. revenue-core. Saving cuts these
-        tags out of every stored company.
+        tags out of every stored company. Saving reads every stored company file and can take a few minutes for large lists.
       </p>
-      <div aria-live="polite">{saveStatus && <p className={saveStatus.ok ? "status-text" : "error-text"}>{saveStatus.text}</p>}</div>
+      <div aria-live="polite">
+        {saving && <p className="status-text">Saving… this reads every stored company file.</p>}
+        {saveStatus && <p className={saveStatus.ok ? "status-text" : "error-text"}>{saveStatus.text}</p>}</div>
 
       <h3>Saved selections</h3>
       {savedError && <p className="error-text">Saved selections could not be loaded ({savedError}).</p>}
