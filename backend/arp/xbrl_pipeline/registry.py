@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 from collections import Counter
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 import httpx
 
@@ -54,6 +55,8 @@ TAXONOMY_SOURCES: dict[str, TaxonomySource] = {
     ),
 }
 
+# companyfacts also carries srt and invest, SEC-standard taxonomies without a snapshot here.
+STANDARD_PREFIXES = frozenset(TAXONOMY_SOURCES) | {"srt", "invest"}
 
 MAX_TAXONOMY_BYTES = 64 * 1024 * 1024
 _ENTITY_FORMS = tuple("<!ENTITY".encode(enc) for enc in ("utf-8", "utf-16-le", "utf-16-be"))
@@ -106,6 +109,17 @@ def parse_taxonomy(xsd: bytes, labels: bytes | Sequence[bytes], *, taxonomy: str
     ]
 
 
+# Derived search rows per store root, valid while every catalogue and snapshot file keeps its identity.
+_ROWS_CACHE: dict[Path, tuple[tuple, list[dict]]] = {}
+
+
+def _stat(path: Path):
+    try:
+        return path.stat()
+    except OSError:
+        return None
+
+
 class TaxonomyRegistry:
     def __init__(self, store: XbrlStore) -> None:
         self.store = store
@@ -114,35 +128,47 @@ class TaxonomyRegistry:
         lines = "".join(e.model_dump_json() + "\n" for e in entries)
         atomic_write_text(self.store.taxonomy_dir / f"{taxonomy}-{year}.jsonl", lines)
 
-    def _latest_snapshots(self) -> list[dict]:
-        latest: dict[str, tuple[int, object]] = {}
+    def _latest_snapshot_paths(self) -> list[Path]:
+        latest: dict[str, tuple[int, Path]] = {}
         for p in self.store.taxonomy_dir.glob("*.jsonl") if self.store.taxonomy_dir.exists() else []:
             m = _SNAPSHOT.match(p.stem)
             if m and int(m["year"]) > latest.get(m["tax"], (-1, p))[0]:
                 latest[m["tax"]] = (int(m["year"]), p)
-        return [r for _, p in latest.values() for r in read_jsonl(p)]  # type: ignore[arg-type]
+        return [p for _, p in latest.values()]
 
-    def search(self, q: str = "", *, taxonomy: str | None = None, seen_only: bool = False,
-               extension_only: bool = False, include_deprecated: bool = True, offset: int = 0,
-               limit: int = 50) -> tuple[list[TagEntry], int]:
-        # ponytail: seen counts scan every catalogue per search, memoise on directory mtime if slow
+    def _rows(self) -> list[dict]:
+        ciks, snapshots = self.store.ciks(), self._latest_snapshot_paths()
+        files = [self.store.company_dir(c) / "catalog.jsonl" for c in ciks] + snapshots
+        key = tuple((str(p), *((st.st_mtime_ns, st.st_size) if (st := _stat(p)) else (0, 0))) for p in files)
+        root = self.store.root.resolve()
+        cached = _ROWS_CACHE.get(root)
+        if cached and cached[0] == key:
+            return cached[1]
+
         seen: Counter[str] = Counter()
         cat_labels: dict[str, str | None] = {}
-        for cik in self.store.ciks():
+        for cik in ciks:
             ids = set()
             for c in self.store.read_catalog(cik):
                 ids.add(f"{c.taxonomy}:{c.concept}")
                 cat_labels.setdefault(f"{c.taxonomy}:{c.concept}", c.label)
             seen.update(ids)
 
-        rows = self._latest_snapshots()
+        rows = [r for p in snapshots for r in read_jsonl(p)]
         known = {f"{r['taxonomy']}:{r['concept']}" for r in rows}
         rows += [{"taxonomy": t, "concept": c, "label": cat_labels[i], "data_type": None, "period_type": None,
                  "balance": None, "documentation": None,
-                 "extension": i.partition(":")[0] not in TAXONOMY_SOURCES}
+                 "extension": i.partition(":")[0] not in STANDARD_PREFIXES}
                  for i in seen if i not in known for t, _, c in [i.partition(":")]]
         for r in rows:
             r["seen_count"] = seen[f"{r['taxonomy']}:{r['concept']}"]
+        _ROWS_CACHE[root] = (key, rows)
+        return rows
+
+    def search(self, q: str = "", *, taxonomy: str | None = None, seen_only: bool = False,
+               extension_only: bool = False, include_deprecated: bool = True, offset: int = 0,
+               limit: int = 50) -> tuple[list[TagEntry], int]:
+        rows = self._rows()
 
         needle = q.strip().lower()
         hits = [
@@ -180,7 +206,12 @@ async def update_taxonomies(
 
 async def http_fetch(url: str, *, user_agent: str) -> bytes:
     # sec.gov rejects requests without a descriptive User-Agent.
-    async with httpx.AsyncClient(follow_redirects=True, timeout=60.0, headers={"User-Agent": user_agent}) as client:
-        response = await client.get(url)
+    client = httpx.AsyncClient(follow_redirects=True, timeout=60.0, headers={"User-Agent": user_agent})
+    async with client, client.stream("GET", url) as response:
         response.raise_for_status()
-        return response.content
+        body = bytearray()
+        async for chunk in response.aiter_bytes():
+            body += chunk
+            if len(body) > MAX_TAXONOMY_BYTES:
+                raise ValueError(f"{url}: response larger than {MAX_TAXONOMY_BYTES} bytes")
+        return bytes(body)

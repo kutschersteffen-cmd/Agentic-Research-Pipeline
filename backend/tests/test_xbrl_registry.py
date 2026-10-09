@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from arp.xbrl_pipeline.models import CatalogEntry
+from arp.xbrl_pipeline.models import CatalogEntry, TagEntry
 from arp.xbrl_pipeline.registry import TAXONOMY_SOURCES, TaxonomyRegistry, parse_taxonomy, update_taxonomies
 from arp.xbrl_pipeline.store import XbrlStore
 
@@ -187,3 +187,66 @@ def test_http_fetch_raises_on_non_2xx(monkeypatch):
                         lambda **kw: real(transport=httpx.MockTransport(lambda r: httpx.Response(404)), **kw))
     with pytest.raises(httpx.HTTPStatusError):
         asyncio.run(registry.http_fetch("http://x/missing", user_agent="Me"))
+
+
+def test_srt_and_invest_are_standard_prefixes(tmp_path):
+    reg = _bare(tmp_path, ["srt:Foo", "invest:Bar", "xyz:Custom"])
+    assert {e.tag_id: e.extension for e in reg.search()[0]} == {
+        "srt:Foo": False, "invest:Bar": False, "xyz:Custom": True}
+
+
+def _count_catalog_reads(monkeypatch, store):
+    reads = []
+    real = store.read_catalog
+    monkeypatch.setattr(store, "read_catalog", lambda cik: reads.append(cik) or real(cik))
+    return reads
+
+
+def test_second_search_does_not_reread_catalogues(tmp_path, monkeypatch):
+    store, reg = _registry(tmp_path, catalogues=[["us-gaap:Revenues"], ["us-gaap:Assets"]])
+    reads = _count_catalog_reads(monkeypatch, store)
+    first = reg.search("rev")
+    assert len(reads) == 2
+    assert TaxonomyRegistry(XbrlStore(tmp_path)).search("rev") == first  # a per-request registry shares the cache
+    assert reg.search("rev") == first and len(reads) == 2
+
+
+def test_changed_catalogue_invalidates(tmp_path, monkeypatch):
+    store, reg = _registry(tmp_path, catalogues=[["us-gaap:Revenues"]])
+    assert reg.search("revenues")[0][0].seen_count == 1
+    store.set_meta("0000000099", source_sha="s", tags=None, company_id="new", company_name=None, fact_count=1)
+    store.write_catalog("0000000099", [_cat("us-gaap", "Revenues")])
+    assert reg.search("revenues")[0][0].seen_count == 2
+    store.write_catalog("0000000099", [_cat("us-gaap", "Assets"), _cat("us-gaap", "Liabilities")])
+    assert reg.search("revenues")[0][0].seen_count == 1
+
+
+def test_new_snapshot_invalidates(tmp_path):
+    store, reg = _registry(tmp_path)
+    assert reg.search("zzz")[1] == 0
+    reg.write_snapshot("dei", 2026, [TagEntry(taxonomy="dei", concept="ZzzConcept", label=None, data_type=None,
+                                              period_type=None, balance=None, documentation=None)])
+    assert [e.tag_id for e in reg.search("zzz")[0]] == ["dei:ZzzConcept"]
+
+
+def test_cached_results_equal_uncached(tmp_path):
+    from arp.xbrl_pipeline import registry
+
+    _, reg = _registry(tmp_path, catalogues=[["us-gaap:Revenues", "xyz:Custom"], ["us-gaap:Revenues"]])
+    registry._ROWS_CACHE.clear()
+    cold = [reg.search(q, seen_only=s) for q in ("", "rev") for s in (False, True)]
+    warm = [reg.search(q, seen_only=s) for q in ("", "rev") for s in (False, True)]
+    assert warm == cold
+
+
+def test_http_fetch_stops_at_the_size_cap(monkeypatch):
+    import httpx
+
+    from arp.xbrl_pipeline import registry
+
+    monkeypatch.setattr(registry, "MAX_TAXONOMY_BYTES", 10)
+    real = httpx.AsyncClient
+    monkeypatch.setattr(registry.httpx, "AsyncClient", lambda **kw: real(
+        transport=httpx.MockTransport(lambda r: httpx.Response(200, content=b"x" * 11)), **kw))
+    with pytest.raises(ValueError, match="larger than 10 bytes"):
+        asyncio.run(registry.http_fetch("http://x/big", user_agent="Me"))

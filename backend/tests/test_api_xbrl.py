@@ -396,3 +396,11 @@ def test_verify_tolerance_is_bounded(env, tolerance):
     client, *_ = env
     r = client.post("/api/xbrl/verify", json={"run_id": "x", "mapping": {"revenue": "f"}, "tolerance": tolerance})
     assert r.status_code == 422
+
+
+def test_cors_exposes_content_disposition_for_downloads():
+    from arp.api.main import app
+
+    r = TestClient(app).get("/api/xbrl/tags", headers={"Origin": "http://localhost:5173"})
+    assert r.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert "Content-Disposition" in r.headers["access-control-expose-headers"]

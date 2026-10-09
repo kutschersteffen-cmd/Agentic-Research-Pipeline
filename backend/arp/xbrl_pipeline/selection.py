@@ -11,7 +11,6 @@ from arp.xbrl_pipeline.flatten import flatten_company_facts
 from arp.xbrl_pipeline.models import FactRow
 from arp.xbrl_pipeline.store import XbrlStore
 
-
 _TAG_ID = re.compile(r"^[\w.-]+:[\w.-]+$")
 
 
