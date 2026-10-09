@@ -5,6 +5,7 @@ from collections import Counter
 from functools import partial
 from pathlib import Path
 
+import httpx
 import typer
 
 from arp.cli._shared import _run_store
@@ -14,7 +15,7 @@ from arp.xbrl_pipeline.fetch import build_source, create_xbrl_run, execute_xbrl_
 from arp.xbrl_pipeline.registry import TAXONOMY_SOURCES, TaxonomyRegistry, http_fetch, update_taxonomies
 from arp.xbrl_pipeline.selection import cut_selection
 from arp.xbrl_pipeline.store import XbrlStore
-from arp.xbrl_pipeline.verify import CircularRunError, verify_run
+from arp.xbrl_pipeline.verify import CircularRunError, assert_xbrl_off, verify_run
 
 xbrl_app = typer.Typer(help="XBRL fact pipeline: fetch SEC company facts, browse tags, cut selections, verify runs.")
 taxonomy_app = typer.Typer(help="Official XBRL taxonomy registry.")
@@ -56,8 +57,11 @@ def taxonomy_update() -> None:
     fetcher = partial(http_fetch, user_agent=get_settings().edgar_user_agent)
     try:
         written = asyncio.run(update_taxonomies(_store(), fetch=fetcher))
-    except ValueError as exc:
-        typer.echo(str(exc), err=True)
+    except httpx.HTTPStatusError as exc:
+        typer.echo(f"taxonomy download failed: HTTP {exc.response.status_code} for {exc.request.url}", err=True)
+        raise typer.Exit(1) from exc
+    except (httpx.HTTPError, ValueError) as exc:
+        typer.echo(f"taxonomy update failed: {exc}", err=True)
         raise typer.Exit(1) from exc
     for name in TAXONOMY_SOURCES:
         if name in written:
@@ -107,6 +111,12 @@ def verify(
     map_: list[str] = typer.Option([], "--map", help="metric=field_id, e.g. revenue=revenue_total; repeatable."),
     tolerance: float = typer.Option(0.005, help="Relative tolerance for a match."),
 ) -> None:
+    run_store = _run_store()
+    try:
+        assert_xbrl_off(run_id, run_store=run_store)  # the guard always reports first
+    except ValueError as exc:  # CircularRunError, or a malformed step_settings.json
+        typer.echo(f"{exc}" if isinstance(exc, CircularRunError) else f"{run_id}: cannot verify: {exc}", err=True)
+        raise typer.Exit(1) from exc
     if not map_:
         typer.echo("pass at least one --map metric=field (e.g. --map revenue=revenue_total)", err=True)
         raise typer.Exit(2)
@@ -117,10 +127,6 @@ def verify(
             typer.echo(f"--map must look like metric=field, got {item!r}", err=True)
             raise typer.Exit(2)
         mapping[metric.strip()] = field_id.strip()
-    try:
-        rows = verify_run(run_id, run_store=_run_store(), store=_store(), mapping=mapping, tolerance=tolerance)
-    except ValueError as exc:  # CircularRunError, or a malformed step_settings.json
-        typer.echo(f"{exc}" if isinstance(exc, CircularRunError) else f"{run_id}: cannot verify: {exc}", err=True)
-        raise typer.Exit(1) from exc
+    rows = verify_run(run_id, run_store=run_store, store=_store(), mapping=mapping, tolerance=tolerance)
     counts = Counter(r.outcome for r in rows)
     typer.echo(f"{len(rows)} comparison(s): " + "  ".join(f"{k}={v}" for k, v in sorted(counts.items())))

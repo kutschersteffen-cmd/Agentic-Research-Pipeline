@@ -13,13 +13,17 @@ class CircularRunError(ValueError):
     """The run may have copied XBRL values, so comparing against XBRL proves nothing."""
 
 
-def verify_run(run_id: str, *, run_store: RunStore, store: XbrlStore, mapping: dict[str, str],
-               tolerance: float = 0.005) -> list[VerifyRow]:
+def assert_xbrl_off(run_id: str, *, run_store: RunStore) -> None:
     settings_path = run_store.run_dir(run_id) / "step_settings.json"
     if not settings_path.exists():
         raise CircularRunError(f"{run_id}: step_settings.json is missing, cannot prove XBRL was off")
     if json.loads(settings_path.read_text(encoding="utf-8")).get("xbrl_facts_enabled"):
         raise CircularRunError(f"{run_id}: ran with xbrl_facts_enabled, its values are copied from XBRL")
+
+
+def verify_run(run_id: str, *, run_store: RunStore, store: XbrlStore, mapping: dict[str, str],
+               tolerance: float = 0.005) -> list[VerifyRow]:
+    assert_xbrl_off(run_id, run_store=run_store)
 
     # ponytail: linear scan, index by company above ~10k companies
     xbrl = {(r.company_id, r.metric, r.fiscal_year): r

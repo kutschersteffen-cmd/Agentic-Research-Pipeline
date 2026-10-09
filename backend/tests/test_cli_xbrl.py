@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+import httpx
 import pytest
 from typer.testing import CliRunner
 
@@ -89,13 +90,22 @@ def test_verify_reports_malformed_step_settings(env):
     assert result.exit_code == 1 and "r1" in result.stderr and "Traceback" not in result.output
 
 
-def test_verify_requires_a_map(env):
+def test_verify_circular_run_without_map_reports_guard_first(env):
+    _verify_setup(env, xbrl_facts_enabled=True)
+    result = _invoke("verify", "r1")
+    assert result.exit_code == 1
+    assert "r1: ran with xbrl_facts_enabled, its values are copied from XBRL" in result.stderr
+
+
+def test_verify_clean_run_requires_a_map(env):
+    _verify_setup(env, xbrl_facts_enabled=False)
     result = _invoke("verify", "r1")
     assert result.exit_code == 2
     assert "pass at least one --map metric=field" in result.output
 
 
 def test_verify_rejects_malformed_map(env):
+    _verify_setup(env, xbrl_facts_enabled=False)
     result = _invoke("verify", "r1", "--map", "revenue")
     assert result.exit_code == 2
     assert "--map must look like metric=field" in result.output
@@ -130,3 +140,18 @@ def test_taxonomy_update_uses_http_fetch_with_user_agent(env, monkeypatch):
     assert result.exit_code == 0, result.output
     assert "us-gaap: 4 tag(s)" in result.stdout
     assert callable(calls["fetch"])
+
+
+@pytest.mark.parametrize("exc, fragment", [
+    (httpx.HTTPStatusError("x", request=httpx.Request("GET", "http://sec/x.xsd"), response=httpx.Response(403)),
+     "HTTP 403 for http://sec/x.xsd"),
+    (httpx.ConnectError("no route"), "taxonomy update failed: no route"),
+])
+def test_taxonomy_update_reports_http_errors_without_traceback(env, monkeypatch, exc, fragment):
+    async def failing(store, *, fetch, taxonomies=None):
+        raise exc
+
+    monkeypatch.setattr("arp.cli.xbrl.update_taxonomies", failing)
+    result = _invoke("taxonomy", "update")
+    assert result.exit_code == 1
+    assert fragment in result.stderr and "Traceback" not in result.output
