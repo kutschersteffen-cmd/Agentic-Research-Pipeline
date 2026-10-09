@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
@@ -12,6 +13,8 @@ from arp.api import deps
 from arp.api.auth import current_user
 from arp.api.routers import xbrl as xbrl_router
 from arp.config import Settings
+from arp.orchestration.job_manager import JobManager
+from arp.orchestration.jobs import run_lease
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import ExtractedField, ExtractionRecord
 from arp.storage.run_store import RunStore
@@ -259,3 +262,57 @@ def test_verify_returns_rows(env):
     assert r.status_code == 200
     assert [(x["outcome"], x["run_value"], x["xbrl_value"]) for x in r.json()] == [("match", 1004.0, 1000.0)]
     assert client.post("/api/xbrl/verify", json={"run_id": "nope", "mapping": {}}).status_code == 404
+
+
+@pytest.mark.parametrize("route", ["start", "retry"])
+def test_background_failure_is_logged_marks_run_failed_and_releases_task(env, monkeypatch, caplog, route):
+    client, _, _, runs = env
+
+    async def boom(run_id, companies, **kw):
+        raise RuntimeError("source exploded")
+
+    monkeypatch.setattr(xbrl_router, "execute_xbrl_run", boom)
+    with caplog.at_level("ERROR", logger=xbrl_router.logger.name), client:
+        if route == "start":
+            run_id = client.post("/api/xbrl/runs", json={"companies": [CO.model_dump()]}).json()["run_id"]
+        else:
+            run_id = create_xbrl_run([CO], None, False, runs)
+            assert client.post(f"/api/xbrl/runs/{run_id}/retry").status_code == 200
+        client.portal.call(asyncio.sleep, 0.05)  # let the background task run and its callback fire
+    assert "source exploded" in caplog.text
+    assert xbrl_router._tasks == set()
+    manifest = runs.load_manifest(run_id)
+    assert manifest.status == "failed" and "source exploded" in manifest.error
+
+
+def test_universe_path_errors_are_400_without_leaking_path(env, tmp_path):
+    client, *_ = env
+    missing = tmp_path / "secret-dir" / "nope.json"
+    r = client.post("/api/xbrl/runs", json={"universe_path": str(missing)})
+    assert r.status_code == 400 and "secret-dir" not in r.text and "nope" not in r.text
+    bad = tmp_path / "bad.json"
+    bad.write_text("{not json SECRETCONTENT")
+    r = client.post("/api/xbrl/runs", json={"universe_path": str(bad)})
+    assert r.status_code == 400 and "SECRETCONTENT" not in r.text and "bad.json" not in r.text
+    odd = tmp_path / "u.txt"
+    odd.write_text("x")
+    assert client.post("/api/xbrl/runs", json={"universe_path": str(odd)}).status_code == 400
+
+
+def test_retry_of_executing_run_is_409(env, monkeypatch):
+    client, _, _, runs = env
+    calls = []
+
+    async def stub(run_id, companies, **kw):
+        calls.append(run_id)
+
+    monkeypatch.setattr(xbrl_router, "execute_xbrl_run", stub)
+    run_id = create_xbrl_run([CO], None, False, runs)
+    with run_lease(runs, run_id):  # another worker holds the run
+        r = client.post(f"/api/xbrl/runs/{run_id}/retry")
+    assert r.status_code == 409 and "executing" in r.json()["detail"]
+    assert calls == []
+    # a finished run (lease free, manifest completed) is accepted
+    JobManager(runs).finish_run(run_id)
+    assert client.post(f"/api/xbrl/runs/{run_id}/retry").status_code == 200
+    assert calls == [run_id]

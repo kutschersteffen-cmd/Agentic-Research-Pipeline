@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from functools import partial
 from typing import Literal
 
@@ -11,6 +12,8 @@ from pydantic import BaseModel
 
 from arp.api.deps import settings_dep
 from arp.config import Settings
+from arp.orchestration.job_manager import JobManager
+from arp.orchestration.jobs import RunBusy, run_lease
 from arp.schemas.common import CompanyRef
 from arp.storage.run_store import RunStore
 from arp.storage.safe_path import UnsafeIdentifierError
@@ -22,6 +25,9 @@ from arp.xbrl_pipeline.selection import cut_selection, list_selections, read_sel
 from arp.xbrl_pipeline.store import XbrlStore
 from arp.xbrl_pipeline.verify import CircularRunError, verify_run
 from arp.xbrl_pipeline.views import download_path, list_company_files, pivot_facts, query_facts
+
+logger = logging.getLogger(__name__)
+_tasks: set[asyncio.Task] = set()
 
 router = APIRouter(prefix="/api/xbrl", tags=["xbrl"])
 
@@ -47,10 +53,23 @@ def _manifest(run_store: RunStore, run_id: str):
     return manifest
 
 
+def _on_done(task: asyncio.Task, run_id: str, run_store: RunStore) -> None:
+    _tasks.discard(task)
+    if task.cancelled() or task.exception() is None:
+        return
+    logger.error("XBRL run %s failed", run_id, exc_info=task.exception())
+    try:  # a failure before the batch finished (e.g. build_source) would leave the run "running" forever
+        JobManager(run_store).finish_run(run_id, error=f"{type(task.exception()).__name__}: {task.exception()}")
+    except Exception:
+        logger.exception("could not mark XBRL run %s failed", run_id)
+
+
 def _launch(run_id: str, companies: list[CompanyRef], tags: list[str] | None, refresh: bool,
             settings: Settings, run_store: RunStore) -> None:
-    asyncio.create_task(execute_xbrl_run(
-        run_id, companies, settings=settings, run_store=run_store, tags=tags, refresh=refresh))
+    task = asyncio.create_task(execute_xbrl_run(
+        run_id, companies, settings=settings, run_store=run_store, tags=tags, refresh=refresh), name=run_id)
+    _tasks.add(task)  # strong ref: a running task must not be garbage-collected
+    task.add_done_callback(lambda t: _on_done(t, run_id, run_store))
 
 
 class XbrlRunRequest(BaseModel):
@@ -64,7 +83,13 @@ class XbrlRunRequest(BaseModel):
 async def start_run(
     req: XbrlRunRequest, settings: Settings = Depends(settings_dep), run_store: RunStore = Depends(_run_store)
 ) -> dict:
-    companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
+    companies = req.companies
+    if not companies and req.universe_path:
+        try:
+            companies = load_company_universe(req.universe_path)
+        except Exception as exc:  # whatever the file parsers raise: never echo the path or content
+            logger.warning("universe file unreadable: %s", exc)
+            raise HTTPException(400, "Could not read the universe file.") from exc
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
     run_id = create_xbrl_run(companies, req.tags, req.refresh, run_store)
@@ -94,6 +119,14 @@ async def retry_run(
     companies = run_store.load_companies(run_id)
     if not companies:
         raise HTTPException(400, "This run stored no companies and cannot be retried.")
+    # The lease is the truth (the OS frees it if a worker dies); a manifest stuck on "running" must not block retry.
+    if any(t.get_name() == run_id for t in _tasks):
+        raise HTTPException(409, "This run is currently executing.")
+    try:
+        with run_lease(run_store, run_id):
+            pass
+    except RunBusy as exc:
+        raise HTTPException(409, "This run is currently executing.") from exc
     _launch(run_id, companies, manifest.params.get("tags"), bool(manifest.params.get("refresh")),
             settings, run_store)
     return {"run_id": run_id, "company_count": len(companies)}
