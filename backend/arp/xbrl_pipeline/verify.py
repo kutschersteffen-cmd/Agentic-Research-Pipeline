@@ -17,7 +17,12 @@ def assert_xbrl_off(run_id: str, *, run_store: RunStore) -> None:
     settings_path = run_store.run_dir(run_id) / "step_settings.json"
     if not settings_path.exists():
         raise CircularRunError(f"{run_id}: step_settings.json is missing, cannot prove XBRL was off")
-    if json.loads(settings_path.read_text(encoding="utf-8")).get("xbrl_facts_enabled"):
+    try:
+        data = json.loads(settings_path.read_text(encoding="utf-8"))
+        enabled = data.get("xbrl_facts_enabled")
+    except (ValueError, AttributeError) as exc:  # invalid JSON, or valid JSON that is not an object
+        raise CircularRunError(f"{run_id}: step_settings.json is malformed, cannot prove XBRL was off") from exc
+    if enabled:
         raise CircularRunError(f"{run_id}: ran with xbrl_facts_enabled, its values are copied from XBRL")
 
 

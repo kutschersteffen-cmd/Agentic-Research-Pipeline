@@ -105,3 +105,11 @@ def test_writes_verify_jsonl(tmp_path):
     lines = (runs.run_dir("r1") / "xbrl_verify.jsonl").read_text().splitlines()
     assert [VerifyRow.model_validate_json(x) for x in lines] == rows
     assert len(rows) == 1
+
+
+@pytest.mark.parametrize("text", ["[]", "{not json"])
+def test_refuses_when_step_settings_malformed(tmp_path, text):
+    runs, store = _setup(tmp_path, [_field("rev_f", 1000.0, 2024)], [_req("revenue", 2024, 1000.0)])
+    (runs.run_dir("r1") / "step_settings.json").write_text(text)
+    with pytest.raises(CircularRunError, match="cannot prove XBRL was off"):
+        _verify(runs, store)
