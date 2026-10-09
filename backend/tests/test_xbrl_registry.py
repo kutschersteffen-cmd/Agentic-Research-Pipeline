@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from arp.xbrl_pipeline.models import CatalogEntry, TagEntry
-from arp.xbrl_pipeline.registry import TAXONOMY_SOURCES, TaxonomyRegistry, parse_taxonomy, update_taxonomies
+from arp.xbrl_pipeline.registry import STANDARD_PREFIXES, TAXONOMY_SOURCES, TaxonomyRegistry, parse_taxonomy, update_taxonomies
 from arp.xbrl_pipeline.store import XbrlStore
 
 FIX = Path(__file__).parent / "fixtures" / "xbrl"
@@ -119,7 +119,7 @@ def test_update_taxonomies_names_taxonomy_without_url(tmp_path, monkeypatch):
     monkeypatch.setitem(registry.TAXONOMY_SOURCES, "dei", TaxonomySource(2026, None, ()))
     with pytest.raises(ValueError, match="dei"):
         asyncio.run(update_taxonomies(XbrlStore(tmp_path), fetch=None, taxonomies=["dei"]))  # type: ignore[arg-type]
-    assert set(TAXONOMY_SOURCES) == {"us-gaap", "ifrs-full", "dei"}
+    assert set(TAXONOMY_SOURCES) == {"us-gaap", "ifrs-full", "dei", "esrs"}
 
 
 def _bare(tmp_path, ids):
@@ -250,3 +250,57 @@ def test_http_fetch_stops_at_the_size_cap(monkeypatch):
         transport=httpx.MockTransport(lambda r: httpx.Response(200, content=b"x" * 11)), **kw))
     with pytest.raises(ValueError, match="larger than 10 bytes"):
         asyncio.run(registry.http_fetch("http://x/big", user_agent="Me"))
+
+
+def test_esrs_source_urls():
+    base = "https://xbrl.efrag.org/taxonomy/esrs/2023-12-22/common/"
+    src = TAXONOMY_SOURCES["esrs"]
+    assert src.year == 2023 and src.url == base + "esrs_cor.xsd"
+    assert src.labels == (base + "labels/lab_esrs-en.xml", base + "labels/doc_esrs-en.xml")
+
+
+def test_esrs_is_a_standard_prefix():
+    assert "esrs" in STANDARD_PREFIXES
+
+
+def test_esrs_concepts_not_flagged_extension(tmp_path):
+    store, reg = _registry(tmp_path, catalogues=[["esrs:Foo"]])
+    reg.write_snapshot("esrs", 2023, [])
+    hits, total = reg.search(taxonomy="esrs")
+    assert total == 1 and hits[0].concept == "Foo" and hits[0].extension is False
+
+
+_ESRS_XSD = b"""<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema targetNamespace="https://xbrl.efrag.org/taxonomy/esrs/2023-12-22" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:xbrldt="http://xbrl.org/2005/xbrldt" xmlns:dtr-types="http://www.xbrl.org/dtr/type/2024-01-31">
+  <xsd:element name="AbsoluteValueOfLocationBasedScope2GreenhouseGasEmissionsReduction" id="esrs_AbsoluteValueOfLocationBasedScope2GreenhouseGasEmissionsReduction" type="dtr-types:ghgEmissionsItemType" substitutionGroup="xbrli:item" abstract="false" nillable="true" xbrli:periodType="duration"/>
+  <xsd:element name="TargetCoverageAxis" id="esrs_TargetCoverageAxis" type="xbrli:stringItemType" substitutionGroup="xbrldt:dimensionItem" abstract="true" nillable="true" xbrli:periodType="duration"/>
+  <xsd:element name="ReferenceToLocationInSustainabilityStatementOfDisclosureRequirementsCompliedWithInPreparingSustainabilityStatement" id="esrs_ReferenceToLocationInSustainabilityStatementOfDisclosureRequirementsCompliedWithInPreparingSustainabilityStatement" type="xbrli:stringItemType" substitutionGroup="xbrli:item" abstract="false" nillable="true" xbrli:periodType="duration"/>
+</xsd:schema>"""
+_ESRS_LAB = b"""<?xml version="1.0" encoding="UTF-8"?>
+<link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <link:labelLink xlink:type="extended" xlink:role="http://www.xbrl.org/2003/role/link">
+    <link:loc xlink:type="locator" xlink:href="../esrs_cor.xsd#esrs_AbsoluteValueOfLocationBasedScope2GreenhouseGasEmissionsReduction" xlink:label="loc_6"/>
+    <link:label xlink:type="resource" xlink:label="res_6" xlink:role="http://www.xbrl.org/2003/role/label" xml:lang="en">Absolute value of location-based Scope 2 Greenhouse gas emissions reduction</link:label>
+    <link:labelArc xlink:type="arc" xlink:arcrole="http://www.xbrl.org/2003/arcrole/concept-label" xlink:from="loc_6" xlink:to="res_6"/>
+    <link:loc xlink:type="locator" xlink:href="../esrs_cor.xsd#esrs_TargetCoverageAxis" xlink:label="loc_3"/>
+    <link:label xlink:type="resource" xlink:label="res_3" xlink:role="http://www.xbrl.org/2003/role/label" xml:lang="en">Target coverage [axis]</link:label>
+    <link:labelArc xlink:type="arc" xlink:arcrole="http://www.xbrl.org/2003/arcrole/concept-label" xlink:from="loc_3" xlink:to="res_3"/>
+  </link:labelLink>
+</link:linkbase>"""
+_ESRS_DOC = b"""<?xml version="1.0" encoding="UTF-8"?>
+<link:linkbase xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <link:labelLink xlink:type="extended" xlink:role="http://www.xbrl.org/2003/role/link">
+    <link:loc xlink:type="locator" xlink:href="../esrs_cor.xsd#esrs_AbsoluteValueOfLocationBasedScope2GreenhouseGasEmissionsReduction" xlink:label="loc_1"/>
+    <link:label xlink:type="resource" xlink:label="res_1" xlink:role="http://www.xbrl.org/2003/role/documentation" xml:lang="en">The value should be presented in tCO2e.</link:label>
+    <link:labelArc xlink:type="arc" xlink:arcrole="http://www.xbrl.org/2003/arcrole/concept-label" xlink:from="loc_1" xlink:to="res_1"/>
+  </link:labelLink>
+</link:linkbase>"""
+
+
+def test_parse_small_esrs_excerpt():
+    by = {e.concept: e for e in parse_taxonomy(_ESRS_XSD, [_ESRS_LAB, _ESRS_DOC], taxonomy="esrs")}
+    assert set(by) == {"AbsoluteValueOfLocationBasedScope2GreenhouseGasEmissionsReduction",
+                       "ReferenceToLocationInSustainabilityStatementOfDisclosureRequirementsCompliedWithInPreparingSustainabilityStatement"}
+    e = by["AbsoluteValueOfLocationBasedScope2GreenhouseGasEmissionsReduction"]
+    assert e.tag_id.startswith("esrs:") and e.data_type == "ghgEmissionsItemType" and e.period_type == "duration"
+    assert e.label.startswith("Absolute value of location-based") and e.documentation == "The value should be presented in tCO2e."
