@@ -20,6 +20,15 @@ def _annual_years(facts: dict) -> list[int]:
     return sorted(years)
 
 
+def _row(base: dict, concept: str | None = None, f=None) -> RequiredRow:
+    """`found` row from a fact-like object (concept already prefixed), else `not_found`."""
+    if f is None:
+        return RequiredRow(**base, status="not_found", concept=None, value=None, unit=None,
+                           period_start=None, period_end=None, form=None, filed=None)
+    return RequiredRow(**base, status="found", concept=concept, value=f.value, unit=f.unit,
+                       period_start=f.period_start, period_end=f.period_end, form=f.form, filed=f.filed)
+
+
 def resolve_required(facts: dict, *, company_id: str, cik: str) -> list[RequiredRow]:
     """One revenue and one capex row per annual period-end year; `not_found` when no tag has it."""
     years: list[int | None] = list(_annual_years(facts)) or [None]
@@ -28,13 +37,7 @@ def resolve_required(facts: dict, *, company_id: str, cik: str) -> list[Required
         for metric, tags in _METRICS:
             fact = XbrlFactSource.fact_for_tags(facts, tags, fiscal_year=year) if year is not None else None
             base = dict(company_id=company_id, cik=cik, metric=metric, fiscal_year=year)
-            if fact is None:
-                out.append(RequiredRow(**base, status="not_found", concept=None, value=None, unit=None,
-                                       period_start=None, period_end=None, form=None, filed=None))
-            else:
-                out.append(RequiredRow(**base, status="found", concept=f"us-gaap:{fact.tag}", value=fact.value,
-                                       unit=fact.unit, period_start=fact.period_start,
-                                       period_end=fact.period_end, form=fact.form, filed=fact.filed))
+            out.append(_row(base, fact and f"us-gaap:{fact.tag}", fact))
     return out
 
 
@@ -59,11 +62,5 @@ def resolve_required_esef(rows: list[FactRow], *, company_id: str, lei: str) -> 
         for metric, _ in _ESEF_METRICS:
             f = best.get((metric, year)) if year is not None else None
             base = dict(company_id=company_id, cik=lei, metric=metric, fiscal_year=year, market="esef")
-            if f is None:
-                out.append(RequiredRow(**base, status="not_found", concept=None, value=None, unit=None,
-                                       period_start=None, period_end=None, form=None, filed=None))
-            else:
-                out.append(RequiredRow(**base, status="found", concept=f"ifrs-full:{f.concept}", value=f.value,
-                                       unit=f.unit, period_start=f.period_start, period_end=f.period_end,
-                                       form=f.form, filed=f.filed))
+            out.append(_row(base, f and f"ifrs-full:{f.concept}", f))
     return out

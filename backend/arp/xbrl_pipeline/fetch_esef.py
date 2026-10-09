@@ -20,7 +20,7 @@ from arp.ingestion.esef import MAX_PACKAGE_BYTES, download_capped, list_esef_fil
 from arp.net_safety import ssrf_guard_request_hook
 from arp.schemas.common import CompanyRef
 from arp.xbrl_pipeline.esef_json import catalog_from_rows, flatten_xbrl_json
-from arp.xbrl_pipeline.fetch import FETCH_DELAY_SECONDS, with_retry
+from arp.xbrl_pipeline.fetch import FETCH_DELAY_SECONDS, _status, with_retry
 from arp.xbrl_pipeline.models import CompanyStatus, ReportMeta
 from arp.xbrl_pipeline.required import resolve_required_esef
 from arp.xbrl_pipeline.store import XbrlStore
@@ -112,19 +112,15 @@ def _store_report(lei: str, filing: EsefFiling, store: XbrlStore) -> str:
 async def fetch_company_esef(
     company: CompanyRef, *, source: EsefSource, store: XbrlStore, tags: frozenset[str] | None, sleep=asyncio.sleep
 ) -> CompanyStatus:
-    def status(st: str, lei: str | None = None, sha: str | None = None, n: int = 0, report: str = "none") -> CompanyStatus:
-        return CompanyStatus(company_id=company.company_id, cik=lei, status=st, source_sha=sha, fact_count=n,
-                             report=report, market="esef")
-
     lei = normalise_lei(company.lei)
     if lei is None:
-        return status("no_lei")
+        return _status(company.company_id, "no_lei", market="esef")
     known = store.report_meta(lei)
     # the source retries its own downloads, and skips the package when known_accession is still the latest
     filing = await source.latest_filing(lei, known_accession=known.accession if known else None)
     await sleep(FETCH_DELAY_SECONDS)
     if filing is None:
-        return status("not_found", lei)
+        return _status(company.company_id, "not_found", lei, market="esef")
     sha = store.save_original(lei, filing.facts_json, prefix="xbrl-json")
     tag_list = sorted(tags) if tags is not None else None
     meta = store.meta(lei)
@@ -148,4 +144,4 @@ async def fetch_company_esef(
     except Exception as exc:  # noqa: BLE001 -- a report problem never changes the company's status
         logger.warning("ESEF package for %s not stored: %s", lei, exc, exc_info=True)
         report = "error"
-    return status(result, lei, sha, count, report)
+    return _status(company.company_id, result, lei, sha, count, report, "esef")

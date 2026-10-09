@@ -102,22 +102,25 @@ async def _fetch_report(cik10: str, cik: str, *, source: SecSource, store: XbrlS
         return "error"
 
 
+def _status(company_id: str, st: str, key: str | None = None, sha: str | None = None, n: int = 0,
+            report: str = "none", market: str = "sec") -> CompanyStatus:
+    return CompanyStatus(company_id=company_id, cik=key, status=st, source_sha=sha, fact_count=n,
+                         report=report, market=market)
+
+
 async def fetch_company(
     company: CompanyRef, *, source: SecSource, store: XbrlStore, tags: frozenset[str] | None, sleep=asyncio.sleep
 ) -> CompanyStatus:
-    def status(st: str, cik10: str | None = None, sha: str | None = None, n: int = 0, report: str = "none") -> CompanyStatus:
-        return CompanyStatus(company_id=company.company_id, cik=cik10, status=st, source_sha=sha, fact_count=n, report=report)
-
     cik = await source.resolve_cik(company.cik, company.ticker)
     if not cik or not cik.isdigit():
         if cik:
             logger.warning("%s: resolved CIK %r is not numeric, treating as no_cik", company.company_id, cik)
-        return status("no_cik")
+        return _status(company.company_id, "no_cik")
     cik10 = cik.zfill(10)
     data, raw = await with_retry(lambda: source.fetch_company_facts_raw(cik), sleep=sleep)
     await sleep(FETCH_DELAY_SECONDS)
     if data is None:
-        return status("not_found", cik10)
+        return _status(company.company_id, "not_found", cik10)
     sha = store.save_original(cik10, raw if raw is not None else json.dumps(data, sort_keys=True).encode())
     tag_list = sorted(tags) if tags is not None else None
     meta = store.meta(cik10)
@@ -133,7 +136,7 @@ async def fetch_company(
                        company_name=company.name, fact_count=count)
         result = "ok"
     report = await _fetch_report(cik10, cik, source=source, store=store, sleep=sleep)
-    return status(result, cik10, sha, count, report)
+    return _status(company.company_id, result, cik10, sha, count, report)
 
 
 def create_xbrl_run(

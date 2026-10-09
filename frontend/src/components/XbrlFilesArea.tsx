@@ -120,6 +120,8 @@ export function XbrlFilesArea(p: {
                   const r = c.report;
                   const who = c.name || c.company_id;
                   const url = (kind: string) => api.xbrlDownloadUrl(c.cik, kind);
+                  const href = c.market === "esef" ? safeHref(r?.source_url) : r ? secFilingUrl(c.cik, r.accession) : null;
+                  const linkText = c.market === "esef" ? "Open package" : "Open filing on SEC.gov";
                   return (
                     <tr
                       key={c.cik}
@@ -171,15 +173,13 @@ export function XbrlFilesArea(p: {
                               {r.filing_date && <span className="muted"> filed <span className="mono">{r.filing_date}</span></span>}
                             </span>
                             <span className="xbrl-sub">{r.inline_xbrl ? "Inline XBRL" : "Not inline XBRL"}</span>
-                            {(() => {
-                              const href = c.market === "esef" ? safeHref(r.source_url) : secFilingUrl(c.cik, r.accession);
-                              if (!href) return <span className="muted">No package link</span>;
-                              return (
-                                <a href={href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                                  {c.market === "esef" ? "Open package" : "Open filing on SEC.gov"}<span className="visually-hidden"> (opens in a new tab)</span>
-                                </a>
-                              );
-                            })()}
+                            {href ? (
+                              <a href={href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                                {linkText}<span className="visually-hidden"> (opens in a new tab)</span>
+                              </a>
+                            ) : (
+                              <span className="muted">No package link</span>
+                            )}
                           </span>
                         ) : (
                           <span className="muted">{reportText("none")}</span>
