@@ -65,9 +65,9 @@ def _on_done(task: asyncio.Task, run_id: str, run_store: RunStore) -> None:
 
 
 def _launch(run_id: str, companies: list[CompanyRef], tags: list[str] | None, refresh: bool,
-            settings: Settings, run_store: RunStore) -> None:
+            market: str, settings: Settings, run_store: RunStore) -> None:
     task = asyncio.create_task(execute_xbrl_run(
-        run_id, companies, settings=settings, run_store=run_store, tags=tags, refresh=refresh), name=run_id)
+        run_id, companies, settings=settings, run_store=run_store, tags=tags, refresh=refresh, market=market), name=run_id)
     _tasks.add(task)  # strong ref: a running task must not be garbage-collected
     task.add_done_callback(lambda t: _on_done(t, run_id, run_store))
 
@@ -77,6 +77,7 @@ class XbrlRunRequest(BaseModel):
     universe_path: str | None = None
     tags: list[str] | None = None
     refresh: bool = False
+    market: Literal["sec", "esef"] = "sec"
 
 
 @router.post("/runs")
@@ -97,8 +98,8 @@ async def start_run(
             parse_tag_ids(req.tags)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
-    run_id = create_xbrl_run(companies, req.tags, req.refresh, run_store)
-    _launch(run_id, companies, req.tags, req.refresh, settings, run_store)
+    run_id = create_xbrl_run(companies, req.tags, req.refresh, run_store, market=req.market)
+    _launch(run_id, companies, req.tags, req.refresh, req.market, settings, run_store)
     return {"run_id": run_id, "company_count": len(companies)}
 
 
@@ -134,7 +135,7 @@ async def retry_run(
         raise HTTPException(409, "This run is currently executing.") from exc
     JobManager(run_store).mark_running(run_id)  # visible to the client before the task takes the lease
     _launch(run_id, companies, manifest.params.get("tags"), bool(manifest.params.get("refresh")),
-            settings, run_store)
+            manifest.params.get("market", "sec"), settings, run_store)
     return {"run_id": run_id, "company_count": len(companies)}
 
 

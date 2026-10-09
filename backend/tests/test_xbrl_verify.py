@@ -157,3 +157,10 @@ def test_non_generic_run_is_unsupported(tmp_path):
     runs.results_path("r1").write_text(json.dumps({"company_id": "ex", "financials": {}}) + "\n")
     with pytest.raises(UnsupportedRunError, match="run r1 does not contain generic extraction records"):
         _verify(runs, store)
+
+
+def test_verify_matches_esef_required_row(tmp_path):
+    runs, store = _setup(tmp_path, [_field("rev_f", 1004.0, 2024, unit="EUR")],
+                         [_req("revenue", 2024, 1000.0, unit="EUR")])
+    rows = _verify(runs, store)
+    assert [(r.outcome, r.unit, r.run_unit) for r in rows] == [("match", "EUR", "EUR")]

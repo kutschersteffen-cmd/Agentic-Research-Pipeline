@@ -91,6 +91,50 @@ def test_retry_resumes_same_run(env, monkeypatch):
     assert client.post("/api/xbrl/runs/nope/retry").status_code == 404
 
 
+def _capture(monkeypatch):
+    calls = []
+
+    async def stub(run_id, companies, **kw):
+        calls.append(kw)
+
+    monkeypatch.setattr(xbrl_router, "execute_xbrl_run", stub)
+    return calls
+
+
+def test_start_run_market_defaults_to_sec(env, monkeypatch):
+    client, _, _, runs = env
+    calls = _capture(monkeypatch)
+    run_id = client.post("/api/xbrl/runs", json={"companies": [CO.model_dump()]}).json()["run_id"]
+    assert runs.load_manifest(run_id).params["market"] == "sec"
+    assert calls[0]["market"] == "sec"
+
+
+def test_start_run_esef_records_market_in_params(env, monkeypatch):
+    client, _, _, runs = env
+    calls = _capture(monkeypatch)
+    run_id = client.post("/api/xbrl/runs", json={"companies": [CO.model_dump()], "market": "esef"}).json()["run_id"]
+    assert runs.load_manifest(run_id).params["market"] == "esef"
+    assert calls[0]["market"] == "esef"
+
+
+def test_retry_keeps_the_runs_market(env, monkeypatch):
+    client, _, _, runs = env
+    calls = _capture(monkeypatch)
+    run_id = create_xbrl_run([CO], None, False, runs, market="esef")
+    assert client.post(f"/api/xbrl/runs/{run_id}/retry").status_code == 200
+    assert calls[0]["market"] == "esef"
+
+
+def test_start_run_rejects_unknown_market(env):
+    client, *_ = env
+    assert client.post("/api/xbrl/runs", json={"companies": [CO.model_dump()], "market": "jp"}).status_code == 422
+
+
+def test_companies_list_includes_market(env):
+    client, *_ = env
+    assert client.get("/api/xbrl/companies").json()["items"][0]["market"] == "sec"
+
+
 def test_run_results_paged(env):
     client, _, _, runs = env
     run_id = create_xbrl_run([CO], None, False, runs)

@@ -128,6 +128,26 @@ def test_fetch_runs_with_patched_source(env, monkeypatch):
     assert json.loads((env / "runs" / run_id / "manifest.json").read_text())["params"]["tags"] is None
 
 
+def test_fetch_market_esef_passes_market(env, monkeypatch):
+    seen = {}
+
+    async def stub(run_id, companies, **kw):
+        seen.update(kw)
+
+    monkeypatch.setattr("arp.cli.xbrl.execute_xbrl_run", stub)
+    universe = env / "u.json"
+    universe.write_text(json.dumps([{"company_id": "ex", "name": "Example Inc"}]))
+    result = _invoke("fetch", "--universe", str(universe), "--market", "esef")
+    assert result.exit_code == 0, result.output
+    assert seen["market"] == "esef" and seen["source"] is None
+
+
+def test_fetch_rejects_unknown_market(env):
+    universe = env / "u.json"
+    universe.write_text(json.dumps([{"company_id": "ex", "name": "Example Inc"}]))
+    assert _invoke("fetch", "--universe", str(universe), "--market", "jp").exit_code == 2
+
+
 def test_taxonomy_update_uses_http_fetch_with_user_agent(env, monkeypatch):
     calls = {}
 
