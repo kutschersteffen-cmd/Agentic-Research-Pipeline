@@ -25,25 +25,6 @@ export const SEQUENTIAL_BLUE = [
   "#0d366b", // 700
 ] as const;
 
-/** Maps a value into the sequential ramp given the range it sits in. */
-export function sequentialFill(value: number, min: number, max: number): string {
-  if (max <= min) return SEQUENTIAL_BLUE[3];
-  const t = Math.min(Math.max((value - min) / (max - min), 0), 1);
-  const idx = Math.round(t * (SEQUENTIAL_BLUE.length - 1));
-  return SEQUENTIAL_BLUE[idx];
-}
-
-/** Picks legible ink (white or near-black) for text placed inside a filled
- * cell/segment -- the one case where a label may sit on a data color,
- * per the skill's inline-label exception. */
-export function textColorForFill(hex: string): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.55 ? "#0b0b0b" : "#ffffff";
-}
-
 /** Fixed-order categorical color for the nth series (0-indexed), wrapping
  * with a visible warning only past the validated set's size -- callers
  * should cap series count before reaching here (see marks-and-anatomy.md's

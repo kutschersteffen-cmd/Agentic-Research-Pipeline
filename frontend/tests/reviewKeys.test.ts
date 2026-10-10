@@ -1,11 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fieldItemKey, flaggedReasons, itemKeyOf } from "../src/lib/reviewKeys.ts";
-
-test("itemKeyOf returns the stored key for old and new rows", () => {
-  assert.equal(itemKeyOf({ item_key: "C1" }), "C1");
-  assert.equal(itemKeyOf({ item_key: "lei:X:rev:unspecified" }), "lei:X:rev:unspecified");
-});
+import { fieldItemKey, flaggedReasons } from "../src/lib/reviewKeys.ts";
 
 test("fieldItemKey carries the period, or unspecified, or the old company key", () => {
   const r = { company_id: "company", issuer_key: "lei:X" };

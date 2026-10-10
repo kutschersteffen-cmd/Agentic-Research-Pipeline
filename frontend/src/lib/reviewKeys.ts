@@ -6,10 +6,6 @@ export interface Me {
   role: "viewer" | "analyst" | "approver";
 }
 
-/** The key a decision is stored under: whatever the queue row carries, so old
- * company-level rows and new per-field rows both work. */
-export const itemKeyOf = (row: { item_key: string }): string => row.item_key;
-
 /** Key of one extracted field's decision: per-field and per-period for new runs, `company:field` for old ones. */
 export const fieldItemKey = (
   r: { company_id: string; issuer_key?: string | null },

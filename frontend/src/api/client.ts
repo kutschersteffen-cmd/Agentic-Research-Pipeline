@@ -143,36 +143,38 @@ async function errorFor(res: Response): Promise<Error> {
   return new Error(`${res.status}: ${detail}`);
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const isFormData = init?.body instanceof FormData;
+/** fetch with the bearer token; a 401 drops the token, any non-2xx throws. */
+async function authFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const token = getToken();
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(url, {
     ...init,
-    headers: {
-      ...(isFormData ? {} : { "Content-Type": "application/json" }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...((init?.headers as Record<string, string> | undefined) ?? {}),
-    },
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...((init.headers as Record<string, string> | undefined) ?? {}) },
   });
   if (res.status === 401) clearToken();
   if (!res.ok) throw await errorFor(res);
+  return res;
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const isFormData = init?.body instanceof FormData;
+  const res = await authFetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: {
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      ...((init?.headers as Record<string, string> | undefined) ?? {}),
+    },
+  });
   return res.json() as Promise<T>;
 }
 
 /** A file from one of the *Url builders below, fetched with the bearer token
  * (a plain <a href>/<img src>/<iframe src> cannot send it). A JSON `body` makes it a POST. */
 export async function fetchFile(url: string, body?: unknown): Promise<{ blob: Blob; filename: string | null }> {
-  const token = getToken();
-  const res = await fetch(url.split("#")[0], {
+  const res = await authFetch(url.split("#")[0], {
     method: body === undefined ? "GET" : "POST",
-    headers: {
-      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    headers: body === undefined ? {} : { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (res.status === 401) clearToken();
-  if (!res.ok) throw await errorFor(res);
   return { blob: await res.blob(), filename: filenameFromDisposition(res.headers.get("Content-Disposition"), "") || null };
 }
 
