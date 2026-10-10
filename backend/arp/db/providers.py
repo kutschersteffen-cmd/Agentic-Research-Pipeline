@@ -84,12 +84,21 @@ def ensure_source(
 
 
 def record_load(session: Session, source_id: int, payload: bytes, *, request: dict, as_of: date) -> LoadResult:
-    """Stores the payload, then records the load. A payload this source already delivered is
-    `unchanged` and adds no row."""
+    """Stores the payload, then records the load. `unchanged` only when the payload equals the
+    source's latest load for this `as_of`; an earlier payload coming back (A, B, A) reuses its load
+    row (refreshing `fetched_at`) and is re-ingested by the caller, so it supersedes B again."""
     sha = hashlib.sha256(payload).hexdigest()
-    seen = session.scalar(select(SourceLoad.load_id).where(SourceLoad.source_id == source_id, SourceLoad.payload_sha == sha))
+    latest = session.scalar(
+        select(SourceLoad.payload_sha).where(SourceLoad.source_id == source_id, SourceLoad.as_of == as_of)
+        .order_by(SourceLoad.fetched_at.desc(), SourceLoad.load_id.desc()).limit(1)
+    )
+    seen = session.scalar(select(SourceLoad).where(SourceLoad.source_id == source_id, SourceLoad.payload_sha == sha))
     if seen is not None:
-        return LoadResult(seen, True)
+        if latest == sha:
+            return LoadResult(seen.load_id, True)
+        seen.fetched_at, seen.as_of, seen.request = func.clock_timestamp(), as_of, request
+        session.flush()
+        return LoadResult(seen.load_id, False)
     load = SourceLoad(source_id=source_id, as_of=as_of, request=request, payload_sha=sha, status=LoadStatus.FETCHED)
     load.payload_uri = _blob_store().put(_payload_key(session, load), payload)
     session.add(load)

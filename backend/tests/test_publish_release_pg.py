@@ -222,3 +222,23 @@ def test_withdrawal_refused_when_release_regained_current_fact_pg(store, rs, blo
     assert store.current([KEY])[KEY].value == 1100
     [restored] = withdraw(store, rel_b.release_id, reason="bad", principal=BOB)
     assert restored.value == 1000
+
+
+def test_internal_only_fact_is_skipped_and_the_rest_published(store, rs, blobs, pg):
+    from datetime import date
+
+    from arp.db.companies import resolve
+    from arp.db.models import IdScheme, Licence
+    from arp.db.providers import ProviderRow, ensure_source, ingest_rows, record_load
+    from arp.db.session import transaction
+
+    with transaction(pg) as s:
+        resolve(s, [(IdScheme.LEI, "ISS")], name="Issuer", allow_create=True)
+        load = record_load(s, ensure_source(s, "msci", name="MSCI", kind="api", licence=Licence.INTERNAL_ONLY, id_scheme=None),
+                           b"p", request={}, as_of=date(2024, 12, 31))
+        ingest_rows(s, load.load_id, [ProviderRow([(IdScheme.LEI, "ISS")], "co2", "CO2", None, "number", date(2024, 12, 31), 5.0)])
+    _run(rs, "r1", 1, [_field(100), {**_field(5.0), "field_id": "prov:msci:co2"}])
+    res = _publish(store, rs, blobs, "r1")
+    assert [r.doc_id for r in res.releases] == ["d1"]
+    assert [s.reason for s in res.skipped] == ["internal_only"]
+    assert store.current([KEY]) and not store.current([("ISS", "prov:msci:co2", "2024-12-31", "")])

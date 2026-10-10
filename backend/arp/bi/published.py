@@ -64,38 +64,12 @@ def trigger_rows(triggers: list[UnifiedTrigger]) -> list[dict]:
     return [t.model_dump() for t in triggers]
 
 
-def _internal_only() -> set[tuple[str, str]]:
-    """(universe id, field_id) of current facts from an `internal_only` source: never exported (spec §2.8)."""
-    from sqlalchemy import select
-
-    from arp.db import models as m
-    from arp.db.session import transaction
-
-    with transaction() as s:
-        return set(s.execute(
-            select(m.CompanyIdentifier.value, m.CompanyFact.field_id)
-            .join(m.FieldObservation, m.FieldObservation.id == m.CompanyFact.observation_id)
-            .join(m.DataSource, m.DataSource.source_id == m.FieldObservation.source_id)
-            .join(m.CompanyIdentifier, m.CompanyIdentifier.company_id == m.CompanyFact.company_id)
-            .where(
-                m.CompanyFact.valid_to.is_(None), m.DataSource.licence == m.Licence.INTERNAL_ONLY,
-                m.CompanyIdentifier.scheme == m.IdScheme.UNIVERSE, m.CompanyIdentifier.valid_to.is_(None),
-            )
-        ).tuples())
-
-
 def profile_rows(store: PortfolioStore, month: str, obs_as_of: str | None = None) -> list[dict]:
-    """Latest resolved observation per company and field as of `obs_as_of` (default the month end), by source priority.
-    Values whose current fact comes from an internal_only source are left out."""
-    from arp.db.companies import normalise_identifier
-
+    """Latest resolved observation per company and field as of `obs_as_of` (default the month end), by source priority."""
     as_of = obs_as_of or month_end(month)
     names = {c.company_id: c.name for c in store.list_companies()}
-    internal_only = _internal_only()
     rows = []
     for company_id, field_id in sorted(store.list_observation_keys()):
-        if (normalise_identifier("UNIVERSE", company_id), field_id) in internal_only:
-            continue
         obs = datapoint_mapping.resolve_field_value(store, company_id, field_id, as_of)
         if obs is None:
             continue

@@ -161,3 +161,23 @@ def test_intake_records_a_provider_load_on_its_own_fields(store, pg):
         assert sorted(r.field_id for r in rows) == sorted(f"prov:esg_default:{f}" for f in FIELD_IDS)
         assert {(r.company_id, r.value) for r in rows} == {(acme, 1.5)}
         assert s.scalar(select(func.count()).select_from(m.Company)) == 1  # globex is reported, not created
+
+
+def test_reupload_of_earlier_payload_reingests(store, pg):
+    from sqlalchemy import func, select
+
+    from arp.db import models as m
+    from arp.db.companies import ensure_universe_company
+    from arp.db.session import transaction
+
+    with transaction(pg) as s:
+        acme = ensure_universe_company(s, "acme")
+    a, b = row(), row(**{FIELD_IDS[0]: 9.0})
+    assert [run(store, [x]).status for x in (a, b, a)] == ["written"] * 3
+    assert run(store, [a]).status == "unchanged"
+    with transaction(pg) as s:
+        current = s.scalar(select(m.CompanyFact.value).where(
+            m.CompanyFact.company_id == acme, m.CompanyFact.field_id == f"prov:esg_default:{FIELD_IDS[0]}",
+            m.CompanyFact.valid_to.is_(None)))
+        assert s.scalar(select(func.count()).select_from(m.SourceLoad)) == 2  # A's load row is reused
+    assert current == store.latest_observation("acme", FIELD_IDS[0]).value == 1.5
