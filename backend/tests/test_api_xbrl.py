@@ -36,6 +36,7 @@ def env(tmp_path):
     app = FastAPI()
     app.include_router(xbrl_router.router)
     app.dependency_overrides[deps.settings_dep] = lambda: settings
+    app.dependency_overrides[deps.get_run_store] = lambda: RunStore(settings.runs_dir)
     app.dependency_overrides[current_user] = lambda: PRINCIPAL
     store = XbrlStore(settings.xbrl_dir)
     raw = FIXTURE.read_bytes()

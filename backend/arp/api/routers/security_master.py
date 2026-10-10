@@ -15,6 +15,7 @@ from arp import catalog, smart_search
 from arp.api.auth import Principal, current_user, require_role
 from arp.api.deps import (
     get_decision_store,
+    get_identifier_map,
     get_index_store,
     get_llm_client,
     get_portfolio_store,
@@ -39,17 +40,13 @@ issues_router = APIRouter(prefix="/api/issues", tags=["issues"])
 search_router = APIRouter(prefix="/api/smart-search", tags=["smart-search"])
 
 
-def _idmap(settings: Settings = Depends(settings_dep)) -> IdentifierMapStore:
-    return IdentifierMapStore(settings.identifier_map_path)
-
-
 @router.get("")
-def get_status(store=Depends(get_portfolio_store), idmap: IdentifierMapStore = Depends(_idmap)) -> dict:
+def get_status(store=Depends(get_portfolio_store), idmap: IdentifierMapStore = Depends(get_identifier_map)) -> dict:
     return security_master.status(store, idmap)
 
 
 @feeds_router.get("")
-def get_feeds(store=Depends(get_portfolio_store), idmap: IdentifierMapStore = Depends(_idmap)) -> dict:
+def get_feeds(store=Depends(get_portfolio_store), idmap: IdentifierMapStore = Depends(get_identifier_map)) -> dict:
     """Every input feed with its last load and whether it is behind (Data Hub · Feeds)."""
     return {"feeds": feeds.overview(store, idmap, date.today())}
 
@@ -57,7 +54,7 @@ def get_feeds(store=Depends(get_portfolio_store), idmap: IdentifierMapStore = De
 @feeds_router.post("/news/pull")
 def post_news_pull(
     since: str | None = None, settings: Settings = Depends(settings_dep), store=Depends(get_portfolio_store),
-    idmap: IdentifierMapStore = Depends(_idmap),
+    idmap: IdentifierMapStore = Depends(get_identifier_map),
 ) -> dict:
     """Pulls new stories from Refinitiv News; each is tied to an issuer through the security master's PermIDs only."""
     if not settings.news_api_client_id or not settings.news_api_client_secret:
@@ -90,7 +87,7 @@ def post_esg_pull(
 
 
 @router.get("/unmatched")
-def get_unmatched(store=Depends(get_portfolio_store), idmap: IdentifierMapStore = Depends(_idmap)) -> dict:
+def get_unmatched(store=Depends(get_portfolio_store), idmap: IdentifierMapStore = Depends(get_identifier_map)) -> dict:
     return {"rows": security_master.unmatched(store, idmap)}
 
 
@@ -106,7 +103,7 @@ async def upload(
     user: Principal = Depends(require_role("approver")),  # replaces the golden source for the whole tool
     settings: Settings = Depends(settings_dep),
     store=Depends(get_portfolio_store),
-    idmap: IdentifierMapStore = Depends(_idmap),
+    idmap: IdentifierMapStore = Depends(get_identifier_map),
 ) -> dict:
     data = await file.read(settings.max_upload_bytes + 1)
     if len(data) > settings.max_upload_bytes:
@@ -122,7 +119,7 @@ async def upload(
 
 @issues_router.get("")
 def get_issues(
-    store=Depends(get_portfolio_store), idmap: IdentifierMapStore = Depends(_idmap), run_store: RunStore = Depends(get_run_store),
+    store=Depends(get_portfolio_store), idmap: IdentifierMapStore = Depends(get_identifier_map), run_store: RunStore = Depends(get_run_store),
 ) -> dict:
     """Every open data problem: feeds behind or failed, unmatched securities, undecided failing checks (Data Hub · Issues)."""
     return {"issues": issues.open_issues(store, idmap, run_store, date.today())}
@@ -135,7 +132,7 @@ class SmartSearchRequest(BaseModel):
 @search_router.post("", response_model=smart_search.SearchAnswer)
 async def post_smart_search(
     req: SmartSearchRequest, settings: Settings = Depends(settings_dep), store=Depends(get_portfolio_store),
-    idmap: IdentifierMapStore = Depends(_idmap), run_store: RunStore = Depends(get_run_store), decisions=Depends(get_decision_store),
+    idmap: IdentifierMapStore = Depends(get_identifier_map), run_store: RunStore = Depends(get_run_store), decisions=Depends(get_decision_store),
     taxonomy=Depends(get_taxonomy_store), index=Depends(get_index_store), reports=Depends(get_reporting_store),
     llm: LLMClient = Depends(get_llm_client), principal: Principal = Depends(current_user),
 ) -> smart_search.SearchAnswer:

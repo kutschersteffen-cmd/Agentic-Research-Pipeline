@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 from arp.api.auth import Principal, current_user, require_role
-from arp.api.deps import get_portfolio_store, settings_dep
+from arp.api.deps import get_identifier_map, get_portfolio_store, settings_dep
 from arp.config import Settings
 from arp.holdings.api_source import pull_holder
 from arp.holdings.file_source import file_ref, load_mapping, read_rows, template
@@ -27,10 +27,6 @@ from arp.storage.safe_path import safe_id
 router = APIRouter(prefix="/api/holdings", tags=["holdings"])
 Kind = Literal["index", "portfolio"]
 MEDIA = {"csv": "text/csv", "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
-
-
-def _idmap(settings: Settings = Depends(settings_dep)) -> IdentifierMapStore:
-    return IdentifierMapStore(settings.identifier_map_path)
 
 
 def _intake_error(e: IntakeError) -> HTTPException:
@@ -48,7 +44,7 @@ async def upload(
     user: Principal = Depends(current_user),
     settings: Settings = Depends(settings_dep),
     store=Depends(get_portfolio_store),
-    idmap: IdentifierMapStore = Depends(_idmap),
+    idmap: IdentifierMapStore = Depends(get_identifier_map),
 ) -> dict:
     data = await file.read(settings.max_upload_bytes + 1)
     if len(data) > settings.max_upload_bytes:
@@ -116,7 +112,7 @@ def pull(
     as_of: str | None = None,
     settings: Settings = Depends(settings_dep),
     store=Depends(get_portfolio_store),
-    idmap: IdentifierMapStore = Depends(_idmap),
+    idmap: IdentifierMapStore = Depends(get_identifier_map),
 ) -> dict:
     if not settings.holdings_api_url:
         raise HTTPException(503, "holdings_api_url is not set")

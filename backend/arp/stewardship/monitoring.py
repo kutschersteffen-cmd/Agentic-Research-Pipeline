@@ -18,9 +18,10 @@ from collections import Counter
 
 import zen
 
-from arp.schemas.engagement import EngagementRecord, IssueStatus
-from arp.stewardship.policy_review import DATA
+from arp.schemas.engagement import EngagementRecord
+from arp.stewardship.policy_review import load
 from arp.stewardship.tiers import tier_contexts
+from arp.stewardship.tracking import OPEN
 
 TYPES = {
     "vote_outcome",
@@ -36,19 +37,19 @@ SEVERITIES = {"low", "medium", "high"}
 
 
 def load_graph() -> dict:
-    return json.loads((DATA / "house_monitoring_policy.graph.json").read_text())
+    return load("house_monitoring_policy.graph.json")
+
+
+def open_engagements(records: list[EngagementRecord]) -> dict[tuple[str, str], str]:
+    """(company_id, theme) -> the open (or stalled) engagement's issue_id, the last one where there are several."""
+    return {(r.company_id, i.theme): i.issue_id for r in records for i in r.issues if i.status in OPEN}
 
 
 def evaluate(graph: dict, sample: dict, records: list[EngagementRecord]) -> list[dict]:
     """Every trigger the rules raise on the sample, matched to open engagements."""
     content = json.dumps(graph)
     engine = zen.ZenEngine({"loader": lambda _key: content})
-    open_by_theme = {
-        (r.company_id, i.theme): i.issue_id
-        for r in records
-        for i in r.issues
-        if i.status in (IssueStatus.OPEN, IssueStatus.STALLED)
-    }
+    open_by_theme = open_engagements(records)
     out = []
     for c in tier_contexts(sample, records):
         for t in engine.evaluate("monitoring", c)["result"].get("triggers") or []:

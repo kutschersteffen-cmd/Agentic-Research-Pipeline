@@ -606,6 +606,46 @@ def from_replication_runs(run_store: RunStore, run_ids: list[str] | None = None)
     )
 
 
+def from_source(
+    source: str,
+    run_store: RunStore,
+    portfolio_store=None,
+    *,
+    run_id: str | None = None,
+    run_ids: list[str] | None = None,
+    as_of: str | None = None,
+    portfolio_ids: list[str] | None = None,
+    region: str | None = None,
+    sectors: list[str] | None = None,
+    include_indicators: bool = False,
+) -> Dataset:
+    """The decision table for one named source (the API's and the CLI's
+    `source`). Raises ValueError for an unknown source or missing input."""
+    by_run = {
+        "transition_plan_run": lambda rid: from_transition_plan_run(run_store, rid, include_indicators=include_indicators),
+        "extraction_run": lambda rid: from_extraction_run(run_store, rid),
+        "financials_run": lambda rid: from_financials_run(run_store, rid),
+        "tnfd_run": lambda rid: from_tnfd_run(run_store, rid),
+        "theme_run": lambda rid: from_theme_run(run_store, rid),
+        "emerging_themes_run": lambda rid: from_emerging_themes_run(run_store, rid),
+    }
+    if source in by_run:
+        if not run_id:
+            raise ValueError("`run_id` is required for this source.")
+        return by_run[source](run_id)
+    if source == "joined_runs":
+        return from_joined_runs(run_store, run_ids or [], include_indicators=include_indicators)
+    if source == "portfolio_snapshot":
+        return from_portfolio_snapshot(portfolio_store, as_of, portfolio_ids)
+    # transition_barrier, emerging_themes_run and replication_runs score something other
+    # than a company -- a sector in a jurisdiction, a theme, a strategy. The engine does not care.
+    if source == "transition_barrier":
+        return from_transition_barrier(region, sectors)
+    if source == "replication_runs":
+        return from_replication_runs(run_store, run_ids)
+    raise ValueError(f"Unknown source: {source}")
+
+
 def _num(value) -> str:
     return "" if value is None else f"{float(value):g}"
 
@@ -640,14 +680,7 @@ def from_joined_runs(run_store: RunStore, run_ids: list[str], *, include_indicat
             raise ValueError(f"Run {run_id} not found.")
         if manifest.run_type not in _JOINABLE:
             raise ValueError(f"Run {run_id} is a {manifest.run_type} run; only {', '.join(_JOINABLE)} runs can be joined.")
-        if manifest.run_type == "transition_plan":
-            dataset = from_transition_plan_run(run_store, run_id, include_indicators=include_indicators)
-        elif manifest.run_type == "extraction":
-            dataset = from_extraction_run(run_store, run_id)
-        elif manifest.run_type == "financials":
-            dataset = from_financials_run(run_store, run_id)
-        else:
-            dataset = from_tnfd_run(run_store, run_id)
+        dataset = from_source(f"{manifest.run_type}_run", run_store, run_id=run_id, include_indicators=include_indicators)
         prefix = _JOINABLE[manifest.run_type]
         seen[prefix] = seen.get(prefix, 0) + 1
         parts.append((prefix if seen[prefix] == 1 else f"{prefix}{seen[prefix]}", dataset))

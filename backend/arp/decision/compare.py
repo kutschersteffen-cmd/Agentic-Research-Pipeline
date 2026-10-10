@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from arp.decision import overrides
+from arp.decision.dataset import Dataset
+from arp.decision.mechanism import apply_mechanism
 from arp.decision.roles import pretty
 from arp.schemas.decision import DecisionComparison, DecisionResult, EntityMovement, MechanismConfig
 
@@ -14,6 +17,18 @@ def hold_cuts(config: MechanismConfig, before: DecisionResult) -> MechanismConfi
     if before.cuts_origin == "absolute":
         return config
     return config.model_copy(update={"cut_mode": "absolute", "pinned_cuts": list(before.effective_cuts)})
+
+
+def compare_datasets(before: Dataset, after: Dataset, config: MechanismConfig, store) -> DecisionComparison:
+    """`config` over two snapshots, each with its reviewers' overrides from
+    `store` (a DecisionStore), the later one scored on the earlier one's cuts."""
+    first = apply_mechanism(before, config, overrides=overrides.load(store.overrides_path(before.dataset_id)))
+    return compare_results(
+        first,
+        apply_mechanism(after, hold_cuts(config, first), overrides=overrides.load(store.overrides_path(after.dataset_id))),
+        label_before=before.as_of or before.name,
+        label_after=after.as_of or after.name,
+    )
 
 
 def compare_results(

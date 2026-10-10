@@ -31,14 +31,14 @@ passage_id of the block the quote was copied from.
   authoritative/recent one as the primary value, citing both."""
 
 
-def format_evidence(chunks: list[DocumentChunk]) -> str:
+def format_evidence(chunks: list[DocumentChunk], header: tuple[str, ...] = ("doc_id", "passage_id", "doc_type", "section")) -> str:
+    """Chunks as prompt evidence, each under a `[name=value | ...]` line of
+    the `header` fields asked for, in that order; section and speaker only when set."""
     blocks = []
     for c in chunks:
-        header = f"[doc_id={c.doc_id} | passage_id={c.chunk_id} | doc_type={c.doc_type.value}"
-        if c.section:
-            header += f" | section={c.section}"
-        header += "]"
-        blocks.append(f"{header}\n{c.text}")
+        values = {"doc_id": c.doc_id, "passage_id": c.chunk_id, "doc_type": c.doc_type.value, "section": c.section, "speaker": c.speaker}
+        fields = " | ".join(f"{name}={values[name]}" for name in header if name not in ("section", "speaker") or values[name])
+        blocks.append(f"[{fields}]\n{c.text}")
     return "\n\n---\n\n".join(blocks)
 
 

@@ -33,7 +33,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from arp.engagement.orchestrator import is_stalled
 from arp.index.weighting import apply_tilts, normalise
-from arp.schemas.engagement import EngagementRecord, IssueStatus
+from arp.schemas.engagement import EngagementRecord
 from arp.schemas.index import IndexCandidate, MetricTilt
 from arp.schemas.reporting import (
     ChartSpec,
@@ -57,10 +57,12 @@ from arp.stewardship.process import (
     client_store,
     current_tiers,
     escalation_contexts,
+    house_escalations,
     load_sample,
     open_exceptions,
 )
 from arp.stewardship.tiers import TIER_LABELS
+from arp.stewardship.tracking import OPEN
 
 VOTE_STEP = escalation.STEPS.index("vote_against_management")
 SEVERITY_WEIGHT = {"high": 1.0, "medium": 0.6, "low": 0.3}
@@ -172,7 +174,7 @@ def simulate(root: Path, stream: dict, records: list[EngagementRecord], sla_days
                     (t["issuer_id"], t["theme"]), {"reason": t["reason"], "gap": SEVERITY_WEIGHT[t["severity"]]}
                 )
     house_engaged = {(e["issuer_id"], e["theme"]) for e in sample.get("engagements", [])} | {
-        (r.company_id, i.theme) for r in records for i in r.issues if i.status in (IssueStatus.OPEN, IssueStatus.STALLED)
+        (r.company_id, i.theme) for r in records for i in r.issues if i.status in OPEN
     }
     house_themes = {theme for _, theme in house_engaged}
     tiers = current_tiers(root, sample, records)
@@ -200,7 +202,7 @@ def simulate(root: Path, stream: dict, records: list[EngagementRecord], sla_days
     # 3. Escalation: existing engagements keep their state, new targets start at the bottom
     esc_sample = copy.deepcopy(sample)
     known = {(e["issuer_id"], e["theme"]) for e in esc_sample["engagements"] if "step" in e}
-    live = {(r.company_id, i.theme) for r in records for i in r.issues if i.status in (IssueStatus.OPEN, IssueStatus.STALLED)}
+    live = {(r.company_id, i.theme) for r in records for i in r.issues if i.status in OPEN}
     for t in targets:
         if (t["issuer_id"], t["theme"]) not in known | live:
             esc_sample["engagements"].append(
@@ -215,7 +217,7 @@ def simulate(root: Path, stream: dict, records: list[EngagementRecord], sla_days
             )
     triggers_all = monitoring.evaluate(house_store.active("monitoring_rules"), sample, records)
     ctxs = escalation.contexts(esc_sample, records, tiers, triggers_all, sla_days)
-    house_esc = escalation.evaluate(house_store.active("escalation_rules"), ctxs)
+    house_esc = house_escalations(root, ctxs)
     client_esc = escalation.client_evaluate(client_store(root, stream["stream_id"]).active("escalation_rules"), ctxs, house_esc)
     esc_by_key = {(r["company_id"], r["theme"]): r for r in client_esc}  # live overrides sample for the same key
     for t in targets:
@@ -521,9 +523,9 @@ def monitor(root: Path, stream: dict, records: list[EngagementRecord], sla_days:
     frozen, current = {key(t): t for t in approved["targets"]}, {key(t): t for t in now["targets"]}
     new, gone = sorted(current.keys() - frozen.keys()), sorted(frozen.keys() - current.keys())
 
-    live = {(r.company_id, i.theme): i for r in records for i in r.issues if i.status in (IssueStatus.OPEN, IssueStatus.STALLED)}
+    live = {(r.company_id, i.theme): i for r in records for i in r.issues if i.status in OPEN}
     ctxs = escalation_contexts(root, load_sample(), records, sla_days)
-    house = escalation.evaluate(PolicyStore(root).active("escalation_rules"), ctxs)
+    house = house_escalations(root, ctxs)
     waiting = {
         (r["company_id"], r["theme"]) for r in open_exceptions(stream, client_escalations(root, stream["stream_id"], ctxs, house))
     }

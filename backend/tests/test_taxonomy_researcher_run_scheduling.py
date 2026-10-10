@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from arp.api import run_scheduling
-from arp.api.deps import get_taxonomy_store, settings_dep
+from arp.api.deps import get_run_store, get_taxonomy_store, settings_dep
 from arp.api.routers import taxonomy_researcher as router_module
 from arp.config import Settings
 from arp.storage.run_store import RunStore
@@ -32,7 +32,7 @@ def client(tmp_path):
     app = FastAPI()
     app.include_router(router_module.router)
     app.dependency_overrides[settings_dep] = lambda: settings
-    app.dependency_overrides[router_module._run_store] = lambda: run_store
+    app.dependency_overrides[get_run_store] = lambda: run_store
     app.dependency_overrides[get_taxonomy_store] = lambda: TaxonomyStore(settings.taxonomies_dir)
 
     with TestClient(app, raise_server_exceptions=False) as c:

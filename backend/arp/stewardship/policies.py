@@ -39,6 +39,7 @@ from arp.stewardship.tiers import TIER_LABELS, TIERS, tier_contexts
 from arp.stewardship.tiers import evaluate as evaluate_tiers
 from arp.stewardship.tiers import load_graph as default_coverage_graph
 from arp.storage.atomic_io import atomic_write_text
+from arp.storage.jsonl_io import append_jsonl, read_jsonl
 
 
 def _validate_coverage(graph: dict, sample: dict) -> None:
@@ -144,8 +145,7 @@ class PolicyStore:
         return json.loads(path.read_text())["content"]
 
     def activations(self, policy_id: str) -> list[dict]:
-        path = self._dir(policy_id) / "activations.jsonl"
-        return [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
+        return read_jsonl(self._dir(policy_id) / "activations.jsonl")
 
     def active_version(self, policy_id: str) -> int:
         log = self.activations(policy_id)
@@ -181,10 +181,7 @@ class PolicyStore:
         if version > 0 and meta["created_by"].strip().lower() == approved_by.strip().lower():
             raise ValueError("Four-eyes rule: a version must be activated by someone other than the person who saved it")
         row = {"version": version, "approved_by": approved_by, "approved_at": datetime.now(UTC).isoformat()}
-        d = self._dir(policy_id)
-        d.mkdir(parents=True, exist_ok=True)
-        with (d / "activations.jsonl").open("a") as f:
-            f.write(json.dumps(row) + "\n")
+        append_jsonl(self._dir(policy_id) / "activations.jsonl", row)
         return row
 
 

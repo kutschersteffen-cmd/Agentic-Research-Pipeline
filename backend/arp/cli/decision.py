@@ -6,11 +6,12 @@ from pathlib import Path
 import typer
 from pydantic import ValidationError
 
+from arp.api.deps import get_decision_store
 from arp.cli._shared import _portfolio_store, _run_store, cli_principal
 from arp.config import get_settings
 from arp.decision import sources as decision_sources
 from arp.decision import templates
-from arp.decision.compare import compare_results, hold_cuts
+from arp.decision.compare import compare_datasets
 from arp.decision.dataset import Dataset, dataset_from_file
 from arp.decision.diffing import describe_changes
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
@@ -18,15 +19,12 @@ from arp.decision.profiling import profile_dataset
 from arp.decision.roles import propose_roles
 from arp.decision.sensitivity import tipping_points
 from arp.schemas.decision import MechanismConfig
-from arp.storage.decision_store import DecisionStore
+
+_decision_store = get_decision_store.__wrapped__
 
 decision_app = typer.Typer(
     help="Decision Mechanism: derive, tune and apply a scoring/tiering framework to any per-entity table. No LLM calls."
 )
-
-
-def _decision_store() -> DecisionStore:
-    return DecisionStore(get_settings().frameworks_dir)
 
 
 def _dataset(
@@ -51,40 +49,16 @@ def _dataset(
     if source:
         run_store = _run_store()
         try:
-            if source == "transition_plan_run":
-                dataset = decision_sources.from_transition_plan_run(run_store, _require(run_id))
-            elif source == "extraction_run":
-                dataset = decision_sources.from_extraction_run(run_store, _require(run_id))
-            elif source == "financials_run":
-                dataset = decision_sources.from_financials_run(run_store, _require(run_id))
-            elif source == "tnfd_run":
-                dataset = decision_sources.from_tnfd_run(run_store, _require(run_id))
-            elif source == "theme_run":
-                dataset = decision_sources.from_theme_run(run_store, _require(run_id))
-            elif source == "portfolio_snapshot":
-                dataset = decision_sources.from_portfolio_snapshot(_portfolio_store(), as_of)
-            elif source == "transition_barrier":
-                dataset = decision_sources.from_transition_barrier(region)
-            elif source == "emerging_themes_run":
-                dataset = decision_sources.from_emerging_themes_run(run_store, _require(run_id))
-            elif source == "replication_runs":
-                dataset = decision_sources.from_replication_runs(run_store, [run_id] if run_id else None)
-            else:
-                typer.echo(f"Unknown source: {source}", err=True)
-                raise typer.Exit(1)
+            dataset = decision_sources.from_source(
+                source, run_store, _portfolio_store() if source == "portfolio_snapshot" else None,
+                run_id=run_id, run_ids=[run_id] if run_id else None, as_of=as_of, region=region,
+            )
         except ValueError as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(1) from exc
         return store.save_dataset(dataset)
     typer.echo("Provide --table, --dataset or --source.", err=True)
     raise typer.Exit(1)
-
-
-def _require(run_id: str | None) -> str:
-    if not run_id:
-        typer.echo("--run-id is required for this source.", err=True)
-        raise typer.Exit(1)
-    return run_id
 
 
 def _config(dataset: Dataset, framework_id: str | None, version: int | None, framework_file: Path | None):
@@ -238,13 +212,7 @@ def decision_compare(
 
     ds_before, ds_after = _resolve(before), _resolve(after)
     config, _audit = _config(ds_after, framework_id, version, framework_file)
-    first = apply_mechanism(ds_before, config)
-    comparison = compare_results(
-        first,
-        apply_mechanism(ds_after, hold_cuts(config, first)),
-        label_before=ds_before.as_of or ds_before.name,
-        label_after=ds_after.as_of or ds_after.name,
-    )
+    comparison = compare_datasets(ds_before, ds_after, config, store)
     if not comparison.comparable:
         typer.echo(f"WARNING: {comparison.incomparable_reason}", err=True)
     if comparison.caveat:

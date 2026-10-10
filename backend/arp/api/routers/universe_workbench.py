@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from arp.api.deps import get_document_content_store, settings_dep
+from arp.api.deps import get_document_content_store, get_identifier_map, get_run_store, settings_dep
 from arp.config import Settings
 from arp.schemas.common import CompanyRef
 from arp.storage.document_store import DocumentContentStore
@@ -32,25 +32,17 @@ class WorkbenchRequest(BaseModel):
     availability: bool = True  # false skips the store scans (routing preview)
 
 
-def _run_store(settings: Settings = Depends(settings_dep)) -> RunStore:
-    return RunStore(settings.runs_dir)
-
-
 def _xbrl_store(settings: Settings = Depends(settings_dep)) -> XbrlStore:
     return XbrlStore(settings.xbrl_dir)
-
-
-def _idmap(settings: Settings = Depends(settings_dep)) -> IdentifierMapStore:
-    return IdentifierMapStore(settings.identifier_map_path)
 
 
 @router.post("/workbench")
 def workbench(
     req: WorkbenchRequest,
     settings: Settings = Depends(settings_dep),
-    run_store: RunStore = Depends(_run_store),
+    run_store: RunStore = Depends(get_run_store),
     xbrl_store: XbrlStore = Depends(_xbrl_store),
-    idmap: IdentifierMapStore = Depends(_idmap),
+    idmap: IdentifierMapStore = Depends(get_identifier_map),
     content_store: DocumentContentStore = Depends(get_document_content_store),
 ) -> dict:
     companies = req.companies
