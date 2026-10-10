@@ -226,7 +226,7 @@ def reindex_object_store() -> None:
 @reindex_app.command("documents")
 def reindex_documents() -> None:
     """Mirrors every already-registered document from the authoritative
-    registry (SQLite, or Postgres when embeddings_backend=postgres) into
+    registry (Postgres `documents`) into
     DocumentRegistryModel (Postgres).
     Safe to re-run -- each document is an idempotent upsert by doc_id."""
     settings = get_settings()

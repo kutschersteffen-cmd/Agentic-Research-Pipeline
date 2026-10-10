@@ -1,6 +1,6 @@
 """Immutable object-storage copy of each source document's original bytes,
 keyed by the same content-addressed hash DocumentContentStore/derive_doc_id
-already compute (arp/storage/document_registry.py) -- a document already
+already compute (arp/db/documents.py) -- a document already
 deduplicated in the SQLite parsed-content cache is deduplicated in object
 storage too, for free. Selected via Settings.object_store_endpoint_url;
 the local documents_dir remains the default and is entirely unaffected

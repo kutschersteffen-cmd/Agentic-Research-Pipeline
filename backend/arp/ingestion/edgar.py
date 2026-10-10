@@ -209,7 +209,7 @@ class EdgarDocumentSource(DocumentSource):
             if self._content_store is not None:
                 self._content_store.set_storage_uri(doc_id, storage_uri)
 
-        from arp.storage.document_registry import StoredDocumentRef
+        from arp.db.documents import StoredDocumentRef
         from arp.storage.postgres_document_projection import sync_document_if_enabled
 
         sync_document_if_enabled(

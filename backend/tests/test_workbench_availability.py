@@ -16,7 +16,7 @@ class Env:
     def __init__(self, tmp_path):
         self.run_store = RunStore(pg_dsn(), tmp_path / "runs")
         self.jobs = JobManager(self.run_store)
-        self.content = DocumentContentStore(tmp_path / "store")
+        self.content = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
         self.xbrl = XbrlStore(tmp_path / "xbrl")
         self.docs = tmp_path / "docs"
         self.n = 0

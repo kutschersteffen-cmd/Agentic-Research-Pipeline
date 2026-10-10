@@ -12,7 +12,9 @@ from arp.schemas.common import Citation, RunManifest
 from arp.storage.document_blob_store import LocalBlobStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
-from tests.postgres_helpers import edit_results
+from tests.postgres_helpers import edit_results, pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 ORIGINAL = b"original report bytes"
 KEY = hashlib.sha256(ORIGINAL).hexdigest()
@@ -46,7 +48,7 @@ def world(tmp_path, monkeypatch, pg):
     run_store.append_result("ext1", row)
     blobs = LocalBlobStore(tmp_path / "blobs")
     blobs.put(KEY, ORIGINAL)
-    texts = DocumentContentStore(tmp_path / "docs")
+    texts = DocumentContentStore(tmp_path / "docs", dsn=pg_dsn())
     texts.store(KEY, key_kind="file_bytes", parser_version="old", source_suffix=".txt", byte_size=1,
                 text=OLD_TEXT, page_breaks=[])
     settings = Settings(publish_state_dir=tmp_path / "state")

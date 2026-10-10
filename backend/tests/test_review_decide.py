@@ -21,7 +21,7 @@ from arp.storage.document_store import DocumentContentStore
 from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
 from arp.storage.run_store import RunStore
 from tests.conftest import PRINCIPAL
-from tests.postgres_helpers import replace_results
+from tests.postgres_helpers import pg_dsn, replace_results
 from tests.test_review_context import DOC, FIELD, KEY, START, TEXT, _schema
 
 pytestmark = pytest.mark.usefixtures("pg")
@@ -40,7 +40,7 @@ APPROVE = {"decision": "approve", "reason_code": "confirmed"}
 @pytest.fixture
 def env(tmp_path, pg):
     rs = RunStore(pg, tmp_path / "runs")
-    store = DocumentContentStore(tmp_path / "docs")
+    store = DocumentContentStore(tmp_path / "docs", dsn=pg_dsn())
     store.store("ck1", key_kind="file", parser_version="p1", source_suffix=".pdf", byte_size=1, text=TEXT, page_breaks=[])
     settings = Settings(schema_registry_dir=tmp_path / "reg", second_review_sample_rate=0.0)
     reg = SchemaRegistry()
@@ -122,7 +122,7 @@ def test_correction_number_not_in_span_is_422(env):
 
 
 def test_source_text_unavailable_is_422(env, tmp_path):
-    app.dependency_overrides[get_document_content_store] = lambda: DocumentContentStore(tmp_path / "off", enabled=False)
+    app.dependency_overrides[get_document_content_store] = lambda: DocumentContentStore(tmp_path / "off", enabled=False, dsn=pg_dsn())
     r = decide(ALICE, CORRECT)
     assert r.status_code == 422 and "source text unavailable" in r.text
 

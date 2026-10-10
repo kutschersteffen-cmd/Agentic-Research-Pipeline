@@ -16,6 +16,7 @@ from arp.schemas.datapoints import DataPointSchema, FieldDefinition
 from arp.schemas.review import ReviewDecision
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import pg_dsn
 
 pytestmark = pytest.mark.usefixtures("pg")
 
@@ -60,7 +61,7 @@ def _schema(description="Direct emissions", high_risk=False):
 @pytest.fixture
 def env(tmp_path, pg):
     rs = RunStore(pg, tmp_path / "runs")
-    store = DocumentContentStore(tmp_path / "docs")
+    store = DocumentContentStore(tmp_path / "docs", dsn=pg_dsn())
     store.store("ck1", key_kind="file", parser_version="p1", source_suffix=".pdf", byte_size=1, text=TEXT, page_breaks=[])
     settings = Settings(schema_registry_dir=tmp_path / "reg")
     rs.save_manifest(RunManifest(run_id="ext1", run_type="extraction"))
@@ -157,7 +158,7 @@ def test_field_definition_from_run_snapshot(env):
 
 def test_text_unavailable_gives_none(env, tmp_path):
     rs, _, settings = env
-    off = DocumentContentStore(tmp_path / "off", enabled=False)
+    off = DocumentContentStore(tmp_path / "off", enabled=False, dsn=pg_dsn())
     bundle = build_context(rs, "ext1", KEY, CAROL, settings=settings, content_store=off)
     e = bundle["evidence"][0]
     assert e["page_text"] is None and e["page_start"] is None and e["quote"] == "1,234"

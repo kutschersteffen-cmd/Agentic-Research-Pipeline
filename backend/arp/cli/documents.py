@@ -85,21 +85,6 @@ def documents_cache_prune(yes: bool = typer.Option(False, "--yes", help="Skip th
     typer.echo(f"Pruned {deleted} stale parsed_content row(s). Kept: {current}")
 
 
-@documents_app.command("migrate-registry")
-def documents_migrate_registry() -> None:
-    """Copy of the SQLite document registry into Postgres, for switching on
-    embeddings_backend=postgres with documents already registered. Copies
-    rows not yet in Postgres; never overwrites. Idempotent."""
-    from arp.config import get_settings
-    from arp.storage.postgres_document_registry import copy_sqlite_registry
-
-    settings = get_settings()
-    if settings.embeddings_backend != "postgres" or not settings.postgres_dsn:
-        typer.echo("migrate-registry needs ARP_EMBEDDINGS_BACKEND=postgres and ARP_POSTGRES_DSN.", err=True)
-        raise typer.Exit(1)
-    typer.echo(f"Copied {copy_sqlite_registry(settings.document_store_dir, settings.postgres_dsn)} registry rows.")
-
-
 @documents_app.command("reground")
 def documents_reground(
     force: bool = typer.Option(False, "--force", help="Re-ground even if the parser version is unchanged."),

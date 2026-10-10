@@ -1,10 +1,5 @@
-"""pgvector-backed alternative to DocumentContentStore's SQLite chunk-
-embeddings cache (arp/storage/document_store.py::ChunkEmbeddingsCache),
-selected via Settings.embeddings_backend == "postgres" (requires
-Settings.postgres_dsn). Implements the exact same two-method interface
-select_relevant_chunks/_vector_ranking (arp/retrieval/select_evidence.py)
-already calls on a `content_store`, so it's a drop-in swap -- no changes
-needed anywhere hybrid retrieval is wired up.
+"""pgvector chunk-embeddings store: the only embeddings backend. Implements the two-method interface
+select_relevant_chunks/_vector_ranking (arp/retrieval/select_evidence.py) calls on a `content_store`.
 """
 
 from __future__ import annotations

@@ -5,6 +5,8 @@ import json
 from datetime import date
 from types import SimpleNamespace
 
+import pytest
+
 from arp.config import Settings
 from arp.holdings.intake import ingest
 from arp.holdings.validate import validate
@@ -20,6 +22,9 @@ from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 
 def _settings(**kw):
@@ -91,7 +96,7 @@ def test_reground_sample_records_results(tmp_path):
     log = tmp_path / "reground.jsonl"
     rows = S.reground_sample(
         [_fact("a", key), _fact("b", "0" * 64)], n=5, day="2026-11-03", blob_store=blobs,
-        content_store=DocumentContentStore(tmp_path / "docs"), fuzzy_threshold=0.9, log_path=log,
+        content_store=DocumentContentStore(tmp_path / "docs", dsn=pg_dsn()), fuzzy_threshold=0.9, log_path=log,
     )
     assert len(rows) == 2 and len(log.read_text().splitlines()) == 2
     assert [r["result"] for r in rows if r["fact_id"] == "b"] == ["original_missing"]

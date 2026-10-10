@@ -6,10 +6,10 @@ from pathlib import Path
 
 import numpy as np
 
-from arp.storage import document_registry, embeddings_cache, parsed_content_cache
-from arp.storage.document_registry import DocumentRegistry, StoredDocumentRef, derive_doc_id
-from arp.storage.embeddings_cache import ChunkEmbeddingsCache
+from arp.db.documents import DocumentRegistry, StoredDocumentRef, derive_doc_id
+from arp.storage import parsed_content_cache
 from arp.storage.parsed_content_cache import ParsedContent, ParsedContentCache
+from arp.storage.postgres_embeddings import PgVectorEmbeddingsStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
 # Re-exported so every existing `from arp.storage.document_store import
@@ -26,10 +26,6 @@ __all__ = [
 
 _DB_FILENAME = "content.db"
 
-# One schema init call across all three collaborators' own fragments --
-# see DocumentContentStore's docstring for why they share a single file.
-_SCHEMA = parsed_content_cache.SCHEMA + "\n" + document_registry.SCHEMA + "\n" + embeddings_cache.SCHEMA
-
 
 def files_on_disk(documents_dir: Path, company_id: str) -> int:
     try:
@@ -40,29 +36,13 @@ def files_on_disk(documents_dir: Path, company_id: str) -> int:
 
 
 class DocumentContentStore:
-    """Content-addressed cache of parsed document text, plus a
-    company/doc_type -> doc_id directory for cross-run citation
-    resolution, plus a chunk-embeddings cache for opt-in hybrid retrieval.
+    """Content-addressed cache of parsed document text (SQLite content.db, derived data -- deleting it
+    costs only re-parsing time), plus the Postgres document registry (company/doc_type -> doc_id, for
+    cross-run citation resolution) and the pgvector chunk-embeddings store for hybrid retrieval.
 
-    A deliberate departure from every other store in this app: it uses
-    stdlib sqlite3, the first database anywhere in this codebase, where
-    every other store advertises "no database" and means it. That rule
-    protects *user-authored* state (a run's manifest, an engagement's
-    audit trail) that cannot be regenerated if lost or corrupted. This
-    store holds only *derived* state -- deleting content.db costs nothing
-    but re-parsing time.
-
-    This class is a thin facade over three independent collaborators --
-    ParsedContentCache, DocumentRegistry, ChunkEmbeddingsCache (see their
-    own modules) -- that share one SQLite file and one connection recipe,
-    not because their jobs are related, but because a single file gives
-    one thing to back up/inspect/prune instead of three, and per-
-    operation connect overhead (tens to low hundreds of microseconds) is
-    negligible next to what any of the three actually do (a multi-second
-    parse, a multi-MB row read, a batch embedding write). Each
-    collaborator is independently readable and owns its own schema
-    fragment; this facade only adds the parts that are genuinely
-    cross-cutting -- schema init and the operator-facing stats() view.
+    A thin facade over three collaborators -- ParsedContentCache (SQLite), DocumentRegistry and
+    PgVectorEmbeddingsStore (Postgres) -- adding only the cross-cutting parts: schema init and the
+    operator-facing stats() view.
 
     No lock() method anywhere in this store, deliberately: every write in
     every collaborator is an idempotent, content-addressed insert of a
@@ -84,7 +64,7 @@ class DocumentContentStore:
     store_dir local if you repoint it.
     """
 
-    def __init__(self, store_dir: Path, enabled: bool = True, *, postgres_dsn: str | None = None) -> None:
+    def __init__(self, store_dir: Path, enabled: bool = True, *, dsn: str) -> None:
         self.store_dir = store_dir
         self.enabled = enabled
         self._db_path = store_dir / _DB_FILENAME
@@ -92,28 +72,15 @@ class DocumentContentStore:
             self.store_dir.mkdir(parents=True, exist_ok=True)
             conn = self._connect()
             try:
-                conn.executescript(_SCHEMA)
+                conn.executescript(parsed_content_cache.SCHEMA)
                 conn.commit()
-                document_registry.ensure_columns(conn)
                 parsed_content_cache.ensure_columns(conn)
             finally:
                 conn.close()
 
         self._parsed_content = ParsedContentCache(self._connect, enabled)
-        if postgres_dsn:
-            # Registry and embeddings live in Postgres (embeddings_backend ==
-            # "postgres"); parsed text stays here as a derived cache.
-            from arp.storage.postgres_document_registry import PgDocumentRegistry, warn_if_unmigrated
-            from arp.storage.postgres_embeddings import PgVectorEmbeddingsStore
-
-            self._registry = PgDocumentRegistry(postgres_dsn, enabled, self._parsed_content.parsed_keys)
-            self._embeddings = PgVectorEmbeddingsStore(postgres_dsn)
-            if enabled:
-                warn_if_unmigrated(postgres_dsn, self._db_path)
-        else:
-            self._registry = DocumentRegistry(self._connect, enabled)
-            self._embeddings = ChunkEmbeddingsCache(self._connect, enabled)
-        self._postgres = bool(postgres_dsn)
+        self._registry = DocumentRegistry(dsn, enabled)
+        self._embeddings = PgVectorEmbeddingsStore(dsn)
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self._db_path, timeout=5.0)
@@ -169,15 +136,16 @@ class DocumentContentStore:
         return self._registry.list_all()
 
     def readiness_by_company(self, company_ids: list[str]) -> dict[str, dict]:
-        return self._registry.readiness_by_company(company_ids)
+        return self._registry.readiness_by_company(company_ids, self._parsed_content.parsed_keys)
 
-    # --- chunk embeddings (delegates to ChunkEmbeddingsCache) ---------------
+    # --- chunk embeddings (delegates to PgVectorEmbeddingsStore) ---------------
 
     def lookup_embeddings(self, chunk_ids: list[str], embed_model: str) -> dict[str, np.ndarray]:
-        return self._embeddings.lookup_embeddings(chunk_ids, embed_model)
+        return self._embeddings.lookup_embeddings(chunk_ids, embed_model) if self.enabled else {}
 
     def store_embeddings(self, vectors_by_chunk_id: dict[str, np.ndarray], embed_model: str) -> None:
-        return self._embeddings.store_embeddings(vectors_by_chunk_id, embed_model)
+        if self.enabled:
+            self._embeddings.store_embeddings(vectors_by_chunk_id, embed_model)
 
     # --- operator surface (arp documents ... CLI) ---------------------------
 
@@ -191,12 +159,7 @@ class DocumentContentStore:
         try:
             merged = {"enabled": True}
             merged.update(self._parsed_content.stats(conn))
-            if self._postgres:
-                merged.update(self._registry.stats())
-                merged["registry_backend"] = "postgres"
-            else:
-                merged.update(self._registry.stats(conn))
-                merged.update(self._embeddings.stats(conn))
+            merged.update(self._registry.stats())
             merged["db_path"] = str(self._db_path)
             return merged
         finally:

@@ -33,7 +33,7 @@ RAW = json.dumps(FACTS).encode()
 
 
 def _stores(tmp_path):
-    return LocalBlobStore(tmp_path / "blobs"), DocumentContentStore(tmp_path / "docs")
+    return LocalBlobStore(tmp_path / "blobs"), DocumentContentStore(tmp_path / "docs", dsn=pg_dsn())
 
 
 async def _published_run(tmp_path, fake_llm, frozen):
@@ -136,7 +136,7 @@ class _Client:
 async def test_fact_source_freezes_fetched_bytes_and_cache_hits(tmp_path, monkeypatch):
     monkeypatch.setattr("arp.ingestion.xbrl.httpx.AsyncClient", _Client)
     _Client.calls = 0
-    texts = DocumentContentStore(tmp_path / "docs")
+    texts = DocumentContentStore(tmp_path / "docs", dsn=pg_dsn())
     edgar = EdgarDocumentSource("t t@example.com", tmp_path / "cache", content_store=texts,
                                 indexing_config=IndexingConfig(blob_store_dir=tmp_path / "blobs"))
     source = XbrlFactSource(edgar, tmp_path / "cache")
@@ -151,7 +151,7 @@ async def test_fact_source_freezes_fetched_bytes_and_cache_hits(tmp_path, monkey
 
 async def test_fact_source_without_blob_store_falls_back(tmp_path, monkeypatch):
     monkeypatch.setattr("arp.ingestion.xbrl.httpx.AsyncClient", _Client)
-    texts = DocumentContentStore(tmp_path / "docs")
+    texts = DocumentContentStore(tmp_path / "docs", dsn=pg_dsn())
     edgar = EdgarDocumentSource("t t@example.com", tmp_path / "cache", content_store=texts,
                                 indexing_config=IndexingConfig())  # no blob store configured
     source = await XbrlFactSource(edgar, tmp_path / "cache").fact_source(CIK)

@@ -231,7 +231,7 @@ async def test_verify_step_runs_on_the_verifier_model_not_the_answering_one(fake
     assert assessment.grounded is True and len(usages) == 2
 
 
-async def test_hybrid_retrieval_follows_the_setting(fake_llm, tmp_path, monkeypatch):
+async def test_hybrid_retrieval_follows_the_setting(fake_llm, tmp_path, monkeypatch, pg):
     from arp.config import Settings
     from arp.retrieval import embeddings as embeddings_module
 
@@ -250,5 +250,5 @@ async def test_hybrid_retrieval_follows_the_setting(fake_llm, tmp_path, monkeypa
 
     await run(None)
     assert embed_calls == [], "no settings: keyword search only, as before"
-    await run(Settings(anthropic_api_key="unused", cache_dir=tmp_path / "cache", hybrid_retrieval_enabled=True))
+    await run(Settings(anthropic_api_key="unused", cache_dir=tmp_path / "cache", hybrid_retrieval_enabled=True, postgres_dsn=pg))
     assert embed_calls != [], "setting on: meaning-based search joins the keyword ranking"

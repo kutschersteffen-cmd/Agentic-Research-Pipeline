@@ -1,8 +1,7 @@
-"""Read-model projection of DocumentRegistry (SQLite, always
-authoritative -- see arp/storage/document_registry.py) into
-DocumentRegistryModel (arp/storage/postgres_models.py). SQLite stays the
-only writable copy; this module only ever reads it and writes derived
-rows, plus offers a read-only Postgres-backed reader for callers that
+"""Read-model projection of DocumentRegistry (the authoritative Postgres
+`documents` table -- see arp/db/documents.py) into the legacy
+DocumentRegistryModel (arp/storage/postgres_models.py; dropped in Task 12).
+This module only ever reads the registry and writes derived rows, plus offers a read-only Postgres-backed reader for callers that
 want the relational-join lookups this projection exists for (joining
 OpenSearch's doc_id-only hits back to company/doc_type facts, or
 cross-company dedup queries).
@@ -12,8 +11,8 @@ from __future__ import annotations
 
 import logging
 
+from arp.db.documents import StoredDocumentRef
 from arp.ingestion.indexing_config import IndexingConfig
-from arp.storage.document_registry import StoredDocumentRef
 from arp.storage.postgres import get_engine
 
 logger = logging.getLogger(__name__)
@@ -22,7 +21,7 @@ logger = logging.getLogger(__name__)
 def sync_document(dsn: str, doc_ref: StoredDocumentRef) -> None:
     """Idempotent upsert of one document's registry row.
 
-    `first_seen_at`/`last_seen_at` are copied from the authoritative SQLite
+    `first_seen_at`/`last_seen_at` are copied from the authoritative
     row, not stamped with the sync time. They used to be stamped, which
     made them mean "first/last projected" in the mirror while meaning
     "first/last registered" in the source -- two columns with the same

@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import asyncio
-import sqlite3
+
+import pytest
 
 from arp.ingestion.doc_identity import assign_identity, published_at_for, reporting_year
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.schemas.discovery import CaptureRecord
 from arp.storage.document_store import DocumentContentStore
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 ACME = CompanyRef(company_id="acme", name="Acme")
 BODY = "Acme emitted 100 tonnes of CO2 in 2023. " * 20
@@ -20,7 +24,7 @@ def _fetch(tmp_path, store):
 def test_corrected_republication_links_to_first(tmp_path):
     folder = tmp_path / "docs" / "acme" / DocType.SUSTAINABILITY_REPORT.value
     folder.mkdir(parents=True)
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     (folder / "Sustainability Report 2023.txt").write_text(BODY)
     (first,) = _fetch(tmp_path, store)
     (folder / "Sustainability Report 2023 corrected.txt").write_text(BODY + "Corrected figure: 90 tonnes.")
@@ -47,7 +51,7 @@ def test_no_year_goes_to_review():
 
 
 def test_same_year_no_marker_no_dates_is_low_confidence():
-    from arp.storage.document_registry import StoredDocumentRef
+    from arp.db.documents import StoredDocumentRef
 
     prev = StoredDocumentRef("doc_1", "acme", "sustainability_report", "k", "R 2023", None, None, version=1)
     d = _assign("Report 2023 final.pdf", members=[prev])
@@ -66,23 +70,6 @@ def test_published_at_from_capture_header(tmp_path):
     )
     assert published_at_for(tmp_path / "missing.txt", cap) == "2023-03-01"
     assert published_at_for(tmp_path / "missing.txt", None) is None
-
-
-def test_old_content_db_gains_identity_columns(tmp_path):
-    store_dir = tmp_path / "store"
-    store_dir.mkdir()
-    conn = sqlite3.connect(store_dir / "content.db")
-    conn.execute(
-        "CREATE TABLE documents (doc_id TEXT PRIMARY KEY, company_id TEXT NOT NULL, doc_type TEXT NOT NULL, "
-        "content_key TEXT NOT NULL, title TEXT NOT NULL, local_path TEXT, source_url TEXT, "
-        "first_seen_at TEXT NOT NULL, last_seen_at TEXT NOT NULL)"
-    )
-    conn.execute("INSERT INTO documents VALUES ('doc_old','acme','10-K','k','T',NULL,NULL,'a','b')")
-    conn.commit()
-    conn.close()
-    store = DocumentContentStore(store_dir)
-    ref = store.resolve_document("doc_old")
-    assert ref.family_id is None and ref.version is None
 
 
 def test_old_source_document_json_loads():
@@ -108,7 +95,7 @@ def test_first_ingest_order_is_deterministic_under_reverse_completion(tmp_path, 
 
     monkeypatch.setattr(local_files, "parse_file_to_text_with_pages", slow_original)
     for i in range(2):
-        store = DocumentContentStore(tmp_path / f"store{i}")
+        store = DocumentContentStore(tmp_path / f"store{i}", dsn=pg_dsn())
         docs = {d.title: d for d in _fetch(tmp_path, store)}
         orig, corr = docs["Sustainability Report 2023.txt"], docs["Sustainability Report 2023 corrected.txt"]
         assert orig.version == 1 and corr.version == 2 and corr.supersedes == orig.doc_id

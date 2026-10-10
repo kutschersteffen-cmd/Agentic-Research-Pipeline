@@ -24,6 +24,9 @@ from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition, FieldQuality, FieldStatus
 from arp.storage.document_blob_store import LocalBlobStore
 from arp.storage.document_store import DocumentContentStore
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 FIXTURES = Path(__file__).parent / "fixtures" / "esef"
 XHTML = (FIXTURES / "beispiel-2024.xhtml").read_bytes()
@@ -51,7 +54,7 @@ def _local_source(tmp_path, name="beispiel-2024.xhtml"):
     dest = tmp_path / "docs" / "c1" / DocType.ANNUAL_REPORT_10K.value
     dest.mkdir(parents=True)
     shutil.copy(FIXTURES / name, dest / name)
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     blobs = tmp_path / "blobs"
     source = LocalFileDocumentSource(tmp_path / "docs", content_store=store, indexing_config=IndexingConfig(blob_store_dir=blobs))
     return source, store, LocalBlobStore(blobs)
@@ -167,7 +170,7 @@ def test_source_off_by_default(tmp_path, monkeypatch):
     monkeypatch.setattr(httpx.AsyncClient, "send", no_network)
     settings = _settings(tmp_path)
     assert settings.esef_enabled is False
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     assert not any(isinstance(s, EsefDocumentSource) for s in build_registry(settings, store).sources)
     on = build_registry(_settings(tmp_path, esef_enabled=True), store)
     assert any(isinstance(s, EsefDocumentSource) for s in on.sources)
@@ -197,7 +200,7 @@ async def test_esef_document_source_fetches_by_lei(tmp_path, no_ssrf):
             return httpx.Response(200, content=PACKAGE)
         return httpx.Response(404)
 
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     source = EsefDocumentSource(
         "https://filings.example", tmp_path / "cache", client=client, content_store=store,

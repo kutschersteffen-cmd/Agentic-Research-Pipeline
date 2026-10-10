@@ -9,6 +9,9 @@ from arp.publish.gate import lineage_error, reground, sample
 from arp.schemas.common import Citation
 from arp.storage.document_blob_store import LocalBlobStore
 from arp.storage.document_store import DocumentContentStore
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 ORIGINAL = b"%PDF original bytes"
 KEY = hashlib.sha256(ORIGINAL).hexdigest()
@@ -43,7 +46,7 @@ def blobs(tmp_path):
 
 @pytest.fixture
 def texts(tmp_path):
-    store = DocumentContentStore(tmp_path / "docs")
+    store = DocumentContentStore(tmp_path / "docs", dsn=pg_dsn())
     store.store(KEY, key_kind="file", parser_version="p1", source_suffix=".pdf", byte_size=1, text=TEXT, page_breaks=[])
     return store
 
@@ -83,7 +86,7 @@ def test_reground_offset_moved(blobs, texts):
 
 
 def test_reground_text_unavailable(blobs, tmp_path):
-    disabled = DocumentContentStore(tmp_path / "off", enabled=False)
+    disabled = DocumentContentStore(tmp_path / "off", enabled=False, dsn=pg_dsn())
     assert reground(_fact(), blob_store=blobs, content_store=disabled, fuzzy_threshold=0.92) == "text_unavailable"
     assert reground(_fact(), blob_store=blobs, content_store=None, fuzzy_threshold=0.92) == "text_unavailable"
 
@@ -105,7 +108,7 @@ def test_sample_deterministic_per_seed():
 def test_reground_repeated_quote_at_stored_offset_is_ok(tmp_path, blobs):
     text = "x" * 400 + QUOTE + "y" * 400 + QUOTE + " end"
     second = text.rindex(QUOTE)
-    store = DocumentContentStore(tmp_path / "docs2")
+    store = DocumentContentStore(tmp_path / "docs2", dsn=pg_dsn())
     store.store(KEY, key_kind="file", parser_version="p1", source_suffix=".pdf", byte_size=1, text=text, page_breaks=[])
     fact = _fact(char_start=second, char_end=second + len(QUOTE))
     assert reground(fact, blob_store=blobs, content_store=store, fuzzy_threshold=0.92) == "ok"
@@ -114,7 +117,7 @@ def test_reground_repeated_quote_at_stored_offset_is_ok(tmp_path, blobs):
 def test_edgar_citation_resolves_blob_through_registry(tmp_path):
     edgar_key = hashlib.sha256(b"edgar:0000320193-24-000123/aapl-20240928.htm").hexdigest()
     blobs = LocalBlobStore(tmp_path / "blobs")
-    texts = DocumentContentStore(tmp_path / "docs")
+    texts = DocumentContentStore(tmp_path / "docs", dsn=pg_dsn())
     texts.store(edgar_key, key_kind="edgar_accession", parser_version="p1", source_suffix=".htm", byte_size=1, text=TEXT,
                 page_breaks=[])
     doc_id = texts.register_document(doc_id="d_edgar", company_id="C1", doc_type="10-K", content_key=edgar_key,

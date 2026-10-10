@@ -14,6 +14,9 @@ from arp.schemas.common import CompanyRef, DocType
 from arp.storage.document_blob_store import CaptureStoreError, LocalBlobStore, upload_or_fail
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.jsonl_io import read_jsonl
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 ACME = CompanyRef(company_id="acme", name="Acme")
 BODY = b"%PDF-1.4 fake report body"
@@ -117,7 +120,7 @@ def test_local_files_skips_file_when_archive_fails(tmp_path):
     not_a_dir.write_text("x")
     config = IndexingConfig(blob_store_dir=not_a_dir)
     source = LocalFileDocumentSource(
-        tmp_path / "docs", content_store=DocumentContentStore(tmp_path / "store"), indexing_config=config
+        tmp_path / "docs", content_store=DocumentContentStore(tmp_path / "store", dsn=pg_dsn()), indexing_config=config
     )
     assert asyncio.run(source.fetch(ACME)) == []
 
@@ -136,7 +139,7 @@ def test_local_files_real_store_success(tmp_path):
     folder.mkdir(parents=True)
     (folder / "report.txt").write_text("Some disclosure text about green capex.")
     blobs = tmp_path / "blobs"
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     source = LocalFileDocumentSource(tmp_path / "docs", content_store=store, indexing_config=IndexingConfig(blob_store_dir=blobs))
     (doc,) = asyncio.run(source.fetch(ACME))
     key = hashlib.sha256(b"Some disclosure text about green capex.").hexdigest()
@@ -158,7 +161,7 @@ def test_second_fetch_of_unchanged_file_skips_reverify_and_intake_checks(tmp_pat
     monkeypatch.setattr(downloader, "latest_capture", lambda *a: captures.append(a) or orig_latest(*a))
     orig_get = LocalBlobStore.get
     monkeypatch.setattr(LocalBlobStore, "get", lambda self, key: gets.append(key) or orig_get(self, key))
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     source = LocalFileDocumentSource(tmp_path / "docs", content_store=store, indexing_config=IndexingConfig(blob_store_dir=tmp_path / "blobs"))
 
     (first,) = asyncio.run(source.fetch(ACME))

@@ -1,9 +1,14 @@
 import numpy as np
+import pytest
 
 from arp.retrieval import embeddings as embeddings_module
+from arp.retrieval.embeddings import EMBED_DIM
 from arp.retrieval.select_evidence import _rrf_fuse, select_relevant_chunks
 from arp.schemas.common import DocType, DocumentChunk
 from arp.storage.document_store import DocumentContentStore
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 
 def _chunk(chunk_id, text, doc_type=DocType.ANNUAL_REPORT_10K):
@@ -12,9 +17,13 @@ def _chunk(chunk_id, text, doc_type=DocType.ANNUAL_REPORT_10K):
     )
 
 
+def _pad(v):
+    return v + [0.0] * (EMBED_DIM - len(v))  # the pgvector column is EMBED_DIM wide
+
+
 def _fake_embed(vectors_by_text):
     def embed_texts(texts):
-        return np.array([vectors_by_text[t] for t in texts], dtype=np.float32)
+        return np.array([_pad(vectors_by_text[t]) for t in texts], dtype=np.float32)
 
     return embed_texts
 
@@ -57,7 +66,7 @@ def test_hybrid_surfaces_a_semantically_close_chunk_with_zero_keyword_overlap(tm
         "electrification": [0.0, 1.0],  # query embeds identical to the "semantic" chunk
     }
     monkeypatch.setattr(embeddings_module, "embed_texts", _fake_embed(vectors))
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
 
     # None of these chunks literally contain "electrification", so BM25's
     # require_hit filter drops every chunk -- the fused ranking is driven
@@ -83,14 +92,14 @@ def test_hybrid_reuses_cached_chunk_embeddings_across_calls(tmp_path, monkeypatc
 
     def counting_embed(texts):
         calls.append(list(texts))
-        return np.array([vectors[t] for t in texts], dtype=np.float32)
+        return np.array([_pad(vectors[t]) for t in texts], dtype=np.float32)
 
     monkeypatch.setattr(embeddings_module, "embed_texts", counting_embed)
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
 
     select_relevant_chunks(chunks, ["query", "one"], hybrid_retrieval_enabled=True, content_store=store)
     select_relevant_chunks(chunks, ["query", "two"], hybrid_retrieval_enabled=True, content_store=store)
 
     chunk_text_calls = [t for call in calls for t in call if t in ("alpha text", "beta text")]
     assert sorted(chunk_text_calls) == sorted(["alpha text", "beta text"])  # embedded once each, not per-call
-    assert store.stats()["cached_embeddings"] == 2
+    assert len(store.lookup_embeddings(["c1", "c2"], embeddings_module.EMBED_MODEL_NAME)) == 2

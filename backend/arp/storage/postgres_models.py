@@ -162,16 +162,8 @@ class ChunkEmbeddingModel(Base):
 
 
 class DocumentRegistryModel(Base):
-    """The document registry's Postgres form. A read-model projection of
-    DocumentRegistry (SQLite) by default -- additive only: lets OpenSearch's
-    doc_id-only hits (arp/storage/opensearch_indices.py) join back to
-    relational company/doc_type facts in one query, selected via
-    Settings.document_registry_projection_enabled. When
-    Settings.embeddings_backend == "postgres" with a postgres_dsn it is
-    instead the authoritative registry (arp/storage/
-    postgres_document_registry.py) and the identity columns below are
-    written directly. Parsed text and embeddings stay SQLite/pgvector
-    caches either way."""
+    """Legacy read-model projection of the document registry (the authoritative `documents` table,
+    arp/db/documents.py), selected via Settings.document_registry_projection_enabled. Dropped in Task 12."""
 
     __tablename__ = "document_registry"
     __table_args__ = (Index("ix_document_registry_company_type", "company_id", "doc_type"),)

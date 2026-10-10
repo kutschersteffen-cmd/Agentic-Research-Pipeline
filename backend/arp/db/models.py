@@ -289,6 +289,7 @@ class Document(Base):
 
     doc_id: Mapped[str] = mapped_column(Text, primary_key=True)
     company_id: Mapped[uuid.UUID] = _company_fk()
+    universe_id: Mapped[str | None] = mapped_column(Text)  # the universe company id callers registered under
     doc_type: Mapped[str] = mapped_column(Text)
     title: Mapped[str] = mapped_column(Text)
     content_key: Mapped[str] = mapped_column(Text)

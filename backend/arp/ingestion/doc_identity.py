@@ -12,8 +12,8 @@ from datetime import datetime
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 
+from arp.db.documents import StoredDocumentRef
 from arp.schemas.discovery import CaptureRecord
-from arp.storage.document_registry import StoredDocumentRef
 
 REVIEW_BELOW = 0.6
 CORRECTION_MARKERS = ("corrected", "correction", "amended", "amendment", "revised", "restated", "10-k/a")

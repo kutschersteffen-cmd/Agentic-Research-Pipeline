@@ -15,6 +15,9 @@ from arp.ingestion.parsing import chunk_document
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
 from arp.schemas.review import ReasonCode
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 # Docling's own markdown for this table (TableItem.export_to_markdown(doc), tabulate "github" format).
 MD = (
@@ -173,8 +176,8 @@ def test_table_spans_survive_the_parse_cache(tmp_path):
     )
     spans = _doc().table_spans
     kw = {"key_kind": "file_bytes", "parser_version": "p", "source_suffix": ".pdf", "byte_size": 1}
-    DocumentContentStore(tmp_path).get_or_compute("k", compute=lambda: (TEXT, [], spans), **kw)
-    hit = DocumentContentStore(tmp_path).get_or_compute("k", compute=lambda: 1 / 0, **kw)
+    DocumentContentStore(tmp_path, dsn=pg_dsn()).get_or_compute("k", compute=lambda: (TEXT, [], spans), **kw)
+    hit = DocumentContentStore(tmp_path, dsn=pg_dsn()).get_or_compute("k", compute=lambda: 1 / 0, **kw)
     assert SourceDocument(company_id="c", doc_type=DocType.SUSTAINABILITY_REPORT, title="t", full_text=TEXT,
                           table_spans=hit.table_spans).table_spans == spans
 

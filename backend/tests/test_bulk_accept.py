@@ -15,6 +15,7 @@ from arp.schemas.common import RunManifest
 from arp.schemas.datapoints import DataPointSchema, FieldDefinition
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import pg_dsn
 
 pytestmark = pytest.mark.usefixtures("pg")
 
@@ -60,7 +61,7 @@ def env(tmp_path, pg):
             "fields": fields, "documents": [],
         })
     app.dependency_overrides[get_run_store] = lambda: rs
-    app.dependency_overrides[get_document_content_store] = lambda: DocumentContentStore(tmp_path / "docs")
+    app.dependency_overrides[get_document_content_store] = lambda: DocumentContentStore(tmp_path / "docs", dsn=pg_dsn())
     app.dependency_overrides[settings_dep] = lambda: settings
     yield rs, settings
     for dep in (get_run_store, get_document_content_store, settings_dep, current_user):

@@ -5,6 +5,9 @@ from arp.api.routers.documents import ReadinessRequest, document_readiness
 from arp.config import Settings
 from arp.schemas.common import CompanyRef
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 
 def _register(store, company_id, content_key):
@@ -15,7 +18,7 @@ def _register(store, company_id, content_key):
 
 
 def test_readiness_counts_registered_and_parsed(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     _register(store, "acme", "key_a")
     _register(store, "acme", "key_b")
     store.store("key_a", key_kind="file_bytes", parser_version="v1", source_suffix=".pdf", byte_size=10, text="t", page_breaks=[])
@@ -29,7 +32,7 @@ def test_readiness_counts_registered_and_parsed(tmp_path):
 
 
 def test_readiness_batches_large_id_lists(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     _register(store, "id1500", "key_a")
 
     result = store.readiness_by_company([f"id{i}" for i in range(2000)])
@@ -39,7 +42,7 @@ def test_readiness_batches_large_id_lists(tmp_path):
 
 def test_endpoint_splits_ready_and_onboard(tmp_path):
     settings = Settings(anthropic_api_key="unused", documents_dir=tmp_path / "docs")
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     (settings.documents_dir / "acme" / "10-K").mkdir(parents=True)
     (settings.documents_dir / "acme" / "10-K" / "a.pdf").write_bytes(b"x")
     _register(store, "beta", "key_b")
@@ -56,7 +59,7 @@ def test_endpoint_splits_ready_and_onboard(tmp_path):
 def test_endpoint_requires_input(tmp_path):
     settings = Settings(anthropic_api_key="unused", documents_dir=tmp_path / "docs")
     with pytest.raises(HTTPException) as exc_info:
-        document_readiness(ReadinessRequest(), settings, DocumentContentStore(tmp_path / "store"))
+        document_readiness(ReadinessRequest(), settings, DocumentContentStore(tmp_path / "store", dsn=pg_dsn()))
     assert exc_info.value.status_code == 400
 
 
@@ -67,5 +70,5 @@ def test_endpoint_rejects_unreadable_universe(tmp_path, name, content):
     if content is not None:
         path.write_text(content)
     with pytest.raises(HTTPException) as exc_info:
-        document_readiness(ReadinessRequest(universe_path=str(path)), settings, DocumentContentStore(tmp_path / "store"))
+        document_readiness(ReadinessRequest(universe_path=str(path)), settings, DocumentContentStore(tmp_path / "store", dsn=pg_dsn()))
     assert exc_info.value.status_code == 400

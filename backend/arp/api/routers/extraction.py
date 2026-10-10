@@ -355,9 +355,10 @@ async def restart_run(
     registry = get_registry()
     if overrides.get("document_cache_enabled") is False:
         from arp.api.deps import build_registry
+        from arp.db.session import require_dsn
         from arp.storage.document_store import DocumentContentStore
 
-        registry = build_registry(run_settings, DocumentContentStore(run_settings.document_store_dir, enabled=False))
+        registry = build_registry(run_settings, DocumentContentStore(run_settings.document_store_dir, enabled=False, dsn=require_dsn(run_settings)))
     started = await _dispatch(
         original.model_copy(update={"companies": companies}), run_settings, run_store, registry, decision_store, xbrl_source
     )

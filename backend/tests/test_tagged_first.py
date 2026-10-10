@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from arp.config import Settings
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.pipeline import _extract_company
@@ -18,6 +20,9 @@ from arp.schemas.datapoints import (
     FieldQuality,
     FieldStatus,
 )
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 _TEXT = "Acme Corp annual report 2024. Total revenues were $383,285 million in fiscal 2024."
 _QUOTE = "Total revenues were $383,285 million"
@@ -189,7 +194,7 @@ async def test_tagged_value_is_refused_by_publish_not_dropped(tmp_path, fake_llm
     field = _field(["us-gaap:Revenues"])
     qualities = {(field.field_id, field.version): FieldQuality(field_id=field.field_id, version=field.version, first_audit_passed=True)}
     facts = _facts(2024, "2024-12-31")
-    blobs, texts = LocalBlobStore(tmp_path / "blobs"), DocumentContentStore(tmp_path / "docs")
+    blobs, texts = LocalBlobStore(tmp_path / "blobs"), DocumentContentStore(tmp_path / "docs", dsn=pg_dsn())
     for frozen in (None, freeze_company_facts(json.dumps(facts).encode(), "0000320193", blob_store=blobs, content_store=texts)):
         (f,), _, _ = await _run(tmp_path, fake_llm, field, facts, qualities=qualities, xbrl=_FakeXbrl(facts, frozen=frozen))
         assert (f.method, f.route) == ("tagged", "auto_accept")

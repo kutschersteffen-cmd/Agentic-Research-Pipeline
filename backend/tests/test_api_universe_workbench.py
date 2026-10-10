@@ -14,6 +14,7 @@ from arp.schemas.issuer import IdentifierMap
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
 from tests.conftest import PRINCIPAL
+from tests.postgres_helpers import pg_dsn
 
 pytestmark = pytest.mark.usefixtures("pg")  # the CLI/app and RunStore need Postgres
 
@@ -33,7 +34,7 @@ def env(tmp_path):
     app = FastAPI()
     app.include_router(wb.router)
     app.dependency_overrides[deps.settings_dep] = lambda: settings
-    app.dependency_overrides[deps.get_document_content_store] = lambda: DocumentContentStore(tmp_path / "store")
+    app.dependency_overrides[deps.get_document_content_store] = lambda: DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     app.dependency_overrides[current_user] = lambda: PRINCIPAL
     return TestClient(app), settings
 

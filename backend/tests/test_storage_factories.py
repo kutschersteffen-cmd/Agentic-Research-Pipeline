@@ -5,7 +5,6 @@ test_postgres_portfolio_store.py, gated on a real instance."""
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
 
 from arp.config import Settings
 from arp.retrieval.content_store_factory import build_hybrid_content_store
@@ -51,43 +50,6 @@ def test_portfolio_store_postgres_with_dsn_selects_postgres_backend(tmp_path):
     assert type(store).__name__ == "PostgresPortfolioStore"
 
 
-def test_hybrid_content_store_defaults_to_sqlite(tmp_path):
-    store = build_hybrid_content_store(_settings(tmp_path))
+def test_hybrid_content_store_is_the_document_content_store(tmp_path, pg):
+    store = build_hybrid_content_store(_settings(tmp_path, postgres_dsn=pg))
     assert isinstance(store, DocumentContentStore)
-
-
-def test_selecting_a_backend_without_its_connection_is_refused_at_construction(tmp_path):
-    """The misconfiguration is now caught when Settings is built -- at
-    startup, in the API and the CLI alike -- rather than being felt later
-    as a silently different backend. Previously only
-    build_portfolio_store raised, and only when it happened to be called;
-    the embeddings factory quietly used SQLite instead."""
-    for kwargs in (
-        {"portfolio_backend": "postgres"},
-        {"embeddings_backend": "postgres"},
-        {"retrieval_backend": "opensearch"},
-    ):
-        with pytest.raises(ValidationError):
-            _settings(tmp_path, **kwargs)
-
-
-def test_hybrid_content_store_still_falls_back_rather_than_failing_a_run(tmp_path):
-    """`build_hybrid_content_store` runs per field per company inside the
-    retrieval graph, so it must not raise over configuration: hybrid
-    retrieval is a cache, and failing a whole run for it would be worse
-    than being slower. Reaching this fallback means validation was
-    bypassed (model_construct here), which it also logs."""
-    settings = Settings.model_construct(
-        **{**_settings(tmp_path).model_dump(), "embeddings_backend": "postgres", "postgres_dsn": None}
-    )
-
-    store = build_hybrid_content_store(settings)
-
-    assert isinstance(store, DocumentContentStore)
-
-
-def test_hybrid_content_store_postgres_with_dsn_selects_pgvector(tmp_path):
-    store = build_hybrid_content_store(
-        _settings(tmp_path, embeddings_backend="postgres", postgres_dsn="postgresql+psycopg://u:p@localhost/db")
-    )
-    assert type(store).__name__ == "PgVectorEmbeddingsStore"

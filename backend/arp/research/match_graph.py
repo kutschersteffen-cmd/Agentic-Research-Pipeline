@@ -168,9 +168,7 @@ async def _gather_evidence(state: MatchState) -> dict:
     content_store = None
     if settings.hybrid_retrieval_enabled:
         # Opt-in, so this store is only ever constructed on the path
-        # that's actually going to use it -- see
-        # arp/retrieval/content_store_factory.py for the SQLite-vs-
-        # pgvector backend choice (Settings.embeddings_backend).
+        # that's actually going to use it.
         from arp.retrieval.content_store_factory import build_hybrid_content_store
 
         content_store = build_hybrid_content_store(settings)
