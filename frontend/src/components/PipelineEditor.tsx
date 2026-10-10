@@ -14,6 +14,7 @@ import type {
   StepSettingKey,
   StepSettings,
 } from "../types";
+import { pollAfter } from "../lib/poll";
 
 const CARD_W = 214;
 const PILL_W = 170;
@@ -216,7 +217,7 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
 
   useEffect(() => {
     if (!runId) return;
-    let timer: number | undefined;
+    let cancel = () => {};
     let stopped = false;
     async function poll() {
       try {
@@ -230,7 +231,7 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
         setManifest(m);
         setCompanies(c.companies);
         const running = s.live || m.status === "running" || m.status === "pending";
-        if (running) timer = window.setTimeout(poll, 2500);
+        if (running) cancel = pollAfter(poll, 2500);
         else setDecision(await api.getRunDecision(runId!).catch(() => null));
       } catch (e) {
         if (!stopped) setError((e as Error).message);
@@ -239,7 +240,7 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
     poll();
     return () => {
       stopped = true;
-      window.clearTimeout(timer);
+      cancel();
     };
   }, [runId, companyId, tick]);
 

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { EngagementRecord, ReviewableRunKind, RunManifest } from "../types";
 import { ACTIVE_STATUSES, REVIEWABLE_RUN_TYPES, runTypeLabel } from "../lib/runs";
+import { listAllRuns, usePoll } from "../lib/poll";
 
 interface Props {
   onNavigate: (tab: "engagement" | "voting" | "review") => void;
@@ -18,14 +19,13 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
   // unknown, never zero.
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [recordsLoaded, setRecordsLoaded] = useState(false);
-  const timerRef = useRef<number | undefined>(undefined);
   const cancelledRef = useRef(false);
 
   async function loadRuns() {
     try {
-      const res = (await api.listRuns()) as { runs: RunManifest[] };
+      const runs = await listAllRuns();
       if (cancelledRef.current) return;
-      setRuns(res.runs);
+      setRuns(runs);
       setLoadError(null);
       setLastRefreshed(new Date());
     } catch (err) {
@@ -48,20 +48,12 @@ export function MonitoringDashboard({ onNavigate, onOpenReview }: Props) {
   useEffect(() => {
     cancelledRef.current = false;
     loadRecords();
-
-    async function tick() {
-      await loadRuns();
-      if (cancelledRef.current) return;
-      timerRef.current = window.setTimeout(tick, 3000);
-    }
-    tick();
-
     return () => {
       cancelledRef.current = true;
-      if (timerRef.current) window.clearTimeout(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  usePoll(loadRuns, 3000);
 
   // Runs are replaced every 3s by the poll above, so these derive from `runs`;
   // the issue lists derive from `records`, which loads once at mount -- without

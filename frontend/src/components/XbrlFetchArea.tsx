@@ -4,6 +4,7 @@ import { UniversePicker } from "./UniversePicker";
 import { when } from "../lib/runs";
 import { canRetryFetch, keyLabel, reportText, statusText } from "../lib/xbrlTags";
 import type { RunManifest, UniverseHandoff, WorkbenchResponse, XbrlCompanyStatus, XbrlRunMarket } from "../types";
+import { pollAfter } from "../lib/poll";
 
 type ResultRow = XbrlCompanyStatus & { _key: string };
 type ErrorRow = { key: string; error: string };
@@ -94,10 +95,10 @@ export function XbrlFetchArea({
   useEffect(() => {
     if (!runId) return;
     let stopped = false;
-    let timer: number | undefined;
+    let cancel = () => {};
     const until = Date.now() + POLL_CAP_MS;
     setStalled(false);
-    const schedule = (ms: number) => (Date.now() < until ? (timer = window.setTimeout(tick, ms)) : setStalled(true));
+    const schedule = (ms: number) => (Date.now() < until ? (cancel = pollAfter(tick, ms)) : setStalled(true));
     const tick = async () => {
       try {
         const [m, r, e] = await Promise.all([
@@ -124,7 +125,7 @@ export function XbrlFetchArea({
     tick();
     return () => {
       stopped = true;
-      window.clearTimeout(timer);
+      cancel();
     };
   }, [runId, pollKey, onSettled]); // onSettled must be stable (useCallback) or polling restarts
 

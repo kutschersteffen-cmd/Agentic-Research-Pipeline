@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { DocumentsStage } from "../components/DocumentsStage";
 import { flowReducer, initialFlow, type StageOutput } from "../lib/stagedFlow";
 import { UniversePicker } from "../components/UniversePicker";
+import { usePoll } from "../lib/poll";
 import type { DiscoveryScheduleConfig, DocumentEvent, UniverseHandoff } from "../types";
 
 interface Props {
@@ -23,10 +24,8 @@ export function DocumentDiscovery({ pendingUniverse, onSendUniverse }: Props = {
 
   useEffect(() => {
     api.getDiscoverySchedule().then((s) => setSchedule(s as DiscoveryScheduleConfig));
-    refreshEvents();
-    const timer = window.setInterval(refreshEvents, 10000);
-    return () => window.clearInterval(timer);
   }, []);
+  usePoll(refreshEvents, 10000);
 
   async function refreshEvents() {
     const res = (await api.getDiscoveryEvents()) as { events: DocumentEvent[] };

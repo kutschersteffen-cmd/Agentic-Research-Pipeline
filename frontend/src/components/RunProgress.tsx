@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { RunManifest } from "../types";
+import { pollAfter } from "../lib/poll";
 
 const RESUMABLE_STATUSES = new Set(["failed", "partially_completed", "cancelled"]);
 
@@ -29,7 +30,7 @@ export function RunProgress({
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const timerRef = useRef<number | undefined>(undefined);
+  const timerRef = useRef<() => void>(() => {});
   const cancelledRef = useRef(false);
 
   async function poll() {
@@ -39,14 +40,14 @@ export function RunProgress({
       setManifest(m);
       setLoadError(null);
       if (m.status === "running" || m.status === "pending") {
-        timerRef.current = window.setTimeout(poll, pollMs);
+        timerRef.current = pollAfter(poll, pollMs);
       }
     } catch (err) {
       // Say so instead of "Loading…" forever; keep retrying in the background,
       // slower, in case the backend comes back.
       if (cancelledRef.current) return;
       setLoadError((err as Error).message);
-      timerRef.current = window.setTimeout(poll, pollMs * 4);
+      timerRef.current = pollAfter(poll, pollMs * 4);
     }
   }
 
@@ -55,7 +56,7 @@ export function RunProgress({
     poll();
     return () => {
       cancelledRef.current = true;
-      if (timerRef.current) window.clearTimeout(timerRef.current);
+      timerRef.current();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId, pollMs]);
@@ -78,7 +79,7 @@ export function RunProgress({
     setActionError(null);
     try {
       await api.resumeThemeRun(runId);
-      if (timerRef.current) window.clearTimeout(timerRef.current);
+      timerRef.current();
       await poll(); // status is "running" again server-side — re-arms continued polling
     } catch (err) {
       setActionError((err as Error).message);
@@ -91,7 +92,7 @@ export function RunProgress({
     return loadError ? (
       <p className="error-text" role="alert">
         Run status could not be loaded: {loadError}.{" "}
-        <button className="link-button" onClick={() => { if (timerRef.current) window.clearTimeout(timerRef.current); poll(); }}>
+        <button className="link-button" onClick={() => { timerRef.current(); poll(); }}>
           Retry
         </button>
       </p>

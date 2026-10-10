@@ -1,7 +1,10 @@
 import { Fragment, useState } from "react";
 import { LevelOverrides } from "./LevelOverrides";
 import { activatable } from "../lib/activatable";
+import { Pager } from "./XbrlFactsTable";
 import type { DecisionResult, EntityDecision, LevelOverride, MechanismConfig } from "../types";
+
+const PAGE = 100;
 
 function tierClass(tier?: number | null): string {
   if (tier === 1) return "badge badge-high";
@@ -37,6 +40,7 @@ export function DecisionResultsTable({
 }) {
   const [filter, setFilter] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [offset, setOffset] = useState(0);
   const dimensionNames = new Map(config.dimensions.map((d) => [d.id, d.name]));
 
   const rows = result.entities
@@ -51,12 +55,14 @@ export function DecisionResultsTable({
       if (b.rank == null) return -1;
       return a.rank - b.rank;
     });
+  const start = offset < rows.length ? offset : 0; // a new result or filter can leave fewer rows
+  const shown = rows.slice(start, start + PAGE);
 
   return (
     <div>
       <div className="toolbar">
-        <input aria-label="Filter by name" placeholder="Filter by name…" value={filter} onChange={(e) => setFilter(e.target.value)} />
-        <select aria-label="Order by" value={orderBy} onChange={(e) => onOrderBy(e.target.value as "score" | "leverage")}>
+        <input aria-label="Filter by name" placeholder="Filter by name…" value={filter} onChange={(e) => { setFilter(e.target.value); setOffset(0); }} />
+        <select aria-label="Order by" value={orderBy} onChange={(e) => { onOrderBy(e.target.value as "score" | "leverage"); setOffset(0); }}>
           <option value="score">Order by score</option>
           <option value="leverage">Order by leverage</option>
         </select>
@@ -80,7 +86,7 @@ export function DecisionResultsTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((entity) => (
+            {shown.map((entity) => (
               <Fragment key={entity.entity_key}>
                 <tr
                   className="clickable-row"
@@ -170,6 +176,7 @@ export function DecisionResultsTable({
           </tbody>
         </table>
       </div>
+      <Pager offset={start} count={shown.length} total={rows.length} limit={PAGE} noun="entities" onPage={setOffset} />
     </div>
   );
 }

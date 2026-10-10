@@ -20,6 +20,7 @@ import {
   type StageOutput,
 } from "../lib/stagedFlow";
 import type { CompanyRef, DiscoveryCompanyResult, JobStatus, RunManifest } from "../types";
+import { pollAfter } from "../lib/poll";
 
 const FINAL: JobStatus[] = ["completed", "partially_completed", "failed", "cancelled"];
 const FINISHED = ["review", "ready", "done", "stale", "failed"];
@@ -128,7 +129,7 @@ export function DocumentsStage({
   useEffect(() => {
     if (!runId || !watching) return;
     let live = true;
-    let timer: number | undefined;
+    let cancel = () => {};
     async function poll() {
       try {
         const m = (await api.getRun(runId!)) as RunManifest;
@@ -150,12 +151,12 @@ export function DocumentsStage({
       } catch {
         // keep polling; RunProgress shows the load error
       }
-      if (live) timer = window.setTimeout(poll, 2500);
+      if (live) cancel = pollAfter(poll, 2500);
     }
     poll();
     return () => {
       live = false;
-      window.clearTimeout(timer);
+      cancel();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId, watching]);
