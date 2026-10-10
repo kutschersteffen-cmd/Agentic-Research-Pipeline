@@ -75,13 +75,30 @@ def test_unrecognised_country_is_ignored_and_noted():
     assert "country 'Atlantis' not recognised" in r.detail
 
 
-def test_master_enrichment_then_reroute(tmp_path):
+def _master(tmp_path, *rows):
     s = IdentifierMapStore(tmp_path / "idmap.jsonl")
-    s.add(IdentifierMap(issuer_key="I1", scheme="ISIN", value="CA0000000001"))
-    s.add(IdentifierMap(issuer_key="I1", scheme="CIK", value="320193"))
-    r = _r(MasterIndex.build(s), isin="CA0000000001")
-    assert r.status == "routed" and r.market == "sec" and r.basis == "master"
+    for scheme, value in rows:
+        s.add(IdentifierMap(issuer_key="I1", scheme=scheme, value=value))
+    return MasterIndex.build(s)
+
+
+def test_master_enrichment_then_reroute(tmp_path):
+    idx = _master(tmp_path, ("ISIN", "XS1234567890"), ("CIK", "320193"))
+    r = _r(idx, isin="XS1234567890")
+    assert (r.status, r.market, r.basis) == ("routed", "sec", "master")
     assert r.company.cik == "320193"
+
+
+def test_no_source_isin_prefix_is_final_even_if_master_knows_the_issuer(tmp_path):
+    idx = _master(tmp_path, ("ISIN", "CA0679011084"), ("CIK", "320193"))
+    r = _r(idx, isin="CA0679011084")
+    assert (r.status, r.market) == ("no_source", None)
+
+
+def test_master_hit_without_deciding_identifiers(tmp_path):
+    idx = _master(tmp_path, ("ISIN", "XS1234567890"))
+    assert _r(idx, isin="XS1234567890").status == "unrouted"
+    assert _r(idx, isin="XS1234567890", ticker="ABC").basis == "ticker_fallback"
 
 
 def test_ticker_fallback():

@@ -47,7 +47,7 @@ def country_market(value: str | None) -> Market | None:
     return _MARKET[a2] if a2 else None
 
 
-def _rules(c: CompanyRef, *, final: bool = True) -> tuple[Market | None, str, str | None, str] | None:
+def _rules(c: CompanyRef) -> tuple[Market | None, str, str | None, str] | None:
     """Rules 1 to 3: (market, status, basis, detail), or None when none decides."""
     if m := country_market(c.country):
         return m, "routed", "country", f"country {c.country}"
@@ -56,8 +56,7 @@ def _rules(c: CompanyRef, *, final: bool = True) -> tuple[Market | None, str, st
     if len(prefix) == 2 and prefix.isalpha() and prefix not in ("XS", "EU"):
         if prefix in _MARKET:
             return _MARKET[prefix], "routed", "isin_prefix", f"ISIN prefix {prefix}"
-        if final:
-            return None, "no_source", "isin_prefix", f"no XBRL source for {prefix} yet"
+        return None, "no_source", "isin_prefix", f"no XBRL source for {prefix} yet"
     if "".join(ch for ch in (c.cik or "") if ch.isdigit()):
         return "sec", "routed", "cik", "CIK present"
     if normalise_lei(c.lei or ""):
@@ -74,16 +73,11 @@ def route_company(company: CompanyRef, index: MasterIndex | None = None) -> Rout
         market, status, b, detail = r
         return Route(market, status, basis or b, detail + note, c)
 
-    first = _rules(company)
-    if first and first[1] == "routed":
-        return done(first, company)
-    # a no_source ISIN prefix is only final if the master cannot route the issuer
+    if r := _rules(company):
+        return done(r, company)
     enriched = enrich(company, map_company(company, index))
-    r = _rules(enriched, final=False)  # master CIK/LEI may route past an unlisted prefix
-    if r and r[1] == "routed":
-        return done(r, enriched, "master")
-    if first:
-        return done(first, enriched)
+    if r := _rules(enriched):
+        return done(r, enriched, "master" if r[1] == "routed" else None)
     if (enriched.ticker or "").strip():
         return Route("sec", "routed", "ticker_fallback", "ticker only, assumed SEC" + note, enriched)
     return Route(None, "unrouted", None, _UNROUTED + note, enriched)
