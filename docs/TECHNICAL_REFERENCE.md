@@ -298,6 +298,23 @@ The landing page of both Argus processes (`#/argusUniverse`). It maps a universe
 | PDF parsing | **Docling** *(replaced pymupdf4llm this session)* | Layout-model + TableFormer-based PDF-to-markdown conversion, giving materially better table/reading-order extraction than a plain text-layer read — at the cost of a genuine ML pipeline running per page (needs a one-time model download from Hugging Face Hub on first use). Amortized across runs by the content-addressed `DocumentContentStore` cache, so it's a one-time cost per unique file, not per run. |
 | Citation grounding | **None (pure Python)** | `grounding.py` is deliberately independent of all of the above: it re-verifies every citation against the original fetched document text and resolves its real location, never trusting an LLM's self-reported source. |
 
+### Batch mode
+
+A run can send its LLM calls through Anthropic's Message Batches API at 50% of the token price. Results are identical, but the run takes longer: each step waits on a batch round, which Anthropic usually finishes within an hour (24 h at most). Use it for large or overnight runs; leave it off for urgent ones. It is set per run, never globally (`llm_batch` is not an env setting you flip).
+
+| Where | How |
+|---|---|
+| UI | The "Batch (50% cheaper, slower)" switch on the Extraction start screen and in Theme Builder. |
+| API | `batch: true` in the body of `POST /api/extraction/start`, `POST /api/{extraction,financials,tnfd,transition-plan,themes,voting,identity}/runs`. |
+| CLI | `--batch` on `arp extract run`, `arp extract financials-run`, `arp extract tnfd-run`, `arp theme run` and `arp voting run`. |
+
+Settings (env prefix `ARP_`):
+
+- `ARP_BATCH_CONCURRENCY` (`batch_concurrency`, default 1000): `max_concurrent_llm_calls` for a batch run.
+- `ARP_BATCH_SCHEDULED_RUN_TYPES` (`batch_scheduled_run_types`, default `["emerging_themes"]`): scheduled run types that run in batch mode.
+
+While a run waits, its progress shows "Waiting on batch · N requests · submitted HH:MM…". The run manifest records `batch_saved_usd` (the discount's saving) and `params.batch`, and Run History marks batch runs with a "batch" badge. A crashed or restarted batch run resumes in batch mode and reuses batches it already submitted, tracked in `<cache_dir>/llm_batches.jsonl`.
+
 ---
 
 ## 5. Backend Python packages (`backend/pyproject.toml`)
