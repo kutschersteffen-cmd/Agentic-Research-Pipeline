@@ -62,3 +62,15 @@ def edit_results(store, run_id: str, old: str, new: str, count: int = -1) -> Non
     import json
 
     replace_results(store, run_id, json.loads(json.dumps(store.read_results(run_id)).replace(old, new, count)))
+
+
+def forget_companies(store, run_id: str) -> None:
+    """A run as if save_companies never ran (runs from before stored inputs)."""
+    from sqlalchemy import delete, update
+
+    from arp.db.models import Run, RunCompany
+    from arp.db.session import transaction
+
+    with transaction(store.dsn) as s:
+        s.execute(delete(RunCompany).where(RunCompany.run_id == run_id))
+        s.execute(update(Run).where(Run.run_id == run_id).values(companies_saved_at=None))

@@ -23,6 +23,7 @@ from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 from arp.schemas.transition_plan import TransitionPlanAssessmentRecord
 from arp.storage.run_store import RunStore
 from arp.transition_plan.pipeline import TransitionPlanAssessmentResult, create_transition_plan_run
+from tests.postgres_helpers import forget_companies
 
 COMPANIES = [CompanyRef(company_id=f"c{i}", name=f"Co {i}") for i in range(1, 7)]
 LLM = object()  # never called: the fake assessor stands in for every LLM step
@@ -129,7 +130,7 @@ async def test_resume_refuses_run_without_inputs(tmp_path, pg):
     settings = _settings(tmp_path)
     store = RunStore(pg, settings.runs_dir)
     run_id = create_financials_extraction_run(COMPANIES[:1], settings, store)
-    store.save_companies(run_id, [])  # a run from before stored inputs
+    forget_companies(store, run_id)  # a run from before stored inputs
     with pytest.raises(NotResumable, match="run has no stored inputs"):
         await _resume(run_id, settings, store)
 

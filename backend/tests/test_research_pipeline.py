@@ -16,7 +16,7 @@ from arp.schemas.common import Citation, CompanyRef, DocType, JobStatus, SourceD
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping, CatalogueDataPoint
 from arp.schemas.thematic import ActivityDefinition, AgentOpinion, ExposureEstimate, LifecycleStage, MatchVerdict, ThemeDefinition
 from arp.storage.run_store import RunStore
-from tests.postgres_helpers import replace_results
+from tests.postgres_helpers import forget_companies, replace_results
 
 
 class _FixedDocSource(DocumentSource):
@@ -491,7 +491,7 @@ async def test_resume_theme_run_unknown_universe_path_raises(tmp_path, fake_llm,
     store = RunStore(pg, settings.runs_dir)
     theme, _activity = _theme()
     run_id = create_theme_run(theme, [CompanyRef(company_id="c1", name="Acme")], settings, store)  # no universe_path
-    store.save_companies(run_id, [])  # nor stored companies: a run from before either existed
+    forget_companies(store, run_id)  # nor stored companies: a run from before either existed
 
     llm = fake_llm({})
     registry = DocumentSourceRegistry([_FixedDocSource([])])

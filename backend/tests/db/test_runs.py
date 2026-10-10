@@ -182,3 +182,33 @@ def test_startup_fails_when_postgres_is_unreachable(monkeypatch):
             pass
     finally:
         get_settings.cache_clear()
+
+
+async def test_all_conflict_run_processes_no_companies(run_store):
+    from arp.orchestration.batch_runner import run_company_batch
+    from arp.orchestration.job_manager import JobManager
+
+    run_store.save_companies("r0", [CompanyRef(company_id="A", name="A", lei=LEI), CompanyRef(company_id="B", name="B", ticker="BB")])
+    universe = [CompanyRef(company_id="C", name="C", lei=LEI, ticker="BB")]
+    run_id = JobManager(run_store).create_run("theme", {}, 1, companies=universe).run_id
+    assert run_store.has_companies(run_id) and run_store.load_companies(run_id) == []
+    seen = []
+
+    async def worker(company):
+        seen.append(company.company_id)
+        return {}
+
+    await run_company_batch(run_id, universe, run_store=run_store, worker=worker, result_to_json=dict, concurrency=1)
+    assert seen == []
+    assert [e["kind"] for e in run_store.read_errors(run_id)] == ["identity_conflict"]
+    assert run_store.load_manifest(run_id).status == JobStatus.COMPLETED
+
+
+def test_decision_cosign_and_company_ref_are_cleaned(run_store):
+    run_store.append_decision_row("r", {"item_key": "k", "decision": "approve", "comment": "a\x00b", "v": float("nan")})
+    run_store.append_cosign("r", {"item_key": "k", "name": "A\x00n", "x": float("inf")})
+    [ref] = run_store.save_companies("r", [CompanyRef(company_id="c\x001", name="N\x00ame")])
+    assert run_store.read_decisions("r") == [{"item_key": "k", "decision": "approve", "comment": "ab", "v": None}]
+    assert run_store.read_cosigns("r") == [{"item_key": "k", "name": "An", "x": None}]
+    assert (ref.company_id, ref.name) == ("c1", "Name")
+    assert run_store.load_companies("r") == [ref]

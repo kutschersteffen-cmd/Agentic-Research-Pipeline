@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
-from sqlalchemy import delete, exists, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -263,8 +263,10 @@ class RunStore:
         saved: list[CompanyRef] = []
         with self._tx(run_id) as s:
             self._ensure_run(s, run_id)
+            s.execute(update(Run).where(Run.run_id == run_id).values(companies_saved_at=func.now()))
             s.execute(delete(RunCompany).where(RunCompany.run_id == run_id))
             for c in companies:
+                c = CompanyRef.model_validate(_jsonb_safe(c.model_dump(mode="json")))  # NUL-free before the registry sees it
                 if c.entity_id is None:
                     resolved, conflicts = resolve_universe([c], s)
                     for conflict in conflicts:
@@ -272,7 +274,7 @@ class RunStore:
                     if not resolved:
                         continue
                     c = resolved[0]
-                ref = _jsonb_safe(c.model_dump(mode="json"))
+                ref = c.model_dump(mode="json")
                 # ponytail: two refs resolving to one company keep the first; key run_companies by ordinal if that matters
                 inserted = s.execute(
                     insert(RunCompany)
@@ -281,19 +283,21 @@ class RunStore:
                     .returning(RunCompany.company_id)
                 ).first()
                 if inserted is not None:
-                    saved.append(CompanyRef.model_validate(ref))
+                    saved.append(c)
         return saved
 
     def load_companies(self, run_id: str) -> list[CompanyRef] | None:
-        """The companies a run was created over, or None for a run that stored none (voting,
-        older runs) and so cannot be resumed."""
+        """The companies a run was created over ([] when every one was an identity conflict), or
+        None for a run that never saved any (voting, older runs) and so cannot be resumed."""
+        if not self.has_companies(run_id):
+            return None
         with self._tx(run_id) as s:
             refs = s.scalars(select(RunCompany.ref).where(RunCompany.run_id == run_id).order_by(RunCompany.ordinal)).all()
-        return [CompanyRef.model_validate(r) for r in refs] or None
+        return [CompanyRef.model_validate(r) for r in refs]
 
     def has_companies(self, run_id: str) -> bool:
         with self._tx(run_id) as s:
-            return bool(s.scalar(select(exists().where(RunCompany.run_id == run_id))))
+            return s.scalar(select(Run.companies_saved_at).where(Run.run_id == run_id)) is not None
 
     # --- manifests ------------------------------------------------------------
 

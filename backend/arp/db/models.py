@@ -326,6 +326,8 @@ class Run(Base):
     verifier_model: Mapped[str | None] = mapped_column(Text)
     error: Mapped[str | None] = mapped_column(Text)
     cancel_requested: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    # Set by RunStore.save_companies, even when every ref was an identity conflict and none is stored.
+    companies_saved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=_NOW, onupdate=_NOW)
 
