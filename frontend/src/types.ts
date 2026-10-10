@@ -3137,7 +3137,7 @@ export interface WorkbenchMapping {
 export interface WorkbenchRoute {
   market: "sec" | "esef" | null;
   status: "routed" | "no_source" | "unrouted";
-  basis: string;
+  basis: string | null;
   detail: string;
 }
 
@@ -3152,7 +3152,7 @@ export interface WorkbenchRow {
   company: CompanyRef;
   mapping: WorkbenchMapping;
   route: WorkbenchRoute;
-  availability: WorkbenchAvailability;
+  availability: WorkbenchAvailability | null; // null when requested with availability: false
 }
 
 export interface WorkbenchResponse {

@@ -15,5 +15,9 @@ export const mappingText = (m: WorkbenchMapping): string =>
 export const selectedCompanies = (rows: WorkbenchRow[], selected: Set<string>): CompanyRef[] =>
   rows.filter((r) => selected.has(r.company.company_id)).map((r) => r.company);
 
+/** What a hand-over saves: the enriched companies of every row ("all") or of the ticked rows. */
+export const handoverCompanies = (rows: WorkbenchRow[], scope: "all" | "selected", selected: Set<string>): CompanyRef[] =>
+  scope === "all" ? rows.map((r) => r.company) : selectedCompanies(rows, selected);
+
 export const handoverName = (target: "extraction" | "xbrl"): string =>
   target === "xbrl" ? "Argus universe for XBRL facts" : "Argus universe for extraction";

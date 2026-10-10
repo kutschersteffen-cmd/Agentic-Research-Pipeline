@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { handoverName, mappingText, routeText, selectedCompanies } from "../src/lib/workbench.ts";
+import { handoverCompanies, handoverName, mappingText, routeText, selectedCompanies } from "../src/lib/workbench.ts";
 import type { WorkbenchMapping, WorkbenchRoute, WorkbenchRow } from "../src/types.ts";
 
 const route = (market: "sec" | "esef" | null, status: WorkbenchRoute["status"]): WorkbenchRoute => ({
@@ -30,6 +30,13 @@ test("selectedCompanies keeps table order, duplicates and the enriched company",
   assert.equal(out[1].cik, "123");
   assert.deepEqual(selectedCompanies(rows, new Set(["b"])).map((c) => c.company_id), ["b"]);
   assert.deepEqual(selectedCompanies(rows, new Set()), []);
+});
+
+test("handoverCompanies saves the enriched rows for the whole universe too", () => {
+  const row = (id: string, cik?: string) => ({ company: { company_id: id, name: id, cik } }) as WorkbenchRow;
+  const rows = [row("a", "1"), row("b", "2")];
+  assert.deepEqual(handoverCompanies(rows, "all", new Set()).map((c) => c.cik), ["1", "2"]);
+  assert.deepEqual(handoverCompanies(rows, "selected", new Set(["b"])).map((c) => c.cik), ["2"]);
 });
 
 test("handoverName", () => {

@@ -113,7 +113,7 @@ export const WORKSPACES: Workspace[] = [
         // documents already on file skip Identify and Documents.
         steps: [
           { tab: "argusUniverse", label: "Universe", does: "Bring or pick the universe, map it through the security master, see what is already stored, and hand the chosen companies to Extraction.", handsOn: "Mapped universe", carried: true },
-          { tab: "extraction", sub: "companies", label: "Companies", does: "Pick the universe: upload, paste, or take one handed over from Data Hub, Risk Monitoring or Thematic Universe.", handsOn: "Companies", carried: true },
+          { tab: "extraction", sub: "companies", label: "Companies", does: "Pick the universe: upload, paste, or take one handed over from Universe, Data Hub, Risk Monitoring or Thematic Universe.", handsOn: "Companies", carried: true },
           { tab: "extraction", sub: "identify", label: "Identify", does: "Resolve each company to one issuer; ambiguous matches wait for review.", handsOn: "Resolved companies", carried: true, runTypes: ["identity"] },
           { tab: "extraction", sub: "documents", label: "Documents", does: "Discover and download annual, sustainability and proxy reports, or upload your own by type.", handsOn: "Documents", carried: true, runTypes: ["discovery"] },
           { tab: "extraction", sub: "schema", label: "Schema", optional: true, does: "Custom profile only: the data points to extract and their types.", handsOn: "Schema", carried: true },
@@ -131,8 +131,8 @@ export const WORKSPACES: Workspace[] = [
         steps: [
           { tab: "argusUniverse", label: "Universe", does: "Bring or pick the universe, map it through the security master, and hand the chosen companies to the fetch.", handsOn: "Mapped universe", carried: true },
           { tab: "xbrl", label: "Fetch", does: "Route each company to its filing market and fetch its tagged facts with the original filing.", handsOn: "Stored facts", carried: true, runTypes: ["xbrl_fetch"] },
-          { tab: "xbrl", label: "Facts", does: "Browse the stored facts per company; revenue and capex resolved from the tags.", handsOn: "Resolved facts", carried: true },
-          { tab: "xbrl", label: "Verify", does: "Check an extraction run against the stored facts." },
+          { tab: "xbrl", label: "Facts", does: "Browse the stored facts per company, see revenue and capex resolved, and choose the tags to keep.", handsOn: "Resolved facts", carried: false },
+          { tab: "xbrl", label: "Verify", does: "Compare an extraction run's revenue and capex with the stored facts. The run must have been made with XBRL facts off, or the check is refused." },
         ],
       },
     ],

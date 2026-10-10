@@ -77,7 +77,7 @@ export function XbrlFetchArea({
     if (market !== "auto" || !universePath) return;
     setRoutesLoading(true);
     api
-      .universeWorkbench({ universe_path: universePath })
+      .universeWorkbench({ universe_path: universePath, availability: false })
       .then((res) => req === routeReq.current && (setRoutes(res.counts.routes), setRoutesLoading(false)))
       .catch((err) => req === routeReq.current && (setRoutesError(msg(err)), setRoutesLoading(false)));
   }, [market, universePath]);
@@ -130,6 +130,9 @@ export function XbrlFetchArea({
 
   const succeeded = new Set(results.results.map((r) => r._key));
   const latestError = new Map(errors.map((e) => [e.key, e.error])); // later rows win
+  // an auto run mixes SEC (CIK) and ESEF (LEI) rows: the shared column gets a neutral header
+  const keyHead =
+    manifest?.params?.market === "auto" ? "CIK / LEI" : keyLabel(results.results[0]?.market ?? (market === "esef" ? "esef" : "sec"));
   const failed = [...latestError].filter(([key]) => !succeeded.has(key)).map(([key, error]) => ({ key, error }));
   // A started run counts as running until its first manifest arrives, so Start cannot fire twice.
   const running = runId !== null && (manifest === null || inProgress(manifest)) && !stalled;
@@ -272,7 +275,7 @@ export function XbrlFetchArea({
               <thead>
                 <tr>
                   <th>Company</th>
-                  <th>{keyLabel(results.results[0]?.market ?? (market === "esef" ? "esef" : "sec"))}</th>
+                  <th>{keyHead}</th>
                   <th>Status</th>
                   <th>Annual report</th>
                   <th>Facts</th>
@@ -301,7 +304,7 @@ export function XbrlFetchArea({
                 {failed.map((f) => (
                   <tr key={f.key}>
                     <td data-label="Company">{f.key}</td>
-                    <td data-label="CIK" />
+                    <td data-label={keyHead} />
                     <td data-label="Status" className="error-text">{statusText("error")}</td>
                     <td data-label="Annual report">Not attempted</td>
                     <td data-label="Facts" className="mono">0</td>

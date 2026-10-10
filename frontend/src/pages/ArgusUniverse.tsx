@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { api } from "../api/client";
 import { UniversePicker } from "../components/UniversePicker";
-import { handoverName, mappingText, routeText, selectedCompanies } from "../lib/workbench";
+import { handoverCompanies, handoverName, mappingText, routeText } from "../lib/workbench";
 import type { WorkbenchResponse, WorkbenchRow } from "../types";
 
 type Target = "extraction" | "xbrl";
@@ -12,7 +12,7 @@ const when = (s: string | null) => (s ? s.slice(0, 10) : "");
 
 /** Argus universe: one table per saved universe showing, per company, how it maps to the identifier master, which XBRL source it suggests and what is already stored. It never starts a run; it hands the (selected) companies to Extraction or XBRL facts. */
 export function ArgusUniverse({ onSendUniverse }: { onSendUniverse: (to: Target, path: string, count: number) => void }) {
-  const [path, setPath] = useState("");
+  const loadReq = useRef(0); // only the latest universe load may write state
   const [data, setData] = useState<WorkbenchResponse | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [scope, setScope] = useState<"all" | "selected">("all");
@@ -20,18 +20,19 @@ export function ArgusUniverse({ onSendUniverse }: { onSendUniverse: (to: Target,
   const [error, setError] = useState("");
 
   async function load(p: string) {
-    setPath(p);
+    const req = ++loadReq.current;
     setData(null);
     setSelected(new Set());
     setScope("all");
     setError("");
     setBusy(true);
     try {
-      setData(await api.universeWorkbench({ universe_path: p }));
+      const res = await api.universeWorkbench({ universe_path: p });
+      if (req === loadReq.current) setData(res);
     } catch (e) {
-      setError((e as Error).message);
+      if (req === loadReq.current) setError((e as Error).message);
     } finally {
-      setBusy(false);
+      if (req === loadReq.current) setBusy(false);
     }
   }
 
@@ -40,8 +41,7 @@ export function ArgusUniverse({ onSendUniverse }: { onSendUniverse: (to: Target,
     setBusy(true);
     setError("");
     try {
-      if (scope === "all") return onSendUniverse(target, path, data.rows.length);
-      const companies = selectedCompanies(data.rows, selected);
+      const companies = handoverCompanies(data.rows, scope, selected); // enriched, also for the whole universe
       const saved = await api.universeFromCompanies(companies, handoverName(target));
       onSendUniverse(target, saved.path, saved.company_count);
     } catch (e) {
@@ -142,17 +142,19 @@ export function ArgusUniverse({ onSendUniverse }: { onSendUniverse: (to: Target,
                         {routeText(r.route)}
                         {r.route.detail && <span className="xbrl-sub">{r.route.detail}</span>}
                       </td>
-                      <td data-label="Identity">{a.identity ? a.identity.verdict : ""}</td>
+                      <td data-label="Identity">{a?.identity ? a.identity.verdict : ""}</td>
                       <td data-label="Documents">
-                        {a.documents.registered > 0 && (
+                        {a && a.documents.registered + a.documents.on_disk > 0 && (
                           <>
-                            {a.documents.registered} registered
-                            <span className="xbrl-sub">{a.documents.parsed} parsed, {a.documents.on_disk} on disk</span>
+                            {a.documents.registered} registered, {a.documents.on_disk} on disk
+                            <span className="xbrl-sub">{a.documents.parsed} parsed</span>
+                            {a.documents.doc_types.length > 0 && <span className="xbrl-sub">{a.documents.doc_types.join(", ")}</span>}
+                            {a.documents.last_seen_at && <span className="xbrl-sub">last seen {when(a.documents.last_seen_at)}</span>}
                           </>
                         )}
                       </td>
                       <td data-label="Extraction">
-                        {a.extraction.runs > 0 && (
+                        {a && a.extraction.runs > 0 && (
                           <>
                             {a.extraction.runs} {a.extraction.runs === 1 ? "run" : "runs"}
                             <span className="xbrl-sub">{when(a.extraction.last_run_at)}</span>
@@ -160,7 +162,7 @@ export function ArgusUniverse({ onSendUniverse }: { onSendUniverse: (to: Target,
                         )}
                       </td>
                       <td data-label="XBRL">
-                        {a.xbrl && (
+                        {a?.xbrl && (
                           <>
                             {a.xbrl.fact_count.toLocaleString()} facts
                             <span className="xbrl-sub">{when(a.xbrl.fetched_at)}</span>

@@ -525,7 +525,7 @@ export const api = {
       body: JSON.stringify({ companies, name }),
     }),
 
-  universeWorkbench: (body: { companies?: unknown[]; universe_path?: string }) =>
+  universeWorkbench: (body: { companies?: unknown[]; universe_path?: string; availability?: boolean }) =>
     request<WorkbenchResponse>("/api/universe/workbench", { method: "POST", body: JSON.stringify(body) }),
 
   // Taxonomy library
