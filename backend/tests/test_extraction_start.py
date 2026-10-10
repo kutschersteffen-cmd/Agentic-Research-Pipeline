@@ -139,7 +139,7 @@ def test_restart_from_a_step_reruns_one_company_with_fresh_steps(calls, tmp_path
     monkeypatch.setattr(extraction, "get_registry", lambda: "registry")
     store = RunStore(tmp_path)
     run_id = _finished_run(store, calls)
-    store.results_path(run_id).write_text(json.dumps({"company_id": "c1", "name": "Acme"}) + "\n")
+    store._results_path(run_id).write_text(json.dumps({"company_id": "c1", "name": "Acme"}) + "\n")
     companies = extraction.get_run_companies(run_id, run_store=store)["companies"]
     assert [(c["company_id"], c["status"]) for c in companies] == [("c1", "done"), ("c2", "waiting")]
     calls.clear()

@@ -95,7 +95,7 @@ def test_green_summary_endpoint_with_eu_taxonomy_run(tmp_path):
     ]:
         store.save_manifest(RunManifest(run_id=rid, run_type="extraction"))
         rec = ExtractionRecord(company_id="c1", name="Acme", schema_id=schema_id, run_id=rid)
-        store.append_jsonl(store.results_path(rid), rec.model_dump(mode="json") | {"fields": fields})
+        store.append_jsonl(store._results_path(rid), rec.model_dump(mode="json") | {"fields": fields})
     app.dependency_overrides[get_run_store] = lambda: store
     try:
         c = TestClient(app)

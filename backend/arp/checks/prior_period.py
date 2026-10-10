@@ -113,6 +113,6 @@ def open_restatement_candidates(run_store: RunStore, run_id: str, record: Extrac
             previous_value=prior.value, previous_run_id=prior.run_id, new_value=f.value, run_id=run_id,
             doc_ids=sorted({c.doc_id for c in f.citations}),
         )
-        run_store.append_jsonl(run_store.restatements_path(run_id), cand.model_dump(mode="json"))
+        run_store.append_restatement(run_id, cand.model_dump(mode="json"))
         n += 1
     return n

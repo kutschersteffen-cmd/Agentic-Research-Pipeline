@@ -146,7 +146,7 @@ async def test_promote_candidate_creates_draft_taxonomy_and_folds_status(tmp_pat
         cluster_id="cl_fixed",
         run_id=run_id,
     )
-    run_store.append_jsonl(run_store.results_path(run_id), candidate.model_dump(mode="json"))
+    run_store.append_jsonl(run_store._results_path(run_id), candidate.model_dump(mode="json"))
 
     activity_draft = _SynthesizedActivityDraftList(
         activities=[_SynthesizedActivityDraft(name="Solid-state cell manufacturing", in_scope_description="x", out_of_scope_description="y")],
@@ -182,7 +182,7 @@ async def test_reject_candidate_folds_into_rejected_status(tmp_path):
         theme_name="Weak signal", description="", first_detected_date="2026-01-01", signal_velocity=1.0,
         economic_rationale="", cluster_id="cl1", run_id=run_id,
     )
-    run_store.append_jsonl(run_store.results_path(run_id), candidate.model_dump(mode="json"))
+    run_store.append_jsonl(run_store._results_path(run_id), candidate.model_dump(mode="json"))
 
     reject_candidate(run_store, run_id, candidate.theme_id, "Not a real signal.")
 
@@ -202,7 +202,7 @@ async def test_disconfirm_candidate_folds_into_disconfirmed_status(tmp_path):
         theme_name="Contradicted signal", description="", first_detected_date="2026-01-01", signal_velocity=1.0,
         economic_rationale="", cluster_id="cl1", run_id=run_id,
     )
-    run_store.append_jsonl(run_store.results_path(run_id), candidate.model_dump(mode="json"))
+    run_store.append_jsonl(run_store._results_path(run_id), candidate.model_dump(mode="json"))
 
     disconfirm_candidate(run_store, run_id, candidate.theme_id, "The facility investment was cancelled.")
 

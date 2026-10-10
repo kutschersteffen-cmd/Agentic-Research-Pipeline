@@ -124,7 +124,7 @@ async def test_esef_citation_publishable(tmp_path, fake_llm):
     )
     rs = RunStore(tmp_path / "pub-runs")
     rs.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
-    rs.append_jsonl(rs.results_path("r1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
+    rs.append_jsonl(rs._results_path("r1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
                                             "fields": [f.model_dump(mode="json") for f in result.record.fields]})
     assert [(f.method, f.route) for f in result.record.fields] == [("tagged", "auto_accept")] * 2  # layer-2 checks pass
     cands, _ = run_candidates(rs, "r1")

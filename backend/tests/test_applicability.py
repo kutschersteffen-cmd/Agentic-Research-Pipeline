@@ -85,13 +85,13 @@ async def test_bank_skips_manufacturing_only_field(tmp_path, fake_llm):
         settings=settings, run_store=run_store,
     )
     assert all("mfg_only" not in p for p in llm.prompts)
-    (row,) = run_store.read_jsonl(run_store.results_path(run_id))
+    (row,) = run_store.read_jsonl(run_store._results_path(run_id))
     by_id = {f["field_id"]: f for f in row["fields"]}
     skipped = by_id[skipped_f.field_id]
     assert skipped["value_state"] == "not_applicable" and skipped["review_reasons"] == []
     # A trial never auto-accepts, so even the rule skip goes to review.
     assert skipped["route"] == "review" and skipped["route_reasons"] == ["unreleased_version", "not_applicable_by_rule"]
-    queued = run_store.read_jsonl(run_store.review_queue_path(run_id))
+    queued = run_store.read_jsonl(run_store._review_queue_path(run_id))
     assert any(r["field"]["field_id"] == skipped_f.field_id for r in queued)
 
 

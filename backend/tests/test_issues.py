@@ -16,7 +16,7 @@ def _run(rs: RunStore, checks: list[dict], *, issuer="ISS-1", field="scope1", tr
     run_id = JobManager(rs).create_run("extraction", {"trial": True} if trial else {}, 1).run_id
     row = {"company_id": "c1", "name": "Acme", "issuer_key": issuer,
            "fields": [{"field_id": field, "period_end": "2025-12-31", "value": 1.0, "checks": checks}]}
-    rs.results_path(run_id).write_text(json.dumps(row) + "\n")
+    rs._results_path(run_id).write_text(json.dumps(row) + "\n")
     return run_id
 
 

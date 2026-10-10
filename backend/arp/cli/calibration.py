@@ -20,7 +20,7 @@ def calibration_run() -> None:
     uses."""
     run_store = _run_store()
     run_id = asyncio.run(run_calibration_pass(registry=_registry(), run_store=run_store, triggered_by="manual"))
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     typer.echo(f"Run complete: {run_id} -- {len(rows)} drift flag(s) logged.")
 
 

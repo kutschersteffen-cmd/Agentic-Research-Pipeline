@@ -65,7 +65,7 @@ def availability(
     # ponytail: full scan of identity runs; add a company_id -> latest result index if runs pile up.
     identity: dict[str, IdentityAvail] = {}
     for m in (m for m in all_runs if m.run_type == "identity"):
-        for row in run_store.read_jsonl(run_store.results_path(m.run_id)):
+        for row in run_store.read_results(m.run_id):
             cid = row.get("company_id")
             if cid in wanted and cid not in identity:
                 identity[cid] = IdentityAvail(
@@ -75,7 +75,7 @@ def availability(
     # ponytail: full scan of extraction-like runs; add a company_id -> runs index if runs pile up.
     extraction: dict[str, ExtractionAvail] = {}
     for m in (m for m in all_runs if m.run_type in EXTRACTION_RUN_TYPES):
-        in_run = {r.get("company_id") for r in run_store.read_jsonl(run_store.results_path(m.run_id))} & wanted
+        in_run = {r.get("company_id") for r in run_store.read_results(m.run_id)} & wanted
         for cid in in_run:
             e = extraction.setdefault(cid, ExtractionAvail())
             if e.last_run_id is None:  # newest run first

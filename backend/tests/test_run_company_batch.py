@@ -43,10 +43,10 @@ async def test_progress_review_queue_and_failures_are_recorded(tmp_path):
 
     await _run(run_store, run_id, companies, worker)
 
-    results = run_store.read_jsonl(run_store.results_path(run_id))
+    results = run_store.read_jsonl(run_store._results_path(run_id))
     assert sorted(r["company_id"] for r in results) == ["flagged", "ok"]
-    assert [r["item_key"] for r in run_store.read_jsonl(run_store.review_queue_path(run_id))] == ["flagged"]
-    assert [e["key"] for e in run_store.read_jsonl(run_store.errors_path(run_id))] == ["broken"]
+    assert [r["item_key"] for r in run_store.read_jsonl(run_store._review_queue_path(run_id))] == ["flagged"]
+    assert [e["key"] for e in run_store.read_jsonl(run_store._errors_path(run_id))] == ["broken"]
 
     m = run_store.load_manifest(run_id)
     assert (m.completed_count, m.failed_count, m.review_count) == (2, 1, 1)

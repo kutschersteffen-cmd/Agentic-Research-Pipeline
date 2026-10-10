@@ -29,7 +29,7 @@ def items(run_store: RunStore) -> list[dict]:
     for run in run_store.list_runs("proxy_voting"):
         decisions = latest_decisions(run_store, run.run_id)
         cast = {row.get("_key") for row in run_store.read_jsonl(_cast_confirmations_path(run_store, run.run_id))}
-        for row in run_store.read_jsonl(run_store.results_path(run.run_id)):
+        for row in run_store.read_results(run.run_id):
             ballot = CompanyBallot.model_validate(row)
             for v in ballot.votes:
                 key = _item_key(ballot.company_id, v.proposal.proposal_number)

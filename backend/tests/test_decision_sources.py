@@ -9,7 +9,7 @@ from arp.storage.run_store import RunStore
 
 
 def _write(run_store: RunStore, run_id: str, rows: list[dict]) -> None:
-    path = run_store.results_path(run_id)
+    path = run_store._results_path(run_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
 

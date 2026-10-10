@@ -33,7 +33,7 @@ def test_run_adapter_flattens_results_jsonl(tmp_path):
     s = _settings(tmp_path)
     runs = RunStore(s.runs_dir)
     runs.save_manifest(RunManifest(run_id="run_1", run_type="theme"))
-    runs.results_path("run_1").write_text("\n".join(json.dumps(r) for r in [
+    runs._results_path("run_1").write_text("\n".join(json.dumps(r) for r in [
         {"company": "Acme", "revenue_share": 0.4, "evidence": [{"q": "x"}], "meta": {"a": 1}},
         {"company": "Beta", "revenue_share": 0.1, "evidence": []},
     ]) + "\n")

@@ -42,7 +42,7 @@ async def _run(env, run_id, companies, **kw):
     kw.setdefault("esef_source", EsefFake())
     await execute_xbrl_run(run_id, companies, settings=settings, run_store=runs, tags=None, refresh=False,
                            market="auto", **kw)
-    return {r["company_id"]: r for r in runs.read_jsonl(runs.results_path(run_id))}
+    return {r["company_id"]: r for r in runs.read_jsonl(runs._results_path(run_id))}
 
 
 async def test_auto_run_fetches_each_company_by_its_route(env):
@@ -145,7 +145,7 @@ async def test_forced_markets_ignore_routing(env):
     run_id = create_xbrl_run(COMPANIES[:1], None, False, runs, market="esef")
     await execute_xbrl_run(run_id, COMPANIES[:1], settings=settings, run_store=runs, tags=None, refresh=False,
                            market="esef", source=EsefFake())
-    assert runs.read_jsonl(runs.results_path(run_id))[0]["status"] == "no_lei"
+    assert runs.read_jsonl(runs._results_path(run_id))[0]["status"] == "no_lei"
 
 
 async def test_unrouted_rows_count_as_completed(env):

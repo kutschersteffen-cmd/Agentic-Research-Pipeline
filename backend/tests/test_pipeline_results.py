@@ -19,8 +19,8 @@ def _match(company_id, activity_id, composite_score) -> CompanyMatch:
 def test_load_theme_run_matches_flattens_company_matches_rows(tmp_path):
     store = RunStore(tmp_path)
     manifest = JobManager(store).create_run("theme", {}, company_count=2)
-    store.append_jsonl(store.results_path(manifest.run_id), {"company_matches": [_match("c1", "act1", 0.5).model_dump(mode="json")]})
-    store.append_jsonl(store.results_path(manifest.run_id), {"company_matches": [_match("c2", "act1", 0.9).model_dump(mode="json")]})
+    store.append_jsonl(store._results_path(manifest.run_id), {"company_matches": [_match("c1", "act1", 0.5).model_dump(mode="json")]})
+    store.append_jsonl(store._results_path(manifest.run_id), {"company_matches": [_match("c2", "act1", 0.9).model_dump(mode="json")]})
 
     matches = load_theme_run_matches(store, manifest.run_id)
     assert matches is not None

@@ -195,7 +195,7 @@ async def _discover(settings, source):
     company = CompanyRef(company_id="c1", name="Beispiel AG", lei=LEI)  # no website: the crawl finds nothing
     run_id = create_discovery_run([company], None, "test", store)
     await execute_discovery_run(run_id, [company], settings=settings, run_store=store, search_client=_NullSearch(), esef_source=source)
-    [row] = store.read_jsonl(store.results_path(run_id))
+    [row] = store.read_jsonl(store._results_path(run_id))
     return row
 
 

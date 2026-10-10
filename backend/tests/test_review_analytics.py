@@ -32,24 +32,24 @@ def rs(tmp_path):
     rs.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
     rs.save_manifest(RunManifest(run_id="r2", run_type="extraction"))
     rs.save_manifest(RunManifest(run_id="trial", run_type="extraction", params={"trial": True}))
-    rs.append_jsonl(rs.results_path("r1"), {"issuer_key": "LEI:X", "fields": [
+    rs.append_jsonl(rs._results_path("r1"), {"issuer_key": "LEI:X", "fields": [
         _field("rev", "2024", "m1", "annual_report_10k"), _field("rev", "2023", "m1", "annual_report_10k"),
         _field("ebit", "2024", "m2", "press_release"),
     ]})
-    rs.append_jsonl(rs.results_path("r2"), {"issuer_key": "Y", "fields": [_field("rev", "2024", "m2", "press_release")]})
-    rs.append_jsonl(rs.results_path("trial"), {"issuer_key": "Z", "fields": [_field("rev", "2024", "m1", "press_release")]})
+    rs.append_jsonl(rs._results_path("r2"), {"issuer_key": "Y", "fields": [_field("rev", "2024", "m2", "press_release")]})
+    rs.append_jsonl(rs._results_path("trial"), {"issuer_key": "Z", "fields": [_field("rev", "2024", "m1", "press_release")]})
     d = rs.append_jsonl
-    d(rs.review_decisions_path("r1"), _row("LEI:X:rev:2024", "wrong_period", "2026-09-03T10:00:00+00:00"))
-    d(rs.review_decisions_path("r1"), _row("LEI:X:rev:2023", "wrong_period", "2026-09-04T10:00:00+00:00"))
-    d(rs.review_decisions_path("r1"), _row("LEI:X:rev:2024", "other", "2026-09-30T23:59:59+00:00"))
-    d(rs.review_decisions_path("r1"), _row("LEI:X:ebit:2024", "wrong_value", "2026-09-05T10:00:00+00:00"))
-    d(rs.review_decisions_path("r1"), _row("LEI:X:ebit:2024", "wrong_value", "2026-09-10T10:00:00+00:00", user="u_b"))
-    d(rs.review_decisions_path("r1"), _row("LEI:X:rev:2024", "wrong_value", "2026-10-01T00:00:00+00:00"))  # another month
+    d(rs._review_decisions_path("r1"), _row("LEI:X:rev:2024", "wrong_period", "2026-09-03T10:00:00+00:00"))
+    d(rs._review_decisions_path("r1"), _row("LEI:X:rev:2023", "wrong_period", "2026-09-04T10:00:00+00:00"))
+    d(rs._review_decisions_path("r1"), _row("LEI:X:rev:2024", "other", "2026-09-30T23:59:59+00:00"))
+    d(rs._review_decisions_path("r1"), _row("LEI:X:ebit:2024", "wrong_value", "2026-09-05T10:00:00+00:00"))
+    d(rs._review_decisions_path("r1"), _row("LEI:X:ebit:2024", "wrong_value", "2026-09-10T10:00:00+00:00", user="u_b"))
+    d(rs._review_decisions_path("r1"), _row("LEI:X:rev:2024", "wrong_value", "2026-10-01T00:00:00+00:00"))  # another month
     # system escalation rows are not reviewer decisions
-    d(rs.review_decisions_path("r1"), _row("LEI:X:rev:2024", "span_moved", "2026-09-06T10:00:00+00:00", user="system"))
-    d(rs.review_decisions_path("r2"), _row("Y:rev:2024", "wrong_value", "2026-09-07T10:00:00+00:00"))
-    d(rs.review_decisions_path("r2"), _row("Y:rev:2024", "wrong_value", "2026-09-08T10:00:00+00:00"))
-    d(rs.review_decisions_path("trial"), _row("Z:rev:2024", "wrong_value", "2026-09-09T10:00:00+00:00"))
+    d(rs._review_decisions_path("r1"), _row("LEI:X:rev:2024", "span_moved", "2026-09-06T10:00:00+00:00", user="system"))
+    d(rs._review_decisions_path("r2"), _row("Y:rev:2024", "wrong_value", "2026-09-07T10:00:00+00:00"))
+    d(rs._review_decisions_path("r2"), _row("Y:rev:2024", "wrong_value", "2026-09-08T10:00:00+00:00"))
+    d(rs._review_decisions_path("trial"), _row("Z:rev:2024", "wrong_value", "2026-09-09T10:00:00+00:00"))
     return rs
 
 

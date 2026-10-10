@@ -32,7 +32,7 @@ def _load(ref: RunRef, settings: Settings) -> QuantitativeDataset:
         manifest = runs.load_manifest(ref.ref_id)
         if manifest is None:
             raise ValueError(f"unknown run {ref.ref_id}")
-        ds = _table(manifest.run_type, runs.read_jsonl(runs.results_path(ref.ref_id)))
+        ds = _table(manifest.run_type, runs.read_results(ref.ref_id))
         ds.description = f"Results of {manifest.run_type} run {ref.ref_id}."
     ds.dataset_id = f"{ref.kind}_{ref.ref_id}"  # stable, so a re-run replaces it instead of adding a copy
     return ds

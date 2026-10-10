@@ -291,15 +291,15 @@ def get_run_companies(run_id: str, run_store: RunStore = Depends(get_run_store))
     the review queue), or still waiting (queued or in flight)."""
     _manifest_or_404(run_store, run_id)
     saved = _saved(run_store, run_id, "start_request.json")
-    done = {r.get("company_id") for r in run_store.read_jsonl(run_store.results_path(run_id))}
-    errors = run_store.read_jsonl(run_store.errors_path(run_id))
+    done = {r.get("company_id") for r in run_store.read_results(run_id)}
+    errors = run_store.read_errors(run_id)
     review = {r.get("key") for r in errors if r.get("review")} - done
     failed = {r.get("key") for r in errors} - done - review
     if saved:
         companies = StartRequest.model_validate_json(saved).companies or []
         rows = [{"company_id": c.company_id, "name": c.name} for c in companies]
     else:  # a run started before /start saved its companies: only those with an outcome
-        rows = [{"company_id": r.get("company_id"), "name": r.get("name")} for r in run_store.read_jsonl(run_store.results_path(run_id))]
+        rows = [{"company_id": r.get("company_id"), "name": r.get("name")} for r in run_store.read_results(run_id)]
         rows += [{"company_id": k, "name": k} for k in failed | review]
     for row in rows:
         cid = row["company_id"]
@@ -379,7 +379,7 @@ def get_extraction_run(run_id: str, run_store: RunStore = Depends(get_run_store)
 def get_extraction_results(
     run_id: str, offset: int = 0, limit: int = 200, run_store: RunStore = Depends(get_run_store)
 ) -> dict:
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     return {"total": len(rows), "results": rows[offset : offset + limit]}
 
 
@@ -391,11 +391,11 @@ def get_green_summary(
     share and green beyond the Taxonomy (negative values are flagged, never clipped). With
     `eu_taxonomy_run_id` (a sch_eu_taxonomy run) the reported aligned amount fills in where the green run has none."""
     _manifest_or_404(run_store, run_id)
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     eu: dict = {}
     if eu_taxonomy_run_id:
         _manifest_or_404(run_store, eu_taxonomy_run_id)
-        eu = {r.get("company_id"): r.get("fields", []) for r in run_store.read_jsonl(run_store.results_path(eu_taxonomy_run_id))}
+        eu = {r.get("company_id"): r.get("fields", []) for r in run_store.read_results(eu_taxonomy_run_id)}
     return {"rows": [{"company_id": r.get("company_id"), "name": r.get("name"), **s.model_dump()}
                      for r in rows for s in green_summary(r.get("fields", []), eu.get(r.get("company_id")))]}
 
@@ -405,7 +405,7 @@ def get_remuneration_summary(run_id: str, run_store: RunStore = Depends(get_run_
     """Per company, plan (STI, LTI) and period of a sch_esg_remuneration run: mechanism, ESG weight or multiplier
     range, the computed effective weight and its below-10% or 10%-or-above class."""
     _manifest_or_404(run_store, run_id)
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     return {"rows": [{"company_id": r.get("company_id"), "name": r.get("name"), **s.model_dump()}
                      for r in rows for s in remuneration_summary(r.get("fields", []))]}
 

@@ -108,7 +108,7 @@ async def test_execute_voting_run_queues_every_proposal_for_review(tmp_path, fak
     assert manifest.completed_count == 1
     assert manifest.review_count == 1  # one proposal, mandatory review regardless of confidence
 
-    review_rows = run_store.read_jsonl(run_store.review_queue_path(run_id))
+    review_rows = run_store.read_jsonl(run_store._review_queue_path(run_id))
     assert len(review_rows) == 1
     assert review_rows[0]["item_key"] == "C1:3"
 

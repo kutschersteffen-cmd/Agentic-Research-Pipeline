@@ -38,7 +38,7 @@ def run_candidates(run_store, run_id: str) -> tuple[list[FactCandidate], list[Sk
         return [], [Skip("*", "trial_run")]
     decisions = effective_decisions(run_store, run_id, cosign_required={"edit"})
     in_review = set(latest_decisions(run_store, run_id)) - set(decisions)
-    rst = {c["item_key"]: c for c in run_store.read_jsonl(run_store.restatements_path(run_id))}
+    rst = {c["item_key"]: c for c in run_store.read_restatements(run_id)}
     cands: list[FactCandidate] = []
     skips: list[Skip] = []
     rows_by_key: dict[str, tuple[dict, dict]] = {}
@@ -55,7 +55,7 @@ def run_candidates(run_store, run_id: str) -> tuple[list[FactCandidate], list[Sk
             citation=citation, source_run_id=run_id, observed_at=manifest.created_at, item_key=key, **extra,
         ))
 
-    for row in run_store.read_jsonl(run_store.results_path(run_id)):
+    for row in run_store.read_results(run_id):
         if not row.get("issuer_key"):
             skips.append(Skip(row.get("company_id", ""), "no_issuer_key"))
             continue

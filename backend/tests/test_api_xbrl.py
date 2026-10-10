@@ -138,7 +138,7 @@ def test_companies_list_includes_market(env):
 def test_run_results_paged(env):
     client, _, _, runs = env
     run_id = create_xbrl_run([CO], None, False, runs)
-    runs.results_path(run_id).write_text("".join(json.dumps({"n": i}) + "\n" for i in range(5)))
+    runs._results_path(run_id).write_text("".join(json.dumps({"n": i}) + "\n" for i in range(5)))
     body = client.get(f"/api/xbrl/runs/{run_id}/results", params={"offset": 1, "limit": 2}).json()
     assert body == {"total": 5, "results": [{"n": 1}, {"n": 2}]}
     assert client.get(f"/api/xbrl/runs/{run_id}/results", params={"offset": -1}).status_code == 422
@@ -291,7 +291,7 @@ def _extraction_run(runs, *, settings_text: str | None):
     rec = ExtractionRecord(company_id="ex", name="Ex", schema_id="s", run_id=run_id, fields=[
         ExtractedField(field_id="rev_f", field_name="rev", value=1004.0, confidence=0.9,
                        canonical_value=1004.0, canonical_unit="USD", period_end="2024-12-31")])
-    runs.results_path(run_id).write_text(rec.model_dump_json() + "\n")
+    runs._results_path(run_id).write_text(rec.model_dump_json() + "\n")
     if settings_text is not None:
         (runs.run_dir(run_id) / "step_settings.json").write_text(settings_text)
     return run_id
@@ -430,7 +430,7 @@ def test_put_selection_rejects_empty_or_malformed_tags(env, tags):
 def test_verify_non_generic_run_is_400(env):
     client, _, store, runs = env
     run_id = _extraction_run(runs, settings_text=json.dumps({"xbrl_facts_enabled": False}))
-    runs.results_path(run_id).write_text(json.dumps({"company_id": "ex", "financials": {}}) + "\n")
+    runs._results_path(run_id).write_text(json.dumps({"company_id": "ex", "financials": {}}) + "\n")
     r = client.post("/api/xbrl/verify", json={"run_id": run_id, "mapping": {"revenue": "rev_f"}})
     assert r.status_code == 400 and "generic extraction records" in r.json()["detail"]
 

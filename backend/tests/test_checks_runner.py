@@ -117,7 +117,7 @@ async def test_checks_stored_on_results_row(tmp_path, fake_llm):
         run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
         settings=settings, run_store=store,
     )
-    row = store.read_jsonl(store.results_path(run_id))[0]
+    row = store.read_jsonl(store._results_path(run_id))[0]
     assert "format.data_type" in [c["check_id"] for c in row["fields"][0]["checks"]]
 
 

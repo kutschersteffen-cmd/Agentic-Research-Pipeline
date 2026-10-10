@@ -40,7 +40,7 @@ async def _published_run(tmp_path, fake_llm, frozen):
     assert (f.method, f.route) == ("tagged", "auto_accept")
     rs = RunStore(tmp_path / "pub-runs")
     rs.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
-    rs.append_jsonl(rs.results_path("r1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
+    rs.append_jsonl(rs._results_path("r1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
                                             "fields": [f.model_dump(mode="json")]})
     return f, rs
 
@@ -84,7 +84,7 @@ async def test_reground_skips_xbrl_versions(tmp_path, monkeypatch):
     c = fact.as_citation(CIK, frozen=frozen)
     rs = RunStore(tmp_path / "runs")
     rs.save_manifest(RunManifest(run_id="ext1", run_type="extraction"))
-    rs.append_jsonl(rs.results_path("ext1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI", "fields": [
+    rs.append_jsonl(rs._results_path("ext1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI", "fields": [
         {"field_id": "f1", "field_name": "Rev", "value": 1.0, "confidence": 1.0, "grounded": True, "period_end": "2024-12-31",
          "citations": [c.model_dump(mode="json")]}]})
     monkeypatch.setattr(R, "parser_version", lambda: "new")
@@ -105,7 +105,7 @@ def test_old_tagged_rows_still_load(tmp_path):
     assert fact.as_citation(CIK).model_dump() == Citation.model_validate({**old, "doc_type": "other"}).model_dump()
     rs = RunStore(tmp_path / "runs")
     rs.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
-    rs.append_jsonl(rs.results_path("r1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
+    rs.append_jsonl(rs._results_path("r1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
                                             "fields": [{**row, "route": "auto_accept"}]})
     [cand] = run_candidates(rs, "r1")[0]
     assert split_by_gate([cand], None, withdrawn_docs=set())[1][0]["reason"] == "no_grounded_citation"

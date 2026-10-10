@@ -184,7 +184,7 @@ def _release_history(tmp_path, sub, *, extra=None, run_id="old", trial=False, de
 
     store = RunStore(tmp_path / "hist")
     store.save_manifest(RunManifest(run_id=run_id, run_type="extraction", created_at="2024-01-01", params={"trial": trial}))
-    store.append_jsonl(store.results_path(run_id), {
+    store.append_jsonl(store._results_path(run_id), {
         "company_id": "c1", "issuer_key": "k", "fields": [],
         "held_documents": [{"doc_id": sub.doc_id, "content_key": sub.content_key}],
     })
@@ -226,7 +226,7 @@ def _two_runs(tmp_path, sub, second_decision):
     store = RunStore(tmp_path / "hist2")
     for rid, created, dec in (("old", "2024-01-01", "approve"), ("new", "2024-02-01", second_decision)):
         store.save_manifest(RunManifest(run_id=rid, run_type="extraction", created_at=created, params={}))
-        store.append_jsonl(store.results_path(rid), {
+        store.append_jsonl(store._results_path(rid), {
             "company_id": "c1", "issuer_key": "k", "fields": [],
             "held_documents": [{"doc_id": sub.doc_id, "content_key": sub.content_key}],
         })

@@ -192,7 +192,7 @@ def test_compare_endpoint_holds_the_framework_fixed_across_snapshots(client):
 
 def test_from_source_builds_a_table_from_a_transition_plan_run(client):
     run_id = "tp_run_1"
-    path = client.run_store.results_path(run_id)
+    path = client.run_store._results_path(run_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     rows = [
         {

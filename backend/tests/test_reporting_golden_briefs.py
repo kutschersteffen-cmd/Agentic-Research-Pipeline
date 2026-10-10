@@ -98,7 +98,7 @@ async def test_periodic_brief_reruns_on_fresh_run_data(tmp_path, fake_llm):
     s = _settings(tmp_path)
     runs = RunStore(s.runs_dir)
     runs.save_manifest(RunManifest(run_id="run_1", run_type="theme"))
-    runs.results_path("run_1").write_text(json.dumps({"company": "Acme", "revenue": 42.5}) + "\n")
+    runs._results_path("run_1").write_text(json.dumps({"company": "Acme", "revenue": 42.5}) + "\n")
     store = ReportingStore(s.reports_dir, s.report_templates_dir)
     service = ReportingService(store, s)
     request = ReportRequest(title="Revenue", qualitative_notes="Acme grew.", layout=LayoutInstructions(output_format=OutputFormat.HOUSE_DECK),

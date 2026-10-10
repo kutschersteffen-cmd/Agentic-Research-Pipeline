@@ -36,15 +36,15 @@ def run_items(
 ) -> list[ReviewItem]:
     """Every review item of one run, in any state. `unqueued`: (key, kind, payload) rows after the queue's."""
     run_id, run_type = manifest.run_id, manifest.run_type
-    queue = {q["item_key"]: q for q in run_store.read_jsonl(run_store.review_queue_path(run_id))}  # re-queued: last row wins
+    queue = {q["item_key"]: q for q in run_store.read_review_queue(run_id)}  # re-queued: last row wins
     rows = [(k, _queue_kind(run_type, q), q) for k, q in queue.items()]
     if run_type == "extraction":
-        for r in run_store.read_jsonl(run_store.results_path(run_id)):
+        for r in run_store.read_results(run_id):
             extra = {"company_id": r.get("company_id"), "name": r.get("name"), "issuer_key": r.get("issuer_key")}
             rows += [(held_item_key(r["company_id"], d["doc_id"]), ReviewItemKind.QUARANTINED_DOCUMENT, {**d, **extra})
                      for d in r.get("held_documents", [])]
         rows += [(c["candidate_id"], ReviewItemKind.RESTATEMENT_CANDIDATE, c)
-                 for c in run_store.read_jsonl(run_store.restatements_path(run_id))]
+                 for c in run_store.read_restatements(run_id)]
     rows += list(unqueued)
     states = item_states(run_store, run_id, cosign_required=cosign_rule(run_type))
     schema = load_run_schema(run_store, run_id)
@@ -85,7 +85,7 @@ def get_item(run_store: RunStore, run_id: str, item_key: str, principal: Princip
 def _field_row(run_store: RunStore, run_id: str, item_key: str) -> tuple:
     """A non-held results field outside the queue (auto-accepted, legacy unflagged, or a run queued per company):
     decidable as a value item, but never listed as open. A queued row with the same key comes first."""
-    for r in run_store.read_jsonl(run_store.results_path(run_id)):
+    for r in run_store.read_results(run_id):
         issuer = r.get("issuer_key", "")
         for f in r.get("fields", []):
             if f.get("route") != "hold" and field_item_key(issuer, f["field_id"], period_key(f)) == item_key:  # held: approver release only

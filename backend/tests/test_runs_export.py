@@ -91,7 +91,7 @@ def test_csv_export_has_value_state_columns(tmp_path):
         {**f, "value": 0.0, "value_state": "zero", "canonical_value": 0.0},
         {**f, "value": None, "value_state": "not_found", "canonical_value": None},
     ]}
-    store.results_path("r1").write_text(json.dumps(rec) + "\n")
+    store._results_path("r1").write_text(json.dumps(rec) + "\n")
     app = FastAPI()
     app.include_router(runs.router)
     app.dependency_overrides[get_run_store] = lambda: store

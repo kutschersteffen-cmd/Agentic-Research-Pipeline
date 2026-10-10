@@ -63,7 +63,7 @@ def _field(value, period="2024-12-31", doc="d1", route="auto_accept"):
 
 def _run(rs, run_id, day, fields):
     rs.save_manifest(RunManifest(run_id=run_id, run_type="extraction", created_at=f"2026-01-{day:02d}T00:00:00+00:00"))
-    rs.append_jsonl(rs.results_path(run_id), {"company_id": "c1", "issuer_key": "ISS", "issuer_scheme": "LEI",
+    rs.append_jsonl(rs._results_path(run_id), {"company_id": "c1", "issuer_key": "ISS", "issuer_scheme": "LEI",
                                               "fields": fields})
 
 
@@ -149,7 +149,7 @@ def test_restated_period_shows_both_versions_pg(store, rs, blobs):
     _run(rs, "r1", 1, [_field(9, period="2023-12-31")])
     _publish(store, rs, blobs, "r1")
     _run(rs, "r2", 2, [_field(8, period="2023-12-31", doc="d2", route="review")])
-    rs.append_jsonl(rs.restatements_path("r2"), {
+    rs.append_jsonl(rs._restatements_path("r2"), {
         "candidate_id": "rst_1", "item_key": "ISS:f1:2023-12-31", "issuer_key": "ISS", "field_id": "f1",
         "period_end": "2023-12-31", "previous_value": 9, "previous_run_id": "r1", "new_value": 8, "run_id": "r2",
         "doc_ids": ["d2"]})
@@ -174,7 +174,7 @@ def test_older_run_republished_is_skipped_pg(store, rs, blobs):
 
 def test_duplicate_fact_key_skipped_not_blocking_pg(store, rs, blobs):
     _run(rs, "r1", 1, [_field(1000)])
-    rs.append_jsonl(rs.results_path("r1"), {"company_id": "c2", "issuer_key": "ISS", "issuer_scheme": "LEI",
+    rs.append_jsonl(rs._results_path("r1"), {"company_id": "c2", "issuer_key": "ISS", "issuer_scheme": "LEI",
                                             "fields": [_field(1001)]})
     res = _publish(store, rs, blobs, "r1")
     assert len(res.releases) == 1 and Skip("ISS:f1:2024-12-31", "duplicate_key") in res.skipped

@@ -25,7 +25,7 @@ def run_store(tmp_path):
 
 
 def _queue(rs, run_id, row):
-    rs.append_jsonl(rs.review_queue_path(run_id), row)
+    rs.append_jsonl(rs._review_queue_path(run_id), row)
 
 
 @pytest.fixture
@@ -36,12 +36,12 @@ def five_kinds(run_store):
     _queue(rs, "ext1", {"item_key": VALUE_KEY, "issuer_key": "ISS1", "company_id": "C1", "field_id": "f1",
                         "period_end": "2024-12-31", "field": {"field_id": "f1", "value": 10}})
     _queue(rs, "ext1", {"item_key": "C2", "company_id": "C2", "name": "Beta", "confidence": 0.0, "rationale": "Identity failed"})
-    rs.append_jsonl(rs.results_path("ext1"), {
+    rs.append_jsonl(rs._results_path("ext1"), {
         "company_id": "C1", "name": "Acme", "issuer_key": "ISS1", "fields": [],
         "held_documents": [{"doc_id": "d1", "title": "Other entity report", "covered_entity": "Acme Sub",
                             "match_status": "mismatch", "content_key": "ck1", "parser_version": "1", "doc_type": "annual_report"}],
     })
-    rs.append_jsonl(rs.restatements_path("ext1"), RestatementCandidate(
+    rs.append_jsonl(rs._restatements_path("ext1"), RestatementCandidate(
         candidate_id="rst_1", item_key="ISS1:f1:2023-12-31", issuer_key="ISS1", field_id="f1", period_end="2023-12-31",
         previous_value=9, previous_run_id="ext0", new_value=8, run_id="ext1",
     ).model_dump(mode="json"))
@@ -139,7 +139,7 @@ def test_theme_review_route_refuses_isic_keys(five_kinds):
     r = _client(five_kinds).post("/api/themes/runs/thm1/review", json={"item_key": "isic:C1", "decision": "approve"})
     assert r.status_code == 400
     assert r.json()["detail"] == "decide sector codes through the review workbench"
-    assert five_kinds.read_jsonl(five_kinds.review_decisions_path("thm1")) == []
+    assert five_kinds.read_jsonl(five_kinds._review_decisions_path("thm1")) == []
 
 
 def test_theme_review_queue_leaves_out_sector_codes(five_kinds):

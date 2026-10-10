@@ -51,7 +51,7 @@ def _check_issues(run_store: RunStore) -> list[dict]:
     out = []
     for m in runs:
         decisions = effective_decisions(run_store, m.run_id, cosign_required=cosign_rule("extraction"))
-        for row in run_store.read_jsonl(run_store.results_path(m.run_id)):
+        for row in run_store.read_results(m.run_id):
             for f in row.get("fields", []):
                 key = field_item_key(row.get("issuer_key", ""), f["field_id"], period_key(f))
                 if key in seen:

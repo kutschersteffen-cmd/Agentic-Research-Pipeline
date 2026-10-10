@@ -71,7 +71,7 @@ def _write_theme_run(run_store: RunStore, run_id: str, matches: list[CompanyMatc
     manifest = RunManifest(run_id=run_id, run_type="theme", status=status, params={}, company_count=len(matches))
     run_store.save_manifest(manifest)
     for m in matches:
-        run_store.append_jsonl(run_store.results_path(run_id), {"company_matches": [m.model_dump(mode="json")]})
+        run_store.append_jsonl(run_store._results_path(run_id), {"company_matches": [m.model_dump(mode="json")]})
 
 
 async def test_execute_calibration_run_scans_completed_theme_runs_and_groups_by_company(tmp_path):
@@ -86,7 +86,7 @@ async def test_execute_calibration_run_scans_completed_theme_runs_and_groups_by_
     run_id = create_calibration_run(run_store, "manual")
     await execute_calibration_run(run_id, registry=registry, run_store=run_store)
 
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_jsonl(run_store._results_path(run_id))
     assert len(rows) == 2
     assert {r["activity_id"] for r in rows} == {"a1", "a2"}
     assert all(r["company_id"] == "c1" for r in rows)
@@ -105,7 +105,7 @@ async def test_execute_calibration_run_skips_non_completed_and_non_theme_runs(tm
     registry = _registry([_doc(fetched_at="2026-02-01T00:00:00+00:00")])
     run_id = await run_calibration_pass(registry=registry, run_store=run_store, triggered_by="manual")
 
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_jsonl(run_store._results_path(run_id))
     assert rows == []
     manifest = run_store.load_manifest(run_id)
     assert manifest.company_count == 0

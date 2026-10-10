@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
-from pathlib import Path
+from dataclasses import dataclass
 from typing import TypeVar
 
 from arp.llm.base import LLMUsage
@@ -12,7 +12,6 @@ from arp.orchestration.jobs import hold_run
 from arp.orchestration.review_queue import queue_for_review
 from arp.orchestration.step_tally import on_company, tally_run
 from arp.schemas.common import CompanyRef
-from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
@@ -34,21 +33,23 @@ class ReviewRequired(Exception):
         self.report = report
 
 
-def read_done_keys(results_path: Path, errors_path: Path | None = None) -> set[str]:
-    """Keys of items not to run again: every result row, plus (given
-    `errors_path`) every item a worker stopped for review -- a person
-    decides those, so a resume must not redo them."""
-    done: set[str] = set()
-    for path, field in ((results_path, _KEY_FIELD), (errors_path, "key")):
-        if path is None:
-            continue
-        for row in read_jsonl(path):
-            if field == "key" and not row.get("review"):
-                continue
-            key = row.get(field)
-            if key:
-                done.add(key)
-    return done
+@dataclass(frozen=True)
+class BatchSinks:
+    """Where a batch reads its already-done keys from and writes result and
+    error rows to. `run_sinks` points them at a run's own rows; a batch
+    with a side file (emerging themes' extracted tags) builds its own."""
+
+    done: Callable[[], set[str]]
+    append_result: Callable[[dict], None]
+    append_error: Callable[[dict], None]
+
+
+def run_sinks(run_store: RunStore, run_id: str) -> BatchSinks:
+    return BatchSinks(
+        done=lambda: run_store.done_keys(run_id, include_errors=True),
+        append_result=lambda row: run_store.append_result(run_id, row),
+        append_error=lambda row: run_store.append_error(run_id, row),
+    )
 
 
 async def run_batch(
@@ -56,8 +57,7 @@ async def run_batch(
     *,
     item_key: Callable[[ItemT], str],
     worker: Callable[[ItemT], Awaitable[ResultT]],
-    results_path: Path,
-    errors_path: Path,
+    sinks: BatchSinks,
     concurrency: int,
     result_to_json: Callable[[ResultT], dict],
     on_success: Callable[[ItemT, ResultT], None] | None = None,
@@ -69,12 +69,12 @@ async def run_batch(
 
     Precision-at-scale controls implemented here:
     - **Checkpointing**: every successful result is appended to
-      `results_path` (JSONL) immediately, so progress is never lost.
-    - **Resumability**: item keys already present in `results_path` are
+      `sinks.append_result` immediately, so progress is never lost.
+    - **Resumability**: item keys already present in the results are
       skipped on the next invocation, so a 4000-company run interrupted at
       item 3,000 picks back up without redoing the first 3,000.
     - **Failure isolation**: one item's exception is logged to
-      `errors_path` and does not cancel or affect any other item.
+      `sinks.append_error` and does not cancel or affect any other item.
     - **Bounded concurrency**: an `asyncio.Semaphore` caps in-flight work
       to respect API rate limits and be a polite web citizen.
     - **Cooperative cancellation**: `cancel_check`, if supplied, is polled
@@ -83,7 +83,7 @@ async def run_batch(
       checkpoint normally -- this is a soft stop (no work is lost or left
       half-written), not a hard kill.
     """
-    already_done = read_done_keys(results_path, errors_path) if resume else set()
+    already_done = sinks.done() if resume else set()
 
     sem = asyncio.Semaphore(concurrency)
     write_lock = asyncio.Lock()
@@ -103,14 +103,14 @@ async def run_batch(
                 if isinstance(exc, ReviewRequired):
                     row.update(review=True, report=exc.report)
                 async with write_lock:
-                    append_jsonl(errors_path, row)
+                    sinks.append_error(row)
                 if on_error:
                     on_error(item, exc)
                 return
         record = result_to_json(result)
         record[_KEY_FIELD] = key
         async with write_lock:
-            append_jsonl(results_path, record)
+            sinks.append_result(record)
         if on_success:
             on_success(item, result)
 
@@ -176,8 +176,7 @@ async def run_company_batch(
                 companies,
                 item_key=lambda c: c.company_id,
                 worker=_worker,
-                results_path=run_store.results_path(run_id),
-                errors_path=run_store.errors_path(run_id),
+                sinks=run_sinks(run_store, run_id),
                 concurrency=concurrency,
                 result_to_json=result_to_json,
                 on_success=_on_success,

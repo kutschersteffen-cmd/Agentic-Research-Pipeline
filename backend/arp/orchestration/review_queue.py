@@ -19,7 +19,7 @@ def queue_for_review(run_store: RunStore, run_id: str, item_key: str, payload: d
     dropped and never silently included in the trusted output.
     """
     row = {"item_key": item_key, "queued_at": now_iso(), **payload}
-    run_store.append_jsonl(run_store.review_queue_path(run_id), row)
+    run_store.append_review_item(run_id, row)
 
 
 def record_review_decision(
@@ -56,11 +56,11 @@ def record_review_decision(
         "comment": comment,
         "decided_at": now_iso(),
     }
-    run_store.append_jsonl(run_store.review_decisions_path(run_id), row)
+    run_store.append_decision_row(run_id, row)
 
 
 def latest_decisions(run_store: RunStore, run_id: str) -> dict[str, dict]:
-    rows = run_store.read_jsonl(run_store.review_decisions_path(run_id))
+    rows = run_store.read_decisions(run_id)
     latest: dict[str, dict] = {}
     for row in rows:
         latest[row["item_key"]] = row  # later rows overwrite earlier ones (JSONL append order)
@@ -71,7 +71,7 @@ def decision_history(run_store: RunStore, run_id: str, item_key: str) -> list[di
     """Every decision ever recorded for item_key, oldest first -- the full
     audit trail that latest_decisions() collapses to just the last row.
     """
-    rows = run_store.read_jsonl(run_store.review_decisions_path(run_id))
+    rows = run_store.read_decisions(run_id)
     return [r for r in rows if r["item_key"] == item_key]
 
 
@@ -85,8 +85,8 @@ def record_cosign(run_store: RunStore, run_id: str, item_key: str, principal: Pr
         raise ValueError("use a second review")
     if principal.user_id == decision.get("user_id"):  # legacy rows lack user_id: allowed
         raise ValueError("co-sign must be a different person")
-    run_store.append_jsonl(
-        run_store.review_cosigns_path(run_id),
+    run_store.append_cosign(
+        run_id,
         {
             "item_key": item_key,
             "user_id": principal.user_id,
@@ -176,10 +176,10 @@ def item_state(rows: list[dict], *, cosigned_at: set[str], cosign_required: set[
 
 def item_states(run_store: RunStore, run_id: str, *, cosign_required: set[str]) -> dict[str, ItemState]:
     rows: dict[str, list[dict]] = defaultdict(list)
-    for r in run_store.read_jsonl(run_store.review_decisions_path(run_id)):
+    for r in run_store.read_decisions(run_id):
         rows[r["item_key"]].append(r)
     signed: dict[str, set[str]] = defaultdict(set)
-    for c in run_store.read_jsonl(run_store.review_cosigns_path(run_id)):
+    for c in run_store.read_cosigns(run_id):
         signed[c["item_key"]].add(c["decision_decided_at"])
     return {k: item_state(v, cosigned_at=signed[k], cosign_required=cosign_required) for k, v in rows.items()}
 
@@ -196,7 +196,7 @@ def effective_decisions(run_store: RunStore, run_id: str, *, cosign_required: se
 
 
 def append_decision(run_store: RunStore, run_id: str, d: ReviewDecision) -> None:
-    run_store.append_jsonl(run_store.review_decisions_path(run_id), d.model_dump(mode="json"))
+    run_store.append_decision_row(run_id, d.model_dump(mode="json"))
 
 
 def public_decision(row: dict, principal: Principal | None) -> dict:

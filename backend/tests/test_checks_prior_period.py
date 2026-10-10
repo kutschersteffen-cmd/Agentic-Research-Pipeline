@@ -34,13 +34,13 @@ def _prior_run(store, run_id, v, period=FY23, *, decision="approve", trial=False
     row = {"company_id": "c1", "issuer_key": IK, "fields": [_field(v, period).model_dump(mode="json")]}
     if route:
         row["fields"][0]["route"] = route
-    store.append_jsonl(store.results_path(run_id), row)
+    store.append_jsonl(store._results_path(run_id), row)
     key = f"{IK}:rev:{period}"
     if queued:
-        store.append_jsonl(store.review_queue_path(run_id), {"item_key": key})
+        store.append_jsonl(store._review_queue_path(run_id), {"item_key": key})
     if decision:
         store.append_jsonl(
-            store.review_decisions_path(run_id), {"item_key": key, "decision": decision, "decided_at": "t"}
+            store._review_decisions_path(run_id), {"item_key": key, "decision": decision, "decided_at": "t"}
         )
 
 
@@ -69,7 +69,7 @@ def test_differing_comparative_opens_one_candidate(tmp_path):
     spec, ctx = _ctx(store, rec.fields)
     rec.fields = _checked(spec, ctx)
     assert open_restatement_candidates(store, "new", rec, ctx.history) == 1
-    (row,) = store.read_jsonl(store.restatements_path("new"))
+    (row,) = store.read_jsonl(store._restatements_path("new"))
     assert (row["period_end"], row["previous_value"], row["new_value"]) == (FY23, 1000, 1050)
 
 
@@ -80,7 +80,7 @@ def test_equal_comparative_opens_none(tmp_path):
     spec, ctx = _ctx(store, rec.fields)
     rec.fields = _checked(spec, ctx)
     assert open_restatement_candidates(store, "new", rec, ctx.history) == 0
-    assert store.read_jsonl(store.restatements_path("new")) == []
+    assert store.read_jsonl(store._restatements_path("new")) == []
 
 
 def test_current_period_difference_warns_but_no_candidate(tmp_path):

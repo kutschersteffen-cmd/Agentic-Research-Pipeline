@@ -68,7 +68,7 @@ def test_a_run_override_rescores_the_finished_run(client):  # noqa: F811
         ]}
         for cid, name, cov, nz, bo in [("a", "Alpha", 80, "Yes", "Yes"), ("b", "Beta", 50, "Yes", "No"), ("c", "Gamma", None, "No", "No")]
     ]
-    run_store.results_path(run_id).write_text("".join(json.dumps(r) + "\n" for r in records))
+    run_store._results_path(run_id).write_text("".join(json.dumps(r) + "\n" for r in records))
     templates.attach_to_run(run_store, run_id, store.get(config.framework_id))
     templates.score_run(run_store, run_id)
     JobManager(run_store).finish_run(run_id)

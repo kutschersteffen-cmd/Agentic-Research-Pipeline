@@ -35,7 +35,7 @@ def _setup(tmp_path: Path, fields: list[ExtractedField], required: list[Required
            xbrl_on: bool = False, settings: bool = True):
     runs, store = RunStore(tmp_path / "runs"), XbrlStore(tmp_path / "xbrl")
     rec = ExtractionRecord(company_id="ex", name="Ex", schema_id="s", run_id="r1", fields=fields)
-    runs.results_path("r1").write_text(rec.model_dump_json() + "\n")
+    runs._results_path("r1").write_text(rec.model_dump_json() + "\n")
     if settings:
         (runs.run_dir("r1") / "step_settings.json").write_text(json.dumps({"xbrl_facts_enabled": xbrl_on}))
     store.write_required("0001234567", required)
@@ -138,7 +138,7 @@ def test_verify_matches_any_company_id_that_fetched_the_cik(tmp_path):
     runs, store = _setup(tmp_path, [], [_req("revenue", 2024, 1000.0)])
     rec = ExtractionRecord(company_id="acme-inc", name="Ex", schema_id="s", run_id="r1",
                            fields=[_field("rev_f", 1000.0, 2024)])
-    runs.results_path("r1").write_text(rec.model_dump_json() + "\n")
+    runs._results_path("r1").write_text(rec.model_dump_json() + "\n")
     rows = [_req("revenue", 2024, 1000.0).model_copy(update={"company_id": "acme"})]
     store.write_required("0001234567", rows)
     store.set_meta("0001234567", source_sha="s", tags=None, company_id="acme", company_name=None, fact_count=1)
@@ -154,7 +154,7 @@ def test_verify_with_legacy_meta_uses_its_single_company_id(tmp_path):
 
 def test_non_generic_run_is_unsupported(tmp_path):
     runs, store = _setup(tmp_path, [_field("rev_f", 1000.0, 2024)], [_req("revenue", 2024, 1000.0)])
-    runs.results_path("r1").write_text(json.dumps({"company_id": "ex", "financials": {}}) + "\n")
+    runs._results_path("r1").write_text(json.dumps({"company_id": "ex", "financials": {}}) + "\n")
     with pytest.raises(UnsupportedRunError, match="run r1 does not contain generic extraction records"):
         _verify(runs, store)
 

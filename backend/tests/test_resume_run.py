@@ -79,22 +79,22 @@ async def test_killed_worker_resumes_without_repeats(tmp_path, fake):
             run_id, COMPANIES, llm=LLM, verifier_llm=LLM, registry=DocumentSourceRegistry([]), settings=settings, run_store=store
         )
     )
-    while len(store.read_jsonl(store.results_path(run_id))) < 3:
+    while len(store.read_jsonl(store._results_path(run_id))) < 3:
         await asyncio.sleep(0.01)
     task.cancel()  # the kill
     with pytest.raises(asyncio.CancelledError):
         await task
-    done_before = {r["company_id"] for r in store.read_jsonl(store.results_path(run_id))}
+    done_before = {r["company_id"] for r in store.read_jsonl(store._results_path(run_id))}
     fake.release.set()
 
     assert await _resume(run_id, settings, store) == run_id
 
-    ids = [r["company_id"] for r in store.read_jsonl(store.results_path(run_id))]
+    ids = [r["company_id"] for r in store.read_jsonl(store._results_path(run_id))]
     assert sorted(ids) == sorted(c.company_id for c in COMPANIES)
     assert all(fake.calls.count(cid) == 1 for cid in done_before)
     manifest = store.load_manifest(run_id)
     assert manifest.completed_count == 6 and manifest.status == JobStatus.COMPLETED
-    keys = [r["item_key"] for r in store.read_jsonl(store.review_queue_path(run_id))]
+    keys = [r["item_key"] for r in store.read_jsonl(store._review_queue_path(run_id))]
     assert len(keys) == len(set(keys)) == 6
     assert manifest.review_count == 6
 
@@ -129,7 +129,7 @@ async def test_resume_refuses_run_without_inputs(tmp_path):
     settings = _settings(tmp_path)
     store = RunStore(settings.runs_dir)
     run_id = create_financials_extraction_run(COMPANIES[:1], settings, store)
-    store.companies_path(run_id).unlink()  # a run from before stored inputs
+    store._companies_path(run_id).unlink()  # a run from before stored inputs
     with pytest.raises(NotResumable, match="run has no stored inputs"):
         await _resume(run_id, settings, store)
 
@@ -186,7 +186,7 @@ async def test_resume_resets_failed_and_retries(tmp_path, fake):
     settings = _settings(tmp_path)
     store = RunStore(settings.runs_dir)
     run_id = create_transition_plan_run(COMPANIES[:2], settings, store)
-    store.append_jsonl(store.errors_path(run_id), {"key": "c1", "error": "boom"})
+    store.append_jsonl(store._errors_path(run_id), {"key": "c1", "error": "boom"})
     # review_delta with no review_queue row, as discovery records it: resume keeps it.
     JobManager(store).record_progress(run_id, failed_delta=1, review_delta=1, input_tokens_delta=7, cost_delta_usd=0.5)
     JobManager(store).finish_run(run_id)

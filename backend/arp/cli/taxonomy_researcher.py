@@ -31,7 +31,7 @@ def taxonomy_researcher_run(
             taxonomy_store=_taxonomy_store(), run_store=run_store, taxonomy_ids=ids, triggered_by="manual",
         )
     )
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     proposed = [r for r in rows if r.get("proposed")]
     typer.echo(f"Run complete: {run_id} -- scanned {len(rows)} taxonomy/ies, proposed {len(proposed)} new version(s).")
 

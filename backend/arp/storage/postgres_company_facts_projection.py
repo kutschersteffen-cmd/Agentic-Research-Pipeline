@@ -235,9 +235,9 @@ def materialize_run(dsn: str, run_store: RunStore, run_id: str) -> int:
         # A trial run (draft schema fields) is not a fact source: projecting it would retire the
         # company's current approved fact. Its results stay visible in the run views.
         return 0
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     decisions = latest_decisions(run_store, run_id)
-    queued_item_keys = {r["item_key"] for r in run_store.read_jsonl(run_store.review_queue_path(run_id)) if "item_key" in r}
+    queued_item_keys = {r["item_key"] for r in run_store.read_review_queue(run_id) if "item_key" in r}
     if manifest.run_type in ("extraction", "identity"):  # an item is final only after its second review; until then it stays pending
         decisions = effective_decisions(
             run_store, run_id, cosign_required={"edit"} if manifest.run_type == "extraction" else set()

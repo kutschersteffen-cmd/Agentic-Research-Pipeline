@@ -129,7 +129,7 @@ async def resume_run_endpoint(
 
 @router.get("/{run_id}/errors")
 def get_run_errors(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
-    return {"errors": run_store.read_jsonl(run_store.errors_path(run_id))}
+    return {"errors": run_store.read_errors(run_id)}
 
 
 @router.get("/{run_id}/results")
@@ -165,7 +165,7 @@ def export_run_csv(run_id: str, run_store: RunStore = Depends(get_run_store)) ->
     manifest = run_store.load_manifest(run_id)
     if manifest is None:
         raise HTTPException(404, "Run not found")
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
 
     buf = io.StringIO()
     if manifest.run_type == "theme":

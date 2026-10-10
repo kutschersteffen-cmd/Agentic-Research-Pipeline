@@ -244,7 +244,7 @@ def test_known_answer_run_never_published(qenv):
     run_id = seed_known_answers(rs, settings, count=2)
     m = rs.load_manifest(run_id)
     assert m.run_type == "extraction" and m.params["trial"] is True
-    assert {f["route"] for r in rs.read_jsonl(rs.results_path(run_id)) for f in r["fields"]} == {"review"}
+    assert {f["route"] for r in rs.read_jsonl(rs._results_path(run_id)) for f in r["fields"]} == {"review"}
     cands, _ = run_candidates(rs, run_id)
     assert cands == []
 

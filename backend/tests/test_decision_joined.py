@@ -11,7 +11,7 @@ from arp.storage.run_store import RunStore
 
 def _run(store: RunStore, run_type: str, records: list[dict]) -> str:
     run_id = JobManager(store).create_run(run_type, {}, len(records)).run_id
-    store.results_path(run_id).write_text("".join(json.dumps(r) + "\n" for r in records))
+    store._results_path(run_id).write_text("".join(json.dumps(r) + "\n" for r in records))
     return run_id
 
 

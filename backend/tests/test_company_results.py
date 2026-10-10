@@ -11,7 +11,7 @@ def _make_run(run_store: RunStore, run_id: str, run_type: str, created_at: str, 
     )
     run_store.save_manifest(manifest)
     for row in rows:
-        run_store.append_jsonl(run_store.results_path(run_id), row)
+        run_store.append_jsonl(run_store._results_path(run_id), row)
 
 
 def test_list_company_results_filters_and_orders_newest_run_first(tmp_path):

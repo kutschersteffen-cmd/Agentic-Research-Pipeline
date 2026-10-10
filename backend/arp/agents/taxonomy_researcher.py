@@ -6,7 +6,7 @@ from collections.abc import Callable
 from arp.config import Settings
 from arp.discovery.site_finder import WebSearchClient
 from arp.llm.base import LLMClient
-from arp.orchestration.batch_runner import run_batch
+from arp.orchestration.batch_runner import run_batch, run_sinks
 from arp.orchestration.interval_scheduler import IntervalScheduler
 from arp.orchestration.job_manager import JobManager
 from arp.research.taxonomy_sources.authority import build_theme_from_authority_sources
@@ -149,8 +149,7 @@ async def execute_taxonomy_research_run(
         ratified,
         item_key=lambda t: t.taxonomy_id,
         worker=_research,
-        results_path=run_store.results_path(run_id),
-        errors_path=run_store.errors_path(run_id),
+        sinks=run_sinks(run_store, run_id),
         concurrency=1,
         result_to_json=lambda f: f.model_dump(mode="json"),
         on_success=lambda _t, f: job_manager.record_progress(run_id, completed_delta=1, review_delta=1 if f.proposed else 0),

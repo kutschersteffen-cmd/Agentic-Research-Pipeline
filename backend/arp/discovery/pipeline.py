@@ -11,7 +11,7 @@ from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient, h
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.esef import EsefDocumentSource
 from arp.ingestion.indexing_config import IndexingConfig
-from arp.orchestration.batch_runner import run_batch
+from arp.orchestration.batch_runner import run_batch, run_sinks
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import hold_run
 from arp.schemas.common import CompanyRef, DocType
@@ -154,8 +154,7 @@ async def execute_discovery_run(
             companies,
             item_key=lambda c: c.company_id,
             worker=_worker,
-            results_path=run_store.results_path(run_id),
-            errors_path=run_store.errors_path(run_id),
+            sinks=run_sinks(run_store, run_id),
             concurrency=settings.max_concurrent_downloads,
             result_to_json=lambda r: r.model_dump(mode="json"),
             on_success=_on_success,

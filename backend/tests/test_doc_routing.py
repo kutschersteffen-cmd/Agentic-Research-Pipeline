@@ -70,7 +70,7 @@ async def _run_docs(tmp_path, docs, fake_llm, script, field=None, *, trial=False
         run_id, saved, [company], llm=llm, registry=DocumentSourceRegistry([_Src(docs)]),
         settings=settings, run_store=store,
     )
-    (row,) = store.read_jsonl(store.results_path(run_id))
+    (row,) = store.read_jsonl(store._results_path(run_id))
     return run_id, row["fields"][0], llm
 
 
@@ -132,7 +132,7 @@ def test_section_filter_with_fallback():
 def _failing_check_row(tmp_path, run_id):
     import json
 
-    p = RunStore(tmp_path / "r").results_path(run_id)
+    p = RunStore(tmp_path / "r")._results_path(run_id)
     rows = [json.loads(line) for line in p.read_text().splitlines()]
     rows[0]["fields"][0]["checks"] = [{"check_id": "c", "layer": 2, "outcome": "fail", "severity": "warn"}]
     p.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
@@ -159,7 +159,7 @@ async def test_prior_human_rejection_reextracts(tmp_path, fake_llm):
 
     run1, _, _ = await _run(tmp_path, _field(), _doc(), fake_llm, _script())
     store = RunStore(tmp_path / "r")
-    (item,) = store.read_jsonl(store.review_queue_path(run1))
+    (item,) = store.read_jsonl(store._review_queue_path(run1))
     record_review_decision(store, run1, item["item_key"], "reject", "reviewer", None)
     _, row2, llm2 = await _run_docs(tmp_path, [_doc()], fake_llm, _script(), audit=True)
     assert llm2.calls and row2["reused_from_run"] is None
@@ -175,7 +175,7 @@ async def test_rejection_in_a_stale_run_still_reviews_the_reused_value(tmp_path,
     run2, row2, _ = await _run(tmp_path, _field(), _doc(), fake_llm, {})
     assert row2["reused_from_run"] == run1
     store = RunStore(tmp_path / "r")
-    (item,) = store.read_jsonl(store.review_queue_path(run1))
+    (item,) = store.read_jsonl(store._review_queue_path(run1))
     record_review_decision(store, run1, item["item_key"], "reject", "reviewer", None)
     _, row3, llm3 = await _run_docs(tmp_path, [_doc()], fake_llm, {}, audit=True)
     assert llm3.calls == [] and row3["reused_from_run"] == run2
@@ -186,7 +186,7 @@ async def test_trial_on_released_audited_field_queues_every_row(tmp_path, fake_l
     run_id, row, _ = await _run_docs(tmp_path, [_doc()], fake_llm, _script(), trial=True, audit=True)
     assert row["route"] == "review" and row["route_reasons"][:1] == ["unreleased_version"]
     store = RunStore(tmp_path / "r")
-    assert [q["field_id"] for q in store.read_jsonl(store.review_queue_path(run_id))] == ["f1"]
+    assert [q["field_id"] for q in store.read_jsonl(store._review_queue_path(run_id))] == ["f1"]
 
 
 async def test_changed_model_setting_reextracts(tmp_path, fake_llm):

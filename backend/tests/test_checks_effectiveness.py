@@ -32,7 +32,7 @@ def rs(tmp_path):
     rs = RunStore(tmp_path / "runs")
     rs.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
     rs.save_manifest(RunManifest(run_id="trial", run_type="extraction", params={"trial": True}))
-    rs.append_jsonl(rs.results_path("r1"), {"issuer_key": "I", "company_id": "C", "fields": [
+    rs.append_jsonl(rs._results_path("r1"), {"issuer_key": "I", "company_id": "C", "fields": [
         _field("rev", "2024", 1, failed=["sum", "range"]),  # correct
         _field("rev", "2023", 1, failed=["sum"]),  # reject
         _field("rev", "2022", 1, failed=["sum"]),  # approve
@@ -44,7 +44,7 @@ def rs(tmp_path):
         _field("fx", "2021", 1, failed=["sum"]),  # legacy co-signed "edit": decided (hit)
         _field("cash", "2024", None, passed=["sum", "range"]),  # never fires
     ]})
-    rs.append_jsonl(rs.results_path("trial"), {"issuer_key": "I", "company_id": "C", "fields": [
+    rs.append_jsonl(rs._results_path("trial"), {"issuer_key": "I", "company_id": "C", "fields": [
         _field("rev", "2024", 1, failed=["sum"]),
     ]})
     for run, key, kind in [("r1", "I:rev:2024", "correct"), ("r1", "I:rev:2023", "reject"), ("r1", "I:rev:2022", "approve"),
@@ -57,8 +57,8 @@ def rs(tmp_path):
     _decide(rs, "r1", "I:fx:2022", "reject", step="second")
     _decide(rs, "r1", "I:fx:2022", "approve", step="resolution")
     legacy = {"item_key": "I:fx:2021", "decision": "edit", "edited_value": {"value": 1}, "decided_at": "2026-01-01T00:00:00Z"}
-    rs.append_jsonl(rs.review_decisions_path("r1"), legacy)  # no step, no user_id
-    rs.append_jsonl(rs.review_cosigns_path("r1"), {"item_key": "I:fx:2021", "decision_decided_at": legacy["decided_at"]})
+    rs.append_jsonl(rs._review_decisions_path("r1"), legacy)  # no step, no user_id
+    rs.append_jsonl(rs._review_cosigns_path("r1"), {"item_key": "I:fx:2021", "decision_decided_at": legacy["decided_at"]})
     return rs
 
 

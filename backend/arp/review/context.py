@@ -16,7 +16,6 @@ from arp.review.items import cosign_rule, get_item
 from arp.schemas.common import new_id
 from arp.schemas.datapoints import CheckResult, is_failing
 from arp.schemas.review import ReviewItem, ReviewItemKind, field_item_key, period_key
-from arp.storage.atomic_io import atomic_write_text
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
 from arp.storage.schema_registry import SchemaRegistry
@@ -78,7 +77,7 @@ def _text(content_store: DocumentContentStore | None, doc: dict):
 
 def _results_row(run_store: RunStore, run_id: str, payload: dict) -> dict | None:
     company, issuer = payload.get("company_id"), payload.get("issuer_key")
-    return next((r for r in run_store.read_jsonl(run_store.results_path(run_id))
+    return next((r for r in run_store.read_results(run_id)
                  if (r.get("company_id") == company if company else r.get("issuer_key") == issuer)), None)
 
 
@@ -185,7 +184,7 @@ def similar_decisions(run_store: RunStore, *, run_id: str, item_key: str, limit:
     if item_key.count(":") < 2 or run_store.load_manifest(run_id) is None:
         return None
     issuer, field_id, period = item_key.rsplit(":", 2)  # from the right: provisional issuer keys contain ':'
-    current = next((f for r in run_store.read_jsonl(run_store.results_path(run_id)) if r.get("issuer_key") == issuer
+    current = next((f for r in run_store.read_results(run_id) if r.get("issuer_key") == issuer
                     for f in r.get("fields", []) if f["field_id"] == field_id and period_key(f) == period), None)
     if current is None:
         return None
@@ -195,7 +194,7 @@ def similar_decisions(run_store: RunStore, *, run_id: str, item_key: str, limit:
     # ponytail: full scan of past extraction runs per request; index by issuer once run count makes this slow
     for m in runs:
         decisions = effective_decisions(run_store, m.run_id, cosign_required=cosign_rule("extraction"))
-        for r in run_store.read_jsonl(run_store.results_path(m.run_id)):
+        for r in run_store.read_results(m.run_id):
             if r.get("issuer_key") != issuer:
                 continue
             for f in r.get("fields", []):
@@ -308,12 +307,9 @@ def item_source(
 
 def write_snapshot(run_store: RunStore, run_id: str, bundle: dict) -> str:
     snapshot_id = new_id("snap")
-    path = run_store.snapshot_path(run_id, snapshot_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write_text(path, json.dumps(_no_mine(bundle), sort_keys=True))
+    run_store.save_snapshot(run_id, snapshot_id, _no_mine(bundle))
     return snapshot_id
 
 
-def read_snapshot(run_store: RunStore, run_id: str, snapshot_id: str) -> bytes | None:
-    path = run_store.snapshot_path(run_id, snapshot_id)
-    return path.read_bytes() if path.exists() else None
+def read_snapshot(run_store: RunStore, run_id: str, snapshot_id: str) -> dict | None:
+    return run_store.read_snapshot(run_id, snapshot_id)

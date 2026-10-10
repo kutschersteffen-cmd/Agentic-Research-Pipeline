@@ -74,7 +74,7 @@ def _spec_run_or_404(run_store: RunStore, spec_run_id: str) -> RunManifest:
 
 
 def _draft_row(run_store: RunStore, spec_run_id: str) -> dict:
-    rows = run_store.read_jsonl(run_store.results_path(spec_run_id))
+    rows = run_store.read_results(spec_run_id)
     draft_row = next((r for r in rows if r.get("type") == "draft"), None)
     if draft_row is None:
         raise HTTPException(404, "Spec draft not found")
@@ -157,7 +157,7 @@ async def create_spec_draft(
         run_id=run_id, run_type=_SPEC_RUN_TYPE, status=JobStatus.COMPLETED, params={"paper_citation": req.paper_citation}
     )
     run_store.save_manifest(manifest)
-    run_store.append_jsonl(run_store.results_path(run_id), {"type": "draft", **spec.model_dump(mode="json")})
+    run_store.append_result(run_id, {"type": "draft", **spec.model_dump(mode="json")})
     return {"spec_run_id": run_id, "spec": spec.model_dump(mode="json"), "approved": False}
 
 
@@ -288,7 +288,7 @@ async def trigger_sanity_check(run_id: str, run_store: RunStore = Depends(get_ru
     if detail is None:
         raise HTTPException(404, "Run not found or backtest not completed")
     assessment, _usage = await sanity_check_report(detail.spec, detail.comparison, llm)
-    run_store.append_jsonl(run_store.results_path(run_id), {"type": "sanity_check", **assessment.model_dump(mode="json")})
+    run_store.append_result(run_id, {"type": "sanity_check", **assessment.model_dump(mode="json")})
     return assessment.model_dump(mode="json")
 
 
@@ -298,5 +298,5 @@ def trigger_regime_report(run_id: str, trailing_window_months: int = 12, run_sto
     if detail is None:
         raise HTTPException(404, "Run not found or backtest not completed")
     report = regime_stratified_report(detail.in_sample, trailing_window_months=trailing_window_months)
-    run_store.append_jsonl(run_store.results_path(run_id), {"type": "regime_report", **report.model_dump(mode="json")})
+    run_store.append_result(run_id, {"type": "regime_report", **report.model_dump(mode="json")})
     return report.model_dump(mode="json")

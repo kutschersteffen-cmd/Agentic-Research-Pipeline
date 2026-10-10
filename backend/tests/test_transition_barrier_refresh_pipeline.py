@@ -71,7 +71,7 @@ async def test_refresh_never_mutates_the_bundled_scores(run_store, no_network):
 async def test_rating_change_candidates_land_in_the_review_queue(run_store, no_network):
     run_id, findings = await run_refresh(settings=_settings(), run_store=run_store)
 
-    queued = run_store.read_jsonl(run_store.review_queue_path(run_id))
+    queued = run_store.read_jsonl(run_store._review_queue_path(run_id))
     assert len(queued) == len(findings), "every candidate must be queued for a human"
     assert latest_decisions(run_store, run_id) == {}, "nothing may be pre-decided"
 
@@ -84,7 +84,7 @@ async def test_rating_change_candidates_land_in_the_review_queue(run_store, no_n
 async def test_results_are_written_and_progress_recorded(run_store, no_network):
     run_id, findings = await run_refresh(settings=_settings(), run_store=run_store)
 
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_jsonl(run_store._results_path(run_id))
     assert len(rows) == len(findings)
 
     manifest = run_store.load_manifest(run_id)
@@ -125,7 +125,7 @@ async def test_a_fetch_failure_does_not_abort_the_run(run_store, monkeypatch):
     assert manifest.completed_count + manifest.failed_count == 15
 
     # An unverifiable cell still reaches a human rather than being dropped.
-    queued = run_store.read_jsonl(run_store.review_queue_path(run_id))
+    queued = run_store.read_jsonl(run_store._review_queue_path(run_id))
     assert len(queued) == sum(1 for f in findings if f.outcome is RefreshOutcome.FETCH_FAILED)
 
 

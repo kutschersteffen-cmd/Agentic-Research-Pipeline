@@ -271,7 +271,7 @@ def replicate_golden_set() -> None:
 def replicate_report(run_id: str) -> None:
     """Prints the comparison report for a completed replication run."""
     store = RunStore(get_settings().runs_dir)
-    rows = store.read_jsonl(store.results_path(run_id))
+    rows = store.read_results(run_id)
     comparison = next((r for r in rows if r.get("type") == "comparison"), None)
     if comparison is None:
         typer.echo(f"No comparison report found for run {run_id}.", err=True)
@@ -286,7 +286,7 @@ def replicate_sanity_check(run_id: str) -> None:
     of (never replacing) the deterministic numbers. Requires ARP_ANTHROPIC_API_KEY. Appends the assessment to
     the run's results.jsonl."""
     store = RunStore(get_settings().runs_dir)
-    rows = store.read_jsonl(store.results_path(run_id))
+    rows = store.read_results(run_id)
     spec_row = next((r for r in rows if r.get("type") == "spec"), None)
     comparison_row = next((r for r in rows if r.get("type") == "comparison"), None)
     if spec_row is None or comparison_row is None:
@@ -304,7 +304,7 @@ def replicate_sanity_check(run_id: str) -> None:
     typer.echo(assessment.summary)
     for f in assessment.findings:
         typer.echo(f"  - [{f.concern}] {f.explanation}")
-    store.append_jsonl(store.results_path(run_id), {"type": "sanity_check", **assessment.model_dump(mode="json")})
+    store.append_result(run_id, {"type": "sanity_check", **assessment.model_dump(mode="json")})
 
 
 @replicate_app.command("regime-report")
@@ -318,7 +318,7 @@ def replicate_regime_report(
     classification uses the benchmark's own volatility, never the strategy's, to avoid circularity). Appends the
     report to the run's results.jsonl."""
     store = RunStore(get_settings().runs_dir)
-    rows = store.read_jsonl(store.results_path(run_id))
+    rows = store.read_results(run_id)
     in_sample_row = next((r for r in rows if r.get("type") == "in_sample"), None)
     if in_sample_row is None:
         typer.echo(f"No in-sample result found for run {run_id}.", err=True)
@@ -335,7 +335,7 @@ def replicate_regime_report(
             f"{bucket.long_short.annualized_return_pct}, sharpe={bucket.long_short.sharpe_ratio}"
         )
     typer.echo(report.notes)
-    store.append_jsonl(store.results_path(run_id), {"type": "regime_report", **report.model_dump(mode="json")})
+    store.append_result(run_id, {"type": "regime_report", **report.model_dump(mode="json")})
 
 
 @replicate_app.command("pbo")

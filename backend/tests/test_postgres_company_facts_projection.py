@@ -231,7 +231,7 @@ def _run_with_result(tmp_path, trial):
 
     store = RunStore(tmp_path)
     run_id = JobManager(store).create_run("extraction", {"trial": trial}, 1).run_id
-    store.results_path(run_id).write_text('{"_key": "acme", "issuer_key": "ARP:x", "fields": []}\n')
+    store._results_path(run_id).write_text('{"_key": "acme", "issuer_key": "ARP:x", "fields": []}\n')
     return store, run_id
 
 

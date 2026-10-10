@@ -116,7 +116,7 @@ def get_run_results(
     run_id: str, offset: int = Offset, limit: int = Limit, run_store: RunStore = Depends(_run_store)
 ) -> dict:
     _manifest(run_store, run_id)
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     return {"total": len(rows), "results": rows[offset : offset + limit]}
 
 

@@ -32,7 +32,7 @@ def _run(rs, fields, *, trial=False, issuer_key="ISS"):
     rs.save_manifest(RunManifest(run_id="r1", run_type="extraction", created_at="2026-01-01T00:00:00+00:00",
                                  params={"trial": True} if trial else {}))
     row = {"company_id": "c1", "issuer_key": issuer_key, "issuer_scheme": "LEI", "fields": fields}
-    rs.append_jsonl(rs.results_path("r1"), row)
+    rs.append_jsonl(rs._results_path("r1"), row)
 
 
 def _decide(rs, key, decision="approve", step="first", second=False, value=None, citation=None, who="u_alice"):
@@ -43,7 +43,7 @@ def _decide(rs, key, decision="approve", step="first", second=False, value=None,
 
 
 def _rst(rs, doc_ids=("d2",)):
-    rs.append_jsonl(rs.restatements_path("r1"), {
+    rs.append_jsonl(rs._restatements_path("r1"), {
         "candidate_id": "rst_1", "item_key": OLD, "issuer_key": "ISS", "field_id": "f1", "period_end": "2023-12-31",
         "previous_value": 7, "previous_run_id": "r0", "new_value": 8, "run_id": "r1", "doc_ids": list(doc_ids)})
 

@@ -146,7 +146,7 @@ async def test_execute_taxonomy_research_run_writes_draft_version_never_ratifies
         taxonomy_store=store, run_store=run_store, taxonomy_ids=None,
     )
 
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_jsonl(run_store._results_path(run_id))
     assert len(rows) == 1
     assert rows[0]["proposed"] is True
     assert rows[0]["new_version"] == 2
@@ -171,7 +171,7 @@ async def test_execute_taxonomy_research_run_skips_unratified_taxonomies(fake_ll
         run_id, llm=llm, search_client=fake_search({}), settings=_settings(tmp_path),
         taxonomy_store=store, run_store=run_store, taxonomy_ids=None,
     )
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_jsonl(run_store._results_path(run_id))
     assert rows == []
     assert llm.calls == []
     manifest = run_store.load_manifest(run_id)

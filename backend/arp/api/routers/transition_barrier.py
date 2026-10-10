@@ -156,7 +156,7 @@ def get_refresh_run(run_id: str, run_store: RunStore = Depends(get_run_store)) -
 def get_refresh_results(
     run_id: str, offset: int = 0, limit: int = 500, run_store: RunStore = Depends(get_run_store)
 ) -> dict:
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     return {"total": len(rows), "results": rows[offset : offset + limit]}
 
 

@@ -25,7 +25,7 @@ def _field(period, doc_type="annual_report", value=100, **kw):
 def _run(rs, run_id, created_at, field, issuer=ISSUER, trial=False, decide=True):
     rs.save_manifest(RunManifest(run_id=run_id, run_type="extraction", created_at=created_at,
                                  params={"trial": True} if trial else {}))
-    rs.append_jsonl(rs.results_path(run_id), {"company_id": "C1", "issuer_key": issuer, "fields": [field]})
+    rs.append_jsonl(rs._results_path(run_id), {"company_id": "C1", "issuer_key": issuer, "fields": [field]})
     key = f"{issuer}:f1:{field['period_end']}"
     if decide:
         append_decision(rs, run_id, ReviewDecision(
@@ -83,9 +83,9 @@ def _context_with(tmp_path, alternatives, schema_fields=None):
             DataPointSchema(schema_id="s1", name="s", fields=schema_fields).model_dump_json())
     field = _field("2024-12-31", alternatives=alternatives)
     key = f"{ISSUER}:f1:2024-12-31"
-    rs.append_jsonl(rs.review_queue_path("ext1"), {"item_key": key, "issuer_key": ISSUER, "company_id": "C1",
+    rs.append_jsonl(rs._review_queue_path("ext1"), {"item_key": key, "issuer_key": ISSUER, "company_id": "C1",
                                                    "field_id": "f1", "period_end": "2024-12-31", "field": field})
-    rs.append_jsonl(rs.results_path("ext1"), {"company_id": "C1", "issuer_key": ISSUER, "schema_id": "s1",
+    rs.append_jsonl(rs._results_path("ext1"), {"company_id": "C1", "issuer_key": ISSUER, "schema_id": "s1",
                                               "fields": [field]})
     settings = Settings(schema_registry_dir=tmp_path / "reg")
     return build_context(rs, "ext1", key, CAROL, settings=settings, content_store=None)["suggested_correction"]

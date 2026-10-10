@@ -47,18 +47,18 @@ def env(tmp_path):
     reg.record_first_audit("f1", 1, "auditor")
     rs.save_manifest(RunManifest(run_id="ext1", run_type="extraction"))
     (rs.run_dir("ext1") / "schema.json").write_text(released.model_dump_json())
-    rs.append_jsonl(rs.review_queue_path("ext1"), {
+    rs.append_jsonl(rs._review_queue_path("ext1"), {
         "item_key": KEY, "issuer_key": "ISS1", "company_id": "C1", "name": "Acme", "field_id": "f1",
         "period_end": "2024-12-31", "field": FIELD, "route_reasons": FIELD["route_reasons"],
     })
-    rs.append_jsonl(rs.results_path("ext1"), {
+    rs.append_jsonl(rs._results_path("ext1"), {
         "company_id": "C1", "name": "Acme", "issuer_key": "ISS1", "schema_id": "sch1", "run_id": "ext1",
         "fields": [FIELD], "documents": [DOC], "held_documents": [DOC],
     })
     rs.save_manifest(RunManifest(run_id="idn1", run_type="identity"))
-    rs.append_jsonl(rs.review_queue_path("idn1"), {"item_key": "C1", "company_id": "C1", "input_name": "Acme"})
+    rs.append_jsonl(rs._review_queue_path("idn1"), {"item_key": "C1", "company_id": "C1", "input_name": "Acme"})
     rs.save_manifest(RunManifest(run_id="thm1", run_type="theme"))
-    rs.append_jsonl(rs.review_queue_path("thm1"), {"item_key": "C1:a1", "activity_id": "a1"})
+    rs.append_jsonl(rs._review_queue_path("thm1"), {"item_key": "C1:a1", "activity_id": "a1"})
     app.dependency_overrides[get_run_store] = lambda: rs
     app.dependency_overrides[get_document_content_store] = lambda: store
     app.dependency_overrides[settings_dep] = lambda: settings
@@ -85,7 +85,7 @@ def decide(who, body, key=KEY, run_id="ext1", etag=None):
 
 
 def rows(rs, run_id="ext1"):
-    return rs.read_jsonl(rs.review_decisions_path(run_id))
+    return rs.read_jsonl(rs._review_decisions_path(run_id))
 
 
 def test_correction_without_citation_is_422(env):
@@ -238,14 +238,14 @@ def test_decision_writes_snapshot_of_context(env):
     assert r.json()["state"] == "final"
     sid = rows(rs)[-1]["snapshot_id"]
     assert r.json()["snapshot_id"] == sid
-    assert json.loads(rs.snapshot_path("ext1", sid).read_text()) == loaded
+    assert json.loads(rs._snapshot_path("ext1", sid).read_text()) == loaded
 
 
 def test_snapshot_strips_mine(env):
     rs = env[0]
     decide(CAROL, {"decision": "reject", "reason_code": "wrong_value"})
     decide(CAROL, APPROVE)
-    snap = json.loads(rs.snapshot_path("ext1", rows(rs)[-1]["snapshot_id"]).read_text())
+    snap = json.loads(rs._snapshot_path("ext1", rows(rs)[-1]["snapshot_id"]).read_text())
     assert snap["decisions"] and all("mine" not in d for d in snap["decisions"])
     assert "mine" not in snap["item"]["decision"]
 
@@ -338,7 +338,7 @@ def test_legacy_review_routes_refuse_workbench_runs_and_keys(env):
     ]:
         r = c.post(url, json={"item_key": key, "decision": "approve", "reviewer": "X"})
         assert r.status_code == 400, (url, key)
-    assert rs.read_jsonl(rs.review_decisions_path("ext1")) == rs.read_jsonl(rs.review_decisions_path("idn1")) == []
+    assert rs.read_jsonl(rs._review_decisions_path("ext1")) == rs.read_jsonl(rs._review_decisions_path("idn1")) == []
     for key in ("isic:C1", "held:C1:d1", "rst_1"):
         assert c.post("/api/themes/runs/thm1/review", json={"item_key": key, "decision": "approve"}).status_code == 400
     assert c.post("/api/themes/runs/thm1/review", json={"item_key": "C1:a1", "decision": "approve"}).status_code == 200
@@ -347,13 +347,13 @@ def test_legacy_review_routes_refuse_workbench_runs_and_keys(env):
 def test_legacy_review_routes_refuse_holdings_runs(env):
     rs, c = env[0], client(CAROL)
     rs.save_manifest(RunManifest(run_id="hold1", run_type="holdings"))
-    rs.append_jsonl(rs.review_queue_path("hold1"), {"item_key": "isin:US0378331005", "isin": "US0378331005"})
+    rs.append_jsonl(rs._review_queue_path("hold1"), {"item_key": "isin:US0378331005", "isin": "US0378331005"})
     for url in ("/api/financials/runs/hold1/review", "/api/voting/runs/hold1/review"):
         for key in ("isin:US0378331005", "other"):
             r = c.post(url, json={"item_key": key, "decision": "approve", "reviewer": "X"})
             assert r.status_code == 400, (url, key)
     assert c.post("/api/themes/runs/thm1/review", json={"item_key": "isin:US0378331005", "decision": "approve"}).status_code == 400
-    assert rs.read_jsonl(rs.review_decisions_path("hold1")) == rs.read_jsonl(rs.review_decisions_path("thm1")) == []
+    assert rs.read_jsonl(rs._review_decisions_path("hold1")) == rs.read_jsonl(rs._review_decisions_path("thm1")) == []
 
 
 def test_get_item(env):
@@ -364,7 +364,7 @@ def test_get_item(env):
     assert get_item(rs, "ext1", "nope", ALICE) is None
     assert get_item(rs, "missing", KEY, ALICE) is None
     rs.save_manifest(RunManifest(run_id="vot1", run_type="voting"))
-    rs.append_jsonl(rs.review_queue_path("vot1"), {"item_key": "m1"})
+    rs.append_jsonl(rs._review_queue_path("vot1"), {"item_key": "m1"})
     assert get_item(rs, "vot1", "m1", ALICE) is None
 
 
@@ -421,7 +421,7 @@ AUTO_KEY = "ISS1:f1:2023-12-31"
 
 
 def _add_auto_accepted(rs, route="auto_accept"):
-    path = rs.results_path("ext1")
+    path = rs._results_path("ext1")
     row = rs.read_jsonl(path)[0]
     row["fields"].append({**FIELD, "period_end": "2023-12-31", "route": route, "route_reasons": [], "checks": []})
     path.write_text(json.dumps(row) + "\n")
@@ -435,7 +435,7 @@ def test_auto_accepted_row_decidable_but_not_listed(env):
     assert decide(ALICE, CORRECT, key=AUTO_KEY).json()["state"] == "first_done"
     agree = {**CORRECT, "correction_citation": {**CIT, "quote": rows(rs)[-1]["correction_citation"]["span_text"]}}  # the UI's Agree
     assert decide(BOB, agree, key=AUTO_KEY).json()["state"] == "second_done"
-    row = rs.read_jsonl(rs.results_path("ext1"))[0]
+    row = rs.read_jsonl(rs._results_path("ext1"))[0]
     value, status, _ = resolve_extraction_fact("C1", row, effective_decisions(rs, "ext1", cosign_required={"edit"}), {KEY})
     assert status == "pending_review"  # KEY itself is still open
     value, status, _ = resolve_extraction_fact("C1", row, effective_decisions(rs, "ext1", cosign_required={"edit"}), set())
@@ -451,7 +451,7 @@ def test_open_review_on_auto_accepted_row_is_not_system_decided(env):
 
 
 def _queue_failure(rs):
-    rs.append_jsonl(rs.review_queue_path("ext1"), {"item_key": "C2", "company_id": "C2", "name": "Beta", "rationale": "no docs"})
+    rs.append_jsonl(rs._review_queue_path("ext1"), {"item_key": "C2", "company_id": "C2", "name": "Beta", "rationale": "no docs"})
 
 
 def test_extraction_failure_report_approve_is_final(env):
@@ -485,7 +485,7 @@ def test_open_review_on_auto_accepted_row_projects_pending(env):
     rs = env[0]
     _add_auto_accepted(rs)
     assert decide(ALICE, CORRECT, key=AUTO_KEY).json()["state"] == "first_done"
-    row = rs.read_jsonl(rs.results_path("ext1"))[0]
+    row = rs.read_jsonl(rs._results_path("ext1"))[0]
     row["fields"] = row["fields"][1:]  # only the auto-accepted field
     open_keys = {AUTO_KEY}  # what materialize adds: latest minus effective decisions
     assert resolve_extraction_fact("C1", row, effective_decisions(rs, "ext1", cosign_required={"edit"}), open_keys)[1] == "pending_review"

@@ -159,11 +159,11 @@ def test_a_stopped_company_goes_to_review_not_failed(tmp_path):
 
     manifest = store.load_manifest(run_id)
     assert (manifest.completed_count, manifest.failed_count, manifest.review_count) == (0, 0, 1)
-    (queued,) = store.read_jsonl(store.review_queue_path(run_id))
+    (queued,) = store.read_jsonl(store._review_queue_path(run_id))
     assert queued["item_key"] == "acme" and queued["failed_step"] == "parse_index"
-    (error,) = store.read_jsonl(store.errors_path(run_id))
+    (error,) = store.read_jsonl(store._errors_path(run_id))
     assert error["review"] is True and error["report"]["failed_step"] == "parse_index"
-    assert store.read_jsonl(store.results_path(run_id)) == []
+    assert store.read_jsonl(store._results_path(run_id)) == []
     (row,) = get_run_companies(run_id, run_store=store)["companies"]
     assert row["status"] == "review"
 

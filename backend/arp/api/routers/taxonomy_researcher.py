@@ -77,7 +77,7 @@ def get_taxonomy_research_run(run_id: str, run_store: RunStore = Depends(_run_st
 def get_taxonomy_research_results(
     run_id: str, offset: int = 0, limit: int = 200, run_store: RunStore = Depends(_run_store)
 ) -> dict:
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     return {"total": len(rows), "results": rows[offset : offset + limit]}
 
 

@@ -49,11 +49,11 @@ def env(tmp_path):
     for i in range(11):
         fields = [_field("f1", FAIL if i == 10 else PASS), _field("f2", PASS), _field("f3", PASS)]
         for f in fields:
-            rs.append_jsonl(rs.review_queue_path("ext1"), {
+            rs.append_jsonl(rs._review_queue_path("ext1"), {
                 "item_key": key(i, f["field_id"]), "issuer_key": f"ISS{i}", "company_id": f"C{i}", "name": f"Co{i}",
                 "field_id": f["field_id"], "period_end": "2024-12-31", "field": f, "route_reasons": f["route_reasons"],
             })
-        rs.append_jsonl(rs.results_path("ext1"), {
+        rs.append_jsonl(rs._results_path("ext1"), {
             "company_id": f"C{i}", "name": f"Co{i}", "issuer_key": f"ISS{i}", "schema_id": "sch1", "run_id": "ext1",
             "fields": fields, "documents": [],
         })
@@ -84,7 +84,7 @@ def bulk(c, body_items):
 
 
 def log_bytes(rs):
-    p = rs.review_decisions_path("ext1")
+    p = rs._review_decisions_path("ext1")
     return p.read_bytes() if p.exists() else b""
 
 
@@ -155,7 +155,7 @@ def test_rate_zero_samples_exactly_the_smallest_hash(env):
 def test_prior_run_value_change_forces_second_review(env):
     rs = env[0]
     rs.save_manifest(RunManifest(run_id="old", run_type="extraction", created_at="2020-01-01T00:00:00+00:00"))
-    rs.append_jsonl(rs.results_path("old"), {"company_id": "C0", "issuer_key": "ISS0", "run_id": "old",
+    rs.append_jsonl(rs._results_path("old"), {"company_id": "C0", "issuer_key": "ISS0", "run_id": "old",
                                              "fields": [{**_field("f1", PASS), "value": 999, "route_reasons": []}]})
     env[1].bulk_accept_sample_rate = 0.0
     keys = [key(0), key(1)]
@@ -185,7 +185,7 @@ def test_items_of_one_company_do_not_stale_each_other(env):
     r = bulk(c, body)
     assert r.status_code == 200, r.text
     assert r.json()["accepted"] == 2
-    assert {row["item_key"] for row in env[0].read_jsonl(env[0].review_decisions_path("ext1"))} == {key(0), key(0, "f3")}
+    assert {row["item_key"] for row in env[0].read_jsonl(env[0]._review_decisions_path("ext1"))} == {key(0), key(0, "f3")}
 
 
 def test_duplicate_key_rejects_whole_call(env):

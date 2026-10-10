@@ -5,14 +5,14 @@ import logging
 from arp.config import Settings
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
-from arp.orchestration.batch_runner import read_done_keys, run_company_batch
+from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import latest_decisions
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.voting import CompanyBallot, HumanVoteDecision, VotePosition, VoteRecord
 from arp.storage.engagement_store import EngagementStore
-from arp.storage.run_store import RunStore
+from arp.storage.run_store import RunStore, done_keys_from_rows
 from arp.voting.ballot_casting import CastVoteError, ManualInstructionBallotPlatform, cast_vote
 from arp.voting.ballot_graph import process_company_ballot
 from arp.voting.policy_agent import DEFAULT_POLICY_RULES, PolicyRule
@@ -185,10 +185,10 @@ async def cast_approved_votes(run_id: str, run_store: RunStore, platform: Manual
     Idempotent and resumable like everything else in this codebase: already
     -cast items (tracked in cast_confirmations.jsonl) are skipped on rerun.
     """
-    ballot_rows = run_store.read_jsonl(run_store.results_path(run_id))
+    ballot_rows = run_store.read_results(run_id)
     decisions = latest_decisions(run_store, run_id)
     confirmations_path = _cast_confirmations_path(run_store, run_id)
-    already_cast = read_done_keys(confirmations_path)
+    already_cast = done_keys_from_rows(run_store.read_jsonl(confirmations_path))
 
     cast_records: list[VoteRecord] = []
     for row in ballot_rows:
@@ -207,7 +207,7 @@ async def cast_approved_votes(run_id: str, run_store: RunStore, platform: Manual
             try:
                 vote = await cast_vote(platform, vote)
             except CastVoteError as exc:
-                run_store.append_jsonl(run_store.errors_path(run_id), {"key": item_key, "error": str(exc)})
+                run_store.append_error(run_id, {"key": item_key, "error": str(exc)})
                 continue
             record = vote.model_dump(mode="json")
             record["_key"] = item_key
@@ -225,4 +225,4 @@ def get_ballots(run_store: RunStore, run_id: str) -> list[CompanyBallot]:
     without decisions or cast confirmations overlaid -- use together with
     get_cast_votes() and the run's review-queue endpoints to show full
     status."""
-    return [CompanyBallot.model_validate(row) for row in run_store.read_jsonl(run_store.results_path(run_id))]
+    return [CompanyBallot.model_validate(row) for row in run_store.read_results(run_id)]

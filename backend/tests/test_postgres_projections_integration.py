@@ -72,7 +72,7 @@ def _completed_run(tmp_path, *, run_type: str = "extraction", run_id: str = "run
         ),
     )
     for row in rows:
-        RunStore.append_jsonl(store.results_path(run_id), row)
+        RunStore.append_jsonl(store._results_path(run_id), row)
     store.save_manifest(RunManifest(run_id=run_id, run_type=run_type, status=JobStatus.COMPLETED))
     return store
 
@@ -106,7 +106,7 @@ def test_sync_run_returns_the_number_of_rows_it_inserted(tmp_path):
 
     store = RunStore(tmp_path / "runs")
     for company_id in ("a", "b", "c"):
-        RunStore.append_jsonl(store.results_path("run_1"), {"_key": company_id})
+        RunStore.append_jsonl(store._results_path("run_1"), {"_key": company_id})
     store.save_manifest(RunManifest(run_id="run_1", run_type="extraction", status=JobStatus.COMPLETED))
 
     assert sync_run(DSN, store, "run_1") == 3
@@ -125,7 +125,7 @@ def test_sync_all_honours_the_since_checkpoint(tmp_path):
         ("old_run", "a", "2026-01-01T00:00:00Z"),
         ("new_run", "b", "2026-06-01T00:00:00Z"),
     ):
-        RunStore.append_jsonl(store.results_path(run_id), {"_key": company_id})
+        RunStore.append_jsonl(store._results_path(run_id), {"_key": company_id})
         # Written directly rather than via save_manifest, which stamps
         # updated_at with the current time -- that stamping is exactly what
         # makes the checkpoint meaningful in production, and exactly what
@@ -228,8 +228,8 @@ def test_a_changed_value_supersedes_rather_than_overwrites(tmp_path):
 
     store = _completed_run(tmp_path, rows=[{"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.5}])
     # A re-run of the same run_id with a corrected figure.
-    store.results_path("run_1").unlink()
-    RunStore.append_jsonl(store.results_path("run_1"), {"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.95})
+    store._results_path("run_1").unlink()
+    RunStore.append_jsonl(store._results_path("run_1"), {"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.95})
 
     assert materialize_run(DSN, store, "run_1") == 1
 
@@ -247,7 +247,7 @@ def test_a_trial_run_leaves_the_current_fact_untouched(tmp_path):
     from arp.storage.postgres_models import CompanyFactModel
 
     store = _completed_run(tmp_path, rows=[{"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.5}])
-    RunStore.append_jsonl(store.results_path("run_2"), {"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.9})
+    RunStore.append_jsonl(store._results_path("run_2"), {"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.9})
     store.save_manifest(RunManifest(run_id="run_2", run_type="extraction", status=JobStatus.COMPLETED, params={"trial": True}))
 
     assert materialize_run(DSN, store, "run_2") == 0
@@ -261,9 +261,9 @@ def test_a_reviewed_fact_records_the_decision_and_reviewer(tmp_path):
     from arp.storage.postgres_models import CompanyFactModel
 
     store = RunStore(tmp_path / "runs")
-    RunStore.append_jsonl(store.results_path("run_1"), {"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.3})
+    RunStore.append_jsonl(store._results_path("run_1"), {"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.3})
     RunStore.append_jsonl(
-        store.review_queue_path("run_1"), {"item_key": UNIVERSE_ONLY_COMPANY, "run_id": "run_1", "payload": {}}
+        store._review_queue_path("run_1"), {"item_key": UNIVERSE_ONLY_COMPANY, "run_id": "run_1", "payload": {}}
     )
     store.save_manifest(RunManifest(run_id="run_1", run_type="extraction", status=JobStatus.COMPLETED))
 
@@ -339,7 +339,7 @@ def test_a_disabled_projection_writes_nothing(tmp_path):
     from arp.storage.postgres_models import CompanyRecordModel, EngagementIssueModel
 
     run_store = RunStore(tmp_path / "runs", projection_config=ProjectionConfig(postgres_dsn=DSN))
-    RunStore.append_jsonl(run_store.results_path("run_1"), {"_key": UNIVERSE_ONLY_COMPANY})
+    RunStore.append_jsonl(run_store._results_path("run_1"), {"_key": UNIVERSE_ONLY_COMPANY})
     run_store.save_manifest(RunManifest(run_id="run_1", run_type="extraction", status=JobStatus.COMPLETED))
 
     engagement_store = EngagementStore(tmp_path / "engagements", projection_config=ProjectionConfig(postgres_dsn=DSN))

@@ -171,7 +171,7 @@ def test_blind_for(rs):
 
 def test_record_review_decision_row_unchanged(rs):
     record_review_decision(rs, "r1", K, "approve", None, None, principal=ANA)
-    row = json.loads(rs.review_decisions_path("r1").read_text().splitlines()[0])
+    row = json.loads(rs._review_decisions_path("r1").read_text().splitlines()[0])
     assert set(row) == {"item_key", "decision", "reviewer", "user_id", "role", "edited_value", "comment", "decided_at"}
 
 

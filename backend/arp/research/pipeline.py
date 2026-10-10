@@ -339,7 +339,7 @@ def load_theme_run_matches(run_store: RunStore, run_id: str) -> list[CompanyMatc
     manifest = run_store.load_manifest(run_id)
     if manifest is None or manifest.run_type != "theme":
         return None
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     return [CompanyMatch.model_validate(m) for row in rows for m in row.get("company_matches", [])]
 
 

@@ -21,7 +21,7 @@ class Env:
         m = self.jobs.create_run(run_type, {}, len(rows))
         self.n += 1  # run ids are random, so pin the order through created_at
         self.run_store.save_manifest(m.model_copy(update={"created_at": f"2026-01-0{self.n}T00:00:00+00:00"}))
-        path = self.run_store.results_path(m.run_id)
+        path = self.run_store._results_path(m.run_id)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
         return m
@@ -101,8 +101,8 @@ def test_each_results_file_read_once(tmp_path, monkeypatch):
     e.run("tnfd", [{"company_id": i} for i in ids])
     e.run("identity", [_ident(i) for i in ids])
     calls = []
-    real = RunStore.read_jsonl
-    monkeypatch.setattr(RunStore, "read_jsonl", staticmethod(lambda p: calls.append(p) or real(p)))
+    real = RunStore.read_results
+    monkeypatch.setattr(RunStore, "read_results", lambda self, run_id: calls.append(run_id) or real(self, run_id))
     e.avail(*ids)
     assert len(calls) == 3
 

@@ -36,13 +36,13 @@ def monthly_totals(run_store: RunStore, month: str) -> list[ReasonTotal]:
     counts: Counter[tuple] = Counter()
     for m in run_store.extraction_runs():
         joined = {}
-        for row in run_store.read_jsonl(run_store.results_path(m.run_id)):
+        for row in run_store.read_results(m.run_id):
             for f in row.get("fields", []):
                 cites = f.get("citations") or []
                 joined[field_item_key(row.get("issuer_key", ""), f["field_id"], period_key(f))] = (
                     f["field_id"], (f.get("provenance") or {}).get("extractor_model"), cites[0].get("doc_type") if cites else None,
                 )
-        for d in run_store.read_jsonl(run_store.review_decisions_path(m.run_id)):
+        for d in run_store.read_decisions(m.run_id):
             if d.get("user_id") in (None, "system") or not d.get("reason_code") or not str(d.get("decided_at", "")).startswith(month):
                 continue
             field_id, model, doc_type = joined.get(d["item_key"]) or (d["item_key"].rsplit(":", 2)[-2], None, None)

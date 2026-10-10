@@ -42,7 +42,7 @@ def world(tmp_path, monkeypatch):
         }],
         "documents": [{"doc_id": "d1", "content_key": KEY, "parser_version": "old"}],
     }
-    run_store.append_jsonl(run_store.results_path("ext1"), row)
+    run_store.append_jsonl(run_store._results_path("ext1"), row)
     blobs = LocalBlobStore(tmp_path / "blobs")
     blobs.put(KEY, ORIGINAL)
     texts = DocumentContentStore(tmp_path / "docs")
@@ -66,7 +66,7 @@ def _rows(run_store, name):
 
 def test_parser_bump_moves_span_and_flags_it(world):
     run_store, run, new_parser, *_ = world
-    before = run_store.results_path("ext1").read_bytes()
+    before = run_store._results_path("ext1").read_bytes()
     new_parser("A new preface the upgraded parser now extracts.\n" + OLD_TEXT)
     report = run()
     assert report == RegroundReport(checked=1, unchanged=0, moved=1, lost=0, queued=1)
@@ -78,7 +78,7 @@ def test_parser_bump_moves_span_and_flags_it(world):
                           "parser_version": "new"}
     [q] = _rows(run_store, "review_queue.jsonl")
     assert q["item_key"] == ITEM and "span_moved" in q["review_reasons"] and q["field_id"] == "f1"
-    assert run_store.results_path("ext1").read_bytes() == before
+    assert run_store._results_path("ext1").read_bytes() == before
 
 
 def test_unchanged_span_not_queued(world):
@@ -116,8 +116,8 @@ def test_current_version_citation_skipped(world, monkeypatch):
 
 def test_unparseable_original_is_text_unavailable(world):
     run_store, run, *_ = world
-    run_store.results_path("ext1").write_text(
-        run_store.results_path("ext1").read_text().replace("report.txt", "filing.bin")
+    run_store._results_path("ext1").write_text(
+        run_store._results_path("ext1").read_text().replace("report.txt", "filing.bin")
     )
     assert run() == RegroundReport(checked=1, unchanged=0, moved=0, lost=0, queued=0, unavailable=1)
     assert [r["outcome"] for r in _rows(run_store, "regrounds.jsonl")] == ["text_unavailable"]
@@ -137,7 +137,7 @@ def test_reground_if_parser_changed_first_run_regrounds(world):
 
 def test_unavailable_is_retried_and_holds_the_version_file(world):
     run_store, _, new_parser, settings, blobs, texts = world
-    path = run_store.results_path("ext1")
+    path = run_store._results_path("ext1")
     path.write_text(path.read_text().replace("report.txt", "filing.bin"))
     kw = {"settings": settings, "blob_store": blobs, "content_store": texts}
     assert reground_if_parser_changed(run_store, **kw).unavailable == 1
@@ -174,7 +174,7 @@ def test_auto_accepted_item_with_moved_span_is_escalated_and_not_published(world
     from arp.publish.candidates import run_candidates
 
     run_store, run, new_parser, *_ = world
-    path = run_store.results_path("ext1")
+    path = run_store._results_path("ext1")
     path.write_text(path.read_text().replace('"period_end"', '"route": "auto_accept", "period_end"', 1))
     assert [c.item_key for c in run_candidates(run_store, "ext1")[0]] == [ITEM]
     new_parser("Preface.\n" + OLD_TEXT)
@@ -187,7 +187,7 @@ def test_auto_accepted_item_with_moved_span_is_escalated_and_not_published(world
 
 def test_edgar_citation_skipped(world):
     run_store, run, *_ = world
-    path = run_store.results_path("ext1")
+    path = run_store._results_path("ext1")
     path.write_text(path.read_text().replace('"parser_version": "old"', '"parser_version": "logic=1|trafilatura=1.0"'))
     assert run() == RegroundReport()
     assert _rows(run_store, "regrounds.jsonl") == []
@@ -200,7 +200,7 @@ def test_decided_item_reopened_for_review(world):
     from arp.schemas.review import DecisionReason, ReviewDecision
 
     run_store, run, new_parser, *_ = world
-    queue_for = run_store.review_queue_path("ext1")
+    queue_for = run_store._review_queue_path("ext1")
     run_store.append_jsonl(queue_for, {"item_key": ITEM, "field_id": "f1", "field": {"field_id": "f1"}})
     append_decision(run_store, "ext1", ReviewDecision(
         item_key=ITEM, decision="approve", reason_code=DecisionReason.CONFIRMED, reviewer="Alice",
@@ -215,7 +215,7 @@ def test_decided_item_reopened_for_review(world):
     assert item.escalated and "span_moved" in item.payload["review_reasons"]
     assert "user_id" not in (item.decision or {})
     run()  # same version: no second system decision
-    decisions = run_store.read_jsonl(run_store.review_decisions_path("ext1"))
+    decisions = run_store.read_jsonl(run_store._review_decisions_path("ext1"))
     assert [d["reason_code"] for d in decisions] == ["confirmed", "span_moved"]
 
 

@@ -195,7 +195,7 @@ async def test_tagged_value_is_refused_by_publish_not_dropped(tmp_path, fake_llm
         assert (f.method, f.route) == ("tagged", "auto_accept")
         rs = RunStore(tmp_path / f"pub-runs-{frozen is not None}")
         rs.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
-        rs.append_jsonl(rs.results_path("r1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
+        rs.append_jsonl(rs._results_path("r1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
                                                 "fields": [f.model_dump(mode="json")]})
         cands, _ = run_candidates(rs, "r1")
         [c] = cands

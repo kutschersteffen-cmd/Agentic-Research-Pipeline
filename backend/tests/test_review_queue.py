@@ -5,7 +5,7 @@ from arp.storage.run_store import RunStore
 def test_review_queue_roundtrip(tmp_path):
     store = RunStore(tmp_path)
     queue_for_review(store, "run1", "AAPL:activity1", {"confidence": 0.3})
-    rows = store.read_jsonl(store.review_queue_path("run1"))
+    rows = store.read_jsonl(store._review_queue_path("run1"))
     assert len(rows) == 1
     assert rows[0]["item_key"] == "AAPL:activity1"
 

@@ -439,7 +439,7 @@ async def test_resume_theme_run_skips_already_completed_companies(tmp_path, fake
     )
     # Simulate c1 having already completed in a prior (interrupted) invocation,
     # and that the run was cancelled before c2 got a chance to run.
-    store.results_path(run_id).write_text(json.dumps({"company_matches": [], "_key": "c1"}) + "\n")
+    store._results_path(run_id).write_text(json.dumps({"company_matches": [], "_key": "c1"}) + "\n")
     JobManager(store).request_cancel(run_id)
     assert store.load_manifest(run_id).cancel_requested is True
 
@@ -454,7 +454,7 @@ async def test_resume_theme_run_skips_already_completed_companies(tmp_path, fake
     assert manifest.status == JobStatus.COMPLETED
     assert manifest.cancel_requested is False  # resume clears the stale cancel flag
 
-    rows = store.read_jsonl(store.results_path(run_id))
+    rows = store.read_jsonl(store._results_path(run_id))
     keys = {r["_key"] for r in rows}
     assert keys == {"c1", "c2"}  # c1's pre-existing row preserved, c2 newly processed
 
@@ -491,7 +491,7 @@ async def test_resume_theme_run_unknown_universe_path_raises(tmp_path, fake_llm)
     store = RunStore(settings.runs_dir)
     theme, _activity = _theme()
     run_id = create_theme_run(theme, [CompanyRef(company_id="c1", name="Acme")], settings, store)  # no universe_path
-    store.companies_path(run_id).unlink()  # nor stored companies: a run from before either existed
+    store._companies_path(run_id).unlink()  # nor stored companies: a run from before either existed
 
     llm = fake_llm({})
     registry = DocumentSourceRegistry([_FixedDocSource([])])

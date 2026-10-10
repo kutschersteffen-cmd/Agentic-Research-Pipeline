@@ -13,7 +13,7 @@ def list_company_results(run_store: RunStore, run_type: str, company_id: str) ->
     manifests = run_store.list_runs(run_type)
     matches: list[dict] = []
     for manifest in manifests:
-        for row in run_store.read_jsonl(run_store.results_path(manifest.run_id)):
+        for row in run_store.read_results(manifest.run_id):
             if row.get("company_id") == company_id:
                 matches.append(row)
     return matches
@@ -28,7 +28,7 @@ def list_known_companies(run_store: RunStore, run_type: str) -> list[dict]:
     seen: dict[str, dict] = {}
     manifests = reversed(run_store.list_runs(run_type))
     for manifest in manifests:
-        for row in run_store.read_jsonl(run_store.results_path(manifest.run_id)):
+        for row in run_store.read_results(manifest.run_id):
             company_id = row.get("company_id")
             if not company_id:
                 continue

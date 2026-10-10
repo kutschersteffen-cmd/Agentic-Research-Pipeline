@@ -45,7 +45,7 @@ def test_decided_ballots_reach_stage_4_the_checkpoint_and_monitoring(tmp_path):
         meeting_date="2026-05-15",
         votes=[_vote("1", VotePosition.FOR), _vote("2", VotePosition.FOR), _vote("3", VotePosition.FOR)],
     )
-    runs.append_jsonl(runs.results_path("vote_run"), ballot.model_dump(mode="json"))
+    runs.append_jsonl(runs._results_path("vote_run"), ballot.model_dump(mode="json"))
     # 1: approved as recommended and cast; 2: overridden to against, with a reason; 3: awaiting.
     submit_review(runs, "vote_run", item_key="SYN01:1", decision="approve", reviewer="A. Reviewer", edited_value=None)
     submit_review(

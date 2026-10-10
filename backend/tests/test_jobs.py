@@ -1,5 +1,4 @@
 import asyncio
-import json
 import subprocess
 import sys
 import threading
@@ -10,7 +9,6 @@ from arp.config import Settings
 from arp.discovery.identity_pipeline import create_identity_run
 from arp.discovery.pipeline import create_discovery_run
 from arp.extraction.financials_pipeline import create_financials_extraction_run
-from arp.orchestration.batch_runner import read_done_keys
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import LocalJobLauncher, RunBusy, run_lease
 from arp.schemas.common import CompanyRef
@@ -92,13 +90,12 @@ def test_create_run_stores_companies(tmp_path):
 
 
 def test_review_stopped_key_counts_as_done(tmp_path):
-    results, errors = tmp_path / "results.jsonl", tmp_path / "errors.jsonl"
-    results.write_text(json.dumps({"_key": "c0"}) + "\n")
-    errors.write_text(
-        json.dumps({"key": "c1", "error": "x", "review": True, "report": {}}) + "\n" + json.dumps({"key": "c2", "error": "y"}) + "\n"
-    )
-    assert read_done_keys(results, errors) == {"c0", "c1"}
-    assert read_done_keys(results) == {"c0"}
+    store = RunStore(tmp_path)
+    store.append_result("r", {"_key": "c0"})
+    store.append_error("r", {"key": "c1", "error": "x", "review": True, "report": {}})
+    store.append_error("r", {"key": "c2", "error": "y"})
+    assert store.done_keys("r", include_errors=True) == {"c0", "c1"}
+    assert store.done_keys("r") == {"c0"}
 
 
 def test_creators_store_companies(tmp_path):

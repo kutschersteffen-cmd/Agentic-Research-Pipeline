@@ -87,7 +87,7 @@ async def test_execute_discovery_run_flags_unreachable_homepage_for_review(tmp_p
     assert manifest.failed_count == 0
     assert manifest.completed_count == 1
 
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_jsonl(run_store._results_path(run_id))
     assert len(rows) == 1
     assert rows[0]["homepage_unreachable"] is True
 

@@ -68,8 +68,8 @@ async def test_resolved_company_lands_in_results_but_not_review_queue(tmp_path, 
         [company], llm=llm, settings=settings, run_store=run_store, edgar=_FakeEdgar(), search_client=_NullSearch()
     )
 
-    results = run_store.read_jsonl(run_store.results_path(run_id))
-    review_queue = run_store.read_jsonl(run_store.review_queue_path(run_id))
+    results = run_store.read_jsonl(run_store._results_path(run_id))
+    review_queue = run_store.read_jsonl(run_store._review_queue_path(run_id))
     assert len(results) == 1
     assert results[0]["verdict"] == "resolved"
     assert review_queue == []
@@ -89,8 +89,8 @@ async def test_uncertain_company_lands_in_both_results_and_review_queue(tmp_path
         [company], llm=llm, settings=settings, run_store=run_store, edgar=_FakeEdgar(), search_client=_NullSearch()
     )
 
-    results = run_store.read_jsonl(run_store.results_path(run_id))
-    review_queue = run_store.read_jsonl(run_store.review_queue_path(run_id))
+    results = run_store.read_jsonl(run_store._results_path(run_id))
+    review_queue = run_store.read_jsonl(run_store._review_queue_path(run_id))
     assert len(results) == 1
     assert results[0]["verdict"] == "uncertain"
     assert len(review_queue) == 1
@@ -214,7 +214,7 @@ async def test_enriched_universe_approve_without_edit_uses_agents_own_resolved_f
         [company], llm=llm, settings=settings, run_store=run_store, edgar=_FakeEdgar(), search_client=_NullSearch()
     )
     # low-confidence RESOLVED is still flagged_for_review (see identity_graph.py)
-    review_queue = run_store.read_jsonl(run_store.review_queue_path(run_id))
+    review_queue = run_store.read_jsonl(run_store._review_queue_path(run_id))
     assert len(review_queue) == 1
 
     record_review_decision(run_store, run_id, "acme", "approve", "reviewer1", None)
@@ -256,7 +256,7 @@ async def _run(tmp_path, fake_llm, company, *, edgar=None, search=None, previous
         run_id, [company], llm=llm, settings=settings, run_store=run_store,
         edgar=edgar or _FakeEdgar(), search_client=search or _NullSearch(), previous_run_id=previous,
     )
-    result = IdentityResolutionResult.model_validate(run_store.read_jsonl(run_store.results_path(run_id))[0])
+    result = IdentityResolutionResult.model_validate(run_store.read_jsonl(run_store._results_path(run_id))[0])
     return run_store, run_id, result, llm
 
 
@@ -267,7 +267,7 @@ async def test_name_only_match_always_creates_review_item(tmp_path, fake_llm):
     assert result.flagged_for_review is True
     assert result.match_rule == "name_only"
     assert result.reason_codes == ["match_ambiguous"]
-    assert len(run_store.read_jsonl(run_store.review_queue_path(run_id))) == 1
+    assert len(run_store.read_jsonl(run_store._review_queue_path(run_id))) == 1
     assert llm.calls == []
 
 
@@ -332,7 +332,7 @@ async def test_unchanged_company_reused_from_previous_run(tmp_path, fake_llm):
 
     assert edgar.calls == 1  # reused, no lookup
     assert llm.calls == []
-    assert len(run_store.read_jsonl(run_store.review_queue_path(second))) == 1
+    assert len(run_store.read_jsonl(run_store._review_queue_path(second))) == 1
 
 
 async def test_exact_lei_without_cik_or_website_looks_up_and_flags(tmp_path, fake_llm):

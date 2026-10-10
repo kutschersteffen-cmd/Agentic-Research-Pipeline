@@ -229,7 +229,7 @@ async def resume_theme_run_endpoint(
 def get_theme_results(
     run_id: str, offset: int = 0, limit: int = 200, run_store: RunStore = Depends(get_run_store)
 ) -> dict:
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     matches = [m for row in rows for m in row.get("company_matches", [])]
     return {"total": len(matches), "results": matches[offset : offset + limit]}
 

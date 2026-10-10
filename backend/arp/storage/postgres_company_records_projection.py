@@ -60,7 +60,7 @@ def sync_run(dsn: str, run_store: RunStore, run_id: str) -> int:
     manifest = run_store.load_manifest(run_id)
     if manifest is None:
         return 0
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     kwargs_list = []
     for row in rows:
         kwargs = row_to_record_kwargs(manifest, row)

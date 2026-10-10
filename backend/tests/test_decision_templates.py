@@ -36,7 +36,7 @@ def _extraction_run(run_store: RunStore, fields: list[str] = FIELDS) -> str:
         }
         for i in range(8)
     ]
-    run_store.results_path(run_id).write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    run_store._results_path(run_id).write_text("\n".join(json.dumps(r) for r in rows) + "\n")
     return run_id
 
 
@@ -186,7 +186,7 @@ def test_attach_refuses_a_template_the_schema_cannot_feed(client):
 
 def test_transition_plan_indicators_become_yes_no_columns(tmp_path):
     run_store = RunStore(tmp_path)
-    path = run_store.results_path("tp")
+    path = run_store._results_path("tp")
     path.parent.mkdir(parents=True, exist_ok=True)
     record = {
         "company_id": "a",
@@ -336,7 +336,7 @@ def test_financials_and_tnfd_runs_become_tables_with_their_expected_columns(tmp_
             },
         ),
     ):
-        path = run_store.results_path(run_id)
+        path = run_store._results_path(run_id)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(record) + "\n")
 

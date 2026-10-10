@@ -16,7 +16,7 @@ from arp.emerging_themes.scoring import score_clusters
 from arp.emerging_themes.synthesis import build_candidate
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient, LLMUsage
-from arp.orchestration.batch_runner import run_batch
+from arp.orchestration.batch_runner import BatchSinks, run_batch
 from arp.orchestration.job_manager import JobManager
 from arp.research.taxonomy_sources.corpus_synthesis import synthesize_activities_from_corpus
 from arp.schemas.common import CompanyRef, now_iso
@@ -31,7 +31,7 @@ from arp.schemas.emerging_themes import (
 from arp.schemas.taxonomy import DerivationMethod
 from arp.schemas.taxonomy_sources import CorpusSnippet, CorpusSourceType
 from arp.schemas.thematic import ThemeDefinition
-from arp.storage.run_store import RunStore
+from arp.storage.run_store import RunStore, done_keys_from_rows
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
 
@@ -124,8 +124,11 @@ async def execute_emerging_themes_run(
         mentions,
         item_key=lambda m: m.mention_id,
         worker=_extract_one,
-        results_path=extracted_path,
-        errors_path=run_store.errors_path(run_id),
+        sinks=BatchSinks(
+            done=lambda: done_keys_from_rows(run_store.read_jsonl(extracted_path), run_store.read_errors(run_id)),
+            append_result=lambda row: run_store.append_jsonl(extracted_path, row),
+            append_error=lambda row: run_store.append_error(run_id, row),
+        ),
         concurrency=settings.max_concurrent_llm_calls,
         result_to_json=lambda result: {"tags": [t.model_dump(mode="json") for t in result[0]]},
         on_success=_on_extract_success,
@@ -248,7 +251,7 @@ async def execute_emerging_themes_run(
             if exposures:
                 candidate = candidate.model_copy(update={"company_exposure": exposures})
 
-        run_store.append_jsonl(run_store.results_path(run_id), candidate.model_dump(mode="json"))
+        run_store.append_result(run_id, candidate.model_dump(mode="json"))
         topic_store.append_candidate(candidate)
         job_manager.record_progress(run_id, review_delta=1)
 
@@ -281,8 +284,8 @@ def load_candidates_with_status(run_store: RunStore, run_id: str) -> list[Emergi
     candidate rows -- same "never mutate history in place" discipline as
     the extraction review-decision log, applied here instead of rewriting
     results.jsonl on every promotion."""
-    candidates = [EmergingThemeCandidate.model_validate(r) for r in run_store.read_jsonl(run_store.results_path(run_id))]
-    decisions = {d["theme_id"]: d for d in run_store.read_jsonl(run_store.review_decisions_path(run_id))}
+    candidates = [EmergingThemeCandidate.model_validate(r) for r in run_store.read_results(run_id)]
+    decisions = {d["theme_id"]: d for d in run_store.read_decisions(run_id)}
 
     resolved: list[EmergingThemeCandidate] = []
     for candidate in candidates:
@@ -358,8 +361,8 @@ async def promote_candidate(
     else:
         taxonomy = taxonomy_store.create(candidate.theme_name, theme, DerivationMethod.EMERGING_SIGNAL_DISCOVERY, notes)
 
-    run_store.append_jsonl(
-        run_store.review_decisions_path(run_id),
+    run_store.append_decision_row(
+        run_id,
         {
             "theme_id": candidate.theme_id,
             "action": "promote",
@@ -382,8 +385,8 @@ def reject_candidate(run_store: RunStore, run_id: str, theme_id: str, reason: st
     this is enforced here rather than only at the API/CLI boundary."""
     if not reason.strip():
         raise ValueError("A reason is required to reject a candidate.")
-    run_store.append_jsonl(
-        run_store.review_decisions_path(run_id),
+    run_store.append_decision_row(
+        run_id,
         {"theme_id": theme_id, "action": "reject", "reason": reason, "decided_at": now_iso()},
     )
 
@@ -398,7 +401,7 @@ def disconfirm_candidate(run_store: RunStore, run_id: str, theme_id: str, reason
     reason as promote/reject."""
     if not reason.strip():
         raise ValueError("A reason is required to disconfirm a candidate.")
-    run_store.append_jsonl(
-        run_store.review_decisions_path(run_id),
+    run_store.append_decision_row(
+        run_id,
         {"theme_id": theme_id, "action": "disconfirm", "reason": reason, "decided_at": now_iso()},
     )

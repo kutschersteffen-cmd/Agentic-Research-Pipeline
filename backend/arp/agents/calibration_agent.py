@@ -90,7 +90,7 @@ async def execute_calibration_run(run_id: str, *, registry: DocumentSourceRegist
                 company = CompanyRef(company_id=company_id, name=company_matches[0].name, ticker=company_matches[0].ticker)
                 flags = await check_company_staleness(company, company_matches, registry, source_manifest.run_id)
                 for flag in flags:
-                    run_store.append_jsonl(run_store.results_path(run_id), flag.model_dump(mode="json"))
+                    run_store.append_result(run_id, flag.model_dump(mode="json"))
                 flag_count += len(flags)
             job_manager.record_progress(run_id, completed_delta=1, review_delta=flag_count)
         except Exception:  # noqa: BLE001 - one source run failing must not abort the whole pass

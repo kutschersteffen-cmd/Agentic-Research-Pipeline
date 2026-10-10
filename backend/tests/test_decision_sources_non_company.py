@@ -126,7 +126,7 @@ def _candidate(name: str, **kwargs) -> EmergingThemeCandidate:
 
 
 def _write_themes(run_store: RunStore, run_id: str, candidates: list[EmergingThemeCandidate]) -> None:
-    path = run_store.results_path(run_id)
+    path = run_store._results_path(run_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(c.model_dump_json() for c in candidates) + "\n")
 
@@ -171,9 +171,9 @@ def test_theme_run_reflects_the_append_only_review_decisions(tmp_path):
     rejected theme does not arrive looking like a live candidate."""
     run_store = RunStore(tmp_path)
     _write_themes(run_store, "et3", [_candidate("kept"), _candidate("thrown out")])
-    rows = run_store.read_jsonl(run_store.results_path("et3"))
+    rows = run_store.read_jsonl(run_store._results_path("et3"))
     theme_id = rows[1]["theme_id"]
-    decisions = run_store.review_decisions_path("et3")
+    decisions = run_store._review_decisions_path("et3")
     decisions.parent.mkdir(parents=True, exist_ok=True)
     decisions.write_text(json.dumps({"theme_id": theme_id, "action": "reject", "reason": "not real"}) + "\n")
 
@@ -213,7 +213,7 @@ def _report(spec_id: str, sharpe: float, verdict: ReplicationVerdict, oos_gap: f
 
 
 def _write_replication(run_store: RunStore, run_id: str, name: str, report: ReplicationComparisonReport) -> None:
-    path = run_store.results_path(run_id)
+    path = run_store._results_path(run_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps({"type": "spec", "spec_id": report.spec_id, "strategy_name": name}) + "\n"
@@ -270,7 +270,7 @@ def test_a_strategy_that_did_not_replicate_is_gated_out(tmp_path):
 
 def test_runs_without_a_completed_comparison_are_skipped(tmp_path):
     run_store = RunStore(tmp_path)
-    path = run_store.results_path("half")
+    path = run_store._results_path("half")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"type": "spec", "spec_id": "s1", "strategy_name": "Unfinished"}) + "\n")
     with pytest.raises(ValueError, match="completed replication comparison"):

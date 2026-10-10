@@ -259,7 +259,7 @@ async def test_pipeline_queues_one_row_per_flagged_field(tmp_path, fake_llm):
         settings=settings, run_store=run_store,
     )
 
-    rows = run_store.read_jsonl(run_store.review_queue_path(run_id))
+    rows = run_store.read_jsonl(run_store._review_queue_path(run_id))
     key, scheme = issuer_key(company)
     flagged = [f.field_id for f in schema.fields[1:]]
     assert [r["item_key"] for r in rows] == [f"{key}:{fid}:unspecified" for fid in flagged]
@@ -292,7 +292,7 @@ async def test_provenance_records_schema_version(tmp_path, fake_llm):
         run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
         settings=settings, run_store=run_store,
     )
-    (row,) = run_store.read_jsonl(run_store.results_path(run_id))
+    (row,) = run_store.read_jsonl(run_store._results_path(run_id))
     prov = row["fields"][0]["provenance"]
     assert prov["schema_version"] == f"{schema.schema_id}:v1" and prov["field_version"] == 1
 
@@ -328,7 +328,7 @@ async def test_zero_and_not_found_end_to_end(tmp_path, fake_llm):
         run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
         settings=settings, run_store=run_store,
     )
-    (row,) = run_store.read_jsonl(run_store.results_path(run_id))
+    (row,) = run_store.read_jsonl(run_store._results_path(run_id))
     assert [(f["value_state"], f["value"]) for f in row["fields"]] == [("zero", 0.0), ("not_found", None)]
     assert row["fields"][0]["period_end"] == "2024-12-31" and row["fields"][0]["qualifiers"] == []
     assert row["needs_review"] is False
@@ -364,7 +364,7 @@ async def test_review_key_uses_period_end(tmp_path, fake_llm):
         run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
         settings=settings, run_store=run_store,
     )
-    rows = run_store.read_jsonl(run_store.review_queue_path(run_id))
+    rows = run_store.read_jsonl(run_store._review_queue_path(run_id))
     assert [(r["item_key"].rsplit(":", 1)[1], r["period_end"]) for r in rows] == [
         ("2024-12-31", "2024-12-31"), ("unspecified", None)
     ]
@@ -444,11 +444,11 @@ async def test_auto_accepted_not_queued_and_marked_system(tmp_path, fake_llm):
         run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
         settings=settings, run_store=run_store,
     )
-    (row,) = run_store.read_jsonl(run_store.results_path(run_id))
+    (row,) = run_store.read_jsonl(run_store._results_path(run_id))
     (f,) = row["fields"]
     assert (f["route"], f["route_reasons"]) == ("auto_accept", [])
     assert row["needs_review"] is False
-    assert run_store.read_jsonl(run_store.review_queue_path(run_id)) == []
+    assert run_store.read_jsonl(run_store._review_queue_path(run_id)) == []
     assert not (run_store.run_dir(run_id) / "review_decisions.jsonl").exists()
 
 
@@ -470,10 +470,10 @@ async def test_all_documents_held_fields_hold(tmp_path, fake_llm):
         run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
         settings=settings, run_store=run_store,
     )
-    (row,) = run_store.read_jsonl(run_store.results_path(run_id))
+    (row,) = run_store.read_jsonl(run_store._results_path(run_id))
     assert [(f["route"], f["route_reasons"], f["value"]) for f in row["fields"]] == [("hold", ["entity_mismatch"], None)]
     assert row["needs_review"] is False and row["held_documents"][0]["doc_id"] == doc.doc_id
-    assert run_store.read_jsonl(run_store.review_queue_path(run_id)) == []
+    assert run_store.read_jsonl(run_store._review_queue_path(run_id)) == []
     assert llm.calls == []
 
 
@@ -505,7 +505,7 @@ async def _run_trial(tmp_path, doc, llm):
         run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
         settings=settings, run_store=run_store,
     )
-    return run_store.read_jsonl(run_store.review_queue_path(run_id))
+    return run_store.read_jsonl(run_store._review_queue_path(run_id))
 
 
 async def test_queue_row_carries_route_reasons(tmp_path, fake_llm):

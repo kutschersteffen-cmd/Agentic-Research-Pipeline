@@ -19,7 +19,7 @@ async def test_seeds_a_finished_synthetic_run(tmp_path):
     store = RunStore(tmp_path)
     run_id = await seed_demo_run(store)
     manifest = store.load_manifest(run_id)
-    records = store.read_jsonl(store.results_path(run_id))
+    records = store.read_jsonl(store._results_path(run_id))
     assert (manifest.run_type, manifest.status, manifest.params["synthetic"]) == ("transition_plan", JobStatus.COMPLETED, True)
     assert manifest.completed_count == len(records) == len(DEMO_COMPANIES)
     assert all(len(r["indicators"]) == 64 and not any(i["citations"] for i in r["indicators"]) for r in records)
@@ -32,7 +32,7 @@ async def test_same_seed_same_verdicts(tmp_path):
     store = RunStore(tmp_path)
     a, b = await seed_demo_run(store), await seed_demo_run(store)
     verdicts = lambda run_id: sorted(  # noqa: E731
-        (r["company_id"], [i["verdict"] for i in r["indicators"]]) for r in store.read_jsonl(store.results_path(run_id))
+        (r["company_id"], [i["verdict"] for i in r["indicators"]]) for r in store.read_jsonl(store._results_path(run_id))
     )
     assert a != b and verdicts(a) == verdicts(b)
 

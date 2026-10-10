@@ -237,12 +237,12 @@ async def test_run_isolates_a_failing_company_and_resume_retries_it(tmp_path):
     def lines(p):
         return [json.loads(x) for x in p.read_text().splitlines() if x.strip()]
 
-    assert len(lines(run_store.errors_path(run_id))) == 1
-    assert {r["company_id"] for r in lines(run_store.results_path(run_id))} == {"A", "C"}
+    assert len(lines(run_store._errors_path(run_id))) == 1
+    assert {r["company_id"] for r in lines(run_store._results_path(run_id))} == {"A", "C"}
 
     src.broken = False
     await execute_xbrl_run(run_id, companies, settings=settings, run_store=run_store, tags=None, refresh=False, source=src)
-    assert {r["company_id"] for r in lines(run_store.results_path(run_id))} == {"A", "B", "C"}
+    assert {r["company_id"] for r in lines(run_store._results_path(run_id))} == {"A", "B", "C"}
 
 
 class _Flaky(FakeSource):
@@ -299,7 +299,7 @@ async def test_execute_run_dispatches_esef(tmp_path):
     assert run_store.load_manifest(run_id).params["market"] == "esef"
     await execute_xbrl_run(run_id, companies, settings=settings, run_store=run_store, tags=None, refresh=False,
                            market="esef", source=EsefFake())
-    rows = {r["company_id"]: r for r in map(json.loads, run_store.results_path(run_id).read_text().splitlines())}
+    rows = {r["company_id"]: r for r in map(json.loads, run_store._results_path(run_id).read_text().splitlines())}
     assert (rows["A"]["status"], rows["B"]["status"]) == ("ok", "no_lei")
 
 
