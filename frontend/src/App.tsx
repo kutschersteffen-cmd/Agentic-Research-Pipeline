@@ -44,6 +44,7 @@ const Arcade = lazy(() => import("./pages/Arcade").then((x) => ({ default: x.Arc
 const DecisionStudio = lazy(() => import("./pages/DecisionStudio").then((x) => ({ default: x.DecisionStudio })));
 const IndexBuilder = lazy(() => import("./pages/IndexBuilder").then((x) => ({ default: x.IndexBuilder })));
 const ArgusUniverse = lazy(() => import("./pages/ArgusUniverse").then((x) => ({ default: x.ArgusUniverse })));
+const Company = lazy(() => import("./pages/Company").then((x) => ({ default: x.Company })));
 const XbrlFacts = lazy(() => import("./pages/XbrlFacts").then((x) => ({ default: x.XbrlFacts })));
 
 const TABS = [
@@ -84,6 +85,8 @@ const TABS = [
   { id: "xbrl", label: "XBRL Facts" },
   { id: "library", label: "Data Library" },
   { id: "arcade", label: "Arcade" },
+  // Reached from company names elsewhere (#/companies/<ref>) and the palette; not in the sidebar.
+  { id: "companies", label: "Company" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -414,6 +417,7 @@ function App() {
         {active === "argusUniverse" && <ArgusUniverse onSendUniverse={sendUniverse("Argus Universe")} />}
         {active === "xbrl" && <XbrlFacts pendingUniverse={pendingFor("xbrl")} selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("xbrl", id)} />}
         {active === "library" && <DataLibrary />}
+        {active === "companies" && <Company companyRef={route.params[0]} />}
         </Suspense>
       </main>
     </div>

@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { CompanyLink } from "./CompanyLink";
 import { api } from "../api/client";
 import { ConfidenceBadge, GroundedBadge } from "./ConfidenceBadge";
 import { ReviewControls } from "./ReviewControls";
@@ -190,7 +191,7 @@ export function ExtractionResultsTable({
           {shown.map((r) => (
             <Fragment key={r.company_id}>
               <tr className="clickable-row" {...activatable(() => onToggleExpanded(r.company_id), expanded === r.company_id)}>
-                <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
+                <td><CompanyLink companyId={r.company_id}>{r.name}</CompanyLink> {r.ticker && <span className="muted">({r.ticker})</span>}</td>
                 <td>{r.fields.map((f) => `${f.field_name}${f.period_end ? ` (${f.period_end})` : ""}=${editedText(reviewDecisions[fieldItemKey(r, f)]) ?? valueLabel(f)}`).join(", ")}</td>
                 <td><ConfidenceBadge value={r.overall_confidence} /></td>
                 <td>{r.needs_review ? <ProposedTag /> : ""}</td>
@@ -281,7 +282,7 @@ export function FinancialsResultsTable({
           {shown.map((r) => (
             <Fragment key={r.company_id}>
               <tr className="clickable-row" {...activatable(() => onToggleExpanded(r.company_id), expanded === r.company_id)}>
-                <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
+                <td><CompanyLink companyId={r.company_id}>{r.name}</CompanyLink> {r.ticker && <span className="muted">({r.ticker})</span>}</td>
                 <td>{r.segments.length === 0 ? "none found" : `${r.segments.length} segment(s)`}</td>
                 <td>{fmtAmount(r.capex.total.value)} {r.currency ?? ""}</td>
                 <td>{fmtAmount(r.rnd.total.value)} {r.currency ?? ""}</td>

@@ -45,6 +45,8 @@ import type {
   XbrlVerifyRow,
 } from "../types";
 import { tagQuery } from "../lib/xbrlTags";
+import { encodeRef, factsUrl, type FactFilters } from "../pages/company/companyQuery";
+import type { CompanyFactRow, CompanySearchHit, CompanySummary, FactTrail } from "../types";
 import type {
   AggregationResult,
   DatasetSummary,
@@ -373,6 +375,12 @@ export const api = {
   getBarrierRefreshCoverage: () => request<BarrierRefreshCoverage>("/api/transition-barrier/refresh/coverage"),
   startBarrierRefreshRun: () =>
     request<{ run_id: string; source_count: number }>("/api/transition-barrier/refresh/runs", { method: "POST" }),
+
+  // One-company view
+  searchCompanies: (q: string) => request<CompanySearchHit[]>(`/api/companies${buildQuery({ q })}`),
+  getCompany: (ref: string) => request<CompanySummary>(`/api/companies/${encodeRef(ref)}`),
+  getCompanyFacts: (ref: string, filters: FactFilters) => request<CompanyFactRow[]>(factsUrl(ref, filters)),
+  getFactTrail: (factId: number) => request<FactTrail>(`/api/facts/${factId}/trail`),
 
   // Documents
   listDocuments: (companyId: string) => request(`/api/documents/${companyId}`),

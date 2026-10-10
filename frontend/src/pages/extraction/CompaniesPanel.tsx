@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { CompanyLink } from "../../components/CompanyLink";
 import { api } from "../../api/client";
 import { UniversePicker } from "../../components/UniversePicker";
 import { when } from "../../lib/runs";
@@ -157,7 +158,7 @@ export function CompaniesPanel({
                   <tbody>
                     {readyRows.map((c) => (
                       <tr key={c.company_id}>
-                        <td>{c.name}</td>
+                        <td><CompanyLink companyId={c.company_id}>{c.name}</CompanyLink></td>
                         <td>{c.readiness.doc_types.join(", ") || "—"}</td>
                         <td className="mono">
                           {c.readiness.parsed} / {c.readiness.registered}
