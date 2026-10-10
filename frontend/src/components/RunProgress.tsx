@@ -108,9 +108,17 @@ export function RunProgress({
     <div className="run-progress">
       <div className="run-progress-header">
         <strong>{manifest.run_id}</strong>
-        <span className={`status-pill status-${manifest.status}`}>{manifest.status}</span>
+        <span className={`status-pill status-${manifest.status}`} role="status">{manifest.status}</span>
       </div>
-      <div className="progress-bar">
+      <div
+        className="progress-bar"
+        role="progressbar"
+        aria-label={`Run ${manifest.run_id} progress`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={pct}
+        aria-valuetext={`${manifest.completed_count} of ${manifest.company_count} companies, ${manifest.failed_count} failed`}
+      >
         <div className="progress-bar-fill" style={{ transform: `scaleX(${pct / 100})` }} />
       </div>
       <div className="run-progress-stats">

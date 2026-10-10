@@ -30,6 +30,7 @@ export function CommandPalette({ items, onClose }: { items: PaletteItem[]; onClo
         className="palette-input"
         ref={input}
         role="combobox"
+        aria-label="Jump to a screen or run"
         aria-expanded="true"
         aria-controls="palette-list"
         aria-activedescendant={matches.length ? `palette-${current}` : undefined}

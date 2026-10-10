@@ -80,6 +80,7 @@ export function PersistentSelectionPane({ onSendUniverse }: { onSendUniverse?: (
             <PortfolioFilterPicker portfolios={portfolios} selected={selectedPortfolioIds} onChange={setSelectedPortfolioIds} />
             <div className="toolbar">
               <select
+                aria-label="Load a saved group"
                 value=""
                 onChange={(e) => {
                   if (e.target.value) loadGroup(e.target.value);

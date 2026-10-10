@@ -297,24 +297,26 @@ function ReviewStage({
       {state.history.length > 0 && (
         <>
           <h3>Revision history</h3>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>Decision</th>
-                <th>Note</th>
-              </tr>
-            </thead>
-            <tbody>
-              {state.history.map((h, i) => (
-                <tr key={i}>
-                  <td>{h.decided_at}</td>
-                  <td>{h.decision}</td>
-                  <td>{h.comment ?? ""}</td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Decision</th>
+                  <th>Note</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {state.history.map((h, i) => (
+                  <tr key={i}>
+                    <td>{h.decided_at}</td>
+                    <td>{h.decision}</td>
+                    <td>{h.comment ?? ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </section>
@@ -430,9 +432,9 @@ function BacktestStage({ specRunId, spec }: { specRunId: string; spec: StrategyS
       )}
 
       <div className="toolbar">
-        <input value={benchmark} onChange={(e) => setBenchmark(e.target.value)} placeholder="Benchmark ticker (optional)" />
-        <input value={oosStart} onChange={(e) => setOosStart(e.target.value)} placeholder="Out-of-sample start (optional)" />
-        <input value={oosEnd} onChange={(e) => setOosEnd(e.target.value)} placeholder="Out-of-sample end (optional)" />
+        <input aria-label="Benchmark ticker (optional)" value={benchmark} onChange={(e) => setBenchmark(e.target.value)} placeholder="Benchmark ticker (optional)" />
+        <input aria-label="Out-of-sample start (optional)" value={oosStart} onChange={(e) => setOosStart(e.target.value)} placeholder="Out-of-sample start (optional)" />
+        <input aria-label="Out-of-sample end (optional)" value={oosEnd} onChange={(e) => setOosEnd(e.target.value)} placeholder="Out-of-sample end (optional)" />
       </div>
       <button onClick={runBacktest} disabled={busy || !pricesRef || tickerList.length === 0}>
         Run backtest
@@ -508,36 +510,38 @@ function ResultsView({
       <LineChart dates={dates} series={drawdownData} valueFormatter={(v) => `${v.toFixed(1)}%`} />
 
       <h3>Reported vs. measured (long-short)</h3>
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th></th>
-            <th>Paper reported</th>
-            <th>Replication (in-sample)</th>
-            {detail.out_of_sample && <th>Replication (out-of-sample)</th>}
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Annualized return</td>
-            <td>{pct(reportedLs.annualized_return_pct)}</td>
-            <td>{pct(ls.annualized_return_pct)}</td>
-            {detail.out_of_sample && <td>{pct(detail.out_of_sample.long_short.annualized_return_pct)}</td>}
-          </tr>
-          <tr>
-            <td>Sharpe ratio</td>
-            <td>{num(reportedLs.sharpe_ratio)}</td>
-            <td>{num(ls.sharpe_ratio)}</td>
-            {detail.out_of_sample && <td>{num(detail.out_of_sample.long_short.sharpe_ratio)}</td>}
-          </tr>
-          <tr>
-            <td>t-stat</td>
-            <td>{num(reportedLs.t_stat)}</td>
-            <td>{num(ls.t_stat)}</td>
-            {detail.out_of_sample && <td>{num(detail.out_of_sample.long_short.t_stat)}</td>}
-          </tr>
-        </tbody>
-      </table>
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Paper reported</th>
+              <th>Replication (in-sample)</th>
+              {detail.out_of_sample && <th>Replication (out-of-sample)</th>}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Annualized return</td>
+              <td>{pct(reportedLs.annualized_return_pct)}</td>
+              <td>{pct(ls.annualized_return_pct)}</td>
+              {detail.out_of_sample && <td>{pct(detail.out_of_sample.long_short.annualized_return_pct)}</td>}
+            </tr>
+            <tr>
+              <td>Sharpe ratio</td>
+              <td>{num(reportedLs.sharpe_ratio)}</td>
+              <td>{num(ls.sharpe_ratio)}</td>
+              {detail.out_of_sample && <td>{num(detail.out_of_sample.long_short.sharpe_ratio)}</td>}
+            </tr>
+            <tr>
+              <td>t-stat</td>
+              <td>{num(reportedLs.t_stat)}</td>
+              <td>{num(ls.t_stat)}</td>
+              {detail.out_of_sample && <td>{num(detail.out_of_sample.long_short.t_stat)}</td>}
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <div className="section-heading">
         <h3>Sanity check</h3>
