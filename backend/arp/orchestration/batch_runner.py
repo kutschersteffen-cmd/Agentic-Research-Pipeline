@@ -140,6 +140,9 @@ async def run_company_batch(
     finishes the run.
     """
     job_manager = JobManager(run_store)
+    # The run's stored companies when it has them: resolved (entity_id set), identity conflicts
+    # left out (save_companies recorded them as run errors), the same set on a fresh run and a resume.
+    companies = run_store.load_companies(run_id) or companies
 
     def _on_success(company: CompanyRef, result: ResultT) -> None:
         items = review_items(company, result) if review_items else []

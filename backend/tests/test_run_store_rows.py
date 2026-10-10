@@ -22,7 +22,7 @@ def store(request, tmp_path):
 
 
 def _row(n):
-    return {"_key": f"k{n}", "item_key": f"k{n}", "n": n}
+    return {"_key": f"k{n}", "item_key": f"k{n}", "decision": "approve", "n": n}
 
 
 @pytest.mark.parametrize(("read", "append"), PAIRS)
@@ -32,6 +32,13 @@ def test_append_then_read_keeps_order(store, read, append):
     getattr(store, f"append_{append}")("r1", _row(2))
     assert getattr(store, f"read_{read}")("r1") == [_row(1), _row(2)]
     assert getattr(store, f"read_{read}")("other") == []
+
+
+def test_keyless_results_are_all_kept(store):
+    store.append_result("r1", {"type": "spec"})
+    store.append_result("r1", {"type": "spec"})
+    assert store.read_results("r1") == [{"type": "spec"}, {"type": "spec"}]
+    assert store.done_keys("r1") == set()
 
 
 def test_done_keys(store):

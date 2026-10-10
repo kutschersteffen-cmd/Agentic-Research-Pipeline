@@ -117,9 +117,11 @@ async def test_rule_1_row_is_stored_and_fetched_with_the_master_lei(env):
 
 async def test_company_missing_from_stored_routing_is_unrouted(env):
     _, runs = env
-    run_id = create_xbrl_run(COMPANIES[:1], None, False, runs, market="auto")
+    new = CompanyRef(company_id="new", name="New", cik="7654321")
+    run_id = create_xbrl_run([new], None, False, runs, market="auto")
+    (runs.run_dir(run_id) / "routing.json").write_text("[]")  # the batch runs the stored companies
     sec = SecFake()
-    rows = await _run(env, run_id, [CompanyRef(company_id="new", name="New", cik="7654321")], source=sec)
+    rows = await _run(env, run_id, [new], source=sec)
     assert (rows["new"]["status"], rows["new"]["note"], rows["new"]["market"]) == (
         "unrouted", "not in stored routing", None)
     assert not sec.calls

@@ -15,6 +15,14 @@ from arp.projects.service import OpenedDashboard, OpenError, OpenResult
 
 pytestmark = pytest.mark.usefixtures("pg")  # the CLI/app and RunStore need Postgres
 
+
+@pytest.fixture(autouse=True)
+def _fake_dsn_is_fine(monkeypatch):
+    """Some tests here point ARP_POSTGRES_DSN at a fake server; the CLI startup check only needs it set."""
+    from arp.db.session import require_dsn
+
+    monkeypatch.setattr("arp.db.session.require_postgres", require_dsn)
+
 runner = CliRunner()
 
 

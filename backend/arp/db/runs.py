@@ -4,6 +4,7 @@ schema.json, regrounds.jsonl, ...) stay files under `runs_dir/<run_id>/`, reache
 
 from __future__ import annotations
 
+import math
 import threading
 import uuid
 from collections.abc import Iterator
@@ -36,6 +37,32 @@ from arp.storage.run_store import _TERMINAL_STATUSES, LegacyRunStore, done_keys_
 from arp.universe import resolve_universe
 
 _DECISIONS = {d.value for d in DecisionKind}
+# Decision-log rows that are not review-queue decisions, so carry no DecisionKind: emerging-theme
+# candidate actions (arp/emerging_themes/pipeline.py), which have `action` and no `decision`.
+_NON_REVIEW_ACTIONS = {"promote", "reject", "disconfirm"}
+
+
+def _jsonb_safe(value):
+    """What Postgres jsonb can store: NaN/±Infinity become None and NUL is stripped from strings
+    (keys too). The file store wrote both; jsonb refuses them, which would fail a whole batch."""
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, str):
+        return value.replace("\x00", "")
+    if isinstance(value, dict):
+        return {_jsonb_safe(k): _jsonb_safe(v) for k, v in value.items()}
+    if isinstance(value, list | tuple):
+        return [_jsonb_safe(v) for v in value]
+    return value
+
+
+def _decision_kind(row: dict) -> DecisionKind | None:
+    decision = row.get("decision")
+    if decision in _DECISIONS:
+        return DecisionKind(decision)
+    if decision is None and row.get("action") in _NON_REVIEW_ACTIONS:
+        return None
+    raise ValueError(f"not a review decision: {decision!r}")
 
 
 def _ts(value: str) -> datetime:
@@ -81,6 +108,7 @@ class RunStore:
         return (
             select(RunCompany.company_id)
             .where(RunCompany.run_id == run_id, RunCompany.ref["company_id"].astext == str(universe_id))
+            .limit(1)
             .scalar_subquery()
         )
 
@@ -89,7 +117,9 @@ class RunStore:
         """Serializes a read-modify-write cycle against one run (JobManager._update, decide, ...):
         a transaction holding `SELECT ... FOR UPDATE` on the runs row, across processes too.
         Re-entrant per thread; every store call this thread makes for the run inside it uses that
-        transaction, so its writes commit when the outermost lock exits."""
+        transaction, so its writes commit when the outermost lock exits. Re-entrancy and session
+        reuse are per RunStore instance: writing the same run through another instance on the same
+        thread while this lock is held waits on the row lock forever (deadlock)."""
         held = self._held()
         if run_id in held:
             yield
@@ -115,6 +145,7 @@ class RunStore:
     def append_result(self, run_id: str, row: dict) -> None:
         """Re-appending a `_key` already stored is a no-op. A row without `_key` (replication
         steps, calibration flags, ...) is always appended, under a key of its own."""
+        row = _jsonb_safe(row)
         key = row.get("_key") or f"~{uuid.uuid4().hex}"
         with self._tx(run_id) as s:
             self._ensure_run(s, run_id)
@@ -129,6 +160,7 @@ class RunStore:
             return list(s.scalars(select(RunError.error).where(RunError.run_id == run_id).order_by(RunError.id)))
 
     def append_error(self, run_id: str, row: dict) -> None:
+        row = _jsonb_safe(row)
         with self._tx(run_id) as s:
             self._ensure_run(s, run_id)
             company = self._universe_company(run_id, row.get("key") or row.get("company_id"))
@@ -141,6 +173,7 @@ class RunStore:
     def append_review_item(self, run_id: str, row: dict) -> None:
         """Requires `item_key`; re-queueing a key replaces its row. `company_id` is the company's
         UUID, or a universe id resolved through the run's companies; NULL when neither matches."""
+        row = _jsonb_safe(row)
         cid = row.get("company_id")
         try:
             company = select(Company.id).where(Company.id == uuid.UUID(str(cid))).scalar_subquery()
@@ -169,13 +202,16 @@ class RunStore:
             return list(s.scalars(select(ReviewDecision.row).where(ReviewDecision.run_id == run_id).order_by(ReviewDecision.id)))
 
     def append_decision_row(self, run_id: str, row: dict) -> None:
-        decision = row.get("decision")
+        """Raises ValueError for a `decision` that is no DecisionKind; only the non-review
+        actions in _NON_REVIEW_ACTIONS are stored without one."""
+        row = _jsonb_safe(row)
+        decision = _decision_kind(row)
         with self._tx(run_id) as s:
             self._ensure_run(s, run_id)
             s.execute(
                 insert(ReviewDecision).values(
                     run_id=run_id, review_item_id=self._item_id(run_id, row),
-                    decision=DecisionKind(decision) if decision in _DECISIONS else None,
+                    decision=decision,
                     reviewer=row.get("reviewer"), user_id=row.get("user_id"), role=row.get("role"),
                     edited_value=row.get("edited_value"), comment=row.get("comment"), row=row,
                 )
@@ -186,6 +222,7 @@ class RunStore:
             return list(s.scalars(select(ReviewCosign.row).where(ReviewCosign.run_id == run_id).order_by(ReviewCosign.id)))
 
     def append_cosign(self, run_id: str, row: dict) -> None:
+        row = _jsonb_safe(row)
         with self._tx(run_id) as s:
             self._ensure_run(s, run_id)
             s.execute(
@@ -235,13 +272,16 @@ class RunStore:
                     if not resolved:
                         continue
                     c = resolved[0]
+                ref = _jsonb_safe(c.model_dump(mode="json"))
                 # ponytail: two refs resolving to one company keep the first; key run_companies by ordinal if that matters
-                s.execute(
+                inserted = s.execute(
                     insert(RunCompany)
-                    .values(run_id=run_id, company_id=c.entity_id, ordinal=len(saved), ref=c.model_dump(mode="json"))
+                    .values(run_id=run_id, company_id=c.entity_id, ordinal=len(saved), ref=ref)
                     .on_conflict_do_nothing()
-                )
-                saved.append(c)
+                    .returning(RunCompany.company_id)
+                ).first()
+                if inserted is not None:
+                    saved.append(CompanyRef.model_validate(ref))
         return saved
 
     def load_companies(self, run_id: str) -> list[CompanyRef] | None:

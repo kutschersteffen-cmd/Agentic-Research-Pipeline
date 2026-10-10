@@ -59,7 +59,7 @@ from arp.api.routers import (
     voting,
     xbrl,
 )
-from arp.db.session import require_dsn
+from arp.db.session import require_postgres
 
 logging.basicConfig(level=logging.INFO)
 
@@ -67,7 +67,7 @@ logging.basicConfig(level=logging.INFO)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = settings_dep()
-    require_dsn(settings)  # Postgres is the system of record: no DSN, no app
+    require_postgres(settings)  # Postgres is the system of record: no DSN or no answer, no app
     settings.ensure_dirs()
     if settings.auth_mode == "local":
         load_users(settings.users_file)  # a bad users file stops startup

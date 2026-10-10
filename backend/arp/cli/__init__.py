@@ -40,12 +40,12 @@ app = typer.Typer(help="Agentic Research Pipeline CLI -- the headless path for 1
 
 @app.callback()
 def _require_postgres() -> None:
-    """Postgres is the system of record: every command needs ARP_POSTGRES_DSN."""
+    """Postgres is the system of record: every command needs ARP_POSTGRES_DSN, reachable."""
     from arp.config import get_settings
-    from arp.db.session import require_dsn
+    from arp.db.session import require_postgres
 
     try:
-        require_dsn(get_settings())
+        require_postgres(get_settings())
     except RuntimeError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc

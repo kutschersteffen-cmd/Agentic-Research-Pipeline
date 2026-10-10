@@ -265,7 +265,7 @@ async def test_pipeline_queues_one_row_per_flagged_field(pg, tmp_path, fake_llm)
     )
 
     rows = run_store.read_review_queue(run_id)
-    key, scheme = issuer_key(company)
+    key, scheme = issuer_key(run_store.load_companies(run_id)[0])  # the batch runs the stored, resolved ref
     flagged = [f.field_id for f in schema.fields[1:]]
     assert [r["item_key"] for r in rows] == [f"{key}:{fid}:unspecified" for fid in flagged]
     assert rows[0]["reason_codes"] == ["verifier_disagrees", "adjudicator_unresolved"]

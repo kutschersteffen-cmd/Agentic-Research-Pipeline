@@ -99,3 +99,86 @@ def test_queue_for_review_sets_the_item_company(run_store):
 def test_app_refuses_to_start_without_dsn():
     with pytest.raises(RuntimeError, match="ARP_POSTGRES_DSN"):
         require_dsn(Settings(postgres_dsn=None))
+
+
+def test_rows_jsonb_cannot_hold_are_cleaned(run_store):
+    bad = {"_key": "k", "nan": float("nan"), "inf": [float("-inf")], "s\x00": "a\x00b"}
+    run_store.append_result("r", bad)
+    run_store.append_error("r", {**bad, "key": "k"})
+    run_store.append_review_item("r", {**bad, "item_key": "k"})
+    clean = {"_key": "k", "nan": None, "inf": [None], "s": "ab"}
+    assert run_store.read_results("r") == [clean]
+    assert run_store.read_errors("r") == [{**clean, "key": "k"}]
+    assert run_store.read_review_queue("r") == [{**clean, "item_key": "k"}]
+
+
+async def test_a_nan_result_does_not_stop_the_batch(run_store):
+    from arp.orchestration.batch_runner import run_batch, run_sinks
+
+    async def worker(item):
+        return float("nan") if item == "a" else 1.0
+
+    await run_batch(["a", "b"], item_key=lambda i: i, worker=worker, sinks=run_sinks(run_store, "r"),
+                    concurrency=1, result_to_json=lambda v: {"v": v})
+    assert sorted((r["_key"], r["v"]) for r in run_store.read_results("r")) == [("a", None), ("b", 1.0)]
+
+
+async def test_company_batch_skips_identity_conflicts(run_store):
+    from arp.orchestration.batch_runner import run_company_batch
+    from arp.orchestration.job_manager import JobManager
+
+    run_store.save_companies("r0", [CompanyRef(company_id="A", name="A", lei=LEI), CompanyRef(company_id="B", name="B", ticker="BB")])
+    universe = [CompanyRef(company_id="C", name="C", lei=LEI, ticker="BB"), CompanyRef(company_id="D", name="D")]
+    run_id = JobManager(run_store).create_run("theme", {}, 2, companies=universe).run_id
+    seen = []
+
+    async def worker(company):
+        seen.append((company.company_id, company.entity_id is not None))
+        return {}
+
+    await run_company_batch(run_id, universe, run_store=run_store, worker=worker, result_to_json=dict, concurrency=1)
+    assert seen == [("D", True)]
+    assert [e["kind"] for e in run_store.read_errors(run_id)] == ["identity_conflict"]
+
+
+def test_decision_rows_must_be_review_decisions(run_store):
+    run_store.append_decision_row("r", {"item_key": "k", "decision": "approve"})
+    run_store.append_decision_row("r", {"theme_id": "t", "action": "promote", "reason": "real"})
+    with pytest.raises(ValueError, match="maybe"):
+        run_store.append_decision_row("r", {"item_key": "k", "decision": "maybe"})
+    with pytest.raises(ValueError):
+        run_store.append_decision_row("r", {"item_key": "k"})
+    assert [r.get("decision") for r in run_store.read_decisions("r")] == ["approve", None]
+
+
+def test_save_companies_returns_only_stored_refs(run_store):
+    twins = [CompanyRef(company_id="A", name="A", lei=LEI), CompanyRef(company_id="A2", name="A", lei=LEI)]
+    assert [c.company_id for c in run_store.save_companies("r", twins)] == ["A"]
+    assert run_store.load_companies("r") == run_store.save_companies("r", twins)
+
+
+UNREACHABLE = "postgresql+psycopg://arp:s3cret@localhost:1/arp"
+
+
+def test_startup_fails_when_postgres_is_unreachable(monkeypatch):
+    from fastapi.testclient import TestClient
+    from typer.testing import CliRunner
+
+    from arp.api.main import app
+    from arp.cli import app as cli
+    from arp.config import get_settings
+    from arp.db.session import require_postgres
+
+    with pytest.raises(RuntimeError, match=r"arp:\*\*\*@localhost:1/arp") as exc:
+        require_postgres(Settings(postgres_dsn=UNREACHABLE))
+    assert "s3cret" not in str(exc.value)
+
+    monkeypatch.setenv("ARP_POSTGRES_DSN", UNREACHABLE)
+    get_settings.cache_clear()
+    try:
+        result = CliRunner().invoke(cli, ["runs", "list"])
+        assert result.exit_code == 1 and "arp:***@localhost:1/arp" in result.stderr and "s3cret" not in result.output
+        with pytest.raises(RuntimeError, match="unreachable"), TestClient(app):
+            pass
+    finally:
+        get_settings.cache_clear()
