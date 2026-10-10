@@ -75,6 +75,14 @@ def _ts(value: str) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
 
 
+def _row_ts(row: dict, key: str):
+    """The row's own timestamp (imported history keeps when it was decided), else now()."""
+    try:
+        return _ts(row[key])
+    except (KeyError, TypeError, ValueError):
+        return func.now()
+
+
 def _iso(value: datetime) -> str:
     return value.astimezone(UTC).isoformat()
 
@@ -138,6 +146,17 @@ class RunStore:
             finally:
                 del held[run_id]
 
+    @contextmanager
+    def bind(self, run_id: str, session: Session) -> Iterator[None]:
+        """Every call this thread makes for the run uses `session` (an importer's transaction, which
+        the caller commits or rolls back) until exit."""
+        held = self._held()
+        held[run_id] = session
+        try:
+            yield
+        finally:
+            del held[run_id]
+
     def run_dir(self, run_id: str) -> Path:
         return self._files.run_dir(run_id)
 
@@ -179,11 +198,12 @@ class RunStore:
         with self._tx(run_id) as s:
             return list(s.scalars(select(ReviewItem.payload).where(ReviewItem.run_id == run_id).order_by(ReviewItem.id)))
 
-    def append_review_item(self, run_id: str, row: dict) -> None:
+    def append_review_item(self, run_id: str, row: dict, *, observation_id: int | None = None) -> None:
         """Requires `item_key`; re-queueing a key replaces its row. `company_id` is the company's
-        UUID, or a universe id resolved through the run's companies; NULL when neither matches."""
+        UUID, or a universe id resolved through the run's companies; NULL when neither matches.
+        `observation_id` links the item to the observation it is about."""
         with self._tx(run_id) as s:
-            self._insert_review_item(s, run_id, _jsonb_safe(row))
+            self._insert_review_item(s, run_id, _jsonb_safe(row), observation_id)
 
     def _insert_review_item(
         self, s: Session, run_id: str, row: dict, observation_id: int | None = None, company_id=None
@@ -274,6 +294,7 @@ class RunStore:
                     decision=decision,
                     reviewer=row.get("reviewer"), user_id=row.get("user_id"), role=row.get("role"),
                     edited_value=row.get("edited_value"), comment=row.get("comment"), row=row,
+                    decided_at=_row_ts(row, "decided_at"),
                 )
             )
             if decision is not None:
@@ -291,6 +312,7 @@ class RunStore:
                 insert(ReviewCosign).values(
                     run_id=run_id, review_item_id=self._item_id(run_id, row), reviewer=row.get("name"),
                     user_id=row.get("user_id"), role=row.get("role"), row=row,
+                    decided_at=_row_ts(row, "cosigned_at"),
                 )
             )
             self._apply_review(s, run_id, row.get("item_key"))

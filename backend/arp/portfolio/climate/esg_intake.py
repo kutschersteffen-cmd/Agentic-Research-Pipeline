@@ -19,7 +19,7 @@ import openpyxl
 
 from arp.db.fields import normalise_metric_code
 from arp.db.models import IdScheme, Licence
-from arp.db.providers import ProviderRow, ensure_source, ingest_rows, record_load
+from arp.db.providers import IngestReport, ProviderRow, ensure_source, ingest_rows, record_load
 from arp.db.session import transaction
 from arp.holdings.file_source import Mapping, read_rows
 from arp.holdings.intake import IntakeError
@@ -137,19 +137,22 @@ def _provider_rows(payload: bytes) -> list[ProviderRow]:
     ]
 
 
-def _record_provider_load(rows: list[dict], *, provider: str, month: str, source_ref: str | None) -> None:
+def record_esg_load(session, rows: list[dict], *, provider: str, month: str, source_ref: str | None) -> IngestReport | None:
     """The file as a `kind = file` provider source (`esg_<provider>`): one load per distinct payload,
-    observations on `prov:esg_<provider>:<field>`. Universe ids never create companies."""
+    observations on `prov:esg_<provider>:<field>`. Universe ids never create companies. None when
+    the payload is unchanged."""
     payload = json.dumps({"month": month, "rows": sorted(rows, key=lambda r: r["company_id"])}, sort_keys=True).encode()
+    source_id = ensure_source(session, f"esg_{normalise_metric_code(provider)}", name=f"ESG file ({provider})",
+                              kind="file", licence=Licence.INTERNAL_ONLY, id_scheme=IdScheme.UNIVERSE)
+    load = record_load(session, source_id, payload, request={"provider": provider, "month": month, "source_ref": source_ref},
+                       as_of=_month_end(month))
+    return None if load.unchanged else ingest_rows(session, load.load_id, _provider_rows(payload))
+
+
+def _record_provider_load(rows: list[dict], *, provider: str, month: str, source_ref: str | None) -> None:
     with transaction() as session:
-        source_id = ensure_source(session, f"esg_{normalise_metric_code(provider)}", name=f"ESG file ({provider})",
-                                  kind="file", licence=Licence.INTERNAL_ONLY, id_scheme=IdScheme.UNIVERSE)
-        load = record_load(session, source_id, payload, request={"provider": provider, "month": month, "source_ref": source_ref},
-                           as_of=_month_end(month))
-        if load.unchanged:
-            return
-        report = ingest_rows(session, load.load_id, _provider_rows(payload))
-    if report.unmatched_issuers or report.collisions:
+        report = record_esg_load(session, rows, provider=provider, month=month, source_ref=source_ref)
+    if report and (report.unmatched_issuers or report.collisions):
         logger.warning("ESG %s %s: unmatched issuers %s, colliding codes %s",
                        provider, month, report.unmatched_issuers, report.collisions)
 
