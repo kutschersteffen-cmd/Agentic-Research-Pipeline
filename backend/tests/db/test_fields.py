@@ -89,9 +89,10 @@ def test_schema_registry_registers_fields_and_links(pg):
 
 def test_schema_registry_rejects_invalid_field_id(pg):
     bad = _schema()
-    bad.fields[0].field_id = "Scope 1"
-    with pytest.raises(ValueError, match="invalid field_id"):
-        SchemaRegistry(pg).save(bad)
+    for fid in ("Scope 1", "fld_ab\n"):
+        bad.fields[0].field_id = fid
+        with pytest.raises(ValueError, match="invalid field_id"):
+            SchemaRegistry(pg).save(bad)
 
 
 def test_schema_registry_get_missing_raises(pg):
@@ -159,3 +160,16 @@ def test_schema_registry_first_audit_unknown_field_version_refused(pg):
         with pytest.raises(KeyError):
             reg.record_first_audit(*args, "u1")
         assert reg.quality(*args).first_audit_passed is False
+
+
+def test_draft_field_edit_updates_registered_definition(pg):
+    reg = SchemaRegistry(pg)
+    s = reg.save(_schema())
+    edited = s.model_copy(deep=True)
+    edited.fields[0].name, edited.fields[0].unit = "capex2", "USD"
+    v2 = reg.save(edited)
+    rel = reg.release(v2.schema_id, v2.version)
+    with transaction(pg) as t:
+        row = t.get(m.FieldDefinition, (rel.fields[0].field_id, 1))
+        assert (row.name, row.unit) == ("capex2", "USD")
+        assert row.definition["name"] == "capex2" and row.effective_from.isoformat() == rel.fields[0].effective_from

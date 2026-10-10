@@ -42,16 +42,23 @@ def _pg_schema():
 
 
 @pytest.fixture
-def pg(_pg_schema, monkeypatch):
+def pg(_pg_schema):
     """Empty tables for each test; yields the DSN, which is also the settings DSN (ARP_POSTGRES_DSN)."""
     from arp.config import get_settings
     from tests.postgres_helpers import reset_postgres_tables
 
     reset_postgres_tables(_pg_schema)
-    monkeypatch.setenv("ARP_POSTGRES_DSN", _pg_schema)
+    old = os.environ.get("ARP_POSTGRES_DSN")
+    os.environ["ARP_POSTGRES_DSN"] = _pg_schema
     get_settings.cache_clear()
-    yield _pg_schema
-    get_settings.cache_clear()
+    try:
+        yield _pg_schema
+    finally:
+        if old is None:
+            os.environ.pop("ARP_POSTGRES_DSN", None)
+        else:
+            os.environ["ARP_POSTGRES_DSN"] = old
+        get_settings.cache_clear()
 
 
 class FakeLLMClient:

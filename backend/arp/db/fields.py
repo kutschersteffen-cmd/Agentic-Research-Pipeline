@@ -15,7 +15,7 @@ from arp.db.session import transaction
 from arp.schemas.common import now_iso
 from arp.schemas.datapoints import DataPointSchema, FieldQuality, FieldStatus
 
-_EXTRACTED_ID = re.compile(r"^([a-z][a-z0-9_]*|theme:[^:\s]+|vote:[^:\s]+:[^:\s]+)$")
+_EXTRACTED_ID = re.compile(r"[a-z][a-z0-9_]*|theme:[^:\s]+|vote:[^:\s]+:[^:\s]+")
 _REGISTRY_LOCK = 7243001  # pg_advisory_xact_lock key serialising schema saves/releases
 
 
@@ -80,7 +80,7 @@ def ensure_extracted_field(session: Session, field_id: str, definition: m.FieldD
     """Inserts the `Field` and this definition version if missing; a version that exists is left as is."""
     field = session.get(m.Field, field_id)
     if field is None:
-        if not _EXTRACTED_ID.match(field_id):
+        if not _EXTRACTED_ID.fullmatch(field_id):
             raise ValueError(f"invalid field_id {field_id!r}")
         session.add(m.Field(field_id=field_id, kind=m.FieldKind.EXTRACTED))
         session.flush()
@@ -148,10 +148,16 @@ class SchemaRegistry:
         row.released_at = datetime.now(UTC) if schema.released_at else None
         s.flush()
         for f in schema.fields:
-            ensure_extracted_field(s, f.field_id, m.FieldDefinition(
+            fd = m.FieldDefinition(
                 field_id=f.field_id, version=f.version, name=f.name, data_type=str(f.data_type.value),
                 unit=f.unit, definition=f.model_dump(mode="json"),
-            ))
+            )
+            ensure_extracted_field(s, f.field_id, fd)
+            # A draft's content may change without a version bump; a released version cannot (FieldVersionError).
+            cur = s.get(m.FieldDefinition, (f.field_id, f.version))
+            cur.name, cur.data_type, cur.unit, cur.definition = fd.name, fd.data_type, fd.unit, fd.definition
+            if f.effective_from:
+                cur.effective_from = date.fromisoformat(f.effective_from)
             if s.scalar(select(func.count()).select_from(m.DataSchemaField).where(
                 m.DataSchemaField.schema_id == schema.schema_id, m.DataSchemaField.schema_version == schema.version,
                 m.DataSchemaField.field_id == f.field_id,
