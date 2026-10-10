@@ -7,7 +7,7 @@ from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
 from typing import TYPE_CHECKING
 
-from arp.llm.factory import build_llm_client, build_verifier_llm_client
+from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
 from arp.schemas.common import JobStatus, RunManifest
 from arp.storage.run_store import RunStore
 
@@ -199,6 +199,7 @@ async def resume_run(
     run_settings = settings.model_copy(
         update={k: v for k, v in (("llm_model", manifest.model), ("llm_verifier_model", manifest.verifier_model)) if v}
     )
+    run_settings = batch_settings(run_settings, bool(manifest.params.get("batch")))
     if run_type != "discovery":
         llm = llm or build_llm_client(run_settings)
         verifier_llm = verifier_llm or build_verifier_llm_client(run_settings)

@@ -171,6 +171,7 @@ class BatchingLLMClient(LangChainAnthropicClient):
             )
             row = {"batch_id": batch.id, "custom_ids": list(chunk), "submitted_at": datetime.now(UTC).isoformat()}
             # On disk before the first poll: a crash from here on still leaves the batch reusable.
+            self._batch_log.parent.mkdir(parents=True, exist_ok=True)  # cache_dir is only made when the disk cache is on
             with self._batch_log.open("a") as f:
                 f.write(json.dumps(row) + "\n")
                 f.flush()

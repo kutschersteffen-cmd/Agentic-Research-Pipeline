@@ -106,6 +106,14 @@ class Settings(BaseSettings):
 
     # Batch / concurrency
     max_concurrent_llm_calls: int = Field(default=8)
+    llm_batch: bool = Field(
+        default=False,
+        description="Send LLM calls through the Message Batches API (50% cheaper, slower). Set per run, never globally.",
+    )
+    batch_concurrency: int = Field(default=1000, description="max_concurrent_llm_calls for a batch run.")
+    batch_scheduled_run_types: list[str] = Field(
+        default=["emerging_themes"], description="Scheduled run types that run in batch mode."
+    )
     max_concurrent_downloads: int = Field(default=4)
     max_concurrent_parses: int = Field(
         default=4, description="Bounds concurrent off-loop document parses; the default executor allows 32."

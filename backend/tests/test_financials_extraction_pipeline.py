@@ -44,10 +44,7 @@ def _doc() -> SourceDocument:
     return SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text=_FILING_TEXT)
 
 
-async def test_extract_company_financials_single_call_pair(tmp_path, fake_llm):
-    doc = _doc()
-    company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
-
+def _single_pair_responses(doc: SourceDocument) -> tuple[FinancialsExtractionDraft, FinancialsVerifierOutput]:
     draft = FinancialsExtractionDraft(
         currency="USD",
         fiscal_period="FY2025",
@@ -94,6 +91,13 @@ async def test_extract_company_financials_single_call_pair(tmp_path, fake_llm):
         segments_agree=True, capex_agree=True, rnd_agree=True, confidence=0.9,
         segments_notes="", capex_notes="", rnd_notes="",
     )
+    return draft, verifier
+
+
+async def test_extract_company_financials_single_call_pair(tmp_path, fake_llm):
+    doc = _doc()
+    company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
+    draft, verifier = _single_pair_responses(doc)
 
     llm = fake_llm({"FinancialsExtractionDraft": [draft], "FinancialsVerifierOutput": [verifier]})
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
@@ -270,3 +274,57 @@ async def test_xbrl_overlay_is_noop_when_no_facts_found(tmp_path, fake_llm):
         company, registry=registry, llm=llm, settings=_settings(tmp_path), xbrl_source=xbrl_source
     )
     assert result.record.capex.total.value == 450.0  # LLM value stands, untouched
+
+
+async def test_financials_batch_matches_realtime(tmp_path):
+    """The same fake responses through the real-time path and through Message
+    Batches give identical records, at exactly half the estimated cost."""
+    from anthropic.types import Message, ToolUseBlock, Usage
+
+    from arp.extraction.financials_pipeline import create_financials_extraction_run, execute_financials_extraction_run
+    from arp.llm.batching_client import BatchingLLMClient
+    from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
+    from arp.storage.run_store import RunStore
+    from tests.fake_batches import FakeBatches
+
+    doc = _doc()
+    company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
+    by_title = {type(r).__name__: r for r in _single_pair_responses(doc)}
+
+    def respond(params: dict) -> Message:
+        out = by_title[params["tools"][0]["input_schema"]["title"]]
+        return Message(
+            id="msg_1", type="message", role="assistant", model=params["model"],
+            content=[ToolUseBlock(type="tool_use", id="tu_1", name="emit_result", input=out.model_dump(mode="json"))],
+            stop_reason="tool_use", stop_sequence=None, usage=Usage(input_tokens=1000, output_tokens=200),
+        )
+
+    async def run(name: str, batch: bool):
+        settings = batch_settings(_settings(tmp_path / name).model_copy(update={"llm_cache_enabled": False}), batch)
+        clients = [build_llm_client(settings), build_verifier_llm_client(settings)]
+        for c in clients:
+            if batch:
+                c._flush_after_s = c._poll_every_s = 0.01
+                c._client.messages.batches = FakeBatches()
+                c._client.messages.batches.respond = respond
+            else:
+                async def _send(params):
+                    return respond(params)
+                c._send = _send
+        store = RunStore(settings.runs_dir)
+        run_id = create_financials_extraction_run([company], settings, store)
+        await execute_financials_extraction_run(
+            run_id, [company], llm=clients[0], verifier_llm=clients[1],
+            registry=DocumentSourceRegistry([_FixedDocSource([doc])]), settings=settings, run_store=store,
+        )
+        rows = [{k: v for k, v in r.items() if k not in ("run_id", "generated_at")} for r in store.read_jsonl(store.results_path(run_id))]
+        return rows, store.load_manifest(run_id), clients
+
+    rt_rows, rt_manifest, rt_clients = await run("rt", batch=False)
+    b_rows, b_manifest, b_clients = await run("batch", batch=True)
+
+    assert not isinstance(rt_clients[0], BatchingLLMClient)
+    assert all(c._client.messages.batches.creates for c in b_clients)  # really went through batches
+    assert rt_rows and b_rows == rt_rows
+    assert rt_manifest.estimated_cost_usd > 0
+    assert b_manifest.estimated_cost_usd == rt_manifest.estimated_cost_usd / 2

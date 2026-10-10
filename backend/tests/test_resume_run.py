@@ -297,3 +297,22 @@ def test_resume_endpoint_launches_and_finishes(tmp_path, fake, api):
                 break
             time.sleep(0.02)
     assert store.load_manifest(run_id).status == JobStatus.COMPLETED  # lease=False: no RunBusy under the launcher's lease
+
+
+async def test_resume_keeps_batch_mode(tmp_path, monkeypatch):
+    from arp.llm.batching_client import BatchingLLMClient
+
+    settings = _settings(tmp_path)
+    store = RunStore(settings.runs_dir)
+    run_id = create_transition_plan_run(COMPANIES[:1], settings, store)
+    JobManager(store)._update(run_id, lambda m: m.params.__setitem__("batch", True))
+    seen = {}
+
+    async def _execute(run_id, companies, *, llm, verifier_llm, settings, **_kwargs):
+        seen.update(llm=llm, verifier_llm=verifier_llm, settings=settings)
+        return run_id
+
+    monkeypatch.setattr(tp_pipeline, "execute_transition_plan_run", _execute)
+    await resume_run(run_id, settings=settings, run_store=store, registry=DocumentSourceRegistry([]))
+    assert isinstance(seen["llm"], BatchingLLMClient) and isinstance(seen["verifier_llm"], BatchingLLMClient)
+    assert seen["settings"].llm_batch is True
