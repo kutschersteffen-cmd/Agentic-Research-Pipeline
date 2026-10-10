@@ -1,6 +1,6 @@
 # Argus universe landing page, shared mapping and XBRL Auto routing: design
 
-Date: 2026-10-10. Status: draft for review. Builds on `2026-10-09-xbrl-pipeline-design.md` and `2026-10-09-xbrl-esef-design.md`.
+Date: 2026-10-10. Status: implemented. Builds on `2026-10-09-xbrl-pipeline-design.md` and `2026-10-09-xbrl-esef-design.md`.
 
 ## Purpose
 
@@ -16,7 +16,7 @@ Date: 2026-10-10. Status: draft for review. Builds on `2026-10-09-xbrl-pipeline-
 | Extraction page | Not rewritten. Its Companies step still accepts an upload and still accepts a hand-over, which is how the landing page feeds it. |
 | Hand-over | The existing universe hand-over: the chosen companies are saved as a universe file (`save_universe`) and sent with `sendUniverse`. XBRL gets a receiver like Extraction's. |
 | Mapping rule | Exact identifiers only (LEI, ISIN, CIK), as the house rule says: nothing is matched by name. A company with no identifier is shown as unmapped with what to add. |
-| Enrichment | Identifiers the master knows are filled into the saved universe only where the row has none. Nothing is overwritten. The master holds no country, so country is never filled in. |
+| Enrichment | Identifiers the master knows (LEI, CIK, ISIN) are filled in only where the row has none, for every routed row, and the saved universe (including the whole-universe hand-over) and the run's companies are saved enriched. Nothing is overwritten. The master holds no country, so country is never filled in. |
 | Routing precedence | Home country, then ISIN prefix, then identifiers. Home country beats a CIK or LEI. |
 | Unroutable | A ticker with nothing else falls back to the SEC (today's behaviour). Anything else is `unrouted` with the reason. |
 | Manual switch | `market` is `auto` (default), `sec` or `esef`. `sec` and `esef` force every company, as today. |
@@ -32,9 +32,9 @@ Date: 2026-10-10. Status: draft for review. Builds on `2026-10-09-xbrl-pipeline-
   - `route_company(company, index) -> Route` with `market` (`sec`, `esef`, `None`), `status` (`routed`, `no_source`, `unrouted`), `basis` (`country`, `isin_prefix`, `cik`, `lei`, `master`, `ticker_fallback`) and `detail`.
   - Rules, first match wins:
     1. `country` in the table below: US gives SEC; EU, EEA and UK give ESEF. A country string outside the table is ignored and noted, never a decision.
-    2. ISIN prefix: `US` gives SEC; the EU, EEA and `GB` prefixes give ESEF; `XS` and `EU` carry no country and are ignored; any other two-letter prefix gives `no_source` ("no XBRL source for <prefix> yet").
+    2. ISIN prefix, only when the ISIN matches `^[A-Z]{2}[A-Z0-9]{9}[0-9]$` (after strip and upper-case; a malformed ISIN is ignored and noted): `US` gives SEC; the EU, EEA and `GB` prefixes give ESEF; `XS` and `EU` carry no country and are ignored; any other two-letter prefix gives `no_source` ("no XBRL source for <prefix> yet"), but only when the company has no CIK, on the row or from the master (a CIK means the SEC is a source after all).
     3. `cik` gives SEC. `lei` gives ESEF, but only when there is no `cik`.
-    4. Nothing decided: map through the master (`map_company`), enrich, and run rules 1 to 3 once more (basis `master`).
+    4. Nothing routed: map through the master (`map_company`), enrich, and run rules 1 to 3 once more on the enriched company (basis `master`). A `no_source` from the row's own identifiers yields to a routed result from the master.
     5. Still nothing: a ticker gives SEC (`ticker_fallback`); otherwise `unrouted` with "no country or identifier: add an ISIN, LEI or CIK, or load it into the security master".
   - Country table: US; EU27 (AT BE BG HR CY CZ DK EE FI FR DE GR HU IE IT LV LT LU MT NL PL PT RO SK SI ES SE); EEA (IS LI NO); UK (GB). Each matches by ISO alpha-2, alpha-3 and English name, case-insensitively ("United Kingdom", "UK", "Great Britain", "USA", "United States of America" included).
   - `route_universe(companies, index) -> list[Route]`.
@@ -43,13 +43,13 @@ Date: 2026-10-10. Status: draft for review. Builds on `2026-10-09-xbrl-pipeline-
   - documents: `readiness_by_company` plus files on disk (the logic behind `POST /api/documents/readiness`, reused, not copied);
   - extraction: runs of types `extraction`, `financials`, `tnfd`, `transition_plan` that contain the company (count, last run id and date);
   - XBRL: files by company id (market, key, fact count, fetched date, report stored).
-- API `POST /api/universe/workbench` (new router, same `authorize` dependency): body `{companies | universe_path}`; response rows `{company, mapping, route, availability}` plus counts per route and per mapping status. A `universe_path` must resolve inside `runs_dir/_universes` (else 400), unlike the older endpoints.
+- API `POST /api/universe/workbench` (new router, same `authorize` dependency): body `{companies | universe_path, availability: bool = true}`; response rows `{company (enriched), mapping, route, availability}` plus counts per route and per mapping status. With `availability: false` (the XBRL page's routing preview) the store scans are skipped and each row's availability is null. A `universe_path` must resolve inside `runs_dir/_universes` (else 400); an empty saved universe gives 400 "Universe file is empty."; more than 10,000 companies gives 400.
 
 ## XBRL changes
 
 - `market` is `auto | sec | esef`, default `auto`, on `arp xbrl fetch` and on `POST /api/xbrl/runs`.
-- `create_xbrl_run` for `auto` calls `route_universe`, stores the result as `routing.json` in the run directory (company id, market, status, basis, detail, enriched company) and stores the enriched companies as the run's companies.
-- `execute_xbrl_run` for `auto` fetches each company by its stored route. Companies with status `no_source` or `unrouted` get a result row with that status and a `note`; they count as completed and fetch nothing.
+- `create_xbrl_run` for `auto` calls `route_universe`, stores the result as `routing.json` in the run directory (company id, market, status, basis, detail, enriched company) and stores the enriched companies as the run's companies. `routing.json` is created from the stored companies if missing.
+- `execute_xbrl_run` for `auto` fetches each company by its stored route, using the stored (enriched) company from `routing.json`. A company missing from `routing.json` gets `unrouted` with "not in stored routing". Companies with status `no_source` or `unrouted` get a result row with that status and a `note`; they count as completed and fetch nothing.
 - `CompanyStatus.status` gains `no_source` and `unrouted`; `CompanyStatus` gains `note: str | None`; `CompanyStatus.market` may be `None`.
 - New `arp xbrl screen --universe f.csv`: prints the routing table (company, market, basis, detail) and the counts. Read-only.
 

@@ -52,7 +52,7 @@ amounts) get a pointer instead of a guess.
 | Workspace | Purpose | Processes |
 |---|---|---|
 | **StewardIQ** (`#/stewardiq`) | Engage, vote, escalate, report to clients | Engage and escalate · Proxy season · Client reporting |
-| **Argus** (`#/argus`) | Extract cited data points and score them with ratified Decision Studio templates | Extract and score |
+| **Argus** (`#/argus`) | Extract cited data points and score them with ratified Decision Studio templates; XBRL facts as filed | Extract and score · XBRL facts |
 | **Transition Intelligence Platform** (`#/transitionIntel`) | Monitor holdings; assess climate and transition risk | Monthly monitoring · Climate transition review |
 | **R&D Lab** (`#/rdLab`) | Themes and strategies, scored and built into indices | Launch a thematic product · Research a strategy |
 | **Data Hub** (`#/dataHub`) | Input feeds and stored data; the security master maps every security to its internal issuer, once, for the whole tool | Map securities to issuers |
@@ -62,12 +62,20 @@ amounts) get a pointer instead of a guess.
 | **Engage and escalate** | Continuous | Steward · Monitoring → Selection → Engagement → Drafting → Tracking (↺) | Every issue has an owner, a next step and a documented escalation path |
 | **Proxy season** | Per meeting, peaks March–June | Proxy Voting → Steward · Voting → Steward · Checkpoint → Engagement | Intentions are published, votes cast are checked against policy, and outcomes feed engagement |
 | **Client reporting** | Quarterly | Steward · Client program → Client policy → Reporting → Reports | A client report of house activity plus the points where the client's policy differed |
-| **Extract and score** | Per universe | Companies → Identify → Documents → Schema (custom only) → Extract → Review → Score (optional) → Template in Decision Studio (optional); the first five are the Extraction screen's own tabs (`#/extraction/<step>`) | Every company resolved and documented, every figure cited and reviewed; tiers from a ratified template |
+| **Extract and score** | Per universe | Universe → Companies → Identify → Documents → Schema (custom only) → Extract → Review → Score (optional) → Template in Decision Studio (optional); Universe is the landing page (`#/argusUniverse`) and the next five are the Extraction screen's own tabs (`#/extraction/<step>`) | Every company resolved and documented, every figure cited and reviewed; tiers from a ratified template |
+| **XBRL facts** | Per universe | Universe → Fetch → Facts → Verify; Facts hands over to Verify by hand (dashed) | Every company routed to the SEC or ESEF index or marked `no_source` / `unrouted`; filed facts stored and checked against an extraction run |
 | **Monthly monitoring** | Monthly | Holdings Intake → Monitoring & Alerts → Dashboards → Steward · Monitoring | Every breach and controversy on a holding is an alert with an owner |
 | **Climate transition review** | Annual, plus ad hoc before committees | Risk Monitoring → Transition Barriers → Transition Plan → Decision Studio → Steward · Selection → Reports | A tiered list of issuers to engage, each with a walk-vs-talk verdict and sector context |
 | **Launch a thematic product** | Per product idea | Emerging Themes → Taxonomy Library → Thematic Universe → Review Queue → Decision Studio → Index Construction → Reports | A ratified theme, a reviewed universe and an effective-dated index calibration |
 | **Research a strategy** | Per paper or idea | Strategy Replication → Decision Studio → Index Construction → Reports | Tested out of sample, compared with alternatives, and built as an index if it holds |
 | **Map securities to issuers** | When the security master or a holding changes | Load security master → Map holdings → Unmatched → Data Library | Every held security mapped to exactly one internal issuer by the security master, and nothing mapped any other way |
+
+**Argus · Universe** (`#/argusUniverse`, `POST /api/universe/workbench`) is the first step of both Argus processes.
+The user uploads or picks a saved universe; the page maps every company through the security master (exact LEI,
+ISIN or CIK only), suggests an XBRL source (SEC or ESEF, or `no_source` / `unrouted` with the reason) and shows what
+the tool already holds: identity result, documents, extraction runs and XBRL files. Companies are ticked (or the whole
+universe is taken) and handed to Extraction or XBRL facts as a saved universe, enriched with the master's missing
+LEI, CIK and ISIN. The page never starts a run itself.
 
 **The security master is the golden source for issuer identity.** It is loaded only in Data Hub
 (`#/securityMaster`, approvers only; CSV/Excel now, an API source later) into the identifier map
@@ -77,7 +85,9 @@ invalid or one identifier points at two issuers over the same dates. Matching is
 holdings map by ISIN (or the row's LEI) through it, and extraction and Argus's Identify step use the
 internal issuer id whenever the master knows the company's LEI, ISIN or CIK. Nothing is matched by name
 and no issuer is assigned by hand; an unmatched security is listed in Data Hub and fixed in the master.
-Holdings are mapped as they load, so reload them after a master change.
+Holdings are mapped as they load, so reload them after a master change. The Argus Universe page and XBRL Auto
+routing use the master the same way, read-only: it fills a company's missing LEI, CIK and ISIN (never country) before
+routing, and a CIK from the master counts like one on the row.
 
 **Data Hub · Feeds** (`#/feeds`, `GET /api/feeds`) lists every input feed (security master, portfolio holdings,
 index constituents, ESG data, news) with its data date, last load and whether it is behind: its latest good load
