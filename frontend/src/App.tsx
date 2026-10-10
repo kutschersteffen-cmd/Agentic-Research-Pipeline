@@ -38,6 +38,7 @@ const Feeds = lazy(() => import("./pages/Feeds").then((x) => ({ default: x.Feeds
 const Issues = lazy(() => import("./pages/Issues").then((x) => ({ default: x.Issues })));
 const SmartSearch = lazy(() => import("./pages/SmartSearch").then((x) => ({ default: x.SmartSearch })));
 const Outputs = lazy(() => import("./pages/Outputs").then((x) => ({ default: x.Outputs })));
+const TapeReader = lazy(() => import("./pages/tape/TapeReader").then((x) => ({ default: x.TapeReader })));
 const Arcade = lazy(() => import("./pages/Arcade").then((x) => ({ default: x.Arcade })));
 const DecisionStudio = lazy(() => import("./pages/DecisionStudio").then((x) => ({ default: x.DecisionStudio })));
 const IndexBuilder = lazy(() => import("./pages/IndexBuilder").then((x) => ({ default: x.IndexBuilder })));
@@ -70,6 +71,7 @@ const TABS = [
   { id: "discovery", label: "Document Discovery" },
   { id: "portfolio-monitoring", label: "Risk Monitoring" },
   { id: "review", label: "Review Queue" },
+  { id: "tape", label: "Tape Reader" },
   { id: "history", label: "Run History" },
   { id: "stewardship", label: "Steward Workflow" },
   { id: "engagement", label: "Engagement" },
@@ -105,7 +107,7 @@ const isWorkspace = (id: string): id is WorkspaceId => WORKSPACES.some((w) => w.
 // while one of its screens is showing.
 const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boolean }[] = [
   { label: null, ids: ["home", "dashboard"] },
-  { label: "Needs you", ids: ["review", "voting"] },
+  { label: "Needs you", ids: ["review", "tape", "voting"] },
   { label: "Workspaces", ids: ["stewardiq", "argus", "argusUniverse", "transitionIntel", "rdLab", "dataHub"] },
   { label: "Output", ids: ["reporting", "library", "history"] },
   {
@@ -399,6 +401,12 @@ function App() {
         {active === "history" && <RunHistory onOpenReview={openReview} />}
         {active === "stewardship" && <StewardWorkflow initialTab={route.params[0]} />}
         {active === "engagement" && <EngagementDashboard />}
+        {active === "tape" && (
+          <div className="page">
+            <h1>Tape Reader</h1>
+            <TapeReader />
+          </div>
+        )}
         {active === "voting" && <VotingRuns selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("voting", id)} />}
         {active === "reporting" && <ReportBuilder />}
         {active === "strategyReplication" && <StrategyReplication />}
