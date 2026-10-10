@@ -119,7 +119,9 @@ it. Plugin skills are namespaced: `/ponytail:ponytail-review`, `/ui-ux-pro-max:d
 
 Six skills from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT, upstream
 `49dd158`) are copied into `.claude/skills/`, not installed as a plugin, so they can be edited
-and don't duplicate superpowers. Re-copy from upstream to update.
+and don't duplicate superpowers. Local edit: `handoff` and `improve-codebase-architecture` save to
+`docs/handoffs/` and `docs/architecture-reviews/` instead of `/tmp`, so cloud sessions keep them.
+Keep that edit when re-copying from upstream.
 
 - `domain-modeling` — maintain `GLOSSARY.md` and ADRs in `docs/adr/`.
 - `research` — answer a question from primary sources, saved as a cited Markdown file.
