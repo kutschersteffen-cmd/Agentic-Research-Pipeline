@@ -8,6 +8,7 @@ from arp.api.review_endpoints import get_review_history, get_review_queue, submi
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.llm.factory import batch_settings
 from arp.schemas.common import CompanyRef
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.run_store import RunStore
@@ -19,6 +20,7 @@ router = APIRouter(prefix="/api/voting", tags=["voting"])
 
 
 class RunRequest(BaseModel):
+    batch: bool = Field(default=False, description="Run through the Message Batches API: 50% cheaper, slower.")
     companies: list[CompanyRef] | None = None
     universe_path: str | None = None
     meeting_dates: dict[str, str] = {}
@@ -32,6 +34,7 @@ async def start_voting_run(
     registry: DocumentSourceRegistry = Depends(get_registry),
     engagement_store: EngagementStore = Depends(get_engagement_store),
 ) -> dict:
+    settings = batch_settings(settings, req.batch)
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
@@ -45,7 +48,9 @@ async def start_voting_run(
             settings=settings, run_store=run_store, meeting_dates=req.meeting_dates, fund_name=settings.fund_name,
         )
 
-    run_id = schedule_llm_run(create_fn=_create, run=_run)
+    run_id = schedule_llm_run(
+        create_fn=_create, run=_run, settings=settings if req.batch else None, run_store=run_store
+    )
     return {"run_id": run_id, "company_count": len(companies)}
 
 

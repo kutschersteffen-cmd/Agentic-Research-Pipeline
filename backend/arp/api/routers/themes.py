@@ -13,6 +13,7 @@ from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
 from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.llm.factory import batch_settings
 from arp.orchestration.jobs import NotResumable, check_resumable, resume_run
 from arp.research.activity_generator import build_theme
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
@@ -46,6 +47,7 @@ async def decompose_theme(req: DecomposeRequest) -> ThemeDefinition:
 
 
 class RunRequest(BaseModel):
+    batch: bool = Field(default=False, description="Run through the Message Batches API: 50% cheaper, slower.")
     theme: ThemeDefinition | None = None
     taxonomy_id: str | None = Field(default=None, description="Load a saved taxonomy instead of an inline theme.")
     taxonomy_version: int | None = Field(default=None, description="Defaults to the taxonomy's latest version.")
@@ -92,6 +94,7 @@ async def start_theme_run(
     registry: DocumentSourceRegistry = Depends(get_registry),
     taxonomy_store: TaxonomyStore = Depends(get_taxonomy_store),
 ) -> dict:
+    settings = batch_settings(settings, req.batch)
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
@@ -172,7 +175,9 @@ async def start_theme_run(
             rd_resolver=rd_resolver,
         )
 
-    run_id = schedule_llm_run(create_fn=_create, run=_run)
+    run_id = schedule_llm_run(
+        create_fn=_create, run=_run, settings=settings if req.batch else None, run_store=run_store
+    )
     return {
         "run_id": run_id,
         "company_count": len(companies),

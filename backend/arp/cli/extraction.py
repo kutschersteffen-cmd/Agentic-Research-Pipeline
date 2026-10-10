@@ -6,6 +6,7 @@ from pathlib import Path
 
 import typer
 
+from arp.api.run_scheduling import mark_batch_run
 from arp.checks.effectiveness import effectiveness
 from arp.cli._shared import _and_drain, _registry, _run_store, _xbrl_source
 from arp.config import get_settings
@@ -14,7 +15,7 @@ from arp.extraction.pipeline import run_extraction
 from arp.extraction.schema_builder import draft_schema
 from arp.extraction.steps import StepSettings
 from arp.extraction.tnfd_pipeline import run_tnfd_extraction
-from arp.llm.factory import build_llm_client, build_verifier_llm_client
+from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
 from arp.orchestration.jobs import NotResumable, RunBusy, resume_run
 from arp.presets.registry import PRESETS, install_preset
 from arp.review.analytics import MONTH_PATTERN, monthly_totals
@@ -62,8 +63,9 @@ def extract_run(
     universe: Path = typer.Option(None),
     trial: bool = typer.Option(False, "--trial", help="Allow draft fields; the run is marked as a trial."),
     run_id: str = typer.Option(None, "--run-id", help="Resume this run (any batch run type) instead of starting one."),
+    batch: bool = typer.Option(False, "--batch", help="Use the Message Batches API: 50% cheaper, slower."),
 ) -> None:
-    settings = get_settings()
+    settings = batch_settings(get_settings(), batch)
     if run_id:
         try:
             asyncio.run(_and_drain(resume_run(run_id, settings=settings, run_store=_run_store(), registry=_registry())))
@@ -88,6 +90,8 @@ def extract_run(
     ))
     # What the run used, as the API records it: `arp xbrl verify` needs it to tell whether XBRL values were copied.
     (_run_store().run_dir(run_id) / "step_settings.json").write_text(StepSettings.effective(settings).model_dump_json())
+    if batch:
+        mark_batch_run(_run_store(), run_id)
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 
 
@@ -95,6 +99,7 @@ def extract_run(
 @extract_app.command("financials-run")
 def extract_financials_run(
     universe: Path = typer.Option(...),
+    batch: bool = typer.Option(False, "--batch", help="Use the Message Batches API: 50% cheaper, slower."),
 ) -> None:
     """Extracts each company's disclosed business segments (name,
     description, revenue, income, assets), total CapEx, and total R&D
@@ -104,7 +109,7 @@ def extract_financials_run(
     company's documents once and makes one LLM call pair instead of three),
     with the same independent-verifier + programmatic-grounding precision
     controls as `extract run`."""
-    settings = get_settings()
+    settings = batch_settings(get_settings(), batch)
     llm = build_llm_client(settings)
     verifier_llm = build_verifier_llm_client(settings)
     companies = load_company_universe(universe)
@@ -120,6 +125,8 @@ def extract_financials_run(
             xbrl_source=_xbrl_source() if settings.xbrl_facts_enabled else None,
         )
     ))
+    if batch:
+        mark_batch_run(_run_store(), run_id)
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 
 
@@ -129,6 +136,7 @@ def extract_tnfd_run(
     universe: Path = typer.Option(...),
     as_of: str = typer.Option(..., help="Reporting period this run covers, e.g. 'FY2025' -- applied to every "
                                          "company in the run. No 'latest' default."),
+    batch: bool = typer.Option(False, "--batch", help="Use the Message Batches API: 50% cheaper, slower."),
 ) -> None:
     """Extracts each company's TNFD (nature-related financial disclosure)
     reporting -- all 4 pillars/14 recommendations, core global metrics,
@@ -137,7 +145,7 @@ def extract_tnfd_run(
     gathering + extractor/verifier pass per company, with the same
     independent-verifier + programmatic-grounding precision controls as
     `extract run`."""
-    settings = get_settings()
+    settings = batch_settings(get_settings(), batch)
     llm = build_llm_client(settings)
     verifier_llm = build_verifier_llm_client(settings)
     companies = load_company_universe(universe)
@@ -147,6 +155,8 @@ def extract_tnfd_run(
             companies, as_of, llm=llm, verifier_llm=verifier_llm, registry=_registry(), settings=settings, run_store=_run_store()
         )
     ))
+    if batch:
+        mark_batch_run(_run_store(), run_id)
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 
 

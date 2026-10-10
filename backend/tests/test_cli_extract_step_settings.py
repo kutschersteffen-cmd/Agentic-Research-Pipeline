@@ -9,6 +9,8 @@ import arp.cli.extraction as cli
 from arp.cli.extraction import extract_app
 from arp.config import Settings
 from arp.extraction.steps import StepSettings
+from arp.llm.batching_client import BatchingLLMClient
+from arp.orchestration.job_manager import JobManager
 from arp.schemas.datapoints import DataPointSchema
 from arp.storage.run_store import RunStore
 from arp.xbrl_pipeline.verify import CircularRunError, assert_xbrl_off
@@ -58,3 +60,32 @@ def test_cli_run_with_xbrl_on_is_recorded_and_refused(tmp_path, monkeypatch):
     assert json.loads((store.run_dir(RUN_ID) / "step_settings.json").read_text())["xbrl_facts_enabled"] is True
     with pytest.raises(CircularRunError, match="xbrl_facts_enabled"):
         assert_xbrl_off(RUN_ID, run_store=store)
+
+
+def test_cli_run_batch_marks_the_run_and_batches_the_clients(tmp_path, monkeypatch):
+    settings = Settings(anthropic_api_key="unused", runs_dir=tmp_path / "runs", cache_dir=tmp_path / "cache")
+    store = RunStore(settings.runs_dir)
+    seen = {}
+
+    async def fake_run_extraction(schema, companies, *, llm, settings, **kwargs):
+        seen.update(llm=llm, settings=settings)
+        return JobManager(store).create_run("extraction", {}, 1).run_id
+
+    monkeypatch.setattr(cli, "get_settings", lambda: settings)
+    monkeypatch.setattr(cli, "_run_store", lambda: store)
+    monkeypatch.setattr(cli, "_xbrl_source", lambda: None)
+    monkeypatch.setattr(cli, "run_extraction", fake_run_extraction)
+    schema_file = tmp_path / "schema.json"
+    schema_file.write_text(DataPointSchema(schema_id="s1", name="Demo", description="d", fields=[]).model_dump_json())
+    universe = tmp_path / "universe.csv"
+    universe.write_text("company_id,name\nAAA,Alpha Inc\n")
+    args = ["run", "--schema", str(schema_file), "--universe", str(universe)]
+    res = CliRunner().invoke(extract_app, [*args, "--batch"])
+    assert res.exit_code == 0, res.output
+    assert isinstance(seen["llm"], BatchingLLMClient) and seen["settings"].llm_batch
+    assert [m.params.get("batch") for m in store.list_runs()] == [True]
+    seen.clear()
+    res = CliRunner().invoke(extract_app, args)
+    assert res.exit_code == 0, res.output
+    assert not isinstance(seen["llm"], BatchingLLMClient)
+    assert sorted(str(m.params.get("batch")) for m in store.list_runs()) == ["None", "True"]

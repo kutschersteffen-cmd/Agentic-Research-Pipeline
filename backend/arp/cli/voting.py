@@ -6,9 +6,10 @@ from pathlib import Path
 
 import typer
 
+from arp.api.run_scheduling import mark_batch_run
 from arp.cli._shared import _ballot_platform, _engagement_store, _registry, _run_store
 from arp.config import get_settings
-from arp.llm.factory import build_llm_client
+from arp.llm.factory import batch_settings, build_llm_client
 from arp.universe import load_company_universe
 from arp.voting.pipeline import cast_approved_votes, get_ballots, run_voting
 
@@ -19,8 +20,9 @@ voting_app = typer.Typer(help="Proxy voting: proposal analysis, policy applicati
 def voting_run(
     universe: Path = typer.Option(...),
     meeting_dates: Path = typer.Option(None, help="Optional JSON object mapping company_id -> meeting_date."),
+    batch: bool = typer.Option(False, "--batch", help="Use the Message Batches API: 50% cheaper, slower."),
 ) -> None:
-    settings = get_settings()
+    settings = batch_settings(get_settings(), batch)
     llm = build_llm_client(settings)
     companies = load_company_universe(universe)
     dates = json.loads(meeting_dates.read_text()) if meeting_dates else {}
@@ -31,6 +33,8 @@ def voting_run(
             settings=settings, run_store=_run_store(), meeting_dates=dates, fund_name=settings.fund_name,
         )
     )
+    if batch:
+        mark_batch_run(_run_store(), run_id)
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/). Every proposal is queued for review -- use `arp voting review`.")
 
 

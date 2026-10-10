@@ -6,10 +6,11 @@ from pathlib import Path
 
 import typer
 
+from arp.api.run_scheduling import mark_batch_run
 from arp.cli._shared import _registry, _run_store, _taxonomy_store
 from arp.config import get_settings
 from arp.discovery.site_finder import DuckDuckGoSearchClient
-from arp.llm.factory import build_llm_client, build_verifier_llm_client
+from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
 from arp.orchestration.jobs import resume_run
 from arp.research.activity_generator import build_theme
 from arp.research.indirect_exposure.core_sectors import classify_theme_core_sectors
@@ -137,8 +138,9 @@ def theme_run(
         "--enable-rd-exposure",
         help="Enable Method C (R&D-spend-intensity + news-mention scoring) for ideation/innovation-stage activities.",
     ),
+    batch: bool = typer.Option(False, "--batch", help="Use the Message Batches API: 50% cheaper, slower."),
 ) -> None:
-    settings = get_settings()
+    settings = batch_settings(get_settings(), batch)
     llm = build_llm_client(settings)
     verifier_llm = build_verifier_llm_client(settings)
     if theme_file is not None:
@@ -204,6 +206,8 @@ def theme_run(
             enable_rd_exposure=enable_rd_exposure,
         )
     )
+    if batch:
+        mark_batch_run(_run_store(), run_id)
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 
 

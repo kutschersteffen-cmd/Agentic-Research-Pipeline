@@ -11,11 +11,17 @@ from arp.orchestration.jobs import get_job_launcher
 from arp.storage.run_store import RunStore
 
 
+def mark_batch_run(run_store: RunStore, run_id: str) -> None:
+    """Marks the run as a batch run, so a resume keeps it in batch mode."""
+    JobManager(run_store)._update(run_id, lambda m: m.params.__setitem__("batch", True))
+
+
 def schedule_llm_run(
     *,
     create_fn: Callable[[], str],
     run: Callable[[str, LLMClient, LLMClient], Awaitable[None]],
     settings: Settings | None = None,
+    run_store: RunStore | None = None,
 ) -> str:
     """The shared shape of every `POST /runs` endpoint that needs an LLM
     (themes, extraction, financials, voting, identity): resolve both LLM
@@ -39,6 +45,9 @@ def schedule_llm_run(
     endpoint returns immediately. A `run` for a pipeline with no separate
     verifier role (e.g. voting, identity) simply ignores the third arg.
 
+    `run_store`, when given, is where the batch mark is written -- the one
+    `create_fn` wrote the run to; else a store on `settings.runs_dir`.
+
     `settings`, when given, builds both clients from it rather than the
     app's settings -- how a run started with its own models gets them.
     """
@@ -46,7 +55,6 @@ def schedule_llm_run(
     verifier_llm = build_verifier_llm_client(settings) if settings else get_verifier_llm_client()
     run_id = create_fn()
     if settings is not None and settings.llm_batch:
-        # Marks the run as a batch run, so a resume keeps it in batch mode.
-        JobManager(RunStore(settings.runs_dir))._update(run_id, lambda m: m.params.__setitem__("batch", True))
+        mark_batch_run(run_store or RunStore(settings.runs_dir), run_id)
     get_job_launcher().launch(run_id, lambda: run(run_id, llm, verifier_llm))
     return run_id

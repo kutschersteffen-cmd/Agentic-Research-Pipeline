@@ -15,6 +15,7 @@ from arp.config import Settings
 from arp.extraction.financials_pipeline import create_financials_extraction_run
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMUsage
+from arp.llm.batching_client import BatchingLLMClient
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import NotResumable, RunBusy, resume_run, run_lease
 from arp.research.pipeline import create_theme_run
@@ -342,3 +343,47 @@ def test_cli_theme_resume_keeps_batch_mode(tmp_path, monkeypatch):
     assert res.exit_code == 0, res.output
     assert isinstance(seen["llm"], BatchingLLMClient) and isinstance(seen["verifier_llm"], BatchingLLMClient)
     assert seen["settings"].llm_batch is True
+
+
+def _batch_cli(tmp_path, monkeypatch, module, attr, app, args, kind, theme_args=()):
+    """Runs a CLI run command with `run_*` faked; returns (the llm it was given, the run's manifest params)."""
+    settings = Settings(anthropic_api_key="unused", runs_dir=tmp_path / "runs", cache_dir=tmp_path / "cache")
+    store = RunStore(settings.runs_dir)
+    seen = {}
+
+    async def _fake(*_a, llm, **_k):
+        seen["llm"] = llm
+        return JobManager(store).create_run(kind, {}, 1).run_id
+
+    monkeypatch.setattr(module, attr, _fake)
+    monkeypatch.setattr(module, "get_settings", lambda: settings)
+    monkeypatch.setattr(module, "_run_store", lambda: store)
+    monkeypatch.setattr(module, "_registry", lambda: DocumentSourceRegistry([]))
+    monkeypatch.setattr(module, "_engagement_store", lambda: None, raising=False)
+    universe = tmp_path / "u.csv"
+    universe.write_text("company_id,name\nAAA,Alpha Inc\n")
+    theme = tmp_path / "theme.json"
+    theme.write_text(ThemeDefinition(name="T", description="").model_dump_json())
+    out = []
+    for extra in ([], ["--batch"]):
+        res = CliRunner().invoke(app, [*args, *theme_args, "--universe", str(universe), *extra])
+        assert res.exit_code == 0, res.output
+        out.append(seen["llm"])
+    params = [m.params.get("batch") for m in sorted(store.list_runs(), key=lambda m: m.created_at)]
+    return out, params
+
+
+def test_theme_cli_batch_flag(tmp_path, monkeypatch):
+    import arp.cli.theme as cli_theme
+
+    (plain, batched), params = _batch_cli(tmp_path, monkeypatch, cli_theme, "run_thematic_universe", cli_theme.theme_app, ["run"], "theme", ["--theme", str(tmp_path / "theme.json")])
+    assert not isinstance(plain, BatchingLLMClient) and isinstance(batched, BatchingLLMClient)
+    assert params == [None, True]
+
+
+def test_voting_cli_batch_flag(tmp_path, monkeypatch):
+    import arp.cli.voting as cli_voting
+
+    (plain, batched), params = _batch_cli(tmp_path, monkeypatch, cli_voting, "run_voting", cli_voting.voting_app, ["run"], "voting")
+    assert not isinstance(plain, BatchingLLMClient) and isinstance(batched, BatchingLLMClient)
+    assert params == [None, True]

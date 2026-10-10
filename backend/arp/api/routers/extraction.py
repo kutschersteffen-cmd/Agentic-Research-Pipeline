@@ -24,6 +24,7 @@ from arp.extraction.pipeline import create_extraction_run, execute_extraction_ru
 from arp.extraction.schema_builder import draft_schema
 from arp.extraction.steps import ExtractionProfile, StepSettings, pipeline_shape, restart_overrides
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.llm.factory import batch_settings
 from arp.orchestration.review_queue import effective_decisions, item_states, public_decision, record_cosign
 from arp.orchestration.step_tally import step_counts
 from arp.presets.green import green_summary
@@ -124,6 +125,7 @@ def first_audit(
 
 
 class RunRequest(BaseModel):
+    batch: bool = Field(default=False, description="Run through the Message Batches API: 50% cheaper, slower.")
     datapoint_schema: DataPointSchema
     trial: bool = Field(default=False, description="Allow a schema with draft fields; the run is marked as a trial.")
     companies: list[CompanyRef] | None = None
@@ -141,6 +143,7 @@ async def start_extraction_run(
     decision_store: DecisionStore = Depends(get_decision_store),
     xbrl_source=Depends(get_xbrl_source),
 ) -> dict:
+    settings = batch_settings(settings, req.batch)
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
@@ -171,7 +174,7 @@ async def start_extraction_run(
             xbrl_source=xbrl_source,
         )
 
-    run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings)
+    run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings, run_store=run_store)
     return {"run_id": run_id, "company_count": len(companies)}
 
 
