@@ -93,3 +93,14 @@ def test_list_runs_filters_by_type(tmp_path):
     assert len(store.list_runs()) == 2
     assert len(store.list_runs("theme")) == 1
     assert store.list_runs("theme")[0].run_type == "theme"
+
+
+def test_record_progress_counts_batch_savings(tmp_path):
+    store = RunStore(tmp_path)
+    jm = JobManager(store)
+    run_id = jm.create_run("theme", {}, company_count=1).run_id
+    jm.record_progress(run_id, usage=LLMUsage(input_tokens=10, batch=True), cost_delta_usd=0.4)
+    assert store.load_manifest(run_id).batch_saved_usd == 0.4
+    run_id = jm.create_run("theme", {}, company_count=1).run_id
+    jm.record_progress(run_id, usage=LLMUsage(input_tokens=10), cost_delta_usd=0.4)
+    assert store.load_manifest(run_id).batch_saved_usd == 0.0

@@ -11,6 +11,7 @@ class LLMUsage(BaseModel):
     input_tokens: int = 0
     output_tokens: int = 0
     cached: bool = False
+    batch: bool = False  # served via the Message Batches API: billed at half price
     provider: str = ""
     attempts: int = 1
     model: str = Field(default="", description="Model id that produced this call, for cost accounting and provenance.")

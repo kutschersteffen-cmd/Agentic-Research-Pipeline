@@ -221,6 +221,8 @@ class RunManifest(BaseModel):
     cache_read_tokens: int = 0  # the share of input_tokens read from Anthropic's prompt cache
     cache_creation_tokens: int = 0  # the share of input_tokens written to it
     estimated_cost_usd: float = 0.0
+    batch_saved_usd: float = 0.0  # what the Batches API discount saved on this run
+    batch_wait: dict | None = None
     model: str | None = None
     verifier_model: str | None = Field(
         default=None, description="Model used for the independent Verifier/Kritiker pass, when this run type has one."

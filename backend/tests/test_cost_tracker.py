@@ -53,3 +53,12 @@ def test_combine_usage_sums_cache_token_fields():
     assert combined.output_tokens == 30
     assert combined.cache_read_tokens == 200
     assert combined.cache_creation_tokens == 20
+
+
+def test_estimate_cost_usd_halves_for_batch():
+    usage = LLMUsage(input_tokens=1_000_000, output_tokens=1_000_000, batch=True)
+    assert estimate_cost_usd("claude-sonnet-5-5", usage) == 6.0
+
+
+def test_combine_usage_keeps_batch_flag():
+    assert combine_usage(LLMUsage(batch=True), LLMUsage(batch=True)).batch is True

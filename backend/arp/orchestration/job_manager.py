@@ -84,6 +84,8 @@ class JobManager:
             manifest.cache_read_tokens += live.cache_read_tokens
             manifest.cache_creation_tokens += live.cache_creation_tokens
             manifest.estimated_cost_usd += cost_delta_usd
+            if live.batch:
+                manifest.batch_saved_usd += cost_delta_usd  # at 50% the saving equals the spend
 
         return self._update(run_id, fn)
 

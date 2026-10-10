@@ -350,3 +350,34 @@ async def test_bad_request_is_not_retried_by_the_sdk(tmp_path):
     except BadRequestError:
         pass
     assert seen == [400]
+
+
+async def test_send_params_are_plain_json_on_retry(tmp_path):
+    import json
+
+    client, _ = _client_with_responses(tmp_path, [_message("tu_1", {"wrong_field": 1}), _message("tu_2", {"value": 42})])
+    seen: list[dict] = []
+    real_send = client._send
+
+    async def spy(params):
+        seen.append(json.loads(json.dumps(params)))  # raises if not plain JSON
+        return await real_send(params)
+
+    client._send = spy
+    await client.complete_structured(system="sys", prompt="prompt", output_model=_Target)
+
+    assert len(seen) == 2
+    assert isinstance(seen[1]["messages"][1]["content"], list)
+    assert all(isinstance(b, dict) for b in seen[1]["messages"][1]["content"])
+
+
+async def test_realtime_request_params_unchanged(tmp_path):
+    client, fake = _client_with_responses(tmp_path, [_message("tu_1", {"value": 1})])
+    await client.complete_structured(system="sys", prompt="prompt", output_model=_Target, max_tokens=123)
+
+    call = fake.messages.calls[0]
+    assert set(call) == {"model", "max_tokens", "system", "messages", "tools", "tool_choice"}
+    assert call["model"] == "test-model"
+    assert call["max_tokens"] == 123
+    assert call["tool_choice"] == {"type": "auto"}
+    assert call["messages"] == [{"role": "user", "content": "prompt"}]
