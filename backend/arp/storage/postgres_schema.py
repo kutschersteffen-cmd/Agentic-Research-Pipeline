@@ -225,6 +225,12 @@ def _run_store_tables(conn: Connection) -> None:
         conn.execute(text("ALTER TABLE run_results ADD CONSTRAINT uq_run_results_key UNIQUE (run_id, result_key)"))
 
 
+def _documents_content_index(conn: Connection) -> None:
+    from sqlalchemy import text
+
+    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_documents_content ON documents (content_key)"))
+
+
 # Run before create_all, so a legacy-shaped table does not shadow a new one of the same name.
 PRE_CREATE_STEPS: tuple[SchemaStep, ...] = (
     SchemaStep("0005_rename_legacy_companies", "companies -> legacy_companies", _rename_legacy_companies),
@@ -268,6 +274,11 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         name="run_store_tables",
         description="RunStore columns: run_companies ref/ordinal, run_results result_key, decision/cosign rows",
         apply=_run_store_tables,
+    ),
+    SchemaStep(
+        name="documents_content_index",
+        description="Index documents.content_key (list_by_content_keys filters on it)",
+        apply=_documents_content_index,
     ),
 )
 

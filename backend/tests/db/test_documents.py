@@ -100,6 +100,16 @@ def test_readiness_by_company(reg):
     assert out["acme"]["last_seen_at"] == max(r.last_seen_at for r in reg.list_all())
 
 
+def test_readiness_follows_company_merge(pg, reg):
+    from arp.db.companies import ensure_universe_company, merge
+
+    _reg(reg, company_id="A")
+    with transaction(pg) as s:
+        a, k = ensure_universe_company(s, "A"), ensure_universe_company(s, "K")
+        merge(s, k, a)
+    assert reg.readiness_by_company(["A"])["A"]["registered"] == 1
+
+
 def test_collision_assigns_fresh_id(reg):
     assert _reg(reg, doc_id="doc_x", company_id="a", content_key="k1") == "doc_x"
     new = _reg(reg, doc_id="doc_x", company_id="b", content_key="k2")

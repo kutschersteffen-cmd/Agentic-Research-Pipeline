@@ -285,11 +285,14 @@ class ProviderMetricCode(Base):
 
 class Document(Base):
     __tablename__ = "documents"
-    __table_args__ = (Index("ix_documents_company_type", "company_id", "doc_type"),)
+    __table_args__ = (
+        Index("ix_documents_company_type", "company_id", "doc_type"),
+        Index("ix_documents_content", "content_key"),
+    )
 
     doc_id: Mapped[str] = mapped_column(Text, primary_key=True)
     company_id: Mapped[uuid.UUID] = _company_fk()
-    universe_id: Mapped[str | None] = mapped_column(Text)  # the universe company id callers registered under
+    universe_id: Mapped[str | None] = mapped_column(Text)  # display only: original-case universe id; filter by company_id
     doc_type: Mapped[str] = mapped_column(Text)
     title: Mapped[str] = mapped_column(Text)
     content_key: Mapped[str] = mapped_column(Text)

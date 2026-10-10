@@ -15,8 +15,8 @@ from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from arp.db.companies import ensure_universe_company
-from arp.db.models import Document
+from arp.db.companies import ensure_universe_company, lookup
+from arp.db.models import Document, IdScheme
 from arp.db.session import transaction
 from arp.schemas.common import new_id
 from arp.storage.safe_path import safe_id
@@ -204,21 +204,28 @@ class DocumentRegistry:
         if not self.enabled or not company_ids:
             return {}
         with transaction(self._dsn) as session:
+            # filter by company uuid (not the display-only universe_id) so a merged company's documents follow it
+            owners: dict = {}
+            for universe_id in company_ids:
+                uuid = lookup(session, IdScheme.UNIVERSE, universe_id)
+                if uuid is not None:
+                    owners.setdefault(uuid, []).append(universe_id)
             rows = session.execute(
-                select(Document.universe_id, Document.doc_type, Document.content_key, Document.last_seen_at).where(
-                    Document.universe_id.in_(company_ids)
+                select(Document.company_id, Document.doc_type, Document.content_key, Document.last_seen_at).where(
+                    Document.company_id.in_(owners)
                 )
             ).all()
         parsed = parsed_keys(sorted({r.content_key for r in rows})) if parsed_keys else set()
         out: dict[str, dict] = {}
-        for company_id, doc_type, content_key, last_seen in rows:
-            e = out.setdefault(
-                company_id, {"registered": 0, "parsed": 0, "doc_types": set(), "last_seen_at": last_seen}
-            )
-            e["registered"] += 1
-            e["parsed"] += content_key in parsed
-            e["doc_types"].add(doc_type)
-            e["last_seen_at"] = max(e["last_seen_at"], last_seen)
+        for uuid, doc_type, content_key, last_seen in rows:
+            for company_id in owners[uuid]:
+                e = out.setdefault(
+                    company_id, {"registered": 0, "parsed": 0, "doc_types": set(), "last_seen_at": last_seen}
+                )
+                e["registered"] += 1
+                e["parsed"] += content_key in parsed
+                e["doc_types"].add(doc_type)
+                e["last_seen_at"] = max(e["last_seen_at"], last_seen)
         for e in out.values():
             e["doc_types"] = sorted(e["doc_types"])
             e["last_seen_at"] = e["last_seen_at"].isoformat()
