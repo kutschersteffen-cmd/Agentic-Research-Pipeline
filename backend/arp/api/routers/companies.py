@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from arp.api.deps import get_portfolio_store
 from arp.db import company_view as view
@@ -20,7 +20,7 @@ def _resolve(s, ref: str):
 
 
 @router.get("/companies")
-def search_companies(q: str = "", limit: int = 20) -> list[view.CompanySearchHit]:
+def search_companies(q: str = Query("", max_length=200), limit: int = Query(20, ge=1, le=100)) -> list[view.CompanySearchHit]:
     with transaction() as s:
         return view.search(s, q, limit)
 
@@ -34,8 +34,10 @@ def get_company(ref: str, store=Depends(get_portfolio_store)) -> view.CompanySum
 @router.get("/companies/{ref}/facts")
 def get_company_facts(
     ref: str, as_of: datetime | None = None, kind: FieldKind | None = None, field_id: str | None = None,
-    period_end: date | None = None, limit: int = 100, offset: int = 0,
+    period_end: date | None = None, limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0),
 ) -> list[view.CompanyFactRow]:
+    if as_of is not None and as_of.tzinfo is None:
+        as_of = as_of.replace(tzinfo=UTC)
     with transaction() as s:
         return view.facts(s, _resolve(s, ref), as_of=as_of, kind=kind, field_id=field_id, period_end=period_end,
                           limit=limit, offset=offset)

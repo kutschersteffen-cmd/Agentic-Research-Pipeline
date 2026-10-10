@@ -176,8 +176,13 @@ def _holders(store, company_id: UUID, identifiers: list[IdentifierOut], today: d
     def matches(h) -> bool:
         if h.isin and ("ISIN", normalise_identifier("ISIN", h.isin)) in by_scheme:
             return True
-        if h.issuer_key and any(i.value == normalise_identifier(i.scheme, h.issuer_key.split(":", 1)[-1]) for i in identifiers):
-            return True
+        if h.issuer_key:
+            scheme = h.issuer_scheme or "LEI"
+            if scheme == "INTERNAL":
+                if h.issuer_key == str(company_id):
+                    return True
+            elif (scheme, normalise_identifier(scheme, h.issuer_key)) in by_scheme:
+                return True
         sec = store.get_security(h.security_id)
         return bool(sec and sec.company_id and normalise_identifier("UNIVERSE", sec.company_id) in universe)
 
@@ -227,9 +232,9 @@ def _primary_citations(session: Session, observation_ids: list[int]) -> dict[int
         select(m.ValueCitation, m.Document.title)
         .join(m.Document, m.Document.doc_id == m.ValueCitation.doc_id)
         .where(m.ValueCitation.observation_id.in_(observation_ids))
-        .order_by(m.ValueCitation.role != m.CitationRole.PRIMARY, m.ValueCitation.id.desc())
+        .order_by(m.ValueCitation.role == m.CitationRole.PRIMARY, m.ValueCitation.id.desc())
     )
-    for c, title in rows:  # later rows overwrite: the primary, lowest id, ends up last
+    for c, title in rows:  # later rows overwrite: primary (true sorts last), lowest id, ends up last
         out[c.observation_id] = (c, title)
     return out
 

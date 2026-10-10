@@ -59,6 +59,9 @@ def test_unknown_company_404(client, cid):
     assert client.get("/api/companies/00000000-0000-0000-0000-000000000000/facts").status_code == 404
     assert client.get("/api/companies/garbage").status_code == 404
     assert client.get("/api/facts/999/trail").status_code == 404
+    assert client.get("/api/companies", params={"limit": -1}).status_code == 422
+    assert client.get(f"/api/companies/{cid}/facts", params={"limit": 0}).status_code == 422
+    assert client.get(f"/api/companies/{cid}/facts", params={"offset": -1}).status_code == 422
 
 
 def test_facts_as_of_returns_historical_value(client, pg, cid):
@@ -71,6 +74,8 @@ def test_facts_as_of_returns_historical_value(client, pg, cid):
     old = client.get(f"/api/companies/{cid}/facts", params={"as_of": between.isoformat()}).json()
     assert [r["value"] for r in now] == [1000.0]
     assert [r["value"] for r in old] == [100]
+    naive = client.get(f"/api/companies/{cid}/facts", params={"as_of": between.replace(tzinfo=None).isoformat()}).json()
+    assert [r["value"] for r in naive] == [100]
     assert client.get(f"/api/companies/{cid}/facts", params={"as_of": "2000-01-01T00:00:00+00:00"}).json() == []
 
 
@@ -113,7 +118,9 @@ def test_trail_contains_citation_page_and_decision(client, run_store, pg, cid):
            "fields": [{"field_id": "revenue", "field_name": "Revenue", "value": 100.0, "confidence": 0.5,
                        "period_end": "2024-12-31", "route": "review"}]}
     obs = to_observations("extraction", cid, "r1", row, trial=False)
-    obs[0].citations = [CitationIn(doc_id="doc_a", page=12, quote="Revenue 100", char_start=5, char_end=16,
+    DocumentRegistry(pg).register_document(doc_id="doc_b", company_id="acme", doc_type="10-K", content_key="ck2",
+                                           title="Other", local_path=None, source_url=None)
+    obs[0].citations = [CitationIn(doc_id="doc_b", page=3, role=m.CitationRole.CORROBORATING), CitationIn(doc_id="doc_a", page=12, quote="Revenue 100", char_start=5, char_end=16,
                                    passage_id="p3", grounded=True)]
     key = "LEI:X:revenue:2024-12-31"
     run_store.record_company_result(
@@ -126,12 +133,13 @@ def test_trail_contains_citation_page_and_decision(client, run_store, pg, cid):
     versions = client.get(f"/api/facts/{fact['fact_id']}/trail").json()["versions"]
     assert [v["status"] for v in versions] == ["pending_review", "approved"]
     version = versions[-1]
-    assert version["citations"][0] == {
+    assert [c["role"] for c in version["citations"]] == ["corroborating", "primary"]
+    assert version["citations"][1] == {
         "doc_id": "doc_a", "title": "Annual Report", "page": 12, "quote": "Revenue 100", "char_start": 5, "char_end": 16,
         "passage_id": "p3", "role": "primary", "grounded": True}
     assert [(d["decision"], d["reviewer"]) for d in version["decisions"]] == [("approve", "bob")]
     summary = client.get(f"/api/companies/{cid}").json()
-    assert summary["fact_counts"] == {"approved": 1} and summary["documents"] == 1 and summary["runs"] == 1
+    assert summary["fact_counts"] == {"approved": 1} and summary["documents"] == 2 and summary["runs"] == 1
     assert summary["holders_available"] is True and summary["holders"] == []
 
 
@@ -146,15 +154,18 @@ def test_trail_lists_every_version(client, pg, cid):
 
 def test_holders_matched_by_any_identifier(client, cid, monkeypatch, tmp_path):
     from arp.api.deps import get_portfolio_store
-    from arp.schemas.portfolio import Holding, SecurityRef
+    from arp.schemas.portfolio import HolderConfig, Holding, SecurityRef
     from arp.storage.portfolio_store import PortfolioStore
 
     store = PortfolioStore(tmp_path / "pf")
     store.save_snapshot("idx1", "2026-01-01", [Holding(holder_id="idx1", kind="index", security_id="S1", as_of_date="2026-01-01",
-                                                       issuer_key=f"LEI:{LEI}", weight_pct=2.5)], kind="index")
+                                                       issuer_key=LEI, issuer_scheme="LEI", weight_pct=2.5)], kind="index")
+    store.save_snapshot("idx2", "2026-01-01", [
+        Holding(holder_id="idx2", kind="index", security_id="S3", as_of_date="2026-01-01", issuer_key=str(cid), issuer_scheme="INTERNAL"),
+        Holding(holder_id="idx2", kind="index", security_id="S4", as_of_date="2026-01-01", issuer_key="ACME", issuer_scheme="ISIN")], kind="index")
+    store.save_holder(HolderConfig(holder_id="idx2", kind="index"))
     store.save_snapshot("pf1", "2026-01-01", [Holding(holder_id="pf1", security_id="S2", as_of_date="2026-01-01", market_value_eur=1.0)])
     store.save_security(SecurityRef(security_id="S2", name="Acme", asset_class="equity", currency="EUR", company_id="acme"))
-    from arp.schemas.portfolio import HolderConfig
     store.save_holder(HolderConfig(holder_id="idx1", kind="index"))
     store.save_holder(HolderConfig(holder_id="pf1", kind="portfolio"))
     app.dependency_overrides[get_portfolio_store] = lambda: store
@@ -162,7 +173,7 @@ def test_holders_matched_by_any_identifier(client, cid, monkeypatch, tmp_path):
         holders = client.get(f"/api/companies/{cid}").json()["holders"]
     finally:
         app.dependency_overrides.pop(get_portfolio_store, None)
-    assert sorted((h["holder_id"], h["kind"], h["weight_pct"]) for h in holders) == [("idx1", "index", 2.5), ("pf1", "portfolio", None)]
+    assert sorted((h["holder_id"], h["kind"], h["weight_pct"]) for h in holders) == [("idx1", "index", 2.5), ("idx2", "index", None), ("pf1", "portfolio", None)]
 
 
 def _save_run(run_store, run_id, run_type, created_at, rows):
