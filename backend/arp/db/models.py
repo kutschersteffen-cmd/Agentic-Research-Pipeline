@@ -212,6 +212,7 @@ class SourceLoad(Base):
     payload_uri: Mapped[str | None] = mapped_column(Text)
     payload_sha: Mapped[str] = mapped_column(Text)
     status: Mapped[LoadStatus] = mapped_column(_enum(LoadStatus, "load_status"))
+    error: Mapped[str | None] = mapped_column(Text)  # why the last ingest failed
 
 
 # --- 2.2 fields --------------------------------------------------------------

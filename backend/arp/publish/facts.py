@@ -127,6 +127,51 @@ class ConcurrentPublish(RuntimeError):
     """Another publish changed a fact first."""
 
 
+class LicenceRefused(ValueError):
+    """A fact whose current value comes from an internal_only provider source (spec §2.8)."""
+
+
+def internal_only_keys(session, facts: Iterable[Fact | FactCandidate]) -> set[FactKey]:
+    """Keys whose current company fact comes from an `internal_only` source. Only provider
+    fields (`prov:`) have a source, so other facts never cost a query."""
+    from datetime import date
+    from uuid import UUID
+
+    from sqlalchemy import select
+
+    from arp.db import models as m
+    from arp.db.companies import lookup
+
+    out: set[FactKey] = set()
+    for f in facts:
+        if not f.field_id.startswith("prov:"):
+            continue
+        try:
+            period_end = date.fromisoformat(f.period_end)
+        except ValueError:
+            continue
+        try:
+            company_id = UUID(f.issuer_key)  # issuer_scheme INTERNAL: the registry UUID
+        except ValueError:
+            company_id = lookup(session, f.issuer_scheme, f.issuer_key)
+        if company_id is None:
+            continue
+        hit = session.scalar(
+            select(m.CompanyFact.id)
+            .join(m.FieldObservation, m.FieldObservation.id == m.CompanyFact.observation_id)
+            .join(m.DataSource, m.DataSource.source_id == m.FieldObservation.source_id)
+            .where(
+                m.CompanyFact.company_id == company_id, m.CompanyFact.field_id == f.field_id,
+                m.CompanyFact.period_end == period_end, m.CompanyFact.basis == f.basis,
+                m.CompanyFact.valid_to.is_(None), m.DataSource.licence == m.Licence.INTERNAL_ONLY,
+            )
+            .limit(1)
+        )
+        if hit is not None:
+            out.add(fact_key(f))
+    return out
+
+
 SERIALIZATION_FAILURES = {"40P01", "40001"}  # deadlock_detected, serialization_failure
 
 
@@ -178,6 +223,10 @@ class PublishStore:
             uris = s.scalars(select(R.storage_uri).where(R.storage_uri.is_not(None)).distinct())
             keys |= {u.rsplit("/", 1)[-1] for u in uris if u}
         return runs, {k for k in keys if k}
+
+    def internal_only(self, facts: Iterable[Fact | FactCandidate]) -> set[FactKey]:
+        with self.session() as s:
+            return internal_only_keys(s, facts)
 
     def current(self, keys: Iterable[FactKey]) -> dict[FactKey, Fact]:
         from sqlalchemy import select, tuple_
@@ -257,6 +306,9 @@ class PublishStore:
 
         # Rows in key order, so two publishes over overlapping keys lock them in the same order.
         plans = sorted(plans, key=lambda p: fact_key(p.fact) if p.fact is not None else ("",) * 4)
+        refused = self.internal_only(p.fact for p in plans if p.kind == "insert")
+        if refused:
+            raise LicenceRefused(f"internal_only source, not publishable: {sorted(refused)}")
         with _concurrent_on_serialization_failure(), self.session() as s:
             try:
                 if release is not None:

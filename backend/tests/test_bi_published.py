@@ -71,13 +71,36 @@ def test_trigger_rows_flatten_unified_triggers():
     ]
 
 
-def test_profile_rows_hold_latest_resolved_value_per_company_and_field(store):
+def test_profile_rows_hold_latest_resolved_value_per_company_and_field(store, pg):
     rows = profile_rows(store, MONTH)
     assert rows and {"company_id", "company_name", "field_id", "field_name", "value", "unit", "as_of", "source"} == set(rows[0])
     assert len({(r["company_id"], r["field_id"]) for r in rows}) == len(rows)
     r = rows[0]
     obs = datapoint_mapping.resolve_field_value(store, r["company_id"], r["field_id"], AS_OF)
     assert (r["value"], r["source"]) == (obs.value, obs.source)
+
+
+def test_profile_rows_skip_values_whose_current_fact_is_internal_only(store, pg, monkeypatch):
+    from datetime import date
+
+    from arp.db.companies import ensure_universe_company
+    from arp.db.models import IdScheme, Licence
+    from arp.db.providers import ProviderRow, ensure_source, ingest_rows, record_load
+    from arp.db.session import transaction
+    from arp.schemas.portfolio import DataPointObservation
+
+    cid = store.list_companies()[0].company_id
+    keys = [(cid, "prov:msci:co2"), (cid, "prov:open:co2")]  # the file store cannot hold `prov:` ids itself
+    monkeypatch.setattr(store, "list_observation_keys", lambda: keys)
+    monkeypatch.setattr(datapoint_mapping, "resolve_field_value", lambda st, c, f, as_of: DataPointObservation(
+        company_id=c, field_id=f, field_name="CO2", value=1.0, source="internal_api"))
+    with transaction(pg) as s:
+        ensure_universe_company(s, cid)
+        for slug, licence in (("msci", Licence.INTERNAL_ONLY), ("open", Licence.REDISTRIBUTABLE)):
+            sid = ensure_source(s, slug, name=slug, kind="api", licence=licence, id_scheme=None)
+            load = record_load(s, sid, slug.encode(), request={}, as_of=date(2026, 9, 30))
+            ingest_rows(s, load.load_id, [ProviderRow([(IdScheme.UNIVERSE, cid)], "co2", "CO2", None, "number", date(2026, 9, 30), 1.0)])
+    assert [r["field_id"] for r in profile_rows(store, MONTH)] == ["prov:open:co2"]
 
 
 def test_file_store_publish_rows_is_a_noop(store):

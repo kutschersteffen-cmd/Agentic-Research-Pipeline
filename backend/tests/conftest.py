@@ -42,7 +42,7 @@ def _pg_schema():
 
 
 @pytest.fixture
-def pg(_pg_schema, monkeypatch):
+def pg(_pg_schema, monkeypatch, tmp_path):
     """Empty tables for each test; yields the DSN, which is also the settings DSN (ARP_POSTGRES_DSN).
     Set through monkeypatch so a test's own setenv/delenv of it unwinds in the right order."""
     from arp.config import get_settings
@@ -50,6 +50,7 @@ def pg(_pg_schema, monkeypatch):
 
     reset_postgres_tables(_pg_schema)
     monkeypatch.setenv("ARP_POSTGRES_DSN", _pg_schema)
+    monkeypatch.setenv("ARP_BLOB_STORE_DIR", str(tmp_path / "blobs"))  # provider payloads, never the repo's data/
     get_settings.cache_clear()
     yield _pg_schema
     get_settings.cache_clear()
