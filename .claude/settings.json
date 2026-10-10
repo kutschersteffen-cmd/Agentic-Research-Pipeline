@@ -41,6 +41,12 @@
         "source": "github",
         "repo": "obra/superpowers-marketplace"
       }
+    },
+    "mattpocock": {
+      "source": {
+        "source": "github",
+        "repo": "mattpocock/skills"
+      }
     }
   },
   "enabledPlugins": {
@@ -50,7 +56,8 @@
     "i-have-adhd@i-have-adhd": true,
     "andrej-karpathy-skills@karpathy-skills": true,
     "humanizer@humanizer": true,
-    "superpowers@superpowers-marketplace": true
+    "superpowers@superpowers-marketplace": true,
+    "mattpocock-skills@mattpocock": true
   },
   "hooks": {
     "SessionStart": [
