@@ -46,7 +46,7 @@ def _unmatched_issues(store, idmap: IdentifierMapStore) -> list[dict]:
 
 def _check_issues(run_store: RunStore) -> list[dict]:
     """Newest run first, so each (issuer, field, period) is judged on its latest extracted value only."""
-    runs = sorted((m for m in run_store.list_runs("extraction") if not m.params.get("trial")), key=lambda m: m.created_at, reverse=True)
+    runs = run_store.extraction_runs()
     seen: set[str] = set()
     out = []
     for m in runs:

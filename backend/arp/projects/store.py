@@ -2,18 +2,14 @@
 
 from __future__ import annotations
 
-import os
 import re
-import tempfile
-from collections.abc import Iterator
-from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from arp.storage.atomic_io import atomic_write_text, read_text_utf8
+from arp.storage.atomic_io import atomic_write_bytes, atomic_write_text, read_text_utf8
 from arp.storage.locks import KeyedLock
 from arp.storage.safe_path import UnsafeIdentifierError, safe_filename
 
@@ -79,15 +75,7 @@ class ProjectStore:
 
     def lock(self, id: str):
         self.get(id)  # no stray directory for a nonexistent project
-        return self._lock(id)
-
-    def _create_lock(self, id: str):
-        return self._lock(_check_id(id))
-
-    @contextmanager
-    def _lock(self, id: str) -> Iterator[None]:
-        with self._locks.acquire(id):
-            yield
+        return self._locks.acquire(id)
 
     def _manifest(self, id: str) -> Path:
         return self.root / _check_id(id) / "project.json"
@@ -96,7 +84,7 @@ class ProjectStore:
         atomic_write_text(self._manifest(p.id), p.model_dump_json(indent=2))
 
     def create(self, id: str, name: str, description: str = "") -> Project:
-        with self._create_lock(id):
+        with self._locks.acquire(_check_id(id)):
             if self._manifest(id).exists():
                 raise ProjectError(f"Project already exists: {id}")
             p = Project(
@@ -142,8 +130,7 @@ class ProjectStore:
         with self.lock(id):
             p = self.get(id)
             target = self.file_path(id, "data", name)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            _write_bytes(target, content)
+            atomic_write_bytes(target, content)
             src = next((s for s in p.data if s.kind == "dws-constituents"), None)
             if src is None:
                 src = DataSource(kind="dws-constituents")
@@ -164,8 +151,7 @@ class ProjectStore:
             p = self.get(id)
             fname = f"{slug}.{'zip' if source == 'superset-export' else 'json'}"
             target = self.file_path(id, "dashboards", fname)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            _write_bytes(target, payload)
+            atomic_write_bytes(target, payload)
             entry = StoredDashboard(slug=slug, title=title, source=source, file=fname)
             for d in p.dashboards:
                 if d.slug == slug and d.file != fname:
@@ -174,13 +160,3 @@ class ProjectStore:
             self._save(p)
             return p
 
-
-def _write_bytes(path: Path, content: bytes) -> None:
-    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".tmp_", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "wb") as f:
-            f.write(content)
-        os.replace(tmp, path)
-    except BaseException:
-        Path(tmp).unlink(missing_ok=True)
-        raise

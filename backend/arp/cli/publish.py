@@ -95,7 +95,7 @@ def backfill(full: bool = typer.Option(False, "--full", help="Accepted for compa
     settings = get_settings()
     store, run_store = _store(settings), _run_store()
     started_at = now_iso()
-    runs = sorted((m for m in run_store.list_runs("extraction") if not m.params.get("trial")), key=lambda m: m.created_at)
+    runs = reversed(run_store.extraction_runs())
     releases = reconfirmed = blocked = skipped = 0
     for m in runs:
         result = _publish(store, run_store, m.run_id, None, settings)

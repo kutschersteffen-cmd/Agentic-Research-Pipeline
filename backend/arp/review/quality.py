@@ -49,6 +49,7 @@ from arp.schemas.issuer import issuer_key
 from arp.schemas.review import field_item_key, period_key
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.identifier_map import IdentifierMapStore
+from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.locks import KeyedLock
 from arp.storage.run_store import RunStore
 from arp.storage.schema_registry import SchemaRegistry
@@ -208,15 +209,14 @@ def seed_known_answers(run_store: RunStore, settings: Settings, *, count: int, s
     ))
     d = settings.review_quality_dir
     d.mkdir(parents=True, exist_ok=True)
-    with _LOCKS.acquire(str(d)), (d / KNOWN).open("a") as f:
-        f.writelines(json.dumps(k) + "\n" for k in known)
+    with _LOCKS.acquire(str(d)):
+        for k in known:
+            append_jsonl(d / KNOWN, k)
     return run_id
 
 
 def _known(settings: Settings) -> dict[tuple[str, str], dict]:
-    path = settings.review_quality_dir / KNOWN
-    rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
-    return {(k["run_id"], k["item_key"]): k for k in rows}
+    return {(k["run_id"], k["item_key"]): k for k in read_jsonl(settings.review_quality_dir / KNOWN)}
 
 
 def _rate(n: int, d: int) -> float:

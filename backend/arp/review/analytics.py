@@ -34,9 +34,7 @@ def monthly_totals(run_store: RunStore, month: str) -> list[ReasonTotal]:
     (field, extractor model, first cited document type, reason). System rows (an escalation a parser upgrade
     caused, `user_id == "system"`) are not reviewer decisions and are left out."""
     counts: Counter[tuple] = Counter()
-    for m in run_store.list_runs("extraction"):
-        if m.params.get("trial"):
-            continue
+    for m in run_store.extraction_runs():
         joined = {}
         for row in run_store.read_jsonl(run_store.results_path(m.run_id)):
             for f in row.get("fields", []):

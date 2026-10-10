@@ -32,11 +32,8 @@ class RunHistory:
     def load(cls, run_store: RunStore, *, exclude_run_id: str | None = None) -> RunHistory:
         # ponytail: full scan of past extraction runs per run; index by item_key if run count makes this slow
         h = cls()
-        runs = [
-            m for m in run_store.list_runs("extraction")
-            if m.run_id != exclude_run_id and not m.params.get("trial")
-        ]
-        for m in sorted(runs, key=lambda m: m.created_at):  # later runs overwrite earlier ones
+        runs = [m for m in run_store.extraction_runs() if m.run_id != exclude_run_id]
+        for m in reversed(runs):  # later runs overwrite earlier ones
             h._add_run(run_store, m.run_id)
         return h
 
