@@ -5,17 +5,22 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from arp.api.deps import get_run_store, get_scheduler, settings_dep
+from arp.api.deps import get_scheduler, settings_dep
 from arp.config import Settings
 from arp.discovery.change_detector import ChangeDetector
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
 from arp.discovery.scheduler import DiscoveryScheduler
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.discovery import DiscoveryScheduleConfig
+from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/discovery", tags=["discovery"])
+
+
+def _run_store(settings: Settings = Depends(settings_dep)) -> RunStore:
+    return RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
 
 
 class DiscoveryRunRequest(BaseModel):
@@ -28,7 +33,7 @@ class DiscoveryRunRequest(BaseModel):
 async def start_discovery_run(
     req: DiscoveryRunRequest,
     settings: Settings = Depends(settings_dep),
-    run_store: RunStore = Depends(get_run_store),
+    run_store: RunStore = Depends(_run_store),
 ) -> dict:
     """Manual trigger: 'search now' for new/updated investor-disclosure
     documents across the given (or referenced) company universe. Uses the
@@ -49,7 +54,7 @@ async def start_discovery_run(
 
 
 @router.get("/runs/{run_id}")
-def get_discovery_run(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+def get_discovery_run(run_id: str, run_store: RunStore = Depends(_run_store)) -> dict:
     manifest = run_store.load_manifest(run_id)
     if manifest is None:
         raise HTTPException(404, "Run not found")
@@ -58,7 +63,7 @@ def get_discovery_run(run_id: str, run_store: RunStore = Depends(get_run_store))
 
 @router.get("/runs/{run_id}/results")
 def get_discovery_results(
-    run_id: str, offset: int = 0, limit: int = 200, run_store: RunStore = Depends(get_run_store)
+    run_id: str, offset: int = 0, limit: int = 200, run_store: RunStore = Depends(_run_store)
 ) -> dict:
     rows = run_store.read_jsonl(run_store.results_path(run_id))
     return {"total": len(rows), "results": rows[offset : offset + limit]}

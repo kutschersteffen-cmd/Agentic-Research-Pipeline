@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from arp.api.deps import get_run_store, settings_dep
+from arp.api.deps import settings_dep
 from arp.config import Settings
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import RunBusy, run_lease
@@ -35,6 +35,10 @@ router = APIRouter(prefix="/api/xbrl", tags=["xbrl"])
 
 Offset = Query(0, ge=0)
 Limit = Query(100, ge=1, le=500)
+
+
+def _run_store(settings: Settings = Depends(settings_dep)) -> RunStore:
+    return RunStore(settings.runs_dir)
 
 
 def _store(settings: Settings = Depends(settings_dep)) -> XbrlStore:
@@ -80,7 +84,7 @@ class XbrlRunRequest(BaseModel):
 
 @router.post("/runs")
 async def start_run(
-    req: XbrlRunRequest, settings: Settings = Depends(settings_dep), run_store: RunStore = Depends(get_run_store)
+    req: XbrlRunRequest, settings: Settings = Depends(settings_dep), run_store: RunStore = Depends(_run_store)
 ) -> dict:
     companies = req.companies
     if not companies and req.universe_path:
@@ -103,13 +107,13 @@ async def start_run(
 
 
 @router.get("/runs/{run_id}")
-def get_run(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+def get_run(run_id: str, run_store: RunStore = Depends(_run_store)) -> dict:
     return _manifest(run_store, run_id).model_dump(mode="json")
 
 
 @router.get("/runs/{run_id}/results")
 def get_run_results(
-    run_id: str, offset: int = Offset, limit: int = Limit, run_store: RunStore = Depends(get_run_store)
+    run_id: str, offset: int = Offset, limit: int = Limit, run_store: RunStore = Depends(_run_store)
 ) -> dict:
     _manifest(run_store, run_id)
     rows = run_store.read_jsonl(run_store.results_path(run_id))
@@ -118,7 +122,7 @@ def get_run_results(
 
 @router.post("/runs/{run_id}/retry")
 async def retry_run(
-    run_id: str, settings: Settings = Depends(settings_dep), run_store: RunStore = Depends(get_run_store)
+    run_id: str, settings: Settings = Depends(settings_dep), run_store: RunStore = Depends(_run_store)
 ) -> dict:
     manifest = _manifest(run_store, run_id)
     companies = run_store.load_companies(run_id)
@@ -233,7 +237,7 @@ def get_pivot(
 
 @router.get("/required")
 def get_required(
-    run_id: str, run_store: RunStore = Depends(get_run_store), store: XbrlStore = Depends(_store)
+    run_id: str, run_store: RunStore = Depends(_run_store), store: XbrlStore = Depends(_store)
 ) -> list[RequiredRow]:
     _manifest(run_store, run_id)
     ids = {c.company_id for c in run_store.load_companies(run_id) or []}
@@ -248,7 +252,7 @@ class VerifyRequest(BaseModel):
 
 
 @router.post("/verify")
-def verify(req: VerifyRequest, run_store: RunStore = Depends(get_run_store), store: XbrlStore = Depends(_store)):
+def verify(req: VerifyRequest, run_store: RunStore = Depends(_run_store), store: XbrlStore = Depends(_store)):
     _manifest(run_store, req.run_id)
     try:
         return verify_run(req.run_id, run_store=run_store, store=store, mapping=req.mapping,

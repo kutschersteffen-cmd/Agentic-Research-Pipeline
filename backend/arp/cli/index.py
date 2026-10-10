@@ -5,12 +5,17 @@ from pathlib import Path
 
 import typer
 
-from arp.api.deps import get_index_store as _index_store
 from arp.config import get_settings
 
 index_app = typer.Typer(
     help="Equity index construction: compose screens/selection/weighting/constraints into a saved, versioned calibration and run reviews from it."
 )
+
+
+def _index_store():
+    from arp.storage.index_store import IndexStore
+
+    return IndexStore(get_settings().indices_dir)
 
 
 def _index_universe(universe_file: Path | None):

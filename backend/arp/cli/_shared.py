@@ -4,12 +4,25 @@ import os
 
 import typer
 
-from arp.api import deps
 from arp.api.auth import Principal, load_users
 from arp.config import Settings, get_settings
+from arp.ingestion.edgar import EdgarDocumentSource
+from arp.ingestion.esef import EsefDocumentSource
+from arp.ingestion.indexing_config import IndexingConfig
+from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.ingestion.xbrl import XbrlFactSource
+from arp.retrieval.content_store_factory import content_store_for
 from arp.schemas.taxonomy import TaxonomyRef
+from arp.storage.document_store import DocumentContentStore
+from arp.storage.engagement_store import EngagementStore
 from arp.storage.portfolio_store import portfolio_directories
+from arp.storage.portfolio_store_factory import build_portfolio_store
+from arp.storage.postgres_projection_config import ProjectionConfig
+from arp.storage.reporting_store import ReportingStore
+from arp.storage.run_store import RunStore
+from arp.storage.taxonomy_store import TaxonomyStore
+from arp.storage.topic_store import TopicStateStore
 from arp.voting.ballot_casting import ManualInstructionBallotPlatform
 
 
@@ -25,25 +38,73 @@ async def _and_drain(coro):
     return result
 
 
-# The API's builders, uncached (__wrapped__): the CLI reads settings fresh on every call.
-_engagement_store = deps.get_engagement_store.__wrapped__
-_reporting_store = deps.get_reporting_store.__wrapped__
+def _engagement_store() -> EngagementStore:
+    settings = get_settings()
+    return EngagementStore(settings.engagements_dir, projection_config=ProjectionConfig.from_settings(settings))
+
+
+
+def _reporting_store() -> ReportingStore:
+    settings = get_settings()
+    return ReportingStore(settings.reports_dir, settings.report_templates_dir)
+
 
 
 def _ballot_platform() -> ManualInstructionBallotPlatform:
     return ManualInstructionBallotPlatform(get_settings().ballots_dir)
 
 
-_document_content_store = deps.get_document_content_store.__wrapped__
+
+def _document_content_store() -> DocumentContentStore:
+    settings = get_settings()
+    return content_store_for(settings)
+
 
 
 def _registry() -> DocumentSourceRegistry:
-    return deps.build_registry(get_settings(), _document_content_store())
+    settings = get_settings()
+    indexing_config = IndexingConfig.from_settings(settings)
+    return DocumentSourceRegistry(
+        [
+            LocalFileDocumentSource(
+                settings.documents_dir,
+                content_store=_document_content_store(),
+                max_concurrent_parses=settings.max_concurrent_parses,
+                indexing_config=indexing_config,
+            ),
+            EdgarDocumentSource(
+                settings.edgar_user_agent,
+                settings.cache_dir,
+                content_store=_document_content_store(),
+                submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
+                indexing_config=indexing_config,
+            ),
+            *([EsefDocumentSource(settings.esef_index_url, settings.cache_dir, content_store=_document_content_store(),
+                                  indexing_config=indexing_config)] if settings.esef_enabled else []),
+        ]
+    )
 
 
-_xbrl_source = deps.get_xbrl_source.__wrapped__  # its EdgarDocumentSource is the cached get_edgar_source()
-_run_store = deps.get_run_store.__wrapped__
-_taxonomy_store = deps.get_taxonomy_store.__wrapped__
+
+def _xbrl_source() -> XbrlFactSource:
+    settings = get_settings()
+    edgar = EdgarDocumentSource(
+        settings.edgar_user_agent, settings.cache_dir, content_store=_document_content_store(),
+        submissions_ttl_hours=settings.edgar_submissions_ttl_hours,
+        indexing_config=IndexingConfig.from_settings(settings),  # the blob store tagged values are frozen into
+    )
+    return XbrlFactSource(edgar, settings.cache_dir, ttl_hours=settings.xbrl_facts_ttl_hours)
+
+
+
+def _run_store() -> RunStore:
+    settings = get_settings()
+    return RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
+
+
+
+def _taxonomy_store() -> TaxonomyStore:
+    return TaxonomyStore(get_settings().taxonomies_dir)
 
 
 def _parse_taxonomy_ref(ref: str) -> TaxonomyRef:
@@ -64,8 +125,17 @@ def _resolve_taxonomy_ref_or_exit(ref_str: str):
     return taxonomy
 
 
-_topic_store = deps.get_topic_store.__wrapped__
-_portfolio_store = deps.get_portfolio_store.__wrapped__
+
+def _topic_store() -> TopicStateStore:
+    return TopicStateStore(get_settings().emerging_themes_state_dir / "topics")
+
+
+
+def _portfolio_store():
+    return build_portfolio_store(get_settings())
+
+
+
 _portfolio_directories = portfolio_directories
 
 

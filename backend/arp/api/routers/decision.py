@@ -772,10 +772,7 @@ def compare(req: CompareRequest, store: DecisionStore = Depends(get_decision_sto
     before = _load_dataset(req.dataset_id_before, store)
     after = _load_dataset(req.dataset_id_after, store)
     config = _resolve_config(req.config, req.framework_id, req.version, store)
-    try:
-        return compare_datasets(before, after, config, store)
-    except ValueError as exc:  # a rule graph that does not compile
-        raise HTTPException(400, str(exc)) from exc
+    return compare_datasets(before, after, config, store, apply=_apply)
 
 
 # --- publishing: the handoff to stewardship coverage and index construction ---

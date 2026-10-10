@@ -6,7 +6,6 @@ from pathlib import Path
 import typer
 from pydantic import ValidationError
 
-from arp.api.deps import get_decision_store
 from arp.cli._shared import _portfolio_store, _run_store, cli_principal
 from arp.config import get_settings
 from arp.decision import sources as decision_sources
@@ -19,12 +18,15 @@ from arp.decision.profiling import profile_dataset
 from arp.decision.roles import propose_roles
 from arp.decision.sensitivity import tipping_points
 from arp.schemas.decision import MechanismConfig
-
-_decision_store = get_decision_store.__wrapped__
+from arp.storage.decision_store import DecisionStore
 
 decision_app = typer.Typer(
     help="Decision Mechanism: derive, tune and apply a scoring/tiering framework to any per-entity table. No LLM calls."
 )
+
+
+def _decision_store() -> DecisionStore:
+    return DecisionStore(get_settings().frameworks_dir)
 
 
 def _dataset(

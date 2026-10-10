@@ -9,7 +9,6 @@ from arp.agents.taxonomy_researcher import (
     execute_taxonomy_research_run,
 )
 from arp.api.deps import (
-    get_run_store,
     get_taxonomy_researcher_scheduler,
     get_taxonomy_store,
     get_web_search_client,
@@ -19,10 +18,15 @@ from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
 from arp.llm.base import LLMClient
 from arp.schemas.taxonomy_researcher import TaxonomyResearcherScheduleConfig
+from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 
 router = APIRouter(prefix="/api/taxonomy-researcher", tags=["taxonomy-researcher"])
+
+
+def _run_store(settings: Settings = Depends(settings_dep)) -> RunStore:
+    return RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
 
 
 class TaxonomyResearchRunRequest(BaseModel):
@@ -33,7 +37,7 @@ class TaxonomyResearchRunRequest(BaseModel):
 async def start_taxonomy_research_run(
     req: TaxonomyResearchRunRequest,
     settings: Settings = Depends(settings_dep),
-    run_store: RunStore = Depends(get_run_store),
+    run_store: RunStore = Depends(_run_store),
     taxonomy_store: TaxonomyStore = Depends(get_taxonomy_store),
 ) -> dict:
     """Manual trigger: 'scan now' for every ratified taxonomy (or just
@@ -62,7 +66,7 @@ async def start_taxonomy_research_run(
 
 
 @router.get("/runs/{run_id}")
-def get_taxonomy_research_run(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+def get_taxonomy_research_run(run_id: str, run_store: RunStore = Depends(_run_store)) -> dict:
     manifest = run_store.load_manifest(run_id)
     if manifest is None:
         raise HTTPException(404, "Run not found")
@@ -71,7 +75,7 @@ def get_taxonomy_research_run(run_id: str, run_store: RunStore = Depends(get_run
 
 @router.get("/runs/{run_id}/results")
 def get_taxonomy_research_results(
-    run_id: str, offset: int = 0, limit: int = 200, run_store: RunStore = Depends(get_run_store)
+    run_id: str, offset: int = 0, limit: int = 200, run_store: RunStore = Depends(_run_store)
 ) -> dict:
     rows = run_store.read_jsonl(run_store.results_path(run_id))
     return {"total": len(rows), "results": rows[offset : offset + limit]}

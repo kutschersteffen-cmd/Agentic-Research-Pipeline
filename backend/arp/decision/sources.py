@@ -631,14 +631,16 @@ def from_source(
     }
     if source in by_run:
         if not run_id:
-            raise ValueError("`run_id` is required for this source.")
+            raise ValueError("A run id (`run_id`, or --run-id on the CLI) is required for this source.")
         return by_run[source](run_id)
     if source == "joined_runs":
         return from_joined_runs(run_store, run_ids or [], include_indicators=include_indicators)
     if source == "portfolio_snapshot":
+        if portfolio_store is None:
+            raise ValueError("portfolio_snapshot needs a portfolio store.")
         return from_portfolio_snapshot(portfolio_store, as_of, portfolio_ids)
-    # transition_barrier, emerging_themes_run and replication_runs score something other
-    # than a company -- a sector in a jurisdiction, a theme, a strategy. The engine does not care.
+    # transition_barrier and replication_runs (like emerging_themes_run above) score something
+    # other than a company -- a sector in a jurisdiction, a strategy. The engine does not care.
     if source == "transition_barrier":
         return from_transition_barrier(region, sectors)
     if source == "replication_runs":

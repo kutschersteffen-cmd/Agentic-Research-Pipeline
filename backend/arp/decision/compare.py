@@ -19,13 +19,14 @@ def hold_cuts(config: MechanismConfig, before: DecisionResult) -> MechanismConfi
     return config.model_copy(update={"cut_mode": "absolute", "pinned_cuts": list(before.effective_cuts)})
 
 
-def compare_datasets(before: Dataset, after: Dataset, config: MechanismConfig, store) -> DecisionComparison:
+def compare_datasets(before: Dataset, after: Dataset, config: MechanismConfig, store, apply=apply_mechanism) -> DecisionComparison:
     """`config` over two snapshots, each with its reviewers' overrides from
-    `store` (a DecisionStore), the later one scored on the earlier one's cuts."""
-    first = apply_mechanism(before, config, overrides=overrides.load(store.overrides_path(before.dataset_id)))
+    `store` (a DecisionStore), the later one scored on the earlier one's cuts.
+    `apply` lets the API map a rule graph that does not compile to a 400."""
+    first = apply(before, config, overrides=overrides.load(store.overrides_path(before.dataset_id)))
     return compare_results(
         first,
-        apply_mechanism(after, hold_cuts(config, first), overrides=overrides.load(store.overrides_path(after.dataset_id))),
+        apply(after, hold_cuts(config, first), overrides=overrides.load(store.overrides_path(after.dataset_id))),
         label_before=before.as_of or before.name,
         label_after=after.as_of or after.name,
     )

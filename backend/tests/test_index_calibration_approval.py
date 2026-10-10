@@ -117,7 +117,6 @@ def cli(tmp_path, monkeypatch):
     ]}))
     settings = Settings(indices_dir=tmp_path / "idx", users_file=users)
     monkeypatch.setattr(cli_index, "get_settings", lambda: settings)
-    monkeypatch.setattr("arp.api.deps.get_settings", lambda: settings)
 
     def run(token, *args):
         monkeypatch.setenv("ARP_CLI_TOKEN", token)

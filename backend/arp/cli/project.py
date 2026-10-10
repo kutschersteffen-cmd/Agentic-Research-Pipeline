@@ -6,12 +6,20 @@ from pathlib import Path
 
 import typer
 
-from arp.api.deps import get_project_store as _store
-from arp.cli._shared import _portfolio_store
 from arp.config import get_settings
-from arp.projects.store import MAX_UPLOAD_BYTES, Project, ProjectError, _check_filename
+from arp.projects.store import MAX_UPLOAD_BYTES, Project, ProjectError, ProjectStore, _check_filename
 
 project_app = typer.Typer(help="Projects: a folder of data files plus saved dashboards (arp/projects/).")
+
+
+def _store() -> ProjectStore:
+    return ProjectStore(get_settings().projects_dir)
+
+
+def _portfolio_store():
+    from arp.cli._shared import _portfolio_store as build
+
+    return build()
 
 
 def _superset_client():

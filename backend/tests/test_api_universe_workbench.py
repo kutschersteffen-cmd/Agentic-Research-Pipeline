@@ -13,7 +13,6 @@ from arp.config import Settings
 from arp.schemas.issuer import IdentifierMap
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
-from arp.storage.run_store import RunStore
 from tests.conftest import PRINCIPAL
 
 
@@ -32,7 +31,6 @@ def env(tmp_path):
     app = FastAPI()
     app.include_router(wb.router)
     app.dependency_overrides[deps.settings_dep] = lambda: settings
-    app.dependency_overrides[deps.get_run_store] = lambda: RunStore(settings.runs_dir)
     app.dependency_overrides[deps.get_document_content_store] = lambda: DocumentContentStore(tmp_path / "store")
     app.dependency_overrides[current_user] = lambda: PRINCIPAL
     return TestClient(app), settings

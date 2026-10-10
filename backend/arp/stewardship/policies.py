@@ -39,7 +39,7 @@ from arp.stewardship.tiers import TIER_LABELS, TIERS, tier_contexts
 from arp.stewardship.tiers import evaluate as evaluate_tiers
 from arp.stewardship.tiers import load_graph as default_coverage_graph
 from arp.storage.atomic_io import atomic_write_text
-from arp.storage.jsonl_io import append_jsonl, read_jsonl
+from arp.storage.jsonl_io import append_jsonl
 
 
 def _validate_coverage(graph: dict, sample: dict) -> None:
@@ -145,7 +145,10 @@ class PolicyStore:
         return json.loads(path.read_text())["content"]
 
     def activations(self, policy_id: str) -> list[dict]:
-        return read_jsonl(self._dir(policy_id) / "activations.jsonl")
+        # Strict on purpose (not read_jsonl, which skips torn lines): a damaged
+        # four-eyes log must fail loudly, never fall back to an older policy.
+        path = self._dir(policy_id) / "activations.jsonl"
+        return [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
 
     def active_version(self, policy_id: str) -> int:
         log = self.activations(policy_id)
