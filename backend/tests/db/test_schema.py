@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 from sqlalchemy import inspect, text
-from sqlalchemy.exc import DataError, IntegrityError, StatementError
+from sqlalchemy.exc import DataError, IntegrityError
 
 from arp.db import models as m
 from arp.db.session import engine, transaction
@@ -80,8 +80,25 @@ def test_active_alias_unique(pg):
 
 
 def test_unknown_decision_rejected(pg):
-    with pytest.raises((DataError, StatementError)), transaction(pg) as s:
-        s.add(m.ReviewDecision(review_item_id=1, decision="maybe"))
+    with transaction(pg) as s:
+        c = m.Company(name="A")
+        s.add_all([c, m.Run(run_id="r1", run_type="extraction", status=m.RunStatus.PENDING)])
+        s.flush()
+        item = m.ReviewItem(run_id="r1", company_id=c.id, item_key="k", payload={})
+        s.add(item)
+        s.flush()
+        item_id = item.id
+        s.add(m.ReviewDecision(review_item_id=item_id, decision=m.DecisionKind.APPROVE))
+    with pytest.raises(DataError, match="invalid input value for enum"), transaction(pg) as s:
+        s.execute(text("INSERT INTO review_decisions (review_item_id, decision) VALUES (:i, 'maybe')"), {"i": item_id})
+
+
+def test_two_current_facts_without_period_are_rejected(pg):
+    with pytest.raises(IntegrityError), transaction(pg) as s:
+        cid, oid = _fact_setup(s)
+        a, b = _fact(cid, oid), _fact(cid, oid)
+        a.period_end = b.period_end = None
+        s.add_all([a, b])
 
 
 def test_legacy_tables_are_renamed_and_kept(pg):

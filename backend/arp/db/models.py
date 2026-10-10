@@ -433,7 +433,7 @@ class ReviewItem(Base):
     id: Mapped[int] = _id()
     run_id: Mapped[str] = mapped_column(ForeignKey("runs.run_id"))
     company_id: Mapped[uuid.UUID] = _company_fk()
-    item_key: Mapped[str | None] = mapped_column(Text)
+    item_key: Mapped[str] = mapped_column(Text)
     observation_id: Mapped[int | None] = mapped_column(ForeignKey("field_observations.id"))
     payload: Mapped[dict] = mapped_column(JSONB)
     state: Mapped[ItemState] = mapped_column(_enum(ItemState, "item_state"), default=ItemState.PENDING)
@@ -485,6 +485,7 @@ class CompanyFact(Base):
             "basis",
             unique=True,
             postgresql_where=text("valid_to IS NULL"),
+            postgresql_nulls_not_distinct=True,  # theme/vote facts have no period_end
         ),
     )
 
