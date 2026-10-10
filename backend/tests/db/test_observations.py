@@ -166,12 +166,12 @@ def test_review_approve_turns_pending_into_approved(run_store, pg):
         assert s.scalar(select(m.ReviewItem.observation_id)) == fact.observation_id
 
 
-def test_reject_leaves_fact_and_edit_waits_for_cosign(run_store, pg):
+def test_reject_retires_pending_fact_and_edit_waits_for_cosign(run_store, pg):
     cid, key = _write_extraction(run_store, pg, 100.0)
     record_review_decision(run_store, "r1", key, "reject", "bob", None)
-    assert _current(pg, cid) == [(FY24, 100.0, m.FactStatus.PENDING_REVIEW)]
+    assert _current(pg, cid) == []  # the rejected first value is no longer current; nothing replaces it
     record_review_decision(run_store, "r1", key, "edit", "bob", {"value": 110.0})
-    assert _current(pg, cid) == [(FY24, 100.0, m.FactStatus.PENDING_REVIEW)]  # extraction edits need a cosign
+    assert _current(pg, cid) == []  # extraction edits need a cosign
     record_cosign(run_store, "r1", key, PRINCIPAL)
     assert _current(pg, cid) == [(FY24, 110.0, m.FactStatus.EDITED)]
 
@@ -227,3 +227,145 @@ async def test_company_batch_writes_observations_and_facts(run_store, pg):
     (company,) = run_store.load_companies(run_id)
     assert _current(pg, company.entity_id) == [(FY24, 5.0, m.FactStatus.AUTO_ACCEPTED)]
     assert run_store.load_manifest(run_id).completed_count == 1
+
+
+def test_reject_keeps_an_accepted_fact(run_store, pg):
+    cid, _ = _write_extraction(run_store, pg, 100.0, route="auto_accept")
+    _, key = _write_extraction(run_store, pg, 120.0, run_id="r2")
+    record_review_decision(run_store, "r2", key, "reject", "bob", None)
+    assert _current(pg, cid) == [(FY24, 100.0, m.FactStatus.AUTO_ACCEPTED)]
+
+
+def test_requeue_keeps_observation_link(run_store, pg):
+    from arp.orchestration.review_queue import queue_for_review
+
+    _, key = _write_extraction(run_store, pg, 100.0)
+    with transaction(pg) as s:
+        linked = s.scalar(select(m.ReviewItem.observation_id))
+    assert linked is not None
+    queue_for_review(run_store, "r1", key, {"field_id": "revenue", "period_end": "2024-12-31", "review_reasons": ["span_moved"]})
+    with transaction(pg) as s:
+        assert s.scalar(select(m.ReviewItem.observation_id)) == linked
+
+
+def _financials(run_store, pg, *, needs_review):
+    cid = _company(pg)
+    run_store.save_manifest(RunManifest(run_id="f1", run_type="financials"))
+    fin = {"company_id": "acme", "name": "Acme", "run_id": "f1", "currency": "USD", "fiscal_period": "2024-12-31",
+           "capex": {"total": {"value": 7.0}}, "rnd": {"total": {"value": 3.0}}, "needs_review": needs_review,
+           "_key": "acme"}
+    run_store.record_company_result(
+        "f1", fin, observations=to_observations("financials", cid, "f1", fin, trial=False),
+        review_items=[("acme", fin)] if needs_review else [],
+        company=CompanyRef(company_id="acme", name="Acme", entity_id=cid),
+    )
+    return cid
+
+
+def _facts(pg):
+    with transaction(pg) as s:
+        return {f.field_id: (f.value, f.status) for f in s.scalars(select(m.CompanyFact).where(m.CompanyFact.valid_to.is_(None)))}
+
+
+def test_whole_record_review_resolves_its_facts(run_store, pg):
+    _financials(run_store, pg, needs_review=True)
+    assert {v[1] for v in _facts(pg).values()} == {m.FactStatus.PENDING_REVIEW}
+    record_review_decision(run_store, "f1", "acme", "approve", "bob", None)
+    assert _facts(pg) == {"capex_total": (7.0, m.FactStatus.APPROVED), "rnd_total": (3.0, m.FactStatus.APPROVED)}
+
+
+def test_whole_record_edit_sets_only_named_fields(run_store, pg):
+    _financials(run_store, pg, needs_review=True)
+    record_review_decision(run_store, "f1", "acme", "edit", "bob", {"capex_total": 8.0})
+    assert _facts(pg) == {"capex_total": (8.0, m.FactStatus.EDITED), "rnd_total": (3.0, m.FactStatus.PENDING_REVIEW)}
+
+
+def _ballot_and_theme(run_store, pg):
+    cid = _company(pg)
+    company = CompanyRef(company_id="acme", name="Acme", entity_id=cid)
+    run_store.save_manifest(RunManifest(run_id="v1", run_type="proxy_voting"))
+    vote = {"proposal": {"company_id": "acme", "meeting_id": "M1", "proposal_number": "3", "type": "other",
+                         "sponsor": "Management", "resolution_text": "t"},
+            "policy_recommendation": {"vote": "for", "rationale": "r"}}
+    ballot = {"company_id": "acme", "name": "Acme", "meeting_id": "M1", "votes": [vote], "_key": "acme"}
+    run_store.record_company_result("v1", ballot, observations=to_observations("proxy_voting", cid, "v1", ballot, trial=False),
+                                    review_items=[("acme:3", vote)], company=company)
+    run_store.save_manifest(RunManifest(run_id="t1", run_type="theme"))
+    match = {"company_id": "acme", "name": "Acme", "activity_id": "A1", "activity_name": "a", "verdict": "uncertain",
+             "exposure_estimate": "low", "confidence": 0.4, "adjudicator_rationale": "x", "flagged_for_review": True}
+    themed = {"company_matches": [match], "_key": "acme"}
+    run_store.record_company_result("t1", themed, observations=to_observations("theme", cid, "t1", themed, trial=False),
+                                    review_items=[("acme:A1", match)], company=company)
+
+
+def test_vote_and_theme_decisions_reach_facts(run_store, pg):
+    _ballot_and_theme(run_store, pg)
+    assert _facts(pg) == {
+        "vote:M1:3": ("for", m.FactStatus.PENDING_REVIEW),
+        "theme:A1": ({"verdict": "uncertain", "exposure_estimate": "low"}, m.FactStatus.PENDING_REVIEW),
+    }
+    record_review_decision(run_store, "v1", "acme:3", "edit", "bob", {"vote": "against", "co_signed_by": "ann"})
+    record_review_decision(run_store, "t1", "acme:A1", "edit", "bob", {"value": "include"})
+    assert _facts(pg) == {
+        "vote:M1:3": ("against", m.FactStatus.EDITED),
+        "theme:A1": ({"verdict": "include", "exposure_estimate": "low"}, m.FactStatus.EDITED),
+    }
+
+
+def test_theme_approve_reaches_fact(run_store, pg):
+    _ballot_and_theme(run_store, pg)
+    record_review_decision(run_store, "t1", "acme:A1", "approve", "bob", None)
+    assert _facts(pg)["theme:A1"][1] == m.FactStatus.APPROVED
+
+
+def test_held_documents_make_held_facts(run_store, pg):
+    cid = _company(pg)
+    DocumentRegistry(pg).register_document(doc_id="doc_x", company_id="acme", doc_type="10-K", content_key="ck",
+                                           title="Other entity", local_path=None, source_url=None)
+    run_store.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
+    row = {**_extraction_row(5.0, route="hold"), "held_documents": [{"doc_id": "doc_x", "reason": "entity_mismatch"}]}
+    run_store.record_company_result("r1", row, observations=to_observations("extraction", cid, "r1", row, trial=False),
+                                    review_items=[], company=CompanyRef(company_id="acme", name="Acme", entity_id=cid))
+    assert _current(pg, cid) == [(FY24, 5.0, m.FactStatus.HELD)]
+    with transaction(pg) as s:
+        held = s.scalars(select(m.RunHeldDocument)).all()
+        assert [(h.run_id, h.company_id, h.doc_id, h.reason) for h in held] == [("r1", cid, "doc_x", "entity_mismatch")]
+
+
+def test_held_value_does_not_displace_accepted_fact(run_store, pg):
+    cid, _ = _write_extraction(run_store, pg, 100.0, route="auto_accept")
+    _write_extraction(run_store, pg, 5.0, route="hold", run_id="r2")
+    assert _current(pg, cid) == [(FY24, 100.0, m.FactStatus.AUTO_ACCEPTED)]
+
+
+def test_value_not_fitting_data_type_goes_to_run_errors(run_store, pg):
+    from arp.db.fields import ensure_extracted_field
+
+    with transaction(pg) as s:
+        ensure_extracted_field(s, "revenue", m.FieldDefinition(version=1, name="Revenue", data_type="number", definition={}))
+        ensure_extracted_field(s, "listed", m.FieldDefinition(version=1, name="Listed", data_type="boolean", definition={}))
+    cid = _company(pg)
+    run_store.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
+    row = _extraction_row("lots")
+    row["fields"] += [
+        {**row["fields"][0], "value": "1,234", "period_end": "2023-12-31"},
+        {"field_id": "listed", "field_name": "Listed", "value": "yes", "confidence": 0.9, "route": "auto_accept"},
+    ]
+    run_store.record_company_result("r1", row, observations=to_observations("extraction", cid, "r1", row, trial=False),
+                                    review_items=[], company=CompanyRef(company_id="acme", name="Acme", entity_id=cid))
+    assert run_store.read_errors("r1") == [
+        {"kind": "invalid_value", "field_id": "revenue", "raw": "lots"},
+        {"kind": "invalid_value", "field_id": "listed", "raw": "yes"},
+    ]
+    with transaction(pg) as s:
+        assert s.scalars(select(m.FieldObservation.value)).all() == ["1,234"]
+
+
+def test_unregistered_citation_goes_to_run_errors(run_store, pg):
+    cid = _company(pg)
+    run_store.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
+    row = _extraction_row(5.0, route="auto_accept")
+    row["fields"][0]["citations"] = [{"doc_id": "doc_gone", "doc_type": "10-K", "quote": "q"}]
+    run_store.record_company_result("r1", row, observations=to_observations("extraction", cid, "r1", row, trial=False),
+                                    review_items=[], company=CompanyRef(company_id="acme", name="Acme", entity_id=cid))
+    assert run_store.read_errors("r1") == [{"kind": "unregistered_citation", "doc_id": "doc_gone"}]

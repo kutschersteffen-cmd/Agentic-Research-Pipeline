@@ -38,5 +38,12 @@ def test_not_found_keeps_current():
     assert decide(None, None, A, MISS) == "noop"
 
 
-def test_held_supersedes_with_held_status():
-    assert decide(_fact(1000), 1200, H, FOUND) == "supersede"
+def test_held_does_not_displace_accepted_fact():
+    for status in (A, FactStatus.APPROVED, FactStatus.EDITED):
+        assert decide(_fact(1000, status), 1200, H, FOUND) == "keep"
+
+
+def test_held_replaces_pending_fact():
+    assert decide(None, 1200, H, FOUND) == "insert"
+    assert decide(_fact(1000, P), 1200, H, FOUND) == "supersede"
+    assert decide(_fact(1000, H), 1200, H, FOUND) == "supersede"

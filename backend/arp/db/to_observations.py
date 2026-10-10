@@ -36,15 +36,16 @@ def vote_field_id(meeting_id, proposal_number) -> str:
     return f"vote:{_segment(meeting_id)}:{_segment(proposal_number)}"
 
 
-def review_target(payload: dict) -> tuple[str, str | None] | None:
-    """(field_id, ISO period_end) of the observation a review payload is about, if any."""
+def review_target(payload: dict) -> tuple[str, str | None, str] | None:
+    """(field_id, ISO period_end, basis) of the observation a review payload is about, if any."""
     if payload.get("field_id"):
-        return payload["field_id"], payload.get("period_end")
+        field = payload.get("field") if isinstance(payload.get("field"), dict) else {}
+        return payload["field_id"], payload.get("period_end"), payload.get("basis") or field.get("basis") or ""
     if payload.get("activity_id"):
-        return theme_field_id(payload["activity_id"]), None
+        return theme_field_id(payload["activity_id"]), None, ""
     proposal = payload.get("proposal")
     if isinstance(proposal, dict) and proposal.get("meeting_id") and proposal.get("proposal_number"):
-        return vote_field_id(proposal["meeting_id"], proposal["proposal_number"]), None
+        return vote_field_id(proposal["meeting_id"], proposal["proposal_number"]), None, ""
     return None
 
 

@@ -185,10 +185,13 @@ class RunStore:
         with self._tx(run_id) as s:
             self._insert_review_item(s, run_id, _jsonb_safe(row))
 
-    def _insert_review_item(self, s: Session, run_id: str, row: dict, observation_id: int | None = None) -> None:
+    def _insert_review_item(
+        self, s: Session, run_id: str, row: dict, observation_id: int | None = None, company_id=None
+    ) -> None:
+        """`company_id`, when given, is the company's UUID already known to the caller."""
         cid = row.get("company_id")
         try:
-            company = select(Company.id).where(Company.id == uuid.UUID(str(cid))).scalar_subquery()
+            company = company_id or select(Company.id).where(Company.id == uuid.UUID(str(cid))).scalar_subquery()
         except ValueError:
             company = self._universe_company(run_id, cid)
         self._ensure_run(s, run_id)
@@ -199,7 +202,12 @@ class RunStore:
         s.execute(
             stmt.on_conflict_do_update(
                 constraint="uq_review_items_key",
-                set_={k: stmt.excluded[k] for k in ("payload", "company_id", "observation_id")},
+                set_={
+                    "payload": stmt.excluded.payload,
+                    "company_id": stmt.excluded.company_id,
+                    # a re-queue without a link (queue_for_review) keeps the one the item has
+                    "observation_id": func.coalesce(stmt.excluded.observation_id, ReviewItem.observation_id),
+                },
             )
         )
 
@@ -216,7 +224,7 @@ class RunStore:
         """One company's result in one transaction (spec §3.1): the run_results row, `errors`
         (values left out of `observations`), the observations with their citations and fact
         updates, held documents, then the review items, each linked to the observation its
-        payload names (field and period). A `_key` already stored writes nothing."""
+        payload names (field, period and basis). A `_key` already stored writes nothing."""
         row = _jsonb_safe(row)
         entity = company.entity_id if company is not None else None
         with self._tx(run_id) as s:
@@ -225,7 +233,10 @@ class RunStore:
             for e in errors:
                 s.execute(insert(RunError).values(run_id=run_id, company_id=entity, error=_jsonb_safe(e)))
             ids = observations_db.record(s, observations)
-            by_target = {(o.field_id, o.period_end.isoformat() if o.period_end else None): i for o, i in zip(observations, ids, strict=True)}
+            by_target = {
+                (o.field_id, o.period_end.isoformat() if o.period_end else None, o.basis): i
+                for o, i in zip(observations, ids, strict=True) if i is not None
+            }
             if entity is not None:
                 held = {d["doc_id"]: d.get("reason") for d in row.get("held_documents") or [] if d.get("doc_id")}
                 known = set(s.scalars(select(Document.doc_id).where(Document.doc_id.in_(held)))) if held else set()
@@ -238,7 +249,8 @@ class RunStore:
                 if company is not None:
                     item.setdefault("company_id", company.company_id)
                 target = review_target(item)
-                self._insert_review_item(s, run_id, item, by_target.get(target) if target else None)
+                same = company is not None and item.get("company_id") == company.company_id
+                self._insert_review_item(s, run_id, item, by_target.get(target) if target else None, entity if same else None)
 
     def _item_id(self, run_id: str, row: dict):
         return (
@@ -286,12 +298,13 @@ class RunStore:
     @staticmethod
     def _apply_review(s: Session, run_id: str, item_key: str | None) -> None:
         """Once the item's decision is final (its cosign or second review done, where the run type
-        needs one), the fact behind its observation takes it. Until then the fact stays as it is."""
+        needs one), the facts behind it take it (observations.apply_decision decides which).
+        Until then they stay as they are."""
         from arp.orchestration.review_queue import FINAL_STATES, item_state
         from arp.review.items import cosign_rule  # imports the extraction pipeline
 
         item = s.scalar(select(ReviewItem).where(ReviewItem.run_id == run_id, ReviewItem.item_key == item_key))
-        if item is None or item.observation_id is None:
+        if item is None:
             return
         rows = s.execute(
             select(ReviewDecision.id, ReviewDecision.row).where(ReviewDecision.review_item_id == item.id).order_by(ReviewDecision.id)
