@@ -12,6 +12,7 @@ from arp.api.main import app
 from arp.api.review_endpoints import submit_review
 from arp.cli.identity import identity_app
 from arp.config import Settings
+from arp.db.fields import SchemaRegistry
 from arp.extraction.history import PriorValue, RunHistory
 from arp.orchestration.review_queue import effective_decisions, item_state
 from arp.review.context import build_context
@@ -21,9 +22,10 @@ from arp.schemas.common import RunManifest
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
 from arp.storage.run_store import RunStore
-from arp.storage.schema_registry import SchemaRegistry
 from tests.conftest import PRINCIPAL
 from tests.test_review_context import DOC, FIELD, KEY, START, TEXT, _schema
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 ALICE = Principal(user_id="u_alice", name="Alice Reviewer", role="analyst")
 ALICE2 = Principal(user_id="u_alice", name="alice ", role="analyst")
@@ -42,7 +44,7 @@ def env(tmp_path):
     store = DocumentContentStore(tmp_path / "docs")
     store.store("ck1", key_kind="file", parser_version="p1", source_suffix=".pdf", byte_size=1, text=TEXT, page_breaks=[])
     settings = Settings(schema_registry_dir=tmp_path / "reg", second_review_sample_rate=0.0)
-    reg = SchemaRegistry(settings.schema_registry_dir)
+    reg = SchemaRegistry()
     released = reg.release(reg.save(_schema()).schema_id, 1)
     reg.record_first_audit("f1", 1, "auditor")
     rs.save_manifest(RunManifest(run_id="ext1", run_type="extraction"))

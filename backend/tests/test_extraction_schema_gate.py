@@ -10,11 +10,11 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_registry, get_run_store, settings_dep
 from arp.api.routers import extraction as extraction_router
 from arp.config import Settings
+from arp.db.fields import SchemaRegistry
 from arp.extraction.pipeline import UnreleasedFieldError, create_extraction_run
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition, FieldStatus
 from arp.storage.run_store import RunStore
-from arp.storage.schema_registry import FieldVersionError, SchemaRegistry
 
 ACME = CompanyRef(company_id="c1", name="Acme")
 
@@ -27,15 +27,15 @@ def _schema(**kw) -> DataPointSchema:
 
 
 @pytest.fixture
-def settings(tmp_path):
+def settings(tmp_path, pg):
     return Settings(
-        anthropic_api_key="x", runs_dir=tmp_path / "runs", schema_registry_dir=tmp_path / "schemas",
+        anthropic_api_key="x", runs_dir=tmp_path / "runs",
         documents_dir=tmp_path / "docs", cache_dir=tmp_path / "cache", discovery_state_dir=tmp_path / "disc",
     )
 
 
-def _released(settings) -> DataPointSchema:
-    reg = SchemaRegistry(settings.schema_registry_dir)
+def _released(pg) -> DataPointSchema:
+    reg = SchemaRegistry(pg)
     s = reg.save(_schema())
     return reg.release(s.schema_id, s.version)
 
@@ -54,53 +54,22 @@ def test_trial_run_allows_draft_and_records_trial(settings):
     assert store.load_manifest(run_id).params["trial"] is True
 
 
-def test_released_run_allowed(settings):
+def test_released_run_allowed(pg, settings):
     store = RunStore(settings.runs_dir)
-    schema = _released(settings)
+    schema = _released(pg)
     run_id = create_extraction_run(schema, [ACME], settings, store)
     params = store.load_manifest(run_id).params
     assert params["trial"] is False and params["schema_version"] == f"{schema.schema_id}:v1"
 
 
-def test_released_field_change_requires_new_version(tmp_path):
-    reg = SchemaRegistry(tmp_path)
-    s = reg.release(*(lambda x: (x.schema_id, x.version))(reg.save(_schema())))
-    edited = s.model_copy(deep=True)
-    edited.fields[0].description = "Changed."
-    with pytest.raises(FieldVersionError):
-        reg.save(edited)
-    edited.fields[0].version = 2
-    assert reg.save(edited).version == 2
-    assert reg.get(s.schema_id, 1).fields[0].description == "Capex."
-    assert reg.get(s.schema_id).release_flag is False
-
-
-def test_save_discards_client_release_metadata(tmp_path):
-    reg = SchemaRegistry(tmp_path)
-    s = reg.save(_schema(release_flag=True, released_by="mallory", released_at="2020-01-01"))
-    assert (s.release_flag, s.released_by, s.released_at) == (False, None, None)
-    stored = reg.get(s.schema_id)
-    assert (stored.release_flag, stored.released_by, stored.released_at) == (False, None, None)
-    edited = stored.model_copy(update={"name": "S2", "released_by": "mallory"})
-    v2 = reg.save(edited)
-    assert v2.version == 2 and v2.released_by is None
-
-
-def test_resave_unchanged_returns_same_version(tmp_path):
-    reg = SchemaRegistry(tmp_path)
-    s = reg.save(_schema())
-    assert reg.save(s).version == 1 and len(reg.list_index()) == 1
-
-
-def test_snapshot_and_index_written(settings):
+def test_snapshot_and_index_written(pg, settings):
     store = RunStore(settings.runs_dir)
     run_id = create_extraction_run(_schema(), [ACME], settings, store, trial=True)
     from arp.extraction.pipeline import load_run_schema
 
     snap = load_run_schema(store, run_id)
-    (row,) = SchemaRegistry(settings.schema_registry_dir).list_index()
+    (row,) = SchemaRegistry(pg).list_index()
     assert row["schema_id"] == snap.schema_id and row["version"] == 1
-    assert (settings.schema_registry_dir / snap.schema_id / "v1.json").exists()
     assert load_run_schema(store, "missing") is None
 
 
@@ -142,9 +111,9 @@ def test_start_unreleased_custom_run_is_400(settings, monkeypatch):
     assert r.status_code == 400 and schema.fields[0].field_id in r.json()["detail"]
 
 
-def test_release_route_requires_approver(settings, monkeypatch):
+def test_release_route_requires_approver(pg, settings, monkeypatch):
     store = RunStore(settings.runs_dir)
-    reg = SchemaRegistry(settings.schema_registry_dir)
+    reg = SchemaRegistry(pg)
     s = reg.save(_schema())
     url = f"/api/extraction/schemas/{s.schema_id}/versions/1/release"
     assert _client(settings, store, "analyst", monkeypatch).post(url).status_code == 403
@@ -171,38 +140,9 @@ def _fid(reg) -> str:
     return reg.save(_schema()).fields[0].field_id
 
 
-def test_new_field_quality_not_audited(tmp_path):
-    q = SchemaRegistry(tmp_path).quality("f1", 1)
-    assert (q.field_id, q.version, q.first_audit_passed, q.audited_by, q.audited_at) == ("f1", 1, False, None, None)
-
-
-def test_record_first_audit_persists(tmp_path):
-    reg = SchemaRegistry(tmp_path)
-    fid = _fid(reg)
-    reg.record_first_audit(fid, 1, "u1")
-    q = SchemaRegistry(tmp_path).quality(fid, 1)
-    assert q.first_audit_passed is True and q.audited_by == "u1" and q.audited_at
-
-
-def test_new_version_starts_unaudited(tmp_path):
-    reg = SchemaRegistry(tmp_path)
-    fid = _fid(reg)
-    reg.record_first_audit(fid, 1, "u1")
-    assert reg.quality(fid, 2).first_audit_passed is False
-
-
-def test_first_audit_unknown_field_version_refused(tmp_path):
-    reg = SchemaRegistry(tmp_path)
-    fid = _fid(reg)
-    for args in ((fid, 2), ("nope", 1)):
-        with pytest.raises(KeyError):
-            reg.record_first_audit(*args, "u1")
-        assert reg.quality(*args).first_audit_passed is False
-
-
-def test_first_audit_route_requires_approver(settings, monkeypatch):
+def test_first_audit_route_requires_approver(pg, settings, monkeypatch):
     store = RunStore(settings.runs_dir)
-    reg = SchemaRegistry(settings.schema_registry_dir)
+    reg = SchemaRegistry(pg)
     fid = _fid(reg)
     url = f"/api/extraction/fields/{fid}/versions/1/first-audit"
     assert _client(settings, store, "analyst", monkeypatch).post(url).status_code == 403

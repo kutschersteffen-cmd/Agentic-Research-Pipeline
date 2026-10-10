@@ -144,6 +144,18 @@ def _fields_id_check(conn: Connection) -> None:
         )
 
 
+def _fields_id_check_v2(conn: Connection) -> None:
+    from sqlalchemy import text
+
+    conn.execute(text("ALTER TABLE fields DROP CONSTRAINT IF EXISTS ck_fields_field_id"))
+    conn.execute(
+        text(
+            "ALTER TABLE fields ADD CONSTRAINT ck_fields_field_id CHECK (field_id ~ "
+            "'^([a-z][a-z0-9_]*|prov:[a-z0-9_]+:[a-z0-9_]+|theme:[^:[:space:]]+|vote:[^:[:space:]]+:[^:[:space:]]+)$')"
+        )
+    )
+
+
 def _create_bi_views(conn: Connection) -> None:
     from arp.bi.views import create_bi_views
 
@@ -221,6 +233,11 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         name="fields_id_check",
         description="CHECK on fields.field_id: fld_<id> or prov:<source>:<metric>",
         apply=_fields_id_check,
+    ),
+    SchemaStep(
+        name="fields_id_check_v2",
+        description="field_id CHECK: slug, prov:<source>:<metric>, theme:<id> or vote:<a>:<b>",
+        apply=_fields_id_check_v2,
     ),
 )
 

@@ -9,6 +9,7 @@ import typer
 from arp.checks.effectiveness import effectiveness
 from arp.cli._shared import _and_drain, _registry, _run_store, _xbrl_source
 from arp.config import get_settings
+from arp.db.fields import SchemaRegistry
 from arp.extraction.financials_pipeline import run_financials_extraction
 from arp.extraction.pipeline import run_extraction
 from arp.extraction.schema_builder import draft_schema
@@ -19,7 +20,6 @@ from arp.orchestration.jobs import NotResumable, RunBusy, resume_run
 from arp.presets.registry import PRESETS, install_preset
 from arp.review.analytics import MONTH_PATTERN, monthly_totals
 from arp.schemas.datapoints import DataPointSchema
-from arp.storage.schema_registry import SchemaRegistry
 from arp.universe import load_company_universe
 
 extract_app = typer.Typer(help="Schema-driven data-point extraction.")
@@ -49,7 +49,7 @@ def presets_list() -> None:
 @presets_app.command("install")
 def presets_install(preset_id: str) -> None:
     try:
-        saved = install_preset(preset_id, SchemaRegistry(get_settings().schema_registry_dir))
+        saved = install_preset(preset_id, SchemaRegistry())
     except KeyError:
         typer.echo(f"Unknown preset '{preset_id}'.", err=True)
         raise typer.Exit(1) from None

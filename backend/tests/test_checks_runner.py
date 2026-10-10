@@ -98,7 +98,7 @@ async def test_failed_check_adds_check_failed_once(monkeypatch):
     assert out[1].checks == [] and out[1].review_reasons == []
 
 
-async def test_checks_stored_on_results_row(tmp_path, fake_llm):
+async def test_checks_stored_on_results_row(pg, tmp_path, fake_llm):
     spec = FieldDefinition(
         name="alpha", description="alpha", data_type=FieldDataType.NUMBER, extraction_instructions="alpha", seed_keywords=["alphakw"]
     )

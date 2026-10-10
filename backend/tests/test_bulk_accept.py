@@ -9,12 +9,14 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_document_content_store, get_run_store, settings_dep
 from arp.api.main import app
 from arp.config import Settings
+from arp.db.fields import SchemaRegistry
 from arp.review.context import _state
 from arp.schemas.common import RunManifest
 from arp.schemas.datapoints import DataPointSchema, FieldDefinition
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
-from arp.storage.schema_registry import SchemaRegistry
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 ALICE = Principal(user_id="u_alice", name="Alice Reviewer", role="analyst")
 VIEWER = Principal(user_id="u_vic", name="Vic Viewer", role="viewer")
@@ -41,7 +43,7 @@ def env(tmp_path):
                         high_risk=True),
         FieldDefinition(field_id="f3", name="f3", description="d", data_type="number", extraction_instructions="x"),
     ])
-    reg = SchemaRegistry(settings.schema_registry_dir)
+    reg = SchemaRegistry()
     released = reg.release(reg.save(schema).schema_id, 1)
     reg.record_first_audit("f1", 1, "auditor")  # f3 stays unaudited
     rs.save_manifest(RunManifest(run_id="ext1", run_type="extraction"))

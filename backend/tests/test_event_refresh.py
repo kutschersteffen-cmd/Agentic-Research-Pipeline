@@ -12,6 +12,7 @@ import pytest
 
 from arp.cli._shared import _and_drain
 from arp.config import Settings
+from arp.db.fields import SchemaRegistry
 from arp.discovery import refresh
 from arp.discovery.change_detector import ChangeDetector, poll_esef_filings
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
@@ -25,7 +26,8 @@ from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition, FieldStatus
 from arp.schemas.discovery import DiscoveredDocument, DocumentEvent, DocumentEventType
 from arp.storage.run_store import RunStore
-from arp.storage.schema_registry import SchemaRegistry
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 PACKAGE = (Path(__file__).parent / "fixtures" / "esef" / "beispiel-2024.zip").read_bytes()
 LEI = "529900T8BM49AURSDO55"
@@ -53,7 +55,7 @@ def _schema(settings, schema_id="sch1", *, release=True):
         name="revenue", description="Total revenue.", data_type=FieldDataType.CURRENCY_AMOUNT, unit="EUR millions",
         extraction_instructions="Total revenue.", seed_keywords=["revenue"], status=FieldStatus.RELEASED,
     )
-    reg = SchemaRegistry(settings.schema_registry_dir)
+    reg = SchemaRegistry()
     saved = reg.save(DataPointSchema(schema_id=schema_id, name=schema_id, fields=[field]))
     return reg.release(saved.schema_id, saved.version) if release else saved
 

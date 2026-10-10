@@ -69,14 +69,14 @@ async def refresh_on_events(
     events = [e for e in events if e.event_type in _REFRESH_TYPES]
     if not events:
         return []
+    from arp.db.fields import SchemaRegistry, UnreleasedFieldError
     from arp.extraction.pipeline import create_extraction_run
     from arp.orchestration.jobs import get_job_launcher
-    from arp.storage.schema_registry import SchemaRegistry, UnreleasedFieldError
 
     schemas = []
     for schema_id in settings.event_refresh_schema_ids:
         try:
-            schemas.append(SchemaRegistry(settings.schema_registry_dir).get(schema_id))
+            schemas.append(SchemaRegistry(settings.postgres_dsn).get(schema_id))
         except KeyError:
             logger.warning("Refresh: schema %s not found, skipped", schema_id)
 

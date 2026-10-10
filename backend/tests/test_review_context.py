@@ -17,6 +17,8 @@ from arp.schemas.review import ReviewDecision
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
 
+pytestmark = pytest.mark.usefixtures("pg")
+
 ALICE = Principal(user_id="u_alice", name="Alice Reviewer", role="analyst")
 BOB = Principal(user_id="u_bob", name="Bob Builder", role="analyst")
 CAROL = Principal(user_id="u_carol", name="Carol Approver", role="approver")

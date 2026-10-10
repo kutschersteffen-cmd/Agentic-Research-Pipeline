@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from arp.api.auth import Principal
@@ -26,6 +28,30 @@ def _disable_hybrid_retrieval_by_default(monkeypatch):
 def _review_quality_dir_in_tmp(monkeypatch, tmp_path):
     """A confirmed correction appends to settings.review_quality_dir; never the repo's data/ in tests."""
     monkeypatch.setenv("ARP_REVIEW_QUALITY_DIR", str(tmp_path / "review_quality"))
+
+
+@pytest.fixture(scope="session")
+def _pg_schema():
+    dsn = os.environ.get("ARP_TEST_POSTGRES_DSN")
+    if not dsn:
+        pytest.skip("ARP_TEST_POSTGRES_DSN not set")
+    from arp.storage.postgres_schema import ensure_schema
+
+    ensure_schema(dsn)
+    return dsn
+
+
+@pytest.fixture
+def pg(_pg_schema, monkeypatch):
+    """Empty tables for each test; yields the DSN, which is also the settings DSN (ARP_POSTGRES_DSN)."""
+    from arp.config import get_settings
+    from tests.postgres_helpers import reset_postgres_tables
+
+    reset_postgres_tables(_pg_schema)
+    monkeypatch.setenv("ARP_POSTGRES_DSN", _pg_schema)
+    get_settings.cache_clear()
+    yield _pg_schema
+    get_settings.cache_clear()
 
 
 class FakeLLMClient:

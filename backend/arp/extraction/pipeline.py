@@ -10,6 +10,7 @@ from arp.checks.cross_source import Reference
 from arp.checks.prior_period import open_restatement_candidates
 from arp.checks.runner import CheckContext, check_record
 from arp.config import Settings
+from arp.db.fields import SchemaRegistry, UnreleasedFieldError
 from arp.extraction.aggregator import no_evidence_field
 from arp.extraction.field_graph import MAX_END_DRIFT_DAYS, days_apart, extract_one_field
 from arp.extraction.history import RunHistory
@@ -42,7 +43,6 @@ from arp.schemas.issuer import issuer_key
 from arp.schemas.review import field_item_key, period_key
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
-from arp.storage.schema_registry import SchemaRegistry, UnreleasedFieldError
 
 logger = logging.getLogger(__name__)
 
@@ -299,7 +299,7 @@ def create_extraction_run(
     """Registers the schema, then refuses to start unless it is released
     (every field `released`) or the run is a `trial`. The registered copy
     is the run's `schema.json` snapshot."""
-    registered = SchemaRegistry(settings.schema_registry_dir).save(schema)
+    registered = SchemaRegistry(settings.postgres_dsn).save(schema)
     if not trial:
         bad = [f.field_id for f in registered.fields if f.status != FieldStatus.RELEASED]
         if not registered.release_flag or bad:
@@ -376,7 +376,7 @@ async def execute_extraction_run(
     schema = load_run_schema(run_store, run_id) or schema  # the registered snapshot
 
     history = RunHistory.load(run_store, exclude_run_id=run_id)
-    registry_store = SchemaRegistry(settings.schema_registry_dir)
+    registry_store = SchemaRegistry(settings.postgres_dsn)
     qualities = {(f.field_id, f.version): registry_store.quality(f.field_id, f.version) for f in schema.fields}
     identifier_map = IdentifierMapStore(settings.identifier_map_path)
     manifest = run_store.load_manifest(run_id)

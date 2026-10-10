@@ -1,4 +1,7 @@
+import pytest
+
 from arp.config import Settings
+from arp.db.fields import SchemaRegistry
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.verifier_agent import VerifierOutput
@@ -8,7 +11,8 @@ from arp.planning.doc_routing import route_documents, section_filter
 from arp.schemas.common import Citation, CompanyRef, DocType, DocumentChunk, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, DocumentRouting, FieldDataType, FieldDefinition, FieldStatus
 from arp.storage.run_store import RunStore
-from arp.storage.schema_registry import SchemaRegistry
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 TEXT = "Acme Corp report. In fiscal 2025, we invested $120 million in green capex."
 QUOTE = "invested $120 million in green capex"
@@ -58,7 +62,7 @@ async def _run_docs(tmp_path, docs, fake_llm, script, field=None, *, trial=False
         anthropic_api_key="unused", runs_dir=tmp_path / "r", schema_registry_dir=tmp_path / "s",
         documents_dir=tmp_path / "d", cache_dir=tmp_path / "c", discovery_state_dir=tmp_path / "x", **settings_kw,
     )
-    reg = SchemaRegistry(settings.schema_registry_dir)
+    reg = SchemaRegistry()
     saved = reg.save(DataPointSchema(schema_id="sch1", name="s", fields=[field.model_copy(update={"status": FieldStatus.RELEASED})]))
     saved = reg.release(saved.schema_id, saved.version)
     if audit:

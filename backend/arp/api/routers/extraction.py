@@ -19,6 +19,7 @@ from arp.api.deps import (
 from arp.api.routers.decision import template_for_run
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
+from arp.db.fields import SchemaRegistry
 from arp.decision.templates import attach_to_run
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.schema_builder import draft_schema
@@ -38,7 +39,6 @@ from arp.schemas.review import BulkAcceptRequest
 from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
-from arp.storage.schema_registry import SchemaRegistry
 from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/extraction", tags=["extraction"])
@@ -60,7 +60,7 @@ async def draft_schema_endpoint(req: DraftSchemaRequest) -> DataPointSchema:
 
 
 def _registry_for(settings: Settings = Depends(settings_dep)) -> SchemaRegistry:
-    return SchemaRegistry(settings.schema_registry_dir)
+    return SchemaRegistry(settings.postgres_dsn)
 
 
 @router.post("/schemas", response_model=DataPointSchema)

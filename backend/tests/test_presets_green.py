@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from arp.api.deps import get_run_store
 from arp.api.main import app
 from arp.checks.plausibility import check_part_of_whole, check_sum_identity, check_sum_to_target
+from arp.db.fields import SchemaRegistry
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.verifier_agent import VerifierOutput
@@ -13,7 +14,6 @@ from arp.presets.registry import PRESETS, install_preset
 from arp.schemas.common import CompanyRef, DocType, RunManifest, SourceDocument
 from arp.schemas.datapoints import ExtractionRecord, FieldStatus
 from arp.storage.run_store import RunStore
-from arp.storage.schema_registry import SchemaRegistry
 from tests.test_checks_plausibility import _field, _run
 from tests.test_extraction_pipeline import _UNSETTLED, _FixedDocSource, _settings
 
@@ -124,9 +124,9 @@ def test_eu_split_must_equal_green_total():
     assert _split(30)[0].outcome == "pass"
 
 
-async def test_install_and_trial_run_smoke(tmp_path, fake_llm):
+async def test_install_and_trial_run_smoke(pg, tmp_path, fake_llm):
     settings = _settings(tmp_path)
-    schema = install_preset("sch_green_lowcarbon", SchemaRegistry(settings.schema_registry_dir))
+    schema = install_preset("sch_green_lowcarbon", SchemaRegistry())
     doc = SourceDocument(
         company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG",
         full_text="Acme Corp report. In fiscal 2024 revenue from renewable energy was EUR 120 million; green capex "

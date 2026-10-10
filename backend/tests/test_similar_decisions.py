@@ -102,7 +102,7 @@ def test_suggested_correction_carries_the_printed_number(tmp_path):
     assert _context_with(tmp_path / "b", alts[:2]) is None  # numeric with no printed text: no prefill
 
 
-def test_suggested_correction_text_field_takes_the_value(tmp_path):
+def test_suggested_correction_text_field_takes_the_value(pg, tmp_path):
     spec = FieldDefinition(field_id="f1", name="f1", description="d", data_type="string", extraction_instructions="x")
     alts = [{"value": "Deloitte", "source": "verifier", "citations": []}]
     assert _context_with(tmp_path, alts, [spec]) == {"value": "Deloitte", "citations": []}

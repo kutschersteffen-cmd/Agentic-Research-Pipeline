@@ -238,6 +238,7 @@ class FieldDefinition(Base):
     unit: Mapped[str | None] = mapped_column(Text)
     definition: Mapped[dict] = mapped_column(JSONB)
     effective_from: Mapped[date] = mapped_column(Date, server_default=func.current_date())
+    quality: Mapped[dict | None] = mapped_column(JSONB)  # FieldQuality (first audit), per field version
 
 
 class DataSchema(Base):
@@ -248,6 +249,9 @@ class DataSchema(Base):
     name: Mapped[str] = mapped_column(Text)
     released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     released_by: Mapped[str | None] = mapped_column(Text)
+    release_flag: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    saved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    body: Mapped[dict | None] = mapped_column(JSONB)  # full DataPointSchema dump; get() round-trips it
 
 
 class DataSchemaField(Base):

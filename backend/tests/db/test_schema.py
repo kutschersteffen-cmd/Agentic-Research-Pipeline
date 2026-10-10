@@ -57,13 +57,15 @@ def test_closed_fact_allows_new_current(pg):
 
 
 def test_bad_field_id_rejected(pg):
-    with pytest.raises(IntegrityError), transaction(pg) as s:
-        s.add(m.Field(field_id="Scope 1", kind=m.FieldKind.EXTRACTED))
+    for bad in ("Scope 1", "prov:msci", "x:y"):
+        with pytest.raises(IntegrityError), transaction(pg) as s:
+            s.add(m.Field(field_id=bad, kind=m.FieldKind.EXTRACTED))
     with transaction(pg) as s:
         s.add_all([
-            m.Field(field_id="fld_ab12", kind=m.FieldKind.EXTRACTED),
-            m.Field(field_id="prov:msci:carbon_emissions_scope_1", kind=m.FieldKind.PROVIDER),
+            m.Field(field_id=ok, kind=m.FieldKind.EXTRACTED)
+            for ok in ("eut_reporting_year", "climate_scope1_tco2e", "fld_ab12cd34ef56", "theme:net_zero", "vote:acme:2026_agm")
         ])
+        s.add(m.Field(field_id="prov:msci:carbon_emissions_scope_1", kind=m.FieldKind.PROVIDER))
 
 
 def test_active_alias_unique(pg):
@@ -107,7 +109,7 @@ def test_legacy_tables_are_renamed_and_kept(pg):
     eng = engine(pg)
     with eng.begin() as c:
         c.execute(text(f"DROP TABLE {', '.join(sorted(TABLES))} CASCADE"))  # the new tables; create_all rebuilds them
-        c.execute(text("DELETE FROM schema_migrations WHERE name LIKE '000%rename_legacy%' OR name = 'fields_id_check'"))
+        c.execute(text("DELETE FROM schema_migrations WHERE name LIKE '000%rename_legacy%' OR name LIKE 'fields_id_check%'"))
         c.execute(text("ALTER TABLE legacy_company_facts RENAME TO company_facts"))
         c.execute(text("ALTER TABLE legacy_companies RENAME TO companies"))
         c.execute(text("ALTER TABLE companies RENAME CONSTRAINT legacy_companies_pkey TO companies_pkey"))

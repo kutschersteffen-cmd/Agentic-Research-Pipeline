@@ -187,7 +187,7 @@ async def test_hybrid_retrieval_setting_reaches_evidence_selection(tmp_path, fak
     assert embed_calls != []  # explicit constructor kwarg wins over the env-var default -- hybrid actually ran
 
 
-async def test_a_run_counts_the_items_through_each_step(tmp_path, fake_llm):
+async def test_a_run_counts_the_items_through_each_step(pg, tmp_path, fake_llm):
     """End to end through run_company_batch: one company has evidence, one does not."""
     from arp.extraction.pipeline import run_extraction
     from arp.orchestration.step_tally import step_counts
@@ -219,7 +219,7 @@ async def test_a_run_counts_the_items_through_each_step(tmp_path, fake_llm):
     assert step_counts(run_store, run_id, "c1")[0]["counts"] == {"try_tagged": 1, "gather_evidence": 1, "extract": 1, "verify": 1, "aggregate": 1}
 
 
-async def test_pipeline_queues_one_row_per_flagged_field(tmp_path, fake_llm):
+async def test_pipeline_queues_one_row_per_flagged_field(pg, tmp_path, fake_llm):
     from arp.extraction.pipeline import execute_extraction_run
     from arp.schemas.issuer import issuer_key
     from arp.storage.run_store import RunStore
@@ -269,7 +269,7 @@ async def test_pipeline_queues_one_row_per_flagged_field(tmp_path, fake_llm):
     assert run_store.load_manifest(run_id).review_count == 2
 
 
-async def test_provenance_records_schema_version(tmp_path, fake_llm):
+async def test_provenance_records_schema_version(pg, tmp_path, fake_llm):
     from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
     from arp.storage.run_store import RunStore
 
@@ -297,7 +297,7 @@ async def test_provenance_records_schema_version(tmp_path, fake_llm):
     assert prov["schema_version"] == f"{schema.schema_id}:v1" and prov["field_version"] == 1
 
 
-async def test_zero_and_not_found_end_to_end(tmp_path, fake_llm):
+async def test_zero_and_not_found_end_to_end(pg, tmp_path, fake_llm):
     from arp.extraction.pipeline import execute_extraction_run
     from arp.storage.run_store import RunStore
 
@@ -334,7 +334,7 @@ async def test_zero_and_not_found_end_to_end(tmp_path, fake_llm):
     assert row["needs_review"] is False
 
 
-async def test_review_key_uses_period_end(tmp_path, fake_llm):
+async def test_review_key_uses_period_end(pg, tmp_path, fake_llm):
     from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
     from arp.storage.run_store import RunStore
 
@@ -407,10 +407,10 @@ async def test_field_graph_grounds_only_against_passages_shown_to_the_model(fake
 
 def _released_run(schema, companies, settings, run_store):
     """Registers, releases and first-audits every field, then creates a normal (non-trial) run."""
+    from arp.db.fields import SchemaRegistry
     from arp.extraction.pipeline import create_extraction_run
-    from arp.storage.schema_registry import SchemaRegistry
 
-    reg = SchemaRegistry(settings.schema_registry_dir)
+    reg = SchemaRegistry()
     saved = reg.save(schema)
     reg.release(saved.schema_id, saved.version)
     for f in saved.fields:
@@ -418,7 +418,7 @@ def _released_run(schema, companies, settings, run_store):
     return create_extraction_run(schema, companies, settings, run_store)
 
 
-async def test_auto_accepted_not_queued_and_marked_system(tmp_path, fake_llm):
+async def test_auto_accepted_not_queued_and_marked_system(pg, tmp_path, fake_llm):
     from arp.extraction.pipeline import execute_extraction_run
     from arp.storage.run_store import RunStore
 
@@ -452,7 +452,7 @@ async def test_auto_accepted_not_queued_and_marked_system(tmp_path, fake_llm):
     assert not (run_store.run_dir(run_id) / "review_decisions.jsonl").exists()
 
 
-async def test_all_documents_held_fields_hold(tmp_path, fake_llm):
+async def test_all_documents_held_fields_hold(pg, tmp_path, fake_llm):
     from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
     from arp.storage.run_store import RunStore
 
@@ -508,7 +508,7 @@ async def _run_trial(tmp_path, doc, llm):
     return run_store.read_jsonl(run_store._review_queue_path(run_id))
 
 
-async def test_queue_row_carries_route_reasons(tmp_path, fake_llm):
+async def test_queue_row_carries_route_reasons(pg, tmp_path, fake_llm):
     doc, llm = _trial_run_one_field(tmp_path, fake_llm, VerifierOutput(agrees=False, confidence=0.9, notes="wrong"))
     (q,) = await _run_trial(tmp_path, doc, llm)
     assert q["reason_codes"] == ["verifier_disagrees", "adjudicator_unresolved"]
@@ -516,7 +516,7 @@ async def test_queue_row_carries_route_reasons(tmp_path, fake_llm):
     assert q["field"]["route"] == "review"
 
 
-async def test_trial_run_rows_are_reviewable(tmp_path, fake_llm):
+async def test_trial_run_rows_are_reviewable(pg, tmp_path, fake_llm):
     doc, llm = _trial_run_one_field(tmp_path, fake_llm, VerifierOutput(agrees=True, confidence=0.95, notes="ok"))
     (q,) = await _run_trial(tmp_path, doc, llm)
     assert q["reason_codes"] == []

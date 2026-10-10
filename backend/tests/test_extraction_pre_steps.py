@@ -139,7 +139,7 @@ def test_finding_nothing_usable_counts_as_failing(tmp_path, monkeypatch, on, why
     assert isinstance(failed, PreStepFailed) and why in failed.report["error"]
 
 
-def test_a_stopped_company_goes_to_review_not_failed(tmp_path):
+def test_a_stopped_company_goes_to_review_not_failed(pg, tmp_path):
     """End to end through run_company_batch: the report reaches the review
     queue, the errors file, the manifest and the company list."""
     from arp.api.routers.extraction import get_run_companies

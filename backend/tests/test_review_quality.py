@@ -30,6 +30,8 @@ from arp.storage.run_store import RunStore
 from tests.test_review_context import _schema
 from tests.test_review_decide import ALICE, BOB, CAROL, CORRECT, client, ctx, decide, env  # noqa: F401 - env is a fixture
 
+pytestmark = pytest.mark.usefixtures("pg")
+
 ANALYST = Principal(user_id="u_ann", name="Ann Analyst", role="analyst")
 BANNED = ("known", "gold", "case_", "perturb")
 

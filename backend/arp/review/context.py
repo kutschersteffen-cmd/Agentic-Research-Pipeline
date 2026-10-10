@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from arp.checks.numeric import NUMERIC_TYPES
 from arp.config import Settings
+from arp.db.fields import SchemaRegistry
 from arp.extraction.history import RunHistory
 from arp.extraction.pipeline import load_run_schema
 from arp.grounding import _page_for_offset
@@ -18,7 +19,6 @@ from arp.schemas.datapoints import CheckResult, is_failing
 from arp.schemas.review import ReviewItem, ReviewItemKind, field_item_key, period_key
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
-from arp.storage.schema_registry import SchemaRegistry
 
 if TYPE_CHECKING:
     from arp.api.auth import Principal
@@ -153,7 +153,7 @@ def _field_definition(run_store: RunStore, run_id: str, item: ReviewItem, settin
     spec = next((f for f in schema.fields if f.field_id == item.payload.get("field_id")), None) if schema else None
     if spec is None:
         return None
-    quality = SchemaRegistry(settings.schema_registry_dir).quality(spec.field_id, spec.version)
+    quality = SchemaRegistry(settings.postgres_dsn).quality(spec.field_id, spec.version)
     return spec.model_dump(mode="json") | {"first_audit_passed": quality.first_audit_passed}
 
 

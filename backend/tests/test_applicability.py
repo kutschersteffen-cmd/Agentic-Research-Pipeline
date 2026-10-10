@@ -66,7 +66,7 @@ class _Src(DocumentSource):
         return self._docs
 
 
-async def test_bank_skips_manufacturing_only_field(tmp_path, fake_llm):
+async def test_bank_skips_manufacturing_only_field(pg, tmp_path, fake_llm):
     doc = SourceDocument(
         company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG", full_text="Nothing relevant here."
     )
