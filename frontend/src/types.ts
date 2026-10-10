@@ -3221,6 +3221,11 @@ export interface FactCitation {
   passage_id: string | null;
   role: "primary" | "corroborating" | "alternative";
   grounded: boolean;
+  /** For the raw-file route, in the document registry's original case. */
+  company_id: string;
+  doc_type: string;
+  source_filename: string | null;
+  source_url: string | null;
 }
 
 export interface FactLoad {

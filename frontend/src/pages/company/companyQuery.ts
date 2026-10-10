@@ -23,11 +23,17 @@ export const encodeRef = (ref: string): string => encodeURIComponent(ref);
 /** The company page for a universe company id. */
 export const companyHref = (companyId: string): string => `#/companies/${encodeRef(`UNIVERSE:${companyId}`)}`;
 
+/** The last millisecond of a YYYY-MM-DD day in the viewer's time zone, as ISO UTC. */
+function endOfLocalDay(day: string): string {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(y, m - 1, d, 23, 59, 59, 999).toISOString();
+}
+
 /** GET path for a company's facts; empty filters are left out. An as-of date
- * means "as the data stood at the end of that day" (UTC). */
+ * means "as the data stood at the end of that day" where the viewer is. */
 export function factsUrl(ref: string, f: FactFilters): string {
   const pairs: [string, string | undefined][] = [
-    ["as_of", f.asOf ? `${f.asOf}T23:59:59Z` : undefined],
+    ["as_of", f.asOf ? endOfLocalDay(f.asOf) : undefined],
     ["kind", f.kind],
     ["field_id", f.fieldId],
     ["period_end", f.periodEnd],

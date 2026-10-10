@@ -9,8 +9,6 @@ import { STATUS_TEXT, encodeRef, type FactFilters } from "./company/companyQuery
 // ponytail: one page of 500 facts (the API maximum); add paging when a company carries more.
 const LIMIT = 500;
 
-interface RegisteredDoc { doc_id: string; doc_type: string; local_path: string | null; source_url: string | null }
-
 /** `#/companies/<ref>`: one company, its current (or as-of) facts and each fact's trail.
  * Without a ref it is a company search. */
 export function Company({ companyRef }: { companyRef?: string }) {
@@ -67,7 +65,6 @@ function CompanyView({ companyRef }: { companyRef: string }) {
   const [trailError, setTrailError] = useState("");
   const [viewer, setViewer] = useState<{ title: string; src: string } | null>(null);
   const opener = useRef<HTMLElement | null>(null);
-  const docs = useRef<Promise<RegisteredDoc[]> | null>(null);
 
   useEffect(() => {
     api.getCompany(companyRef).then(
@@ -81,6 +78,7 @@ function CompanyView({ companyRef }: { companyRef: string }) {
 
   useEffect(() => {
     let live = true;
+    setRows(null);
     setRowsError("");
     api.getCompanyFacts(companyRef, { ...filters, limit: LIMIT }).then(
       (r) => {
@@ -115,26 +113,18 @@ function CompanyView({ companyRef }: { companyRef: string }) {
     opener.current?.focus();
   }, []);
 
-  const universeId = company?.identifiers.find((i) => i.scheme === "UNIVERSE" && !i.valid_to)?.value;
-
   /** A citation opens the stored document at its page, through the same raw-file route review uses. */
-  async function openCitation(c: FactCitation) {
+  function openCitation(c: FactCitation) {
     setTrailError("");
-    try {
-      if (!universeId) throw new Error("This company has no universe id, so its documents cannot be listed.");
-      docs.current ??= api.listDocuments(universeId).then((r) => (r as { registered: RegisteredDoc[] }).registered);
-      const doc = (await docs.current).find((d) => d.doc_id === c.doc_id);
-      const filename = doc?.local_path?.split(/[\\/]/).pop();
-      if (doc && filename) {
-        setViewer({ title: `${c.title}${c.page != null ? ` — p. ${c.page}` : ""}`, src: `${api.documentRawUrl(universeId, doc.doc_type, filename)}${c.page != null ? `#page=${c.page}` : ""}` });
-      } else if (doc?.source_url && /^https?:\/\//i.test(doc.source_url)) {
-        window.open(doc.source_url, "_blank", "noopener");
-      } else {
-        throw new Error(`“${c.title}” has no stored file to open.`);
-      }
-    } catch (err) {
-      docs.current = null;
-      setTrailError((err as Error).message);
+    if (c.source_filename) {
+      setViewer({
+        title: `${c.title}${c.page != null ? ` — p. ${c.page}` : ""}`,
+        src: `${api.documentRawUrl(c.company_id, c.doc_type, c.source_filename)}${c.page != null ? `#page=${c.page}` : ""}`,
+      });
+    } else if (c.source_url && /^https?:\/\//i.test(c.source_url)) {
+      window.open(c.source_url, "_blank", "noopener");
+    } else {
+      setTrailError(`“${c.title}” has no stored file to open.`);
     }
   }
 
@@ -172,7 +162,8 @@ function CompanyView({ companyRef }: { companyRef: string }) {
               </div>
             ))}
           </dl>
-          <dl className="company-counts">
+          <p className="muted company-counts-label" id="counts-label">Current counts</p>
+          <dl className="company-counts" aria-labelledby="counts-label">
             {counts.map(([status, n]) => (
               <div key={status} className={status === "pending_review" ? "awaiting" : undefined}>
                 <dt>{STATUS_TEXT[status as CompanyFactRow["status"]]}</dt>

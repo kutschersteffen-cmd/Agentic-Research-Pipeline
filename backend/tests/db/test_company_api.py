@@ -136,7 +136,8 @@ def test_trail_contains_citation_page_and_decision(client, run_store, pg, cid):
     assert [c["role"] for c in version["citations"]] == ["corroborating", "primary"]
     assert version["citations"][1] == {
         "doc_id": "doc_a", "title": "Annual Report", "page": 12, "quote": "Revenue 100", "char_start": 5, "char_end": 16,
-        "passage_id": "p3", "role": "primary", "grounded": True}
+        "passage_id": "p3", "role": "primary", "grounded": True,
+        "company_id": "acme", "doc_type": "10-K", "source_filename": None, "source_url": None}
     assert [(d["decision"], d["reviewer"]) for d in version["decisions"]] == [("approve", "bob")]
     summary = client.get(f"/api/companies/{cid}").json()
     assert summary["fact_counts"] == {"approved": 1} and summary["documents"] == 2 and summary["runs"] == 1
@@ -199,3 +200,15 @@ def test_existing_extraction_company_results_shape_unchanged(client, run_store):
     known = client.get("/api/runs/known-companies", params={"run_type": "extraction"}).json()
     assert known == {"companies": [{"company_id": "acme", "name": "Acme Renamed", "ticker": "ACM"},
                                    {"company_id": "beta", "name": "Beta", "ticker": "B"}]}
+
+
+def test_trail_citation_carries_document_route_in_original_case(client, pg, cid):
+    """The UNIVERSE identifier is stored upper-cased; the raw-file route needs the registry's own case."""
+    DocumentRegistry(pg).register_document(doc_id="doc_a", company_id="acme", doc_type="annual_report", content_key="ck1",
+                                           title="Annual Report", local_path="/data/documents/acme/annual_report/ar-2024.pdf",
+                                           source_url="https://example.com/ar.pdf")
+    _record(pg, _obs(cid, 100, citations=[CitationIn(doc_id="doc_a", page=4)]))
+    (fact,) = client.get(f"/api/companies/{cid}/facts").json()
+    (c,) = client.get(f"/api/facts/{fact['fact_id']}/trail").json()["versions"][0]["citations"]
+    assert (c["company_id"], c["doc_type"], c["source_filename"], c["source_url"]) == (
+        "acme", "annual_report", "ar-2024.pdf", "https://example.com/ar.pdf")

@@ -4,6 +4,7 @@ per-company run-result queries that replaced `api/company_results.py`."""
 from __future__ import annotations
 
 from datetime import date, datetime
+from pathlib import PurePath
 from typing import Any
 from uuid import UUID
 
@@ -82,6 +83,12 @@ class CitationOut(BaseModel):
     passage_id: str | None
     role: m.CitationRole
     grounded: bool
+    # What the raw-file route /api/documents/{company_id}/{doc_type}/{filename}/raw needs, in the
+    # registry's original case (the company's UNIVERSE identifier is stored normalised).
+    company_id: str
+    doc_type: str
+    source_filename: str | None
+    source_url: str | None
 
 
 class LoadOut(BaseModel):
@@ -301,10 +308,12 @@ def trail(session: Session, fact_id: int) -> FactTrail:
     for v in versions:
         obs = session.get(m.FieldObservation, v.observation_id)
         citations = [
-            CitationOut(doc_id=c.doc_id, title=title, page=c.page, quote=c.quote, char_start=c.char_start,
-                        char_end=c.char_end, passage_id=c.passage_id, role=c.role, grounded=c.grounded)
-            for c, title in session.execute(
-                select(m.ValueCitation, m.Document.title)
+            CitationOut(doc_id=c.doc_id, title=d.title, page=c.page, quote=c.quote, char_start=c.char_start,
+                        char_end=c.char_end, passage_id=c.passage_id, role=c.role, grounded=c.grounded,
+                        company_id=d.universe_id or str(d.company_id), doc_type=d.doc_type,
+                        source_filename=PurePath(d.local_path).name if d.local_path else None, source_url=d.source_url)
+            for c, d in session.execute(
+                select(m.ValueCitation, m.Document)
                 .join(m.Document, m.Document.doc_id == m.ValueCitation.doc_id)
                 .where(m.ValueCitation.observation_id == obs.id).order_by(m.ValueCitation.id))
         ]

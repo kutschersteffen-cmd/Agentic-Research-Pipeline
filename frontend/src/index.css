@@ -2012,7 +2012,7 @@ th[aria-sort="ascending"] .xbrl-sort, th[aria-sort="descending"] .xbrl-sort { co
 .company-ids > div, .company-counts > div { min-width: 0; }
 .company-ids dt, .company-counts dt { color: var(--muted); font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.08em; }
 .company-ids dd { margin: 0; overflow-wrap: anywhere; }
-.company-counts { padding-top: var(--s-3); border-top: 1px solid var(--panel-border); }
+.company-counts-label { margin: 0 0 var(--s-2); padding-top: var(--s-3); border-top: 1px solid var(--panel-border); }
 .company-counts dd { margin: 0; font-family: var(--font-mono); font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .company-counts .awaiting dd { color: var(--hi-ink); }
 .company-counts .awaiting { border-top: 2px solid var(--await-edge); margin-top: -2px; padding-top: 2px; }
@@ -2045,5 +2045,7 @@ th[aria-sort="ascending"] .xbrl-sort, th[aria-sort="descending"] .xbrl-sort { co
   .company-page .trail-panel { max-height: none; }
 }
 .company-status .status-pill, .company-status .proposed-tag { white-space: nowrap; }
+/* Long field ids (prov:msci_esg:carbon_intensity) wrap here, so the table keeps its share beside the trail. */
+.company-facts td:first-child, .company-facts .link-button { white-space: normal; overflow-wrap: anywhere; text-align: left; }
 .company-page .split-review-main > .table-wrap { border: 1px solid var(--panel-border); padding: 0 var(--s-2); }
 .company-page .trail-panel { flex-basis: min(38%, 440px); height: auto; max-height: calc(100vh - 24px); }

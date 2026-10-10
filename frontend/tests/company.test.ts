@@ -13,10 +13,10 @@ test("factsUrl omits empty filters", () => {
   assert.equal(factsUrl("UNIVERSE:SIE", { asOf: "", kind: "", fieldId: "", periodEnd: "" }), "/api/companies/UNIVERSE%3ASIE/facts");
 });
 
-test("factsUrl sends as_of as the end of the chosen day, then the filters", () => {
+test("factsUrl sends as_of as the end of the chosen local day, then the filters", () => {
   assert.equal(
     factsUrl("LEI:7LTW", { asOf: "2026-09-30", kind: "provider", fieldId: "scope1", periodEnd: "2024-12-31" }),
-    "/api/companies/LEI%3A7LTW/facts?as_of=2026-09-30T23%3A59%3A59Z&kind=provider&field_id=scope1&period_end=2024-12-31",
+    `/api/companies/LEI%3A7LTW/facts?as_of=${encodeURIComponent(new Date(2026, 8, 30, 23, 59, 59, 999).toISOString())}&kind=provider&field_id=scope1&period_end=2024-12-31`,
   );
   assert.equal(factsUrl("X:1", { fieldId: "scope 1" }), "/api/companies/X%3A1/facts?field_id=scope+1");
 });
@@ -36,6 +36,7 @@ const version = (over: Partial<FactVersion>): FactVersion => ({
 });
 const cite = (title: string, page: number | null, role: "primary" | "corroborating" = "primary") => ({
   doc_id: title, title, page, quote: null, char_start: null, char_end: null, passage_id: null, role, grounded: true,
+  company_id: "acme", doc_type: "annual_report", source_filename: null, source_url: null,
 });
 
 test("sourceLabel names the primary cited document and page", () => {
