@@ -15,9 +15,11 @@ from arp.config import Settings
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import RunBusy, run_lease
 from arp.schemas.common import CompanyRef
+from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
 from arp.storage.safe_path import UnsafeIdentifierError
 from arp.universe import load_company_universe
+from arp.universe_workbench.mapping import MasterIndex
 from arp.xbrl_pipeline.fetch import create_xbrl_run, execute_xbrl_run
 from arp.xbrl_pipeline.models import RequiredRow
 from arp.xbrl_pipeline.registry import TaxonomyRegistry, http_fetch, update_taxonomies
@@ -77,7 +79,7 @@ class XbrlRunRequest(BaseModel):
     universe_path: str | None = None
     tags: list[str] | None = None
     refresh: bool = False
-    market: Literal["sec", "esef"] = "sec"
+    market: Literal["auto", "sec", "esef"] = "auto"
 
 
 @router.post("/runs")
@@ -98,7 +100,10 @@ async def start_run(
             parse_tag_ids(req.tags)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
-    run_id = create_xbrl_run(companies, req.tags, req.refresh, run_store, market=req.market)
+    index = MasterIndex.build(IdentifierMapStore(settings.identifier_map_path)) if req.market == "auto" else None
+    run_id = create_xbrl_run(companies, req.tags, req.refresh, run_store, market=req.market, index=index)
+    if req.market == "auto":
+        companies = run_store.load_companies(run_id) or companies  # enriched from the master
     _launch(run_id, companies, req.tags, req.refresh, req.market, settings, run_store)
     return {"run_id": run_id, "company_count": len(companies)}
 

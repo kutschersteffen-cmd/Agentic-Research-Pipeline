@@ -10,7 +10,10 @@ import typer
 
 from arp.cli._shared import _run_store
 from arp.config import get_settings
+from arp.storage.identifier_map import IdentifierMapStore
 from arp.universe import load_company_universe
+from arp.universe_workbench.mapping import MasterIndex
+from arp.universe_workbench.routing import route_universe
 from arp.xbrl_pipeline.fetch import build_source, create_xbrl_run, execute_xbrl_run
 from arp.xbrl_pipeline.registry import TAXONOMY_SOURCES, TaxonomyRegistry, http_fetch, update_taxonomies
 from arp.xbrl_pipeline.selection import cut_selection, parse_tag_ids
@@ -43,10 +46,10 @@ def fetch(
     universe: Path = typer.Option(...),
     tags: str = typer.Option("", help="Comma-separated tags (us-gaap:Revenues,...); empty = mode All, keep every tag."),
     refresh: bool = typer.Option(False, help="Bypass the facts cache and re-download."),
-    market: str = typer.Option("sec", help="sec (SEC company facts) or esef (EU ESEF filings)."),
+    market: str = typer.Option("auto", help="auto (route each company), sec (SEC company facts) or esef (EU ESEF filings)."),
 ) -> None:
-    if market not in ("sec", "esef"):
-        typer.echo(f"--market must be sec or esef, got {market!r}", err=True)
+    if market not in ("auto", "sec", "esef"):
+        typer.echo(f"--market must be auto, sec or esef, got {market!r}", err=True)
         raise typer.Exit(2)
     settings = get_settings()
     companies = load_company_universe(universe)
@@ -54,15 +57,29 @@ def fetch(
     if tag_list:
         _validate_tags(tag_list)
     run_store = _run_store()
-    run_id = create_xbrl_run(companies, tag_list, refresh, run_store, market=market)
+    index = MasterIndex.build(IdentifierMapStore(settings.identifier_map_path)) if market == "auto" else None
+    run_id = create_xbrl_run(companies, tag_list, refresh, run_store, market=market, index=index)
+    if market == "auto":
+        companies = run_store.load_companies(run_id) or companies  # enriched from the master
     asyncio.run(execute_xbrl_run(
         run_id, companies, settings=settings, run_store=run_store, tags=tag_list, refresh=refresh,
-        market=market, source=build_source(settings, refresh=refresh) if market == "sec" else None,
+        market=market, source=build_source(settings, refresh=refresh) if market in ("sec", "auto") else None,
     ))
     rows = run_store.read_jsonl(run_store.results_path(run_id))
     counts = Counter(r["status"] for r in rows)
     typer.echo("  ".join(f"{k}={v}" for k, v in sorted(counts.items())) or "no companies fetched")
     typer.echo(f"Run: {run_id}")
+
+
+@xbrl_app.command("screen")
+def screen(universe: Path = typer.Option(...)) -> None:
+    """Show which source each company would be fetched from; writes no run."""
+    index = MasterIndex.build(IdentifierMapStore(get_settings().identifier_map_path))
+    routes = route_universe(load_company_universe(universe), index)
+    for r in routes:
+        typer.echo(f"{r.company.company_id}  {r.market or r.status}  {r.basis or '-'}  {r.detail}")
+    counts = Counter(r.market or r.status for r in routes)
+    typer.echo("  ".join(f"{k}={counts[k]}" for k in ("sec", "esef", "no_source", "unrouted")))
 
 
 @taxonomy_app.command("update")
