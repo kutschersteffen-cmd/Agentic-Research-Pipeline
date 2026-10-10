@@ -24,6 +24,7 @@ from arp.api.routers import (
     bi,
     calibration,
     climate,
+    companies,
     decision,
     discovery,
     documents,
@@ -116,6 +117,7 @@ app.add_middleware(
 )
 
 app.include_router(themes.router, dependencies=[Depends(authorize)])
+app.include_router(companies.router, dependencies=[Depends(authorize)])
 app.include_router(extraction.router, dependencies=[Depends(authorize)])
 app.include_router(documents.router, dependencies=[Depends(authorize)])
 app.include_router(discovery.router, dependencies=[Depends(authorize)])

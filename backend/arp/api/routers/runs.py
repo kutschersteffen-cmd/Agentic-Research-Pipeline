@@ -8,9 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from arp.api.auth import require_role
-from arp.api.company_results import list_known_companies
 from arp.api.deps import get_registry, get_run_store, settings_dep
 from arp.config import Settings
+from arp.db.company_view import known_companies
+from arp.db.session import transaction
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import NotResumable, RunBusy, check_resumable, get_job_launcher, resume_run, run_lease
@@ -67,13 +68,14 @@ def list_runs(run_type: str | None = None, run_store: RunStore = Depends(get_run
 
 
 @router.get("/known-companies")
-def get_known_companies(run_type: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+def get_known_companies(run_type: str) -> dict:
     """Powers the Data Library's "By company" picker -- only meaningful for
     run types whose result rows are keyed by company_id (extraction,
     financials); registered here (not on those routers) so it's not
     duplicated per run type, and here because /api/runs is already the
     cross-run-type home (list_runs, export, etc)."""
-    return {"companies": list_known_companies(run_store, run_type)}
+    with transaction() as s:
+        return {"companies": known_companies(s, run_type)}
 
 
 @router.get("/{run_id}")

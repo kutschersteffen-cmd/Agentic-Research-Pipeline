@@ -3150,3 +3150,122 @@ export interface WorkbenchResponse {
     mapping: { mapped: number; ambiguous: number; unmapped: number; no_identifier: number };
   };
 }
+
+// One-company view (backend arp/db/company_view.py)
+export type CompanyFactStatus = "auto_accepted" | "approved" | "edited" | "pending_review" | "held";
+
+export interface CompanyIdentifier {
+  scheme: string;
+  value: string;
+  valid_from: string;
+  valid_to: string | null;
+}
+
+export interface CompanySearchHit {
+  id: string;
+  name: string;
+  country: string | null;
+  sector: string | null;
+  identifiers: CompanyIdentifier[];
+}
+
+export interface CompanyHolder {
+  holder_id: string;
+  kind: "index" | "portfolio";
+  as_of_date: string;
+  weight_pct: number | null;
+}
+
+export interface CompanySummary {
+  id: string;
+  name: string;
+  country: string | null;
+  sector: string | null;
+  isic_code: string | null;
+  fiscal_year_end: string | null;
+  regimes: string[];
+  identifiers: CompanyIdentifier[];
+  fact_counts: Partial<Record<CompanyFactStatus, number>>;
+  open_review_items: number;
+  documents: number;
+  runs: number;
+  holders: CompanyHolder[];
+  holders_available: boolean;
+}
+
+export interface CompanyFactRow {
+  fact_id: number;
+  field_id: string;
+  kind: "extracted" | "provider";
+  period_end: string | null;
+  basis: string;
+  value: unknown;
+  canonical_value: number | null;
+  canonical_unit: string | null;
+  status: CompanyFactStatus;
+  source_kind: "extraction" | "provider" | "xbrl" | "manual";
+  source_label: string;
+  licence: "internal_only" | "redistributable" | null;
+  conflicting_sources: boolean;
+  valid_from: string;
+  valid_to: string | null;
+}
+
+export interface FactCitation {
+  doc_id: string;
+  title: string;
+  page: number | null;
+  quote: string | null;
+  char_start: number | null;
+  char_end: number | null;
+  passage_id: string | null;
+  role: "primary" | "corroborating" | "alternative";
+  grounded: boolean;
+}
+
+export interface FactLoad {
+  source_name: string;
+  fetched_at: string;
+  payload_uri: string | null;
+}
+
+export interface FactDecision {
+  decision: "approve" | "edit" | "correct" | "reject" | "escalate" | "hold" | null;
+  reviewer: string | null;
+  decided_at: string;
+  comment: string | null;
+}
+
+export interface FactObservation {
+  id: number;
+  source_kind: CompanyFactRow["source_kind"];
+  run_id: string | null;
+  value: unknown;
+  value_state: "found" | "zero" | "not_found" | "not_applicable";
+  unit: string | null;
+  confidence: number | null;
+  route: "auto_accept" | "review" | "hold" | null;
+  created_at: string;
+}
+
+export interface FactVersion {
+  fact_id: number;
+  status: CompanyFactStatus;
+  value: unknown;
+  valid_from: string;
+  valid_to: string | null;
+  superseded_by: number | null;
+  observation: FactObservation;
+  citations: FactCitation[];
+  load: FactLoad | null;
+  decisions: FactDecision[];
+}
+
+export interface FactTrail {
+  fact_id: number;
+  company_id: string;
+  field_id: string;
+  period_end: string | null;
+  basis: string;
+  versions: FactVersion[];
+}

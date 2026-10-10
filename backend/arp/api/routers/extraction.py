@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal, current_user, require_role
-from arp.api.company_results import list_company_results
 from arp.api.deps import (
     get_decision_store,
     get_document_content_store,
@@ -19,7 +18,9 @@ from arp.api.deps import (
 from arp.api.routers.decision import template_for_run
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
+from arp.db.company_view import results_by_company
 from arp.db.fields import SchemaRegistry
+from arp.db.session import transaction
 from arp.decision.templates import attach_to_run
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.schema_builder import draft_schema
@@ -417,11 +418,12 @@ def get_remuneration_summary(run_id: str, run_store: RunStore = Depends(get_run_
 
 
 @router.get("/companies/{company_id}/results")
-def get_extraction_results_for_company(company_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+def get_extraction_results_for_company(company_id: str) -> dict:
     """The company-centric complement to /runs/{run_id}/results -- every
     result this company has ever had across every extraction run, not just
     one run's, for the Data Library's "By company" view."""
-    return {"results": list_company_results(run_store, "extraction", company_id)}
+    with transaction() as s:
+        return {"results": results_by_company(s, "extraction", company_id)}
 
 
 @router.get("/runs/{run_id}/review-decisions")
