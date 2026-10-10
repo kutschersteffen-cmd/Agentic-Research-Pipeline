@@ -218,6 +218,8 @@ class RunManifest(BaseModel):
     review_count: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
+    cache_read_tokens: int = 0  # the share of input_tokens read from Anthropic's prompt cache
+    cache_creation_tokens: int = 0  # the share of input_tokens written to it
     estimated_cost_usd: float = 0.0
     model: str | None = None
     verifier_model: str | None = Field(

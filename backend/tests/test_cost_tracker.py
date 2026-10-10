@@ -17,8 +17,22 @@ def test_estimate_cost_usd_applies_cache_read_and_write_multipliers():
     input_price = 2.0
     expected = (500_000 / 1_000_000) * input_price + (300_000 / 1_000_000) * input_price * 0.1 + (
         200_000 / 1_000_000
-    ) * input_price * 2.0
+    ) * input_price * 1.25
     assert abs(cost - expected) < 1e-9
+
+
+def test_estimate_cost_usd_reads_cache_at_005_on_sonnet_and_opus_5_5():
+    usage = LLMUsage(input_tokens=1_000_000, output_tokens=0, cache_read_tokens=1_000_000)
+    assert abs(estimate_cost_usd("claude-sonnet-5-5", usage) - 0.10) < 1e-9
+    assert abs(estimate_cost_usd("claude-opus-5-5", usage) - 0.20) < 1e-9
+
+
+def test_combine_usage_leaves_out_disk_cache_hits():
+    live = LLMUsage(input_tokens=100, output_tokens=10)
+    hit = LLMUsage(input_tokens=900, output_tokens=90, cached=True)
+    combined = combine_usage(live, hit)
+    assert (combined.input_tokens, combined.output_tokens, combined.cached) == (100, 10, False)
+    assert combine_usage(hit, hit).cached
 
 
 def test_estimate_cost_usd_zero_for_disk_cached_result():

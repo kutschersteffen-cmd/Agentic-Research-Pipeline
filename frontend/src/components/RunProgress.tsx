@@ -119,6 +119,11 @@ export function RunProgress({
         <span>{manifest.review_count} flagged for review</span>
         <span>${manifest.estimated_cost_usd.toFixed(2)} est. cost</span>
         <span>{(manifest.input_tokens + manifest.output_tokens).toLocaleString()} tokens</span>
+        {manifest.input_tokens > 0 && manifest.cache_read_tokens !== undefined && (
+          <span title="Share of input tokens read from Anthropic's prompt cache, billed at a fraction of the input price">
+            {Math.round((100 * manifest.cache_read_tokens) / manifest.input_tokens)}% of input from cache
+          </span>
+        )}
       </div>
       {(canCancel || canResume) && (
         <div className="toolbar">

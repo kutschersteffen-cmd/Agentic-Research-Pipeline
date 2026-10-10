@@ -135,7 +135,7 @@ async def test_system_prompt_gets_cache_control_by_default(tmp_path):
 
     sent_system = fake.messages.calls[0]["system"]
     assert isinstance(sent_system, list)
-    assert sent_system[0]["cache_control"] == {"type": "ephemeral", "ttl": "1h"}
+    assert sent_system[0]["cache_control"] == {"type": "ephemeral"}
     assert sent_system[0]["text"] == "a stable persona prompt"
 
 
@@ -168,9 +168,9 @@ async def test_cache_read_and_creation_tokens_are_captured(tmp_path):
     assert usage.cache_creation_tokens == 0
 
 
-async def test_cache_creation_tokens_captured_under_1h_ttl(tmp_path):
-    """With ttl="1h" (what this client always sends), Anthropic reports the
-    write count under cache_creation.ephemeral_1h_input_tokens and the
+async def test_cache_creation_tokens_captured_from_the_ttl_specific_field(tmp_path):
+    """Anthropic reports the write count under
+    cache_creation.ephemeral_{5m,1h}_input_tokens and the
     generic cache_creation_input_tokens field can read 0 -- extraction must
     use the TTL-specific count, not just the generic field (a real bug this
     test would have caught)."""
@@ -182,7 +182,7 @@ async def test_cache_creation_tokens_captured_under_1h_ttl(tmp_path):
         output_tokens=5,
         cache_read_input_tokens=0,
         cache_creation_input_tokens=0,
-        cache_creation=CacheCreation(ephemeral_1h_input_tokens=5003, ephemeral_5m_input_tokens=0),
+        cache_creation=CacheCreation(ephemeral_1h_input_tokens=0, ephemeral_5m_input_tokens=5003),
     )
 
     _instance, usage = await client.complete_structured(system="sys", prompt="prompt", output_model=_Target)

@@ -18,16 +18,12 @@ _PRICE_PER_MILLION_TOKENS: dict[str, tuple[float, float]] = {
 _DEFAULT_PRICE = (3.0, 15.0)
 
 # Anthropic prices a prompt-cache read far below, and a cache write somewhat
-# above, the normal input rate -- see arp/llm/langchain_client.py, which
-# always writes with a 1h TTL.
-_CACHE_READ_MULTIPLIER = 0.1
-_CACHE_WRITE_MULTIPLIER = 2.0  # 1h TTL; would be 1.25 for the 5m default
-# One multiplier for every model is an approximation that is exact for the
-# $2/MTok Sonnets (cache reads $0.20) and overstates claude-opus-5-5, whose
-# reads are also $0.20 against a $4 input rate -- a 0.05 multiplier, so its
-# cache-read share reads about 2x high here. Left as one constant on purpose:
-# this figure is the informational estimate on a run manifest, never billing,
-# and a per-model cache rate is more structure than that warrants.
+# above, the normal input rate. Reads are 0.1x input on most models but 0.05x
+# on claude-opus-5-5 and claude-sonnet-5-5; writes are 1.25x for the 5-minute
+# TTL arp/llm/langchain_client.py uses.
+_CACHE_READ_MULTIPLIER: dict[str, float] = {"claude-opus-5-5": 0.05, "claude-sonnet-5-5": 0.05}
+_DEFAULT_CACHE_READ_MULTIPLIER = 0.1
+_CACHE_WRITE_MULTIPLIER = 1.25
 
 
 def estimate_cost_usd(model: str, usage: LLMUsage) -> float:
@@ -39,17 +35,19 @@ def estimate_cost_usd(model: str, usage: LLMUsage) -> float:
     base_input_tokens = usage.input_tokens - usage.cache_read_tokens - usage.cache_creation_tokens
     return (
         (base_input_tokens / 1_000_000) * input_price
-        + (usage.cache_read_tokens / 1_000_000) * input_price * _CACHE_READ_MULTIPLIER
+        + (usage.cache_read_tokens / 1_000_000) * input_price * _CACHE_READ_MULTIPLIER.get(model, _DEFAULT_CACHE_READ_MULTIPLIER)
         + (usage.cache_creation_tokens / 1_000_000) * input_price * _CACHE_WRITE_MULTIPLIER
         + (usage.output_tokens / 1_000_000) * output_price
     )
 
 
 def combine_usage(*usages: LLMUsage) -> LLMUsage:
+    """Summed tokens of the calls that hit the API; a disk-cache hit spent nothing."""
+    live = [u for u in usages if not u.cached]
     return LLMUsage(
-        input_tokens=sum(u.input_tokens for u in usages),
-        output_tokens=sum(u.output_tokens for u in usages),
-        cache_read_tokens=sum(u.cache_read_tokens for u in usages),
-        cache_creation_tokens=sum(u.cache_creation_tokens for u in usages),
+        input_tokens=sum(u.input_tokens for u in live),
+        output_tokens=sum(u.output_tokens for u in live),
+        cache_read_tokens=sum(u.cache_read_tokens for u in live),
+        cache_creation_tokens=sum(u.cache_creation_tokens for u in live),
         cached=all(u.cached for u in usages) if usages else False,
     )

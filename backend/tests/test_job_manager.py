@@ -1,3 +1,4 @@
+from arp.llm.base import LLMUsage
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import JobStatus
 from arp.storage.run_store import RunStore
@@ -11,7 +12,7 @@ def test_create_run_and_progress_lifecycle(tmp_path):
     assert manifest.status == JobStatus.RUNNING
     assert manifest.company_count == 10
 
-    jm.record_progress(manifest.run_id, completed_delta=3, input_tokens_delta=100, cost_delta_usd=0.05)
+    jm.record_progress(manifest.run_id, completed_delta=3, usage=LLMUsage(input_tokens=100), cost_delta_usd=0.05)
     jm.record_progress(manifest.run_id, completed_delta=2, failed_delta=1, review_delta=1)
     updated = store.load_manifest(manifest.run_id)
     assert updated.completed_count == 5
@@ -22,6 +23,16 @@ def test_create_run_and_progress_lifecycle(tmp_path):
 
     final = jm.finish_run(manifest.run_id)
     assert final.status == JobStatus.PARTIALLY_COMPLETED  # because failed_count > 0
+
+
+def test_record_progress_keeps_cache_tokens_and_skips_disk_cache_hits(tmp_path):
+    store = RunStore(tmp_path)
+    jm = JobManager(store)
+    run_id = jm.create_run("theme", {}, company_count=1).run_id
+    jm.record_progress(run_id, usage=LLMUsage(input_tokens=1000, output_tokens=50, cache_read_tokens=800, cache_creation_tokens=100))
+    jm.record_progress(run_id, usage=LLMUsage(input_tokens=999, output_tokens=99, cache_read_tokens=9, cached=True))
+    m = store.load_manifest(run_id)
+    assert (m.input_tokens, m.output_tokens, m.cache_read_tokens, m.cache_creation_tokens) == (1000, 50, 800, 100)
 
 
 def test_finish_run_completed_when_no_failures(tmp_path):
