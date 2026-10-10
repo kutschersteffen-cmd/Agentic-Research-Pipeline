@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactElement } from "re
 import ReactFlow, { Controls, Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
 import { api } from "../api/client";
-import { layoutPipeline } from "../lib/pipelineLayout";
+import { COARSE_POINTER, layoutPipeline } from "../lib/pipelineLayout";
 import type {
   ExtractionProfile,
   PipelineNode,
@@ -503,7 +503,9 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
           )}
         </div>
       )}
-      <div className="flow-rf pipeline-rf">
+      <div className="chart-scroll">
+      {/* Touch: the canvas does not pan, so it is drawn wide enough for every step at the 0.9 zoom below and the page scrolls it sideways. */}
+      <div className="flow-rf pipeline-rf" style={COARSE_POINTER ? { minWidth: Math.max(0, ...nodes.map((n) => n.position.x)) * 0.9 + CARD_W + 48 } : undefined}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -514,6 +516,7 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
           defaultViewport={{ x: 24, y: 40, zoom: 0.9 }}
           nodesConnectable={false}
           elementsSelectable={false}
+          panOnDrag={!COARSE_POINTER}
           zoomOnScroll={false}
           preventScrolling={false}
           proOptions={{ hideAttribution: true }}
@@ -522,6 +525,7 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
         >
           <Controls showInteractive={false} />
         </ReactFlow>
+      </div>
       </div>
       <p className="help-text">
         Drag the canvas to see every step. Dashed arrows are branches: an item takes one of them.

@@ -1263,6 +1263,7 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .flow-rf .react-flow__controls-button { background: var(--panel); border-bottom-color: var(--panel-border); color: var(--text); fill: var(--text); }
 .flow-rf .react-flow__controls-button svg { fill: currentColor; }
 .flow-rf .react-flow__controls-button:hover { background: var(--well); }
+@media (pointer: coarse) { .flow-rf .react-flow__controls-button { width: 44px; height: 44px; box-sizing: border-box; } }
 .flow-rf .react-flow__attribution { background: transparent; }
 .flow-band-node {
   width: 100%;

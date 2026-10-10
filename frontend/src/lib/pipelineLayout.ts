@@ -1,5 +1,9 @@
 import type { PipelineShape } from "../types";
 
+/** Touch screens: a one-finger drag on a graph scrolls the page instead of panning the canvas.
+ * ponytail: read once at load; a hybrid device that switches pointer mid-session keeps the first answer. */
+export const COARSE_POINTER = typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+
 /** Columns by longest path from the entry, so every edge points right;
  * within a column the main path sits on top and the early exits
  * ("No evidence", "Answer failed") below it. */

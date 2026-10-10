@@ -463,6 +463,7 @@ export function BallotReview({ runId }: { runId: string }) {
             <li>{counts.rejected} rejected (will not be cast)</li>
             <li>{counts.pending} still awaiting a decision (will not be cast)</li>
           </ul>
+          <div className="table-wrap">
           <table className="data-table cast-list">
             <caption className="visually-hidden">Votes that will be cast</caption>
             <thead>
@@ -485,6 +486,7 @@ export function BallotReview({ runId }: { runId: string }) {
               ))}
             </tbody>
           </table>
+          </div>
           {counts.missingCoSign > 0 && (
             <div className="banner banner-danger">
               {counts.missingCoSign} flagged vote{counts.missingCoSign === 1 ? " has" : "s have"} no co-sign and will be refused by the platform.
