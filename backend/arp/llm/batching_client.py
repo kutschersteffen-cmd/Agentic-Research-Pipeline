@@ -61,6 +61,9 @@ class BatchingLLMClient(LangChainAnthropicClient):
         self._log_index: dict[str, str] | None = None  # custom_id -> batch_id, read on first _send
         self._log_rows: dict[str, dict] = {}  # batch_id -> its log row
         self._watching: set[str] = set()  # batch ids being polled right now
+        # batch_id -> results its watch streamed past before anyone waited on them,
+        # so a send that attaches mid-stream still gets its result.
+        self._streamed: dict[str, dict[str, Message | BaseException]] = {}
         self._flush_after_s = flush_after_s
         self._max_batch = max_batch
         self._poll_every_s = poll_every_s
@@ -118,6 +121,14 @@ class BatchingLLMClient(LangChainAnthropicClient):
 
     def _attach(self, cid: str, batch_id: str) -> asyncio.Future:
         fut = asyncio.get_running_loop().create_future()
+        passed = self._streamed.get(batch_id, {})
+        if cid in passed:  # its watch already streamed past this id
+            result = passed.pop(cid)
+            if isinstance(result, BaseException):
+                fut.set_exception(result)
+            else:
+                fut.set_result(result)
+            return fut
         self._in_flight.setdefault(cid, []).append(fut)
         if batch_id not in self._watching:
             row = self._log_rows[batch_id]
@@ -176,6 +187,8 @@ class BatchingLLMClient(LangChainAnthropicClient):
         batches = self._client.messages.batches
         self._watching.add(batch_id)
         seen: set[str] = set()
+        # ponytail: holds unwaited results until the stream ends (a full batch's worth on resume).
+        passed = self._streamed[batch_id] = {}
         try:
             if batch is None:
                 batch = await batches.retrieve(batch_id)
@@ -197,10 +210,13 @@ class BatchingLLMClient(LangChainAnthropicClient):
                 seen.add(entry.custom_id)
                 r = entry.result
                 if r.type == "succeeded":
-                    self._settle(entry.custom_id, r.message)
+                    result = r.message
                 else:
-                    error = r.error.error.message if r.type == "errored" else ""
-                    self._settle(entry.custom_id, BatchRequestFailed(r.type, error))
+                    result = BatchRequestFailed(r.type, r.error.error.message if r.type == "errored" else "")
+                if entry.custom_id in self._in_flight:
+                    self._settle(entry.custom_id, result)
+                else:
+                    passed[entry.custom_id] = result
         except Exception as exc:
             # The batch may well still be running server-side: let the next
             # send of these requests reattach to it rather than pay again.
@@ -208,6 +224,7 @@ class BatchingLLMClient(LangChainAnthropicClient):
             for cid in cids - seen:
                 self._settle(cid, exc)
         finally:
+            self._streamed.pop(batch_id, None)
             self._watching.discard(batch_id)
             if not self._watching:
                 record_batch_wait(None)

@@ -6,6 +6,7 @@ code under test sees exactly what the API would give it.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 
 from anthropic.types import Message, ToolUseBlock, Usage
@@ -39,6 +40,7 @@ class FakeBatches:
     - `reverse`: results stream back in reverse submission order.
     - `outcomes`: {custom_id or prompt text: "errored" | "expired" | "canceled"}.
     - `create_error`: raised by the next `create`, then cleared.
+    - `stream_delay`: seconds the results stream sleeps between entries (yields to the loop).
     - `retrieve_error`: raised by the next `retrieve`, then cleared.
     - `respond`: params -> Message for succeeded requests.
     """
@@ -51,6 +53,7 @@ class FakeBatches:
         self.respond = echo_message
         self.creates: list[list[dict]] = []  # the `requests` of every create, in order
         self.retrieve_error: BaseException | None = None
+        self.stream_delay = 0.0
         self.retrieves = 0
         self.cancels: list[str] = []
         self._batches: dict[str, dict] = {}  # id -> {"requests", "status"}
@@ -105,7 +108,9 @@ class FakeBatches:
         requests = list(reversed(entry["requests"])) if self.reverse else entry["requests"]
 
         async def stream():
-            for req in requests:
+            for i, req in enumerate(requests):
+                if i and self.stream_delay:
+                    await asyncio.sleep(self.stream_delay)
                 yield MessageBatchIndividualResponse.model_validate({"custom_id": req["custom_id"], "result": self._result(req)})
 
         return stream()

@@ -211,6 +211,21 @@ async def test_restart_resubmits_when_logged_entry_failed(tmp_path):
     assert isinstance(results[0], BatchRequestFailed) and results[0].result_type == "expired"
 
 
+async def test_late_attach_while_results_stream_past_it(tmp_path):
+    a, fake = _client(tmp_path)
+    await asyncio.gather(_call(a, "x"), _call(a, "y"))
+    fake.reverse = True  # y streams first, before anyone on B waits for it
+    fake.stream_delay = 0.05
+    b, _ = _client(tmp_path)
+    b._client.messages.batches = fake
+    first = asyncio.create_task(_call(b, "x"))
+    await asyncio.sleep(0.03)
+    out, _ = await asyncio.wait_for(_call(b, "y"), 1)
+    assert out.echo == "y"
+    assert (await first)[0].echo == "x"
+    assert len(fake.creates) == 1
+
+
 def _run(tmp_path) -> tuple[RunStore, JobManager, str]:
     store = RunStore(tmp_path / "runs")
     jm = JobManager(store)
