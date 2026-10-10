@@ -90,7 +90,7 @@ def test_merge_moves_identifiers_and_rows(pg):
         merge(s, keep, drop)
         assert lookup(s, IdScheme.LEI, LEI_B) == keep
         assert s.scalar(select(RunCompany.company_id).where(RunCompany.run_id == "r1")) == keep
-        assert lookup(s, IdScheme.MERGED_INTO, str(keep)) == drop
+        assert lookup(s, IdScheme.MERGED_INTO, str(drop)) == keep
 
 
 def test_issuer_key_is_stable_across_security_master_upload(pg):
@@ -117,3 +117,44 @@ def test_resolve_universe_splits_conflicts(pg):
         ok, bad = resolve_universe([_ref(company_id="A", lei=LEI_A), _ref(company_id="C", lei=LEI_A, isin="DE0000000001")], s)
     assert [c.company_id for c in ok] == ["A"] and ok[0].entity_id
     assert bad[0]["kind"] == "identity_conflict" and bad[0]["company_id"] == "C" and len(bad[0]["conflict"]) == 2
+
+
+def test_two_companies_merge_into_one_keep(pg):
+    with transaction(pg) as s:
+        k, a, b = (
+            resolve_company(s, _ref(company_id=i, lei=lei)).company_id
+            for i, lei in (("K", LEI_A), ("A", LEI_B), ("B", "7H6GLXDRUGQFU57RNE97"))
+        )
+        merge(s, k, a)
+        merge(s, k, b)
+        assert lookup(s, IdScheme.MERGED_INTO, str(a)) == k and lookup(s, IdScheme.MERGED_INTO, str(b)) == k
+
+
+def test_concurrent_resolution_of_same_new_company(pg):
+    import threading
+
+    barrier = threading.Barrier(2)
+    ids = []
+
+    def work():
+        with transaction(pg) as s:
+            orig = s.scalar
+            calls = []
+
+            def synced(*a, **k):  # both sessions finish reading before either inserts
+                r = orig(*a, **k)
+                calls.append(1)
+                if len(calls) == 2:
+                    barrier.wait(timeout=10)
+                return r
+
+            s.scalar = synced
+            ids.append(resolve_company(s, _ref(lei=LEI_A)).company_id)
+            s.scalar = orig
+
+    ts = [threading.Thread(target=work) for _ in range(2)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    assert len(ids) == 2 and ids[0] == ids[1]
+    with transaction(pg) as s:
+        assert s.scalar(select(func.count()).select_from(Company)) == 1

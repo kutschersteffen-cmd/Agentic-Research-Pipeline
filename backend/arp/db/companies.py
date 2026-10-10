@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from uuid import UUID
 
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from arp.db.models import Company, CompanyIdentifier, IdScheme
@@ -55,25 +56,31 @@ def resolve(
     session: Session, ids: list[tuple[IdScheme, str]], *, name: str, allow_create: bool, attrs: dict | None = None
 ) -> Resolution:
     ids = [(s, normalise_identifier(s, v)) for s, v in ids if v and normalise_identifier(s, v)]
-    found = {s_v: _active(session, *s_v) for s_v in ids}
-    owners = list(dict.fromkeys(c for c in found.values() if c is not None))
-    if len(owners) > 1:
-        return Resolution(None, False, owners)
-    if owners:
-        company_id, created = owners[0], False
-    elif allow_create and ids:
-        created = True
-        company = Company(name=name, **(attrs or {}))
-        session.add(company)
-        session.flush()
-        company_id = company.id
-    else:
-        return Resolution(None, False, [])
-    for scheme, value in ids:
-        if found[(scheme, value)] is None:
-            session.add(CompanyIdentifier(company_id=company_id, scheme=str(scheme), value=value))
-    session.flush()
-    return Resolution(company_id, created, [])
+    for attempt in (0, 1):
+        found = {s_v: _active(session, *s_v) for s_v in ids}
+        owners = list(dict.fromkeys(c for c in found.values() if c is not None))
+        if len(owners) > 1:
+            return Resolution(None, False, owners)
+        if not owners and not (allow_create and ids):
+            return Resolution(None, False, [])
+        try:
+            with session.begin_nested():
+                created = not owners
+                if created:
+                    company = Company(name=name, **(attrs or {}))
+                    session.add(company)
+                    session.flush()
+                company_id = company.id if created else owners[0]
+                for scheme, value in ids:
+                    if found[(scheme, value)] is None:
+                        session.add(CompanyIdentifier(company_id=company_id, scheme=str(scheme), value=value))
+                session.flush()
+            return Resolution(company_id, created, [])
+        except IntegrityError:
+            # another session registered one of these identifiers first; re-read and attach to it
+            if attempt:
+                raise
+    raise AssertionError("unreachable")
 
 
 def resolve_company(session: Session, company: CompanyRef) -> Resolution:
@@ -90,14 +97,14 @@ def ensure_universe_company(session: Session, universe_id: str, *, name: str | N
 
 
 def merge(session: Session, keep: UUID, drop: UUID) -> None:
-    """Re-points every row that references `drop` at `keep`, then records `drop` MERGED_INTO `keep`."""
+    """Re-points every row that references `drop` at `keep`, then records `keep` MERGED_INTO-aliased by `drop`'s id."""
     for table in Base.metadata.sorted_tables:
         for fk in table.foreign_keys:
             if fk.column.table.name == "companies" and fk.column.name == "id":
                 session.execute(update(table).where(fk.parent == drop).values({fk.parent.name: keep}))
     session.add(
         CompanyIdentifier(
-            company_id=drop, scheme=IdScheme.MERGED_INTO, value=normalise_identifier(IdScheme.MERGED_INTO, str(keep))
+            company_id=keep, scheme=IdScheme.MERGED_INTO, value=normalise_identifier(IdScheme.MERGED_INTO, str(drop))
         )
     )
     session.flush()
