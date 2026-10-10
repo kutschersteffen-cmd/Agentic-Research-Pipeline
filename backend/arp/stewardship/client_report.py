@@ -32,11 +32,17 @@ from arp.schemas.reporting import (
     SectionLayoutHint,
     TableSpec,
 )
-from arp.stewardship import escalation
 from arp.stewardship.backtest import backtest
 from arp.stewardship.policies import PolicyStore
 from arp.stewardship.policy_review import decide, review
-from arp.stewardship.process import client_escalations, client_store, current_tiers, escalation_contexts, load_sample
+from arp.stewardship.process import (
+    client_escalations,
+    client_store,
+    current_tiers,
+    escalation_contexts,
+    house_escalations,
+    load_sample,
+)
 from arp.stewardship.tiers import TIER_LABELS, TIERS
 
 VOTES = ["for", "against", "abstain", "case_by_case"]
@@ -54,7 +60,7 @@ def client_report(root: Path, stream: dict, records: list[EngagementRecord], sla
 
     tiers = Counter(current_tiers(root, sample, records).values())
     ctxs = escalation_contexts(root, sample, records, sla_days)
-    house = escalation.evaluate(house_store.active("escalation_rules"), ctxs)
+    house = house_escalations(root, ctxs)
     engagements = client_escalations(root, stream["stream_id"], ctxs, house)
     esc_version = client_store(root, stream["stream_id"]).active_version("escalation_rules")
 

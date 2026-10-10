@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from typing import TypeVar
+from typing import Protocol, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -21,7 +20,7 @@ class LLMUsage(BaseModel):
         "previously persisted output instead of silently blending old and new prompt versions.",
     )
     # Breakdown of input_tokens (which already includes both of these in its
-    # total -- see langchain_anthropic's own usage_metadata docstring) for
+    # total -- see LangChainAnthropicClient's usage accounting) for
     # accurate cost estimation: Anthropic prices a cache read far below and
     # a cache write somewhat above the normal input rate. Always 0 for a
     # provider/call that doesn't use prompt caching.
@@ -29,15 +28,14 @@ class LLMUsage(BaseModel):
     cache_creation_tokens: int = 0
 
 
-class LLMClient(ABC):
-    """Abstraction over the underlying model provider.
+class LLMClient(Protocol):
+    """The one method every agent calls (LangChainAnthropicClient implements it; test fakes too).
 
     Every agent in this codebase talks to models exclusively through
     `complete_structured`, never free text, so that outputs are always
     schema-validated before anything downstream trusts them.
     """
 
-    @abstractmethod
     async def complete_structured(
         self,
         *,
@@ -57,4 +55,4 @@ class LLMClient(ABC):
         network/rate-limit errors. `images` (PNG bytes) are shown to the
         model before the prompt text.
         """
-        raise NotImplementedError
+        ...

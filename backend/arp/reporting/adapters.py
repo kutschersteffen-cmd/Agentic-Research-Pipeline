@@ -6,8 +6,6 @@ adapter; add one that calls the aggregation engine when a periodic portfolio dec
 
 from __future__ import annotations
 
-import json
-
 from arp.config import Settings, get_settings
 from arp.reporting.datasets import _build_dataset
 from arp.schemas.reporting import QuantitativeDataset, ReportRequest, RunRef
@@ -34,9 +32,7 @@ def _load(ref: RunRef, settings: Settings) -> QuantitativeDataset:
         manifest = runs.load_manifest(ref.ref_id)
         if manifest is None:
             raise ValueError(f"unknown run {ref.ref_id}")
-        path = runs.results_path(ref.ref_id)
-        lines = path.read_text().splitlines() if path.exists() else []
-        ds = _table(manifest.run_type, [json.loads(line) for line in lines if line.strip()])
+        ds = _table(manifest.run_type, runs.read_jsonl(runs.results_path(ref.ref_id)))
         ds.description = f"Results of {manifest.run_type} run {ref.ref_id}."
     ds.dataset_id = f"{ref.kind}_{ref.ref_id}"  # stable, so a re-run replaces it instead of adding a copy
     return ds

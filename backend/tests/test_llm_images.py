@@ -1,7 +1,7 @@
 import base64
 import hashlib
 
-from langchain_core.messages import AIMessage
+from anthropic.types import Message, ToolUseBlock, Usage
 from pydantic import BaseModel
 
 from arp.llm.cache import DiskLLMCache
@@ -24,11 +24,15 @@ async def test_images_go_before_text_as_base64_png_blocks(tmp_path, monkeypatch)
     client = LangChainAnthropicClient(api_key="k", model="m", cache_dir=tmp_path)
     sent = []
 
-    async def fake_call(bound, messages):
-        sent.append(messages[1].content)
-        return AIMessage(content="", tool_calls=[{"name": "emit_result", "args": {"ok": True}, "id": "t"}])
+    async def fake_create(**kwargs):
+        sent.append(kwargs["messages"][0]["content"])
+        return Message(
+            id="m", type="message", role="assistant", model="m", stop_reason="tool_use", stop_sequence=None,
+            content=[ToolUseBlock(type="tool_use", id="t", name="emit_result", input={"ok": True})],
+            usage=Usage(input_tokens=1, output_tokens=1),
+        )
 
-    monkeypatch.setattr(client, "_call_with_backoff", fake_call)
+    monkeypatch.setattr(client._client.messages, "create", fake_create)
     await client.complete_structured(system="s", prompt="p", output_model=_Out, images=[b"img"])
     await client.complete_structured(system="s", prompt="p", output_model=_Out, images=[b"other"])  # different image: no cache hit
     assert len(sent) == 2

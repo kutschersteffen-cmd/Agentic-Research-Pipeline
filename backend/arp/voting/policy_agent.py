@@ -6,8 +6,9 @@ from pydantic import BaseModel, Field
 
 from arp.engagement.orchestrator import escalation_index
 from arp.llm.base import LLMClient, LLMUsage
-from arp.schemas.engagement import EngagementRecord, EscalationStage, IssueStatus
+from arp.schemas.engagement import EngagementRecord, EscalationStage
 from arp.schemas.voting import PolicyRecommendation, Proposal, ProposalType, VotePosition
+from arp.stewardship.tracking import OPEN
 
 """Policy Application Agent: applies house voting policy to a proposal.
 
@@ -74,7 +75,6 @@ _PROPOSAL_THEME_MAP: dict[ProposalType, str] = {
     ProposalType.AUDITOR_RATIFICATION: "audit_independence",
 }
 
-_OPEN_STATUSES = (IssueStatus.OPEN, IssueStatus.STALLED)
 
 _JUDGMENT_SYSTEM = """\
 You are a proxy-voting policy analyst. You are given a ballot proposal \
@@ -122,7 +122,7 @@ def check_engagement_alignment(
         i
         for i in record.issues
         if i.theme == theme
-        and i.status in _OPEN_STATUSES
+        and i.status in OPEN
         and escalation_index(i.escalation_stage) >= escalation_index(EscalationStage.VOTE_AGAINST_MANAGEMENT)
     ]
     if escalated_issues and vote == VotePosition.FOR:

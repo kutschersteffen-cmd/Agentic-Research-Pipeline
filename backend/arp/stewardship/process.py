@@ -25,7 +25,7 @@ from typing import Any
 
 from arp.decision.publish import as_fields
 from arp.engagement.orchestrator import is_stalled
-from arp.schemas.engagement import EngagementRecord, IssueStatus, MilestoneStage
+from arp.schemas.engagement import EngagementRecord, MilestoneStage
 from arp.stewardship import alerts_feed, escalation, monitoring, tracking, voting_feed
 from arp.stewardship.backtest import attach_impact, build_contexts
 from arp.stewardship.drafting import DraftStore
@@ -196,7 +196,7 @@ def _stage(stage_id: str, number: int, title: str, layer: str, summary: str, met
 def _open_issues(records: list[EngagementRecord]):
     for record in records:
         for issue in record.issues:
-            if issue.status in (IssueStatus.OPEN, IssueStatus.STALLED):
+            if issue.status in tracking.OPEN:
                 yield record, issue
 
 
@@ -617,7 +617,7 @@ def flow(
     tiers = tier_review(streams.root, sample, records)
     triggers = monitoring.evaluate(PolicyStore(streams.root).active("monitoring_rules"), sample, records)
     ctxs = escalation_contexts(streams.root, sample, records, sla_days, triggers)
-    escalations = escalation.evaluate(PolicyStore(streams.root).active("escalation_rules"), ctxs)
+    escalations = house_escalations(streams.root, ctxs)
     clients = {s["stream_id"]: client_escalations(streams.root, s["stream_id"], ctxs, escalations) for s in streams.list()}
     exceptions = [
         {**r, "stream_id": s["stream_id"], "client": s["name"]}
@@ -685,6 +685,11 @@ def escalation_contexts(
     if triggers is None:
         triggers = monitoring.evaluate(store.active("monitoring_rules"), sample, records)
     return escalation.contexts(sample, records, current_tiers(root, sample, records), triggers, sla_days)
+
+
+def house_escalations(root: Path, ctxs: list[dict]) -> list[dict]:
+    """The active house escalation rules over `ctxs` (from escalation_contexts)."""
+    return escalation.evaluate(PolicyStore(root).active("escalation_rules"), ctxs)
 
 
 def current_tiers(root: Path, sample: dict, records: list[EngagementRecord]) -> dict[str, str]:

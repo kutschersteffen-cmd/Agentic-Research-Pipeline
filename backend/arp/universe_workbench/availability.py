@@ -60,8 +60,7 @@ def availability(
 ) -> dict[str, Availability]:
     ids = list(dict.fromkeys(c.company_id for c in companies))
     wanted = set(ids)
-    # Run ids are random, so order by created_at rather than trusting the directory order.
-    all_runs = sorted(run_store.list_runs(), key=lambda m: m.created_at, reverse=True)
+    all_runs = run_store.list_runs()  # newest first
 
     # ponytail: full scan of identity runs; add a company_id -> latest result index if runs pile up.
     identity: dict[str, IdentityAvail] = {}

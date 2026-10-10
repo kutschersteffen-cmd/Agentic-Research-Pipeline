@@ -6,10 +6,11 @@ from arp.extraction.verifier_agent import VerifierOutput
 from arp.ingestion.base import DocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.job_manager import JobManager
+from arp.orchestration.jobs import resume_run
 from arp.research.indirect_exposure.icio_loader import load_sample_icio
 from arp.research.indirect_exposure.leontief import build_model
 from arp.research.matcher_agents import AdjudicatorOutput
-from arp.research.pipeline import _match_company, create_theme_run, resume_theme_run
+from arp.research.pipeline import _match_company, create_theme_run
 from arp.research.rd_exposure.resolver import RDResolverContext
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.common import Citation, CompanyRef, DocType, JobStatus, SourceDocument
@@ -420,7 +421,7 @@ async def test_match_company_arbitration_disagreement_flags_review_when_base_fla
 
 async def test_resume_theme_run_skips_already_completed_companies(tmp_path, fake_llm):
     """Reconstructs a run from what create_theme_run persisted and confirms
-    resume_theme_run only processes the company missing from results.jsonl
+    resume_run only processes the company missing from results.jsonl
     -- run_batch's own resumability, exercised end to end through the
     resume entrypoint rather than called directly."""
     settings = _settings(tmp_path)
@@ -446,7 +447,7 @@ async def test_resume_theme_run_skips_already_completed_companies(tmp_path, fake
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
     llm = fake_llm({})  # no evidence for either company -> no LLM calls needed
 
-    resumed_run_id = await resume_theme_run(run_id, llm=llm, registry=registry, settings=settings, run_store=store)
+    resumed_run_id = await resume_run(run_id, llm=llm, verifier_llm=llm, registry=registry, settings=settings, run_store=store)
     assert resumed_run_id == run_id
 
     manifest = store.load_manifest(run_id)
@@ -495,10 +496,10 @@ async def test_resume_theme_run_unknown_universe_path_raises(tmp_path, fake_llm)
     llm = fake_llm({})
     registry = DocumentSourceRegistry([_FixedDocSource([])])
     try:
-        await resume_theme_run(run_id, llm=llm, registry=registry, settings=settings, run_store=store)
+        await resume_run(run_id, llm=llm, verifier_llm=llm, registry=registry, settings=settings, run_store=store)
         raise AssertionError("expected ValueError")
     except ValueError as exc:
-        assert "universe_path" in str(exc)
+        assert "no stored inputs" in str(exc)
 
 
 def test_model_chosen_isic_queues_sector_code_item():

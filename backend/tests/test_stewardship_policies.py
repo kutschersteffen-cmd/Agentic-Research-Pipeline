@@ -47,6 +47,16 @@ def test_save_validates_and_stamps_then_activation_needs_an_approver(tmp_path, s
     assert store.active_version("house_voting") == 0 and len(store.activations("house_voting")) == 2
 
 
+def test_a_torn_activation_log_fails_loudly_instead_of_falling_back(tmp_path, sample):
+    store = PolicyStore(tmp_path)
+    store.save("house_voting", _stricter_voting(store.active("house_voting")), "stricter", "designer", sample)
+    store.activate("house_voting", 1, "approver")
+    with (tmp_path / "policies" / "house_voting" / "activations.jsonl").open("a") as f:
+        f.write('{"version": 0, "appro')  # a crash mid-append
+    with pytest.raises(json.JSONDecodeError):
+        store.active_version("house_voting")
+
+
 def test_invalid_versions_are_never_stored(tmp_path, sample):
     store = PolicyStore(tmp_path)
     broken_voting = {**store.active("house_voting"), "positions": store.active("house_voting")["positions"][:-1]}

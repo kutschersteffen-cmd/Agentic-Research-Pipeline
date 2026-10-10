@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from calendar import monthrange
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from pydantic import BaseModel
 
 from arp.storage.atomic_io import atomic_write_text
@@ -49,7 +49,9 @@ class IntervalScheduler:
     job_id: ClassVar[str]
 
     def __init__(self, state_dir: Path) -> None:
-        self._scheduler = AsyncIOScheduler()
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._task: asyncio.Task | None = None
+        self._run_task: asyncio.Task | None = None
         self._config_path: Path = state_dir / "schedule.json"
 
     def _default_config(self) -> Any:
@@ -80,29 +82,43 @@ class IntervalScheduler:
         self._apply(config)
 
     def start(self) -> None:
-        self._scheduler.start()
-        self._apply(self.load_config())
+        self._loop = asyncio.get_running_loop()
+        self._reschedule(self.load_config())
 
     def shutdown(self) -> None:
-        if self._scheduler.running:
-            self._scheduler.shutdown(wait=False)
+        if self._task:
+            self._task.cancel()
+        self._loop = self._task = None
 
     def _write(self, config: BaseModel) -> None:
         self._config_path.parent.mkdir(parents=True, exist_ok=True)
         atomic_write_text(self._config_path, config.model_dump_json(indent=2))
 
     def _apply(self, config: Any) -> None:
-        if self._scheduler.get_job(self.job_id):
-            self._scheduler.remove_job(self.job_id)
-        if not self._ready(config):
-            return
-        self._scheduler.add_job(
-            self._run_scheduled,
-            "interval",
-            hours=24 if self._calendar(config) else config.interval_hours,
-            id=self.job_id,
-            next_run_time=datetime.now(UTC) + timedelta(seconds=5),
-        )
+        # save_config comes from sync routes (threadpool) and the CLI (no loop,
+        # not started -- the API process picks the file up on start()).
+        if self._loop is not None:
+            self._loop.call_soon_threadsafe(self._reschedule, config)
+
+    def _interval(self, config: Any) -> float:
+        return 24 * 3600 if self._calendar(config) else config.interval_hours * 3600
+
+    def _reschedule(self, config: Any) -> None:
+        if self._task:
+            self._task.cancel()
+        self._task = None
+        if self._loop is not None and self._ready(config):
+            self._task = self._loop.create_task(self._tick(self._interval(config)))
+
+    async def _tick(self, seconds: float) -> None:
+        await asyncio.sleep(5)
+        while True:
+            # Shielded and reused while still running: rescheduling mid-run
+            # neither kills the run in progress nor starts an overlapping one.
+            if self._run_task is None or self._run_task.done():
+                self._run_task = asyncio.ensure_future(self._run_scheduled())
+            await asyncio.shield(self._run_task)
+            await asyncio.sleep(seconds)
 
     async def _run_scheduled(self) -> None:
         config = self.load_config()

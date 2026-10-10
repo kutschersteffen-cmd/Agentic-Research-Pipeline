@@ -504,13 +504,6 @@ export interface ItemDecisionBody {
   context_etag: string;
 }
 
-/** One flagged extraction field in the review queue (old runs: one row per company). */
-export interface ReviewQueueRow {
-  item_key: string;
-  reason_codes: string[];
-  [k: string]: unknown;
-}
-
 // --- Discovery ---
 
 export interface DiscoveredDocument {
@@ -1003,15 +996,6 @@ export interface PortfolioSummary {
   portfolio_id: string;
   name: string;
   tags: string[];
-}
-
-export interface SecurityResolution {
-  security_id: string;
-  company_id?: string | null;
-  confidence: number;
-  method: "isin_exact" | "name_fuzzy" | "manual";
-  needs_review: boolean;
-  resolved_at: string;
 }
 
 export interface AggregationRow {

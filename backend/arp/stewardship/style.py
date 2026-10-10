@@ -7,16 +7,15 @@ follows the same save / four-eyes activate path as the rule graphs.
 
 from __future__ import annotations
 
-import json
 import re
 
-from arp.stewardship.policy_review import DATA
+from arp.stewardship.policy_review import load
 
 CATEGORIES = {"overclaiming", "unsupported_claim", "regulated_term", "legal_risk", "other"}
 
 
 def load_blocklist() -> dict:
-    return json.loads((DATA / "style_blocklist.json").read_text())
+    return load("style_blocklist.json")
 
 
 def validate_blocklist(blocklist: dict, _sample: dict | None = None) -> None:

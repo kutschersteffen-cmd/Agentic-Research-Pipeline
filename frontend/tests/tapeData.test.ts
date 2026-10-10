@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { accessFor, decisionBody, mergeDecided, nextAwaiting, recordedFrom, rowKey, sortQueue, toRow } from "../src/pages/lab/tapeData.ts";
+import { accessFor, decisionBody, mergeDecided, nextAwaiting, recordedFrom, rowKey, sortQueue, toRow } from "../src/pages/tape/tapeData.ts";
 import type { QueueItem } from "../src/components/RunReviewList";
 import type { ReviewDecision, ReviewItem } from "../src/types";
 import type { Me } from "../src/lib/reviewKeys.ts";

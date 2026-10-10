@@ -38,8 +38,8 @@ const Feeds = lazy(() => import("./pages/Feeds").then((x) => ({ default: x.Feeds
 const Issues = lazy(() => import("./pages/Issues").then((x) => ({ default: x.Issues })));
 const SmartSearch = lazy(() => import("./pages/SmartSearch").then((x) => ({ default: x.SmartSearch })));
 const Outputs = lazy(() => import("./pages/Outputs").then((x) => ({ default: x.Outputs })));
+const TapeReader = lazy(() => import("./pages/tape/TapeReader").then((x) => ({ default: x.TapeReader })));
 const Arcade = lazy(() => import("./pages/Arcade").then((x) => ({ default: x.Arcade })));
-const Lab = lazy(() => import("./pages/Lab").then((x) => ({ default: x.Lab })));
 const DecisionStudio = lazy(() => import("./pages/DecisionStudio").then((x) => ({ default: x.DecisionStudio })));
 const IndexBuilder = lazy(() => import("./pages/IndexBuilder").then((x) => ({ default: x.IndexBuilder })));
 const ArgusUniverse = lazy(() => import("./pages/ArgusUniverse").then((x) => ({ default: x.ArgusUniverse })));
@@ -71,6 +71,7 @@ const TABS = [
   { id: "discovery", label: "Document Discovery" },
   { id: "portfolio-monitoring", label: "Risk Monitoring" },
   { id: "review", label: "Review Queue" },
+  { id: "tape", label: "Tape Reader" },
   { id: "history", label: "Run History" },
   { id: "stewardship", label: "Steward Workflow" },
   { id: "engagement", label: "Engagement" },
@@ -82,7 +83,6 @@ const TABS = [
   { id: "xbrl", label: "XBRL Facts" },
   { id: "library", label: "Data Library" },
   { id: "arcade", label: "Arcade" },
-  { id: "lab", label: "Lab" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -107,12 +107,12 @@ const isWorkspace = (id: string): id is WorkspaceId => WORKSPACES.some((w) => w.
 // while one of its screens is showing.
 const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boolean }[] = [
   { label: null, ids: ["home", "dashboard"] },
-  { label: "Needs you", ids: ["review", "voting"] },
+  { label: "Needs you", ids: ["review", "tape", "voting"] },
   { label: "Workspaces", ids: ["stewardiq", "argus", "argusUniverse", "transitionIntel", "rdLab", "dataHub"] },
   { label: "Output", ids: ["reporting", "library", "history"] },
   {
     label: "All screens",
-    ids: ["feeds", "issues", "smartSearch", "outputs", "securityMaster", "stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "emergingThemes", "taxonomy", "theme", "strategyReplication", "decision", "index", "xbrl", "identity", "lab", "arcade"],
+    ids: ["feeds", "issues", "smartSearch", "outputs", "securityMaster", "stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "emergingThemes", "taxonomy", "theme", "strategyReplication", "decision", "index", "xbrl", "identity", "arcade"],
     collapsed: true,
   },
 ];
@@ -386,7 +386,6 @@ function App() {
         {active === "issues" && <Issues />}
         {active === "smartSearch" && <SmartSearch />}
         {active === "outputs" && <Outputs />}
-        {active === "lab" && <Lab selected={route.params[0] ?? null} />}
         {active === "arcade" && <Arcade selected={route.params[0] ?? null} />}
         {active === "theme" && <ThemeBuilder onSendToExtraction={(path, count) => sendUniverse("Thematic Universe")("extraction", path, count)} pendingTaxonomyId={pendingTaxonomyId} />}
         {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
@@ -402,6 +401,12 @@ function App() {
         {active === "history" && <RunHistory onOpenReview={openReview} />}
         {active === "stewardship" && <StewardWorkflow initialTab={route.params[0]} />}
         {active === "engagement" && <EngagementDashboard />}
+        {active === "tape" && (
+          <div className="page">
+            <h1>Tape Reader</h1>
+            <TapeReader />
+          </div>
+        )}
         {active === "voting" && <VotingRuns selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("voting", id)} />}
         {active === "reporting" && <ReportBuilder />}
         {active === "strategyReplication" && <StrategyReplication />}

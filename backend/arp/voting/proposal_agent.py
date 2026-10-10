@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from arp.extraction.extractor_agent import format_evidence
 from arp.llm.base import LLMClient, LLMUsage
 from arp.schemas.common import Citation, DocumentChunk
 from arp.schemas.voting import ProposalType, VotePosition
@@ -25,14 +26,6 @@ contains no identifiable ballot items, return an empty list rather than \
 guessing."""
 
 
-def _format_evidence(chunks: list[DocumentChunk]) -> str:
-    blocks = []
-    for c in chunks:
-        header = f"[doc_id={c.doc_id}" + (f" | section={c.section}" if c.section else "") + "]"
-        blocks.append(f"{header}\n{c.text}")
-    return "\n\n---\n\n".join(blocks)
-
-
 class ProposalDraft(BaseModel):
     proposal_number: str
     type: ProposalType
@@ -54,6 +47,6 @@ async def extract_proposals(
     prompt = (
         f"Company: {company_name}\n"
         + (f"Meeting date: {meeting_date}\n" if meeting_date else "")
-        + f"\nProxy statement evidence:\n{_format_evidence(chunks) or '(no proxy statement text available)'}"
+        + f"\nProxy statement evidence:\n{format_evidence(chunks, ('doc_id', 'section')) or '(no proxy statement text available)'}"
     )
     return await llm.complete_structured(system=_SYSTEM_PROMPT, prompt=prompt, output_model=ProposalListDraft)

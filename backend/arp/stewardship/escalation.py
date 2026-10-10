@@ -22,16 +22,17 @@ from datetime import UTC, datetime
 import zen
 
 from arp.engagement.orchestrator import is_stalled
-from arp.schemas.engagement import ESCALATION_ORDER, CommitmentStatus, EngagementRecord, IssueStatus
+from arp.schemas.engagement import ESCALATION_ORDER, CommitmentStatus, EngagementRecord
 from arp.stewardship.backtest import _nest
-from arp.stewardship.policy_review import DATA
+from arp.stewardship.policy_review import load
+from arp.stewardship.tracking import OPEN
 
 STEPS = [s.value for s in ESCALATION_ORDER]
 TOP = len(STEPS) - 1
 
 
 def load_graph() -> dict:
-    return json.loads((DATA / "house_escalation_policy.graph.json").read_text())
+    return load("house_escalation_policy.graph.json")
 
 
 def _months_since(iso: str, now: datetime) -> int:
@@ -91,7 +92,7 @@ def contexts(
     ]
     for r in records:
         for i in r.issues:
-            if i.status not in (IssueStatus.OPEN, IssueStatus.STALLED):
+            if i.status not in OPEN:
                 continue
             since = i.escalation_history[-1].changed_at if i.escalation_history else i.opened_at
             out.append(
@@ -155,11 +156,11 @@ def evaluate(graph: dict, ctxs: list[dict]) -> list[dict]:
 
 def load_client_default() -> dict:
     """A client graph that returns the house answer unchanged."""
-    return json.loads((DATA / "client_escalation_inherit.graph.json").read_text())
+    return load("client_escalation_inherit.graph.json")
 
 
 def load_client_example() -> dict:
-    return json.loads((DATA / "examples" / "client_escalation_example.graph.json").read_text())
+    return load("examples/client_escalation_example.graph.json")
 
 
 def client_evaluate(client_graph: dict, ctxs: list[dict], house: list[dict]) -> list[dict]:

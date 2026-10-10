@@ -46,7 +46,7 @@ frameworks/ versioned decision frameworks + the tables they are applied to
 indices/   index construction calibrations (versioned, effective-dated) + reviews
 ```
 
-- **LangChain** (`langchain-anthropic`) is the LLM client, behind one narrow
+- The **Anthropic SDK** (`anthropic`) is the LLM client, behind one narrow
   interface (`arp/llm/base.py`) — schema-forced structured output, a bounded
   validation-retry loop, and a disk-backed response cache.
 - **LangGraph** models each per-company multi-step flow as an explicit state

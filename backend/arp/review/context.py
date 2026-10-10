@@ -190,10 +190,10 @@ def similar_decisions(run_store: RunStore, *, run_id: str, item_key: str, limit:
     if current is None:
         return None
     doc_type = (_doc_types(current) or [None])[0]
-    runs = [m for m in run_store.list_runs("extraction") if m.run_id != run_id and not m.params.get("trial")]
+    runs = [m for m in run_store.extraction_runs() if m.run_id != run_id]
     out: list[dict] = []
     # ponytail: full scan of past extraction runs per request; index by issuer once run count makes this slow
-    for m in sorted(runs, key=lambda m: m.created_at, reverse=True):
+    for m in runs:
         decisions = effective_decisions(run_store, m.run_id, cosign_required=cosign_rule("extraction"))
         for r in run_store.read_jsonl(run_store.results_path(m.run_id)):
             if r.get("issuer_key") != issuer:

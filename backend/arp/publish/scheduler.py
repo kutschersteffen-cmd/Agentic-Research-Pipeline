@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -27,6 +26,7 @@ from arp.snapshots.build import (
     list_months,
     month_of,
 )
+from arp.storage.jsonl_io import append_jsonl
 
 logger = logging.getLogger(__name__)
 
@@ -86,10 +86,8 @@ def reground_sample(
         if result != "ok":
             logger.warning("Re-ground of fact %s: %s", f.fact_id, result)
         rows.append({"day": day, "fact_id": f.fact_id, "result": result})
-    if rows:
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        with log_path.open("a") as fh:
-            fh.writelines(json.dumps(r) + "\n" for r in rows)
+    for r in rows:
+        append_jsonl(log_path, r)
     return rows
 
 

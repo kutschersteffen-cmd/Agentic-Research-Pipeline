@@ -139,7 +139,7 @@ Resolves a list of bare company names to a real, verified website/CIK before any
 Identity items review through the workbench like any other kind (§3.18): `approve`, `correct` (a `corrected_value` of `resolved_website` and/or `resolved_cik`, with a comment naming the source, since there is no source text to cite), `reject` or `escalate`. The run-level review routes for identity are gone; `arp identity review` (§8) uses the same decision rules.
 
 ### 3.6 Document Discovery
-Resolves each company's investor-relations site (from a supplied URL or a best-effort web-search fallback), does a bounded, same-domain, robots.txt-respecting crawl for annual reports / sustainability reports / proxy statements / investor presentations / transcripts, and downloads matches — runs manually or on an APScheduler-driven interval, raising a webhook event when something new appears. A reachable-but-unmatched company and an unreachable one are reported distinctly.
+Resolves each company's investor-relations site (from a supplied URL or a best-effort web-search fallback), does a bounded, same-domain, robots.txt-respecting crawl for annual reports / sustainability reports / proxy statements / investor presentations / transcripts, and downloads matches — runs manually or on an asyncio-driven interval, raising a webhook event when something new appears. A reachable-but-unmatched company and an unreachable one are reported distinctly.
 
 *ESEF feed polling (E16).* With `esef_enabled` (off by default), each discovery pass also asks the ESEF filing index for the latest filing of every company with an LEI (`poll_esef_filings` in `discovery/change_detector.py`, through `EsefDocumentSource`) and records it like a crawled document, so a new or changed filing raises a `new_document`/`updated_document` event. Any polling error is logged and the company's crawl result is kept.
 
@@ -291,7 +291,7 @@ The landing page of both Argus processes (`#/argusUniverse`). It maps a universe
 
 | Layer | Library | Role |
 |---|---|---|
-| LLM client | **LangChain** (`langchain-anthropic`) | Every agent call in the codebase goes through one interface, `LLMClient.complete_structured()` (`llm/base.py`) — schema-forced structured output via tool calling, a bounded self-correction retry loop on validation failure, and a disk-backed response cache. Fully provider-agnostic from every pipeline's point of view. |
+| LLM client | **Anthropic SDK** (`anthropic`) | Every agent call in the codebase goes through one interface, `LLMClient.complete_structured()` (`llm/base.py`) — schema-forced structured output via tool calling, a bounded self-correction retry loop on validation failure, and a disk-backed response cache. Fully provider-agnostic from every pipeline's point of view. |
 | Multi-step agent control flow | **LangGraph** | Models each pipeline's per-company (or per-field/per-activity) multi-step flow as an explicit state graph with conditional/short-circuit edges: the Advocate/Opposing/Adjudicator debate, the extractor/verifier pairs (general + financials), the identity-resolution graph, and proposal extraction + policy application for voting. Company-level batch fan-out and resumability stay outside the graphs, in the file-based `run_batch`/`RunStore` layer. |
 | Document chunking & retrieval | **LlamaIndex** | `SentenceSplitter` backs chunking (`ingestion/parsing.py`); a BM25 retriever backs evidence selection (`retrieval/select_evidence.py`) — deterministic and embedding-free by default, consistent with a zero-LLM-cost-in-retrieval design. |
 | Hybrid semantic retrieval | **fastembed** *(opt-in)* | A 384-dim ONNX embedding model (`BAAI/bge-small-en-v1.5`, ~50MB) layered on top of BM25 when enabled — chosen specifically over the torch-based `llama-index-embeddings-huggingface` (~2GB) to keep the default retrieval path free, offline, and deterministic. |
@@ -304,9 +304,8 @@ The landing page of both Argus processes (`#/argusUniverse`). It maps a universe
 
 | Package | Constraint | Purpose |
 |---|---|---|
-| `anthropic` | `>=0.40.0` | Underlying Claude API client (used beneath LangChain's Anthropic integration). |
+| `anthropic` | `>=1.13` | Claude API client — the concrete LLM client implementation, with its built-in retry/backoff. |
 | `langchain-core` | `>=0.3` | Core LangChain abstractions the app's `LLMClient` interface is built on. |
-| `langchain-anthropic` | `>=0.3` | LangChain's Claude chat-model integration — the concrete LLM client implementation. |
 | `langgraph` | `>=0.2` | State-graph orchestration for every multi-step agent pipeline. |
 | `llama-index-core` | `>=0.12` | Document chunking (`SentenceSplitter`). |
 | `llama-index-retrievers-bm25` | `>=0.5` | BM25-ranked evidence retrieval. |
@@ -322,10 +321,7 @@ The landing page of both Argus processes (`#/argusUniverse`). It maps a universe
 | `docling` | `>=2.0` | Primary PDF-to-markdown parser (layout model + TableFormer) — see §4. |
 | `cryptography` | `>=42.0` | AES backend pypdf uses to open owner-password-encrypted PDFs. |
 | `trafilatura` | `>=1.9` | Primary HTML content extraction (EDGAR filings, discovered web pages). |
-| `tenacity` | `>=8.3` | Retry/backoff logic in the LangChain client. |
-| `APScheduler` | `>=3.10` | Interval-based scheduling for the document-discovery crawler. |
 | `python-multipart` | `>=0.0.9` | FastAPI file-upload form parsing (manual document/universe uploads). |
-| `python-dotenv` | `>=1.0` | Loads `.env` into `pydantic-settings`. |
 | `numpy` | `>=1.26` | Numeric backbone for the portfolio aggregation engine and embedding matrices. |
 | `openpyxl` | `>=3.1` | `.xlsx`/`.xlsm` parsing (disclosure tables, ETF holdings exports) and the local-file source's Excel reader. |
 | `fastembed` | `>=0.3` | ONNX embedding model for opt-in hybrid semantic retrieval — see §4. |

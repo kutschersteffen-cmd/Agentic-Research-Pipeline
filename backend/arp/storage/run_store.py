@@ -119,10 +119,12 @@ class RunStore:
         return [CompanyRef.model_validate(c) for c in json.loads(read_text_utf8(path))]
 
     def list_runs(self, run_type: str | None = None) -> list[RunManifest]:
+        """Newest first by created_at -- run_ids are a random uuid fragment
+        (see arp.schemas.common.new_id), so directory order means nothing."""
         manifests: list[RunManifest] = []
         if not self.runs_dir.exists():
             return manifests
-        for d in sorted(self.runs_dir.iterdir(), reverse=True):
+        for d in self.runs_dir.iterdir():
             mp = d / "manifest.json"
             if not mp.exists():
                 continue
@@ -133,7 +135,11 @@ class RunStore:
             if run_type and m.run_type != run_type:
                 continue
             manifests.append(m)
-        return manifests
+        return sorted(manifests, key=lambda m: m.created_at, reverse=True)
+
+    def extraction_runs(self) -> list[RunManifest]:
+        """Non-trial extraction runs, newest first."""
+        return [m for m in self.list_runs("extraction") if not m.params.get("trial")]
 
     # Kept as staticmethods on the store (rather than callers importing
     # jsonl_io directly) because every existing call site -- pipelines,

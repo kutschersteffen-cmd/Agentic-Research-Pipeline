@@ -2,23 +2,10 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from arp.extraction.extractor_agent import format_evidence
 from arp.llm.base import LLMClient, LLMUsage
 from arp.schemas.common import Citation, DocumentChunk
 from arp.schemas.thematic import ActivityDefinition, AgentOpinion, ExposureEstimate, MatchVerdict
-
-
-def _format_evidence(chunks: list[DocumentChunk]) -> str:
-    blocks = []
-    for c in chunks:
-        header = f"[doc_id={c.doc_id} | doc_type={c.doc_type.value}"
-        if c.section:
-            header += f" | section={c.section}"
-        if c.speaker:
-            header += f" | speaker={c.speaker}"
-        header += "]"
-        blocks.append(f"{header}\n{c.text}")
-    return "\n\n---\n\n".join(blocks)
-
 
 # Implements the MSCI "opposing agent" pattern (Advocate vs. Opposing,
 # resolved by an Adjudicator) for auditable, precision-oriented thematic
@@ -74,7 +61,7 @@ async def run_advocate(
         f"Company: {company_name}\n\n"
         f"Activity (IN SCOPE): {activity.name}\n{activity.in_scope_description}\n\n"
         f"Activity (OUT OF SCOPE): {activity.out_of_scope_description}\n\n"
-        f"Evidence:\n{_format_evidence(chunks)}"
+        f"Evidence:\n{format_evidence(chunks, ('doc_id', 'doc_type', 'section', 'speaker'))}"
     )
     return await llm.complete_structured(system=_ADVOCATE_SYSTEM, prompt=prompt, output_model=AgentOpinion)
 
@@ -90,7 +77,7 @@ async def run_opposing(
         f"Company: {company_name}\n\n"
         f"Activity (IN SCOPE): {activity.name}\n{activity.in_scope_description}\n\n"
         f"Activity (OUT OF SCOPE): {activity.out_of_scope_description}\n\n"
-        f"Evidence:\n{_format_evidence(chunks)}\n\n"
+        f"Evidence:\n{format_evidence(chunks, ('doc_id', 'doc_type', 'section', 'speaker'))}\n\n"
         f"The advocate analyst's case for inclusion:\nStance: {advocate.stance}\n"
         f"Rationale: {advocate.rationale}\n"
         f"Exposure estimate claimed: {advocate.exposure_estimate.value}"

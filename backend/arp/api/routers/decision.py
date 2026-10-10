@@ -14,7 +14,7 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_decision_store, get_portfolio_store, get_run_store, settings_dep
 from arp.config import Settings
 from arp.decision import overrides, sources, templates
-from arp.decision.compare import compare_results, hold_cuts
+from arp.decision.compare import compare_datasets
 from arp.decision.dataset import Dataset, build_dataset
 from arp.decision.diffing import describe_changes
 from arp.decision.indicator_list import build_framework, parse_indicator_list
@@ -188,42 +188,14 @@ def dataset_from_source(
     instead of from an upload -- which is the point of having this layer
     here rather than in a spreadsheet."""
     try:
-        if req.source == "transition_plan_run":
-            dataset = sources.from_transition_plan_run(
-                run_store, _require(req.run_id, "run_id"), include_indicators=req.include_indicators
-            )
-        elif req.source == "extraction_run":
-            dataset = sources.from_extraction_run(run_store, _require(req.run_id, "run_id"))
-        elif req.source == "financials_run":
-            dataset = sources.from_financials_run(run_store, _require(req.run_id, "run_id"))
-        elif req.source == "tnfd_run":
-            dataset = sources.from_tnfd_run(run_store, _require(req.run_id, "run_id"))
-        elif req.source == "joined_runs":
-            dataset = sources.from_joined_runs(run_store, req.run_ids or [], include_indicators=req.include_indicators)
-        elif req.source == "theme_run":
-            dataset = sources.from_theme_run(run_store, _require(req.run_id, "run_id"))
-        elif req.source == "portfolio_snapshot":
-            dataset = sources.from_portfolio_snapshot(portfolio_store, req.as_of, req.portfolio_ids)
-        # The three below score something other than a company -- a sector in
-        # a jurisdiction, a theme, a strategy. The engine does not care.
-        elif req.source == "transition_barrier":
-            dataset = sources.from_transition_barrier(req.region, req.sectors)
-        elif req.source == "emerging_themes_run":
-            dataset = sources.from_emerging_themes_run(run_store, _require(req.run_id, "run_id"))
-        elif req.source == "replication_runs":
-            dataset = sources.from_replication_runs(run_store, req.run_ids)
-        else:
-            raise HTTPException(400, f"Unknown source: {req.source}")
+        dataset = sources.from_source(
+            req.source, run_store, portfolio_store, run_id=req.run_id, run_ids=req.run_ids, as_of=req.as_of,
+            portfolio_ids=req.portfolio_ids, region=req.region, sectors=req.sectors, include_indicators=req.include_indicators,
+        )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     store.save_dataset(dataset)
     return _summarise(dataset)
-
-
-def _require(value: str | None, field: str) -> str:
-    if not value:
-        raise HTTPException(400, f"`{field}` is required for this source.")
-    return value
 
 
 @router.get("/datasets", response_model=list[DatasetSummary])
@@ -800,13 +772,7 @@ def compare(req: CompareRequest, store: DecisionStore = Depends(get_decision_sto
     before = _load_dataset(req.dataset_id_before, store)
     after = _load_dataset(req.dataset_id_after, store)
     config = _resolve_config(req.config, req.framework_id, req.version, store)
-    first = _apply(before, config, overrides=overrides.load(store.overrides_path(before.dataset_id)))
-    return compare_results(
-        first,
-        _apply(after, hold_cuts(config, first), overrides=overrides.load(store.overrides_path(after.dataset_id))),
-        label_before=before.as_of or before.name,
-        label_after=after.as_of or after.name,
-    )
+    return compare_datasets(before, after, config, store, apply=_apply)
 
 
 # --- publishing: the handoff to stewardship coverage and index construction ---

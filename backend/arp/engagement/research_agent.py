@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from arp.extraction.extractor_agent import format_evidence
 from arp.grounding import ground_citations
 from arp.ingestion.parsing import chunk_document
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -28,17 +29,6 @@ Every claim about the company's OWN disclosures must cite an EXACT, \
 VERBATIM substring from the evidence block with the matching doc_id. \
 Do not fabricate a quote. If the evidence doesn't address the issue at \
 all, say so honestly (low confidence) rather than padding the summary."""
-
-
-def _format_evidence(chunks: list[DocumentChunk]) -> str:
-    blocks = []
-    for c in chunks:
-        header = f"[doc_id={c.doc_id} | doc_type={c.doc_type.value}"
-        if c.section:
-            header += f" | section={c.section}"
-        header += "]"
-        blocks.append(f"{header}\n{c.text}")
-    return "\n\n---\n\n".join(blocks)
 
 
 def _format_engagement_history(record: EngagementRecord, issue: EngagementIssue) -> str:
@@ -68,7 +58,7 @@ async def draft_dossier(
         f"Current milestone stage: {issue.milestone_stage.value}\n\n"
         f"Prior correspondence on this issue:\n{_format_engagement_history(record, issue)}\n\n"
         f"Known contacts:\n{contacts_text}\n\n"
-        f"Evidence from company disclosures:\n{_format_evidence(chunks) or '(no matching evidence found)'}"
+        f"Evidence from company disclosures:\n{format_evidence(chunks, ('doc_id', 'doc_type', 'section')) or '(no matching evidence found)'}"
     )
     return await llm.complete_structured(system=_SYSTEM_PROMPT, prompt=prompt, output_model=ResearchDossierDraft)
 

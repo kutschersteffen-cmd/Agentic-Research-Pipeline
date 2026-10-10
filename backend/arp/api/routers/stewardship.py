@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import shutil
 import tempfile
 from datetime import UTC, datetime
@@ -28,7 +27,7 @@ from arp.stewardship import drafting, escalation, monitoring, tracking
 from arp.stewardship.benchmark import BenchmarkStore, parse_ishares_holdings
 from arp.stewardship.client_report import build_pptx, client_report
 from arp.stewardship.policies import PolicyStore, coverage_preview, voting_preview
-from arp.stewardship.policy_review import DATA, load
+from arp.stewardship.policy_review import load
 from arp.stewardship.process import (
     HOUSE,
     StreamStore,
@@ -38,6 +37,7 @@ from arp.stewardship.process import (
     confirm_tiers,
     escalation_contexts,
     flow,
+    house_escalations,
     load_sample,
     open_exceptions,
     record_decision,
@@ -82,7 +82,7 @@ class CreateStreamRequest(BaseModel):
 def create_stream(body: CreateStreamRequest, streams: StreamStore = Depends(get_stream_store)) -> dict:
     if not body.name.strip():
         raise HTTPException(422, "A client stream needs a name")
-    policy = body.client_policy or json.loads((DATA / "examples" / "client_policy_example.json").read_text())
+    policy = body.client_policy or load("examples/client_policy_example.json")
     try:
         stream = streams.create(body.name.strip(), policy, body.vehicle_type)
     except (ValueError, KeyError) as exc:
@@ -411,9 +411,7 @@ def open_engagement_from_trigger(
     trigger = next((t for t in triggers if t["issuer_id"] == body.issuer_id and t["rule"] == body.rule), None)
     if trigger is None and (stored := TriggerStore(streams.root).stored_trigger(trigger_id(body.issuer_id, body.rule))):
         # the stored engagement_id is as of the run: match open engagements now, as evaluate does
-        open_ids = [i.issue_id for r in records if r.company_id == stored["issuer_id"] for i in r.issues
-                    if i.theme == stored["theme"] and i.status in (IssueStatus.OPEN, IssueStatus.STALLED)]
-        trigger = {**stored, "engagement_id": open_ids[0] if open_ids else None}
+        trigger = {**stored, "engagement_id": monitoring.open_engagements(records).get((stored["issuer_id"], stored["theme"]))}
     if trigger is None:
         raise HTTPException(404, "No active monitoring rule or monthly run raised such a trigger")
     if trigger["engagement_id"] is not None:
@@ -444,7 +442,7 @@ def escalation_recommendations(
 ) -> dict:
     """What the active escalation rules recommend for every open engagement (sample and live)."""
     ctxs = _escalation_contexts(settings, streams, engagements)
-    return {"recommendations": escalation.evaluate(PolicyStore(streams.root).active("escalation_rules"), ctxs)}
+    return {"recommendations": house_escalations(streams.root, ctxs)}
 
 
 class EscalationPreviewRequest(BaseModel):
@@ -481,7 +479,7 @@ def post_client_escalation_preview(
 ) -> dict:
     _stream_or_404(streams, stream_id)
     ctxs = _escalation_contexts(settings, streams, engagements)
-    house = escalation.evaluate(PolicyStore(streams.root).active("escalation_rules"), ctxs)
+    house = house_escalations(streams.root, ctxs)
     try:
         return escalation.client_preview(
             body.graph, client_store(streams.root, stream_id).active("escalation_rules"), ctxs, house
@@ -511,7 +509,7 @@ def decide_client_exception(
     on the stream, so the client report can show them."""
     stream = _stream_or_404(streams, stream_id)
     ctxs = _escalation_contexts(settings, streams, engagements)
-    house = escalation.evaluate(PolicyStore(streams.root).active("escalation_rules"), ctxs)
+    house = house_escalations(streams.root, ctxs)
     item = next(
         (
             r
@@ -556,6 +554,18 @@ def get_client_report(
     return client_report(streams.root, stream, engagements.list_all(), settings.engagement_sla_days)
 
 
+def _deck_response(build, data, filename: str, background: BackgroundTasks) -> FileResponse:
+    """`build(data, path, pdf=False)` into a temp dir that is removed once the file is sent."""
+    tmp = Path(tempfile.mkdtemp(prefix="arp_deck_"))
+    path = build(data, tmp / filename, pdf=False)  # tmp is deleted: no PDF
+    background.add_task(shutil.rmtree, tmp, ignore_errors=True)
+    return FileResponse(
+        path,
+        filename=path.name,
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    )
+
+
 @router.get("/streams/{stream_id}/report.pptx")
 def get_client_report_pptx(
     stream_id: str,
@@ -567,14 +577,7 @@ def get_client_report_pptx(
     """The same report as a PowerPoint deck, rendered on request and not stored."""
     stream = _stream_or_404(streams, stream_id)
     report = client_report(streams.root, stream, engagements.list_all(), settings.engagement_sla_days)
-    tmp = Path(tempfile.mkdtemp(prefix="arp_client_report_"))
-    path = build_pptx(report, tmp / f"{stream_id}-stewardship-report.pptx", pdf=False)  # tmp is deleted: no PDF
-    background.add_task(shutil.rmtree, tmp, ignore_errors=True)
-    return FileResponse(
-        path,
-        filename=path.name,
-        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    )
+    return _deck_response(build_pptx, report, f"{stream_id}-stewardship-report.pptx", background)
 
 
 # --- Client program (Part 5): calibrate, compare with the house, propose -----
@@ -643,24 +646,12 @@ def get_program_proposal(
     """The proposal deck for the saved calibration, rendered on request."""
     stream = _stream_or_404(streams, stream_id)
     sim = simulate(streams.root, stream, engagements.list_all(), settings.engagement_sla_days)
-    tmp = Path(tempfile.mkdtemp(prefix="arp_program_"))
-    path = build_proposal(sim, tmp / f"{stream_id}-program-proposal.pptx", pdf=False)  # tmp is deleted: no PDF
-    background.add_task(shutil.rmtree, tmp, ignore_errors=True)
-    return FileResponse(
-        path,
-        filename=path.name,
-        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    )
-
-
-class ApproveProgramRequest(BaseModel):
-    pass  # approver comes from the signed-in principal
+    return _deck_response(build_proposal, sim, f"{stream_id}-program-proposal.pptx", background)
 
 
 @router.post("/streams/{stream_id}/program/approve")
 def post_program_approve(
     stream_id: str,
-    body: ApproveProgramRequest,
     settings: Settings = Depends(settings_dep),
     streams: StreamStore = Depends(get_stream_store),
     engagements: EngagementStore = Depends(get_engagement_store),

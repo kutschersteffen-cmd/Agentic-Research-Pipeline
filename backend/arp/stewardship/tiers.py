@@ -23,9 +23,10 @@ from pathlib import Path
 
 import zen
 
-from arp.schemas.engagement import EngagementRecord, EscalationStage, IssueStatus
+from arp.schemas.engagement import EngagementRecord, EscalationStage
 from arp.stewardship.backtest import _nest
-from arp.stewardship.policy_review import DATA
+from arp.stewardship.policy_review import load
+from arp.stewardship.tracking import OPEN
 
 TIERS = ["priority_bilateral", "thematic_collaborative", "scaled_baseline", "systemic"]
 TIER_LABELS = {
@@ -38,14 +39,14 @@ REEVALUATE_AFTER = timedelta(days=91)  # quarterly minimum (E1)
 
 
 def load_graph() -> dict:
-    return json.loads((DATA / "house_coverage_policy.graph.json").read_text())
+    return load("house_coverage_policy.graph.json")
 
 
 def tier_contexts(sample: dict, records: list[EngagementRecord]) -> list[dict]:
     """One context per issuer: holdings, company flags and engagement history."""
     history: dict[str, dict] = {}
     for r in records:
-        open_issues = [i for i in r.issues if i.status in (IssueStatus.OPEN, IssueStatus.STALLED)]
+        open_issues = [i for i in r.issues if i.status in OPEN]
         history[r.company_id] = {
             "open_engagements": len(open_issues),
             "escalated": any(i.escalation_stage != EscalationStage.PRIVATE_ENGAGEMENT for i in open_issues),

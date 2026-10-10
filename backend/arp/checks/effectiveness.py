@@ -25,7 +25,7 @@ class CheckStat:
 
 
 def effectiveness(run_store: RunStore, *, run_ids: list[str] | None = None) -> list[CheckStat]:
-    runs = [m.run_id for m in run_store.list_runs("extraction") if not m.params.get("trial")]
+    runs = [m.run_id for m in run_store.extraction_runs()]
     if run_ids is not None:
         runs = [r for r in runs if r in run_ids]
     counts: dict[tuple, list[int]] = defaultdict(lambda: [0, 0, 0, 0])  # fired, decided, hits, overturns

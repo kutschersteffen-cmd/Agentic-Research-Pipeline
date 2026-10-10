@@ -9,10 +9,8 @@ from arp.storage.run_store import RunStore
 
 def list_company_results(run_store: RunStore, run_type: str, company_id: str) -> list[dict]:
     """Every result row for one company across every run of the given type,
-    newest run first. Sorted by manifest.created_at rather than run_id text
-    or directory order -- run_id is a random uuid4 fragment (see
-    arp.schemas.common.new_id), not chronologically sortable."""
-    manifests = sorted(run_store.list_runs(run_type), key=lambda m: m.created_at, reverse=True)
+    newest run first (list_runs' order)."""
+    manifests = run_store.list_runs(run_type)
     matches: list[dict] = []
     for manifest in manifests:
         for row in run_store.read_jsonl(run_store.results_path(manifest.run_id)):
@@ -28,7 +26,7 @@ def list_known_companies(run_store: RunStore, run_type: str) -> list[dict]:
     directory store. Oldest-run-first iteration so a later run's name/
     ticker (e.g. after a universe correction) wins over an earlier one's."""
     seen: dict[str, dict] = {}
-    manifests = sorted(run_store.list_runs(run_type), key=lambda m: m.created_at)
+    manifests = reversed(run_store.list_runs(run_type))
     for manifest in manifests:
         for row in run_store.read_jsonl(run_store.results_path(manifest.run_id)):
             company_id = row.get("company_id")
