@@ -10,7 +10,7 @@ from arp.schemas.common import CompanyRef
 def load_company_universe(path: str | Path) -> list[CompanyRef]:
     """Loads the user-supplied starting company universe from CSV or JSON.
 
-    CSV columns: company_id, name, ticker, website, cik, country, sector,
+    CSV columns: company_id, name, ticker, website, cik, lei, isin, country, sector,
     fiscal_year_end (MM-DD, e.g. 03-31; resolves "FY2024"-style period
     labels) -- company_id, name required; the rest optional. JSON: a list of objects
     with the same fields. This is intentionally the single entry point the
