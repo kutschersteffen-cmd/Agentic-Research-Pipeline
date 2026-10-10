@@ -32,6 +32,8 @@ const STATUS: Record<string, string> = {
   no_lei: "No LEI in the universe row",
   not_found: "Not found at the SEC or in the ESEF filing index",
   error: "Failed",
+  unrouted: "Not routed",
+  no_source: "No XBRL source yet",
 };
 const REPORT: Record<string, string> = {
   stored: "Annual report saved",
@@ -40,7 +42,7 @@ const REPORT: Record<string, string> = {
   error: "Annual report download failed",
 };
 /** What identifies a company in each market: the SEC CIK, or the ESEF LEI. */
-export const keyLabel = (market: XbrlMarket): "CIK" | "LEI" => (market === "esef" ? "LEI" : "CIK");
+export const keyLabel = (market: XbrlMarket | null): "CIK" | "LEI" => (market === "esef" ? "LEI" : "CIK");
 /** A third-party URL is only linked when it is http(s): never javascript: or data:. */
 export const safeHref = (url: string | null | undefined): string | null => (url && /^https?:\/\//i.test(url) ? url : null);
 /** A status in words; not_found names where it looked when the row's market is known. */

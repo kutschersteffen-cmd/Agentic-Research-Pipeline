@@ -3034,12 +3034,15 @@ export interface XbrlTag {
 }
 
 export type XbrlMarket = "sec" | "esef";
+/** The Fetch market control: Auto routes each company by its own data. */
+export type XbrlRunMarket = "auto" | XbrlMarket;
 
 export interface XbrlCompanyStatus {
-  market: XbrlMarket;
+  market: XbrlMarket | null; // null for unrouted and no_source rows
   company_id: string;
   cik: string | null;
-  status: "ok" | "unchanged" | "no_cik" | "no_lei" | "not_found";
+  status: "ok" | "unchanged" | "no_cik" | "no_lei" | "not_found" | "unrouted" | "no_source";
+  note?: string | null;
   source_sha: string | null;
   fact_count: number;
   report: "stored" | "unchanged" | "none" | "error";
