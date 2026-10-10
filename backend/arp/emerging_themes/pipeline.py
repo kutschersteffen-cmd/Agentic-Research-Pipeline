@@ -268,6 +268,8 @@ async def run_emerging_themes(
     """Convenience wrapper (create + execute in one call) for the CLI and
     the scheduler, where blocking until completion is expected."""
     run_id = create_emerging_themes_run(run_store, companies, triggered_by)
+    if settings.llm_batch:
+        JobManager(run_store)._update(run_id, lambda m: m.params.__setitem__("batch", True))
     return await execute_emerging_themes_run(
         run_id, companies, llm=llm, sources=sources, settings=settings, run_store=run_store, topic_store=topic_store,
         xbrl_source=xbrl_source,

@@ -33,12 +33,13 @@ def estimate_cost_usd(model: str, usage: LLMUsage) -> float:
     # input_tokens is already the grand total (base + cache_read + cache_creation --
     # see LangChainAnthropicClient), so the base/regular share is the remainder.
     base_input_tokens = usage.input_tokens - usage.cache_read_tokens - usage.cache_creation_tokens
-    return (
+    cost = (
         (base_input_tokens / 1_000_000) * input_price
         + (usage.cache_read_tokens / 1_000_000) * input_price * _CACHE_READ_MULTIPLIER.get(model, _DEFAULT_CACHE_READ_MULTIPLIER)
         + (usage.cache_creation_tokens / 1_000_000) * input_price * _CACHE_WRITE_MULTIPLIER
         + (usage.output_tokens / 1_000_000) * output_price
     )
+    return cost * 0.5 if usage.batch else cost  # batch discount stacks with the cache multipliers
 
 
 def combine_usage(*usages: LLMUsage) -> LLMUsage:
@@ -50,4 +51,5 @@ def combine_usage(*usages: LLMUsage) -> LLMUsage:
         cache_read_tokens=sum(u.cache_read_tokens for u in live),
         cache_creation_tokens=sum(u.cache_creation_tokens for u in live),
         cached=all(u.cached for u in usages) if usages else False,
+        batch=any(u.batch for u in live),
     )

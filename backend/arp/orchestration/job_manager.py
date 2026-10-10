@@ -84,11 +84,14 @@ class JobManager:
             manifest.cache_read_tokens += live.cache_read_tokens
             manifest.cache_creation_tokens += live.cache_creation_tokens
             manifest.estimated_cost_usd += cost_delta_usd
+            if live.batch:
+                manifest.batch_saved_usd += cost_delta_usd  # at 50% the saving equals the spend
 
         return self._update(run_id, fn)
 
     def finish_run(self, run_id: str, error: str | None = None) -> RunManifest:
         def fn(manifest: RunManifest) -> None:
+            manifest.batch_wait = None  # nothing is waited on any more, even after a hard kill
             if error:
                 manifest.status = JobStatus.FAILED
                 manifest.error = error
@@ -111,6 +114,7 @@ class JobManager:
             manifest.status = JobStatus.RUNNING
             manifest.error = None
             manifest.cancel_requested = False
+            manifest.batch_wait = None  # a hard-killed attempt's wait; a reattach records it afresh
 
         return self._update(run_id, fn)
 

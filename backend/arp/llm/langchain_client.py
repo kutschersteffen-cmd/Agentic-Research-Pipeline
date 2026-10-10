@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 
 from anthropic import AsyncAnthropic
+from anthropic.types import Message
 from pydantic import ValidationError
 
 from arp.llm.base import LLMClient, LLMUsage, T
@@ -123,6 +124,10 @@ class LangChainAnthropicClient(LLMClient):
         self.cache = DiskLLMCache(cache_dir, enabled=cache_enabled, refresh=cache_refresh)
         self._prompt_cache_enabled = prompt_cache_enabled
 
+    async def _send(self, params: dict) -> Message:
+        """One request; the seam a batch subclass overrides. `params` is plain JSON."""
+        return await self._client.messages.create(**params)
+
     async def complete_structured(
         self,
         *,
@@ -205,13 +210,15 @@ class LangChainAnthropicClient(LLMClient):
         last_error: ValidationError | None = None
 
         for attempt in range(1, max_validation_retries + 2):
-            response = await self._client.messages.create(
-                model=self.model,
-                max_tokens=max_tokens,
-                system=system_content,
-                messages=messages,
-                tools=[tool],
-                tool_choice={"type": "auto"},
+            response = await self._send(
+                {
+                    "model": self.model,
+                    "max_tokens": max_tokens,
+                    "system": system_content,
+                    "messages": messages,
+                    "tools": [tool],
+                    "tool_choice": {"type": "auto"},
+                }
             )
             u = response.usage
             # input_tokens is reported as the grand total (uncached + cache
@@ -235,7 +242,7 @@ class LangChainAnthropicClient(LLMClient):
                 last_error = ValidationError.from_exception_data(
                     output_model.__name__, [{"type": "missing", "loc": (), "input": None, "msg": "no tool call returned"}]
                 )
-                messages.append({"role": "assistant", "content": response.content})
+                messages.append({"role": "assistant", "content": [b.model_dump(mode="json", exclude_none=True) for b in response.content]})
                 messages.append({"role": "user", "content": f"You must respond by calling the `{_TOOL_NAME}` tool. Try again."})
                 continue
 
@@ -245,7 +252,7 @@ class LangChainAnthropicClient(LLMClient):
                 instance, dropped = _drop_invalid_list_items(output_model, tool_call.input, exc)
                 if instance is None:
                     last_error = exc
-                    messages.append({"role": "assistant", "content": response.content})
+                    messages.append({"role": "assistant", "content": [b.model_dump(mode="json", exclude_none=True) for b in response.content]})
                     messages.append(
                         {
                             "role": "user",

@@ -15,6 +15,7 @@ from arp.config import Settings
 from arp.extraction.financials_pipeline import create_financials_extraction_run
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMUsage
+from arp.llm.batching_client import BatchingLLMClient
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import NotResumable, RunBusy, resume_run, run_lease
 from arp.research.pipeline import create_theme_run
@@ -23,6 +24,7 @@ from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 from arp.schemas.transition_plan import TransitionPlanAssessmentRecord
 from arp.storage.run_store import RunStore
 from arp.transition_plan.pipeline import TransitionPlanAssessmentResult, create_transition_plan_run
+from arp.voting.pipeline import create_voting_run
 
 COMPANIES = [CompanyRef(company_id=f"c{i}", name=f"Co {i}") for i in range(1, 7)]
 LLM = object()  # never called: the fake assessor stands in for every LLM step
@@ -297,3 +299,92 @@ def test_resume_endpoint_launches_and_finishes(tmp_path, fake, api):
                 break
             time.sleep(0.02)
     assert store.load_manifest(run_id).status == JobStatus.COMPLETED  # lease=False: no RunBusy under the launcher's lease
+
+
+async def test_resume_keeps_batch_mode(tmp_path, monkeypatch):
+    from arp.llm.batching_client import BatchingLLMClient
+
+    settings = _settings(tmp_path)
+    store = RunStore(settings.runs_dir)
+    run_id = create_transition_plan_run(COMPANIES[:1], settings, store)
+    JobManager(store)._update(run_id, lambda m: m.params.__setitem__("batch", True))
+    seen = {}
+
+    async def _execute(run_id, companies, *, llm, verifier_llm, settings, **_kwargs):
+        seen.update(llm=llm, verifier_llm=verifier_llm, settings=settings)
+        return run_id
+
+    monkeypatch.setattr(tp_pipeline, "execute_transition_plan_run", _execute)
+    await resume_run(run_id, settings=settings, run_store=store, registry=DocumentSourceRegistry([]))
+    assert isinstance(seen["llm"], BatchingLLMClient) and isinstance(seen["verifier_llm"], BatchingLLMClient)
+    assert seen["settings"].llm_batch is True
+
+
+def test_cli_theme_resume_keeps_batch_mode(tmp_path, monkeypatch):
+    """`theme resume` hands resume_run pre-built real-time clients; a batch run must still resume in batch mode."""
+    import arp.cli.theme as cli_theme
+    from arp.llm.batching_client import BatchingLLMClient
+
+    settings = _settings(tmp_path)
+    store = RunStore(settings.runs_dir)
+    activity = ActivityDefinition(name="EV", in_scope_description="EVs.", out_of_scope_description="ICE.")
+    run_id = create_theme_run(ThemeDefinition(name="E", description="", activities=[activity]), COMPANIES[:1], settings, store)
+    JobManager(store)._update(run_id, lambda m: m.params.__setitem__("batch", True))
+    seen = {}
+
+    async def _capture(run_id, theme, companies, *, llm, verifier_llm, settings, **_kwargs):
+        seen.update(llm=llm, verifier_llm=verifier_llm, settings=settings)
+        return run_id
+
+    monkeypatch.setattr(research_pipeline, "execute_theme_run", _capture)
+    monkeypatch.setattr(cli_theme, "get_settings", lambda: settings)
+    monkeypatch.setattr(cli_theme, "_run_store", lambda: store)
+    monkeypatch.setattr(cli_theme, "_registry", lambda: DocumentSourceRegistry([]))
+    res = CliRunner().invoke(cli_theme.theme_app, ["resume", run_id])
+    assert res.exit_code == 0, res.output
+    assert isinstance(seen["llm"], BatchingLLMClient) and isinstance(seen["verifier_llm"], BatchingLLMClient)
+    assert seen["settings"].llm_batch is True
+
+
+def _batch_cli(tmp_path, monkeypatch, module, attr, app, args, create, theme_args=()):
+    """Runs a CLI run command with `run_*` faked; returns (the llm it was given, the run's manifest params)."""
+    settings = Settings(anthropic_api_key="unused", runs_dir=tmp_path / "runs", cache_dir=tmp_path / "cache")
+    store = RunStore(settings.runs_dir)
+    seen = {}
+
+    async def _fake(*a, llm, settings, **_k):
+        seen["llm"] = llm
+        return create(*a, settings, store)  # the real creator, as the pipeline calls it
+
+    monkeypatch.setattr(module, attr, _fake)
+    monkeypatch.setattr(module, "get_settings", lambda: settings)
+    monkeypatch.setattr(module, "_run_store", lambda: store)
+    monkeypatch.setattr(module, "_registry", lambda: DocumentSourceRegistry([]))
+    monkeypatch.setattr(module, "_engagement_store", lambda: None, raising=False)
+    universe = tmp_path / "u.csv"
+    universe.write_text("company_id,name\nAAA,Alpha Inc\n")
+    theme = tmp_path / "theme.json"
+    theme.write_text(ThemeDefinition(name="T", description="").model_dump_json())
+    out = []
+    for extra in ([], ["--batch"]):
+        res = CliRunner().invoke(app, [*args, *theme_args, "--universe", str(universe), *extra])
+        assert res.exit_code == 0, res.output
+        out.append(seen["llm"])
+    params = [m.params.get("batch") for m in sorted(store.list_runs(), key=lambda m: m.created_at)]
+    return out, params
+
+
+def test_theme_cli_batch_flag(tmp_path, monkeypatch):
+    import arp.cli.theme as cli_theme
+
+    (plain, batched), params = _batch_cli(tmp_path, monkeypatch, cli_theme, "run_thematic_universe", cli_theme.theme_app, ["run"], create_theme_run, ["--theme", str(tmp_path / "theme.json")])
+    assert not isinstance(plain, BatchingLLMClient) and isinstance(batched, BatchingLLMClient)
+    assert params == [None, True]
+
+
+def test_voting_cli_batch_flag(tmp_path, monkeypatch):
+    import arp.cli.voting as cli_voting
+
+    (plain, batched), params = _batch_cli(tmp_path, monkeypatch, cli_voting, "run_voting", cli_voting.voting_app, ["run"], create_voting_run)
+    assert not isinstance(plain, BatchingLLMClient) and isinstance(batched, BatchingLLMClient)
+    assert params == [None, True]

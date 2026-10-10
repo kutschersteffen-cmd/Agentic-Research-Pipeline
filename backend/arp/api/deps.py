@@ -19,7 +19,7 @@ from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.llm.base import LLMClient
-from arp.llm.factory import build_llm_client, build_verifier_llm_client
+from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
 from arp.portfolio.monitoring.scheduler import PortfolioMonitoringScheduler
 from arp.projects.store import ProjectStore
 from arp.publish.facts import PublishStore
@@ -214,7 +214,9 @@ def get_topic_store() -> TopicStateStore:
 
 @lru_cache
 def get_emerging_themes_scheduler() -> EmergingThemesScheduler:
-    return EmergingThemesScheduler(get_settings(), get_run_store(), get_topic_store(), llm_factory=get_llm_client)
+    settings = batch_settings(get_settings(), "emerging_themes" in get_settings().batch_scheduled_run_types)
+    # The factory builds a fresh client per run: a batching client must never be shared across runs.
+    return EmergingThemesScheduler(settings, get_run_store(), get_topic_store(), llm_factory=lambda: build_llm_client(settings))
 
 
 @lru_cache

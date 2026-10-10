@@ -1,3 +1,4 @@
+import { BatchToggle } from "../components/BatchToggle";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { FileLink } from "../components/FileLink";
 import { api } from "../api/client";
@@ -31,6 +32,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
   const [runId, setRunId] = useState<string | null>(null);
   const [results, setResults] = useState<CompanyMatch[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [batch, setBatch] = useState(false);
   const [useSampleIcio, setUseSampleIcio] = useState(false);
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
   const [selectedTaxonomyId, setSelectedTaxonomyId] = useState("");
@@ -113,6 +115,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
         ...(fromTaxonomy ? { taxonomy_id: loadedTaxonomy.taxonomy_id, taxonomy_version: loadedTaxonomy.version } : {}),
         universe_path: universePath,
         use_sample_icio: useSampleIcio,
+        batch,
         ...(cataloguePath && catalogueMappings.length > 0
           ? { revenue_catalogue_path: cataloguePath, catalogue_mapping: catalogueMappings }
           : {}),
@@ -355,6 +358,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
             </div>
           )}
 
+          <BatchToggle checked={batch} onChange={setBatch} />
           <button onClick={startRun} disabled={busy || !universePath}>
             Run screen against {companyCount ? `${companyCount} companies` : "your companies (upload them first)"}
           </button>

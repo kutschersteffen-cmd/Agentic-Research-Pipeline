@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from arp.config import Settings
 from arp.llm.base import LLMClient
+from arp.llm.batching_client import BatchingLLMClient
 from arp.llm.langchain_client import LangChainAnthropicClient
+
+
+def batch_settings(settings: Settings, batch: bool) -> Settings:
+    """`settings` for a batch run when `batch`, else `settings` itself."""
+    if not batch:
+        return settings
+    return settings.model_copy(update={"llm_batch": True, "max_concurrent_llm_calls": settings.batch_concurrency})
 
 
 def build_llm_client(settings: Settings, *, model: str | None = None, cache_refresh: bool | None = None) -> LLMClient:
@@ -11,7 +19,7 @@ def build_llm_client(settings: Settings, *, model: str | None = None, cache_refr
             "ARP_ANTHROPIC_API_KEY is not set. Provide an Anthropic API key via environment variable "
             "or a .env file before running any agent pipeline."
         )
-    return LangChainAnthropicClient(
+    kwargs = dict(
         api_key=settings.anthropic_api_key,
         model=model or settings.llm_model,
         cache_dir=settings.cache_dir,
@@ -19,6 +27,10 @@ def build_llm_client(settings: Settings, *, model: str | None = None, cache_refr
         cache_refresh=settings.llm_cache_refresh if cache_refresh is None else cache_refresh,
         prompt_cache_enabled=settings.llm_prompt_cache_enabled,
     )
+    if settings.llm_batch:
+        # A new client per call: batch waits and cancels follow the run that awaits them.
+        return BatchingLLMClient(**kwargs, batch_log=settings.cache_dir / "llm_batches.jsonl")
+    return LangChainAnthropicClient(**kwargs)
 
 
 def build_verifier_llm_client(settings: Settings) -> LLMClient:
