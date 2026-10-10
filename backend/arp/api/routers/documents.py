@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from arp.api.deps import get_document_content_store, settings_dep
 from arp.config import Settings
 from arp.schemas.common import CompanyRef, DocType
-from arp.storage.document_store import DocumentContentStore
+from arp.storage.document_store import DocumentContentStore, files_on_disk
 from arp.storage.safe_path import UnsafeIdentifierError, safe_filename, safe_id
 from arp.universe import load_company_universe
 
@@ -67,14 +67,6 @@ class ReadinessRequest(BaseModel):
     universe_path: str | None = None
 
 
-def _files_on_disk(documents_dir: Path, company_id: str) -> int:
-    try:
-        company_dir = documents_dir / safe_id(company_id, label="company_id")
-    except UnsafeIdentifierError:
-        return 0
-    return sum(1 for f in company_dir.rglob("*") if f.is_file()) if company_dir.is_dir() else 0
-
-
 @router.post("/readiness")
 def document_readiness(
     req: ReadinessRequest,
@@ -97,7 +89,7 @@ def document_readiness(
     readiness: dict[str, dict] = {}
     ready, onboard = [], []
     for c in companies:
-        r = {**empty, **stored.get(c.company_id, {}), "on_disk": _files_on_disk(settings.documents_dir, c.company_id)}
+        r = {**empty, **stored.get(c.company_id, {}), "on_disk": files_on_disk(settings.documents_dir, c.company_id)}
         r["ready"] = r["on_disk"] + r["registered"] > 0
         readiness[c.company_id] = r
         row = c.model_dump(mode="json")
