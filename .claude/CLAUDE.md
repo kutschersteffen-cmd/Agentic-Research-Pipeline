@@ -115,6 +115,19 @@ the mobile **Code** tab — the composer is a plain chat box with no picker, so 
 name (`/graphify`) and send it, or just describe what you want and let the description trigger
 it. Plugin skills are namespaced: `/ponytail:ponytail-review`, `/ui-ux-pro-max:design`.
 
+## Matt Pocock skills
+
+Six skills from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT, upstream
+`49dd158`) are copied into `.claude/skills/`, not installed as a plugin, so they can be edited
+and don't duplicate superpowers. Re-copy from upstream to update.
+
+- `domain-modeling` — maintain `GLOSSARY.md` and ADRs in `docs/adr/`.
+- `research` — answer a question from primary sources, saved as a cited Markdown file.
+- `codebase-design` — deep-module vocabulary; `/improve-codebase-architecture` builds on it.
+- `handoff` — `/handoff` writes a handoff doc for the next session.
+- `grilling` — only as the interview step of `/improve-codebase-architecture`. For planning,
+  `superpowers:brainstorming` still owns the phase.
+
 # graphify
 - **graphify** (`.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`
 When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
