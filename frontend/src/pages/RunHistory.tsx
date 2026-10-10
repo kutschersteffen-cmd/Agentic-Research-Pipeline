@@ -55,7 +55,7 @@ export function RunHistory({ onOpenReview }: Props = {}) {
           Refresh
         </button>
         <span className="muted">
-          {runs.length} runs · estimated spend <span className="mono">${totalCost.toFixed(2)}</span>
+          {runs.length} {runs.length === 1 ? "run" : "runs"} · estimated spend <span className="mono">${totalCost.toFixed(2)}</span>
         </span>
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
