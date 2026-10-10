@@ -156,6 +156,25 @@ def record_cost(model: str, usage: LLMUsage) -> None:
     )
 
 
+def record_batch_wait(wait: dict | None) -> None:
+    """The Message Batch this run is waiting on (None: none open), for the run's status line."""
+    tally = _current.get()
+    if tally is None or tally.run_store is None or tally.run_id is None:
+        return
+    from arp.orchestration.job_manager import JobManager
+
+    JobManager(tally.run_store)._update(tally.run_id, lambda m: setattr(m, "batch_wait", wait))
+
+
+def cancel_requested() -> bool:
+    """Whether someone asked to cancel the current run; False outside a run."""
+    tally = _current.get()
+    if tally is None or tally.run_store is None or tally.run_id is None:
+        return False
+    manifest = tally.run_store.load_manifest(tally.run_id)
+    return manifest is not None and manifest.cancel_requested
+
+
 def step_counts(run_store: RunStore, run_id: str, company_id: str | None = None) -> tuple[dict, bool]:
     """({"counts", "seconds"} per node, for the run or one company;
     whether the run is still counting)."""

@@ -39,6 +39,7 @@ class FakeBatches:
     - `reverse`: results stream back in reverse submission order.
     - `outcomes`: {custom_id or prompt text: "errored" | "expired" | "canceled"}.
     - `create_error`: raised by the next `create`, then cleared.
+    - `retrieve_error`: raised by the next `retrieve`, then cleared.
     - `respond`: params -> Message for succeeded requests.
     """
 
@@ -49,16 +50,18 @@ class FakeBatches:
         self.create_error: BaseException | None = None
         self.respond = echo_message
         self.creates: list[list[dict]] = []  # the `requests` of every create, in order
+        self.retrieve_error: BaseException | None = None
         self.retrieves = 0
+        self.cancels: list[str] = []
         self._batches: dict[str, dict] = {}  # id -> {"requests", "status"}
 
     def release(self) -> None:
         self.hold = False
 
-    def _batch(self, batch_id: str) -> MessageBatch:
+    def _batch(self, batch_id: str, advance: bool = True) -> MessageBatch:
         now = datetime.now(UTC)
         status = self._batches[batch_id]["status"]
-        if status != "ended" and not self.hold:
+        if advance and status != "ended" and not self.hold:
             status = self._batches[batch_id]["status"] = "ended"
         return MessageBatch(
             id=batch_id,
@@ -78,13 +81,17 @@ class FakeBatches:
         self.creates.append(requests)
         batch_id = f"msgbatch_{len(self.creates)}"
         self._batches[batch_id] = {"requests": requests, "status": "in_progress"}
-        return self._batch(batch_id)
+        return self._batch(batch_id, advance=False)  # like the API: never ended on create
 
     async def retrieve(self, message_batch_id: str) -> MessageBatch:
         self.retrieves += 1
+        if self.retrieve_error is not None:
+            err, self.retrieve_error = self.retrieve_error, None
+            raise err
         return self._batch(message_batch_id)
 
     async def cancel(self, message_batch_id: str) -> MessageBatch:
+        self.cancels.append(message_batch_id)
         entry = self._batches[message_batch_id]
         entry["status"] = "ended"
         for req in entry["requests"]:
