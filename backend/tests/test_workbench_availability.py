@@ -105,3 +105,18 @@ def test_each_results_file_read_once(tmp_path, monkeypatch):
     monkeypatch.setattr(RunStore, "read_jsonl", staticmethod(lambda p: calls.append(p) or real(p)))
     e.avail(*ids)
     assert len(calls) == 3
+
+
+def test_runs_listed_once_and_each_meta_read_once(tmp_path, monkeypatch):
+    e = Env(tmp_path)
+    e.run("extraction", [{"company_id": "acme"}])
+    e.run("identity", [_ident("acme")])
+    e.xbrl.set_meta("0000000001", source_sha="s", tags=None, company_id="acme", company_name="Acme", fact_count=3)
+    lists, metas = [], []
+    real_list, real_meta = RunStore.list_runs, XbrlStore.meta
+    monkeypatch.setattr(RunStore, "list_runs", lambda self, t=None: lists.append(t) or real_list(self, t))
+    monkeypatch.setattr(XbrlStore, "meta", lambda self, k: metas.append(k) or real_meta(self, k))
+    a = e.avail("acme")["acme"]
+    assert a.extraction.runs == 1 and a.identity is not None and a.xbrl.fact_count == 3
+    assert lists == [None]
+    assert metas == ["0000000001"]

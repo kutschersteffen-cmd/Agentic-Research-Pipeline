@@ -29,6 +29,7 @@ MAX_COMPANIES = 10_000
 class WorkbenchRequest(BaseModel):
     companies: list[CompanyRef] | None = None
     universe_path: str | None = None
+    availability: bool = True  # false skips the store scans (routing preview)
 
 
 def _run_store(settings: Settings = Depends(settings_dep)) -> RunStore:
@@ -54,13 +55,19 @@ def workbench(
 ) -> dict:
     companies = req.companies
     if not companies and req.universe_path:
-        if not Path(req.universe_path).resolve().is_relative_to((settings.runs_dir / "_universes").resolve()):
+        try:
+            path = Path(req.universe_path).resolve()
+        except (OSError, ValueError) as exc:  # ValueError: NUL byte in the path
+            raise HTTPException(400, "Universe file must be a saved universe.") from exc
+        if not path.is_relative_to((settings.runs_dir / "_universes").resolve()):
             raise HTTPException(400, "Universe file must be a saved universe.")
         try:
-            companies = load_company_universe(req.universe_path)
+            companies = load_company_universe(path)
         except Exception as exc:
             logger.warning("universe file unreadable: %s", exc)
             raise HTTPException(400, "Could not read the universe file.") from exc
+        if not companies:
+            raise HTTPException(400, "Universe file is empty.")
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
     if len(companies) > MAX_COMPANIES:
@@ -70,7 +77,7 @@ def workbench(
     avail = availability(
         companies, run_store=run_store, content_store=content_store,
         xbrl_store=xbrl_store, documents_dir=settings.documents_dir,
-    )
+    ) if req.availability else {}
     routes = {"sec": 0, "esef": 0, "no_source": 0, "unrouted": 0}
     mapping = {"mapped": 0, "ambiguous": 0, "unmapped": 0, "no_identifier": 0}
     rows = []
@@ -82,6 +89,6 @@ def workbench(
             "company": r.company.model_dump(mode="json"),
             "mapping": asdict(m),
             "route": {"market": r.market, "status": r.status, "basis": r.basis, "detail": r.detail},
-            "availability": avail[c.company_id].model_dump(mode="json"),
+            "availability": avail[c.company_id].model_dump(mode="json") if avail else None,
         })
     return {"rows": rows, "counts": {"routes": routes, "mapping": mapping}}

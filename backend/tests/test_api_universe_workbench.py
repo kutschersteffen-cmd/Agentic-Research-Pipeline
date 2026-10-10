@@ -80,6 +80,45 @@ def test_path_outside_universes_is_400(env, tmp_path, monkeypatch, request):
     assert calls == []
 
 
+def test_nul_byte_path_is_400(env):
+    client, _ = env
+    r = client.post("/api/universe/workbench", json={"universe_path": "a\x00b"})
+    assert r.status_code == 400
+    assert r.json()["detail"] == "Universe file must be a saved universe."
+
+
+def test_loader_gets_the_resolved_path(env, monkeypatch):
+    client, settings = env
+    calls = []
+    monkeypatch.setattr(wb, "load_company_universe", lambda p: calls.append(p) or [])
+    p = settings.runs_dir / "_universes" / "u.json"
+    p.write_text("[]")
+    client.post("/api/universe/workbench", json={"universe_path": str(settings.runs_dir / "_universes" / ".." / "_universes" / "u.json")})
+    assert calls == [p.resolve()]
+
+
+def test_empty_saved_universe_is_400(env):
+    client, settings = env
+    p = settings.runs_dir / "_universes" / "u.json"
+    p.write_text("[]")
+    r = client.post("/api/universe/workbench", json={"universe_path": str(p)})
+    assert r.status_code == 400
+    assert r.json()["detail"] == "Universe file is empty."
+
+
+def test_availability_can_be_skipped(env, monkeypatch):
+    client, _ = env
+    monkeypatch.setattr(wb, "availability", lambda *a, **k: (_ for _ in ()).throw(AssertionError("scanned")))
+    from arp.storage.run_store import RunStore
+
+    monkeypatch.setattr(RunStore, "read_jsonl", staticmethod(lambda p: (_ for _ in ()).throw(AssertionError(p))))
+    r = client.post("/api/universe/workbench", json={"availability": False, "companies": [
+        {"company_id": "us", "name": "US Co", "cik": "320193"}]})
+    assert r.status_code == 200
+    row = r.json()["rows"][0]
+    assert row["availability"] is None and row["route"]["market"] == "sec"
+
+
 def test_requires_companies_or_path(env):
     client, _ = env
     r = client.post("/api/universe/workbench", json={})
@@ -90,7 +129,9 @@ def test_requires_companies_or_path(env):
 def test_too_many_companies(env):
     client, _ = env
     cos = [{"company_id": f"c{i}", "name": "n"} for i in range(10_001)]
-    assert client.post("/api/universe/workbench", json={"companies": cos}).status_code == 400
+    r = client.post("/api/universe/workbench", json={"companies": cos})
+    assert r.status_code == 400
+    assert r.json()["detail"] == "At most 10000 companies per request."
 
 
 def test_duplicate_company_ids_both_rows_returned(env):
@@ -99,7 +140,9 @@ def test_duplicate_company_ids_both_rows_returned(env):
         {"company_id": "d", "name": "A", "country": "US"},
         {"company_id": "d", "name": "B", "country": "DE"},
     ]})
-    assert [x["route"]["market"] for x in r.json()["rows"]] == ["sec", "esef"]
+    rows = r.json()["rows"]
+    assert [x["route"]["market"] for x in rows] == ["sec", "esef"]
+    assert rows[0]["availability"] == rows[1]["availability"]
 
 
 def test_requires_authorization(tmp_path):

@@ -50,11 +50,6 @@ class Availability(BaseModel):
     xbrl: XbrlAvail | None
 
 
-def _newest_first(run_store: RunStore, run_type: str):
-    # Run ids are random, so order by created_at rather than trusting the directory order.
-    return sorted(run_store.list_runs(run_type), key=lambda m: m.created_at, reverse=True)
-
-
 def availability(
     companies: list[CompanyRef],
     *,
@@ -65,10 +60,12 @@ def availability(
 ) -> dict[str, Availability]:
     ids = list(dict.fromkeys(c.company_id for c in companies))
     wanted = set(ids)
+    # Run ids are random, so order by created_at rather than trusting the directory order.
+    all_runs = sorted(run_store.list_runs(), key=lambda m: m.created_at, reverse=True)
 
     # ponytail: full scan of identity runs; add a company_id -> latest result index if runs pile up.
     identity: dict[str, IdentityAvail] = {}
-    for m in _newest_first(run_store, "identity"):
+    for m in (m for m in all_runs if m.run_type == "identity"):
         for row in run_store.read_jsonl(run_store.results_path(m.run_id)):
             cid = row.get("company_id")
             if cid in wanted and cid not in identity:
@@ -77,10 +74,8 @@ def availability(
                     resolved_cik=row.get("resolved_cik"), resolved_website=row.get("resolved_website"))
 
     # ponytail: full scan of extraction-like runs; add a company_id -> runs index if runs pile up.
-    runs = sorted((m for t in EXTRACTION_RUN_TYPES for m in run_store.list_runs(t)),
-                  key=lambda m: m.created_at, reverse=True)
     extraction: dict[str, ExtractionAvail] = {}
-    for m in runs:
+    for m in (m for m in all_runs if m.run_type in EXTRACTION_RUN_TYPES):
         in_run = {r.get("company_id") for r in run_store.read_jsonl(run_store.results_path(m.run_id))} & wanted
         for cid in in_run:
             e = extraction.setdefault(cid, ExtractionAvail())
@@ -95,7 +90,7 @@ def availability(
     for key in xbrl_store.ciks():
         meta = xbrl_store.meta(key) or {}
         item = None
-        for cid in xbrl_store.company_ids(key):
+        for cid in meta.get("company_ids") or ([meta["company_id"]] if meta.get("company_id") else []):
             if cid in wanted and cid not in xbrl:
                 item = item or XbrlAvail(
                     key=key, market=meta.get("market") or "sec", fact_count=int(meta.get("fact_count") or 0),
