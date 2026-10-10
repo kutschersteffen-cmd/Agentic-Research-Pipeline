@@ -42,12 +42,14 @@ const Arcade = lazy(() => import("./pages/Arcade").then((x) => ({ default: x.Arc
 const Lab = lazy(() => import("./pages/Lab").then((x) => ({ default: x.Lab })));
 const DecisionStudio = lazy(() => import("./pages/DecisionStudio").then((x) => ({ default: x.DecisionStudio })));
 const IndexBuilder = lazy(() => import("./pages/IndexBuilder").then((x) => ({ default: x.IndexBuilder })));
+const ArgusUniverse = lazy(() => import("./pages/ArgusUniverse").then((x) => ({ default: x.ArgusUniverse })));
 const XbrlFacts = lazy(() => import("./pages/XbrlFacts").then((x) => ({ default: x.XbrlFacts })));
 
 const TABS = [
   { id: "home", label: "Start" },
   { id: "stewardiq", label: "StewardIQ" },
   { id: "argus", label: "Argus" },
+  { id: "argusUniverse", label: "Universe" },
   { id: "transitionIntel", label: "Transition Intelligence Platform" },
   { id: "rdLab", label: "R&D Lab" },
   { id: "dataHub", label: "Data Hub" },
@@ -106,7 +108,7 @@ const isWorkspace = (id: string): id is WorkspaceId => WORKSPACES.some((w) => w.
 const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boolean }[] = [
   { label: null, ids: ["home", "dashboard"] },
   { label: "Needs you", ids: ["review", "voting"] },
-  { label: "Workspaces", ids: ["stewardiq", "argus", "transitionIntel", "rdLab", "dataHub"] },
+  { label: "Workspaces", ids: ["stewardiq", "argus", "argusUniverse", "transitionIntel", "rdLab", "dataHub"] },
   { label: "Output", ids: ["reporting", "library", "history"] },
   {
     label: "All screens",
@@ -260,7 +262,7 @@ function App() {
     setNavOpen(false);
   }
 
-  const sendUniverse = (from: string) => (to: "extraction" | "transitionPlan" | "discovery", path: string, count: number) => {
+  const sendUniverse = (from: string) => (to: "extraction" | "transitionPlan" | "discovery" | "xbrl", path: string, count: number) => {
     setHandoff({ path, count, from, to });
     navigate(to);
   };
@@ -405,6 +407,7 @@ function App() {
         {active === "strategyReplication" && <StrategyReplication />}
         {active === "decision" && <DecisionStudio key={route.params.join("/")} initialSource={route.params[0]} initialRunId={route.params[1]} />}
         {active === "index" && <IndexBuilder />}
+        {active === "argusUniverse" && <ArgusUniverse onSendUniverse={sendUniverse("Argus Universe")} />}
         {active === "xbrl" && <XbrlFacts selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("xbrl", id)} />}
         {active === "library" && <DataLibrary />}
         </Suspense>

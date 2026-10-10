@@ -3,6 +3,7 @@ import { filenameFromDisposition, inlineSafe } from "../lib/files";
 import { profileEmbedParams } from "../lib/biEmbed";
 import type { Me } from "../lib/reviewKeys";
 import type {
+  WorkbenchResponse,
   CompanyBallot,
   ClientEscalationPreview,
   BenchmarkInfo,
@@ -523,6 +524,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ companies, name }),
     }),
+
+  universeWorkbench: (body: { companies?: unknown[]; universe_path?: string }) =>
+    request<WorkbenchResponse>("/api/universe/workbench", { method: "POST", body: JSON.stringify(body) }),
 
   // Taxonomy library
   discoverTaxonomySources: (name: string) =>
