@@ -1,4 +1,5 @@
 import { SEQUENTIAL_BLUE } from "../lib/palette";
+import { useChartWidth } from "../lib/useChartWidth";
 import type { HistogramBin, TierDefinition } from "../types";
 
 /** Tier bands are ordinal (Tier 1 is best), so they take one hue light ->
@@ -28,9 +29,9 @@ export function ScoreDistribution({
   cuts: number[];
   tiers: TierDefinition[];
 }) {
+  const [wrapRef, width] = useChartWidth(760);
   if (bins.length === 0) return <p className="muted">Nothing scored yet, so there is no distribution to show.</p>;
 
-  const width = 760;
   const height = 210;
   const padLeft = 38;
   const padRight = 14;
@@ -51,7 +52,7 @@ export function ScoreDistribution({
   }`;
 
   return (
-    <div>
+    <div ref={wrapRef}>
       <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" role="img" aria-label={summary}>
         <line x1={padLeft} y1={padTop + plotHeight} x2={width - padRight} y2={padTop + plotHeight} className="chart-axis-line" />
         {[0, maxCount].map((tick) => (
