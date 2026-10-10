@@ -89,10 +89,47 @@ def test_master_enrichment_then_reroute(tmp_path):
     assert r.company.cik == "320193"
 
 
-def test_no_source_isin_prefix_is_final_even_if_master_knows_the_issuer(tmp_path):
+def test_non_table_isin_prefix_yields_to_a_cik_but_not_to_an_lei(tmp_path):
+    assert (_r(isin="CA0679011084").status, _r(isin="CA0679011084").market) == ("no_source", None)
+    r = _r(isin="CA0679011084", cik="1086222")
+    assert (r.status, r.market, r.basis) == ("routed", "sec", "cik")
+    r = _r(isin="CA0679011084", lei=LEI)
+    assert (r.status, r.market) == ("no_source", None)
     idx = _master(tmp_path, ("ISIN", "CA0679011084"), ("CIK", "320193"))
     r = _r(idx, isin="CA0679011084")
-    assert (r.status, r.market) == ("no_source", None)
+    assert (r.status, r.market, r.basis) == ("routed", "sec", "master")
+    assert r.company.cik == "320193"
+
+
+def test_table_isin_prefix_still_beats_a_cik():
+    r = _r(isin="IE00BLP1HW54", cik="1086222")
+    assert (r.market, r.basis) == ("esef", "isin_prefix")
+
+
+def test_rules_1_to_3_rows_carry_the_master_identifiers(tmp_path):
+    s = IdentifierMapStore(tmp_path / "idmap.jsonl")
+    for key, scheme, value in (("I1", "ISIN", "DE0007164600"), ("I1", "LEI", LEI),
+                               ("I2", "ISIN", "US0378331005"), ("I2", "CIK", "320193")):
+        s.add(IdentifierMap(issuer_key=key, scheme=scheme, value=value))
+    idx = MasterIndex.build(s)
+    r = _r(idx, country="DE", isin="DE0007164600")
+    assert (r.market, r.basis, r.company.lei) == ("esef", "country", LEI)
+    r = _r(idx, isin="US0378331005")
+    assert (r.market, r.basis, r.company.cik) == ("sec", "isin_prefix", "320193")
+
+
+@pytest.mark.parametrize("isin", ["None", "nan", "12", "ÄE0007164600", "DE000716460"])
+def test_malformed_isin_is_ignored_and_noted(isin):
+    r = _r(isin=isin, cik="320193")
+    assert (r.market, r.basis) == ("sec", "cik")
+    assert f"; ISIN '{isin}' not valid" in r.detail
+    assert _r(isin=isin).status == "unrouted"
+
+
+def test_lowercase_valid_isin_is_accepted():
+    r = _r(isin="no0010096985", cik="320193")
+    assert (r.market, r.basis) == ("esef", "isin_prefix")
+    assert "not valid" not in r.detail
 
 
 def test_master_hit_without_deciding_identifiers(tmp_path):

@@ -34,12 +34,13 @@ class MasterIndex:
         for r in idmap.rows():
             if (r.valid_from and day < r.valid_from) or (r.valid_to and day >= r.valid_to):
                 continue
-            keys = idx._by_id.setdefault((r.scheme, normalise_identifier(r.scheme, r.value)), [])
+            norm = normalise_identifier(r.scheme, r.value)
+            keys = idx._by_id.setdefault((r.scheme, norm), [])
             if r.issuer_key not in keys:
                 keys.append(r.issuer_key)
             if r.scheme in _SCHEMES:
                 vals = idx._by_issuer.setdefault(r.issuer_key, {}).setdefault(r.scheme, [])
-                if r.value not in vals:
+                if norm not in {normalise_identifier(r.scheme, v) for v in vals}:
                     vals.append(r.value)
         return idx
 
@@ -77,6 +78,6 @@ def enrich(company: CompanyRef, mapping: Mapping) -> CompanyRef:
     fill = {}
     for scheme, attr in (("LEI", "lei"), ("CIK", "cik"), ("ISIN", "isin")):
         vals = mapping.identifiers.get(scheme, [])
-        if not getattr(company, attr) and len(vals) == 1:
+        if not (getattr(company, attr) or "").strip() and len({normalise_identifier(scheme, v) for v in vals}) == 1:
             fill[attr] = vals[0]
     return company.model_copy(update=fill)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Literal
 
@@ -30,6 +31,7 @@ for _a2, (_a3, _names) in _COUNTRIES.items():
     for _k in (_a2, _a3, *_names):
         _BY_NAME[_k.upper()] = _a2
 
+_ISIN = re.compile(r"[A-Z]{2}[A-Z0-9]{9}[0-9]")
 _UNROUTED = "no country or identifier: add an ISIN, LEI or CIK, or load it into the security master"
 
 
@@ -47,17 +49,24 @@ def country_market(value: str | None) -> Market | None:
     return _MARKET[a2] if a2 else None
 
 
+def _isin(value: str | None) -> str:
+    """The ISIN when well-formed (after strip/upper), else ""."""
+    isin = "".join((value or "").split()).upper()
+    return isin if _ISIN.fullmatch(isin) else ""
+
+
 def _rules(c: CompanyRef) -> tuple[Market | None, str, str | None, str] | None:
     """Rules 1 to 3: (market, status, basis, detail), or None when none decides."""
     if m := country_market(c.country):
         return m, "routed", "country", f"country {c.country}"
-    isin = "".join((c.isin or "").split()).upper()
-    prefix = isin[:2]
-    if len(prefix) == 2 and prefix.isalpha() and prefix not in ("XS", "EU"):
+    prefix = _isin(c.isin)[:2]
+    has_cik = bool("".join(ch for ch in (c.cik or "") if ch.isdigit()))
+    if prefix and prefix not in ("XS", "EU"):
         if prefix in _MARKET:
             return _MARKET[prefix], "routed", "isin_prefix", f"ISIN prefix {prefix}"
-        return None, "no_source", "isin_prefix", f"no XBRL source for {prefix} yet"
-    if "".join(ch for ch in (c.cik or "") if ch.isdigit()):
+        if not has_cik:  # a CIK means the SEC is a source after all
+            return None, "no_source", "isin_prefix", f"no XBRL source for {prefix} yet"
+    if has_cik:
         return "sec", "routed", "cik", "CIK present"
     if normalise_lei(c.lei or ""):
         return "esef", "routed", "lei", "LEI present, no CIK"
@@ -68,16 +77,22 @@ def route_company(company: CompanyRef, index: MasterIndex | None = None) -> Rout
     note = ""
     if (company.country or "").strip() and country_market(company.country) is None:
         note = f"; country '{company.country}' not recognised"
+    if (company.isin or "").strip() and not _isin(company.isin):
+        note += f"; ISIN '{company.isin}' not valid"
 
     def done(r, c, basis=None):
         market, status, b, detail = r
         return Route(market, status, basis or b, detail + note, c)
 
-    if r := _rules(company):
-        return done(r, company)
     enriched = enrich(company, map_company(company, index))
-    if r := _rules(enriched):
-        return done(r, enriched, "master" if r[1] == "routed" else None)
+    own = _rules(company)
+    if own and own[1] == "routed":
+        return done(own, enriched)
+    # a no_source on the row's own identifiers yields to a CIK from the master
+    if (r := _rules(enriched)) and r[1] == "routed":
+        return done(r, enriched, "master")
+    if own or r:
+        return done(own or r, enriched)
     if (enriched.ticker or "").strip():
         return Route("sec", "routed", "ticker_fallback", "ticker only, assumed SEC" + note, enriched)
     return Route(None, "unrouted", None, _UNROUTED + note, enriched)

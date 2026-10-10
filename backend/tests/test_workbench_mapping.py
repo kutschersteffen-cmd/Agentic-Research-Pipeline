@@ -62,11 +62,13 @@ def test_missing_map_file_is_empty(tmp_path):
 
 def test_parity_with_issuer_key(tmp_path):
     s = _store(tmp_path, [("I1", "LEI", LEI), ("I2", "ISIN", "US2"), ("I3", "CIK", "3"),
-                          ("I4", "CIK", "4"), ("I5", "CIK", "4"), ("I6", "ISIN", "US6"), ("I7", "CIK", "6")])
+                          ("I4", "CIK", "4"), ("I5", "CIK", "4"), ("I6", "ISIN", "US6"), ("I7", "CIK", "6"),
+                          ("I8", "ISIN", "US8"), ("I9", "ISIN", "US8"), ("I8", "CIK", "8")])
     idx = MasterIndex.build(s)
     cos = [
         dict(lei=LEI), dict(isin="US2", cik="3"), dict(cik="4"),
         dict(isin="US6", cik="6"), dict(cik="404"), dict(),
+        dict(isin="US8", cik="8"),  # first scheme ambiguous, a later one unique
     ]
     for kw in cos:
         c = CompanyRef(company_id="X", name="X", **kw)
@@ -100,3 +102,25 @@ def test_index_reads_the_file_once(tmp_path, monkeypatch):
     for _ in range(5000):
         map_company(c, idx)
     assert len(calls) == 1
+
+
+def test_same_identifier_spelled_twice_is_one_value(tmp_path):
+    s = _store(tmp_path, [("I1", "CIK", "320193"), ("I1", "CIK", "0000320193"), ("I1", "ISIN", "US1")])
+    c = CompanyRef(company_id="X", name="X", isin="US1")
+    m = map_company(c, MasterIndex.build(s))
+    assert m.identifiers["CIK"] == ["320193"]
+    assert enrich(c, m).cik == "320193"
+
+
+def test_enrich_treats_whitespace_only_fields_as_empty(tmp_path):
+    s = _store(tmp_path, [("I1", "CIK", "320193"), ("I1", "LEI", LEI)])
+    c = CompanyRef(company_id="X", name="X", cik="320193", lei="  ")
+    assert enrich(c, map_company(c, MasterIndex.build(s))).lei == LEI
+
+
+def test_enrich_leaves_an_ambiguous_mapping_alone(tmp_path):
+    s = _store(tmp_path, [("I1", "ISIN", "US8"), ("I2", "ISIN", "US8"), ("I1", "CIK", "8")])
+    c = CompanyRef(company_id="X", name="X", isin="US8")
+    m = map_company(c, MasterIndex.build(s))
+    assert m.status == "ambiguous"
+    assert enrich(c, m) == c
