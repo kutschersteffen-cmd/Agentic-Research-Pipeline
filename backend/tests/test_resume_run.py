@@ -316,3 +316,29 @@ async def test_resume_keeps_batch_mode(tmp_path, monkeypatch):
     await resume_run(run_id, settings=settings, run_store=store, registry=DocumentSourceRegistry([]))
     assert isinstance(seen["llm"], BatchingLLMClient) and isinstance(seen["verifier_llm"], BatchingLLMClient)
     assert seen["settings"].llm_batch is True
+
+
+def test_cli_theme_resume_keeps_batch_mode(tmp_path, monkeypatch):
+    """`theme resume` hands resume_run pre-built real-time clients; a batch run must still resume in batch mode."""
+    import arp.cli.theme as cli_theme
+    from arp.llm.batching_client import BatchingLLMClient
+
+    settings = _settings(tmp_path)
+    store = RunStore(settings.runs_dir)
+    activity = ActivityDefinition(name="EV", in_scope_description="EVs.", out_of_scope_description="ICE.")
+    run_id = create_theme_run(ThemeDefinition(name="E", description="", activities=[activity]), COMPANIES[:1], settings, store)
+    JobManager(store)._update(run_id, lambda m: m.params.__setitem__("batch", True))
+    seen = {}
+
+    async def _capture(run_id, theme, companies, *, llm, verifier_llm, settings, **_kwargs):
+        seen.update(llm=llm, verifier_llm=verifier_llm, settings=settings)
+        return run_id
+
+    monkeypatch.setattr(research_pipeline, "execute_theme_run", _capture)
+    monkeypatch.setattr(cli_theme, "get_settings", lambda: settings)
+    monkeypatch.setattr(cli_theme, "_run_store", lambda: store)
+    monkeypatch.setattr(cli_theme, "_registry", lambda: DocumentSourceRegistry([]))
+    res = CliRunner().invoke(cli_theme.theme_app, ["resume", run_id])
+    assert res.exit_code == 0, res.output
+    assert isinstance(seen["llm"], BatchingLLMClient) and isinstance(seen["verifier_llm"], BatchingLLMClient)
+    assert seen["settings"].llm_batch is True

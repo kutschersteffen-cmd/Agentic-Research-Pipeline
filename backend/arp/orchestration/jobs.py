@@ -200,6 +200,9 @@ async def resume_run(
         update={k: v for k, v in (("llm_model", manifest.model), ("llm_verifier_model", manifest.verifier_model)) if v}
     )
     run_settings = batch_settings(run_settings, bool(manifest.params.get("batch")))
+    if run_settings.llm_batch:
+        # A batch run resumes on batch clients: callers' pre-built clients are real-time.
+        llm = verifier_llm = None
     if run_type != "discovery":
         llm = llm or build_llm_client(run_settings)
         verifier_llm = verifier_llm or build_verifier_llm_client(run_settings)
