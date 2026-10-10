@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { RunManifest } from "../types";
 import { pollAfter } from "../lib/poll";
+import { batchWaitText } from "../lib/runs";
 
 const RESUMABLE_STATUSES = new Set(["failed", "partially_completed", "cancelled"]);
 
@@ -111,6 +112,7 @@ export function RunProgress({
         <strong>{manifest.run_id}</strong>
         <span className={`status-pill status-${manifest.status}`} role="status">{manifest.status}</span>
       </div>
+      {manifest.batch_wait && <p className="help-text" role="status">{batchWaitText(manifest.batch_wait)}</p>}
       <div
         className="progress-bar"
         role="progressbar"
@@ -126,7 +128,7 @@ export function RunProgress({
         <span>{manifest.completed_count}/{manifest.company_count} companies</span>
         <span>{manifest.failed_count} failed</span>
         <span>{manifest.review_count} flagged for review</span>
-        <span>${manifest.estimated_cost_usd.toFixed(2)} est. cost</span>
+        <span>${manifest.estimated_cost_usd.toFixed(2)} est. cost{(manifest.batch_saved_usd ?? 0) > 0 ? ` · saved $${manifest.batch_saved_usd!.toFixed(2)} by batching` : ""}</span>
         <span>{(manifest.input_tokens + manifest.output_tokens).toLocaleString()} tokens</span>
         {manifest.input_tokens > 0 && manifest.cache_read_tokens !== undefined && (
           <span title="Share of input tokens read from Anthropic's prompt cache, billed at a fraction of the input price">

@@ -84,6 +84,7 @@ export function RunHistory({ onOpenReview }: Props = {}) {
                     <td>{runTypeLabel(runType)}</td>
                     <td>
                       <span className={`status-pill status-${r.status}`}>{r.status}</span>
+                      {r.params?.batch === true && <> <span className="badge badge-mid">batch</span></>}
                       {isTrialRun(r) && <> <span className="badge badge-mid" title={TRIAL_TITLE}>trial</span></>}
                       {r.error && <div className="run-error">{r.error}</div>}
                     </td>

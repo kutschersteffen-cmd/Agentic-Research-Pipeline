@@ -1,3 +1,4 @@
+import { BatchToggle } from "../components/BatchToggle";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { api } from "../api/client";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
@@ -106,6 +107,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom", initial
   const [overviewRun, setOverviewRun] = useState<string | null>(null);
 
   // TNFD jobs only
+  const [batch, setBatch] = useState(false);
   const [asOf, setAsOf] = useState(`FY${new Date().getFullYear() - 1}`);
 
   const hasCustom = jobs.some((j) => j.profile === "custom");
@@ -170,6 +172,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom", initial
       profile: job.profile,
       datapoint_schema: job.profile === "custom" ? job.schema : undefined,
       trial: isTrial(job),
+      batch,
       as_of: job.profile === "tnfd" ? asOf : undefined,
       ...(inputs.length === 1 ? { universe_path: inputs[0].path } : { companies: mergeCompanies(inputs) }),
       decision_framework_id: s.templateId ?? undefined,
@@ -532,6 +535,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom", initial
             {inputs.length > 0 && leftOut > 0 && <p className="await-text">{leftOut} companies are still onboarding and will be left out</p>}
             {toStart.some(isTrial) && <p className="await-text">Trial run: the custom schema is not released, so results are not final.</p>}
             {flow.extractStale && <p className="await-text">Inputs changed since this run</p>}
+            <BatchToggle checked={batch} onChange={setBatch} />
             <button onClick={startAll} disabled={busy || !canStart}>
               Start extraction
             </button>
