@@ -6,7 +6,6 @@ from pathlib import Path
 
 import typer
 
-from arp.api.run_scheduling import mark_batch_run
 from arp.cli._shared import _registry, _run_store, _taxonomy_store
 from arp.config import get_settings
 from arp.discovery.site_finder import DuckDuckGoSearchClient
@@ -206,8 +205,6 @@ def theme_run(
             enable_rd_exposure=enable_rd_exposure,
         )
     )
-    if batch:
-        mark_batch_run(_run_store(), run_id)
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 
 

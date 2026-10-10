@@ -46,8 +46,8 @@ def start(tmp_path, monkeypatch):
     monkeypatch.setattr(run_scheduling, "get_llm_client", lambda: "rt-llm")
     monkeypatch.setattr(run_scheduling, "get_verifier_llm_client", lambda: "rt-verifier")
 
-    def go(name: str, **extra):
-        module, url, create, execute, body = ROUTES[name]
+    def go(name: str, url: str | None = None, **extra):
+        module, default_url, create, execute, body = ROUTES[name]
 
         def _create(*_a, **_k):
             return JobManager(store).create_run(name, {}, 1).run_id
@@ -59,12 +59,14 @@ def start(tmp_path, monkeypatch):
         monkeypatch.setattr(module, execute, _execute)
         app = FastAPI()
         app.include_router(module.router)
+        if url:
+            app.include_router(extraction.router)
         app.dependency_overrides[deps.settings_dep] = lambda: settings
         app.dependency_overrides[deps.get_run_store] = lambda: store
         for dep in (deps.get_registry, deps.get_decision_store, deps.get_xbrl_source, deps.get_taxonomy_store,
                     deps.get_engagement_store, deps.get_edgar_source, deps.get_web_search_client):
             app.dependency_overrides[dep] = lambda: None
-        res = TestClient(app).post(url, json={"companies": COMPANIES, **body, **extra})
+        res = TestClient(app).post(url or default_url, json={"companies": COMPANIES, **body, **extra})
         assert res.status_code == 200, res.text
         asyncio.run(JOBS[0]())
         return store.load_manifest(res.json()["run_id"]).params, seen
@@ -88,3 +90,11 @@ def test_without_batch_nothing_changes(start, name):
     assert "batch" not in params
     assert not isinstance(seen["llm"], BatchingLLMClient)
     assert not seen["settings"].llm_batch if name != "identity" else True
+
+
+@pytest.mark.parametrize("batch", [True, False])
+def test_extraction_start_dispatcher_passes_batch(start, batch):
+    # /start builds the profile's own RunRequest; here the financials profile
+    params, seen = start("financials", url="/api/extraction/start", profile="financials", batch=batch)
+    assert (params.get("batch") is True) == batch
+    assert isinstance(seen["llm"], BatchingLLMClient) == batch

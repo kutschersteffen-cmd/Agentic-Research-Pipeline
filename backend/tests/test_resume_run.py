@@ -24,6 +24,7 @@ from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 from arp.schemas.transition_plan import TransitionPlanAssessmentRecord
 from arp.storage.run_store import RunStore
 from arp.transition_plan.pipeline import TransitionPlanAssessmentResult, create_transition_plan_run
+from arp.voting.pipeline import create_voting_run
 
 COMPANIES = [CompanyRef(company_id=f"c{i}", name=f"Co {i}") for i in range(1, 7)]
 LLM = object()  # never called: the fake assessor stands in for every LLM step
@@ -345,15 +346,15 @@ def test_cli_theme_resume_keeps_batch_mode(tmp_path, monkeypatch):
     assert seen["settings"].llm_batch is True
 
 
-def _batch_cli(tmp_path, monkeypatch, module, attr, app, args, kind, theme_args=()):
+def _batch_cli(tmp_path, monkeypatch, module, attr, app, args, create, theme_args=()):
     """Runs a CLI run command with `run_*` faked; returns (the llm it was given, the run's manifest params)."""
     settings = Settings(anthropic_api_key="unused", runs_dir=tmp_path / "runs", cache_dir=tmp_path / "cache")
     store = RunStore(settings.runs_dir)
     seen = {}
 
-    async def _fake(*_a, llm, **_k):
+    async def _fake(*a, llm, settings, **_k):
         seen["llm"] = llm
-        return JobManager(store).create_run(kind, {}, 1).run_id
+        return create(*a, settings, store)  # the real creator, as the pipeline calls it
 
     monkeypatch.setattr(module, attr, _fake)
     monkeypatch.setattr(module, "get_settings", lambda: settings)
@@ -376,7 +377,7 @@ def _batch_cli(tmp_path, monkeypatch, module, attr, app, args, kind, theme_args=
 def test_theme_cli_batch_flag(tmp_path, monkeypatch):
     import arp.cli.theme as cli_theme
 
-    (plain, batched), params = _batch_cli(tmp_path, monkeypatch, cli_theme, "run_thematic_universe", cli_theme.theme_app, ["run"], "theme", ["--theme", str(tmp_path / "theme.json")])
+    (plain, batched), params = _batch_cli(tmp_path, monkeypatch, cli_theme, "run_thematic_universe", cli_theme.theme_app, ["run"], create_theme_run, ["--theme", str(tmp_path / "theme.json")])
     assert not isinstance(plain, BatchingLLMClient) and isinstance(batched, BatchingLLMClient)
     assert params == [None, True]
 
@@ -384,6 +385,6 @@ def test_theme_cli_batch_flag(tmp_path, monkeypatch):
 def test_voting_cli_batch_flag(tmp_path, monkeypatch):
     import arp.cli.voting as cli_voting
 
-    (plain, batched), params = _batch_cli(tmp_path, monkeypatch, cli_voting, "run_voting", cli_voting.voting_app, ["run"], "voting")
+    (plain, batched), params = _batch_cli(tmp_path, monkeypatch, cli_voting, "run_voting", cli_voting.voting_app, ["run"], create_voting_run)
     assert not isinstance(plain, BatchingLLMClient) and isinstance(batched, BatchingLLMClient)
     assert params == [None, True]

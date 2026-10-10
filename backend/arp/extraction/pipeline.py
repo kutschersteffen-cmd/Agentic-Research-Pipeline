@@ -316,6 +316,7 @@ def create_extraction_run(
             "schema_name": registered.name,
             "schema_version": f"{registered.schema_id}:v{registered.version}",
             "trial": trial,
+            **({"batch": True} if settings.llm_batch else {}),
         },
         len(companies),
         model=settings.llm_model,

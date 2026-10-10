@@ -191,6 +191,7 @@ class StartRequest(BaseModel):
     decision_framework_version: int | None = None
     step_settings: StepSettings | None = Field(default=None, description="Per-run step settings from the node editor.")
     trial: bool = Field(default=False, description="custom: allow draft fields; the run is marked as a trial.")
+    batch: bool = Field(default=False, description="Run through the Message Batches API: 50% cheaper, slower.")
 
 
 @router.post("/start")
@@ -222,6 +223,7 @@ async def _dispatch(req: StartRequest, settings: Settings, run_store: RunStore, 
         "companies": companies,
         "decision_framework_id": req.decision_framework_id,
         "decision_framework_version": req.decision_framework_version,
+        "batch": req.batch,
     }
     stores = {"settings": settings, "run_store": run_store, "registry": registry, "decision_store": decision_store}
     if req.profile == "custom":

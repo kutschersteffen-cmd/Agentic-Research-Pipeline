@@ -10,7 +10,6 @@ from arp.cli.extraction import extract_app
 from arp.config import Settings
 from arp.extraction.steps import StepSettings
 from arp.llm.batching_client import BatchingLLMClient
-from arp.orchestration.job_manager import JobManager
 from arp.schemas.datapoints import DataPointSchema
 from arp.storage.run_store import RunStore
 from arp.xbrl_pipeline.verify import CircularRunError, assert_xbrl_off
@@ -69,7 +68,7 @@ def test_cli_run_batch_marks_the_run_and_batches_the_clients(tmp_path, monkeypat
 
     async def fake_run_extraction(schema, companies, *, llm, settings, **kwargs):
         seen.update(llm=llm, settings=settings)
-        return JobManager(store).create_run("extraction", {}, 1).run_id
+        return "run_x"
 
     monkeypatch.setattr(cli, "get_settings", lambda: settings)
     monkeypatch.setattr(cli, "_run_store", lambda: store)
@@ -83,9 +82,29 @@ def test_cli_run_batch_marks_the_run_and_batches_the_clients(tmp_path, monkeypat
     res = CliRunner().invoke(extract_app, [*args, "--batch"])
     assert res.exit_code == 0, res.output
     assert isinstance(seen["llm"], BatchingLLMClient) and seen["settings"].llm_batch
-    assert [m.params.get("batch") for m in store.list_runs()] == [True]
     seen.clear()
     res = CliRunner().invoke(extract_app, args)
     assert res.exit_code == 0, res.output
     assert not isinstance(seen["llm"], BatchingLLMClient)
+
+
+def test_cli_batch_run_that_crashes_is_still_marked(tmp_path, monkeypatch):
+    from arp.extraction.financials_pipeline import create_financials_extraction_run
+
+    settings = Settings(anthropic_api_key="unused", runs_dir=tmp_path / "runs", cache_dir=tmp_path / "cache")
+    store = RunStore(settings.runs_dir)
+
+    async def crashing_run(companies, *, settings, run_store, **kwargs):
+        create_financials_extraction_run(companies, settings, run_store)
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(cli, "get_settings", lambda: settings)
+    monkeypatch.setattr(cli, "_run_store", lambda: store)
+    monkeypatch.setattr(cli, "_xbrl_source", lambda: None)
+    monkeypatch.setattr(cli, "run_financials_extraction", crashing_run)
+    universe = tmp_path / "universe.csv"
+    universe.write_text("company_id,name\nAAA,Alpha Inc\n")
+    for flag in ("--batch", None):
+        res = CliRunner().invoke(extract_app, ["financials-run", "--universe", str(universe), *([flag] if flag else [])])
+        assert res.exit_code != 0
     assert sorted(str(m.params.get("batch")) for m in store.list_runs()) == ["None", "True"]

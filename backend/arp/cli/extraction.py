@@ -6,7 +6,6 @@ from pathlib import Path
 
 import typer
 
-from arp.api.run_scheduling import mark_batch_run
 from arp.checks.effectiveness import effectiveness
 from arp.cli._shared import _and_drain, _registry, _run_store, _xbrl_source
 from arp.config import get_settings
@@ -90,8 +89,6 @@ def extract_run(
     ))
     # What the run used, as the API records it: `arp xbrl verify` needs it to tell whether XBRL values were copied.
     (_run_store().run_dir(run_id) / "step_settings.json").write_text(StepSettings.effective(settings).model_dump_json())
-    if batch:
-        mark_batch_run(_run_store(), run_id)
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 
 
@@ -125,8 +122,6 @@ def extract_financials_run(
             xbrl_source=_xbrl_source() if settings.xbrl_facts_enabled else None,
         )
     ))
-    if batch:
-        mark_batch_run(_run_store(), run_id)
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 
 
@@ -155,8 +150,6 @@ def extract_tnfd_run(
             companies, as_of, llm=llm, verifier_llm=verifier_llm, registry=_registry(), settings=settings, run_store=_run_store()
         )
     ))
-    if batch:
-        mark_batch_run(_run_store(), run_id)
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
 
 

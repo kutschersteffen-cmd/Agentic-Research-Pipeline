@@ -6,7 +6,6 @@ from pathlib import Path
 
 import typer
 
-from arp.api.run_scheduling import mark_batch_run
 from arp.cli._shared import _ballot_platform, _engagement_store, _registry, _run_store
 from arp.config import get_settings
 from arp.llm.factory import batch_settings, build_llm_client
@@ -33,8 +32,6 @@ def voting_run(
             settings=settings, run_store=_run_store(), meeting_dates=dates, fund_name=settings.fund_name,
         )
     )
-    if batch:
-        mark_batch_run(_run_store(), run_id)
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/). Every proposal is queued for review -- use `arp voting review`.")
 
 
