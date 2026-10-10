@@ -100,6 +100,14 @@ phase:
 - **Finishing → no auto-merge.** `superpowers:finishing-a-development-branch` must open a PR
   against `main` (see above); never merge locally.
 
+## Coding rules (on top of ponytail)
+
+The gaps ponytail leaves from `karpathy-guidelines`. Where they clash, these win.
+
+- Ambiguity that would change the result → ask one question first. Otherwise default and say so.
+- Don't touch adjacent code, comments or formatting. Mention unrelated dead code, don't delete it.
+- Remove imports/variables your own change made unused.
+
 ## Invoking skills
 
 The `/` autocomplete menu is a terminal-only feature. In cloud sessions — claude.ai/code and
