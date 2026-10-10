@@ -93,8 +93,11 @@ export const WORKSPACES: Workspace[] = [
     id: "argus",
     name: "Argus",
     purpose: "Extract data points from disclosures, each cited to its source, and score them.",
-    runTypes: EXTRACTION_RUNS,
+    // xbrl_fetch counts for the Argus card but is not in REVIEWABLE: it has nothing to review.
+    runTypes: [...EXTRACTION_RUNS, "xbrl_fetch"],
     screens: [
+      ["#/argusUniverse", "Universe"],
+      ["#/xbrl", "XBRL Facts"],
       ["#/extraction", "Extraction"],
       ["#/transitionPlan", "Transition Plan extraction"],
       ["#/review", "Review Queue"],
@@ -109,6 +112,7 @@ export const WORKSPACES: Workspace[] = [
         // The Extraction screen's own staged flow; each step opens its tab. Companies with
         // documents already on file skip Identify and Documents.
         steps: [
+          { tab: "argusUniverse", label: "Universe", does: "Bring or pick the universe, map it through the security master, see what is already stored, and hand the chosen companies to Extraction.", handsOn: "Mapped universe", carried: true },
           { tab: "extraction", sub: "companies", label: "Companies", does: "Pick the universe: upload, paste, or take one handed over from Data Hub, Risk Monitoring or Thematic Universe.", handsOn: "Companies", carried: true },
           { tab: "extraction", sub: "identify", label: "Identify", does: "Resolve each company to one issuer; ambiguous matches wait for review.", handsOn: "Resolved companies", carried: true, runTypes: ["identity"] },
           { tab: "extraction", sub: "documents", label: "Documents", does: "Discover and download annual, sustainability and proxy reports, or upload your own by type.", handsOn: "Documents", carried: true, runTypes: ["discovery"] },
@@ -117,6 +121,18 @@ export const WORKSPACES: Workspace[] = [
           { tab: "review", label: "Review", does: "Approve, edit or reject every flagged figure.", handsOn: "Reviewed figures", carried: true, runTypes: REVIEWABLE },
           { tab: "extraction", sub: "extract", label: "Score", optional: true, does: "Attach a ratified Decision Studio template at setup (or after the run); publish the tiers from the run's Scoring panel.", handsOn: "Published tiers", carried: true },
           { tab: "decision", label: "Template", optional: true, does: "Build and ratify scoring templates in Decision Studio (R&D Lab); only ratified versions reach Argus." },
+        ],
+      },
+      {
+        id: "xbrl",
+        title: "XBRL facts",
+        cadence: "Per universe, refreshed when filings change",
+        outcome: "Every company routed to its filing market, its tagged facts stored with the original filing, revenue and capex resolved, and an extraction run verified against them.",
+        steps: [
+          { tab: "argusUniverse", label: "Universe", does: "Bring or pick the universe, map it through the security master, and hand the chosen companies to the fetch.", handsOn: "Mapped universe", carried: true },
+          { tab: "xbrl", label: "Fetch", does: "Route each company to its filing market and fetch its tagged facts with the original filing.", handsOn: "Stored facts", carried: true, runTypes: ["xbrl_fetch"] },
+          { tab: "xbrl", label: "Facts", does: "Browse the stored facts per company; revenue and capex resolved from the tags.", handsOn: "Resolved facts", carried: true },
+          { tab: "xbrl", label: "Verify", does: "Check an extraction run against the stored facts." },
         ],
       },
     ],
