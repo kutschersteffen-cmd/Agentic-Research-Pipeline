@@ -180,6 +180,13 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <path d="M4 8.5 L9 5.5 L13.5 7.5 L20 3.5" />
     </svg>
   ),
+  argusUniverse: (
+    <svg {...ICON_PROPS}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+      <line x1="9" y1="10" x2="9" y2="20" />
+    </svg>
+  ),
   // A tag: XBRL facts are chosen by tag.
   xbrl: (
     <svg {...ICON_PROPS}>

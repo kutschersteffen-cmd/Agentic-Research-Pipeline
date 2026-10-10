@@ -74,11 +74,12 @@ class ReportMeta(BaseModel):
 class CompanyStatus(BaseModel):
     company_id: str
     cik: str | None
-    status: Literal["ok", "unchanged", "no_cik", "no_lei", "not_found"]
+    status: Literal["ok", "unchanged", "no_cik", "no_lei", "not_found", "unrouted", "no_source"]
     source_sha: str | None
     fact_count: int
     report: Literal["stored", "unchanged", "none", "error"]
-    market: Market = "sec"
+    market: Market | None = "sec"
+    note: str | None = None
 
 
 class CompanyFiles(BaseModel):

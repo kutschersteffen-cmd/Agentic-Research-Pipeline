@@ -358,7 +358,7 @@ function RunProcess({ p }: { p: Process }) {
   if (p.run === "extraction") {
     return (
       <p className="hub-run">
-        <a className="button-link" href="#/extraction/companies/auto" onClick={() => writeWalk({ id: p.id, step: 0 })}>
+        <a className="button-link" href="#/extraction/companies/auto" onClick={() => writeWalk({ id: p.id, step: 1 })}>
           Run process
         </a>{" "}
         <span className="muted">Pick the companies; Identify, Documents and Extract then follow on their own and stop wherever something is flagged.</span>

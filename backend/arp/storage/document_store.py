@@ -10,6 +10,7 @@ from arp.storage import document_registry, embeddings_cache, parsed_content_cach
 from arp.storage.document_registry import DocumentRegistry, StoredDocumentRef, derive_doc_id
 from arp.storage.embeddings_cache import ChunkEmbeddingsCache
 from arp.storage.parsed_content_cache import ParsedContent, ParsedContentCache
+from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
 # Re-exported so every existing `from arp.storage.document_store import
 # derive_doc_id / ParsedContent / StoredDocumentRef` call site (local_files.py,
@@ -20,6 +21,7 @@ __all__ = [
     "ParsedContent",
     "StoredDocumentRef",
     "derive_doc_id",
+    "files_on_disk",
 ]
 
 _DB_FILENAME = "content.db"
@@ -27,6 +29,14 @@ _DB_FILENAME = "content.db"
 # One schema init call across all three collaborators' own fragments --
 # see DocumentContentStore's docstring for why they share a single file.
 _SCHEMA = parsed_content_cache.SCHEMA + "\n" + document_registry.SCHEMA + "\n" + embeddings_cache.SCHEMA
+
+
+def files_on_disk(documents_dir: Path, company_id: str) -> int:
+    try:
+        company_dir = documents_dir / safe_id(company_id, label="company_id")
+    except UnsafeIdentifierError:
+        return 0
+    return sum(1 for f in company_dir.rglob("*") if f.is_file()) if company_dir.is_dir() else 0
 
 
 class DocumentContentStore:

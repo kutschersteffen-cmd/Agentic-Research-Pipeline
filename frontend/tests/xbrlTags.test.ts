@@ -145,3 +145,9 @@ test("statusText names where not_found looked, by market when known", () => {
   assert.equal(statusText("not_found"), "Not found at the SEC or in the ESEF filing index");
   assert.equal(statusText("ok", "esef"), "Facts fetched");
 });
+
+test("statusText words the routing statuses and leaves not_found alone", () => {
+  assert.equal(statusText("unrouted"), "Not routed");
+  assert.equal(statusText("no_source"), "No XBRL source yet");
+  assert.equal(statusText("not_found", "esef"), "Not found in the ESEF filing index");
+});

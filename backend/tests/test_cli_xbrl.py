@@ -119,7 +119,7 @@ def test_fetch_runs_with_patched_source(env, monkeypatch):
     monkeypatch.setattr("arp.cli.xbrl.build_source", lambda settings, refresh=False: Source())
     universe = env / "u.json"
     universe.write_text(json.dumps([{"company_id": "ex", "name": "Example Inc"}]))
-    result = _invoke("fetch", "--universe", str(universe), "--tags", "")
+    result = _invoke("fetch", "--universe", str(universe), "--tags", "", "--market", "sec")
     assert result.exit_code == 0, result.output
     assert "no_cik=1" in result.stdout
     run_id = result.stdout.split("Run: ")[1].split()[0]
@@ -195,3 +195,44 @@ def test_verify_non_generic_run_exits_1_with_message(env):
     result = _invoke("verify", "r1", "--map", "revenue=rev_f")
     assert result.exit_code == 1 and "generic extraction records" in result.stderr
     assert "Traceback" not in result.output
+
+
+def test_fetch_default_market_is_auto(env, monkeypatch):
+    seen = {}
+
+    async def stub(run_id, companies, **kw):
+        seen.update(kw)
+
+    monkeypatch.setattr("arp.cli.xbrl.execute_xbrl_run", stub)
+    universe = env / "u.json"
+    universe.write_text(json.dumps([{"company_id": "ex", "name": "Example Inc"}]))
+    result = _invoke("fetch", "--universe", str(universe))
+    assert result.exit_code == 0, result.output
+    assert seen["market"] == "auto"
+
+
+def _screen_universe(env):
+    universe = env / "u.json"
+    universe.write_text(json.dumps([
+        {"company_id": "us", "name": "US", "cik": "1234567"},
+        {"company_id": "de", "name": "DE", "country": "Germany"},
+        {"company_id": "jp", "name": "JP", "isin": "JP3633400001"},
+        {"company_id": "nn", "name": "Name Only"},
+    ]))
+    return universe
+
+
+def test_screen_prints_routes_and_summary(env):
+    result = _invoke("screen", "--universe", str(_screen_universe(env)))
+    assert result.exit_code == 0, result.output
+    lines = result.stdout.splitlines()
+    assert lines[0].split()[:3] == ["us", "sec", "cik"]
+    assert lines[1].split()[:3] == ["de", "esef", "country"]
+    assert lines[2].split()[:3] == ["jp", "no_source", "isin_prefix"]
+    assert lines[3].split()[:2] == ["nn", "unrouted"]
+    assert lines[-1] == "sec=1  esef=1  no_source=1  unrouted=1"
+
+
+def test_screen_does_not_write_runs(env):
+    assert _invoke("screen", "--universe", str(_screen_universe(env))).exit_code == 0
+    assert not (env / "runs").exists() or not list((env / "runs").iterdir())

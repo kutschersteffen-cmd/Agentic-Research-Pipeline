@@ -55,6 +55,7 @@ from arp.api.routers import (
     transition_barrier,
     transition_plan,
     universe,
+    universe_workbench,
     voting,
     xbrl,
 )
@@ -119,6 +120,7 @@ app.include_router(discovery.router, dependencies=[Depends(authorize)])
 app.include_router(identity.router, dependencies=[Depends(authorize)])
 app.include_router(runs.router, dependencies=[Depends(authorize)])
 app.include_router(universe.router, dependencies=[Depends(authorize)])
+app.include_router(universe_workbench.router, dependencies=[Depends(authorize)])
 app.include_router(taxonomies.router, dependencies=[Depends(authorize)])
 app.include_router(overlap.router, dependencies=[Depends(authorize)])
 app.include_router(revenue_catalogue.router, dependencies=[Depends(authorize)])

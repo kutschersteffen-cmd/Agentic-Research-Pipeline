@@ -19,6 +19,8 @@ export interface CompanyRef {
   ticker?: string | null;
   website?: string | null;
   cik?: string | null;
+  lei?: string | null;
+  isin?: string | null;
   country?: string | null;
   sector?: string | null;
 }
@@ -3032,12 +3034,15 @@ export interface XbrlTag {
 }
 
 export type XbrlMarket = "sec" | "esef";
+/** The Fetch market control: Auto routes each company by its own data. */
+export type XbrlRunMarket = "auto" | XbrlMarket;
 
 export interface XbrlCompanyStatus {
-  market: XbrlMarket;
+  market: XbrlMarket | null; // null for unrouted and no_source rows
   company_id: string;
   cik: string | null;
-  status: "ok" | "unchanged" | "no_cik" | "no_lei" | "not_found";
+  status: "ok" | "unchanged" | "no_cik" | "no_lei" | "not_found" | "unrouted" | "no_source";
+  note?: string | null;
   source_sha: string | null;
   fact_count: number;
   report: "stored" | "unchanged" | "none" | "error";
@@ -3118,4 +3123,42 @@ export interface XbrlVerifyRow {
   run_unit: string | null; // unit of the run's value; null when the run has none
   unit: string | null; // the XBRL unit
   detail: string;
+}
+
+// Universe workbench (wire format mirrors backend arp/api/routers/universe_workbench.py)
+export interface WorkbenchMapping {
+  status: "mapped" | "ambiguous" | "unmapped" | "no_identifier";
+  issuer_key: string | null;
+  key_scheme: string | null;
+  identifiers: Partial<Record<"LEI" | "CIK" | "ISIN", string[]>>;
+  candidates: string[];
+}
+
+export interface WorkbenchRoute {
+  market: "sec" | "esef" | null;
+  status: "routed" | "no_source" | "unrouted";
+  basis: string | null;
+  detail: string;
+}
+
+export interface WorkbenchAvailability {
+  identity: { run_id: string; verdict: string; resolved_cik: string | null; resolved_website: string | null } | null;
+  documents: { registered: number; parsed: number; on_disk: number; doc_types: string[]; last_seen_at: string | null };
+  extraction: { runs: number; run_types: string[]; last_run_id: string | null; last_run_at: string | null };
+  xbrl: { key: string; market: string; fact_count: number; fetched_at: string; report: boolean } | null;
+}
+
+export interface WorkbenchRow {
+  company: CompanyRef;
+  mapping: WorkbenchMapping;
+  route: WorkbenchRoute;
+  availability: WorkbenchAvailability | null; // null when requested with availability: false
+}
+
+export interface WorkbenchResponse {
+  rows: WorkbenchRow[];
+  counts: {
+    routes: { sec: number; esef: number; no_source: number; unrouted: number };
+    mapping: { mapped: number; ambiguous: number; unmapped: number; no_identifier: number };
+  };
 }

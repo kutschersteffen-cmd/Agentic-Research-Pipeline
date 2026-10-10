@@ -3,6 +3,7 @@ import { filenameFromDisposition, inlineSafe } from "../lib/files";
 import { profileEmbedParams } from "../lib/biEmbed";
 import type { Me } from "../lib/reviewKeys";
 import type {
+  WorkbenchResponse,
   CompanyBallot,
   ClientEscalationPreview,
   BenchmarkInfo,
@@ -94,7 +95,7 @@ import type {
   TransitionPlanIndicatorDef,
   TrendPoint,
 } from "../types";
-import type { XbrlMarket } from "../types";
+import type { XbrlRunMarket } from "../types";
 import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, ReviewItem, SimilarDecision } from "../types";
 import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
@@ -401,7 +402,7 @@ export const api = {
     request("/api/discovery/schedule", { method: "PUT", body: JSON.stringify(config) }),
 
   // XBRL
-  startXbrlRun: (body: { companies?: unknown[]; universe_path?: string; tags?: string[]; refresh?: boolean; market?: XbrlMarket }) =>
+  startXbrlRun: (body: { companies?: unknown[]; universe_path?: string; tags?: string[]; refresh?: boolean; market?: XbrlRunMarket }) =>
     request<{ run_id: string; company_count: number }>("/api/xbrl/runs", { method: "POST", body: JSON.stringify(body) }),
   getXbrlRun: (runId: string) => request(`/api/xbrl/runs/${encodeURIComponent(runId)}`),
   getXbrlResults: (runId: string, offset = 0, limit = 100) =>
@@ -523,6 +524,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ companies, name }),
     }),
+
+  universeWorkbench: (body: { companies?: unknown[]; universe_path?: string; availability?: boolean }) =>
+    request<WorkbenchResponse>("/api/universe/workbench", { method: "POST", body: JSON.stringify(body) }),
 
   // Taxonomy library
   discoverTaxonomySources: (name: string) =>

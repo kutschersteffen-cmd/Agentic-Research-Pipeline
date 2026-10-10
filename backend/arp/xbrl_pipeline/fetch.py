@@ -5,7 +5,7 @@ import hashlib
 import json
 import logging
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, Protocol, TypeVar
+from typing import TYPE_CHECKING, Literal, Protocol, TypeVar
 
 import httpx
 
@@ -16,16 +16,20 @@ from arp.orchestration.batch_runner import read_done_keys, run_batch
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import hold_run
 from arp.schemas.common import CompanyRef
+from arp.storage.atomic_io import atomic_write_text
 from arp.storage.run_store import RunStore
 from arp.storage.safe_path import safe_id
 from arp.xbrl_pipeline.flatten import build_catalog, flatten_company_facts
-from arp.xbrl_pipeline.models import CompanyStatus, Market, ReportMeta
+from arp.xbrl_pipeline.models import CompanyStatus, Market, ReportMeta  # noqa: F401 -- Market stays importable from here
 from arp.xbrl_pipeline.required import resolve_required
 from arp.xbrl_pipeline.store import XbrlStore
 
 if TYPE_CHECKING:
+    from arp.universe_workbench.mapping import MasterIndex
+    from arp.universe_workbench.routing import Route
     from arp.xbrl_pipeline.fetch_esef import EsefSource
 
+RunMarket = Literal["auto", "sec", "esef"]
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
 
@@ -139,11 +143,37 @@ async def fetch_company(
     return _status(company.company_id, result, cik10, sha, count, report)
 
 
+def _write_routing(run_store: RunStore, run_id: str, routes: list[Route]) -> None:
+    entries = [{"company_id": r.company.company_id, "market": r.market, "status": r.status, "basis": r.basis,
+                "detail": r.detail, "company": r.company.model_dump(mode="json")} for r in routes]
+    atomic_write_text(run_store.run_dir(run_id) / "routing.json", json.dumps(entries, indent=2), prefix=".routing_")
+
+
+def load_routing(run_store: RunStore, run_id: str) -> dict[str, dict]:
+    """company id -> routing entry of an auto run; created from the stored companies when the file is missing."""
+    path = run_store.run_dir(run_id) / "routing.json"
+    if not path.exists():
+        from arp.universe_workbench.routing import route_universe
+
+        _write_routing(run_store, run_id, route_universe(run_store.load_companies(run_id) or []))
+    return {e["company_id"]: e for e in json.loads(path.read_text(encoding="utf-8"))}
+
+
 def create_xbrl_run(
-    companies: list[CompanyRef], tags: list[str] | None, refresh: bool, run_store: RunStore, market: Market = "sec"
+    companies: list[CompanyRef], tags: list[str] | None, refresh: bool, run_store: RunStore,
+    market: RunMarket = "sec", index: MasterIndex | None = None,
 ) -> str:
     params = {"tags": tags, "refresh": refresh, "market": market}
-    return JobManager(run_store).create_run("xbrl_fetch", params, len(companies), companies=companies).run_id
+    routes = None
+    if market == "auto":
+        from arp.universe_workbench.routing import route_universe
+
+        routes = route_universe(companies, index)
+        companies = [r.company for r in routes]
+    run_id = JobManager(run_store).create_run("xbrl_fetch", params, len(companies), companies=companies).run_id
+    if routes is not None:
+        _write_routing(run_store, run_id, routes)
+    return run_id
 
 
 def _sync_counts(run_store: RunStore, run_id: str) -> None:
@@ -157,6 +187,26 @@ def _sync_counts(run_store: RunStore, run_id: str) -> None:
         run_store.save_manifest(manifest)
 
 
+def _auto_fetch(routing: dict[str, dict], settings: Settings, refresh: bool, sec, esef):
+    """Fetch one company by its stored route and stored (enriched) company; each source is built only
+    when a company first needs it."""
+    from arp.xbrl_pipeline.fetch_esef import IndexEsefSource, fetch_company_esef
+
+    sources = {"sec": sec, "esef": esef}
+    builders = {"sec": lambda: build_source(settings, refresh=refresh), "esef": lambda: IndexEsefSource(settings.esef_index_url)}
+
+    async def fetch_one(company: CompanyRef, *, store: XbrlStore, tags: frozenset[str] | None) -> CompanyStatus:
+        entry = routing.get(company.company_id) or {"status": "unrouted", "detail": "not in stored routing"}
+        if entry["status"] != "routed":
+            return CompanyStatus(company_id=company.company_id, cik=None, status=entry["status"], source_sha=None,
+                                 fact_count=0, report="none", market=None, note=entry["detail"])
+        m, company = entry["market"], CompanyRef.model_validate(entry["company"])
+        sources[m] = sources[m] or builders[m]()
+        return await (fetch_company if m == "sec" else fetch_company_esef)(company, source=sources[m], store=store, tags=tags)
+
+    return fetch_one
+
+
 async def execute_xbrl_run(
     run_id: str,
     companies: list[CompanyRef],
@@ -165,11 +215,14 @@ async def execute_xbrl_run(
     run_store: RunStore,
     tags: list[str] | None,
     refresh: bool,
-    market: Market = "sec",
+    market: RunMarket = "sec",
     source: SecSource | EsefSource | None = None,
+    esef_source: EsefSource | None = None,
 ) -> str:
     job_manager = JobManager(run_store)
-    if market == "esef":  # refresh does not apply: the JSON is always re-downloaded and hashed
+    if market == "auto":
+        fetch_one = _auto_fetch(load_routing(run_store, run_id), settings, refresh, source, esef_source)
+    elif market == "esef":  # refresh does not apply: the JSON is always re-downloaded and hashed
         from arp.xbrl_pipeline.fetch_esef import IndexEsefSource, fetch_company_esef
 
         source = source or IndexEsefSource(settings.esef_index_url)
@@ -186,7 +239,8 @@ async def execute_xbrl_run(
         await run_batch(
             companies,
             item_key=lambda c: c.company_id,
-            worker=lambda c: fetch_one(c, source=source, store=store, tags=tag_set),
+            worker=(lambda c: fetch_one(c, store=store, tags=tag_set)) if market == "auto"
+            else (lambda c: fetch_one(c, source=source, store=store, tags=tag_set)),
             results_path=run_store.results_path(run_id),
             errors_path=run_store.errors_path(run_id),
             concurrency=1,  # SEC rate limit: one company at a time, paced by FETCH_DELAY_SECONDS

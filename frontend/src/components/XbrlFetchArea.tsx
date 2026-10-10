@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { UniversePicker } from "./UniversePicker";
 import { when } from "../lib/runs";
 import { canRetryFetch, keyLabel, reportText, statusText } from "../lib/xbrlTags";
-import type { RunManifest, XbrlCompanyStatus, XbrlMarket } from "../types";
+import type { RunManifest, UniverseHandoff, WorkbenchResponse, XbrlCompanyStatus, XbrlRunMarket } from "../types";
 
 type ResultRow = XbrlCompanyStatus & { _key: string };
 type ErrorRow = { key: string; error: string };
@@ -30,14 +30,21 @@ export function XbrlFetchArea({
   onSettled,
   selectedRunId: runId,
   onSelectRun,
+  pendingUniverse,
 }: {
   tags: string[];
   onSettled?: () => void;
   selectedRunId: string | null; // from the URL (#/xbrl/<run id>): refresh, Back and a pasted link reattach
   onSelectRun: (runId: string) => void;
+  pendingUniverse?: UniverseHandoff | null;
 }) {
-  const [universe, setUniverse] = useState<{ path: string; count: number } | null>(null);
-  const [market, setMarket] = useState<XbrlMarket>("sec");
+  const [picked, setPicked] = useState<{ path: string; count: number } | null>(null);
+  const universe = picked ?? (pendingUniverse ? { path: pendingUniverse.path, count: pendingUniverse.count } : null); // a pick replaces the hand-over
+  const [market, setMarket] = useState<XbrlRunMarket>("auto");
+  const [routes, setRoutes] = useState<WorkbenchResponse["counts"]["routes"] | null>(null);
+  const [routesError, setRoutesError] = useState<string | null>(null);
+  const [routesLoading, setRoutesLoading] = useState(false);
+  const routeReq = useRef(0); // only the latest preview request may write state
   const [mode, setMode] = useState<"all" | "selected">("all");
   const [refresh, setRefresh] = useState(false);
   const [runs, setRuns] = useState<RunManifest[] | null>(null);
@@ -60,6 +67,20 @@ export function XbrlFetchArea({
       live = false;
     };
   }, [runId, manifest?.status, manifest?.completed_count]); // a new run, or progress, changes the labels
+
+  const universePath = universe?.path;
+  useEffect(() => {
+    const req = ++routeReq.current;
+    setRoutes(null);
+    setRoutesError(null);
+    setRoutesLoading(false);
+    if (market !== "auto" || !universePath) return;
+    setRoutesLoading(true);
+    api
+      .universeWorkbench({ universe_path: universePath, availability: false })
+      .then((res) => req === routeReq.current && (setRoutes(res.counts.routes), setRoutesLoading(false)))
+      .catch((err) => req === routeReq.current && (setRoutesError(msg(err)), setRoutesLoading(false)));
+  }, [market, universePath]);
 
   useEffect(() => {
     // Another run was chosen (or none): drop the last one's table before its own arrives.
@@ -109,6 +130,9 @@ export function XbrlFetchArea({
 
   const succeeded = new Set(results.results.map((r) => r._key));
   const latestError = new Map(errors.map((e) => [e.key, e.error])); // later rows win
+  // an auto run mixes SEC (CIK) and ESEF (LEI) rows: the shared column gets a neutral header
+  const keyHead =
+    manifest?.params?.market === "auto" ? "CIK / LEI" : keyLabel(results.results[0]?.market ?? (market === "esef" ? "esef" : "sec"));
   const failed = [...latestError].filter(([key]) => !succeeded.has(key)).map(([key, error]) => ({ key, error }));
   // A started run counts as running until its first manifest arrives, so Start cannot fire twice.
   const running = runId !== null && (manifest === null || inProgress(manifest)) && !stalled;
@@ -156,6 +180,10 @@ export function XbrlFetchArea({
       <fieldset className="xbrl-choice">
         <legend className="field-label">Market</legend>
         <label className="checkbox-label">
+          <input type="radio" name="xbrl-market" checked={market === "auto"} onChange={() => setMarket("auto")} />
+          Auto
+        </label>
+        <label className="checkbox-label">
           <input type="radio" name="xbrl-market" checked={market === "sec"} onChange={() => setMarket("sec")} />
           US (SEC)
         </label>
@@ -165,7 +193,12 @@ export function XbrlFetchArea({
         </label>
       </fieldset>
       {market === "esef" && <p className="help-text">The universe file needs an lei column.</p>}
-      <UniversePicker onResolved={(path, count) => setUniverse({ path, count })} />
+      <UniversePicker onResolved={(path, count) => setPicked({ path, count })} />
+      {pendingUniverse && universe?.path === pendingUniverse.path && (
+        <p className="status-text">
+          Using {pendingUniverse.count} companies sent from {pendingUniverse.from}. Pick a different universe below to replace it.
+        </p>
+      )}
       <fieldset className="xbrl-choice">
         <legend className="field-label">Tags to fetch</legend>
         <label className="checkbox-label">
@@ -181,6 +214,13 @@ export function XbrlFetchArea({
         <input type="checkbox" checked={refresh} onChange={(e) => setRefresh(e.target.checked)} />
         Refresh: download again even if a recent copy is cached
       </label>
+      {market === "auto" && universe && (
+        <p className="help-text" aria-live="polite">
+          {routesLoading && "Checking where each company's XBRL comes from…"}
+          {routesError && <span className="error-text">Routing preview failed ({routesError}).</span>}
+          {routes && `SEC ${routes.sec} · ESEF ${routes.esef} · no source ${routes.no_source} · not routed ${routes.unrouted}`}
+        </p>
+      )}
       {noTags && <p className="help-text">Choose at least one tag in the Tags section, or fetch all tags.</p>}
       {!universe && <p className="help-text">Upload or pick a company universe to start.</p>}
       <button onClick={start} disabled={busy || !universe || noTags || (running && !pollError)}>
@@ -235,7 +275,7 @@ export function XbrlFetchArea({
               <thead>
                 <tr>
                   <th>Company</th>
-                  <th>{keyLabel(results.results[0]?.market ?? market)}</th>
+                  <th>{keyHead}</th>
                   <th>Status</th>
                   <th>Annual report</th>
                   <th>Facts</th>
@@ -252,8 +292,11 @@ export function XbrlFetchArea({
                 {results.results.map((r) => (
                   <tr key={r._key}>
                     <td data-label="Company">{r.company_id}</td>
-                    <td data-label={keyLabel(r.market)} className="mono">{r.cik ?? ""}</td>
-                    <td data-label="Status">{statusText(r.status, r.market)}</td>
+                    <td data-label={keyLabel(r.market)} className="mono">{r.market ? (r.cik ?? "") : ""}</td>
+                    <td data-label="Status">
+                      {statusText(r.status, r.market ?? undefined)}
+                      {(r.status === "unrouted" || r.status === "no_source") && r.note && <span className="xbrl-sub"> {r.note}</span>}
+                    </td>
                     <td data-label="Annual report">{reportText(r.report)}</td>
                     <td data-label="Facts" className="mono">{r.fact_count.toLocaleString()}</td>
                   </tr>
@@ -261,7 +304,7 @@ export function XbrlFetchArea({
                 {failed.map((f) => (
                   <tr key={f.key}>
                     <td data-label="Company">{f.key}</td>
-                    <td data-label={keyLabel(market)} />
+                    <td data-label={keyHead} />
                     <td data-label="Status" className="error-text">{statusText("error")}</td>
                     <td data-label="Annual report">Not attempted</td>
                     <td data-label="Facts" className="mono">0</td>

@@ -101,10 +101,10 @@ def _capture(monkeypatch):
     return calls
 
 
-def test_start_run_market_defaults_to_sec(env, monkeypatch):
+def test_start_run_market_sec_records_params(env, monkeypatch):
     client, _, _, runs = env
     calls = _capture(monkeypatch)
-    run_id = client.post("/api/xbrl/runs", json={"companies": [CO.model_dump()]}).json()["run_id"]
+    run_id = client.post("/api/xbrl/runs", json={"companies": [CO.model_dump()], "market": "sec"}).json()["run_id"]
     assert runs.load_manifest(run_id).params["market"] == "sec"
     assert calls[0]["market"] == "sec"
 
@@ -448,3 +448,22 @@ def test_cors_exposes_content_disposition_for_downloads():
     r = TestClient(app).get("/api/xbrl/tags", headers={"Origin": "http://localhost:5173"})
     assert r.headers["access-control-allow-origin"] == "http://localhost:5173"
     assert "Content-Disposition" in r.headers["access-control-expose-headers"]
+
+
+def test_start_run_market_defaults_to_auto(env, monkeypatch):
+    client, _, _, runs = env
+    calls = _capture(monkeypatch)
+    run_id = client.post("/api/xbrl/runs", json={"companies": [CO.model_dump()]}).json()["run_id"]
+    assert runs.load_manifest(run_id).params["market"] == "auto"
+    assert calls[0]["market"] == "auto"
+    assert (runs.run_dir(run_id) / "routing.json").exists()
+
+
+def test_retry_of_an_auto_run_keeps_routing(env, monkeypatch):
+    client, _, _, runs = env
+    calls = _capture(monkeypatch)
+    run_id = create_xbrl_run([CO], None, False, runs, market="auto")
+    before = (runs.run_dir(run_id) / "routing.json").read_bytes()
+    assert client.post(f"/api/xbrl/runs/{run_id}/retry").status_code == 200
+    assert calls[0]["market"] == "auto"
+    assert (runs.run_dir(run_id) / "routing.json").read_bytes() == before
