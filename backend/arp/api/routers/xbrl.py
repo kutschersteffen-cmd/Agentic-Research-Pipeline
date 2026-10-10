@@ -102,8 +102,6 @@ async def start_run(
             raise HTTPException(400, str(exc)) from exc
     index = MasterIndex.build(IdentifierMapStore(settings.identifier_map_path)) if req.market == "auto" else None
     run_id = create_xbrl_run(companies, req.tags, req.refresh, run_store, market=req.market, index=index)
-    if req.market == "auto":
-        companies = run_store.load_companies(run_id) or companies  # enriched from the master
     _launch(run_id, companies, req.tags, req.refresh, req.market, settings, run_store)
     return {"run_id": run_id, "company_count": len(companies)}
 

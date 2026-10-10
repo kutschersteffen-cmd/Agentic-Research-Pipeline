@@ -72,6 +72,16 @@ def test_routing_json_written_and_enriched_companies_stored(env):
     assert runs.load_manifest(run_id).params["market"] == "auto"
 
 
+class _CikSpy(SecFake):
+    def __init__(self) -> None:
+        super().__init__(cik="9999999")  # what an unrouted lookup would give
+        self.ciks: list[str | None] = []
+
+    async def resolve_cik(self, cik, ticker):
+        self.ciks.append(cik)
+        return await super().resolve_cik(cik, ticker)
+
+
 async def test_resume_and_retry_keep_the_original_routing(env):
     _, runs = env
     idmap = IdentifierMapStore(env[0].xbrl_dir.parent / "idmap.jsonl")
@@ -79,13 +89,40 @@ async def test_resume_and_retry_keep_the_original_routing(env):
     idmap.add(IdentifierMap(issuer_key="K1", scheme="CIK", value="1234567"))
     co = CompanyRef(company_id="x", name="X", isin="XS0000000001")
     run_id = create_xbrl_run([co], None, False, runs, market="auto", index=MasterIndex.build(idmap))
+    # the master changes after the run was created: the ISIN now points at two issuers
+    idmap.add(IdentifierMap(issuer_key="K2", scheme="ISIN", value="XS0000000001"))
     path = runs.run_dir(run_id) / "routing.json"
     before = path.read_bytes()
-    sec = SecFake()
+    sec = _CikSpy()
     rows = await _run(env, run_id, [co], source=sec)  # the master is not consulted again
-    assert rows["x"]["status"] == "ok" and sec.calls
+    assert rows["x"]["status"] == "ok" and sec.ciks == ["1234567"]
     again = await _run(env, run_id, [co])
     assert again["x"]["status"] == "ok" and path.read_bytes() == before
+
+
+async def test_rule_1_row_is_stored_and_fetched_with_the_master_lei(env):
+    _, runs = env
+    idmap = IdentifierMapStore(env[0].xbrl_dir.parent / "idmap.jsonl")
+    idmap.add(IdentifierMap(issuer_key="K1", scheme="ISIN", value="DE0007164600"))
+    idmap.add(IdentifierMap(issuer_key="K1", scheme="LEI", value=LEI))
+    co = CompanyRef(company_id="sap", name="SAP", country="DE", isin="DE0007164600")
+    run_id = create_xbrl_run([co], None, False, runs, market="auto", index=MasterIndex.build(idmap))
+    entry = json.loads((runs.run_dir(run_id) / "routing.json").read_text())[0]
+    assert (entry["basis"], entry["company"]["lei"]) == ("country", LEI)
+    assert runs.load_companies(run_id)[0].lei == LEI
+    esef = EsefFake()
+    rows = await _run(env, run_id, [co], esef_source=esef)  # the un-enriched row is passed in
+    assert rows["sap"]["status"] == "ok" and esef.asked == [LEI]
+
+
+async def test_company_missing_from_stored_routing_is_unrouted(env):
+    _, runs = env
+    run_id = create_xbrl_run(COMPANIES[:1], None, False, runs, market="auto")
+    sec = SecFake()
+    rows = await _run(env, run_id, [CompanyRef(company_id="new", name="New", cik="7654321")], source=sec)
+    assert (rows["new"]["status"], rows["new"]["note"], rows["new"]["market"]) == (
+        "unrouted", "not in stored routing", None)
+    assert not sec.calls
 
 
 async def test_missing_routing_json_is_created_from_stored_companies(env):
@@ -129,3 +166,11 @@ async def test_sources_built_lazily(env, monkeypatch):
     run_id = create_xbrl_run(COMPANIES[:1] + COMPANIES[2:], None, False, runs, market="auto")
     rows = await _run(env, run_id, COMPANIES[:1] + COMPANIES[2:], esef_source=None)
     assert rows["us"]["status"] == "ok"
+
+    def boom_sec(*a, **k):
+        raise AssertionError("SEC source built")
+
+    monkeypatch.setattr("arp.xbrl_pipeline.fetch.build_source", boom_sec)
+    run_id = create_xbrl_run(COMPANIES[1:], None, False, runs, market="auto")
+    rows = await _run(env, run_id, COMPANIES[1:], source=None)
+    assert rows["de"]["status"] == "ok"

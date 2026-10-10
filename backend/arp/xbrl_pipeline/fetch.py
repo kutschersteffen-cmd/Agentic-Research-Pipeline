@@ -188,22 +188,19 @@ def _sync_counts(run_store: RunStore, run_id: str) -> None:
 
 
 def _auto_fetch(routing: dict[str, dict], settings: Settings, refresh: bool, sec, esef):
-    """Fetch one company by its stored route; each source is built only when a company first needs it."""
-    from arp.universe_workbench.routing import route_company
+    """Fetch one company by its stored route and stored (enriched) company; each source is built only
+    when a company first needs it."""
     from arp.xbrl_pipeline.fetch_esef import IndexEsefSource, fetch_company_esef
 
     sources = {"sec": sec, "esef": esef}
     builders = {"sec": lambda: build_source(settings, refresh=refresh), "esef": lambda: IndexEsefSource(settings.esef_index_url)}
 
     async def fetch_one(company: CompanyRef, *, store: XbrlStore, tags: frozenset[str] | None) -> CompanyStatus:
-        entry = routing.get(company.company_id)
-        if entry is None:  # a company added after the routing was stored
-            r = route_company(company)
-            entry = {"market": r.market, "status": r.status, "detail": r.detail}
+        entry = routing.get(company.company_id) or {"status": "unrouted", "detail": "not in stored routing"}
         if entry["status"] != "routed":
             return CompanyStatus(company_id=company.company_id, cik=None, status=entry["status"], source_sha=None,
                                  fact_count=0, report="none", market=None, note=entry["detail"])
-        m = entry["market"]
+        m, company = entry["market"], CompanyRef.model_validate(entry["company"])
         sources[m] = sources[m] or builders[m]()
         return await (fetch_company if m == "sec" else fetch_company_esef)(company, source=sources[m], store=store, tags=tags)
 

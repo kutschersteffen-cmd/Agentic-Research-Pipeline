@@ -59,11 +59,9 @@ def fetch(
     run_store = _run_store()
     index = MasterIndex.build(IdentifierMapStore(settings.identifier_map_path)) if market == "auto" else None
     run_id = create_xbrl_run(companies, tag_list, refresh, run_store, market=market, index=index)
-    if market == "auto":
-        companies = run_store.load_companies(run_id) or companies  # enriched from the master
     asyncio.run(execute_xbrl_run(
         run_id, companies, settings=settings, run_store=run_store, tags=tag_list, refresh=refresh,
-        market=market, source=build_source(settings, refresh=refresh) if market in ("sec", "auto") else None,
+        market=market, source=build_source(settings, refresh=refresh) if market == "sec" else None,
     ))
     rows = run_store.read_jsonl(run_store.results_path(run_id))
     counts = Counter(r["status"] for r in rows)
