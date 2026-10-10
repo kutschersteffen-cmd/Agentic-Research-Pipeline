@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from arp.api.auth import Principal, current_user
@@ -12,6 +13,9 @@ from arp.schemas.common import RunManifest
 from arp.schemas.datapoints import DataPointSchema, FieldDefinition
 from arp.schemas.review import ReviewDecision
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below
 
 CAROL = Principal(user_id="u_carol", name="Carol Approver", role="approver")
 ISSUER = "ARP:9f1c"  # provisional issuer keys contain ':'
@@ -25,7 +29,7 @@ def _field(period, doc_type="annual_report", value=100, **kw):
 def _run(rs, run_id, created_at, field, issuer=ISSUER, trial=False, decide=True):
     rs.save_manifest(RunManifest(run_id=run_id, run_type="extraction", created_at=created_at,
                                  params={"trial": True} if trial else {}))
-    rs.append_jsonl(rs._results_path(run_id), {"company_id": "C1", "issuer_key": issuer, "fields": [field]})
+    rs.append_result(run_id, {"company_id": "C1", "issuer_key": issuer, "fields": [field]})
     key = f"{issuer}:f1:{field['period_end']}"
     if decide:
         append_decision(rs, run_id, ReviewDecision(
@@ -34,8 +38,8 @@ def _run(rs, run_id, created_at, field, issuer=ISSUER, trial=False, decide=True)
     return key
 
 
-def test_similar_matches_field_issuer_doc_type(tmp_path):
-    rs = RunStore(tmp_path)
+def test_similar_matches_field_issuer_doc_type(tmp_path, pg):
+    rs = RunStore(pg, tmp_path)
     key = _run(rs, "cur", "2024-06-01T00:00:00Z", _field("2024-12-31"), decide=False)
     match = _run(rs, "r1", "2024-01-01T00:00:00Z", _field("2023-12-31", value=90))
     _run(rs, "r2", "2024-02-01T00:00:00Z", _field("2023-12-31", doc_type="sustainability_report"))
@@ -46,8 +50,8 @@ def test_similar_matches_field_issuer_doc_type(tmp_path):
     assert "user_id" not in hit["decision"] and "reviewer" not in hit["decision"] and "user_id" not in hit
 
 
-def test_similar_excludes_current_run_and_trials(tmp_path):
-    rs = RunStore(tmp_path)
+def test_similar_excludes_current_run_and_trials(tmp_path, pg):
+    rs = RunStore(pg, tmp_path)
     key = _run(rs, "cur", "2024-06-01T00:00:00Z", _field("2024-12-31"))  # decided, but the current run
     _run(rs, "trial", "2024-05-01T00:00:00Z", _field("2023-12-31"), trial=True)
     _run(rs, "old", "2023-01-01T00:00:00Z", _field("2022-12-31"))
@@ -56,8 +60,8 @@ def test_similar_excludes_current_run_and_trials(tmp_path):
     assert similar_decisions(rs, run_id="cur", item_key=key, limit=1)[0]["run_id"] == "new"
 
 
-def test_similar_endpoint_and_404(tmp_path):
-    rs = RunStore(tmp_path)
+def test_similar_endpoint_and_404(tmp_path, pg):
+    rs = RunStore(pg, tmp_path)
     key = _run(rs, "cur", "2024-06-01T00:00:00Z", _field("2024-12-31"), decide=False)
     _run(rs, "r1", "2024-01-01T00:00:00Z", _field("2023-12-31"))
     app.dependency_overrides[get_run_store] = lambda: rs
@@ -76,16 +80,16 @@ def test_similar_endpoint_and_404(tmp_path):
 
 
 def _context_with(tmp_path, alternatives, schema_fields=None):
-    rs = RunStore(tmp_path / "runs")
+    rs = RunStore(pg_dsn(), tmp_path / "runs")
     rs.save_manifest(RunManifest(run_id="ext1", run_type="extraction"))
     if schema_fields:
         (rs.run_dir("ext1") / "schema.json").write_text(
             DataPointSchema(schema_id="s1", name="s", fields=schema_fields).model_dump_json())
     field = _field("2024-12-31", alternatives=alternatives)
     key = f"{ISSUER}:f1:2024-12-31"
-    rs.append_jsonl(rs._review_queue_path("ext1"), {"item_key": key, "issuer_key": ISSUER, "company_id": "C1",
+    rs.append_review_item("ext1", {"item_key": key, "issuer_key": ISSUER, "company_id": "C1",
                                                    "field_id": "f1", "period_end": "2024-12-31", "field": field})
-    rs.append_jsonl(rs._results_path("ext1"), {"company_id": "C1", "issuer_key": ISSUER, "schema_id": "s1",
+    rs.append_result("ext1", {"company_id": "C1", "issuer_key": ISSUER, "schema_id": "s1",
                                               "fields": [field]})
     settings = Settings(schema_registry_dir=tmp_path / "reg")
     return build_context(rs, "ext1", key, CAROL, settings=settings, content_store=None)["suggested_correction"]

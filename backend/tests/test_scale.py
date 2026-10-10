@@ -15,6 +15,8 @@ from arp.scale.report import RunReport, render_markdown, run_report
 from arp.schemas.common import JobStatus, RunManifest
 from arp.storage.run_store import RunStore
 
+pytestmark = pytest.mark.usefixtures("pg")  # the CLI/app and RunStore need Postgres
+
 
 def _manifest(completed: int, failed: int, seconds: float, cost: float) -> RunManifest:
     t = datetime(2026, 10, 4, tzinfo=UTC)
@@ -44,8 +46,8 @@ def test_run_report_zero_issuers():
     assert (r.cost_per_1000_usd, r.minutes_per_1000, r.issuers_per_minute) == (0.0, 0.0, 0.0)
 
 
-def test_simulate_records_counts_and_cost(tmp_path):
-    store = RunStore(tmp_path)
+def test_simulate_records_counts_and_cost(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     run_id = asyncio.run(simulate(20, 4, run_store=store, latency_s=0, fail_every=5))
     m = store.load_manifest(run_id)
     assert (m.completed_count, m.failed_count) == (16, 4)

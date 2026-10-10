@@ -13,6 +13,8 @@ from arp.cli import project as cli
 from arp.config import get_settings
 from arp.projects.service import OpenedDashboard, OpenError, OpenResult
 
+pytestmark = pytest.mark.usefixtures("pg")  # the CLI/app and RunStore need Postgres
+
 runner = CliRunner()
 
 

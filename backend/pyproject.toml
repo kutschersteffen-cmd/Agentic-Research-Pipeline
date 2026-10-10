@@ -50,6 +50,10 @@ dependencies = [
     # @gorules/zen-engine-wasm32-wasi: the browser previews a rule with the
     # same engine build the server scores it with, so the two cannot drift.
     "zen-engine==2.0.2",
+    # Postgres is the system of record (arp/db/): runs, companies, review.
+    "sqlalchemy>=2.0,<3.0",
+    "psycopg[binary]>=3.1,<4.0",
+    "pgvector>=0.3,<1.0",
 ]
 
 [project.optional-dependencies]
@@ -71,14 +75,9 @@ optimize = [
     # disjunctions rather than bounds. Apache-2.0 since SCIP 9.
     "pyscipopt>=5.0",
 ]
-# Opt-in relational/vector store (arp/storage/postgres*.py): portfolio
-# holdings + an alternate pgvector embeddings-cache backend. Not required
-# for the file-based default path -- see Settings.postgres_dsn.
-postgres = [
-    "sqlalchemy>=2.0,<3.0",
-    "psycopg[binary]>=3.1,<4.0",
-    "pgvector>=0.3,<1.0",
-]
+# Empty: Postgres is required now and its packages are in `dependencies`.
+# Kept so existing `pip install -e ".[postgres,...]"` lines keep working.
+postgres = []
 # Opt-in OpenSearch client (arp/storage/opensearch_client.py): user-facing
 # search plus an alternate BM25 retrieval backend for select_evidence.py.
 # Not required for the file/BM25-in-memory default path -- see

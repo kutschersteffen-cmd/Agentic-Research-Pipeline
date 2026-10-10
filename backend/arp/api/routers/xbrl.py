@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from arp.api.deps import settings_dep
 from arp.config import Settings
+from arp.db.session import require_dsn
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import RunBusy, run_lease
 from arp.schemas.common import CompanyRef
@@ -38,7 +39,7 @@ Limit = Query(100, ge=1, le=500)
 
 
 def _run_store(settings: Settings = Depends(settings_dep)) -> RunStore:
-    return RunStore(settings.runs_dir)
+    return RunStore(require_dsn(settings), settings.runs_dir)
 
 
 def _store(settings: Settings = Depends(settings_dep)) -> XbrlStore:

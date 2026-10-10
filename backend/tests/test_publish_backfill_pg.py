@@ -27,10 +27,10 @@ def _db():
 
 
 @pytest.fixture
-def backfill(tmp_path, monkeypatch):
+def backfill(tmp_path, monkeypatch, pg):
     from arp.cli import publish as cli
 
-    rs, blobs = RunStore(tmp_path / "runs"), LocalBlobStore(tmp_path / "blobs")
+    rs, blobs = RunStore(pg, tmp_path / "runs"), LocalBlobStore(tmp_path / "blobs")
     for d, data in ORIG.items():
         blobs.put(HASH[d], data)
     monkeypatch.setattr(cli, "get_settings", lambda: Settings(postgres_dsn=DSN))
@@ -56,7 +56,7 @@ def test_backfill_publishes_old_runs_then_later_decisions_pg(backfill, monkeypat
     _run(rs, "r1", 1, [_field(1000)])
     _run(rs, "r2", 2, [_field(7, period="2023-12-31", doc="d2", route="review")])
     rs.save_manifest(RunManifest(run_id="rt", run_type="extraction", params={"trial": True}))
-    rs.append_jsonl(rs._results_path("rt"), {"company_id": "c1", "issuer_key": "ISS", "issuer_scheme": "LEI",
+    rs.append_result("rt", {"company_id": "c1", "issuer_key": "ISS", "issuer_scheme": "LEI",
                                             "fields": [_field(5, period="2022-12-31", doc="d3")]})
 
     first = backfill()

@@ -200,6 +200,31 @@ def _holdings_intake(conn: Connection) -> None:
     _create_bi_views(conn)
 
 
+def _run_store_tables(conn: Connection) -> None:
+    """Task 5's RunStore columns on tables created before them. Nothing wrote these tables
+    before the RunStore did, so the NOT NULLs need no backfill."""
+    from sqlalchemy import text
+
+    for sql in (
+        "ALTER TABLE run_companies ALTER COLUMN ordinal SET NOT NULL",
+        "ALTER TABLE run_companies ALTER COLUMN ref SET NOT NULL",
+        "ALTER TABLE run_results ALTER COLUMN result_key SET NOT NULL",
+        "ALTER TABLE run_results ALTER COLUMN company_id DROP NOT NULL",
+        "ALTER TABLE run_results DROP CONSTRAINT IF EXISTS uq_run_results",
+        "ALTER TABLE review_items ALTER COLUMN company_id DROP NOT NULL",
+        "ALTER TABLE review_decisions ALTER COLUMN run_id SET NOT NULL",
+        "ALTER TABLE review_decisions ALTER COLUMN row SET NOT NULL",
+        "ALTER TABLE review_decisions ALTER COLUMN review_item_id DROP NOT NULL",
+        "ALTER TABLE review_decisions ALTER COLUMN decision DROP NOT NULL",
+        "ALTER TABLE review_cosigns ALTER COLUMN run_id SET NOT NULL",
+        "ALTER TABLE review_cosigns ALTER COLUMN row SET NOT NULL",
+        "ALTER TABLE review_cosigns ALTER COLUMN review_item_id DROP NOT NULL",
+    ):
+        conn.execute(text(sql))
+    if not conn.execute(text("SELECT 1 FROM pg_constraint WHERE conname = 'uq_run_results_key'")).first():
+        conn.execute(text("ALTER TABLE run_results ADD CONSTRAINT uq_run_results_key UNIQUE (run_id, result_key)"))
+
+
 # Run before create_all, so a legacy-shaped table does not shadow a new one of the same name.
 PRE_CREATE_STEPS: tuple[SchemaStep, ...] = (
     SchemaStep("0005_rename_legacy_companies", "companies -> legacy_companies", _rename_legacy_companies),
@@ -238,6 +263,11 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         name="fields_id_check_v2",
         description="field_id CHECK: slug, prov:<source>:<metric>, theme:<id> or vote:<a>:<b>",
         apply=_fields_id_check_v2,
+    ),
+    SchemaStep(
+        name="run_store_tables",
+        description="RunStore columns: run_companies ref/ordinal, run_results result_key, decision/cosign rows",
+        apply=_run_store_tables,
     ),
 )
 

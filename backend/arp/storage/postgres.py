@@ -17,7 +17,7 @@ class PostgresExtraNotInstalled(RuntimeError):
 
 # Seconds to wait for a TCP connection to Postgres before giving up.
 # Every projection sync hook runs inline on the caller's thread (see
-# run_store.py's _sync_projections, engagement_store.py's _save), and they
+# run_store.py's sync_projections, engagement_store.py's _save), and they
 # are best-effort by contract -- but "best-effort" only holds if the
 # attempt is bounded. Without this, psycopg waits on the OS default, so an
 # unreachable host (a firewall dropping packets rather than refusing)

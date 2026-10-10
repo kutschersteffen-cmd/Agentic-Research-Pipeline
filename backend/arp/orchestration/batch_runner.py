@@ -144,7 +144,7 @@ async def run_company_batch(
     def _on_success(company: CompanyRef, result: ResultT) -> None:
         items = review_items(company, result) if review_items else []
         for key, payload in items:
-            queue_for_review(run_store, run_id, key, payload)
+            queue_for_review(run_store, run_id, key, payload, company=company)
         usage = getattr(result, "usage", None) or LLMUsage()
         job_manager.record_progress(
             run_id,
@@ -157,7 +157,7 @@ async def run_company_batch(
 
     def _on_error(company: CompanyRef, exc: Exception) -> None:
         if isinstance(exc, ReviewRequired):
-            queue_for_review(run_store, run_id, company.company_id, exc.report)
+            queue_for_review(run_store, run_id, company.company_id, exc.report, company=company)
             job_manager.record_progress(run_id, review_delta=1)
         else:
             job_manager.record_progress(run_id, failed_delta=1)

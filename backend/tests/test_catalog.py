@@ -39,10 +39,10 @@ class _Reports:
         return SimpleNamespace(run_refs=[SimpleNamespace(kind="decision", ref_id="pub_1")])
 
 
-def test_catalog_lists_every_kind_with_what_uses_it(tmp_path):
+def test_catalog_lists_every_kind_with_what_uses_it(tmp_path, pg):
     settings = Settings(runs_dir=tmp_path / "runs")
     settings.runs_dir.mkdir()
-    rs, decisions, taxonomy = RunStore(settings.runs_dir), DecisionStore(tmp_path / "fw"), TaxonomyStore(tmp_path / "tax")
+    rs, decisions, taxonomy = RunStore(pg, settings.runs_dir), DecisionStore(tmp_path / "fw"), TaxonomyStore(tmp_path / "tax")
 
     universe = save_universe(settings, [CompanyRef(company_id="c1", name="Acme")], "climate leaders")["path"]
     tax = taxonomy.create("Grid", ThemeDefinition(name="Grid", description="grid"), DerivationMethod.LLM_DRAFT)
@@ -72,10 +72,10 @@ def test_catalog_lists_every_kind_with_what_uses_it(tmp_path):
     assert {o["kind"] for o in only} == {"universe"}
 
 
-def test_a_theme_run_records_the_taxonomy_version_it_ran_on(tmp_path):
+def test_a_theme_run_records_the_taxonomy_version_it_ran_on(tmp_path, pg):
     from arp.research.pipeline import create_theme_run
 
-    rs = RunStore(tmp_path / "runs")
+    rs = RunStore(pg, tmp_path / "runs")
     theme = ThemeDefinition(name="Grid", description="grid")
     run_id = create_theme_run(theme, [CompanyRef(company_id="c1", name="Acme")], Settings(), rs, taxonomy_id="tax_1", taxonomy_version=3)
     params = rs.load_manifest(run_id).params

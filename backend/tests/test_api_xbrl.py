@@ -23,6 +23,7 @@ from arp.xbrl_pipeline.flatten import build_catalog, flatten_company_facts
 from arp.xbrl_pipeline.models import ReportMeta, RequiredRow
 from arp.xbrl_pipeline.store import XbrlStore
 from tests.conftest import PRINCIPAL
+from tests.postgres_helpers import replace_results
 
 FIXTURE = Path(__file__).parent / "fixtures" / "xbrl" / "companyfacts_small.json"
 CIK = "0001234567"
@@ -31,7 +32,7 @@ CO = CompanyRef(company_id="ex", name="Example Inc", cik=CIK)
 
 
 @pytest.fixture
-def env(tmp_path):
+def env(tmp_path, pg):
     settings = Settings(xbrl_dir=tmp_path / "xbrl", runs_dir=tmp_path / "runs")
     app = FastAPI()
     app.include_router(xbrl_router.router)
@@ -49,7 +50,7 @@ def env(tmp_path):
     store.save_report(CIK, REPORT, ReportMeta(
         accession="0001-24-000001", form="10-K", filing_date="2024-11-01", source_url="http://x",
         primary_document="a.htm", filename="annual-0001-24-000001.htm", sha256="s", size=len(REPORT), inline_xbrl=True))
-    return TestClient(app), settings, store, RunStore(settings.runs_dir)
+    return TestClient(app), settings, store, RunStore(pg, settings.runs_dir)
 
 
 def test_start_run_requires_companies_or_universe(env):
@@ -138,7 +139,8 @@ def test_companies_list_includes_market(env):
 def test_run_results_paged(env):
     client, _, _, runs = env
     run_id = create_xbrl_run([CO], None, False, runs)
-    runs._results_path(run_id).write_text("".join(json.dumps({"n": i}) + "\n" for i in range(5)))
+    for i in range(5):
+        runs.append_result(run_id, {"n": i})
     body = client.get(f"/api/xbrl/runs/{run_id}/results", params={"offset": 1, "limit": 2}).json()
     assert body == {"total": 5, "results": [{"n": 1}, {"n": 2}]}
     assert client.get(f"/api/xbrl/runs/{run_id}/results", params={"offset": -1}).status_code == 422
@@ -291,7 +293,7 @@ def _extraction_run(runs, *, settings_text: str | None):
     rec = ExtractionRecord(company_id="ex", name="Ex", schema_id="s", run_id=run_id, fields=[
         ExtractedField(field_id="rev_f", field_name="rev", value=1004.0, confidence=0.9,
                        canonical_value=1004.0, canonical_unit="USD", period_end="2024-12-31")])
-    runs._results_path(run_id).write_text(rec.model_dump_json() + "\n")
+    replace_results(runs, run_id, [rec.model_dump(mode="json")])
     if settings_text is not None:
         (runs.run_dir(run_id) / "step_settings.json").write_text(settings_text)
     return run_id
@@ -430,7 +432,7 @@ def test_put_selection_rejects_empty_or_malformed_tags(env, tags):
 def test_verify_non_generic_run_is_400(env):
     client, _, store, runs = env
     run_id = _extraction_run(runs, settings_text=json.dumps({"xbrl_facts_enabled": False}))
-    runs._results_path(run_id).write_text(json.dumps({"company_id": "ex", "financials": {}}) + "\n")
+    replace_results(runs, run_id, [{"company_id": "ex", "financials": {}}])
     r = client.post("/api/xbrl/verify", json={"run_id": run_id, "mapping": {"revenue": "rev_f"}})
     assert r.status_code == 400 and "generic extraction records" in r.json()["detail"]
 

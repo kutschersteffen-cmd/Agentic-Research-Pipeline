@@ -84,7 +84,7 @@ async def test_process_company_no_documents_produces_empty_ballot(tmp_path, fake
     assert llm.calls == []
 
 
-async def test_execute_voting_run_queues_every_proposal_for_review(tmp_path, fake_llm):
+async def test_execute_voting_run_queues_every_proposal_for_review(tmp_path, fake_llm, pg):
     doc = _proxy_doc()
     company = CompanyRef(company_id="C1", name="Acme Corp")
     proposal_draft = ProposalDraft(
@@ -99,7 +99,7 @@ async def test_execute_voting_run_queues_every_proposal_for_review(tmp_path, fak
     llm = fake_llm({"ProposalListDraft": [ProposalListDraft(proposals=[proposal_draft])]})
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
 
     run_id = create_voting_run([company], settings, run_store)
     await execute_voting_run(run_id, [company], llm=llm, registry=registry, engagement_store=None, settings=settings, run_store=run_store)
@@ -108,7 +108,7 @@ async def test_execute_voting_run_queues_every_proposal_for_review(tmp_path, fak
     assert manifest.completed_count == 1
     assert manifest.review_count == 1  # one proposal, mandatory review regardless of confidence
 
-    review_rows = run_store.read_jsonl(run_store._review_queue_path(run_id))
+    review_rows = run_store.read_review_queue(run_id)
     assert len(review_rows) == 1
     assert review_rows[0]["item_key"] == "C1:3"
 
@@ -158,7 +158,7 @@ async def test_cast_vote_refuses_alignment_flag_without_cosign():
         pass
 
 
-async def test_cast_approved_votes_respects_review_decisions(tmp_path, fake_llm):
+async def test_cast_approved_votes_respects_review_decisions(tmp_path, fake_llm, pg):
     doc = _proxy_doc()
     company = CompanyRef(company_id="C1", name="Acme Corp")
     drafts = [
@@ -178,7 +178,7 @@ async def test_cast_approved_votes_respects_review_decisions(tmp_path, fake_llm)
     llm = fake_llm({"ProposalListDraft": [ProposalListDraft(proposals=drafts)]})
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
 
     run_id = create_voting_run([company], settings, run_store)
     await execute_voting_run(run_id, [company], llm=llm, registry=registry, engagement_store=None, settings=settings, run_store=run_store)

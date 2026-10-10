@@ -40,22 +40,22 @@ def _released(pg) -> DataPointSchema:
     return reg.release(s.schema_id, s.version)
 
 
-def test_run_with_draft_field_is_refused(settings):
+def test_run_with_draft_field_is_refused(settings, pg):
     schema = _schema()
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     with pytest.raises(UnreleasedFieldError, match=schema.fields[0].field_id):
         create_extraction_run(schema, [ACME], settings, store)
     assert not settings.runs_dir.exists() or not any(settings.runs_dir.iterdir())
 
 
-def test_trial_run_allows_draft_and_records_trial(settings):
-    store = RunStore(settings.runs_dir)
+def test_trial_run_allows_draft_and_records_trial(settings, pg):
+    store = RunStore(pg, settings.runs_dir)
     run_id = create_extraction_run(_schema(), [ACME], settings, store, trial=True)
     assert store.load_manifest(run_id).params["trial"] is True
 
 
 def test_released_run_allowed(pg, settings):
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     schema = _released(pg)
     run_id = create_extraction_run(schema, [ACME], settings, store)
     params = store.load_manifest(run_id).params
@@ -63,7 +63,7 @@ def test_released_run_allowed(pg, settings):
 
 
 def test_snapshot_and_index_written(pg, settings):
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     run_id = create_extraction_run(_schema(), [ACME], settings, store, trial=True)
     from arp.extraction.pipeline import load_run_schema
 
@@ -101,8 +101,8 @@ def _client(settings, store, role, monkeypatch):
     return TestClient(app)
 
 
-def test_start_unreleased_custom_run_is_400(settings, monkeypatch):
-    store = RunStore(settings.runs_dir)
+def test_start_unreleased_custom_run_is_400(settings, monkeypatch, pg):
+    store = RunStore(pg, settings.runs_dir)
     schema = _schema()
     r = _client(settings, store, "approver", monkeypatch).post(
         "/api/extraction/start",
@@ -112,7 +112,7 @@ def test_start_unreleased_custom_run_is_400(settings, monkeypatch):
 
 
 def test_release_route_requires_approver(pg, settings, monkeypatch):
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     reg = SchemaRegistry(pg)
     s = reg.save(_schema())
     url = f"/api/extraction/schemas/{s.schema_id}/versions/1/release"
@@ -123,13 +123,13 @@ def test_release_route_requires_approver(pg, settings, monkeypatch):
     assert ok.json()["fields"][0]["status"] == "released"
 
 
-def test_register_schema_requires_analyst(settings, monkeypatch):
+def test_register_schema_requires_analyst(settings, monkeypatch, pg):
     body = _schema().model_dump(mode="json")
-    assert _client(settings, RunStore(settings.runs_dir), "viewer", monkeypatch).post("/api/extraction/schemas", json=body).status_code == 403
+    assert _client(settings, RunStore(pg, settings.runs_dir), "viewer", monkeypatch).post("/api/extraction/schemas", json=body).status_code == 403
 
 
-def test_schema_routes_register_list_get(settings, monkeypatch):
-    c = _client(settings, RunStore(settings.runs_dir), "viewer", monkeypatch)
+def test_schema_routes_register_list_get(settings, monkeypatch, pg):
+    c = _client(settings, RunStore(pg, settings.runs_dir), "viewer", monkeypatch)
     c.app.dependency_overrides[current_user] = lambda: Principal(user_id="u", name="U", role="analyst")
     s = c.post("/api/extraction/schemas", json=_schema().model_dump(mode="json")).json()
     assert c.get("/api/extraction/schemas").json()[0]["schema_id"] == s["schema_id"]
@@ -141,7 +141,7 @@ def _fid(reg) -> str:
 
 
 def test_first_audit_route_requires_approver(pg, settings, monkeypatch):
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     reg = SchemaRegistry(pg)
     fid = _fid(reg)
     url = f"/api/extraction/fields/{fid}/versions/1/first-audit"

@@ -11,11 +11,11 @@ def _make_run(run_store: RunStore, run_id: str, run_type: str, created_at: str, 
     )
     run_store.save_manifest(manifest)
     for row in rows:
-        run_store.append_jsonl(run_store._results_path(run_id), row)
+        run_store.append_result(run_id, row)
 
 
-def test_list_company_results_filters_and_orders_newest_run_first(tmp_path):
-    run_store = RunStore(tmp_path / "runs")
+def test_list_company_results_filters_and_orders_newest_run_first(tmp_path, pg):
+    run_store = RunStore(pg, tmp_path / "runs")
     _make_run(run_store, "run_old", "extraction", "2025-01-01T00:00:00+00:00", [
         {"company_id": "acme", "name": "Acme", "fields": [{"field_name": "x", "value": 1}]},
         {"company_id": "beta", "name": "Beta", "fields": []},
@@ -31,8 +31,8 @@ def test_list_company_results_filters_and_orders_newest_run_first(tmp_path):
     assert results[1]["fields"][0]["value"] == 1
 
 
-def test_list_company_results_ignores_other_run_types_and_companies(tmp_path):
-    run_store = RunStore(tmp_path / "runs")
+def test_list_company_results_ignores_other_run_types_and_companies(tmp_path, pg):
+    run_store = RunStore(pg, tmp_path / "runs")
     _make_run(run_store, "run_a", "extraction", now_iso(), [{"company_id": "acme"}])
     _make_run(run_store, "run_b", "financials", now_iso(), [{"company_id": "acme"}])
 
@@ -40,8 +40,8 @@ def test_list_company_results_ignores_other_run_types_and_companies(tmp_path):
     assert len(list_company_results(run_store, "extraction", "nonexistent")) == 0
 
 
-def test_list_known_companies_dedupes_and_prefers_latest_name(tmp_path):
-    run_store = RunStore(tmp_path / "runs")
+def test_list_known_companies_dedupes_and_prefers_latest_name(tmp_path, pg):
+    run_store = RunStore(pg, tmp_path / "runs")
     _make_run(run_store, "run_old", "extraction", "2025-01-01T00:00:00+00:00", [
         {"company_id": "acme", "name": "Acme Old Name", "ticker": "ACM"},
     ])
@@ -58,6 +58,6 @@ def test_list_known_companies_dedupes_and_prefers_latest_name(tmp_path):
     ]
 
 
-def test_list_known_companies_empty_when_no_runs(tmp_path):
-    run_store = RunStore(tmp_path / "runs")
+def test_list_known_companies_empty_when_no_runs(tmp_path, pg):
+    run_store = RunStore(pg, tmp_path / "runs")
     assert list_known_companies(run_store, "extraction") == []

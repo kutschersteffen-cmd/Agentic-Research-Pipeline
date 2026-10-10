@@ -89,11 +89,11 @@ def test_schema_ids_and_routing():
     assert DocType.ANNUAL_REPORT_10K in by["rem_esg_in_pay"].document_routing.doc_types
 
 
-def test_remuneration_summary_endpoint(tmp_path):
-    store = RunStore(tmp_path / "runs")
+def test_remuneration_summary_endpoint(tmp_path, pg):
+    store = RunStore(pg, tmp_path / "runs")
     store.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
     rec = ExtractionRecord(company_id="c1", name="Acme", schema_id="sch_esg_remuneration", run_id="r1")
-    store.append_jsonl(store._results_path("r1"), rec.model_dump(mode="json") | {"fields": _w("weighted", 12, _f("rem_esg_in_pay", "yes"))})
+    store.append_result("r1", rec.model_dump(mode="json") | {"fields": _w("weighted", 12, _f("rem_esg_in_pay", "yes"))})
     app.dependency_overrides[get_run_store] = lambda: store
     try:
         client = TestClient(app)

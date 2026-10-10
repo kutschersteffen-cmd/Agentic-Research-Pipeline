@@ -173,7 +173,7 @@ def test_fact_for_tags_annual_full_year_only():
     assert XbrlFactSource.fact_for_tags(facts, ["us-gaap:Revenues"], fiscal_year=2023) is None
 
 
-async def test_tagged_value_is_refused_by_publish_not_dropped(tmp_path, fake_llm):
+async def test_tagged_value_is_refused_by_publish_not_dropped(tmp_path, fake_llm, pg):
     """Step 7a pinned that an XBRL citation has no stored original and was refused with
     no_grounded_citation. Superseded in step 7b: with a frozen companyfacts original the tagged
     value passes the gate (tests/test_xbrl_publish.py); without one (no blob store) it is still
@@ -193,11 +193,11 @@ async def test_tagged_value_is_refused_by_publish_not_dropped(tmp_path, fake_llm
     for frozen in (None, freeze_company_facts(json.dumps(facts).encode(), "0000320193", blob_store=blobs, content_store=texts)):
         (f,), _, _ = await _run(tmp_path, fake_llm, field, facts, qualities=qualities, xbrl=_FakeXbrl(facts, frozen=frozen))
         assert (f.method, f.route) == ("tagged", "auto_accept")
-        rs = RunStore(tmp_path / f"pub-runs-{frozen is not None}")
-        rs.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
-        rs.append_jsonl(rs._results_path("r1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
+        rs, rid = RunStore(pg, tmp_path / "pub-runs"), f"r-{frozen is not None}"
+        rs.save_manifest(RunManifest(run_id=rid, run_type="extraction"))
+        rs.append_result(rid, {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
                                                 "fields": [f.model_dump(mode="json")]})
-        cands, _ = run_candidates(rs, "r1")
+        cands, _ = run_candidates(rs, rid)
         [c] = cands
         passed, blocked = split_by_gate(cands, blob_store=blobs, withdrawn_docs=set(), content_store=texts)
         if frozen is None:

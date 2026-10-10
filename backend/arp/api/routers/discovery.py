@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from arp.api.deps import get_scheduler, settings_dep
 from arp.config import Settings
+from arp.db.session import require_dsn
 from arp.discovery.change_detector import ChangeDetector
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
 from arp.discovery.scheduler import DiscoveryScheduler
@@ -20,7 +21,7 @@ router = APIRouter(prefix="/api/discovery", tags=["discovery"])
 
 
 def _run_store(settings: Settings = Depends(settings_dep)) -> RunStore:
-    return RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
+    return RunStore(require_dsn(settings), settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
 
 
 class DiscoveryRunRequest(BaseModel):

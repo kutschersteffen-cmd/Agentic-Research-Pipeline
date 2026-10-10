@@ -36,6 +36,21 @@ from arp.cli.voting import voting_app
 from arp.cli.xbrl import xbrl_app
 
 app = typer.Typer(help="Agentic Research Pipeline CLI -- the headless path for 1000s-of-companies batch runs.")
+
+
+@app.callback()
+def _require_postgres() -> None:
+    """Postgres is the system of record: every command needs ARP_POSTGRES_DSN."""
+    from arp.config import get_settings
+    from arp.db.session import require_dsn
+
+    try:
+        require_dsn(get_settings())
+    except RuntimeError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+
+
 app.add_typer(theme_app, name="theme")
 app.add_typer(taxonomy_app, name="taxonomy")
 app.add_typer(extract_app, name="extract")

@@ -98,8 +98,8 @@ def test_reground_sample_records_results(tmp_path):
     assert json.loads(log.read_text().splitlines()[0])["day"] == "2026-11-03"
 
 
-def test_scheduler_run_builds_snapshot(tmp_path, monkeypatch):
-    store, rs = PortfolioStore(tmp_path / "pf"), RunStore(tmp_path / "runs")
+def test_scheduler_run_builds_snapshot(tmp_path, monkeypatch, pg):
+    store, rs = PortfolioStore(tmp_path / "pf"), RunStore(pg, tmp_path / "runs")
     raw = [{"_row": 2, "isin": "US0378331005", "weight": 100, "market_value": 600, "currency": "EUR"}]
     v = validate(raw, kind="index", as_of="2026-10-31", today=date(2026, 11, 2))
     ingest(store, v, kind="index", holder_id="IX1", as_of="2026-10-31", source="file", source_ref="f.csv",
@@ -125,11 +125,11 @@ from tests.test_snapshots_build import World  # noqa: E402
 
 
 @pytest.fixture
-def sched(tmp_path, monkeypatch):
+def sched(tmp_path, monkeypatch, pg):
     settings = Settings(postgres_dsn="postgresql://unused", holdings_api_url=None, snapshot_store_dir=tmp_path / "snaps",
                         publish_state_dir=tmp_path / "state")
     monkeypatch.setattr(S, "_today", lambda: date(2026, 11, 2))
-    return PublishingScheduler(settings, PortfolioStore(tmp_path / "pf"), RunStore(tmp_path / "runs"))
+    return PublishingScheduler(settings, PortfolioStore(tmp_path / "pf"), RunStore(pg, tmp_path / "runs"))
 
 
 def _run(sched):

@@ -59,7 +59,7 @@ async def test_discover_for_company_no_homepage_known_is_not_unreachable(tmp_pat
     assert result.homepage_unreachable is False
 
 
-async def test_execute_discovery_run_flags_unreachable_homepage_for_review(tmp_path, monkeypatch):
+async def test_execute_discovery_run_flags_unreachable_homepage_for_review(tmp_path, monkeypatch, pg):
     async def _raise(*args, **kwargs):
         raise HomepageUnreachableError("simulated network failure")
 
@@ -72,7 +72,7 @@ async def test_execute_discovery_run_flags_unreachable_homepage_for_review(tmp_p
     )
     from arp.storage.run_store import RunStore
 
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     companies = [CompanyRef(company_id="ACME", name="Acme Corp", website="https://acme.example/")]
 
     from arp.discovery.pipeline import create_discovery_run
@@ -87,7 +87,7 @@ async def test_execute_discovery_run_flags_unreachable_homepage_for_review(tmp_p
     assert manifest.failed_count == 0
     assert manifest.completed_count == 1
 
-    rows = run_store.read_jsonl(run_store._results_path(run_id))
+    rows = run_store.read_results(run_id)
     assert len(rows) == 1
     assert rows[0]["homepage_unreachable"] is True
 

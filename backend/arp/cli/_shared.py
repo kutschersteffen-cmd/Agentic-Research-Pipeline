@@ -6,6 +6,7 @@ import typer
 
 from arp.api.auth import Principal, load_users
 from arp.config import Settings, get_settings
+from arp.db.session import require_dsn
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.esef import EsefDocumentSource
 from arp.ingestion.indexing_config import IndexingConfig
@@ -99,7 +100,7 @@ def _xbrl_source() -> XbrlFactSource:
 
 def _run_store() -> RunStore:
     settings = get_settings()
-    return RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
+    return RunStore(require_dsn(settings), settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
 
 
 

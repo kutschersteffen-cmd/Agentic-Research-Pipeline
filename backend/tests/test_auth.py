@@ -93,10 +93,10 @@ def test_invalid_users_json_raises(tmp_path):
 
 
 @pytest.fixture
-def real_client(users_file, tmp_path):
+def real_client(users_file, tmp_path, pg):
     real_app.dependency_overrides.clear()
     real_app.dependency_overrides[settings_dep] = lambda: Settings(users_file=users_file, runs_dir=tmp_path / "runs")
-    real_app.dependency_overrides[get_run_store] = lambda: RunStore(tmp_path / "runs")
+    real_app.dependency_overrides[get_run_store] = lambda: RunStore(pg, tmp_path / "runs")
     yield TestClient(real_app)
     real_app.dependency_overrides.clear()
 

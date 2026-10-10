@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import csv
-import json
 from pathlib import Path
 
 import pytest
@@ -15,17 +14,18 @@ from arp.config import Settings
 from arp.storage.decision_store import DecisionStore
 from arp.storage.run_store import RunStore
 from tests.conftest import PRINCIPAL
+from tests.postgres_helpers import replace_results
 
 DECK = Path(__file__).resolve().parents[2] / "docs/decision-studio/example-framework/credibility"
 SAMPLE = Path(__file__).resolve().parents[1] / "arp" / "decision" / "sample_data" / "example_transition_universe.csv"
 
 
 @pytest.fixture
-def client(tmp_path):
+def client(tmp_path, pg):
     settings = Settings(frameworks_dir=tmp_path / "frameworks", runs_dir=tmp_path / "runs")
     settings.ensure_dirs()
     store = DecisionStore(settings.frameworks_dir)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
 
     app = FastAPI()
     app.include_router(decision_router.router)
@@ -192,8 +192,6 @@ def test_compare_endpoint_holds_the_framework_fixed_across_snapshots(client):
 
 def test_from_source_builds_a_table_from_a_transition_plan_run(client):
     run_id = "tp_run_1"
-    path = client.run_store._results_path(run_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
     rows = [
         {
             "company_id": f"c{i}",
@@ -209,7 +207,7 @@ def test_from_source_builds_a_table_from_a_transition_plan_run(client):
         }
         for i in range(8)
     ]
-    path.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    replace_results(client.run_store, run_id, rows)
 
     response = client.post("/api/decision/datasets/from-source", json={"source": "transition_plan_run", "run_id": run_id})
     assert response.status_code == 200, response.text

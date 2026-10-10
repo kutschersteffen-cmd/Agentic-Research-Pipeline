@@ -18,6 +18,9 @@ from arp.xbrl_pipeline.fetch import (
     with_retry,
 )
 from arp.xbrl_pipeline.store import XbrlStore
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below
 
 FIXTURE = Path(__file__).parent / "fixtures" / "xbrl" / "companyfacts_small.json"
 CIK10 = "0001234567"
@@ -217,9 +220,9 @@ def test_delay_constant():
     assert FETCH_DELAY_SECONDS == 0.15
 
 
-async def test_run_isolates_a_failing_company_and_resume_retries_it(tmp_path):
+async def test_run_isolates_a_failing_company_and_resume_retries_it(tmp_path, pg):
     settings = Settings(xbrl_dir=tmp_path / "xbrl")
-    run_store = RunStore(tmp_path / "runs")
+    run_store = RunStore(pg, tmp_path / "runs")
     companies = [_company("A", "1"), _company("B", "2"), _company("C", "3")]
 
     class Flaky(FakeSource):
@@ -234,15 +237,12 @@ async def test_run_isolates_a_failing_company_and_resume_retries_it(tmp_path):
     run_id = create_xbrl_run(companies, None, False, run_store)
     await execute_xbrl_run(run_id, companies, settings=settings, run_store=run_store, tags=None, refresh=False, source=src)
 
-    def lines(p):
-        return [json.loads(x) for x in p.read_text().splitlines() if x.strip()]
-
-    assert len(lines(run_store._errors_path(run_id))) == 1
-    assert {r["company_id"] for r in lines(run_store._results_path(run_id))} == {"A", "C"}
+    assert len(run_store.read_errors(run_id)) == 1
+    assert {r["company_id"] for r in run_store.read_results(run_id)} == {"A", "C"}
 
     src.broken = False
     await execute_xbrl_run(run_id, companies, settings=settings, run_store=run_store, tags=None, refresh=False, source=src)
-    assert {r["company_id"] for r in lines(run_store._results_path(run_id))} == {"A", "B", "C"}
+    assert {r["company_id"] for r in run_store.read_results(run_id)} == {"A", "B", "C"}
 
 
 class _Flaky(FakeSource):
@@ -261,7 +261,7 @@ class _Flaky(FakeSource):
 
 async def _first_run_with_failure(tmp_path):
     settings = Settings(xbrl_dir=tmp_path / "xbrl")
-    run_store = RunStore(tmp_path / "runs")
+    run_store = RunStore(pg_dsn(), tmp_path / "runs")
     companies = [_company("A", "1"), _company("B", "2"), _company("C", "3")]
     run_id = create_xbrl_run(companies, None, False, run_store)
     src = _Flaky(run_store, run_id)
@@ -289,17 +289,17 @@ async def test_resume_with_persisting_failure_does_not_double_count(tmp_path):
     assert (m.completed_count, m.failed_count, m.status) == (2, 1, "partially_completed")
 
 
-async def test_execute_run_dispatches_esef(tmp_path):
+async def test_execute_run_dispatches_esef(tmp_path, pg):
     from tests.test_xbrl_esef_fetch import FakeSource as EsefFake  # noqa: PLC0415
 
     settings = Settings(xbrl_dir=tmp_path / "xbrl")
-    run_store = RunStore(tmp_path / "runs")
+    run_store = RunStore(pg, tmp_path / "runs")
     companies = [CompanyRef(company_id="A", name="A", lei="529900FIXTURELEI0001"), CompanyRef(company_id="B", name="B")]
     run_id = create_xbrl_run(companies, None, False, run_store, market="esef")
     assert run_store.load_manifest(run_id).params["market"] == "esef"
     await execute_xbrl_run(run_id, companies, settings=settings, run_store=run_store, tags=None, refresh=False,
                            market="esef", source=EsefFake())
-    rows = {r["company_id"]: r for r in map(json.loads, run_store._results_path(run_id).read_text().splitlines())}
+    rows = {r["company_id"]: r for r in run_store.read_results(run_id)}
     assert (rows["A"]["status"], rows["B"]["status"]) == ("ok", "no_lei")
 
 

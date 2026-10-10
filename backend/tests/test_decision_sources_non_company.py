@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 import pytest
 
 from arp.decision import sources
@@ -18,6 +16,7 @@ from arp.schemas.strategy_replication import (
     ReportedPerformance,
 )
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import replace_results
 
 # The engine scores rows; nothing in it assumes a row is a company. These
 # three sources are where that stops being a claim and starts being tested:
@@ -126,13 +125,11 @@ def _candidate(name: str, **kwargs) -> EmergingThemeCandidate:
 
 
 def _write_themes(run_store: RunStore, run_id: str, candidates: list[EmergingThemeCandidate]) -> None:
-    path = run_store._results_path(run_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(c.model_dump_json() for c in candidates) + "\n")
+    replace_results(run_store, run_id, [c.model_dump(mode="json") for c in candidates])
 
 
-def test_theme_run_becomes_one_row_per_candidate(tmp_path):
-    run_store = RunStore(tmp_path)
+def test_theme_run_becomes_one_row_per_candidate(tmp_path, pg):
+    run_store = RunStore(pg, tmp_path)
     _write_themes(run_store, "et1", [_candidate("solid-state batteries"), _candidate("grid-scale storage", action_score=0.9)])
     dataset = sources.from_emerging_themes_run(run_store, "et1")
     assert dataset.source == "emerging_themes_run"
@@ -149,8 +146,8 @@ def test_contradiction_is_scored_as_counter_evidence_not_as_a_virtue():
     assert needs_check is False
 
 
-def test_a_disconfirmed_theme_is_gated_out_not_merely_marked_down(tmp_path):
-    run_store = RunStore(tmp_path)
+def test_a_disconfirmed_theme_is_gated_out_not_merely_marked_down(tmp_path, pg):
+    run_store = RunStore(pg, tmp_path)
     good = [_candidate(f"theme {i}", action_score=0.2 + i * 0.1, novelty=0.3 + i * 0.1) for i in range(6)]
     dead = _candidate("invalidated thesis", status=CandidateStatus.DISCONFIRMED, action_score=0.99, novelty=0.99)
     _write_themes(run_store, "et2", [*good, dead])
@@ -166,16 +163,14 @@ def test_a_disconfirmed_theme_is_gated_out_not_merely_marked_down(tmp_path):
     assert invalidated.tier is None and invalidated.rank is None
 
 
-def test_theme_run_reflects_the_append_only_review_decisions(tmp_path):
+def test_theme_run_reflects_the_append_only_review_decisions(tmp_path, pg):
     """Read through load_candidates_with_status, not off results.jsonl, so a
     rejected theme does not arrive looking like a live candidate."""
-    run_store = RunStore(tmp_path)
+    run_store = RunStore(pg, tmp_path)
     _write_themes(run_store, "et3", [_candidate("kept"), _candidate("thrown out")])
-    rows = run_store.read_jsonl(run_store._results_path("et3"))
+    rows = run_store.read_results("et3")
     theme_id = rows[1]["theme_id"]
-    decisions = run_store._review_decisions_path("et3")
-    decisions.parent.mkdir(parents=True, exist_ok=True)
-    decisions.write_text(json.dumps({"theme_id": theme_id, "action": "reject", "reason": "not real"}) + "\n")
+    run_store.append_decision_row("et3", {"theme_id": theme_id, "action": "reject", "reason": "not real"})
 
     dataset = sources.from_emerging_themes_run(run_store, "et3")
     statuses = {r["Theme"]: r["Status"] for r in dataset.rows}
@@ -183,8 +178,8 @@ def test_theme_run_reflects_the_append_only_review_decisions(tmp_path):
     assert statuses["kept"] == "candidate"
 
 
-def test_an_empty_themes_run_is_an_error(tmp_path):
-    run_store = RunStore(tmp_path)
+def test_an_empty_themes_run_is_an_error(tmp_path, pg):
+    run_store = RunStore(pg, tmp_path)
     _write_themes(run_store, "empty", [])
     with pytest.raises(ValueError, match="no candidates"):
         sources.from_emerging_themes_run(run_store, "empty")
@@ -213,17 +208,15 @@ def _report(spec_id: str, sharpe: float, verdict: ReplicationVerdict, oos_gap: f
 
 
 def _write_replication(run_store: RunStore, run_id: str, name: str, report: ReplicationComparisonReport) -> None:
-    path = run_store._results_path(run_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps({"type": "spec", "spec_id": report.spec_id, "strategy_name": name}) + "\n"
-        + json.dumps({"type": "comparison", **json.loads(report.model_dump_json())}) + "\n"
-    )
+    replace_results(run_store, run_id, [
+        {"type": "spec", "spec_id": report.spec_id, "strategy_name": name},
+        {"type": "comparison", **report.model_dump(mode="json")},
+    ])
     run_store.save_manifest(RunManifest(run_id=run_id, run_type="strategy_replication", status=JobStatus.COMPLETED))
 
 
-def test_replication_table_spans_runs_because_one_run_is_one_strategy(tmp_path):
-    run_store = RunStore(tmp_path)
+def test_replication_table_spans_runs_because_one_run_is_one_strategy(tmp_path, pg):
+    run_store = RunStore(pg, tmp_path)
     _write_replication(run_store, "r1", "Momentum 12-1", _report("s1", 1.2, ReplicationVerdict.REPLICATED))
     _write_replication(run_store, "r2", "Low Vol", _report("s2", 0.4, ReplicationVerdict.PARTIALLY_REPLICATED))
 
@@ -235,10 +228,10 @@ def test_replication_table_spans_runs_because_one_run_is_one_strategy(tmp_path):
     assert momentum["Data_Warnings_Count"] == "1"
 
 
-def test_out_of_sample_column_is_not_called_a_gap(tmp_path):
+def test_out_of_sample_column_is_not_called_a_gap(tmp_path, pg):
     """`gap` is in the lower-is-better dictionary. Persistence carries the
     sign the engine needs: higher means the effect held up."""
-    run_store = RunStore(tmp_path)
+    run_store = RunStore(pg, tmp_path)
     _write_replication(run_store, "r1", "Momentum", _report("s1", 1.0, ReplicationVerdict.REPLICATED))
     dataset = sources.from_replication_runs(run_store)
     assert "Out_Of_Sample_Persistence_pp" in dataset.columns
@@ -254,8 +247,8 @@ def test_sharpe_and_drawdown_directions_are_inferred_not_guessed():
     assert propose_direction("Max_Drawdown_pct")[2] is False
 
 
-def test_a_strategy_that_did_not_replicate_is_gated_out(tmp_path):
-    run_store = RunStore(tmp_path)
+def test_a_strategy_that_did_not_replicate_is_gated_out(tmp_path, pg):
+    run_store = RunStore(pg, tmp_path)
     for i in range(5):
         _write_replication(run_store, f"ok{i}", f"Strategy {i}", _report(f"s{i}", 0.3 + i * 0.2, ReplicationVerdict.REPLICATED))
     _write_replication(run_store, "bad", "Wrong Sign", _report("sbad", 2.5, ReplicationVerdict.NOT_REPLICATED))
@@ -268,15 +261,13 @@ def test_a_strategy_that_did_not_replicate_is_gated_out(tmp_path):
     assert failed.status == "excluded", "a high Sharpe on an unreplicated result is not something to average in"
 
 
-def test_runs_without_a_completed_comparison_are_skipped(tmp_path):
-    run_store = RunStore(tmp_path)
-    path = run_store._results_path("half")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"type": "spec", "spec_id": "s1", "strategy_name": "Unfinished"}) + "\n")
+def test_runs_without_a_completed_comparison_are_skipped(tmp_path, pg):
+    run_store = RunStore(pg, tmp_path)
+    replace_results(run_store, "half", [{"type": "spec", "spec_id": "s1", "strategy_name": "Unfinished"}])
     with pytest.raises(ValueError, match="completed replication comparison"):
         sources.from_replication_runs(run_store, run_ids=["half"])
 
 
-def test_no_replication_runs_at_all_is_an_error(tmp_path):
+def test_no_replication_runs_at_all_is_an_error(tmp_path, pg):
     with pytest.raises(ValueError, match="No strategy_replication runs"):
-        sources.from_replication_runs(RunStore(tmp_path))
+        sources.from_replication_runs(RunStore(pg, tmp_path))

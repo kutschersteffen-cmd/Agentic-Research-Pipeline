@@ -16,14 +16,15 @@ steps) intact, which is what the tests are running against.
 
 from __future__ import annotations
 
+
 def reset_postgres_tables(dsn: str) -> None:
     """Empties every table the models define in one TRUNCATE, leaving the
     schema in place. `schema_migrations` is deliberately NOT emptied (it is
     not a model table): it records which schema steps this database has had
     applied, and wiping it would make the next `ensure_schema` re-run them."""
-    import arp.db.models  # noqa: F401  (register every table on Base)
     from sqlalchemy import inspect, text
 
+    import arp.db.models  # noqa: F401  (register every table on Base)
     from arp.storage.postgres import get_engine
     from arp.storage.postgres_models import Base
 
@@ -33,3 +34,31 @@ def reset_postgres_tables(dsn: str) -> None:
         names = [t.name for t in Base.metadata.sorted_tables if t.name in existing and t.name != "schema_migrations"]
         if names:
             conn.execute(text(f"TRUNCATE {', '.join(names)} RESTART IDENTITY CASCADE"))
+
+
+def pg_dsn() -> str:
+    """The test database DSN, for helpers that build a RunStore outside a test's signature.
+    Set by the `pg` fixture, which the calling test must use."""
+    import os
+
+    return os.environ["ARP_POSTGRES_DSN"]
+
+
+def replace_results(store, run_id: str, rows: list[dict]) -> None:
+    """Overwrites a run's result rows -- what tests that edited results.jsonl by hand now do."""
+    from sqlalchemy import delete
+
+    from arp.db.models import RunResult
+    from arp.db.session import transaction
+
+    with transaction(store.dsn) as s:
+        s.execute(delete(RunResult).where(RunResult.run_id == run_id))
+    for row in rows:
+        store.append_result(run_id, row)
+
+
+def edit_results(store, run_id: str, old: str, new: str, count: int = -1) -> None:
+    """`str.replace` over a run's result rows as JSON text -- the old results.jsonl hand edit."""
+    import json
+
+    replace_results(store, run_id, json.loads(json.dumps(store.read_results(run_id)).replace(old, new, count)))

@@ -9,6 +9,7 @@ import typer
 
 from arp.cli._shared import _run_store
 from arp.config import Settings, get_settings
+from arp.db.session import require_dsn
 from arp.discovery.academic_search import ArxivSearchClient, CompositeSearchClient, SemanticScholarSearchClient
 from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
@@ -270,7 +271,7 @@ def replicate_golden_set() -> None:
 @replicate_app.command("report")
 def replicate_report(run_id: str) -> None:
     """Prints the comparison report for a completed replication run."""
-    store = RunStore(get_settings().runs_dir)
+    store = RunStore(require_dsn(get_settings()), get_settings().runs_dir)
     rows = store.read_results(run_id)
     comparison = next((r for r in rows if r.get("type") == "comparison"), None)
     if comparison is None:
@@ -285,7 +286,7 @@ def replicate_sanity_check(run_id: str) -> None:
     Sharpe/return figures, a too-thin universe, or an overfitting signature, as a second opinion layered on top
     of (never replacing) the deterministic numbers. Requires ARP_ANTHROPIC_API_KEY. Appends the assessment to
     the run's results.jsonl."""
-    store = RunStore(get_settings().runs_dir)
+    store = RunStore(require_dsn(get_settings()), get_settings().runs_dir)
     rows = store.read_results(run_id)
     spec_row = next((r for r in rows if r.get("type") == "spec"), None)
     comparison_row = next((r for r in rows if r.get("type") == "comparison"), None)
@@ -317,7 +318,7 @@ def replicate_regime_report(
     hide (see arXiv 2512.12924). Requires the run to have been backtested with --benchmark set (regime
     classification uses the benchmark's own volatility, never the strategy's, to avoid circularity). Appends the
     report to the run's results.jsonl."""
-    store = RunStore(get_settings().runs_dir)
+    store = RunStore(require_dsn(get_settings()), get_settings().runs_dir)
     rows = store.read_results(run_id)
     in_sample_row = next((r for r in rows if r.get("type") == "in_sample"), None)
     if in_sample_row is None:

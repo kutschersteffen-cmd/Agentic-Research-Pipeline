@@ -12,6 +12,7 @@ from arp.extraction.steps import StepSettings
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import replace_results
 
 
 def _fake(name, calls):
@@ -75,8 +76,8 @@ def test_missing_profile_input_is_a_400(calls, profile):
     assert calls == []
 
 
-def test_step_settings_reach_the_pipeline_and_are_recorded(calls, tmp_path):
-    store = RunStore(tmp_path)
+def test_step_settings_reach_the_pipeline_and_are_recorded(calls, tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     base = Settings(llm_model="model-a", hybrid_retrieval_enabled=True)
     started = _start(
         run_store=store,
@@ -92,8 +93,8 @@ def test_step_settings_reach_the_pipeline_and_are_recorded(calls, tmp_path):
     assert recorded.llm_model == "model-b" and recorded.grounding_fuzzy_threshold == base.grounding_fuzzy_threshold
 
 
-def test_the_saved_universe_a_run_read_is_recorded(calls, tmp_path):
-    store = RunStore(tmp_path)
+def test_the_saved_universe_a_run_read_is_recorded(calls, tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     universe = tmp_path / "u.json"
     universe.write_text(json.dumps([{"company_id": "c1", "name": "Acme"}]))
     started = _start(run_store=store, profile="tnfd", as_of="FY2025", universe_path=str(universe))
@@ -135,11 +136,11 @@ def _restart(store, run_id, **body):
     )
 
 
-def test_restart_from_a_step_reruns_one_company_with_fresh_steps(calls, tmp_path, monkeypatch):
+def test_restart_from_a_step_reruns_one_company_with_fresh_steps(calls, tmp_path, monkeypatch, pg):
     monkeypatch.setattr(extraction, "get_registry", lambda: "registry")
-    store = RunStore(tmp_path)
+    store = RunStore(pg, tmp_path)
     run_id = _finished_run(store, calls)
-    store._results_path(run_id).write_text(json.dumps({"company_id": "c1", "name": "Acme"}) + "\n")
+    replace_results(store, run_id, [{"company_id": "c1", "name": "Acme"}])
     companies = extraction.get_run_companies(run_id, run_store=store)["companies"]
     assert [(c["company_id"], c["status"]) for c in companies] == [("c1", "done"), ("c2", "waiting")]
     calls.clear()
@@ -154,11 +155,11 @@ def test_restart_from_a_step_reruns_one_company_with_fresh_steps(calls, tmp_path
 
 
 
-def test_restart_refuses_a_running_run_or_an_unknown_step(calls, tmp_path, monkeypatch):
+def test_restart_refuses_a_running_run_or_an_unknown_step(calls, tmp_path, monkeypatch, pg):
     from arp.orchestration.job_manager import JobManager
 
     monkeypatch.setattr(extraction, "get_registry", lambda: "registry")
-    store = RunStore(tmp_path)
+    store = RunStore(pg, tmp_path)
     run_id = _finished_run(store, calls)
     with pytest.raises(HTTPException) as err:
         _restart(store, run_id, from_step="answer")  # a transition plan step, not a TNFD one
@@ -169,13 +170,13 @@ def test_restart_refuses_a_running_run_or_an_unknown_step(calls, tmp_path, monke
     assert err.value.status_code == 409
 
 
-def test_restart_of_a_pre_gate_custom_run_runs_as_trial(calls, tmp_path, monkeypatch):
+def test_restart_of_a_pre_gate_custom_run_runs_as_trial(calls, tmp_path, monkeypatch, pg):
     # A start_request.json saved before the release gate has no `trial`: that run was ungated,
     # so its restart runs as a trial rather than being refused for draft fields.
     from arp.orchestration.job_manager import JobManager
 
     monkeypatch.setattr(extraction, "get_registry", lambda: "registry")
-    store = RunStore(tmp_path)
+    store = RunStore(pg, tmp_path)
     run_id = JobManager(store).create_run("extraction", {}, 1).run_id
     JobManager(store).finish_run(run_id)
     saved = {

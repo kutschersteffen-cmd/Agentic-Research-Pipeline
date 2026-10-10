@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, date, datetime
 
 import pytest
@@ -19,7 +18,7 @@ TABLES = {
 
 
 def test_tables_exist(pg):
-    assert TABLES <= set(inspect(engine(pg)).get_table_names())
+    assert set(inspect(engine(pg)).get_table_names()) >= TABLES
 
 
 def _fact_setup(session):
@@ -90,9 +89,12 @@ def test_unknown_decision_rejected(pg):
         s.add(item)
         s.flush()
         item_id = item.id
-        s.add(m.ReviewDecision(review_item_id=item_id, decision=m.DecisionKind.APPROVE))
+        s.add(m.ReviewDecision(run_id="r1", review_item_id=item_id, decision=m.DecisionKind.APPROVE, row={}))
     with pytest.raises(DataError, match="invalid input value for enum"), transaction(pg) as s:
-        s.execute(text("INSERT INTO review_decisions (review_item_id, decision) VALUES (:i, 'maybe')"), {"i": item_id})
+        s.execute(
+            text("INSERT INTO review_decisions (run_id, review_item_id, decision, row) VALUES ('r1', :i, 'maybe', '{}')"),
+            {"i": item_id},
+        )
 
 
 def test_two_current_facts_without_period_are_rejected(pg):

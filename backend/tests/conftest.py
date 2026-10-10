@@ -34,7 +34,7 @@ def _review_quality_dir_in_tmp(monkeypatch, tmp_path):
 def _pg_schema():
     dsn = os.environ.get("ARP_TEST_POSTGRES_DSN")
     if not dsn:
-        pytest.skip("ARP_TEST_POSTGRES_DSN not set")
+        pytest.fail("ARP_TEST_POSTGRES_DSN is required: docker compose up -d postgres", pytrace=False)
     from arp.storage.postgres_schema import ensure_schema
 
     ensure_schema(dsn)
@@ -42,23 +42,24 @@ def _pg_schema():
 
 
 @pytest.fixture
-def pg(_pg_schema):
-    """Empty tables for each test; yields the DSN, which is also the settings DSN (ARP_POSTGRES_DSN)."""
+def pg(_pg_schema, monkeypatch):
+    """Empty tables for each test; yields the DSN, which is also the settings DSN (ARP_POSTGRES_DSN).
+    Set through monkeypatch so a test's own setenv/delenv of it unwinds in the right order."""
     from arp.config import get_settings
     from tests.postgres_helpers import reset_postgres_tables
 
     reset_postgres_tables(_pg_schema)
-    old = os.environ.get("ARP_POSTGRES_DSN")
-    os.environ["ARP_POSTGRES_DSN"] = _pg_schema
+    monkeypatch.setenv("ARP_POSTGRES_DSN", _pg_schema)
     get_settings.cache_clear()
-    try:
-        yield _pg_schema
-    finally:
-        if old is None:
-            os.environ.pop("ARP_POSTGRES_DSN", None)
-        else:
-            os.environ["ARP_POSTGRES_DSN"] = old
-        get_settings.cache_clear()
+    yield _pg_schema
+    get_settings.cache_clear()
+
+
+@pytest.fixture
+def run_store(pg, tmp_path):
+    from arp.db.runs import RunStore
+
+    return RunStore(pg, tmp_path / "runs")
 
 
 class FakeLLMClient:

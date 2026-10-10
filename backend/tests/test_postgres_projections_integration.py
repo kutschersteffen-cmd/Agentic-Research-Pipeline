@@ -27,10 +27,13 @@ from arp.schemas.engagement import Commitment, IssueSeverity, IssueStatus
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.run_store import RunStore
-from tests.postgres_helpers import reset_postgres_tables
+from tests.postgres_helpers import pg_dsn, replace_results, reset_postgres_tables
 
 DSN = os.environ.get("ARP_TEST_POSTGRES_DSN")
-pytestmark = pytest.mark.skipif(not DSN, reason="ARP_TEST_POSTGRES_DSN not set -- opt-in Postgres integration test")
+pytestmark = [
+    pytest.mark.skipif(not DSN, reason="ARP_TEST_POSTGRES_DSN not set -- opt-in Postgres integration test"),
+    pytest.mark.usefixtures("pg"),
+]
 
 # Never written to the `companies` table by any test here: that is the
 # point. A run's companies come from the user-supplied universe file.
@@ -64,6 +67,7 @@ def _completed_run(tmp_path, *, run_type: str = "extraction", run_id: str = "run
     """A RunStore holding one finished run, with the projections enabled on
     it so save_manifest fires the same live hook production does."""
     store = RunStore(
+        pg_dsn(),
         tmp_path / "runs",
         projection_config=ProjectionConfig(
             postgres_dsn=DSN,
@@ -72,7 +76,7 @@ def _completed_run(tmp_path, *, run_type: str = "extraction", run_id: str = "run
         ),
     )
     for row in rows:
-        RunStore.append_jsonl(store._results_path(run_id), row)
+        store.append_result(run_id, row)
     store.save_manifest(RunManifest(run_id=run_id, run_type=run_type, status=JobStatus.COMPLETED))
     return store
 
@@ -98,40 +102,46 @@ def test_completing_a_run_projects_its_rows_for_a_universe_only_company(tmp_path
     assert records[0].payload["field_id"] == "scope_1"
 
 
-def test_sync_run_returns_the_number_of_rows_it_inserted(tmp_path):
+def test_sync_run_returns_the_number_of_rows_it_inserted(tmp_path, pg):
     """`result.rowcount` reports -1 for this insert, so `arp db reindex
     company-records` used to print rows_inserted=-1 whether it had
     backfilled two thousand rows or none."""
     from arp.storage.postgres_company_records_projection import sync_run
 
-    store = RunStore(tmp_path / "runs")
+    store = RunStore(pg, tmp_path / "runs")
     for company_id in ("a", "b", "c"):
-        RunStore.append_jsonl(store._results_path("run_1"), {"_key": company_id})
+        store.append_result("run_1", {"_key": company_id})
     store.save_manifest(RunManifest(run_id="run_1", run_type="extraction", status=JobStatus.COMPLETED))
 
     assert sync_run(DSN, store, "run_1") == 3
     assert sync_run(DSN, store, "run_1") == 0  # already synced: idempotent, and honestly counted
 
 
-def test_sync_all_honours_the_since_checkpoint(tmp_path):
+def test_sync_all_honours_the_since_checkpoint(tmp_path, pg):
     """What `--full` and the recorded checkpoint are built on: a run whose
     manifest predates the checkpoint is not rescanned."""
-    from arp.storage.atomic_io import atomic_write_text
+    from datetime import datetime
+
+    from sqlalchemy import update
+
+    from arp.db.models import Run
+    from arp.db.session import transaction
     from arp.storage.postgres_company_records_projection import sync_all
     from arp.storage.postgres_models import CompanyRecordModel
 
-    store = RunStore(tmp_path / "runs")
+    store = RunStore(pg, tmp_path / "runs")
     for run_id, company_id, updated_at in (
         ("old_run", "a", "2026-01-01T00:00:00Z"),
         ("new_run", "b", "2026-06-01T00:00:00Z"),
     ):
-        RunStore.append_jsonl(store._results_path(run_id), {"_key": company_id})
-        # Written directly rather than via save_manifest, which stamps
-        # updated_at with the current time -- that stamping is exactly what
-        # makes the checkpoint meaningful in production, and exactly what
-        # makes it untestable through that path.
-        manifest = RunManifest(run_id=run_id, run_type="extraction", status=JobStatus.COMPLETED, updated_at=updated_at)
-        atomic_write_text(store.manifest_path(run_id), manifest.model_dump_json(indent=2))
+        store.append_result(run_id, {"_key": company_id})
+        # updated_at set directly after save_manifest, which stamps it with
+        # the current time -- that stamping is exactly what makes the
+        # checkpoint meaningful in production, and exactly what makes it
+        # untestable through that path.
+        store.save_manifest(RunManifest(run_id=run_id, run_type="extraction", status=JobStatus.COMPLETED))
+        with transaction(DSN) as s:
+            s.execute(update(Run).where(Run.run_id == run_id).values(updated_at=datetime.fromisoformat(updated_at)))
 
     assert sync_all(DSN, store, since="2026-03-01T00:00:00Z") == 1
     assert {r.run_id for r in _rows(CompanyRecordModel)} == {"new_run"}
@@ -228,8 +238,7 @@ def test_a_changed_value_supersedes_rather_than_overwrites(tmp_path):
 
     store = _completed_run(tmp_path, rows=[{"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.5}])
     # A re-run of the same run_id with a corrected figure.
-    store._results_path("run_1").unlink()
-    RunStore.append_jsonl(store._results_path("run_1"), {"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.95})
+    replace_results(store, "run_1", [{"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.95}])
 
     assert materialize_run(DSN, store, "run_1") == 1
 
@@ -247,7 +256,7 @@ def test_a_trial_run_leaves_the_current_fact_untouched(tmp_path):
     from arp.storage.postgres_models import CompanyFactModel
 
     store = _completed_run(tmp_path, rows=[{"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.5}])
-    RunStore.append_jsonl(store._results_path("run_2"), {"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.9})
+    store.append_result("run_2", {"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.9})
     store.save_manifest(RunManifest(run_id="run_2", run_type="extraction", status=JobStatus.COMPLETED, params={"trial": True}))
 
     assert materialize_run(DSN, store, "run_2") == 0
@@ -255,15 +264,14 @@ def test_a_trial_run_leaves_the_current_fact_untouched(tmp_path):
     assert fact.is_current is True and fact.confidence == 0.5 and fact.source_run_id == "run_1"
 
 
-def test_a_reviewed_fact_records_the_decision_and_reviewer(tmp_path):
+def test_a_reviewed_fact_records_the_decision_and_reviewer(tmp_path, pg):
     from arp.orchestration import review_queue
     from arp.storage.postgres_company_facts_projection import materialize_run
     from arp.storage.postgres_models import CompanyFactModel
 
-    store = RunStore(tmp_path / "runs")
-    RunStore.append_jsonl(store._results_path("run_1"), {"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.3})
-    RunStore.append_jsonl(
-        store._review_queue_path("run_1"), {"item_key": UNIVERSE_ONLY_COMPANY, "run_id": "run_1", "payload": {}}
+    store = RunStore(pg, tmp_path / "runs")
+    store.append_result("run_1", {"_key": UNIVERSE_ONLY_COMPANY, "overall_confidence": 0.3})
+    store.append_review_item("run_1", {"item_key": UNIVERSE_ONLY_COMPANY, "run_id": "run_1", "payload": {}}
     )
     store.save_manifest(RunManifest(run_id="run_1", run_type="extraction", status=JobStatus.COMPLETED))
 
@@ -333,13 +341,13 @@ def test_engagement_projection_replaces_rather_than_accumulates(tmp_path):
     assert [(i.issue_id, i.status) for i in issues] == [(issue.issue_id, "stalled")]
 
 
-def test_a_disabled_projection_writes_nothing(tmp_path):
+def test_a_disabled_projection_writes_nothing(tmp_path, pg):
     """The default configuration: the file stores work exactly as before and
     Postgres is never touched."""
     from arp.storage.postgres_models import CompanyRecordModel, EngagementIssueModel
 
-    run_store = RunStore(tmp_path / "runs", projection_config=ProjectionConfig(postgres_dsn=DSN))
-    RunStore.append_jsonl(run_store._results_path("run_1"), {"_key": UNIVERSE_ONLY_COMPANY})
+    run_store = RunStore(pg, tmp_path / "runs", projection_config=ProjectionConfig(postgres_dsn=DSN))
+    run_store.append_result("run_1", {"_key": UNIVERSE_ONLY_COMPANY})
     run_store.save_manifest(RunManifest(run_id="run_1", run_type="extraction", status=JobStatus.COMPLETED))
 
     engagement_store = EngagementStore(tmp_path / "engagements", projection_config=ProjectionConfig(postgres_dsn=DSN))

@@ -15,6 +15,9 @@ from arp.orchestration.step_tally import on_company, step_counts, tally_run
 from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.schemas.discovery import DiscoveredDocument, IdentityVerdict
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below
 
 ACME = CompanyRef(company_id="acme", name="Acme Corp")
 
@@ -36,7 +39,7 @@ def _settings(tmp_path, **on) -> Settings:
 
 def _prepare(tmp_path, settings, company=ACME, docs=None):
     """(prepared company or the PreStepFailed it raised, the company's step view)."""
-    store = RunStore(tmp_path / "runs")
+    store = RunStore(pg_dsn(), tmp_path / "runs")
 
     async def run():
         with tally_run(store, "run_1"), on_company(company.company_id):
@@ -153,17 +156,17 @@ def test_a_stopped_company_goes_to_review_not_failed(pg, tmp_path):
             return []
 
     settings = _settings(tmp_path, parse_index=True)
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     schema = DataPointSchema(name="s", fields=[FieldDefinition(name="f", description="d", data_type=FieldDataType.STRING, extraction_instructions="i", seed_keywords=["x"])])
     run_id = asyncio.run(run_extraction(schema, [ACME], llm=None, registry=DocumentSourceRegistry([_None()]), settings=settings, run_store=store, trial=True))
 
     manifest = store.load_manifest(run_id)
     assert (manifest.completed_count, manifest.failed_count, manifest.review_count) == (0, 0, 1)
-    (queued,) = store.read_jsonl(store._review_queue_path(run_id))
+    (queued,) = store.read_review_queue(run_id)
     assert queued["item_key"] == "acme" and queued["failed_step"] == "parse_index"
-    (error,) = store.read_jsonl(store._errors_path(run_id))
+    (error,) = store.read_errors(run_id)
     assert error["review"] is True and error["report"]["failed_step"] == "parse_index"
-    assert store.read_jsonl(store._results_path(run_id)) == []
+    assert store.read_results(run_id) == []
     (row,) = get_run_companies(run_id, run_store=store)["companies"]
     assert row["status"] == "review"
 

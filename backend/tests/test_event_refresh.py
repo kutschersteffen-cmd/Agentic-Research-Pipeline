@@ -26,6 +26,7 @@ from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition, FieldStatus
 from arp.schemas.discovery import DiscoveredDocument, DocumentEvent, DocumentEventType
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import pg_dsn
 
 pytestmark = pytest.mark.usefixtures("pg")
 
@@ -66,7 +67,7 @@ def _event(company_id="c1", sha="a" * 64, kind=DocumentEventType.NEW_DOCUMENT):
 
 
 async def _refresh(settings, events, launcher, **kw):
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg_dsn(), settings.runs_dir)
     ids = await refresh_on_events(
         events, settings=settings, run_store=store, registry=DocumentSourceRegistry([]), launcher=launcher, **kw
     )
@@ -193,11 +194,11 @@ def _esef_source(tmp_path, calls):
 
 
 async def _discover(settings, source):
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg_dsn(), settings.runs_dir)
     company = CompanyRef(company_id="c1", name="Beispiel AG", lei=LEI)  # no website: the crawl finds nothing
     run_id = create_discovery_run([company], None, "test", store)
     await execute_discovery_run(run_id, [company], settings=settings, run_store=store, search_client=_NullSearch(), esef_source=source)
-    [row] = store.read_jsonl(store._results_path(run_id))
+    [row] = store.read_results(run_id)
     return row
 
 
@@ -273,8 +274,8 @@ async def test_esef_poll_error_never_raises(tmp_path):
     assert await poll_esef_filings(CompanyRef(company_id="c1", name="B", lei=LEI), Broken(), detector) == []
 
 
-def test_cli_drain_finishes_launched_job(tmp_path, monkeypatch, capsys):
-    store = RunStore(tmp_path / "runs")
+def test_cli_drain_finishes_launched_job(tmp_path, monkeypatch, capsys, pg):
+    store = RunStore(pg, tmp_path / "runs")
     monkeypatch.setattr(jobs, "_launcher", jobs.LocalJobLauncher(lambda: store))
     done = []
 

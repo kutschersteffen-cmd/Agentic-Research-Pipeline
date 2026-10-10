@@ -1,6 +1,6 @@
 """Company-foundation tables (spec §2): UUID companies, identifiers, fields, runs, documents,
 sources, observations, review and current facts. Same `Base` as the legacy store so
-`ensure_schema` creates them; nothing writes to them yet."""
+`ensure_schema` creates them. arp.db.runs.RunStore writes the run and review tables."""
 
 from __future__ import annotations
 
@@ -335,15 +335,18 @@ class RunCompany(Base):
 
     run_id: Mapped[str] = mapped_column(ForeignKey("runs.run_id"), primary_key=True)
     company_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("companies.id"), primary_key=True)
+    ordinal: Mapped[int] = mapped_column(Integer)
+    ref: Mapped[dict] = mapped_column(JSONB)  # CompanyRef dump as saved; load_companies returns it
 
 
 class RunResult(Base):
     __tablename__ = "run_results"
-    __table_args__ = (UniqueConstraint("run_id", "company_id", name="uq_run_results"),)
+    __table_args__ = (UniqueConstraint("run_id", "result_key", name="uq_run_results_key"),)
 
     id: Mapped[int] = _id()
     run_id: Mapped[str] = mapped_column(ForeignKey("runs.run_id"))
-    company_id: Mapped[uuid.UUID] = _company_fk()
+    result_key: Mapped[str] = mapped_column(Text)  # row["_key"]; not every run type keys by company
+    company_id: Mapped[uuid.UUID | None] = _company_fk(nullable=True)
     result: Mapped[dict] = mapped_column(JSONB)
     created_at: Mapped[datetime] = _ts()
 
@@ -437,7 +440,7 @@ class ReviewItem(Base):
 
     id: Mapped[int] = _id()
     run_id: Mapped[str] = mapped_column(ForeignKey("runs.run_id"))
-    company_id: Mapped[uuid.UUID] = _company_fk()
+    company_id: Mapped[uuid.UUID | None] = _company_fk(nullable=True)
     item_key: Mapped[str] = mapped_column(Text)
     observation_id: Mapped[int | None] = mapped_column(ForeignKey("field_observations.id"))
     payload: Mapped[dict] = mapped_column(JSONB)
@@ -451,8 +454,11 @@ class ReviewDecision(Base):
     __tablename__ = "review_decisions"
 
     id: Mapped[int] = _id()
-    review_item_id: Mapped[int] = mapped_column(ForeignKey("review_items.id"))
-    decision: Mapped[DecisionKind] = mapped_column(_enum(DecisionKind, "decision_kind"))
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.run_id"))
+    # NULL when the item was never queued (auto-accepted values, emerging-theme candidate decisions)
+    review_item_id: Mapped[int | None] = mapped_column(ForeignKey("review_items.id"))
+    decision: Mapped[DecisionKind | None] = mapped_column(_enum(DecisionKind, "decision_kind"))  # NULL: not a DecisionKind
+    row: Mapped[dict] = mapped_column(JSONB)  # the decision row as appended; read_decisions returns it
     reviewer: Mapped[str | None] = mapped_column(Text)
     user_id: Mapped[str | None] = mapped_column(Text)
     role: Mapped[str | None] = mapped_column(Text)
@@ -467,7 +473,9 @@ class ReviewCosign(Base):
     __tablename__ = "review_cosigns"
 
     id: Mapped[int] = _id()
-    review_item_id: Mapped[int] = mapped_column(ForeignKey("review_items.id"))
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.run_id"))
+    review_item_id: Mapped[int | None] = mapped_column(ForeignKey("review_items.id"))
+    row: Mapped[dict] = mapped_column(JSONB)  # the cosign row as appended
     reviewer: Mapped[str | None] = mapped_column(Text)
     user_id: Mapped[str | None] = mapped_column(Text)
     role: Mapped[str | None] = mapped_column(Text)

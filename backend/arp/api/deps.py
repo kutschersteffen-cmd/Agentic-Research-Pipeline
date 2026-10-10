@@ -9,6 +9,7 @@ from arp.agents.calibration_agent import CalibrationAgentScheduler
 from arp.agents.taxonomy_researcher import TaxonomyResearcherScheduler
 from arp.bi.superset_client import SupersetClient
 from arp.config import Settings, get_settings
+from arp.db.session import require_dsn
 from arp.discovery.scheduler import DiscoveryScheduler
 from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient
 from arp.emerging_themes.scheduler import EmergingThemesScheduler
@@ -64,7 +65,7 @@ def blob_store_dep(settings: Settings = Depends(settings_dep)):
 @lru_cache
 def get_run_store() -> RunStore:
     settings = get_settings()
-    return RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
+    return RunStore(require_dsn(settings), settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
 
 
 def get_identifier_map(settings: Settings = Depends(settings_dep)) -> IdentifierMapStore:

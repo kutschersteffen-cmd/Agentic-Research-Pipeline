@@ -54,11 +54,11 @@ def _spec() -> StrategySpec:
     )
 
 
-def test_run_replication_persists_manifest_and_results(tmp_path):
+def test_run_replication_persists_manifest_and_results(tmp_path, pg):
     prices_csv = tmp_path / "prices.csv"
     _write_prices_csv(prices_csv)
     source = CsvPriceSource(prices_csv)
-    run_store = RunStore(tmp_path / "runs")
+    run_store = RunStore(pg, tmp_path / "runs")
 
     run_id, report = run_replication(
         _spec(),
@@ -75,7 +75,7 @@ def test_run_replication_persists_manifest_and_results(tmp_path):
     assert manifest.run_type == "strategy_replication"
     assert manifest.status == JobStatus.COMPLETED
 
-    rows = run_store.read_jsonl(run_store._results_path(run_id))
+    rows = run_store.read_results(run_id)
     row_types = [r["type"] for r in rows]
     assert row_types == ["spec", "in_sample", "out_of_sample", "comparison"]
 
@@ -95,23 +95,23 @@ def test_run_replication_persists_manifest_and_results(tmp_path):
     assert report.verdict is not None
 
 
-def test_run_replication_without_out_of_sample_window(tmp_path):
+def test_run_replication_without_out_of_sample_window(tmp_path, pg):
     prices_csv = tmp_path / "prices.csv"
     _write_prices_csv(prices_csv)
     source = CsvPriceSource(prices_csv)
-    run_store = RunStore(tmp_path / "runs")
+    run_store = RunStore(pg, tmp_path / "runs")
 
     run_id, report = run_replication(_spec(), ["WIN1", "WIN2", "LOSE1", "LOSE2"], source, run_store=run_store)
-    rows = run_store.read_jsonl(run_store._results_path(run_id))
+    rows = run_store.read_results(run_id)
     assert [r["type"] for r in rows] == ["spec", "in_sample", "comparison"]
     assert report.out_of_sample is None
 
 
-def test_run_replication_marks_manifest_failed_on_error(tmp_path):
+def test_run_replication_marks_manifest_failed_on_error(tmp_path, pg):
     prices_csv = tmp_path / "prices.csv"
     _write_prices_csv(prices_csv)
     source = CsvPriceSource(prices_csv)
-    run_store = RunStore(tmp_path / "runs")
+    run_store = RunStore(pg, tmp_path / "runs")
 
     try:
         # "NOPE" has no column in the CSV -> CsvPriceSource.get_monthly_returns raises ValueError.
@@ -159,7 +159,7 @@ def _value_spec() -> StrategySpec:
     )
 
 
-def test_run_replication_value_strategy_end_to_end(tmp_path):
+def test_run_replication_value_strategy_end_to_end(tmp_path, pg):
     prices_csv = tmp_path / "prices.csv"
     _write_prices_csv(prices_csv)
     price_source = CsvPriceSource(prices_csv)
@@ -178,7 +178,7 @@ def test_run_replication_value_strategy_end_to_end(tmp_path):
     _write_characteristics_csv(characteristics_csv, dates)
     characteristics_sources = {"book_to_market": CsvCharacteristicSource(characteristics_csv)}
 
-    run_store = RunStore(tmp_path / "runs")
+    run_store = RunStore(pg, tmp_path / "runs")
     run_id, report = run_replication(
         _value_spec(),
         ["WIN1", "WIN2", "LOSE1", "LOSE2"],
@@ -189,7 +189,7 @@ def test_run_replication_value_strategy_end_to_end(tmp_path):
 
     manifest = run_store.load_manifest(run_id)
     assert manifest.status == JobStatus.COMPLETED
-    rows = run_store.read_jsonl(run_store._results_path(run_id))
+    rows = run_store.read_results(run_id)
     in_sample_row = next(r for r in rows if r["type"] == "in_sample")
     # Long leg picked LOSE1/LOSE2 (high characteristic) -- a negative spread here proves the
     # value signal, not price momentum, drove the selection.
@@ -197,11 +197,11 @@ def test_run_replication_value_strategy_end_to_end(tmp_path):
     assert report.spec_id == rows[0]["spec_id"]
 
 
-def test_run_replication_value_strategy_without_characteristics_source_raises(tmp_path):
+def test_run_replication_value_strategy_without_characteristics_source_raises(tmp_path, pg):
     prices_csv = tmp_path / "prices.csv"
     _write_prices_csv(prices_csv)
     price_source = CsvPriceSource(prices_csv)
-    run_store = RunStore(tmp_path / "runs")
+    run_store = RunStore(pg, tmp_path / "runs")
 
     try:
         run_replication(_value_spec(), ["WIN1", "WIN2", "LOSE1", "LOSE2"], price_source, run_store=run_store)

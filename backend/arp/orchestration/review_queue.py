@@ -5,7 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from arp.schemas.common import now_iso
+from arp.schemas.common import CompanyRef, now_iso
 from arp.schemas.review import ReviewDecision
 from arp.storage.run_store import RunStore
 
@@ -13,12 +13,18 @@ if TYPE_CHECKING:  # runtime import would cycle: api.auth -> api.deps -> researc
     from arp.api.auth import Principal
 
 
-def queue_for_review(run_store: RunStore, run_id: str, item_key: str, payload: dict) -> None:
+def queue_for_review(
+    run_store: RunStore, run_id: str, item_key: str, payload: dict, *, company: CompanyRef | None = None
+) -> None:
     """Append a flagged item (low confidence, ungrounded citation, uncertain
     verdict) to the run's review queue for human sign-off. Never silently
-    dropped and never silently included in the trusted output.
+    dropped and never silently included in the trusted output. `company`
+    ties the item to its company (item keys cannot: extraction keys lead
+    with the issuer key); a payload's own `company_id` wins.
     """
     row = {"item_key": item_key, "queued_at": now_iso(), **payload}
+    if company is not None:
+        row.setdefault("company_id", company.company_id)
     run_store.append_review_item(run_id, row)
 
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import typer
 
 from arp.config import get_settings
+from arp.db.session import require_dsn
 
 db_app = typer.Typer(
     help="Opt-in store setup: Postgres/pgvector (arp/storage/postgres*.py, requires ARP_POSTGRES_DSN + the "
@@ -267,7 +268,7 @@ def reindex_company_records(full: bool = _FULL_OPTION) -> None:
     from arp.storage.postgres_company_records_projection import sync_all
     from arp.storage.run_store import RunStore
 
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(require_dsn(settings), settings.runs_dir)
     since = None if full else get_checkpoint(settings.postgres_dsn, "company_records")
     started_at = now_iso()
     count = sync_all(settings.postgres_dsn, run_store, since=since)
@@ -295,7 +296,7 @@ def reindex_company_facts(full: bool = _FULL_OPTION) -> None:
     from arp.storage.postgres_company_facts_projection import materialize_all
     from arp.storage.run_store import RunStore
 
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(require_dsn(settings), settings.runs_dir)
     since = None if full else get_checkpoint(settings.postgres_dsn, "company_facts")
     started_at = now_iso()
     count = materialize_all(settings.postgres_dsn, run_store, since=since)

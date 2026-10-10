@@ -18,10 +18,10 @@ from arp.transition_plan.pipeline import create_transition_plan_run
 COMPANIES = [CompanyRef(company_id="c1", name="One"), CompanyRef(company_id="c2", name="Two", ticker="TWO")]
 
 
-def test_run_lease_refuses_second_holder(tmp_path):
-    store = RunStore(tmp_path)
+def test_run_lease_refuses_second_holder(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     with run_lease(store, "r1"):
-        with pytest.raises(RunBusy), run_lease(RunStore(tmp_path), "r1"):
+        with pytest.raises(RunBusy), run_lease(RunStore(pg, tmp_path), "r1"):
             pass
         seen = []
 
@@ -40,28 +40,28 @@ def test_run_lease_refuses_second_holder(tmp_path):
         pass
 
 
-def test_run_lease_released_when_process_killed(tmp_path):
+def test_run_lease_released_when_process_killed(tmp_path, pg):
     code = (
         "import sys, time; from pathlib import Path\n"
         "from arp.orchestration.jobs import run_lease\n"
         "from arp.storage.run_store import RunStore\n"
-        "with run_lease(RunStore(Path(sys.argv[1])), 'r1'):\n"
+        "with run_lease(RunStore(sys.argv[2], Path(sys.argv[1])), 'r1'):\n"
         "    print('ready', flush=True); time.sleep(60)\n"
     )
-    proc = subprocess.Popen([sys.executable, "-c", code, str(tmp_path)], stdout=subprocess.PIPE, text=True)
+    proc = subprocess.Popen([sys.executable, "-c", code, str(tmp_path), pg], stdout=subprocess.PIPE, text=True)
     try:
         assert proc.stdout.readline().strip() == "ready"
-        with pytest.raises(RunBusy), run_lease(RunStore(tmp_path), "r1"):
+        with pytest.raises(RunBusy), run_lease(RunStore(pg, tmp_path), "r1"):
             pass
     finally:
         proc.kill()
         proc.wait()
-    with run_lease(RunStore(tmp_path), "r1"):
+    with run_lease(RunStore(pg, tmp_path), "r1"):
         pass
 
 
-def test_local_launcher_runs_job_under_lease(tmp_path):
-    store = RunStore(tmp_path)
+def test_local_launcher_runs_job_under_lease(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     outcome = []
 
     async def job():
@@ -81,16 +81,22 @@ def test_local_launcher_runs_job_under_lease(tmp_path):
     assert outcome == ["busy"]
 
 
-def test_create_run_stores_companies(tmp_path):
-    store = RunStore(tmp_path)
+def _plain(companies):
+    """Stored refs carry the registry's entity_id; the input refs do not."""
+    assert all(c.entity_id for c in companies)
+    return [c.model_copy(update={"entity_id": None}) for c in companies]
+
+
+def test_create_run_stores_companies(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     jm = JobManager(store)
     run = jm.create_run("extraction", {}, 2, companies=COMPANIES)
-    assert store.load_companies(run.run_id) == COMPANIES
+    assert _plain(store.load_companies(run.run_id)) == COMPANIES
     assert store.load_companies(jm.create_run("extraction", {}, 0).run_id) is None
 
 
-def test_review_stopped_key_counts_as_done(tmp_path):
-    store = RunStore(tmp_path)
+def test_review_stopped_key_counts_as_done(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     store.append_result("r", {"_key": "c0"})
     store.append_error("r", {"key": "c1", "error": "x", "review": True, "report": {}})
     store.append_error("r", {"key": "c2", "error": "y"})
@@ -98,8 +104,8 @@ def test_review_stopped_key_counts_as_done(tmp_path):
     assert store.done_keys("r") == {"c0"}
 
 
-def test_creators_store_companies(tmp_path):
-    store = RunStore(tmp_path)
+def test_creators_store_companies(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     settings = Settings()
     ids = [
         create_financials_extraction_run(COMPANIES, settings, store),
@@ -108,13 +114,13 @@ def test_creators_store_companies(tmp_path):
         create_discovery_run(COMPANIES, None, "test", store),
     ]
     for run_id in ids:
-        assert store.load_companies(run_id) == COMPANIES
+        assert _plain(store.load_companies(run_id)) == COMPANIES
 
 
-def test_concurrent_discovery_execute_is_refused(tmp_path, monkeypatch):
+def test_concurrent_discovery_execute_is_refused(tmp_path, monkeypatch, pg):
     import arp.discovery.pipeline as discovery
 
-    store = RunStore(tmp_path)
+    store = RunStore(pg, tmp_path)
     run_id = create_discovery_run(COMPANIES, None, "test", store)
     started, release = asyncio.Event(), asyncio.Event()
 

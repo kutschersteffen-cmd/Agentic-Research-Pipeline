@@ -1,3 +1,5 @@
+import pytest
+
 from arp.config import Settings
 from arp.discovery.identity_pipeline import (
     create_identity_run,
@@ -13,6 +15,9 @@ from arp.schemas.issuer import IdentifierMap
 from arp.schemas.review import ReviewDecision
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below
 
 
 def _settings(tmp_path) -> Settings:
@@ -58,9 +63,9 @@ def _uncertain_llm_script(fake_llm):
     )
 
 
-async def test_resolved_company_lands_in_results_but_not_review_queue(tmp_path, fake_llm):
+async def test_resolved_company_lands_in_results_but_not_review_queue(tmp_path, fake_llm, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     llm = fake_llm({})  # no LLM calls expected -- website already known
     company = CompanyRef(company_id="acme", name="Acme", website="https://acme.example.com")
 
@@ -68,8 +73,8 @@ async def test_resolved_company_lands_in_results_but_not_review_queue(tmp_path, 
         [company], llm=llm, settings=settings, run_store=run_store, edgar=_FakeEdgar(), search_client=_NullSearch()
     )
 
-    results = run_store.read_jsonl(run_store._results_path(run_id))
-    review_queue = run_store.read_jsonl(run_store._review_queue_path(run_id))
+    results = run_store.read_results(run_id)
+    review_queue = run_store.read_review_queue(run_id)
     assert len(results) == 1
     assert results[0]["verdict"] == "resolved"
     assert review_queue == []
@@ -79,9 +84,9 @@ async def test_resolved_company_lands_in_results_but_not_review_queue(tmp_path, 
     assert manifest.review_count == 0
 
 
-async def test_uncertain_company_lands_in_both_results_and_review_queue(tmp_path, fake_llm):
+async def test_uncertain_company_lands_in_both_results_and_review_queue(tmp_path, fake_llm, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     llm = _uncertain_llm_script(fake_llm)
     company = CompanyRef(company_id="acme", name="Acme")
 
@@ -89,8 +94,8 @@ async def test_uncertain_company_lands_in_both_results_and_review_queue(tmp_path
         [company], llm=llm, settings=settings, run_store=run_store, edgar=_FakeEdgar(), search_client=_NullSearch()
     )
 
-    results = run_store.read_jsonl(run_store._results_path(run_id))
-    review_queue = run_store.read_jsonl(run_store._review_queue_path(run_id))
+    results = run_store.read_results(run_id)
+    review_queue = run_store.read_review_queue(run_id)
     assert len(results) == 1
     assert results[0]["verdict"] == "uncertain"
     assert len(review_queue) == 1
@@ -100,9 +105,9 @@ async def test_uncertain_company_lands_in_both_results_and_review_queue(tmp_path
     assert manifest.review_count == 1
 
 
-async def test_create_then_execute_matches_the_convenience_wrapper(tmp_path, fake_llm):
+async def test_create_then_execute_matches_the_convenience_wrapper(tmp_path, fake_llm, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     llm = fake_llm({})
     company = CompanyRef(company_id="acme", name="Acme", cik="42")
 
@@ -116,9 +121,9 @@ async def test_create_then_execute_matches_the_convenience_wrapper(tmp_path, fak
     assert manifest.status.value in ("completed", "partially_completed")
 
 
-async def test_enriched_universe_includes_clean_resolved_companies(tmp_path, fake_llm):
+async def test_enriched_universe_includes_clean_resolved_companies(tmp_path, fake_llm, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     llm = fake_llm({})
     edgar = _FakeEdgar({"Acme": [EdgarNameMatch(ticker="ACME", cik="42", title="Acme")]})
     company = CompanyRef(company_id="acme", name="Acme")
@@ -135,9 +140,9 @@ async def test_enriched_universe_includes_clean_resolved_companies(tmp_path, fak
     assert universe[0].cik == "42"
 
 
-async def test_supplied_website_and_cik_still_resolve_unflagged(tmp_path, fake_llm):
+async def test_supplied_website_and_cik_still_resolve_unflagged(tmp_path, fake_llm, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     company = CompanyRef(company_id="acme", name="Acme", website="https://acme.example.com", cik="42")
 
     run_id = await run_identity_resolution(
@@ -148,9 +153,9 @@ async def test_supplied_website_and_cik_still_resolve_unflagged(tmp_path, fake_l
     assert [(c.website, c.cik) for c in universe] == [("https://acme.example.com", "42")]
 
 
-async def test_enriched_universe_excludes_flagged_company_with_no_decision(tmp_path, fake_llm):
+async def test_enriched_universe_excludes_flagged_company_with_no_decision(tmp_path, fake_llm, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     llm = _uncertain_llm_script(fake_llm)
     company = CompanyRef(company_id="acme", name="Acme")
 
@@ -161,9 +166,9 @@ async def test_enriched_universe_excludes_flagged_company_with_no_decision(tmp_p
     assert enriched_universe(run_store, run_id) == []
 
 
-async def test_enriched_universe_includes_edited_flagged_company(tmp_path, fake_llm):
+async def test_enriched_universe_includes_edited_flagged_company(tmp_path, fake_llm, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     llm = _uncertain_llm_script(fake_llm)
     company = CompanyRef(company_id="acme", name="Acme")
 
@@ -181,9 +186,9 @@ async def test_enriched_universe_includes_edited_flagged_company(tmp_path, fake_
     assert universe[0].cik == "999"
 
 
-async def test_enriched_universe_excludes_rejected_company(tmp_path, fake_llm):
+async def test_enriched_universe_excludes_rejected_company(tmp_path, fake_llm, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     llm = _uncertain_llm_script(fake_llm)
     company = CompanyRef(company_id="acme", name="Acme")
 
@@ -195,9 +200,9 @@ async def test_enriched_universe_excludes_rejected_company(tmp_path, fake_llm):
     assert enriched_universe(run_store, run_id) == []
 
 
-async def test_enriched_universe_approve_without_edit_uses_agents_own_resolved_fields(tmp_path, fake_llm):
+async def test_enriched_universe_approve_without_edit_uses_agents_own_resolved_fields(tmp_path, fake_llm, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     llm = fake_llm(
         {
             IdentityAdjudication.__name__: [
@@ -214,7 +219,7 @@ async def test_enriched_universe_approve_without_edit_uses_agents_own_resolved_f
         [company], llm=llm, settings=settings, run_store=run_store, edgar=_FakeEdgar(), search_client=_NullSearch()
     )
     # low-confidence RESOLVED is still flagged_for_review (see identity_graph.py)
-    review_queue = run_store.read_jsonl(run_store._review_queue_path(run_id))
+    review_queue = run_store.read_review_queue(run_id)
     assert len(review_queue) == 1
 
     record_review_decision(run_store, run_id, "acme", "approve", "reviewer1", None)
@@ -222,10 +227,10 @@ async def test_enriched_universe_approve_without_edit_uses_agents_own_resolved_f
     assert len(universe) == 0  # no website/cik was ever resolved -- approving doesn't invent one
 
 
-async def test_enriched_universe_reads_generic_override_value(tmp_path, fake_llm):
+async def test_enriched_universe_reads_generic_override_value(tmp_path, fake_llm, pg):
     """The review controls send one free-text override as {"value": ...}: digits are a CIK, anything else a website."""
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
 
     async def edited(value: str) -> CompanyRef:
         run_id = await run_identity_resolution(
@@ -249,14 +254,14 @@ async def _run(tmp_path, fake_llm, company, *, edgar=None, search=None, previous
     store = IdentifierMapStore(settings.identifier_map_path)
     for r in rows:
         store.add(r)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg_dsn(), settings.runs_dir)
     llm = fake_llm({})
     run_id = create_identity_run([company], run_store)
     await execute_identity_run(
         run_id, [company], llm=llm, settings=settings, run_store=run_store,
         edgar=edgar or _FakeEdgar(), search_client=search or _NullSearch(), previous_run_id=previous,
     )
-    result = IdentityResolutionResult.model_validate(run_store.read_jsonl(run_store._results_path(run_id))[0])
+    result = IdentityResolutionResult.model_validate(run_store.read_results(run_id)[0])
     return run_store, run_id, result, llm
 
 
@@ -267,7 +272,7 @@ async def test_name_only_match_always_creates_review_item(tmp_path, fake_llm):
     assert result.flagged_for_review is True
     assert result.match_rule == "name_only"
     assert result.reason_codes == ["match_ambiguous"]
-    assert len(run_store.read_jsonl(run_store._review_queue_path(run_id))) == 1
+    assert len(run_store.read_review_queue(run_id)) == 1
     assert llm.calls == []
 
 
@@ -313,9 +318,9 @@ async def test_changed_identifier_triggers_recheck(tmp_path, fake_llm):
     assert needs_recheck(result, company, idmap) is True
 
 
-async def test_unchanged_company_reused_from_previous_run(tmp_path, fake_llm):
+async def test_unchanged_company_reused_from_previous_run(tmp_path, fake_llm, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     edgar = _FakeEdgar({"Acme": [EdgarNameMatch(ticker="ACME", cik="42", title="Acme")]})
     company = CompanyRef(company_id="acme", name="Acme")
     first = await run_identity_resolution(
@@ -332,7 +337,7 @@ async def test_unchanged_company_reused_from_previous_run(tmp_path, fake_llm):
 
     assert edgar.calls == 1  # reused, no lookup
     assert llm.calls == []
-    assert len(run_store.read_jsonl(run_store._review_queue_path(second))) == 1
+    assert len(run_store.read_review_queue(second)) == 1
 
 
 async def test_exact_lei_without_cik_or_website_looks_up_and_flags(tmp_path, fake_llm):
@@ -376,9 +381,9 @@ def _correct(run_store, run_id, step, cik):
         corrected_value={"resolved_cik": cik}, snapshot_id="s", step=step, second_required=step == "first"))
 
 
-async def test_identity_correct_needs_second_review_before_enriched(tmp_path, fake_llm):
+async def test_identity_correct_needs_second_review_before_enriched(tmp_path, fake_llm, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     run_id = await run_identity_resolution(
         [CompanyRef(company_id="acme", name="Acme")], llm=_uncertain_llm_script(fake_llm), settings=settings,
         run_store=run_store, edgar=_FakeEdgar(), search_client=_NullSearch(),
@@ -389,9 +394,9 @@ async def test_identity_correct_needs_second_review_before_enriched(tmp_path, fa
     assert [c.cik for c in enriched_universe(run_store, run_id)] == ["999"]
 
 
-async def test_legacy_identity_edit_still_included(tmp_path, fake_llm):
+async def test_legacy_identity_edit_still_included(tmp_path, fake_llm, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     run_id = await run_identity_resolution(
         [CompanyRef(company_id="acme", name="Acme")], llm=_uncertain_llm_script(fake_llm), settings=settings,
         run_store=run_store, edgar=_FakeEdgar(), search_client=_NullSearch(),

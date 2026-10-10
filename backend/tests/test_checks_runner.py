@@ -110,14 +110,14 @@ async def test_checks_stored_on_results_row(pg, tmp_path, fake_llm):
     )
     llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [VerifierOutput(agrees=True, confidence=0.9, notes="ok")]})
     settings = _settings(tmp_path)
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
     run_id = create_extraction_run(schema, [company], settings, store, trial=True)
     await execute_extraction_run(
         run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
         settings=settings, run_store=store,
     )
-    row = store.read_jsonl(store._results_path(run_id))[0]
+    row = store.read_results(run_id)[0]
     assert "format.data_type" in [c["check_id"] for c in row["fields"][0]["checks"]]
 
 

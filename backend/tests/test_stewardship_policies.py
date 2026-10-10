@@ -10,7 +10,7 @@ pytest.importorskip("zen")
 from arp.stewardship.policies import PolicyStore, coverage_preview, voting_preview  # noqa: E402
 from arp.stewardship.process import SAMPLE_PATH, StreamStore, flow, tier_review  # noqa: E402
 
-pytestmark = pytest.mark.usefixtures("sample_house_universe")
+pytestmark = pytest.mark.usefixtures("sample_house_universe", "pg")
 
 
 @pytest.fixture

@@ -15,6 +15,8 @@ from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
 from tests.conftest import PRINCIPAL
 
+pytestmark = pytest.mark.usefixtures("pg")  # the CLI/app and RunStore need Postgres
+
 
 @pytest.fixture
 def env(tmp_path):

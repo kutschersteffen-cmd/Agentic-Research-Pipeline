@@ -85,7 +85,7 @@ def test_merge_moves_identifiers_and_rows(pg):
         drop = resolve_company(s, _ref(company_id="D", lei=LEI_B)).company_id
         s.add(Run(run_id="r1", run_type="t", status="running"))
         s.flush()
-        s.add(RunCompany(run_id="r1", company_id=drop))
+        s.add(RunCompany(run_id="r1", company_id=drop, ordinal=0, ref={"company_id": "D", "name": "D"}))
         s.flush()
         merge(s, keep, drop)
         assert lookup(s, IdScheme.LEI, LEI_B) == keep

@@ -136,24 +136,24 @@ async def test_install_and_trial_run_smoke(pg, tmp_path, fake_llm):
     llm = fake_llm({"ExtractionDraft": [ExtractionDraft(values=[], confidence=0.9)] * n,
                     "VerifierOutput": [VerifierOutput(agrees=True, confidence=0.9, notes="ok")] * n,
                     "AdjudicatorOutput": [_UNSETTLED] * n})
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
     run_id = create_extraction_run(schema, [company], settings, store, trial=True)
     await execute_extraction_run(run_id, schema, [company], llm=llm, settings=settings, run_store=store,
                                  registry=DocumentSourceRegistry([_FixedDocSource([doc])]))
     assert store.load_manifest(run_id).status == "completed"
-    (row,) = store.read_jsonl(store._results_path(run_id))
+    (row,) = store.read_results(run_id)
     assert {f["field_id"] for f in row["fields"]} == {f.field_id for f in schema.fields}
 
 
-def test_green_summary_endpoint(tmp_path):
-    store = RunStore(tmp_path / "runs")
+def test_green_summary_endpoint(tmp_path, pg):
+    store = RunStore(pg, tmp_path / "runs")
     schema = build_green_schema()
     run_id = "ext1"
     store.save_manifest(RunManifest(run_id=run_id, run_type="extraction"))
     rec = ExtractionRecord(company_id="c1", name="Acme", schema_id=schema.schema_id, run_id=run_id)
     row = rec.model_dump(mode="json") | {"fields": [_f("green_revenue_total", 100), _f("green_revenue_eu_aligned", 40)]}
-    store.append_jsonl(store._results_path(run_id), row)
+    store.append_result(run_id, row)
     app.dependency_overrides[get_run_store] = lambda: store
     try:
         client = TestClient(app)

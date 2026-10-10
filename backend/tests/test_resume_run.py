@@ -68,9 +68,9 @@ def _resume(run_id, settings, store, **kwargs):
     )
 
 
-async def test_killed_worker_resumes_without_repeats(tmp_path, fake):
+async def test_killed_worker_resumes_without_repeats(tmp_path, fake, pg):
     settings = _settings(tmp_path)
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     run_id = create_transition_plan_run(COMPANIES, settings, store)
     fake.block_after = 3
 
@@ -79,64 +79,64 @@ async def test_killed_worker_resumes_without_repeats(tmp_path, fake):
             run_id, COMPANIES, llm=LLM, verifier_llm=LLM, registry=DocumentSourceRegistry([]), settings=settings, run_store=store
         )
     )
-    while len(store.read_jsonl(store._results_path(run_id))) < 3:
+    while len(store.read_results(run_id)) < 3:
         await asyncio.sleep(0.01)
     task.cancel()  # the kill
     with pytest.raises(asyncio.CancelledError):
         await task
-    done_before = {r["company_id"] for r in store.read_jsonl(store._results_path(run_id))}
+    done_before = {r["company_id"] for r in store.read_results(run_id)}
     fake.release.set()
 
     assert await _resume(run_id, settings, store) == run_id
 
-    ids = [r["company_id"] for r in store.read_jsonl(store._results_path(run_id))]
+    ids = [r["company_id"] for r in store.read_results(run_id)]
     assert sorted(ids) == sorted(c.company_id for c in COMPANIES)
     assert all(fake.calls.count(cid) == 1 for cid in done_before)
     manifest = store.load_manifest(run_id)
     assert manifest.completed_count == 6 and manifest.status == JobStatus.COMPLETED
-    keys = [r["item_key"] for r in store.read_jsonl(store._review_queue_path(run_id))]
+    keys = [r["item_key"] for r in store.read_review_queue(run_id)]
     assert len(keys) == len(set(keys)) == 6
     assert manifest.review_count == 6
 
 
-async def test_resume_refuses_completed_run(tmp_path, fake):
+async def test_resume_refuses_completed_run(tmp_path, fake, pg):
     settings = _settings(tmp_path)
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     run_id = create_transition_plan_run(COMPANIES[:1], settings, store)
     JobManager(store).finish_run(run_id)
-    before = store.manifest_path(run_id).read_text()
+    before = store.load_manifest(run_id)
     with pytest.raises(NotResumable, match="already completed"):
         await _resume(run_id, settings, store)
-    assert store.manifest_path(run_id).read_text() == before
+    assert store.load_manifest(run_id) == before
 
 
 @pytest.mark.parametrize("run_type", ["voting", "calibration", "emerging_themes"])
-async def test_resume_refuses_non_resumable_types(tmp_path, run_type):
+async def test_resume_refuses_non_resumable_types(tmp_path, run_type, pg):
     settings = _settings(tmp_path)
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     run_id = JobManager(store).create_run(run_type, {}, 1, companies=COMPANIES[:1]).run_id
     with pytest.raises(NotResumable, match="not resumable"):
         await _resume(run_id, settings, store)
 
 
-async def test_resume_refuses_unknown_run(tmp_path):
+async def test_resume_refuses_unknown_run(tmp_path, pg):
     settings = _settings(tmp_path)
     with pytest.raises(NotResumable, match="Unknown run_id"):
-        await _resume("nope", settings, RunStore(settings.runs_dir))
+        await _resume("nope", settings, RunStore(pg, settings.runs_dir))
 
 
-async def test_resume_refuses_run_without_inputs(tmp_path):
+async def test_resume_refuses_run_without_inputs(tmp_path, pg):
     settings = _settings(tmp_path)
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     run_id = create_financials_extraction_run(COMPANIES[:1], settings, store)
-    store._companies_path(run_id).unlink()  # a run from before stored inputs
+    store.save_companies(run_id, [])  # a run from before stored inputs
     with pytest.raises(NotResumable, match="run has no stored inputs"):
         await _resume(run_id, settings, store)
 
 
-async def test_resume_theme_falls_back_to_companies_json(tmp_path, monkeypatch):
+async def test_resume_theme_falls_back_to_companies_json(tmp_path, monkeypatch, pg):
     settings = _settings(tmp_path)
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     activity = ActivityDefinition(name="EV", in_scope_description="EVs.", out_of_scope_description="ICE.")
     theme = ThemeDefinition(name="Electrification", description="", activities=[activity])
     run_id = create_theme_run(theme, COMPANIES[:2], settings, store)  # universe_path=None
@@ -151,9 +151,9 @@ async def test_resume_theme_falls_back_to_companies_json(tmp_path, monkeypatch):
     assert seen == ["c1", "c2"]
 
 
-async def test_resume_theme_prefers_companies_json(tmp_path, monkeypatch):
+async def test_resume_theme_prefers_companies_json(tmp_path, monkeypatch, pg):
     settings = _settings(tmp_path)
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     activity = ActivityDefinition(name="EV", in_scope_description="EVs.", out_of_scope_description="ICE.")
     theme = ThemeDefinition(name="Electrification", description="", activities=[activity])
     universe = tmp_path / "universe.json"  # edited since the run started
@@ -170,9 +170,9 @@ async def test_resume_theme_prefers_companies_json(tmp_path, monkeypatch):
     assert seen == ["c1", "c2"]
 
 
-async def test_resume_theme_run_busy_keeps_cancel_request(tmp_path):
+async def test_resume_theme_run_busy_keeps_cancel_request(tmp_path, pg):
     settings = _settings(tmp_path)
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     activity = ActivityDefinition(name="EV", in_scope_description="EVs.", out_of_scope_description="ICE.")
     theme = ThemeDefinition(name="Electrification", description="", activities=[activity])
     run_id = create_theme_run(theme, COMPANIES[:2], settings, store)
@@ -182,11 +182,11 @@ async def test_resume_theme_run_busy_keeps_cancel_request(tmp_path):
     assert store.load_manifest(run_id).cancel_requested is True
 
 
-async def test_resume_resets_failed_and_retries(tmp_path, fake):
+async def test_resume_resets_failed_and_retries(tmp_path, fake, pg):
     settings = _settings(tmp_path)
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     run_id = create_transition_plan_run(COMPANIES[:2], settings, store)
-    store.append_jsonl(store._errors_path(run_id), {"key": "c1", "error": "boom"})
+    store.append_error(run_id, {"key": "c1", "error": "boom"})
     # review_delta with no review_queue row, as discovery records it: resume keeps it.
     JobManager(store).record_progress(run_id, failed_delta=1, review_delta=1, input_tokens_delta=7, cost_delta_usd=0.5)
     JobManager(store).finish_run(run_id)
@@ -206,11 +206,11 @@ def _execute(run_id, settings, store):
     )
 
 
-async def test_plain_execute_holds_the_run(tmp_path, fake):
+async def test_plain_execute_holds_the_run(tmp_path, fake, pg):
     """A run started without a launcher (CLI, old theme resume, scheduler)
     still holds the lease: a second execute or a resume is refused."""
     settings = _settings(tmp_path)
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     run_id = create_transition_plan_run(COMPANIES, settings, store)
     fake.block_after = 1
     task = asyncio.create_task(_execute(run_id, settings, store))
@@ -227,9 +227,9 @@ async def test_plain_execute_holds_the_run(tmp_path, fake):
 
 
 @pytest.fixture
-def api(tmp_path):
+def api(tmp_path, pg):
     settings = _settings(tmp_path)
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     app.dependency_overrides[get_run_store] = lambda: store
     app.dependency_overrides[settings_dep] = lambda: settings
     yield settings, store
@@ -263,12 +263,12 @@ def test_resume_endpoint_requires_analyst(tmp_path, api):
     assert res.status_code == 403
 
 
-def test_cli_extract_run_resumes(tmp_path, fake, monkeypatch):
+def test_cli_extract_run_resumes(tmp_path, fake, monkeypatch, pg):
     import arp.cli.extraction as cli
     import arp.orchestration.jobs as jobs
 
     settings = _settings(tmp_path)
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     run_id = create_transition_plan_run(COMPANIES[:2], settings, store)
     monkeypatch.setattr(cli, "get_settings", lambda: settings)
     monkeypatch.setattr(cli, "_run_store", lambda: store)

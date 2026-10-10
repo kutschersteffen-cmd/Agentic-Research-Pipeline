@@ -3,8 +3,8 @@ from arp.orchestration.batch_runner import run_batch, run_sinks
 from arp.storage.run_store import RunStore
 
 
-async def test_run_batch_writes_results_and_is_resumable(tmp_path):
-    store = RunStore(tmp_path)
+async def test_run_batch_writes_results_and_is_resumable(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     items = ["a", "b", "c"]
     calls = []
 
@@ -37,8 +37,8 @@ async def test_run_batch_writes_results_and_is_resumable(tmp_path):
     assert calls == ["d"]
 
 
-async def test_run_batch_isolates_failures(tmp_path):
-    store = RunStore(tmp_path)
+async def test_run_batch_isolates_failures(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
 
     async def worker(item: str) -> str:
         if item == "bad":
@@ -60,8 +60,8 @@ async def test_run_batch_isolates_failures(tmp_path):
     assert error_rows[0]["key"] == "bad"
 
 
-async def test_run_batch_cancel_check_stops_new_items(tmp_path):
-    store = RunStore(tmp_path)
+async def test_run_batch_cancel_check_stops_new_items(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     calls = []
 
     async def worker(item: str) -> str:
@@ -84,8 +84,8 @@ async def test_run_batch_cancel_check_stops_new_items(tmp_path):
     assert {r["value"] for r in rows} == set(calls)
 
 
-async def test_run_batch_no_resume_reruns_everything(tmp_path):
-    store = RunStore(tmp_path)
+async def test_run_batch_no_resume_reruns_everything(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     calls = []
 
     async def worker(item: str) -> str:

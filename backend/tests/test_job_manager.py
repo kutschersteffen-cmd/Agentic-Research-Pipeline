@@ -3,8 +3,8 @@ from arp.schemas.common import JobStatus
 from arp.storage.run_store import RunStore
 
 
-def test_create_run_and_progress_lifecycle(tmp_path):
-    store = RunStore(tmp_path)
+def test_create_run_and_progress_lifecycle(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     jm = JobManager(store)
 
     manifest = jm.create_run("theme", {"a": 1}, company_count=10, model="claude-sonnet-5")
@@ -24,8 +24,8 @@ def test_create_run_and_progress_lifecycle(tmp_path):
     assert final.status == JobStatus.PARTIALLY_COMPLETED  # because failed_count > 0
 
 
-def test_finish_run_completed_when_no_failures(tmp_path):
-    store = RunStore(tmp_path)
+def test_finish_run_completed_when_no_failures(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     jm = JobManager(store)
     manifest = jm.create_run("extraction", {}, company_count=1)
     jm.record_progress(manifest.run_id, completed_delta=1)
@@ -33,8 +33,8 @@ def test_finish_run_completed_when_no_failures(tmp_path):
     assert final.status == JobStatus.COMPLETED
 
 
-def test_finish_run_with_error(tmp_path):
-    store = RunStore(tmp_path)
+def test_finish_run_with_error(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     jm = JobManager(store)
     manifest = jm.create_run("discovery", {}, company_count=1)
     final = jm.finish_run(manifest.run_id, error="boom")
@@ -42,8 +42,8 @@ def test_finish_run_with_error(tmp_path):
     assert final.error == "boom"
 
 
-def test_request_cancel_sets_flag(tmp_path):
-    store = RunStore(tmp_path)
+def test_request_cancel_sets_flag(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     jm = JobManager(store)
     manifest = jm.create_run("theme", {}, company_count=1)
     assert manifest.cancel_requested is False
@@ -52,8 +52,8 @@ def test_request_cancel_sets_flag(tmp_path):
     assert store.load_manifest(manifest.run_id).cancel_requested is True
 
 
-def test_finish_run_cancelled_when_incomplete_and_cancel_requested(tmp_path):
-    store = RunStore(tmp_path)
+def test_finish_run_cancelled_when_incomplete_and_cancel_requested(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     jm = JobManager(store)
     manifest = jm.create_run("theme", {}, company_count=5)
     jm.record_progress(manifest.run_id, completed_delta=2)
@@ -62,10 +62,10 @@ def test_finish_run_cancelled_when_incomplete_and_cancel_requested(tmp_path):
     assert final.status == JobStatus.CANCELLED
 
 
-def test_finish_run_completed_even_if_cancel_requested_after_everything_finished(tmp_path):
+def test_finish_run_completed_even_if_cancel_requested_after_everything_finished(tmp_path, pg):
     """A cancel request that lands after the batch already finished shouldn't
     retroactively relabel a clean completion as cancelled."""
-    store = RunStore(tmp_path)
+    store = RunStore(pg, tmp_path)
     jm = JobManager(store)
     manifest = jm.create_run("theme", {}, company_count=2)
     jm.record_progress(manifest.run_id, completed_delta=2)
@@ -74,8 +74,8 @@ def test_finish_run_completed_even_if_cancel_requested_after_everything_finished
     assert final.status == JobStatus.COMPLETED
 
 
-def test_list_runs_filters_by_type(tmp_path):
-    store = RunStore(tmp_path)
+def test_list_runs_filters_by_type(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     jm = JobManager(store)
     jm.create_run("theme", {}, 1)
     jm.create_run("extraction", {}, 1)

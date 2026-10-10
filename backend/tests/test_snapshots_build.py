@@ -100,8 +100,8 @@ def clock(monkeypatch):
 
 
 @pytest.fixture
-def env(tmp_path):
-    e = PortfolioStore(tmp_path / "pf"), RunStore(tmp_path / "runs"), IdentifierMapStore(tmp_path / "idmap.jsonl")
+def env(tmp_path, pg):
+    e = PortfolioStore(tmp_path / "pf"), RunStore(pg, tmp_path / "runs"), IdentifierMapStore(tmp_path / "idmap.jsonl")
     _ingest(e, "index", "IX1")
     _ingest(e, "portfolio", "PF1")
     return e

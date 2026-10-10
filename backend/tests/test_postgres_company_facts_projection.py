@@ -8,7 +8,12 @@ and is covered separately, gated on ARP_TEST_POSTGRES_DSN."""
 
 from __future__ import annotations
 
+import pytest
+
 from arp.storage.postgres_company_facts_projection import fact_candidates, resolve_fact
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below
 
 
 def test_fact_candidates_returns_empty_without_key():
@@ -229,9 +234,9 @@ def _run_with_result(tmp_path, trial):
     from arp.orchestration.job_manager import JobManager
     from arp.storage.run_store import RunStore
 
-    store = RunStore(tmp_path)
+    store = RunStore(pg_dsn(), tmp_path)
     run_id = JobManager(store).create_run("extraction", {"trial": trial}, 1).run_id
-    store._results_path(run_id).write_text('{"_key": "acme", "issuer_key": "ARP:x", "fields": []}\n')
+    store.append_result(run_id, {"_key": "acme", "issuer_key": "ARP:x", "fields": []})
     return store, run_id
 
 
@@ -324,7 +329,7 @@ def _decision_rows(tmp_path, *rows):
     from arp.schemas.review import ReviewDecision
     from arp.storage.run_store import RunStore
 
-    rs = RunStore(tmp_path)
+    rs = RunStore(pg_dsn(), tmp_path)
     for r in rows:
         append_decision(rs, "r1", ReviewDecision(reviewer="A", user_id="u1", role="approver", snapshot_id="s", **r))
     decisions = effective_decisions(rs, "r1", cosign_required={"edit"})
@@ -369,25 +374,25 @@ def test_identity_first_done_correction_projects_pending(tmp_path):
     assert resolve_extraction_fact("acme", _extraction_row(), d, queued)[1] == "pending_review"
 
 
-def test_legacy_cosigned_edit_still_edited(tmp_path):
+def test_legacy_cosigned_edit_still_edited(tmp_path, pg):
     from arp.api.auth import Principal
     from arp.orchestration.review_queue import effective_decisions, record_cosign, record_review_decision
     from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
     from arp.storage.run_store import RunStore
 
-    rs = RunStore(tmp_path)
+    rs = RunStore(pg, tmp_path)
     record_review_decision(rs, "r1", _KEY_B, "edit", None, {"value": 5}, principal=Principal(user_id="a", name="A", role="approver"))
     record_cosign(rs, "r1", _KEY_B, Principal(user_id="b", name="B", role="approver"))
     d = effective_decisions(rs, "r1", cosign_required={"edit"})
     assert resolve_extraction_fact("acme", _extraction_row(), d, {_KEY_B})[1] == "edited"
 
 
-def test_legacy_uncosigned_edit_still_pending(tmp_path):
+def test_legacy_uncosigned_edit_still_pending(tmp_path, pg):
     from arp.orchestration.review_queue import effective_decisions, latest_decisions, record_review_decision
     from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
     from arp.storage.run_store import RunStore
 
-    rs = RunStore(tmp_path)
+    rs = RunStore(pg, tmp_path)
     record_review_decision(rs, "r1", _KEY_B, "edit", "A", {"value": 5})
     d = effective_decisions(rs, "r1", cosign_required={"edit"})
     queued = set(latest_decisions(rs, "r1")) - set(d)

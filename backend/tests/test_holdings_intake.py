@@ -24,8 +24,8 @@ BOB = Principal(user_id="u_bob", name="Bob", role="analyst")
 
 
 @pytest.fixture
-def env(tmp_path):
-    yield PortfolioStore(tmp_path / "pf"), RunStore(tmp_path / "runs"), IdentifierMapStore(tmp_path / "idmap.jsonl")
+def env(tmp_path, pg):
+    yield PortfolioStore(tmp_path / "pf"), RunStore(pg, tmp_path / "runs"), IdentifierMapStore(tmp_path / "idmap.jsonl")
     app.dependency_overrides.pop(get_run_store, None)
     app.dependency_overrides.pop(current_user, None)
 

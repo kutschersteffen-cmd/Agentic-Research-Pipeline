@@ -12,6 +12,9 @@ from arp.extraction.steps import StepSettings
 from arp.schemas.datapoints import DataPointSchema
 from arp.storage.run_store import RunStore
 from arp.xbrl_pipeline.verify import CircularRunError, assert_xbrl_off
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below
 
 RUN_ID = "run_cli_1"
 
@@ -20,7 +23,7 @@ def _run_cli(tmp_path, monkeypatch, *, xbrl_facts_enabled: bool):
     settings = Settings(
         anthropic_api_key="unused", runs_dir=tmp_path / "runs", cache_dir=tmp_path / "cache", xbrl_facts_enabled=xbrl_facts_enabled
     )
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg_dsn(), settings.runs_dir)
 
     async def fake_run_extraction(schema, companies, **kwargs):
         store.run_dir(RUN_ID)  # the real pipeline creates the run directory

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 from arp.decision import sources
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
 from arp.decision.profiling import profile_dataset
@@ -9,15 +7,14 @@ from arp.storage.run_store import RunStore
 
 
 def _write(run_store: RunStore, run_id: str, rows: list[dict]) -> None:
-    path = run_store._results_path(run_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    for r in rows:
+        run_store.append_result(run_id, r)
 
 
-def test_transition_plan_run_becomes_a_scoreable_table(tmp_path):
+def test_transition_plan_run_becomes_a_scoreable_table(tmp_path, pg):
     """The paper's completeness metric is a count, not a decision. This is
     what turns '42 of 64 disclosed' into a tier and an action."""
-    run_store = RunStore(tmp_path)
+    run_store = RunStore(pg, tmp_path)
     _write(
         run_store,
         "tp1",
@@ -55,10 +52,10 @@ def test_transition_plan_run_becomes_a_scoreable_table(tmp_path):
     assert result.scored_count > 0
 
 
-def test_extraction_run_carries_confidence_only_where_the_citation_grounded(tmp_path):
+def test_extraction_run_carries_confidence_only_where_the_citation_grounded(tmp_path, pg):
     """An ungrounded value is present but not verified, and the two are
     different claims."""
-    run_store = RunStore(tmp_path)
+    run_store = RunStore(pg, tmp_path)
     _write(
         run_store,
         "ex1",
@@ -86,8 +83,8 @@ def test_extraction_run_carries_confidence_only_where_the_citation_grounded(tmp_
     assert dataset.confidence["Scope1_Intensity"][1] is None, "absent is not the same as unverified"
 
 
-def test_grounded_coverage_gate_routes_an_unverified_score_to_review(tmp_path):
-    run_store = RunStore(tmp_path)
+def test_grounded_coverage_gate_routes_an_unverified_score_to_review(tmp_path, pg):
+    run_store = RunStore(pg, tmp_path)
     _write(
         run_store,
         "ex2",
@@ -129,8 +126,8 @@ def test_asking_for_grounded_coverage_without_confidence_says_so(tmp_path):
     assert "no per-cell confidence" in entry.why
 
 
-def test_theme_run_aggregates_per_activity_matches_to_one_row_per_company(tmp_path):
-    run_store = RunStore(tmp_path)
+def test_theme_run_aggregates_per_activity_matches_to_one_row_per_company(tmp_path, pg):
+    run_store = RunStore(pg, tmp_path)
     _write(
         run_store,
         "th1",
@@ -150,17 +147,17 @@ def test_theme_run_aggregates_per_activity_matches_to_one_row_per_company(tmp_pa
     assert bravo["Flagged_For_Review_Flag"] == "Yes"
 
 
-def test_an_empty_run_is_an_error_not_an_empty_table(tmp_path):
+def test_an_empty_run_is_an_error_not_an_empty_table(tmp_path, pg):
     import pytest
 
-    run_store = RunStore(tmp_path)
+    run_store = RunStore(pg, tmp_path)
     _write(run_store, "empty", [])
     with pytest.raises(ValueError, match="no results"):
         sources.from_transition_plan_run(run_store, "empty")
 
 
-def test_decision_source_takes_latest_period(tmp_path):
-    run_store = RunStore(tmp_path)
+def test_decision_source_takes_latest_period(tmp_path, pg):
+    run_store = RunStore(pg, tmp_path)
     _write(
         run_store,
         "ex2",

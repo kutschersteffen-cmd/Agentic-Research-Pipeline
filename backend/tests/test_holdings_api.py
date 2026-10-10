@@ -67,8 +67,8 @@ def upstream(months: dict[str, list[dict]], fail: set[str] = frozenset(), body: 
 
 
 @pytest.fixture
-def env(tmp_path):
-    store, rs, idmap = PortfolioStore(tmp_path / "pf"), RunStore(tmp_path / "runs"), IdentifierMapStore(tmp_path / "id.jsonl")
+def env(tmp_path, pg):
+    store, rs, idmap = PortfolioStore(tmp_path / "pf"), RunStore(pg, tmp_path / "runs"), IdentifierMapStore(tmp_path / "id.jsonl")
     store.save_holder(HolderConfig(holder_id="P1", kind="portfolio", source="api"))
     yield store, rs, idmap
     for dep in (get_portfolio_store, get_run_store, settings_dep, current_user):

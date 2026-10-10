@@ -379,8 +379,8 @@ class Settings(BaseSettings):
     # securities, companies, and time -- see docs/METHODOLOGY.md.
     postgres_dsn: str | None = Field(
         default=None,
-        description="SQLAlchemy DSN, e.g. postgresql+psycopg://user:pass@host:5432/arp. None (default) disables "
-        "every Postgres-backed feature below and the file-based stores behave exactly as before.",
+        description="SQLAlchemy DSN, e.g. postgresql+psycopg://user:pass@host:5432/arp. Required: Postgres is the "
+        "system of record (runs, companies, review), so the app and CLI refuse to start without it.",
     )
     # Apache Superset BI integration (arp/bi/). Needs postgres_dsn: Superset
     # reads only the read-only 'bi' views, never base tables.

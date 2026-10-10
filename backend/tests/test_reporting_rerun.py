@@ -1,4 +1,3 @@
-import json
 
 import pytest
 
@@ -22,13 +21,16 @@ from arp.schemas.reporting import (
 )
 from arp.storage.reporting_store import ReportingStore
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import pg_dsn, replace_results
+
+pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below
 
 
 def _setup(tmp_path, share: float) -> tuple[Settings, ReportingStore, str]:
     s = Settings(runs_dir=tmp_path / "runs", frameworks_dir=tmp_path / "frameworks", reports_dir=tmp_path / "reports", report_templates_dir=tmp_path / "tpl")
-    runs = RunStore(s.runs_dir)
+    runs = RunStore(pg_dsn(), s.runs_dir)
     runs.save_manifest(RunManifest(run_id="run_1", run_type="theme"))
-    runs._results_path("run_1").write_text(json.dumps({"company": "Acme", "revenue": 42.5}) + "\n")
+    replace_results(runs, "run_1", [{"company": "Acme", "revenue": 42.5}])
     store = ReportingStore(s.reports_dir, s.report_templates_dir)
     request = ReportRequest(title="T", qualitative_notes="notes", layout=LayoutInstructions(output_format=OutputFormat.HOUSE_DECK),
                             run_refs=[RunRef(kind="run", ref_id="run_1")])
@@ -37,7 +39,7 @@ def _setup(tmp_path, share: float) -> tuple[Settings, ReportingStore, str]:
     store.save_request(m.report_id, request)
     store.save_storyline(m.report_id, Storyline(title="Deck", slides=[StorylineSlide(headline="Acme revenue reached 42.5.", purpose="p")], approved=True))
     store.save_deck(m.report_id, Deck(title="Deck", slides=[]))
-    runs._results_path("run_1").write_text(json.dumps({"company": "Acme", "revenue": share}) + "\n")  # the data moves on
+    replace_results(runs, "run_1", [{"company": "Acme", "revenue": share}])  # the data moves on
     return s, store, m.report_id
 
 

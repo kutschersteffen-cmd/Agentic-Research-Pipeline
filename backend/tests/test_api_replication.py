@@ -25,6 +25,9 @@ from arp.replication.spec_verifier_agent import SpecVerifierOutput
 from arp.schemas.strategy_replication import RebalanceFrequency, ReportedPerformance, SignalType, StrategySpec, WeightingScheme
 from arp.storage.run_store import RunStore
 from tests.conftest import PRINCIPAL
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below
 
 _PAPER_TEXT = (
     "We form decile portfolios based on the prior 6-month formation period return and hold them "
@@ -69,7 +72,7 @@ def _settings():
 
 
 def _run_store(tmp_path) -> RunStore:
-    return RunStore(tmp_path / "runs")
+    return RunStore(pg_dsn(), tmp_path / "runs")
 
 
 async def test_create_spec_draft_is_unapproved(tmp_path, fake_llm):

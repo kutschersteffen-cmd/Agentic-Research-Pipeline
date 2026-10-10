@@ -45,10 +45,10 @@ class StubStore:
 
 
 @pytest.fixture
-def env(tmp_path):
+def env(tmp_path, pg):
     app.dependency_overrides[publish_store_dep] = StubStore
     app.dependency_overrides[blob_store_dep] = lambda: None
-    app.dependency_overrides[get_run_store] = lambda: RunStore(tmp_path / "runs")
+    app.dependency_overrides[get_run_store] = lambda: RunStore(pg, tmp_path / "runs")
     yield
     for dep in (publish_store_dep, blob_store_dep, get_run_store, settings_dep, current_user):
         app.dependency_overrides.pop(dep, None)
@@ -106,10 +106,10 @@ def test_withdraw_error_mapping(env, monkeypatch):
     assert c.post(url.format("rel1"), json={"reason": "x"}).status_code == 422
 
 
-def test_concurrent_publish_409(env, monkeypatch, tmp_path):
+def test_concurrent_publish_409(env, monkeypatch, tmp_path, pg):
     import arp.api.routers.publish as router
 
-    rs = RunStore(tmp_path / "runs")
+    rs = RunStore(pg, tmp_path / "runs")
     rs.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
     app.dependency_overrides[get_run_store] = lambda: rs
     app.dependency_overrides[get_document_content_store] = lambda: None

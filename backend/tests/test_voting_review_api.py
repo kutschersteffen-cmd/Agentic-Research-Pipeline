@@ -10,8 +10,8 @@ from arp.storage.run_store import RunStore
 
 
 @pytest.fixture
-def client(tmp_path):
-    run_store = RunStore(tmp_path / "runs")
+def client(tmp_path, pg):
+    run_store = RunStore(pg, tmp_path / "runs")
     app = FastAPI()
     app.include_router(voting_router.router)
     app.dependency_overrides[get_run_store] = lambda: run_store

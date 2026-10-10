@@ -30,6 +30,7 @@ from arp.schemas.reporting import (
 from arp.storage.decision_store import DecisionStore
 from arp.storage.reporting_store import ReportingStore
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import replace_results
 
 
 def _settings(tmp_path) -> Settings:
@@ -94,11 +95,11 @@ async def test_pipeline_brief_from_a_published_decision(tmp_path, fake_llm):
     _assert_clean_deck(store, manifest.report_id)
 
 
-async def test_periodic_brief_reruns_on_fresh_run_data(tmp_path, fake_llm):
+async def test_periodic_brief_reruns_on_fresh_run_data(tmp_path, fake_llm, pg):
     s = _settings(tmp_path)
-    runs = RunStore(s.runs_dir)
+    runs = RunStore(pg, s.runs_dir)
     runs.save_manifest(RunManifest(run_id="run_1", run_type="theme"))
-    runs._results_path("run_1").write_text(json.dumps({"company": "Acme", "revenue": 42.5}) + "\n")
+    replace_results(runs, "run_1", [{"company": "Acme", "revenue": 42.5}])
     store = ReportingStore(s.reports_dir, s.report_templates_dir)
     service = ReportingService(store, s)
     request = ReportRequest(title="Revenue", qualitative_notes="Acme grew.", layout=LayoutInstructions(output_format=OutputFormat.HOUSE_DECK),
@@ -113,7 +114,7 @@ async def test_periodic_brief_reruns_on_fresh_run_data(tmp_path, fake_llm):
     _assert_clean_deck(store, second.report_id)
 
 
-def test_client_brief_renders_without_an_llm(tmp_path, fake_llm, monkeypatch):
+def test_client_brief_renders_without_an_llm(tmp_path, fake_llm, monkeypatch, pg):  # vote_items reads runs
     pytest.importorskip("zen")
     pytest.importorskip("pptx")
     from arp.api.routers.stewardship import CreateStreamRequest, create_stream

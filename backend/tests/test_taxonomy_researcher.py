@@ -102,7 +102,7 @@ async def test_research_taxonomy_proposes_new_version_when_activity_added(fake_l
     assert {a.name for a in merged_theme.activities} == {"EV manufacturing", "Grid modernization"}
 
 
-async def test_execute_taxonomy_research_run_writes_draft_version_never_ratifies(fake_llm, fake_search, tmp_path, monkeypatch):
+async def test_execute_taxonomy_research_run_writes_draft_version_never_ratifies(fake_llm, fake_search, tmp_path, monkeypatch, pg):
     store = TaxonomyStore(tmp_path / "taxonomies")
     theme = ThemeDefinition(
         name="Electrification", description="", activities=[ActivityDefinition(name="EV manufacturing", in_scope_description="x", out_of_scope_description="y")]
@@ -139,14 +139,14 @@ async def test_execute_taxonomy_research_run_writes_draft_version_never_ratifies
         _MergedActivityDraftList.__name__: [merged],
     })
 
-    run_store = RunStore(tmp_path / "runs")
+    run_store = RunStore(pg, tmp_path / "runs")
     run_id = create_taxonomy_research_run(store, run_store, None, "manual")
     await execute_taxonomy_research_run(
         run_id, llm=llm, search_client=fake_search({}), settings=_settings(tmp_path),
         taxonomy_store=store, run_store=run_store, taxonomy_ids=None,
     )
 
-    rows = run_store.read_jsonl(run_store._results_path(run_id))
+    rows = run_store.read_results(run_id)
     assert len(rows) == 1
     assert rows[0]["proposed"] is True
     assert rows[0]["new_version"] == 2
@@ -159,19 +159,19 @@ async def test_execute_taxonomy_research_run_writes_draft_version_never_ratifies
     assert store.get(ratified.taxonomy_id, 1).status == TaxonomyStatus.RATIFIED
 
 
-async def test_execute_taxonomy_research_run_skips_unratified_taxonomies(fake_llm, fake_search, tmp_path):
+async def test_execute_taxonomy_research_run_skips_unratified_taxonomies(fake_llm, fake_search, tmp_path, pg):
     store = TaxonomyStore(tmp_path / "taxonomies")
     theme = ThemeDefinition(name="Draft Theme", description="", activities=[ActivityDefinition(name="x", in_scope_description="x", out_of_scope_description="y")])
     store.create("Draft Theme", theme, DerivationMethod.LLM_DRAFT)  # never ratified
 
-    run_store = RunStore(tmp_path / "runs")
+    run_store = RunStore(pg, tmp_path / "runs")
     llm = fake_llm({})
     run_id = create_taxonomy_research_run(store, run_store, None, "manual")
     await execute_taxonomy_research_run(
         run_id, llm=llm, search_client=fake_search({}), settings=_settings(tmp_path),
         taxonomy_store=store, run_store=run_store, taxonomy_ids=None,
     )
-    rows = run_store.read_jsonl(run_store._results_path(run_id))
+    rows = run_store.read_results(run_id)
     assert rows == []
     assert llm.calls == []
     manifest = run_store.load_manifest(run_id)

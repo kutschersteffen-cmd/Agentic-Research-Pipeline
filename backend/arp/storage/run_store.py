@@ -29,11 +29,35 @@ def done_keys_from_rows(result_rows: Iterable[dict], error_rows: Iterable[dict] 
     return done
 
 
-class RunStore:
-    """File-based persistence for a run's manifest, results, errors, and
-    review state. No database: everything is a JSON/JSONL file under
-    `runs/<run_id>/`, which keeps runs resumable, inspectable, and trivial
-    to back up or ship elsewhere.
+def __getattr__(name: str):
+    # `RunStore` is the Postgres store now; resolved lazily because arp.db.runs imports this module.
+    if name == "RunStore":
+        from arp.db.runs import RunStore
+
+        return RunStore
+    raise AttributeError(name)
+
+
+def sync_projections(config: ProjectionConfig, store, run_id: str) -> None:
+    """Best-effort opt-in Postgres sync, fired once a run's manifest
+    lands on a terminal status -- see postgres_company_records_
+    projection.py/postgres_company_facts_projection.py for the
+    unconditional work and their own exception-swallowing contract.
+    A no-op whenever neither projection is enabled."""
+    if config.company_records_enabled:
+        from arp.storage.postgres_company_records_projection import sync_run_if_enabled
+
+        sync_run_if_enabled(config, store, run_id)
+    if config.company_facts_enabled:
+        from arp.storage.postgres_company_facts_projection import materialize_run_if_enabled
+
+        materialize_run_if_enabled(config, store, run_id)
+
+
+class LegacyRunStore:
+    """The pre-Postgres file store: a run's manifest, results, errors, and
+    review state as JSON/JSONL files under `runs/<run_id>/`. Kept to read
+    old run directories; `RunStore` (arp.db.runs) is the store in use.
     """
 
     def __init__(self, runs_dir: Path, projection_config: ProjectionConfig | None = None) -> None:
@@ -151,23 +175,7 @@ class RunStore:
         atomic_write_text(self.manifest_path(manifest.run_id), manifest.model_dump_json(indent=2), prefix=".manifest_")
 
         if self._projection_config is not None and manifest.status in _TERMINAL_STATUSES:
-            self._sync_projections(manifest.run_id)
-
-    def _sync_projections(self, run_id: str) -> None:
-        """Best-effort opt-in Postgres sync, fired once a run's manifest
-        lands on a terminal status -- see postgres_company_records_
-        projection.py/postgres_company_facts_projection.py for the
-        unconditional work and their own exception-swallowing contract.
-        A no-op whenever neither projection is enabled."""
-        config = self._projection_config
-        if config.company_records_enabled:
-            from arp.storage.postgres_company_records_projection import sync_run_if_enabled
-
-            sync_run_if_enabled(config, self, run_id)
-        if config.company_facts_enabled:
-            from arp.storage.postgres_company_facts_projection import materialize_run_if_enabled
-
-            materialize_run_if_enabled(config, self, run_id)
+            sync_projections(self._projection_config, self, manifest.run_id)
 
     def load_manifest(self, run_id: str) -> RunManifest | None:
         path = self.manifest_path(run_id)

@@ -1,17 +1,17 @@
 """One Decision Studio table from several company-level runs, joined by company."""
 
-import json
 
 import pytest
 
 from arp.decision import sources
 from arp.orchestration.job_manager import JobManager
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import replace_results
 
 
 def _run(store: RunStore, run_type: str, records: list[dict]) -> str:
     run_id = JobManager(store).create_run(run_type, {}, len(records)).run_id
-    store._results_path(run_id).write_text("".join(json.dumps(r) + "\n" for r in records))
+    replace_results(store, run_id, records)
     return run_id
 
 
@@ -31,8 +31,8 @@ def _ex(company_id, name, coverage, grounded=True):
     }
 
 
-def test_joins_by_company_and_prefixes_shared_columns(tmp_path):
-    store = RunStore(tmp_path)
+def test_joins_by_company_and_prefixes_shared_columns(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     tp = _run(store, "transition_plan", [_tp("c1", "Acme", 40, True), _tp("c2", "Beta", 20, False)])
     # Acme matches on its id (the names differ), Beta on its name (no id), Gamma is only in the extraction run.
     ex = _run(store, "extraction", [_ex("c1", "Acme Corp", 70.0), _ex("", "Beta", 30.0, grounded=False), _ex("c3", "Gamma", 90.0)])
@@ -54,8 +54,8 @@ def test_joins_by_company_and_prefixes_shared_columns(tmp_path):
     assert table.confidence["Ind_A_ambition_3_Disclosed"][:2] == [0.8, 0.8] and table.confidence["Ind_A_ambition_3_Disclosed"][2] is None
 
 
-def test_refuses_fewer_than_two_or_unjoinable_runs(tmp_path):
-    store = RunStore(tmp_path)
+def test_refuses_fewer_than_two_or_unjoinable_runs(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     tp = _run(store, "transition_plan", [_tp("c1", "Acme", 40, True)])
     theme = _run(store, "theme", [{"company_id": "c1"}])
     with pytest.raises(ValueError, match="at least two"):
@@ -64,8 +64,8 @@ def test_refuses_fewer_than_two_or_unjoinable_runs(tmp_path):
         sources.from_joined_runs(store, [tp, theme])
 
 
-def test_two_runs_of_the_same_kind_are_numbered(tmp_path):
-    store = RunStore(tmp_path)
+def test_two_runs_of_the_same_kind_are_numbered(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     a = _run(store, "extraction", [_ex("c1", "Acme", 70.0)])
     b = _run(store, "extraction", [_ex("c1", "Acme", 75.0)])
     table = sources.from_joined_runs(store, [a, b])

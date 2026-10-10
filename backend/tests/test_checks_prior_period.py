@@ -34,13 +34,12 @@ def _prior_run(store, run_id, v, period=FY23, *, decision="approve", trial=False
     row = {"company_id": "c1", "issuer_key": IK, "fields": [_field(v, period).model_dump(mode="json")]}
     if route:
         row["fields"][0]["route"] = route
-    store.append_jsonl(store._results_path(run_id), row)
+    store.append_result(run_id, row)
     key = f"{IK}:rev:{period}"
     if queued:
-        store.append_jsonl(store._review_queue_path(run_id), {"item_key": key})
+        store.append_review_item(run_id, {"item_key": key})
     if decision:
-        store.append_jsonl(
-            store._review_decisions_path(run_id), {"item_key": key, "decision": decision, "decided_at": "t"}
+        store.append_decision_row(run_id, {"item_key": key, "decision": decision, "decided_at": "t"}
         )
 
 
@@ -62,29 +61,29 @@ def _record(*fields):
     return ExtractionRecord(company_id="c1", name="A", schema_id="s", run_id="new", issuer_key=IK, fields=list(fields))
 
 
-def test_differing_comparative_opens_one_candidate(tmp_path):
-    store = RunStore(tmp_path)
+def test_differing_comparative_opens_one_candidate(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     _prior_run(store, "old", 1000)
     rec = _record(_field(1100, FY24), _field(1050, FY23))
     spec, ctx = _ctx(store, rec.fields)
     rec.fields = _checked(spec, ctx)
     assert open_restatement_candidates(store, "new", rec, ctx.history) == 1
-    (row,) = store.read_jsonl(store._restatements_path("new"))
+    (row,) = store.read_restatements("new")
     assert (row["period_end"], row["previous_value"], row["new_value"]) == (FY23, 1000, 1050)
 
 
-def test_equal_comparative_opens_none(tmp_path):
-    store = RunStore(tmp_path)
+def test_equal_comparative_opens_none(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     _prior_run(store, "old", 1000)
     rec = _record(_field(1100, FY24), _field(1000, FY23))
     spec, ctx = _ctx(store, rec.fields)
     rec.fields = _checked(spec, ctx)
     assert open_restatement_candidates(store, "new", rec, ctx.history) == 0
-    assert store.read_jsonl(store._restatements_path("new")) == []
+    assert store.read_restatements("new") == []
 
 
-def test_current_period_difference_warns_but_no_candidate(tmp_path):
-    store = RunStore(tmp_path)
+def test_current_period_difference_warns_but_no_candidate(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     _prior_run(store, "old", 1000, FY24)
     f = _field(1100, FY24)
     spec, ctx = _ctx(store, [f])
@@ -93,8 +92,8 @@ def test_current_period_difference_warns_but_no_candidate(tmp_path):
     assert open_restatement_candidates(store, "new", _record(*_checked(spec, ctx)), ctx.history) == 0
 
 
-def test_jump_past_tolerance_warns(tmp_path):
-    store = RunStore(tmp_path)
+def test_jump_past_tolerance_warns(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     new, old = _field(2000, FY24), _field(1000, FY23)
     spec, ctx = _ctx(store, [new, old], prior_change_max=0.5)
     (r,) = check_comparative_jump(spec, new, ctx)
@@ -103,15 +102,15 @@ def test_jump_past_tolerance_warns(tmp_path):
     assert r.outcome == "not_applicable"
 
 
-def test_rejected_and_trial_values_not_prior(tmp_path):
-    store = RunStore(tmp_path)
+def test_rejected_and_trial_values_not_prior(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     _prior_run(store, "rej", 1000, decision="reject")
     _prior_run(store, "trial", 1000, trial=True, created="2024-02-01")
     assert RunHistory.load(store).last_decided(f"{IK}:rev:{FY23}") is None
 
 
-def test_auto_accepted_row_is_system_decided(tmp_path):
-    store = RunStore(tmp_path)
+def test_auto_accepted_row_is_system_decided(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     _prior_run(store, "old", 1000, decision=None, route="auto_accept")
     _prior_run(store, "legacy", 900, FY24, decision=None, queued=False, created="2024-02-01")
     h = RunHistory.load(store)
@@ -121,12 +120,12 @@ def test_auto_accepted_row_is_system_decided(tmp_path):
     assert [r["value"] for r in h.last_rows("c1", "rev")] == [900]
 
 
-def test_check_record_runs_last_decided_then_opens_candidate(tmp_path):
+def test_check_record_runs_last_decided_then_opens_candidate(tmp_path, pg):
     import asyncio
 
     from arp.checks.runner import check_record
 
-    store = RunStore(tmp_path)
+    store = RunStore(pg, tmp_path)
     _prior_run(store, "old", 1000)
     rec = _record(_field(1100, FY24), _field(1050, FY23))
     spec, ctx = _ctx(store, rec.fields)
@@ -134,8 +133,8 @@ def test_check_record_runs_last_decided_then_opens_candidate(tmp_path):
     assert open_restatement_candidates(store, "new", rec, ctx.history) == 1
 
 
-def test_rejected_value_fails_prior_rejected_until_a_human_approves(tmp_path):
-    store = RunStore(tmp_path)
+def test_rejected_value_fails_prior_rejected_until_a_human_approves(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     _prior_run(store, "rej", 1000, FY24, decision="reject")
     spec, ctx = _ctx(store, [])
     (r,) = check_last_rejected(spec, _field(1000, FY24), ctx)
@@ -156,8 +155,8 @@ def _decide(store, run_id, key, **row):
         item_key=key, reviewer="A", user_id="u1", role="approver", snapshot_id="s", **row))
 
 
-def test_correct_counts_as_decided_value(tmp_path):
-    store = RunStore(tmp_path)
+def test_correct_counts_as_decided_value(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     _prior_run(store, "old", 1000, decision=None)
     key = f"{IK}:rev:{FY23}"
     _decide(store, "old", key, decision="correct", reason_code="wrong_value", corrected_value={"value": 1050}, step="first")
@@ -165,8 +164,8 @@ def test_correct_counts_as_decided_value(tmp_path):
     assert (p.value, p.decided_by) == (1050, "human")
 
 
-def test_first_done_reject_not_counted_as_rejected(tmp_path):
-    store = RunStore(tmp_path)
+def test_first_done_reject_not_counted_as_rejected(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     _prior_run(store, "old", 1000, decision=None)
     key = f"{IK}:rev:{FY23}"
     _decide(store, "old", key, decision="reject", reason_code="wrong_value", step="first", second_required=True)

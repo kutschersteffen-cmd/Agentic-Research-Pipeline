@@ -7,6 +7,7 @@ import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from arp.db.session import require_dsn
 from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import DocumentEvent, DocumentEventType
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
@@ -132,7 +133,7 @@ def refresh_hook(settings: Settings, run_store: RunStore | None = None, *, paren
         from arp.storage.postgres_projection_config import ProjectionConfig
         from arp.storage.run_store import RunStore
 
-        store = run_store or RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
+        store = run_store or RunStore(require_dsn(settings), settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
         await refresh_on_events(
             events, settings=settings, run_store=store,
             registry=build_registry(settings, content_store_for(settings)), parent=parent, company_hint=company,

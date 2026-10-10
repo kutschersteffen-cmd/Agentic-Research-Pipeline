@@ -108,7 +108,7 @@ def test_package_zip_and_bomb_rejected():
         parse_package(empty.getvalue())
 
 
-async def test_esef_citation_publishable(tmp_path, fake_llm):
+async def test_esef_citation_publishable(tmp_path, fake_llm, pg):
     from arp.publish.candidates import run_candidates
     from arp.publish.gate import lineage_error
     from arp.publish.release import split_by_gate
@@ -122,9 +122,9 @@ async def test_esef_citation_publishable(tmp_path, fake_llm):
         COMPANY, DataPointSchema(name="Rev", fields=[field], release_flag=True), registry=DocumentSourceRegistry([source]),
         llm=fake_llm({}), verifier_llm=fake_llm({}), settings=_settings(tmp_path), qualities=qualities,
     )
-    rs = RunStore(tmp_path / "pub-runs")
+    rs = RunStore(pg, tmp_path / "pub-runs")
     rs.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
-    rs.append_jsonl(rs._results_path("r1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
+    rs.append_result("r1", {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
                                             "fields": [f.model_dump(mode="json") for f in result.record.fields]})
     assert [(f.method, f.route) for f in result.record.fields] == [("tagged", "auto_accept")] * 2  # layer-2 checks pass
     cands, _ = run_candidates(rs, "r1")

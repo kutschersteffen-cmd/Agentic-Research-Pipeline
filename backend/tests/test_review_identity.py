@@ -18,8 +18,8 @@ from tests.conftest import PRINCIPAL
 
 
 @pytest.fixture
-def run_store(tmp_path):
-    return RunStore(tmp_path / "runs")
+def run_store(tmp_path, pg):
+    return RunStore(pg, tmp_path / "runs")
 
 
 def test_decision_row_records_user_id_and_role(run_store):
@@ -34,7 +34,7 @@ def test_escalate_is_accepted(run_store):
 
 
 def test_old_decision_rows_without_user_id_still_load(run_store):
-    run_store.append_jsonl(run_store._review_decisions_path("r1"), {"item_key": "k", "decision": "approve", "reviewer": "old"})
+    run_store.append_decision_row("r1", {"item_key": "k", "decision": "approve", "reviewer": "old"})
     row = latest_decisions(run_store, "r1")["k"]
     assert row["reviewer"] == "old" and "user_id" not in row
 
