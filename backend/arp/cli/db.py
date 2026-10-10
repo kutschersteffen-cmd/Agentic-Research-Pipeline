@@ -33,7 +33,11 @@ def db_init_postgres() -> None:
 
     result = ensure_schema(settings.postgres_dsn)
     typer.echo(f"Postgres schema ready at {settings.postgres_dsn}.")
-    for label, key in (("Tables created", "tables_created"), ("Columns added", "columns_added"), ("Steps applied", "steps_applied")):
+    for label, key in (
+        ("Tables created", "tables_created"),
+        ("Columns added", "columns_added"),
+        ("Steps applied", "steps_applied"),
+    ):
         if result[key]:
             typer.echo(f"  {label}: {', '.join(result[key])}")
     if not any(result[key] for key in ("tables_created", "columns_added", "steps_applied")):
@@ -201,7 +205,9 @@ def reindex_object_store() -> None:
             if doc_ref.local_path and Path(doc_ref.local_path).exists():
                 data = Path(doc_ref.local_path).read_bytes()
             elif doc_ref.source_url:
-                resp = httpx.get(doc_ref.source_url, headers={"User-Agent": settings.edgar_user_agent}, timeout=30.0, follow_redirects=True)
+                resp = httpx.get(
+                    doc_ref.source_url, headers={"User-Agent": settings.edgar_user_agent}, timeout=30.0, follow_redirects=True
+                )
                 resp.raise_for_status()
                 data = resp.content
             else:
@@ -314,3 +320,20 @@ def reindex_engagement() -> None:
     engagement_store = EngagementStore(settings.engagements_dir)
     count = sync_all(settings.postgres_dsn, engagement_store)
     typer.echo(f"Engagement backfill complete: companies_synced={count}.")
+
+
+companies_app = typer.Typer(help="Company registry maintenance.")
+db_app.add_typer(companies_app, name="companies")
+
+
+@companies_app.command("merge")
+def companies_merge(keep: str, drop: str) -> None:
+    """Moves DROP's identifiers and every row that references it onto KEEP (both company UUIDs)."""
+    from uuid import UUID
+
+    from arp.db.companies import merge
+    from arp.db.session import transaction
+
+    with transaction() as session:
+        merge(session, UUID(keep), UUID(drop))
+    typer.echo(f"Merged {drop} into {keep}.")

@@ -44,6 +44,7 @@ class CompanyRef(BaseModel):
     """Minimal identity for a company, as supplied by the user's universe file."""
 
     company_id: str = Field(description="Stable identifier, e.g. ticker or internal ID.")
+    entity_id: uuid.UUID | None = Field(default=None, description="Registry company UUID, set once resolved.")
     name: str
     ticker: str | None = None
     website: str | None = Field(default=None, description="Known corporate/IR homepage, if supplied.")

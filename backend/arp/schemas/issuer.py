@@ -21,9 +21,17 @@ def lei_is_valid(lei: str) -> bool:
     return bool(_LEI_RE.fullmatch(lei)) and int("".join(str(int(c, 36)) for c in lei)) % 97 == 1
 
 
-def issuer_key(company: CompanyRef, idmap=None) -> tuple[str, str]:
-    """The security master's internal issuer id when one of the company's identifiers maps to exactly one
+def issuer_key(company: CompanyRef, idmap=None, *, session=None) -> tuple[str, str]:
+    """The registry UUID when `company.entity_id` is set or `session` resolves it; else the security master's internal issuer id when one of the company's identifiers maps to exactly one
     issuer (the golden source); else its LEI; else a provisional key. `idmap` is an IdentifierMapStore."""
+    if company.entity_id:
+        return str(company.entity_id), "INTERNAL"
+    if session is not None:
+        from arp.db.companies import resolve_company
+
+        resolved = resolve_company(session, company).company_id
+        if resolved:
+            return str(resolved), "INTERNAL"
     lei = normalise_lei(company.lei or "")
     if idmap is not None:
         for scheme, value in (("LEI", lei), ("ISIN", company.isin or ""), ("CIK", company.cik or "")):

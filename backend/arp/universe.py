@@ -31,3 +31,18 @@ def load_company_universe(path: str | Path) -> list[CompanyRef]:
         clean = {k: (v if v not in ("", None) else None) for k, v in row.items()}
         companies.append(CompanyRef(**clean))
     return companies
+
+
+def resolve_universe(companies: list[CompanyRef], session) -> tuple[list[CompanyRef], list[dict]]:
+    """Sets `entity_id` on each company via the registry. Identity conflicts are returned (not resolved)."""
+    from arp.db.companies import resolve_company
+
+    resolved: list[CompanyRef] = []
+    conflicts: list[dict] = []
+    for c in companies:
+        r = resolve_company(session, c)
+        if r.conflict:
+            conflicts.append({"kind": "identity_conflict", "company_id": c.company_id, "conflict": [str(u) for u in r.conflict]})
+        else:
+            resolved.append(c.model_copy(update={"entity_id": r.company_id}))
+    return resolved, conflicts
