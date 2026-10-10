@@ -116,6 +116,28 @@ def _content(schema: DataPointSchema) -> dict:
     }
 
 
+_LIFECYCLE = ("status", "effective_from", "version")
+
+
+def _check_released_rows(s: Session, schema: DataPointSchema) -> None:
+    """A field version that was ever released is immutable, whichever schema version carries it."""
+    for f in schema.fields:
+        row = s.get(m.FieldDefinition, (f.field_id, f.version))
+        if row is None or row.released_at is None:
+            continue
+        inc = f.model_dump(mode="json")
+        same = (
+            (row.name, row.data_type, row.unit) == (f.name, str(f.data_type.value), f.unit)
+            and {k: v for k, v in inc.items() if k not in _LIFECYCLE}
+            == {k: v for k, v in row.definition.items() if k not in _LIFECYCLE}
+            and (not f.effective_from or f.effective_from == row.effective_from.isoformat())
+        )
+        if not same:
+            raise FieldVersionError(
+                f"Field {f.field_id} ({f.name}) v{f.version} is released; changing it needs a higher field version."
+            )
+
+
 class SchemaRegistry:
     """Versioned DataPointSchemas in `data_schemas` (full dump in `body`), their fields registered in
     `fields`/`field_definitions`. A version's content is never rewritten; `release` only flips status flags."""
@@ -155,9 +177,10 @@ class SchemaRegistry:
             ensure_extracted_field(s, f.field_id, fd)
             # A draft's content may change without a version bump; a released version cannot (FieldVersionError).
             cur = s.get(m.FieldDefinition, (f.field_id, f.version))
-            cur.name, cur.data_type, cur.unit, cur.definition = fd.name, fd.data_type, fd.unit, fd.definition
-            if f.effective_from:
-                cur.effective_from = date.fromisoformat(f.effective_from)
+            if cur.released_at is None:
+                cur.name, cur.data_type, cur.unit, cur.definition = fd.name, fd.data_type, fd.unit, fd.definition
+                if f.effective_from:
+                    cur.effective_from = date.fromisoformat(f.effective_from)
             if s.scalar(select(func.count()).select_from(m.DataSchemaField).where(
                 m.DataSchemaField.schema_id == schema.schema_id, m.DataSchemaField.schema_version == schema.version,
                 m.DataSchemaField.field_id == f.field_id,
@@ -190,6 +213,7 @@ class SchemaRegistry:
         """
         with transaction(self.dsn) as s:
             s.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": _REGISTRY_LOCK})
+            _check_released_rows(s, schema)
             try:
                 latest = DataPointSchema.model_validate(self._row(s, schema.schema_id, None).body)
             except KeyError:
@@ -228,6 +252,11 @@ class SchemaRegistry:
                 update={"fields": fields, "release_flag": True, "released_by": released_by, "released_at": now_iso()}
             )
             self._write(s, released)
+            now = datetime.now(UTC)
+            for f in released.fields:
+                row = s.get(m.FieldDefinition, (f.field_id, f.version))
+                if row.released_at is None:
+                    row.released_at = now
             return released
 
     def quality(self, field_id: str, version: int) -> FieldQuality:

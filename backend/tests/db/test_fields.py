@@ -173,3 +173,44 @@ def test_draft_field_edit_updates_registered_definition(pg):
         row = t.get(m.FieldDefinition, (rel.fields[0].field_id, 1))
         assert (row.name, row.unit) == ("capex2", "USD")
         assert row.definition["name"] == "capex2" and row.effective_from.isoformat() == rel.fields[0].effective_from
+
+
+def _released_v1(reg):
+    s = reg.save(_schema())
+    return reg.release(s.schema_id, s.version)
+
+
+def _row(pg, rel):
+    with transaction(pg) as t:
+        r = t.get(m.FieldDefinition, (rel.fields[0].field_id, 1))
+        return r.name, r.unit, r.effective_from.isoformat(), r.released_at
+
+
+def test_release_sets_released_at(pg):
+    rel = _released_v1(SchemaRegistry(pg))
+    assert _row(pg, rel)[3] is not None
+
+
+def test_released_field_effective_from_change_requires_new_version(pg):
+    reg = SchemaRegistry(pg)
+    rel = _released_v1(reg)
+    before = _row(pg, rel)
+    edited = rel.model_copy(deep=True)
+    edited.name = "S2"
+    edited.fields[0].effective_from = "2001-01-01"
+    with pytest.raises(FieldVersionError):
+        reg.save(edited)
+    assert _row(pg, rel) == before
+
+
+def test_released_field_readded_with_new_content_requires_new_version(pg):
+    reg = SchemaRegistry(pg)
+    rel = _released_v1(reg)
+    before = _row(pg, rel)
+    empty = rel.model_copy(update={"fields": []})
+    assert reg.save(empty).version == 2
+    readd = rel.model_copy(deep=True)
+    readd.fields[0].name, readd.fields[0].unit = "changed", "EUR"
+    with pytest.raises(FieldVersionError):
+        reg.save(readd)
+    assert _row(pg, rel) == before

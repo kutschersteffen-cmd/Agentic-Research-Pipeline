@@ -238,6 +238,7 @@ class FieldDefinition(Base):
     unit: Mapped[str | None] = mapped_column(Text)
     definition: Mapped[dict] = mapped_column(JSONB)
     effective_from: Mapped[date] = mapped_column(Date, server_default=func.current_date())
+    released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # set once a schema carrying it is released
     quality: Mapped[dict | None] = mapped_column(JSONB)  # FieldQuality (first audit), per field version
 
 
