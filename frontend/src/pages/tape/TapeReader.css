@@ -4,7 +4,8 @@
 .lab-tape .head { display: flex; align-items: center; gap: var(--s-4); flex-wrap: wrap; margin-bottom: var(--s-2); }
 .lab-tape .head .note { margin: 0; }
 .lab-tape .msg { margin: var(--s-2) 0; min-height: 1.4em; line-height: 1.4; }
-.lab-tape .msg.err { color: var(--text); border-left: 4px solid var(--text); padding-left: var(--s-2); font-weight: 500; }
+/* Same as the page-level .error-text banner (index.css). */
+.lab-tape .msg.err { color: color-mix(in oklch, var(--low) 70%, var(--text)); background: color-mix(in srgb, var(--low) 12%, transparent); border: 1px solid var(--low); padding: var(--s-2) var(--s-3); font-weight: 500; }
 .lab-tape button, .lab-tape select, .lab-tape input { font: inherit; border-radius: 0; }
 .lab-tape .rf, .lab-tape .bar button, .lab-tape .picker button, .lab-tape .msg button { min-height: 44px; min-width: 96px; padding: 0 var(--s-4); border: 1px solid var(--text); background: var(--panel); color: var(--text); cursor: pointer; }
 .lab-tape button:hover:not(:disabled) { background: var(--well); }

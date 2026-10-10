@@ -110,7 +110,7 @@ function IndicatorTable({
                     <Fragment key={ind.identifier}>
                       <tr
                         className="clickable-row"
-                        onClick={() => setExpandedIndicator(expandedIndicator === ind.identifier ? null : ind.identifier)}
+                        {...activatable(() => setExpandedIndicator(expandedIndicator === ind.identifier ? null : ind.identifier), expandedIndicator === ind.identifier)}
                       >
                         <td>{ind.number}</td>
                         <td>{ind.question}</td>

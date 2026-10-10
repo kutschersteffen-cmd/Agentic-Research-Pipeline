@@ -188,7 +188,7 @@ async def test_resume_resets_failed_and_retries(tmp_path, fake):
     run_id = create_transition_plan_run(COMPANIES[:2], settings, store)
     store.append_jsonl(store.errors_path(run_id), {"key": "c1", "error": "boom"})
     # review_delta with no review_queue row, as discovery records it: resume keeps it.
-    JobManager(store).record_progress(run_id, failed_delta=1, review_delta=1, input_tokens_delta=7, cost_delta_usd=0.5)
+    JobManager(store).record_progress(run_id, failed_delta=1, review_delta=1, usage=LLMUsage(input_tokens=7), cost_delta_usd=0.5)
     JobManager(store).finish_run(run_id)
     assert store.load_manifest(run_id).status == JobStatus.PARTIALLY_COMPLETED
 

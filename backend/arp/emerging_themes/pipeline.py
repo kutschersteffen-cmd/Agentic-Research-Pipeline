@@ -113,9 +113,7 @@ async def execute_emerging_themes_run(
 
     def _on_extract_success(_mention: RawMention, result: tuple[list[ExtractedTag], LLMUsage]) -> None:
         _tags, usage = result
-        job_manager.record_progress(
-            run_id, completed_delta=1, input_tokens_delta=usage.input_tokens, output_tokens_delta=usage.output_tokens
-        )
+        job_manager.record_progress(run_id, completed_delta=1, usage=usage)
 
     def _on_extract_error(_mention: RawMention, _exc: Exception) -> None:
         job_manager.record_progress(run_id, failed_delta=1)
@@ -200,7 +198,7 @@ async def execute_emerging_themes_run(
             job_manager.record_progress(run_id, failed_delta=1)
             continue
 
-        job_manager.record_progress(run_id, input_tokens_delta=usage.input_tokens, output_tokens_delta=usage.output_tokens)
+        job_manager.record_progress(run_id, usage=usage)
         if candidate is None:
             continue  # failed the independent-source-minimum or action-score check
 
@@ -236,7 +234,7 @@ async def execute_emerging_themes_run(
                 if role_result is None:
                     continue
                 role_assessment, role_usage = role_result
-                job_manager.record_progress(run_id, input_tokens_delta=role_usage.input_tokens, output_tokens_delta=role_usage.output_tokens)
+                job_manager.record_progress(run_id, usage=role_usage)
                 exposures.append(CompanyExposure(
                     company_id=company_id,
                     role=role_assessment.role,

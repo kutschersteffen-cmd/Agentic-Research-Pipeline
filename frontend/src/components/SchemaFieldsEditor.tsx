@@ -8,7 +8,7 @@ export function SchemaFieldsEditor({ fields, onChange }: { fields: FieldDefiniti
     <>
     {fields.map((f, idx) => (
       <div className="activity-editor" key={f.field_id}>
-        <input value={f.name} onChange={(e) => update(idx, { name: e.target.value })} />
+        <input aria-label={`Field ${idx + 1} name`} value={f.name} onChange={(e) => update(idx, { name: e.target.value })} />
         <label className="field-label">
           Description
           <textarea rows={2} value={f.description} onChange={(e) => update(idx, { description: e.target.value })} />
@@ -25,7 +25,7 @@ export function SchemaFieldsEditor({ fields, onChange }: { fields: FieldDefiniti
         <div className="inline-fields">
           <span>{f.data_type}</span>
           <input
-            aria-label="Unit"
+            aria-label={`Field ${idx + 1} unit`}
             placeholder="unit"
             value={f.unit ?? ""}
             onChange={(e) => update(idx, { unit: e.target.value })}

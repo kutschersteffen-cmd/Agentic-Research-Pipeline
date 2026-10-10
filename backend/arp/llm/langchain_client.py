@@ -22,12 +22,11 @@ _TOOL_NAME = "emit_result"
 # a cache breakpoint. Render order is tools -> system -> messages, and a
 # breakpoint on the last system block caches both tools and system
 # together, so one marker here is sufficient -- no separate tool tagging.
-# 1h TTL: a single company's assessment run is 60+ sequential calls reusing
-# the same prefix over several minutes, and a whole batch run reuses it
-# across companies too -- well past the >=3-request break-even point for
-# the 1h write premium (2x) vs. the 5m default (1.25x, 2-request break-even
-# but a real risk of expiring mid-run on a slow pipeline).
-_CACHE_CONTROL = {"type": "ephemeral", "ttl": "1h"}
+# The 5-minute default TTL: every read refreshes it, and a pipeline run
+# reuses each prefix seconds apart, so the 1h TTL's 2x write (vs 1.25x)
+# bought nothing. Worth revisiting only if most calls come after 5-60
+# minute pauses (Anthropic's rule of thumb: more than 1 call in 20).
+_CACHE_CONTROL = {"type": "ephemeral"}
 
 # Network retries are the SDK's own: exponential backoff on 408/409/429/5xx
 # and connection errors/timeouts. A 400 (or any other 4xx) is never retried
@@ -217,8 +216,8 @@ class LangChainAnthropicClient(LLMClient):
             u = response.usage
             # input_tokens is reported as the grand total (uncached + cache
             # read + cache write), which cost_tracker's base-input subtraction
-            # assumes. With a 1h-TTL cache_control the write count lives
-            # under cache_creation.ephemeral_{5m,1h}_input_tokens and the
+            # assumes. The write count lives under
+            # cache_creation.ephemeral_{5m,1h}_input_tokens and the
             # generic cache_creation_input_tokens can read 0 -- prefer the
             # TTL-specific sum, fall back to the generic field.
             cc = u.cache_creation

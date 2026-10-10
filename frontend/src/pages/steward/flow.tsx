@@ -1,6 +1,7 @@
 import { useMemo, type CSSProperties } from "react";
 import ReactFlow, { Controls, Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
+import { COARSE_POINTER } from "../../lib/pipelineLayout";
 import type { StewardshipFlow, StewardshipStage } from "../../types";
 import { SOURCE_LABEL, openCount, stageName } from "./common";
 
@@ -158,6 +159,7 @@ export function FlowChart({ flow, selected, onSelect }: { flow: StewardshipFlow;
           nodesFocusable={false}
           edgesFocusable={false}
           elementsSelectable={false}
+          panOnDrag={!COARSE_POINTER}
           zoomOnScroll={false}
           preventScrolling={false}
           zoomOnDoubleClick={false}

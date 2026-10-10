@@ -6,7 +6,6 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import TypeVar
 
-from arp.llm.base import LLMUsage
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import hold_run
 from arp.orchestration.review_queue import queue_for_review
@@ -145,13 +144,11 @@ async def run_company_batch(
         items = review_items(company, result) if review_items else []
         for key, payload in items:
             queue_for_review(run_store, run_id, key, payload)
-        usage = getattr(result, "usage", None) or LLMUsage()
         job_manager.record_progress(
             run_id,
             completed_delta=1,
             review_delta=len(items),
-            input_tokens_delta=usage.input_tokens,
-            output_tokens_delta=usage.output_tokens,
+            usage=getattr(result, "usage", None),
             cost_delta_usd=cost_usd(result) if cost_usd else 0.0,
         )
 

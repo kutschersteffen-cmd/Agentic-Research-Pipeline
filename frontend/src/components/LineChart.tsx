@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { categoricalColor } from "../lib/palette";
+import { useChartWidth } from "../lib/useChartWidth";
 
 export interface LineSeries {
   label: string;
@@ -52,6 +53,7 @@ export function LineChart({
   valueFormatter?: (v: number) => string;
 }) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const [wrapRef, width] = useChartWidth(760);
 
   if (dates.length === 0 || series.length === 0) {
     return <p className="muted">No data to chart.</p>;
@@ -63,7 +65,6 @@ export function LineChart({
   });
   const summary = `Line chart, ${dates[0]} to ${dates[dates.length - 1]}. Latest: ${latest.join("; ")}`;
 
-  const width = 760;
   const height = 300;
   const marginLeft = 64;
   const marginRight = 118; // room for the value-at-end-of-line direct labels — never let them clip
@@ -106,7 +107,7 @@ export function LineChart({
     if (endLabels[i].y - endLabels[i - 1].y < minGap) endLabels[i].y = endLabels[i - 1].y + minGap;
   }
 
-  function handleMove(e: React.MouseEvent<SVGRectElement>) {
+  function handleMove(e: React.PointerEvent<SVGRectElement>) {
     const svg = e.currentTarget.ownerSVGElement;
     if (!svg) return;
     const rect = svg.getBoundingClientRect();
@@ -122,7 +123,7 @@ export function LineChart({
   // data point still gets plotted (and is reachable via hover/crosshair),
   // but a dense series (e.g. 50+ monthly dates) would otherwise render
   // one illegible <text> per point, all overlapping.
-  const maxLabels = 10;
+  const maxLabels = Math.max(2, Math.min(10, Math.floor(plotWidth / 70))); // ~70px per date label
   const labelStride = Math.max(1, Math.ceil(dates.length / maxLabels));
   const labelIndices: number[] = [];
   for (let i = 0; i < dates.length; i += labelStride) labelIndices.push(i);
@@ -148,7 +149,7 @@ export function LineChart({
           ))}
         </div>
       )}
-      <div className="chart-wrap">
+      <div className="chart-wrap" ref={wrapRef}>
       <svg viewBox={`0 0 ${width} ${height}`} className="chart-svg" role="img" aria-label={summary}>
         {yTicks.map((t) => (
           <g key={t}>
@@ -174,17 +175,17 @@ export function LineChart({
             .join(" ");
           return (
             <g key={s.label}>
-              <polyline points={points} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+              <polyline points={points} fill="none" style={{ stroke: color }} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
               {s.values.map(
                 (v, idx) =>
-                  v != null && <circle key={idx} cx={xAt(idx)} cy={yAt(v)} r={4} fill={color} style={{ stroke: "var(--panel)" }} strokeWidth={2} />
+                  v != null && <circle key={idx} cx={xAt(idx)} cy={yAt(v)} r={4} style={{ fill: color, stroke: "var(--panel)" }} strokeWidth={2} />
               )}
             </g>
           );
         })}
         {endLabels.map((e) => (
           <g key={e.label}>
-            <line x1={e.x + 2} y1={e.y} x2={e.x + 10} y2={e.y} stroke={e.color} strokeWidth={2} strokeLinecap="round" />
+            <line x1={e.x + 2} y1={e.y} x2={e.x + 10} y2={e.y} style={{ stroke: e.color }} strokeWidth={2} strokeLinecap="round" />
             <text x={e.x + 14} y={e.y} dominantBaseline="middle" className="chart-end-label">
               {valueFormatter(e.value)}
             </text>
@@ -196,8 +197,11 @@ export function LineChart({
           width={plotWidth}
           height={plotHeight}
           fill="transparent"
-          onMouseMove={handleMove}
-          onMouseLeave={() => setHoverIdx(null)}
+          style={{ touchAction: "pan-y" }}
+          onPointerDown={handleMove}
+          onPointerMove={handleMove}
+          // Touch fires pointerleave on lift; keep the tapped tooltip until the next tap.
+          onPointerLeave={(e) => e.pointerType === "mouse" && setHoverIdx(null)}
         />
       </svg>
       {hoverIdx != null && (

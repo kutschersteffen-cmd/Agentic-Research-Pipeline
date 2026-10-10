@@ -58,6 +58,7 @@ export function LevelOverrides({ entity, scale, onSet, onRemove }: Props) {
 
   return (
     <div className="level-overrides">
+      <div className="table-wrap">
       <table className="data-table">
         <thead>
           <tr>
@@ -133,6 +134,7 @@ export function LevelOverrides({ entity, scale, onSet, onRemove }: Props) {
           })}
         </tbody>
       </table>
+      </div>
       {error && <p className="error-text" role="alert">{error}</p>}
     </div>
   );

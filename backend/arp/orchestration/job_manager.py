@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 
+from arp.llm.base import LLMUsage
 from arp.schemas.common import CompanyRef, JobStatus, RunManifest, new_id
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.run_store import RunStore
@@ -68,16 +69,20 @@ class JobManager:
         completed_delta: int = 0,
         failed_delta: int = 0,
         review_delta: int = 0,
-        input_tokens_delta: int = 0,
-        output_tokens_delta: int = 0,
+        usage: LLMUsage | None = None,
         cost_delta_usd: float = 0.0,
     ) -> RunManifest:
+        """`usage` adds an LLM call's tokens; a disk-cache hit (usage.cached) spent none."""
+        live = usage if usage is not None and not usage.cached else LLMUsage()
+
         def fn(manifest: RunManifest) -> None:
             manifest.completed_count += completed_delta
             manifest.failed_count += failed_delta
             manifest.review_count += review_delta
-            manifest.input_tokens += input_tokens_delta
-            manifest.output_tokens += output_tokens_delta
+            manifest.input_tokens += live.input_tokens
+            manifest.output_tokens += live.output_tokens
+            manifest.cache_read_tokens += live.cache_read_tokens
+            manifest.cache_creation_tokens += live.cache_creation_tokens
             manifest.estimated_cost_usd += cost_delta_usd
 
         return self._update(run_id, fn)

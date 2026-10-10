@@ -240,7 +240,7 @@ export function EngagementIssuePanel({
           moves.
         </p>
         <div className="inline-fields">
-          <select value={escalateStage} onChange={(e) => setEscalateStage(e.target.value as EscalationStage)}>
+          <select aria-label="Escalation stage" value={escalateStage} onChange={(e) => setEscalateStage(e.target.value as EscalationStage)}>
             {ESCALATION_STAGES.map((s) => (
               <option key={s} value={s}>
                 {fmt(s)}

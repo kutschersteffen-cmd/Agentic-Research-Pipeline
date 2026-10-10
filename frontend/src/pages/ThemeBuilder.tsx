@@ -262,7 +262,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
           <h2>2. Review &amp; edit activities</h2>
           {theme.activities.map((a, idx) => (
             <div className="activity-editor" key={a.activity_id}>
-              <input value={a.name} onChange={(e) => updateActivity(idx, { name: e.target.value })} />
+              <input aria-label={`Activity ${idx + 1} name`} value={a.name} onChange={(e) => updateActivity(idx, { name: e.target.value })} />
               <label className="field-label">
                 In scope
                 <textarea
@@ -318,7 +318,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
             Optional: a structured revenue/CapEx catalogue — resolves exposure from hard disclosed numbers
             (catalogue match, then extraction from disclosures) before falling back to the qualitative debate above.
           </p>
-          <input type="file" accept=".csv" onChange={uploadCatalogue} />
+          <input type="file" accept=".csv" aria-label="Revenue/CapEx catalogue (CSV)" onChange={uploadCatalogue} />
           {catalogueStatus && <p className="status-text">{catalogueStatus}</p>}
           {cataloguePath && !loadedTaxonomy && (
             <p className="help-text">Load a saved taxonomy above first — mapping suggestion needs a taxonomy_id to reference.</p>
@@ -345,7 +345,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
                       <td>{activityName(m.activity_id)}</td>
                       <td>{m.metric}</td>
                       <td>
-                        <input value={m.matched_labels.join(", ")} onChange={(e) => updateMappingLabels(idx, e.target.value)} />
+                        <input aria-label={`Matched labels for ${activityName(m.activity_id)} ${m.metric}`} value={m.matched_labels.join(", ")} onChange={(e) => updateMappingLabels(idx, e.target.value)} />
                       </td>
                       <td className="muted">{m.rationale}</td>
                     </tr>
@@ -376,13 +376,13 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
           {results.length > 0 && (
             <>
               <div className="inline-fields">
-                <select value={verdictFilter} onChange={(e) => setVerdictFilter(e.target.value)}>
+                <select aria-label="Filter by verdict" value={verdictFilter} onChange={(e) => setVerdictFilter(e.target.value)}>
                   <option value="all">All verdicts</option>
                   <option value="include">Include</option>
                   <option value="exclude">Exclude</option>
                   <option value="uncertain">Uncertain</option>
                 </select>
-                <select value={activityFilter} onChange={(e) => setActivityFilter(e.target.value)}>
+                <select aria-label="Filter by activity" value={activityFilter} onChange={(e) => setActivityFilter(e.target.value)}>
                   <option value="all">All activities</option>
                   {theme?.activities.map((a) => (
                     <option key={a.activity_id} value={a.activity_id}>
@@ -394,7 +394,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
                   <input type="checkbox" checked={flaggedOnly} onChange={(e) => setFlaggedOnly(e.target.checked)} />
                   Flagged for review only
                 </label>
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+                <select aria-label="Sort results" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
                   <option value="confidence_desc">Sort: confidence (high to low)</option>
                   <option value="confidence_asc">Sort: confidence (low to high)</option>
                   <option value="exposure_desc">Sort: exposure (strongest first)</option>

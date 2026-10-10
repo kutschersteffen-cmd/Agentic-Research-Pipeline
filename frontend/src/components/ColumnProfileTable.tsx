@@ -33,61 +33,63 @@ export function ColumnProfileTable({
     config.criteria.find((c) => c.column === column)?.direction ?? proposalByColumn.get(column)?.direction ?? "higher";
 
   return (
-    <table className="data-table">
-      <thead>
-        <tr>
-          <th>Column</th>
-          <th>Type</th>
-          <th>Coverage</th>
-          <th>Distinct</th>
-          <th>Job</th>
-          <th>Direction</th>
-          <th>Why</th>
-        </tr>
-      </thead>
-      <tbody>
-        {profiles.map((profile) => {
-          const proposal = proposalByColumn.get(profile.name);
-          const role = roleOf(config, profile.name, proposal);
-          const isCriterion = role === "criterion";
-          return (
-            <tr key={profile.name} className={proposal?.needs_check ? "audit-needs-check" : undefined}>
-              <td>
-                <strong>{profile.name}</strong>
-                {profile.decimal_comma && <div className="muted">comma decimals detected</div>}
-                {!profile.spread && <div className="muted">single value across all rows</div>}
-                {config.normalise_within === profile.name && <div className="muted">peer cohort (Mechanism tab)</div>}
-              </td>
-              <td>{profile.type}</td>
-              <td>{Math.round(profile.coverage * 100)}%</td>
-              <td>{profile.unique}</td>
-              <td>
-                <select value={role} onChange={(e) => onSetRole(profile.name, e.target.value as ColumnRole)}>
-                  {COLUMN_ROLES.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                {isCriterion ? (
-                  <select value={directionOf(profile.name)} onChange={(e) => onSetDirection(profile.name, e.target.value as Direction)}>
-                    <option value="higher">higher is better</option>
-                    <option value="lower">lower is better</option>
+    <div className="table-wrap">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Column</th>
+            <th>Type</th>
+            <th>Coverage</th>
+            <th>Distinct</th>
+            <th>Job</th>
+            <th>Direction</th>
+            <th>Why</th>
+          </tr>
+        </thead>
+        <tbody>
+          {profiles.map((profile) => {
+            const proposal = proposalByColumn.get(profile.name);
+            const role = roleOf(config, profile.name, proposal);
+            const isCriterion = role === "criterion";
+            return (
+              <tr key={profile.name} className={proposal?.needs_check ? "audit-needs-check" : undefined}>
+                <td>
+                  <strong>{profile.name}</strong>
+                  {profile.decimal_comma && <div className="muted">comma decimals detected</div>}
+                  {!profile.spread && <div className="muted">single value across all rows</div>}
+                  {config.normalise_within === profile.name && <div className="muted">peer cohort (Mechanism tab)</div>}
+                </td>
+                <td>{profile.type}</td>
+                <td>{Math.round(profile.coverage * 100)}%</td>
+                <td>{profile.unique}</td>
+                <td>
+                  <select aria-label={`Job of ${profile.name}`} value={role} onChange={(e) => onSetRole(profile.name, e.target.value as ColumnRole)}>
+                    {COLUMN_ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
                   </select>
-                ) : (
-                  <span className="muted">—</span>
-                )}
-              </td>
-              <td className="muted">
-                {proposal?.role_reason}
-                {isCriterion && proposal?.direction_reason ? ` · ${proposal.direction_reason}` : ""}
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+                </td>
+                <td>
+                  {isCriterion ? (
+                    <select aria-label={`Direction of ${profile.name}`} value={directionOf(profile.name)} onChange={(e) => onSetDirection(profile.name, e.target.value as Direction)}>
+                      <option value="higher">higher is better</option>
+                      <option value="lower">lower is better</option>
+                    </select>
+                  ) : (
+                    <span className="muted">—</span>
+                  )}
+                </td>
+                <td className="muted">
+                  {proposal?.role_reason}
+                  {isCriterion && proposal?.direction_reason ? ` · ${proposal.direction_reason}` : ""}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

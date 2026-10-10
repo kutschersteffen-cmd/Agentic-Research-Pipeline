@@ -151,8 +151,7 @@ def record_cost(model: str, usage: LLMUsage) -> None:
 
     JobManager(tally.run_store).record_progress(
         tally.run_id,
-        input_tokens_delta=usage.input_tokens,
-        output_tokens_delta=usage.output_tokens,
+        usage=usage,
         cost_delta_usd=estimate_cost_usd(model, usage),
     )
 

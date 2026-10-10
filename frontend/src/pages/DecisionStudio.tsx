@@ -1182,28 +1182,30 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
                   ? `Tier ${sensitivity.tier} holds under every weight tested — this placement does not rest on the weights you chose.`
                   : `Tier ${sensitivity.tier} changes after a ${Math.abs(sensitivity.min_delta_pct).toFixed(1)} percentage-point shift in one dimension's weight.`}
               </p>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Dimension</th>
-                    <th>Weight now</th>
-                    <th>Flips at</th>
-                    <th>Change</th>
-                    <th>New tier</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sensitivity.tipping_points.map((point) => (
-                    <tr key={point.dimension_id}>
-                      <td>{point.dimension_name}</td>
-                      <td>{point.current_weight_pct.toFixed(1)}%</td>
-                      <td>{point.flip_weight_pct != null ? `${point.flip_weight_pct.toFixed(1)}%` : "—"}</td>
-                      <td>{point.delta_pct != null ? `${point.delta_pct > 0 ? "+" : ""}${point.delta_pct.toFixed(1)}pp` : "robust"}</td>
-                      <td>{point.new_tier ?? "—"}</td>
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Dimension</th>
+                      <th>Weight now</th>
+                      <th>Flips at</th>
+                      <th>Change</th>
+                      <th>New tier</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {sensitivity.tipping_points.map((point) => (
+                      <tr key={point.dimension_id}>
+                        <td>{point.dimension_name}</td>
+                        <td>{point.current_weight_pct.toFixed(1)}%</td>
+                        <td>{point.flip_weight_pct != null ? `${point.flip_weight_pct.toFixed(1)}%` : "—"}</td>
+                        <td>{point.delta_pct != null ? `${point.delta_pct > 0 ? "+" : ""}${point.delta_pct.toFixed(1)}pp` : "robust"}</td>
+                        <td>{point.new_tier ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </>
@@ -1217,7 +1219,7 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
             movement attributable to the companies rather than to a change in how they were judged.
           </p>
           <div className="inline-fields">
-            <select value={compareWith} onChange={(e) => setCompareWith(e.target.value)}>
+            <select aria-label="Earlier snapshot to compare against" value={compareWith} onChange={(e) => setCompareWith(e.target.value)}>
               <option value="">Compare against…</option>
               {datasets
                 .filter((d) => d.dataset_id !== dataset.dataset_id)
@@ -1257,44 +1259,46 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
                   </p>
                 )
               )}
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Tier</th>
-                    <th>Score</th>
-                    <th>Rank</th>
-                    <th>What moved</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {comparison.movements
-                    .filter(movedOrChangedStatus)
-                    .map((movement) => (
-                      <tr key={movement.entity_key}>
-                        <td>{movement.name}</td>
-                        <td>
-                          {movement.tier_before ?? "—"} → {movement.tier_after ?? "—"}
-                        </td>
-                        <td>
-                          {movement.score_delta != null
-                            ? `${movement.score_delta > 0 ? "+" : ""}${movement.score_delta.toFixed(1)}`
-                            : "—"}
-                        </td>
-                        <td>
-                          {movement.rank_delta != null
-                            ? `${movement.rank_delta > 0 ? "+" : ""}${movement.rank_delta}`
-                            : "—"}
-                        </td>
-                        <td className="muted">
-                          {movement.status_before !== movement.status_after
-                            ? `${movement.status_before ?? "not in the table"} → ${movement.status_after ?? "not in the table"}`
-                            : movement.drivers.join(", ") || "no single criterion moved much"}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Tier</th>
+                      <th>Score</th>
+                      <th>Rank</th>
+                      <th>What moved</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comparison.movements
+                      .filter(movedOrChangedStatus)
+                      .map((movement) => (
+                        <tr key={movement.entity_key}>
+                          <td>{movement.name}</td>
+                          <td>
+                            {movement.tier_before ?? "—"} → {movement.tier_after ?? "—"}
+                          </td>
+                          <td>
+                            {movement.score_delta != null
+                              ? `${movement.score_delta > 0 ? "+" : ""}${movement.score_delta.toFixed(1)}`
+                              : "—"}
+                          </td>
+                          <td>
+                            {movement.rank_delta != null
+                              ? `${movement.rank_delta > 0 ? "+" : ""}${movement.rank_delta}`
+                              : "—"}
+                          </td>
+                          <td className="muted">
+                            {movement.status_before !== movement.status_after
+                              ? `${movement.status_before ?? "not in the table"} → ${movement.status_after ?? "not in the table"}`
+                              : movement.drivers.join(", ") || "no single criterion moved much"}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
             </>
           )}
         </div>

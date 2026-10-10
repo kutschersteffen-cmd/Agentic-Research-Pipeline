@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { api } from "../api/client";
 import { UniversePicker } from "../components/UniversePicker";
+import { Pager } from "../components/XbrlFactsTable";
 import { handoverCompanies, handoverName, mappingText, routeText } from "../lib/workbench";
 import type { WorkbenchResponse, WorkbenchRow } from "../types";
 
@@ -9,6 +10,7 @@ type Target = "extraction" | "xbrl";
 const ids = (r: WorkbenchRow) =>
   (["LEI", "CIK", "ISIN"] as const).flatMap((k) => (r.mapping.identifiers[k] ?? []).map((v) => `${k} ${v}`));
 const when = (s: string | null) => (s ? s.slice(0, 10) : "");
+const PAGE = 100;
 
 /** Argus universe: one table per saved universe showing, per company, how it maps to the identifier master, which XBRL source it suggests and what is already stored. It never starts a run; it hands the (selected) companies to Extraction or XBRL facts. */
 export function ArgusUniverse({ onSendUniverse }: { onSendUniverse: (to: Target, path: string, count: number) => void }) {
@@ -16,6 +18,7 @@ export function ArgusUniverse({ onSendUniverse }: { onSendUniverse: (to: Target,
   const [data, setData] = useState<WorkbenchResponse | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [scope, setScope] = useState<"all" | "selected">("all");
+  const [offset, setOffset] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -24,6 +27,7 @@ export function ArgusUniverse({ onSendUniverse }: { onSendUniverse: (to: Target,
     setData(null);
     setSelected(new Set());
     setScope("all");
+    setOffset(0);
     setError("");
     setBusy(true);
     try {
@@ -119,11 +123,11 @@ export function ArgusUniverse({ onSendUniverse }: { onSendUniverse: (to: Target,
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r, i) => {
+                {rows.slice(offset, offset + PAGE).map((r, i) => {
                   const a = r.availability;
                   const id = r.company.company_id;
                   return (
-                    <tr key={`${id}-${i}`}>
+                    <tr key={`${id}-${offset + i}`}>
                       <td>
                         <input type="checkbox" aria-label={`Select ${r.company.name || id}`} checked={selected.has(id)} onChange={() => toggle(id)} />
                       </td>
@@ -175,6 +179,7 @@ export function ArgusUniverse({ onSendUniverse }: { onSendUniverse: (to: Target,
               </tbody>
             </table>
           </div>
+          <Pager offset={offset} count={Math.min(PAGE, rows.length - offset)} total={rows.length} limit={PAGE} noun="companies" onPage={setOffset} />
         </section>
       )}
     </div>
