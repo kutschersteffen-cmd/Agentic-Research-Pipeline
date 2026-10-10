@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, IPvAnyNetwork, model_validator
+from pydantic import Field, IPvAnyNetwork, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -108,11 +108,11 @@ class Settings(BaseSettings):
     max_concurrent_llm_calls: int = Field(default=8)
     llm_batch: bool = Field(
         default=False,
-        description="Send LLM calls through the Message Batches API (50% cheaper, slower). Set per run, never globally.",
+        description="Send LLM calls through the Message Batches API (50% cheaper, slower). Set per run (arp.llm.factory.batch_settings), never globally: ARP_LLM_BATCH=true is rejected.",
     )
     batch_concurrency: int = Field(default=1000, description="max_concurrent_llm_calls for a batch run.")
     batch_scheduled_run_types: list[str] = Field(
-        default=["emerging_themes"], description="Scheduled run types that run in batch mode."
+        default=[], description="Scheduled run types that run in batch mode (opt-in; emerging_themes is the only one wired)."
     )
     max_concurrent_downloads: int = Field(default=4)
     max_concurrent_parses: int = Field(
@@ -530,6 +530,16 @@ class Settings(BaseSettings):
         ("embeddings_backend", "postgres", "postgres_dsn", "ARP_POSTGRES_DSN", "ARP_EMBEDDINGS_BACKEND=sqlite"),
         ("retrieval_backend", "opensearch", "opensearch_url", "ARP_OPENSEARCH_URL", "ARP_RETRIEVAL_BACKEND=bm25"),
     )
+
+    @field_validator("llm_batch")
+    @classmethod
+    def _llm_batch_per_run_only(cls, value: bool) -> bool:
+        # batch_settings sets it via model_copy, which skips validators.
+        if value:
+            raise ValueError(
+                "llm_batch is set per run (the batch switch / batch_settings), never globally: unset ARP_LLM_BATCH"
+            )
+        return value
 
     @model_validator(mode="after")
     def _selected_backends_have_their_connection(self) -> "Settings":

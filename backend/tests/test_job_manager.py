@@ -104,3 +104,14 @@ def test_record_progress_counts_batch_savings(tmp_path):
     run_id = jm.create_run("theme", {}, company_count=1).run_id
     jm.record_progress(run_id, usage=LLMUsage(input_tokens=10), cost_delta_usd=0.4)
     assert store.load_manifest(run_id).batch_saved_usd == 0.0
+
+
+def test_finish_and_restart_clear_a_stale_batch_wait(tmp_path):
+    store = RunStore(tmp_path)
+    jm = JobManager(store)
+    run_id = jm.create_run("theme", {}, company_count=1).run_id
+    wait = {"batch_id": "b", "request_count": 1, "submitted_at": "t", "status": "in_progress"}
+    jm._update(run_id, lambda m: setattr(m, "batch_wait", wait))  # left behind by a hard kill
+    assert jm.mark_running(run_id).batch_wait is None
+    jm._update(run_id, lambda m: setattr(m, "batch_wait", wait))
+    assert jm.finish_run(run_id).batch_wait is None

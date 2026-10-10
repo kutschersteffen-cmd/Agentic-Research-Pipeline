@@ -61,7 +61,7 @@ async def test_emerging_themes_run_marked_batch(tmp_path, monkeypatch):
         return run_id
 
     monkeypatch.setattr(pipeline, "execute_emerging_themes_run", _execute)
-    s = _settings(tmp_path)
+    s = _settings(tmp_path).model_copy(update={"batch_scheduled_run_types": ["emerging_themes"]})  # opt-in by config
     store = RunStore(s.runs_dir)
 
     async def _run(settings):
@@ -72,3 +72,21 @@ async def test_emerging_themes_run_marked_batch(tmp_path, monkeypatch):
 
     assert (await _run(batch_settings(s, "emerging_themes" in s.batch_scheduled_run_types)))["batch"] is True
     assert "batch" not in await _run(s)
+
+
+def test_scheduled_batch_is_opt_in(tmp_path):
+    assert _settings(tmp_path).batch_scheduled_run_types == []
+
+
+def test_global_llm_batch_rejected_but_per_run_batch_works(tmp_path, monkeypatch):
+    import pytest
+
+    with pytest.raises(ValueError, match="per run"):
+        Settings(anthropic_api_key="unused", llm_batch=True)
+    monkeypatch.setenv("ARP_LLM_BATCH", "true")
+    with pytest.raises(ValueError, match="per run"):
+        Settings(anthropic_api_key="unused")
+    monkeypatch.delenv("ARP_LLM_BATCH")
+    s = batch_settings(_settings(tmp_path), True)
+    assert s.llm_batch is True
+    assert isinstance(build_llm_client(s), BatchingLLMClient)

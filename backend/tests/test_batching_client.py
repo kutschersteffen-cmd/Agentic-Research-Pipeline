@@ -279,3 +279,110 @@ async def test_all_callers_cancelled_submits_nothing(tmp_path):
     gone.cancel()
     await asyncio.sleep(0.05)
     assert fake.creates == []
+
+
+async def test_two_clients_in_one_run_keep_each_others_wait(tmp_path):
+    store, jm, run_id = _run(tmp_path)
+    small, small_fake = _client(tmp_path)
+    big, big_fake = _client(tmp_path)
+    big_fake.prefix = "bigbatch"
+    small_fake.hold = big_fake.hold = True
+    with tally_run(store, run_id):
+        small_call = asyncio.create_task(_call(small, "s"))
+        big_calls = [asyncio.create_task(_call(big, p)) for p in ("a", "b", "c")]
+        await _wait_for(lambda: small_fake.retrieves and big_fake.retrieves)
+        assert store.load_manifest(run_id).batch_wait["request_count"] == 4
+        small_fake.release()
+        await small_call
+        wait = store.load_manifest(run_id).batch_wait
+        assert wait is not None and wait["request_count"] == 3 and wait["batch_id"] == "bigbatch_1"
+        big_fake.release()
+        await asyncio.gather(*big_calls)
+    assert store.load_manifest(run_id).batch_wait is None
+
+
+def _second_run(store, jm) -> str:
+    return jm.create_run("theme", {}, company_count=1).run_id
+
+
+async def _crash_in_run(tmp_path, store, run_id, fake=None):
+    """Client submits "x" inside `run_id`, then its process dies; the batch keeps running."""
+    a, own = _client(tmp_path)
+    fake = fake or own
+    a._client.messages.batches = fake
+    fake.hold = True
+    with tally_run(store, run_id):
+        crashed = asyncio.create_task(_call(a, "x"))
+        await _wait_for(lambda: fake.creates)
+        crashed.cancel()
+    return fake
+
+
+async def test_other_run_does_not_reattach_to_batch(tmp_path):
+    store, jm, run_a = _run(tmp_path)
+    fake = await _crash_in_run(tmp_path, store, run_a)
+    assert _log_rows(tmp_path)[0]["run_id"] == run_a
+    fake.release()
+    b, _ = _client(tmp_path)
+    b._client.messages.batches = fake
+    with tally_run(store, _second_run(store, jm)):
+        out, _ = await _call(b, "x")
+    assert out.echo == "x"
+    assert len(fake.creates) == 2  # run B paid for its own batch
+
+
+async def test_resume_of_same_run_reattaches(tmp_path):
+    store, jm, run_a = _run(tmp_path)
+    fake = await _crash_in_run(tmp_path, store, run_a)
+    fake.release()
+    c, _ = _client(tmp_path)
+    c._client.messages.batches = fake
+    with tally_run(store, run_a):
+        out, _ = await _call(c, "x")
+    assert out.echo == "x"
+    assert len(fake.creates) == 1
+
+
+async def test_cancelling_other_run_never_cancels_this_runs_batch(tmp_path):
+    store, jm, run_a = _run(tmp_path)
+    fake = await _crash_in_run(tmp_path, store, run_a)
+    run_b = _second_run(store, jm)
+    b, _ = _client(tmp_path)
+    b._client.messages.batches = fake
+    with tally_run(store, run_b):
+        call = asyncio.create_task(_call(b, "x"))
+        await _wait_for(lambda: len(fake.creates) == 2)
+        jm.request_cancel(run_b)
+        results = await asyncio.gather(call, return_exceptions=True)
+    assert isinstance(results[0], BatchRequestFailed)
+    assert fake.cancels == ["msgbatch_2"]
+
+
+async def test_cancelled_batch_run_ends_cancelled_not_partial(tmp_path):
+    from arp.orchestration.batch_runner import run_company_batch
+    from arp.schemas.common import CompanyRef, JobStatus
+
+    store = RunStore(tmp_path / "runs")
+    jm = JobManager(store)
+    companies = [CompanyRef(company_id=f"c{i}", name=f"C{i}") for i in range(3)]
+    run_id = jm.create_run("theme", {}, company_count=len(companies)).run_id
+    client, fake = _client(tmp_path)
+    fake.hold = True
+
+    async def worker(company):
+        out, _ = await _call(client, company.company_id)
+        return out
+
+    async def cancel_once_submitted():
+        await _wait_for(lambda: fake.creates)
+        jm.request_cancel(run_id)
+
+    canceller = asyncio.create_task(cancel_once_submitted())
+    await run_company_batch(
+        run_id, companies, run_store=store, worker=worker, result_to_json=lambda r: r.model_dump(), concurrency=1000
+    )
+    await canceller
+    m = store.load_manifest(run_id)
+    assert fake.cancels == ["msgbatch_1"]
+    assert m.failed_count == 0
+    assert m.status == JobStatus.CANCELLED

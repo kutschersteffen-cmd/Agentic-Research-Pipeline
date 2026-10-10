@@ -45,7 +45,8 @@ class FakeBatches:
     - `respond`: params -> Message for succeeded requests.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, prefix: str = "msgbatch") -> None:
+        self.prefix = prefix  # distinct prefixes keep two fakes' batch ids apart
         self.hold = False
         self.reverse = False
         self.outcomes: dict[str, str] = {}
@@ -82,7 +83,7 @@ class FakeBatches:
             raise err
         requests = list(requests)
         self.creates.append(requests)
-        batch_id = f"msgbatch_{len(self.creates)}"
+        batch_id = f"{self.prefix}_{len(self.creates)}"
         self._batches[batch_id] = {"requests": requests, "status": "in_progress"}
         return self._batch(batch_id, advance=False)  # like the API: never ended on create
 

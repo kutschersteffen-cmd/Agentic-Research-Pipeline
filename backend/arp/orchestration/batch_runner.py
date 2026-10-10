@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import TypeVar
 
+from arp.llm.batching_client import BatchRequestFailed
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import hold_run
 from arp.orchestration.review_queue import queue_for_review
@@ -153,6 +154,8 @@ async def run_company_batch(
         )
 
     def _on_error(company: CompanyRef, exc: Exception) -> None:
+        if isinstance(exc, BatchRequestFailed) and exc.result_type == "canceled" and _cancel_check():
+            return  # stopped by the cancel, not failed: the run must end cancelled, not partial
         if isinstance(exc, ReviewRequired):
             queue_for_review(run_store, run_id, company.company_id, exc.report)
             job_manager.record_progress(run_id, review_delta=1)

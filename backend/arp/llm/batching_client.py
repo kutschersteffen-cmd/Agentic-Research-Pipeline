@@ -7,7 +7,9 @@ by custom_id, never by position.
 
 Every submitted batch is appended to `batch_log` before it is polled, so a
 restarted client attaches to a batch that is already paid for instead of
-submitting its requests again.
+submitting its requests again. Each row carries the run that submitted it, and a
+client only reattaches to its own run's rows (rows from outside a run only
+outside a run), so one run never waits on, nor cancels, another run's batch.
 """
 
 from __future__ import annotations
@@ -26,7 +28,7 @@ from anthropic.types.messages import MessageBatch
 
 from arp.llm.base import LLMUsage, T
 from arp.llm.langchain_client import LangChainAnthropicClient
-from arp.orchestration.step_tally import cancel_requested, record_batch_wait
+from arp.orchestration.step_tally import cancel_requested, current_run_id, record_batch_wait
 
 CUSTOM_ID_LEN = 64
 
@@ -106,14 +108,17 @@ class BatchingLLMClient(LangChainAnthropicClient):
         return await fut
 
     def _logged(self) -> dict[str, str]:
-        """custom_id -> batch_id from the batch log, read once; a later row wins."""
+        """custom_id -> batch_id from this run's rows of the batch log, read once; a later row wins."""
         if self._log_index is None:
             self._log_index = {}
+            run_id = current_run_id()
             if self._batch_log.exists():
                 for line in self._batch_log.read_text().splitlines():
                     try:
                         row = json.loads(line)
                     except json.JSONDecodeError:  # torn last line from a crash mid-append
+                        continue
+                    if row.get("run_id") != run_id:
                         continue
                     self._log_rows[row["batch_id"]] = row
                     self._log_index.update(dict.fromkeys(row["custom_ids"], row["batch_id"]))
@@ -169,7 +174,12 @@ class BatchingLLMClient(LangChainAnthropicClient):
             batch = await self._client.messages.batches.create(
                 requests=[{"custom_id": cid, "params": p} for cid, p in chunk.items()]
             )
-            row = {"batch_id": batch.id, "custom_ids": list(chunk), "submitted_at": datetime.now(UTC).isoformat()}
+            row = {
+                "batch_id": batch.id,
+                "custom_ids": list(chunk),
+                "submitted_at": datetime.now(UTC).isoformat(),
+                "run_id": current_run_id(),
+            }
             # On disk before the first poll: a crash from here on still leaves the batch reusable.
             self._batch_log.parent.mkdir(parents=True, exist_ok=True)  # cache_dir is only made when the disk cache is on
             with self._batch_log.open("a") as f:
@@ -195,7 +205,8 @@ class BatchingLLMClient(LangChainAnthropicClient):
                 batch = await batches.retrieve(batch_id)
             if batch.processing_status != "ended":
                 record_batch_wait(
-                    {"batch_id": batch_id, "request_count": len(cids), "submitted_at": submitted_at, "status": "in_progress"}
+                    batch_id,
+                    {"batch_id": batch_id, "request_count": len(cids), "submitted_at": submitted_at, "status": "in_progress"},
                 )
             while batch.processing_status != "ended":
                 await asyncio.sleep(self._poll_every_s)
@@ -227,8 +238,7 @@ class BatchingLLMClient(LangChainAnthropicClient):
         finally:
             self._streamed.pop(batch_id, None)
             self._watching.discard(batch_id)
-            if not self._watching:
-                record_batch_wait(None)
+            record_batch_wait(batch_id, None)
             for cid in cids - seen:
                 if cid in self._in_flight:
                     self._settle(cid, BatchRequestFailed("missing", "no result returned for this request"))

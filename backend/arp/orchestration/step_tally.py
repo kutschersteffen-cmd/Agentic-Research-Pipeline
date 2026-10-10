@@ -33,6 +33,9 @@ class _Tally:
     details: dict[str, dict[str, dict[str, Any]]] = field(default_factory=dict)
     run_store: RunStore | None = None
     run_id: str | None = None
+    # batch_id -> the wait of each Message Batch this run has open (a run can
+    # have several: extraction's extractor and verifier clients batch apart).
+    batch_waits: dict[str, dict] = field(default_factory=dict)
 
     def add(self, company_id: str | None, node: str, seconds: float) -> None:
         self.counts[node] += 1
@@ -156,14 +159,30 @@ def record_cost(model: str, usage: LLMUsage) -> None:
     )
 
 
-def record_batch_wait(wait: dict | None) -> None:
-    """The Message Batch this run is waiting on (None: none open), for the run's status line."""
+def record_batch_wait(batch_id: str, wait: dict | None) -> None:
+    """A Message Batch of this run opened (`wait`) or ended (None). The run's
+    status line shows every open one combined: their requests summed, the
+    earliest submitted; None once none is open."""
     tally = _current.get()
     if tally is None or tally.run_store is None or tally.run_id is None:
         return
     from arp.orchestration.job_manager import JobManager
 
-    JobManager(tally.run_store)._update(tally.run_id, lambda m: setattr(m, "batch_wait", wait))
+    if wait is None:
+        tally.batch_waits.pop(batch_id, None)
+    else:
+        tally.batch_waits[batch_id] = wait
+    waits = list(tally.batch_waits.values())
+    combined = None
+    if waits:
+        combined = {**min(waits, key=lambda w: w["submitted_at"]), "request_count": sum(w["request_count"] for w in waits)}
+    JobManager(tally.run_store)._update(tally.run_id, lambda m: setattr(m, "batch_wait", combined))
+
+
+def current_run_id() -> str | None:
+    """The run this code runs inside; None outside a run."""
+    tally = _current.get()
+    return tally.run_id if tally is not None else None
 
 
 def cancel_requested() -> bool:

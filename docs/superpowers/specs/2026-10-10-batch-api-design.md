@@ -31,9 +31,9 @@ Success:
 
 ### Restart safety
 
-- Each submitted batch is appended to `runs/<run_id>/batches.jsonl` as `{batch_id, custom_ids, submitted_at}`.
-- On start (including `resume_run`), the client reads that file. For each batch still known to the API, it loads the results (once ended) into a `custom_id -> result` map. A re-issued request whose `custom_id` is in the map is answered from it without resubmitting.
-- A batch still in progress is waited on, not resubmitted.
+- Each submitted batch is appended to one log, `<cache_dir>/llm_batches.jsonl`, as `{batch_id, custom_ids, submitted_at, run_id}` (`run_id` is null for a call made outside a run).
+- On its first call (including after `resume_run`), the client reads the rows whose `run_id` equals its own run's (null rows only when it runs outside a run). A re-issued request whose `custom_id` is in one of those rows reattaches to that batch instead of being resubmitted: an ended batch answers from its results, one still in progress is waited on.
+- A run never reattaches to, waits on, or cancels a batch another run submitted, even for identical requests.
 
 ### Enabling batch mode
 
@@ -42,14 +42,15 @@ Success:
   - API: run-creation requests for the supported run types accept `batch: bool`, default false.
   - CLI: run commands accept `--batch`.
   - UI: the start screens show a "Batch (50% cheaper, slower)" switch.
-- **Scheduled runs:** a new setting, `batch_scheduled_run_types: list[str]`, defaults to `["emerging_themes"]`.
+- **Scheduled runs:** a new setting, `batch_scheduled_run_types: list[str]`, defaults to `[]`: scheduled batch is opt-in by config. Only emerging_themes is wired to it, and it is a poor batch candidate (it runs outside `run_company_batch`, and its serial synthesis/role stages would become batches of one), so it is left off by default.
   - No extraction-family run is scheduled today; their savings come through the per-run switch.
   - The taxonomy researcher is excluded: it runs one item at a time (`concurrency=1`), so every batch would hold a single request.
 - **Factory:** `build_llm_client` / `build_verifier_llm_client` take `run_id` and `batch`. In batch mode they return a `BatchingLLMClient` bound to that run's directory.
 - **Concurrency:** in batch mode, pipelines use a new setting, `batch_concurrency` (default 1,000), in place of `max_concurrent_llm_calls` (8). That way each round gathers enough calls to be worth a batch.
 - **Supported run types:** the ones whose pipelines take `llm` from the factory and run companies concurrently through `run_batch` / `run_company_batch`:
   - extraction, financials, tnfd, transition_plan
-  - theme/research, identity, voting, replication, emerging_themes
+  - theme/research, identity, voting, replication
+  - Not emerging_themes: it runs outside `run_company_batch`, so it has no per-run switch (see Scheduled runs).
 
 ## Cost and visibility
 
@@ -87,6 +88,6 @@ All tests use a fake batches API; none make real API calls.
 
 ## Rollout
 
-1. Merge. Nothing changes until someone ticks the switch, and `batch_scheduled_run_types` affects only emerging_themes.
+1. Merge. Nothing changes until someone ticks the switch or adds a run type to `batch_scheduled_run_types` (empty by default).
 2. One real trial: an extraction of about 20 companies with `--batch`. It spends real API money, so it runs only with the user's approval. It checks the rounds, the cost and the progress display against the live API.
 3. Use the switch for large manual runs. Add run types to `batch_scheduled_run_types` once those pipelines are scheduled.

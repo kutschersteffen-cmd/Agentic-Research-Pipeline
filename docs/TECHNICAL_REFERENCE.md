@@ -300,7 +300,7 @@ The landing page of both Argus processes (`#/argusUniverse`). It maps a universe
 
 ### Batch mode
 
-A run can send its LLM calls through Anthropic's Message Batches API at 50% of the token price. Results are identical, but the run takes longer: each step waits on a batch round, which Anthropic usually finishes within an hour (24 h at most). Use it for large or overnight runs; leave it off for urgent ones. It is set per run, never globally (`llm_batch` is not an env setting you flip).
+A run can send its LLM calls through Anthropic's Message Batches API at 50% of the token price. Results are identical, but the run takes longer: each step waits on a batch round, which Anthropic usually finishes within an hour (24 h at most). Use it for large or overnight runs; leave it off for urgent ones. It is set per run, never globally: `ARP_LLM_BATCH=true` (or `llm_batch=True`) is rejected at startup.
 
 | Where | How |
 |---|---|
@@ -311,9 +311,9 @@ A run can send its LLM calls through Anthropic's Message Batches API at 50% of t
 Settings (env prefix `ARP_`):
 
 - `ARP_BATCH_CONCURRENCY` (`batch_concurrency`, default 1000): `max_concurrent_llm_calls` for a batch run.
-- `ARP_BATCH_SCHEDULED_RUN_TYPES` (`batch_scheduled_run_types`, default `["emerging_themes"]`): scheduled run types that run in batch mode.
+- `ARP_BATCH_SCHEDULED_RUN_TYPES` (`batch_scheduled_run_types`, default `[]`): scheduled run types that run in batch mode; opt-in. Only `emerging_themes` is wired, and it is not a good batch candidate: it runs outside `run_company_batch`, and its serial synthesis/role stages would become batches of one.
 
-While a run waits, its progress shows "Waiting on batch · N requests · submitted HH:MM…". The run manifest records `batch_saved_usd` (the discount's saving) and `params.batch`, and Run History marks batch runs with a "batch" badge. A crashed or restarted batch run resumes in batch mode and reuses batches it already submitted, tracked in `<cache_dir>/llm_batches.jsonl`.
+While a run waits, its progress shows "Waiting on batch · N requests · submitted HH:MM…". The run manifest records `batch_saved_usd` (the discount's saving) and `params.batch`, and Run History marks batch runs with a "batch" badge. A crashed or restarted batch run resumes in batch mode and reuses batches it already submitted, tracked in `<cache_dir>/llm_batches.jsonl`. Each row there carries the submitting run's id; a run only reattaches to its own rows, and cancelling a run never cancels another run's batch.
 
 ---
 
