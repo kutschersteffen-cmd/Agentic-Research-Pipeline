@@ -1,4 +1,5 @@
 import httpx
+import httpx2
 from anthropic import BadRequestError
 from anthropic.types import Message, ToolUseBlock, Usage
 from pydantic import BaseModel
@@ -32,29 +33,6 @@ def _message(tool_id: str, tool_input: dict, input_tokens: int = 10, output_toke
     )
 
 
-class _FakeRawResponse:
-    """Stands in for anthropic>=1's `AsyncAPIResponse`, whose `.parse()` is a
-    coroutine (see langchain_anthropic._sdk_compat._aparse, which awaits it)."""
-
-    def __init__(self, message: Message) -> None:
-        self._message = message
-
-    async def parse(self):
-        return self._message
-
-
-class _FakeRawMessagesResource:
-    """Stands in for `messages.with_raw_response`, which `ChatAnthropic._acreate`
-    calls instead of `messages.create` directly on anthropic>=1."""
-
-    def __init__(self, messages: "_FakeMessages") -> None:
-        self._messages = messages
-
-    async def create(self, **kwargs):
-        message = await self._messages.create(**kwargs)
-        return _FakeRawResponse(message)
-
-
 class _FakeMessages:
     def __init__(self, responses: list[Message]) -> None:
         self._responses = responses
@@ -63,13 +41,6 @@ class _FakeMessages:
     async def create(self, **kwargs):
         self.calls.append(kwargs)
         return self._responses[len(self.calls) - 1]
-
-    @property
-    def with_raw_response(self) -> _FakeRawMessagesResource:
-        # A property (not a fixed attribute set in __init__) so it dispatches
-        # to self.create() dynamically -- subclasses below (_FlakyMessages,
-        # _AlwaysBadRequest) override create() and rely on that.
-        return _FakeRawMessagesResource(self)
 
 
 class _FakeAsyncClient:
@@ -80,7 +51,7 @@ class _FakeAsyncClient:
 def _client_with_responses(tmp_path, responses: list[Message]) -> tuple[LangChainAnthropicClient, _FakeAsyncClient]:
     client = LangChainAnthropicClient(api_key="test", model="test-model", cache_dir=tmp_path, cache_enabled=False)
     fake = _FakeAsyncClient(responses)
-    client._chat._async_client = fake  # override the lazy anthropic.AsyncClient with our fake
+    client._client = fake
     return client, fake
 
 
@@ -89,9 +60,7 @@ async def test_validation_failure_retry_sends_tool_result_not_plain_text(tmp_pat
     tool_use block be followed by a user message with a matching
     tool_result block (referencing the same tool_use_id) -- a plain-text
     follow-up user message is rejected outright with a 400. This is the
-    same real bug the previous raw-SDK implementation hit; confirming
-    langchain-anthropic's ToolMessage(status="error") still serializes to
-    the correct tool_result shape."""
+    same real bug an earlier implementation hit."""
     first_response = _message("tu_1", {"wrong_field": 1})
     second_response = _message("tu_2", {"value": 42})
     client, fake = _client_with_responses(tmp_path, [first_response, second_response])
@@ -144,16 +113,6 @@ async def test_max_tokens_defaults_generously_and_is_overridable(tmp_path):
     assert fake2.messages.calls[0]["max_tokens"] == 16000
 
 
-def _temperature_kwarg(call: dict) -> float | None:
-    """Read `temperature` out of a captured `.create(**kwargs)` call,
-    wherever the installed anthropic SDK actually put it: a top-level kwarg
-    on anthropic<1, relocated into `extra_body` on anthropic>=1 (see
-    langchain_anthropic._sdk_compat._route_unsupported_sampling_params)."""
-    if "temperature" in call:
-        return call["temperature"]
-    return (call.get("extra_body") or {}).get("temperature")
-
-
 # `test_temperature_is_actually_sent_to_the_model` and
 # `test_temperature_unsupported_model_falls_back_and_sticks` used to live
 # here. Both asserted the old contract -- send `temperature`, and recover
@@ -185,7 +144,7 @@ async def test_prompt_cache_can_be_disabled(tmp_path):
         api_key="test", model="test-model", cache_dir=tmp_path, cache_enabled=False, prompt_cache_enabled=False
     )
     fake = _FakeAsyncClient([_message("tu_1", {"value": 1})])
-    client._chat._async_client = fake
+    client._client = fake
 
     await client.complete_structured(system="a stable persona prompt", prompt="prompt", output_model=_Target)
 
@@ -194,7 +153,7 @@ async def test_prompt_cache_can_be_disabled(tmp_path):
 
 async def test_cache_read_and_creation_tokens_are_captured(tmp_path):
     """Anthropic's raw `usage.input_tokens` is the uncached remainder only
-    (per the API's own accounting) -- langchain-anthropic adds cache_read +
+    (per the API's own accounting) -- the client adds cache_read +
     cache_creation on top to report a grand total, which is what
     cost_tracker.estimate_cost_usd's base_input_tokens subtraction assumes."""
     client, fake = _client_with_responses(tmp_path, [_message("tu_1", {"value": 1})])
@@ -211,10 +170,10 @@ async def test_cache_read_and_creation_tokens_are_captured(tmp_path):
 
 async def test_cache_creation_tokens_captured_under_1h_ttl(tmp_path):
     """With ttl="1h" (what this client always sends), Anthropic reports the
-    write count under cache_creation.ephemeral_1h_input_tokens and
-    langchain-anthropic zeroes the generic cache_creation_input_tokens field
-    when it does -- extraction must sum both, not just the generic field
-    (a real bug this test would have caught)."""
+    write count under cache_creation.ephemeral_1h_input_tokens and the
+    generic cache_creation_input_tokens field can read 0 -- extraction must
+    use the TTL-specific count, not just the generic field (a real bug this
+    test would have caught)."""
     from anthropic.types.usage import CacheCreation
 
     client, fake = _client_with_responses(tmp_path, [_message("tu_1", {"value": 1})])
@@ -292,7 +251,7 @@ async def test_unrelated_bad_request_is_not_swallowed(tmp_path):
     client = LangChainAnthropicClient(api_key="test", model="test-model", cache_dir=tmp_path, cache_enabled=False)
     fake = _FakeAsyncClient([])
     fake.messages = _AlwaysBadRequest([])
-    client._chat._async_client = fake
+    client._client = fake
 
     try:
         await client.complete_structured(system="sys", prompt="prompt", output_model=_Target)
@@ -323,22 +282,18 @@ async def test_the_tool_is_offered_not_forced(tmp_path):
 async def test_temperature_is_never_sent(tmp_path):
     """No model this codebase targets accepts an explicit `temperature` any
     more: sonnet-5, opus-5 and opus-5-5 reject a non-default value with a
-    400, and langchain-anthropic rejects it for sonnet-5-5 client-side with
-    a ValueError. Sending it and recovering on rejection cost one wasted
+    400. Sending it and recovering on rejection cost one wasted
     round-trip per client instance, silently."""
     client, fake = _client_with_responses(tmp_path, [_message("tu_1", {"value": 1})])
 
     await client.complete_structured(system="sys", prompt="prompt", output_model=_Target, temperature=0.0)
 
-    # Via the helper, not `"temperature" not in call`: langchain-anthropic
-    # relocates the parameter into `extra_body` on anthropic>=1, so the naive
-    # check passes whether or not it was actually sent.
-    assert _temperature_kwarg(fake.messages.calls[0]) is None
+    assert "temperature" not in fake.messages.calls[0]
     # The parameter stays in the signature (LLMClient contract + cache key),
     # so passing a non-default value must not start sending it either.
     client2, fake2 = _client_with_responses(tmp_path, [_message("tu_2", {"value": 2})])
     await client2.complete_structured(system="sys", prompt="p", output_model=_Target, temperature=0.7)
-    assert _temperature_kwarg(fake2.messages.calls[0]) is None
+    assert "temperature" not in fake2.messages.calls[0]
 
 
 async def test_a_successful_call_costs_exactly_one_request(tmp_path):
@@ -356,3 +311,42 @@ async def test_a_successful_call_costs_exactly_one_request(tmp_path):
     assert instance.value == 42
     assert usage.attempts == 1
     assert len(fake.messages.calls) == 1
+
+
+def _http_client(statuses: list[int], seen: list[int]) -> httpx2.AsyncClient:
+    """Real SDK, fake transport: answers each request with the next status."""
+    ok = _message("tu_1", {"value": 1}).model_dump(mode="json")
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        status = statuses[len(seen)]
+        seen.append(status)
+        body = ok if status == 200 else {"type": "error", "error": {"type": "x", "message": "x"}}
+        return httpx2.Response(status, json=body, headers={"retry-after-ms": "1"})
+
+    return httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
+
+
+async def test_transient_errors_are_retried_by_the_sdk(tmp_path):
+    """429/529 back off and retry; the call then succeeds on the same attempt count."""
+    client = LangChainAnthropicClient(api_key="test", model="test-model", cache_dir=tmp_path, cache_enabled=False)
+    seen: list[int] = []
+    client._client = client._client.with_options(http_client=_http_client([429, 529, 200], seen))
+
+    instance, usage = await client.complete_structured(system="sys", prompt="prompt", output_model=_Target)
+
+    assert instance.value == 1
+    assert usage.attempts == 1  # validation attempts, not network retries
+    assert seen == [429, 529, 200]
+
+
+async def test_bad_request_is_not_retried_by_the_sdk(tmp_path):
+    client = LangChainAnthropicClient(api_key="test", model="test-model", cache_dir=tmp_path, cache_enabled=False)
+    seen: list[int] = []
+    client._client = client._client.with_options(http_client=_http_client([400, 200], seen))
+
+    try:
+        await client.complete_structured(system="sys", prompt="prompt", output_model=_Target)
+        raise AssertionError("expected BadRequestError to propagate")
+    except BadRequestError:
+        pass
+    assert seen == [400]

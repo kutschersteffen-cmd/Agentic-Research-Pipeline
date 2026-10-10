@@ -37,8 +37,7 @@ class BM25IndexCache:
     since the built retriever is a pure function of its key.
     """
 
-    def __init__(self, max_entries: int = _MAX_CACHED_INDEXES) -> None:
-        self._max_entries = max_entries
+    def __init__(self) -> None:
         self._entries: OrderedDict[tuple[str, ...], tuple[BM25Retriever, dict[str, DocumentChunk]]] = OrderedDict()
         self._lock = threading.Lock()
 
@@ -63,7 +62,7 @@ class BM25IndexCache:
         with self._lock:
             self._entries[key] = entry
             self._entries.move_to_end(key)
-            while len(self._entries) > self._max_entries:
+            while len(self._entries) > _MAX_CACHED_INDEXES:
                 self._entries.popitem(last=False)
         return entry
 
@@ -71,13 +70,5 @@ class BM25IndexCache:
         with self._lock:
             self._entries.clear()
 
-    def stats(self) -> dict:
-        with self._lock:
-            return {"entries": len(self._entries)}
 
-
-_INDEX_CACHE = BM25IndexCache()
-
-
-def get_index_cache() -> BM25IndexCache:
-    return _INDEX_CACHE
+INDEX_CACHE = BM25IndexCache()

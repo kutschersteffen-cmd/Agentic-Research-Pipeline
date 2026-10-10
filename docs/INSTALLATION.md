@@ -128,7 +128,7 @@ detail): downloads the current public Mozilla CA bundle using `curl.exe`
 this is how the script avoids the chicken-and-egg problem of needing a
 trusted bundle before you have one), appends your company's certificate
 to it, and points pip, conda, npm, git, and Python's own HTTPS stack
-(`requests`/`httpx`, which this project's `langchain-anthropic` client
+(`requests`/`httpx`, which this project's `anthropic` client
 uses) at the merged bundle via environment variables and each tool's own
 config file. It's idempotent — safe to re-run if IT rotates the
 certificate.
@@ -303,7 +303,7 @@ to be on that side.
 
 **As of this version, the codebase only supports Anthropic Claude as the
 LLM provider** — the client is `backend/arp/llm/langchain_client.py`
-(`LangChainAnthropicClient`, built on `langchain-anthropic`), wired up in
+(`LangChainAnthropicClient`, built on the `anthropic` SDK), wired up in
 `backend/arp/llm/factory.py`, which raises immediately if
 `ARP_ANTHROPIC_API_KEY` is missing. Every agent in the codebase calls
 through the single `LLMClient.complete_structured` interface

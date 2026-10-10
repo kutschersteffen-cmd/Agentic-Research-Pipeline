@@ -9,9 +9,8 @@ dependencies = [
     # transitive upgrade from silently breaking the pipeline; lower bounds
     # are unchanged from the original stated minimums. Bump the upper bound
     # deliberately, verifying against the test suite, rather than removing it.
-    "anthropic>=0.40.0,<2.0",
+    "anthropic>=1.13,<2.0",
     "langchain-core>=0.3,<2.0",
-    "langchain-anthropic>=0.3,<2.0",
     "langgraph>=0.2,<2.0",
     "llama-index-core>=0.12,<1.0",
     "llama-index-retrievers-bm25>=0.5,<1.0",
@@ -27,10 +26,7 @@ dependencies = [
     "docling>=2.0,<3.0",
     "cryptography>=42.0,<51.0",
     "trafilatura>=1.9,<3.0",
-    "tenacity>=8.3,<10.0",
-    "APScheduler>=3.10,<4.0",
     "python-multipart>=0.0.9,<1.0",
-    "python-dotenv>=1.0,<2.0",
     "numpy>=1.26,<3.0",
     "openpyxl>=3.1,<4.0",
     "fastembed>=0.3,<1.0",

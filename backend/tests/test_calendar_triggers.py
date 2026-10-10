@@ -72,7 +72,7 @@ async def test_calendar_mode_runs_only_when_due(tmp_path):
     s.save_config(s.load_config().model_copy(update={"last_run_id": None}))
     await s._run_scheduled()
     assert s.load_config().last_run_id is None  # same date does not fire twice
-    assert s._scheduler.get_job(s.job_id).trigger.interval.total_seconds() == 24 * 3600
+    assert s._interval(s.load_config()) == 24 * 3600
 
 
 def test_emerging_themes_and_monitoring_configs_accept_calendar():

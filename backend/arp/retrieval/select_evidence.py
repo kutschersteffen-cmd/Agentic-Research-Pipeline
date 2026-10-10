@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from arp.retrieval.index_cache import get_index_cache
+from arp.retrieval.index_cache import INDEX_CACHE
 from arp.schemas.common import DocType, DocumentChunk
 from arp.storage.document_store import DocumentContentStore
 
@@ -152,9 +152,8 @@ def select_relevant_chunks(
         by_id = {c.chunk_id: c for c in candidates}
         scored = _opensearch_bm25_ranking(candidates, query_text, opensearch_client)
     else:
-        cache = get_index_cache()
-        key = cache.make_key(candidates)
-        retriever, by_id = cache.get_or_build(key, candidates)
+        key = INDEX_CACHE.make_key(candidates)
+        retriever, by_id = INDEX_CACHE.get_or_build(key, candidates)
         results = retriever.retrieve(query_text)
         scored = [(r.node.id_, r.score or 0.0) for r in results]
 

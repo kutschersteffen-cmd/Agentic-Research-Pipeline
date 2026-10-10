@@ -6,7 +6,7 @@ from arp.schemas.common import DocType, DocumentChunk
 
 
 def setup_function():
-    index_cache_module.get_index_cache().clear()
+    index_cache_module.INDEX_CACHE.clear()
 
 
 def _chunk(chunk_id, text, doc_type=DocType.ANNUAL_REPORT_10K):
@@ -86,19 +86,19 @@ def test_cache_reuse_does_not_change_selection_results():
     ]
 
     first = select_relevant_chunks(chunks, ["green", "capex", "renewable"], max_chunks=10)
-    index_cache_module.get_index_cache().clear()  # force a fresh build, no cache reuse
+    index_cache_module.INDEX_CACHE.clear()  # force a fresh build, no cache reuse
     second = select_relevant_chunks(chunks, ["green", "capex", "renewable"], max_chunks=10)
 
     assert [c.chunk_id for c in first] == [c.chunk_id for c in second]
 
 
 def test_lru_eviction_bounds_the_cache_and_reused_index_still_selects_correctly():
-    cache = index_cache_module.get_index_cache()
-    for i in range(cache._max_entries + 5):
+    cache = index_cache_module.INDEX_CACHE
+    for i in range(index_cache_module._MAX_CACHED_INDEXES + 5):
         chunks = [_chunk(f"c{i}_1", "green capex"), _chunk(f"c{i}_2", f"unique marker {i}")]
         select_relevant_chunks(chunks, ["capex"])
 
-    assert cache.stats()["entries"] <= cache._max_entries
+    assert len(cache._entries) <= index_cache_module._MAX_CACHED_INDEXES
 
     chunks = [_chunk("final_1", "green capex here"), _chunk("final_2", "unrelated content")]
     result = select_relevant_chunks(chunks, ["capex"])

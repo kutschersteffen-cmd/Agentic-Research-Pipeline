@@ -5,17 +5,8 @@ import hashlib
 import logging
 from pathlib import Path
 
-from anthropic import APIStatusError, APITimeoutError, BadRequestError
-from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from anthropic import AsyncAnthropic
 from pydantic import ValidationError
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    retry_if_not_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
 
 from arp.llm.base import LLMClient, LLMUsage, T
 from arp.llm.cache import DiskLLMCache
@@ -38,16 +29,11 @@ _TOOL_NAME = "emit_result"
 # but a real risk of expiring mid-run on a slow pipeline).
 _CACHE_CONTROL = {"type": "ephemeral", "ttl": "1h"}
 
-# BadRequestError (400) is excluded even though it's an APIStatusError: a
-# malformed-request rejection (e.g. an unsupported parameter) will never
-# succeed on retry, so blindly backing off and re-sending the identical
-# request five times just burns quota before failing anyway. There is no
-# longer a recoverable case to carve out: the one that existed -- a model
-# rejecting an explicit `temperature` -- is gone now that `temperature` is
-# never sent (see `_bind`), so a 400 here is unambiguously a bug to fix
-# rather than a parameter to retry without.
-_RETRYABLE = (APIStatusError, APITimeoutError, ConnectionError)
-_NOT_RETRYABLE = (BadRequestError,)
+# Network retries are the SDK's own: exponential backoff on 408/409/429/5xx
+# and connection errors/timeouts. A 400 (or any other 4xx) is never retried
+# -- a malformed request won't succeed on a resend, it is a bug to fix.
+# 4 retries = 5 attempts total, as before.
+_MAX_NETWORK_RETRIES = 4
 
 
 def _droppable_list_indices(errors: list[dict]) -> dict[str, set[int]] | None:
@@ -109,7 +95,7 @@ def _format_validation_errors(exc: ValidationError) -> str:
 
 
 class LangChainAnthropicClient(LLMClient):
-    """LLMClient backed by langchain-anthropic's ChatAnthropic.
+    """LLMClient backed by the `anthropic` SDK's AsyncAnthropic.
 
     Structured output comes from offering exactly one tool whose input
     schema is the target Pydantic model's JSON schema, rather than trusting
@@ -118,18 +104,10 @@ class LangChainAnthropicClient(LLMClient):
     `tool_choice` outright -- see `_bind` -- and the validation-retry loop
     re-prompts if a model answers in prose anyway, so a single advertised
     tool is enough without the 400.
-    Pydantic validation errors are fed back to the model as a tool-result
-    error for a bounded number of self-correction turns -- LangChain's
-    message types (SystemMessage/HumanMessage/AIMessage/ToolMessage)
-    translate to the exact same Anthropic wire format the raw-SDK
-    implementation hand-built, verified against the same retry-message
-    shape this codebase previously hit a real bug on (a plain-text retry
-    message after a tool_use turn is rejected by the API with a 400 --
-    it must be a matching tool_result block).
-
-    langchain-anthropic's own retry (`max_retries` on ChatAnthropic) is
-    disabled in favor of the explicit tenacity wrapper below, for the same
-    exception-type control the previous implementation had.
+    Pydantic validation errors are fed back to the model as an `is_error`
+    tool_result block for a bounded number of self-correction turns (a
+    plain-text retry message after a tool_use turn is rejected by the API
+    with a 400 -- it must be a matching tool_result block).
     """
 
     def __init__(
@@ -139,13 +117,11 @@ class LangChainAnthropicClient(LLMClient):
         cache_dir: Path,
         cache_enabled: bool = True,
         cache_refresh: bool = False,
-        max_network_retries: int = 5,
         prompt_cache_enabled: bool = True,
     ) -> None:
-        self._chat = ChatAnthropic(model=model, api_key=api_key, max_retries=0)
+        self._client = AsyncAnthropic(api_key=api_key, max_retries=_MAX_NETWORK_RETRIES)
         self.model = model
         self.cache = DiskLLMCache(cache_dir, enabled=cache_enabled, refresh=cache_refresh)
-        self._max_network_retries = max_network_retries
         self._prompt_cache_enabled = prompt_cache_enabled
 
     async def complete_structured(
@@ -188,39 +164,27 @@ class LangChainAnthropicClient(LLMClient):
             "input_schema": schema,
         }
 
-        def _bind():
-            # `temperature` is deliberately not sent. No model this codebase
-            # targets accepts it any more: claude-sonnet-5, claude-opus-5 and
-            # claude-opus-5-5 reject a non-default value with a 400, and
-            # langchain-anthropic rejects it for claude-sonnet-5-5 client-side
-            # with a ValueError. It used to be sent and then retried without
-            # it on rejection, which meant *every* client instance burned one
-            # round-trip on a request that could never succeed -- the retry
-            # was silent, so this looked like it worked. These models fix
-            # sampling internally, so dropping it changes nothing about
-            # determinism; the disk cache is what makes a run reproducible.
-            # The parameter stays in the signature: it is part of the
-            # LLMClient contract and of the cache key, and a caller pointing
-            # this at an older model that does accept it can reinstate the
-            # bind here.
-            extra = {"max_tokens": max_tokens}
-            # tool_choice is "auto", not {"type": "tool"}: forcing a specific
-            # tool is rejected outright by the current model generation
-            # (`tool_choice: type "tool" and "any" are not supported for this
-            # model` -- a 400 on claude-opus-5-5 and claude-sonnet-5-5), which
-            # would fail every call site in this codebase at once the moment
-            # ARP_LLM_MODEL is bumped. "auto" plus a single tool whose
-            # description says to emit the result is enough in practice --
-            # verified calling the tool on sonnet-5, opus-5, sonnet-5-5 and
-            # opus-5-5 -- and the loop below still re-prompts if a model
-            # answers in prose instead, so the guarantee does not rest on the
-            # model's goodwill. Deliberately not `strict: True`: it would
-            # require additionalProperties/required on every nested $def of
-            # 60-odd Pydantic schemas, and the validation-retry loop below
-            # already covers malformed arguments.
-            return self._chat.bind_tools([tool], tool_choice={"type": "auto"}).bind(**extra)
-
-        bound = _bind()
+        # `temperature` is deliberately not sent. No model this codebase
+        # targets accepts it any more: claude-sonnet-5, claude-opus-5,
+        # claude-opus-5-5 and claude-sonnet-5-5 reject a non-default value
+        # with a 400. These models fix sampling internally, so dropping it
+        # changes nothing about determinism; the disk cache is what makes a
+        # run reproducible. The parameter stays in the signature: it is part
+        # of the LLMClient contract and of the cache key.
+        # tool_choice is "auto", not {"type": "tool"}: forcing a specific
+        # tool is rejected outright by the current model generation
+        # (`tool_choice: type "tool" and "any" are not supported for this
+        # model` -- a 400 on claude-opus-5-5 and claude-sonnet-5-5), which
+        # would fail every call site in this codebase at once the moment
+        # ARP_LLM_MODEL is bumped. "auto" plus a single tool whose
+        # description says to emit the result is enough in practice --
+        # verified calling the tool on sonnet-5, opus-5, sonnet-5-5 and
+        # opus-5-5 -- and the loop below still re-prompts if a model
+        # answers in prose instead, so the guarantee does not rest on the
+        # model's goodwill. Deliberately not `strict: True`: it would
+        # require additionalProperties/required on every nested $def of
+        # 60-odd Pydantic schemas, and the validation-retry loop below
+        # already covers malformed arguments.
 
         system_content: str | list[dict] = system
         if self._prompt_cache_enabled and system:
@@ -234,7 +198,7 @@ class LangChainAnthropicClient(LLMClient):
                 *({"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": base64.b64encode(b).decode()}} for b in images),
                 {"type": "text", "text": prompt},
             ]
-        messages: list[BaseMessage] = [SystemMessage(content=system_content), HumanMessage(content=human)]
+        messages: list[dict] = [{"role": "user", "content": human}]
         total_input_tokens = 0
         total_output_tokens = 0
         total_cache_read_tokens = 0
@@ -242,50 +206,64 @@ class LangChainAnthropicClient(LLMClient):
         last_error: ValidationError | None = None
 
         for attempt in range(1, max_validation_retries + 2):
-            ai_message = await self._call_with_backoff(bound, messages)
-            usage_meta = ai_message.usage_metadata or {}
-            total_input_tokens += usage_meta.get("input_tokens", 0)
-            total_output_tokens += usage_meta.get("output_tokens", 0)
-            input_token_details = usage_meta.get("input_token_details") or {}
-            total_cache_read_tokens += input_token_details.get("cache_read") or 0
-            # langchain-anthropic reports the TTL-specific write count under
-            # ephemeral_{5m,1h}_input_tokens and zeroes the generic
-            # "cache_creation" key whenever it does -- sum all three rather
-            # than reading "cache_creation" alone, which undercounts (reads
-            # 0) for our 1h-TTL cache_control.
-            total_cache_creation_tokens += (
-                (input_token_details.get("cache_creation") or 0)
-                + (input_token_details.get("ephemeral_5m_input_tokens") or 0)
-                + (input_token_details.get("ephemeral_1h_input_tokens") or 0)
+            response = await self._client.messages.create(
+                model=self.model,
+                max_tokens=max_tokens,
+                system=system_content,
+                messages=messages,
+                tools=[tool],
+                tool_choice={"type": "auto"},
             )
+            u = response.usage
+            # input_tokens is reported as the grand total (uncached + cache
+            # read + cache write), which cost_tracker's base-input subtraction
+            # assumes. With a 1h-TTL cache_control the write count lives
+            # under cache_creation.ephemeral_{5m,1h}_input_tokens and the
+            # generic cache_creation_input_tokens can read 0 -- prefer the
+            # TTL-specific sum, fall back to the generic field.
+            cc = u.cache_creation
+            cache_write = ((cc.ephemeral_5m_input_tokens or 0) + (cc.ephemeral_1h_input_tokens or 0) if cc else 0) or (
+                u.cache_creation_input_tokens or 0
+            )
+            cache_read = u.cache_read_input_tokens or 0
+            total_input_tokens += (u.input_tokens or 0) + cache_read + cache_write
+            total_output_tokens += u.output_tokens or 0
+            total_cache_read_tokens += cache_read
+            total_cache_creation_tokens += cache_write
 
-            tool_call = next((tc for tc in ai_message.tool_calls if tc["name"] == _TOOL_NAME), None)
+            tool_call = next((b for b in response.content if b.type == "tool_use" and b.name == _TOOL_NAME), None)
             if tool_call is None:
                 last_error = ValidationError.from_exception_data(
                     output_model.__name__, [{"type": "missing", "loc": (), "input": None, "msg": "no tool call returned"}]
                 )
-                messages.append(ai_message)
-                messages.append(HumanMessage(content=f"You must respond by calling the `{_TOOL_NAME}` tool. Try again."))
+                messages.append({"role": "assistant", "content": response.content})
+                messages.append({"role": "user", "content": f"You must respond by calling the `{_TOOL_NAME}` tool. Try again."})
                 continue
 
             try:
-                instance = output_model.model_validate(tool_call["args"])
+                instance = output_model.model_validate(tool_call.input)
             except ValidationError as exc:
-                instance, dropped = _drop_invalid_list_items(output_model, tool_call["args"], exc)
+                instance, dropped = _drop_invalid_list_items(output_model, tool_call.input, exc)
                 if instance is None:
                     last_error = exc
-                    messages.append(ai_message)
+                    messages.append({"role": "assistant", "content": response.content})
                     messages.append(
-                        ToolMessage(
-                            content=(
-                                f"Your `{_TOOL_NAME}` call failed schema validation on these fields:\n"
-                                f"{_format_validation_errors(exc)}\n\n"
-                                f"Call `{_TOOL_NAME}` again with a corrected input that fixes every field listed "
-                                f"above. Leave every other field exactly as it was."
-                            ),
-                            tool_call_id=tool_call["id"],
-                            status="error",
-                        )
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": tool_call.id,
+                                    "is_error": True,
+                                    "content": (
+                                        f"Your `{_TOOL_NAME}` call failed schema validation on these fields:\n"
+                                        f"{_format_validation_errors(exc)}\n\n"
+                                        f"Call `{_TOOL_NAME}` again with a corrected input that fixes every field listed "
+                                        f"above. Leave every other field exactly as it was."
+                                    ),
+                                }
+                            ],
+                        }
                     )
                     continue
                 if dropped:
@@ -314,15 +292,3 @@ class LangChainAnthropicClient(LLMClient):
 
         assert last_error is not None
         raise last_error
-
-    async def _call_with_backoff(self, bound, messages: list[BaseMessage]) -> AIMessage:
-        @retry(
-            reraise=True,
-            stop=stop_after_attempt(self._max_network_retries),
-            wait=wait_exponential(multiplier=1, min=1, max=30),
-            retry=retry_if_exception_type(_RETRYABLE) & retry_if_not_exception_type(_NOT_RETRYABLE),
-        )
-        async def _do_call() -> AIMessage:
-            return await bound.ainvoke(messages)
-
-        return await _do_call()
