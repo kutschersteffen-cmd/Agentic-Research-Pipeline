@@ -66,7 +66,7 @@ class PortfolioModel(Base):
 
 
 class CompanyModel(Base):
-    __tablename__ = "companies"
+    __tablename__ = "legacy_companies"
 
     company_id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String)
@@ -86,7 +86,7 @@ class SecurityModel(Base):
     name: Mapped[str] = mapped_column(String)
     asset_class: Mapped[str] = mapped_column(String)
     currency: Mapped[str] = mapped_column(String)
-    company_id: Mapped[str | None] = mapped_column(ForeignKey("companies.company_id"), nullable=True)
+    company_id: Mapped[str | None] = mapped_column(ForeignKey("legacy_companies.company_id"), nullable=True)
 
 
 class SecurityResolutionModel(Base):
@@ -277,10 +277,10 @@ class CompanyFactModel(Base):
     module's docstring.
     """
 
-    __tablename__ = "company_facts"
+    __tablename__ = "legacy_company_facts"
     __table_args__ = (
-        Index("ix_company_facts_current", "company_id", "fact_key", "as_of", "is_current"),
-        Index("ix_company_facts_type", "company_id", "fact_type"),
+        Index("ix_legacy_company_facts_current", "company_id", "fact_key", "as_of", "is_current"),
+        Index("ix_legacy_company_facts_type", "company_id", "fact_type"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -297,7 +297,7 @@ class CompanyFactModel(Base):
     valid_from: Mapped[str] = mapped_column(String)
     valid_to: Mapped[str | None] = mapped_column(String, nullable=True)
     is_current: Mapped[bool] = mapped_column(default=True)
-    superseded_by_id: Mapped[int | None] = mapped_column(ForeignKey("company_facts.id"), nullable=True)
+    superseded_by_id: Mapped[int | None] = mapped_column(ForeignKey("legacy_company_facts.id"), nullable=True)
 
 
 class EngagementIssueModel(Base):

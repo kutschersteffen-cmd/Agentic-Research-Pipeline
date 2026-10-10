@@ -75,7 +75,7 @@ def cleanup(settings, client):
         c.execute(text("DELETE FROM holdings WHERE portfolio_id = ANY(:p)"), {"p": portfolios})
         c.execute(text("DELETE FROM portfolios WHERE portfolio_id = ANY(:p)"), {"p": portfolios})
         c.execute(text("DELETE FROM securities WHERE security_id = ANY(:i)"), {"i": isins})
-        c.execute(text("DELETE FROM companies WHERE company_id = ANY(:i)"), {"i": [f"isin_{i}" for i in isins]})
+        c.execute(text("DELETE FROM legacy_companies WHERE company_id = ANY(:i)"), {"i": [f"isin_{i}" for i in isins]})
     engine.dispose()
 
 

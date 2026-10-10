@@ -84,13 +84,64 @@ def _drop_projection_company_fks(conn: Connection) -> None:
             JOIN pg_class child ON child.oid = con.conrelid
             JOIN pg_class parent ON parent.oid = con.confrelid
             WHERE con.contype = 'f'
-              AND parent.relname = 'companies'
-              AND child.relname IN ('company_records', 'company_facts', 'engagement_issues')
+              AND parent.relname = 'legacy_companies'
+              AND child.relname IN ('company_records', 'legacy_company_facts', 'engagement_issues')
             """
         )
     ).all()
     for table_name, constraint_name in rows:
         conn.execute(text(f'ALTER TABLE {table_name} DROP CONSTRAINT "{constraint_name}"'))
+
+
+def _rename_legacy_table(conn: Connection, old: str, new: str, marker: str, renames: tuple[tuple[str, str], ...]) -> None:
+    """Renames a legacy-shaped `old` (has column `marker`) to `new`, plus the
+    pkey/index/sequence names the new same-named table would collide with."""
+    from sqlalchemy import text
+
+    cols = {r[0] for r in conn.execute(
+        text("SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = :t"),
+        {"t": old},
+    )}
+    if marker not in cols:
+        return
+    conn.execute(text(f"ALTER TABLE {old} RENAME TO {new}"))
+    for kind, name in renames:
+        legacy = name.replace(old, new, 1)
+        if kind == "constraint":
+            conn.execute(text(f"ALTER TABLE {new} RENAME CONSTRAINT {name} TO {legacy}"))
+        else:
+            conn.execute(text(f"ALTER {kind} IF EXISTS {name} RENAME TO {legacy}"))
+
+
+def _rename_legacy_companies(conn: Connection) -> None:
+    _rename_legacy_table(conn, "companies", "legacy_companies", "company_id", (("constraint", "companies_pkey"),))
+
+
+def _rename_legacy_company_facts(conn: Connection) -> None:
+    _rename_legacy_table(
+        conn,
+        "company_facts",
+        "legacy_company_facts",
+        "fact_key",
+        (
+            ("constraint", "company_facts_pkey"),
+            ("SEQUENCE", "company_facts_id_seq"),
+            ("INDEX", "ix_company_facts_current"),
+            ("INDEX", "ix_company_facts_type"),
+        ),
+    )
+
+
+def _fields_id_check(conn: Connection) -> None:
+    from sqlalchemy import text
+
+    if not conn.execute(text("SELECT 1 FROM pg_constraint WHERE conname = 'ck_fields_field_id'")).first():
+        conn.execute(
+            text(
+                "ALTER TABLE fields ADD CONSTRAINT ck_fields_field_id"
+                " CHECK (field_id ~ '^(fld_[a-z0-9]+|prov:[a-z0-9_]+:[a-z0-9_]+)$')"
+            )
+        )
 
 
 def _create_bi_views(conn: Connection) -> None:
@@ -137,6 +188,12 @@ def _holdings_intake(conn: Connection) -> None:
     _create_bi_views(conn)
 
 
+# Run before create_all, so a legacy-shaped table does not shadow a new one of the same name.
+PRE_CREATE_STEPS: tuple[SchemaStep, ...] = (
+    SchemaStep("0005_rename_legacy_companies", "companies -> legacy_companies", _rename_legacy_companies),
+    SchemaStep("0006_rename_legacy_company_facts", "company_facts -> legacy_company_facts", _rename_legacy_company_facts),
+)
+
 # Ordered; append new steps, never edit or reorder an existing one (a
 # database that already recorded it will not run it again).
 SCHEMA_STEPS: tuple[SchemaStep, ...] = (
@@ -159,6 +216,11 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         name="0004_bi_published_views",
         description="Re-create the bi views so the datasets published into bi_published are readable",
         apply=_create_bi_views,
+    ),
+    SchemaStep(
+        name="fields_id_check",
+        description="CHECK on fields.field_id: fld_<id> or prov:<source>:<metric>",
+        apply=_fields_id_check,
     ),
 )
 
@@ -228,6 +290,17 @@ def _add_missing_columns(conn: Connection) -> list[tuple[str, str]]:
     return added
 
 
+def _run_steps(conn: Connection, steps: tuple[SchemaStep, ...], applied: set[str], done: list[str]) -> None:
+    from sqlalchemy import text
+
+    for step in steps:
+        if step.name in applied:
+            continue
+        step.apply(conn)
+        conn.execute(text(f"INSERT INTO {_MIGRATIONS_TABLE} (name) VALUES (:name) ON CONFLICT DO NOTHING"), {"name": step.name})
+        done.append(step.name)
+
+
 def ensure_schema(dsn: str) -> dict:
     """Brings a database up to what the models define, idempotently: the
     pgvector extension, any missing tables, any missing columns, then any
@@ -240,14 +313,20 @@ def ensure_schema(dsn: str) -> dict:
     [...], "steps_applied": [...]}` -- so the CLI can report it instead of
     claiming success without detail.
     """
-    sqlalchemy = _sqlalchemy()
+    _sqlalchemy()
     from sqlalchemy import inspect, text
 
+    import arp.db.models  # noqa: F401  (registers the company-foundation tables on Base)
     from arp.storage.postgres_models import Base
 
     engine = get_engine(dsn)
     with engine.begin() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+
+    steps_applied: list[str] = []
+    with engine.begin() as conn:
+        applied = _applied_step_names(conn)
+        _run_steps(conn, PRE_CREATE_STEPS, applied, steps_applied)
 
     with engine.connect() as conn:
         before = set(inspect(conn).get_table_names())
@@ -257,17 +336,7 @@ def ensure_schema(dsn: str) -> dict:
     with engine.begin() as conn:
         after = set(inspect(conn).get_table_names())
         columns_added = _add_missing_columns(conn)
-        applied = _applied_step_names(conn)
-        steps_applied = []
-        for step in SCHEMA_STEPS:
-            if step.name in applied:
-                continue
-            step.apply(conn)
-            conn.execute(
-                sqlalchemy.text(f"INSERT INTO {_MIGRATIONS_TABLE} (name) VALUES (:name) ON CONFLICT DO NOTHING"),
-                {"name": step.name},
-            )
-            steps_applied.append(step.name)
+        _run_steps(conn, SCHEMA_STEPS, _applied_step_names(conn), steps_applied)
 
     return {
         "tables_created": sorted(after - before),
@@ -290,6 +359,7 @@ def schema_report(dsn: str) -> dict:
     _sqlalchemy()
     from sqlalchemy import inspect, text
 
+    import arp.db.models  # noqa: F401
     from arp.storage.postgres_models import Base
 
     engine = get_engine(dsn)
@@ -304,7 +374,7 @@ def schema_report(dsn: str) -> dict:
             conn.execute(text("SELECT 1 FROM pg_extension WHERE extname = 'vector'")).first()
         )
         applied = _applied_step_names(conn) if _MIGRATIONS_TABLE in existing_tables else set()
-        pending_steps = [s.name for s in SCHEMA_STEPS if s.name not in applied]
+        pending_steps = [s.name for s in (*PRE_CREATE_STEPS, *SCHEMA_STEPS) if s.name not in applied]
 
         drift: list[str] = []
         for table_name in sorted(existing_tables & expected_tables):

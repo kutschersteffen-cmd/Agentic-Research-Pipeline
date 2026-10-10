@@ -56,7 +56,7 @@ _FACT_SELECT = """
            CASE WHEN jsonb_typeof(value->'value') = 'string' THEN value->>'value' END AS value_text,
            status, confidence, reviewer,
            bi.safe_ts(valid_from) AS valid_from
-    FROM company_facts
+    FROM legacy_company_facts
     WHERE is_current AND status IN ({statuses})
 """
 
@@ -69,7 +69,7 @@ _HOLDINGS_SELECT = """
     FROM holdings h
     JOIN portfolios p ON p.portfolio_id = h.portfolio_id AND h.kind = 'portfolio'
     LEFT JOIN securities s ON s.security_id = h.security_id
-    LEFT JOIN companies c ON c.company_id = s.company_id
+    LEFT JOIN legacy_companies c ON c.company_id = s.company_id
 """
 
 _VIEWS = {

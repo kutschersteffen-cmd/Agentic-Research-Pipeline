@@ -120,9 +120,9 @@ def test_a_column_the_models_dropped_is_reported_as_drift_not_removed(current_sc
 def test_a_recorded_step_is_applied_once_and_only_once(current_schema):
     """Steps are run-once and recorded, which is what makes "is this
     database current?" answerable at all."""
-    from arp.storage.postgres_schema import SCHEMA_STEPS, ensure_schema, schema_report
+    from arp.storage.postgres_schema import PRE_CREATE_STEPS, SCHEMA_STEPS, ensure_schema, schema_report
 
-    step_names = [step.name for step in SCHEMA_STEPS]
+    step_names = [step.name for step in (*PRE_CREATE_STEPS, *SCHEMA_STEPS)]
     assert schema_report(DSN)["applied_steps"] == sorted(step_names)
 
     _execute("DELETE FROM schema_migrations")
@@ -143,7 +143,7 @@ def test_the_projection_fk_step_is_idempotent_against_a_legacy_database(current_
 
     _execute(
         "ALTER TABLE company_records ADD CONSTRAINT company_records_company_id_fkey "
-        "FOREIGN KEY (company_id) REFERENCES companies(company_id)"
+        "FOREIGN KEY (company_id) REFERENCES legacy_companies(company_id)"
     )
     _execute("DELETE FROM schema_migrations WHERE name = '0001_drop_projection_company_fks'")
 

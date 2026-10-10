@@ -51,7 +51,7 @@ def _seed(engine, facts=(), holdings_date="2026-02-28"):
 
     with engine.begin() as conn:
         conn.execute(text("INSERT INTO portfolios (portfolio_id, name, tags) VALUES ('p1', 'Core', '{}')"))
-        conn.execute(text("INSERT INTO companies (company_id, name, sector, country) VALUES ('bmw', 'BMW', 'Auto', 'DE')"))
+        conn.execute(text("INSERT INTO legacy_companies (company_id, name, sector, country) VALUES ('bmw', 'BMW', 'Auto', 'DE')"))
         conn.execute(
             text(
                 "INSERT INTO securities (security_id, name, asset_class, currency, company_id) VALUES ('s1', 'BMW', 'equity', 'EUR', 'bmw')"
@@ -68,7 +68,7 @@ def _seed(engine, facts=(), holdings_date="2026-02-28"):
         for key, as_of, status, value, current in facts:
             conn.execute(
                 text(
-                    "INSERT INTO company_facts (company_id, fact_key, as_of, fact_type, value, status, source_run_id,"
+                    "INSERT INTO legacy_company_facts (company_id, fact_key, as_of, fact_type, value, status, source_run_id,"
                     " valid_from, is_current) VALUES ('bmw', :k, :a, 'financials', CAST(:v AS jsonb), :s, 'r1',"
                     " '2026-03-01T00:00:00+00:00', :c)"
                 ),
@@ -221,7 +221,7 @@ def test_bi_reader_cannot_select_base_tables(engine):
     try:
         with reader.connect() as conn:
             assert conn.execute(sa.text("SELECT count(*) FROM bi.holdings")).scalar() == 1
-        for table in ("holdings", "public.company_facts"):
+        for table in ("holdings", "public.legacy_company_facts"):
             with reader.connect() as conn, pytest.raises(ProgrammingError, match="permission denied"):
                 conn.execute(sa.text(f"SELECT * FROM {table}"))
     finally:
