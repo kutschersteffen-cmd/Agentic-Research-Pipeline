@@ -13,9 +13,10 @@ from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
 from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.orchestration.jobs import NotResumable, check_resumable, resume_run
 from arp.research.activity_generator import build_theme
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
-from arp.research.pipeline import create_theme_run, execute_theme_run, resume_theme_run
+from arp.research.pipeline import create_theme_run, execute_theme_run
 from arp.research.rd_exposure.resolver import RDResolverContext
 from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company
 from arp.research.revenue_exposure.catalogue import load_catalogue
@@ -198,25 +199,25 @@ async def resume_theme_run_endpoint(
 ) -> dict:
     """Re-invokes execute_theme_run for a run that was interrupted, failed,
     partially completed, or cancelled -- reconstructed from what
-    create_theme_run persisted (theme.json, universe_path,
-    catalogue_mapping.json). Already-completed companies are skipped
-    automatically (run_batch's own resumability); nothing is redone.
+    create_theme_run persisted (see arp.orchestration.jobs.resume_run).
+    Already-completed companies are skipped automatically (run_batch's own
+    resumability); nothing is redone.
     """
     manifest = run_store.load_manifest(run_id)
     if manifest is None:
         raise HTTPException(404, "Run not found")
     if manifest.run_type != "theme":
         raise HTTPException(400, f"Run {run_id} is a {manifest.run_type} run, not a theme run.")
-    if manifest.status == "completed":
-        raise HTTPException(400, "This run already completed successfully -- nothing to resume.")
-    if not manifest.params.get("universe_path"):
-        raise HTTPException(400, "This run has no stored universe_path (it predates resume support, or was started with inline `companies`) and can't be reconstructed.")
+    try:
+        check_resumable(run_store, run_id)
+    except NotResumable as exc:
+        raise HTTPException(400, str(exc)) from exc
 
     llm = get_llm_client()  # surfaces a clean 503 before we schedule anything if unconfigured
     verifier_llm = get_verifier_llm_client()
 
     async def _background() -> None:
-        await resume_theme_run(
+        await resume_run(
             run_id, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store
         )
 

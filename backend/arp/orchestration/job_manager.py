@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 
 from arp.schemas.common import CompanyRef, JobStatus, RunManifest, new_id
 from arp.storage.atomic_io import atomic_write_text
@@ -46,6 +47,20 @@ class JobManager:
             )
         return manifest
 
+    def _update(self, run_id: str, fn: Callable[[RunManifest], None]) -> RunManifest:
+        # Locked because a batch's own progress writes (from the event-loop
+        # thread) and a sync API route like /cancel (dispatched to a real
+        # worker thread by FastAPI) both read-modify-write the same
+        # manifest.json -- without this, whichever write lands second wins
+        # outright and silently discards the other side's update.
+        with self.store.lock(run_id):
+            manifest = self.store.load_manifest(run_id)
+            if manifest is None:
+                raise ValueError(f"Unknown run_id: {run_id}")
+            fn(manifest)
+            self.store.save_manifest(manifest)
+            return manifest
+
     def record_progress(
         self,
         run_id: str,
@@ -57,29 +72,18 @@ class JobManager:
         output_tokens_delta: int = 0,
         cost_delta_usd: float = 0.0,
     ) -> RunManifest:
-        # Locked because a batch's own progress writes (from the event-loop
-        # thread) and a sync API route like /cancel (dispatched to a real
-        # worker thread by FastAPI) both read-modify-write the same
-        # manifest.json -- without this, whichever write lands second wins
-        # outright and silently discards the other side's update.
-        with self.store.lock(run_id):
-            manifest = self.store.load_manifest(run_id)
-            if manifest is None:
-                raise ValueError(f"Unknown run_id: {run_id}")
+        def fn(manifest: RunManifest) -> None:
             manifest.completed_count += completed_delta
             manifest.failed_count += failed_delta
             manifest.review_count += review_delta
             manifest.input_tokens += input_tokens_delta
             manifest.output_tokens += output_tokens_delta
             manifest.estimated_cost_usd += cost_delta_usd
-            self.store.save_manifest(manifest)
-            return manifest
+
+        return self._update(run_id, fn)
 
     def finish_run(self, run_id: str, error: str | None = None) -> RunManifest:
-        with self.store.lock(run_id):
-            manifest = self.store.load_manifest(run_id)
-            if manifest is None:
-                raise ValueError(f"Unknown run_id: {run_id}")
+        def fn(manifest: RunManifest) -> None:
             if error:
                 manifest.status = JobStatus.FAILED
                 manifest.error = error
@@ -92,26 +96,18 @@ class JobManager:
                 manifest.status = JobStatus.PARTIALLY_COMPLETED
             else:
                 manifest.status = JobStatus.COMPLETED
-            self.store.save_manifest(manifest)
-            return manifest
+
+        return self._update(run_id, fn)
 
     def mark_running(self, run_id: str) -> RunManifest:
         """A (re)start: running again, with the last attempt's error and cancel request cleared."""
-        with self.store.lock(run_id):
-            manifest = self.store.load_manifest(run_id)
-            if manifest is None:
-                raise ValueError(f"Unknown run_id: {run_id}")
+
+        def fn(manifest: RunManifest) -> None:
             manifest.status = JobStatus.RUNNING
             manifest.error = None
             manifest.cancel_requested = False
-            self.store.save_manifest(manifest)
-            return manifest
+
+        return self._update(run_id, fn)
 
     def request_cancel(self, run_id: str) -> RunManifest:
-        with self.store.lock(run_id):
-            manifest = self.store.load_manifest(run_id)
-            if manifest is None:
-                raise ValueError(f"Unknown run_id: {run_id}")
-            manifest.cancel_requested = True
-            self.store.save_manifest(manifest)
-            return manifest
+        return self._update(run_id, lambda m: setattr(m, "cancel_requested", True))

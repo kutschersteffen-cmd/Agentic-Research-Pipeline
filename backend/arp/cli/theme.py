@@ -10,12 +10,13 @@ from arp.cli._shared import _registry, _run_store, _taxonomy_store
 from arp.config import get_settings
 from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
+from arp.orchestration.jobs import resume_run
 from arp.research.activity_generator import build_theme
 from arp.research.indirect_exposure.core_sectors import classify_theme_core_sectors
 from arp.research.indirect_exposure.criticality import apply_criticality_overlay
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.lifecycle_classifier import classify_theme_lifecycle_stages
-from arp.research.pipeline import resume_theme_run, run_thematic_universe
+from arp.research.pipeline import run_thematic_universe
 from arp.research.rd_exposure.resolver import RDResolverContext
 from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company
 from arp.research.revenue_exposure.catalogue import load_catalogue
@@ -218,7 +219,7 @@ def theme_resume(run_id: str) -> None:
     verifier_llm = build_verifier_llm_client(settings)
     try:
         run_id = asyncio.run(
-            resume_theme_run(
+            resume_run(
                 run_id, llm=llm, verifier_llm=verifier_llm, registry=_registry(), settings=settings, run_store=_run_store()
             )
         )

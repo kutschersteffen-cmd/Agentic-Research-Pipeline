@@ -12,9 +12,9 @@ import httpx
 from arp.config import Settings
 from arp.ingestion.edgar import AnnualOriginal, EdgarDocumentSource
 from arp.ingestion.xbrl import XbrlFactSource
-from arp.orchestration.batch_runner import read_done_keys, run_batch
+from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.job_manager import JobManager
-from arp.orchestration.jobs import hold_run
+from arp.orchestration.jobs import hold_run, restart_run
 from arp.schemas.common import CompanyRef
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.run_store import RunStore
@@ -176,17 +176,6 @@ def create_xbrl_run(
     return run_id
 
 
-def _sync_counts(run_store: RunStore, run_id: str) -> None:
-    """Counts rebuilt from the files, so a resume never double counts: a company with a
-    result row is completed, one whose errors have no result row is failed."""
-    done = read_done_keys(run_store.results_path(run_id))
-    failed = {r.get("key") for r in run_store.read_jsonl(run_store.errors_path(run_id))} - done - {None}
-    with run_store.lock(run_id):
-        manifest = run_store.load_manifest(run_id)
-        manifest.completed_count, manifest.failed_count = len(done), len(failed)
-        run_store.save_manifest(manifest)
-
-
 def _auto_fetch(routing: dict[str, dict], settings: Settings, refresh: bool, sec, esef):
     """Fetch one company by its stored route and stored (enriched) company; each source is built only
     when a company first needs it."""
@@ -219,7 +208,6 @@ async def execute_xbrl_run(
     source: SecSource | EsefSource | None = None,
     esef_source: EsefSource | None = None,
 ) -> str:
-    job_manager = JobManager(run_store)
     if market == "auto":
         fetch_one = _auto_fetch(load_routing(run_store, run_id), settings, refresh, source, esef_source)
     elif market == "esef":  # refresh does not apply: the JSON is always re-downloaded and hashed
@@ -234,20 +222,14 @@ async def execute_xbrl_run(
     tag_set = frozenset(tags) if tags is not None else None
 
     with hold_run(run_store, run_id):
-        job_manager.mark_running(run_id)
-        _sync_counts(run_store, run_id)
-        await run_batch(
+        restart_run(run_store, run_id)  # a re-run is a resume: counts rebuilt, failures retried
+        await run_company_batch(
+            run_id,
             companies,
-            item_key=lambda c: c.company_id,
+            run_store=run_store,
             worker=(lambda c: fetch_one(c, store=store, tags=tag_set)) if market == "auto"
             else (lambda c: fetch_one(c, source=source, store=store, tags=tag_set)),
-            results_path=run_store.results_path(run_id),
-            errors_path=run_store.errors_path(run_id),
-            concurrency=1,  # SEC rate limit: one company at a time, paced by FETCH_DELAY_SECONDS
             result_to_json=lambda r: r.model_dump(mode="json"),
-            on_success=lambda c, r: job_manager.record_progress(run_id, completed_delta=1),
-            on_error=lambda c, exc: job_manager.record_progress(run_id, failed_delta=1),
+            concurrency=1,  # SEC rate limit: one company at a time, paced by FETCH_DELAY_SECONDS
         )
-        _sync_counts(run_store, run_id)
-        job_manager.finish_run(run_id)
     return run_id

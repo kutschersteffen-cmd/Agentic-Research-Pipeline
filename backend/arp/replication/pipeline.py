@@ -3,11 +3,11 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 
+from arp.orchestration.job_manager import JobManager
 from arp.replication.backtest_engine import required_characteristic_names, run_backtest
 from arp.replication.characteristics_data import CharacteristicPanel, CsvCharacteristicSource
 from arp.replication.compare import build_comparison_report
 from arp.replication.price_data import PriceDataSource
-from arp.schemas.common import JobStatus, RunManifest, new_id, now_iso
 from arp.schemas.strategy_replication import ReplicationComparisonReport, SignalType, StrategySpec
 from arp.storage.run_store import RunStore
 
@@ -65,20 +65,18 @@ def run_replication(
     missing = required - set((characteristics_sources or {}).keys())
     if missing:
         raise ValueError(f"spec requires characteristics_sources for {sorted(missing)}, none were supplied for those names.")
-    run_id = new_id("run")
-    manifest = RunManifest(
-        run_id=run_id,
-        run_type="strategy_replication",
-        status=JobStatus.RUNNING,
-        params={
+    job_manager = JobManager(run_store)
+    run_id = job_manager.create_run(
+        "strategy_replication",
+        {
             "spec_id": spec.spec_id,
             "strategy_name": spec.strategy_name,
             "universe_size": len(tickers),
             "out_of_sample_start": out_of_sample_start,
             "out_of_sample_end": out_of_sample_end,
         },
-    )
-    run_store.save_manifest(manifest)
+        company_count=1,
+    ).run_id
     run_store.append_jsonl(run_store.results_path(run_id), {"type": "spec", **spec.model_dump(mode="json")})
 
     try:
@@ -151,13 +149,9 @@ def run_replication(
         )
         run_store.append_jsonl(run_store.results_path(run_id), {"type": "comparison", **report.model_dump(mode="json")})
 
-        manifest.status = JobStatus.COMPLETED
-        manifest.completed_count = 1
-        manifest.updated_at = now_iso()
-        run_store.save_manifest(manifest)
+        job_manager.record_progress(run_id, completed_delta=1)
+        job_manager.finish_run(run_id)
         return run_id, report
     except Exception as exc:
-        manifest.status = JobStatus.FAILED
-        manifest.error = str(exc)
-        run_store.save_manifest(manifest)
+        job_manager.finish_run(run_id, error=str(exc))
         raise

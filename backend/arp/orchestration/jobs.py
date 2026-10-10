@@ -158,6 +158,24 @@ def _xbrl_source(settings: Settings):
     return XbrlFactSource(edgar, settings.cache_dir, ttl_hours=settings.xbrl_facts_ttl_hours)
 
 
+def restart_run(run_store: RunStore, run_id: str) -> None:
+    """Marks the run RUNNING again (error and cancel request cleared), with
+    its counts rebuilt from the files: failed items are retried, so they no
+    longer count; tokens and cost stay, that money was spent. review_count
+    stays too: review-stopped items are never re-run, and discovery records
+    review counts without review_queue rows."""
+    from arp.orchestration.batch_runner import read_done_keys
+
+    with run_store.lock(run_id):
+        current = run_store.load_manifest(run_id)
+        current.completed_count = len(read_done_keys(run_store.results_path(run_id)))
+        current.failed_count = 0
+        current.cancel_requested = False
+        current.status = JobStatus.RUNNING
+        current.error = None
+        run_store.save_manifest(current)
+
+
 async def resume_run(
     run_id: str,
     *,
@@ -173,8 +191,6 @@ async def resume_run(
     already in results.jsonl, or stopped for review, are not run again;
     plain failures are retried. Holds the run's lease throughout unless
     `lease=False` (the caller -- a LocalJobLauncher -- already holds it)."""
-    from arp.orchestration.batch_runner import read_done_keys
-
     manifest = check_resumable(run_store, run_id)
     run_type = manifest.run_type
     companies = run_store.load_companies(run_id)
@@ -188,18 +204,7 @@ async def resume_run(
         verifier_llm = verifier_llm or build_verifier_llm_client(run_settings)
 
     with hold_run(run_store, run_id) if lease else nullcontext():
-        with run_store.lock(run_id):
-            # Rebuilt from the files: failed items are retried, so they no longer
-            # count; tokens and cost stay, that money was spent. review_count
-            # stays too: review-stopped items are never re-run, and discovery
-            # records review counts without review_queue rows.
-            current = run_store.load_manifest(run_id)
-            current.completed_count = len(read_done_keys(run_store.results_path(run_id)))
-            current.failed_count = 0
-            current.cancel_requested = False
-            current.status = JobStatus.RUNNING
-            current.error = None
-            run_store.save_manifest(current)
+        restart_run(run_store, run_id)
 
         common = {"settings": run_settings, "run_store": run_store}
         llms = {"llm": llm, "verifier_llm": verifier_llm, "registry": registry}

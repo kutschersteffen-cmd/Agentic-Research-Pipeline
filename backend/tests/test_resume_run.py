@@ -171,8 +171,6 @@ async def test_resume_theme_prefers_companies_json(tmp_path, monkeypatch):
 
 
 async def test_resume_theme_run_busy_keeps_cancel_request(tmp_path):
-    from arp.research.pipeline import resume_theme_run
-
     settings = _settings(tmp_path)
     store = RunStore(settings.runs_dir)
     activity = ActivityDefinition(name="EV", in_scope_description="EVs.", out_of_scope_description="ICE.")
@@ -180,7 +178,7 @@ async def test_resume_theme_run_busy_keeps_cancel_request(tmp_path):
     run_id = create_theme_run(theme, COMPANIES[:2], settings, store)
     JobManager(store).request_cancel(run_id)
     with run_lease(store, run_id), pytest.raises(RunBusy):  # a live worker
-        await resume_theme_run(run_id, llm=LLM, registry=DocumentSourceRegistry([]), settings=settings, run_store=store)
+        await _resume(run_id, settings, store)
     assert store.load_manifest(run_id).cancel_requested is True
 
 

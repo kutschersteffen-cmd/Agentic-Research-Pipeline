@@ -4,7 +4,7 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Protocol, TypeVar
+from typing import TypeVar
 
 from arp.llm.base import LLMUsage
 from arp.orchestration.job_manager import JobManager
@@ -12,6 +12,7 @@ from arp.orchestration.jobs import hold_run
 from arp.orchestration.review_queue import queue_for_review
 from arp.orchestration.step_tally import on_company, tally_run
 from arp.schemas.common import CompanyRef
+from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.run_store import RunStore
 
 logger = logging.getLogger(__name__)
@@ -37,26 +38,16 @@ def read_done_keys(results_path: Path, errors_path: Path | None = None) -> set[s
     """Keys of items not to run again: every result row, plus (given
     `errors_path`) every item a worker stopped for review -- a person
     decides those, so a resume must not redo them."""
-    import json
-
     done: set[str] = set()
     for path, field in ((results_path, _KEY_FIELD), (errors_path, "key")):
-        if path is None or not path.exists():
+        if path is None:
             continue
-        with path.open() as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    row = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if field == "key" and not row.get("review"):
-                    continue
-                key = row.get(field)
-                if key:
-                    done.add(key)
+        for row in read_jsonl(path):
+            if field == "key" and not row.get("review"):
+                continue
+            key = row.get(field)
+            if key:
+                done.add(key)
     return done
 
 
@@ -92,10 +83,6 @@ async def run_batch(
       checkpoint normally -- this is a soft stop (no work is lost or left
       half-written), not a hard kill.
     """
-    import json
-
-    results_path.parent.mkdir(parents=True, exist_ok=True)
-    errors_path.parent.mkdir(parents=True, exist_ok=True)
     already_done = read_done_keys(results_path, errors_path) if resume else set()
 
     sem = asyncio.Semaphore(concurrency)
@@ -116,27 +103,18 @@ async def run_batch(
                 if isinstance(exc, ReviewRequired):
                     row.update(review=True, report=exc.report)
                 async with write_lock:
-                    with errors_path.open("a") as f:
-                        f.write(json.dumps(row) + "\n")
+                    append_jsonl(errors_path, row)
                 if on_error:
                     on_error(item, exc)
                 return
         record = result_to_json(result)
         record[_KEY_FIELD] = key
         async with write_lock:
-            with results_path.open("a") as f:
-                f.write(json.dumps(record) + "\n")
+            append_jsonl(results_path, record)
         if on_success:
             on_success(item, result)
 
     await asyncio.gather(*(_run_one(item) for item in items))
-
-
-class _HasUsage(Protocol):
-    usage: LLMUsage
-
-
-UsageResultT = TypeVar("UsageResultT", bound=_HasUsage)
 
 
 async def run_company_batch(
@@ -144,17 +122,18 @@ async def run_company_batch(
     companies: list[CompanyRef],
     *,
     run_store: RunStore,
-    worker: Callable[[CompanyRef], Awaitable[UsageResultT]],
-    result_to_json: Callable[[UsageResultT], dict],
-    review_items: Callable[[CompanyRef, UsageResultT], list[tuple[str, dict]]],
-    cost_usd: Callable[[UsageResultT], float],
+    worker: Callable[[CompanyRef], Awaitable[ResultT]],
+    result_to_json: Callable[[ResultT], dict],
+    review_items: Callable[[CompanyRef, ResultT], list[tuple[str, dict]]] | None = None,
+    cost_usd: Callable[[ResultT], float] | None = None,
     concurrency: int,
 ) -> None:
-    """The per-company LLM run every pipeline shares: `run_batch` over the
+    """The per-company run every pipeline shares: `run_batch` over the
     universe, keyed by company_id, checkpointed into the run's results and
     errors files, cancellable via the manifest's cancel_requested flag.
     Each success queues `review_items(company, result)` for human sign-off
-    and records completed/review/token/cost progress; each failure records
+    and records completed/review/token/cost progress (tokens from
+    `result.usage`, when the result has one); each failure records
     failed_delta, except a ReviewRequired stop, whose report is queued for
     review instead. When the batch is done, applies the run's attached
     Decision Studio framework (arp.decision.templates.score_run), then
@@ -162,17 +141,18 @@ async def run_company_batch(
     """
     job_manager = JobManager(run_store)
 
-    def _on_success(company: CompanyRef, result: UsageResultT) -> None:
-        items = review_items(company, result)
+    def _on_success(company: CompanyRef, result: ResultT) -> None:
+        items = review_items(company, result) if review_items else []
         for key, payload in items:
             queue_for_review(run_store, run_id, key, payload)
+        usage = getattr(result, "usage", None) or LLMUsage()
         job_manager.record_progress(
             run_id,
             completed_delta=1,
             review_delta=len(items),
-            input_tokens_delta=result.usage.input_tokens,
-            output_tokens_delta=result.usage.output_tokens,
-            cost_delta_usd=cost_usd(result),
+            input_tokens_delta=usage.input_tokens,
+            output_tokens_delta=usage.output_tokens,
+            cost_delta_usd=cost_usd(result) if cost_usd else 0.0,
         )
 
     def _on_error(company: CompanyRef, exc: Exception) -> None:
@@ -182,7 +162,7 @@ async def run_company_batch(
         else:
             job_manager.record_progress(run_id, failed_delta=1)
 
-    async def _worker(company: CompanyRef) -> UsageResultT:
+    async def _worker(company: CompanyRef) -> ResultT:
         with on_company(company.company_id):
             return await worker(company)
 

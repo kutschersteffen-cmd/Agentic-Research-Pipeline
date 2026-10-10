@@ -6,6 +6,7 @@ from collections.abc import Callable
 from arp.config import Settings
 from arp.discovery.site_finder import WebSearchClient
 from arp.llm.base import LLMClient
+from arp.orchestration.batch_runner import run_batch
 from arp.orchestration.interval_scheduler import IntervalScheduler
 from arp.orchestration.job_manager import JobManager
 from arp.research.taxonomy_sources.authority import build_theme_from_authority_sources
@@ -132,21 +133,29 @@ async def execute_taxonomy_research_run(
     ratified = _ratified_taxonomies(taxonomy_store, taxonomy_ids)
     job_manager = JobManager(run_store)
 
-    for taxonomy in ratified:
-        try:
-            finding, merged_theme = await research_taxonomy(taxonomy, llm, search_client, settings)
-            if finding.proposed and merged_theme is not None:
-                updated = taxonomy_store.new_version(
-                    taxonomy.taxonomy_id, merged_theme, DerivationMethod.MERGED,
-                    f"Automated Taxonomy Researcher proposal ({len(finding.added_activity_names)} new "
-                    f"activity/activities): {finding.reason}",
-                )
-                finding = finding.model_copy(update={"new_version": updated.version})
-            run_store.append_jsonl(run_store.results_path(run_id), finding.model_dump(mode="json"))
-            job_manager.record_progress(run_id, completed_delta=1, review_delta=1 if finding.proposed else 0)
-        except Exception:  # noqa: BLE001 - one taxonomy failing must not abort the whole scan
-            logger.exception("Taxonomy research failed for taxonomy_id=%s", taxonomy.taxonomy_id)
-            job_manager.record_progress(run_id, failed_delta=1)
+    async def _research(taxonomy: Taxonomy) -> TaxonomyResearchFinding:
+        finding, merged_theme = await research_taxonomy(taxonomy, llm, search_client, settings)
+        if finding.proposed and merged_theme is not None:
+            updated = taxonomy_store.new_version(
+                taxonomy.taxonomy_id, merged_theme, DerivationMethod.MERGED,
+                f"Automated Taxonomy Researcher proposal ({len(finding.added_activity_names)} new "
+                f"activity/activities): {finding.reason}",
+            )
+            finding = finding.model_copy(update={"new_version": updated.version})
+        return finding
+
+    # One taxonomy failing must not abort the whole scan: run_batch isolates it.
+    await run_batch(
+        ratified,
+        item_key=lambda t: t.taxonomy_id,
+        worker=_research,
+        results_path=run_store.results_path(run_id),
+        errors_path=run_store.errors_path(run_id),
+        concurrency=1,
+        result_to_json=lambda f: f.model_dump(mode="json"),
+        on_success=lambda _t, f: job_manager.record_progress(run_id, completed_delta=1, review_delta=1 if f.proposed else 0),
+        on_error=lambda _t, _exc: job_manager.record_progress(run_id, failed_delta=1),
+    )
 
     job_manager.finish_run(run_id)
     return run_id
