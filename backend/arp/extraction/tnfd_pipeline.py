@@ -56,7 +56,7 @@ def create_tnfd_extraction_run(
     job_manager = JobManager(run_store)
     manifest = job_manager.create_run(
         "tnfd",
-        {"as_of": as_of},
+        {"as_of": as_of, **({"batch": True} if settings.llm_batch else {})},
         len(companies),
         model=settings.llm_model,
         verifier_model=settings.llm_verifier_model,

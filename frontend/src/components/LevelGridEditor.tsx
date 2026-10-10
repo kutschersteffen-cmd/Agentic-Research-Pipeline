@@ -102,6 +102,7 @@ export function LevelGridEditor({ config, columns, onChange }: Props) {
       </p>
 
       <h3>Clusters</h3>
+      <div className="table-wrap">
       <table className="data-table">
         <thead>
           <tr>
@@ -139,6 +140,7 @@ export function LevelGridEditor({ config, columns, onChange }: Props) {
           ))}
         </tbody>
       </table>
+      </div>
       <button className="link-button" onClick={addCluster}>
         Add cluster
       </button>
@@ -183,6 +185,7 @@ export function LevelGridEditor({ config, columns, onChange }: Props) {
             value={criterion.hint ?? ""}
             onChange={(e) => setCriterion(criterion.id, { hint: e.target.value })}
           />
+          <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
@@ -248,6 +251,7 @@ export function LevelGridEditor({ config, columns, onChange }: Props) {
               </tr>
             </tbody>
           </table>
+          </div>
           <button
             className="link-button"
             onClick={() => setCriterion(criterion.id, { rules: [...criterion.rules, { level: criterion.rules.at(-1)?.level ? Math.max(levelMin, criterion.rules.at(-1)!.level - 1) : levelMax, when: "", note: "" }] })}

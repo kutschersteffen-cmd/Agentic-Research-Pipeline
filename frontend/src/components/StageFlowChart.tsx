@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import ReactFlow, { Controls, Handle, MarkerType, Position, getNodesBounds, useReactFlow, useStore, type Edge, type Node, type NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
-import { layoutPipeline } from "../lib/pipelineLayout";
+import { COARSE_POINTER, layoutPipeline } from "../lib/pipelineLayout";
 import { extractInputs, type FlowAction, type FlowState, type FlowStep, type Handover, type StageId, type StageState } from "../lib/stagedFlow";
 import type { ExtractionProfile, PipelineShape } from "../types";
 
@@ -119,7 +119,8 @@ function StageCard({ data }: NodeProps<CardData>) {
 
 const NODE_TYPES = { stage: StageCard };
 const FIT = { padding: 0.05 };
-const MIN_ZOOM = 0.3;
+// Never fit smaller than this: 13px labels stay >= 11px. A wider chart overflows and pans instead.
+const MIN_ZOOM = 0.85;
 
 /** Reports the measured nodes' width / height once React Flow has sized them, and refits when that changes. */
 function FitAspect({ onAspect }: { onAspect: (a: number) => void }) {
@@ -282,8 +283,11 @@ export function StageFlowChart({ flow, profile, extract, height = 260, counts, o
 
   // The box takes the content's aspect ratio, capped at `height`, so a wide, short chart leaves no empty band.
   const [aspect, setAspect] = useState<number | null>(null);
+  // Touch: the canvas does not pan, so it is drawn at full width and the page scrolls it sideways.
+  const minWidth = COARSE_POINTER ? Math.ceil(((nodes.length - 1) * COL_W + CARD_W) * (1 + FIT.padding) * MIN_ZOOM) + 2 : undefined;
   return (
-    <div className="flow-rf stage-rf" style={aspect ? { width: "100%", height: "auto", aspectRatio: aspect, maxHeight: height, minHeight: 180 } : { height }}>
+    <div className="chart-scroll">
+    <div className="flow-rf stage-rf" style={aspect ? { width: "100%", minWidth, height: "auto", aspectRatio: aspect, maxHeight: height, minHeight: 180 } : { minWidth, height }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -293,6 +297,7 @@ export function StageFlowChart({ flow, profile, extract, height = 260, counts, o
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}
+        panOnDrag={!COARSE_POINTER}
         zoomOnScroll={false}
         preventScrolling={false}
         proOptions={{ hideAttribution: true }}
@@ -302,6 +307,7 @@ export function StageFlowChart({ flow, profile, extract, height = 260, counts, o
         <Controls showInteractive={false} fitViewOptions={FIT} />
         <FitAspect onAspect={setAspect} />
       </ReactFlow>
+    </div>
     </div>
   );
 }

@@ -170,6 +170,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
         {recentRuns.length === 0 ? (
           <p className="muted">No scans yet — run one above, or enable the automatic schedule below.</p>
         ) : (
+          <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
@@ -194,6 +195,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
 
@@ -204,6 +206,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
           {candidates.length === 0 ? (
             <p className="muted">No candidates for this run (nothing survived the independent-source-minimum and lineage-birth filters).</p>
           ) : (
+            <div className="table-wrap">
             <table className="data-table">
               <thead>
                 <tr>
@@ -344,6 +347,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </section>
       )}

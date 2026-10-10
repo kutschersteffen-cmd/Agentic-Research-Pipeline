@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from arp.api.deps import get_edgar_source, get_run_store, get_web_search_client, settings_dep
 from arp.api.run_scheduling import schedule_llm_run
@@ -9,6 +9,7 @@ from arp.config import Settings
 from arp.discovery.identity_pipeline import create_identity_run, enriched_universe, execute_identity_run
 from arp.discovery.site_finder import WebSearchClient
 from arp.ingestion.edgar import EdgarDocumentSource
+from arp.llm.factory import batch_settings
 from arp.schemas.common import CompanyRef
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
@@ -17,6 +18,7 @@ router = APIRouter(prefix="/api/identity", tags=["identity"])
 
 
 class IdentityRunRequest(BaseModel):
+    batch: bool = Field(default=False, description="Run through the Message Batches API: 50% cheaper, slower.")
     companies: list[CompanyRef] | None = None
     universe_path: str | None = None
 
@@ -36,6 +38,7 @@ async def start_identity_run(
     once per discovery run. Feed the result of GET .../enriched-universe
     into the *existing* POST /api/discovery/runs as an ordinary universe.
     """
+    settings = batch_settings(settings, req.batch)
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
@@ -48,7 +51,9 @@ async def start_identity_run(
             run_id, companies, llm=llm, settings=settings, run_store=run_store, edgar=edgar, search_client=search_client
         )
 
-    run_id = schedule_llm_run(create_fn=_create, run=_run)
+    run_id = schedule_llm_run(
+        create_fn=_create, run=_run, settings=settings if req.batch else None, run_store=run_store
+    )
     return {"run_id": run_id, "company_count": len(companies)}
 
 

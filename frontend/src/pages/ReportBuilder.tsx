@@ -336,7 +336,7 @@ export function ReportBuilder() {
           <input type="file" accept=".pptx" onChange={(e) => e.target.files?.[0] && handleTemplateUpload(e.target.files[0])} />
         </label>
         {templates.length > 0 && (
-          <select value={template?.template_id ?? ""} onChange={(e) => setTemplate(templates.find((t) => t.template_id === e.target.value) ?? null)}>
+          <select aria-label="Template" value={template?.template_id ?? ""} onChange={(e) => setTemplate(templates.find((t) => t.template_id === e.target.value) ?? null)}>
             <option value="">(no template)</option>
             {templates.map((t) => (
               <option key={t.template_id} value={t.template_id}>
@@ -464,8 +464,8 @@ export function ReportBuilder() {
           {plan.sections.map((section, i) => (
             <div className="review-item" key={i}>
               <div className="inline-fields">
-                <input type="text" value={section.heading} onChange={(e) => updateSection(i, { heading: e.target.value })} placeholder="Section heading" />
-                <select value={section.layout_hint} onChange={(e) => updateSection(i, { layout_hint: e.target.value as SectionLayoutHint })}>
+                <input type="text" aria-label={`Section ${i + 1} heading`} value={section.heading} onChange={(e) => updateSection(i, { heading: e.target.value })} placeholder="Section heading" />
+                <select aria-label={`Section ${i + 1} layout`} value={section.layout_hint} onChange={(e) => updateSection(i, { layout_hint: e.target.value as SectionLayoutHint })}>
                   {LAYOUT_HINTS.map((h) => (
                     <option key={h} value={h}>{h}</option>
                   ))}
@@ -485,6 +485,7 @@ export function ReportBuilder() {
                     <div className="inline-fields">
                       <span className="chip">Chart on dataset {section.chart.dataset_id}</span>
                       <select
+                        aria-label={`Section ${i + 1} chart type`}
                         value={section.chart.chart_type}
                         onChange={(e) => updateSection(i, { chart: { ...section.chart!, chart_type: e.target.value as ChartType } })}
                       >
@@ -545,8 +546,8 @@ export function ReportBuilder() {
 
           {storyline.slides.map((slide, i) => (
             <div className="review-item" key={i}>
-              <input type="text" value={slide.headline} disabled={storyline.approved} onChange={(e) => updateSlide(i, { headline: e.target.value })} placeholder={`Slide ${i + 1} headline`} />
-              <input type="text" value={slide.purpose} disabled={storyline.approved} onChange={(e) => updateSlide(i, { purpose: e.target.value })} placeholder="Purpose (what this slide shows)" />
+              <input type="text" aria-label={`Slide ${i + 1} headline`} value={slide.headline} disabled={storyline.approved} onChange={(e) => updateSlide(i, { headline: e.target.value })} placeholder={`Slide ${i + 1} headline`} />
+              <input type="text" aria-label={`Slide ${i + 1} purpose`} value={slide.purpose} disabled={storyline.approved} onChange={(e) => updateSlide(i, { purpose: e.target.value })} placeholder="Purpose (what this slide shows)" />
               {!storyline.approved && (
                 <div className="toolbar">
                   <button className="link-button" onClick={() => moveSlide(i, -1)} disabled={i === 0}>&uarr; up</button>

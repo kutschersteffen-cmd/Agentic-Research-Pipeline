@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { ACTIVE_STATUSES, isTrialRun, runTypeLabel, TRIAL_TITLE, when } from "../lib/runs";
 import { runEndedAt, runScope } from "../lib/stagedFlow";
 import type { RunManifest } from "../types";
+import { pollAfter } from "../lib/poll";
 
 type Scope = "all" | "batch" | "single";
 const SCOPES: { id: Scope; label: string }[] = [
@@ -76,8 +77,11 @@ export function FlowRuns(p: {
   const anyLive = runs.some((r) => ACTIVE_STATUSES.has(r.status));
   useEffect(() => {
     if (!anyLive) return;
-    const t = setInterval(load, 3000);
-    return () => clearInterval(t);
+    let cancel = pollAfter(function tick() {
+      load();
+      cancel = pollAfter(tick, 3000);
+    }, 3000);
+    return () => cancel();
   }, [anyLive, load]);
 
   function toggle() {

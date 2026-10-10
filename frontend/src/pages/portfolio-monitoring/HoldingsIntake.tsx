@@ -58,6 +58,7 @@ function MonthlyRunPanel() {
       {notice && <p role="status">{notice}</p>}
       {status && (
         <>
+          <div className="table-wrap">
           <table className="data-table">
             <thead><tr><th>Load</th><th>Status</th></tr></thead>
             <tbody>
@@ -67,6 +68,7 @@ function MonthlyRunPanel() {
               <tr><td>ESG ({status.esg.provider})</td><td>{status.esg.status}</td></tr>
             </tbody>
           </table>
+          </div>
           {status.blocked_reasons.length > 0 ? (
             <ul>{status.blocked_reasons.map((r) => <li key={r}>{r}</li>)}</ul>
           ) : (
@@ -172,6 +174,7 @@ export function HoldingsIntake() {
     <section>
       <h2>Holdings Intake</h2>
       {loadError && <p className="error-text" role="alert">{loadError}</p>}
+      <div className="table-wrap">
       <table className="data-table">
         <thead>
           <tr>
@@ -204,6 +207,7 @@ export function HoldingsIntake() {
           ))}
         </tbody>
       </table>
+      </div>
 
       <MonthlyRunPanel />
 

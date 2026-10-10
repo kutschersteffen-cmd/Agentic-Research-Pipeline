@@ -225,6 +225,7 @@ export default function RuleGraphEditor({
         ) : columns.length === 0 ? (
           <p className="muted">{tiers ? "Score the table first — tier rules need its results." : "No calculated columns yet. Add an expression with a key and a value."}</p>
         ) : (
+          <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
@@ -275,6 +276,7 @@ export default function RuleGraphEditor({
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </>

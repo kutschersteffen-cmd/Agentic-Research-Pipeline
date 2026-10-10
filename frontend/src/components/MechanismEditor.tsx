@@ -59,7 +59,7 @@ export function MechanismEditor({
       <div className="decision-grid">
         <div className="card">
           <h2>Normalisation</h2>
-          <select value={config.norm} onChange={(e) => set({ norm: e.target.value as NormMethod })}>
+          <select aria-label="Normalisation" value={config.norm} onChange={(e) => set({ norm: e.target.value as NormMethod })}>
             {NORMS.map((n) => (
               <option key={n.value} value={n.value}>
                 {n.label}
@@ -91,7 +91,7 @@ export function MechanismEditor({
 
         <div className="card">
           <h2>Missing values</h2>
-          <select value={config.missing} onChange={(e) => set({ missing: e.target.value as MissingPolicy })}>
+          <select aria-label="Missing values" value={config.missing} onChange={(e) => set({ missing: e.target.value as MissingPolicy })}>
             {MISSING.map((m) => (
               <option key={m.value} value={m.value}>
                 {m.label}
@@ -120,7 +120,7 @@ export function MechanismEditor({
 
         <div className="card">
           <h2>Weighting</h2>
-          <select value={config.weighting} onChange={(e) => set({ weighting: e.target.value as WeightPreset })}>
+          <select aria-label="Weighting" value={config.weighting} onChange={(e) => set({ weighting: e.target.value as WeightPreset })}>
             {WEIGHTS.map((w) => (
               <option key={w.value} value={w.value}>
                 {w.label}
@@ -158,7 +158,7 @@ export function MechanismEditor({
           return (
             <div key={dimension.id} className="decision-dimension">
               <div className="decision-dimension-head">
-                <input value={dimension.name} onChange={(e) => setDimension(dimension.id, { name: e.target.value })} />
+                <input aria-label="Dimension name" value={dimension.name} onChange={(e) => setDimension(dimension.id, { name: e.target.value })} />
                 <label className="field-label inline-block">
                   weight
                   <input
@@ -178,66 +178,70 @@ export function MechanismEditor({
                   </button>
                 )}
               </div>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Criterion</th>
-                    <th>Dimension</th>
-                    <th>On</th>
-                    <th>Direction</th>
-                    <th>Weight</th>
-                    <th>Effective</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {members.map((criterion) => (
-                    <tr key={criterion.column}>
-                      <td>{criterion.column}</td>
-                      <td>
-                        <select
-                          aria-label={`Dimension of ${criterion.column}`}
-                          value={criterion.dimension_id}
-                          onChange={(e) => moveCriterion(criterion.column, e.target.value)}
-                        >
-                          {config.dimensions.map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.name}
-                            </option>
-                          ))}
-                          <option value="new">+ New dimension</option>
-                        </select>
-                      </td>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={criterion.enabled}
-                          onChange={(e) => setCriterion(criterion.column, { enabled: e.target.checked })}
-                          aria-label={`Include ${criterion.column}`}
-                        />
-                      </td>
-                      <td>
-                        <select
-                          value={criterion.direction}
-                          onChange={(e) => setCriterion(criterion.column, { direction: e.target.value as "higher" | "lower" })}
-                        >
-                          <option value="higher">higher is better</option>
-                          <option value="lower">lower is better</option>
-                        </select>
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          min={0}
-                          step={0.1}
-                          value={criterion.weight}
-                          onChange={(e) => setCriterion(criterion.column, { weight: Number(e.target.value) })}
-                        />
-                      </td>
-                      <td>{weights[criterion.column] != null ? `${(weights[criterion.column] * 100).toFixed(1)}%` : "—"}</td>
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Criterion</th>
+                      <th>Dimension</th>
+                      <th>On</th>
+                      <th>Direction</th>
+                      <th>Weight</th>
+                      <th>Effective</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {members.map((criterion) => (
+                      <tr key={criterion.column}>
+                        <td>{criterion.column}</td>
+                        <td>
+                          <select
+                            aria-label={`Dimension of ${criterion.column}`}
+                            value={criterion.dimension_id}
+                            onChange={(e) => moveCriterion(criterion.column, e.target.value)}
+                          >
+                            {config.dimensions.map((d) => (
+                              <option key={d.id} value={d.id}>
+                                {d.name}
+                              </option>
+                            ))}
+                            <option value="new">+ New dimension</option>
+                          </select>
+                        </td>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={criterion.enabled}
+                            onChange={(e) => setCriterion(criterion.column, { enabled: e.target.checked })}
+                            aria-label={`Include ${criterion.column}`}
+                          />
+                        </td>
+                        <td>
+                          <select
+                            aria-label={`Direction of ${criterion.column}`}
+                            value={criterion.direction}
+                            onChange={(e) => setCriterion(criterion.column, { direction: e.target.value as "higher" | "lower" })}
+                          >
+                            <option value="higher">higher is better</option>
+                            <option value="lower">lower is better</option>
+                          </select>
+                        </td>
+                        <td>
+                          <input
+                            aria-label={`Weight for ${criterion.column}`}
+                            type="number"
+                            min={0}
+                            step={0.1}
+                            value={criterion.weight}
+                            onChange={(e) => setCriterion(criterion.column, { weight: Number(e.target.value) })}
+                          />
+                        </td>
+                        <td>{weights[criterion.column] != null ? `${(weights[criterion.column] * 100).toFixed(1)}%` : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           );
         })}

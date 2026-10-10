@@ -59,7 +59,7 @@ async def _process_company(
 
 def create_voting_run(companies: list[CompanyRef], settings: Settings, run_store: RunStore) -> str:
     job_manager = JobManager(run_store)
-    manifest = job_manager.create_run("proxy_voting", {}, len(companies), model=settings.llm_model)
+    manifest = job_manager.create_run("proxy_voting", {**({"batch": True} if settings.llm_batch else {})}, len(companies), model=settings.llm_model)
     return manifest.run_id
 
 

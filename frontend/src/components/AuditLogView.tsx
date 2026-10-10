@@ -20,6 +20,7 @@ export function AuditLogView({ entries }: { entries: AuditEntry[] }) {
       {stages.map((stage) => (
         <div key={stage} className="audit-stage">
           <h3>{stage}</h3>
+          <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
@@ -46,6 +47,7 @@ export function AuditLogView({ entries }: { entries: AuditEntry[] }) {
                 ))}
             </tbody>
           </table>
+          </div>
         </div>
       ))}
     </div>

@@ -54,7 +54,11 @@ export interface RunManifest {
   review_count: number;
   input_tokens: number;
   output_tokens: number;
+  cache_read_tokens?: number;
+  cache_creation_tokens?: number;
   estimated_cost_usd: number;
+  batch_saved_usd?: number;
+  batch_wait?: { batch_id: string; request_count: number; submitted_at: string; status: string } | null;
   cancel_requested?: boolean;
   model?: string | null;
   error?: string | null;

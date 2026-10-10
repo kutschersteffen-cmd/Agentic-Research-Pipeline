@@ -16,7 +16,7 @@ from arp.emerging_themes.pipeline import (
     run_emerging_themes,
 )
 from arp.emerging_themes.scheduler import EmergingThemesScheduler, default_sources
-from arp.llm.factory import build_llm_client
+from arp.llm.factory import batch_settings, build_llm_client
 from arp.schemas.emerging_themes import EmergingThemesScheduleConfig
 from arp.universe import load_company_universe
 
@@ -124,7 +124,7 @@ def emerging_themes_schedule(
     """Configures the automatic recurring scan. Takes effect the next time
     the API server process starts (it owns the scheduler); this command
     just persists the config file the scheduler reads."""
-    settings = get_settings()
+    settings = batch_settings(get_settings(), "emerging_themes" in get_settings().batch_scheduled_run_types)
     scheduler = EmergingThemesScheduler(settings, _run_store(), _topic_store(), llm_factory=lambda: build_llm_client(settings))
     config = EmergingThemesScheduleConfig(enabled=enable, interval_hours=interval_hours, universe_path=str(universe))
     scheduler.save_config(config)

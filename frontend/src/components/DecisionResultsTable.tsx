@@ -1,6 +1,10 @@
 import { Fragment, useState } from "react";
 import { LevelOverrides } from "./LevelOverrides";
+import { activatable } from "../lib/activatable";
+import { Pager } from "./XbrlFactsTable";
 import type { DecisionResult, EntityDecision, LevelOverride, MechanismConfig } from "../types";
+
+const PAGE = 100;
 
 function tierClass(tier?: number | null): string {
   if (tier === 1) return "badge badge-high";
@@ -36,6 +40,7 @@ export function DecisionResultsTable({
 }) {
   const [filter, setFilter] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [offset, setOffset] = useState(0);
   const dimensionNames = new Map(config.dimensions.map((d) => [d.id, d.name]));
 
   const rows = result.entities
@@ -50,12 +55,14 @@ export function DecisionResultsTable({
       if (b.rank == null) return -1;
       return a.rank - b.rank;
     });
+  const start = offset < rows.length ? offset : 0; // a new result or filter can leave fewer rows
+  const shown = rows.slice(start, start + PAGE);
 
   return (
     <div>
       <div className="toolbar">
-        <input aria-label="Filter by name" placeholder="Filter by name…" value={filter} onChange={(e) => setFilter(e.target.value)} />
-        <select value={orderBy} onChange={(e) => onOrderBy(e.target.value as "score" | "leverage")}>
+        <input aria-label="Filter by name" placeholder="Filter by name…" value={filter} onChange={(e) => { setFilter(e.target.value); setOffset(0); }} />
+        <select aria-label="Order by" value={orderBy} onChange={(e) => { onOrderBy(e.target.value as "score" | "leverage"); setOffset(0); }}>
           <option value="score">Order by score</option>
           <option value="leverage">Order by leverage</option>
         </select>
@@ -65,108 +72,111 @@ export function DecisionResultsTable({
           </span>
         )}
       </div>
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Name</th>
-            <th>Score</th>
-            <th>Rank band</th>
-            <th>Outcome</th>
-            <th>Coverage</th>
-            <th>Notes</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((entity) => (
-            <Fragment key={entity.entity_key}>
-              <tr
-                className="clickable-row"
-                onClick={() => setExpanded(expanded === entity.entity_key ? null : entity.entity_key)}
-              >
-                <td>{orderBy === "leverage" ? entity.leverage_rank ?? "—" : entity.rank ?? "—"}</td>
-                <td>
-                  <strong>{entity.name}</strong>
-                  {entity.cohort && <div className="muted">{entity.cohort}</div>}
-                </td>
-                <td>{entity.score != null ? entity.score.toFixed(1) : "—"}</td>
-                <td className="muted">
-                  {entity.rank_min != null && entity.rank_max != null
-                    ? entity.rank_min === entity.rank_max
-                      ? `${entity.rank_min}`
-                      : `${entity.rank_min}–${entity.rank_max}`
-                    : "—"}
-                </td>
-                <td>
-                  <StatusCell entity={entity} />
-                </td>
-                <td>
-                  {Math.round(entity.coverage * 100)}%
-                  {entity.grounded_coverage != null && (
-                    <div className="muted">{Math.round(entity.grounded_coverage * 100)}% grounded</div>
-                  )}
-                </td>
-                <td className="muted">{entity.notes.join("; ")}</td>
-              </tr>
-              {expanded === entity.entity_key && (
-                <tr>
-                  <td className="detail-cell" colSpan={7}>
-                    <div className="toolbar">
-                      <strong>What moved this score</strong>
-                      <button className="link-button" onClick={() => onExplain(entity)}>
-                        How much do the weights matter?
-                      </button>
-                    </div>
-                    <div className="decision-dims">
-                      {Object.entries(entity.dimension_scores).map(([id, value]) => (
-                        <span key={id} className="standards-chip">
-                          <strong>{dimensionNames.get(id) ?? id}</strong>
-                          {value != null ? value.toFixed(0) : "—"}
-                        </span>
-                      ))}
-                    </div>
-                    {config.mode === "levels" && onSetOverride && onRemoveOverride ? (
-                      <LevelOverrides
-                        entity={entity}
-                        scale={[config.level_min ?? 1, config.level_max ?? 7]}
-                        onSet={onSetOverride}
-                        onRemove={(criterionId, reviewer, reason) => onRemoveOverride(entity.entity_key, criterionId, reviewer, reason)}
-                      />
-                    ) : (
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Criterion</th>
-                          <th>Normalised</th>
-                          <th>Weight</th>
-                          <th>Contribution</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[...entity.contributions]
-                          .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
-                          .map((contribution) => (
-                            <tr key={contribution.column}>
-                              <td>
-                                {contribution.column}
-                                {contribution.imputed && <span className="muted"> (imputed)</span>}
-                                {contribution.low_confidence && <span className="muted"> (unverified)</span>}
-                              </td>
-                              <td>{contribution.normalised != null ? contribution.normalised.toFixed(1) : "absent"}</td>
-                              <td>{(contribution.weight * 100).toFixed(1)}%</td>
-                              <td>{contribution.contribution >= 0 ? `+${contribution.contribution.toFixed(1)}` : contribution.contribution.toFixed(1)}</td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Score</th>
+              <th>Rank band</th>
+              <th>Outcome</th>
+              <th>Coverage</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((entity) => (
+              <Fragment key={entity.entity_key}>
+                <tr
+                  className="clickable-row"
+                  {...activatable(() => setExpanded(expanded === entity.entity_key ? null : entity.entity_key), expanded === entity.entity_key)}
+                >
+                  <td>{orderBy === "leverage" ? entity.leverage_rank ?? "—" : entity.rank ?? "—"}</td>
+                  <td>
+                    <strong>{entity.name}</strong>
+                    {entity.cohort && <div className="muted">{entity.cohort}</div>}
+                  </td>
+                  <td>{entity.score != null ? entity.score.toFixed(1) : "—"}</td>
+                  <td className="muted">
+                    {entity.rank_min != null && entity.rank_max != null
+                      ? entity.rank_min === entity.rank_max
+                        ? `${entity.rank_min}`
+                        : `${entity.rank_min}–${entity.rank_max}`
+                      : "—"}
+                  </td>
+                  <td>
+                    <StatusCell entity={entity} />
+                  </td>
+                  <td>
+                    {Math.round(entity.coverage * 100)}%
+                    {entity.grounded_coverage != null && (
+                      <div className="muted">{Math.round(entity.grounded_coverage * 100)}% grounded</div>
                     )}
                   </td>
+                  <td className="muted">{entity.notes.join("; ")}</td>
                 </tr>
-              )}
-            </Fragment>
-          ))}
-        </tbody>
-      </table>
+                {expanded === entity.entity_key && (
+                  <tr>
+                    <td className="detail-cell" colSpan={7}>
+                      <div className="toolbar">
+                        <strong>What moved this score</strong>
+                        <button className="link-button" onClick={() => onExplain(entity)}>
+                          How much do the weights matter?
+                        </button>
+                      </div>
+                      <div className="decision-dims">
+                        {Object.entries(entity.dimension_scores).map(([id, value]) => (
+                          <span key={id} className="standards-chip">
+                            <strong>{dimensionNames.get(id) ?? id}</strong>
+                            {value != null ? value.toFixed(0) : "—"}
+                          </span>
+                        ))}
+                      </div>
+                      {config.mode === "levels" && onSetOverride && onRemoveOverride ? (
+                        <LevelOverrides
+                          entity={entity}
+                          scale={[config.level_min ?? 1, config.level_max ?? 7]}
+                          onSet={onSetOverride}
+                          onRemove={(criterionId, reviewer, reason) => onRemoveOverride(entity.entity_key, criterionId, reviewer, reason)}
+                        />
+                      ) : (
+                      <table className="data-table">
+                        <thead>
+                          <tr>
+                            <th>Criterion</th>
+                            <th>Normalised</th>
+                            <th>Weight</th>
+                            <th>Contribution</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[...entity.contributions]
+                            .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+                            .map((contribution) => (
+                              <tr key={contribution.column}>
+                                <td>
+                                  {contribution.column}
+                                  {contribution.imputed && <span className="muted"> (imputed)</span>}
+                                  {contribution.low_confidence && <span className="muted"> (unverified)</span>}
+                                </td>
+                                <td>{contribution.normalised != null ? contribution.normalised.toFixed(1) : "absent"}</td>
+                                <td>{(contribution.weight * 100).toFixed(1)}%</td>
+                                <td>{contribution.contribution >= 0 ? `+${contribution.contribution.toFixed(1)}` : contribution.contribution.toFixed(1)}</td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                      )}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <Pager offset={start} count={shown.length} total={rows.length} limit={PAGE} noun="entities" onPage={setOffset} />
     </div>
   );
 }

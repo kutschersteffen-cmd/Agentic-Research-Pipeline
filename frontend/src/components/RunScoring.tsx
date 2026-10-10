@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import type { PublishedDecision, RunDecision, RunScoringKind, TemplateMatch } from "../types";
 import { ConfirmSignedIn } from "./ConfirmSignedIn";
 import { LevelOverrides } from "./LevelOverrides";
+import { activatable } from "../lib/activatable";
 
 interface PickerProps {
   runType: RunScoringKind;
@@ -229,51 +230,53 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
               </p>
             </div>
           </div>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Company</th>
-                <th>Score</th>
-                <th>Tier</th>
-                <th>Action</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...decision.result.entities]
-                .sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity) || a.name.localeCompare(b.name))
-                .map((entity) => (
-                  <Fragment key={entity.entity_key}>
-                    <tr
-                      className={decision.level_scale ? "clickable-row" : undefined}
-                      onClick={decision.level_scale ? () => setExpanded(expanded === entity.entity_key ? null : entity.entity_key) : undefined}
-                    >
-                      <td>{entity.rank ?? "—"}</td>
-                      <td>{entity.name}</td>
-                      <td>{entity.score != null ? entity.score.toFixed(1) : "—"}</td>
-                      <td>{entity.tier_name ?? entity.status}</td>
-                      <td>{entity.tier_action ?? ""}</td>
-                      <td className="muted">{entity.notes.join("; ")}</td>
-                    </tr>
-                    {decision.level_scale && expanded === entity.entity_key && (
-                      <tr>
-                        <td colSpan={6} className="detail-cell">
-                          <LevelOverrides
-                            entity={entity}
-                            scale={decision.level_scale}
-                            onSet={async (override) => setDecision(await api.setRunOverride(runId, override))}
-                            onRemove={async (criterionId, _reviewer, reason) =>
-                              setDecision(await api.removeRunOverride(runId, { entity_key: entity.entity_key, criterion_id: criterionId, reason }))
-                            }
-                          />
-                        </td>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Company</th>
+                  <th>Score</th>
+                  <th>Tier</th>
+                  <th>Action</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...decision.result.entities]
+                  .sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity) || a.name.localeCompare(b.name))
+                  .map((entity) => (
+                    <Fragment key={entity.entity_key}>
+                      <tr
+                        className={decision.level_scale ? "clickable-row" : undefined}
+                        {...(decision.level_scale ? activatable(() => setExpanded(expanded === entity.entity_key ? null : entity.entity_key), expanded === entity.entity_key) : {})}
+                      >
+                        <td>{entity.rank ?? "—"}</td>
+                        <td>{entity.name}</td>
+                        <td>{entity.score != null ? entity.score.toFixed(1) : "—"}</td>
+                        <td>{entity.tier_name ?? entity.status}</td>
+                        <td>{entity.tier_action ?? ""}</td>
+                        <td className="muted">{entity.notes.join("; ")}</td>
                       </tr>
-                    )}
-                  </Fragment>
-                ))}
-            </tbody>
-          </table>
+                      {decision.level_scale && expanded === entity.entity_key && (
+                        <tr>
+                          <td colSpan={6} className="detail-cell">
+                            <LevelOverrides
+                              entity={entity}
+                              scale={decision.level_scale}
+                              onSet={async (override) => setDecision(await api.setRunOverride(runId, override))}
+                              onRemove={async (criterionId, _reviewer, reason) =>
+                                setDecision(await api.removeRunOverride(runId, { entity_key: entity.entity_key, criterion_id: criterionId, reason }))
+                              }
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
     </section>

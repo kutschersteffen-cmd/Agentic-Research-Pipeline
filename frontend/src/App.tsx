@@ -12,6 +12,7 @@ import { ThemeSwitch } from "./components/ThemeSwitch";
 import { NAV_ICONS } from "./components/NavIcons";
 import type { ReviewableRunKind, RunManifest, UniverseHandoff } from "./types";
 import { runTypeLabel } from "./lib/runs";
+import { listAllRuns } from "./lib/poll";
 
 // Pages load on demand so the first screen does not ship every page and its editors.
 const ThemeBuilder = lazy(() => import("./pages/ThemeBuilder").then((x) => ({ default: x.ThemeBuilder })));
@@ -201,10 +202,8 @@ function App() {
   // Counts on the "Needs you" items, refreshed on every navigation and after
   // every decision. Failure leaves them off rather than showing a zero nobody measured.
   useEffect(() => {
-    api
-      .listRuns()
-      .then((res) => {
-        const runs = (res as { runs: RunManifest[] }).runs;
+    listAllRuns()
+      .then((runs) => {
         const sum = (keep: (r: RunManifest) => boolean) => runs.filter(keep).reduce((n, r) => n + r.review_count, 0);
         setWaiting({ review: sum((r) => REVIEWABLE.has(r.run_type)), voting: sum((r) => r.run_type === "proxy_voting") });
         setRecentRuns([...runs].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 50));

@@ -55,7 +55,7 @@ export function RunHistory({ onOpenReview }: Props = {}) {
           Refresh
         </button>
         <span className="muted">
-          {runs.length} runs · estimated spend <span className="mono">${totalCost.toFixed(2)}</span>
+          {runs.length} {runs.length === 1 ? "run" : "runs"} · estimated spend <span className="mono">${totalCost.toFixed(2)}</span>
         </span>
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
@@ -84,6 +84,7 @@ export function RunHistory({ onOpenReview }: Props = {}) {
                     <td>{runTypeLabel(runType)}</td>
                     <td>
                       <span className={`status-pill status-${r.status}`}>{r.status}</span>
+                      {r.params?.batch === true && <> <span className="badge badge-mid">batch</span></>}
                       {isTrialRun(r) && <> <span className="badge badge-mid" title={TRIAL_TITLE}>trial</span></>}
                       {r.error && <div className="run-error">{r.error}</div>}
                     </td>

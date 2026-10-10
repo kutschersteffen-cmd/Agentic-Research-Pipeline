@@ -398,6 +398,7 @@ class RunStore:
             updated_at=_ts(manifest.updated_at),
             status=RunStatus(manifest.status.value),
             estimated_cost_usd=Decimal(repr(manifest.estimated_cost_usd)),  # repr: the float round-trips exactly
+            batch_saved_usd=Decimal(repr(manifest.batch_saved_usd)),
         )
         stmt = insert(Run).values(**values)
         with self._tx(manifest.run_id) as s:
@@ -412,7 +413,9 @@ class RunStore:
             status=run.status.value, params=run.params or {}, company_count=run.company_count,
             completed_count=run.completed_count, failed_count=run.failed_count, review_count=run.review_count,
             input_tokens=run.input_tokens, output_tokens=run.output_tokens,
-            estimated_cost_usd=float(run.estimated_cost_usd or 0), model=run.model, verifier_model=run.verifier_model,
+            cache_read_tokens=run.cache_read_tokens, cache_creation_tokens=run.cache_creation_tokens,
+            estimated_cost_usd=float(run.estimated_cost_usd or 0), batch_saved_usd=float(run.batch_saved_usd or 0),
+            batch_wait=run.batch_wait, model=run.model, verifier_model=run.verifier_model,
             error=run.error, cancel_requested=run.cancel_requested,
         )
 

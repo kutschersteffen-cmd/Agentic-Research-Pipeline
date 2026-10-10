@@ -60,7 +60,7 @@ export function ActivityEditorTable({ activities, onChange }: Props) {
     <>
       {activities.map((a, idx) => (
         <div className="activity-editor" key={a.activity_id}>
-          <input value={a.name} onChange={(e) => update(idx, { name: e.target.value })} />
+          <input aria-label={`Activity ${idx + 1} name`} value={a.name} onChange={(e) => update(idx, { name: e.target.value })} />
           <label className="field-label">
             In scope
             <textarea rows={2} value={a.in_scope_description} onChange={(e) => update(idx, { in_scope_description: e.target.value })} />

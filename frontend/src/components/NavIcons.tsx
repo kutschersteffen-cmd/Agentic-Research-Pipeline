@@ -224,6 +224,13 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <circle cx="15" cy="12" r="4.5" />
     </svg>
   ),
+  // A ticker tape: a paper strip with the price line running along it.
+  tape: (
+    <svg {...ICON_PROPS}>
+      <rect x="3" y="6" width="18" height="12" rx="1.5" />
+      <path d="m6 14.5 3-3 3 2 3-4 3 3" />
+    </svg>
+  ),
   voting: (
     <svg {...ICON_PROPS}>
       <circle cx="12" cy="12" r="9" />

@@ -113,9 +113,7 @@ async def execute_emerging_themes_run(
 
     def _on_extract_success(_mention: RawMention, result: tuple[list[ExtractedTag], LLMUsage]) -> None:
         _tags, usage = result
-        job_manager.record_progress(
-            run_id, completed_delta=1, input_tokens_delta=usage.input_tokens, output_tokens_delta=usage.output_tokens
-        )
+        job_manager.record_progress(run_id, completed_delta=1, usage=usage)
 
     def _on_extract_error(_mention: RawMention, _exc: Exception) -> None:
         job_manager.record_progress(run_id, failed_delta=1)
@@ -203,7 +201,7 @@ async def execute_emerging_themes_run(
             job_manager.record_progress(run_id, failed_delta=1)
             continue
 
-        job_manager.record_progress(run_id, input_tokens_delta=usage.input_tokens, output_tokens_delta=usage.output_tokens)
+        job_manager.record_progress(run_id, usage=usage)
         if candidate is None:
             continue  # failed the independent-source-minimum or action-score check
 
@@ -239,7 +237,7 @@ async def execute_emerging_themes_run(
                 if role_result is None:
                     continue
                 role_assessment, role_usage = role_result
-                job_manager.record_progress(run_id, input_tokens_delta=role_usage.input_tokens, output_tokens_delta=role_usage.output_tokens)
+                job_manager.record_progress(run_id, usage=role_usage)
                 exposures.append(CompanyExposure(
                     company_id=company_id,
                     role=role_assessment.role,
@@ -273,6 +271,8 @@ async def run_emerging_themes(
     """Convenience wrapper (create + execute in one call) for the CLI and
     the scheduler, where blocking until completion is expected."""
     run_id = create_emerging_themes_run(run_store, companies, triggered_by)
+    if settings.llm_batch:
+        JobManager(run_store)._update(run_id, lambda m: m.params.__setitem__("batch", True))
     return await execute_emerging_themes_run(
         run_id, companies, llm=llm, sources=sources, settings=settings, run_store=run_store, topic_store=topic_store,
         xbrl_source=xbrl_source,

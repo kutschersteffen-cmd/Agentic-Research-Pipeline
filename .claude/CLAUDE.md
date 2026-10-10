@@ -100,12 +100,35 @@ phase:
 - **Finishing → no auto-merge.** `superpowers:finishing-a-development-branch` must open a PR
   against `main` (see above); never merge locally.
 
+## Coding rules (on top of ponytail)
+
+The gaps ponytail leaves from `karpathy-guidelines`. Where they clash, these win.
+
+- Ambiguity that would change the result → ask one question first. Otherwise default and say so.
+- Don't touch adjacent code, comments or formatting. Mention unrelated dead code, don't delete it.
+- Remove imports/variables your own change made unused.
+
 ## Invoking skills
 
 The `/` autocomplete menu is a terminal-only feature. In cloud sessions — claude.ai/code and
 the mobile **Code** tab — the composer is a plain chat box with no picker, so type the skill
 name (`/graphify`) and send it, or just describe what you want and let the description trigger
 it. Plugin skills are namespaced: `/ponytail:ponytail-review`, `/ui-ux-pro-max:design`.
+
+## Matt Pocock skills
+
+Six skills from [mattpocock/skills](https://github.com/mattpocock/skills) (MIT, upstream
+`49dd158`) are copied into `.claude/skills/`, not installed as a plugin, so they can be edited
+and don't duplicate superpowers. Local edit: `handoff` and `improve-codebase-architecture` save to
+`docs/handoffs/` and `docs/architecture-reviews/` instead of `/tmp`, so cloud sessions keep them.
+Keep that edit when re-copying from upstream.
+
+- `domain-modeling` — maintain `GLOSSARY.md` and ADRs in `docs/adr/`.
+- `research` — answer a question from primary sources, saved as a cited Markdown file.
+- `codebase-design` — deep-module vocabulary; `/improve-codebase-architecture` builds on it.
+- `handoff` — `/handoff` writes a handoff doc for the next session.
+- `grilling` — only as the interview step of `/improve-codebase-architecture`. For planning,
+  `superpowers:brainstorming` still owns the phase.
 
 # graphify
 - **graphify** (`.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`

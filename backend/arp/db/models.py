@@ -325,7 +325,11 @@ class Run(Base):
     review_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     input_tokens: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
     output_tokens: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
+    cache_read_tokens: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
+    cache_creation_tokens: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
     estimated_cost_usd: Mapped[Decimal | None] = mapped_column(Numeric)
+    batch_saved_usd: Mapped[Decimal | None] = mapped_column(Numeric)
+    batch_wait: Mapped[dict | None] = mapped_column(JSONB)  # the open Message Batch(es) the run waits on
     model: Mapped[str | None] = mapped_column(Text)
     verifier_model: Mapped[str | None] = mapped_column(Text)
     error: Mapped[str | None] = mapped_column(Text)

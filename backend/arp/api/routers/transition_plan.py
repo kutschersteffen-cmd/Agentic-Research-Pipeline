@@ -17,6 +17,7 @@ from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
 from arp.decision.templates import attach_to_run
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.llm.factory import batch_settings
 from arp.schemas.common import CompanyRef
 from arp.schemas.transition_plan import TransitionPlanIndicator
 from arp.storage.decision_store import DecisionStore
@@ -38,6 +39,7 @@ def list_indicators() -> list[TransitionPlanIndicator]:
 
 
 class RunRequest(BaseModel):
+    batch: bool = Field(default=False, description="Run through the Message Batches API: 50% cheaper, slower.")
     companies: list[CompanyRef] | None = None
     universe_path: str | None = None
     decision_framework_id: str | None = Field(default=None, description="Scoring template to score the results with.")
@@ -52,6 +54,7 @@ async def start_transition_plan_run(
     registry: DocumentSourceRegistry = Depends(get_registry),
     decision_store: DecisionStore = Depends(get_decision_store),
 ) -> dict:
+    settings = batch_settings(settings, req.batch)
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
@@ -70,7 +73,7 @@ async def start_transition_plan_run(
             run_id, companies, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store
         )
 
-    run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings)
+    run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings, run_store=run_store)
     return {"run_id": run_id, "company_count": len(companies)}
 
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useReducer, useState, type ReactElement } from 
 import { api } from "../api/client";
 import type { RunManifest, StewardshipFlow } from "../types";
 import { ACTIVE_STATUSES, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
+import { listAllRuns, usePoll } from "../lib/poll";
 import { DECISION_STAGES, PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { openCount } from "./steward/common";
 import { useMe } from "../lib/reviewer";
@@ -60,32 +61,20 @@ const ICONS: Record<WorkspaceId, ReactElement> = {
 
 const WORKSPACE_OF_RUN_TYPE = new Map(WORKSPACES.flatMap((w) => w.runTypes.map((t) => [t, w] as const)));
 
-/** Runs, refreshed every 3 s. Null until the first answer: a count nobody
- * received is unknown, never zero. */
+/** Runs, refreshed every 3 s while one is live, every 15 s otherwise. Null
+ * until the first answer: a count nobody received is unknown, never zero. */
 function useRuns() {
   const [runs, setRuns] = useState<RunManifest[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {
     try {
-      setRuns(((await api.listRuns()) as { runs: RunManifest[] }).runs);
+      setRuns(await listAllRuns());
       setError(null);
     } catch (err) {
       setError((err as Error).message);
     }
   }, []);
-  useEffect(() => {
-    let cancelled = false;
-    let timer: number | undefined;
-    const tick = async () => {
-      await load();
-      if (!cancelled) timer = window.setTimeout(tick, 3000);
-    };
-    tick();
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [load]);
+  usePoll(load, runs?.some((r) => ACTIVE_STATUSES.has(r.status)) ? 3000 : 15000);
   return { runs, error, retry: load };
 }
 

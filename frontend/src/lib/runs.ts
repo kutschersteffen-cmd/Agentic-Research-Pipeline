@@ -40,3 +40,10 @@ export function runTypeLabel(runType: string): string {
 export function waitingCount(r: RunManifest): number {
   return REVIEWABLE_RUN_TYPES.has(r.run_type) || r.run_type === "proxy_voting" ? r.review_count : 0;
 }
+
+/** The wait line for a run parked on an Anthropic message batch. */
+export function batchWaitText(wait: NonNullable<RunManifest["batch_wait"]>): string {
+  const t = new Date(wait.submitted_at);
+  const hhmm = `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+  return `Waiting on batch · ${wait.request_count.toLocaleString("en-US")} requests · submitted ${hhmm} · Anthropic usually finishes within an hour`;
+}

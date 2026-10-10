@@ -51,7 +51,7 @@ def create_transition_plan_run(companies: list[CompanyRef], settings: Settings, 
     job_manager = JobManager(run_store)
     manifest = job_manager.create_run(
         "transition_plan",
-        {},
+        {**({"batch": True} if settings.llm_batch else {})},
         len(companies),
         model=settings.llm_model,
         verifier_model=settings.llm_verifier_model,

@@ -1295,6 +1295,7 @@ function CalibrationsTab({
         <h2>Saved calibrations</h2>
         {calibrations.length === 0 && <p className="muted">Nothing saved yet.</p>}
         {calibrations.length > 0 && (
+          <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
@@ -1325,12 +1326,14 @@ function CalibrationsTab({
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
       {loaded && versions.length > 0 && (
         <div className="card">
           <h2>Version history — {loaded.name}</h2>
+          <div className="table-wrap">
           <table className="data-table">
             <thead>
               <tr>
@@ -1364,6 +1367,7 @@ function CalibrationsTab({
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </>
@@ -1443,6 +1447,7 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
 
       <div className="card">
         <h2>Construction funnel</h2>
+        <div className="table-wrap">
         <table className="data-table">
           <thead>
             <tr>
@@ -1469,10 +1474,12 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div className="card">
         <h2>Index vs. universe</h2>
+        <div className="table-wrap">
         <table className="data-table">
           <thead>
             <tr>
@@ -1496,6 +1503,7 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
             })}
           </tbody>
         </table>
+        </div>
         {result.state.required_metric_value !== null && result.state.required_metric_value !== undefined && (
           <p className="help-text">
             Trajectory: target {num(result.state.required_metric_value, 4)}, achieved {num(result.state.achieved_metric_value, 4)}, binding{" "}
@@ -1507,6 +1515,7 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
 
       <div className="card">
         <h2>Constituents</h2>
+        <div className="table-wrap">
         <table className="data-table">
           <thead>
             <tr>
@@ -1531,6 +1540,7 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
             ))}
           </tbody>
         </table>
+        </div>
         {sorted.length > 25 && (
           <button className="link-button" onClick={() => setShowAll(!showAll)}>
             {showAll ? "show top 25" : `show all ${sorted.length}`}

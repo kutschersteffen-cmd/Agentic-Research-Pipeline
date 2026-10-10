@@ -147,6 +147,7 @@ def create_theme_run(
             "revenue_catalogue_path": revenue_catalogue_path,
             "enable_rd_exposure": enable_rd_exposure,
             # The saved taxonomy version the theme came from, if any: the output catalog's "used by" link.
+            **({"batch": True} if settings.llm_batch else {}),
             "taxonomy_id": taxonomy_id,
             "taxonomy_version": taxonomy_version,
         },

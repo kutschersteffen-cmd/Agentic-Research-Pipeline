@@ -4,6 +4,7 @@ import { api } from "../../api/client";
 import { REVIEW_KIND_LABEL, fromReviewItem, type QueueItem } from "../../components/RunReviewList";
 import { SignedInAs } from "../../components/SignedInAs";
 import { useMe } from "../../lib/reviewer";
+import { announce } from "../../lib/announce";
 import type { ReviewDecision } from "../../types";
 import { REASON_OPTIONS, accessFor, decisionBody, mergeDecided, nextAwaiting, recordedFrom, rowKey, sortQueue, toRow, type TapeAction } from "./tapeData";
 import "./TapeReader.css";
@@ -12,6 +13,9 @@ const H = 24;
 const DASH = "–";
 const VERB: Record<TapeAction, string> = { approve: "Approve", reject: "Reject", escalate: "Escalate" };
 const DONE: Record<TapeAction, string> = { approve: "Approved", reject: "Rejected", escalate: "Escalated" };
+
+/** DOM id of a tape row, stable across re-sorts (ids cannot hold whitespace). */
+const rowId = (key: string) => `tape-row-${key.replace(/\s/g, "_")}`;
 
 interface Status { text: string; error: boolean }
 interface Picker { key: string; action: "reject" | "escalate" }
@@ -106,7 +110,9 @@ export function TapeReader() {
       setItems(merged.items);
       if (merged.decided) setDecided((d) => ({ ...d, [row.key]: merged.decided as ReviewDecision }));
       setSessionCount((n) => n + 1);
-      setStatus({ text: `${body.decision === "correct" ? "Agreed" : DONE[action]}; recorded against ${me.name}.`, error: false });
+      const done = `${body.decision === "correct" ? "Agreed" : DONE[action]}; recorded against ${me.name}.`;
+      setStatus({ text: done, error: false });
+      announce(done);
       go(nextAwaiting(nextRows, index));
     } catch (err) {
       const message = (err as Error).message;
@@ -174,7 +180,7 @@ export function TapeReader() {
     const kind = REVIEW_KIND_LABEL[r.q.kind];
     const stateText = busy.has(r.key) ? "SENDING…" : r.decision ?? r.state.replace("_", " ");
     rendered.push(
-      <div key={r.key} className={cls} style={{ top: i * H }} onClick={() => setSel(i)} aria-selected={i === sel} aria-rowindex={i + 1} role="row">
+      <div key={r.key} id={rowId(r.key)} className={cls} style={{ top: i * H }} onClick={() => setSel(i)} aria-selected={i === sel} aria-rowindex={i + 1} role="row">
         <span role="gridcell" className="d">{r.queued ?? DASH}</span>
         <span role="gridcell" title={`${kind} · ${r.q.runId}`}>{r.q.runId} · <span className="d">{kind}</span></span>
         <span role="gridcell">{r.entity ?? DASH}</span>
@@ -217,7 +223,7 @@ export function TapeReader() {
     <div className="lab-tape">
       {toolbar}
       <p className="note">Corrections need a citation, so they are made in the Review Queue (↗). The tape approves, rejects and escalates.</p>
-      <div className="tape" ref={tapeRef} tabIndex={0} onKeyDown={onKey} aria-label="Tape reader. j and k move, a approves, r rejects, e escalates.">
+      <div className="tape" ref={tapeRef} tabIndex={0} onKeyDown={onKey} role="group" aria-activedescendant={cur && sel >= a && sel < b ? rowId(cur.key) : undefined} aria-label="Tape reader. j and k move, a approves, r rejects, e escalates.">
         <div className="bar">
           <div className="btns">
             {(["approve", "reject", "escalate"] as const).map((x) => (

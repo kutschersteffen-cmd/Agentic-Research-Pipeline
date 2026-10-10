@@ -147,9 +147,10 @@ export function DecisionTreeEditor({
           </div>
           {tierRules && <p className="decision-check-banner">Not applied: the tier rules below decide exclusions and demotions.</p>}
           {config.gates.length === 0 && <p className="muted">No gates. Every entity reaches the score.</p>}
-          {config.gates.map((gate) => (
+          {config.gates.map((gate, gi) => (
             <div key={gate.id} className="inline-fields decision-gate">
               <select
+                aria-label={`Gate ${gi + 1} column`}
                 value={gate.column}
                 onChange={(e) => set({ gates: config.gates.map((g) => (g.id === gate.id ? { ...g, column: e.target.value } : g)) })}
               >
@@ -160,6 +161,7 @@ export function DecisionTreeEditor({
                 ))}
               </select>
               <select
+                aria-label={`Gate ${gi + 1} condition`}
                 value={gate.op}
                 onChange={(e) => set({ gates: config.gates.map((g) => (g.id === gate.id ? { ...g, op: e.target.value as typeof g.op } : g)) })}
               >
@@ -170,10 +172,12 @@ export function DecisionTreeEditor({
                 <option value="eq">=</option>
               </select>
               <input
+                aria-label={`Gate ${gi + 1} value`}
                 value={gate.value}
                 onChange={(e) => set({ gates: config.gates.map((g) => (g.id === gate.id ? { ...g, value: e.target.value } : g)) })}
               />
               <select
+                aria-label={`Gate ${gi + 1} outcome`}
                 value={gate.outcome}
                 onChange={(e) =>
                   set({ gates: config.gates.map((g) => (g.id === gate.id ? { ...g, outcome: e.target.value as GateOutcome } : g)) })
@@ -198,37 +202,39 @@ export function DecisionTreeEditor({
             Number of tiers
             <input type="number" min={2} max={10} value={config.tiers.length} onChange={(e) => setTierCount(Number(e.target.value))} />
           </label>
-          <table className="data-table decision-tier-names">
-            <thead>
-              <tr>
-                <th>Tier</th>
-                <th>Name</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...config.tiers]
-                .sort((a, b) => a.rank - b.rank)
-                .map((tier) => (
-                  <tr key={tier.rank}>
-                    <td>{tier.rank}</td>
-                    <td>
-                      <input aria-label={`Tier ${tier.rank} name`} value={tier.name} onChange={(e) => setTier(tier.rank, { name: e.target.value })} />
-                    </td>
-                    <td>
-                      <input
-                        aria-label={`Tier ${tier.rank} action`}
-                        value={tier.action}
-                        placeholder="e.g. Engage"
-                        onChange={(e) => setTier(tier.rank, { action: e.target.value })}
-                      />
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
+          <div className="table-wrap">
+            <table className="data-table decision-tier-names">
+              <thead>
+                <tr>
+                  <th>Tier</th>
+                  <th>Name</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...config.tiers]
+                  .sort((a, b) => a.rank - b.rank)
+                  .map((tier) => (
+                    <tr key={tier.rank}>
+                      <td>{tier.rank}</td>
+                      <td>
+                        <input aria-label={`Tier ${tier.rank} name`} value={tier.name} onChange={(e) => setTier(tier.rank, { name: e.target.value })} />
+                      </td>
+                      <td>
+                        <input
+                          aria-label={`Tier ${tier.rank} action`}
+                          value={tier.action}
+                          placeholder="e.g. Engage"
+                          onChange={(e) => setTier(tier.rank, { action: e.target.value })}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
           <p className="help-text">Tier 1 is the best. Names and actions appear in the results, the export and the audit log.</p>
-          <select value={config.cut_mode} onChange={(e) => set({ cut_mode: e.target.value as CutMode })}>
+          <select aria-label="Cut-point method" value={config.cut_mode} onChange={(e) => set({ cut_mode: e.target.value as CutMode })}>
             <option value="quantile">Quantiles</option>
             <option value="breaks">Natural breaks</option>
             <option value="absolute">Fixed</option>
@@ -245,6 +251,7 @@ export function DecisionTreeEditor({
               {(config.pinned_cuts ?? cuts).map((cut, index) => (
                 <input
                   key={index}
+                  aria-label={`Cut-point ${index + 1}`}
                   type="number"
                   value={cut}
                   onChange={(e) => {
@@ -268,6 +275,7 @@ export function DecisionTreeEditor({
             <input type="checkbox" checked={config.veto.enabled} onChange={(e) => set({ veto: { ...config.veto, enabled: e.target.checked } })} />
             Demote one tier when any dimension scores below
             <input
+              aria-label="Dimension floor score"
               type="number"
               min={0}
               max={100}

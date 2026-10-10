@@ -1,8 +1,5 @@
-import "@gorules/jdm-editor/dist/style.css";
 import { FileLink } from "../../components/FileLink";
-import { useEditorTheme } from "../../lib/editorTheme";
-import { DecisionGraph, JdmConfigProvider, type DecisionGraphType } from "@gorules/jdm-editor";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { api } from "../../api/client";
 import type {
   DecisionInput,
@@ -30,6 +27,8 @@ import type {
 import { ActorField, DataTable, Planned, RuleEditor, Section, StudioHeader, VersionsPanel, useActor, usePolicy, words } from "./common";
 import { ClientExceptionDecisions, EscalationDecisions, PolicyDifference, TierDecisions } from "./decisions";
 import { OutreachDecisions } from "./drafting";
+
+const LazyPolicyCanvas = lazy(() => import("./PolicyCanvas"));
 
 export interface StudioProps {
   stage: StewardshipStage;
@@ -297,19 +296,11 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
 
 // --- 2. Research & Selection: coverage tiers -------------------------------------
 
-function PolicyCanvas({ graph, onChange }: { graph: Record<string, unknown>; onChange: (g: Record<string, unknown>) => void }) {
-  const editorTheme = useEditorTheme();
+function PolicyCanvas(props: { graph: Record<string, unknown>; onChange: (g: Record<string, unknown>) => void }) {
   return (
-    <div className="card rule-canvas studio-canvas">
-      <JdmConfigProvider theme={editorTheme}>
-        <DecisionGraph
-          value={graph as unknown as DecisionGraphType}
-          onChange={(next) => {
-            if (JSON.stringify(next) !== JSON.stringify(graph)) onChange(next as unknown as Record<string, unknown>);
-          }}
-        />
-      </JdmConfigProvider>
-    </div>
+    <Suspense fallback={<p className="status-text">Loading the rule editor…</p>}>
+      <LazyPolicyCanvas {...props} />
+    </Suspense>
   );
 }
 

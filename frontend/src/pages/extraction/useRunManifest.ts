@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
 import { ACTIVE_STATUSES } from "../../lib/runs";
 import type { RunManifest } from "../../types";
+import { pollAfter } from "../../lib/poll";
 
 /** Polls the run manifest while it is active; `onEnd` fires once it is not. Returns the manifest of `runId` only. */
 export function useRunManifest(runId: string, onEnd?: () => void): RunManifest | null {
@@ -10,7 +11,7 @@ export function useRunManifest(runId: string, onEnd?: () => void): RunManifest |
   endRef.current = onEnd;
   useEffect(() => {
     let live = true;
-    let timer: number | undefined;
+    let cancel = () => {};
     async function poll() {
       try {
         const m = (await api.getRun(runId)) as RunManifest;
@@ -23,12 +24,12 @@ export function useRunManifest(runId: string, onEnd?: () => void): RunManifest |
       } catch {
         // keep polling; RunProgress shows the load error
       }
-      if (live) timer = window.setTimeout(poll, 2500);
+      if (live) cancel = pollAfter(poll, 2500);
     }
     poll();
     return () => {
       live = false;
-      window.clearTimeout(timer);
+      cancel();
     };
   }, [runId]);
   return manifest && manifest.run_id === runId ? manifest : null;
