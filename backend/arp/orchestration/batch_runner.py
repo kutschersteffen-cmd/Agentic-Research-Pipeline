@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TypeVar
 
+from sqlalchemy.exc import OperationalError
+
+from arp.db.to_observations import to_observations
 from arp.llm.base import LLMUsage
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import hold_run
@@ -20,6 +24,8 @@ ItemT = TypeVar("ItemT")
 ResultT = TypeVar("ResultT")
 
 _KEY_FIELD = "_key"
+_WRITE_RETRIES = 3
+_RETRY_BACKOFF_S = 0.5
 
 
 class ReviewRequired(Exception):
@@ -64,6 +70,7 @@ async def run_batch(
     on_error: Callable[[ItemT, Exception], None] | None = None,
     resume: bool = True,
     cancel_check: Callable[[], bool] | None = None,
+    write_result: Callable[[ItemT, ResultT, dict], Awaitable[None]] | None = None,
 ) -> None:
     """Runs `worker` over `items` with bounded concurrency.
 
@@ -82,6 +89,9 @@ async def run_batch(
       further items are launched. Items already in flight still finish and
       checkpoint normally -- this is a soft stop (no work is lost or left
       half-written), not a hard kill.
+
+    `write_result`, if supplied, writes each success's row instead of
+    `sinks.append_result` (run_company_batch: one transaction per company).
     """
     already_done = sinks.done() if resume else set()
 
@@ -109,8 +119,11 @@ async def run_batch(
                 return
         record = result_to_json(result)
         record[_KEY_FIELD] = key
-        async with write_lock:
-            sinks.append_result(record)
+        if write_result is not None:
+            await write_result(item, result, record)
+        else:
+            async with write_lock:
+                sinks.append_result(record)
         if on_success:
             on_success(item, result)
 
@@ -145,10 +158,32 @@ async def run_company_batch(
     if run_store.has_companies(run_id):
         companies = run_store.load_companies(run_id) or []
 
-    def _on_success(company: CompanyRef, result: ResultT) -> None:
+    manifest = run_store.load_manifest(run_id)
+    run_type = manifest.run_type if manifest else ""
+    trial = bool(manifest and manifest.params.get("trial"))
+
+    def _commit(company: CompanyRef, result: ResultT, row: dict) -> None:
+        """The result row, its observations and facts, and its review items, in one transaction
+        (spec §3.1), retried with backoff while the database is unreachable (spec §5); then the
+        progress. Runs in a worker thread, which finishes both even if the batch task is cancelled
+        meanwhile, so a stored result always has its progress counted."""
         items = review_items(company, result) if review_items else []
-        for key, payload in items:
-            queue_for_review(run_store, run_id, key, payload, company=company)
+        errors: list[dict] = []
+        observations = (
+            to_observations(run_type, company.entity_id, run_id, row, trial=trial, errors=errors)
+            if company.entity_id is not None else []
+        )
+        for attempt in range(_WRITE_RETRIES + 1):
+            try:
+                run_store.record_company_result(
+                    run_id, row, observations=observations, review_items=items, company=company, errors=errors,
+                )
+                break
+            except OperationalError:
+                if attempt == _WRITE_RETRIES:
+                    raise
+                logger.warning("Writing %s for run %s failed; retrying", company.company_id, run_id, exc_info=True)
+                time.sleep(_RETRY_BACKOFF_S * 2**attempt)
         usage = getattr(result, "usage", None) or LLMUsage()
         job_manager.record_progress(
             run_id,
@@ -158,6 +193,9 @@ async def run_company_batch(
             output_tokens_delta=usage.output_tokens,
             cost_delta_usd=cost_usd(result) if cost_usd else 0.0,
         )
+
+    async def _write_result(company: CompanyRef, result: ResultT, row: dict) -> None:
+        await asyncio.to_thread(_commit, company, result, row)
 
     def _on_error(company: CompanyRef, exc: Exception) -> None:
         if isinstance(exc, ReviewRequired):
@@ -183,9 +221,9 @@ async def run_company_batch(
                 sinks=run_sinks(run_store, run_id),
                 concurrency=concurrency,
                 result_to_json=result_to_json,
-                on_success=_on_success,
                 on_error=_on_error,
                 cancel_check=_cancel_check,
+                write_result=_write_result,
             )
         # The rules step: a run with a Decision Studio framework attached is
         # scored before it is marked finished, so a finished run's scores are

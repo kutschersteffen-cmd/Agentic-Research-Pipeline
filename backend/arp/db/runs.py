@@ -17,19 +17,24 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
+from arp.db import observations as observations_db
 from arp.db.models import (
     Company,
     DecisionKind,
+    Document,
     ReviewCosign,
     ReviewDecision,
     ReviewItem,
     Run,
     RunCompany,
     RunError,
+    RunHeldDocument,
     RunResult,
     RunStatus,
 )
+from arp.db.observations import ObservationIn
 from arp.db.session import transaction
+from arp.db.to_observations import review_target
 from arp.schemas.common import CompanyRef, RunManifest, now_iso
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.postgres_projection_config import ProjectionConfig
@@ -145,15 +150,19 @@ class RunStore:
     def append_result(self, run_id: str, row: dict) -> None:
         """Re-appending a `_key` already stored is a no-op. A row without `_key` (replication
         steps, calibration flags, ...) is always appended, under a key of its own."""
-        row = _jsonb_safe(row)
-        key = row.get("_key") or f"~{uuid.uuid4().hex}"
         with self._tx(run_id) as s:
-            self._ensure_run(s, run_id)
-            s.execute(
-                insert(RunResult)
-                .values(run_id=run_id, result_key=key, company_id=self._universe_company(run_id, key), result=row)
-                .on_conflict_do_nothing(constraint="uq_run_results_key")
-            )
+            self._insert_result(s, run_id, _jsonb_safe(row))
+
+    def _insert_result(self, s: Session, run_id: str, row: dict, company_id=None) -> bool:
+        """False when the row's `_key` was already stored."""
+        key = row.get("_key") or f"~{uuid.uuid4().hex}"
+        self._ensure_run(s, run_id)
+        return s.execute(
+            insert(RunResult)
+            .values(run_id=run_id, result_key=key, company_id=company_id or self._universe_company(run_id, key), result=row)
+            .on_conflict_do_nothing(constraint="uq_run_results_key")
+            .returning(RunResult.id)
+        ).first() is not None
 
     def read_errors(self, run_id: str) -> list[dict]:
         with self._tx(run_id) as s:
@@ -173,24 +182,63 @@ class RunStore:
     def append_review_item(self, run_id: str, row: dict) -> None:
         """Requires `item_key`; re-queueing a key replaces its row. `company_id` is the company's
         UUID, or a universe id resolved through the run's companies; NULL when neither matches."""
-        row = _jsonb_safe(row)
+        with self._tx(run_id) as s:
+            self._insert_review_item(s, run_id, _jsonb_safe(row))
+
+    def _insert_review_item(self, s: Session, run_id: str, row: dict, observation_id: int | None = None) -> None:
         cid = row.get("company_id")
         try:
             company = select(Company.id).where(Company.id == uuid.UUID(str(cid))).scalar_subquery()
         except ValueError:
             company = self._universe_company(run_id, cid)
+        self._ensure_run(s, run_id)
+        stmt = insert(ReviewItem).values(
+            run_id=run_id, item_key=row["item_key"], company_id=company,
+            observation_id=observation_id or row.get("observation_id"), payload=row,
+        )
+        s.execute(
+            stmt.on_conflict_do_update(
+                constraint="uq_review_items_key",
+                set_={k: stmt.excluded[k] for k in ("payload", "company_id", "observation_id")},
+            )
+        )
+
+    def record_company_result(
+        self,
+        run_id: str,
+        row: dict,
+        *,
+        observations: list[ObservationIn],
+        review_items: list[tuple[str, dict]],
+        company: CompanyRef | None,
+        errors: list[dict] = (),
+    ) -> None:
+        """One company's result in one transaction (spec §3.1): the run_results row, `errors`
+        (values left out of `observations`), the observations with their citations and fact
+        updates, held documents, then the review items, each linked to the observation its
+        payload names (field and period). A `_key` already stored writes nothing."""
+        row = _jsonb_safe(row)
+        entity = company.entity_id if company is not None else None
         with self._tx(run_id) as s:
-            self._ensure_run(s, run_id)
-            stmt = insert(ReviewItem).values(
-                run_id=run_id, item_key=row["item_key"], company_id=company,
-                observation_id=row.get("observation_id"), payload=row,
-            )
-            s.execute(
-                stmt.on_conflict_do_update(
-                    constraint="uq_review_items_key",
-                    set_={"payload": stmt.excluded.payload, "company_id": stmt.excluded.company_id},
-                )
-            )
+            if not self._insert_result(s, run_id, row, entity):
+                return
+            for e in errors:
+                s.execute(insert(RunError).values(run_id=run_id, company_id=entity, error=_jsonb_safe(e)))
+            ids = observations_db.record(s, observations)
+            by_target = {(o.field_id, o.period_end.isoformat() if o.period_end else None): i for o, i in zip(observations, ids, strict=True)}
+            if entity is not None:
+                held = {d["doc_id"]: d.get("reason") for d in row.get("held_documents") or [] if d.get("doc_id")}
+                known = set(s.scalars(select(Document.doc_id).where(Document.doc_id.in_(held)))) if held else set()
+                for doc_id in known:
+                    s.execute(insert(RunHeldDocument).values(
+                        run_id=run_id, company_id=entity, doc_id=doc_id, reason=held[doc_id],
+                    ).on_conflict_do_nothing())
+            for key, payload in review_items:
+                item = {"item_key": key, "queued_at": now_iso(), **_jsonb_safe(payload)}
+                if company is not None:
+                    item.setdefault("company_id", company.company_id)
+                target = review_target(item)
+                self._insert_review_item(s, run_id, item, by_target.get(target) if target else None)
 
     def _item_id(self, run_id: str, row: dict):
         return (
@@ -216,6 +264,8 @@ class RunStore:
                     edited_value=row.get("edited_value"), comment=row.get("comment"), row=row,
                 )
             )
+            if decision is not None:
+                self._apply_review(s, run_id, row.get("item_key"))
 
     def read_cosigns(self, run_id: str) -> list[dict]:
         with self._tx(run_id) as s:
@@ -231,6 +281,32 @@ class RunStore:
                     user_id=row.get("user_id"), role=row.get("role"), row=row,
                 )
             )
+            self._apply_review(s, run_id, row.get("item_key"))
+
+    @staticmethod
+    def _apply_review(s: Session, run_id: str, item_key: str | None) -> None:
+        """Once the item's decision is final (its cosign or second review done, where the run type
+        needs one), the fact behind its observation takes it. Until then the fact stays as it is."""
+        from arp.orchestration.review_queue import FINAL_STATES, item_state
+        from arp.review.items import cosign_rule  # imports the extraction pipeline
+
+        item = s.scalar(select(ReviewItem).where(ReviewItem.run_id == run_id, ReviewItem.item_key == item_key))
+        if item is None or item.observation_id is None:
+            return
+        rows = s.execute(
+            select(ReviewDecision.id, ReviewDecision.row).where(ReviewDecision.review_item_id == item.id).order_by(ReviewDecision.id)
+        ).all()
+        signed = set(s.scalars(
+            select(ReviewCosign.row["decision_decided_at"].astext).where(ReviewCosign.review_item_id == item.id)
+        ))
+        run_type = s.scalar(select(Run.run_type).where(Run.run_id == run_id))
+        state = item_state([r for _, r in rows], cosigned_at=signed, cosign_required=cosign_rule(run_type))
+        if state.state not in FINAL_STATES:
+            return
+        eff = state.effective
+        decision_id = next(i for i, r in rows if r is eff)
+        edited = eff.get("corrected_value") or eff.get("edited_value")
+        observations_db.apply_decision(s, item.id, DecisionKind(eff["decision"]), edited, decision_id)
 
     # No table for these: files under run_dir.
     def read_restatements(self, run_id: str) -> list[dict]:
