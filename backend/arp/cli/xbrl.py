@@ -63,7 +63,7 @@ def fetch(
         run_id, companies, settings=settings, run_store=run_store, tags=tag_list, refresh=refresh,
         market=market, source=build_source(settings, refresh=refresh) if market == "sec" else None,
     ))
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     counts = Counter(r["status"] for r in rows)
     typer.echo("  ".join(f"{k}={v}" for k, v in sorted(counts.items())) or "no companies fetched")
     typer.echo(f"Run: {run_id}")

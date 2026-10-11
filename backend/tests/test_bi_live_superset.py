@@ -6,7 +6,7 @@ viz_type, all on the `holdings` dataset) are accepted and return rows.
 Skipped unless ARP_TEST_SUPERSET_URL is set. Prerequisites, as for a real
 deployment: Superset up (`docker compose up -d postgres superset`), and
 ARP_POSTGRES_DSN pointing at a database that had `arp db init-postgres`
-and `arp portfolio seed-demo` (with ARP_PORTFOLIO_BACKEND=postgres), plus
+and `arp portfolio seed-demo`, plus
 ARP_SUPERSET_PASSWORD and ARP_BI_READER_PASSWORD. Set
 ARP_BI_SUPERSET_DB_HOST if Superset reaches that Postgres somewhere other
 than postgres:5432. Everything the test creates in Superset is deleted."""

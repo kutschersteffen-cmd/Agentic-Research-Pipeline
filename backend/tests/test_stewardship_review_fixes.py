@@ -14,6 +14,8 @@ from arp.stewardship.policies import PolicyStore  # noqa: E402
 from arp.stewardship.policy_review import DATA, review  # noqa: E402
 from arp.stewardship.process import HOUSE, SAMPLE_PATH, StreamStore, build_stream_policy, flow, record_decision  # noqa: E402
 
+pytestmark = pytest.mark.usefixtures("pg")  # the CLI/app and RunStore need Postgres
+
 SAMPLE = json.loads(SAMPLE_PATH.read_text())
 CLIENT = json.loads((DATA / "examples" / "client_policy_example.json").read_text())
 DECISIONS = json.loads((DATA / "examples" / "client_policy_example_decisions.json").read_text())

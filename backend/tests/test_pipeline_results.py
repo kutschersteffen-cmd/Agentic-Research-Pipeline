@@ -16,24 +16,24 @@ def _match(company_id, activity_id, composite_score) -> CompanyMatch:
     )
 
 
-def test_load_theme_run_matches_flattens_company_matches_rows(tmp_path):
-    store = RunStore(tmp_path)
+def test_load_theme_run_matches_flattens_company_matches_rows(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     manifest = JobManager(store).create_run("theme", {}, company_count=2)
-    store.append_jsonl(store.results_path(manifest.run_id), {"company_matches": [_match("c1", "act1", 0.5).model_dump(mode="json")]})
-    store.append_jsonl(store.results_path(manifest.run_id), {"company_matches": [_match("c2", "act1", 0.9).model_dump(mode="json")]})
+    store.append_result(manifest.run_id, {"company_matches": [_match("c1", "act1", 0.5).model_dump(mode="json")]})
+    store.append_result(manifest.run_id, {"company_matches": [_match("c2", "act1", 0.9).model_dump(mode="json")]})
 
     matches = load_theme_run_matches(store, manifest.run_id)
     assert matches is not None
     assert {m.company_id for m in matches} == {"c1", "c2"}
 
 
-def test_load_theme_run_matches_returns_none_for_missing_run(tmp_path):
-    store = RunStore(tmp_path)
+def test_load_theme_run_matches_returns_none_for_missing_run(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     assert load_theme_run_matches(store, "run_nope") is None
 
 
-def test_load_theme_run_matches_returns_none_for_non_theme_run(tmp_path):
-    store = RunStore(tmp_path)
+def test_load_theme_run_matches_returns_none_for_non_theme_run(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
     manifest = JobManager(store).create_run("extraction", {}, company_count=1)
     assert load_theme_run_matches(store, manifest.run_id) is None
 

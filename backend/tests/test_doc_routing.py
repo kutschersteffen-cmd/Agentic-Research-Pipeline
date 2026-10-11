@@ -1,4 +1,7 @@
+import pytest
+
 from arp.config import Settings
+from arp.db.fields import SchemaRegistry
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.verifier_agent import VerifierOutput
@@ -8,7 +11,9 @@ from arp.planning.doc_routing import route_documents, section_filter
 from arp.schemas.common import Citation, CompanyRef, DocType, DocumentChunk, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, DocumentRouting, FieldDataType, FieldDefinition, FieldStatus
 from arp.storage.run_store import RunStore
-from arp.storage.schema_registry import SchemaRegistry
+from tests.postgres_helpers import pg_dsn, replace_results
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 TEXT = "Acme Corp report. In fiscal 2025, we invested $120 million in green capex."
 QUOTE = "invested $120 million in green capex"
@@ -58,19 +63,19 @@ async def _run_docs(tmp_path, docs, fake_llm, script, field=None, *, trial=False
         anthropic_api_key="unused", runs_dir=tmp_path / "r", schema_registry_dir=tmp_path / "s",
         documents_dir=tmp_path / "d", cache_dir=tmp_path / "c", discovery_state_dir=tmp_path / "x", **settings_kw,
     )
-    reg = SchemaRegistry(settings.schema_registry_dir)
+    reg = SchemaRegistry()
     saved = reg.save(DataPointSchema(schema_id="sch1", name="s", fields=[field.model_copy(update={"status": FieldStatus.RELEASED})]))
     saved = reg.release(saved.schema_id, saved.version)
     if audit:
         reg.record_first_audit(field.field_id, field.version, "approver")
-    store, llm = RunStore(settings.runs_dir), fake_llm(script)
+    store, llm = RunStore(pg_dsn(), settings.runs_dir), fake_llm(script)
     company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
     run_id = create_extraction_run(saved, [company], settings, store, trial=trial)
     await execute_extraction_run(
         run_id, saved, [company], llm=llm, registry=DocumentSourceRegistry([_Src(docs)]),
         settings=settings, run_store=store,
     )
-    (row,) = store.read_jsonl(store.results_path(run_id))
+    (row,) = store.read_results(run_id)
     return run_id, row["fields"][0], llm
 
 
@@ -130,12 +135,11 @@ def test_section_filter_with_fallback():
 
 
 def _failing_check_row(tmp_path, run_id):
-    import json
 
-    p = RunStore(tmp_path / "r").results_path(run_id)
-    rows = [json.loads(line) for line in p.read_text().splitlines()]
+    store = RunStore(pg_dsn(), tmp_path / "r")
+    rows = store.read_results(run_id)
     rows[0]["fields"][0]["checks"] = [{"check_id": "c", "layer": 2, "outcome": "fail", "severity": "warn"}]
-    p.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    replace_results(store, run_id, rows)
 
 
 async def test_prior_failing_check_reextracts(tmp_path, fake_llm):
@@ -154,12 +158,12 @@ async def test_shrunk_document_set_reextracts(tmp_path, fake_llm):
     assert llm2.calls and row2["reused_from_run"] is None
 
 
-async def test_prior_human_rejection_reextracts(tmp_path, fake_llm):
+async def test_prior_human_rejection_reextracts(tmp_path, fake_llm, pg):
     from arp.orchestration.review_queue import record_review_decision
 
     run1, _, _ = await _run(tmp_path, _field(), _doc(), fake_llm, _script())
-    store = RunStore(tmp_path / "r")
-    (item,) = store.read_jsonl(store.review_queue_path(run1))
+    store = RunStore(pg, tmp_path / "r")
+    (item,) = store.read_review_queue(run1)
     record_review_decision(store, run1, item["item_key"], "reject", "reviewer", None)
     _, row2, llm2 = await _run_docs(tmp_path, [_doc()], fake_llm, _script(), audit=True)
     assert llm2.calls and row2["reused_from_run"] is None
@@ -167,26 +171,26 @@ async def test_prior_human_rejection_reextracts(tmp_path, fake_llm):
     assert row2["value"] == 120.0 and row2["route"] == "review" and "check:prior.rejected" in row2["route_reasons"]
 
 
-async def test_rejection_in_a_stale_run_still_reviews_the_reused_value(tmp_path, fake_llm):
+async def test_rejection_in_a_stale_run_still_reviews_the_reused_value(tmp_path, fake_llm, pg):
     """Run 1 queues X, run 2 reuses X, a human then rejects X in run 1: run 3 reviews X."""
     from arp.orchestration.review_queue import record_review_decision
 
     run1, _, _ = await _run(tmp_path, _field(), _doc(), fake_llm, _script())
     run2, row2, _ = await _run(tmp_path, _field(), _doc(), fake_llm, {})
     assert row2["reused_from_run"] == run1
-    store = RunStore(tmp_path / "r")
-    (item,) = store.read_jsonl(store.review_queue_path(run1))
+    store = RunStore(pg, tmp_path / "r")
+    (item,) = store.read_review_queue(run1)
     record_review_decision(store, run1, item["item_key"], "reject", "reviewer", None)
     _, row3, llm3 = await _run_docs(tmp_path, [_doc()], fake_llm, {}, audit=True)
     assert llm3.calls == [] and row3["reused_from_run"] == run2
     assert row3["route"] == "review" and "check:prior.rejected" in row3["route_reasons"]
 
 
-async def test_trial_on_released_audited_field_queues_every_row(tmp_path, fake_llm):
+async def test_trial_on_released_audited_field_queues_every_row(tmp_path, fake_llm, pg):
     run_id, row, _ = await _run_docs(tmp_path, [_doc()], fake_llm, _script(), trial=True, audit=True)
     assert row["route"] == "review" and row["route_reasons"][:1] == ["unreleased_version"]
-    store = RunStore(tmp_path / "r")
-    assert [q["field_id"] for q in store.read_jsonl(store.review_queue_path(run_id))] == ["f1"]
+    store = RunStore(pg, tmp_path / "r")
+    assert [q["field_id"] for q in store.read_review_queue(run_id)] == ["f1"]
 
 
 async def test_changed_model_setting_reextracts(tmp_path, fake_llm):

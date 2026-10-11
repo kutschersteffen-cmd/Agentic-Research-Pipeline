@@ -37,9 +37,9 @@ class _Launcher:
 
 
 @pytest.fixture
-def start(tmp_path, monkeypatch):
+def start(tmp_path, monkeypatch, pg):
     settings = Settings(anthropic_api_key="unused", runs_dir=tmp_path / "runs", cache_dir=tmp_path / "cache")
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     seen: dict = {}
     JOBS.clear()
     monkeypatch.setattr(run_scheduling, "get_job_launcher", _Launcher)

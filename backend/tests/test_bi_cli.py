@@ -6,11 +6,21 @@ import json
 from contextlib import nullcontext
 from types import SimpleNamespace
 
+import pytest
 from typer.testing import CliRunner
 
 from arp.bi.superset_client import SupersetError
 from arp.cli import app
 from arp.config import get_settings
+
+
+@pytest.fixture(autouse=True)
+def _fake_dsn_is_fine(monkeypatch):
+    """These tests point ARP_POSTGRES_DSN at a fake server; the CLI startup check only needs it set."""
+    from arp.db.session import require_dsn
+
+    monkeypatch.setattr("arp.db.session.require_postgres", require_dsn)
+    monkeypatch.setenv("ARP_SKIP_CUTOVER_CHECK", "1")  # the fake DSN never answers
 
 
 def test_bootstrap_prints_superset_response_body_for_the_operator(monkeypatch):

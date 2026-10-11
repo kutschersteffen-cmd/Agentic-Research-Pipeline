@@ -31,7 +31,7 @@ class ReviewDecisionRequest(BaseModel):
 
 
 def get_review_queue(run_store: RunStore, run_id: str) -> dict:
-    rows = run_store.read_jsonl(run_store.review_queue_path(run_id))
+    rows = run_store.read_review_queue(run_id)
     decisions = latest_decisions(run_store, run_id)
     pending = [r for r in rows if r["item_key"] not in decisions]
     decided = [{"item": r, "decision": decisions[r["item_key"]]} for r in rows if r["item_key"] in decisions]

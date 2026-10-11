@@ -2,7 +2,7 @@
 
 Skipped unless ARP_TEST_SUPERSET_URL is set; needs ARP_TEST_SUPERSET_DESTRUCTIVE=1 (the
 helpers delete dashboards by slug) and the stack of test_bi_live_superset.py
-(ARP_POSTGRES_DSN, ARP_PORTFOLIO_BACKEND=postgres, ARP_BI_READER_PASSWORD, ...).
+(ARP_POSTGRES_DSN, ARP_BI_READER_PASSWORD, ...).
 It runs `arp bi bootstrap` first so the views carry project_id. Everything it creates
 (project dashboards and charts, holdings, portfolios, securities, companies) is deleted.
 Point it only at a throwaway stack."""
@@ -75,7 +75,7 @@ def cleanup(settings, client):
         c.execute(text("DELETE FROM holdings WHERE portfolio_id = ANY(:p)"), {"p": portfolios})
         c.execute(text("DELETE FROM portfolios WHERE portfolio_id = ANY(:p)"), {"p": portfolios})
         c.execute(text("DELETE FROM securities WHERE security_id = ANY(:i)"), {"i": isins})
-        c.execute(text("DELETE FROM companies WHERE company_id = ANY(:i)"), {"i": [f"isin_{i}" for i in isins]})
+        c.execute(text("DELETE FROM legacy_companies WHERE company_id = ANY(:i)"), {"i": [f"isin_{i}" for i in isins]})
     engine.dispose()
 
 
@@ -114,7 +114,6 @@ def _make_project(store, tmp_path, cleanup, pid, tag, notional, w1, w2):
 
 
 def test_projects_end_to_end(settings, client, cleanup, tmp_path):
-    assert settings.portfolio_backend == "postgres", "needs ARP_PORTFOLIO_BACKEND=postgres"
     result = CliRunner().invoke(app, ["bi", "bootstrap"])  # views gain project_id
     assert result.exit_code == 0, result.output
 

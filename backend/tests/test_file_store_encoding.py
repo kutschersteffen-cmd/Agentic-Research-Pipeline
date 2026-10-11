@@ -110,10 +110,10 @@ def test_latest_pointer_resolves_for_a_framework_with_non_ascii_content(tmp_path
     assert loaded.name == AWKWARD
 
 
-def test_run_manifest_round_trips_non_ascii(tmp_path: Path) -> None:
+def test_run_manifest_round_trips_non_ascii(tmp_path: Path, pg) -> None:
     """A run's `params` carry the universe and theme a person typed, so a
     manifest is as likely to hold an umlaut as a framework name is."""
-    store = RunStore(tmp_path)
+    store = RunStore(pg, tmp_path)
     store.save_manifest(
         RunManifest(run_id="run-umlaut", run_type="extraction", status=JobStatus.RUNNING, params={"theme": AWKWARD}, company_count=1)
     )

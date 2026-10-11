@@ -16,8 +16,8 @@ REQ = {"edit"}
 
 
 @pytest.fixture
-def run_store(tmp_path):
-    return RunStore(tmp_path / "runs")
+def run_store(tmp_path, pg):
+    return RunStore(pg, tmp_path / "runs")
 
 
 def _edit(rs, who=ALICE):

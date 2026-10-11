@@ -38,8 +38,8 @@ def test_engagement_store_rejects_traversal_company_id(tmp_path):
     assert not (tmp_path / "tmp" / "pwned").exists()
 
 
-def test_run_store_rejects_traversal_run_id(tmp_path):
-    store = RunStore(tmp_path / "runs")
+def test_run_store_rejects_traversal_run_id(tmp_path, pg):
+    store = RunStore(pg, tmp_path / "runs")
     with pytest.raises(UnsafeIdentifierError):
         store.run_dir("../outside")
     assert not (tmp_path / "outside").exists()

@@ -64,7 +64,7 @@ def from_transition_plan_run(run_store: RunStore, run_id: str, *, include_indica
     board-level owner"). Off by default: 64 more criteria is a different
     derivation, not a bigger table.
     """
-    records = run_store.read_jsonl(run_store.results_path(run_id))
+    records = run_store.read_results(run_id)
     if not records:
         raise ValueError(f"Transition plan run {run_id} has no results.")
 
@@ -135,7 +135,7 @@ def from_extraction_run(run_store: RunStore, run_id: str) -> Dataset:
     trustworthy, and a score built mostly on those should say so rather
     than read like any other score.
     """
-    records = run_store.read_jsonl(run_store.results_path(run_id))
+    records = run_store.read_results(run_id)
     if not records:
         raise ValueError(f"Extraction run {run_id} has no results.")
 
@@ -194,7 +194,7 @@ def from_financials_run(run_store: RunStore, run_id: str) -> Dataset:
     segment count and summed segment revenue, as reported (currencies are not
     converted, so a framework comparing companies should normalise within a
     currency cohort or use a ratio computed by a rule)."""
-    records = run_store.read_jsonl(run_store.results_path(run_id))
+    records = run_store.read_results(run_id)
     if not records:
         raise ValueError(f"Financials run {run_id} has no results.")
 
@@ -247,7 +247,7 @@ def from_tnfd_run(run_store: RunStore, run_id: str) -> Dataset:
     """A TNFD extraction run -> one row per company."""
     from arp.schemas.tnfd import CoreGlobalMetricCategory, RecommendationId
 
-    records = run_store.read_jsonl(run_store.results_path(run_id))
+    records = run_store.read_results(run_id)
     if not records:
         raise ValueError(f"TNFD run {run_id} has no results.")
 
@@ -281,7 +281,7 @@ def from_theme_run(run_store: RunStore, run_id: str) -> Dataset:
     """A thematic universe run -> one row per company, aggregated over the
     per-activity matches: how many activities it was included on, its best
     exposure estimate, and the adjudicator's mean confidence."""
-    matches = run_store.read_jsonl(run_store.results_path(run_id))
+    matches = run_store.read_results(run_id)
     if not matches:
         raise ValueError(f"Theme run {run_id} has no results.")
 
@@ -565,7 +565,7 @@ def from_replication_runs(run_store: RunStore, run_ids: list[str] | None = None)
     ]
     rows: list[list[str]] = []
     for run_id in run_ids:
-        records = run_store.read_jsonl(run_store.results_path(run_id))
+        records = run_store.read_results(run_id)
         report = next((r for r in records if r.get("type") == "comparison"), None)
         if report is None:
             continue

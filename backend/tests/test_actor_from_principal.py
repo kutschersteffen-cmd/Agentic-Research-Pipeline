@@ -52,7 +52,7 @@ def test_engagement_validate_and_verify_ignore_supplied_names(tmp_path):
 
 
 @pytest.fixture
-def stew(tmp_path):
+def stew(tmp_path, pg):
     streams, engagements = StreamStore(tmp_path / "s"), EngagementStore(tmp_path / "e")
     client = _client(
         stewardship,

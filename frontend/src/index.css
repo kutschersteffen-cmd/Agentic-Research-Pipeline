@@ -2003,3 +2003,49 @@ th[aria-sort="ascending"] .xbrl-sort, th[aria-sort="descending"] .xbrl-sort { co
 .xbrl-counts > div { min-width: 7rem; }
 .xbrl-counts dt { color: var(--muted); font-size: var(--text-sm); }
 .xbrl-counts dd { margin: 0; font-size: 1.5rem; font-weight: 600; }
+
+/* --- Company page (#/companies/<ref>) --- */
+/* Identity reads as one tight group under the name; identifiers and counts are
+   ruled strips, not cards. The signal marks only what waits on a person. */
+.company-page > h1 + .company-meta { margin: 0 0 var(--s-4); }
+.company-ids, .company-counts { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-6); margin: 0 0 var(--s-4); }
+.company-ids > div, .company-counts > div { min-width: 0; }
+.company-ids dt, .company-counts dt { color: var(--muted); font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.08em; }
+.company-ids dd { margin: 0; overflow-wrap: anywhere; }
+.company-counts-label { margin: 0 0 var(--s-2); padding-top: var(--s-3); border-top: 1px solid var(--panel-border); }
+.company-counts dd { margin: 0; font-family: var(--font-mono); font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.company-counts .awaiting dd { color: var(--hi-ink); }
+.company-counts .awaiting { border-top: 2px solid var(--await-edge); margin-top: -2px; padding-top: 2px; }
+.company-page h2 { font-family: var(--font-display); font-size: 1.25rem; letter-spacing: -0.02em; margin: var(--s-6) 0 var(--s-2); }
+.company-filters { margin-bottom: var(--s-2); }
+.company-filters input[type="date"] { width: auto; margin-top: 0; }
+.company-facts td.company-value { white-space: normal; font-variant-numeric: tabular-nums; }
+.company-status { display: inline-flex; flex-wrap: wrap; gap: var(--s-1); align-items: center; }
+.company-status .proposed-tag { margin: 0; }
+.company-hits { list-style: none; padding: 0; margin: var(--s-4) 0; border-top: 1px solid var(--panel-border); }
+.company-hits li { padding: var(--s-2) 0; border-bottom: 1px solid var(--panel-border); }
+/* The trail reuses the docked source panel, but scrolls its own list. */
+.trail-panel { overflow-y: auto; }
+.trail-panel h2 { margin: 0; font-size: 1rem; }
+.trail-panel h2:focus { outline: none; }
+.trail-panel h2:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.trail-versions { list-style: none; margin: var(--s-3) 0 0; padding: 0; }
+.trail-version { padding: var(--s-3) 0; border-top: 1px solid var(--panel-border); }
+.trail-version.superseded > .trail-version-head strong { text-decoration: line-through; text-decoration-color: var(--muted); }
+.trail-version-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); }
+.trail-version > p { margin: var(--s-1) 0; }
+.trail-facts { display: grid; grid-template-columns: auto 1fr; gap: 2px var(--s-3); margin: var(--s-2) 0; font-size: var(--text-sm); }
+.trail-facts dt { color: var(--muted); }
+.trail-facts dd { margin: 0; overflow-wrap: anywhere; }
+.trail-citations, .trail-decisions { margin: var(--s-2) 0 0; padding-left: 18px; font-size: var(--text-sm); }
+.trail-citations li + li, .trail-decisions li + li { margin-top: var(--s-2); }
+.trail-citations .badge { margin-left: var(--s-1); }
+.trail-citations q { display: block; quotes: none; }
+@media (max-width: 900px) {
+  .company-page .trail-panel { max-height: none; }
+}
+.company-status .status-pill, .company-status .proposed-tag { white-space: nowrap; }
+/* Long field ids (prov:msci_esg:carbon_intensity) wrap here, so the table keeps its share beside the trail. */
+.company-facts td:first-child, .company-facts .link-button { white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.company-page .split-review-main > .table-wrap { border: 1px solid var(--panel-border); padding: 0 var(--s-2); }
+.company-page .trail-panel { flex-basis: min(38%, 440px); height: auto; max-height: calc(100vh - 24px); }

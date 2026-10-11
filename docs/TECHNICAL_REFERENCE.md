@@ -11,7 +11,7 @@ Two coupled tools for investment research at scale (designed for up to ~4,000 co
 
 Around that core sit five more modules — Company Financials extraction, agentic Identity Resolution, Document Discovery, Engagement & Voting (stewardship), and Portfolio Risk & Climate Analytics — sharing one file-based storage convention and one LLM client interface.
 
-**Storage philosophy:** everything is files — JSON/JSONL under `runs/`, `portfolios/`, `engagements/`, `ballots/`, `taxonomies/`, `data/documents/`. No database. The one deliberate exception is `DocumentContentStore`, a SQLite cache for parsed document text, added specifically to avoid re-parsing the same PDF on every run.
+**Storage:** Postgres with `pgvector` is required (`ARP_POSTGRES_DSN`). It holds companies and their identifiers, runs, results, review items and decisions, observations and facts, the document registry, chunk embeddings, holdings, and published facts (see `docs/METHODOLOGY.md`, "Storage"). Files remain for per-run side artifacts, portfolio observations/news/rules, engagements, ballots, taxonomies and `data/documents/`; `DocumentContentStore` keeps parsed document text in a local SQLite cache so the same PDF is not re-parsed on every run.
 
 **Precision-first design:** every LLM call that produces a citation is checked programmatically against the source document text (never trusted on the model's say-so), every extraction has an independent verifier pass, and anything below a confidence threshold is queued for mandatory human review rather than silently included.
 
@@ -61,7 +61,7 @@ The backend and frontend are fully decoupled: the CLI and the API call the exact
 | `review/` | The review workbench (§3.18): `items.py` (every item of a run, with its kind and state), `context.py` (the decision-ready bundle and the stored snapshots), `decide.py` (constrained decisions, citation grounding, second-reviewer rules). `api/routers/review.py` is its one router, `/api/review/...`. |
 | `schemas/` | Every Pydantic model in the system — one module per domain, all LLM structured-output shapes included. |
 | `snapshots/` | Frozen monthly snapshots (E77): dataset schemas and majors (`schema.py`), the write-once build and correction revisions (`build.py`), and the hash-verifying pull client (`client.py`). |
-| `storage/` | File-backed stores for runs, portfolios, engagements, taxonomies, plus `DocumentContentStore` (the one SQLite exception, itself split into three focused collaborators — parsed-content cache, document registry, chunk-embeddings cache — behind a thin facade) and `KeyedLock` (per-key reentrant locking against read-modify-write races between concurrent request handlers and background batch threads). |
+| `storage/` | Stores for portfolios (Postgres with file-backed parts), engagements, taxonomies, the file-era run reader (`LegacyRunStore`), plus `DocumentContentStore` (Postgres registry and embeddings, SQLite parsed-content cache, itself split into three focused collaborators — parsed-content cache, document registry, chunk-embeddings cache — behind a thin facade) and `KeyedLock` (per-key reentrant locking against read-modify-write races between concurrent request handlers and background batch threads). |
 | `transition_barrier/` | Transition Barrier Assessment: the bundled 105-cell sector x region feasibility matrix (`data/*.json` + `dataset.py` loaders), staleness tracking independent of confidence (`staleness.py`), and the EUR-Lex source-refresh slice (`refresh/`) whose reconciler may propose an H/M/L change but never apply one. |
 | `transition_plan/` | Transition Plan Assessment: the paper's 64 fixed indicators (`indicators.py`), the per-indicator RAG agent + independent verifier wired through `indicator_graph.py`, and per-company walk/talk aggregation. |
 | `xbrl_pipeline/` | XBRL Facts (§3.19): `fetch.py` (the `xbrl_fetch` run, per-company fetch, retry and pacing), `flatten.py` (every fact to a flat row, plus the catalogue), `required.py` (revenue and capex), `store.py` (the `data/xbrl/` files), `registry.py` (official taxonomy snapshots and tag search), `selection.py` (named selections), `views.py` (files list, facts table, by-year table, download path), `verify.py` (circular-run guard and comparison). Zero LLM calls. |
@@ -370,6 +370,8 @@ data/documents/<company_id>/<doc_type>/*     manual uploads + discovery-crawler 
 data/documents/_captures.jsonl, _intake.jsonl  download log; files intake did not accept
 data/blobs/<key[:2]>/<key>                   verified original bytes (blob_store_dir)
 schemas/                                     versioned data-point schemas (schema_registry_dir)
+runs/<run_id>/ (manifest, results, errors, review_*.jsonl): file-era runs, read only by `arp db import`;
+                                              runs now live in Postgres (runs, run_results, review_*)
 runs/<run_id>/manifest.json                  run metadata: type, status, cost, progress
 runs/<run_id>/results.jsonl                  per-company results, appended as they complete
 runs/<run_id>/errors.jsonl                   per-company failures, isolated from the batch
@@ -393,12 +395,13 @@ engagements/<company_id>/events.jsonl        append-only audit log, never overwr
 ballots/<run_id>/<item>.json                 one voting-instruction file per cast vote
 taxonomies/<taxonomy_id>.json                versioned, ratifiable theme definitions
 data/xbrl/                                   XBRL Facts files (xbrl_dir); layout in §3.19
-backend/.arp_cache/ (configurable)           SQLite DocumentContentStore — parsed-content
-                                              cache, document registry, chunk-embeddings cache;
-                                              the one non-file-based store in the system
+backend/.arp_cache/ (configurable)           SQLite parsed-content cache (derived; safe to delete)
+Postgres: companies, company_identifiers,     company registry; runs, results, review; observations,
+  runs/run_*, review_*, field_observations,   citations and current facts; document registry;
+  company_facts, documents, chunk_embeddings  chunk embeddings (pgvector)
 ```
 
-With `ARP_EMBEDDINGS_BACKEND=postgres` and `ARP_POSTGRES_DSN`, `content_store_for(settings)` keeps the document registry (`document_registry` table, incl. identity columns) and the chunk embeddings in Postgres; parsed text stays in SQLite as a derived cache. Existing registries are copied once with `arp documents migrate-registry` (copies rows not yet in Postgres, never overwrites; idempotent; refuses unless that backend is selected). Upgrade step: a deployment that already has SQLite registry rows must run it right after switching the backend on; until then the Postgres registry is empty or partial, and building the content store logs an ERROR (once per process) naming the command.
+`content_store_for(settings)` keeps the document registry (`documents` table, incl. identity columns) and the chunk embeddings in Postgres; parsed text stays in SQLite as a derived cache. Registries from earlier versions (`content.db` `documents`, the legacy `document_registry` table) are brought in by `arp db import` (see `docs/INSTALLATION.md`).
 
 ### Captured originals, intake and schema release
 

@@ -1,4 +1,5 @@
-import json
+
+import pytest
 
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef
@@ -6,13 +7,16 @@ from arp.storage.document_store import DocumentContentStore, derive_doc_id
 from arp.storage.run_store import RunStore
 from arp.universe_workbench.availability import availability
 from arp.xbrl_pipeline.store import XbrlStore
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below
 
 
 class Env:
     def __init__(self, tmp_path):
-        self.run_store = RunStore(tmp_path / "runs")
+        self.run_store = RunStore(pg_dsn(), tmp_path / "runs")
         self.jobs = JobManager(self.run_store)
-        self.content = DocumentContentStore(tmp_path / "store")
+        self.content = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
         self.xbrl = XbrlStore(tmp_path / "xbrl")
         self.docs = tmp_path / "docs"
         self.n = 0
@@ -21,9 +25,8 @@ class Env:
         m = self.jobs.create_run(run_type, {}, len(rows))
         self.n += 1  # run ids are random, so pin the order through created_at
         self.run_store.save_manifest(m.model_copy(update={"created_at": f"2026-01-0{self.n}T00:00:00+00:00"}))
-        path = self.run_store.results_path(m.run_id)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+        for r in rows:
+            self.run_store.append_result(m.run_id, r)
         return m
 
     def avail(self, *ids):
@@ -101,8 +104,8 @@ def test_each_results_file_read_once(tmp_path, monkeypatch):
     e.run("tnfd", [{"company_id": i} for i in ids])
     e.run("identity", [_ident(i) for i in ids])
     calls = []
-    real = RunStore.read_jsonl
-    monkeypatch.setattr(RunStore, "read_jsonl", staticmethod(lambda p: calls.append(p) or real(p)))
+    real = RunStore.read_results
+    monkeypatch.setattr(RunStore, "read_results", lambda self, run_id: calls.append(run_id) or real(self, run_id))
     e.avail(*ids)
     assert len(calls) == 3
 

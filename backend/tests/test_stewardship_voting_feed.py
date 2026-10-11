@@ -35,8 +35,8 @@ def _vote(n: str, policy: VotePosition) -> VoteRecord:
     return VoteRecord(proposal=proposal, policy_recommendation=PolicyRecommendation(vote=policy, rationale="house policy"))
 
 
-def test_decided_ballots_reach_stage_4_the_checkpoint_and_monitoring(tmp_path):
-    runs = RunStore(tmp_path / "runs")
+def test_decided_ballots_reach_stage_4_the_checkpoint_and_monitoring(tmp_path, pg):
+    runs = RunStore(pg, tmp_path / "runs")
     runs.save_manifest(RunManifest(run_id="vote_run", run_type="proxy_voting"))
     ballot = CompanyBallot(
         company_id="SYN01",
@@ -45,7 +45,7 @@ def test_decided_ballots_reach_stage_4_the_checkpoint_and_monitoring(tmp_path):
         meeting_date="2026-05-15",
         votes=[_vote("1", VotePosition.FOR), _vote("2", VotePosition.FOR), _vote("3", VotePosition.FOR)],
     )
-    runs.append_jsonl(runs.results_path("vote_run"), ballot.model_dump(mode="json"))
+    runs.append_result("vote_run", ballot.model_dump(mode="json"))
     # 1: approved as recommended and cast; 2: overridden to against, with a reason; 3: awaiting.
     submit_review(runs, "vote_run", item_key="SYN01:1", decision="approve", reviewer="A. Reviewer", edited_value=None)
     submit_review(

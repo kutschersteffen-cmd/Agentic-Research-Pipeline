@@ -9,6 +9,7 @@ from arp.agents.calibration_agent import CalibrationAgentScheduler
 from arp.agents.taxonomy_researcher import TaxonomyResearcherScheduler
 from arp.bi.superset_client import SupersetClient
 from arp.config import Settings, get_settings
+from arp.db.session import require_dsn
 from arp.discovery.scheduler import DiscoveryScheduler
 from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient
 from arp.emerging_themes.scheduler import EmergingThemesScheduler
@@ -37,7 +38,6 @@ from arp.storage.index_store import IndexStore
 from arp.storage.opensearch_client import OpenSearchNotConfigured
 from arp.storage.opensearch_client import get_client as get_opensearch_client
 from arp.storage.portfolio_store_factory import build_portfolio_store
-from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.reporting_store import ReportingStore
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
@@ -52,9 +52,7 @@ def settings_dep() -> Settings:
 
 
 def publish_store_dep(settings: Settings = Depends(settings_dep)) -> PublishStore:
-    if not settings.postgres_dsn:
-        raise HTTPException(503, "the published-fact store needs ARP_POSTGRES_DSN")
-    return PublishStore(settings.postgres_dsn)
+    return PublishStore(require_dsn(settings))
 
 
 def blob_store_dep(settings: Settings = Depends(settings_dep)):
@@ -64,7 +62,7 @@ def blob_store_dep(settings: Settings = Depends(settings_dep)):
 @lru_cache
 def get_run_store() -> RunStore:
     settings = get_settings()
-    return RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
+    return RunStore(require_dsn(settings), settings.runs_dir)
 
 
 def get_identifier_map(settings: Settings = Depends(settings_dep)) -> IdentifierMapStore:
@@ -176,8 +174,6 @@ def get_superset_client() -> SupersetClient:
     s = get_settings()
     if s.superset_password is None:
         raise HTTPException(503, "Superset is not configured: set ARP_SUPERSET_PASSWORD.")
-    if s.postgres_dsn is None:
-        raise HTTPException(503, "BI needs Postgres: set ARP_POSTGRES_DSN.")
     return SupersetClient(s.superset_url, s.superset_user, s.superset_password)
 
 
@@ -254,7 +250,7 @@ def get_report_scheduler() -> ReportScheduler:
 @lru_cache
 def get_engagement_store() -> EngagementStore:
     settings = get_settings()
-    return EngagementStore(settings.engagements_dir, projection_config=ProjectionConfig.from_settings(settings))
+    return EngagementStore(settings.engagements_dir, dsn=settings.postgres_dsn)
 
 
 @lru_cache

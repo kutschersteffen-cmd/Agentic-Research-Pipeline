@@ -10,18 +10,16 @@ if TYPE_CHECKING:
 class PostgresExtraNotInstalled(RuntimeError):
     def __init__(self, exc: Exception) -> None:
         super().__init__(
-            "postgres_dsn is set but sqlalchemy/psycopg/pgvector aren't installed. Install the optional "
-            f"extra: pip install -e '.[postgres]'. Original import error: {exc}"
+            "sqlalchemy/psycopg/pgvector aren't installed; they are required dependencies: "
+            f"pip install -e . Original import error: {exc}"
         )
 
 
 # Seconds to wait for a TCP connection to Postgres before giving up.
-# Every projection sync hook runs inline on the caller's thread (see
-# run_store.py's _sync_projections, engagement_store.py's _save), and they
-# are best-effort by contract -- but "best-effort" only holds if the
-# attempt is bounded. Without this, psycopg waits on the OS default, so an
-# unreachable host (a firewall dropping packets rather than refusing)
-# stalls run completion and every engagement edit for minutes.
+# Without this, psycopg waits on the OS default, so an unreachable host (a
+# firewall dropping packets rather than refusing) stalls every request --
+# including engagement_store.py's best-effort mirror on each save -- for
+# minutes instead of failing fast.
 # pool_pre_ping catches a *stale* pooled connection; it does nothing for a
 # server that never answers.
 _CONNECT_TIMEOUT_SECONDS = 10
@@ -42,8 +40,14 @@ def get_engine(dsn: str) -> Engine:
         from sqlalchemy import create_engine
     except ImportError as exc:  # pragma: no cover - exercised only without the optional extra
         raise PostgresExtraNotInstalled(exc) from exc
+    from arp.config import get_settings
+
+    settings = get_settings()
     connect_args = {} if "connect_timeout" in dsn else {"connect_timeout": _CONNECT_TIMEOUT_SECONDS}
-    return create_engine(dsn, pool_pre_ping=True, connect_args=connect_args)
+    return create_engine(
+        dsn, pool_pre_ping=True, connect_args=connect_args,
+        pool_size=settings.postgres_pool_size, max_overflow=settings.postgres_max_overflow,
+    )
 
 
 def ensure_schema(dsn: str) -> dict:

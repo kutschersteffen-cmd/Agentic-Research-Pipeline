@@ -31,8 +31,8 @@ async def _run(run_store: RunStore, run_id: str, companies: list[CompanyRef], wo
     )
 
 
-async def test_progress_review_queue_and_failures_are_recorded(tmp_path):
-    run_store = RunStore(tmp_path)
+async def test_progress_review_queue_and_failures_are_recorded(tmp_path, pg):
+    run_store = RunStore(pg, tmp_path)
     companies = _companies("ok", "flagged", "broken")
     run_id = JobManager(run_store).create_run("test", {}, len(companies)).run_id
 
@@ -43,10 +43,10 @@ async def test_progress_review_queue_and_failures_are_recorded(tmp_path):
 
     await _run(run_store, run_id, companies, worker)
 
-    results = run_store.read_jsonl(run_store.results_path(run_id))
+    results = run_store.read_results(run_id)
     assert sorted(r["company_id"] for r in results) == ["flagged", "ok"]
-    assert [r["item_key"] for r in run_store.read_jsonl(run_store.review_queue_path(run_id))] == ["flagged"]
-    assert [e["key"] for e in run_store.read_jsonl(run_store.errors_path(run_id))] == ["broken"]
+    assert [r["item_key"] for r in run_store.read_review_queue(run_id)] == ["flagged"]
+    assert [e["key"] for e in run_store.read_errors(run_id)] == ["broken"]
 
     m = run_store.load_manifest(run_id)
     assert (m.completed_count, m.failed_count, m.review_count) == (2, 1, 1)
@@ -54,8 +54,8 @@ async def test_progress_review_queue_and_failures_are_recorded(tmp_path):
     assert m.status == JobStatus.PARTIALLY_COMPLETED
 
 
-async def test_cancel_requested_stops_new_items_and_marks_run_cancelled(tmp_path):
-    run_store = RunStore(tmp_path)
+async def test_cancel_requested_stops_new_items_and_marks_run_cancelled(tmp_path, pg):
+    run_store = RunStore(pg, tmp_path)
     companies = _companies("a", "b", "c")
     job_manager = JobManager(run_store)
     run_id = job_manager.create_run("test", {}, len(companies)).run_id

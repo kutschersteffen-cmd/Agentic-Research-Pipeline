@@ -1,0 +1,131 @@
+"""Company registry: resolves a company row (universe file, provider record) to one company UUID
+through identifier aliases (`company_identifiers`)."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from uuid import UUID
+
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from arp.db.models import Company, CompanyIdentifier, IdScheme
+from arp.schemas.common import CompanyRef
+from arp.storage.postgres_models import Base
+
+
+@dataclass
+class Resolution:
+    company_id: UUID | None
+    created: bool
+    conflict: list[UUID] = field(default_factory=list)
+
+
+def normalise_identifier(scheme: str, value: str) -> str:
+    v = "".join(value.split()).upper()
+    return v.lstrip("0") if scheme == "CIK" else v
+
+
+def identifiers_of(company: CompanyRef) -> list[tuple[IdScheme, str]]:
+    pairs = [
+        (IdScheme.LEI, company.lei),
+        (IdScheme.ISIN, company.isin),
+        (IdScheme.CIK, company.cik),
+        (IdScheme.UNIVERSE, company.company_id),
+    ]  # never TICKER: tickers repeat across exchanges and get reused, so they must not match or merge companies
+    return [(s, normalise_identifier(s, v)) for s, v in pairs if v and normalise_identifier(s, v)]
+
+
+def _active(session: Session, scheme: str, value: str) -> UUID | None:
+    return session.scalar(
+        select(CompanyIdentifier.company_id).where(
+            CompanyIdentifier.scheme == str(scheme),
+            CompanyIdentifier.value == normalise_identifier(scheme, value),
+            CompanyIdentifier.valid_to.is_(None),
+        )
+    )
+
+
+def lookup(session: Session, scheme: IdScheme, value: str) -> UUID | None:
+    return _active(session, scheme, value)
+
+
+def company_for(
+    session: Session, *, issuer_key: str | None = None, issuer_scheme: str | None = None,
+    isin: str | None = None, universe_id: str | None = None,
+) -> UUID | None:
+    """The company a legacy-keyed row names, or None: an INTERNAL issuer key that is a company UUID
+    (followed through a merge), else the active LEI, UNIVERSE or ISIN alias. Never creates one."""
+    if issuer_key and issuer_scheme == "INTERNAL":
+        try:
+            key = UUID(issuer_key)
+        except ValueError:
+            key = None  # a security-master issuer id, not a registry UUID
+        if key is not None:
+            merged = _active(session, IdScheme.MERGED_INTO, str(key))
+            if merged or session.get(Company, key):
+                return merged or key
+    lei = issuer_key if issuer_scheme == "LEI" else None
+    for scheme, value in ((IdScheme.LEI, lei), (IdScheme.UNIVERSE, universe_id), (IdScheme.ISIN, isin)):
+        if value and normalise_identifier(scheme, value) and (found := _active(session, scheme, value)):
+            return found
+    return None
+
+
+def resolve(
+    session: Session, ids: list[tuple[IdScheme, str]], *, name: str, allow_create: bool, attrs: dict | None = None
+) -> Resolution:
+    ids = [(s, normalise_identifier(s, v)) for s, v in ids if v and s != IdScheme.TICKER and normalise_identifier(s, v)]
+    for attempt in (0, 1):
+        found = {s_v: _active(session, *s_v) for s_v in ids}
+        owners = list(dict.fromkeys(c for c in found.values() if c is not None))
+        if len(owners) > 1:
+            return Resolution(None, False, owners)
+        if not owners and not (allow_create and ids):
+            return Resolution(None, False, [])
+        try:
+            with session.begin_nested():
+                created = not owners
+                if created:
+                    company = Company(name=name, **(attrs or {}))
+                    session.add(company)
+                    session.flush()
+                company_id = company.id if created else owners[0]
+                for scheme, value in ids:
+                    if found[(scheme, value)] is None:
+                        session.add(CompanyIdentifier(company_id=company_id, scheme=str(scheme), value=value))
+                session.flush()
+            return Resolution(company_id, created, [])
+        except IntegrityError:
+            # another session registered one of these identifiers first; re-read and attach to it
+            if attempt:
+                raise
+    raise AssertionError("unreachable")
+
+
+def resolve_company(session: Session, company: CompanyRef) -> Resolution:
+    attrs = {
+        k: v for k, v in company.model_dump(include={"country", "sector", "isic_code", "fiscal_year_end", "regimes"}).items() if v
+    }
+    return resolve(session, identifiers_of(company), name=company.name, allow_create=True, attrs=attrs)
+
+
+def ensure_universe_company(session: Session, universe_id: str, *, name: str | None = None) -> UUID:
+    res = resolve(session, [(IdScheme.UNIVERSE, universe_id)], name=name or universe_id, allow_create=True)
+    assert res.company_id is not None
+    return res.company_id
+
+
+def merge(session: Session, keep: UUID, drop: UUID) -> None:
+    """Re-points every row that references `drop` at `keep`, then records `keep` MERGED_INTO-aliased by `drop`'s id."""
+    for table in Base.metadata.sorted_tables:
+        for fk in table.foreign_keys:
+            if fk.column.table.name == "companies" and fk.column.name == "id":
+                session.execute(update(table).where(fk.parent == drop).values({fk.parent.name: keep}))
+    session.add(
+        CompanyIdentifier(
+            company_id=keep, scheme=IdScheme.MERGED_INTO, value=normalise_identifier(IdScheme.MERGED_INTO, str(drop))
+        )
+    )
+    session.flush()

@@ -5,9 +5,13 @@ import time
 import numpy as np
 import pytest
 
+from arp.retrieval.embeddings import EMBED_DIM
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
 from arp.storage.parsed_content_cache import ParsedContentCache
 from arp.storage.safe_path import UnsafeIdentifierError
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 
 def _write(tmp_path, name, content):
@@ -17,7 +21,7 @@ def _write(tmp_path, name, content):
 
 
 def test_get_or_parse_calls_parse_once_on_repeat(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     doc_path = _write(tmp_path, "a.pdf", b"hello world")
     calls = []
 
@@ -35,7 +39,7 @@ def test_get_or_parse_calls_parse_once_on_repeat(tmp_path):
 
 
 def test_changed_file_bytes_reparse(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     doc_path = _write(tmp_path, "a.pdf", b"version one")
     calls = []
 
@@ -56,7 +60,7 @@ def test_changed_file_bytes_reparse(tmp_path):
 
 
 def test_changed_parser_version_orphans_and_reparses(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     doc_path = _write(tmp_path, "a.pdf", b"hello world")
     calls = []
 
@@ -73,7 +77,7 @@ def test_changed_parser_version_orphans_and_reparses(tmp_path):
 
 
 def test_page_breaks_round_trip_exactly(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     doc_path = _write(tmp_path, "a.pdf", b"hello")
 
     result = store.get_or_parse(doc_path, parser_version="v1", parse=lambda p: ("page one\n\npage two", [0, 10]))
@@ -84,7 +88,7 @@ def test_page_breaks_round_trip_exactly(tmp_path):
 
 
 def test_empty_page_breaks_round_trip(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     doc_path = _write(tmp_path, "a.html", b"hello")
 
     result = store.get_or_parse(doc_path, parser_version="v1", parse=lambda p: ("some html text", []))
@@ -93,7 +97,7 @@ def test_empty_page_breaks_round_trip(tmp_path):
 
 def test_corrupt_row_is_a_miss_not_an_error(tmp_path):
     store_dir = tmp_path / "store"
-    store = DocumentContentStore(store_dir)
+    store = DocumentContentStore(store_dir, dsn=pg_dsn())
     doc_path = _write(tmp_path, "a.pdf", b"hello world")
     content_key = store.content_key_for_file(doc_path)
 
@@ -121,7 +125,7 @@ def test_corrupt_row_is_a_miss_not_an_error(tmp_path):
 
 
 def test_identical_bytes_at_two_paths_share_one_parse(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     path_a = _write(tmp_path, "a.pdf", b"identical content")
     path_b = _write(tmp_path, "b.pdf", b"identical content")
     calls = []
@@ -139,7 +143,7 @@ def test_identical_bytes_at_two_paths_share_one_parse(tmp_path):
 
 
 def test_stat_fast_path_avoids_rehashing(tmp_path, monkeypatch):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     doc_path = _write(tmp_path, "a.pdf", b"hello world")
 
     store.content_key_for_file(doc_path)  # first call: hashes and caches the stat triple
@@ -158,7 +162,7 @@ def test_stat_fast_path_avoids_rehashing(tmp_path, monkeypatch):
 
 
 def test_register_document_traversal_rejected(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     with pytest.raises(UnsafeIdentifierError):
         store.register_document(
             doc_id="doc_x",
@@ -174,7 +178,7 @@ def test_register_document_traversal_rejected(tmp_path):
 
 
 def test_register_document_collision_falls_back_to_a_fresh_id(tmp_path, caplog):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     doc_id = derive_doc_id("acme", "10-K", "content_a")
 
     first = store.register_document(
@@ -194,7 +198,7 @@ def test_register_document_collision_falls_back_to_a_fresh_id(tmp_path, caplog):
 
 
 def test_resolve_document_round_trip(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     doc_id = derive_doc_id("acme", "10-K", "abc")
     store.register_document(
         doc_id=doc_id, company_id="acme", doc_type="10-K", content_key="abc",
@@ -209,7 +213,7 @@ def test_resolve_document_round_trip(tmp_path):
 
 
 def test_set_storage_uri_round_trips(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     doc_id = derive_doc_id("acme", "10-K", "abc")
     store.register_document(
         doc_id=doc_id, company_id="acme", doc_type="10-K", content_key="abc",
@@ -223,7 +227,7 @@ def test_set_storage_uri_round_trips(tmp_path):
 
 
 def test_list_all_documents_returns_every_registered_document(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     doc_id_a = derive_doc_id("acme", "10-K", "abc")
     doc_id_b = derive_doc_id("acme", "DEF14A", "def")
     store.register_document(doc_id=doc_id_a, company_id="acme", doc_type="10-K", content_key="abc", title="A", local_path=None, source_url=None)
@@ -234,34 +238,9 @@ def test_list_all_documents_returns_every_registered_document(tmp_path):
     assert {r.doc_id for r in refs} == {doc_id_a, doc_id_b}
 
 
-def test_storage_uri_column_migrates_onto_a_pre_existing_database(tmp_path):
-    """Simulates a documents table created before storage_uri existed --
-    the CREATE TABLE IF NOT EXISTS in SCHEMA wouldn't add it on its own,
-    so the explicit ensure_storage_uri_column migration is what makes an
-    upgrade safe."""
-    store_dir = tmp_path / "store"
-    store_dir.mkdir()
-    conn = sqlite3.connect(store_dir / "content.db")
-    conn.execute(
-        "CREATE TABLE documents (doc_id TEXT PRIMARY KEY, company_id TEXT NOT NULL, doc_type TEXT NOT NULL, "
-        "content_key TEXT NOT NULL, title TEXT NOT NULL, local_path TEXT, source_url TEXT, "
-        "first_seen_at TEXT NOT NULL, last_seen_at TEXT NOT NULL)"
-    )
-    conn.commit()
-    conn.close()
-
-    store = DocumentContentStore(store_dir)
-    doc_id = derive_doc_id("acme", "10-K", "abc")
-    store.register_document(doc_id=doc_id, company_id="acme", doc_type="10-K", content_key="abc", title="A", local_path=None, source_url=None)
-
-    assert store.resolve_document(doc_id).storage_uri is None
-    store.set_storage_uri(doc_id, "s3://arp-documents/abc")
-    assert store.resolve_document(doc_id).storage_uri == "s3://arp-documents/abc"
-
-
 def test_disabled_store_never_persists(tmp_path):
     store_dir = tmp_path / "store"
-    store = DocumentContentStore(store_dir, enabled=False)
+    store = DocumentContentStore(store_dir, enabled=False, dsn=pg_dsn())
     doc_path = _write(tmp_path, "a.pdf", b"hello world")
 
     assert not store_dir.exists()
@@ -280,7 +259,7 @@ def test_disabled_store_never_persists(tmp_path):
 
 
 def test_concurrent_get_or_parse_agree_and_do_not_corrupt_the_row(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     doc_path = _write(tmp_path, "a.pdf", b"hello world")
 
     def slow_parse(path):
@@ -310,7 +289,7 @@ def test_concurrent_get_or_parse_agree_and_do_not_corrupt_the_row(tmp_path):
 
 
 def test_prune_removes_only_stale_parser_versions(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     doc_a = _write(tmp_path, "a.pdf", b"aaa")
     doc_b = _write(tmp_path, "b.pdf", b"bbb")
     store.get_or_parse(doc_a, parser_version="v1", parse=lambda p: ("old", []))
@@ -334,7 +313,7 @@ def test_prune_accepts_a_list_and_keeps_every_version_in_it(tmp_path):
     it (key_kind='edgar_accession') -- pruning after only the local
     parser upgrades must not delete EDGAR's still-current rows just
     because their version string differs."""
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     doc_a = _write(tmp_path, "a.pdf", b"aaa")
     doc_b = _write(tmp_path, "b.pdf", b"bbb")
     doc_c = _write(tmp_path, "c.pdf", b"ccc")
@@ -348,9 +327,13 @@ def test_prune_accepts_a_list_and_keeps_every_version_in_it(tmp_path):
     assert store.stats()["distinct_parser_versions"] == 2
 
 
+def _vec(*head):
+    return np.array([*head, *[0.0] * (EMBED_DIM - len(head))], dtype=np.float32)  # pgvector column width
+
+
 def test_embeddings_round_trip(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
-    vec = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
+    vec = _vec(0.1, 0.2, 0.3)
 
     assert store.lookup_embeddings(["chk_a"], "model-x") == {}
 
@@ -362,29 +345,29 @@ def test_embeddings_round_trip(tmp_path):
 
 
 def test_embeddings_are_scoped_by_embed_model(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
-    store.store_embeddings({"chk_a": np.array([1.0, 2.0], dtype=np.float32)}, "model-x")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
+    store.store_embeddings({"chk_a": _vec(1.0, 2.0)}, "model-x")
 
     assert store.lookup_embeddings(["chk_a"], "model-y") == {}
 
 
 def test_embeddings_batch_lookup_returns_only_the_hit_subset(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     store.store_embeddings(
-        {"chk_a": np.array([1.0], dtype=np.float32), "chk_b": np.array([2.0], dtype=np.float32)}, "model-x"
+        {"chk_a": _vec(1.0), "chk_b": _vec(2.0)}, "model-x"
     )
     found = store.lookup_embeddings(["chk_a", "chk_b", "chk_c"], "model-x")
     assert set(found) == {"chk_a", "chk_b"}
 
 
 def test_disabled_store_never_persists_embeddings(tmp_path):
-    store = DocumentContentStore(tmp_path / "store", enabled=False)
-    store.store_embeddings({"chk_a": np.array([1.0], dtype=np.float32)}, "model-x")
+    store = DocumentContentStore(tmp_path / "store", enabled=False, dsn=pg_dsn())
+    store.store_embeddings({"chk_a": _vec(1.0)}, "model-x")
     assert store.lookup_embeddings(["chk_a"], "model-x") == {}
 
 
 def test_list_cached_content_paginates_newest_first(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     for i in range(3):
         store.store(f"key{i}", key_kind="file_bytes", parser_version="v1", source_suffix=".pdf", byte_size=10, text=f"text{i}", page_breaks=[])
         time.sleep(0.01)  # created_at has second resolution in some environments; keep insert order distinguishable
@@ -401,7 +384,7 @@ def test_list_cached_content_paginates_newest_first(tmp_path):
 
 
 def test_list_cached_content_excludes_full_text(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     store.store("key1", key_kind="file_bytes", parser_version="v1", source_suffix=".pdf", byte_size=10, text="the full text", page_breaks=[])
 
     rows, _ = store.list_cached_content(0, 10)
@@ -411,7 +394,7 @@ def test_list_cached_content_excludes_full_text(tmp_path):
 
 
 def test_get_cached_text_round_trips_by_row_id(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     store.store("key1", key_kind="file_bytes", parser_version="v1", source_suffix=".pdf", byte_size=10, text="hello", page_breaks=[0])
     rows, _ = store.list_cached_content(0, 10)
     row_id = rows[0]["id"]
@@ -425,12 +408,12 @@ def test_get_cached_text_round_trips_by_row_id(tmp_path):
 
 
 def test_get_cached_text_missing_row_returns_none(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     assert store.get_cached_text(999) is None
 
 
 def test_list_documents_by_content_keys_batch_lookup(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     store.register_document(
         doc_id=derive_doc_id("acme", "10-K", "key_a"), company_id="acme", doc_type="10-K",
         content_key="key_a", title="Acme 10-K", local_path="/docs/acme/10-K/acme.pdf", source_url=None,
@@ -448,12 +431,12 @@ def test_list_documents_by_content_keys_batch_lookup(tmp_path):
 
 
 def test_list_documents_by_content_keys_empty_input(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     assert store.list_documents_by_content_keys([]) == {}
 
 
 def test_lookup_and_store_agree_with_get_or_compute(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     assert store.lookup("key1", "v1") is None
 
     stored = store.store(

@@ -52,7 +52,7 @@ def verify_run(run_id: str, *, run_store: RunStore, store: XbrlStore, mapping: d
                     xbrl[(cid, r.metric, r.fiscal_year)] = r
 
     rows: list[VerifyRow] = []
-    for raw in run_store.read_jsonl(run_store.results_path(run_id)):
+    for raw in run_store.read_results(run_id):
         try:
             rec = ExtractionRecord.model_validate(raw)
         except ValidationError as exc:

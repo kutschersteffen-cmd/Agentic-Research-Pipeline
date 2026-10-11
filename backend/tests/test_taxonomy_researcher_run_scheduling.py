@@ -24,10 +24,10 @@ from arp.storage.taxonomy_store import TaxonomyStore
 
 
 @pytest.fixture
-def client(tmp_path):
+def client(tmp_path, pg):
     settings = Settings(runs_dir=tmp_path / "runs", taxonomies_dir=tmp_path / "taxonomies")
     settings.ensure_dirs()
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
 
     app = FastAPI()
     app.include_router(router_module.router)

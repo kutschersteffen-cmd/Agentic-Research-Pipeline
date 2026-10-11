@@ -1,0 +1,75 @@
+"""Engine and transaction helpers for the company-foundation tables."""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
+
+from sqlalchemy import Engine
+from sqlalchemy.orm import Session
+
+from arp.config import get_settings
+from arp.storage.postgres import get_engine
+
+
+def require_dsn(settings) -> str:
+    if not settings.postgres_dsn:
+        raise RuntimeError("ARP_POSTGRES_DSN is required: Postgres is the system of record.")
+    return settings.postgres_dsn
+
+
+def require_postgres(settings) -> str:
+    """Startup check (app lifespan, CLI root): a DSN is set and Postgres answers `SELECT 1`.
+    The error names the DSN tried, password masked."""
+    from sqlalchemy import make_url, text
+
+    dsn = require_dsn(settings)
+    try:
+        with engine(dsn).connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as exc:  # noqa: BLE001 - any failure to connect stops startup
+        reason = str(getattr(exc, "orig", None) or exc).splitlines()[0]
+        masked = make_url(dsn).render_as_string(hide_password=True)
+        raise RuntimeError(f"Postgres unreachable at {masked}: {reason}") from exc
+    return dsn
+
+
+def require_cutover(settings) -> None:
+    """Startup check (app lifespan, every CLI command but `arp db ...`): the schema has no missing
+    table or pending step, and every file-era run directory (`runs_dir/<id>/manifest.json`) has its
+    `runs` row. `ARP_SKIP_CUTOVER_CHECK=1` skips it."""
+    from sqlalchemy import select
+
+    from arp.db.models import Run
+    from arp.storage.postgres_schema import schema_gaps
+
+    if settings.skip_cutover_check:
+        return
+    dsn = require_dsn(settings)
+    missing, pending = schema_gaps(dsn)
+    if missing or pending:
+        problem = f"the database schema is not current (missing tables: {missing}, pending steps: {pending})"
+    else:
+        legacy = sorted(p.parent.name for p in Path(settings.runs_dir).glob("*/manifest.json"))
+        with transaction(dsn) as s:
+            imported = set(s.scalars(select(Run.run_id).where(Run.run_id.in_(legacy), Run.run_type != ""))) if legacy else set()
+        unimported = [r for r in legacy if r not in imported]
+        if not unimported:
+            return
+        problem = f"{len(unimported)} run(s) in {settings.runs_dir} are not imported yet: {', '.join(unimported[:5])}"
+    raise RuntimeError(
+        f"Not cut over to Postgres: {problem}. Run `arp db init-postgres`, `arp db import`, then `arp db verify` "
+        "(docs/INSTALLATION.md); set ARP_SKIP_CUTOVER_CHECK=1 to start anyway."
+    )
+
+
+def engine(dsn: str | None = None) -> Engine:
+    return get_engine(dsn or require_dsn(get_settings()))
+
+
+@contextmanager
+def transaction(dsn: str | None = None) -> Iterator[Session]:
+    """Session that commits on exit and rolls back on exception."""
+    with Session(engine(dsn)) as session, session.begin():
+        yield session

@@ -3,13 +3,9 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
+from arp.db.companies import normalise_identifier  # noqa: F401  (re-export)
 from arp.schemas.issuer import IdentifierMap
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
-
-
-def normalise_identifier(scheme: str, value: str) -> str:
-    v = "".join(value.split()).upper()
-    return v.lstrip("0") if scheme == "CIK" else v
 
 
 class IdentifierMapStore:

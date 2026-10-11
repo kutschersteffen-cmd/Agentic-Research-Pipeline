@@ -20,7 +20,6 @@ from arp.schemas.engagement import (
 )
 from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.locks import KeyedLock
-from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.safe_path import safe_id
 
 
@@ -36,10 +35,11 @@ class EngagementStore:
     current snapshot.
     """
 
-    def __init__(self, engagements_dir: Path, projection_config: ProjectionConfig | None = None) -> None:
+    def __init__(self, engagements_dir: Path, dsn: str | None = None) -> None:
+        """`dsn`: mirror every save into Postgres (postgres_engagement_projection.py), best-effort."""
         self.engagements_dir = engagements_dir
         self._locks = KeyedLock(lock_path=lambda company_id: self._dir(company_id) / ".lock")
-        self._projection_config = projection_config
+        self._dsn = dsn
 
     @contextmanager
     def lock(self, company_id: str) -> Iterator[None]:
@@ -70,10 +70,10 @@ class EngagementStore:
         # reader never sees a half-written record.json.
         atomic_write_text(self._record_path(record.company_id), record.model_dump_json(indent=2), prefix=".record_")
 
-        if self._projection_config is not None and self._projection_config.engagement_enabled:
+        if self._dsn:
             from arp.storage.postgres_engagement_projection import sync_record_if_enabled
 
-            sync_record_if_enabled(self._projection_config, record)
+            sync_record_if_enabled(self._dsn, record)
         return record
 
     def _log_event(self, company_id: str, event_type: str, detail: dict) -> None:

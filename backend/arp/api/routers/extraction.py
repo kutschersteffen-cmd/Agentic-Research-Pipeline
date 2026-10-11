@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal, current_user, require_role
-from arp.api.company_results import list_company_results
 from arp.api.deps import (
     get_decision_store,
     get_document_content_store,
@@ -19,6 +18,9 @@ from arp.api.deps import (
 from arp.api.routers.decision import template_for_run
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
+from arp.db.company_view import results_by_company
+from arp.db.fields import SchemaRegistry
+from arp.db.session import transaction
 from arp.decision.templates import attach_to_run
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.schema_builder import draft_schema
@@ -39,7 +41,6 @@ from arp.schemas.review import BulkAcceptRequest
 from arp.storage.decision_store import DecisionStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
-from arp.storage.schema_registry import SchemaRegistry
 from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/extraction", tags=["extraction"])
@@ -61,7 +62,7 @@ async def draft_schema_endpoint(req: DraftSchemaRequest) -> DataPointSchema:
 
 
 def _registry_for(settings: Settings = Depends(settings_dep)) -> SchemaRegistry:
-    return SchemaRegistry(settings.schema_registry_dir)
+    return SchemaRegistry(settings.postgres_dsn)
 
 
 @router.post("/schemas", response_model=DataPointSchema)
@@ -296,15 +297,15 @@ def get_run_companies(run_id: str, run_store: RunStore = Depends(get_run_store))
     the review queue), or still waiting (queued or in flight)."""
     _manifest_or_404(run_store, run_id)
     saved = _saved(run_store, run_id, "start_request.json")
-    done = {r.get("company_id") for r in run_store.read_jsonl(run_store.results_path(run_id))}
-    errors = run_store.read_jsonl(run_store.errors_path(run_id))
+    done = {r.get("company_id") for r in run_store.read_results(run_id)}
+    errors = run_store.read_errors(run_id)
     review = {r.get("key") for r in errors if r.get("review")} - done
     failed = {r.get("key") for r in errors} - done - review
     if saved:
         companies = StartRequest.model_validate_json(saved).companies or []
         rows = [{"company_id": c.company_id, "name": c.name} for c in companies]
     else:  # a run started before /start saved its companies: only those with an outcome
-        rows = [{"company_id": r.get("company_id"), "name": r.get("name")} for r in run_store.read_jsonl(run_store.results_path(run_id))]
+        rows = [{"company_id": r.get("company_id"), "name": r.get("name")} for r in run_store.read_results(run_id)]
         rows += [{"company_id": k, "name": k} for k in failed | review]
     for row in rows:
         cid = row["company_id"]
@@ -360,9 +361,10 @@ async def restart_run(
     registry = get_registry()
     if overrides.get("document_cache_enabled") is False:
         from arp.api.deps import build_registry
+        from arp.db.session import require_dsn
         from arp.storage.document_store import DocumentContentStore
 
-        registry = build_registry(run_settings, DocumentContentStore(run_settings.document_store_dir, enabled=False))
+        registry = build_registry(run_settings, DocumentContentStore(run_settings.document_store_dir, enabled=False, dsn=require_dsn(run_settings)))
     started = await _dispatch(
         original.model_copy(update={"companies": companies}), run_settings, run_store, registry, decision_store, xbrl_source
     )
@@ -384,7 +386,7 @@ def get_extraction_run(run_id: str, run_store: RunStore = Depends(get_run_store)
 def get_extraction_results(
     run_id: str, offset: int = 0, limit: int = 200, run_store: RunStore = Depends(get_run_store)
 ) -> dict:
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     return {"total": len(rows), "results": rows[offset : offset + limit]}
 
 
@@ -396,11 +398,11 @@ def get_green_summary(
     share and green beyond the Taxonomy (negative values are flagged, never clipped). With
     `eu_taxonomy_run_id` (a sch_eu_taxonomy run) the reported aligned amount fills in where the green run has none."""
     _manifest_or_404(run_store, run_id)
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     eu: dict = {}
     if eu_taxonomy_run_id:
         _manifest_or_404(run_store, eu_taxonomy_run_id)
-        eu = {r.get("company_id"): r.get("fields", []) for r in run_store.read_jsonl(run_store.results_path(eu_taxonomy_run_id))}
+        eu = {r.get("company_id"): r.get("fields", []) for r in run_store.read_results(eu_taxonomy_run_id)}
     return {"rows": [{"company_id": r.get("company_id"), "name": r.get("name"), **s.model_dump()}
                      for r in rows for s in green_summary(r.get("fields", []), eu.get(r.get("company_id")))]}
 
@@ -410,17 +412,18 @@ def get_remuneration_summary(run_id: str, run_store: RunStore = Depends(get_run_
     """Per company, plan (STI, LTI) and period of a sch_esg_remuneration run: mechanism, ESG weight or multiplier
     range, the computed effective weight and its below-10% or 10%-or-above class."""
     _manifest_or_404(run_store, run_id)
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     return {"rows": [{"company_id": r.get("company_id"), "name": r.get("name"), **s.model_dump()}
                      for r in rows for s in remuneration_summary(r.get("fields", []))]}
 
 
 @router.get("/companies/{company_id}/results")
-def get_extraction_results_for_company(company_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+def get_extraction_results_for_company(company_id: str) -> dict:
     """The company-centric complement to /runs/{run_id}/results -- every
     result this company has ever had across every extraction run, not just
     one run's, for the Data Library's "By company" view."""
-    return {"results": list_company_results(run_store, "extraction", company_id)}
+    with transaction() as s:
+        return {"results": results_by_company(s, "extraction", company_id)}
 
 
 @router.get("/runs/{run_id}/review-decisions")

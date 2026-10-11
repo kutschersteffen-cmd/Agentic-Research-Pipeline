@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import asdict
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -80,9 +81,9 @@ def post_item_decision(
 @router.get("/runs/{run_id}/snapshots/{snapshot_id}")
 def get_snapshot(run_id: str, snapshot_id: str, run_store: RunStore = Depends(get_run_store)) -> Response:
     try:
-        content = read_snapshot(run_store, run_id, snapshot_id)
+        snapshot = read_snapshot(run_store, run_id, snapshot_id)
     except UnsafeIdentifierError as exc:
         raise HTTPException(400, str(exc)) from None
-    if content is None:
+    if snapshot is None:
         raise HTTPException(404, "Snapshot not found")
-    return Response(content=content, media_type="application/json")
+    return Response(content=json.dumps(snapshot, sort_keys=True), media_type="application/json")

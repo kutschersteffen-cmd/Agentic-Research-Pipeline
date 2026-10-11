@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { CompanyLink } from "./CompanyLink";
 import { ConfidenceBadge, GroundedBadge } from "./ConfidenceBadge";
 import { CitationList } from "./CitationList";
 import type { ActiveSource } from "./SourcePanel";
@@ -36,7 +37,7 @@ export function TnfdResultsTable({ results, expanded, onToggleExpanded, onOpenSo
           {results.map((r) => (
             <Fragment key={r.company_id}>
               <tr className="clickable-row" {...activatable(() => onToggleExpanded(r.company_id), expanded === r.company_id)}>
-                <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
+                <td><CompanyLink companyId={r.company_id}>{r.name}</CompanyLink> {r.ticker && <span className="muted">({r.ticker})</span>}</td>
                 <td>{r.as_of}</td>
                 <td>{r.disclosures.filter((d) => d.disclosed).length}/14</td>
                 <td>{r.core_global_metrics.filter((m) => m.grounded).length}</td>

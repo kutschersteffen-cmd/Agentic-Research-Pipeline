@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { companyHref } from "../company/companyQuery";
 import { api } from "../../api/client";
 import { SIGN_IN_REQUIRED, useMe } from "../../lib/reviewer";
 import type { Alert, AlertStatus, CompanyRef, TrackedEngagement, UnifiedTrigger } from "../../types";
@@ -71,6 +72,7 @@ export function ProfileActionStrip({ companyId, onCompany }: { companyId: string
           As of month
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
         </label>
+        {companyId && <a href={companyHref(companyId)}>Company page</a>}
       </div>
       {error && <p className="error-text" role="alert">{error}</p>}
 

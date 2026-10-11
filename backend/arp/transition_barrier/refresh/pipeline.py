@@ -6,7 +6,6 @@ from arp.config import Settings
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import queue_for_review
 from arp.schemas.transition_barrier import BarrierRefreshFinding
-from arp.storage.jsonl_io import append_jsonl
 from arp.storage.run_store import RunStore
 from arp.transition_barrier.dataset import filter_scores
 from arp.transition_barrier.refresh.eurlex import build_client, fetch_version
@@ -65,7 +64,7 @@ async def execute_refresh_run(run_id: str, *, settings: Settings, run_store: Run
 
             needs_review = 0
             for finding in source_findings:
-                append_jsonl(run_store.results_path(run_id), finding.model_dump(mode="json"))
+                run_store.append_result(run_id, finding.model_dump(mode="json"))
                 if not is_auto_applicable(finding):
                     queue_for_review(
                         run_store,

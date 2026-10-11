@@ -10,6 +10,7 @@ from arp.orchestration.job_manager import JobManager
 from arp.orchestration.step_tally import tally_run
 from arp.storage.run_store import RunStore
 from tests.fake_batches import FakeBatches
+from tests.postgres_helpers import pg_dsn
 
 
 class _Out(BaseModel):
@@ -227,12 +228,12 @@ async def test_late_attach_while_results_stream_past_it(tmp_path):
 
 
 def _run(tmp_path) -> tuple[RunStore, JobManager, str]:
-    store = RunStore(tmp_path / "runs")
+    store = RunStore(pg_dsn(), tmp_path / "runs")
     jm = JobManager(store)
     return store, jm, jm.create_run("theme", {}, company_count=1).run_id
 
 
-async def test_cancel_requested_cancels_batch(tmp_path):
+async def test_cancel_requested_cancels_batch(tmp_path, pg):
     store, jm, run_id = _run(tmp_path)
     client, fake = _client(tmp_path)
     fake.hold = True
@@ -245,7 +246,7 @@ async def test_cancel_requested_cancels_batch(tmp_path):
     assert all(isinstance(r, BatchRequestFailed) and r.result_type == "canceled" for r in results)
 
 
-async def test_batch_wait_written_and_cleared(tmp_path):
+async def test_batch_wait_written_and_cleared(tmp_path, pg):
     store, jm, run_id = _run(tmp_path)
     client, fake = _client(tmp_path)
     fake.hold = True
@@ -281,7 +282,7 @@ async def test_all_callers_cancelled_submits_nothing(tmp_path):
     assert fake.creates == []
 
 
-async def test_two_clients_in_one_run_keep_each_others_wait(tmp_path):
+async def test_two_clients_in_one_run_keep_each_others_wait(tmp_path, pg):
     store, jm, run_id = _run(tmp_path)
     small, small_fake = _client(tmp_path)
     big, big_fake = _client(tmp_path)
@@ -318,7 +319,7 @@ async def _crash_in_run(tmp_path, store, run_id, fake=None):
     return fake
 
 
-async def test_other_run_does_not_reattach_to_batch(tmp_path):
+async def test_other_run_does_not_reattach_to_batch(tmp_path, pg):
     store, jm, run_a = _run(tmp_path)
     fake = await _crash_in_run(tmp_path, store, run_a)
     assert _log_rows(tmp_path)[0]["run_id"] == run_a
@@ -331,7 +332,7 @@ async def test_other_run_does_not_reattach_to_batch(tmp_path):
     assert len(fake.creates) == 2  # run B paid for its own batch
 
 
-async def test_resume_of_same_run_reattaches(tmp_path):
+async def test_resume_of_same_run_reattaches(tmp_path, pg):
     store, jm, run_a = _run(tmp_path)
     fake = await _crash_in_run(tmp_path, store, run_a)
     fake.release()
@@ -343,7 +344,7 @@ async def test_resume_of_same_run_reattaches(tmp_path):
     assert len(fake.creates) == 1
 
 
-async def test_cancelling_other_run_never_cancels_this_runs_batch(tmp_path):
+async def test_cancelling_other_run_never_cancels_this_runs_batch(tmp_path, pg):
     store, jm, run_a = _run(tmp_path)
     fake = await _crash_in_run(tmp_path, store, run_a)
     run_b = _second_run(store, jm)
@@ -358,11 +359,11 @@ async def test_cancelling_other_run_never_cancels_this_runs_batch(tmp_path):
     assert fake.cancels == ["msgbatch_2"]
 
 
-async def test_cancelled_batch_run_ends_cancelled_not_partial(tmp_path):
+async def test_cancelled_batch_run_ends_cancelled_not_partial(tmp_path, pg):
     from arp.orchestration.batch_runner import run_company_batch
     from arp.schemas.common import CompanyRef, JobStatus
 
-    store = RunStore(tmp_path / "runs")
+    store = RunStore(pg, tmp_path / "runs")
     jm = JobManager(store)
     companies = [CompanyRef(company_id=f"c{i}", name=f"C{i}") for i in range(3)]
     run_id = jm.create_run("theme", {}, company_count=len(companies)).run_id

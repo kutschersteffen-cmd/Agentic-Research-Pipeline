@@ -1,52 +1,26 @@
-"""SQLAlchemy ORM models for the opt-in Postgres/pgvector store (see
-arp/storage/postgres.py, arp/storage/postgres_portfolio_store.py,
-arp/storage/postgres_embeddings.py). Imported lazily by those modules only
--- never imported by the rest of this codebase, so a deployment that never
-sets ARP_POSTGRES_DSN never needs sqlalchemy/psycopg/pgvector installed.
+"""SQLAlchemy ORM models for the Postgres tables outside the company foundation (that one is
+arp/db/models.py, on the same `Base`): portfolios, securities, holdings and security resolutions
+(arp/storage/postgres_portfolio_store.py), chunk embeddings (pgvector), engagement mirrors,
+published facts/releases/events (arp/publish/facts.py) and the BI-published rows.
 
-Two shapes of model live here, matching two different roles:
+`legacy_companies` is the portfolio store's company table, keyed by universe id; it is not the
+registry (`companies`). Tables that predate the registry keep their legacy keys (issuer_key/
+issuer_scheme, universe id) and carry the registry company in `company_id` (`company_uuid` where
+`company_id` already holds the universe id), set by the live writers and backfilled by schema step
+`phase1_rekey` (arp/storage/postgres_schema.py).
 
-- **Dual-write, relational-join-driven** (Portfolio/Securities/Companies/
-  Holdings, the hybrid-retrieval embeddings cache): the original,
-  narrowest scope -- a relational/vector engine earns its cost purely for
-  the join/lookup pattern (aggregating holdings by sector/issuer/
-  portfolio across time; per-chunk embedding lookup).
-- **Projection-only read models** (DocumentRegistryModel,
-  CompanyRecordModel, CompanyFactModel): mirror an authoritative file/
-  SQLite store into a queryable table via a best-effort sync hook (see
-  arp/storage/postgres_company_records_projection.py,
-  postgres_company_facts_projection.py, postgres_document_projection.py)
-  -- never written to directly, never a second source of truth. The
-  file/SQLite store they mirror stays authoritative and fully functional
-  whether or not this projection is enabled.
-
-One rule follows from that split and is worth stating once here, because
-getting it wrong made three projections silently insert nothing at all:
-**a projection's `company_id` carries no foreign key to `companies`.**
-`companies` is only populated by the dual-write path
-(PostgresPortfolioStore.save_company, i.e. only under
-`ARP_PORTFOLIO_BACKEND=postgres`), whereas a run's companies come from
-the user-supplied universe file (arp/universe.py) and a projection
-mirrors a file/SQLite store that enforces no referential integrity
-itself. An FK there rejects every legitimate row while the best-effort
-sync hooks swallow the violation -- the operator gets an empty table and
-a log line. This is the same argument SecurityResolutionModel's docstring
-already makes for its own missing FK. FKs are kept only where both sides
-are written by the same code path: securities/holdings within the
-dual-write store, commitments to their issue, a fact to the fact it
-supersedes.
-
-Every run/review-queue/audit-trail store's *write path* stays file-based
-JSONL regardless of which models above exist -- an append-only file is
-simpler to keep fully auditable than a table with UPDATEs. See
-docs/METHODOLOGY.md for the full reasoning, and each model's own
-docstring for what it specifically projects and why.
+Tables earlier versions wrote and no model defines any more (`company_records`,
+`legacy_company_facts`, `document_registry`, `index_checkpoints`) are never dropped by this code:
+`arp db import` reads `document_registry`. docs/INSTALLATION.md gives the manual DROP once
+`arp db verify` is clean.
 """
 
 from __future__ import annotations
 
+import uuid
+
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import Float, ForeignKey, Index, String, UniqueConstraint, Uuid
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -55,6 +29,13 @@ from arp.retrieval.embeddings import EMBED_DIM
 
 class Base(DeclarativeBase):
     pass
+
+
+def _company_ref(table: str, column: str = "company_id") -> Mapped[uuid.UUID | None]:
+    """The registry company (`companies.id`) a legacy-keyed row belongs to. NULL until step
+    `phase1_rekey` (or `arp db import`) matches it; the FK is named so that step can add it to an
+    existing table."""
+    return mapped_column(Uuid, ForeignKey("companies.id", name=f"fk_{table}_{column}"), nullable=True)
 
 
 class PortfolioModel(Base):
@@ -66,7 +47,7 @@ class PortfolioModel(Base):
 
 
 class CompanyModel(Base):
-    __tablename__ = "companies"
+    __tablename__ = "legacy_companies"
 
     company_id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String)
@@ -86,7 +67,9 @@ class SecurityModel(Base):
     name: Mapped[str] = mapped_column(String)
     asset_class: Mapped[str] = mapped_column(String)
     currency: Mapped[str] = mapped_column(String)
-    company_id: Mapped[str | None] = mapped_column(ForeignKey("companies.company_id"), nullable=True)
+    company_id: Mapped[str | None] = mapped_column(ForeignKey("legacy_companies.company_id"), nullable=True)
+    # `company_id` above is the universe id (legacy_companies); this is the registry company.
+    company_uuid: Mapped[uuid.UUID | None] = _company_ref("securities", "company_uuid")
 
 
 class SecurityResolutionModel(Base):
@@ -105,6 +88,7 @@ class SecurityResolutionModel(Base):
     method: Mapped[str] = mapped_column(String)
     needs_review: Mapped[bool] = mapped_column(default=False)
     resolved_at: Mapped[str] = mapped_column(String)
+    company_uuid: Mapped[uuid.UUID | None] = _company_ref("security_resolutions", "company_uuid")
 
 
 class HoldingModel(Base):
@@ -140,18 +124,15 @@ class HoldingModel(Base):
     shares: Mapped[float | None] = mapped_column(Float, nullable=True)
     free_float: Mapped[float | None] = mapped_column(Float, nullable=True)
     weight_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    company_id: Mapped[uuid.UUID | None] = _company_ref("holdings")
 
 
 class ChunkEmbeddingModel(Base):
-    """pgvector-backed alternative to DocumentContentStore's SQLite
-    embeddings cache (arp/storage/document_store.py) -- same
-    chunk_id+embed_model key, same "computed once, reused by every later
-    run/field/activity that selects from this chunk" role, just persisted
-    in Postgres instead of a local SQLite file (e.g. for a shared cache
-    across multiple worker processes/machines). EMBED_DIM is fixed at the
-    currently configured embedding model's dimension (see
-    arp/retrieval/embeddings.py) -- switching to a different-dimension
-    model requires dropping and recreating this table.
+    """The chunk-embeddings cache (pgvector; arp/storage/postgres_embeddings.py, used by
+    DocumentContentStore): keyed by chunk_id + embed_model, computed once and reused by every later
+    run/field/activity that selects from this chunk. EMBED_DIM is fixed at the configured embedding
+    model's dimension (arp/retrieval/embeddings.py) -- switching to a different-dimension model
+    requires dropping and recreating this table.
     """
 
     __tablename__ = "chunk_embeddings"
@@ -161,151 +142,11 @@ class ChunkEmbeddingModel(Base):
     embedding = mapped_column(Vector(EMBED_DIM))
 
 
-class DocumentRegistryModel(Base):
-    """The document registry's Postgres form. A read-model projection of
-    DocumentRegistry (SQLite) by default -- additive only: lets OpenSearch's
-    doc_id-only hits (arp/storage/opensearch_indices.py) join back to
-    relational company/doc_type facts in one query, selected via
-    Settings.document_registry_projection_enabled. When
-    Settings.embeddings_backend == "postgres" with a postgres_dsn it is
-    instead the authoritative registry (arp/storage/
-    postgres_document_registry.py) and the identity columns below are
-    written directly. Parsed text and embeddings stay SQLite/pgvector
-    caches either way."""
-
-    __tablename__ = "document_registry"
-    __table_args__ = (Index("ix_document_registry_company_type", "company_id", "doc_type"),)
-
-    doc_id: Mapped[str] = mapped_column(String, primary_key=True)
-    company_id: Mapped[str] = mapped_column(String)
-    doc_type: Mapped[str] = mapped_column(String)
-    content_key: Mapped[str] = mapped_column(String)
-    title: Mapped[str] = mapped_column(String)
-    local_path: Mapped[str | None] = mapped_column(String, nullable=True)
-    source_url: Mapped[str | None] = mapped_column(String, nullable=True)
-    storage_uri: Mapped[str | None] = mapped_column(String, nullable=True)
-    first_seen_at: Mapped[str] = mapped_column(String)
-    last_seen_at: Mapped[str] = mapped_column(String)
-    family_id: Mapped[str | None] = mapped_column(String, nullable=True)
-    version: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    supersedes: Mapped[str | None] = mapped_column(String, nullable=True)
-    published_at: Mapped[str | None] = mapped_column(String, nullable=True)
-    identity_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
-    identity_review: Mapped[int | None] = mapped_column(Integer, nullable=True)
-
-
-class CompanyRecordModel(Base):
-    """Read-model projection of every completed run's results.jsonl rows
-    (results.jsonl stays authoritative -- see arp/storage/run_store.py).
-    Covers every run type uniformly (extraction, financials, theme
-    matches, voting ballots all flow through the same RunStore/
-    results.jsonl/JobManager machinery) -- the analog of
-    PostgresPortfolioStore.aggregate_market_value_eur for "everything a
-    run produces about a company": today, answering "every needs_review
-    extraction for company X" or "this company's full theme-match
-    history" requires loading a different run type's results.jsonl into
-    Python by hand.
-
-    `record_key` is NOT NULL with a "" default rather than nullable:
-    every verified run type (extraction/financials/theme/voting) writes
-    exactly one results.jsonl row per company per run (`row["_key"]`,
-    see arp/orchestration/batch_runner.py's _KEY_FIELD), so there is no
-    natural finer key at this table's granularity today -- but Postgres
-    treats NULL as distinct from NULL in a UNIQUE constraint, so a
-    nullable record_key would silently defeat uq_company_records_run_
-    company_key's whole idempotency purpose. "" is reserved for exactly
-    that "no finer key" case; a future run type with genuinely multiple
-    reviewable rows per company per run would populate a real value here.
-
-    `payload` (JSONB, GIN-indexable) keeps the full row verbatim,
-    queryable without a migration every time a new run type or
-    extraction schema is added -- only the columns actually filtered/
-    sorted/aggregated across runs get their own typed column.
-
-    `company_id` is a plain String, not an FK to `companies` -- see this
-    module's docstring for why (a run's companies come from the universe
-    file, which never populates that table).
-    """
-
-    __tablename__ = "company_records"
-    __table_args__ = (
-        UniqueConstraint("run_id", "company_id", "record_key", name="uq_company_records_run_company_key"),
-        Index("ix_company_records_company_type", "company_id", "run_type"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    run_id: Mapped[str] = mapped_column(String)
-    run_type: Mapped[str] = mapped_column(String)
-    company_id: Mapped[str] = mapped_column(String)
-    record_key: Mapped[str] = mapped_column(String, default="")
-    overall_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
-    needs_review: Mapped[bool | None] = mapped_column(nullable=True)
-    generated_at: Mapped[str] = mapped_column(String)
-    payload: Mapped[dict] = mapped_column(JSONB)
-
-
-class CompanyFactModel(Base):
-    """The current-state layer: "what do we currently believe about
-    company X's field Y, and who approved it" -- separate from
-    CompanyRecordModel's raw per-run history above. Generalizes
-    PortfolioStore.latest_observation's role (today scoped to Portfolio
-    Monitoring only) across every pipeline that produces reviewable
-    facts, materialized from each run's results plus
-    orchestration/review_queue.py's decisions (review_decisions.jsonl
-    stays authoritative; this table is never written to except by the
-    projection sync).
-
-    Insert-only and versioned, not upserted in place: a correction never
-    overwrites a row -- it closes the current one (`valid_to`,
-    `is_current=False`, `superseded_by_id`) and inserts a new one -- so
-    "what did we believe about field Y for company X as of date Z" is a
-    direct, indexed query, not a JSONL-history reconstruction.
-
-    `status` is one of: "approved" | "edited" | "rejected" (a decision
-    was recorded in review_queue.py), "pending_review" (the item was
-    queued for review but no decision has been recorded yet -- a fact
-    row still gets materialized so a caller can see a draft is pending
-    review, but should treat its value as provisional), or
-    "auto_approved" (never queued for review at all, i.e. implicitly
-    trusted, matching this system's existing behavior; rows without a
-    route), "auto_accepted" (the pipeline routed every undecided field to
-    auto_accept; a system decision, reviewer NULL), or "held" (a field was
-    held, e.g. its documents cover another entity). Trial extraction
-    runs (draft schema fields) are not materialized here at all.
-
-    `company_id` is a plain String, not an FK to `companies` -- see this
-    module's docstring.
-    """
-
-    __tablename__ = "company_facts"
-    __table_args__ = (
-        Index("ix_company_facts_current", "company_id", "fact_key", "as_of", "is_current"),
-        Index("ix_company_facts_type", "company_id", "fact_type"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    company_id: Mapped[str] = mapped_column(String)
-    fact_key: Mapped[str] = mapped_column(String)
-    as_of: Mapped[str] = mapped_column(String, default="")
-    fact_type: Mapped[str] = mapped_column(String)
-    value: Mapped[dict] = mapped_column(JSONB)
-    status: Mapped[str] = mapped_column(String)
-    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
-    citations: Mapped[list | None] = mapped_column(JSONB, nullable=True)
-    source_run_id: Mapped[str] = mapped_column(String)
-    reviewer: Mapped[str | None] = mapped_column(String, nullable=True)
-    valid_from: Mapped[str] = mapped_column(String)
-    valid_to: Mapped[str | None] = mapped_column(String, nullable=True)
-    is_current: Mapped[bool] = mapped_column(default=True)
-    superseded_by_id: Mapped[int | None] = mapped_column(ForeignKey("company_facts.id"), nullable=True)
-
-
 class EngagementIssueModel(Base):
     """Read-model projection of one EngagementIssue inside a company's
     EngagementRecord (arp/storage/engagement_store.py, `record.json` --
     always authoritative; `events.jsonl` remains the separate, untouched
-    audit trail). Unlike CompanyRecordModel/CompanyFactModel above,
-    engagement state is a continuously-mutated live document, not a run
+    audit trail). Engagement state is a continuously-mutated live document, not a run
     output, so this table is a full replace-by-company_id snapshot on
     every EngagementStore._save -- not an append-only history.
 
@@ -317,8 +158,7 @@ class EngagementIssueModel(Base):
     so a dedicated table would add join cost with no query it actually
     serves.
 
-    `company_id` is a plain String, not an FK to `companies` -- see this
-    module's docstring. (`EngagementCommitmentModel.issue_id` below does
+    `company_id` is the universe id, a plain String with no FK. (`EngagementCommitmentModel.issue_id` below does
     keep its FK: sync_record writes both rows in one transaction, so that
     one can always be satisfied.)
     """
@@ -359,18 +199,6 @@ class EngagementCommitmentModel(Base):
     validated_at: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
-class IndexCheckpointModel(Base):
-    """Per-projector high-water mark (e.g. "documents", "company_records",
-    "company_facts") so `arp db reindex ...` without --full only rescans
-    what's new since the last backfill/sync, instead of a full rescan
-    every time."""
-
-    __tablename__ = "index_checkpoints"
-
-    name: Mapped[str] = mapped_column(String, primary_key=True)
-    last_synced_at: Mapped[str] = mapped_column(String)
-
-
 class ReleaseModel(Base):
     """One publication of a source document for an issuer in a run (E17).
     `published_by` / `withdrawn_by` are internal user ids and never served."""
@@ -391,6 +219,7 @@ class ReleaseModel(Base):
     withdrawn_at: Mapped[str | None] = mapped_column(String, nullable=True)
     withdrawal_reason: Mapped[str | None] = mapped_column(String, nullable=True)
     withdrawn_by: Mapped[str | None] = mapped_column(String, nullable=True)
+    company_id: Mapped[uuid.UUID | None] = _company_ref("releases")
 
 
 class PublishedFactModel(Base):
@@ -404,6 +233,9 @@ class PublishedFactModel(Base):
         ),
         Index("ix_published_facts_current", "issuer_key", "field_id", "period_end", "basis", "valid_to"),
         Index("ix_published_facts_valid_from", "valid_from"),
+        # Not unique: publishing joins one company's chains across issuer keys through it
+        # (PublishStore.current), but chains published under two keys before that share version numbers.
+        Index("ix_published_facts_company_key", "company_id", "field_id", "period_end", "basis"),
     )
 
     fact_id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -430,6 +262,7 @@ class PublishedFactModel(Base):
     reconfirmed_at: Mapped[str | None] = mapped_column(String, nullable=True)
     release_id: Mapped[str] = mapped_column(ForeignKey("releases.release_id"))
     restored_from: Mapped[str | None] = mapped_column(String, nullable=True)
+    company_id: Mapped[uuid.UUID | None] = _company_ref("published_facts")
 
 
 class FactEventModel(Base):
@@ -447,6 +280,7 @@ class FactEventModel(Base):
     basis: Mapped[str] = mapped_column(String)
     release_id: Mapped[str] = mapped_column(String)
     at: Mapped[str] = mapped_column(String)
+    company_id: Mapped[uuid.UUID | None] = _company_ref("fact_events")
 
 
 class BiPublishedModel(Base):

@@ -3,6 +3,7 @@ the previous version (E73, E75)."""
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from arp.api.auth import Principal
@@ -21,6 +22,8 @@ from arp.publish.facts import (
 )
 from arp.publish.gate import blob_key, lineage_error
 from arp.schemas.common import new_id
+
+logger = logging.getLogger(__name__)
 
 SYSTEM = "system"
 
@@ -105,11 +108,16 @@ def publish_run(
             seen.add(fact_key(c))
             unique.append(c)
     cands = unique
+    refused = store.internal_only(cands)  # spec §2.8: never published; save_release would refuse the whole group
+    if refused:
+        logger.info("publish %s: %d internal_only fact(s) skipped", run_id, len(refused))
+        skipped += [Skip(c.item_key, "internal_only") for c in cands if fact_key(c) in refused]
+        cands = [c for c in cands if fact_key(c) not in refused]
     withdrawn_docs = {r.doc_id for r in store.list_releases(run_id=run_id) if r.withdrawn_at}
     groups, blocked = split_by_gate(cands, blob_store, withdrawn_docs=withdrawn_docs, content_store=content_store)
     result = PublishResult(releases=[], reconfirmed=0, blocked=blocked, skipped=list(skipped))
     for group in groups.values():
-        current = store.current(fact_key(c) for c in group)
+        current = store.current([fact_key(c) for c in group], {c.issuer_key: c.issuer_scheme for c in group})
         release, plans, events = plan_release(
             group, current, run_id=run_id,
             published_by=principal.user_id if principal else SYSTEM,

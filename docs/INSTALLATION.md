@@ -19,11 +19,12 @@ If you're on macOS/Linux, or not behind a corporate proxy, the plain
 4. [Automated setup (recommended)](#automated-setup-recommended)
 5. [Manual setup (step by step)](#manual-setup-step-by-step)
 6. [VS Code integration](#vs-code-integration)
-7. [Running the app](#running-the-app)
-8. [Verifying your setup](#verifying-your-setup)
-9. [LLM provider: current state and Gemini](#llm-provider-current-state-and-gemini)
-10. [Troubleshooting](#troubleshooting)
-11. [Keeping your setup up to date](#keeping-your-setup-up-to-date)
+7. [Postgres (required)](#postgres-required)
+8. [Running the app](#running-the-app)
+9. [Verifying your setup](#verifying-your-setup)
+10. [LLM provider: current state and Gemini](#llm-provider-current-state-and-gemini)
+11. [Troubleshooting](#troubleshooting)
+12. [Keeping your setup up to date](#keeping-your-setup-up-to-date)
 
 ## What gets installed, and why
 
@@ -32,6 +33,7 @@ If you're on macOS/Linux, or not behind a corporate proxy, the plain
 | Backend (`backend/arp`) | Python 3.11, installed editable (`pip install -e`) into a conda environment | FastAPI API + Typer CLI, all agent pipelines |
 | Frontend (`frontend/`) | Node.js 22 + npm, installed via the same conda environment | React/Vite UI |
 | Package manager for both | **conda** (Python) via `environment.yml`, **pip** (Python deps) via `backend/pyproject.toml`, **npm** (JS deps) via `frontend/package.json` | conda's only job here is providing Python 3.11 and Node 22 in one reproducible environment; the actual dependency versions are pinned in `pyproject.toml`/`package.json`, not duplicated in `environment.yml` |
+| Database | PostgreSQL 16 with the `pgvector` extension (the `postgres` service in `docker-compose.yml`) | Required: companies, runs, review decisions, facts, documents, holdings and embeddings live there |
 | Editor | VS Code, with `.vscode/settings.json` / `launch.json` / `tasks.json` / `extensions.json` already checked in | Correct interpreter auto-selected, pytest wired up, debug configs for the backend and frontend, one-click tasks for setup/tests/dev servers |
 
 Nothing here is containerized by default — see the root README's "Docker
@@ -212,7 +214,12 @@ pip install -e ".[dev]"
 Copy-Item .env.example .env
 # now edit backend\.env and fill in ARP_ANTHROPIC_API_KEY
 
-# 3. Sanity-check: run the unit tests (no API key/network required)
+# 3. Start Postgres and create the schema (see "Postgres (required)" below);
+#    set ARP_POSTGRES_DSN in backend\.env first
+docker compose up -d postgres
+arp db init-postgres
+
+# Sanity-check: run the unit tests (no API key/network required)
 pytest -q
 
 # 4. Install the pre-commit secret-scanning hook
@@ -268,6 +275,79 @@ configs) is already done:
     a debugger-attached browser tab, so breakpoints set in `frontend/src`
     `.tsx`/`.ts` files hit directly in VS Code.
   - **"Backend + Frontend (debug)"** — both of the above together.
+
+## Postgres (required)
+
+The backend stores everything it decides on in Postgres with `pgvector`:
+companies, runs and their results, review decisions, facts, the document
+registry, holdings and chunk embeddings. The API and CLI refuse to start
+without `ARP_POSTGRES_DSN` or when the database does not answer.
+
+```powershell
+docker compose up -d postgres         # pgvector/pgvector:pg16, user/password/db arp
+# in backend\.env:
+#   ARP_POSTGRES_DSN=postgresql+psycopg://arp:arp@localhost:5432/arp
+arp db init-postgres                  # extension, tables, schema steps; idempotent
+arp db check-postgres                 # read-only; non-zero exit when not current
+```
+
+Re-run `arp db init-postgres` after every upgrade. It adds missing tables and
+columns, applies recorded schema steps, and links holdings, securities and
+published facts to companies registered since (idempotent); it never drops
+anything. The test
+suite needs a separate, empty database named in the environment variable
+`ARP_TEST_POSTGRES_DSN` (e.g. create `arp_test` and set
+`postgresql+psycopg://arp:arp@localhost:5432/arp_test`); it empties its
+tables between tests.
+
+### Moving an existing file-based install to Postgres
+
+Earlier versions kept runs, review decisions and the document registry in
+files under `runs/` and `backend/.arp_cache/content.db`. Import them once,
+with the API stopped:
+
+0. If the deployment already used Postgres (the opt-in portfolio or
+   document store), back it up first:
+   `pg_dump -Fc -d arp -f arp-before-upgrade.dump`. Step 1 migrates its
+   schema, and the previous release cannot run on the migrated schema.
+1. `arp db init-postgres`
+2. `arp db import --dry-run`: counts per area, identity conflicts, fact
+   conflicts and skipped decisions. Writes nothing.
+3. `arp db import`: universe files, identifier map, schema registry,
+   documents, every run oldest first, facts, ESG loads, the portfolio
+   store's portfolios, companies, securities, resolutions and holdings
+   snapshots; then re-keys holdings, securities, releases and published
+   facts to the imported companies.
+   Idempotent; re-run it to finish an interrupted import.
+4. `arp db verify` must report no differences.
+5. `arp db check-postgres`: lists rows still without a company
+   (`unmatched_company_rows`). They keep working through their issuer key.
+6. Start the API.
+
+Until steps 1 to 4 are done the API and CLI refuse to start (pending schema
+steps, missing tables, or run directories not yet imported); set
+`ARP_SKIP_CUTOVER_CHECK=1` to start anyway.
+
+The files stay on disk and are only read; nothing deletes them.
+
+Rolling back: the previous release cannot run on the migrated schema (it
+fails on the new `companies` columns, and its `init-postgres` would add
+legacy columns into the new tables). To roll back, stop the API, restore
+the dump from step 0 (`pg_restore --clean --if-exists -d arp
+arp-before-upgrade.dump`), then redeploy the previous release, which reads
+the files again. A file-only install (no Postgres before the upgrade) rolls
+back by redeploying the previous release alone. Either way, anything written
+after the cut-over is only in the new database and is lost.
+
+The legacy tables earlier versions wrote are kept so `arp db import` can read
+them. Once `arp db verify` is clean you may drop them by hand:
+
+```sql
+DROP TABLE IF EXISTS company_records, legacy_company_facts, document_registry, index_checkpoints;
+```
+
+Keep `legacy_companies`: the portfolio store still reads company names,
+sectors and countries from it.
 
 ## Running the app
 

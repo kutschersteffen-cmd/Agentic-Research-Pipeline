@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 import pytest
 
 from arp.api.auth import Principal
@@ -27,8 +25,8 @@ REQ = {"edit"}
 
 
 @pytest.fixture
-def rs(tmp_path):
-    return RunStore(tmp_path / "runs")
+def rs(tmp_path, pg):
+    return RunStore(pg, tmp_path / "runs")
 
 
 def _d(rs, who, decision, step, value=None, second_required=False):
@@ -171,7 +169,7 @@ def test_blind_for(rs):
 
 def test_record_review_decision_row_unchanged(rs):
     record_review_decision(rs, "r1", K, "approve", None, None, principal=ANA)
-    row = json.loads(rs.review_decisions_path("r1").read_text().splitlines()[0])
+    row = rs.read_decisions("r1")[0]
     assert set(row) == {"item_key", "decision", "reviewer", "user_id", "role", "edited_value", "comment", "decided_at"}
 
 

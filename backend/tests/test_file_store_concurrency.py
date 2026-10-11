@@ -299,13 +299,13 @@ def test_a_nested_acquire_of_the_same_key_does_not_release_early(tmp_path):
     assert "k" not in locks._files
 
 
-def test_run_store_and_engagement_store_lock_files_stay_out_of_listings(tmp_path):
+def test_run_store_and_engagement_store_lock_files_stay_out_of_listings(tmp_path, pg):
     """The lock files live beside the data they guard, so they must not
     show up as runs, snapshots, taxonomy versions or observation keys."""
     from arp.schemas.common import JobStatus, RunManifest
     from arp.storage.run_store import RunStore
 
-    run_store = RunStore(tmp_path / "runs")
+    run_store = RunStore(pg, tmp_path / "runs")
     run_store.save_manifest(RunManifest(run_id="run_1", run_type="extraction", status=JobStatus.COMPLETED))
     with run_store.lock("run_1"):
         pass

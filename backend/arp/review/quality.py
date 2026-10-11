@@ -21,6 +21,7 @@ from pathlib import Path
 from arp.checks.numeric import candidates, parse_number
 from arp.checks.runner import CheckContext, check_record
 from arp.config import Settings
+from arp.db.fields import SchemaRegistry
 from arp.extraction import extractor_agent, verifier_agent
 from arp.extraction.aggregator import build_extracted_fields
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
@@ -52,7 +53,6 @@ from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.locks import KeyedLock
 from arp.storage.run_store import RunStore
-from arp.storage.schema_registry import SchemaRegistry
 
 logger = logging.getLogger(__name__)
 KNOWN = "known.jsonl"
@@ -148,7 +148,7 @@ async def _record(
     fields = await check_record(schema, fields, CheckContext(
         company=company, issuer_key=key, schema=schema, documents_by_id={doc.doc_id: doc}, record_fields=fields,
     ))
-    quality = SchemaRegistry(settings.schema_registry_dir).quality(spec.field_id, spec.version)
+    quality = SchemaRegistry(settings.postgres_dsn).quality(spec.field_id, spec.version)
     routed = []
     for f in fields:
         r = route(f, quality, spec, trial=True)

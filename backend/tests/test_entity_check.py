@@ -1,3 +1,5 @@
+import pytest
+
 from arp.config import Settings
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
 from arp.extraction.pipeline import _extract_company
@@ -7,6 +9,9 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.planning.entity_check import confirm_entity
 from arp.schemas.common import Citation, CompanyRef, DocType, MatchStatus, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below
 
 LEI_A = "5493001KJTIIGC8Y1R12"
 LEI_B = "529900T8BM49AURSDO55"
@@ -182,9 +187,9 @@ def _release_history(tmp_path, sub, *, extra=None, run_id="old", trial=False, de
     from arp.schemas.review import ReviewDecision, held_item_key
     from arp.storage.run_store import RunStore
 
-    store = RunStore(tmp_path / "hist")
+    store = RunStore(pg_dsn(), tmp_path / "hist")
     store.save_manifest(RunManifest(run_id=run_id, run_type="extraction", created_at="2024-01-01", params={"trial": trial}))
-    store.append_jsonl(store.results_path(run_id), {
+    store.append_result(run_id, {
         "company_id": "c1", "issuer_key": "k", "fields": [],
         "held_documents": [{"doc_id": sub.doc_id, "content_key": sub.content_key}],
     })
@@ -223,10 +228,10 @@ def _two_runs(tmp_path, sub, second_decision):
     from arp.schemas.review import ReviewDecision, held_item_key
     from arp.storage.run_store import RunStore
 
-    store = RunStore(tmp_path / "hist2")
+    store = RunStore(pg_dsn(), tmp_path / "hist2")
     for rid, created, dec in (("old", "2024-01-01", "approve"), ("new", "2024-02-01", second_decision)):
         store.save_manifest(RunManifest(run_id=rid, run_type="extraction", created_at=created, params={}))
-        store.append_jsonl(store.results_path(rid), {
+        store.append_result(rid, {
             "company_id": "c1", "issuer_key": "k", "fields": [],
             "held_documents": [{"doc_id": sub.doc_id, "content_key": sub.content_key}],
         })

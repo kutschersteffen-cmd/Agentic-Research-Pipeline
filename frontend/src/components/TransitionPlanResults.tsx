@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
+import { CompanyLink } from "./CompanyLink";
 import { api } from "../api/client";
 import { ConfidenceBadge, GroundedBadge, YesNoBadge } from "./ConfidenceBadge";
 import { ReviewControls } from "./ReviewControls";
@@ -254,7 +255,7 @@ export function TransitionPlanResultsTable({ runId, results, reviewDecisions, re
           {shown.map((r) => (
             <Fragment key={r.company_id}>
               <tr className="clickable-row" {...activatable(() => onToggleExpanded(r.company_id), expanded === r.company_id)}>
-                <td>{r.name} {r.ticker && <span className="muted">({r.ticker})</span>}</td>
+                <td><CompanyLink companyId={r.company_id}>{r.name}</CompanyLink> {r.ticker && <span className="muted">({r.ticker})</span>}</td>
                 <td>{r.disclosed_count}/64</td>
                 <td>{r.walk_disclosed_count}/{r.walk_total_count}</td>
                 <td>{r.talk_disclosed_count}/{r.talk_total_count}</td>

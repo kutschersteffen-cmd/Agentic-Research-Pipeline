@@ -43,8 +43,8 @@ def store():
 
 
 @pytest.fixture
-def rs(tmp_path):
-    return RunStore(tmp_path / "runs")
+def rs(tmp_path, pg):
+    return RunStore(pg, tmp_path / "runs")
 
 
 @pytest.fixture
@@ -63,7 +63,7 @@ def _field(value, period="2024-12-31", doc="d1", route="auto_accept"):
 
 def _run(rs, run_id, day, fields):
     rs.save_manifest(RunManifest(run_id=run_id, run_type="extraction", created_at=f"2026-01-{day:02d}T00:00:00+00:00"))
-    rs.append_jsonl(rs.results_path(run_id), {"company_id": "c1", "issuer_key": "ISS", "issuer_scheme": "LEI",
+    rs.append_result(run_id, {"company_id": "c1", "issuer_key": "ISS", "issuer_scheme": "LEI",
                                               "fields": fields})
 
 
@@ -149,7 +149,7 @@ def test_restated_period_shows_both_versions_pg(store, rs, blobs):
     _run(rs, "r1", 1, [_field(9, period="2023-12-31")])
     _publish(store, rs, blobs, "r1")
     _run(rs, "r2", 2, [_field(8, period="2023-12-31", doc="d2", route="review")])
-    rs.append_jsonl(rs.restatements_path("r2"), {
+    rs.append_restatement("r2", {
         "candidate_id": "rst_1", "item_key": "ISS:f1:2023-12-31", "issuer_key": "ISS", "field_id": "f1",
         "period_end": "2023-12-31", "previous_value": 9, "previous_run_id": "r1", "new_value": 8, "run_id": "r2",
         "doc_ids": ["d2"]})
@@ -174,7 +174,7 @@ def test_older_run_republished_is_skipped_pg(store, rs, blobs):
 
 def test_duplicate_fact_key_skipped_not_blocking_pg(store, rs, blobs):
     _run(rs, "r1", 1, [_field(1000)])
-    rs.append_jsonl(rs.results_path("r1"), {"company_id": "c2", "issuer_key": "ISS", "issuer_scheme": "LEI",
+    rs.append_result("r1", {"company_id": "c2", "issuer_key": "ISS", "issuer_scheme": "LEI",
                                             "fields": [_field(1001)]})
     res = _publish(store, rs, blobs, "r1")
     assert len(res.releases) == 1 and Skip("ISS:f1:2024-12-31", "duplicate_key") in res.skipped
@@ -222,3 +222,23 @@ def test_withdrawal_refused_when_release_regained_current_fact_pg(store, rs, blo
     assert store.current([KEY])[KEY].value == 1100
     [restored] = withdraw(store, rel_b.release_id, reason="bad", principal=BOB)
     assert restored.value == 1000
+
+
+def test_internal_only_fact_is_skipped_and_the_rest_published(store, rs, blobs, pg):
+    from datetime import date
+
+    from arp.db.companies import resolve
+    from arp.db.models import IdScheme, Licence
+    from arp.db.providers import ProviderRow, ensure_source, ingest_rows, record_load
+    from arp.db.session import transaction
+
+    with transaction(pg) as s:
+        resolve(s, [(IdScheme.LEI, "ISS")], name="Issuer", allow_create=True)
+        load = record_load(s, ensure_source(s, "msci", name="MSCI", kind="api", licence=Licence.INTERNAL_ONLY, id_scheme=None),
+                           b"p", request={}, as_of=date(2024, 12, 31))
+        ingest_rows(s, load.load_id, [ProviderRow([(IdScheme.LEI, "ISS")], "co2", "CO2", None, "number", date(2024, 12, 31), 5.0)])
+    _run(rs, "r1", 1, [_field(100), {**_field(5.0), "field_id": "prov:msci:co2"}])
+    res = _publish(store, rs, blobs, "r1")
+    assert [r.doc_id for r in res.releases] == ["d1"]
+    assert [s.reason for s in res.skipped] == ["internal_only"]
+    assert store.current([KEY]) and not store.current([("ISS", "prov:msci:co2", "2024-12-31", "")])

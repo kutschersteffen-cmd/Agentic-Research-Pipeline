@@ -1,92 +1,37 @@
-"""Single choke point for choosing the hybrid-retrieval embeddings cache
-backend (DocumentContentStore/SQLite, default, vs. PgVectorEmbeddingsStore/
-Postgres, opt-in via Settings.embeddings_backend == "postgres") -- every
-_gather_evidence node (field_graph.py, financials_graph.py, match_graph.py)
-calls this rather than duplicating the branch.
-"""
+"""Single choke point for building the document content store used by hybrid retrieval and ingestion
+(every _gather_evidence node calls this rather than constructing one)."""
 
 from __future__ import annotations
 
-import logging
 from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from arp.config import Settings
-
-logger = logging.getLogger(__name__)
+from arp.db.session import require_dsn
 
 if TYPE_CHECKING:
     from arp.storage.document_store import DocumentContentStore
-    from arp.storage.postgres_embeddings import PgVectorEmbeddingsStore
 
 
 def content_store_for(settings: Settings) -> DocumentContentStore:
-    """The document content store for `settings`: SQLite by default; with
-    embeddings_backend == "postgres" and a postgres_dsn, the registry and
-    embeddings live in Postgres (parsed text stays a local cache)."""
     from arp.storage.document_store import DocumentContentStore
 
-    postgres_dsn = settings.postgres_dsn if settings.embeddings_backend == "postgres" else None
     return DocumentContentStore(
-        settings.document_store_dir, enabled=settings.document_cache_enabled, postgres_dsn=postgres_dsn
+        settings.document_store_dir, enabled=settings.document_cache_enabled, dsn=require_dsn(settings)
     )
 
 
-def build_hybrid_content_store(settings: Settings) -> DocumentContentStore | PgVectorEmbeddingsStore:
-    """Constructed lazily, only on the path that actually uses it (hybrid
-    retrieval enabled) -- a cheap connect + idempotent
-    CREATE-IF-NOT-EXISTS either way, then cached for the process (see
-    below), rather than rebuilt per call as it was when constructed inline
-    before this factory existed.
-
-    Still falls back to SQLite if the Postgres backend is selected without
-    a DSN, deliberately: this runs per field per company inside the
-    retrieval graph, so raising here would fail a run mid-flight over a
-    configuration mistake, and hybrid retrieval is a cache -- the answer is
-    the same either way, only slower. What changed is that the fallback is
-    no longer the operator's only signal: Settings refuses to construct in
-    that state at all (see config.Settings._selected_backends_have_their_
-    connection), so the mistake is caught at startup, and reaching the
-    fallback now means someone bypassed validation -- hence the warning.
-
-    Cached on the settings that select a backend, because this is called
-    once per (company, field) inside the retrieval graph: a 4,000-company
-    run over a ten-field schema built 40,000 of these, each paying a
-    mkdir + connect + CREATE-IF-NOT-EXISTS script + commit, only to hand
-    the same object to select_relevant_chunks. Safe to share: the store
-    keeps no open connection (it passes its `_connect` factory to its
-    collaborators and every operation opens and closes its own), which is
-    the same property that lets it skip check_same_thread. `Settings` is
-    not hashable, so the cache is keyed on the fields that choose the
-    backend rather than on the object.
-    """
+def build_hybrid_content_store(settings: Settings) -> DocumentContentStore:
+    """Cached for the process on the fields that choose it: this is called once per (company, field) inside
+    the retrieval graph, and the store keeps no open connection, so one instance is safe to share."""
     return _build_hybrid_content_store(
-        settings.embeddings_backend,
-        settings.postgres_dsn,
-        settings.document_store_dir,
-        settings.document_cache_enabled,
+        require_dsn(settings), settings.document_store_dir, settings.document_cache_enabled
     )
 
 
 @cache
-def _build_hybrid_content_store(
-    embeddings_backend: str,
-    postgres_dsn: str | None,
-    document_store_dir: Path,
-    document_cache_enabled: bool,
-) -> DocumentContentStore | PgVectorEmbeddingsStore:
-    if embeddings_backend == "postgres":
-        if postgres_dsn:
-            from arp.storage.postgres_embeddings import PgVectorEmbeddingsStore
-
-            return PgVectorEmbeddingsStore(postgres_dsn)
-        logger.warning(
-            "embeddings_backend is 'postgres' but postgres_dsn is not set; using the local SQLite embeddings "
-            "cache for this call. Set ARP_POSTGRES_DSN, or set ARP_EMBEDDINGS_BACKEND=sqlite to make the choice "
-            "explicit."
-        )
-
+def _build_hybrid_content_store(dsn: str, document_store_dir: Path, document_cache_enabled: bool) -> DocumentContentStore:
     from arp.storage.document_store import DocumentContentStore
 
-    return DocumentContentStore(document_store_dir, enabled=document_cache_enabled)
+    return DocumentContentStore(document_store_dir, enabled=document_cache_enabled, dsn=dsn)

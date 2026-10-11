@@ -1,5 +1,6 @@
 import asyncio
 
+import pytest
 from reportlab.pdfgen import canvas
 
 from arp.grounding import ground_citations
@@ -8,6 +9,9 @@ from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.local_files import LocalFileDocumentSource
 from arp.schemas.common import Citation, CompanyRef, DocType
 from arp.storage.document_store import DocumentContentStore
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 
 class _FakeDoclingDocument:
@@ -56,7 +60,7 @@ def test_indexing_config_hooks_are_called_on_registration(tmp_path, monkeypatch)
         lambda store, content_key, data: upload_calls.append((content_key, data)) or "s3://arp-documents/fake",
     )
     _write_doc(tmp_path, "acme", DocType.ANNUAL_REPORT_10K, "report.txt", "Some disclosure text about green capex.")
-    content_store = DocumentContentStore(tmp_path / "store")
+    content_store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     config = IndexingConfig(opensearch_url="http://localhost:9200", search_live_indexing_enabled=True)
     source = LocalFileDocumentSource(tmp_path / "docs", content_store=content_store, indexing_config=config)
 
@@ -77,7 +81,7 @@ def test_no_indexing_config_never_calls_the_hooks(tmp_path, monkeypatch):
         "arp.retrieval.search_indexer.index_document_if_enabled", lambda config, **kwargs: index_calls.append(kwargs)
     )
     _write_doc(tmp_path, "acme", DocType.ANNUAL_REPORT_10K, "report.txt", "text")
-    content_store = DocumentContentStore(tmp_path / "store")
+    content_store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     source = LocalFileDocumentSource(tmp_path / "docs", content_store=content_store)
 
     asyncio.run(source.fetch(CompanyRef(company_id="acme", name="Acme")))
@@ -102,7 +106,7 @@ def test_fetch_without_a_store_behaves_exactly_as_before(tmp_path):
 
 def test_doc_id_is_stable_across_two_fetches(tmp_path):
     _write_doc(tmp_path, "acme", DocType.ANNUAL_REPORT_10K, "report.txt", "Some disclosure text about green capex.")
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     source = LocalFileDocumentSource(tmp_path / "docs", content_store=store)
 
     first = asyncio.run(source.fetch(CompanyRef(company_id="acme", name="Acme")))
@@ -115,7 +119,7 @@ def test_doc_id_is_stable_across_two_fetches(tmp_path):
 def test_doc_id_differs_per_company_for_identical_bytes(tmp_path):
     _write_doc(tmp_path, "acme", DocType.ANNUAL_REPORT_10K, "report.txt", "Identical content across companies.")
     _write_doc(tmp_path, "beta", DocType.ANNUAL_REPORT_10K, "report.txt", "Identical content across companies.")
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     source = LocalFileDocumentSource(tmp_path / "docs", content_store=store)
 
     acme_docs = asyncio.run(source.fetch(CompanyRef(company_id="acme", name="Acme")))
@@ -126,7 +130,7 @@ def test_doc_id_differs_per_company_for_identical_bytes(tmp_path):
 
 def test_second_fetch_hits_the_content_cache_and_does_not_reparse(tmp_path, monkeypatch):
     _write_doc(tmp_path, "acme", DocType.ANNUAL_REPORT_10K, "report.txt", "Cached content check.")
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     source = LocalFileDocumentSource(tmp_path / "docs", content_store=store)
 
     asyncio.run(source.fetch(CompanyRef(company_id="acme", name="Acme")))
@@ -157,7 +161,7 @@ def test_grounding_resolves_the_page_from_cached_page_breaks(tmp_path, monkeypat
     pdf.drawString(72, 700, "Revenue grew due to green capex investment this year.")
     pdf.save()
 
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     source = LocalFileDocumentSource(tmp_path / "docs", content_store=store)
 
     docs = asyncio.run(source.fetch(CompanyRef(company_id="acme", name="Acme")))
@@ -181,7 +185,7 @@ def test_grounding_resolves_the_page_from_cached_page_breaks(tmp_path, monkeypat
 
 def test_disabled_store_still_derives_a_stable_doc_id_but_never_caches_the_parse(tmp_path, monkeypatch):
     _write_doc(tmp_path, "acme", DocType.ANNUAL_REPORT_10K, "report.txt", "Disabled-store text.")
-    store = DocumentContentStore(tmp_path / "store", enabled=False)
+    store = DocumentContentStore(tmp_path / "store", enabled=False, dsn=pg_dsn())
     source = LocalFileDocumentSource(tmp_path / "docs", content_store=store)
 
     from arp.ingestion import local_files
@@ -208,7 +212,7 @@ def test_max_concurrent_parses_bounds_in_flight_parses(tmp_path):
     for i in range(6):
         _write_doc(tmp_path, "acme", DocType.ANNUAL_REPORT_10K, f"doc{i}.txt", f"Report number {i}.")
 
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     source = LocalFileDocumentSource(tmp_path / "docs", content_store=store, max_concurrent_parses=2)
 
     in_flight = 0

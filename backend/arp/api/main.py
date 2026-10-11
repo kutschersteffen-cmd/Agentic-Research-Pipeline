@@ -24,6 +24,7 @@ from arp.api.routers import (
     bi,
     calibration,
     climate,
+    companies,
     decision,
     discovery,
     documents,
@@ -59,6 +60,7 @@ from arp.api.routers import (
     voting,
     xbrl,
 )
+from arp.db.session import require_cutover, require_postgres
 
 logging.basicConfig(level=logging.INFO)
 
@@ -66,6 +68,8 @@ logging.basicConfig(level=logging.INFO)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = settings_dep()
+    require_postgres(settings)  # Postgres is the system of record: no DSN or no answer, no app
+    require_cutover(settings)  # nor on an un-migrated or un-imported database
     settings.ensure_dirs()
     if settings.auth_mode == "local":
         load_users(settings.users_file)  # a bad users file stops startup
@@ -114,6 +118,7 @@ app.add_middleware(
 )
 
 app.include_router(themes.router, dependencies=[Depends(authorize)])
+app.include_router(companies.router, dependencies=[Depends(authorize)])
 app.include_router(extraction.router, dependencies=[Depends(authorize)])
 app.include_router(documents.router, dependencies=[Depends(authorize)])
 app.include_router(discovery.router, dependencies=[Depends(authorize)])

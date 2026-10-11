@@ -3,6 +3,9 @@ from fastapi import HTTPException
 
 from arp.api.routers.documents import _enrich_cached_rows, _safe_document_path
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 
 def test_safe_document_path_returns_real_file(tmp_path):
@@ -34,7 +37,7 @@ def test_safe_document_path_404s_on_missing_file(tmp_path):
 
 
 def test_enrich_cached_rows_fills_in_registered_document(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     store.register_document(
         doc_id=derive_doc_id("acme", "10-K", "key_a"), company_id="acme", doc_type="10-K",
         content_key="key_a", title="Acme 10-K", local_path="/docs/acme/10-K/acme.pdf", source_url=None,
@@ -55,7 +58,7 @@ def test_enrich_cached_rows_fills_in_registered_document(tmp_path):
 
 
 def test_enrich_cached_rows_leaves_unregistered_row_as_none(tmp_path):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
 
     enriched = _enrich_cached_rows([{"content_key": "key_unregistered"}], store)
 

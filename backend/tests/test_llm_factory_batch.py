@@ -4,6 +4,7 @@ from arp.llm.batching_client import BatchingLLMClient
 from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
 from arp.orchestration.job_manager import JobManager
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import pg_dsn
 
 
 def _settings(tmp_path) -> Settings:
@@ -38,7 +39,7 @@ class _Launcher:
 
 
 def _schedule(settings) -> dict:
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg_dsn(), settings.runs_dir)
     run_id = run_scheduling.schedule_llm_run(
         create_fn=lambda: JobManager(store).create_run("financials", {}, 1).run_id,
         run=None,
@@ -47,14 +48,14 @@ def _schedule(settings) -> dict:
     return store.load_manifest(run_id).params
 
 
-def test_schedule_llm_run_marks_batch_run(tmp_path, monkeypatch):
+def test_schedule_llm_run_marks_batch_run(tmp_path, monkeypatch, pg):
     monkeypatch.setattr(run_scheduling, "get_job_launcher", _Launcher)
     s = _settings(tmp_path)
     assert _schedule(batch_settings(s, True))["batch"] is True
     assert "batch" not in _schedule(s)
 
 
-async def test_emerging_themes_run_marked_batch(tmp_path, monkeypatch):
+async def test_emerging_themes_run_marked_batch(tmp_path, monkeypatch, pg):
     from arp.emerging_themes import pipeline
 
     async def _execute(run_id, *_args, **_kwargs):
@@ -62,7 +63,7 @@ async def test_emerging_themes_run_marked_batch(tmp_path, monkeypatch):
 
     monkeypatch.setattr(pipeline, "execute_emerging_themes_run", _execute)
     s = _settings(tmp_path).model_copy(update={"batch_scheduled_run_types": ["emerging_themes"]})  # opt-in by config
-    store = RunStore(s.runs_dir)
+    store = RunStore(pg, s.runs_dir)
 
     async def _run(settings):
         run_id = await pipeline.run_emerging_themes(

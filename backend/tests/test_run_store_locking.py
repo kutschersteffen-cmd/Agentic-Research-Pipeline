@@ -55,11 +55,11 @@ def test_keyed_lock_does_not_serialize_different_keys():
     assert acquired_quickly
 
 
-def test_record_progress_has_no_lost_updates_under_concurrency(tmp_path):
+def test_record_progress_has_no_lost_updates_under_concurrency(tmp_path, pg):
     # Widen the read-modify-write window (simulating real disk I/O latency)
     # so that without RunStore.lock(), concurrent record_progress calls
     # would deterministically clobber each other's deltas.
-    store = RunStore(tmp_path / "runs")
+    store = RunStore(pg, tmp_path / "runs")
     manager = JobManager(store)
     manifest = manager.create_run("theme", {}, company_count=100)
 

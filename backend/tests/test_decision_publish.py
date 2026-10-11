@@ -29,7 +29,7 @@ pytestmark = pytest.mark.usefixtures("sample_house_universe")
 
 
 @pytest.fixture
-def client(tmp_path):
+def client(tmp_path, pg):
     settings = Settings(frameworks_dir=tmp_path / "frameworks", runs_dir=tmp_path / "runs")
     settings.ensure_dirs()
     store = DecisionStore(settings.frameworks_dir)
@@ -39,7 +39,7 @@ def client(tmp_path):
     app.dependency_overrides[settings_dep] = lambda: settings
     app.dependency_overrides[current_user] = lambda: PRINCIPAL
     app.dependency_overrides[get_decision_store] = lambda: store
-    app.dependency_overrides[get_run_store] = lambda: RunStore(settings.runs_dir)
+    app.dependency_overrides[get_run_store] = lambda: RunStore(pg, settings.runs_dir)
     app.dependency_overrides[get_portfolio_store] = lambda: None
     app.dependency_overrides[get_index_store] = lambda: IndexStore(tmp_path / "indices")
     with TestClient(app) as c:

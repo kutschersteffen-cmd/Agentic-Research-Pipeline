@@ -1,4 +1,3 @@
-import json
 
 from arp.config import Settings
 from arp.extraction.extractor_agent import ExtractionDraft
@@ -17,6 +16,7 @@ from arp.schemas.common import Citation, CompanyRef, DocType, JobStatus, SourceD
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping, CatalogueDataPoint
 from arp.schemas.thematic import ActivityDefinition, AgentOpinion, ExposureEstimate, LifecycleStage, MatchVerdict, ThemeDefinition
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import forget_companies, replace_results
 
 
 class _FixedDocSource(DocumentSource):
@@ -419,13 +419,13 @@ async def test_match_company_arbitration_disagreement_flags_review_when_base_fla
     assert match.flagged_for_review is True  # arbitration alone triggers this -- catalogue-only flagged would be False
 
 
-async def test_resume_theme_run_skips_already_completed_companies(tmp_path, fake_llm):
+async def test_resume_theme_run_skips_already_completed_companies(tmp_path, fake_llm, pg):
     """Reconstructs a run from what create_theme_run persisted and confirms
     resume_run only processes the company missing from results.jsonl
     -- run_batch's own resumability, exercised end to end through the
     resume entrypoint rather than called directly."""
     settings = _settings(tmp_path)
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     theme, _activity = _theme()
     universe_path = tmp_path / "universe.csv"
     universe_path.write_text("company_id,name\nc1,Acme\nc2,Beta\n")
@@ -439,7 +439,7 @@ async def test_resume_theme_run_skips_already_completed_companies(tmp_path, fake
     )
     # Simulate c1 having already completed in a prior (interrupted) invocation,
     # and that the run was cancelled before c2 got a chance to run.
-    store.results_path(run_id).write_text(json.dumps({"company_matches": [], "_key": "c1"}) + "\n")
+    replace_results(store, run_id, [{"company_matches": [], "_key": "c1"}])
     JobManager(store).request_cancel(run_id)
     assert store.load_manifest(run_id).cancel_requested is True
 
@@ -454,12 +454,12 @@ async def test_resume_theme_run_skips_already_completed_companies(tmp_path, fake
     assert manifest.status == JobStatus.COMPLETED
     assert manifest.cancel_requested is False  # resume clears the stale cancel flag
 
-    rows = store.read_jsonl(store.results_path(run_id))
+    rows = store.read_results(run_id)
     keys = {r["_key"] for r in rows}
     assert keys == {"c1", "c2"}  # c1's pre-existing row preserved, c2 newly processed
 
 
-def test_create_theme_run_persists_use_sample_exiobase(tmp_path):
+def test_create_theme_run_persists_use_sample_exiobase(tmp_path, pg):
     """create_theme_run persists use_sample_exiobase in manifest.params --
     what resume_theme_run reads back to resolve an EXIOBASE-sourced model
     instead of the default ICIO-sourced one (see
@@ -468,7 +468,7 @@ def test_create_theme_run_persists_use_sample_exiobase(tmp_path):
     test_factory.py).
     """
     settings = _settings(tmp_path)
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     theme, _activity = _theme()
     universe_path = tmp_path / "universe.csv"
     universe_path.write_text("company_id,name\nc1,Acme\n")
@@ -486,12 +486,12 @@ def test_create_theme_run_persists_use_sample_exiobase(tmp_path):
     assert manifest.params["use_sample_icio"] is False
 
 
-async def test_resume_theme_run_unknown_universe_path_raises(tmp_path, fake_llm):
+async def test_resume_theme_run_unknown_universe_path_raises(tmp_path, fake_llm, pg):
     settings = _settings(tmp_path)
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg, settings.runs_dir)
     theme, _activity = _theme()
     run_id = create_theme_run(theme, [CompanyRef(company_id="c1", name="Acme")], settings, store)  # no universe_path
-    store.companies_path(run_id).unlink()  # nor stored companies: a run from before either existed
+    forget_companies(store, run_id)  # nor stored companies: a run from before either existed
 
     llm = fake_llm({})
     registry = DocumentSourceRegistry([_FixedDocSource([])])

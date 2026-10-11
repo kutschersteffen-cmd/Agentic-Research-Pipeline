@@ -7,16 +7,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from arp.agents.calibration_agent import CalibrationAgentScheduler, create_calibration_run, execute_calibration_run
 from arp.api.deps import get_calibration_scheduler, get_registry, settings_dep
 from arp.config import Settings
+from arp.db.session import require_dsn
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.schemas.calibration import CalibrationScheduleConfig
-from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.run_store import RunStore
 
 router = APIRouter(prefix="/api/calibration", tags=["calibration"])
 
 
 def _run_store(settings: Settings = Depends(settings_dep)) -> RunStore:
-    return RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
+    return RunStore(require_dsn(settings), settings.runs_dir)
 
 
 @router.post("/runs")
@@ -48,7 +48,7 @@ def get_calibration_run(run_id: str, run_store: RunStore = Depends(_run_store)) 
 def get_calibration_results(
     run_id: str, offset: int = 0, limit: int = 200, run_store: RunStore = Depends(_run_store)
 ) -> dict:
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     return {"total": len(rows), "results": rows[offset : offset + limit]}
 
 

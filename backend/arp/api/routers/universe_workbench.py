@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from arp.api.deps import get_document_content_store, get_identifier_map, settings_dep
 from arp.config import Settings
+from arp.db.session import require_dsn
 from arp.schemas.common import CompanyRef
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
@@ -33,7 +34,7 @@ class WorkbenchRequest(BaseModel):
 
 
 def _run_store(settings: Settings = Depends(settings_dep)) -> RunStore:
-    return RunStore(settings.runs_dir)
+    return RunStore(require_dsn(settings), settings.runs_dir)
 
 
 def _xbrl_store(settings: Settings = Depends(settings_dep)) -> XbrlStore:

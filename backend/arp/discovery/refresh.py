@@ -7,6 +7,7 @@ import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from arp.db.session import require_dsn
 from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import DocumentEvent, DocumentEventType
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
@@ -69,14 +70,14 @@ async def refresh_on_events(
     events = [e for e in events if e.event_type in _REFRESH_TYPES]
     if not events:
         return []
+    from arp.db.fields import SchemaRegistry, UnreleasedFieldError
     from arp.extraction.pipeline import create_extraction_run
     from arp.orchestration.jobs import get_job_launcher
-    from arp.storage.schema_registry import SchemaRegistry, UnreleasedFieldError
 
     schemas = []
     for schema_id in settings.event_refresh_schema_ids:
         try:
-            schemas.append(SchemaRegistry(settings.schema_registry_dir).get(schema_id))
+            schemas.append(SchemaRegistry(settings.postgres_dsn).get(schema_id))
         except KeyError:
             logger.warning("Refresh: schema %s not found, skipped", schema_id)
 
@@ -129,10 +130,9 @@ def refresh_hook(settings: Settings, run_store: RunStore | None = None, *, paren
     async def on_events(events: list[DocumentEvent], company: CompanyRef | None = None) -> None:
         from arp.api.deps import build_registry
         from arp.retrieval.content_store_factory import content_store_for
-        from arp.storage.postgres_projection_config import ProjectionConfig
         from arp.storage.run_store import RunStore
 
-        store = run_store or RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
+        store = run_store or RunStore(require_dsn(settings), settings.runs_dir)
         await refresh_on_events(
             events, settings=settings, run_store=store,
             registry=build_registry(settings, content_store_for(settings)), parent=parent, company_hint=company,

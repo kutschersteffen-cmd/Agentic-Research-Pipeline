@@ -40,11 +40,11 @@ class RunHistory:
     def _add_run(self, run_store: RunStore, run_id: str) -> None:
         # Same decision view as the facts projection: an edit counts only once co-signed.
         decisions = effective_decisions(run_store, run_id, cosign_required={"edit"})
-        queued = {r["item_key"] for r in run_store.read_jsonl(run_store.review_queue_path(run_id)) if "item_key" in r}
+        queued = {r["item_key"] for r in run_store.read_review_queue(run_id) if "item_key" in r}
         in_review = set(latest_decisions(run_store, run_id)) - set(decisions)  # a human decision not yet final
         queued |= in_review  # as the projection reads it
         rejected = {k for k, d in decisions.items() if d.get("decision") == "reject"}
-        for row in run_store.read_jsonl(run_store.results_path(run_id)):
+        for row in run_store.read_results(run_id):
             issuer = row.get("issuer_key", "")
             self._company_rows[row.get("company_id", "")] = row.get("fields", [])
             self._company_run[row.get("company_id", "")] = run_id

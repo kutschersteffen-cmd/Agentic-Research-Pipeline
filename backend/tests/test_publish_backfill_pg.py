@@ -27,10 +27,10 @@ def _db():
 
 
 @pytest.fixture
-def backfill(tmp_path, monkeypatch):
+def backfill(tmp_path, monkeypatch, pg):
     from arp.cli import publish as cli
 
-    rs, blobs = RunStore(tmp_path / "runs"), LocalBlobStore(tmp_path / "blobs")
+    rs, blobs = RunStore(pg, tmp_path / "runs"), LocalBlobStore(tmp_path / "blobs")
     for d, data in ORIG.items():
         blobs.put(HASH[d], data)
     monkeypatch.setattr(cli, "get_settings", lambda: Settings(postgres_dsn=DSN))
@@ -45,25 +45,17 @@ def backfill(tmp_path, monkeypatch):
     return run
 
 
-def _checkpoint():
-    from arp.storage.postgres_checkpoints import get_checkpoint
-
-    return get_checkpoint(DSN, "published_facts")
-
-
 def test_backfill_publishes_old_runs_then_later_decisions_pg(backfill, monkeypatch):
     rs = backfill.rs
     _run(rs, "r1", 1, [_field(1000)])
     _run(rs, "r2", 2, [_field(7, period="2023-12-31", doc="d2", route="review")])
     rs.save_manifest(RunManifest(run_id="rt", run_type="extraction", params={"trial": True}))
-    rs.append_jsonl(rs.results_path("rt"), {"company_id": "c1", "issuer_key": "ISS", "issuer_scheme": "LEI",
+    rs.append_result("rt", {"company_id": "c1", "issuer_key": "ISS", "issuer_scheme": "LEI",
                                             "fields": [_field(5, period="2022-12-31", doc="d3")]})
 
     first = backfill()
     assert first.exit_code == 0, first.output
     assert "releases=1 " in first.output and "skipped=1" in first.output  # r2 not final; trial run never read
-    mark = _checkpoint()
-    assert mark is not None
 
     again = backfill()
     assert "releases=0 reconfirmed=1 " in again.output, again.output
@@ -71,7 +63,6 @@ def test_backfill_publishes_old_runs_then_later_decisions_pg(backfill, monkeypat
     _decide(rs, "r2", "ISS:f1:2023-12-31", "first", "u_alice")  # the manifest is not touched
     later = backfill()
     assert "releases=1 " in later.output, later.output
-    mark = _checkpoint()
 
     import arp.cli.publish as cli
 
@@ -80,4 +71,4 @@ def test_backfill_publishes_old_runs_then_later_decisions_pg(backfill, monkeypat
 
     monkeypatch.setattr(cli, "publish_run", boom)
     failed = backfill()
-    assert failed.exit_code != 0 and _checkpoint() == mark
+    assert failed.exit_code != 0

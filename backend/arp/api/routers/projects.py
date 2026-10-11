@@ -8,7 +8,6 @@ import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
-from arp.api import deps
 from arp.api.deps import get_portfolio_store, get_project_store, get_superset_client
 from arp.api.routers.bi import _bad_gateway
 from arp.bi.plan import ChartPlan
@@ -50,12 +49,6 @@ class CreateRequest(BaseModel, str_strip_whitespace=True):
 class SaveDashboardRequest(BaseModel, str_strip_whitespace=True):
     title: str = Field(min_length=1, max_length=200)
     plan: ChartPlan
-
-
-def _require_postgres() -> None:
-    # Listed first in a handler's dependencies so nothing runs before this check.
-    if deps.get_settings().portfolio_backend != "postgres":
-        raise HTTPException(503, "Projects need Postgres: set ARP_PORTFOLIO_BACKEND=postgres.")
 
 
 def _summary(p: Project) -> ProjectSummary:
@@ -119,7 +112,7 @@ async def upload_data(
         raise HTTPException(422, str(e)) from e
 
 
-@router.post("/{id}/open", response_model=OpenResult, dependencies=[Depends(_require_postgres)])
+@router.post("/{id}/open", response_model=OpenResult)
 async def open_(
     id: str,
     store: ProjectStore = Depends(get_project_store),
@@ -147,7 +140,7 @@ def _save_dashboard(store: ProjectStore, client, id: str, req: SaveDashboardRequ
     return save_template_dashboard(store, client, id, template, req.title)
 
 
-@router.post("/{id}/dashboards", response_model=OpenedDashboard, dependencies=[Depends(_require_postgres)])
+@router.post("/{id}/dashboards", response_model=OpenedDashboard)
 async def save_dashboard(
     id: str,
     req: SaveDashboardRequest,
@@ -175,7 +168,7 @@ class ExportedDashboard(StoredDashboard):
     scoped: bool = False  # hand-built charts are not filtered to this project
 
 
-@router.post("/{id}/dashboards/export", response_model=ExportedDashboard, dependencies=[Depends(_require_postgres)])
+@router.post("/{id}/dashboards/export", response_model=ExportedDashboard)
 async def export_dashboard(
     id: str,
     req: ExportRequest,

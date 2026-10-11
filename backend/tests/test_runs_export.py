@@ -5,6 +5,7 @@ from arp.schemas.exposure import IndirectExposureResult
 from arp.schemas.rd_exposure import RDExposureResult
 from arp.schemas.revenue_exposure import MetricExposure, RevenueExposureResult
 from arp.schemas.thematic import CompanyMatch, CompanyRole, ExposureEstimate, MatchVerdict
+from tests.postgres_helpers import replace_results
 
 
 def _full_match() -> CompanyMatch:
@@ -70,10 +71,9 @@ def test_theme_csv_row_handles_missing_optional_fields():
     assert as_dict["citations_json"] == ""
 
 
-def test_csv_export_has_value_state_columns(tmp_path):
+def test_csv_export_has_value_state_columns(tmp_path, pg):
     import csv
     import io
-    import json
 
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
@@ -83,7 +83,7 @@ def test_csv_export_has_value_state_columns(tmp_path):
     from arp.schemas.common import RunManifest
     from arp.storage.run_store import RunStore
 
-    store = RunStore(tmp_path)
+    store = RunStore(pg, tmp_path)
     store.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
     f = {"field_name": "x", "confidence": 0.9, "grounded": True, "unit": "USD", "basis": "reported",
          "period_end": "2024-12-31", "canonical_unit": "USD"}
@@ -91,7 +91,7 @@ def test_csv_export_has_value_state_columns(tmp_path):
         {**f, "value": 0.0, "value_state": "zero", "canonical_value": 0.0},
         {**f, "value": None, "value_state": "not_found", "canonical_value": None},
     ]}
-    store.results_path("r1").write_text(json.dumps(rec) + "\n")
+    replace_results(store, "r1", [rec])
     app = FastAPI()
     app.include_router(runs.router)
     app.dependency_overrides[get_run_store] = lambda: store

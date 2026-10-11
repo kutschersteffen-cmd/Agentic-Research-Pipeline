@@ -10,49 +10,67 @@ another suite (or by a developer's manual `arp` command against the same
 scratch database) silently changes a total.
 
 So `reset_postgres_tables` is called before *and* after each such test.
-Deleting rather than dropping keeps the schema (and the recorded schema
+Truncating rather than dropping keeps the schema (and the recorded schema
 steps) intact, which is what the tests are running against.
 """
 
 from __future__ import annotations
 
-# Child-before-parent, so the deletes satisfy every foreign key that
-# remains: engagement commitments reference their issue, holdings
-# reference portfolios and securities, securities reference companies, and
-# a company_fact references the fact it supersedes.
-_DELETE_ORDER = (
-    "BiPublishedModel",
-    "FactEventModel",
-    "PublishedFactModel",
-    "ReleaseModel",
-    "CompanyFactModel",
-    "CompanyRecordModel",
-    "EngagementCommitmentModel",
-    "EngagementIssueModel",
-    "HoldingModel",
-    "SecurityResolutionModel",
-    "SecurityModel",
-    "CompanyModel",
-    "PortfolioModel",
-    "DocumentRegistryModel",
-    "ChunkEmbeddingModel",
-    "IndexCheckpointModel",
-)
-
 
 def reset_postgres_tables(dsn: str) -> None:
-    """Empties every table the opt-in store defines, leaving the schema in
-    place. Note the exception: `schema_migrations` (see
-    arp/storage/postgres_schema.py) is deliberately NOT emptied -- it
-    records which schema steps this database has had applied, and wiping it
-    would make the next `ensure_schema` re-run them."""
-    from sqlalchemy import delete
-    from sqlalchemy.orm import Session
+    """Empties every table the models define in one TRUNCATE, leaving the
+    schema in place. `schema_migrations` is deliberately NOT emptied (it is
+    not a model table): it records which schema steps this database has had
+    applied, and wiping it would make the next `ensure_schema` re-run them."""
+    from sqlalchemy import inspect, text
 
-    from arp.storage import postgres_models
+    import arp.db.models  # noqa: F401  (register every table on Base)
     from arp.storage.postgres import get_engine
+    from arp.storage.postgres_models import Base
 
-    with Session(get_engine(dsn)) as session:
-        for model_name in _DELETE_ORDER:
-            session.execute(delete(getattr(postgres_models, model_name)))
-        session.commit()
+    engine = get_engine(dsn)
+    with engine.begin() as conn:
+        existing = set(inspect(conn).get_table_names())
+        names = [t.name for t in Base.metadata.sorted_tables if t.name in existing and t.name != "schema_migrations"]
+        if names:
+            conn.execute(text(f"TRUNCATE {', '.join(names)} RESTART IDENTITY CASCADE"))
+
+
+def pg_dsn() -> str:
+    """The test database DSN, for helpers that build a RunStore outside a test's signature.
+    Set by the `pg` fixture, which the calling test must use."""
+    import os
+
+    return os.environ["ARP_POSTGRES_DSN"]
+
+
+def replace_results(store, run_id: str, rows: list[dict]) -> None:
+    """Overwrites a run's result rows -- what tests that edited results.jsonl by hand now do."""
+    from sqlalchemy import delete
+
+    from arp.db.models import RunResult
+    from arp.db.session import transaction
+
+    with transaction(store.dsn) as s:
+        s.execute(delete(RunResult).where(RunResult.run_id == run_id))
+    for row in rows:
+        store.append_result(run_id, row)
+
+
+def edit_results(store, run_id: str, old: str, new: str, count: int = -1) -> None:
+    """`str.replace` over a run's result rows as JSON text -- the old results.jsonl hand edit."""
+    import json
+
+    replace_results(store, run_id, json.loads(json.dumps(store.read_results(run_id)).replace(old, new, count)))
+
+
+def forget_companies(store, run_id: str) -> None:
+    """A run as if save_companies never ran (runs from before stored inputs)."""
+    from sqlalchemy import delete, update
+
+    from arp.db.models import Run, RunCompany
+    from arp.db.session import transaction
+
+    with transaction(store.dsn) as s:
+        s.execute(delete(RunCompany).where(RunCompany.run_id == run_id))
+        s.execute(update(Run).where(Run.run_id == run_id).values(companies_saved_at=None))

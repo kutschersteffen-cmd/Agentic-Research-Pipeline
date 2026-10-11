@@ -13,6 +13,9 @@ from arp.llm.batching_client import BatchingLLMClient
 from arp.schemas.datapoints import DataPointSchema
 from arp.storage.run_store import RunStore
 from arp.xbrl_pipeline.verify import CircularRunError, assert_xbrl_off
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below
 
 RUN_ID = "run_cli_1"
 
@@ -21,7 +24,7 @@ def _run_cli(tmp_path, monkeypatch, *, xbrl_facts_enabled: bool):
     settings = Settings(
         anthropic_api_key="unused", runs_dir=tmp_path / "runs", cache_dir=tmp_path / "cache", xbrl_facts_enabled=xbrl_facts_enabled
     )
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg_dsn(), settings.runs_dir)
 
     async def fake_run_extraction(schema, companies, **kwargs):
         store.run_dir(RUN_ID)  # the real pipeline creates the run directory
@@ -63,7 +66,7 @@ def test_cli_run_with_xbrl_on_is_recorded_and_refused(tmp_path, monkeypatch):
 
 def test_cli_run_batch_marks_the_run_and_batches_the_clients(tmp_path, monkeypatch):
     settings = Settings(anthropic_api_key="unused", runs_dir=tmp_path / "runs", cache_dir=tmp_path / "cache")
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg_dsn(), settings.runs_dir)
     seen = {}
 
     async def fake_run_extraction(schema, companies, *, llm, settings, **kwargs):
@@ -92,7 +95,7 @@ def test_cli_batch_run_that_crashes_is_still_marked(tmp_path, monkeypatch):
     from arp.extraction.financials_pipeline import create_financials_extraction_run
 
     settings = Settings(anthropic_api_key="unused", runs_dir=tmp_path / "runs", cache_dir=tmp_path / "cache")
-    store = RunStore(settings.runs_dir)
+    store = RunStore(pg_dsn(), settings.runs_dir)
 
     async def crashing_run(companies, *, settings, run_store, **kwargs):
         create_financials_extraction_run(companies, settings, run_store)

@@ -31,7 +31,7 @@ def effectiveness(run_store: RunStore, *, run_ids: list[str] | None = None) -> l
     counts: dict[tuple, list[int]] = defaultdict(lambda: [0, 0, 0, 0])  # fired, decided, hits, overturns
     for run_id in runs:
         decisions = effective_decisions(run_store, run_id, cosign_required=cosign_rule("extraction"))
-        for row in run_store.read_jsonl(run_store.results_path(run_id)):
+        for row in run_store.read_results(run_id):
             for f in row.get("fields", []):
                 kind = _kind(decisions.get(field_item_key(row.get("issuer_key", ""), f["field_id"], period_key(f))) or {})
                 version = (f.get("provenance") or {}).get("field_version")

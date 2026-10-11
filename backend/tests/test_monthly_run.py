@@ -13,6 +13,8 @@ from arp.schemas.portfolio_monitoring import AlertRule
 from arp.stewardship.trigger_store import TriggerStore, trigger_id
 from arp.storage.portfolio_store import PortfolioStore
 
+pytestmark = pytest.mark.usefixtures("pg")  # the CLI/app and RunStore need Postgres
+
 MONTH = "2026-09"
 
 

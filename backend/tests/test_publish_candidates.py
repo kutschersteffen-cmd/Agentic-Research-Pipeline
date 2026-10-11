@@ -24,15 +24,15 @@ def _field(period="2024-12-31", value=1000, route="review", cit=CIT1, **kw):
 
 
 @pytest.fixture
-def rs(tmp_path):
-    return RunStore(tmp_path / "runs")
+def rs(tmp_path, pg):
+    return RunStore(pg, tmp_path / "runs")
 
 
 def _run(rs, fields, *, trial=False, issuer_key="ISS"):
     rs.save_manifest(RunManifest(run_id="r1", run_type="extraction", created_at="2026-01-01T00:00:00+00:00",
                                  params={"trial": True} if trial else {}))
     row = {"company_id": "c1", "issuer_key": issuer_key, "issuer_scheme": "LEI", "fields": fields}
-    rs.append_jsonl(rs.results_path("r1"), row)
+    rs.append_result("r1", row)
 
 
 def _decide(rs, key, decision="approve", step="first", second=False, value=None, citation=None, who="u_alice"):
@@ -43,7 +43,7 @@ def _decide(rs, key, decision="approve", step="first", second=False, value=None,
 
 
 def _rst(rs, doc_ids=("d2",)):
-    rs.append_jsonl(rs.restatements_path("r1"), {
+    rs.append_restatement("r1", {
         "candidate_id": "rst_1", "item_key": OLD, "issuer_key": "ISS", "field_id": "f1", "period_end": "2023-12-31",
         "previous_value": 7, "previous_run_id": "r0", "new_value": 8, "run_id": "r1", "doc_ids": list(doc_ids)})
 
@@ -184,3 +184,19 @@ def test_rejected_restatement_not_published(rs):
     _rst(rs)
     _decide(rs, "rst_1", "reject")
     assert run_candidates(rs, "r1") == ([], [Skip(OLD, "rejected")])
+
+
+def test_merge_correction_infers_value_state_and_clears_stale_conversion():
+    from arp.publish.candidates import merge_correction
+
+    f = {"field_id": "a", "value": 9, "value_state": "not_found", "canonical_value": 9000, "canonical_unit": "kg",
+         "fx_rate": 1.1, "fx_rate_ref": "fx_v1", "scale_applied": 1000.0}
+    for edited, state in ((5, "found"), ("0", "zero"), (0.0, "zero"), (False, "found")):
+        m = merge_correction(f, {"decision": "edit", "edited_value": {"value": edited}})
+        assert m["value_state"] == state
+        assert (m["canonical_value"], m["canonical_unit"], m["fx_rate"], m["fx_rate_ref"], m["scale_applied"]) == (None,) * 5
+    kept = merge_correction(f, {"decision": "edit", "edited_value": {"value": 5, "canonical_value": 5, "canonical_unit": "kg"}})
+    assert (kept["canonical_value"], kept["canonical_unit"]) == (5, "kg")
+    cit = {"doc_id": "d"}
+    corrected = merge_correction(f, {"decision": "correct", "edited_value": {"value": 1}, "correction_citation": cit})
+    assert corrected["citations"] == [cit] and corrected["grounded"] is True

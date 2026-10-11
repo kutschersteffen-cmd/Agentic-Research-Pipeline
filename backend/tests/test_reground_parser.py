@@ -12,6 +12,9 @@ from arp.schemas.common import Citation, RunManifest
 from arp.storage.document_blob_store import LocalBlobStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import edit_results, pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 ORIGINAL = b"original report bytes"
 KEY = hashlib.sha256(ORIGINAL).hexdigest()
@@ -30,8 +33,8 @@ def _citation(**kw) -> Citation:
 
 
 @pytest.fixture
-def world(tmp_path, monkeypatch):
-    run_store = RunStore(tmp_path / "runs")
+def world(tmp_path, monkeypatch, pg):
+    run_store = RunStore(pg, tmp_path / "runs")
     run_store.save_manifest(RunManifest(run_id="ext1", run_type="extraction"))
     row = {
         "company_id": "c1", "name": "Co", "schema_id": "s1", "run_id": "ext1", "issuer_key": "ISS1",
@@ -42,10 +45,10 @@ def world(tmp_path, monkeypatch):
         }],
         "documents": [{"doc_id": "d1", "content_key": KEY, "parser_version": "old"}],
     }
-    run_store.append_jsonl(run_store.results_path("ext1"), row)
+    run_store.append_result("ext1", row)
     blobs = LocalBlobStore(tmp_path / "blobs")
     blobs.put(KEY, ORIGINAL)
-    texts = DocumentContentStore(tmp_path / "docs")
+    texts = DocumentContentStore(tmp_path / "docs", dsn=pg_dsn())
     texts.store(KEY, key_kind="file_bytes", parser_version="old", source_suffix=".txt", byte_size=1,
                 text=OLD_TEXT, page_breaks=[])
     settings = Settings(publish_state_dir=tmp_path / "state")
@@ -66,7 +69,7 @@ def _rows(run_store, name):
 
 def test_parser_bump_moves_span_and_flags_it(world):
     run_store, run, new_parser, *_ = world
-    before = run_store.results_path("ext1").read_bytes()
+    before = run_store.read_results("ext1")
     new_parser("A new preface the upgraded parser now extracts.\n" + OLD_TEXT)
     report = run()
     assert report == RegroundReport(checked=1, unchanged=0, moved=1, lost=0, queued=1)
@@ -76,9 +79,9 @@ def test_parser_bump_moves_span_and_flags_it(world):
     assert row["old"] == {"char_start": START, "char_end": START + len(QUOTE), "page": None, "parser_version": "old"}
     assert row["new"] == {"char_start": START + shift, "char_end": START + shift + len(QUOTE), "page": None,
                           "parser_version": "new"}
-    [q] = _rows(run_store, "review_queue.jsonl")
+    [q] = run_store.read_review_queue("ext1")
     assert q["item_key"] == ITEM and "span_moved" in q["review_reasons"] and q["field_id"] == "f1"
-    assert run_store.results_path("ext1").read_bytes() == before
+    assert run_store.read_results("ext1") == before
 
 
 def test_unchanged_span_not_queued(world):
@@ -86,7 +89,7 @@ def test_unchanged_span_not_queued(world):
     new_parser(OLD_TEXT)
     assert run() == RegroundReport(checked=1, unchanged=1, moved=0, lost=0, queued=0)
     assert [r["outcome"] for r in _rows(run_store, "regrounds.jsonl")] == ["ok"]
-    assert _rows(run_store, "review_queue.jsonl") == []
+    assert run_store.read_review_queue("ext1") == []
 
 
 def test_lost_quote_flagged_not_grounded(world):
@@ -95,7 +98,7 @@ def test_lost_quote_flagged_not_grounded(world):
     assert run() == RegroundReport(checked=1, unchanged=0, moved=0, lost=1, queued=1)
     [row] = _rows(run_store, "regrounds.jsonl")
     assert row["outcome"] == "not_grounded" and row["new"]["char_start"] is None
-    [q] = _rows(run_store, "review_queue.jsonl")
+    [q] = run_store.read_review_queue("ext1")
     assert "span_moved" in q["review_reasons"]
 
 
@@ -105,7 +108,7 @@ def test_second_run_same_version_does_nothing(world):
     run()
     assert run() == RegroundReport(checked=0, unchanged=0, moved=0, lost=0, queued=0)
     assert len(_rows(run_store, "regrounds.jsonl")) == 1
-    assert len(_rows(run_store, "review_queue.jsonl")) == 1
+    assert len(run_store.read_review_queue("ext1")) == 1
 
 
 def test_current_version_citation_skipped(world, monkeypatch):
@@ -116,9 +119,7 @@ def test_current_version_citation_skipped(world, monkeypatch):
 
 def test_unparseable_original_is_text_unavailable(world):
     run_store, run, *_ = world
-    run_store.results_path("ext1").write_text(
-        run_store.results_path("ext1").read_text().replace("report.txt", "filing.bin")
-    )
+    edit_results(run_store, "ext1", "report.txt", "filing.bin")
     assert run() == RegroundReport(checked=1, unchanged=0, moved=0, lost=0, queued=0, unavailable=1)
     assert [r["outcome"] for r in _rows(run_store, "regrounds.jsonl")] == ["text_unavailable"]
     run()  # retried, not deduped
@@ -137,12 +138,11 @@ def test_reground_if_parser_changed_first_run_regrounds(world):
 
 def test_unavailable_is_retried_and_holds_the_version_file(world):
     run_store, _, new_parser, settings, blobs, texts = world
-    path = run_store.results_path("ext1")
-    path.write_text(path.read_text().replace("report.txt", "filing.bin"))
+    edit_results(run_store, "ext1", "report.txt", "filing.bin")
     kw = {"settings": settings, "blob_store": blobs, "content_store": texts}
     assert reground_if_parser_changed(run_store, **kw).unavailable == 1
     assert not (settings.publish_state_dir / "parser_version.txt").exists()
-    path.write_text(path.read_text().replace("filing.bin", "report.txt"))
+    edit_results(run_store, "ext1", "filing.bin", "report.txt")
     new_parser("Preface.\n" + OLD_TEXT)
     report = reground_if_parser_changed(run_store, **kw)
     assert (report.moved, report.unavailable) == (1, 0)
@@ -174,8 +174,7 @@ def test_auto_accepted_item_with_moved_span_is_escalated_and_not_published(world
     from arp.publish.candidates import run_candidates
 
     run_store, run, new_parser, *_ = world
-    path = run_store.results_path("ext1")
-    path.write_text(path.read_text().replace('"period_end"', '"route": "auto_accept", "period_end"', 1))
+    edit_results(run_store, "ext1", '"period_end"', '"route": "auto_accept", "period_end"', 1)
     assert [c.item_key for c in run_candidates(run_store, "ext1")[0]] == [ITEM]
     new_parser("Preface.\n" + OLD_TEXT)
     assert run().queued == 1
@@ -187,8 +186,7 @@ def test_auto_accepted_item_with_moved_span_is_escalated_and_not_published(world
 
 def test_edgar_citation_skipped(world):
     run_store, run, *_ = world
-    path = run_store.results_path("ext1")
-    path.write_text(path.read_text().replace('"parser_version": "old"', '"parser_version": "logic=1|trafilatura=1.0"'))
+    edit_results(run_store, "ext1", '"parser_version": "old"', '"parser_version": "logic=1|trafilatura=1.0"')
     assert run() == RegroundReport()
     assert _rows(run_store, "regrounds.jsonl") == []
 
@@ -200,8 +198,7 @@ def test_decided_item_reopened_for_review(world):
     from arp.schemas.review import DecisionReason, ReviewDecision
 
     run_store, run, new_parser, *_ = world
-    queue_for = run_store.review_queue_path("ext1")
-    run_store.append_jsonl(queue_for, {"item_key": ITEM, "field_id": "f1", "field": {"field_id": "f1"}})
+    run_store.append_review_item("ext1", {"item_key": ITEM, "field_id": "f1", "field": {"field_id": "f1"}})
     append_decision(run_store, "ext1", ReviewDecision(
         item_key=ITEM, decision="approve", reason_code=DecisionReason.CONFIRMED, reviewer="Alice",
         user_id="u_alice", role="analyst", snapshot_id="s", step="first",
@@ -215,7 +212,7 @@ def test_decided_item_reopened_for_review(world):
     assert item.escalated and "span_moved" in item.payload["review_reasons"]
     assert "user_id" not in (item.decision or {})
     run()  # same version: no second system decision
-    decisions = run_store.read_jsonl(run_store.review_decisions_path("ext1"))
+    decisions = run_store.read_decisions("ext1")
     assert [d["reason_code"] for d in decisions] == ["confirmed", "span_moved"]
 
 

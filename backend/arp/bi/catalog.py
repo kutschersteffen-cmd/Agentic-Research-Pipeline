@@ -36,7 +36,7 @@ VIZ_ALLOWLIST: tuple[str, ...] = (
 )
 
 _FACT_COLUMNS = {
-    "company_id": "Company the fact is about.",
+    "company_id": "Company the fact is about (universe id, as in holdings).",
     "fact_key": "Name of the extracted field, e.g. a financial line item.",
     "fact_type": "Kind of value held: numeric or text.",
     "as_of": "Date the value applies to.",
@@ -46,6 +46,8 @@ _FACT_COLUMNS = {
     "confidence": "Extraction confidence, 0 to 1.",
     "reviewer": "Reviewer who decided on the fact, if any.",
     "valid_from": "When this version of the fact became current.",
+    "basis": "Reporting basis of the value; empty for the default basis.",
+    "company_uuid": "Registry id of the company.",
 }
 
 _FACT_METRICS = [
@@ -108,6 +110,7 @@ VIEW_DATASETS: dict[str, DatasetDef] = {
             "needs_review": "Whether the record was flagged for human review.",
             "overall_confidence": "Overall confidence of the record, 0 to 1.",
             "generated_at": "When the record was generated.",
+            "company_uuid": "Registry id of the company.",
         },
         metrics=[
             MetricDef(name="Records", expression="COUNT(*)", description="Number of run records."),
@@ -130,6 +133,7 @@ VIEW_DATASETS: dict[str, DatasetDef] = {
             "source_url": "Where the document was fetched from.",
             "first_seen_at": "When the document was first ingested.",
             "last_seen_at": "When the document was last seen at its source.",
+            "company_uuid": "Registry id of the company.",
         },
         metrics=[
             MetricDef(name="Documents", expression="COUNT(*)", description="Number of documents."),

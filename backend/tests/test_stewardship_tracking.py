@@ -20,6 +20,8 @@ from arp.stewardship.process import HOUSE, StreamStore, flow
 from arp.storage.engagement_store import EngagementStore
 from tests.conftest import PRINCIPAL
 
+pytestmark = pytest.mark.usefixtures("pg")  # the CLI/app and RunStore need Postgres
+
 TODAY = date(2026, 9, 27)
 
 

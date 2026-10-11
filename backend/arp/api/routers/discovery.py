@@ -7,12 +7,12 @@ from pydantic import BaseModel
 
 from arp.api.deps import get_scheduler, settings_dep
 from arp.config import Settings
+from arp.db.session import require_dsn
 from arp.discovery.change_detector import ChangeDetector
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
 from arp.discovery.scheduler import DiscoveryScheduler
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.discovery import DiscoveryScheduleConfig
-from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/discovery", tags=["discovery"])
 
 
 def _run_store(settings: Settings = Depends(settings_dep)) -> RunStore:
-    return RunStore(settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
+    return RunStore(require_dsn(settings), settings.runs_dir)
 
 
 class DiscoveryRunRequest(BaseModel):
@@ -65,7 +65,7 @@ def get_discovery_run(run_id: str, run_store: RunStore = Depends(_run_store)) ->
 def get_discovery_results(
     run_id: str, offset: int = 0, limit: int = 200, run_store: RunStore = Depends(_run_store)
 ) -> dict:
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     return {"total": len(rows), "results": rows[offset : offset + limit]}
 
 

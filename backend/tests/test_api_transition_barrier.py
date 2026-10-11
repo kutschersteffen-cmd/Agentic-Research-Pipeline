@@ -29,8 +29,8 @@ def _settings(**overrides) -> Settings:
 
 
 @pytest.fixture
-def run_store(tmp_path) -> RunStore:
-    return RunStore(tmp_path / "runs")
+def run_store(tmp_path, pg) -> RunStore:
+    return RunStore(pg, tmp_path / "runs")
 
 
 def test_criteria_endpoint_returns_all_35():

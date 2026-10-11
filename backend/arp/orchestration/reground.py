@@ -107,7 +107,7 @@ def reground_runs(run_store: RunStore, *, settings, blob_store, content_store, r
         seen = {(r["item_key"], r["doc_id"], r["old"]["parser_version"], r["old"]["char_start"],
                  r["new"]["parser_version"]) for r in done}
         queued = {(r["item_key"], r["new"]["parser_version"]) for r in done if r["outcome"] in FLAGGED}
-        for row in run_store.read_jsonl(run_store.results_path(run_id)):
+        for row in run_store.read_results(run_id):
             issuer = row.get("issuer_key", "")
             for f in row.get("fields", []):
                 key = field_item_key(issuer, f["field_id"], period_key(f))

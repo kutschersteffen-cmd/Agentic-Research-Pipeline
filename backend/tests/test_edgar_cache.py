@@ -3,6 +3,7 @@ import json
 import time
 
 import httpx
+import pytest
 
 from arp.ingestion import edgar as edgar_module
 from arp.ingestion.edgar import EdgarDocumentSource
@@ -10,6 +11,9 @@ from arp.ingestion.indexing_config import IndexingConfig
 from arp.schemas.common import CompanyRef, DocType
 from arp.storage.document_blob_store import LocalBlobStore
 from arp.storage.document_store import DocumentContentStore, derive_doc_id
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 
 class _FailingClient:
@@ -52,7 +56,7 @@ _PRIMARY_DOC = "aapl-10k.htm"
 
 async def test_cached_submissions_and_filing_make_no_http_call(tmp_path, monkeypatch):
     cache_dir = tmp_path / "cache"
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     source = EdgarDocumentSource(user_agent="test-agent test@example.com", cache_dir=cache_dir, content_store=store)
 
     _write_submissions_cache(cache_dir, "0000320193", _SUBMISSIONS)
@@ -78,7 +82,7 @@ async def test_cached_submissions_and_filing_make_no_http_call(tmp_path, monkeyp
 
 async def test_expired_submissions_cache_is_refetched(tmp_path, monkeypatch):
     cache_dir = tmp_path / "cache"
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     source = EdgarDocumentSource(
         user_agent="test-agent test@example.com", cache_dir=cache_dir, content_store=store, submissions_ttl_hours=24.0
     )
@@ -100,7 +104,7 @@ async def test_expired_submissions_cache_is_refetched(tmp_path, monkeypatch):
 
 async def test_edgar_doc_id_is_stable_across_fetches(tmp_path, monkeypatch):
     cache_dir = tmp_path / "cache"
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     source = EdgarDocumentSource(user_agent="test-agent test@example.com", cache_dir=cache_dir, content_store=store)
 
     _write_submissions_cache(cache_dir, "0000320193", _SUBMISSIONS)
@@ -141,7 +145,7 @@ async def test_indexing_config_hooks_on_cache_hit_only_indexes_not_uploads(tmp_p
         "arp.storage.document_blob_store.upload_or_fail", lambda *a, **k: upload_calls.append((a, k))
     )
     cache_dir = tmp_path / "cache"
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     config = IndexingConfig(opensearch_url="http://localhost:9200", search_live_indexing_enabled=True)
     source = EdgarDocumentSource(user_agent="test-agent test@example.com", cache_dir=cache_dir, content_store=store, indexing_config=config)
 
@@ -180,7 +184,7 @@ async def test_indexing_config_hooks_on_fresh_fetch_archives_raw_bytes(tmp_path,
         lambda store, content_key, data: upload_calls.append((content_key, data)) or "s3://arp-documents/fake",
     )
     cache_dir = tmp_path / "cache"
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     config = IndexingConfig(opensearch_url="http://localhost:9200", search_live_indexing_enabled=True)
     source = EdgarDocumentSource(user_agent="test-agent test@example.com", cache_dir=cache_dir, content_store=store, indexing_config=config)
     _write_submissions_cache(cache_dir, "0000320193", _SUBMISSIONS)
@@ -201,7 +205,7 @@ async def test_indexing_config_hooks_on_fresh_fetch_archives_raw_bytes(tmp_path,
 
 
 async def test_unsafe_company_id_is_rejected_without_a_network_call(tmp_path, monkeypatch):
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     source = EdgarDocumentSource(user_agent="test-agent test@example.com", cache_dir=tmp_path / "cache", content_store=store)
     monkeypatch.setattr(edgar_module.httpx, "AsyncClient", _FailingClient)
 
@@ -244,7 +248,7 @@ _TWO = {
 
 def _setup(tmp_path, monkeypatch, submissions, blobs):
     cache_dir = tmp_path / "cache"
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     config = IndexingConfig(blob_store_dir=blobs)
     source = EdgarDocumentSource(user_agent="t t@example.com", cache_dir=cache_dir, content_store=store, indexing_config=config)
     _write_submissions_cache(cache_dir, "0000320193", submissions)
@@ -315,7 +319,7 @@ async def test_edgar_document_reads_us_number_convention(tmp_path, monkeypatch):
     from arp.schemas.review import ReasonCode
 
     cache_dir = tmp_path / "cache"
-    store = DocumentContentStore(tmp_path / "store")
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     source = EdgarDocumentSource(user_agent="test-agent test@example.com", cache_dir=cache_dir, content_store=store)
     _write_submissions_cache(cache_dir, "0000320193", _SUBMISSIONS)
     content_key = hashlib.sha256(f"edgar:{_ACCESSION}/{_PRIMARY_DOC}".encode()).hexdigest()

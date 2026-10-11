@@ -101,7 +101,7 @@ def project_list() -> None:
 def project_open(id: str = typer.Argument(..., help="Project id.")) -> None:
     """Imports the project's data and provisions its dashboards in Superset; prints the result as JSON.
 
-    Needs ARP_PORTFOLIO_BACKEND=postgres and ARP_SUPERSET_PASSWORD."""
+    Needs ARP_SUPERSET_PASSWORD."""
     import httpx
 
     from arp.bi.service import BIError
@@ -109,10 +109,6 @@ def project_open(id: str = typer.Argument(..., help="Project id.")) -> None:
     from arp.projects.service import OpenError, open_project
 
     s = get_settings()
-    if s.portfolio_backend != "postgres":
-        raise _fail("Projects need Postgres: set ARP_PORTFOLIO_BACKEND=postgres.", 2)
-    if s.postgres_dsn is None:
-        raise _fail("BI needs Postgres: set ARP_POSTGRES_DSN.", 2)
     if s.superset_password is None:
         raise _fail("Superset is not configured: set ARP_SUPERSET_PASSWORD.", 2)
     try:

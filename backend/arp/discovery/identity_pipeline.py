@@ -64,7 +64,7 @@ async def execute_identity_run(
     previous = (
         {
             r["company_id"]: IdentityResolutionResult.model_validate(r)
-            for r in run_store.read_jsonl(run_store.results_path(previous_run_id))
+            for r in run_store.read_results(previous_run_id)
         }
         if previous_run_id
         else {}
@@ -126,7 +126,7 @@ def enriched_universe(run_store: RunStore, run_id: str) -> list[CompanyRef]:
     decision yet is excluded rather than emitted with an unverified or
     missing website/cik.
     """
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     decisions = effective_decisions(run_store, run_id, cosign_required=set())
     companies: list[CompanyRef] = []
     for row in rows:

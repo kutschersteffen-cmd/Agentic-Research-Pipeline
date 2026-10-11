@@ -16,6 +16,9 @@ from arp.schemas.datapoints import DataPointSchema, FieldDefinition
 from arp.schemas.review import ReviewDecision
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")
 
 ALICE = Principal(user_id="u_alice", name="Alice Reviewer", role="analyst")
 BOB = Principal(user_id="u_bob", name="Bob Builder", role="analyst")
@@ -56,18 +59,18 @@ def _schema(description="Direct emissions", high_risk=False):
 
 
 @pytest.fixture
-def env(tmp_path):
-    rs = RunStore(tmp_path / "runs")
-    store = DocumentContentStore(tmp_path / "docs")
+def env(tmp_path, pg):
+    rs = RunStore(pg, tmp_path / "runs")
+    store = DocumentContentStore(tmp_path / "docs", dsn=pg_dsn())
     store.store("ck1", key_kind="file", parser_version="p1", source_suffix=".pdf", byte_size=1, text=TEXT, page_breaks=[])
     settings = Settings(schema_registry_dir=tmp_path / "reg")
     rs.save_manifest(RunManifest(run_id="ext1", run_type="extraction"))
     (rs.run_dir("ext1") / "schema.json").write_text(_schema().model_dump_json())
-    rs.append_jsonl(rs.review_queue_path("ext1"), {
+    rs.append_review_item("ext1", {
         "item_key": KEY, "issuer_key": "ISS1", "company_id": "C1", "name": "Acme", "field_id": "f1",
         "period_end": "2024-12-31", "field": FIELD, "route_reasons": FIELD["route_reasons"],
     })
-    rs.append_jsonl(rs.results_path("ext1"), {
+    rs.append_result("ext1", {
         "company_id": "C1", "name": "Acme", "issuer_key": "ISS1", "schema_id": "sch1", "run_id": "ext1",
         "fields": [FIELD, {"field_id": "f1", "field_name": "Scope 1", "value": 1000, "confidence": 1.0,
                            "period_end": "2023-12-31"}],
@@ -125,9 +128,9 @@ def test_conflict_alternatives_with_sources(env):
 def test_prior_and_published_values(env):
     rs = env[0]
     rs.save_manifest(RunManifest(run_id="ext0", run_type="extraction", created_at="2020-01-01T00:00:00Z"))
-    rs.append_jsonl(rs.results_path("ext0"), {"company_id": "C1", "issuer_key": "ISS1", "fields": [
+    rs.append_result("ext0", {"company_id": "C1", "issuer_key": "ISS1", "fields": [
         {"field_id": "f1", "field_name": "Scope 1", "value": 1200, "confidence": 0.9, "period_end": "2024-12-31"}]})
-    rs.append_jsonl(rs.review_queue_path("ext0"), {"item_key": KEY})
+    rs.append_review_item("ext0", {"item_key": KEY})
     append_decision(rs, "ext0", ReviewDecision(
         item_key=KEY, decision="approve", reason_code="confirmed", reviewer="A", user_id="u_a", role="approver",
         snapshot_id="s0", step="first"))
@@ -142,7 +145,7 @@ def test_confidence_components(env):
     assert (c["final"], c["extractor"], c["verifier"], c["grounded"]) == (0.7, 0.8, 0.6, True)
     assert c["match_methods"] == ["exact"] and c["auto_accept_min"] == 0.9
     legacy = {"field_id": "f1", "field_name": "Scope 1", "value": 5, "confidence": 0.5, "period_end": "2022-12-31"}
-    rs.append_jsonl(rs.review_queue_path("ext1"), {"item_key": "ISS1:f1:2022-12-31", "company_id": "C1",
+    rs.append_review_item("ext1", {"item_key": "ISS1:f1:2022-12-31", "company_id": "C1",
                                                    "field_id": "f1", "field": legacy})
     r = _client().get("/api/review/runs/ext1/items/ISS1:f1:2022-12-31/context").json()["confidence"]
     assert r["extractor"] is None and r["verifier"] is None
@@ -155,7 +158,7 @@ def test_field_definition_from_run_snapshot(env):
 
 def test_text_unavailable_gives_none(env, tmp_path):
     rs, _, settings = env
-    off = DocumentContentStore(tmp_path / "off", enabled=False)
+    off = DocumentContentStore(tmp_path / "off", enabled=False, dsn=pg_dsn())
     bundle = build_context(rs, "ext1", KEY, CAROL, settings=settings, content_store=off)
     e = bundle["evidence"][0]
     assert e["page_text"] is None and e["page_start"] is None and e["quote"] == "1,234"

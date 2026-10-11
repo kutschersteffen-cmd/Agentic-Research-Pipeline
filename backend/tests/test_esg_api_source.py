@@ -14,6 +14,8 @@ from arp.schemas.common import CompanyRef
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.portfolio_store import PortfolioStore
 
+pytestmark = pytest.mark.usefixtures("pg")  # the CLI/app and RunStore need Postgres
+
 MONTH = "2026-09"
 TOKEN = "s3cret-token-value"
 SETTINGS = Settings(esg_api_base_url="https://esg.corp.example/v1", esg_api_token=TOKEN)

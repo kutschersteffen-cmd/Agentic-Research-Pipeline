@@ -22,7 +22,10 @@ from arp.schemas.datapoints import ExtractedField, FieldQuality
 from arp.storage.document_blob_store import LocalBlobStore
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
+from tests.postgres_helpers import pg_dsn
 from tests.test_tagged_first import _facts, _FakeXbrl, _field, _run
+
+pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below
 
 CIK = "0000320193"
 FACTS = _facts(2024, "2024-12-31")
@@ -30,7 +33,7 @@ RAW = json.dumps(FACTS).encode()
 
 
 def _stores(tmp_path):
-    return LocalBlobStore(tmp_path / "blobs"), DocumentContentStore(tmp_path / "docs")
+    return LocalBlobStore(tmp_path / "blobs"), DocumentContentStore(tmp_path / "docs", dsn=pg_dsn())
 
 
 async def _published_run(tmp_path, fake_llm, frozen):
@@ -38,9 +41,9 @@ async def _published_run(tmp_path, fake_llm, frozen):
     qualities = {(field.field_id, field.version): FieldQuality(field_id=field.field_id, version=field.version, first_audit_passed=True)}
     (f,), _, _ = await _run(tmp_path, fake_llm, field, FACTS, qualities=qualities, xbrl=_FakeXbrl(FACTS, frozen=frozen))
     assert (f.method, f.route) == ("tagged", "auto_accept")
-    rs = RunStore(tmp_path / "pub-runs")
+    rs = RunStore(pg_dsn(), tmp_path / "pub-runs")
     rs.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
-    rs.append_jsonl(rs.results_path("r1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
+    rs.append_result("r1", {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
                                             "fields": [f.model_dump(mode="json")]})
     return f, rs
 
@@ -77,14 +80,14 @@ async def test_missing_frozen_original_blocks_release(tmp_path, fake_llm):
     assert blocked == [{"doc_id": frozen.doc_id, "reason": "original_missing", "item_keys": [cand.item_key]}]
 
 
-async def test_reground_skips_xbrl_versions(tmp_path, monkeypatch):
+async def test_reground_skips_xbrl_versions(tmp_path, monkeypatch, pg):
     blobs, texts = _stores(tmp_path)
     frozen = freeze_company_facts(RAW, CIK, blob_store=blobs, content_store=texts)
     fact = XbrlFactSource.fact_for_tags(FACTS, ["us-gaap:Revenues"], fiscal_year=2024)
     c = fact.as_citation(CIK, frozen=frozen)
-    rs = RunStore(tmp_path / "runs")
+    rs = RunStore(pg, tmp_path / "runs")
     rs.save_manifest(RunManifest(run_id="ext1", run_type="extraction"))
-    rs.append_jsonl(rs.results_path("ext1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI", "fields": [
+    rs.append_result("ext1", {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI", "fields": [
         {"field_id": "f1", "field_name": "Rev", "value": 1.0, "confidence": 1.0, "grounded": True, "period_end": "2024-12-31",
          "citations": [c.model_dump(mode="json")]}]})
     monkeypatch.setattr(R, "parser_version", lambda: "new")
@@ -92,7 +95,7 @@ async def test_reground_skips_xbrl_versions(tmp_path, monkeypatch):
     assert report == R.RegroundReport()
 
 
-def test_old_tagged_rows_still_load(tmp_path):
+def test_old_tagged_rows_still_load(tmp_path, pg):
     old = {"doc_id": "xbrl:0000320193:0001-24-000001", "doc_type": "other", "grounded": True,
            "quote": "us-gaap:Revenues = 383,285,000,000 USD (period ending 2024-12-31, form 10-K, filed 2025-02-01)",
            "location": "SEC EDGAR XBRL companyfacts API"}
@@ -103,9 +106,9 @@ def test_old_tagged_rows_still_load(tmp_path):
     # Without a frozen original the citation is the old, unpublishable one.
     fact = XbrlFactSource.fact_for_tags(FACTS, ["us-gaap:Revenues"], fiscal_year=2024)
     assert fact.as_citation(CIK).model_dump() == Citation.model_validate({**old, "doc_type": "other"}).model_dump()
-    rs = RunStore(tmp_path / "runs")
+    rs = RunStore(pg, tmp_path / "runs")
     rs.save_manifest(RunManifest(run_id="r1", run_type="extraction"))
-    rs.append_jsonl(rs.results_path("r1"), {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
+    rs.append_result("r1", {"company_id": "c1", "issuer_key": "ISS1", "issuer_scheme": "LEI",
                                             "fields": [{**row, "route": "auto_accept"}]})
     [cand] = run_candidates(rs, "r1")[0]
     assert split_by_gate([cand], None, withdrawn_docs=set())[1][0]["reason"] == "no_grounded_citation"
@@ -133,7 +136,7 @@ class _Client:
 async def test_fact_source_freezes_fetched_bytes_and_cache_hits(tmp_path, monkeypatch):
     monkeypatch.setattr("arp.ingestion.xbrl.httpx.AsyncClient", _Client)
     _Client.calls = 0
-    texts = DocumentContentStore(tmp_path / "docs")
+    texts = DocumentContentStore(tmp_path / "docs", dsn=pg_dsn())
     edgar = EdgarDocumentSource("t t@example.com", tmp_path / "cache", content_store=texts,
                                 indexing_config=IndexingConfig(blob_store_dir=tmp_path / "blobs"))
     source = XbrlFactSource(edgar, tmp_path / "cache")
@@ -148,7 +151,7 @@ async def test_fact_source_freezes_fetched_bytes_and_cache_hits(tmp_path, monkey
 
 async def test_fact_source_without_blob_store_falls_back(tmp_path, monkeypatch):
     monkeypatch.setattr("arp.ingestion.xbrl.httpx.AsyncClient", _Client)
-    texts = DocumentContentStore(tmp_path / "docs")
+    texts = DocumentContentStore(tmp_path / "docs", dsn=pg_dsn())
     edgar = EdgarDocumentSource("t t@example.com", tmp_path / "cache", content_store=texts,
                                 indexing_config=IndexingConfig())  # no blob store configured
     source = await XbrlFactSource(edgar, tmp_path / "cache").fact_source(CIK)

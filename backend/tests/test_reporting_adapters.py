@@ -1,4 +1,3 @@
-import json
 
 import pytest
 
@@ -9,6 +8,8 @@ from arp.schemas.decision import PublishedDecision, PublishedRow
 from arp.schemas.reporting import ColumnKind, RunRef
 from arp.storage.decision_store import DecisionStore
 from arp.storage.run_store import RunStore
+
+pytestmark = pytest.mark.usefixtures("pg")  # the CLI/app and RunStore need Postgres
 
 
 def _settings(tmp_path) -> Settings:
@@ -29,14 +30,15 @@ def test_decision_adapter_turns_published_rows_into_dataset(tmp_path):
     assert kinds["score"] == ColumnKind.NUMBER and kinds["name"] == ColumnKind.CATEGORY
 
 
-def test_run_adapter_flattens_results_jsonl(tmp_path):
+def test_run_adapter_flattens_results_jsonl(tmp_path, pg):
     s = _settings(tmp_path)
-    runs = RunStore(s.runs_dir)
+    runs = RunStore(pg, s.runs_dir)
     runs.save_manifest(RunManifest(run_id="run_1", run_type="theme"))
-    runs.results_path("run_1").write_text("\n".join(json.dumps(r) for r in [
+    for r in [
         {"company": "Acme", "revenue_share": 0.4, "evidence": [{"q": "x"}], "meta": {"a": 1}},
         {"company": "Beta", "revenue_share": 0.1, "evidence": []},
-    ]) + "\n")
+    ]:
+        runs.append_result("run_1", r)
     [ds] = load_run_datasets([RunRef(kind="run", ref_id="run_1")], s)
     assert ds.name == "theme"
     assert ds.column_names() == ["company", "revenue_share"]  # nested fields dropped

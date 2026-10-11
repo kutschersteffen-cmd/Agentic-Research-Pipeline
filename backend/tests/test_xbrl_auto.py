@@ -24,8 +24,8 @@ COMPANIES = [
 
 
 @pytest.fixture
-def env(tmp_path):
-    return Settings(xbrl_dir=tmp_path / "xbrl", runs_dir=tmp_path / "runs"), RunStore(tmp_path / "runs")
+def env(tmp_path, pg):
+    return Settings(xbrl_dir=tmp_path / "xbrl", runs_dir=tmp_path / "runs"), RunStore(pg, tmp_path / "runs")
 
 
 @pytest.fixture(autouse=True)
@@ -42,7 +42,7 @@ async def _run(env, run_id, companies, **kw):
     kw.setdefault("esef_source", EsefFake())
     await execute_xbrl_run(run_id, companies, settings=settings, run_store=runs, tags=None, refresh=False,
                            market="auto", **kw)
-    return {r["company_id"]: r for r in runs.read_jsonl(runs.results_path(run_id))}
+    return {r["company_id"]: r for r in runs.read_results(run_id)}
 
 
 async def test_auto_run_fetches_each_company_by_its_route(env):
@@ -117,9 +117,11 @@ async def test_rule_1_row_is_stored_and_fetched_with_the_master_lei(env):
 
 async def test_company_missing_from_stored_routing_is_unrouted(env):
     _, runs = env
-    run_id = create_xbrl_run(COMPANIES[:1], None, False, runs, market="auto")
+    new = CompanyRef(company_id="new", name="New", cik="7654321")
+    run_id = create_xbrl_run([new], None, False, runs, market="auto")
+    (runs.run_dir(run_id) / "routing.json").write_text("[]")  # the batch runs the stored companies
     sec = SecFake()
-    rows = await _run(env, run_id, [CompanyRef(company_id="new", name="New", cik="7654321")], source=sec)
+    rows = await _run(env, run_id, [new], source=sec)
     assert (rows["new"]["status"], rows["new"]["note"], rows["new"]["market"]) == (
         "unrouted", "not in stored routing", None)
     assert not sec.calls
@@ -128,8 +130,9 @@ async def test_company_missing_from_stored_routing_is_unrouted(env):
 async def test_missing_routing_json_is_created_from_stored_companies(env):
     _, runs = env
     run_id = create_xbrl_run(COMPANIES, None, False, runs, market="sec")
-    runs.manifest_path(run_id).write_text(
-        runs.manifest_path(run_id).read_text().replace('"market": "sec"', '"market": "auto"'))
+    m = runs.load_manifest(run_id)
+    m.params["market"] = "auto"
+    runs.save_manifest(m)
     rows = await _run(env, run_id, runs.load_companies(run_id))
     assert rows["nn"]["status"] == "unrouted" and (runs.run_dir(run_id) / "routing.json").exists()
 
@@ -145,7 +148,7 @@ async def test_forced_markets_ignore_routing(env):
     run_id = create_xbrl_run(COMPANIES[:1], None, False, runs, market="esef")
     await execute_xbrl_run(run_id, COMPANIES[:1], settings=settings, run_store=runs, tags=None, refresh=False,
                            market="esef", source=EsefFake())
-    assert runs.read_jsonl(runs.results_path(run_id))[0]["status"] == "no_lei"
+    assert runs.read_results(run_id)[0]["status"] == "no_lei"
 
 
 async def test_unrouted_rows_count_as_completed(env):

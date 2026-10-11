@@ -33,7 +33,7 @@ def load_run_detail(run_store: RunStore, run_id: str) -> ReplicationRunDetail | 
     """None if the run has no spec/in_sample/comparison row yet (doesn't
     exist, or hasn't finished the backtest step) -- sanity_check/
     regime_report are optional and simply omitted if not yet run."""
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     by_type: dict[str, dict] = {}
     for row in rows:
         by_type[row["type"]] = row  # last row of a given type wins (sanity_check/regime_report can be re-run)

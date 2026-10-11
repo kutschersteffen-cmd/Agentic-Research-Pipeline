@@ -87,15 +87,15 @@ def test_green_summary_uses_eu_taxonomy_when_missing():
     assert green_summary(green)[0].aligned is None
 
 
-def test_green_summary_endpoint_with_eu_taxonomy_run(tmp_path):
-    store = RunStore(tmp_path / "runs")
+def test_green_summary_endpoint_with_eu_taxonomy_run(tmp_path, pg):
+    store = RunStore(pg, tmp_path / "runs")
     for rid, schema_id, fields in [
         ("g1", "sch_green_lowcarbon", [_f("green_revenue_total", 100)]),
         ("e1", "sch_eu_taxonomy", [_f("eut_turnover_aligned_pct", 30, unit="%"), _f("eut_turnover_total_amount", 200)]),
     ]:
         store.save_manifest(RunManifest(run_id=rid, run_type="extraction"))
         rec = ExtractionRecord(company_id="c1", name="Acme", schema_id=schema_id, run_id=rid)
-        store.append_jsonl(store.results_path(rid), rec.model_dump(mode="json") | {"fields": fields})
+        store.append_result(rid, rec.model_dump(mode="json") | {"fields": fields})
     app.dependency_overrides[get_run_store] = lambda: store
     try:
         c = TestClient(app)

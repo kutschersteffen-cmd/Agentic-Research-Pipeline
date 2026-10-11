@@ -127,6 +127,51 @@ class ConcurrentPublish(RuntimeError):
     """Another publish changed a fact first."""
 
 
+class LicenceRefused(ValueError):
+    """A fact whose current value comes from an internal_only provider source (spec §2.8)."""
+
+
+def internal_only_keys(session, facts: Iterable[Fact | FactCandidate]) -> set[FactKey]:
+    """Keys whose current company fact comes from an `internal_only` source. Only provider
+    fields (`prov:`) have a source, so other facts never cost a query."""
+    from datetime import date
+    from uuid import UUID
+
+    from sqlalchemy import select
+
+    from arp.db import models as m
+    from arp.db.companies import lookup
+
+    out: set[FactKey] = set()
+    for f in facts:
+        if not f.field_id.startswith("prov:"):
+            continue
+        try:
+            period_end = date.fromisoformat(f.period_end)
+        except ValueError:
+            continue
+        try:
+            company_id = UUID(f.issuer_key)  # issuer_scheme INTERNAL: the registry UUID
+        except ValueError:
+            company_id = lookup(session, f.issuer_scheme, f.issuer_key)
+        if company_id is None:
+            continue
+        hit = session.scalar(
+            select(m.CompanyFact.id)
+            .join(m.FieldObservation, m.FieldObservation.id == m.CompanyFact.observation_id)
+            .join(m.DataSource, m.DataSource.source_id == m.FieldObservation.source_id)
+            .where(
+                m.CompanyFact.company_id == company_id, m.CompanyFact.field_id == f.field_id,
+                m.CompanyFact.period_end == period_end, m.CompanyFact.basis == f.basis,
+                m.CompanyFact.valid_to.is_(None), m.DataSource.licence == m.Licence.INTERNAL_ONLY,
+            )
+            .limit(1)
+        )
+        if hit is not None:
+            out.add(fact_key(f))
+    return out
+
+
 SERIALIZATION_FAILURES = {"40P01", "40001"}  # deadlock_detected, serialization_failure
 
 
@@ -140,6 +185,27 @@ def _concurrent_on_serialization_failure():
         if getattr(exc.orig, "sqlstate", None) in SERIALIZATION_FAILURES:
             raise ConcurrentPublish(str(exc.orig)) from exc
         raise
+
+
+def _companies(s):
+    """Registry company per (issuer_key, issuer_scheme), looked up once per key within session `s`."""
+    from functools import cache
+
+    from arp.db.companies import company_for
+
+    return cache(lambda key, scheme: company_for(s, issuer_key=key, issuer_scheme=scheme))
+
+
+def _key_company(s, issuer_key: str, scheme: str | None):
+    """The registry company of an issuer key: what its published rows already carry, else `company_for`
+    (an unknown scheme is tried as INTERNAL, i.e. a registry UUID)."""
+    from sqlalchemy import select
+
+    from arp.db.companies import company_for
+    from arp.storage.postgres_models import PublishedFactModel as M
+
+    known = s.scalar(select(M.company_id).where(M.issuer_key == issuer_key, M.company_id.is_not(None)).limit(1))
+    return known or company_for(s, issuer_key=issuer_key, issuer_scheme=scheme or "INTERNAL")
 
 
 def _fact(row) -> Fact:
@@ -179,7 +245,14 @@ class PublishStore:
             keys |= {u.rsplit("/", 1)[-1] for u in uris if u}
         return runs, {k for k in keys if k}
 
-    def current(self, keys: Iterable[FactKey]) -> dict[FactKey, Fact]:
+    def internal_only(self, facts: Iterable[Fact | FactCandidate]) -> set[FactKey]:
+        with self.session() as s:
+            return internal_only_keys(s, facts)
+
+    def current(self, keys: Iterable[FactKey], schemes: dict[str, str] | None = None) -> dict[FactKey, Fact]:
+        """The current fact per key. A key's company (`_key_company`; `schemes` maps issuer_key -> scheme
+        when known) joins chains published under another issuer key of the same company -- an LEI-keyed
+        fact from before the cut-over is the current version of the UUID-keyed key after it."""
         from sqlalchemy import select, tuple_
 
         from arp.storage.postgres_models import PublishedFactModel as M
@@ -187,22 +260,34 @@ class PublishStore:
         keys = list(keys)
         if not keys:
             return {}
-        cols = tuple_(M.issuer_key, M.field_id, M.period_end, M.basis)
         with self.session() as s:
-            rows = s.scalars(select(M).where(cols.in_(keys), M.valid_to.is_(None)))
-            return {fact_key(f): f for f in map(_fact, rows)}
+            company = {k: _key_company(s, k[0], (schemes or {}).get(k[0])) for k in keys}
+            by_company = {(c, *k[1:]): k for k, c in company.items() if c is not None}
+            where = tuple_(M.issuer_key, M.field_id, M.period_end, M.basis).in_(keys)
+            if by_company:
+                where = where | tuple_(M.company_id, M.field_id, M.period_end, M.basis).in_(list(by_company))
+            out: dict[FactKey, Fact] = {}
+            for row in s.scalars(select(M).where(where, M.valid_to.is_(None))):
+                f = _fact(row)
+                own = fact_key(f)
+                if own in company:
+                    out[own] = f  # the key's own chain wins over another key's
+                elif (k := by_company.get((row.company_id, *own[1:]))) is not None:
+                    out.setdefault(k, f)
+            return out
 
     def versions(self, key: FactKey) -> list[Fact]:
+        """Every version of the key, including versions published under another issuer key of its company."""
         from sqlalchemy import select
 
         from arp.storage.postgres_models import PublishedFactModel as M
 
         issuer_key, field_id, period_end, basis = key
-        q = select(M).where(
-            M.issuer_key == issuer_key, M.field_id == field_id, M.period_end == period_end, M.basis == basis
-        )
         with self.session() as s:
-            return [_fact(r) for r in s.scalars(q.order_by(M.version))]
+            company = _key_company(s, issuer_key, None)
+            who = M.issuer_key == issuer_key if company is None else (M.issuer_key == issuer_key) | (M.company_id == company)
+            q = select(M).where(who, M.field_id == field_id, M.period_end == period_end, M.basis == basis)
+            return [_fact(r) for r in s.scalars(q.order_by(M.version, M.valid_from))]
 
     def get_fact(self, fact_id: str) -> Fact | None:
         from arp.storage.postgres_models import PublishedFactModel as M
@@ -233,7 +318,7 @@ class PublishStore:
         if res.rowcount != 1:
             raise ConcurrentPublish(f"fact {fact.fact_id} was already closed")
 
-    def _commit(self, s, events: list[FactEvent]) -> None:
+    def _commit(self, s, events: list[FactEvent], company_of: dict[str, object]) -> None:
         from sqlalchemy import func, select
         from sqlalchemy.exc import IntegrityError
 
@@ -242,7 +327,9 @@ class PublishStore:
         # One global lock held to commit: event ids are then assigned in commit order, so a
         # consumer's `event_id` cursor can never skip an event that commits late.
         s.execute(select(func.pg_advisory_xact_lock(EVENT_LOCK)))
-        s.add_all(FactEventModel(**e.model_dump(exclude={"event_id"})) for e in events)
+        s.add_all(
+            FactEventModel(**e.model_dump(exclude={"event_id"}), company_id=company_of.get(e.fact_id)) for e in events
+        )
         try:
             s.commit()
         except IntegrityError as exc:
@@ -257,14 +344,19 @@ class PublishStore:
 
         # Rows in key order, so two publishes over overlapping keys lock them in the same order.
         plans = sorted(plans, key=lambda p: fact_key(p.fact) if p.fact is not None else ("",) * 4)
+        refused = self.internal_only(p.fact for p in plans if p.kind == "insert")
+        if refused:
+            raise LicenceRefused(f"internal_only source, not publishable: {sorted(refused)}")
         with _concurrent_on_serialization_failure(), self.session() as s:
+            company, company_of = _companies(s), {}
             try:
                 if release is not None:
-                    s.add(ReleaseModel(**release.model_dump()))
+                    s.add(ReleaseModel(**release.model_dump(), company_id=company(release.issuer_key, release.issuer_scheme)))
                     s.flush()  # no relationship(): the fact's release FK needs this row first
                 for p in plans:
                     if p.kind == "insert":
-                        s.add(M(**p.fact.model_dump(mode="json")))
+                        company_of[p.fact.fact_id] = company(p.fact.issuer_key, p.fact.issuer_scheme)
+                        s.add(M(**p.fact.model_dump(mode="json"), company_id=company_of[p.fact.fact_id]))
                         s.flush()  # the closing UPDATE's superseded_by FK needs the new row
                         if p.closes is not None:
                             self._close(s, p.closes)
@@ -278,7 +370,7 @@ class PublishStore:
                             raise ConcurrentPublish(f"fact {p.fact.fact_id} is no longer current")
             except IntegrityError as exc:
                 raise ConcurrentPublish(str(exc.orig)) from exc
-            self._commit(s, events)
+            self._commit(s, events, company_of)
 
     def get_release(self, release_id: str) -> Release | None:
         from arp.storage.postgres_models import ReleaseModel
@@ -319,6 +411,8 @@ class PublishStore:
 
         closes, restores = sorted(closes, key=fact_key), sorted(restores, key=fact_key)
         with _concurrent_on_serialization_failure(), self.session() as s:
+            company = _companies(s)
+            company_of = {f.fact_id: company(f.issuer_key, f.issuer_scheme) for f in closes + restores}
             try:
                 # Serialise withdrawals per issuer, then re-check what was planned outside the lock.
                 for issuer in sorted({release.issuer_key, *(f.issuer_key for f in closes + restores)}):
@@ -340,13 +434,13 @@ class PublishStore:
                 )
                 if res.rowcount != 1:
                     raise ConcurrentPublish(f"release {release.release_id} was already withdrawn")
-                s.add_all(M(**f.model_dump(mode="json")) for f in restores)
+                s.add_all(M(**f.model_dump(mode="json"), company_id=company_of[f.fact_id]) for f in restores)
                 s.flush()  # each close's superseded_by FK needs its restored copy
                 for f in closes:
                     self._close(s, f)
             except IntegrityError as exc:
                 raise ConcurrentPublish(str(exc.orig)) from exc
-            self._commit(s, events)
+            self._commit(s, events, company_of)
 
     def lineage(self, fact_id: str) -> dict | None:
         from sqlalchemy import select

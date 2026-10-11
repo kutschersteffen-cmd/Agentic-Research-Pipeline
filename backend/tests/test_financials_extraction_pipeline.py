@@ -276,7 +276,7 @@ async def test_xbrl_overlay_is_noop_when_no_facts_found(tmp_path, fake_llm):
     assert result.record.capex.total.value == 450.0  # LLM value stands, untouched
 
 
-async def test_financials_batch_matches_realtime(tmp_path):
+async def test_financials_batch_matches_realtime(tmp_path, pg):
     """The same fake responses through the real-time path and through Message
     Batches give identical records, at exactly half the estimated cost."""
     from anthropic.types import Message, ToolUseBlock, Usage
@@ -311,13 +311,13 @@ async def test_financials_batch_matches_realtime(tmp_path):
                 async def _send(params):
                     return respond(params)
                 c._send = _send
-        store = RunStore(settings.runs_dir)
+        store = RunStore(pg, settings.runs_dir)
         run_id = create_financials_extraction_run([company], settings, store)
         await execute_financials_extraction_run(
             run_id, [company], llm=clients[0], verifier_llm=clients[1],
             registry=DocumentSourceRegistry([_FixedDocSource([doc])]), settings=settings, run_store=store,
         )
-        rows = [{k: v for k, v in r.items() if k not in ("run_id", "generated_at")} for r in store.read_jsonl(store.results_path(run_id))]
+        rows = [{k: v for k, v in r.items() if k not in ("run_id", "generated_at")} for r in store.read_results(run_id)]
         return rows, store.load_manifest(run_id), clients
 
     rt_rows, rt_manifest, rt_clients = await run("rt", batch=False)

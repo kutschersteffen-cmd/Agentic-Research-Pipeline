@@ -7,9 +7,9 @@ from arp.api.deps import settings_dep
 from arp.api.routers import extraction as extraction_router
 from arp.checks.plausibility import check_less_or_equal, check_sum_identity, check_sum_to_target
 from arp.config import Settings
+from arp.db.fields import SchemaRegistry
 from arp.presets import registry as presets
 from arp.schemas.datapoints import DataPointSchema, FieldDataType
-from arp.storage.schema_registry import SchemaRegistry
 from tests.test_checks_plausibility import _field, _run, _spec
 
 
@@ -67,8 +67,8 @@ def dummy(monkeypatch):
     monkeypatch.setitem(presets.PRESETS, "dummy", _dummy)
 
 
-def test_install_preset_idempotent(tmp_path, dummy):
-    reg = SchemaRegistry(tmp_path)
+def test_install_preset_idempotent(pg, tmp_path, dummy):
+    reg = SchemaRegistry()
     a = presets.install_preset("dummy", reg)
     assert presets.install_preset("dummy", reg).version == a.version
     with pytest.raises(KeyError):
@@ -84,7 +84,7 @@ def _client(tmp_path, role):
     return TestClient(app)
 
 
-def test_presets_endpoint_and_install_requires_analyst(tmp_path, dummy):
+def test_presets_endpoint_and_install_requires_analyst(pg, tmp_path, dummy):
     listed = _client(tmp_path, "viewer").get("/api/extraction/presets").json()
     assert {"preset_id": "dummy", "name": "Dummy", "field_count": 1} in listed
     url = "/api/extraction/presets/dummy/install"

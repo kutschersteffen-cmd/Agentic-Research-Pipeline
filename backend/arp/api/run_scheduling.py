@@ -4,6 +4,7 @@ from collections.abc import Awaitable, Callable
 
 from arp.api.deps import get_llm_client, get_verifier_llm_client
 from arp.config import Settings
+from arp.db.session import require_dsn
 from arp.llm.base import LLMClient
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.orchestration.job_manager import JobManager
@@ -55,6 +56,6 @@ def schedule_llm_run(
     verifier_llm = build_verifier_llm_client(settings) if settings else get_verifier_llm_client()
     run_id = create_fn()
     if settings is not None and settings.llm_batch:
-        mark_batch_run(run_store or RunStore(settings.runs_dir), run_id)
+        mark_batch_run(run_store or RunStore(require_dsn(settings), settings.runs_dir), run_id)
     get_job_launcher().launch(run_id, lambda: run(run_id, llm, verifier_llm))
     return run_id

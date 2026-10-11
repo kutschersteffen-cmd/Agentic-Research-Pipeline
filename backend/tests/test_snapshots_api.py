@@ -23,8 +23,8 @@ BASE = "/api/v1/snapshots"
 
 
 @pytest.fixture
-def build(tmp_path):
-    env = PortfolioStore(tmp_path / "pf"), RunStore(tmp_path / "runs"), IdentifierMapStore(tmp_path / "idmap.jsonl")
+def build(tmp_path, pg):
+    env = PortfolioStore(tmp_path / "pf"), RunStore(pg, tmp_path / "runs"), IdentifierMapStore(tmp_path / "idmap.jsonl")
     _ingest(env, "index", "IX1")
     _ingest(env, "portfolio", "PF1")
     world = World()

@@ -68,13 +68,13 @@ def _fake_cluster_tags(tags, mentions_by_id, company_ids_by_mention, period, *, 
     ]
 
 
-async def test_execute_run_produces_one_candidate_from_five_corroborating_mentions(tmp_path, monkeypatch, fake_llm):
+async def test_execute_run_produces_one_candidate_from_five_corroborating_mentions(tmp_path, monkeypatch, fake_llm, pg):
     from arp.emerging_themes.extraction import _TagDraft, _TagDraftList
 
     monkeypatch.setattr(pipeline_module, "cluster_tags", _fake_cluster_tags)
 
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     topic_store = TopicStateStore(settings.emerging_themes_state_dir / "topics")
     companies = [CompanyRef(company_id="acme", name="Acme Battery Co")]
 
@@ -127,9 +127,9 @@ async def test_execute_run_produces_one_candidate_from_five_corroborating_mentio
     assert exposure.momentum == 1.0  # this fixture's cluster is a BIRTH with no baseline periods -- see compute_velocity
 
 
-async def test_promote_candidate_creates_draft_taxonomy_and_folds_status(tmp_path, fake_llm):
+async def test_promote_candidate_creates_draft_taxonomy_and_folds_status(tmp_path, fake_llm, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     taxonomy_store = TaxonomyStore(settings.taxonomies_dir)
     run_id = create_emerging_themes_run(run_store, [CompanyRef(company_id="acme", name="Acme Battery Co")], "manual")
 
@@ -146,7 +146,7 @@ async def test_promote_candidate_creates_draft_taxonomy_and_folds_status(tmp_pat
         cluster_id="cl_fixed",
         run_id=run_id,
     )
-    run_store.append_jsonl(run_store.results_path(run_id), candidate.model_dump(mode="json"))
+    run_store.append_result(run_id, candidate.model_dump(mode="json"))
 
     activity_draft = _SynthesizedActivityDraftList(
         activities=[_SynthesizedActivityDraft(name="Solid-state cell manufacturing", in_scope_description="x", out_of_scope_description="y")],
@@ -171,9 +171,9 @@ async def test_promote_candidate_creates_draft_taxonomy_and_folds_status(tmp_pat
     assert reloaded[0].decision_reason == "Strong corroborated signal."
 
 
-async def test_reject_candidate_folds_into_rejected_status(tmp_path):
+async def test_reject_candidate_folds_into_rejected_status(tmp_path, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     run_id = create_emerging_themes_run(run_store, [], "manual")
 
     from arp.schemas.emerging_themes import EmergingThemeCandidate
@@ -182,7 +182,7 @@ async def test_reject_candidate_folds_into_rejected_status(tmp_path):
         theme_name="Weak signal", description="", first_detected_date="2026-01-01", signal_velocity=1.0,
         economic_rationale="", cluster_id="cl1", run_id=run_id,
     )
-    run_store.append_jsonl(run_store.results_path(run_id), candidate.model_dump(mode="json"))
+    run_store.append_result(run_id, candidate.model_dump(mode="json"))
 
     reject_candidate(run_store, run_id, candidate.theme_id, "Not a real signal.")
 
@@ -191,9 +191,9 @@ async def test_reject_candidate_folds_into_rejected_status(tmp_path):
     assert reloaded[0].decision_reason == "Not a real signal."
 
 
-async def test_disconfirm_candidate_folds_into_disconfirmed_status(tmp_path):
+async def test_disconfirm_candidate_folds_into_disconfirmed_status(tmp_path, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     run_id = create_emerging_themes_run(run_store, [], "manual")
 
     from arp.schemas.emerging_themes import EmergingThemeCandidate
@@ -202,7 +202,7 @@ async def test_disconfirm_candidate_folds_into_disconfirmed_status(tmp_path):
         theme_name="Contradicted signal", description="", first_detected_date="2026-01-01", signal_velocity=1.0,
         economic_rationale="", cluster_id="cl1", run_id=run_id,
     )
-    run_store.append_jsonl(run_store.results_path(run_id), candidate.model_dump(mode="json"))
+    run_store.append_result(run_id, candidate.model_dump(mode="json"))
 
     disconfirm_candidate(run_store, run_id, candidate.theme_id, "The facility investment was cancelled.")
 
@@ -211,9 +211,9 @@ async def test_disconfirm_candidate_folds_into_disconfirmed_status(tmp_path):
     assert reloaded[0].decision_reason == "The facility investment was cancelled."
 
 
-def test_disconfirm_candidate_requires_a_reason(tmp_path):
+def test_disconfirm_candidate_requires_a_reason(tmp_path, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     run_id = create_emerging_themes_run(run_store, [], "manual")
 
     try:
@@ -224,9 +224,9 @@ def test_disconfirm_candidate_requires_a_reason(tmp_path):
     assert raised
 
 
-def test_reject_candidate_requires_a_reason(tmp_path):
+def test_reject_candidate_requires_a_reason(tmp_path, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     run_id = create_emerging_themes_run(run_store, [], "manual")
 
     try:
@@ -237,9 +237,9 @@ def test_reject_candidate_requires_a_reason(tmp_path):
     assert raised
 
 
-async def test_promote_candidate_requires_a_reason(tmp_path, fake_llm):
+async def test_promote_candidate_requires_a_reason(tmp_path, fake_llm, pg):
     settings = _settings(tmp_path)
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     taxonomy_store = TaxonomyStore(settings.taxonomies_dir)
     run_id = create_emerging_themes_run(run_store, [], "manual")
     llm = fake_llm({})

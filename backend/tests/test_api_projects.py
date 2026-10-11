@@ -28,9 +28,9 @@ class DownClient(FakeClient):
         raise SupersetError(500, SECRET_BODY)
 
 
-def _env(tmp_path, monkeypatch, client=None, backend="postgres"):
+def _env(tmp_path, monkeypatch, client=None):
     monkeypatch.setattr(
-        deps, "get_settings", lambda: Settings(portfolio_backend=backend, postgres_dsn="postgresql://x")
+        deps, "get_settings", lambda: Settings(postgres_dsn="postgresql://x")
     )
     store, pf, client = ProjectStore(tmp_path / "projects"), PortfolioStore(tmp_path / "pf"), client or FakeClient()
     app = FastAPI()
@@ -160,16 +160,6 @@ def test_open_unknown_project_404(env):
     assert env[0].post("/api/projects/nope/open").status_code == 404
 
 
-def test_open_file_backend_is_503_and_writes_nothing(tmp_path, monkeypatch):
-    http, store, pf, client = _env(tmp_path, monkeypatch, backend="file")
-    http.post("/api/projects", json={"id": "alpha", "name": "A"})
-    _upload(http, name="Constituent_IE00TESTFUND.xlsx", content=_xlsx(tmp_path, ROWS).read_bytes())
-    assert http.post("/api/projects/alpha/open").status_code == 503
-    r = http.post("/api/projects/alpha/dashboards", json={"title": "T", "plan": PLAN.model_dump()})
-    assert r.status_code == 503
-    assert pf.list_portfolios() == [] and client.calls == [] and store.get("alpha").dashboards == []
-
-
 def test_open_502_names_step_without_superset_body(tmp_path, monkeypatch):
     http, store, pf, client = _env(tmp_path, monkeypatch)
     _seed(http, store, tmp_path)
@@ -199,11 +189,6 @@ def test_export_dashboard_endpoint(tmp_path, monkeypatch):
     assert http.post("/api/projects/alpha/dashboards/export", json={"dashboard_id": 5}).status_code == 403
     assert http.post("/api/projects/alpha/dashboards/export", json={"dashboard_id": 777}).status_code == 404
     assert http.post("/api/projects/nope/dashboards/export", json={"dashboard_id": 900}).status_code == 404
-
-
-def test_export_dashboard_file_backend_503(tmp_path, monkeypatch):
-    http, *_ = _env(tmp_path, monkeypatch, backend="file")
-    assert http.post("/api/projects/alpha/dashboards/export", json={"dashboard_id": 1}).status_code == 503
 
 
 def test_export_foreign_scoped_dashboard_422(tmp_path, monkeypatch):

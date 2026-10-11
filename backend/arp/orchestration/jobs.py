@@ -133,7 +133,7 @@ def check_resumable(run_store: RunStore, run_id: str) -> RunManifest:
     if manifest.run_type not in RESUMABLE:
         raise NotResumable(f"{manifest.run_type} runs are not resumable; start a new run")
     # A theme run may instead have a universe file (runs from before companies.json).
-    if not run_store.companies_path(run_id).exists() and not (
+    if not run_store.has_companies(run_id) and not (
         manifest.run_type == "theme" and manifest.params.get("universe_path")
     ):
         raise NotResumable("run has no stored inputs")
@@ -164,11 +164,9 @@ def restart_run(run_store: RunStore, run_id: str) -> None:
     longer count; tokens and cost stay, that money was spent. review_count
     stays too: review-stopped items are never re-run, and discovery records
     review counts without review_queue rows."""
-    from arp.orchestration.batch_runner import read_done_keys
-
     with run_store.lock(run_id):
         current = run_store.load_manifest(run_id)
-        current.completed_count = len(read_done_keys(run_store.results_path(run_id)))
+        current.completed_count = len(run_store.done_keys(run_id))
         current.failed_count = 0
         current.cancel_requested = False
         current.status = JobStatus.RUNNING

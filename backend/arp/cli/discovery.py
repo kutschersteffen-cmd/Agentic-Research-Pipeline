@@ -29,7 +29,7 @@ def discover_run(
     run_id = asyncio.run(
         _and_drain(run_discovery(companies, settings=settings, run_store=run_store, doc_types=types, triggered_by="manual"))
     )
-    rows = run_store.read_jsonl(run_store.results_path(run_id))
+    rows = run_store.read_results(run_id)
     unreachable = [r for r in rows if r.get("homepage_unreachable")]
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/, new documents under data/documents/)")
     if unreachable:

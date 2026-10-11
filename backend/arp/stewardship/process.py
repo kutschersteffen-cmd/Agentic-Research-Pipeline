@@ -23,6 +23,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from arp.db.session import require_dsn
 from arp.decision.publish import as_fields
 from arp.engagement.orchestrator import is_stalled
 from arp.schemas.engagement import EngagementRecord, MilestoneStage
@@ -45,11 +46,11 @@ HOUSE = "house"
 
 def vote_items(runs_dir: Path | None = None) -> list[dict]:
     """Every ballot item from the Proxy Voting runs (see voting_feed)."""
-    if runs_dir is None:
-        from arp.config import get_settings
+    from arp.config import get_settings
 
+    if runs_dir is None:
         runs_dir = get_settings().runs_dir
-    return voting_feed.items(RunStore(runs_dir))
+    return voting_feed.items(RunStore(require_dsn(get_settings()), runs_dir))
 
 
 def portfolio_alerts() -> list:

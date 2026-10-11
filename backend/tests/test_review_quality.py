@@ -30,18 +30,20 @@ from arp.storage.run_store import RunStore
 from tests.test_review_context import _schema
 from tests.test_review_decide import ALICE, BOB, CAROL, CORRECT, client, ctx, decide, env  # noqa: F401 - env is a fixture
 
+pytestmark = pytest.mark.usefixtures("pg")
+
 ANALYST = Principal(user_id="u_ann", name="Ann Analyst", role="analyst")
 BANNED = ("known", "gold", "case_", "perturb")
 
 
 @pytest.fixture
-def qenv(tmp_path):
+def qenv(tmp_path, pg):
     settings = Settings(
         anthropic_api_key="unused", runs_dir=tmp_path / "runs", schema_registry_dir=tmp_path / "reg",
         document_store_dir=tmp_path / "docstore", review_quality_dir=tmp_path / "rq", hybrid_retrieval_enabled=False,
         cache_dir=tmp_path / "cache",
     )
-    rs = RunStore(settings.runs_dir)
+    rs = RunStore(pg, settings.runs_dir)
     store = content_store_for(settings)
     app.dependency_overrides[get_run_store] = lambda: rs
     app.dependency_overrides[get_document_content_store] = lambda: store
@@ -244,7 +246,7 @@ def test_known_answer_run_never_published(qenv):
     run_id = seed_known_answers(rs, settings, count=2)
     m = rs.load_manifest(run_id)
     assert m.run_type == "extraction" and m.params["trial"] is True
-    assert {f["route"] for r in rs.read_jsonl(rs.results_path(run_id)) for f in r["fields"]} == {"review"}
+    assert {f["route"] for r in rs.read_results(run_id) for f in r["fields"]} == {"review"}
     cands, _ = run_candidates(rs, run_id)
     assert cands == []
 

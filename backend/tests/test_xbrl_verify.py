@@ -10,6 +10,9 @@ from arp.storage.run_store import RunStore
 from arp.xbrl_pipeline.models import RequiredRow, VerifyRow
 from arp.xbrl_pipeline.store import XbrlStore
 from arp.xbrl_pipeline.verify import CircularRunError, UnsupportedRunError, verify_run
+from tests.postgres_helpers import pg_dsn, replace_results
+
+pytestmark = pytest.mark.usefixtures("pg")  # pg_dsn() helpers below
 
 MAPPING = {"revenue": "rev_f", "capex": "capex_f"}
 
@@ -33,9 +36,9 @@ def _field(field_id: str, value: float | None, year: int, unit: str = "USD") -> 
 
 def _setup(tmp_path: Path, fields: list[ExtractedField], required: list[RequiredRow], *,
            xbrl_on: bool = False, settings: bool = True):
-    runs, store = RunStore(tmp_path / "runs"), XbrlStore(tmp_path / "xbrl")
+    runs, store = RunStore(pg_dsn(), tmp_path / "runs"), XbrlStore(tmp_path / "xbrl")
     rec = ExtractionRecord(company_id="ex", name="Ex", schema_id="s", run_id="r1", fields=fields)
-    runs.results_path("r1").write_text(rec.model_dump_json() + "\n")
+    replace_results(runs, "r1", [rec.model_dump(mode="json")])
     if settings:
         (runs.run_dir("r1") / "step_settings.json").write_text(json.dumps({"xbrl_facts_enabled": xbrl_on}))
     store.write_required("0001234567", required)
@@ -138,7 +141,7 @@ def test_verify_matches_any_company_id_that_fetched_the_cik(tmp_path):
     runs, store = _setup(tmp_path, [], [_req("revenue", 2024, 1000.0)])
     rec = ExtractionRecord(company_id="acme-inc", name="Ex", schema_id="s", run_id="r1",
                            fields=[_field("rev_f", 1000.0, 2024)])
-    runs.results_path("r1").write_text(rec.model_dump_json() + "\n")
+    replace_results(runs, "r1", [rec.model_dump(mode="json")])
     rows = [_req("revenue", 2024, 1000.0).model_copy(update={"company_id": "acme"})]
     store.write_required("0001234567", rows)
     store.set_meta("0001234567", source_sha="s", tags=None, company_id="acme", company_name=None, fact_count=1)
@@ -154,7 +157,7 @@ def test_verify_with_legacy_meta_uses_its_single_company_id(tmp_path):
 
 def test_non_generic_run_is_unsupported(tmp_path):
     runs, store = _setup(tmp_path, [_field("rev_f", 1000.0, 2024)], [_req("revenue", 2024, 1000.0)])
-    runs.results_path("r1").write_text(json.dumps({"company_id": "ex", "financials": {}}) + "\n")
+    replace_results(runs, "r1", [{"company_id": "ex", "financials": {}}])
     with pytest.raises(UnsupportedRunError, match="run r1 does not contain generic extraction records"):
         _verify(runs, store)
 

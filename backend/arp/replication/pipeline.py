@@ -77,7 +77,7 @@ def run_replication(
         },
         company_count=1,
     ).run_id
-    run_store.append_jsonl(run_store.results_path(run_id), {"type": "spec", **spec.model_dump(mode="json")})
+    run_store.append_result(run_id, {"type": "spec", **spec.model_dump(mode="json")})
 
     try:
         # Fetch the union of the in-sample and out-of-sample windows (the
@@ -129,7 +129,7 @@ def run_replication(
             benchmark_returns=benchmark_returns,
             characteristics=characteristics,
         )
-        run_store.append_jsonl(run_store.results_path(run_id), {"type": "in_sample", **in_sample.model_dump(mode="json")})
+        run_store.append_result(run_id, {"type": "in_sample", **in_sample.model_dump(mode="json")})
 
         out_of_sample = None
         if out_of_sample_start and out_of_sample_end:
@@ -142,12 +142,12 @@ def run_replication(
                 benchmark_returns=benchmark_returns,
                 characteristics=characteristics,
             )
-            run_store.append_jsonl(run_store.results_path(run_id), {"type": "out_of_sample", **out_of_sample.model_dump(mode="json")})
+            run_store.append_result(run_id, {"type": "out_of_sample", **out_of_sample.model_dump(mode="json")})
 
         report = build_comparison_report(
             in_sample, spec.reported_performance, out_of_sample=out_of_sample, num_trials_attempted=spec.num_trials_attempted
         )
-        run_store.append_jsonl(run_store.results_path(run_id), {"type": "comparison", **report.model_dump(mode="json")})
+        run_store.append_result(run_id, {"type": "comparison", **report.model_dump(mode="json")})
 
         job_manager.record_progress(run_id, completed_delta=1)
         job_manager.finish_run(run_id)

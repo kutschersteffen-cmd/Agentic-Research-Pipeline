@@ -8,8 +8,12 @@ from typer.testing import CliRunner
 
 from arp.cli import app
 from arp.config import get_settings
+from arp.storage.run_store import RunStore
 from arp.xbrl_pipeline.models import CatalogEntry, ReportMeta
 from arp.xbrl_pipeline.store import XbrlStore
+from tests.postgres_helpers import pg_dsn
+
+pytestmark = pytest.mark.usefixtures("pg")  # the CLI/app and RunStore need Postgres
 
 CIK = "0001234567"
 
@@ -66,7 +70,6 @@ def _verify_setup(env, **settings):
     run_dir.mkdir(parents=True)
     if settings is not None:
         (run_dir / "step_settings.json").write_text(json.dumps(settings))
-    (run_dir / "results.jsonl").write_text("")
 
 
 def test_verify_prints_summary_and_exits_nonzero_on_circular_run(env):
@@ -123,9 +126,9 @@ def test_fetch_runs_with_patched_source(env, monkeypatch):
     assert result.exit_code == 0, result.output
     assert "no_cik=1" in result.stdout
     run_id = result.stdout.split("Run: ")[1].split()[0]
-    rows = [json.loads(line) for line in (env / "runs" / run_id / "results.jsonl").read_text().splitlines()]
-    assert [(r["company_id"], r["status"]) for r in rows] == [("ex", "no_cik")]
-    assert json.loads((env / "runs" / run_id / "manifest.json").read_text())["params"]["tags"] is None
+    store = RunStore(pg_dsn(), env / "runs")
+    assert [(r["company_id"], r["status"]) for r in store.read_results(run_id)] == [("ex", "no_cik")]
+    assert store.load_manifest(run_id).params["tags"] is None
 
 
 def test_fetch_market_esef_passes_market(env, monkeypatch):
@@ -191,7 +194,7 @@ def test_fetch_rejects_malformed_tag_before_running(env, tmp_path):
 
 def test_verify_non_generic_run_exits_1_with_message(env):
     _verify_setup(env, xbrl_facts_enabled=False)
-    (env / "runs" / "r1" / "results.jsonl").write_text(json.dumps({"company_id": "ex", "financials": {}}) + "\n")
+    RunStore(pg_dsn(), env / "runs").append_result("r1", {"company_id": "ex", "financials": {}})
     result = _invoke("verify", "r1", "--map", "revenue=rev_f")
     assert result.exit_code == 1 and "generic extraction records" in result.stderr
     assert "Traceback" not in result.output

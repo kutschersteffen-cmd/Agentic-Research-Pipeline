@@ -43,8 +43,8 @@ def _toy_graph():
     return g.compile()
 
 
-def test_run_graph_counts_each_visited_node(tmp_path):
-    store, graph = RunStore(tmp_path), _toy_graph()
+def test_run_graph_counts_each_visited_node(tmp_path, pg):
+    store, graph = RunStore(pg, tmp_path), _toy_graph()
 
     async def run():
         with tally_run(store, "run_1"):

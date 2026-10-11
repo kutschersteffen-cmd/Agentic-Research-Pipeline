@@ -66,7 +66,7 @@ class _Src(DocumentSource):
         return self._docs
 
 
-async def test_bank_skips_manufacturing_only_field(tmp_path, fake_llm):
+async def test_bank_skips_manufacturing_only_field(pg, tmp_path, fake_llm):
     doc = SourceDocument(
         company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG", full_text="Nothing relevant here."
     )
@@ -78,20 +78,20 @@ async def test_bank_skips_manufacturing_only_field(tmp_path, fake_llm):
         anthropic_api_key="unused", runs_dir=tmp_path / "r", schema_registry_dir=tmp_path / "s",
         documents_dir=tmp_path / "d", cache_dir=tmp_path / "c", discovery_state_dir=tmp_path / "x",
     )
-    run_store = RunStore(settings.runs_dir)
+    run_store = RunStore(pg, settings.runs_dir)
     run_id = create_extraction_run(schema, [company], settings, run_store, trial=True)
     await execute_extraction_run(
         run_id, schema, [company], llm=llm, registry=DocumentSourceRegistry([_Src([doc])]),
         settings=settings, run_store=run_store,
     )
     assert all("mfg_only" not in p for p in llm.prompts)
-    (row,) = run_store.read_jsonl(run_store.results_path(run_id))
+    (row,) = run_store.read_results(run_id)
     by_id = {f["field_id"]: f for f in row["fields"]}
     skipped = by_id[skipped_f.field_id]
     assert skipped["value_state"] == "not_applicable" and skipped["review_reasons"] == []
     # A trial never auto-accepts, so even the rule skip goes to review.
     assert skipped["route"] == "review" and skipped["route_reasons"] == ["unreleased_version", "not_applicable_by_rule"]
-    queued = run_store.read_jsonl(run_store.review_queue_path(run_id))
+    queued = run_store.read_review_queue(run_id)
     assert any(r["field"]["field_id"] == skipped_f.field_id for r in queued)
 
 
