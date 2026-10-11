@@ -159,7 +159,7 @@ def test_disagreement_goes_to_approver(env):
     assert r.status_code == 403 and "approver" in r.text
     r = decide(CAROL, APPROVE)
     assert r.json()["state"] == "final" and rows(env[0])[-1]["step"] == "resolution"
-    eff = effective_decisions(env[0], "ext1", cosign_required={"edit"})[KEY]
+    eff = effective_decisions(env[0], "ext1")[KEY]
     assert eff["decision"] == "approve" and eff["user_id"] == "u_carol"
 
 
@@ -397,7 +397,7 @@ def test_lone_analyst_cannot_overturn_two_person_outcome(env):
     assert decide(BOB, CORRECT).json()["state"] == "second_done"
     r = decide(ALICE, {"decision": "reject", "reason_code": "wrong_value"})
     assert (r.json()["state"], r.json()["second_reasons"]) == ("first_done", ["published_change"])
-    eff = effective_decisions(env[0], "ext1", cosign_required={"edit"})
+    eff = effective_decisions(env[0], "ext1")
     assert KEY not in eff
 
 

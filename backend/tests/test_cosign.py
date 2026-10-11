@@ -12,12 +12,15 @@ from arp.storage.run_store import RunStore
 
 ALICE = Principal(user_id="u_alice", name="Alice", role="approver")
 BOB = Principal(user_id="u_bob", name="Bob", role="approver")
-REQ = {"edit"}
 
 
 @pytest.fixture
 def run_store(tmp_path, pg):
-    return RunStore(pg, tmp_path / "runs")
+    from arp.schemas.common import RunManifest
+
+    store = RunStore(pg, tmp_path / "runs")
+    store.save_manifest(RunManifest(run_id="r1", run_type="extraction"))  # edits need a co-sign
+    return store
 
 
 def _edit(rs, who=ALICE):
@@ -44,26 +47,26 @@ def test_cosign_without_decision_refused(run_store):
 def test_uncosigned_edit_not_effective(run_store):
     _edit(run_store)
     record_review_decision(run_store, "r1", "a", "approve", None, None, principal=ALICE)
-    assert set(effective_decisions(run_store, "r1", cosign_required=REQ)) == {"a"}
+    assert set(effective_decisions(run_store, "r1")) == {"a"}
 
 
 def test_cosigned_edit_effective(run_store):
     _edit(run_store)
     record_cosign(run_store, "r1", "k", BOB)
-    assert "k" in effective_decisions(run_store, "r1", cosign_required=REQ)
+    assert "k" in effective_decisions(run_store, "r1")
 
 
 def test_new_decision_after_cosign_needs_new_cosign(run_store):
     _edit(run_store)
     record_cosign(run_store, "r1", "k", BOB)
     _edit(run_store)
-    assert "k" not in effective_decisions(run_store, "r1", cosign_required=REQ)
+    assert "k" not in effective_decisions(run_store, "r1")
 
 
 def test_legacy_decision_without_user_id_can_be_cosigned(run_store):
     record_review_decision(run_store, "r1", "k", "edit", "old", {"v": 1})
     record_cosign(run_store, "r1", "k", BOB)
-    assert "k" in effective_decisions(run_store, "r1", cosign_required=REQ)
+    assert "k" in effective_decisions(run_store, "r1")
 
 
 def _client(run_store, who):

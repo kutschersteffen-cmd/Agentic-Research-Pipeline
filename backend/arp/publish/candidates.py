@@ -63,7 +63,7 @@ def run_candidates(run_store, run_id: str) -> tuple[list[FactCandidate], list[Sk
         return [], []
     if manifest.params.get("trial"):
         return [], [Skip("*", "trial_run")]
-    decisions = effective_decisions(run_store, run_id, cosign_required={"edit"})
+    decisions = effective_decisions(run_store, run_id)
     in_review = set(latest_decisions(run_store, run_id)) - set(decisions)
     rst = {c["item_key"]: c for c in run_store.read_restatements(run_id)}
     cands: list[FactCandidate] = []
@@ -113,7 +113,7 @@ def run_candidates(run_store, run_id: str) -> tuple[list[FactCandidate], list[Sk
             else:
                 skips.append(Skip(key, "not_final"))
 
-    states = item_states(run_store, run_id, cosign_required={"edit"})
+    states = item_states(run_store, run_id)
     for key, c in rst.items():
         d = decisions.get(c["candidate_id"])
         kind = d.get("decision") if d else None

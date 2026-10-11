@@ -180,7 +180,12 @@ def item_state(rows: list[dict], *, cosigned_at: set[str], cosign_required: set[
     return s
 
 
-def item_states(run_store: RunStore, run_id: str, *, cosign_required: set[str]) -> dict[str, ItemState]:
+def item_states(run_store: RunStore, run_id: str) -> dict[str, ItemState]:
+    """Every decided item's state, under the run type's co-sign rule (review/items.py cosign_rule)."""
+    from arp.review.items import cosign_rule  # imports the extraction pipeline
+
+    manifest = run_store.load_manifest(run_id)
+    cosign_required = cosign_rule(manifest.run_type if manifest else "")
     rows: dict[str, list[dict]] = defaultdict(list)
     for r in run_store.read_decisions(run_id):
         rows[r["item_key"]].append(r)
@@ -190,11 +195,11 @@ def item_states(run_store: RunStore, run_id: str, *, cosign_required: set[str]) 
     return {k: item_state(v, cosigned_at=signed[k], cosign_required=cosign_required) for k, v in rows.items()}
 
 
-def effective_decisions(run_store: RunStore, run_id: str, *, cosign_required: set[str]) -> dict[str, dict]:
+def effective_decisions(run_store: RunStore, run_id: str) -> dict[str, dict]:
     """The effective row of every item in a final state; a `correct` row also carries
     `edited_value` so existing readers keep working."""
     out = {}
-    for k, s in item_states(run_store, run_id, cosign_required=cosign_required).items():
+    for k, s in item_states(run_store, run_id).items():
         if s.state in FINAL_STATES:
             row = s.effective
             out[k] = {**row, "edited_value": row["corrected_value"]} if row.get("decision") == "correct" else row

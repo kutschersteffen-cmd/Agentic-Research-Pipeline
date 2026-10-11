@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 FLAGGED = ("offset_moved", "not_grounded")
 LINEAGE = ("original_missing", "hash_mismatch")  # re-parsing cannot fix these: logged once, never retried
 SETTLED = ("ok", *FLAGGED, *LINEAGE)  # only text_unavailable is retried on the next run
-COSIGN_REQUIRED = {"edit"}  # extraction's legacy co-sign rule (review/items.py LEGACY_COSIGN)
 
 
 @dataclass
@@ -46,7 +45,7 @@ def _reopen(run_store: RunStore, run_id: str, key: str, old: str, new: str) -> N
     """A decided or never-decided item goes back to review: a system first-step escalate starts a
     new round, so an auto-accepted value is no longer publishable nor bulk-acceptable."""
     with run_store.lock(run_id):
-        state = item_states(run_store, run_id, cosign_required=COSIGN_REQUIRED).get(key)
+        state = item_states(run_store, run_id).get(key)
         if state is None or state.state in FINAL_STATES:
             append_decision(run_store, run_id, ReviewDecision(
                 item_key=key, step="first", decision="escalate", reason_code=DecisionReason.SPAN_MOVED,

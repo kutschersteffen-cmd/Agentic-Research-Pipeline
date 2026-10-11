@@ -21,12 +21,15 @@ ANA = Principal(user_id="u_ana", name="Ana", role="analyst")
 BEN = Principal(user_id="u_ben", name="Ben", role="analyst")
 APP = Principal(user_id="u_app", name="Appy", role="approver")
 K = "iss:revenue:2024-12-31"
-REQ = {"edit"}
 
 
 @pytest.fixture
 def rs(tmp_path, pg):
-    return RunStore(pg, tmp_path / "runs")
+    from arp.schemas.common import RunManifest
+
+    store = RunStore(pg, tmp_path / "runs")
+    store.save_manifest(RunManifest(run_id="r1", run_type="extraction"))  # edits need a co-sign
+    return store
 
 
 def _d(rs, who, decision, step, value=None, second_required=False):
@@ -50,8 +53,8 @@ def _d(rs, who, decision, step, value=None, second_required=False):
     )
 
 
-def _s(rs, req=REQ):
-    return item_states(rs, "r1", cosign_required=req)[K]
+def _s(rs, run_id="r1"):
+    return item_states(rs, run_id)[K]
 
 
 def test_item_keys():
@@ -63,13 +66,13 @@ def test_first_approve_without_second_is_final(rs):
     _d(rs, ANA, "approve", "first")
     s = _s(rs)
     assert s.state == "final" and s.effective["decision"] == "approve"
-    assert K in effective_decisions(rs, "r1", cosign_required=REQ)
+    assert K in effective_decisions(rs, "r1")
 
 
 def test_first_correct_requiring_second_is_first_done(rs):
     _d(rs, ANA, "correct", "first", 1050, second_required=True)
     assert _s(rs).state == "first_done"
-    assert K not in effective_decisions(rs, "r1", cosign_required=REQ)
+    assert K not in effective_decisions(rs, "r1")
 
 
 def test_agreeing_second_is_second_done_and_effective(rs):
@@ -77,7 +80,7 @@ def test_agreeing_second_is_second_done_and_effective(rs):
     _d(rs, BEN, "correct", "second", 1050)
     s = _s(rs)
     assert s.state == "second_done" and s.effective["user_id"] == "u_ana"
-    assert effective_decisions(rs, "r1", cosign_required=REQ)[K]["edited_value"] == {"value": 1050}
+    assert effective_decisions(rs, "r1")[K]["edited_value"] == {"value": 1050}
 
 
 def test_disagreeing_second_is_disagreed_not_effective(rs):
@@ -85,7 +88,7 @@ def test_disagreeing_second_is_disagreed_not_effective(rs):
     _d(rs, BEN, "approve", "second")
     s = _s(rs)
     assert s.state == "disagreed" and s.effective is None
-    assert K not in effective_decisions(rs, "r1", cosign_required=REQ)
+    assert K not in effective_decisions(rs, "r1")
     _d(rs, ANA, "correct", "first", 1050, second_required=True)
     _d(rs, BEN, "correct", "second", 1060)
     assert _s(rs).state == "disagreed"
@@ -97,7 +100,7 @@ def test_resolution_is_final_and_effective(rs):
     _d(rs, APP, "correct", "resolution", 1055)
     s = _s(rs)
     assert s.state == "final" and s.effective["user_id"] == "u_app"
-    assert effective_decisions(rs, "r1", cosign_required=REQ)[K]["edited_value"] == {"value": 1055}
+    assert effective_decisions(rs, "r1")[K]["edited_value"] == {"value": 1055}
 
 
 def test_escalate_is_pending_and_flags_escalated(rs):
@@ -121,7 +124,7 @@ def test_legacy_extraction_edit_needs_cosign(rs):
     assert _s(rs).state == "first_done"
     record_cosign(rs, "r1", K, APP)
     assert _s(rs).state == "second_done"
-    assert effective_decisions(rs, "r1", cosign_required=REQ)[K]["edited_value"] == {"value": 5}
+    assert effective_decisions(rs, "r1")[K]["edited_value"] == {"value": 5}
 
 
 def test_legacy_edit_with_agreeing_second_row_is_second_done(rs):
@@ -132,8 +135,11 @@ def test_legacy_edit_with_agreeing_second_row_is_second_done(rs):
 
 
 def test_legacy_identity_edit_is_final(rs):
-    record_review_decision(rs, "r1", K, "edit", None, {"value": 5}, principal=ANA)
-    assert _s(rs, set()).state == "final"
+    from arp.schemas.common import RunManifest
+
+    rs.save_manifest(RunManifest(run_id="i1", run_type="identity"))
+    record_review_decision(rs, "i1", K, "edit", None, {"value": 5}, principal=ANA)
+    assert _s(rs, "i1").state == "final"
 
 
 def test_legacy_approve_reject_final_and_escalate_pending(rs):
@@ -143,7 +149,7 @@ def test_legacy_approve_reject_final_and_escalate_pending(rs):
     record_review_decision(rs, "r1", K, "escalate", None, None, principal=ANA)
     s = _s(rs)
     assert s.state == "pending" and s.escalated is True
-    assert K not in effective_decisions(rs, "r1", cosign_required=REQ)
+    assert K not in effective_decisions(rs, "r1")
 
 
 def test_public_decision_has_no_user_id_or_name(rs):
@@ -177,3 +183,14 @@ def test_same_value_numeric_and_text():
     assert same_value(1050, "1050.0") is True
     assert same_value("ACME", " ACME ") is True
     assert same_value(True, 1) is False
+
+
+def test_cosign_rule_follows_the_run_type(rs):
+    """An uncosigned edit is final where the run type needs no co-sign, and waits where it does."""
+    from arp.schemas.common import RunManifest
+
+    for run_id, run_type in (("x1", "extraction"), ("f1", "financials")):
+        rs.save_manifest(RunManifest(run_id=run_id, run_type=run_type))
+        record_review_decision(rs, run_id, K, "edit", None, {"value": 5}, principal=ANA)
+    assert item_states(rs, "x1")[K].state == "first_done"
+    assert item_states(rs, "f1")[K].state == "final"
