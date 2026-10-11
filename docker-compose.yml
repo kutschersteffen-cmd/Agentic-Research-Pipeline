@@ -9,21 +9,19 @@
 #    backend/.env.example) -- copy and fill it in before starting, same as
 #    the non-Docker setup.
 #
-# 2. Local development infrastructure for the opt-in Postgres/pgvector,
-#    OpenSearch, and object-storage backends (backend/arp/storage/postgres*.py,
-#    opensearch_client.py, object_store_client.py). None of these are
-#    required to run this project -- every store is file-based by default
-#    (see backend/arp/config.py). Point the `backend` service's .env at
-#    them (ARP_POSTGRES_DSN=postgresql+psycopg://arp:arp@postgres:5432/arp,
-#    ARP_OPENSEARCH_URL=http://opensearch:9200, etc.) to actually use them
-#    from the containerized app, or at localhost equivalents to use them
-#    from a venv-based `uvicorn --reload` run instead.
+# 2. Local development infrastructure: Postgres/pgvector (required -- the
+#    system of record, see backend/arp/db/), plus the opt-in OpenSearch and
+#    object-storage backends (opensearch_client.py, object_store_client.py).
+#    Point the `backend` service's .env at them
+#    (ARP_POSTGRES_DSN=postgresql+psycopg://arp:arp@postgres:5432/arp,
+#    ARP_OPENSEARCH_URL=http://opensearch:9200, etc.), or at localhost
+#    equivalents for a venv-based `uvicorn --reload` run.
 #
 # Usage:
 #   docker compose up --build                        # everything
 #   docker compose up backend frontend --build        # just the app
-#   docker compose up -d postgres opensearch minio     # just the dev infra
-#   Then:  arp db init-postgres && arp db init-opensearch && arp db init-object-store
+#   docker compose up -d postgres                      # required; then: arp db init-postgres
+#   docker compose up -d opensearch minio              # optional; then: arp db init-opensearch && arp db init-object-store
 #   docker compose --env-file backend/.env up -d postgres superset   # BI (arp/bi/), then:
 #          arp db init-postgres && arp bi bootstrap
 
@@ -44,6 +42,9 @@ services:
     # Switching to real sign-in: create config/users.json, set
     # ARP_AUTH_MODE=local below and drop ARP_DEV_TRUSTED_NETWORKS. Tokens are
     # shared secrets over plain HTTP, so put TLS in front before widening ports.
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "127.0.0.1:8000:8000"
     env_file:
@@ -52,6 +53,7 @@ services:
       ARP_AUTH_MODE: dev
       ARP_DEV_TRUSTED_NETWORKS: '["172.16.0.0/12"]'
       ARP_USERS_FILE: /app/config/users.json
+      ARP_POSTGRES_DSN: postgresql+psycopg://arp:arp@postgres:5432/arp  # required; run `arp db init-postgres` once
       # The browser calls the API as localhost:8000 (VITE_API_BASE), which the
       # default ARP_TRUSTED_HOSTS allows; set ARP_TRUSTED_HOSTS (JSON list) if
       # you reach it under another host name. On Docker hosts whose compose

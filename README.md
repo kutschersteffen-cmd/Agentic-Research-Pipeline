@@ -74,8 +74,10 @@ Windows / corporate proxy / VS Code + conda: see
 cd backend
 python3 -m venv .venv && source .venv/bin/activate   # Python 3.11
 pip install -e ".[dev]"
-cp .env.example .env            # fill in ARP_ANTHROPIC_API_KEY
-pytest -q                       # no API key or network required
+cp .env.example .env            # fill in ARP_ANTHROPIC_API_KEY; ARP_POSTGRES_DSN is preset
+docker compose up -d postgres   # required: Postgres + pgvector
+arp db init-postgres            # schema; re-run after every upgrade
+pytest -q                       # needs ARP_TEST_POSTGRES_DSN (a separate, empty database)
 uvicorn arp.api.main:app --reload            # API on :8000
 
 # Frontend
@@ -175,9 +177,7 @@ organization's data-handling policy before pointing it at real holdings.
 
 ## Superset BI
 
-Optional. Needs Postgres as the portfolio store, with the projections the `bi` views read switched on (`backend/.env.example` lists them):
-`ARP_PORTFOLIO_BACKEND=postgres`, `ARP_POSTGRES_DSN`, `ARP_COMPANY_RECORDS_PROJECTION_ENABLED=true`, `ARP_COMPANY_FACTS_PROJECTION_ENABLED=true`
-(and the document-registry and engagement projections if you want those views filled).
+Optional. Reads the `bi` views `arp db init-postgres` creates over the Postgres tables.
 
 Set `ARP_SUPERSET_PASSWORD`, `ARP_BI_READER_PASSWORD`, `SUPERSET_SECRET_KEY` and `SUPERSET_GUEST_TOKEN_JWT_SECRET` in
 `backend/.env`. None has a default and the `change-me` placeholders are refused; the two Superset secrets need 32+
@@ -188,7 +188,7 @@ host:port Superset uses to reach Postgres.
 ```bash
 docker compose --env-file backend/.env up -d postgres superset   # first start builds superset/Dockerfile
 arp db init-postgres                                             # schema + `bi` views
-ARP_PORTFOLIO_BACKEND=postgres arp portfolio seed-demo           # demo holdings into Postgres (with ARP_POSTGRES_DSN set)
+arp portfolio seed-demo                                          # demo holdings into Postgres
 arp bi bootstrap                                                 # views, bi_reader role, Superset database, datasets, metrics, descriptions, templates (idempotent)
 arp golden-set bi                                                # planner eval; needs an API key, not run in CI
 ```
@@ -233,7 +233,7 @@ Caveats:
 - The `superset/Dockerfile` build (adds psycopg2 to `apache/superset:5.0.0`) is unverified end to end: the sandbox proxy's TLS blocked it, and it was tested with an equivalent local image. Run `docker compose build superset` on a normal machine before relying on it.
 - Embedding is verified in Chromium only.
 - The first-embed lock is in-process, so run a single uvicorn worker.
-- Demo data lives in files; seed it into Postgres (`ARP_PORTFOLIO_BACKEND=postgres arp portfolio seed-demo`) before the views have anything to show.
+- Seed demo holdings (`arp portfolio seed-demo`) before the views have anything to show.
 - Postgres 15 or later is assumed (compose runs pg16). Before 15, every role, `bi_reader` included, gets CREATE on schema `public` through PUBLIC, which bootstrap's REVOKE does not remove.
 - `frame-ancestors` lists only `http://localhost:5173` and `http://127.0.0.1:5173` (the dev UI). Add production origins in `superset/superset_config.py`.
 
@@ -362,23 +362,22 @@ Full detail in [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md).
 
 ## Optional backends
 
-Every store is file-based by default. Three opt-in backends are additive
-read-model projections — the file/SQLite stores remain the only writable
-source of truth:
+Postgres with pgvector is required (see Setup). `arp db check-postgres` reports
+whether the schema is current and gates a deploy; re-run `arp db init-postgres`
+after upgrading. Moving a file-based install over: `arp db import --dry-run`,
+`arp db import`, `arp db verify` ([`docs/INSTALLATION.md`](docs/INSTALLATION.md#moving-an-existing-file-based-install-to-postgres)).
+
+Two backends are optional:
 
 ```bash
-pip install -e ".[postgres,opensearch,object_storage]"
-docker compose up -d postgres opensearch minio
-arp db init-postgres && arp db check-postgres    # idempotent; check gates a deploy
+pip install -e ".[opensearch,object_storage]"
+docker compose up -d opensearch minio
 arp db init-opensearch && arp db init-object-store
-arp db reindex company-records    # also: company-facts, documents, opensearch, object-store
+arp db reindex opensearch         # also: object-store, engagement
 ```
 
-- **Postgres/pgvector** — portfolio holdings joins and the chunk-embeddings cache
 - **OpenSearch** — full-text/vector search over documents and chunks
 - **Object storage** (S3-compatible, MinIO locally) — immutable copies of source documents
-
-Re-run `arp db init-postgres` after upgrading, not only on a fresh database.
 
 ## Documentation
 

@@ -928,7 +928,7 @@ flattens the result into one CSV row per activity
 sic_codes, gics_codes, gics_labels, gics_rationale, unmapped_isic_codes`)
 for use outside the tool.
 
-## Hybrid retrieval and the optional Postgres/pgvector store
+## Hybrid retrieval
 
 `select_relevant_chunks` (`backend/arp/retrieval/select_evidence.py`)
 defaults to fusing BM25 with a local, multilingual embedding model
@@ -944,53 +944,64 @@ Transition Plan Assessment stays BM25-only regardless of this flag --
 `backend/arp/transition_plan/indicator_graph.py` -- to keep its
 replication of the source paper's retrieval behavior exact (see above).
 
-Every store in this system is file-based by default. An **opt-in**
-Postgres/pgvector backend (`backend/arp/storage/postgres*.py`,
-`Settings.postgres_dsn`) is available for exactly two places a relational/
-vector engine earns its cost at this system's scale: Portfolio Risk &
-Exposure Monitoring's holdings (`PostgresPortfolioStore` --
-`aggregate_market_value_eur` does a real three-way join across holdings x
-securities x companies, grouped by sector/issuer/portfolio, in one SQL
-query instead of loading every JSONL snapshot into Python) and the
-hybrid-retrieval chunk-embeddings cache (`PgVectorEmbeddingsStore`, the
-same two-method interface as the default SQLite cache, so it's a drop-in
-swap with no changes anywhere hybrid retrieval is wired up). Every other
-store -- run manifests, review queues, engagement/voting audit trails --
-stays file-based JSONL regardless of whether Postgres is configured: an
-append-only file is simpler to keep fully auditable than a table with
-`UPDATE`s, and none of those stores have the multi-way join access pattern
-that would justify a relational engine's added operational cost.
+## Storage: Postgres and the company registry
 
-Three properties make that opt-in safe to exercise, each enforced by tests
-rather than asserted in prose (see
-[`docs/DATABASE_STORAGE_REVIEW.md`](DATABASE_STORAGE_REVIEW.md) for the
-review that established them):
+Postgres with `pgvector` is required (`Settings.postgres_dsn`,
+`ARP_POSTGRES_DSN`); the API and CLI check that it answers before they start
+(`backend/arp/db/session.py::require_postgres`). The tables are defined in
+`backend/arp/db/models.py` (company foundation) and
+`backend/arp/storage/postgres_models.py` (portfolio, publishing, BI).
 
-- **The two portfolio backends answer identically.** Holdings resolution is
-  "each portfolio's most recent snapshot on or before the requested date"
-  in both -- portfolios are pulled on independent schedules, so the
-  requested date usually is not a date every portfolio has.
-  `backend/tests/test_portfolio_store_parity.py` runs one set of
-  assertions against both stores, including their public surfaces, so a
-  divergence fails a test instead of silently changing a number.
-- **The SQL aggregation is the one that actually runs.**
-  `arp/portfolio/analytics.py::execute` routes a `market_value_sum` query
-  through `PostgresPortfolioStore.aggregate_holdings_by` when the
-  configured store offers it, and
-  `backend/tests/test_analytics_sql_parity.py` holds it to the same
-  numbers, groups and counts as the in-Python path.
-- **A projection's `company_id` carries no foreign key to `companies`.**
-  That table is populated only by the dual-write portfolio store, whereas a
-  run's companies come from the user-supplied universe file -- so an FK
-  there rejects every legitimate row while the best-effort sync hooks
-  swallow the violation. See `postgres_models.py`'s module docstring.
+- **Companies are the key entity.** Each company has one UUID
+  (`companies.id`). Identifiers (LEI, ISIN, CIK, ticker, universe id,
+  provider ids) are aliases in `company_identifiers`, active until
+  `valid_to`; an active `(scheme, value)` names at most one company. A
+  universe row or provider record resolves to a company through those
+  aliases (`backend/arp/db/companies.py`), and two aliases naming different
+  companies are reported as a conflict, never merged silently. `arp db
+  companies merge` re-points every row from one UUID to another.
+- **Observations, then facts.** A run, a provider load or a reviewer writes
+  insert-only `field_observations` (value, period, basis, unit, confidence,
+  route, with citations in `value_citations` pointing at registered
+  `documents`). `company_facts` holds the current value per company, field,
+  period and basis, derived from observations and review decisions
+  (`backend/arp/db/observations.py`). A partial unique index allows one
+  current row per key; a change closes the old row (`valid_to`,
+  `superseded_by`), so the value as of any date is a query.
+- **Provider sources.** External data enters through `data_sources`
+  (with a licence: `internal_only` or `redistributable`) and
+  `source_loads` (one row per fetched payload, idempotent by payload
+  hash). Provider fields have stable ids `prov:<source>:<metric>`.
+  Facts from an `internal_only` source are refused by publishing and left
+  out of BI exports.
+- **Runs and review** (`runs`, `run_results`, `review_items`,
+  `review_decisions`, `review_cosigns`) are written by
+  `backend/arp/db/runs.py`; decisions and cosigns are insert-only. Per-run
+  side artifacts (schema snapshot, regrounds, reviewer context snapshots)
+  stay as files under `runs/<run_id>/`.
+- **Published facts** (`published_facts`, `releases`, `fact_events`) keep
+  their issuer-key identity and carry the registry company in `company_id`.
+  The natural key stays `(issuer_key, field_id, period_end, basis,
+  version)`: a company published under its LEI before the cut-over and
+  under its UUID after has two version chains, so a unique key on
+  `company_id` would refuse the second. Holdings, securities and security
+  resolutions also carry the registry company (`company_id`, or
+  `company_uuid` where `company_id` already holds the universe id).
+
+Portfolio holdings aggregation (`PostgresPortfolioStore`) runs as one SQL
+join across holdings, securities and companies, and
+`backend/tests/test_portfolio_store_parity.py` holds it to the file store's
+answers. Observations, news, flags and monitoring rules of the portfolio
+store, and engagement records, are still files; engagement state is mirrored
+into `engagement_issues`/`engagement_commitments` on every save.
 
 `arp db init-postgres` creates the `vector` extension and every table, adds
-any column an earlier version's database is missing, and applies any
-recorded schema step, idempotently -- so it is run after a codebase
-upgrade, not only once per fresh database. `arp db check-postgres` reports
-whether a database is current without modifying it
-(`backend/arp/storage/postgres_schema.py`).
+any column an older database lacks and applies recorded schema steps,
+idempotently, so it runs after every upgrade. `arp db check-postgres` reports
+whether a database is current without changing it, including rows no company
+matched yet (`backend/arp/storage/postgres_schema.py`). Moving a file-based
+install over is `arp db import`, then `arp db verify`
+([`INSTALLATION.md`](INSTALLATION.md#moving-an-existing-file-based-install-to-postgres)).
 
 ## What's deliberately out of scope
 
