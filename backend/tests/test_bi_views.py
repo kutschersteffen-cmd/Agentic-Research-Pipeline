@@ -65,15 +65,37 @@ def _seed(engine, facts=(), holdings_date="2026-02-28"):
                 ),
                 {"d": d, "mv": mv},
             )
+    if facts:
+        _seed_facts(engine, facts)
+
+
+def _seed_facts(engine, facts):
+    """(field_id, period_end or None, status, JSON value, current) rows in `company_facts` for one company."""
+    import json
+    from datetime import UTC, date, datetime
+
+    from sqlalchemy.orm import Session
+
+    from arp.db import models as m
+
+    with Session(engine) as s, s.begin():
+        c = m.Company(name="BMW")
+        s.add(c)
+        s.flush()
         for key, as_of, status, value, current in facts:
-            conn.execute(
-                text(
-                    "INSERT INTO legacy_company_facts (company_id, fact_key, as_of, fact_type, value, status, source_run_id,"
-                    " valid_from, is_current) VALUES ('bmw', :k, :a, 'financials', CAST(:v AS jsonb), :s, 'r1',"
-                    " '2026-03-01T00:00:00+00:00', :c)"
-                ),
-                {"k": key, "a": as_of, "v": value, "s": status, "c": current},
-            )
+            s.add(m.Field(field_id=key, kind=m.FieldKind.EXTRACTED))
+            s.flush()
+            s.add(m.FieldDefinition(field_id=key, version=1, name=key, data_type="number", definition={}))
+            s.flush()
+            v = json.loads(value)
+            obs = m.FieldObservation(company_id=c.id, field_id=key, field_version=1, source_kind=m.SourceKind.MANUAL,
+                                     value=v, value_state=m.ValueState.FOUND, confidence=0.9)
+            s.add(obs)
+            s.flush()
+            s.add(m.CompanyFact(
+                company_id=c.id, field_id=key, period_end=date.fromisoformat(as_of) if as_of else None, value=v,
+                status=status, observation_id=obs.id, valid_to=None if current else datetime.now(UTC),
+            ))
 
 
 def test_views_match_catalog_columns(engine):
@@ -148,12 +170,12 @@ def test_facts_view_excludes_pending_and_rejected(engine):
     _seed(
         engine,
         facts=[
-            ("a", "", "approved", '{"value": 1}', True),
-            ("b", "", "pending_review", '{"value": 2}', True),
-            ("c", "", "rejected", '{"value": 3}', True),
-            ("d", "", "auto_approved", '{"value": 4}', True),
-            ("e", "", "edited", '{"value": 5}', True),
-            ("f", "", "approved", '{"value": 6}', False),
+            ("a", "", "approved", "1", True),
+            ("b", "", "pending_review", "2", True),
+            ("c", "", "held", "3", True),
+            ("d", "", "auto_accepted", "4", True),
+            ("e", "", "edited", "5", True),
+            ("f", "", "approved", "6", False),
         ],
     )
     assert sorted(r[0] for r in _q(engine, "SELECT fact_key FROM bi.company_facts")) == ["a", "d", "e"]
@@ -163,9 +185,9 @@ def test_pending_view_holds_only_pending(engine):
     _seed(
         engine,
         facts=[
-            ("a", "", "approved", '{"value": 1}', True),
-            ("b", "", "pending_review", '{"value": 2}', True),
-            ("c", "", "pending_review", '{"value": 3}', False),
+            ("a", "", "approved", "1", True),
+            ("b", "", "pending_review", "2", True),
+            ("c", "", "pending_review", "3", False),
         ],
     )
     assert [r[0] for r in _q(engine, "SELECT fact_key FROM bi.company_facts_pending")] == ["b"]
@@ -175,11 +197,11 @@ def test_value_num_null_when_no_numeric(engine):
     _seed(
         engine,
         facts=[
-            ("num", "", "approved", '{"value": 12.5}', True),
-            ("txt", "", "approved", '{"value": "hello"}', True),
+            ("num", "", "approved", "12.5", True),
+            ("txt", "", "approved", '"hello"', True),
             ("none", "", "approved", '{"company_id": "bmw"}', True),
-            ("nul", "", "approved", '{"value": null}', True),
-            ("huge", "", "approved", '{"value": 1e400}', True),
+            ("nul", "", "approved", "null", True),
+            ("huge", "", "approved", "1e308", True),
         ],
     )
     rows = {r[0]: (r[1], r[2]) for r in _q(engine, "SELECT fact_key, value_num, value_text FROM bi.company_facts")}
@@ -187,22 +209,13 @@ def test_value_num_null_when_no_numeric(engine):
     assert rows["txt"] == (None, "hello")
     assert rows["none"] == (None, None)
     assert rows["nul"] == (None, None)
-    assert rows["huge"] == (None, None)  # beyond float range: NULL, not an error
+    assert rows["huge"] == (None, None)  # beyond the 1e300 guard: NULL, not an error
 
 
-def test_malformed_date_returns_null_not_error(engine):
-    _seed(
-        engine,
-        facts=[
-            ("empty", "", "approved", "{}", True),
-            ("junk", "not-a-date", "approved", "{}", True),
-            ("badday", "2026-13-45", "approved", "{}", True),
-            ("ok", "2026-03-31", "approved", "{}", True),
-        ],
-    )
+def test_fact_as_of_is_the_period_end_date(engine):
+    _seed(engine, facts=[("none", "", "approved", "1", True), ("ok", "2026-03-31", "approved", "1", True)])
     rows = {r[0]: r[1] for r in _q(engine, "SELECT fact_key, as_of FROM bi.company_facts")}
-    assert rows["empty"] is None and rows["junk"] is None and rows["badday"] is None
-    assert str(rows["ok"]) == "2026-03-31"
+    assert rows["none"] is None and str(rows["ok"]) == "2026-03-31"
     assert _q(engine, "SELECT pg_typeof(as_of)::text FROM bi.company_facts LIMIT 1")[0][0] == "date"
 
 
@@ -221,7 +234,7 @@ def test_bi_reader_cannot_select_base_tables(engine):
     try:
         with reader.connect() as conn:
             assert conn.execute(sa.text("SELECT count(*) FROM bi.holdings")).scalar() == 1
-        for table in ("holdings", "public.legacy_company_facts"):
+        for table in ("holdings", "public.company_facts"):
             with reader.connect() as conn, pytest.raises(ProgrammingError, match="permission denied"):
                 conn.execute(sa.text(f"SELECT * FROM {table}"))
     finally:
@@ -241,20 +254,35 @@ def test_run_records_excludes_payload(engine):
     from sqlalchemy import text
 
     with engine.begin() as conn:
-        conn.execute(
-            text(
-                "INSERT INTO company_records (run_id, run_type, company_id, record_key, overall_confidence, needs_review, generated_at, payload)"
-                " VALUES ('r1', 'extraction', 'bmw', '', 0.9, false, '2026-03-01T10:00:00+00:00', '{\"secret\": 1}')"
-            )
-        )
+        conn.execute(text("INSERT INTO runs (run_id, run_type, status) VALUES ('r1', 'extraction', 'completed')"))
+        conn.execute(text(
+            "INSERT INTO run_results (run_id, result_key, result) VALUES"
+            " ('r1', 'bmw', '{\"needs_review\": false, \"overall_confidence\": 0.9, \"secret\": 1}')"
+        ))
     cols = [
         r[0]
         for r in _q(
             engine, "SELECT column_name FROM information_schema.columns WHERE table_schema='bi' AND table_name='run_records'"
         )
     ]
-    assert "payload" not in cols
+    assert "payload" not in cols and "result" not in cols
+    assert tuple(_q(engine, "SELECT run_type, needs_review, overall_confidence FROM bi.run_records")[0]) == (
+        "extraction", False, 0.9)
     assert _q(engine, "SELECT pg_typeof(generated_at)::text FROM bi.run_records")[0][0] == "timestamp with time zone"
+
+
+def test_documents_view_reads_the_registry(engine):
+    from sqlalchemy.orm import Session
+
+    from arp.db import models as m
+
+    with Session(engine) as s, s.begin():
+        c = m.Company(name="BMW")
+        s.add(c)
+        s.flush()
+        s.add(m.Document(doc_id="d1", company_id=c.id, doc_type="10-K", title="AR", content_key="ck"))
+        cid = str(c.id)
+    assert [tuple(r) for r in _q(engine, "SELECT doc_id, company_id, title FROM bi.documents")] == [("d1", cid, "AR")]
 
 
 def test_reader_password_with_colon_and_quote(engine):

@@ -403,23 +403,11 @@ class LocalFileDocumentSource(DocumentSource):
 
         # CaptureStoreError propagates: _fetch_one drops the file this fetch.
         ref = self._content_store.resolve_document(doc_id) if self._content_store is not None else None
-        if ref is not None and ref.content_key == content_key and ref.storage_uri and self._blob_store.exists(content_key):
-            storage_uri = ref.storage_uri  # verified when it was stored; still there
-        else:
+        stored = ref is not None and ref.content_key == content_key and ref.storage_uri and self._blob_store.exists(content_key)
+        if not stored:  # else verified when it was stored and still there
             storage_uri = upload_or_fail(self._blob_store, content_key, file_path.read_bytes())
             if self._content_store is not None:
                 self._content_store.set_storage_uri(doc_id, storage_uri)
-
-        from arp.db.documents import StoredDocumentRef
-        from arp.storage.postgres_document_projection import sync_document_if_enabled
-
-        sync_document_if_enabled(
-            self._indexing_config,
-            StoredDocumentRef(
-                doc_id=doc_id, company_id=company_id, doc_type=doc_type.value, content_key=content_key,
-                title=file_path.name, local_path=str(file_path), source_url=None, storage_uri=storage_uri,
-            ),
-        )
 
     def _intake_all(self, entries: list[tuple[Path, DocType]]) -> list[tuple[Path, DocType]]:
         """Blocking, sorted-order intake over one company's files. Non-accepted

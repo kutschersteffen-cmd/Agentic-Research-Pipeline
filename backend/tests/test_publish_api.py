@@ -54,15 +54,6 @@ def env(tmp_path, pg):
         app.dependency_overrides.pop(dep, None)
 
 
-def test_publish_store_missing_dsn_503(tmp_path):
-    app.dependency_overrides[settings_dep] = lambda: Settings(postgres_dsn=None)
-    try:
-        r = TestClient(app).get("/api/publish/releases")
-    finally:
-        app.dependency_overrides.pop(settings_dep, None)
-    assert r.status_code == 503 and "ARP_POSTGRES_DSN" in r.text
-
-
 def test_publish_requires_approver(env):
     app.dependency_overrides[current_user] = lambda: Principal(user_id="u_an", name="An", role="analyst")
     assert TestClient(app).post("/api/publish/runs/r1").status_code == 403

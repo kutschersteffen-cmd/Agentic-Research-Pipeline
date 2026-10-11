@@ -121,12 +121,16 @@ def test_rekey_reruns_for_companies_that_arrive_later(pg):
 
 
 def test_legacy_tables_and_keys_are_kept(pg):
-    with engine(pg).begin() as c:
+    with engine(pg).begin() as c:  # no model defines it any more; a deployment still has it
         c.execute(text("CREATE TABLE IF NOT EXISTS document_registry (doc_id varchar PRIMARY KEY)"))
-    _rerun_step(pg)
+    try:
+        _rerun_step(pg)
+        assert "document_registry" in inspect(engine(pg)).get_table_names()
+    finally:
+        with engine(pg).begin() as c:
+            c.execute(text("DROP TABLE document_registry"))
     insp = inspect(engine(pg))
-    tables = set(insp.get_table_names())
-    assert {"document_registry", "legacy_companies"} <= tables
+    assert "legacy_companies" in insp.get_table_names()
     assert {"issuer_key", "issuer_scheme"} <= {c["name"] for c in insp.get_columns("published_facts")}
     uniques = {u["name"]: u["column_names"] for u in insp.get_unique_constraints("published_facts")}
     assert uniques["uq_published_facts_key_version"] == ["issuer_key", "field_id", "period_end", "basis", "version"]

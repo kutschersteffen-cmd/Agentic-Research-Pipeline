@@ -10,18 +10,16 @@ if TYPE_CHECKING:
 class PostgresExtraNotInstalled(RuntimeError):
     def __init__(self, exc: Exception) -> None:
         super().__init__(
-            "postgres_dsn is set but sqlalchemy/psycopg/pgvector aren't installed. Install the optional "
-            f"extra: pip install -e '.[postgres]'. Original import error: {exc}"
+            "sqlalchemy/psycopg/pgvector aren't installed; they are required dependencies: "
+            f"pip install -e . Original import error: {exc}"
         )
 
 
 # Seconds to wait for a TCP connection to Postgres before giving up.
-# Every projection sync hook runs inline on the caller's thread (see
-# run_store.py's sync_projections, engagement_store.py's _save), and they
-# are best-effort by contract -- but "best-effort" only holds if the
-# attempt is bounded. Without this, psycopg waits on the OS default, so an
-# unreachable host (a firewall dropping packets rather than refusing)
-# stalls run completion and every engagement edit for minutes.
+# Without this, psycopg waits on the OS default, so an unreachable host (a
+# firewall dropping packets rather than refusing) stalls every request --
+# including engagement_store.py's best-effort mirror on each save -- for
+# minutes instead of failing fast.
 # pool_pre_ping catches a *stale* pooled connection; it does nothing for a
 # server that never answers.
 _CONNECT_TIMEOUT_SECONDS = 10

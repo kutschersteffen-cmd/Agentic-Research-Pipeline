@@ -3,10 +3,9 @@ engagement_store.py -- `record.json` stays authoritative; `events.jsonl`
 remains the separate, untouched audit trail) into EngagementIssueModel/
 EngagementCommitmentModel (arp/storage/postgres_models.py).
 
-Unlike the run-based projections (postgres_company_records_projection.py,
-postgres_company_facts_projection.py), engagement state is a
-continuously-mutated live document, not an append-only run output --
-record.json itself is a materialized snapshot, not a log. So this
+Engagement state is a continuously-mutated live document, not an
+append-only run output -- record.json itself is a materialized
+snapshot, not a log. So this
 projection is a full replace-by-company_id on every save, never
 versioned/insert-only.
 """
@@ -17,7 +16,6 @@ import logging
 
 from arp.schemas.engagement import EngagementRecord
 from arp.storage.postgres import get_engine
-from arp.storage.postgres_projection_config import ProjectionConfig
 
 logger = logging.getLogger(__name__)
 
@@ -90,13 +88,13 @@ def sync_all(dsn: str, engagement_store) -> int:
     return count
 
 
-def sync_record_if_enabled(config: ProjectionConfig, record: EngagementRecord) -> None:
-    """Best-effort: called from EngagementStore._save. Any failure is
-    logged and swallowed -- never blocks the real (file-based) write
-    it's attached to, same contract as every other projection hook."""
-    if not config.engagement_enabled:
+def sync_record_if_enabled(dsn: str | None, record: EngagementRecord) -> None:
+    """Best-effort: called from EngagementStore._save when it has a DSN. Any
+    failure is logged and swallowed -- never blocks the real (file-based)
+    write it's attached to."""
+    if not dsn:
         return
     try:
-        sync_record(config.postgres_dsn, record)
+        sync_record(dsn, record)
     except Exception:
         logger.warning("Postgres engagement sync failed for company_id=%s", record.company_id, exc_info=True)

@@ -173,7 +173,7 @@ def test_monitoring_rules_and_alerts_delegate_to_file_store(store):
     delegated the same way observations/news/flags/analytics are (see
     test_observations_and_news_delegate_to_file_store above) -- this is
     exactly where forgetting to add a delegation method would surface as
-    an AttributeError under ARP_PORTFOLIO_BACKEND=postgres."""
+    an AttributeError on the Postgres store."""
     from arp.schemas.portfolio_monitoring import AlertRule
 
     rule = AlertRule(name="High carbon intensity", rule_type="field_threshold", field_id="climate_carbon_intensity", comparator="gt", threshold_value=400.0)
@@ -190,7 +190,7 @@ def test_governance_events_delegate_to_file_store(store):
     """Governance events are another non-relational surface, delegated the
     same way monitoring rules/alerts are above -- this is exactly where
     forgetting to add a delegation method would surface as an
-    AttributeError under ARP_PORTFOLIO_BACKEND=postgres."""
+    AttributeError on the Postgres store."""
     store.append_governance_event("decision_recorded", {"decision": {"item_key": "s1"}})
     assert store.list_governance_events()[0]["decision"]["item_key"] == "s1"
 

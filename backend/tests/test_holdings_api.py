@@ -202,7 +202,7 @@ def test_cli_import_xlsx(env, tmp_path, monkeypatch):
     users.write_text(json.dumps({"users": [{"user_id": "u_apr", "name": "A", "role": "approver", "token": "ta"}]}))
     monkeypatch.setattr(cli, "get_settings", lambda: Settings(
         users_file=users, portfolios_dir=tmp_path / "pf", runs_dir=tmp_path / "runs",
-        identifier_map_path=tmp_path / "id.jsonl", portfolio_backend="file"))
+        identifier_map_path=tmp_path / "id.jsonl"))
     monkeypatch.setenv("ARP_CLI_TOKEN", "ta")
     wb = openpyxl.Workbook()
     for line in (HEADER.strip().split(","), [ISIN, LEI, "Apple", 60, 600, "EUR"], [ISIN2, None, "SAP", 40, 400, "EUR"]):

@@ -14,10 +14,10 @@ def cleanup_cmd(apply: bool = typer.Option(False, "--apply", help="Delete. Witho
     settings = get_settings()
     held_runs: set[str] = set()
     held_keys: set[str] = set()
-    if settings.postgres_dsn:
-        from arp.publish.facts import PublishStore
+    from arp.db.session import require_dsn
+    from arp.publish.facts import PublishStore
 
-        held_runs, held_keys = PublishStore(settings.postgres_dsn).referenced()
+    held_runs, held_keys = PublishStore(require_dsn(settings)).referenced()
     report = cleanup(settings, apply=apply, held_runs=held_runs, held_keys=held_keys)
     verb = "deleted" if apply else "would delete"
     for p in report.deleted:

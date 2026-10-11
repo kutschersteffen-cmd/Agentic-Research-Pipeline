@@ -10,7 +10,6 @@ from pydantic import ValidationError
 from arp.config import Settings
 from arp.retrieval.content_store_factory import build_hybrid_content_store
 from arp.storage.document_store import DocumentContentStore
-from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.portfolio_store_factory import build_portfolio_store
 
 
@@ -27,27 +26,14 @@ def _settings(tmp_path, **overrides) -> Settings:
     )
 
 
-def test_portfolio_store_defaults_to_file_backend(tmp_path):
-    store = build_portfolio_store(_settings(tmp_path))
-    assert isinstance(store, PortfolioStore)
-
-
-def test_portfolio_store_postgres_without_dsn_still_raises_defensively(tmp_path):
-    """Settings validation now rejects this combination outright (see
-    test_selecting_a_backend_without_its_connection_is_refused_at_construction),
-    so the factory's own check is unreachable through the normal path. It
-    stays as a guard for a Settings built around validation, and is
-    asserted here through exactly that door."""
-    settings = Settings.model_construct(
-        **{**_settings(tmp_path).model_dump(), "portfolio_backend": "postgres", "postgres_dsn": None}
-    )
-
-    with pytest.raises(RuntimeError, match="postgres_dsn"):
+def test_portfolio_store_without_dsn_raises(tmp_path):
+    settings = Settings.model_construct(**{**_settings(tmp_path).model_dump(), "postgres_dsn": None})
+    with pytest.raises(RuntimeError, match="ARP_POSTGRES_DSN"):
         build_portfolio_store(settings)
 
 
-def test_portfolio_store_postgres_with_dsn_selects_postgres_backend(tmp_path):
-    store = build_portfolio_store(_settings(tmp_path, portfolio_backend="postgres", postgres_dsn="postgresql+psycopg://u:p@localhost/db"))
+def test_portfolio_store_is_the_postgres_store(tmp_path):
+    store = build_portfolio_store(_settings(tmp_path, postgres_dsn="postgresql+psycopg://u:p@localhost/db"))
     assert type(store).__name__ == "PostgresPortfolioStore"
 
 
@@ -58,10 +44,5 @@ def test_hybrid_content_store_is_the_document_content_store(tmp_path, pg):
 
 def test_selecting_a_backend_without_its_connection_is_refused_at_construction(tmp_path):
     """Caught when Settings is built (startup, API and CLI alike), not felt later as a different backend."""
-    for kwargs in (
-        {"portfolio_backend": "postgres"},
-        {"embeddings_backend": "postgres"},
-        {"retrieval_backend": "opensearch"},
-    ):
-        with pytest.raises(ValidationError):
-            _settings(tmp_path, **kwargs)
+    with pytest.raises(ValidationError):
+        _settings(tmp_path, retrieval_backend="opensearch")

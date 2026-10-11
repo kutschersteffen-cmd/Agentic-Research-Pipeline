@@ -15,17 +15,14 @@ snapshots_app = typer.Typer(help="Build frozen monthly snapshots and pull them f
 
 @snapshots_app.command("build")
 def build_cmd(as_of: str = typer.Option(..., "--as-of", help="The month end, e.g. 2026-10-31")) -> None:
-    """Freezes the month's holdings and, when ARP_POSTGRES_DSN is set, its published ESG facts."""
-    settings = get_settings()
-    if settings.postgres_dsn:
-        from arp.publish.facts import PublishStore
-        from arp.publish.reader import facts_as_of
+    """Freezes the month's holdings and its published ESG facts."""
+    from arp.db.session import require_dsn
+    from arp.publish.facts import PublishStore
+    from arp.publish.reader import facts_as_of
 
-        store = PublishStore(settings.postgres_dsn)
-        facts = lambda a: facts_as_of(store, a)  # noqa: E731
-    else:
-        typer.echo("ARP_POSTGRES_DSN is not set -- building without ESG facts.", err=True)
-        facts = lambda a: []  # noqa: E731
+    settings = get_settings()
+    store = PublishStore(require_dsn(settings))
+    facts = lambda a: facts_as_of(store, a)  # noqa: E731
     try:
         manifest = build_snapshot(as_of, root=settings.snapshot_store_dir, portfolio_store=_portfolio_store(),
                                   facts_as_of=facts)

@@ -37,8 +37,7 @@ from arp.db.session import transaction
 from arp.db.to_observations import review_target
 from arp.schemas.common import CompanyRef, RunManifest, now_iso
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
-from arp.storage.postgres_projection_config import ProjectionConfig
-from arp.storage.run_store import _TERMINAL_STATUSES, LegacyRunStore, done_keys_from_rows, sync_projections
+from arp.storage.run_store import LegacyRunStore, done_keys_from_rows
 from arp.universe import resolve_universe
 
 _DECISIONS = {d.value for d in DecisionKind}
@@ -88,11 +87,10 @@ def _iso(value: datetime) -> str:
 
 
 class RunStore:
-    def __init__(self, dsn: str, runs_dir: Path, projection_config: ProjectionConfig | None = None) -> None:
+    def __init__(self, dsn: str, runs_dir: Path) -> None:
         self.dsn = dsn
         self.runs_dir = runs_dir
         self._files = LegacyRunStore(runs_dir)  # side artifacts only
-        self._projection_config = projection_config
         self._local = threading.local()  # run_id -> the session holding that run's lock, per thread
 
     def _held(self) -> dict[str, Session]:
@@ -438,8 +436,6 @@ class RunStore:
         stmt = insert(Run).values(**values)
         with self._tx(manifest.run_id) as s:
             s.execute(stmt.on_conflict_do_update(index_elements=[Run.run_id], set_={k: stmt.excluded[k] for k in values if k != "run_id"}))
-        if self._projection_config is not None and manifest.status in _TERMINAL_STATUSES:
-            sync_projections(self._projection_config, self, manifest.run_id)
 
     @staticmethod
     def _manifest(run: Run) -> RunManifest:

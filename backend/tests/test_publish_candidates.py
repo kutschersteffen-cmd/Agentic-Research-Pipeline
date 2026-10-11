@@ -184,3 +184,19 @@ def test_rejected_restatement_not_published(rs):
     _rst(rs)
     _decide(rs, "rst_1", "reject")
     assert run_candidates(rs, "r1") == ([], [Skip(OLD, "rejected")])
+
+
+def test_merge_correction_infers_value_state_and_clears_stale_conversion():
+    from arp.publish.candidates import merge_correction
+
+    f = {"field_id": "a", "value": 9, "value_state": "not_found", "canonical_value": 9000, "canonical_unit": "kg",
+         "fx_rate": 1.1, "fx_rate_ref": "fx_v1", "scale_applied": 1000.0}
+    for edited, state in ((5, "found"), ("0", "zero"), (0.0, "zero"), (False, "found")):
+        m = merge_correction(f, {"decision": "edit", "edited_value": {"value": edited}})
+        assert m["value_state"] == state
+        assert (m["canonical_value"], m["canonical_unit"], m["fx_rate"], m["fx_rate_ref"], m["scale_applied"]) == (None,) * 5
+    kept = merge_correction(f, {"decision": "edit", "edited_value": {"value": 5, "canonical_value": 5, "canonical_unit": "kg"}})
+    assert (kept["canonical_value"], kept["canonical_unit"]) == (5, "kg")
+    cit = {"doc_id": "d"}
+    corrected = merge_correction(f, {"decision": "correct", "edited_value": {"value": 1}, "correction_citation": cit})
+    assert corrected["citations"] == [cit] and corrected["grounded"] is True

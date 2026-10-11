@@ -4,12 +4,12 @@ datasets in `catalog.VIEW_DATASETS` (the column lists here must match it;
 tests assert that), expose real types instead of ISO strings, and leave
 out raw JSON payloads.
 
-Fact value shape (checked against `fact_candidates` in
-postgres_company_facts_projection.py): `company_facts.value` is the whole
-pipeline row/match/vote dict, with no guaranteed numeric field. Where a
-pipeline reports a scalar it is `value->'value'`, so `value_num` is that
-key when `jsonb_typeof` is 'number' and NULL otherwise; `value_text` is the
-same key when it is a JSON string. Anything else stays NULL, never an error.
+The fact, run and document views read the company-foundation tables
+(`company_facts`, `run_results`, `documents`) under the column names and
+types the earlier projection tables had, so existing Superset datasets keep
+working; `company_id` there is the registry UUID as text. A fact's `value`
+is the field's JSON value: `value_num` is it when `jsonb_typeof` is
+'number', `value_text` when it is a string, otherwise NULL, never an error.
 
 Every view is `CREATE OR REPLACE`, so `create_bi_views` is safe to re-run.
 """
@@ -49,15 +49,18 @@ _SAFE_CAST_FUNCTIONS = (
 )
 
 _FACT_SELECT = """
-    SELECT company_id, fact_key, fact_type,
-           bi.safe_date(NULLIF(as_of, '')) AS as_of,
-           CASE WHEN jsonb_typeof(value->'value') = 'number' AND abs((value->>'value')::numeric) < 1e300
-                THEN (value->>'value')::double precision END AS value_num,
-           CASE WHEN jsonb_typeof(value->'value') = 'string' THEN value->>'value' END AS value_text,
-           status, confidence, reviewer,
-           bi.safe_ts(valid_from) AS valid_from
-    FROM legacy_company_facts
-    WHERE is_current AND status IN ({statuses})
+    SELECT f.company_id::varchar AS company_id, f.field_id::varchar AS fact_key, d.data_type::varchar AS fact_type,
+           f.period_end AS as_of,
+           CASE WHEN jsonb_typeof(f.value) = 'number' AND abs((f.value #>> '{{}}')::numeric) < 1e300
+                THEN (f.value #>> '{{}}')::double precision END AS value_num,
+           CASE WHEN jsonb_typeof(f.value) = 'string' THEN f.value #>> '{{}}' END AS value_text,
+           f.status::varchar AS status, o.confidence, r.reviewer::varchar AS reviewer,
+           f.valid_from
+    FROM company_facts f
+    JOIN field_observations o ON o.id = f.observation_id
+    LEFT JOIN field_definitions d ON d.field_id = o.field_id AND d.version = o.field_version
+    LEFT JOIN review_decisions r ON r.id = f.decision_id
+    WHERE f.valid_to IS NULL AND f.status::text IN ({statuses})
 """
 
 _HOLDINGS_SELECT = """
@@ -88,14 +91,18 @@ _VIEWS = {
     "company_facts": _FACT_SELECT.format(statuses="'approved', 'edited', 'auto_approved', 'auto_accepted'"),
     "company_facts_pending": _FACT_SELECT.format(statuses="'pending_review'"),
     "run_records": """
-        SELECT run_id, run_type, company_id, needs_review, overall_confidence,
-               bi.safe_ts(generated_at) AS generated_at
-        FROM company_records
+        SELECT r.run_id::varchar AS run_id, u.run_type::varchar AS run_type, r.company_id::varchar AS company_id,
+               CASE WHEN jsonb_typeof(r.result->'needs_review') = 'boolean'
+                    THEN (r.result->>'needs_review')::boolean END AS needs_review,
+               CASE WHEN jsonb_typeof(r.result->'overall_confidence') = 'number'
+                    THEN (r.result->>'overall_confidence')::double precision END AS overall_confidence,
+               r.created_at AS generated_at
+        FROM run_results r JOIN runs u ON u.run_id = r.run_id
     """,
     "documents": """
-        SELECT doc_id, company_id, doc_type, title, source_url,
-               bi.safe_ts(first_seen_at) AS first_seen_at, bi.safe_ts(last_seen_at) AS last_seen_at
-        FROM document_registry
+        SELECT doc_id::varchar AS doc_id, company_id::varchar AS company_id, doc_type::varchar AS doc_type,
+               title::varchar AS title, source_url::varchar AS source_url, first_seen_at, last_seen_at
+        FROM documents
     """,
     # Datasets the monthly run publishes into bi_published (arp/bi/published.py), one JSON object per row.
     # `p.row` is qualified because ROW is also an SQL keyword.

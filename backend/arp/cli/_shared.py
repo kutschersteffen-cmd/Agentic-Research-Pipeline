@@ -19,7 +19,6 @@ from arp.storage.document_store import DocumentContentStore
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.portfolio_store import portfolio_directories
 from arp.storage.portfolio_store_factory import build_portfolio_store
-from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.reporting_store import ReportingStore
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
@@ -41,7 +40,7 @@ async def _and_drain(coro):
 
 def _engagement_store() -> EngagementStore:
     settings = get_settings()
-    return EngagementStore(settings.engagements_dir, projection_config=ProjectionConfig.from_settings(settings))
+    return EngagementStore(settings.engagements_dir, dsn=settings.postgres_dsn)
 
 
 
@@ -100,7 +99,7 @@ def _xbrl_source() -> XbrlFactSource:
 
 def _run_store() -> RunStore:
     settings = get_settings()
-    return RunStore(require_dsn(settings), settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
+    return RunStore(require_dsn(settings), settings.runs_dir)
 
 
 

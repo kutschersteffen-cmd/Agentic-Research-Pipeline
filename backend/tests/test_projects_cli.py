@@ -80,7 +80,6 @@ def test_non_xlsx_rejected(projects_dir):
 
 
 def _configure(monkeypatch):
-    monkeypatch.setenv("ARP_PORTFOLIO_BACKEND", "postgres")
     monkeypatch.setenv("ARP_POSTGRES_DSN", "postgresql+psycopg://u:p@localhost:5432/arp")
     monkeypatch.setenv("ARP_SUPERSET_PASSWORD", "x" * 20)
     get_settings.cache_clear()
@@ -117,20 +116,6 @@ def test_open_error_is_one_line(projects_dir, monkeypatch):
     monkeypatch.setattr("arp.projects.service.open_project", boom)
     r = runner.invoke(app, ["project", "open", "demo"])
     assert r.exit_code == 1 and "Opening the project failed at import: bad file" in r.output
-
-
-def test_open_with_file_backend_exits_2_before_any_work(projects_dir, monkeypatch):
-    monkeypatch.setenv("ARP_PORTFOLIO_BACKEND", "file")
-    get_settings.cache_clear()
-
-    def forbidden(*a):
-        raise AssertionError("called")
-
-    monkeypatch.setattr(cli, "_portfolio_store", forbidden)
-    monkeypatch.setattr(cli, "_superset_client", forbidden)
-    monkeypatch.setattr("arp.projects.service.open_project", forbidden)
-    r = runner.invoke(app, ["project", "open", "demo"])
-    assert r.exit_code == 2 and "Postgres" in r.output
 
 
 def _add(*args):
@@ -177,10 +162,9 @@ def test_empty_name_rejected(projects_dir):
     _clean(runner.invoke(app, ["project", "create", "demo", "--name", "  "]))
 
 
-@pytest.mark.parametrize("missing", ["superset_password", "postgres_dsn"])
+@pytest.mark.parametrize("missing", ["superset_password"])
 def test_open_unconfigured_exits_2_with_no_calls(projects_dir, monkeypatch, missing):
-    # Settings itself rejects backend=postgres without a DSN, so stand in for the settings object.
-    s = SimpleNamespace(portfolio_backend="postgres", postgres_dsn="dsn", superset_password="pw", **{})
+    s = SimpleNamespace(postgres_dsn="dsn", superset_password="pw")
     setattr(s, missing, None)
     monkeypatch.setattr(cli, "get_settings", lambda: s)
 

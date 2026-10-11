@@ -18,7 +18,6 @@ from arp.review.decide import sampled, second_review_reasons
 from arp.review.items import get_item, list_open_items
 from arp.schemas.common import RunManifest
 from arp.storage.document_store import DocumentContentStore
-from arp.storage.postgres_company_facts_projection import resolve_extraction_fact
 from arp.storage.run_store import RunStore
 from tests.conftest import PRINCIPAL
 from tests.postgres_helpers import pg_dsn, replace_results
@@ -435,11 +434,6 @@ def test_auto_accepted_row_decidable_but_not_listed(env):
     assert decide(ALICE, CORRECT, key=AUTO_KEY).json()["state"] == "first_done"
     agree = {**CORRECT, "correction_citation": {**CIT, "quote": rows(rs)[-1]["correction_citation"]["span_text"]}}  # the UI's Agree
     assert decide(BOB, agree, key=AUTO_KEY).json()["state"] == "second_done"
-    row = rs.read_results("ext1")[0]
-    value, status, _ = resolve_extraction_fact("C1", row, effective_decisions(rs, "ext1", cosign_required={"edit"}), {KEY})
-    assert status == "pending_review"  # KEY itself is still open
-    value, status, _ = resolve_extraction_fact("C1", row, effective_decisions(rs, "ext1", cosign_required={"edit"}), set())
-    assert status == "edited" and value["fields"][1]["value"] == 1100
 
 
 def test_open_review_on_auto_accepted_row_is_not_system_decided(env):
@@ -479,14 +473,3 @@ def test_held_field_key_is_not_decidable(env):
     assert client(ALICE).get(f"/api/review/runs/ext1/items/{AUTO_KEY}/context").status_code == 404
     assert decide(ALICE, APPROVE, key=AUTO_KEY, etag="x").status_code == 404
     assert rows(rs) == []
-
-
-def test_open_review_on_auto_accepted_row_projects_pending(env):
-    rs = env[0]
-    _add_auto_accepted(rs)
-    assert decide(ALICE, CORRECT, key=AUTO_KEY).json()["state"] == "first_done"
-    row = rs.read_results("ext1")[0]
-    row["fields"] = row["fields"][1:]  # only the auto-accepted field
-    open_keys = {AUTO_KEY}  # what materialize adds: latest minus effective decisions
-    assert resolve_extraction_fact("C1", row, effective_decisions(rs, "ext1", cosign_required={"edit"}), open_keys)[1] == "pending_review"
-    assert resolve_extraction_fact("C1", row, {}, set())[1] == "auto_accepted"

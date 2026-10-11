@@ -77,15 +77,13 @@ def test_a_missing_column_is_reported_then_added(current_schema):
     to discover as an UndefinedColumn error at query time."""
     from arp.storage.postgres_schema import ensure_schema, schema_report
 
-    # bi.company_facts / bi.run_records select needs_review, which blocks the DROP.
-    _execute("DROP SCHEMA IF EXISTS bi CASCADE")
-    _execute("ALTER TABLE company_records DROP COLUMN needs_review")
+    _execute("ALTER TABLE engagement_issues DROP COLUMN source")
 
     report = schema_report(DSN)
-    assert "company_records.needs_review" in report["missing_columns"]
+    assert "engagement_issues.source" in report["missing_columns"]
     assert report["current"] is False
 
-    assert "company_records.needs_review" in ensure_schema(DSN)["columns_added"]
+    assert "engagement_issues.source" in ensure_schema(DSN)["columns_added"]
     report = schema_report(DSN)
     assert report["missing_columns"] == []
     assert report["current"] is True
@@ -102,19 +100,19 @@ def test_a_column_the_models_dropped_is_reported_as_drift_not_removed(current_sc
     report names it and a human decides."""
     from arp.storage.postgres_schema import ensure_schema, schema_report
 
-    _execute("ALTER TABLE company_records ADD COLUMN legacy_note TEXT")
+    _execute("ALTER TABLE holdings ADD COLUMN legacy_note TEXT")
     try:
         report = schema_report(DSN)
-        assert any("company_records.legacy_note" in note for note in report["drift"])
+        assert any("holdings.legacy_note" in note for note in report["drift"])
         # Still "current": every query this codebase issues works fine.
         assert report["current"] is True
 
         ensure_schema(DSN)
         assert _execute(
-            "SELECT 1 FROM information_schema.columns WHERE table_name='company_records' AND column_name='legacy_note'"
+            "SELECT 1 FROM information_schema.columns WHERE table_name='holdings' AND column_name='legacy_note'"
         ), "ensure_schema must not drop a column it doesn't know about"
     finally:
-        _execute("ALTER TABLE company_records DROP COLUMN IF EXISTS legacy_note")
+        _execute("ALTER TABLE holdings DROP COLUMN IF EXISTS legacy_note")
 
 
 def test_a_recorded_step_is_applied_once_and_only_once(current_schema):
@@ -142,7 +140,7 @@ def test_the_projection_fk_step_is_idempotent_against_a_legacy_database(current_
     from arp.storage.postgres_schema import ensure_schema
 
     _execute(
-        "ALTER TABLE company_records ADD CONSTRAINT company_records_company_id_fkey "
+        "ALTER TABLE engagement_issues ADD CONSTRAINT engagement_issues_company_id_fkey "
         "FOREIGN KEY (company_id) REFERENCES legacy_companies(company_id)"
     )
     _execute("DELETE FROM schema_migrations WHERE name = '0001_drop_projection_company_fks'")
@@ -151,7 +149,7 @@ def test_the_projection_fk_step_is_idempotent_against_a_legacy_database(current_
 
     assert (
         _execute(
-            "SELECT 1 FROM pg_constraint WHERE conname = 'company_records_company_id_fkey'"
+            "SELECT 1 FROM pg_constraint WHERE conname = 'engagement_issues_company_id_fkey'"
         )
         == []
     )

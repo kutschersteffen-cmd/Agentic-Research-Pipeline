@@ -8,9 +8,36 @@ from arp.orchestration.review_queue import effective_decisions, item_states, lat
 from arp.publish.facts import FactCandidate
 from arp.schemas.common import Citation
 from arp.schemas.review import field_item_key, period_key
-from arp.storage.postgres_company_facts_projection import merge_correction
 
 _STATE = {"approve": "approved", "correct": "edited", "edit": "edited"}
+
+
+def merge_correction(f: dict, decision: dict) -> dict:
+    """One field with an `edit`/`correct` decision's edited keys merged over it."""
+    edit = decision.get("edited_value") or {}
+    merged = {**f, **edit, "field_id": f["field_id"]}
+    if decision.get("decision") == "correct" and decision.get("correction_citation"):
+        merged["citations"] = [decision["correction_citation"]]  # the correction's own grounded source
+        merged["grounded"] = True
+    if edit.get("value") is not None and "value_state" not in edit:  # a supplied value is no longer not_found
+        merged["value_state"] = "zero" if _is_zero(edit["value"]) else "found"
+    if "value" in edit:  # never leave the old conversion beside an edited value
+        if not ({"canonical_value", "canonical_unit"} & edit.keys()):
+            merged["canonical_value"] = merged["canonical_unit"] = None
+        for k in ("fx_rate", "fx_rate_ref", "scale_applied"):
+            if k not in edit:
+                merged[k] = None
+    return merged
+
+
+def _is_zero(v) -> bool:
+    """Zero iff not a bool and float(v) == 0 ("0" is zero, False is not); frontend withEditedValue matches."""
+    if isinstance(v, bool):
+        return False
+    try:
+        return float(v) == 0
+    except (TypeError, ValueError):
+        return False
 
 
 @dataclass(frozen=True)

@@ -6,30 +6,23 @@ from arp.config import get_settings
 from arp.db.session import require_dsn
 
 db_app = typer.Typer(
-    help="Opt-in store setup: Postgres/pgvector (arp/storage/postgres*.py, requires ARP_POSTGRES_DSN + the "
-    "`postgres` extra), OpenSearch (opensearch_client.py, requires ARP_OPENSEARCH_URL + the `opensearch` extra), "
-    "and object storage (object_store_client.py, requires ARP_OBJECT_STORE_ENDPOINT_URL + the `object_storage` extra)."
+    help="Store setup: Postgres/pgvector (required, ARP_POSTGRES_DSN), plus the optional OpenSearch "
+    "(ARP_OPENSEARCH_URL + the `opensearch` extra) and object storage (ARP_OBJECT_STORE_ENDPOINT_URL + the "
+    "`object_storage` extra); file-era import and verify."
 )
 
 
 @db_app.command("init-postgres")
 def db_init_postgres() -> None:
-    """Creates or updates the pgvector extension and every table the opt-in
-    Postgres store defines (portfolios/securities/companies/holdings/
-    security resolutions/chunk_embeddings, plus the read-model projection
-    tables), idempotently.
+    """Creates or updates the pgvector extension and every table, idempotently.
 
-    Run it against a fresh database before setting
-    ARP_PORTFOLIO_BACKEND=postgres and/or ARP_EMBEDDINGS_BACKEND=postgres
-    -- and again after upgrading this codebase, since it also adds columns
-    and applies recorded schema steps to a database created by an earlier
-    version (see arp/storage/postgres_schema.py). Re-running against an
-    already-current database changes nothing. `arp db check-postgres`
-    reports what a database has without touching it."""
+    Run it against a fresh database before the first start, and again after
+    upgrading this codebase: it also adds columns and applies recorded schema
+    steps to a database created by an earlier version (see
+    arp/storage/postgres_schema.py). It never drops anything. Re-running
+    against an already-current database changes nothing. `arp db
+    check-postgres` reports what a database has without touching it."""
     settings = get_settings()
-    if not settings.postgres_dsn:
-        typer.echo("ARP_POSTGRES_DSN is not set -- nothing to initialize.", err=True)
-        raise typer.Exit(1)
     from arp.storage.postgres import ensure_schema
 
     result = ensure_schema(settings.postgres_dsn)
@@ -54,9 +47,6 @@ def db_check_postgres() -> None:
     Exits non-zero when the database is not current, so it can gate a
     deploy."""
     settings = get_settings()
-    if not settings.postgres_dsn:
-        typer.echo("ARP_POSTGRES_DSN is not set -- nothing to check.", err=True)
-        raise typer.Exit(1)
     from arp.storage.postgres_schema import schema_report
 
     report = schema_report(settings.postgres_dsn)
@@ -71,6 +61,8 @@ def db_check_postgres() -> None:
         typer.echo(f"  {label}: {', '.join(report[key]) or 'none'}")
     for note in report["drift"]:
         typer.echo(f"  drift: {note}")
+    for table, count in report["unmatched_company_rows"].items():
+        typer.echo(f"  rows without a company: {table}={count} (matched by `arp db import` once the company exists)")
     if report["current"]:
         typer.echo("Current -- every table, column and schema step this codebase expects is present.")
         return
@@ -111,10 +103,9 @@ def db_init_object_store() -> None:
 
 
 reindex_app = typer.Typer(
-    help="Backfill/resync the opt-in OpenSearch, object-store, and Postgres read-model projections for "
-    "documents/runs that predate those stores being enabled (or whose live sync hook previously failed). Runs "
-    "regardless of the corresponding *_enabled flag -- those only gate the per-ingestion/per-run live hook, not "
-    "this one-off backfill."
+    help="Backfill/resync OpenSearch, the object store and the Postgres engagement tables for documents and "
+    "records that predate them (or whose live hook failed). Runs regardless of the *_enabled flags -- those only "
+    "gate the live hook, not this one-off backfill."
 )
 db_app.add_typer(reindex_app, name="reindex")
 
@@ -223,88 +214,6 @@ def reindex_object_store() -> None:
     typer.echo(f"Object-store backfill complete: uploaded={uploaded} skipped={skipped} failed={failed}.")
 
 
-@reindex_app.command("documents")
-def reindex_documents() -> None:
-    """Mirrors every already-registered document from the authoritative
-    registry (Postgres `documents`) into
-    DocumentRegistryModel (Postgres).
-    Safe to re-run -- each document is an idempotent upsert by doc_id."""
-    settings = get_settings()
-    if not settings.postgres_dsn:
-        typer.echo("ARP_POSTGRES_DSN is not set -- nothing to sync.", err=True)
-        raise typer.Exit(1)
-    from arp.retrieval.content_store_factory import content_store_for
-    from arp.storage.postgres_document_projection import sync_all
-
-    content_store = content_store_for(settings)
-    count = sync_all(settings.postgres_dsn, content_store)
-    typer.echo(f"Document-registry backfill complete: synced={count}.")
-
-
-_FULL_OPTION = typer.Option(
-    False,
-    "--full",
-    help="Rescan every run, ignoring (and then replacing) the checkpoint from the last backfill. Use after changing "
-    "what a projection stores, or to repair a projection whose rows were deleted.",
-)
-
-
-@reindex_app.command("company-records")
-def reindex_company_records(full: bool = _FULL_OPTION) -> None:
-    """Mirrors every run's results.jsonl rows (across every run type --
-    extraction, financials, theme matches, voting ballots) into
-    CompanyRecordModel (Postgres). Safe to re-run -- an already-synced
-    run's rows are skipped via their unique constraint.
-
-    Incremental by default: only runs whose manifest changed since the
-    last backfill are rescanned (see arp/storage/postgres_checkpoints.py).
-    Pass --full to rescan everything."""
-    settings = get_settings()
-    if not settings.postgres_dsn:
-        typer.echo("ARP_POSTGRES_DSN is not set -- nothing to sync.", err=True)
-        raise typer.Exit(1)
-    from arp.schemas.common import now_iso
-    from arp.storage.postgres_checkpoints import get_checkpoint, set_checkpoint
-    from arp.storage.postgres_company_records_projection import sync_all
-    from arp.storage.run_store import RunStore
-
-    run_store = RunStore(require_dsn(settings), settings.runs_dir)
-    since = None if full else get_checkpoint(settings.postgres_dsn, "company_records")
-    started_at = now_iso()
-    count = sync_all(settings.postgres_dsn, run_store, since=since)
-    set_checkpoint(settings.postgres_dsn, "company_records", started_at)
-    scope = "every run" if since is None else f"runs updated after {since}"
-    typer.echo(f"Company-records backfill complete ({scope}): rows_inserted={count}.")
-
-
-@reindex_app.command("company-facts")
-def reindex_company_facts(full: bool = _FULL_OPTION) -> None:
-    """Materializes every run's results plus review_queue.py decisions
-    into CompanyFactModel (Postgres) -- the current, verified/approved
-    value per company+field. Safe to re-run: an unchanged fact is a
-    no-op, a changed one is versioned (the prior row is closed, a new
-    current one inserted), never overwritten in place.
-
-    Incremental by default, same as `reindex company-records`; --full
-    rescans every run."""
-    settings = get_settings()
-    if not settings.postgres_dsn:
-        typer.echo("ARP_POSTGRES_DSN is not set -- nothing to sync.", err=True)
-        raise typer.Exit(1)
-    from arp.schemas.common import now_iso
-    from arp.storage.postgres_checkpoints import get_checkpoint, set_checkpoint
-    from arp.storage.postgres_company_facts_projection import materialize_all
-    from arp.storage.run_store import RunStore
-
-    run_store = RunStore(require_dsn(settings), settings.runs_dir)
-    since = None if full else get_checkpoint(settings.postgres_dsn, "company_facts")
-    started_at = now_iso()
-    count = materialize_all(settings.postgres_dsn, run_store, since=since)
-    set_checkpoint(settings.postgres_dsn, "company_facts", started_at)
-    scope = "every run" if since is None else f"runs updated after {since}"
-    typer.echo(f"Company-facts backfill complete ({scope}): facts_changed={count}.")
-
-
 @reindex_app.command("engagement")
 def reindex_engagement() -> None:
     """Mirrors every company's engagement record (record.json --
@@ -312,9 +221,6 @@ def reindex_engagement() -> None:
     EngagementCommitmentModel (Postgres). Safe to re-run -- each
     company's rows are fully replaced from its current record.json."""
     settings = get_settings()
-    if not settings.postgres_dsn:
-        typer.echo("ARP_POSTGRES_DSN is not set -- nothing to sync.", err=True)
-        raise typer.Exit(1)
     from arp.storage.engagement_store import EngagementStore
     from arp.storage.postgres_engagement_projection import sync_all
 

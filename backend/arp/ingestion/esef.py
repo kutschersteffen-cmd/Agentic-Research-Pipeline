@@ -440,17 +440,11 @@ class EsefDocumentSource(DocumentSource):
         self, doc_id: str, company_id: str, title: str, content_key: str, text: str, raw: bytes, url: str, path: Path
     ) -> None:
         """Mirrors EdgarDocumentSource._index_and_archive; the blob key is the content_key (sha256 of the bytes)."""
-        from arp.db.documents import StoredDocumentRef
         from arp.retrieval.search_indexer import index_document_if_enabled
         from arp.storage.document_blob_store import blob_store_for, upload_or_fail
-        from arp.storage.postgres_document_projection import sync_document_if_enabled
 
         cfg = self._indexing_config
         doc_type = DocType.ANNUAL_REPORT_10K
         index_document_if_enabled(cfg, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=text)
         storage_uri = upload_or_fail(blob_store_for(cfg), content_key, raw)
         self._content_store.set_storage_uri(doc_id, storage_uri)
-        sync_document_if_enabled(cfg, StoredDocumentRef(
-            doc_id=doc_id, company_id=company_id, doc_type=doc_type.value, content_key=content_key,
-            title=title, local_path=str(path), source_url=url, storage_uri=storage_uri,
-        ))

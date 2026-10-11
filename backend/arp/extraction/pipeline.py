@@ -87,8 +87,6 @@ def build_references(
 
 
 def _published_values(settings: Settings, issuer_key_: str) -> dict[str, tuple[float, str | None]]:
-    if not settings.postgres_dsn:
-        return {}
     try:
         from arp.publish.facts import PublishStore
         from arp.publish.reader import facts_as_of

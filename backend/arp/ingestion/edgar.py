@@ -200,7 +200,6 @@ class EdgarDocumentSource(DocumentSource):
             self._indexing_config, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=full_text
         )
 
-        storage_uri = None
         if raw_bytes is not None:
             from arp.storage.document_blob_store import blob_store_for, upload_or_fail
 
@@ -208,17 +207,6 @@ class EdgarDocumentSource(DocumentSource):
             storage_uri = upload_or_fail(blob_store_for(self._indexing_config), hashlib.sha256(raw_bytes).hexdigest(), raw_bytes)
             if self._content_store is not None:
                 self._content_store.set_storage_uri(doc_id, storage_uri)
-
-        from arp.db.documents import StoredDocumentRef
-        from arp.storage.postgres_document_projection import sync_document_if_enabled
-
-        sync_document_if_enabled(
-            self._indexing_config,
-            StoredDocumentRef(
-                doc_id=doc_id, company_id=company_id, doc_type=doc_type.value, content_key=content_key,
-                title=title, local_path=None, source_url=source_url, storage_uri=storage_uri,
-            ),
-        )
 
     async def fetch_latest_annual_original(
         self, cik: str, *, client: httpx.AsyncClient | None = None

@@ -376,19 +376,13 @@ class Settings(BaseSettings):
         "low-confidence.",
     )
 
-    # Optional Postgres/pgvector store (arp/storage/postgres*.py, requires
-    # the `postgres` extra: pip install -e ".[postgres]"). Additive, not a
-    # replacement for the file-based run/review audit trail: at this
-    # system's scale (batch runs, one review queue per run, no concurrent
-    # multi-writer access to the same record) an append-only JSONL history
-    # is simpler to keep fully auditable than a table with UPDATEs. The
-    # place a relational store earns its cost is Portfolio Risk & Exposure
-    # Monitoring, where holdings need real joins across portfolios,
-    # securities, companies, and time -- see docs/METHODOLOGY.md.
+    # Postgres with pgvector: the system of record (arp/db/models.py,
+    # arp/storage/postgres_models.py; see docs/METHODOLOGY.md "Storage").
     postgres_dsn: str | None = Field(
         default=None,
         description="SQLAlchemy DSN, e.g. postgresql+psycopg://user:pass@host:5432/arp. Required: Postgres is the "
-        "system of record (runs, companies, review), so the app and CLI refuse to start without it.",
+        "system of record (companies, runs, review, facts, documents, embeddings, holdings), so the app and CLI "
+        "refuse to start without it. Create or upgrade the schema with `arp db init-postgres`.",
     )
     # Apache Superset BI integration (arp/bi/). Needs postgres_dsn: Superset
     # reads only the read-only 'bi' views, never base tables.
@@ -409,22 +403,6 @@ class Settings(BaseSettings):
         description="Password of the bi_reader Postgres role (SELECT on schema 'bi' only) that Superset connects "
         "with. None (default) means the role is not provisioned; no built-in default.",
     )
-    portfolio_backend: Literal["file", "postgres"] = Field(
-        default="file",
-        description="Literal-typed, so a typo ('postgress') fails at startup with a validation error naming the "
-        "allowed values rather than silently selecting the default backend. 'file' (default, PortfolioStore) or "
-        "'postgres' (PostgresPortfolioStore, requires postgres_dsn) "
-        "for portfolios/securities/companies/holdings-snapshots specifically. "
-        "Observations/news/flags/analytics/dashboards "
-        "stay file-based either way -- see the module docstring in arp/storage/postgres_portfolio_store.py.",
-    )
-    embeddings_backend: Literal["sqlite", "postgres"] = Field(
-        default="sqlite",
-        description="'sqlite' (default, DocumentContentStore's local cache) or 'postgres' (pgvector, requires "
-        "postgres_dsn) for the hybrid-retrieval chunk-embeddings cache. Same lookup/store interface either way, "
-        "so hybrid_retrieval_enabled's behavior is unaffected -- only where the vectors are persisted changes.",
-    )
-
     # Optional OpenSearch store (arp/storage/opensearch_client.py, requires
     # the `opensearch` extra: pip install -e ".[opensearch]"). Additive:
     # powers a new user-facing search feature (arp/api/routers/search.py)
@@ -489,45 +467,9 @@ class Settings(BaseSettings):
         default=3650, ge=365, description="Stored originals in blob_store_dir, by file age."
     )
 
-    # Postgres read-model projections beyond Portfolio/Holdings (see
-    # postgres_models.py's module docstring for the original narrower
-    # scope). Each mirrors an existing store -- which stays authoritative
-    # and unmodified either way (for the document registry that is SQLite,
-    # or Postgres itself when embeddings_backend=postgres) -- into a
-    # queryable Postgres table. All require postgres_dsn; all default off.
-    document_registry_projection_enabled: bool = Field(
-        default=False,
-        description="Mirrors the document registry into Postgres as a queryable read-model (requires "
-        "postgres_dsn) for relational joins against OpenSearch's doc_id hits. Additive only -- the registry stays "
-        "the source of truth: SQLite by default, Postgres when embeddings_backend=postgres; see "
-        "arp/storage/postgres_document_projection.py.",
-    )
-    company_records_projection_enabled: bool = Field(
-        default=False,
-        description="Mirrors each completed run's results (extraction, financials, theme matches, voting ballots "
-        "-- anything produced via RunStore/results.jsonl) into a queryable Postgres history table (requires "
-        "postgres_dsn), on run completion. Additive only -- results.jsonl is never written to by this; see "
-        "arp/storage/postgres_company_records_projection.py.",
-    )
-    company_facts_projection_enabled: bool = Field(
-        default=False,
-        description="Materializes each run's results plus the review_queue's decisions into a queryable, "
-        "insert-only/versioned 'current approved value per company+field' table (requires postgres_dsn) -- the "
-        "generalization of PortfolioStore.latest_observation to every pipeline. Additive only -- "
-        "review_decisions.jsonl is never written to by this; see arp/storage/postgres_company_facts_projection.py.",
-    )
-    engagement_projection_enabled: bool = Field(
-        default=False,
-        description="Mirrors EngagementStore's current per-company issue/commitment state (record.json, always "
-        "authoritative) into queryable Postgres tables (requires postgres_dsn), on every save. Additive only -- "
-        "record.json/events.jsonl are never written to by this; see arp/storage/postgres_engagement_projection.py.",
-    )
-
     # Each entry: the setting, the value that needs a connection, the
     # setting that must then be set, and what to do instead.
     _BACKEND_REQUIREMENTS = (
-        ("portfolio_backend", "postgres", "postgres_dsn", "ARP_POSTGRES_DSN", "ARP_PORTFOLIO_BACKEND=file"),
-        ("embeddings_backend", "postgres", "postgres_dsn", "ARP_POSTGRES_DSN", "ARP_EMBEDDINGS_BACKEND=sqlite"),
         ("retrieval_backend", "opensearch", "opensearch_url", "ARP_OPENSEARCH_URL", "ARP_RETRIEVAL_BACKEND=bm25"),
     )
 
@@ -547,15 +489,10 @@ class Settings(BaseSettings):
         connection it needs.
 
         Checked here, once, at startup -- not in the factories that build
-        those stores. `build_hybrid_content_store` is called per field per
-        company inside the retrieval graph, so raising *there* would fail
-        runs mid-flight over a configuration mistake; it keeps its
-        fall-back-to-SQLite behaviour for that reason. But silently
-        falling back was the only signal an operator got, and the sibling
-        `build_portfolio_store` raised for the same mistake, so the same
-        typo was loud for holdings and invisible for embeddings. Failing
-        at construction makes it loud for all of them, before any work
-        starts, in the API and the CLI alike.
+        those stores: the retrieval store is built per field per company
+        inside the retrieval graph, so raising there would fail runs
+        mid-flight over a configuration mistake. Failing at construction
+        makes it loud before any work starts, in the API and the CLI alike.
         """
         for setting, needs_connection, connection_setting, env_var, alternative in self._BACKEND_REQUIREMENTS:
             if getattr(self, setting) == needs_connection and not getattr(self, connection_setting):

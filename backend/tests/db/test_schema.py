@@ -112,6 +112,13 @@ def test_legacy_tables_are_renamed_and_kept(pg):
     with eng.begin() as c:
         c.execute(text(f"DROP TABLE {', '.join(sorted(TABLES))} CASCADE"))  # the new tables; create_all rebuilds them
         c.execute(text("DELETE FROM schema_migrations WHERE name LIKE '000%rename_legacy%' OR name LIKE 'fields_id_check%'"))
+        # No model defines legacy_company_facts any more: a fresh database lacks it.
+        c.execute(text(
+            "CREATE TABLE IF NOT EXISTS legacy_company_facts (id serial CONSTRAINT legacy_company_facts_pkey PRIMARY KEY,"
+            " fact_key varchar)"
+        ))
+        c.execute(text("CREATE INDEX IF NOT EXISTS ix_legacy_company_facts_current ON legacy_company_facts (fact_key)"))
+        c.execute(text("CREATE INDEX IF NOT EXISTS ix_legacy_company_facts_type ON legacy_company_facts (id)"))
         c.execute(text("ALTER TABLE legacy_company_facts RENAME TO company_facts"))
         c.execute(text("ALTER TABLE legacy_companies RENAME TO companies"))
         c.execute(text("ALTER TABLE companies RENAME CONSTRAINT legacy_companies_pkey TO companies_pkey"))

@@ -98,7 +98,8 @@ def _manifests(settings: Settings) -> list[RunManifest]:
 
 def _universe(settings: Settings, manifests: list[RunManifest]) -> list[tuple[str, CompanyRef]]:
     """(source, company): the scheduled universe files, universe files runs were started from, and
-    the portfolio store's companies."""
+    the portfolio store's companies (files, then the Postgres `legacy_companies` table)."""
+    from arp.storage.portfolio_store import PortfolioStore
     from arp.storage.portfolio_store_factory import build_portfolio_store
 
     paths = [settings.discovery_schedule_universe_path, settings.emerging_themes_schedule_universe_path]
@@ -107,7 +108,8 @@ def _universe(settings: Settings, manifests: list[RunManifest]) -> list[tuple[st
     for path in dict.fromkeys(p for p in paths if p and Path(p).is_file()):
         with _source(f"universe file {path}"):
             out += [(str(path), c) for c in load_company_universe(path)]
-    out += [("portfolio_store", c) for c in build_portfolio_store(settings).list_companies()]
+    for store in (PortfolioStore(settings.portfolios_dir), build_portfolio_store(settings)):
+        out += [("portfolio_store", c) for c in store.list_companies()]
     return out
 
 
@@ -126,7 +128,7 @@ def _schemas(root: Path) -> list[DataPointSchema]:
 
 def _documents(settings: Settings, session: Session) -> list[dict]:
     """content.db `documents` rows, then the legacy Postgres `document_registry` rows (deployments that
-    ran embeddings_backend=postgres); one row per doc_id, the Postgres row winning for identity columns."""
+    had the legacy table; read with raw SQL, as no model defines it); one row per doc_id, the Postgres row winning for identity columns."""
     docs: dict[str, dict] = {}
     path = settings.document_store_dir / "content.db"
     if path.exists():
@@ -147,9 +149,9 @@ def _esg_loads(settings: Settings) -> list[dict]:
     """Each successful ESG file load (portfolio governance log) with the rows it wrote: per company,
     the latest observation of every ESG field for that month as of the load."""
     from arp.portfolio.climate.esg_intake import FIELD_IDS
-    from arp.storage.portfolio_store_factory import build_portfolio_store
+    from arp.storage.portfolio_store import PortfolioStore
 
-    store = build_portfolio_store(settings)
+    store = PortfolioStore(settings.portfolios_dir)  # observations and governance events are files
     keys = [(c, f) for c, f in store.list_observation_keys() if f in FIELD_IDS]
     history = {k: store.load_observations(*k) for k in keys}
     loads = []

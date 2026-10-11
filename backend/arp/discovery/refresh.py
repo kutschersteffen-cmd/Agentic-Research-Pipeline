@@ -130,10 +130,9 @@ def refresh_hook(settings: Settings, run_store: RunStore | None = None, *, paren
     async def on_events(events: list[DocumentEvent], company: CompanyRef | None = None) -> None:
         from arp.api.deps import build_registry
         from arp.retrieval.content_store_factory import content_store_for
-        from arp.storage.postgres_projection_config import ProjectionConfig
         from arp.storage.run_store import RunStore
 
-        store = run_store or RunStore(require_dsn(settings), settings.runs_dir, projection_config=ProjectionConfig.from_settings(settings))
+        store = run_store or RunStore(require_dsn(settings), settings.runs_dir)
         await refresh_on_events(
             events, settings=settings, run_store=store,
             registry=build_registry(settings, content_store_for(settings)), parent=parent, company_hint=company,

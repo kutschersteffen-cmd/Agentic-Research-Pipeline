@@ -40,7 +40,7 @@ def test_a_portfolio_alert_reaches_stewardship_on_held_companies(universe, tmp_p
     assert [t["issuer_id"] for t in raised] == ["bmw"]
 
 
-def test_the_flow_runs_and_labels_portfolio_figures(universe, tmp_path, monkeypatch):
+def test_the_flow_runs_and_labels_portfolio_figures(universe, tmp_path, monkeypatch, pg):
     monkeypatch.setattr(process, "house_universe", lambda: json.loads(json.dumps(universe)))
     stages = process.flow(process.HOUSE, process.StreamStore(tmp_path / "s"), [], 45, votes=[])["stages"]
     sources = {m["source"] for s in stages for m in s["metrics"]}
@@ -66,7 +66,7 @@ def test_default_source_is_portfolio(tmp_path):
     assert HouseUniverseSetting(tmp_path).set("sample", "A. Reviewer")["source"] == "sample"  # still selectable
 
 
-def test_empty_portfolio_returns_note_and_no_triggers(tmp_path, monkeypatch):
+def test_empty_portfolio_returns_note_and_no_triggers(tmp_path, monkeypatch, pg):
     from arp.config import get_settings
 
     monkeypatch.setenv("ARP_STEWARDSHIP_STREAMS_DIR", str(tmp_path / "streams"))

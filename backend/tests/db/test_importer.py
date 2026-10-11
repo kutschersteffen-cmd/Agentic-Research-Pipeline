@@ -41,6 +41,16 @@ def _run(legacy, run_id, run_type, created, rows, *, companies=True):
         legacy.append_result(run_id, row)
 
 
+@pytest.fixture(autouse=True)
+def _no_legacy_registry(pg):
+    """`document_registry` has no model, so reset_postgres_tables leaves it alone; one test creates it."""
+    from sqlalchemy import text
+
+    yield
+    with transaction(pg) as s:
+        s.execute(text("DROP TABLE IF EXISTS document_registry"))
+
+
 @pytest.fixture
 def legacy_settings(pg, tmp_path):
     """Three runs over two dates (two extraction, one theme), a universe file, an identifier map, one
@@ -264,7 +274,14 @@ def test_import_esg_loads_and_legacy_postgres_documents(pg, legacy_settings):
         store.append_observation(DataPointObservation(company_id="beta", field_id=fid, field_name=fid, value=float(i),
                                                       period="2025-06", source="internal_api"))
     record_load(store, LoadRecord(kind="esg", source_id="msci", month="2025-06", status="ok", content_hash="h"))
-    with transaction(pg) as s:  # a deployment that ran embeddings_backend=postgres
+    with transaction(pg) as s:  # a deployment that had the legacy document_registry table (no model defines it)
+        s.execute(text("DROP TABLE IF EXISTS document_registry"))  # a shape left by another test
+        s.execute(text(
+            "CREATE TABLE document_registry (doc_id varchar PRIMARY KEY, company_id varchar, doc_type varchar,"
+            " content_key varchar, title varchar, local_path varchar, source_url varchar, storage_uri varchar,"
+            " first_seen_at varchar, last_seen_at varchar, family_id varchar, version integer, supersedes varchar,"
+            " published_at varchar, identity_confidence float, identity_review integer)"
+        ))
         s.execute(text("INSERT INTO document_registry (doc_id, company_id, doc_type, content_key, title, first_seen_at, "
                        "last_seen_at, family_id, version) VALUES ('doc_a', 'acme', '10-K', 'ck1', 'AR', 'x', 'x', 'fam2', 2), "
                        "('doc_b', 'beta', '10-K', 'ck2', 'B', '2025-01-01T00:00:00+00:00', '2025-01-01T00:00:00+00:00', NULL, NULL)"))

@@ -1,12 +1,7 @@
-"""Postgres-backed alternative to arp/storage/portfolio_store.py::PortfolioStore
-for Portfolios/Securities/Companies/Holdings specifically -- see the module
-docstring in postgres_models.py for why the scope stops there (everything
-else -- observations, news, flags, analytics, monitoring
-rules/alerts -- stays file-based).
-
-Selected via Settings.portfolio_backend == "postgres" (requires
-Settings.postgres_dsn); the file-based PortfolioStore remains the default
-and is entirely unaffected when this isn't opted into.
+"""The portfolio store (arp/storage/portfolio_store_factory.py builds it): portfolios, securities,
+companies (`legacy_companies`), holdings snapshots and security resolutions in Postgres; observations,
+news, flags, analytics and monitoring rules/alerts delegate to the wrapped file-based PortfolioStore
+(see postgres_models.py).
 """
 
 from __future__ import annotations

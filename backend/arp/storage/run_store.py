@@ -5,19 +5,11 @@ from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-from arp.schemas.common import CompanyRef, JobStatus, RunManifest, now_iso
+from arp.schemas.common import CompanyRef, RunManifest, now_iso
 from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.locks import KeyedLock
-from arp.storage.postgres_projection_config import ProjectionConfig
 from arp.storage.safe_path import safe_id
-
-# Statuses a run can end in with results worth syncing into the opt-in
-# Postgres company-records/company-facts projections (see
-# postgres_company_records_projection.py, postgres_company_facts_projection.py).
-# CANCELLED is included too: a mid-batch cancel can still leave real rows
-# in results.jsonl, and syncing an empty file is simply a no-op.
-_TERMINAL_STATUSES = {JobStatus.COMPLETED, JobStatus.PARTIALLY_COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}
 
 
 def done_keys_from_rows(result_rows: Iterable[dict], error_rows: Iterable[dict] = ()) -> set[str]:
@@ -38,35 +30,18 @@ def __getattr__(name: str):
     raise AttributeError(name)
 
 
-def sync_projections(config: ProjectionConfig, store, run_id: str) -> None:
-    """Best-effort opt-in Postgres sync, fired once a run's manifest
-    lands on a terminal status -- see postgres_company_records_
-    projection.py/postgres_company_facts_projection.py for the
-    unconditional work and their own exception-swallowing contract.
-    A no-op whenever neither projection is enabled."""
-    if config.company_records_enabled:
-        from arp.storage.postgres_company_records_projection import sync_run_if_enabled
-
-        sync_run_if_enabled(config, store, run_id)
-    if config.company_facts_enabled:
-        from arp.storage.postgres_company_facts_projection import materialize_run_if_enabled
-
-        materialize_run_if_enabled(config, store, run_id)
-
-
 class LegacyRunStore:
     """The pre-Postgres file store: a run's manifest, results, errors, and
     review state as JSON/JSONL files under `runs/<run_id>/`. Kept to read
     old run directories; `RunStore` (arp.db.runs) is the store in use.
     """
 
-    def __init__(self, runs_dir: Path, projection_config: ProjectionConfig | None = None) -> None:
+    def __init__(self, runs_dir: Path) -> None:
         self.runs_dir = runs_dir
         # Cross-process too, not just cross-thread: `arp runs ...` CLI
         # commands and the scheduler write the same runs/ directory as a
         # live API process. See KeyedLock.
         self._locks = KeyedLock(lock_path=lambda run_id: self.run_dir(run_id) / ".lock")
-        self._projection_config = projection_config
 
     @contextmanager
     def lock(self, run_id: str) -> Iterator[None]:
@@ -173,9 +148,6 @@ class LegacyRunStore:
         # reader either sees the old manifest or the new one in full,
         # never a half-written file from a write still in progress.
         atomic_write_text(self.manifest_path(manifest.run_id), manifest.model_dump_json(indent=2), prefix=".manifest_")
-
-        if self._projection_config is not None and manifest.status in _TERMINAL_STATUSES:
-            sync_projections(self._projection_config, self, manifest.run_id)
 
     def load_manifest(self, run_id: str) -> RunManifest | None:
         path = self.manifest_path(run_id)
