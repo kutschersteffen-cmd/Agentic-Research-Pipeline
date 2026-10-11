@@ -407,3 +407,45 @@ def test_review_item_state_follows_decisions(run_store, pg):
     assert state_and_open() == (m.ItemState.FIRST_DONE, 1)  # extraction edits wait for a cosign
     record_cosign(run_store, "r1", key, PRINCIPAL)
     assert state_and_open() == (m.ItemState.SECOND_DONE, 0)
+
+
+async def test_financials_backfill_keeps_the_newer_year(run_store, pg):
+    """I6: a run over an older fiscal year adds that year; it does not replace the current one."""
+    from arp.orchestration.batch_runner import run_company_batch
+
+    universe = [CompanyRef(company_id="acme", name="Acme", fiscal_year_end="03-31")]
+    for period, capex in (("FY2024", 7.0), ("FY2023", 5.0)):
+        run_id = JobManager(run_store).create_run("financials", {}, 1, companies=universe).run_id
+
+        async def worker(company, period=period, capex=capex, run_id=run_id):
+            return {"company_id": "acme", "name": "Acme", "run_id": run_id, "currency": "USD", "fiscal_period": period,
+                    "capex": {"total": {"value": capex}}, "rnd": {"total": {"value": 1.0}}}
+
+        await run_company_batch(run_id, universe, run_store=run_store, worker=worker, result_to_json=dict, concurrency=1)
+    (company,) = run_store.load_companies(run_id)
+    assert _current(pg, company.entity_id, "capex_total") == [
+        (date(2023, 3, 31), 5.0, m.FactStatus.AUTO_ACCEPTED), (date(2024, 3, 31), 7.0, m.FactStatus.AUTO_ACCEPTED)]
+
+
+def test_trail_shows_whole_record_decisions(run_store, pg):
+    """M5: a decision on a whole-record item shows in the trail of the facts it decided."""
+    from arp.db.company_view import trail
+
+    _financials(run_store, pg, needs_review=True)
+    record_review_decision(run_store, "f1", "acme", "approve", "bob", None)
+    with transaction(pg) as s:
+        fact = s.scalar(select(m.CompanyFact).where(m.CompanyFact.field_id == "capex_total", m.CompanyFact.valid_to.is_(None)))
+        versions = trail(s, fact.id).versions
+    assert [d.decision for d in versions[-1].decisions] == [m.DecisionKind.APPROVE]
+
+
+def test_merged_company_ref_resolves_to_the_kept_company(pg):
+    """M6: after a merge, the dropped UUID opens the kept company."""
+    from arp.db.companies import merge
+    from arp.db.company_view import resolve_ref
+
+    keep, drop = _company(pg, "keep"), _company(pg, "drop")
+    with transaction(pg) as s:
+        merge(s, keep, drop)
+    with transaction(pg) as s:
+        assert resolve_ref(s, str(drop)) == keep and resolve_ref(s, str(keep)) == keep

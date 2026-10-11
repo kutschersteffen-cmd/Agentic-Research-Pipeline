@@ -159,7 +159,8 @@ def resolve_ref(session: Session, ref: str) -> UUID | None:
         scheme, sep, value = ref.partition(":")
         scheme = scheme.strip().upper()
         return lookup(session, scheme, value.strip()) if sep and scheme and value.strip() else None
-    return cid if session.get(m.Company, cid) is not None else None
+    merged = lookup(session, m.IdScheme.MERGED_INTO, str(cid))  # a merged-away id opens the company it went into
+    return merged or (cid if session.get(m.Company, cid) is not None else None)
 
 
 def search(session: Session, q: str, limit: int = 20) -> list[CompanySearchHit]:
@@ -329,7 +330,13 @@ def trail(session: Session, fact_id: int) -> FactTrail:
             DecisionOut(decision=d.decision, reviewer=d.reviewer, decided_at=d.decided_at, comment=d.comment)
             for d in session.scalars(
                 select(m.ReviewDecision).join(m.ReviewItem, m.ReviewItem.id == m.ReviewDecision.review_item_id)
-                .where(m.ReviewItem.observation_id == obs.id).order_by(m.ReviewDecision.decided_at, m.ReviewDecision.id))
+                .where(or_(
+                    m.ReviewItem.observation_id == obs.id,
+                    and_(  # a whole-record item (keyed by the company id) decides every reviewed observation of it
+                        m.ReviewItem.observation_id.is_(None), obs.route == m.Route.REVIEW, m.ReviewItem.run_id == obs.run_id,
+                        m.ReviewItem.company_id == obs.company_id, m.ReviewItem.item_key == m.ReviewItem.payload["company_id"].astext,
+                    ),
+                )).order_by(m.ReviewDecision.decided_at, m.ReviewDecision.id))
         ]
         out.append(FactVersion(
             fact_id=v.id, status=v.status, value=v.value, valid_from=v.valid_from, valid_to=v.valid_to,

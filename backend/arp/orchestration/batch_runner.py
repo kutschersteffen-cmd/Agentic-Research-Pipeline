@@ -171,7 +171,8 @@ async def run_company_batch(
         items = review_items(company, result) if review_items else []
         errors: list[dict] = []
         observations = (
-            to_observations(run_type, company.entity_id, run_id, row, trial=trial, errors=errors)
+            to_observations(run_type, company.entity_id, run_id, row, trial=trial, errors=errors,
+                            fiscal_year_end=company.fiscal_year_end)
             if company.entity_id is not None else []
         )
         for attempt in range(_WRITE_RETRIES + 1):

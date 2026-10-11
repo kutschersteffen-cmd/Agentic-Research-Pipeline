@@ -77,3 +77,23 @@ def test_invalid_period_end_is_excluded_and_reported():
 
 def test_unknown_run_type_has_no_observations():
     assert to_observations("discovery", CID, "r1", {"_key": "acme"}, trial=False) == []
+
+
+def _fin(fiscal_period):
+    return {"company_id": "acme", "name": "Acme", "run_id": "f1", "currency": "USD", "fiscal_period": fiscal_period,
+            "capex": {"total": {"value": 7.0}}, "rnd": {"total": {"value": 3.0}}}
+
+
+def test_financials_period_end_from_fiscal_period_and_year_end():
+    """I6: free-text fiscal periods become period ends, so financials facts are a time series."""
+    def ends(fiscal_period, fye=None):
+        obs = to_observations("financials", uuid4(), "f1", _fin(fiscal_period), trial=False, fiscal_year_end=fye)
+        return {o.period_end for o in obs}
+
+    for text in ("FY2024", "2024", "FY24", "fiscal 2024", "Fiscal year 2024", "2024-12-31"):
+        assert ends(text) == {date(2024, 12, 31)}, text
+    assert ends("FY2024", "03-31") == {date(2024, 3, 31)}
+    assert ends("fiscal 2024", "06-30") == {date(2024, 6, 30)}
+    assert ends("FY2024", "garbage") == {date(2024, 12, 31)}
+    for text in (None, "", "last year", "TTM"):
+        assert ends(text) == {None}, text

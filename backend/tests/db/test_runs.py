@@ -340,3 +340,13 @@ def test_engine_pool_size_comes_from_settings(monkeypatch):
     finally:
         get_settings.cache_clear()
     assert (pool.size(), pool._max_overflow) == (3, 4)
+
+
+def test_init_postgres_masks_the_password(pg):
+    """M7: `arp db init-postgres` never prints the DSN's password."""
+    from typer.testing import CliRunner
+
+    from arp.cli.db import db_app
+
+    result = CliRunner().invoke(db_app, ["init-postgres"])
+    assert result.exit_code == 0 and "Postgres schema ready" in result.output and "arp:arp@" not in result.output

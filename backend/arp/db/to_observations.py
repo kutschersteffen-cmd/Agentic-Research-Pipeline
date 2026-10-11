@@ -11,6 +11,7 @@ from uuid import UUID
 
 from arp.db.models import CitationRole, Route, SourceKind, ValueState
 from arp.db.observations import CitationIn, ObservationIn
+from arp.normalise.period import resolve_period
 from arp.schemas.common import Citation
 from arp.schemas.datapoints import ExtractionRecord
 from arp.schemas.financials import CompanyFinancialsRecord
@@ -120,12 +121,10 @@ def _extraction(company_id: UUID, run_id: str, result: dict, trial: bool, errors
     return out
 
 
-def _financials(company_id: UUID, run_id: str, result: dict, trial: bool) -> list[ObservationIn]:
+def _financials(company_id: UUID, run_id: str, result: dict, trial: bool, fiscal_year_end: str | None) -> list[ObservationIn]:
     rec = CompanyFinancialsRecord.model_validate(result)
-    try:
-        period_end = _date(rec.fiscal_period)
-    except ValueError:  # free text ("FY2024"), not an ISO date
-        period_end = None
+    # "FY2024", "2024", "FY24", "fiscal 2024" end on the company's year end (MM-DD, default 12-31); else None
+    period_end = resolve_period(rec.fiscal_period, fiscal_year_end=fiscal_year_end).end
     return [
         ObservationIn(
             company_id=company_id, field_id=field_id, field_version=1, source_kind=SourceKind.EXTRACTION,
@@ -171,13 +170,15 @@ def _voting(company_id: UUID, run_id: str, result: dict, trial: bool) -> list[Ob
 
 
 def to_observations(
-    run_type: str, company_id: UUID, run_id: str, result: dict, *, trial: bool, errors: list[dict] | None = None
+    run_type: str, company_id: UUID, run_id: str, result: dict, *, trial: bool, errors: list[dict] | None = None,
+    fiscal_year_end: str | None = None,
 ) -> list[ObservationIn]:
-    """`errors` collects `{"kind": "invalid_value", "field_id", "raw"}` for values left out."""
+    """`errors` collects `{"kind": "invalid_value", "field_id", "raw"}` for values left out.
+    `fiscal_year_end` (the run's company ref, MM-DD) dates a financials `fiscal_period` such as "FY2024"."""
     if run_type == "extraction":
         return _extraction(company_id, run_id, result, trial, errors if errors is not None else [])
     if run_type == "financials":
-        return _financials(company_id, run_id, result, trial)
+        return _financials(company_id, run_id, result, trial, fiscal_year_end)
     if run_type == "theme":
         return _theme(company_id, run_id, result, trial)
     if run_type == "proxy_voting":

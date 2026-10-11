@@ -216,6 +216,21 @@ def test_decision_on_unqueued_value_is_imported_and_verified(pg, legacy_settings
     assert importer.verify(pg, legacy_settings).differences == []
 
 
+def test_financials_period_end_imported_and_verified(pg, legacy_settings):
+    """I6: a file-era financials run's "FY2024" with a 03-31 year end imports as period 2024-03-31."""
+    legacy = LegacyRunStore(legacy_settings.runs_dir)
+    legacy.save_manifest(RunManifest(run_id="fin1", run_type="financials", status=JobStatus.COMPLETED,
+                                     created_at="2026-03-01T00:00:00+00:00"))
+    legacy.save_companies("fin1", [CompanyRef(company_id="acme", name="Acme", lei=LEI, fiscal_year_end="03-31")])
+    legacy.append_result("fin1", {"_key": "acme", "company_id": "acme", "name": "Acme", "run_id": "fin1", "currency": "USD",
+                                  "fiscal_period": "FY2024", "capex": {"total": {"value": 7.0}}, "rnd": {"total": {"value": 3.0}}})
+    importer.import_all(pg, legacy_settings, dry_run=False)
+    with transaction(pg) as s:
+        assert s.scalars(select(m.CompanyFact.period_end).where(m.CompanyFact.field_id == "capex_total")).all() == [
+            date(2024, 3, 31)]
+    assert importer.verify(pg, legacy_settings).differences == []
+
+
 def test_unknown_decision_is_skipped_and_listed_not_a_difference(pg, legacy_settings):
     LegacyRunStore(legacy_settings.runs_dir).append_decision_row(
         "r_old", {"item_key": EMP_KEY, "decision": "rejected", "decided_at": "2026-01-04T00:00:00+00:00"})

@@ -334,7 +334,8 @@ def _import_run(s: Session, store: RunStore, legacy: LegacyRunStore, manifest: R
                 company = company_for(row.get("_key"))
                 errors: list[dict] = []
                 observations = (
-                    to_observations(manifest.run_type, company.entity_id, run_id, row, trial=trial, errors=errors)
+                    to_observations(manifest.run_type, company.entity_id, run_id, row, trial=trial, errors=errors,
+                                    fiscal_year_end=company.fiscal_year_end)
                     if company is not None else []
                 )
                 store.record_company_result(
@@ -455,11 +456,13 @@ def _apply_results(s: Session, run: m.Run, at: datetime) -> None:
     stored: dict[uuid.UUID, deque] = defaultdict(deque)
     for o in s.scalars(select(m.FieldObservation).where(m.FieldObservation.run_id == run.run_id).order_by(m.FieldObservation.id)):
         stored[o.company_id].append(o)
+    fye = dict(s.execute(select(m.RunCompany.company_id, m.RunCompany.ref["fiscal_year_end"].astext)
+                         .where(m.RunCompany.run_id == run.run_id)).all())  # what record_company_result was given
     for company_id, result in s.execute(
         select(m.RunResult.company_id, m.RunResult.result)
         .where(m.RunResult.run_id == run.run_id, m.RunResult.company_id.is_not(None)).order_by(m.RunResult.id)
     ):
-        ins = to_observations(run.run_type, company_id, run.run_id, result, trial=trial)
+        ins = to_observations(run.run_type, company_id, run.run_id, result, trial=trial, fiscal_year_end=fye.get(company_id))
         for o, ok in zip(ins, observations_db.fits(s, ins), strict=True):
             if not ok:
                 continue
@@ -638,6 +641,7 @@ class _RunFiles:
     decisions: list[dict]  # the rows the database stores
     cosigns: list[dict]
     company_of: Any
+    fiscal_year_ends: dict[str, str | None] = field(default_factory=dict)  # universe id -> MM-DD, from companies.json
 
 
 def _unqueued(run: _RunFiles) -> dict[str, tuple[dict, dict]]:
@@ -736,7 +740,8 @@ class _Replay:
             entity = run.company_of(key)
             if entity is None:
                 continue
-            for o in to_observations(manifest.run_type, entity, run_id, row, trial=trial):
+            for o in to_observations(manifest.run_type, entity, run_id, row, trial=trial,
+                                     fiscal_year_end=run.fiscal_year_ends.get(key)):
                 if not _fits(self.types.get((o.field_id, o.field_version), ""), o.value):
                     continue
                 period = o.period_end.isoformat() if o.period_end else None
@@ -816,7 +821,8 @@ def verify(dsn: str, settings: Settings) -> VerifyReport:
                 return refs.get(str(key)) if stored else lookup(s, m.IdScheme.UNIVERSE, str(key))
 
             run = _RunFiles(manifest, legacy.read_results(run_id), legacy.read_review_queue(run_id),
-                            [d for d in decisions if _stored_decision(d)], legacy.read_cosigns(run_id), company_of)
+                            [d for d in decisions if _stored_decision(d)], legacy.read_cosigns(run_id), company_of,
+                            {c.company_id: c.fiscal_year_end for c in legacy.load_companies(run_id) or []})
             runs.append(run)
             files = {
                 "results": _distinct(run.results, "_key"),

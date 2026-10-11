@@ -30,7 +30,9 @@ def db_init_postgres() -> None:
     result = ensure_schema(settings.postgres_dsn)
     with get_engine(settings.postgres_dsn).begin() as conn:  # rows whose company was registered since
         rekey_company_ids(conn)
-    typer.echo(f"Postgres schema ready at {settings.postgres_dsn}.")
+    from sqlalchemy import make_url
+
+    typer.echo(f"Postgres schema ready at {make_url(settings.postgres_dsn).render_as_string(hide_password=True)}.")
     for label, key in (
         ("Tables created", "tables_created"),
         ("Columns added", "columns_added"),
@@ -253,7 +255,8 @@ def companies_merge(keep: str, drop: str) -> None:
 @db_app.command("import")
 def db_import(dry_run: bool = typer.Option(False, "--dry-run", help="Import inside a transaction that is rolled back.")) -> None:
     """Imports the file-era history (universe files, identifier map, schema registry, content.db documents,
-    every run oldest first, ESG loads) into Postgres. Idempotent and resumable: re-running skips what is
+    every run oldest first, ESG loads, the file portfolio store's portfolios, companies, securities, resolutions
+    and holdings snapshots) into Postgres. Idempotent and resumable: re-running skips what is
     already imported and completes an interrupted run. Files are only read."""
     import json
 
