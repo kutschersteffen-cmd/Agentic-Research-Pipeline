@@ -413,3 +413,32 @@ async def test_company_batch_retries_progress_and_error_writes(run_store, monkey
     manifest = run_store.load_manifest(run_id)
     assert (manifest.status, manifest.completed_count, manifest.failed_count) == ("partially_completed", 1, 1)
     assert [e["key"] for e in run_store.read_errors(run_id)] == ["B"]
+
+
+async def test_batch_error_writes_run_off_the_event_loop(run_store, monkeypatch):
+    """A retried write sleeps and waits on connect timeouts: on the event loop it would stall the API."""
+    from arp.orchestration import batch_runner
+    from arp.orchestration.job_manager import JobManager
+
+    loop_thread, seen = threading.get_ident(), []
+    real_error, real_progress = run_store.append_error, JobManager.record_progress
+
+    def append_error(*args, **kwargs):
+        seen.append(("append_error", threading.get_ident()))
+        return real_error(*args, **kwargs)
+
+    def record_progress(self, *args, **kwargs):
+        seen.append(("record_progress", threading.get_ident()))
+        return real_progress(self, *args, **kwargs)
+
+    monkeypatch.setattr(run_store, "append_error", append_error)
+    monkeypatch.setattr(JobManager, "record_progress", record_progress)
+    universe = [CompanyRef(company_id="B", name="B")]
+    run_id = JobManager(run_store).create_run("theme", {}, 1, companies=universe).run_id
+
+    async def worker(company):
+        raise RuntimeError("worker failed")
+
+    await batch_runner.run_company_batch(run_id, universe, run_store=run_store, worker=worker, result_to_json=dict, concurrency=1)
+    assert {name for name, _ in seen} == {"append_error", "record_progress"}
+    assert all(ident != loop_thread for _, ident in seen)

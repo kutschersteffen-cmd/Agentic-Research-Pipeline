@@ -108,10 +108,11 @@ async def run_batch(
                 row = {"key": key, "error": str(exc)}
                 if isinstance(exc, ReviewRequired):
                     row.update(review=True, report=exc.report)
+                # Writes run in threads: a retried write (sleeps, connect timeouts) must not stall the loop.
                 async with write_lock:
-                    sinks.append_error(row)
+                    await asyncio.to_thread(sinks.append_error, row)
                 if on_error:
-                    on_error(item, exc)
+                    await asyncio.to_thread(on_error, item, exc)
                 return
         record = result_to_json(result)
         record[_KEY_FIELD] = key
@@ -119,9 +120,9 @@ async def run_batch(
             await write_result(item, result, record)
         else:
             async with write_lock:
-                sinks.append_result(record)
+                await asyncio.to_thread(sinks.append_result, record)
         if on_success:
-            on_success(item, result)
+            await asyncio.to_thread(on_success, item, result)
 
     await asyncio.gather(*(_run_one(item) for item in items))
 
