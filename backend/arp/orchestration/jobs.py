@@ -213,7 +213,7 @@ async def resume_run(
     if run_settings.llm_batch:
         # A batch run resumes on batch clients: callers' pre-built clients are real-time.
         llm = verifier_llm = None
-    if run_type != "discovery":
+    if run_type not in {"discovery", "xbrl_fetch"}:  # no LLM steps
         llm = llm or build_llm_client(run_settings)
         verifier_llm = verifier_llm or build_verifier_llm_client(run_settings)
 
@@ -278,6 +278,15 @@ async def _resume_discovery(run_id, manifest, companies, *, settings, run_store,
                                        run_store=run_store)
 
 
+async def _resume_xbrl_fetch(run_id, manifest, companies, *, settings, run_store, **_) -> str:
+    from arp.xbrl_pipeline.fetch import execute_xbrl_run
+
+    return await execute_xbrl_run(
+        run_id, companies, settings=settings, run_store=run_store, tags=manifest.params.get("tags"),
+        refresh=bool(manifest.params.get("refresh")), market=manifest.params.get("market", "sec"),
+    )
+
+
 # One entry per resumable run type: how a resume continues it.
 _RESUME: dict[str, Callable[..., Awaitable[str]]] = {
     "theme": _resume_theme,
@@ -287,5 +296,6 @@ _RESUME: dict[str, Callable[..., Awaitable[str]]] = {
     "transition_plan": _resume_transition_plan,
     "identity": _resume_identity,
     "discovery": _resume_discovery,
+    "xbrl_fetch": _resume_xbrl_fetch,
 }
 RESUMABLE = frozenset(_RESUME)

@@ -14,7 +14,7 @@ from arp.ingestion.edgar import AnnualOriginal, EdgarDocumentSource
 from arp.ingestion.xbrl import XbrlFactSource
 from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.job_manager import JobManager
-from arp.orchestration.jobs import hold_run, restart_run
+from arp.orchestration.jobs import hold_run
 from arp.schemas.common import CompanyRef
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.run_store import RunStore
@@ -222,7 +222,6 @@ async def execute_xbrl_run(
     tag_set = frozenset(tags) if tags is not None else None
 
     with hold_run(run_store, run_id):
-        restart_run(run_store, run_id)  # a re-run is a resume: counts rebuilt, failures retried
         await run_company_batch(
             run_id,
             companies,
