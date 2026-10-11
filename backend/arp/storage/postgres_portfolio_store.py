@@ -229,6 +229,7 @@ class PostgresPortfolioStore:
     # --- securities -------------------------------------------------------
 
     def save_security(self, security: SecurityRef) -> None:
+        from arp.db.companies import company_for
         from arp.storage.postgres_models import SecurityModel
 
         with self._session() as session:
@@ -236,6 +237,7 @@ class PostgresPortfolioStore:
                 SecurityModel(
                     security_id=security.security_id, isin=security.isin, name=security.name,
                     asset_class=security.asset_class, currency=security.currency, company_id=security.company_id,
+                    company_uuid=company_for(session, isin=security.isin, universe_id=security.company_id),
                 )
             )
             session.commit()
@@ -289,12 +291,14 @@ class PostgresPortfolioStore:
     # --- security resolutions ----------------------------------------------
 
     def save_resolution(self, resolution: SecurityResolution) -> None:
+        from arp.db.companies import company_for
         from arp.storage.postgres_models import SecurityResolutionModel
 
         with self._session() as session:
             session.merge(
                 SecurityResolutionModel(
                     security_id=resolution.security_id, company_id=resolution.company_id,
+                    company_uuid=company_for(session, universe_id=resolution.company_id),
                     confidence=resolution.confidence, method=resolution.method,
                     needs_review=resolution.needs_review, resolved_at=resolution.resolved_at,
                 )
@@ -327,11 +331,15 @@ class PostgresPortfolioStore:
         the same date idempotent (matches PortfolioStore.save_snapshot's
         file-overwrite semantics) rather than accumulating duplicate rows.
         """
+        from functools import cache
+
         from sqlalchemy import delete
 
+        from arp.db.companies import company_for
         from arp.storage.postgres_models import HoldingModel
 
         with self._session() as session:
+            company = cache(lambda key, scheme, isin: company_for(session, issuer_key=key, issuer_scheme=scheme, isin=isin))
             session.execute(
                 delete(HoldingModel).where(
                     HoldingModel.kind == kind, HoldingModel.portfolio_id == holder_id, HoldingModel.as_of_date == as_of_date
@@ -345,7 +353,7 @@ class PostgresPortfolioStore:
                         source_ref=h.source_ref, currency=h.currency, quantity=h.quantity, price=h.price,
                         market_value=h.market_value, fx_rate_to_eur=h.fx_rate_to_eur,
                         market_value_eur=h.market_value_eur, shares=h.shares, free_float=h.free_float,
-                        weight_pct=h.weight_pct,
+                        weight_pct=h.weight_pct, company_id=company(h.issuer_key, h.issuer_scheme, h.isin),
                     )
                     for h in holdings
                 ]

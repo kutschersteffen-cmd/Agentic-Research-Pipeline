@@ -1,7 +1,8 @@
 """One-time import of file-era history into Postgres (spec §6 step 8, §7) and the check that the two agree.
 
 `import_all` order: universe files → identifier map → schema registry → documents → runs, oldest first
-by `created_at` (rows and observations only) → facts → ESG loads. Each unit (one source, one run, the
+by `created_at` (rows and observations only) → facts → ESG loads → re-key legacy-keyed rows
+(holdings, securities, published facts…) to the companies just created. Each unit (one source, one run, the
 fact replay) is one transaction, so an interrupted import leaves whole units behind and a re-run
 completes the rest.
 
@@ -55,6 +56,7 @@ from arp.schemas.common import CompanyRef, RunManifest
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.issuer import IdentifierMap
 from arp.storage.jsonl_io import read_jsonl
+from arp.storage.postgres_schema import rekey_company_ids
 from arp.storage.run_store import LegacyRunStore
 from arp.universe import load_company_universe, resolve_universe
 
@@ -538,6 +540,8 @@ def import_all(dsn: str, settings: Settings, *, dry_run: bool) -> ImportReport:
                 _replay_facts(s, [r.run_id for r in manifests], report)
         with unit() as s:
             _import_esg(s, settings, report, dry_run=dry_run)
+        with unit() as s:  # legacy-keyed rows whose companies this import created
+            rekey_company_ids(s.connection())
     return report
 
 

@@ -187,6 +187,15 @@ def _concurrent_on_serialization_failure():
         raise
 
 
+def _companies(s):
+    """Registry company per (issuer_key, issuer_scheme), looked up once per key within session `s`."""
+    from functools import cache
+
+    from arp.db.companies import company_for
+
+    return cache(lambda key, scheme: company_for(s, issuer_key=key, issuer_scheme=scheme))
+
+
 def _fact(row) -> Fact:
     return Fact.model_validate({c.key: getattr(row, c.key) for c in row.__table__.columns})
 
@@ -282,7 +291,7 @@ class PublishStore:
         if res.rowcount != 1:
             raise ConcurrentPublish(f"fact {fact.fact_id} was already closed")
 
-    def _commit(self, s, events: list[FactEvent]) -> None:
+    def _commit(self, s, events: list[FactEvent], company_of: dict[str, object]) -> None:
         from sqlalchemy import func, select
         from sqlalchemy.exc import IntegrityError
 
@@ -291,7 +300,9 @@ class PublishStore:
         # One global lock held to commit: event ids are then assigned in commit order, so a
         # consumer's `event_id` cursor can never skip an event that commits late.
         s.execute(select(func.pg_advisory_xact_lock(EVENT_LOCK)))
-        s.add_all(FactEventModel(**e.model_dump(exclude={"event_id"})) for e in events)
+        s.add_all(
+            FactEventModel(**e.model_dump(exclude={"event_id"}), company_id=company_of.get(e.fact_id)) for e in events
+        )
         try:
             s.commit()
         except IntegrityError as exc:
@@ -310,13 +321,15 @@ class PublishStore:
         if refused:
             raise LicenceRefused(f"internal_only source, not publishable: {sorted(refused)}")
         with _concurrent_on_serialization_failure(), self.session() as s:
+            company, company_of = _companies(s), {}
             try:
                 if release is not None:
-                    s.add(ReleaseModel(**release.model_dump()))
+                    s.add(ReleaseModel(**release.model_dump(), company_id=company(release.issuer_key, release.issuer_scheme)))
                     s.flush()  # no relationship(): the fact's release FK needs this row first
                 for p in plans:
                     if p.kind == "insert":
-                        s.add(M(**p.fact.model_dump(mode="json")))
+                        company_of[p.fact.fact_id] = company(p.fact.issuer_key, p.fact.issuer_scheme)
+                        s.add(M(**p.fact.model_dump(mode="json"), company_id=company_of[p.fact.fact_id]))
                         s.flush()  # the closing UPDATE's superseded_by FK needs the new row
                         if p.closes is not None:
                             self._close(s, p.closes)
@@ -330,7 +343,7 @@ class PublishStore:
                             raise ConcurrentPublish(f"fact {p.fact.fact_id} is no longer current")
             except IntegrityError as exc:
                 raise ConcurrentPublish(str(exc.orig)) from exc
-            self._commit(s, events)
+            self._commit(s, events, company_of)
 
     def get_release(self, release_id: str) -> Release | None:
         from arp.storage.postgres_models import ReleaseModel
@@ -371,6 +384,8 @@ class PublishStore:
 
         closes, restores = sorted(closes, key=fact_key), sorted(restores, key=fact_key)
         with _concurrent_on_serialization_failure(), self.session() as s:
+            company = _companies(s)
+            company_of = {f.fact_id: company(f.issuer_key, f.issuer_scheme) for f in closes + restores}
             try:
                 # Serialise withdrawals per issuer, then re-check what was planned outside the lock.
                 for issuer in sorted({release.issuer_key, *(f.issuer_key for f in closes + restores)}):
@@ -392,13 +407,13 @@ class PublishStore:
                 )
                 if res.rowcount != 1:
                     raise ConcurrentPublish(f"release {release.release_id} was already withdrawn")
-                s.add_all(M(**f.model_dump(mode="json")) for f in restores)
+                s.add_all(M(**f.model_dump(mode="json"), company_id=company_of[f.fact_id]) for f in restores)
                 s.flush()  # each close's superseded_by FK needs its restored copy
                 for f in closes:
                     self._close(s, f)
             except IntegrityError as exc:
                 raise ConcurrentPublish(str(exc.orig)) from exc
-            self._commit(s, events)
+            self._commit(s, events, company_of)
 
     def lineage(self, fact_id: str) -> dict | None:
         from sqlalchemy import select

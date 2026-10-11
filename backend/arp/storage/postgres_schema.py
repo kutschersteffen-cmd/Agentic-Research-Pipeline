@@ -231,6 +231,77 @@ def _documents_content_index(conn: Connection) -> None:
     conn.execute(text("CREATE INDEX IF NOT EXISTS ix_documents_content ON documents (content_key)"))
 
 
+# Legacy-keyed tables: table -> (registry-company column, then the columns naming the company:
+# issuer key, issuer scheme, ISIN, universe id). fact_events copies from its published fact.
+_REKEYED: dict[str, tuple[str, str | None, str | None, str | None, str | None]] = {
+    "holdings": ("company_id", "issuer_key", "issuer_scheme", "isin", None),
+    "securities": ("company_uuid", None, None, "isin", "company_id"),
+    "security_resolutions": ("company_uuid", None, None, None, "company_id"),
+    "releases": ("company_id", "issuer_key", "issuer_scheme", None, None),
+    "published_facts": ("company_id", "issuer_key", "issuer_scheme", None, None),
+}
+_REKEY_ARGS = ("issuer_key", "issuer_scheme", "isin", "universe_id")
+
+
+def rekey_company_ids(conn: Connection) -> None:
+    """Sets the registry company on every legacy-keyed row that has none yet (rules:
+    `arp.db.companies.company_for`). Rows that match nothing keep NULL; `schema_report` counts them.
+    Re-runnable: `arp db import` calls it again once the companies exist."""
+    from sqlalchemy import text
+    from sqlalchemy.orm import Session
+
+    from arp.db.companies import company_for
+
+    session = Session(bind=conn)
+    for table, (target, *sources) in _REKEYED.items():
+        cols = {arg: col for arg, col in zip(_REKEY_ARGS, sources, strict=True) if col}
+        where = " AND ".join(f"{col} IS NOT DISTINCT FROM :{arg}" for arg, col in cols.items())
+        # ponytail: one lookup and one UPDATE per distinct key; a set-based UPDATE if tables grow past ~1e5 keys
+        for row in conn.execute(text(f"SELECT DISTINCT {', '.join(cols.values())} FROM {table} WHERE {target} IS NULL")):
+            args = dict(zip(cols, row, strict=True))
+            company = company_for(session, **args)
+            if company is not None:
+                conn.execute(
+                    text(f"UPDATE {table} SET {target} = :company WHERE {target} IS NULL AND {where}"),
+                    {"company": company, **args},
+                )
+    conn.execute(text(
+        "UPDATE fact_events e SET company_id = f.company_id FROM published_facts f"
+        " WHERE e.company_id IS NULL AND f.fact_id = e.fact_id AND f.company_id IS NOT NULL"
+    ))
+    session.close()
+
+
+def _phase1_rekey(conn: Connection) -> None:
+    """Spec §2.8: the company column's FK on tables that had the column added by reconciliation (which
+    adds no constraints), the company-key index on published_facts, then the backfill. issuer_key,
+    issuer_scheme and the legacy tables stay: `arp db import` still reads them."""
+    from sqlalchemy import text
+
+    for table, (target, *_rest) in (*_REKEYED.items(), ("fact_events", ("company_id",))):
+        name = f"fk_{table}_{target}"
+        if not conn.execute(text("SELECT 1 FROM pg_constraint WHERE conname = :n"), {"n": name}).first():
+            conn.execute(text(f"ALTER TABLE {table} ADD CONSTRAINT {name} FOREIGN KEY ({target}) REFERENCES companies (id)"))
+    conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_published_facts_company_key ON published_facts (company_id, field_id, period_end, basis)"
+    ))
+    rekey_company_ids(conn)
+
+
+def unmatched_company_rows(conn: Connection) -> dict[str, int]:
+    """Legacy-keyed rows no company matched yet, per table (tables with none are left out)."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(conn)
+    out = {}
+    for table, target in sorted([(t, cols[0]) for t, cols in _REKEYED.items()] + [("fact_events", "company_id")]):
+        if target in {c["name"] for c in inspector.get_columns(table)}:
+            n = conn.execute(text(f"SELECT count(*) FROM {table} WHERE {target} IS NULL")).scalar()
+            if n:
+                out[table] = n
+    return out
+
+
 # Run before create_all, so a legacy-shaped table does not shadow a new one of the same name.
 PRE_CREATE_STEPS: tuple[SchemaStep, ...] = (
     SchemaStep("0005_rename_legacy_companies", "companies -> legacy_companies", _rename_legacy_companies),
@@ -279,6 +350,12 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         name="documents_content_index",
         description="Index documents.content_key (list_by_content_keys filters on it)",
         apply=_documents_content_index,
+    ),
+    SchemaStep(
+        name="phase1_rekey",
+        description="company_id (registry UUID) on holdings/securities/resolutions/releases/published facts/events,"
+        " backfilled from LEI, UNIVERSE, ISIN and INTERNAL-UUID keys",
+        apply=_phase1_rekey,
     ),
 )
 
@@ -434,6 +511,7 @@ def schema_report(dsn: str) -> dict:
         applied = _applied_step_names(conn) if _MIGRATIONS_TABLE in existing_tables else set()
         pending_steps = [s.name for s in (*PRE_CREATE_STEPS, *SCHEMA_STEPS) if s.name not in applied]
 
+        unmatched = unmatched_company_rows(conn) if "companies" in existing_tables else {}
         drift: list[str] = []
         for table_name in sorted(existing_tables & expected_tables):
             table = Base.metadata.tables[table_name]
@@ -454,5 +532,6 @@ def schema_report(dsn: str) -> dict:
         "applied_steps": sorted(applied),
         "pending_steps": pending_steps,
         "drift": drift,
+        "unmatched_company_rows": unmatched,
         "current": not (missing_tables or missing_columns or pending_steps or not has_vector),
     }

@@ -45,8 +45,10 @@ docstring for what it specifically projects and why.
 
 from __future__ import annotations
 
+import uuid
+
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import Float, ForeignKey, Index, Integer, String, UniqueConstraint, Uuid
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -55,6 +57,13 @@ from arp.retrieval.embeddings import EMBED_DIM
 
 class Base(DeclarativeBase):
     pass
+
+
+def _company_ref(table: str, column: str = "company_id") -> Mapped[uuid.UUID | None]:
+    """The registry company (`companies.id`) a legacy-keyed row belongs to. NULL until step
+    `phase1_rekey` (or `arp db import`) matches it; the FK is named so that step can add it to an
+    existing table."""
+    return mapped_column(Uuid, ForeignKey("companies.id", name=f"fk_{table}_{column}"), nullable=True)
 
 
 class PortfolioModel(Base):
@@ -87,6 +96,8 @@ class SecurityModel(Base):
     asset_class: Mapped[str] = mapped_column(String)
     currency: Mapped[str] = mapped_column(String)
     company_id: Mapped[str | None] = mapped_column(ForeignKey("legacy_companies.company_id"), nullable=True)
+    # `company_id` above is the universe id (legacy_companies); this is the registry company.
+    company_uuid: Mapped[uuid.UUID | None] = _company_ref("securities", "company_uuid")
 
 
 class SecurityResolutionModel(Base):
@@ -105,6 +116,7 @@ class SecurityResolutionModel(Base):
     method: Mapped[str] = mapped_column(String)
     needs_review: Mapped[bool] = mapped_column(default=False)
     resolved_at: Mapped[str] = mapped_column(String)
+    company_uuid: Mapped[uuid.UUID | None] = _company_ref("security_resolutions", "company_uuid")
 
 
 class HoldingModel(Base):
@@ -140,6 +152,7 @@ class HoldingModel(Base):
     shares: Mapped[float | None] = mapped_column(Float, nullable=True)
     free_float: Mapped[float | None] = mapped_column(Float, nullable=True)
     weight_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
+    company_id: Mapped[uuid.UUID | None] = _company_ref("holdings")
 
 
 class ChunkEmbeddingModel(Base):
@@ -383,6 +396,7 @@ class ReleaseModel(Base):
     withdrawn_at: Mapped[str | None] = mapped_column(String, nullable=True)
     withdrawal_reason: Mapped[str | None] = mapped_column(String, nullable=True)
     withdrawn_by: Mapped[str | None] = mapped_column(String, nullable=True)
+    company_id: Mapped[uuid.UUID | None] = _company_ref("releases")
 
 
 class PublishedFactModel(Base):
@@ -396,6 +410,9 @@ class PublishedFactModel(Base):
         ),
         Index("ix_published_facts_current", "issuer_key", "field_id", "period_end", "basis", "valid_to"),
         Index("ix_published_facts_valid_from", "valid_from"),
+        # Not unique: rows of one company published under two issuer keys (LEI before cut-over, the
+        # registry UUID after) share a version number, so the natural key stays the issuer_key one above.
+        Index("ix_published_facts_company_key", "company_id", "field_id", "period_end", "basis"),
     )
 
     fact_id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -422,6 +439,7 @@ class PublishedFactModel(Base):
     reconfirmed_at: Mapped[str | None] = mapped_column(String, nullable=True)
     release_id: Mapped[str] = mapped_column(ForeignKey("releases.release_id"))
     restored_from: Mapped[str | None] = mapped_column(String, nullable=True)
+    company_id: Mapped[uuid.UUID | None] = _company_ref("published_facts")
 
 
 class FactEventModel(Base):
@@ -439,6 +457,7 @@ class FactEventModel(Base):
     basis: Mapped[str] = mapped_column(String)
     release_id: Mapped[str] = mapped_column(String)
     at: Mapped[str] = mapped_column(String)
+    company_id: Mapped[uuid.UUID | None] = _company_ref("fact_events")
 
 
 class BiPublishedModel(Base):

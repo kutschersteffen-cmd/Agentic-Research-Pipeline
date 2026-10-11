@@ -52,6 +52,28 @@ def lookup(session: Session, scheme: IdScheme, value: str) -> UUID | None:
     return _active(session, scheme, value)
 
 
+def company_for(
+    session: Session, *, issuer_key: str | None = None, issuer_scheme: str | None = None,
+    isin: str | None = None, universe_id: str | None = None,
+) -> UUID | None:
+    """The company a legacy-keyed row names, or None: an INTERNAL issuer key that is a company UUID
+    (followed through a merge), else the active LEI, UNIVERSE or ISIN alias. Never creates one."""
+    if issuer_key and issuer_scheme == "INTERNAL":
+        try:
+            key = UUID(issuer_key)
+        except ValueError:
+            key = None  # a security-master issuer id, not a registry UUID
+        if key is not None:
+            merged = _active(session, IdScheme.MERGED_INTO, str(key))
+            if merged or session.get(Company, key):
+                return merged or key
+    lei = issuer_key if issuer_scheme == "LEI" else None
+    for scheme, value in ((IdScheme.LEI, lei), (IdScheme.UNIVERSE, universe_id), (IdScheme.ISIN, isin)):
+        if value and normalise_identifier(scheme, value) and (found := _active(session, scheme, value)):
+            return found
+    return None
+
+
 def resolve(
     session: Session, ids: list[tuple[IdScheme, str]], *, name: str, allow_create: bool, attrs: dict | None = None
 ) -> Resolution:
