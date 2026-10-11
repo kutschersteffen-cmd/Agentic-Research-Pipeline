@@ -449,3 +449,81 @@ def test_merged_company_ref_resolves_to_the_kept_company(pg):
         merge(s, keep, drop)
     with transaction(pg) as s:
         assert resolve_ref(s, str(drop)) == keep and resolve_ref(s, str(keep)) == keep
+
+
+def _links(pg):
+    with transaction(pg) as s:
+        return sorted(s.execute(select(m.ReviewItemObservation.review_item_id, m.ReviewItemObservation.observation_id)).all())
+
+
+def test_value_item_links_its_observation(run_store, pg):
+    _write_extraction(run_store, pg, 100.0)
+    with transaction(pg) as s:
+        item = s.scalar(select(m.ReviewItem))
+        assert _links(pg) == [(item.id, item.observation_id)]
+
+
+def test_whole_record_item_links_review_observations_of_its_run_and_company(run_store, pg):
+    """Observations of another run, or of another company in the run, exist before the item is queued."""
+    other = _company(pg, "other")
+    run_store.save_manifest(RunManifest(run_id="f1", run_type="financials"))
+    run_store.save_manifest(RunManifest(run_id="f2", run_type="financials"))
+    for run_id, cid, uid in (("f2", None, "acme"), ("f1", other, "other")):
+        cid = cid or _company(pg)
+        fin = {"company_id": uid, "name": uid, "run_id": run_id, "currency": "USD", "fiscal_period": "2024-12-31",
+               "capex": {"total": {"value": 9.0}}, "needs_review": True, "_key": uid}
+        run_store.record_company_result(
+            run_id, fin, observations=to_observations("financials", cid, run_id, fin, trial=False), review_items=[],
+            company=CompanyRef(company_id=uid, name=uid, entity_id=cid),
+        )
+    _financials(run_store, pg, needs_review=True)
+    with transaction(pg) as s:
+        item = s.scalar(select(m.ReviewItem).where(m.ReviewItem.run_id == "f1", m.ReviewItem.item_key == "acme"))
+        expected = s.scalars(select(m.FieldObservation.id).where(
+            m.FieldObservation.run_id == "f1", m.FieldObservation.company_id == item.company_id,
+            m.FieldObservation.route == m.Route.REVIEW)).all()
+        item_id = item.id
+    assert len(expected) == 2
+    assert _links(pg) == sorted((item_id, o) for o in expected)
+
+
+def test_requeue_keeps_links_without_duplicates(run_store, pg):
+    from arp.orchestration.review_queue import queue_for_review
+
+    _, key = _write_extraction(run_store, pg, 100.0)
+    before = _links(pg)
+    queue_for_review(run_store, "r1", key, {"field_id": "revenue", "period_end": "2024-12-31", "review_reasons": ["span_moved"]})
+    assert _links(pg) == before and len(before) == 1
+
+
+def test_company_level_item_that_is_not_a_record_has_no_links(run_store, pg):
+    from arp.orchestration.review_queue import queue_for_review
+
+    _financials(run_store, pg, needs_review=False)
+    queue_for_review(run_store, "f1", "isic:acme", {"company_id": "acme", "isic": "C10"})
+    assert _links(pg) == []
+
+
+def test_whole_record_decision_follows_links(run_store, pg):
+    _financials(run_store, pg, needs_review=True)
+    with transaction(pg) as s:
+        rnd = s.scalar(select(m.FieldObservation.id).where(m.FieldObservation.field_id == "rnd_total"))
+        s.execute(m.ReviewItemObservation.__table__.delete().where(m.ReviewItemObservation.observation_id == rnd))
+    record_review_decision(run_store, "f1", "acme", "approve", "bob", None)
+    assert _facts(pg) == {"capex_total": (7.0, m.FactStatus.APPROVED), "rnd_total": (3.0, m.FactStatus.PENDING_REVIEW)}
+
+
+def test_requeue_from_another_company_relinks_to_its_observation(run_store, pg):
+    """Two companies of a run share an issuer key, so their field items share a key: the later result's
+    item decides that company's value, not the first company's."""
+    acme, key = _write_extraction(run_store, pg, 100.0)
+    beta = _company(pg, "beta")
+    row = {**_extraction_row(200.0), "company_id": "beta", "name": "Beta", "_key": "beta"}
+    run_store.record_company_result(
+        "r1", row, observations=to_observations("extraction", beta, "r1", row, trial=False),
+        review_items=[(key, {"item_key": key, "company_id": "beta", "field_id": "revenue", "period_end": "2024-12-31"})],
+        company=CompanyRef(company_id="beta", name="Beta", entity_id=beta),
+    )
+    record_review_decision(run_store, "r1", key, "approve", "bob", None)
+    assert _current(pg, acme) == [(FY24, 100.0, m.FactStatus.PENDING_REVIEW)]
+    assert _current(pg, beta) == [(FY24, 200.0, m.FactStatus.APPROVED)]

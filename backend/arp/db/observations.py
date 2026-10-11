@@ -1,6 +1,7 @@
-"""Insert-only field observations with their citations, and the one function that maintains the
-current-fact table (spec §2.5, §2.7, §3.2). `decide` is the §2.7 rule table; `record` and
-`apply_decision` are its only writers."""
+"""Fact ledger: insert-only field observations with their citations, review items and their observation
+links, and the rules that turn decisions and cosigns into item states and current facts (spec §2.5,
+§2.7, §3.2). `decide` is the §2.7 rule table; `record` and `apply_decision` are the current-fact
+table's only writers."""
 
 from __future__ import annotations
 
@@ -12,7 +13,7 @@ from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
 
-from sqlalchemy import func, select, tuple_
+from sqlalchemy import delete, func, select, true, tuple_, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -28,10 +29,15 @@ from arp.db.models import (
     FieldDefinition,
     FieldKind,
     FieldObservation,
+    ItemState,
+    ReviewCosign,
+    ReviewDecision,
     ReviewItem,
+    ReviewItemObservation,
     Route,
     Run,
     RunError,
+    RunResult,
     SourceKind,
     ValueCitation,
     ValueState,
@@ -289,6 +295,73 @@ _DECIDED = {DecisionKind.APPROVE: FactStatus.APPROVED, DecisionKind.EDIT: FactSt
 _SKIP = object()
 
 
+def _target_observation(session: Session, run_id: str, company_id, payload: dict) -> int | None:
+    """The run's latest observation of the company for the (field, period, basis) the payload names."""
+    from arp.db.to_observations import review_target  # imports this module
+
+    target = review_target(payload)
+    if target is None:
+        return None
+    field_id, period, basis = target
+    try:
+        period_end = date.fromisoformat(period) if period else None
+    except ValueError:
+        return None  # an unparseable period made no observation
+    return session.scalar(select(FieldObservation.id).where(
+        FieldObservation.run_id == run_id, FieldObservation.company_id == company_id,
+        FieldObservation.field_id == field_id, FieldObservation.period_end.is_not_distinct_from(period_end),
+        FieldObservation.basis == basis,
+    ).order_by(FieldObservation.id.desc()).limit(1))
+
+
+def queue_item(
+    session: Session, run_id: str, item_key: str, payload: dict, *, company_id, observation_id: int | None, queued_at,
+) -> int:
+    """Queues a review item (re-queueing a key replaces its payload) and links it to the observations
+    it decides: a value item to its one observation (`observation_id`, else the run's observation of the
+    field, period and basis its payload names for the item's company, else the one it had), a whole-record item (no observation, keyed by the
+    company id) to every observation of its run and company routed to review. Returns the item id."""
+    stmt = insert(ReviewItem).values(
+        run_id=run_id, item_key=item_key, company_id=company_id, observation_id=observation_id, payload=payload,
+        queued_at=queued_at,
+    )
+    item = session.execute(
+        stmt.on_conflict_do_update(
+            constraint="uq_review_items_key",
+            set_={
+                "payload": stmt.excluded.payload,
+                "company_id": stmt.excluded.company_id,
+                # a re-queue without a link (queue_for_review) keeps the one the item has
+                "observation_id": func.coalesce(stmt.excluded.observation_id, ReviewItem.observation_id),
+            },
+        ).returning(ReviewItem.id, ReviewItem.observation_id, ReviewItem.company_id, ReviewItem.payload)
+    ).one()
+    observation = item.observation_id
+    if observation_id is None and item.company_id is not None:
+        # the payload's observation for the item's company now: a re-queued key may have changed company
+        found = _target_observation(session, run_id, item.company_id, payload)
+        if found is not None and found != observation:
+            observation = found
+            session.execute(update(ReviewItem).where(ReviewItem.id == item.id).values(observation_id=observation))
+    if observation is not None:
+        session.execute(delete(ReviewItemObservation).where(
+            ReviewItemObservation.review_item_id == item.id, ReviewItemObservation.observation_id != observation,
+        ))
+        linked = [observation]
+    elif item.company_id is not None and item_key == item.payload.get("company_id"):
+        linked = session.scalars(select(FieldObservation.id).where(
+            FieldObservation.run_id == run_id, FieldObservation.company_id == item.company_id,
+            FieldObservation.route == Route.REVIEW,
+        )).all()
+    else:
+        linked = []
+    if linked:
+        session.execute(insert(ReviewItemObservation).values(
+            [{"review_item_id": item.id, "observation_id": o} for o in linked]
+        ).on_conflict_do_nothing())
+    return item.id
+
+
 def _edited(obs: FieldObservation, edit, *, whole_record: bool):
     """The value an edit gives this observation, or _SKIP. Vote edits carry `vote`
     (voting/pipeline._human_decision_from_review_row); theme edits (the generic override box,
@@ -328,8 +401,8 @@ def apply_decision(
     session: Session, review_item_id: int, decision: DecisionKind, edited_value: Any | None, decision_id: int,
     *, at: datetime | None = None,
 ) -> None:
-    """A final review decision on an item's observation, or, for an item about a whole record
-    (no observation_id, keyed by the company id), on every observation of its run and company routed to review.
+    """A final review decision on the observations its item is linked to (`queue_item`): the item's
+    observation, or for a whole-record item every observation of its run and company routed to review.
     approve/edit/correct/hold set the fact; reject retires a pending fact the rejected
     observation made current; escalate changes nothing. Trial runs never make facts. `at` dates the
     change (default: now)."""
@@ -340,17 +413,10 @@ def apply_decision(
     if run is not None and (run.params or {}).get("trial"):
         return
     whole_record = item.observation_id is None
-    if not whole_record:
-        observations = [session.get(FieldObservation, item.observation_id)]
-    elif item.company_id is not None and item.item_key == item.payload.get("company_id"):
-        # keyed by the company alone (financials, tnfd, ...): the item is the whole record.
-        # Other company-level items (isic:<id> sector codes) are about no observation.
-        observations = session.scalars(select(FieldObservation).where(
-            FieldObservation.run_id == item.run_id, FieldObservation.company_id == item.company_id,
-            FieldObservation.route == Route.REVIEW,
-        ).order_by(FieldObservation.id)).all()
-    else:
-        return
+    observations = session.scalars(
+        select(FieldObservation).join(ReviewItemObservation, ReviewItemObservation.observation_id == FieldObservation.id)
+        .where(ReviewItemObservation.review_item_id == item.id).order_by(FieldObservation.id)
+    ).all()
     status = _DECIDED.get(decision)
     for obs in observations:
         if decision == DecisionKind.REJECT:
@@ -369,3 +435,58 @@ def apply_decision(
             session, obs, value=value, status=status, value_state=state, canonical_value=canonical_value,
             canonical_unit=canonical_unit, decision_id=decision_id, at=at,
         )
+
+
+def queue_unqueued(session: Session, run_id: str, row: dict, *, queued_at) -> None:
+    """A decision or cosign `row` on an item never queued (an auto-accepted value, a whole record):
+    queues it now, linked as `queue_item` links queued ones, so the decision has an item and reaches
+    the facts. `queued_at` is the row's own time (its `decided_at` / `cosigned_at`)."""
+    from arp.db.to_observations import unqueued_item  # imports this module
+
+    item_key = row.get("item_key")
+    if not item_key or session.scalar(select(ReviewItem.id).where(ReviewItem.run_id == run_id, ReviewItem.item_key == item_key)):
+        return
+    stored = session.execute(select(RunResult.company_id, RunResult.result).where(RunResult.run_id == run_id).order_by(RunResult.id)).all()
+    found = unqueued_item((r for _, r in stored), item_key)
+    if found is None:
+        return
+    result, payload = found
+    entity = next(c for c, r in stored if r is result)
+    payload = {**payload, "queued_at": row.get("decided_at") or row.get("cosigned_at")}
+    queue_item(session, run_id, item_key, payload, company_id=entity, observation_id=None, queued_at=queued_at)
+
+
+def apply_review(
+    session: Session, run_id: str, item_key: str | None, *, decisions_upto: int | None = None, cosigns_upto: int | None = None,
+    at: datetime | None = None,
+) -> None:
+    """Once the item's decision is final (its cosign or second review done, where the run type
+    needs one), the facts behind it take it (`apply_decision` decides which).
+    Until then they stay as they are. `*_upto` (row ids) replay the item as it stood then, `at`
+    dates the fact change (default: now)."""
+    from arp.orchestration.review_queue import FINAL_STATES, item_state
+    from arp.review.items import cosign_rule  # imports the extraction pipeline
+
+    item = session.scalar(select(ReviewItem).where(ReviewItem.run_id == run_id, ReviewItem.item_key == item_key))
+    if item is None:
+        return
+    rows = session.execute(
+        select(ReviewDecision.id, ReviewDecision.row).where(
+            ReviewDecision.review_item_id == item.id,
+            ReviewDecision.id <= decisions_upto if decisions_upto is not None else true(),
+        ).order_by(ReviewDecision.id)
+    ).all()
+    signed = set(session.scalars(
+        select(ReviewCosign.row["decision_decided_at"].astext).where(
+            ReviewCosign.review_item_id == item.id, ReviewCosign.id <= cosigns_upto if cosigns_upto is not None else true(),
+        )
+    ))
+    run_type = session.scalar(select(Run.run_type).where(Run.run_id == run_id))
+    state = item_state([r for _, r in rows], cosigned_at=signed, cosign_required=cosign_rule(run_type))
+    item.state = ItemState(state.state)
+    if state.state not in FINAL_STATES:
+        return
+    eff = state.effective
+    decision_id = next(i for i, r in rows if r is eff)
+    edited = eff.get("corrected_value") or eff.get("edited_value")
+    apply_decision(session, item.id, DecisionKind(eff["decision"]), edited, decision_id, at=at)
