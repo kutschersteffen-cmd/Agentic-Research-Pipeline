@@ -464,3 +464,25 @@ def test_completed_run_whose_rest_stopped_for_review_is_refused(tmp_path, pg):
     JobManager(store).finish_run(run_id)
     with pytest.raises(NotResumable, match="already completed"):
         check_resumable(store, run_id)
+
+
+def test_theme_resume_endpoint_crash_marks_run_failed(tmp_path, monkeypatch, api):
+    import arp.api.routers.themes as themes_router
+
+    settings, store = api
+    activity = ActivityDefinition(name="EV", in_scope_description="EVs.", out_of_scope_description="ICE.")
+    run_id = create_theme_run(ThemeDefinition(name="E", description="", activities=[activity]), COMPANIES[:1], settings, store)
+    JobManager(store).finish_run(run_id, error="killed")
+
+    async def boom(*_a, **_kw):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(themes_router, "resume_run", boom)
+    monkeypatch.setattr(themes_router, "get_llm_client", lambda: LLM)
+    monkeypatch.setattr(themes_router, "get_verifier_llm_client", lambda: LLM)
+    with TestClient(app) as client:
+        res = client.post(f"/api/themes/runs/{run_id}/resume")
+        assert res.json() == {"run_id": run_id, "status": "resumed"}
+        client.portal.call(asyncio.sleep, 0.05)
+    manifest = store.load_manifest(run_id)
+    assert (manifest.status, manifest.error) == (JobStatus.FAILED, "RuntimeError: boom")
