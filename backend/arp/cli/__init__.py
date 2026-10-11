@@ -39,13 +39,21 @@ app = typer.Typer(help="Agentic Research Pipeline CLI -- the headless path for 1
 
 
 @app.callback()
-def _require_postgres() -> None:
-    """Postgres is the system of record: every command needs ARP_POSTGRES_DSN, reachable."""
-    from arp.config import get_settings
-    from arp.db.session import require_postgres
+def _require_postgres(ctx: typer.Context) -> None:
+    """Postgres is the system of record: every command needs ARP_POSTGRES_DSN, reachable, and every
+    command but `arp db ...` (which migrates and imports) a cut-over database. `--help` needs neither."""
+    import sys
 
+    from arp.config import get_settings
+    from arp.db.session import require_cutover, require_postgres
+
+    if "--help" in sys.argv[1:]:
+        return
     try:
-        require_postgres(get_settings())
+        settings = get_settings()
+        require_postgres(settings)
+        if ctx.invoked_subcommand != "db":
+            require_cutover(settings)
     except RuntimeError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc

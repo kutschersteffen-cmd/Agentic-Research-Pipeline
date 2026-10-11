@@ -470,6 +470,27 @@ def ensure_schema(dsn: str) -> dict:
     }
 
 
+def _gaps(conn: Connection, existing_tables: set[str]) -> tuple[list[str], list[str], set[str]]:
+    """(missing tables, pending step names, applied step names)."""
+    import arp.db.models  # noqa: F401
+    from arp.storage.postgres_models import Base
+
+    missing = sorted({t.name for t in Base.metadata.sorted_tables} - existing_tables)
+    applied = _applied_step_names(conn) if _MIGRATIONS_TABLE in existing_tables else set()
+    return missing, [s.name for s in (*PRE_CREATE_STEPS, *SCHEMA_STEPS) if s.name not in applied], applied
+
+
+def schema_gaps(dsn: str) -> tuple[list[str], list[str]]:
+    """(missing tables, pending steps) as `schema_report` lists them, without its column and row scans:
+    the startup check (`arp.db.session.require_cutover`)."""
+    _sqlalchemy()
+    from sqlalchemy import inspect
+
+    with get_engine(dsn).connect() as conn:
+        missing, pending, _ = _gaps(conn, set(inspect(conn).get_table_names()))
+    return missing, pending
+
+
 def schema_report(dsn: str) -> dict:
     """Read-only: what this database has versus what the models define.
     Changes nothing, so it is safe to point at production.
@@ -492,14 +513,12 @@ def schema_report(dsn: str) -> dict:
         inspector = inspect(conn)
         existing_tables = set(inspector.get_table_names())
         expected_tables = {t.name for t in Base.metadata.sorted_tables}
-        missing_tables = sorted(expected_tables - existing_tables)
+        missing_tables, pending_steps, applied = _gaps(conn, existing_tables)
         missing_columns = [f"{t}.{c}" for t, c in _missing_columns(conn)]
 
         has_vector = bool(
             conn.execute(text("SELECT 1 FROM pg_extension WHERE extname = 'vector'")).first()
         )
-        applied = _applied_step_names(conn) if _MIGRATIONS_TABLE in existing_tables else set()
-        pending_steps = [s.name for s in (*PRE_CREATE_STEPS, *SCHEMA_STEPS) if s.name not in applied]
 
         unmatched = unmatched_company_rows(conn) if "companies" in existing_tables else {}
         drift: list[str] = []

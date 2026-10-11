@@ -20,6 +20,7 @@ def _fake_dsn_is_fine(monkeypatch):
     from arp.db.session import require_dsn
 
     monkeypatch.setattr("arp.db.session.require_postgres", require_dsn)
+    monkeypatch.setenv("ARP_SKIP_CUTOVER_CHECK", "1")  # the fake DSN never answers
 
 
 def test_bootstrap_prints_superset_response_body_for_the_operator(monkeypatch):

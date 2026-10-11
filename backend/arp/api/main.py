@@ -60,7 +60,7 @@ from arp.api.routers import (
     voting,
     xbrl,
 )
-from arp.db.session import require_postgres
+from arp.db.session import require_cutover, require_postgres
 
 logging.basicConfig(level=logging.INFO)
 
@@ -69,6 +69,7 @@ logging.basicConfig(level=logging.INFO)
 async def lifespan(app: FastAPI):
     settings = settings_dep()
     require_postgres(settings)  # Postgres is the system of record: no DSN or no answer, no app
+    require_cutover(settings)  # nor on an un-migrated or un-imported database
     settings.ensure_dirs()
     if settings.auth_mode == "local":
         load_users(settings.users_file)  # a bad users file stops startup

@@ -376,6 +376,10 @@ class Settings(BaseSettings):
         "low-confidence.",
     )
 
+    skip_cutover_check: bool = Field(
+        default=False,
+        description="Start the API and CLI even when the schema is not current or file-era runs are not imported.",
+    )
     # Postgres with pgvector: the system of record (arp/db/models.py,
     # arp/storage/postgres_models.py; see docs/METHODOLOGY.md "Storage").
     postgres_dsn: str | None = Field(

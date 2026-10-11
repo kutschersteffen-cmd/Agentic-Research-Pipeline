@@ -328,8 +328,9 @@ Each step merges with the suite green.
 2. `arp db import`.
 3. `arp db verify` must report zero differences before the API starts.
 4. Files remain on disk, read-only, for one release; the code never deletes them.
-5. Rollback = redeploy the previous release (which reads the files). Data written after cut-over
-   is not in the files; release notes say so.
+5. Rollback = restore the `pg_dump` taken before the upgrade, then redeploy the previous release
+   (which reads the files); the previous release cannot run on the migrated schema. A file-only
+   install rolls back by redeploying alone. Data written after cut-over is lost; release notes say so.
 
 ## 8. Review findings closed by phase 1
 

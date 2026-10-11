@@ -212,3 +212,131 @@ def test_decision_cosign_and_company_ref_are_cleaned(run_store):
     assert run_store.read_cosigns("r") == [{"item_key": "k", "name": "An", "x": None}]
     assert (ref.company_id, ref.name) == ("c1", "Name")
     assert run_store.load_companies("r") == [ref]
+
+
+def _start(monkeypatch, runs_dir):
+    """(CLI result of `arp runs list`, `arp db check-postgres`, API startup error or None) with `runs_dir`."""
+    from fastapi.testclient import TestClient
+    from typer.testing import CliRunner
+
+    from arp.api.main import app
+    from arp.cli import app as cli
+    from arp.config import get_settings
+
+    monkeypatch.setenv("ARP_RUNS_DIR", str(runs_dir))
+    get_settings.cache_clear()
+    try:
+        cli_result = CliRunner().invoke(cli, ["runs", "list"])
+        db_result = CliRunner().invoke(cli, ["db", "check-postgres"])
+        try:
+            with TestClient(app):
+                api_error = None
+        except RuntimeError as exc:
+            api_error = str(exc)
+        return cli_result, db_result, api_error
+    finally:
+        get_settings.cache_clear()
+
+
+def test_startup_refuses_unimported_legacy_runs(pg, tmp_path, monkeypatch):
+    """I4: a runs dir with a file-era run the database lacks stops the API and CLI, not `arp db`."""
+    from arp.storage.run_store import LegacyRunStore
+
+    LegacyRunStore(tmp_path / "runs").save_manifest(RunManifest(run_id="old1", run_type="extraction"))
+    cli_result, db_result, api_error = _start(monkeypatch, tmp_path / "runs")
+    assert cli_result.exit_code == 1 and "old1" in cli_result.stderr and "arp db import" in cli_result.stderr
+    assert "arp db verify" in cli_result.stderr and "arp db init-postgres" in cli_result.stderr
+    assert "old1" not in db_result.output
+    assert api_error is not None and "arp db import" in api_error
+
+    monkeypatch.setenv("ARP_SKIP_CUTOVER_CHECK", "1")
+    cli_result, _, api_error = _start(monkeypatch, tmp_path / "runs")
+    assert cli_result.exit_code == 0 and api_error is None
+
+
+def test_startup_accepts_imported_runs(pg, tmp_path, monkeypatch):
+    from arp.db.runs import RunStore
+    from arp.storage.run_store import LegacyRunStore
+
+    LegacyRunStore(tmp_path / "runs").save_manifest(RunManifest(run_id="old1", run_type="extraction"))
+    RunStore(pg, tmp_path / "runs").save_manifest(RunManifest(run_id="old1", run_type="extraction"))
+    cli_result, _, api_error = _start(monkeypatch, tmp_path / "runs")
+    assert cli_result.exit_code == 0, cli_result.output
+    assert api_error is None
+
+
+def test_startup_refuses_pending_schema_steps(pg, tmp_path, monkeypatch):
+    from arp.storage import postgres_schema
+
+    monkeypatch.setattr(postgres_schema, "SCHEMA_STEPS", (
+        *postgres_schema.SCHEMA_STEPS, postgres_schema.SchemaStep("9999_test", "not applied", lambda conn: None)))
+    cli_result, db_result, api_error = _start(monkeypatch, tmp_path / "runs")
+    assert cli_result.exit_code == 1 and "9999_test" in cli_result.stderr and "arp db init-postgres" in cli_result.stderr
+    assert "9999_test" in db_result.output  # `arp db` commands still run
+    assert api_error is not None and "9999_test" in api_error
+    monkeypatch.setenv("ARP_SKIP_CUTOVER_CHECK", "1")
+    cli_result, _, api_error = _start(monkeypatch, tmp_path / "runs")
+    assert cli_result.exit_code == 0 and api_error is None
+
+
+def test_subcommand_help_needs_no_postgres(monkeypatch):
+    """M3: `arp extract --help` works without a database."""
+    import sys
+
+    from typer.testing import CliRunner
+
+    from arp.cli import app as cli
+    from arp.config import get_settings
+
+    monkeypatch.setenv("ARP_POSTGRES_DSN", UNREACHABLE)
+    monkeypatch.setattr(sys, "argv", ["arp", "extract", "--help"])
+    get_settings.cache_clear()
+    try:
+        result = CliRunner().invoke(cli, ["extract", "--help"])
+    finally:
+        get_settings.cache_clear()
+    assert result.exit_code == 0 and "Usage" in result.output
+
+
+@pytest.mark.parametrize("exc", ["TimeoutError", "DisconnectionError"])
+async def test_company_batch_retries_pool_timeouts_and_disconnects(run_store, monkeypatch, exc):
+    """I5: a pool timeout or a dropped connection while writing a company is retried, not a failed run."""
+    import sqlalchemy.exc
+
+    from arp.orchestration import batch_runner
+    from arp.orchestration.job_manager import JobManager
+
+    monkeypatch.setattr(batch_runner, "_RETRY_BACKOFF_S", 0)
+    real, calls = run_store.record_company_result, []
+
+    def flaky(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise getattr(sqlalchemy.exc, exc)("pool")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(run_store, "record_company_result", flaky)
+    universe = [CompanyRef(company_id="D", name="D")]
+    run_id = JobManager(run_store).create_run("theme", {}, 1, companies=universe).run_id
+
+    async def worker(company):
+        return {}
+
+    await batch_runner.run_company_batch(run_id, universe, run_store=run_store, worker=worker, result_to_json=dict, concurrency=1)
+    assert len(calls) == 2 and [r["_key"] for r in run_store.read_results(run_id)] == ["D"]
+    assert run_store.load_manifest(run_id).completed_count == 1
+
+
+def test_engine_pool_size_comes_from_settings(monkeypatch):
+    from arp.config import Settings, get_settings
+    from arp.storage.postgres import get_engine
+
+    assert Settings().postgres_pool_size >= Settings().max_concurrent_llm_calls
+    monkeypatch.setenv("ARP_POSTGRES_POOL_SIZE", "3")
+    monkeypatch.setenv("ARP_POSTGRES_MAX_OVERFLOW", "4")
+    get_settings.cache_clear()
+    try:
+        pool = get_engine.__wrapped__(UNREACHABLE).pool
+    finally:
+        get_settings.cache_clear()
+    assert (pool.size(), pool._max_overflow) == (3, 4)

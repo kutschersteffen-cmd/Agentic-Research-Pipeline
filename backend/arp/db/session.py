@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from pathlib import Path
 
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
@@ -32,6 +33,35 @@ def require_postgres(settings) -> str:
         masked = make_url(dsn).render_as_string(hide_password=True)
         raise RuntimeError(f"Postgres unreachable at {masked}: {reason}") from exc
     return dsn
+
+
+def require_cutover(settings) -> None:
+    """Startup check (app lifespan, every CLI command but `arp db ...`): the schema has no missing
+    table or pending step, and every file-era run directory (`runs_dir/<id>/manifest.json`) has its
+    `runs` row. `ARP_SKIP_CUTOVER_CHECK=1` skips it."""
+    from sqlalchemy import select
+
+    from arp.db.models import Run
+    from arp.storage.postgres_schema import schema_gaps
+
+    if settings.skip_cutover_check:
+        return
+    dsn = require_dsn(settings)
+    missing, pending = schema_gaps(dsn)
+    if missing or pending:
+        problem = f"the database schema is not current (missing tables: {missing}, pending steps: {pending})"
+    else:
+        legacy = sorted(p.parent.name for p in Path(settings.runs_dir).glob("*/manifest.json"))
+        with transaction(dsn) as s:
+            imported = set(s.scalars(select(Run.run_id).where(Run.run_id.in_(legacy), Run.run_type != ""))) if legacy else set()
+        unimported = [r for r in legacy if r not in imported]
+        if not unimported:
+            return
+        problem = f"{len(unimported)} run(s) in {settings.runs_dir} are not imported yet: {', '.join(unimported[:5])}"
+    raise RuntimeError(
+        f"Not cut over to Postgres: {problem}. Run `arp db init-postgres`, `arp db import`, then `arp db verify` "
+        "(docs/INSTALLATION.md); set ARP_SKIP_CUTOVER_CHECK=1 to start anyway."
+    )
 
 
 def engine(dsn: str | None = None) -> Engine:

@@ -306,6 +306,10 @@ Earlier versions kept runs, review decisions and the document registry in
 files under `runs/` and `backend/.arp_cache/content.db`. Import them once,
 with the API stopped:
 
+0. If the deployment already used Postgres (the opt-in portfolio or
+   document store), back it up first:
+   `pg_dump -Fc -d arp -f arp-before-upgrade.dump`. Step 1 migrates its
+   schema, and the previous release cannot run on the migrated schema.
 1. `arp db init-postgres`
 2. `arp db import --dry-run`: counts per area, identity conflicts, fact
    conflicts and skipped decisions. Writes nothing.
@@ -320,9 +324,20 @@ with the API stopped:
    (`unmatched_company_rows`). They keep working through their issuer key.
 6. Start the API.
 
-The files stay on disk and are only read; nothing deletes them. Rolling back
-means redeploying the previous release, which reads the files; anything
-written after the cut-over is only in Postgres.
+Until steps 1 to 4 are done the API and CLI refuse to start (pending schema
+steps, missing tables, or run directories not yet imported); set
+`ARP_SKIP_CUTOVER_CHECK=1` to start anyway.
+
+The files stay on disk and are only read; nothing deletes them.
+
+Rolling back: the previous release cannot run on the migrated schema (it
+fails on the new `companies` columns, and its `init-postgres` would add
+legacy columns into the new tables). To roll back, stop the API, restore
+the dump from step 0 (`pg_restore --clean --if-exists -d arp
+arp-before-upgrade.dump`), then redeploy the previous release, which reads
+the files again. A file-only install (no Postgres before the upgrade) rolls
+back by redeploying the previous release alone. Either way, anything written
+after the cut-over is only in the new database and is lost.
 
 The legacy tables earlier versions wrote are kept so `arp db import` can read
 them. Once `arp db verify` is clean you may drop them by hand:
