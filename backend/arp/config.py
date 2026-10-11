@@ -388,6 +388,16 @@ class Settings(BaseSettings):
         "system of record (companies, runs, review, facts, documents, embeddings, holdings), so the app and CLI "
         "refuse to start without it. Create or upgrade the schema with `arp db init-postgres`.",
     )
+    postgres_pool_size: int = Field(
+        default=10,
+        description="Connections each process keeps pooled: a batch writes up to max_concurrent_llm_calls (8) "
+        "companies at once, plus a few API requests.",
+    )
+    postgres_max_overflow: int = Field(
+        default=30,
+        description="Extra connections beyond postgres_pool_size under load (to_thread's worker threads, the API's "
+        "thread pool). pool_size + max_overflow per process must fit the server's max_connections.",
+    )
     # Apache Superset BI integration (arp/bi/). Needs postgres_dsn: Superset
     # reads only the read-only 'bi' views, never base tables.
     superset_url: str = Field(

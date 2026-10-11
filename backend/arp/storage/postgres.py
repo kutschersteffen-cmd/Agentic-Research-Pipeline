@@ -40,8 +40,14 @@ def get_engine(dsn: str) -> Engine:
         from sqlalchemy import create_engine
     except ImportError as exc:  # pragma: no cover - exercised only without the optional extra
         raise PostgresExtraNotInstalled(exc) from exc
+    from arp.config import get_settings
+
+    settings = get_settings()
     connect_args = {} if "connect_timeout" in dsn else {"connect_timeout": _CONNECT_TIMEOUT_SECONDS}
-    return create_engine(dsn, pool_pre_ping=True, connect_args=connect_args)
+    return create_engine(
+        dsn, pool_pre_ping=True, connect_args=connect_args,
+        pool_size=settings.postgres_pool_size, max_overflow=settings.postgres_max_overflow,
+    )
 
 
 def ensure_schema(dsn: str) -> dict:

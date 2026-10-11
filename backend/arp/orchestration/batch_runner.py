@@ -7,7 +7,8 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TypeVar
 
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import DisconnectionError, OperationalError
+from sqlalchemy.exc import TimeoutError as PoolTimeout
 
 from arp.db.to_observations import to_observations
 from arp.llm.batching_client import BatchRequestFailed
@@ -179,7 +180,7 @@ async def run_company_batch(
                     run_id, row, observations=observations, review_items=items, company=company, errors=errors,
                 )
                 break
-            except OperationalError:
+            except (OperationalError, PoolTimeout, DisconnectionError):  # unreachable, pool exhausted, connection dropped
                 if attempt == _WRITE_RETRIES:
                     raise
                 logger.warning("Writing %s for run %s failed; retrying", company.company_id, run_id, exc_info=True)
