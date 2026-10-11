@@ -30,14 +30,26 @@ def test_new_universe_row_creates_company_with_all_identifiers(pg):
         r = resolve_company(s, _ref(lei=LEI_A, isin="de0007236101", cik="0000123", ticker="SIE"))
         assert r.created and r.company_id
         got = {(i.scheme, i.value) for i in s.scalars(select(CompanyIdentifier))}
-    assert got == {("LEI", LEI_A), ("ISIN", "DE0007236101"), ("CIK", "123"), ("UNIVERSE", "SIE"), ("TICKER", "SIE")}
+    assert got == {("LEI", LEI_A), ("ISIN", "DE0007236101"), ("CIK", "123"), ("UNIVERSE", "SIE")}
     assert [s for s, _ in identifiers_of(_ref(lei=LEI_A, isin="X", cik="1", ticker="T"))] == [
         IdScheme.LEI,
         IdScheme.ISIN,
         IdScheme.CIK,
         IdScheme.UNIVERSE,
-        IdScheme.TICKER,
     ]
+
+
+def test_shared_ticker_never_merges_companies(pg):
+    with transaction(pg) as s:
+        a = resolve_company(s, _ref(company_id="BP", name="BP plc", lei=LEI_A, ticker="BP"))
+        b = resolve_company(s, _ref(company_id="BP2", name="Other BP", lei=LEI_B, ticker="BP"))
+        assert a.created and b.created and a.company_id != b.company_id and b.conflict == []
+        # a legacy TICKER alias row is left in place but never used to match
+        s.add(CompanyIdentifier(company_id=a.company_id, scheme="TICKER", value="XYZ"))
+        s.flush()
+        c = resolve(s, [(IdScheme.TICKER, "XYZ"), (IdScheme.LEI, "LEI0000000000000000C")], name="c", allow_create=True)
+        assert c.created and c.company_id not in (a.company_id, b.company_id)
+        assert resolve(s, [(IdScheme.TICKER, "XYZ")], name="d", allow_create=False) == Resolution(None, False, [])
 
 
 def test_renamed_universe_id_same_lei_attaches(pg):

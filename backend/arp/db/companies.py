@@ -33,8 +33,7 @@ def identifiers_of(company: CompanyRef) -> list[tuple[IdScheme, str]]:
         (IdScheme.ISIN, company.isin),
         (IdScheme.CIK, company.cik),
         (IdScheme.UNIVERSE, company.company_id),
-        (IdScheme.TICKER, company.ticker),
-    ]
+    ]  # never TICKER: tickers repeat across exchanges and get reused, so they must not match or merge companies
     return [(s, normalise_identifier(s, v)) for s, v in pairs if v and normalise_identifier(s, v)]
 
 
@@ -77,7 +76,7 @@ def company_for(
 def resolve(
     session: Session, ids: list[tuple[IdScheme, str]], *, name: str, allow_create: bool, attrs: dict | None = None
 ) -> Resolution:
-    ids = [(s, normalise_identifier(s, v)) for s, v in ids if v and normalise_identifier(s, v)]
+    ids = [(s, normalise_identifier(s, v)) for s, v in ids if v and s != IdScheme.TICKER and normalise_identifier(s, v)]
     for attempt in (0, 1):
         found = {s_v: _active(session, *s_v) for s_v in ids}
         owners = list(dict.fromkeys(c for c in found.values() if c is not None))
