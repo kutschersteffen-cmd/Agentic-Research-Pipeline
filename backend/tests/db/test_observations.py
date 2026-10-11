@@ -511,3 +511,19 @@ def test_whole_record_decision_follows_links(run_store, pg):
         s.execute(m.ReviewItemObservation.__table__.delete().where(m.ReviewItemObservation.observation_id == rnd))
     record_review_decision(run_store, "f1", "acme", "approve", "bob", None)
     assert _facts(pg) == {"capex_total": (7.0, m.FactStatus.APPROVED), "rnd_total": (3.0, m.FactStatus.PENDING_REVIEW)}
+
+
+def test_requeue_from_another_company_relinks_to_its_observation(run_store, pg):
+    """Two companies of a run share an issuer key, so their field items share a key: the later result's
+    item decides that company's value, not the first company's."""
+    acme, key = _write_extraction(run_store, pg, 100.0)
+    beta = _company(pg, "beta")
+    row = {**_extraction_row(200.0), "company_id": "beta", "name": "Beta", "_key": "beta"}
+    run_store.record_company_result(
+        "r1", row, observations=to_observations("extraction", beta, "r1", row, trial=False),
+        review_items=[(key, {"item_key": key, "company_id": "beta", "field_id": "revenue", "period_end": "2024-12-31"})],
+        company=CompanyRef(company_id="beta", name="Beta", entity_id=beta),
+    )
+    record_review_decision(run_store, "r1", key, "approve", "bob", None)
+    assert _current(pg, acme) == [(FY24, 100.0, m.FactStatus.PENDING_REVIEW)]
+    assert _current(pg, beta) == [(FY24, 200.0, m.FactStatus.APPROVED)]

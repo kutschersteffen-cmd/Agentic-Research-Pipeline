@@ -13,7 +13,7 @@ from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
 
-from sqlalchemy import func, select, true, tuple_, update
+from sqlalchemy import delete, func, select, true, tuple_, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -318,8 +318,8 @@ def queue_item(
     session: Session, run_id: str, item_key: str, payload: dict, *, company_id, observation_id: int | None, queued_at,
 ) -> int:
     """Queues a review item (re-queueing a key replaces its payload) and links it to the observations
-    it decides: a value item to its observation (`observation_id`, else the run's observation of the
-    field, period and basis its payload names), a whole-record item (no observation, keyed by the
+    it decides: a value item to its one observation (`observation_id`, else the run's observation of the
+    field, period and basis its payload names for the item's company, else the one it had), a whole-record item (no observation, keyed by the
     company id) to every observation of its run and company routed to review. Returns the item id."""
     stmt = insert(ReviewItem).values(
         run_id=run_id, item_key=item_key, company_id=company_id, observation_id=observation_id, payload=payload,
@@ -337,11 +337,16 @@ def queue_item(
         ).returning(ReviewItem.id, ReviewItem.observation_id, ReviewItem.company_id, ReviewItem.payload)
     ).one()
     observation = item.observation_id
-    if observation is None and item.company_id is not None:
-        observation = _target_observation(session, run_id, item.company_id, payload)
-        if observation is not None:
+    if observation_id is None and item.company_id is not None:
+        # the payload's observation for the item's company now: a re-queued key may have changed company
+        found = _target_observation(session, run_id, item.company_id, payload)
+        if found is not None and found != observation:
+            observation = found
             session.execute(update(ReviewItem).where(ReviewItem.id == item.id).values(observation_id=observation))
     if observation is not None:
+        session.execute(delete(ReviewItemObservation).where(
+            ReviewItemObservation.review_item_id == item.id, ReviewItemObservation.observation_id != observation,
+        ))
         linked = [observation]
     elif item.company_id is not None and item_key == item.payload.get("company_id"):
         linked = session.scalars(select(FieldObservation.id).where(
