@@ -366,8 +366,8 @@ def apply_decision(
     session: Session, review_item_id: int, decision: DecisionKind, edited_value: Any | None, decision_id: int,
     *, at: datetime | None = None,
 ) -> None:
-    """A final review decision on an item's observation, or, for an item about a whole record
-    (no observation_id, keyed by the company id), on every observation of its run and company routed to review.
+    """A final review decision on the observations its item is linked to (`queue_item`): the item's
+    observation, or for a whole-record item every observation of its run and company routed to review.
     approve/edit/correct/hold set the fact; reject retires a pending fact the rejected
     observation made current; escalate changes nothing. Trial runs never make facts. `at` dates the
     change (default: now)."""
@@ -378,17 +378,10 @@ def apply_decision(
     if run is not None and (run.params or {}).get("trial"):
         return
     whole_record = item.observation_id is None
-    if not whole_record:
-        observations = [session.get(FieldObservation, item.observation_id)]
-    elif item.company_id is not None and item.item_key == item.payload.get("company_id"):
-        # keyed by the company alone (financials, tnfd, ...): the item is the whole record.
-        # Other company-level items (isic:<id> sector codes) are about no observation.
-        observations = session.scalars(select(FieldObservation).where(
-            FieldObservation.run_id == item.run_id, FieldObservation.company_id == item.company_id,
-            FieldObservation.route == Route.REVIEW,
-        ).order_by(FieldObservation.id)).all()
-    else:
-        return
+    observations = session.scalars(
+        select(FieldObservation).join(ReviewItemObservation, ReviewItemObservation.observation_id == FieldObservation.id)
+        .where(ReviewItemObservation.review_item_id == item.id).order_by(FieldObservation.id)
+    ).all()
     status = _DECIDED.get(decision)
     for obs in observations:
         if decision == DecisionKind.REJECT:

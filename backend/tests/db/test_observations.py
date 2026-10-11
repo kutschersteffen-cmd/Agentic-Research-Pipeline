@@ -502,3 +502,12 @@ def test_company_level_item_that_is_not_a_record_has_no_links(run_store, pg):
     _financials(run_store, pg, needs_review=False)
     queue_for_review(run_store, "f1", "isic:acme", {"company_id": "acme", "isic": "C10"})
     assert _links(pg) == []
+
+
+def test_whole_record_decision_follows_links(run_store, pg):
+    _financials(run_store, pg, needs_review=True)
+    with transaction(pg) as s:
+        rnd = s.scalar(select(m.FieldObservation.id).where(m.FieldObservation.field_id == "rnd_total"))
+        s.execute(m.ReviewItemObservation.__table__.delete().where(m.ReviewItemObservation.observation_id == rnd))
+    record_review_decision(run_store, "f1", "acme", "approve", "bob", None)
+    assert _facts(pg) == {"capex_total": (7.0, m.FactStatus.APPROVED), "rnd_total": (3.0, m.FactStatus.PENDING_REVIEW)}
