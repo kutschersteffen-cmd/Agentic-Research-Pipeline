@@ -82,6 +82,7 @@ def _seed_facts(engine, facts):
         c = m.Company(name="BMW")
         s.add(c)
         s.flush()
+        s.add(m.CompanyIdentifier(company_id=c.id, scheme="UNIVERSE", value="BMW"))  # stored normalised
         for key, as_of, status, value, current in facts:
             s.add(m.Field(field_id=key, kind=m.FieldKind.EXTRACTED))
             s.flush()
@@ -280,9 +281,37 @@ def test_documents_view_reads_the_registry(engine):
         c = m.Company(name="BMW")
         s.add(c)
         s.flush()
-        s.add(m.Document(doc_id="d1", company_id=c.id, doc_type="10-K", title="AR", content_key="ck"))
-        cid = str(c.id)
-    assert [tuple(r) for r in _q(engine, "SELECT doc_id, company_id, title FROM bi.documents")] == [("d1", cid, "AR")]
+        s.add(m.Document(doc_id="d1", company_id=c.id, universe_id="bmw", doc_type="10-K", title="AR", content_key="ck"))
+        cid = c.id
+    rows = _q(engine, "SELECT doc_id, company_id, title, company_uuid FROM bi.documents")
+    assert [tuple(r) for r in rows] == [("d1", "bmw", "AR", cid)]
+
+
+def test_company_id_is_the_universe_id_and_the_embed_filter_matches(engine):
+    """R47: the Company Profile embed filters every company dataset with `company_id = '<universe id>'`
+    (the id the portfolio store knows) and bi.holdings joins on it."""
+    from arp.bi.catalog import VIEW_DATASETS
+    from arp.bi.service import _company_rls
+
+    _seed(engine, facts=[("a", "2025-12-31", "approved", "1", True), ("b", "", "pending_review", "2", True)])
+    assert _q(engine, "SELECT company_id FROM bi.company_facts") == [("bmw",)]  # legacy_companies' spelling
+    assert _q(engine, "SELECT DISTINCT company_id FROM bi.holdings") == [("bmw",)]
+    assert _q(engine, "SELECT pg_typeof(company_uuid)::text, basis FROM bi.company_facts")[0] == ("uuid", "")
+
+    class Client:
+        def find_database(self, _name):
+            return 1
+
+        def find_dataset(self, _db, _schema, table):
+            return table
+
+    rules = _company_rls(Client(), "bmw")
+    assert {r["dataset"] for r in rules} == {n for n, d in VIEW_DATASETS.items() if "company_id" in d.columns}
+    for r in rules:
+        _q(engine, f"SELECT count(*) FROM bi.{r['dataset']} WHERE {r['clause']}")  # the clause is valid on every view
+    clause = rules[0]["clause"]
+    assert _q(engine, f"SELECT count(*) FROM bi.company_facts WHERE {clause}")[0][0] == 1
+    assert _q(engine, f"SELECT count(*) FROM bi.company_facts_pending WHERE {clause}")[0][0] == 1
 
 
 def test_reader_password_with_colon_and_quote(engine):

@@ -981,10 +981,13 @@ Postgres with `pgvector` is required (`Settings.postgres_dsn`,
   stay as files under `runs/<run_id>/`.
 - **Published facts** (`published_facts`, `releases`, `fact_events`) keep
   their issuer-key identity and carry the registry company in `company_id`.
-  The natural key stays `(issuer_key, field_id, period_end, basis,
-  version)`: a company published under its LEI before the cut-over and
-  under its UUID after has two version chains, so a unique key on
-  `company_id` would refuse the second. Holdings, securities and security
+  Publishing treats rows of the same company, field, period and basis as
+  one chain whatever their issuer key: a value published under the
+  company's LEI before the cut-over is closed by the next one, published
+  under its registry UUID as the following version. The unique key stays
+  `(issuer_key, field_id, period_end, basis, version)`; `company_id` has a
+  plain index, because a company may already hold two chains with the same
+  version numbers, published under two issuer keys before this rule. Holdings, securities and security
   resolutions also carry the registry company (`company_id`, or
   `company_uuid` where `company_id` already holds the universe id).
 

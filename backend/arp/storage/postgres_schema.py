@@ -275,7 +275,7 @@ def unmatched_company_rows(conn: Connection) -> dict[str, int]:
     inspector = inspect(conn)
     out = {}
     for table, target in sorted([(t, cols[0]) for t, cols in _REKEYED.items()] + [("fact_events", "company_id")]):
-        if target in {c["name"] for c in inspector.get_columns(table)}:
+        if inspector.has_table(table) and target in {c["name"] for c in inspector.get_columns(table)}:
             n = conn.execute(text(f"SELECT count(*) FROM {table} WHERE {target} IS NULL")).scalar()
             if n:
                 out[table] = n
@@ -341,6 +341,11 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         description="company_id (registry UUID) on holdings/securities/resolutions/releases/published facts/events,"
         " backfilled from LEI, UNIVERSE, ISIN and INTERNAL-UUID keys",
         apply=_phase1_rekey,
+    ),
+    SchemaStep(
+        name="bi_views_universe_id",
+        description="bi fact/run/document views: company_id is the universe id again; company_uuid (and basis) appended",
+        apply=_create_bi_views,
     ),
 )
 

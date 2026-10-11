@@ -7,7 +7,9 @@ out raw JSON payloads.
 The fact, run and document views read the company-foundation tables
 (`company_facts`, `run_results`, `documents`) under the column names and
 types the earlier projection tables had, so existing Superset datasets keep
-working; `company_id` there is the registry UUID as text. A fact's `value`
+working. `company_id` stays the universe id (what `bi.holdings` and the
+Company Profile embed's row-level filter use, see `_UNIVERSE_ID`); the
+registry UUID is the appended `company_uuid` column. A fact's `value`
 is the field's JSON value: `value_num` is it when `jsonb_typeof` is
 'number', `value_text` when it is a string, otherwise NULL, never an error.
 
@@ -48,14 +50,30 @@ _SAFE_CAST_FUNCTIONS = (
     """,
 )
 
+# The universe id of registry company `{col}`. UNIVERSE aliases are stored normalised (upper case), so the
+# original spelling -- the one legacy_companies, bi.holdings and the embed filter use -- is looked up there
+# first; then the alias itself; then the UUID for a company with no universe id.
+_UNIVERSE_ID = r"""
+    COALESCE(
+        (SELECT lc.company_id FROM company_identifiers ci
+         JOIN legacy_companies lc ON upper(regexp_replace(lc.company_id, '\s', '', 'g')) = ci.value
+         WHERE ci.company_id = {col} AND ci.scheme = 'UNIVERSE' AND ci.valid_to IS NULL
+         ORDER BY lc.company_id LIMIT 1),
+        (SELECT ci.value FROM company_identifiers ci
+         WHERE ci.company_id = {col} AND ci.scheme = 'UNIVERSE' AND ci.valid_to IS NULL
+         ORDER BY ci.value LIMIT 1),
+        {col}::text
+    )::varchar
+"""
+
 _FACT_SELECT = """
-    SELECT f.company_id::varchar AS company_id, f.field_id::varchar AS fact_key, d.data_type::varchar AS fact_type,
+    SELECT {universe_id} AS company_id, f.field_id::varchar AS fact_key, d.data_type::varchar AS fact_type,
            f.period_end AS as_of,
            CASE WHEN jsonb_typeof(f.value) = 'number' AND abs((f.value #>> '{{}}')::numeric) < 1e300
                 THEN (f.value #>> '{{}}')::double precision END AS value_num,
            CASE WHEN jsonb_typeof(f.value) = 'string' THEN f.value #>> '{{}}' END AS value_text,
            f.status::varchar AS status, o.confidence, r.reviewer::varchar AS reviewer,
-           f.valid_from
+           f.valid_from, f.basis, f.company_id AS company_uuid
     FROM company_facts f
     JOIN field_observations o ON o.id = f.observation_id
     LEFT JOIN field_definitions d ON d.field_id = o.field_id AND d.version = o.field_version
@@ -88,21 +106,30 @@ _VIEWS = {
     """,
     # Every snapshot; junk dates (NULL after the safe cast) are left out.
     "holdings_history": _HOLDINGS_SELECT + " WHERE bi.safe_date(h.as_of_date) IS NOT NULL",
-    "company_facts": _FACT_SELECT.format(statuses="'approved', 'edited', 'auto_approved', 'auto_accepted'"),
-    "company_facts_pending": _FACT_SELECT.format(statuses="'pending_review'"),
+    "company_facts": _FACT_SELECT.format(
+        universe_id=_UNIVERSE_ID.format(col="f.company_id"), statuses="'approved', 'edited', 'auto_approved', 'auto_accepted'"
+    ),
+    "company_facts_pending": _FACT_SELECT.format(
+        universe_id=_UNIVERSE_ID.format(col="f.company_id"), statuses="'pending_review'"
+    ),
     "run_records": """
-        SELECT r.run_id::varchar AS run_id, u.run_type::varchar AS run_type, r.company_id::varchar AS company_id,
+        SELECT r.run_id::varchar AS run_id, u.run_type::varchar AS run_type, """
+    + _UNIVERSE_ID.format(col="r.company_id")
+    + """ AS company_id,
                CASE WHEN jsonb_typeof(r.result->'needs_review') = 'boolean'
                     THEN (r.result->>'needs_review')::boolean END AS needs_review,
                CASE WHEN jsonb_typeof(r.result->'overall_confidence') = 'number'
                     THEN (r.result->>'overall_confidence')::double precision END AS overall_confidence,
-               r.created_at AS generated_at
+               r.created_at AS generated_at, r.company_id AS company_uuid
         FROM run_results r JOIN runs u ON u.run_id = r.run_id
     """,
     "documents": """
-        SELECT doc_id::varchar AS doc_id, company_id::varchar AS company_id, doc_type::varchar AS doc_type,
-               title::varchar AS title, source_url::varchar AS source_url, first_seen_at, last_seen_at
-        FROM documents
+        SELECT d.doc_id::varchar AS doc_id, COALESCE(d.universe_id::varchar, """
+    + _UNIVERSE_ID.format(col="d.company_id")
+    + """) AS company_id,
+               d.doc_type::varchar AS doc_type, d.title::varchar AS title, d.source_url::varchar AS source_url,
+               d.first_seen_at, d.last_seen_at, d.company_id AS company_uuid
+        FROM documents d
     """,
     # Datasets the monthly run publishes into bi_published (arp/bi/published.py), one JSON object per row.
     # `p.row` is qualified because ROW is also an SQL keyword.

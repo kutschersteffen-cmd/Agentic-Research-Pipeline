@@ -19,13 +19,17 @@ def db_init_postgres() -> None:
     Run it against a fresh database before the first start, and again after
     upgrading this codebase: it also adds columns and applies recorded schema
     steps to a database created by an earlier version (see
-    arp/storage/postgres_schema.py). It never drops anything. Re-running
+    arp/storage/postgres_schema.py), and links legacy-keyed rows to companies
+    registered since. It never drops anything. Re-running
     against an already-current database changes nothing. `arp db
     check-postgres` reports what a database has without touching it."""
     settings = get_settings()
-    from arp.storage.postgres import ensure_schema
+    from arp.storage.postgres import ensure_schema, get_engine
+    from arp.storage.postgres_schema import rekey_company_ids
 
     result = ensure_schema(settings.postgres_dsn)
+    with get_engine(settings.postgres_dsn).begin() as conn:  # rows whose company was registered since
+        rekey_company_ids(conn)
     typer.echo(f"Postgres schema ready at {settings.postgres_dsn}.")
     for label, key in (
         ("Tables created", "tables_created"),

@@ -233,8 +233,8 @@ class PublishedFactModel(Base):
         ),
         Index("ix_published_facts_current", "issuer_key", "field_id", "period_end", "basis", "valid_to"),
         Index("ix_published_facts_valid_from", "valid_from"),
-        # Not unique: rows of one company published under two issuer keys (LEI before cut-over, the
-        # registry UUID after) share a version number, so the natural key stays the issuer_key one above.
+        # Not unique: publishing joins one company's chains across issuer keys through it
+        # (PublishStore.current), but chains published under two keys before that share version numbers.
         Index("ix_published_facts_company_key", "company_id", "field_id", "period_end", "basis"),
     )
 

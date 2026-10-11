@@ -297,3 +297,41 @@ def test_import_esg_loads_and_legacy_postgres_documents(pg, legacy_settings):
     assert importer.import_all(pg, legacy_settings, dry_run=False).counts["esg_loads"] == 0
     assert importer.verify(pg, legacy_settings).differences == []
 
+
+
+def test_import_copies_the_file_portfolio_store_once(legacy_settings, pg):
+    """R46: deployments that ran the file portfolio store keep their portfolios and holdings."""
+    from arp.schemas.portfolio import Holding, Portfolio, SecurityRef, SecurityResolution
+    from arp.storage.portfolio_store import PortfolioStore
+    from arp.storage.portfolio_store_factory import build_portfolio_store
+
+    files = PortfolioStore(legacy_settings.portfolios_dir)
+    files.save_company(CompanyRef(company_id="acme", name="Acme", sector="Auto"))
+    for pid in ("P1", "P2"):
+        files.save_portfolio(Portfolio(portfolio_id=pid, name=pid))
+    files.save_security(SecurityRef(security_id="US0000000001", isin="US0000000001", name="Acme", asset_class="equity",
+                                    currency="EUR", company_id="acme"))
+    files.save_resolution(SecurityResolution(security_id="US0000000001", company_id="acme", confidence=1.0))
+    for d, mv in (("2026-01-31", 5.0), ("2026-02-28", 7.0)):
+        files.save_snapshot("P1", d, [Holding(holder_id="P1", security_id="US0000000001", as_of_date=d,
+                                              isin="US0000000001", market_value_eur=mv)])
+    files.save_snapshot("P2", "2026-02-28", [Holding(holder_id="P2", security_id="XS0000000002", as_of_date="2026-02-28",
+                                                     market_value_eur=1.0)])  # a security the files never registered
+
+    dry = importer.import_all(pg, legacy_settings, dry_run=True)
+    assert (dry.counts["portfolios"], dry.counts["snapshots"], dry.counts["resolutions"]) == (2, 3, 1)
+    store = build_portfolio_store(legacy_settings)
+    assert store.list_portfolios() == []  # a dry run writes nothing
+
+    report = importer.import_all(pg, legacy_settings, dry_run=False)
+    assert {k: report.counts[k] for k in ("portfolios", "portfolio_companies", "securities", "resolutions", "snapshots")} == {
+        "portfolios": 2, "portfolio_companies": 1, "securities": 2, "resolutions": 1, "snapshots": 3}
+    assert [p.portfolio_id for p in store.list_portfolios()] == ["P1", "P2"]
+    assert store.get_company("acme").sector == "Auto"
+    assert store.get_resolution("US0000000001").company_id == "acme"
+    for holder, d in (("P1", "2026-01-31"), ("P1", "2026-02-28"), ("P2", "2026-02-28")):
+        assert store.load_snapshot(holder, d) == files.load_snapshot(holder, d)
+    assert store.get_security("US0000000001").company_id == "acme"
+
+    again = importer.import_all(pg, legacy_settings, dry_run=False)
+    assert all(again.counts[k] == 0 for k in ("portfolios", "portfolio_companies", "securities", "resolutions", "snapshots"))

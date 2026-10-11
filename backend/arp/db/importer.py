@@ -1,7 +1,8 @@
 """One-time import of file-era history into Postgres (spec §6 step 8, §7) and the check that the two agree.
 
 `import_all` order: universe files → identifier map → schema registry → documents → runs, oldest first
-by `created_at` (rows and observations only) → facts → ESG loads → re-key legacy-keyed rows
+by `created_at` (rows and observations only) → facts → ESG loads → the file PortfolioStore's portfolios,
+companies, securities, resolutions and holdings snapshots → re-key legacy-keyed rows
 (holdings, securities, published facts…) to the companies just created. Each unit (one source, one run, the
 fact replay) is one transaction, so an interrupted import leaves whole units behind and a re-run
 completes the rest.
@@ -63,7 +64,8 @@ from arp.universe import load_company_universe, resolve_universe
 logger = logging.getLogger(__name__)
 
 AREAS = ("companies", "identifiers", "schemas", "documents", "runs", "results", "errors", "review_items",
-         "decisions", "decisions_skipped", "cosigns", "esg_loads")
+         "decisions", "decisions_skipped", "cosigns", "esg_loads", "portfolios", "portfolio_companies", "securities",
+         "resolutions", "snapshots")
 # run_errors rows the import itself derives (not in errors.jsonl): identity conflicts from save_companies,
 # values left out of observations, citations to unregistered documents
 _DERIVED_ERRORS = ("identity_conflict", "invalid_value", "unregistered_citation")
@@ -501,6 +503,67 @@ def _import_esg(s: Session, settings: Settings, report: ImportReport, *, dry_run
             report.counts["esg_loads"] += ingested is not None
 
 
+def _file_snapshots(root: Path) -> list[tuple[str, str, str]]:
+    """(kind, holder_id, as_of_date) of every snapshot file the file PortfolioStore wrote."""
+    out = [("portfolio", p.parent.parent.name, p.stem) for p in root.glob("*/snapshots/*.jsonl")]
+    out += [("index", p.parent.parent.name, p.stem) for p in root.glob("holdings/index/*/snapshots/*.jsonl")]
+    return sorted(out)
+
+
+def _import_portfolios(settings: Settings, report: ImportReport, *, dry_run: bool) -> None:
+    """The file PortfolioStore's relational part (portfolios, companies, securities, resolutions, holdings
+    snapshots) into the Postgres store, skipping what Postgres already has by natural key. The Postgres
+    store's writers commit on their own, so a dry run only counts. A security or holding that names a
+    company or security the files never registered gets a stub row (the FKs need it; intake does the same)."""
+    from arp.schemas.portfolio import SecurityRef, SecurityResolution
+    from arp.storage.portfolio_store import PortfolioStore
+    from arp.storage.portfolio_store_factory import build_portfolio_store
+
+    files, pg = PortfolioStore(settings.portfolios_dir), build_portfolio_store(settings)
+    counts = report.counts
+
+    def write(area: str, missing: bool, save) -> None:
+        if missing:
+            counts[area] += 1
+            if not dry_run:
+                save()
+
+    known_companies = {c.company_id for c in pg.list_companies()}
+    known_securities = {s.security_id for s in pg.list_securities()}
+    for p in files.list_portfolios():
+        write("portfolios", pg.get_portfolio(p.portfolio_id) is None, lambda p=p: pg.save_portfolio(p))
+    for c in files.list_companies():
+        write("portfolio_companies", c.company_id not in known_companies, lambda c=c: pg.save_company(c))
+        known_companies.add(c.company_id)
+
+    def security(sec: SecurityRef) -> None:
+        if sec.company_id and sec.company_id not in known_companies:
+            write("portfolio_companies", True,
+                  lambda: pg.save_company(CompanyRef(company_id=sec.company_id, name=sec.company_id)))
+            known_companies.add(sec.company_id)
+        write("securities", sec.security_id not in known_securities, lambda: pg.save_security(sec))
+        known_securities.add(sec.security_id)
+
+    for sec in files.list_securities():
+        security(sec)
+    with _source(str(files.resolutions_path())):
+        for row in files._read_json(files.resolutions_path()).values():
+            r = SecurityResolution.model_validate(row)
+            write("resolutions", pg.get_resolution(r.security_id) is None, lambda r=r: pg.save_resolution(r))
+    for kind, holder, as_of in _file_snapshots(settings.portfolios_dir):
+        if as_of in pg.list_snapshot_dates(holder, kind=kind):
+            continue
+        with _source(str(files.snapshot_path(holder, as_of, kind=kind))):
+            holdings = files.load_snapshot(holder, as_of, kind=kind)
+        for h in holdings:
+            if h.security_id not in known_securities:
+                security(SecurityRef(security_id=h.security_id, isin=h.isin, name=h.security_id, asset_class="other",
+                                     currency=h.currency or ""))
+        counts["snapshots"] += 1
+        if not dry_run:
+            pg.save_snapshot(holder, as_of, holdings, kind=kind)
+
+
 @contextmanager
 def _units(dsn: str, dry_run: bool):
     """Yields `unit()`: a transaction per unit of work, committed on exit; under `dry_run` a savepoint
@@ -542,6 +605,7 @@ def import_all(dsn: str, settings: Settings, *, dry_run: bool) -> ImportReport:
                 _replay_facts(s, [r.run_id for r in manifests], report)
         with unit() as s:
             _import_esg(s, settings, report, dry_run=dry_run)
+        _import_portfolios(settings, report, dry_run=dry_run)
         with unit() as s:  # legacy-keyed rows whose companies this import created
             rekey_company_ids(s.connection())
     return report

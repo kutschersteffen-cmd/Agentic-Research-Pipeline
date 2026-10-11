@@ -117,7 +117,7 @@ def publish_run(
     groups, blocked = split_by_gate(cands, blob_store, withdrawn_docs=withdrawn_docs, content_store=content_store)
     result = PublishResult(releases=[], reconfirmed=0, blocked=blocked, skipped=list(skipped))
     for group in groups.values():
-        current = store.current(fact_key(c) for c in group)
+        current = store.current([fact_key(c) for c in group], {c.issuer_key: c.issuer_scheme for c in group})
         release, plans, events = plan_release(
             group, current, run_id=run_id,
             published_by=principal.user_id if principal else SYSTEM,

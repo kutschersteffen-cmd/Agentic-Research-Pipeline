@@ -28,7 +28,7 @@ pytestmark = pytest.mark.usefixtures("pg")
 
 
 def _settings(**kw):
-    return SimpleNamespace(postgres_dsn=None, holdings_api_url=None, holdings_pull_day=2, snapshot_day=1, **kw)
+    return SimpleNamespace(holdings_api_url=None, holdings_pull_day=2, snapshot_day=1, **kw)
 
 
 def _api(as_of):
@@ -54,7 +54,7 @@ def test_snapshot_waits_for_pull_day_not_for_a_failing_pull():
     s.holdings_pull_day = 3
     due = lambda day, as_of: due_jobs(day, c, settings=s, latest_frozen_month="2026-09", holders=[_api(as_of)])  # noqa: E731
     assert "snapshot" not in due(date(2026, 11, 2), "2026-09-30")  # before the pull day
-    assert due(date(2026, 11, 3), "2026-09-30") == ["pull", "snapshot"]  # pull still due: it runs first, then the snapshot
+    assert due(date(2026, 11, 3), "2026-09-30") == ["reground", "pull", "snapshot", "corrections"]  # pull still due: it runs first, then the snapshot
     assert "snapshot" in due(date(2026, 11, 3), "2026-10-31")
 
 
@@ -67,12 +67,10 @@ def test_pull_due_after_pull_day_until_success():
     assert "pull" not in due(date(2026, 11, 3), "2026-10-31")
 
 
-def test_reground_once_per_day_and_needs_dsn():
+def test_reground_once_per_day():
     s = _settings()
     day = date(2026, 11, 3)
     kw = dict(latest_frozen_month=None, holders=[])
-    assert "reground" not in due_jobs(day, PublishingScheduleConfig(), settings=s, **kw)
-    s.postgres_dsn = "postgresql://x"
     assert "reground" in due_jobs(day, PublishingScheduleConfig(), settings=s, **kw)
     done = PublishingScheduleConfig(last_reground_day="2026-11-03")
     assert "reground" not in due_jobs(day, done, settings=s, **kw)
@@ -109,7 +107,7 @@ def test_scheduler_run_builds_snapshot(tmp_path, monkeypatch, pg):
     v = validate(raw, kind="index", as_of="2026-10-31", today=date(2026, 11, 2))
     ingest(store, v, kind="index", holder_id="IX1", as_of="2026-10-31", source="file", source_ref="f.csv",
            principal=None, override_reason=None, idmap=IdentifierMapStore(tmp_path / "idmap.jsonl"))
-    settings = Settings(postgres_dsn=None, holdings_api_url=None, snapshot_store_dir=tmp_path / "snaps",
+    settings = Settings(postgres_dsn=pg, holdings_api_url=None, snapshot_store_dir=tmp_path / "snaps",
                         publish_state_dir=tmp_path / "state")
     monkeypatch.setattr(S, "_today", lambda: date(2026, 11, 2))
     monkeypatch.setattr(B, "ts_now", lambda: "2026-11-02T08:00:00.000000+00:00")  # the build reads the real clock

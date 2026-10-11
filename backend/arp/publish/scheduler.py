@@ -10,6 +10,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from arp.config import Settings
+from arp.db.session import require_dsn
 from arp.holdings.api_source import pull_due
 from arp.holdings.intake import previous_month_end
 from arp.orchestration.interval_scheduler import IntervalScheduler
@@ -58,7 +59,7 @@ def due_jobs(
 ) -> list[str]:
     prev = previous_month_end(today)
     due = []
-    if settings.postgres_dsn and config.last_reground_day != today.isoformat():
+    if config.last_reground_day != today.isoformat():
         due.append("reground")
     url = bool(settings.holdings_api_url)
     pull = url and today.day >= settings.holdings_pull_day and any(
@@ -72,7 +73,7 @@ def due_jobs(
         and not (url and today.day < settings.holdings_pull_day)
     ):  # a failing pull never holds it: the pull runs first, stale holders stay flagged in holder status
         due.append("snapshot")
-    if settings.postgres_dsn and latest_frozen_month is not None:
+    if latest_frozen_month is not None:
         due.append("corrections")
     return due
 
@@ -106,9 +107,7 @@ class PublishingScheduler(IntervalScheduler):
 
     def _facts(self):
         s = self.settings
-        if not s.postgres_dsn:
-            return lambda _a: [], lambda _a: []
-        store = PublishStore(s.postgres_dsn)
+        store = PublishStore(require_dsn(s))
         return lambda a: facts_as_of(store, a), lambda a: events_since(store, a)
 
     def _reground(self, today: date) -> tuple[str, str]:

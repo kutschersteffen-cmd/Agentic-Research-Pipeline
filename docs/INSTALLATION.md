@@ -292,7 +292,9 @@ arp db check-postgres                 # read-only; non-zero exit when not curren
 ```
 
 Re-run `arp db init-postgres` after every upgrade. It adds missing tables and
-columns and applies recorded schema steps; it never drops anything. The test
+columns, applies recorded schema steps, and links holdings, securities and
+published facts to companies registered since (idempotent); it never drops
+anything. The test
 suite needs a separate, empty database named in the environment variable
 `ARP_TEST_POSTGRES_DSN` (e.g. create `arp_test` and set
 `postgresql+psycopg://arp:arp@localhost:5432/arp_test`); it empties its
@@ -308,8 +310,10 @@ with the API stopped:
 2. `arp db import --dry-run`: counts per area, identity conflicts, fact
    conflicts and skipped decisions. Writes nothing.
 3. `arp db import`: universe files, identifier map, schema registry,
-   documents, every run oldest first, facts, ESG loads; then re-keys holdings,
-   securities, releases and published facts to the imported companies.
+   documents, every run oldest first, facts, ESG loads, the portfolio
+   store's portfolios, companies, securities, resolutions and holdings
+   snapshots; then re-keys holdings, securities, releases and published
+   facts to the imported companies.
    Idempotent; re-run it to finish an interrupted import.
 4. `arp db verify` must report no differences.
 5. `arp db check-postgres`: lists rows still without a company
@@ -319,11 +323,6 @@ with the API stopped:
 The files stay on disk and are only read; nothing deletes them. Rolling back
 means redeploying the previous release, which reads the files; anything
 written after the cut-over is only in Postgres.
-
-Portfolio data the file portfolio store held (`portfolios/` registry,
-securities, holdings snapshots) is not part of `arp db import`. Re-load it
-through Holdings Intake or `arp portfolio import-constituents` after the
-cut-over.
 
 The legacy tables earlier versions wrote are kept so `arp db import` can read
 them. Once `arp db verify` is clean you may drop them by hand:

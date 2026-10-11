@@ -166,3 +166,30 @@ def test_lineage_one_join_pg(store):
     assert got["release_id"] == rel.release_id and got["doc_id"] == "d1" and got["content_key"] == "ck"
     assert got["source_run_id"] == "run1" and got["item_key"] == "k1"
     assert store.lineage("fact_missing") is None
+
+
+def test_uuid_keyed_publish_continues_the_lei_keyed_chain_pg(store):
+    """R48: after cut-over a run keys the issuer by its registry UUID; the fact published under its LEI
+    before is the same chain, so the new value is version 2 and exactly one row stays current."""
+    from sqlalchemy import func, select
+
+    from arp.db import models as m
+    from arp.db.session import transaction
+    from arp.storage.postgres_models import PublishedFactModel
+
+    with transaction(DSN) as s:
+        c = m.Company(name="Acme")
+        s.add(c)
+        s.flush()
+        s.add(m.CompanyIdentifier(company_id=c.id, scheme="LEI", value=LEI))
+        uid = str(c.id)
+    _publish(store, _cand(), T1)  # LEI-keyed, version 1
+    cand = _cand(issuer_key=uid, issuer_scheme="INTERNAL", value=1100.0, observed_at=T2, item_key="k2")
+    rel, plan = _publish(store, cand, T2)
+    assert plan.closes is not None and plan.closes.issuer_key == LEI
+    with store.session() as s:
+        current = s.scalars(select(PublishedFactModel).where(PublishedFactModel.valid_to.is_(None))).all()
+        assert [(f.issuer_key, f.version, f.value) for f in current] == [(uid, 2, 1100.0)]
+        assert s.scalar(select(func.count()).select_from(PublishedFactModel)) == 2
+    assert [(v.issuer_key, v.version) for v in store.versions(fact_key(cand))] == [(LEI, 1), (uid, 2)]
+    assert [v.version for v in store.versions(fact_key(_cand()))] == [1, 2]  # from the LEI key too

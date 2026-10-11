@@ -196,6 +196,18 @@ def _companies(s):
     return cache(lambda key, scheme: company_for(s, issuer_key=key, issuer_scheme=scheme))
 
 
+def _key_company(s, issuer_key: str, scheme: str | None):
+    """The registry company of an issuer key: what its published rows already carry, else `company_for`
+    (an unknown scheme is tried as INTERNAL, i.e. a registry UUID)."""
+    from sqlalchemy import select
+
+    from arp.db.companies import company_for
+    from arp.storage.postgres_models import PublishedFactModel as M
+
+    known = s.scalar(select(M.company_id).where(M.issuer_key == issuer_key, M.company_id.is_not(None)).limit(1))
+    return known or company_for(s, issuer_key=issuer_key, issuer_scheme=scheme or "INTERNAL")
+
+
 def _fact(row) -> Fact:
     return Fact.model_validate({c.key: getattr(row, c.key) for c in row.__table__.columns})
 
@@ -237,7 +249,10 @@ class PublishStore:
         with self.session() as s:
             return internal_only_keys(s, facts)
 
-    def current(self, keys: Iterable[FactKey]) -> dict[FactKey, Fact]:
+    def current(self, keys: Iterable[FactKey], schemes: dict[str, str] | None = None) -> dict[FactKey, Fact]:
+        """The current fact per key. A key's company (`_key_company`; `schemes` maps issuer_key -> scheme
+        when known) joins chains published under another issuer key of the same company -- an LEI-keyed
+        fact from before the cut-over is the current version of the UUID-keyed key after it."""
         from sqlalchemy import select, tuple_
 
         from arp.storage.postgres_models import PublishedFactModel as M
@@ -245,22 +260,34 @@ class PublishStore:
         keys = list(keys)
         if not keys:
             return {}
-        cols = tuple_(M.issuer_key, M.field_id, M.period_end, M.basis)
         with self.session() as s:
-            rows = s.scalars(select(M).where(cols.in_(keys), M.valid_to.is_(None)))
-            return {fact_key(f): f for f in map(_fact, rows)}
+            company = {k: _key_company(s, k[0], (schemes or {}).get(k[0])) for k in keys}
+            by_company = {(c, *k[1:]): k for k, c in company.items() if c is not None}
+            where = tuple_(M.issuer_key, M.field_id, M.period_end, M.basis).in_(keys)
+            if by_company:
+                where = where | tuple_(M.company_id, M.field_id, M.period_end, M.basis).in_(list(by_company))
+            out: dict[FactKey, Fact] = {}
+            for row in s.scalars(select(M).where(where, M.valid_to.is_(None))):
+                f = _fact(row)
+                own = fact_key(f)
+                if own in company:
+                    out[own] = f  # the key's own chain wins over another key's
+                elif (k := by_company.get((row.company_id, *own[1:]))) is not None:
+                    out.setdefault(k, f)
+            return out
 
     def versions(self, key: FactKey) -> list[Fact]:
+        """Every version of the key, including versions published under another issuer key of its company."""
         from sqlalchemy import select
 
         from arp.storage.postgres_models import PublishedFactModel as M
 
         issuer_key, field_id, period_end, basis = key
-        q = select(M).where(
-            M.issuer_key == issuer_key, M.field_id == field_id, M.period_end == period_end, M.basis == basis
-        )
         with self.session() as s:
-            return [_fact(r) for r in s.scalars(q.order_by(M.version))]
+            company = _key_company(s, issuer_key, None)
+            who = M.issuer_key == issuer_key if company is None else (M.issuer_key == issuer_key) | (M.company_id == company)
+            q = select(M).where(who, M.field_id == field_id, M.period_end == period_end, M.basis == basis)
+            return [_fact(r) for r in s.scalars(q.order_by(M.version, M.valid_from))]
 
     def get_fact(self, fact_id: str) -> Fact | None:
         from arp.storage.postgres_models import PublishedFactModel as M

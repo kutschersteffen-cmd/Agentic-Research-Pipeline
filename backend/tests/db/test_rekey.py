@@ -172,3 +172,19 @@ def test_live_writers_set_company_id(pg, tmp_path):
         assert s.scalar(select(ReleaseModel.company_id)) == acme
         assert s.scalar(select(PublishedFactModel.company_id)) == acme
         assert s.scalar(select(FactEventModel.company_id)) == acme
+
+
+def test_init_postgres_links_rows_whose_company_arrived_later(pg):
+    from typer.testing import CliRunner
+
+    from arp.cli import app
+
+    with transaction(pg) as s:
+        s.add(ReleaseModel(release_id="rel1", doc_id="d", content_key="ck", storage_uri="u", issuer_key=LEI,
+                           issuer_scheme="LEI", run_id="r", published_at=T, published_by="u", published_by_role="approver"))
+    with transaction(pg) as s:
+        acme = _company(s, "Acme", ("LEI", LEI))
+    result = CliRunner().invoke(app, ["db", "init-postgres"])
+    assert result.exit_code == 0, result.output
+    with transaction(pg) as s:
+        assert s.scalar(select(ReleaseModel.company_id)) == acme
