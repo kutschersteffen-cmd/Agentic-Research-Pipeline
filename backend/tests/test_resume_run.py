@@ -499,3 +499,79 @@ def test_completed_run_with_every_stored_company_done_is_refused_whatever_the_co
     JobManager(store).finish_run(run_id)
     with pytest.raises(NotResumable, match="already completed"):
         check_resumable(store, run_id)
+
+
+def test_lease_leaves_no_worker_file(tmp_path, pg):
+    store, run_id = _run(tmp_path, pg)
+    with run_lease(store, run_id):
+        pass
+    assert not (store.runs_dir / run_id / ".worker").exists()
+
+
+def test_lease_conflicts_per_run_and_is_released(tmp_path, pg):
+    store = RunStore(pg, tmp_path / "runs")
+    with run_lease(store, "r1"):
+        with pytest.raises(RunBusy), run_lease(store, "r1"):
+            pass
+        with run_lease(store, "r2"):
+            pass
+    with run_lease(store, "r1"):
+        pass
+    with pytest.raises(RuntimeError), run_lease(store, "r1"):
+        raise RuntimeError
+    with run_lease(store, "r1"):
+        pass
+
+
+def test_lease_is_held_in_postgres(tmp_path, pg):
+    from sqlalchemy import text
+
+    from arp.db.session import transaction
+    from arp.orchestration.jobs import _LEASE_NS
+
+    store, run_id = _run(tmp_path, pg)
+    held = text("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND classid = :ns")
+    with run_lease(store, run_id), transaction(pg) as s:
+        assert s.scalar(held, {"ns": _LEASE_NS}) == 1
+
+
+def test_lease_cycles_leak_no_connections(tmp_path, pg):
+    from sqlalchemy import text
+
+    from arp.db.session import transaction
+
+    store, run_id = _run(tmp_path, pg)
+
+    def connections():
+        with transaction(pg) as s:
+            return s.scalar(text("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()"))
+
+    before = connections()
+    for _ in range(50):
+        with run_lease(store, run_id):
+            pass
+    assert connections() <= before
+
+
+def test_dead_lease_connection_keeps_the_runs_outcome(tmp_path, pg):
+    """The lease connection dropped mid-run (failover, idle NAT): the run's own result or error stands."""
+    from sqlalchemy import text
+
+    from arp.db.session import transaction
+    from arp.orchestration.jobs import _LEASE_NS
+
+    store, run_id = _run(tmp_path, pg)
+
+    def kill_lease():
+        with transaction(pg) as s:
+            s.execute(text("SELECT pg_terminate_backend(pid) FROM pg_locks WHERE locktype = 'advisory' AND classid = :ns"
+                           " AND database = (SELECT oid FROM pg_database WHERE datname = current_database())"),
+                      {"ns": _LEASE_NS})
+
+    with run_lease(store, run_id):
+        kill_lease()  # completes normally: no error
+    with pytest.raises(ValueError, match="real"), run_lease(store, run_id):
+        kill_lease()
+        raise ValueError("real")
+    with run_lease(store, run_id):  # and the lease is free again
+        pass
