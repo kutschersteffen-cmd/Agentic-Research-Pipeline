@@ -9,7 +9,7 @@ import threading
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -22,6 +22,8 @@ from arp.db.models import (
     Company,
     DecisionKind,
     Document,
+    FieldObservation,
+    ItemState,
     ReviewCosign,
     ReviewDecision,
     ReviewItem,
@@ -34,7 +36,7 @@ from arp.db.models import (
 )
 from arp.db.observations import ObservationIn
 from arp.db.session import transaction
-from arp.db.to_observations import review_target
+from arp.db.to_observations import review_target, unqueued_item
 from arp.schemas.common import CompanyRef, RunManifest, now_iso
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.run_store import LegacyRunStore, done_keys_from_rows
@@ -272,6 +274,36 @@ class RunStore:
                 same = company is not None and item.get("company_id") == company.company_id
                 self._insert_review_item(s, run_id, item, by_target.get(target) if target else None, entity if same else None)
 
+    def _queue_unqueued(self, s: Session, run_id: str, row: dict) -> None:
+        """A decision or cosign on an item never queued (an auto-accepted value, a whole record):
+        queues it now, linked to its observation as `record_company_result` links queued ones, so the
+        decision has an item and reaches the facts."""
+        key = row.get("item_key")
+        if not key or s.scalar(select(ReviewItem.id).where(ReviewItem.run_id == run_id, ReviewItem.item_key == key)):
+            return
+        stored = s.execute(select(RunResult.company_id, RunResult.result).where(RunResult.run_id == run_id).order_by(RunResult.id)).all()
+        found = unqueued_item((r for _, r in stored), key)
+        if found is None:
+            return
+        result, payload = found
+        entity = next(c for c, r in stored if r is result)
+        target = review_target(payload)
+        observation = None
+        if target and entity is not None:
+            field_id, period, basis = target
+            try:
+                period_end = date.fromisoformat(period) if period else None
+            except ValueError:
+                period_end = None  # an unparseable period made no observation
+            else:
+                observation = s.scalar(select(FieldObservation.id).where(
+                    FieldObservation.run_id == run_id, FieldObservation.company_id == entity,
+                    FieldObservation.field_id == field_id, FieldObservation.period_end.is_not_distinct_from(period_end),
+                    FieldObservation.basis == basis,
+                ).order_by(FieldObservation.id.desc()).limit(1))
+        queued_at = row.get("decided_at") or row.get("cosigned_at")
+        self._insert_review_item(s, run_id, {**_jsonb_safe(payload), "queued_at": queued_at}, observation, entity)
+
     def _item_id(self, run_id: str, row: dict):
         return (
             select(ReviewItem.id).where(ReviewItem.run_id == run_id, ReviewItem.item_key == row.get("item_key")).scalar_subquery()
@@ -289,6 +321,8 @@ class RunStore:
         decision = _decision_kind(row)
         with self._tx(run_id) as s:
             self._ensure_run(s, run_id)
+            if decision is not None:
+                self._queue_unqueued(s, run_id, row)
             s.execute(
                 insert(ReviewDecision).values(
                     run_id=run_id, review_item_id=self._item_id(run_id, row),
@@ -309,6 +343,7 @@ class RunStore:
         row = _jsonb_safe(row)
         with self._tx(run_id) as s:
             self._ensure_run(s, run_id)
+            self._queue_unqueued(s, run_id, row)
             s.execute(
                 insert(ReviewCosign).values(
                     run_id=run_id, review_item_id=self._item_id(run_id, row), reviewer=row.get("name"),
@@ -347,6 +382,7 @@ class RunStore:
         ))
         run_type = s.scalar(select(Run.run_type).where(Run.run_id == run_id))
         state = item_state([r for _, r in rows], cosigned_at=signed, cosign_required=cosign_rule(run_type))
+        item.state = ItemState(state.state)
         if state.state not in FINAL_STATES:
             return
         eff = state.effective

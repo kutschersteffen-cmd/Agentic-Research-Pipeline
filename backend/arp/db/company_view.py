@@ -225,7 +225,8 @@ def summary(session: Session, company_id: UUID, *, today: date, store=None) -> C
         fact_counts={str(k.value): v for k, v in counts.items()},
         open_review_items=session.scalar(
             select(func.count()).select_from(m.ReviewItem).where(
-                m.ReviewItem.company_id == company_id, m.ReviewItem.state != m.ItemState.FINAL)
+                m.ReviewItem.company_id == company_id,
+                m.ReviewItem.state.not_in([m.ItemState.FINAL, m.ItemState.SECOND_DONE]))
         ),
         documents=session.scalar(select(func.count()).select_from(m.Document).where(m.Document.company_id == company_id)),
         runs=session.scalar(select(func.count()).select_from(m.RunCompany).where(m.RunCompany.company_id == company_id)),

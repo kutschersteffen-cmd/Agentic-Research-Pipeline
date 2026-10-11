@@ -199,6 +199,23 @@ def test_late_decision_on_older_run_wins(pg, legacy_settings):
         assert as_of((2026, 3, 2)) == [(10.0, m.FactStatus.APPROVED)]  # after the March approval
 
 
+def test_decision_on_unqueued_value_is_imported_and_verified(pg, legacy_settings):
+    """C2: an auto-accepted 10 corrected to 12 without ever being queued: the fact is 12 edited, and
+    verify replays it the same way."""
+    legacy = LegacyRunStore(legacy_settings.runs_dir)
+    row = {**_ext_row("c_run", [("fld_x", 10.0, "auto_accept")]), "issuer_key": "acme"}
+    _run(legacy, "c_run", "extraction", "2026-03-01T00:00:00+00:00", [row])
+    key = f"acme:fld_x:{FY24}"
+    legacy.append_decision_row("c_run", {"item_key": key, "decision": "correct", "step": "first", "reviewer": "bob",
+                                         "corrected_value": {"value": 12.0}, "decided_at": "2026-03-02T00:00:00Z"})
+    importer.import_all(pg, legacy_settings, dry_run=False)
+    assert _current(pg, "fld_x") == [(12.0, m.FactStatus.EDITED)]
+    with transaction(pg) as s:
+        item = s.scalar(select(m.ReviewItem).where(m.ReviewItem.item_key == key))
+        assert item.observation_id is not None and item.state == m.ItemState.FINAL
+    assert importer.verify(pg, legacy_settings).differences == []
+
+
 def test_unknown_decision_is_skipped_and_listed_not_a_difference(pg, legacy_settings):
     LegacyRunStore(legacy_settings.runs_dir).append_decision_row(
         "r_old", {"item_key": EMP_KEY, "decision": "rejected", "decided_at": "2026-01-04T00:00:00+00:00"})

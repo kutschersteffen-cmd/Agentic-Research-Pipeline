@@ -52,7 +52,7 @@ from arp.db.fields import SchemaRegistry
 from arp.db.observations import _DECIDED, _SKIP, _edited, _fits, _same, _status, decide
 from arp.db.runs import RunStore, _decision_kind, _iso, _jsonb_safe, _ts
 from arp.db.session import engine
-from arp.db.to_observations import review_target, to_observations
+from arp.db.to_observations import review_target, to_observations, unqueued_item
 from arp.schemas.common import CompanyRef, RunManifest
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.issuer import IdentifierMap
@@ -640,6 +640,20 @@ class _RunFiles:
     company_of: Any
 
 
+def _unqueued(run: _RunFiles) -> dict[str, tuple[dict, dict]]:
+    """The items the database queues when a decision or cosign names a key the queue lacks
+    (RunStore._queue_unqueued): key -> (result row, payload)."""
+    queued = {r.get("item_key") for r in run.review_queue}
+    seen: set = set()
+    results = [r for r in run.results if not (r.get("_key") in seen or seen.add(r.get("_key")))]  # first row per _key
+    out = {}
+    for row in [*(d for d in run.decisions if d.get("decision") is not None), *run.cosigns]:
+        key = row.get("item_key")
+        if key and key not in queued and key not in out and (found := unqueued_item(results, key)):
+            out[key] = found
+    return out
+
+
 def _distinct(rows: list[dict], key: str) -> int:
     """Rows the database keeps one of per `key` (rows without one are all kept)."""
     return len({r.get(key) or f"~{i}" for i, r in enumerate(rows)})
@@ -740,6 +754,10 @@ class _Replay:
             link = links.get((entity, *target)) if target and entity else None
             prev = items.get(row["item_key"])
             items[row["item_key"]] = (entity, link or (prev[1] if prev else None), row)
+        for key, (result, payload) in _unqueued(run).items():  # as RunStore._queue_unqueued
+            entity = run.company_of(result.get("_key"))
+            target = review_target(payload)
+            items[key] = (entity, links.get((entity, *target)) if target and entity else None, payload)
         return {"by_company": by_company, "items": items}
 
     def _apply(self, item: tuple, key: str, decision: m.DecisionKind, edited, by_company) -> None:
@@ -803,7 +821,7 @@ def verify(dsn: str, settings: Settings) -> VerifyReport:
             files = {
                 "results": _distinct(run.results, "_key"),
                 "errors": len(legacy.read_errors(run_id)),
-                "review_items": len({r["item_key"] for r in run.review_queue if r.get("item_key")}),
+                "review_items": len({r["item_key"] for r in run.review_queue if r.get("item_key")} | set(_unqueued(run))),
                 "decisions": len(run.decisions),
                 "cosigns": len(run.cosigns),
             }

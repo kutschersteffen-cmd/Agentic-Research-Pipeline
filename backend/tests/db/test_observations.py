@@ -135,7 +135,7 @@ def test_citation_links_to_document_and_chunk(pg):
 
 
 def _extraction_row(value, *, period="2024-12-31", route="review"):
-    return {"company_id": "acme", "name": "Acme", "schema_id": "s", "run_id": "r1", "issuer_key": "LEI:X",
+    return {"company_id": "acme", "name": "Acme", "schema_id": "s", "run_id": "r1", "issuer_key": "LEI:X", "issuer_scheme": "LEI",
             "_key": "acme", "fields": [{"field_id": "revenue", "field_name": "Revenue", "value": value,
                                         "confidence": 0.5, "period_end": period, "route": route}]}
 
@@ -369,3 +369,41 @@ def test_unregistered_citation_goes_to_run_errors(run_store, pg):
     run_store.record_company_result("r1", row, observations=to_observations("extraction", cid, "r1", row, trial=False),
                                     review_items=[], company=CompanyRef(company_id="acme", name="Acme", entity_id=cid))
     assert run_store.read_errors("r1") == [{"kind": "unregistered_citation", "doc_id": "doc_gone"}]
+
+
+def test_correct_on_auto_accepted_value_reaches_facts_and_publish(run_store, pg):
+    """C2: a decision on a value never queued (auto-accepted) still reaches company_facts."""
+    from arp.orchestration.review_queue import append_decision
+    from arp.publish.candidates import run_candidates
+    from arp.schemas.review import ReviewDecision
+
+    cid, key = _write_extraction(run_store, pg, 10.0, route="auto_accept")
+    assert run_store.read_review_queue("r1") == []
+    append_decision(run_store, "r1", ReviewDecision(
+        item_key=key, decision="correct", reason_code="wrong_value", reviewer="bob", user_id="u_bob", role="approver",
+        snapshot_id="s", step="first", corrected_value={"value": 12.0}))
+    assert _current(pg, cid) == [(FY24, 12.0, m.FactStatus.EDITED)]
+    with transaction(pg) as s:
+        item = s.scalar(select(m.ReviewItem))
+        decision = s.scalar(select(m.ReviewDecision))
+        assert item.item_key == key and item.observation_id is not None and item.state == m.ItemState.FINAL
+        assert decision.review_item_id == item.id
+    (cand,), _ = run_candidates(run_store, "r1")
+    assert (cand.value, cand.state) == (12.0, "edited")
+
+
+def test_review_item_state_follows_decisions(run_store, pg):
+    """I2: review_items.state is kept current, so the company page counts only open items."""
+    from arp.db.company_view import summary
+
+    cid, key = _write_extraction(run_store, pg, 100.0)
+
+    def state_and_open():
+        with transaction(pg) as s:
+            return s.scalar(select(m.ReviewItem.state)), summary(s, cid, today=date.today()).open_review_items
+
+    assert state_and_open() == (m.ItemState.PENDING, 1)
+    record_review_decision(run_store, "r1", key, "edit", "bob", {"value": 110.0})
+    assert state_and_open() == (m.ItemState.FIRST_DONE, 1)  # extraction edits wait for a cosign
+    record_cosign(run_store, "r1", key, PRINCIPAL)
+    assert state_and_open() == (m.ItemState.SECOND_DONE, 0)

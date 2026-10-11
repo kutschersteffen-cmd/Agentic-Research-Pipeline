@@ -14,6 +14,7 @@ from arp.db.observations import CitationIn, ObservationIn
 from arp.schemas.common import Citation
 from arp.schemas.datapoints import ExtractionRecord
 from arp.schemas.financials import CompanyFinancialsRecord
+from arp.schemas.review import field_item_key, period_key
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,21 @@ def review_target(payload: dict) -> tuple[str, str | None, str] | None:
     proposal = payload.get("proposal")
     if isinstance(proposal, dict) and proposal.get("meeting_id") and proposal.get("proposal_number"):
         return vote_field_id(proposal["meeting_id"], proposal["proposal_number"]), None, ""
+    return None
+
+
+def unqueued_item(results, item_key: str) -> tuple[dict, dict] | None:
+    """(result row, review payload) of an item a decision names that was never queued (an
+    auto-accepted value): a whole-record key (the row's company id) or a field's
+    `issuer:field:period` key. `results` in stored order, first row per `_key`; None when no row has it."""
+    for r in results:
+        base = {"item_key": item_key, "company_id": r.get("company_id") or r.get("_key"), "name": r.get("name")}
+        if item_key == base["company_id"]:
+            return r, base
+        issuer = r.get("issuer_key", "")
+        for f in r.get("fields") or []:
+            if isinstance(f, dict) and f.get("field_id") and field_item_key(issuer, f["field_id"], period_key(f)) == item_key:
+                return r, {**base, "issuer_key": issuer, "field_id": f["field_id"], "period_end": f.get("period_end"), "field": f}
     return None
 
 

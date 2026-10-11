@@ -72,9 +72,9 @@ def test_reappending_same_company_result_is_noop(run_store):
 
 
 def test_save_companies_resolves_and_records_identity_conflicts(run_store):
-    run_store.save_companies("r0", [CompanyRef(company_id="A", name="A", lei=LEI), CompanyRef(company_id="B", name="B", ticker="BB")])
+    run_store.save_companies("r0", [CompanyRef(company_id="A", name="A", lei=LEI), CompanyRef(company_id="B", name="B", isin="US00000000BB")])
     saved = run_store.save_companies(
-        "r", [CompanyRef(company_id="C", name="C", lei=LEI, ticker="BB"), CompanyRef(company_id="D", name="D")]
+        "r", [CompanyRef(company_id="C", name="C", lei=LEI, isin="US00000000BB"), CompanyRef(company_id="D", name="D")]
     )
     assert [c.company_id for c in saved] == ["D"] and saved[0].entity_id
     assert run_store.load_companies("r") == saved
@@ -127,8 +127,8 @@ async def test_company_batch_skips_identity_conflicts(run_store):
     from arp.orchestration.batch_runner import run_company_batch
     from arp.orchestration.job_manager import JobManager
 
-    run_store.save_companies("r0", [CompanyRef(company_id="A", name="A", lei=LEI), CompanyRef(company_id="B", name="B", ticker="BB")])
-    universe = [CompanyRef(company_id="C", name="C", lei=LEI, ticker="BB"), CompanyRef(company_id="D", name="D")]
+    run_store.save_companies("r0", [CompanyRef(company_id="A", name="A", lei=LEI), CompanyRef(company_id="B", name="B", isin="US00000000BB")])
+    universe = [CompanyRef(company_id="C", name="C", lei=LEI, isin="US00000000BB"), CompanyRef(company_id="D", name="D")]
     run_id = JobManager(run_store).create_run("theme", {}, 2, companies=universe).run_id
     seen = []
 
@@ -188,8 +188,8 @@ async def test_all_conflict_run_processes_no_companies(run_store):
     from arp.orchestration.batch_runner import run_company_batch
     from arp.orchestration.job_manager import JobManager
 
-    run_store.save_companies("r0", [CompanyRef(company_id="A", name="A", lei=LEI), CompanyRef(company_id="B", name="B", ticker="BB")])
-    universe = [CompanyRef(company_id="C", name="C", lei=LEI, ticker="BB")]
+    run_store.save_companies("r0", [CompanyRef(company_id="A", name="A", lei=LEI), CompanyRef(company_id="B", name="B", isin="US00000000BB")])
+    universe = [CompanyRef(company_id="C", name="C", lei=LEI, isin="US00000000BB")]
     run_id = JobManager(run_store).create_run("theme", {}, 1, companies=universe).run_id
     assert run_store.has_companies(run_id) and run_store.load_companies(run_id) == []
     seen = []

@@ -212,8 +212,9 @@ The current-fact rules, applied by one function (`arp/db/observations.record`):
 reference to `value_citations` rows. `published_facts` and `company_facts` share the key
 `(company_id, field_id, period_end, basis)`; merging them is out of scope.
 
-Facts from an `internal_only` source are refused by `published_facts` and excluded from BI
-exports (enforced in the publish path and by a check against `data_sources.licence`).
+Facts from an `internal_only` source are refused by `published_facts` and excluded from the
+publish path (enforced there by a check against `data_sources.licence`). Ruling R35: they are
+shown in the internal Superset BI views (`bi.company_facts`).
 
 ## 3. Code structure
 

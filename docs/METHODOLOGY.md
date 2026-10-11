@@ -953,11 +953,12 @@ Postgres with `pgvector` is required (`Settings.postgres_dsn`,
 `backend/arp/storage/postgres_models.py` (portfolio, publishing, BI).
 
 - **Companies are the key entity.** Each company has one UUID
-  (`companies.id`). Identifiers (LEI, ISIN, CIK, ticker, universe id,
-  provider ids) are aliases in `company_identifiers`, active until
-  `valid_to`; an active `(scheme, value)` names at most one company. A
-  universe row or provider record resolves to a company through those
-  aliases (`backend/arp/db/companies.py`), and two aliases naming different
+  (`companies.id`). Identifiers (LEI, ISIN, CIK, universe id, provider
+  ids) are aliases in `company_identifiers`, active until `valid_to`; an
+  active `(scheme, value)` names at most one company. A universe row or
+  provider record resolves to a company through those aliases. Tickers
+  are never used to match or merge companies: they repeat across
+  exchanges and get reused (older `TICKER` alias rows are ignored) (`backend/arp/db/companies.py`), and two aliases naming different
   companies are reported as a conflict, never merged silently. `arp db
   companies merge` re-points every row from one UUID to another.
 - **Observations, then facts.** A run, a provider load or a reviewer writes
@@ -972,8 +973,9 @@ Postgres with `pgvector` is required (`Settings.postgres_dsn`,
   (with a licence: `internal_only` or `redistributable`) and
   `source_loads` (one row per fetched payload, idempotent by payload
   hash). Provider fields have stable ids `prov:<source>:<metric>`.
-  Facts from an `internal_only` source are refused by publishing and left
-  out of BI exports.
+  Facts from an `internal_only` source are refused by the publish path
+  (published facts, releases and their exports). They are shown in the
+  internal Superset BI views (`bi.company_facts`).
 - **Runs and review** (`runs`, `run_results`, `review_items`,
   `review_decisions`, `review_cosigns`) are written by
   `backend/arp/db/runs.py`; decisions and cosigns are insert-only. Per-run
