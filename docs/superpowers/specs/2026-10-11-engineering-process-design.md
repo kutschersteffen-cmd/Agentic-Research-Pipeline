@@ -95,10 +95,26 @@ The plugin section stays. Additions, about 12 lines, giving roughly 147 lines in
 - Gate B: `pre-commit run --all-files` passes on the current tree.
 - Gate C: `cd frontend && npm test` passes locally before the CI step is added.
 
+## Cloud environment setup script (outside the repo)
+
+A fresh cloud container has no backend or frontend dependencies, so Gate A's first stop would
+block on them. Measured 2026-10-11: `pip install -e "backend[dev]"` took 9m16s,
+`npm ci` 12s. The person running the cloud environment adds this to its setup script (environment
+settings → Edit → Setup script), so it runs before the session starts:
+
+```bash
+#!/bin/bash
+cd /home/user/Agentic-Research-Pipeline || exit 0
+pip install -q -e "backend[dev]"
+(cd frontend && npm ci --silent)
+bash .claude/hooks/install-plugins.sh
+```
+
+The last line also makes the plugins live in the first session instead of the second.
+
 ## Open risks
 
-- Frontend `npm test` has never run in CI and may fail on its first run. If so, fix it or
-  report it before enabling the step.
+- Frontend `npm test` has never run in CI. It passes locally (160 of 160 tests, 2026-10-11).
 - `ruff` in pre-commit may flag existing files on `--all-files`. It only checks staged files
   on normal commits, so it doesn't block unrelated work.
 - Gate A runtime depends on how many tests match. Not yet measured.
