@@ -1,0 +1,3 @@
+# The importer keeps its own copy of the fact rules until cut-over
+
+The fact ledger (`db/observations.py`) owns the rules that turn observations, review items, decisions and cosigns into item states and facts. The one-time file-era import (`db/importer.py`), and verify's in-memory `_Replay` in particular, keep their own copy of those rules. We are not folding them into the ledger because both get deleted once every deployment has run `arp db import` and `verify`. Moving them to the ledger would mean building a second state adapter for code with a known end date. When the importer goes, `RunStore._apply_review`'s delegate goes too, and `observations.py` is renamed to `fact_ledger.py`.
