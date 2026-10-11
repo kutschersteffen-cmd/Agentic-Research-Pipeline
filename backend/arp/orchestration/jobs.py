@@ -129,9 +129,6 @@ def get_job_launcher() -> LocalJobLauncher:
     return _launcher
 
 
-RESUMABLE = {"theme", "extraction", "financials", "tnfd", "transition_plan", "identity", "discovery"}
-
-
 class NotResumable(ValueError):
     """This run cannot be resumed; the message says why."""
 
@@ -141,8 +138,10 @@ def check_resumable(run_store: RunStore, run_id: str) -> RunManifest:
     manifest = run_store.load_manifest(run_id)
     if manifest is None:
         raise NotResumable("Unknown run_id")
-    if manifest.status == JobStatus.COMPLETED:
-        raise NotResumable("already completed")
+    if manifest.status == JobStatus.COMPLETED and (
+        manifest.completed_count + manifest.failed_count + manifest.review_count >= manifest.company_count
+    ):
+        raise NotResumable("already completed")  # a completed run that missed companies resumes for them
     if manifest.run_type not in RESUMABLE:
         raise NotResumable(f"{manifest.run_type} runs are not resumable; start a new run")
     # A theme run may instead have a universe file (runs from before companies.json).
@@ -223,35 +222,70 @@ async def resume_run(
 
         common = {"settings": run_settings, "run_store": run_store}
         llms = {"llm": llm, "verifier_llm": verifier_llm, "registry": registry}
-        if run_type == "theme":
-            from arp.research.pipeline import resume_theme_run
+        return await _RESUME[run_type](run_id, manifest, companies, **common, **llms)
 
-            return await resume_theme_run(run_id, **llms, **common)
-        if run_type == "extraction":
-            from arp.extraction.pipeline import execute_extraction_run, load_run_schema
 
-            schema = load_run_schema(run_store, run_id)
-            return await execute_extraction_run(run_id, schema, companies, **llms, **common, xbrl_source=_xbrl_source(run_settings))
-        if run_type == "financials":
-            from arp.extraction.financials_pipeline import execute_financials_extraction_run
+async def _resume_theme(run_id, manifest, companies, *, settings, run_store, llm, verifier_llm, registry) -> str:
+    from arp.research.pipeline import resume_theme_run
 
-            return await execute_financials_extraction_run(
-                run_id, companies, **llms, **common, xbrl_source=_xbrl_source(run_settings)
-            )
-        if run_type == "tnfd":
-            from arp.extraction.tnfd_pipeline import execute_tnfd_extraction_run
+    return await resume_theme_run(run_id, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings,
+                                  run_store=run_store)
 
-            return await execute_tnfd_extraction_run(run_id, companies, manifest.params["as_of"], **llms, **common)
-        if run_type == "transition_plan":
-            from arp.transition_plan.pipeline import execute_transition_plan_run
 
-            return await execute_transition_plan_run(run_id, companies, **llms, **common)
-        if run_type == "identity":
-            from arp.discovery.identity_pipeline import execute_identity_run
+async def _resume_extraction(run_id, manifest, companies, *, settings, run_store, llm, verifier_llm, registry) -> str:
+    from arp.extraction.pipeline import execute_extraction_run, load_run_schema
 
-            return await execute_identity_run(run_id, companies, llm=llm, **common)
-        from arp.discovery.pipeline import execute_discovery_run
-        from arp.schemas.discovery import DiscoveryRunParams
+    schema = load_run_schema(run_store, run_id)
+    return await execute_extraction_run(run_id, schema, companies, llm=llm, verifier_llm=verifier_llm, registry=registry,
+                                        settings=settings, run_store=run_store, xbrl_source=_xbrl_source(settings))
 
-        params = DiscoveryRunParams.model_validate(manifest.params)
-        return await execute_discovery_run(run_id, companies, doc_types=params.doc_types or None, **common)
+
+async def _resume_financials(run_id, manifest, companies, *, settings, run_store, llm, verifier_llm, registry) -> str:
+    from arp.extraction.financials_pipeline import execute_financials_extraction_run
+
+    return await execute_financials_extraction_run(
+        run_id, companies, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store,
+        xbrl_source=_xbrl_source(settings),
+    )
+
+
+async def _resume_tnfd(run_id, manifest, companies, *, settings, run_store, llm, verifier_llm, registry) -> str:
+    from arp.extraction.tnfd_pipeline import execute_tnfd_extraction_run
+
+    return await execute_tnfd_extraction_run(run_id, companies, manifest.params["as_of"], llm=llm, verifier_llm=verifier_llm,
+                                             registry=registry, settings=settings, run_store=run_store)
+
+
+async def _resume_transition_plan(run_id, manifest, companies, *, settings, run_store, llm, verifier_llm, registry) -> str:
+    from arp.transition_plan.pipeline import execute_transition_plan_run
+
+    return await execute_transition_plan_run(run_id, companies, llm=llm, verifier_llm=verifier_llm, registry=registry,
+                                             settings=settings, run_store=run_store)
+
+
+async def _resume_identity(run_id, manifest, companies, *, settings, run_store, llm, verifier_llm, registry) -> str:
+    from arp.discovery.identity_pipeline import execute_identity_run
+
+    return await execute_identity_run(run_id, companies, llm=llm, settings=settings, run_store=run_store)
+
+
+async def _resume_discovery(run_id, manifest, companies, *, settings, run_store, **_) -> str:
+    from arp.discovery.pipeline import execute_discovery_run
+    from arp.schemas.discovery import DiscoveryRunParams
+
+    params = DiscoveryRunParams.model_validate(manifest.params)
+    return await execute_discovery_run(run_id, companies, doc_types=params.doc_types or None, settings=settings,
+                                       run_store=run_store)
+
+
+# One entry per resumable run type: how a resume continues it.
+_RESUME: dict[str, Callable[..., Awaitable[str]]] = {
+    "theme": _resume_theme,
+    "extraction": _resume_extraction,
+    "financials": _resume_financials,
+    "tnfd": _resume_tnfd,
+    "transition_plan": _resume_transition_plan,
+    "identity": _resume_identity,
+    "discovery": _resume_discovery,
+}
+RESUMABLE = frozenset(_RESUME)

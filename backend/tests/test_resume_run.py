@@ -106,6 +106,7 @@ async def test_resume_refuses_completed_run(tmp_path, fake, pg):
     settings = _settings(tmp_path)
     store = RunStore(pg, settings.runs_dir)
     run_id = create_transition_plan_run(COMPANIES[:1], settings, store)
+    JobManager(store).record_progress(run_id, completed_delta=1)  # every company reached
     JobManager(store).finish_run(run_id)
     before = store.load_manifest(run_id)
     with pytest.raises(NotResumable, match="already completed"):
@@ -249,6 +250,7 @@ async def test_resume_busy_run_refused(tmp_path, fake, api):
         res = TestClient(app).post(f"/api/runs/{run_id}/resume")
         assert res.status_code == 409
     assert TestClient(app).post("/api/runs/nope/resume").status_code == 404
+    JobManager(store).record_progress(run_id, completed_delta=1)  # every company reached
     JobManager(store).finish_run(run_id)
     assert TestClient(app).post(f"/api/runs/{run_id}/resume").status_code == 400
 
@@ -442,3 +444,23 @@ def test_finish_run_failure_keeps_the_original_error(tmp_path, pg, monkeypatch):
     monkeypatch.setattr(JobManager, "finish_run", broken)
     with pytest.raises(RuntimeError, match="boom"), hold_run(store, run_id):
         raise RuntimeError("boom")
+
+
+def test_completed_run_that_missed_companies_is_resumable(tmp_path, pg):
+    from arp.orchestration.jobs import check_resumable
+
+    store, run_id = _run(tmp_path, pg, n=2)
+    JobManager(store).record_progress(run_id, completed_delta=1)
+    JobManager(store).finish_run(run_id)
+    assert check_resumable(store, run_id).run_id == run_id
+
+
+def test_completed_run_whose_rest_stopped_for_review_is_refused(tmp_path, pg):
+    from arp.orchestration.jobs import check_resumable
+
+    store, run_id = _run(tmp_path, pg, n=2)
+    JobManager(store).record_progress(run_id, completed_delta=1)
+    JobManager(store).record_progress(run_id, review_delta=1)
+    JobManager(store).finish_run(run_id)
+    with pytest.raises(NotResumable, match="already completed"):
+        check_resumable(store, run_id)
