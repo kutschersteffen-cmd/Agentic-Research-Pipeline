@@ -223,6 +223,22 @@ _REKEYED: dict[str, tuple[str, str | None, str | None, str | None, str | None]] 
 _REKEY_ARGS = ("issuer_key", "issuer_scheme", "isin", "universe_id")
 
 
+def _review_item_links(conn: Connection) -> None:
+    """review_item_observations for items queued before the table: as `observations.queue_item` links them."""
+    from sqlalchemy import text
+
+    conn.execute(text(
+        "INSERT INTO review_item_observations (review_item_id, observation_id)"
+        " SELECT id, observation_id FROM review_items WHERE observation_id IS NOT NULL ON CONFLICT DO NOTHING"
+    ))
+    conn.execute(text(
+        "INSERT INTO review_item_observations (review_item_id, observation_id)"
+        " SELECT i.id, o.id FROM review_items i JOIN field_observations o"
+        " ON o.run_id = i.run_id AND o.company_id = i.company_id AND o.route = 'review'"
+        " WHERE i.observation_id IS NULL AND i.item_key = i.payload->>'company_id' ON CONFLICT DO NOTHING"
+    ))
+
+
 def rekey_company_ids(conn: Connection) -> None:
     """Sets the registry company on every legacy-keyed row that has none yet (rules:
     `arp.db.companies.company_for`). Rows that match nothing keep NULL; `schema_report` counts them.
@@ -346,6 +362,12 @@ SCHEMA_STEPS: tuple[SchemaStep, ...] = (
         name="bi_views_universe_id",
         description="bi fact/run/document views: company_id is the universe id again; company_uuid (and basis) appended",
         apply=_create_bi_views,
+    ),
+    SchemaStep(
+        name="review_item_links",
+        description="review_item_observations backfilled: value items to their observation, whole-record items to"
+        " their run and company's REVIEW observations",
+        apply=_review_item_links,
     ),
 )
 

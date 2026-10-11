@@ -215,20 +215,9 @@ class RunStore:
         except ValueError:
             company = self._universe_company(run_id, cid)
         self._ensure_run(s, run_id)
-        stmt = insert(ReviewItem).values(
-            run_id=run_id, item_key=row["item_key"], company_id=company,
-            observation_id=observation_id or row.get("observation_id"), payload=row, queued_at=_row_ts(row, "queued_at"),
-        )
-        s.execute(
-            stmt.on_conflict_do_update(
-                constraint="uq_review_items_key",
-                set_={
-                    "payload": stmt.excluded.payload,
-                    "company_id": stmt.excluded.company_id,
-                    # a re-queue without a link (queue_for_review) keeps the one the item has
-                    "observation_id": func.coalesce(stmt.excluded.observation_id, ReviewItem.observation_id),
-                },
-            )
+        observations_db.queue_item(
+            s, run_id, row["item_key"], row, company_id=company,
+            observation_id=observation_id or row.get("observation_id"), queued_at=_row_ts(row, "queued_at"),
         )
 
     def record_company_result(

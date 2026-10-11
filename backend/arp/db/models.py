@@ -459,6 +459,16 @@ class ReviewItem(Base):
     queued_at: Mapped[datetime] = _ts()
 
 
+class ReviewItemObservation(Base):
+    """The observations a review item decides: a value item's one observation, a whole-record item's
+    every observation of its run and company routed to review. Written when the item is queued."""
+
+    __tablename__ = "review_item_observations"
+
+    review_item_id: Mapped[int] = mapped_column(ForeignKey("review_items.id"), primary_key=True)
+    observation_id: Mapped[int] = mapped_column(ForeignKey("field_observations.id"), primary_key=True)
+
+
 class ReviewDecision(Base):
     """Insert-only."""
 

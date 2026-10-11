@@ -29,6 +29,7 @@ from arp.db.models import (
     FieldKind,
     FieldObservation,
     ReviewItem,
+    ReviewItemObservation,
     Route,
     Run,
     RunError,
@@ -287,6 +288,43 @@ _DECIDED = {DecisionKind.APPROVE: FactStatus.APPROVED, DecisionKind.EDIT: FactSt
 
 
 _SKIP = object()
+
+
+def queue_item(
+    session: Session, run_id: str, item_key: str, payload: dict, *, company_id, observation_id: int | None, queued_at,
+) -> int:
+    """Queues a review item (re-queueing a key replaces its payload) and links it to the observations
+    it decides: a value item to its observation, a whole-record item (no observation, keyed by the
+    company id) to every observation of its run and company routed to review. Returns the item id."""
+    stmt = insert(ReviewItem).values(
+        run_id=run_id, item_key=item_key, company_id=company_id, observation_id=observation_id, payload=payload,
+        queued_at=queued_at,
+    )
+    item = session.execute(
+        stmt.on_conflict_do_update(
+            constraint="uq_review_items_key",
+            set_={
+                "payload": stmt.excluded.payload,
+                "company_id": stmt.excluded.company_id,
+                # a re-queue without a link (queue_for_review) keeps the one the item has
+                "observation_id": func.coalesce(stmt.excluded.observation_id, ReviewItem.observation_id),
+            },
+        ).returning(ReviewItem.id, ReviewItem.observation_id, ReviewItem.company_id, ReviewItem.payload)
+    ).one()
+    if item.observation_id is not None:
+        linked = [item.observation_id]
+    elif item.company_id is not None and item_key == item.payload.get("company_id"):
+        linked = session.scalars(select(FieldObservation.id).where(
+            FieldObservation.run_id == run_id, FieldObservation.company_id == item.company_id,
+            FieldObservation.route == Route.REVIEW,
+        )).all()
+    else:
+        linked = []
+    if linked:
+        session.execute(insert(ReviewItemObservation).values(
+            [{"review_item_id": item.id, "observation_id": o} for o in linked]
+        ).on_conflict_do_nothing())
+    return item.id
 
 
 def _edited(obs: FieldObservation, edit, *, whole_record: bool):

@@ -449,3 +449,56 @@ def test_merged_company_ref_resolves_to_the_kept_company(pg):
         merge(s, keep, drop)
     with transaction(pg) as s:
         assert resolve_ref(s, str(drop)) == keep and resolve_ref(s, str(keep)) == keep
+
+
+def _links(pg):
+    with transaction(pg) as s:
+        return sorted(s.execute(select(m.ReviewItemObservation.review_item_id, m.ReviewItemObservation.observation_id)).all())
+
+
+def test_value_item_links_its_observation(run_store, pg):
+    _write_extraction(run_store, pg, 100.0)
+    with transaction(pg) as s:
+        item = s.scalar(select(m.ReviewItem))
+        assert _links(pg) == [(item.id, item.observation_id)]
+
+
+def test_whole_record_item_links_review_observations_of_its_run_and_company(run_store, pg):
+    """Observations of another run, or of another company in the run, exist before the item is queued."""
+    other = _company(pg, "other")
+    run_store.save_manifest(RunManifest(run_id="f1", run_type="financials"))
+    run_store.save_manifest(RunManifest(run_id="f2", run_type="financials"))
+    for run_id, cid, uid in (("f2", None, "acme"), ("f1", other, "other")):
+        cid = cid or _company(pg)
+        fin = {"company_id": uid, "name": uid, "run_id": run_id, "currency": "USD", "fiscal_period": "2024-12-31",
+               "capex": {"total": {"value": 9.0}}, "needs_review": True, "_key": uid}
+        run_store.record_company_result(
+            run_id, fin, observations=to_observations("financials", cid, run_id, fin, trial=False), review_items=[],
+            company=CompanyRef(company_id=uid, name=uid, entity_id=cid),
+        )
+    _financials(run_store, pg, needs_review=True)
+    with transaction(pg) as s:
+        item = s.scalar(select(m.ReviewItem).where(m.ReviewItem.run_id == "f1", m.ReviewItem.item_key == "acme"))
+        expected = s.scalars(select(m.FieldObservation.id).where(
+            m.FieldObservation.run_id == "f1", m.FieldObservation.company_id == item.company_id,
+            m.FieldObservation.route == m.Route.REVIEW)).all()
+        item_id = item.id
+    assert len(expected) == 2
+    assert _links(pg) == sorted((item_id, o) for o in expected)
+
+
+def test_requeue_keeps_links_without_duplicates(run_store, pg):
+    from arp.orchestration.review_queue import queue_for_review
+
+    _, key = _write_extraction(run_store, pg, 100.0)
+    before = _links(pg)
+    queue_for_review(run_store, "r1", key, {"field_id": "revenue", "period_end": "2024-12-31", "review_reasons": ["span_moved"]})
+    assert _links(pg) == before and len(before) == 1
+
+
+def test_company_level_item_that_is_not_a_record_has_no_links(run_store, pg):
+    from arp.orchestration.review_queue import queue_for_review
+
+    _financials(run_store, pg, needs_review=False)
+    queue_for_review(run_store, "f1", "isic:acme", {"company_id": "acme", "isic": "C10"})
+    assert _links(pg) == []
