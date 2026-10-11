@@ -551,3 +551,27 @@ def test_lease_cycles_leak_no_connections(tmp_path, pg):
         with run_lease(store, run_id):
             pass
     assert connections() <= before
+
+
+def test_dead_lease_connection_keeps_the_runs_outcome(tmp_path, pg):
+    """The lease connection dropped mid-run (failover, idle NAT): the run's own result or error stands."""
+    from sqlalchemy import text
+
+    from arp.db.session import transaction
+    from arp.orchestration.jobs import _LEASE_NS
+
+    store, run_id = _run(tmp_path, pg)
+
+    def kill_lease():
+        with transaction(pg) as s:
+            s.execute(text("SELECT pg_terminate_backend(pid) FROM pg_locks WHERE locktype = 'advisory' AND classid = :ns"
+                           " AND database = (SELECT oid FROM pg_database WHERE datname = current_database())"),
+                      {"ns": _LEASE_NS})
+
+    with run_lease(store, run_id):
+        kill_lease()  # completes normally: no error
+    with pytest.raises(ValueError, match="real"), run_lease(store, run_id):
+        kill_lease()
+        raise ValueError("real")
+    with run_lease(store, run_id):  # and the lease is free again
+        pass

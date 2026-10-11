@@ -14,6 +14,7 @@ from sqlalchemy.pool import NullPool
 from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import JobStatus, RunManifest
+from arp.storage.postgres import _CONNECT_TIMEOUT_SECONDS
 from arp.storage.run_store import RunStore
 
 if TYPE_CHECKING:
@@ -30,13 +31,13 @@ class RunBusy(RuntimeError):
 
 _LEASE_NS = 0x41525054  # "ARPT": keeps run leases apart from any other advisory lock user
 _LEASE = text("SELECT pg_try_advisory_lock(:ns, hashtext(:id))")
-_UNLEASE = text("SELECT pg_advisory_unlock(:ns, hashtext(:id))")
 
 
 @lru_cache
 def _lease_engine(dsn: str) -> Engine:
     """No pool: a lease holds its connection for the whole run, which must not use up the app's pool."""
-    return create_engine(dsn, poolclass=NullPool)
+    connect_args = {} if "connect_timeout" in dsn else {"connect_timeout": _CONNECT_TIMEOUT_SECONDS}
+    return create_engine(dsn, poolclass=NullPool, connect_args=connect_args)
 
 
 @contextmanager
@@ -52,11 +53,9 @@ def run_lease(run_store: RunStore, run_id: str) -> Iterator[None]:
         conn.commit()  # the session-level lock outlives the transaction; no transaction stays open
         if not got:
             raise RunBusy(f"Run {run_id} already has a worker")
-        try:
-            yield
-        finally:
-            conn.execute(_UNLEASE, key)
-            conn.commit()
+        # No unlock: closing the unpooled connection ends the session, which frees the lock, and an
+        # unlock on a connection that already died would replace the run's own outcome.
+        yield
 
 
 _held: ContextVar[frozenset[str]] = ContextVar("held_runs", default=frozenset())
