@@ -40,9 +40,6 @@ class Dataset(BaseModel):
     def column_values(self, column: str) -> list[str]:
         return [r.get(column, "") for r in self.rows]
 
-    def confidence_values(self, column: str) -> list[float | None]:
-        return self.confidence.get(column) or [None] * len(self.rows)
-
 
 def build_dataset(name: str, matrix: list[list[str]], **kwargs) -> Dataset:
     """Header row + body -> Dataset. Blank headers are named positionally

@@ -123,7 +123,7 @@ async def resume_run_endpoint(
     # The launcher holds the lease for the job, so the job takes none itself.
     get_job_launcher().launch(
         run_id,
-        lambda: resume_run(run_id, settings=settings, run_store=run_store, registry=registry, lease=False),
+        lambda: resume_run(run_id, settings=settings, run_store=run_store, registry=registry),
         run_store=run_store,
     )
     return {"run_id": run_id, "status": "resumed"}
@@ -167,7 +167,7 @@ def export_run_csv(run_id: str, run_store: RunStore = Depends(get_run_store)) ->
     manifest = run_store.load_manifest(run_id)
     if manifest is None:
         raise HTTPException(404, "Run not found")
-    rows = run_store.read_results(run_id)
+    rows = [] if manifest.run_type == "theme" else run_store.read_results(run_id)  # theme rows load below
 
     buf = io.StringIO()
     if manifest.run_type == "theme":

@@ -226,7 +226,7 @@ async def resume_theme_run_endpoint(
     except RunBusy as exc:
         raise HTTPException(409, str(exc)) from exc
     get_job_launcher().launch(run_id, lambda: resume_run(
-        run_id, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store, lease=False,
+        run_id, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store,
     ), run_store=run_store)
     return {"run_id": run_id, "status": "resumed"}
 

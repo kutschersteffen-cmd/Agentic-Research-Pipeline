@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { RunManifest } from "../types";
 import { pollAfter } from "../lib/poll";
-import { batchWaitText } from "../lib/runs";
+import { ACTIVE_STATUSES, batchWaitText } from "../lib/runs";
 
 const RESUMABLE_STATUSES = new Set(["failed", "partially_completed", "cancelled"]);
 
@@ -40,7 +40,7 @@ export function RunProgress({
       if (cancelledRef.current) return;
       setManifest(m);
       setLoadError(null);
-      if (m.status === "running" || m.status === "pending") {
+      if (ACTIVE_STATUSES.has(m.status)) {
         timerRef.current = pollAfter(poll, pollMs);
       }
     } catch (err) {
@@ -103,7 +103,7 @@ export function RunProgress({
   }
 
   const pct = manifest.company_count > 0 ? Math.round((manifest.completed_count / manifest.company_count) * 100) : 0;
-  const canCancel = manifest.status === "running" || manifest.status === "pending";
+  const canCancel = ACTIVE_STATUSES.has(manifest.status);
   const canResume = runType === "theme" && RESUMABLE_STATUSES.has(manifest.status);
 
   return (

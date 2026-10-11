@@ -20,9 +20,9 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
-from datetime import UTC, datetime
 from pathlib import Path
 
+from arp.schemas.common import now_iso
 from arp.stewardship.benchmark import placeholder_clti
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.portfolio_store import PortfolioStore, portfolio_directories
@@ -45,7 +45,7 @@ class HouseUniverseSetting:
             raise ValueError(f"Unknown issuer source: {source}")
         if not set_by.strip():
             raise ValueError("Changing the issuer source needs set_by")
-        setting = {"source": source, "set_by": set_by.strip(), "set_at": datetime.now(UTC).isoformat()}
+        setting = {"source": source, "set_by": set_by.strip(), "set_at": now_iso()}
         self.path.parent.mkdir(parents=True, exist_ok=True)
         atomic_write_text(self.path, json.dumps(setting))
         return setting

@@ -1,10 +1,7 @@
 import { evenCuts } from "../lib/levels";
+import { slugify } from "../lib/ruleGraphs";
 import type { LevelCriterion, LevelRule, MechanismConfig } from "../types";
 
-/** A column as an expression can name it: its slug, as the rule engine exposes it. */
-function slug(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-}
 
 function nextId(prefix: string, taken: string[]): string {
   let n = taken.length + 1;
@@ -148,7 +145,7 @@ export function LevelGridEditor({ config, columns, onChange }: Props) {
       <h3>Criteria</h3>
       <p className="help-text">
         Conditions are expressions over the table&apos;s columns, e.g. <code>target_coverage_pct &gt;= 65 and net_zero_target</code>.
-        Columns: {columns.map((c) => slug(c)).filter(Boolean).join(", ")}
+        Columns: {columns.map(slugify).filter(Boolean).join(", ")}
       </p>
       {criteria.map((criterion) => (
         <div key={criterion.id} className="activity-editor">

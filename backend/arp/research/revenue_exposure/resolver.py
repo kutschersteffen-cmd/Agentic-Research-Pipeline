@@ -9,7 +9,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.revenue_exposure.catalogue import CatalogueDataPoint, total_value
 from arp.schemas.common import CompanyRef, SourceDocument
-from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
+from arp.schemas.datapoints import DataPointSchema, ExtractedField, FieldDataType, FieldDefinition
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping, MetricExposure, RevenueCapexMetric, RevenueExposureResult
 from arp.schemas.thematic import ActivityDefinition, ExposureEstimate
 
@@ -113,26 +113,25 @@ async def resolve_from_extraction(
     result = await _extract_company(
         company, schema, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings, documents=documents
     )
-    extracted = result.record.fields[0] if result.record.fields else None
+    return exposure_from_extracted(result.record.fields[0] if result.record.fields else None), result.usage
 
+
+def exposure_from_extracted(extracted: ExtractedField | None) -> MetricExposure:
+    """A single extracted percentage field as a 0-1 share, clamped; unresolved when absent or not numeric."""
     if extracted is None or extracted.value is None:
-        return MetricExposure(source="unresolved"), result.usage
+        return MetricExposure(source="unresolved")
     try:
         pct = float(extracted.value)
     except (TypeError, ValueError):
-        return MetricExposure(source="unresolved", notes="Extracted value was not numeric."), result.usage
+        return MetricExposure(source="unresolved", notes="Extracted value was not numeric.")
 
     pct_fraction = pct / 100 if pct > 1 else pct
-    citation = extracted.citations[0] if extracted.citations else None
-    return (
-        MetricExposure(
-            value_pct=min(max(pct_fraction, 0.0), 1.0),
-            source="extracted",
-            confidence=extracted.confidence,
-            citation=citation,
-            notes=extracted.raw_value_text or "",
-        ),
-        result.usage,
+    return MetricExposure(
+        value_pct=min(max(pct_fraction, 0.0), 1.0),
+        source="extracted",
+        confidence=extracted.confidence,
+        citation=extracted.citations[0] if extracted.citations else None,
+        notes=extracted.raw_value_text or "",
     )
 
 

@@ -15,6 +15,7 @@ import type {
   StepSettings,
 } from "../types";
 import { pollAfter } from "../lib/poll";
+import { ACTIVE_STATUSES } from "../lib/runs";
 
 const CARD_W = 214;
 const PILL_W = 170;
@@ -230,7 +231,7 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
         setSteps(s);
         setManifest(m);
         setCompanies(c.companies);
-        const running = s.live || m.status === "running" || m.status === "pending";
+        const running = s.live || ACTIVE_STATUSES.has(m.status);
         if (running) cancel = pollAfter(poll, 2500);
         else setDecision(await api.getRunDecision(runId!).catch(() => null));
       } catch (e) {
@@ -244,7 +245,7 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
     };
   }, [runId, companyId, tick]);
 
-  const running = !!runId && (!!steps?.live || manifest?.status === "running" || manifest?.status === "pending");
+  const running = !!runId && (!!steps?.live || (!!manifest && ACTIVE_STATUSES.has(manifest.status)));
   const company = companies.find((c) => c.company_id === companyId) ?? null;
 
   const effective = (key: StepSettingKey): Value => {

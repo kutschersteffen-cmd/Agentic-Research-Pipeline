@@ -3,9 +3,12 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, date, datetime
 from enum import StrEnum
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field, field_validator
+
+if TYPE_CHECKING:
+    from arp.llm.base import LLMUsage
 
 
 def now_iso() -> str:
@@ -204,6 +207,17 @@ class ProvenanceInfo(BaseModel):
     provider: str = ""
     schema_version: str = ""
     field_version: int | None = None
+
+    @classmethod
+    def from_usages(cls, extractor_usage: LLMUsage | None, verifier_usage: LLMUsage | None, **extra) -> ProvenanceInfo:
+        return cls(
+            provider=extractor_usage.provider if extractor_usage else "",
+            extractor_model=extractor_usage.model if extractor_usage else None,
+            extractor_prompt_version=extractor_usage.prompt_version if extractor_usage else None,
+            verifier_model=verifier_usage.model if verifier_usage else None,
+            verifier_prompt_version=verifier_usage.prompt_version if verifier_usage else None,
+            **extra,
+        )
 
 
 class RunManifest(BaseModel):

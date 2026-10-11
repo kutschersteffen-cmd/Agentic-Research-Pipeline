@@ -4,7 +4,7 @@ import { DecisionGraph, JdmConfigProvider, type DecisionGraphType, type Simulati
 import { useEffect, useMemo, useState } from "react";
 import { activatable } from "../lib/activatable";
 import { evaluateGraph, loadZen, zenErrorText, type ZenResponse } from "../lib/zenEngine";
-import { STARTER, TIER_STARTER } from "../lib/ruleGraphs";
+import { slugify, STARTER, TIER_STARTER } from "../lib/ruleGraphs";
 import type { ColumnRole, DatasetSummary, DecisionResult, RuleGraph } from "../types";
 
 // Mirrors RULE_NODE_TYPES in backend/arp/schemas/decision.py.
@@ -75,7 +75,7 @@ export default function RuleGraphEditor({
   const inputKeys = useMemo(() => new Set(inputs[0] ? Object.keys(inputs[0]) : []), [inputs]);
   // Show each column once, by the name an expression most easily uses.
   const columnVariables = dataset.columns.map((column) => {
-    const alias = column.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    const alias = slugify(column);
     return alias && alias !== column && inputKeys.has(alias) ? alias : column;
   });
   const engineVariables = [...inputKeys].filter((k) => !dataset.columns.some((c) => c === k || columnVariables.includes(k)));

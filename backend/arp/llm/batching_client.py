@@ -19,7 +19,6 @@ import hashlib
 import json
 import os
 from collections.abc import Coroutine
-from datetime import UTC, datetime
 from pathlib import Path
 
 from anthropic import NotFoundError
@@ -29,6 +28,7 @@ from anthropic.types.messages import MessageBatch
 from arp.llm.base import LLMUsage, T
 from arp.llm.langchain_client import LangChainAnthropicClient
 from arp.orchestration.step_tally import cancel_requested, current_run_id, record_batch_wait
+from arp.schemas.common import now_iso
 
 CUSTOM_ID_LEN = 64
 
@@ -177,7 +177,7 @@ class BatchingLLMClient(LangChainAnthropicClient):
             row = {
                 "batch_id": batch.id,
                 "custom_ids": list(chunk),
-                "submitted_at": datetime.now(UTC).isoformat(),
+                "submitted_at": now_iso(),
                 "run_id": current_run_id(),
             }
             # On disk before the first poll: a crash from here on still leaves the batch reusable.

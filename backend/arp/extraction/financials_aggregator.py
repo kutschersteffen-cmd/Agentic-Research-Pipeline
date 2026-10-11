@@ -70,11 +70,11 @@ def build_financials_record(
     documents_by_id: dict[str, SourceDocument],
     fuzzy_threshold: float,
     confidence_review_threshold: float,
-) -> tuple[CompanyFinancialsRecord, bool]:
+) -> CompanyFinancialsRecord:
     """Merges the single combined extractor draft and single combined
     verifier pass into a final CompanyFinancialsRecord, applying the hard
     programmatic grounding check to every citation across all three
-    sections. Returns (record, needs_review).
+    sections.
     """
     segments, segments_needs_review = build_segments(
         draft.segments,
@@ -144,4 +144,4 @@ def build_financials_record(
         overall_confidence=verifier.confidence,
         needs_review=needs_review,
     )
-    return record, needs_review
+    return record

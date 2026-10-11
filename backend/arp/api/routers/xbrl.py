@@ -122,7 +122,7 @@ async def retry_run(
         raise HTTPException(400, str(exc)) from exc
     JobManager(run_store).mark_running(run_id)  # visible to the client before the job takes the lease
     get_job_launcher().launch(
-        run_id, lambda: resume_run(run_id, settings=settings, run_store=run_store, registry=None, lease=False),
+        run_id, lambda: resume_run(run_id, settings=settings, run_store=run_store, registry=None),
         run_store=run_store,
     )
     return {"run_id": run_id, "company_count": len(companies)}

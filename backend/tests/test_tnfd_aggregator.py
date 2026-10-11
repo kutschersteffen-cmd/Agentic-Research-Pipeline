@@ -36,7 +36,7 @@ def test_missing_recommendations_lists_the_twelve_not_disclosed():
             DisclosureDraft(recommendation_id="strategy.A", disclosed=False),
         ]
     )
-    record, _ = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
+    record = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
 
     assert len(record.missing_recommendations) == 12
     assert "governance.A" not in [r.value for r in record.missing_recommendations]
@@ -47,10 +47,10 @@ def test_disclosed_without_summary_is_flagged_and_forces_review():
     draft = _draft(
         disclosures=[DisclosureDraft(recommendation_id="governance.A", disclosed=True, summary=None)]
     )
-    record, needs_review = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
+    record = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
 
     assert ReviewFlag.disclosure_claimed_without_supporting_chunk in record.disclosures[0].review_flags
-    assert needs_review is True
+    assert record.needs_review is True
 
 
 def test_conflicting_materiality_across_pillars_is_flagged():
@@ -60,10 +60,10 @@ def test_conflicting_materiality_across_pillars_is_flagged():
             DisclosureDraft(recommendation_id="strategy.A", disclosed=True, summary="y", summary_citations=[_CITATION], materiality_basis="double"),
         ]
     )
-    record, needs_review = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
+    record = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
 
     assert ReviewFlag.conflicting_materiality_across_pillars in record.record_review_flags
-    assert needs_review is True
+    assert record.needs_review is True
 
 
 def test_sector_metric_known_registry_core_flag_mismatch_is_flagged():
@@ -78,10 +78,10 @@ def test_sector_metric_known_registry_core_flag_mismatch_is_flagged():
             )
         ]
     )
-    record, needs_review = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
+    record = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
 
     assert ReviewFlag.metric_core_flag_mismatch in record.sector_metrics[0].review_flags
-    assert needs_review is True
+    assert record.needs_review is True
 
 
 def test_sector_metric_no_not_in_registry_is_flagged():
@@ -94,7 +94,7 @@ def test_sector_metric_no_not_in_registry_is_flagged():
             )
         ]
     )
-    record, _ = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
+    record = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
 
     assert ReviewFlag.metric_no_not_in_registry in record.sector_metrics[0].review_flags
 
@@ -111,7 +111,7 @@ def test_sector_metric_unregistered_sector_not_validated_against_registry():
             )
         ]
     )
-    record, _ = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
+    record = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
 
     assert record.sector_metrics[0].review_flags == []
 
@@ -129,7 +129,7 @@ def test_food_and_agriculture_sector_metric_known_registry_matches_cleanly():
             )
         ]
     )
-    record, _ = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
+    record = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
 
     assert record.sector_metrics[0].review_flags == []
 
@@ -144,7 +144,7 @@ def test_food_and_agriculture_sector_metric_no_not_in_registry_is_flagged():
             )
         ]
     )
-    record, _ = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
+    record = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
 
     assert ReviewFlag.metric_no_not_in_registry in record.sector_metrics[0].review_flags
 
@@ -159,7 +159,7 @@ def test_unmapped_sector_name_is_soft_flagged():
             )
         ]
     )
-    record, _ = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
+    record = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
 
     assert ReviewFlag.sector_unmapped_to_sics in record.sector_metrics[0].review_flags
 
@@ -175,10 +175,10 @@ def test_core_global_metric_missing_unit_or_baseline_is_flagged():
             )
         ]
     )
-    record, needs_review = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
+    record = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, _agreeing_verifier(), _DOCS, 0.9, 0.5)
 
     assert ReviewFlag.metric_missing_unit_or_baseline in record.core_global_metrics[0].review_flags
-    assert needs_review is True
+    assert record.needs_review is True
 
 
 def test_verifier_disagreement_uses_correction_and_forces_review():
@@ -188,17 +188,17 @@ def test_verifier_disagreement_uses_correction_and_forces_review():
     corrected = [DisclosureDraft(recommendation_id="governance.A", disclosed=True, summary="Corrected.", summary_citations=[_CITATION])]
     verifier = _agreeing_verifier(disclosures_agree=False, corrected_disclosures=corrected, disclosures_notes="Extractor missed it.")
 
-    record, needs_review = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, verifier, _DOCS, 0.9, 0.5)
+    record = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, verifier, _DOCS, 0.9, 0.5)
 
     assert record.disclosures[0].disclosed is True
     assert record.disclosures[0].summary == "Corrected."
-    assert needs_review is True
+    assert record.needs_review is True
 
 
 def test_low_confidence_forces_review():
     draft = _draft(confidence=0.3)
     verifier = _agreeing_verifier(confidence=0.3)
 
-    _, needs_review = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, verifier, _DOCS, 0.9, 0.6)
+    record = build_tnfd_record("acme", None, "Acme", "run1", "FY2025", draft, verifier, _DOCS, 0.9, 0.6)
 
-    assert needs_review is True
+    assert record.needs_review is True

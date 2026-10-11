@@ -180,8 +180,10 @@ def _holders(store, company_id: UUID, identifiers: list[IdentifierOut], today: d
     """Each holder's latest snapshot on or before `today`, matched on any active identifier."""
     by_scheme = {(i.scheme, i.value) for i in identifiers}
     universe = {i.value for i in identifiers if i.scheme == "UNIVERSE"}
+    securities: dict | None = None  # read once, on the first holding the ISIN/issuer checks miss
 
     def matches(h) -> bool:
+        nonlocal securities
         if h.isin and ("ISIN", normalise_identifier("ISIN", h.isin)) in by_scheme:
             return True
         if h.issuer_key:
@@ -191,7 +193,9 @@ def _holders(store, company_id: UUID, identifiers: list[IdentifierOut], today: d
                     return True
             elif (scheme, normalise_identifier(scheme, h.issuer_key)) in by_scheme:
                 return True
-        sec = store.get_security(h.security_id)
+        if securities is None:
+            securities = {s.security_id: s for s in store.list_securities()}
+        sec = securities.get(h.security_id)
         return bool(sec and sec.company_id and normalise_identifier("UNIVERSE", sec.company_id) in universe)
 
     out: list[HolderOut] = []

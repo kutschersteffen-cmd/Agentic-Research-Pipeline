@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { loadBest, pointerX, rnd, saveBest } from "./kit";
 import { TouchPad } from "./TouchPad";
 
 const W = 480;
@@ -16,8 +17,6 @@ type Rock = { frames: HTMLCanvasElement[]; x: number; y: number; vx: number; vy:
 type Shard = { x: number; y: number; c: string; vx: number; vy: number; life: number };
 type Ring = { x: number; y: number; age: number };
 type Bolt = { x: number; y: number };
-
-const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
 // 80s arcade rocks: chunky 3px pixels, four-tone orange shading lit from the top left, four 90-degree spin frames.
 const PX = 3;
@@ -80,7 +79,7 @@ export function MeteorDodge() {
   const press = useRef<(name: "left" | "right" | "fire", down: boolean) => void>(() => {});
   const [phase, setPhase] = useState<Phase>("title");
   const [score, setScore] = useState(0);
-  const [best, setBest] = useState(() => Number(localStorage.getItem(BEST_KEY) ?? 0));
+  const [best, setBest] = useState(() => loadBest(BEST_KEY));
   const [newBest, setNewBest] = useState(false);
 
   useEffect(() => {
@@ -129,8 +128,8 @@ export function MeteorDodge() {
       }));
       burst(ship, SHIP_Y, 16, 300, 1.1, [PAL.Y, PAL.O, "#ffffff"]);
       rings.push({ x: ship, y: SHIP_Y, age: 0 });
-      const final = Math.floor(pts), prev = Number(localStorage.getItem(BEST_KEY) ?? 0);
-      if (final > prev) { localStorage.setItem(BEST_KEY, String(final)); setBest(final); setNewBest(true); }
+      const final = Math.floor(pts), prev = loadBest(BEST_KEY);
+      if (final > prev) { saveBest(BEST_KEY, final); setBest(final); setNewBest(true); }
       setScore(final); setPhase("over");
     };
 
@@ -150,7 +149,7 @@ export function MeteorDodge() {
       }
     };
     const kd = onKey(true), ku = onKey(false);
-    const aim = (e: PointerEvent) => { if (state === "play") ship = Math.max(18, Math.min(W - 18, ((e.clientX - cv.getBoundingClientRect().left) / cv.clientWidth) * W)); };
+    const aim = (e: PointerEvent) => { if (state === "play") ship = Math.max(18, Math.min(W - 18, pointerX(e, cv) * W)); };
     const down = (e: PointerEvent) => { if (state !== "play") start(); else { aim(e); firing = true; } };
     const up = () => { firing = false; };
     addEventListener("keydown", kd); addEventListener("keyup", ku); addEventListener("pointerup", up);

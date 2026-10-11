@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from arp.schemas.common import now_iso
 from arp.storage.atomic_io import atomic_write_bytes, atomic_write_text, read_text_utf8
 from arp.storage.locks import KeyedLock
 from arp.storage.safe_path import UnsafeIdentifierError, safe_filename
@@ -89,7 +89,7 @@ class ProjectStore:
                 raise ProjectError(f"Project already exists: {id}")
             p = Project(
                 id=id, name=name, description=description,
-                created_at=datetime.now(UTC).isoformat(),
+                created_at=now_iso(),
             )
             self._save(p)
             return p

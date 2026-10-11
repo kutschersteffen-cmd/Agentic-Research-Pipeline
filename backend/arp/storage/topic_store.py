@@ -61,11 +61,7 @@ class TopicStateStore:
         return earlier[-1] if earlier else None
 
     def save_lineage_events(self, period: str, events: list[LineageEvent]) -> None:
-        path = self._lineage_path(period)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("w") as f:
-            for event in events:
-                f.write(json.dumps(event.model_dump(mode="json")) + "\n")
+        atomic_write_text(self._lineage_path(period), "".join(json.dumps(e.model_dump(mode="json")) + "\n" for e in events))
 
     def load_lineage_events(self, period: str) -> list[LineageEvent]:
         """Used by scoring.py::compute_persistence to walk a cluster's

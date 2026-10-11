@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import csv
 import io
-import json
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +24,7 @@ from arp.decision.publish import hold_published_cuts, publish
 from arp.decision.roles import propose_roles, slug
 from arp.decision.rules import apply_rules, rule_inputs
 from arp.decision.sensitivity import tipping_points
+from arp.extraction.pipeline import load_run_schema
 from arp.schemas.decision import (
     AuditEntry,
     ColumnProfile,
@@ -522,8 +522,8 @@ def attach_framework(
         raise HTTPException(404, "Run not found")
     field_names = None
     if manifest.run_type == "extraction":
-        schema = run_store.run_dir(run_id) / "schema.json"
-        field_names = [f["name"] for f in json.loads(schema.read_text()).get("fields", [])] if schema.exists() else []
+        schema = load_run_schema(run_store, run_id)
+        field_names = [f.name for f in schema.fields] if schema else []
     config = template_for_run(store, manifest.run_type, req.framework_id, req.version, field_names)
     templates.attach_to_run(run_store, run_id, config, store.get_audit(config.framework_id, config.version))
     # A finished run gets no more pipeline steps, so the rules step runs now.

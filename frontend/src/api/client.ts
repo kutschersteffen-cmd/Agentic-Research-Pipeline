@@ -299,7 +299,6 @@ export const api = {
     form.append("file", file);
     return request<{ path: string; company_count: number; sample: unknown[] }>("/api/universe/upload", {
       method: "POST",
-      headers: {},
       body: form,
     });
   },
@@ -389,7 +388,7 @@ export const api = {
     form.append("company_id", companyId);
     form.append("doc_type", docType);
     form.append("file", file);
-    return request<{ path: string }>("/api/documents/upload", { method: "POST", headers: {}, body: form });
+    return request<{ path: string }>("/api/documents/upload", { method: "POST", body: form });
   },
   documentRawUrl: (companyId: string, docType: string, filename: string) =>
     `${API_BASE}/api/documents/${encodeURIComponent(companyId)}/${encodeURIComponent(docType)}/${encodeURIComponent(filename)}/raw`,
@@ -561,14 +560,13 @@ export const api = {
   rawUpload: (file: File) => {
     const form = new FormData();
     form.append("file", file);
-    return request<{ path: string }>("/api/universe/raw-upload", { method: "POST", headers: {}, body: form });
+    return request<{ path: string }>("/api/universe/raw-upload", { method: "POST", body: form });
   },
   universeFromHoldings: (file: File) => {
     const form = new FormData();
     form.append("file", file);
     return request<{ path: string; company_count: number; sample: unknown[] }>("/api/universe/from-holdings", {
       method: "POST",
-      headers: {},
       body: form,
     });
   },
@@ -822,13 +820,13 @@ export const api = {
   uploadReportTemplate: (file: File) => {
     const form = new FormData();
     form.append("file", file);
-    return request<TemplateStyleProfile>("/api/reports/templates", { method: "POST", headers: {}, body: form });
+    return request<TemplateStyleProfile>("/api/reports/templates", { method: "POST", body: form });
   },
   listReportTemplates: () => request<{ templates: TemplateStyleProfile[] }>("/api/reports/templates"),
   uploadReportDataset: (file: File, name?: string) => {
     const form = new FormData();
     form.append("file", file);
-    return request<QuantitativeDataset>(`/api/reports/datasets/upload${buildQuery({ name })}`, { method: "POST", headers: {}, body: form });
+    return request<QuantitativeDataset>(`/api/reports/datasets/upload${buildQuery({ name })}`, { method: "POST", body: form });
   },
   createReport: (body: ReportRequest, render = false) =>
     request<ReportManifest>(`/api/reports${buildQuery({ render: String(render) })}`, { method: "POST", body: JSON.stringify(body) }),
@@ -881,7 +879,6 @@ export const api = {
     form.append("file", file);
     return request<{ ref: string }>(`/api/replication/specs/${encodeURIComponent(specRunId)}/datasets/prices`, {
       method: "POST",
-      headers: {},
       body: form,
     });
   },
@@ -890,7 +887,7 @@ export const api = {
     form.append("file", file);
     return request<{ ref: string }>(
       `/api/replication/specs/${encodeURIComponent(specRunId)}/datasets/characteristics/${encodeURIComponent(name)}`,
-      { method: "POST", headers: {}, body: form }
+      { method: "POST", body: form }
     );
   },
   runReplicationBacktest: (

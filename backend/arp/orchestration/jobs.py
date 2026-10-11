@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable, Iterator
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 from contextvars import ContextVar
 from functools import lru_cache
 from typing import TYPE_CHECKING
@@ -214,13 +214,12 @@ async def resume_run(
     registry: DocumentSourceRegistry,
     llm: LLMClient | None = None,
     verifier_llm: LLMClient | None = None,
-    lease: bool = True,
 ) -> str:
     """Continues a run that was killed, failed, partly failed or cancelled,
     from what its creator stored (manifest params, companies.json). Items
     already in results.jsonl, or stopped for review, are not run again;
-    plain failures are retried. Holds the run's lease throughout unless
-    `lease=False` (the caller -- a LocalJobLauncher -- already holds it)."""
+    plain failures are retried. Holds the run's lease throughout (a no-op
+    under a LocalJobLauncher, which already holds it)."""
     manifest = check_resumable(run_store, run_id)
     run_type = manifest.run_type
     companies = run_store.load_companies(run_id)
@@ -237,7 +236,7 @@ async def resume_run(
         llm = llm or build_llm_client(run_settings)
         verifier_llm = verifier_llm or build_verifier_llm_client(run_settings)
 
-    with hold_run(run_store, run_id) if lease else nullcontext():
+    with hold_run(run_store, run_id):
         restart_run(run_store, run_id)
 
         common = {"settings": run_settings, "run_store": run_store}

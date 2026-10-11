@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from arp.api.auth import ROLE_RANK
 from arp.checks.numeric import NUMERIC_TYPES, candidates, parse_number
 from arp.config import Settings
-from arp.extraction.history import PriorValue, RunHistory
+from arp.extraction.history import PriorValue
 from arp.grounding import ground_citations
 from arp.orchestration.review_queue import FINAL_STATES, agrees, append_decision, same_value
 from arp.review.context import _state, _text, build_context, write_snapshot
@@ -188,10 +188,8 @@ def _decide_locked(
         )
     reasons: list[str] = []
     if step == "first" and kind != "other":  # a failure report keeps the legacy single decision
-        prior = None
-        if kind in ("value", "restatement_candidate"):
-            key = item.payload["item_key"] if kind == "restatement_candidate" else item_key
-            prior = RunHistory.load(run_store, exclude_run_id=run_id).last_decided(key)
+        p = bundle["published"]  # build_context's run-history lookup; None for other kinds
+        prior = PriorValue(p["value"], None, p["run_id"], p["decided_by"]) if p else None
         reasons = second_review_reasons(
             req.decision, kind=kind, item_key=item_key, high_risk=item.high_risk,
             first_audit_passed=field.get("first_audit_passed"), current_value=current,

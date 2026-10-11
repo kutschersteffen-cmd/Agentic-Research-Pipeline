@@ -198,14 +198,9 @@ async def _aggregate(state: FieldState) -> dict:
         planned_periods=state["planned_periods"],
         adjudicator=state["adjudicator"],
     )
-    extractor_usage = state["extractor_usage"]
-    verifier_usage = state["verifier_usage"]
-    provenance = ProvenanceInfo(
-        provider=extractor_usage.provider if extractor_usage else "",
-        extractor_model=extractor_usage.model if extractor_usage else None,
-        extractor_prompt_version=extractor_usage.prompt_version if extractor_usage else None,
-        verifier_model=verifier_usage.model if verifier_usage else None,
-        verifier_prompt_version=verifier_usage.prompt_version if verifier_usage else None,
+    provenance = ProvenanceInfo.from_usages(
+        state["extractor_usage"],
+        state["verifier_usage"],
         adjudicator_model=state["adjudicator_usage"].model if state["adjudicator_usage"] else None,
         schema_version=state["schema_version"],
         field_version=state["field"].version,

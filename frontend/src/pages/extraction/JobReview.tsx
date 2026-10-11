@@ -39,18 +39,26 @@ export function JobReview(p: {
 
   const refresh = useCallback(async () => {
     if (mode === "custom") {
-      setExtractionResults(((await api.getExtractionResults(runId)) as { results: ExtractionRecord[] }).results);
-      const review = (await api.getExtractionReviewDecisions(runId)) as { decisions: Decisions; states: ReviewStates };
+      const [res, review] = (await Promise.all([api.getExtractionResults(runId), api.getExtractionReviewDecisions(runId)])) as [
+        { results: ExtractionRecord[] },
+        { decisions: Decisions; states: ReviewStates },
+      ];
+      setExtractionResults(res.results);
       setExtractionDecisions(review.decisions);
       setExtractionStates(review.states);
     } else if (mode === "financials") {
-      setFinancialsResults(((await api.getFinancialsResults(runId)) as { results: CompanyFinancialsRecord[] }).results);
-      setFinancialsDecisions(((await api.getFinancialsReviewDecisions(runId)) as { decisions: Decisions }).decisions);
+      const [res, review] = (await Promise.all([api.getFinancialsResults(runId), api.getFinancialsReviewDecisions(runId)])) as [
+        { results: CompanyFinancialsRecord[] },
+        { decisions: Decisions },
+      ];
+      setFinancialsResults(res.results);
+      setFinancialsDecisions(review.decisions);
     } else if (mode === "tnfd") {
       setTnfdResults((await api.getTnfdResults(runId)).results);
     } else {
-      setTransitionResults((await api.getTransitionPlanResults(runId)).results);
-      setTransitionDecisions(((await api.getTransitionPlanReviewDecisions(runId)) as { decisions: Decisions }).decisions);
+      const [res, review] = await Promise.all([api.getTransitionPlanResults(runId), api.getTransitionPlanReviewDecisions(runId)]);
+      setTransitionResults(res.results);
+      setTransitionDecisions((review as { decisions: Decisions }).decisions);
     }
   }, [mode, runId]);
 

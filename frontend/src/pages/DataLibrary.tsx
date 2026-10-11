@@ -83,15 +83,19 @@ function RunResultsView() {
     setExpanded(null);
     try {
       if (kind === "extraction") {
-        const res = (await api.getExtractionResults(id)) as { results: ExtractionRecord[] };
+        const [res, decisionsRes] = (await Promise.all([api.getExtractionResults(id), api.getExtractionReviewDecisions(id)])) as [
+          { results: ExtractionRecord[] },
+          { decisions: Record<string, ReviewDecision>; states: ReviewStates },
+        ];
         setExtractionResults(res.results);
-        const decisionsRes = (await api.getExtractionReviewDecisions(id)) as { decisions: Record<string, ReviewDecision>; states: ReviewStates };
         setExtractionReviewDecisions(decisionsRes.decisions);
         setExtractionStates(decisionsRes.states);
       } else {
-        const res = (await api.getFinancialsResults(id)) as { results: CompanyFinancialsRecord[] };
+        const [res, decisionsRes] = (await Promise.all([api.getFinancialsResults(id), api.getFinancialsReviewDecisions(id)])) as [
+          { results: CompanyFinancialsRecord[] },
+          { decisions: Record<string, ReviewDecision> },
+        ];
         setFinancialsResults(res.results);
-        const decisionsRes = (await api.getFinancialsReviewDecisions(id)) as { decisions: Record<string, ReviewDecision> };
         setFinancialsReviewDecisions(decisionsRes.decisions);
       }
     } catch (err) {

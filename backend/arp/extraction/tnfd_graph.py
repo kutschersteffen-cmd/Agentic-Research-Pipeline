@@ -106,7 +106,7 @@ async def _verify(state: TNFDState) -> dict:
 
 async def _aggregate(state: TNFDState) -> dict:
     company = state["company"]
-    record, _needs_review = build_tnfd_record(
+    record = build_tnfd_record(
         company.company_id,
         company.ticker,
         company.name,
@@ -118,15 +118,7 @@ async def _aggregate(state: TNFDState) -> dict:
         state["fuzzy_threshold"],
         state["confidence_review_threshold"],
     )
-    extractor_usage = state["extractor_usage"]
-    verifier_usage = state["verifier_usage"]
-    provenance = ProvenanceInfo(
-        provider=extractor_usage.provider if extractor_usage else "",
-        extractor_model=extractor_usage.model if extractor_usage else None,
-        extractor_prompt_version=extractor_usage.prompt_version if extractor_usage else None,
-        verifier_model=verifier_usage.model if verifier_usage else None,
-        verifier_prompt_version=verifier_usage.prompt_version if verifier_usage else None,
-    )
+    provenance = ProvenanceInfo.from_usages(state["extractor_usage"], state["verifier_usage"])
     record = record.model_copy(update={"provenance": provenance})
     return {"record": record}
 

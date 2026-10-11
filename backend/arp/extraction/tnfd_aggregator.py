@@ -192,11 +192,10 @@ def build_tnfd_record(
     documents_by_id: dict[str, SourceDocument],
     fuzzy_threshold: float,
     confidence_review_threshold: float,
-) -> tuple[TNFDExtractionRecord, bool]:
+) -> TNFDExtractionRecord:
     """Merges the combined extractor draft and combined independent-verifier
     pass into a final TNFDExtractionRecord, applying the hard programmatic
-    grounding check to every citation across all five sections. Returns
-    (record, needs_review).
+    grounding check to every citation across all five sections.
     """
     final_confidence = min(draft.confidence, verifier.confidence)
     needs_review = final_confidence < confidence_review_threshold
@@ -257,4 +256,4 @@ def build_tnfd_record(
         needs_review=needs_review,
         record_review_flags=record_review_flags,
     )
-    return record, needs_review
+    return record

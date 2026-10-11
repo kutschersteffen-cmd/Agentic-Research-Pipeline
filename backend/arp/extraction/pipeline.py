@@ -374,7 +374,7 @@ async def execute_extraction_run(
     """
     schema = load_run_schema(run_store, run_id) or schema  # the registered snapshot
 
-    history = RunHistory.load(run_store, exclude_run_id=run_id)
+    history = await asyncio.to_thread(RunHistory.load, run_store, exclude_run_id=run_id)  # every past run: off the loop
     registry_store = SchemaRegistry(settings.postgres_dsn)
     qualities = {(f.field_id, f.version): registry_store.quality(f.field_id, f.version) for f in schema.fields}
     identifier_map = IdentifierMapStore(settings.identifier_map_path)

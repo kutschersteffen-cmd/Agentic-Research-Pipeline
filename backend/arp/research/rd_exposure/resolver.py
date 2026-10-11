@@ -10,7 +10,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.cost_tracker import combine_usage
 from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.rd_exposure.news_scoring import score_news_mentions
-from arp.research.revenue_exposure.resolver import is_sector_relevant
+from arp.research.revenue_exposure.resolver import exposure_from_extracted, is_sector_relevant
 from arp.schemas.common import CompanyRef, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
 from arp.schemas.rd_exposure import RDExposureResult
@@ -61,27 +61,7 @@ async def resolve_rd_intensity(
     )
     schema = DataPointSchema(name=f"{activity.name} R&D intensity", fields=[field])
     result = await _extract_company(company, schema, registry=registry, llm=llm, settings=settings, documents=documents)
-    extracted = result.record.fields[0] if result.record.fields else None
-
-    if extracted is None or extracted.value is None:
-        return MetricExposure(source="unresolved"), result.usage
-    try:
-        pct = float(extracted.value)
-    except (TypeError, ValueError):
-        return MetricExposure(source="unresolved", notes="Extracted value was not numeric."), result.usage
-
-    pct_fraction = pct / 100 if pct > 1 else pct
-    citation = extracted.citations[0] if extracted.citations else None
-    return (
-        MetricExposure(
-            value_pct=min(max(pct_fraction, 0.0), 1.0),
-            source="extracted",
-            confidence=extracted.confidence,
-            citation=citation,
-            notes=extracted.raw_value_text or "",
-        ),
-        result.usage,
-    )
+    return exposure_from_extracted(result.record.fields[0] if result.record.fields else None), result.usage
 
 
 async def resolve_news_mentions(

@@ -301,7 +301,7 @@ def test_resume_endpoint_launches_and_finishes(tmp_path, fake, api):
             if store.load_manifest(run_id).status == JobStatus.COMPLETED:
                 break
             time.sleep(0.02)
-    assert store.load_manifest(run_id).status == JobStatus.COMPLETED  # lease=False: no RunBusy under the launcher's lease
+    assert store.load_manifest(run_id).status == JobStatus.COMPLETED  # hold_run is re-entrant: no RunBusy under the launcher's lease
 
 
 async def test_resume_keeps_batch_mode(tmp_path, monkeypatch, pg):

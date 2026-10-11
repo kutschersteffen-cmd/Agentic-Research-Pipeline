@@ -6,15 +6,13 @@ from pathlib import Path
 
 import typer
 
-from arp.cli._shared import _engagement_store, _registry
+from arp.cli._shared import _engagement_store, _registry, _run_store
 from arp.config import get_settings
-from arp.db.session import require_dsn
 from arp.engagement.orchestrator import decide_next_action
 from arp.engagement.reporting_agent import compile_report
 from arp.engagement.triggers import ControversySignal, StaticControversySource, run_trigger_screen, scan_for_stalled_issues
 from arp.llm.factory import build_llm_client
 from arp.schemas.engagement import CorrespondenceEntry, EscalationStage, IssueSeverity, TriggerSource
-from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 from arp.voting.pipeline import get_ballots, get_cast_votes
 
@@ -165,7 +163,7 @@ def engagement_trigger_scan(
 def engagement_report(period_label: str = typer.Option(...), run_id: str = typer.Option(None, help="Include a voting run's cast votes.")) -> None:
     vote_records = []
     if run_id:
-        run_store = RunStore(require_dsn(get_settings()), get_settings().runs_dir)
+        run_store = _run_store()
         for ballot in get_ballots(run_store, run_id):
             vote_records.extend(ballot.votes)
         cast_by_id = {v.vote_record_id: v for v in get_cast_votes(run_store, run_id)}

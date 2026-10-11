@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { UniversePicker } from "./UniversePicker";
-import { when } from "../lib/runs";
+import { ACTIVE_STATUSES, when } from "../lib/runs";
 import { canRetryFetch, keyLabel, reportText, statusText } from "../lib/xbrlTags";
 import type { RunManifest, UniverseHandoff, WorkbenchResponse, XbrlCompanyStatus, XbrlRunMarket } from "../types";
 import { pollAfter } from "../lib/poll";
@@ -23,7 +23,7 @@ const RUN_LABEL: Record<string, string> = {
 };
 const msg = (err: unknown) => (err as Error).message;
 
-const inProgress = (m: RunManifest | null) => m?.status === "pending" || m?.status === "running";
+const inProgress = (m: RunManifest | null) => !!m && ACTIVE_STATUSES.has(m.status);
 
 /** XBRL Facts, Fetch area: start a fetch over a universe, poll its status, retry failures. */
 export function XbrlFetchArea({

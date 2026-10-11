@@ -151,8 +151,12 @@ export function StewardWorkflow({ initialTab }: { initialTab?: string }) {
     setLoading(true);
     setError(null);
     try {
-      setHouseFlow(await api.getStewardshipFlow("house"));
-      setClientFlow(stream === "house" ? null : await api.getStewardshipFlow(stream));
+      const [house, client] = await Promise.all([
+        api.getStewardshipFlow("house"),
+        stream === "house" ? null : api.getStewardshipFlow(stream),
+      ]);
+      setHouseFlow(house);
+      setClientFlow(client);
     } catch (err) {
       setError((err as Error).message);
     } finally {
