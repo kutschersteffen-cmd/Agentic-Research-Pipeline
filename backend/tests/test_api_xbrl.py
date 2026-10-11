@@ -487,7 +487,7 @@ def test_retry_of_a_completed_run_that_reached_every_company_is_400(env, monkeyp
 
     _patch_execute(monkeypatch, stub)
     run_id = create_xbrl_run([CO], None, False, runs)
-    JobManager(runs).record_progress(run_id, completed_delta=1)
+    runs.append_result(run_id, {"_key": CO.company_id})
     JobManager(runs).finish_run(run_id)
     r = client.post(f"/api/xbrl/runs/{run_id}/retry")
     assert r.status_code == 400 and "already completed" in r.json()["detail"]

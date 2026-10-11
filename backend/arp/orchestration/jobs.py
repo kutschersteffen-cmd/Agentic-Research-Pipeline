@@ -133,14 +133,22 @@ class NotResumable(ValueError):
     """This run cannot be resumed; the message says why."""
 
 
+def _reached_every_company(run_store: RunStore, manifest: RunManifest) -> bool:
+    """Every stored company has a result or was stopped for review. company_count is no guide: it counts
+    refs save_companies may drop, and a company with review items counts as completed and for review."""
+    companies = run_store.load_companies(manifest.run_id)
+    if not companies:  # a theme run from before companies.json
+        return True
+    done = run_store.done_keys(manifest.run_id, include_errors=True)
+    return {c.company_id for c in companies} <= done
+
+
 def check_resumable(run_store: RunStore, run_id: str) -> RunManifest:
     """The run's manifest, or NotResumable saying why it can't be resumed."""
     manifest = run_store.load_manifest(run_id)
     if manifest is None:
         raise NotResumable("Unknown run_id")
-    if manifest.status == JobStatus.COMPLETED and (
-        manifest.completed_count + manifest.failed_count + manifest.review_count >= manifest.company_count
-    ):
+    if manifest.status == JobStatus.COMPLETED and _reached_every_company(run_store, manifest):
         raise NotResumable("already completed")  # a completed run that missed companies resumes for them
     if manifest.run_type not in RESUMABLE:
         raise NotResumable(f"{manifest.run_type} runs are not resumable; start a new run")

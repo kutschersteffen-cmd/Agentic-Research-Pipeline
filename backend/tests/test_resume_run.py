@@ -106,7 +106,7 @@ async def test_resume_refuses_completed_run(tmp_path, fake, pg):
     settings = _settings(tmp_path)
     store = RunStore(pg, settings.runs_dir)
     run_id = create_transition_plan_run(COMPANIES[:1], settings, store)
-    JobManager(store).record_progress(run_id, completed_delta=1)  # every company reached
+    store.append_result(run_id, {"_key": "c1"})  # every company reached
     JobManager(store).finish_run(run_id)
     before = store.load_manifest(run_id)
     with pytest.raises(NotResumable, match="already completed"):
@@ -250,7 +250,7 @@ async def test_resume_busy_run_refused(tmp_path, fake, api):
         res = TestClient(app).post(f"/api/runs/{run_id}/resume")
         assert res.status_code == 409
     assert TestClient(app).post("/api/runs/nope/resume").status_code == 404
-    JobManager(store).record_progress(run_id, completed_delta=1)  # every company reached
+    store.append_result(run_id, {"_key": "c1"})  # every company reached
     JobManager(store).finish_run(run_id)
     assert TestClient(app).post(f"/api/runs/{run_id}/resume").status_code == 400
 
@@ -459,8 +459,8 @@ def test_completed_run_whose_rest_stopped_for_review_is_refused(tmp_path, pg):
     from arp.orchestration.jobs import check_resumable
 
     store, run_id = _run(tmp_path, pg, n=2)
-    JobManager(store).record_progress(run_id, completed_delta=1)
-    JobManager(store).record_progress(run_id, review_delta=1)
+    store.append_result(run_id, {"_key": "c1"})
+    store.append_error(run_id, {"key": "c2", "review": True})  # stopped for a person
     JobManager(store).finish_run(run_id)
     with pytest.raises(NotResumable, match="already completed"):
         check_resumable(store, run_id)
@@ -486,3 +486,16 @@ def test_theme_resume_endpoint_crash_marks_run_failed(tmp_path, monkeypatch, api
         client.portal.call(asyncio.sleep, 0.05)
     manifest = store.load_manifest(run_id)
     assert (manifest.status, manifest.error) == (JobStatus.FAILED, "RuntimeError: boom")
+
+
+def test_completed_run_with_every_stored_company_done_is_refused_whatever_the_counts(tmp_path, pg):
+    """company_count counts refs save_companies may drop (duplicates, identity conflicts); the stored companies decide."""
+    from arp.orchestration.jobs import check_resumable
+
+    store, run_id = _run(tmp_path, pg, n=2)
+    for c in COMPANIES[:2]:
+        store.append_result(run_id, {"_key": c.company_id, "company_id": c.company_id})
+    JobManager(store).record_progress(run_id, completed_delta=1)  # counts under-report what was done
+    JobManager(store).finish_run(run_id)
+    with pytest.raises(NotResumable, match="already completed"):
+        check_resumable(store, run_id)
