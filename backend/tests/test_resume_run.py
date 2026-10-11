@@ -389,3 +389,56 @@ def test_voting_cli_batch_flag(tmp_path, monkeypatch, pg):
     (plain, batched), params = _batch_cli(tmp_path, monkeypatch, cli_voting, "run_voting", cli_voting.voting_app, ["run"], create_voting_run)
     assert not isinstance(plain, BatchingLLMClient) and isinstance(batched, BatchingLLMClient)
     assert params == [None, True]
+
+
+def _run(tmp_path, pg, n=1):
+    settings = _settings(tmp_path)
+    store = RunStore(pg, settings.runs_dir)
+    return store, create_transition_plan_run(COMPANIES[:n], settings, store)
+
+
+def test_crash_inside_the_lease_marks_the_run_failed(tmp_path, pg):
+    from arp.orchestration.jobs import hold_run
+
+    store, run_id = _run(tmp_path, pg)
+    with pytest.raises(RuntimeError), hold_run(store, run_id):
+        raise RuntimeError("boom")
+    manifest = store.load_manifest(run_id)
+    assert (manifest.status, manifest.error) == (JobStatus.FAILED, "RuntimeError: boom")
+
+
+def test_nested_holders_mark_failed_once(tmp_path, pg, monkeypatch):
+    from arp.orchestration.jobs import hold_run
+
+    store, run_id = _run(tmp_path, pg)
+    calls = []
+    finish = JobManager.finish_run
+    monkeypatch.setattr(JobManager, "finish_run", lambda self, *a, **kw: calls.append(a) or finish(self, *a, **kw))
+    with pytest.raises(RuntimeError), hold_run(store, run_id), hold_run(store, run_id):
+        raise RuntimeError("boom")
+    assert len(calls) == 1
+
+
+def test_busy_run_and_cancellation_are_not_failures(tmp_path, pg):
+    from arp.orchestration.jobs import hold_run
+
+    store, run_id = _run(tmp_path, pg)
+    before = store.load_manifest(run_id)
+    with run_lease(store, run_id), pytest.raises(RunBusy), hold_run(store, run_id):
+        pass
+    with pytest.raises(asyncio.CancelledError), hold_run(store, run_id):
+        raise asyncio.CancelledError
+    assert store.load_manifest(run_id).status == before.status == JobStatus.RUNNING
+
+
+def test_finish_run_failure_keeps_the_original_error(tmp_path, pg, monkeypatch):
+    from arp.orchestration.jobs import hold_run
+
+    store, run_id = _run(tmp_path, pg)
+
+    def broken(self, *a, **kw):
+        raise OSError("db down")
+
+    monkeypatch.setattr(JobManager, "finish_run", broken)
+    with pytest.raises(RuntimeError, match="boom"), hold_run(store, run_id):
+        raise RuntimeError("boom")

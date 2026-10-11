@@ -8,6 +8,7 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING
 
 from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
+from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import JobStatus, RunManifest
 from arp.storage.run_store import RunStore
 
@@ -54,7 +55,8 @@ def hold_run(run_store: RunStore, run_id: str) -> Iterator[None]:
     context already holds the run (a launcher or resume_run that then calls
     the pipeline), else takes the lease and marks it held. Every batch run
     goes through it (run_company_batch, execute_discovery_run), so a second
-    worker on the same run raises RunBusy however it was started."""
+    worker on the same run raises RunBusy however it was started. The
+    outermost holder marks the run failed when its body raises."""
     if run_id in _held.get():
         yield
         return
@@ -62,8 +64,19 @@ def hold_run(run_store: RunStore, run_id: str) -> Iterator[None]:
         token = _held.set(_held.get() | {run_id})
         try:
             yield
+        except Exception as exc:
+            _mark_failed(run_store, run_id, exc)
+            raise
         finally:
             _held.reset(token)
+
+
+def _mark_failed(run_store: RunStore, run_id: str, exc: Exception) -> None:
+    """A crash before the run finished would leave it "running" forever."""
+    try:
+        JobManager(run_store).finish_run(run_id, error=f"{type(exc).__name__}: {exc}")
+    except Exception:  # noqa: BLE001 - the run's own error is the one to raise
+        logger.exception("could not mark run %s failed", run_id)
 
 
 class LocalJobLauncher:
