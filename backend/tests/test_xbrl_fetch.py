@@ -8,6 +8,7 @@ import pytest
 
 from arp.config import Settings
 from arp.ingestion.edgar import AnnualOriginal
+from arp.orchestration.jobs import restart_run
 from arp.schemas.common import CompanyRef
 from arp.storage.run_store import RunStore
 from arp.xbrl_pipeline.fetch import (
@@ -241,6 +242,7 @@ async def test_run_isolates_a_failing_company_and_resume_retries_it(tmp_path, pg
     assert {r["company_id"] for r in run_store.read_results(run_id)} == {"A", "C"}
 
     src.broken = False
+    restart_run(run_store, run_id)  # as resume_run does before it re-runs
     await execute_xbrl_run(run_id, companies, settings=settings, run_store=run_store, tags=None, refresh=False, source=src)
     assert {r["company_id"] for r in run_store.read_results(run_id)} == {"A", "B", "C"}
 
@@ -267,6 +269,7 @@ async def _first_run_with_failure(tmp_path):
     src = _Flaky(run_store, run_id)
 
     async def run():
+        restart_run(run_store, run_id)  # as resume_run does before it (re-)runs
         await execute_xbrl_run(run_id, companies, settings=settings, run_store=run_store, tags=None, refresh=False, source=src)
         return run_store.load_manifest(run_id)
 

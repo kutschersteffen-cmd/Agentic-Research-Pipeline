@@ -14,7 +14,7 @@ from arp.api.auth import current_user
 from arp.api.routers import xbrl as xbrl_router
 from arp.config import Settings
 from arp.orchestration.job_manager import JobManager
-from arp.orchestration.jobs import run_lease
+from arp.orchestration.jobs import get_job_launcher, run_lease
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import ExtractedField, ExtractionRecord
 from arp.storage.run_store import RunStore
@@ -29,6 +29,14 @@ FIXTURE = Path(__file__).parent / "fixtures" / "xbrl" / "companyfacts_small.json
 CIK = "0001234567"
 REPORT = b"<html><script>alert(1)</script></html>"
 CO = CompanyRef(company_id="ex", name="Example Inc", cik=CIK)
+
+
+def _patch_execute(monkeypatch, fn):
+    """Starting a run calls the router's execute_xbrl_run; a retry resumes through jobs, which imports fetch's."""
+    import arp.xbrl_pipeline.fetch as fetch
+
+    monkeypatch.setattr(xbrl_router, "execute_xbrl_run", fn)
+    monkeypatch.setattr(fetch, "execute_xbrl_run", fn)
 
 
 @pytest.fixture
@@ -66,7 +74,7 @@ def test_start_run_returns_run_id(env, monkeypatch):
     async def stub(run_id, companies, **kw):
         calls.append((run_id, [c.company_id for c in companies], kw["tags"], kw["refresh"]))
 
-    monkeypatch.setattr(xbrl_router, "execute_xbrl_run", stub)
+    _patch_execute(monkeypatch, stub)
     r = client.post("/api/xbrl/runs", json={"companies": [CO.model_dump()], "tags": ["us-gaap:Revenues"], "refresh": True})
     assert r.status_code == 200
     body = r.json()
@@ -84,7 +92,7 @@ def test_retry_resumes_same_run(env, monkeypatch):
     async def stub(run_id, companies, **kw):
         calls.append(run_id)
 
-    monkeypatch.setattr(xbrl_router, "execute_xbrl_run", stub)
+    _patch_execute(monkeypatch, stub)
     run_id = create_xbrl_run([CO], None, False, runs)
     r = client.post(f"/api/xbrl/runs/{run_id}/retry")
     assert r.status_code == 200 and r.json()["run_id"] == run_id
@@ -98,7 +106,7 @@ def _capture(monkeypatch):
     async def stub(run_id, companies, **kw):
         calls.append(kw)
 
-    monkeypatch.setattr(xbrl_router, "execute_xbrl_run", stub)
+    _patch_execute(monkeypatch, stub)
     return calls
 
 
@@ -326,8 +334,8 @@ def test_background_failure_is_logged_marks_run_failed_and_releases_task(env, mo
     async def boom(run_id, companies, **kw):
         raise RuntimeError("source exploded")
 
-    monkeypatch.setattr(xbrl_router, "execute_xbrl_run", boom)
-    with caplog.at_level("ERROR", logger=xbrl_router.logger.name), client:
+    _patch_execute(monkeypatch, boom)
+    with caplog.at_level("ERROR"), client:
         if route == "start":
             run_id = client.post("/api/xbrl/runs", json={"companies": [CO.model_dump()]}).json()["run_id"]
         else:
@@ -335,7 +343,7 @@ def test_background_failure_is_logged_marks_run_failed_and_releases_task(env, mo
             assert client.post(f"/api/xbrl/runs/{run_id}/retry").status_code == 200
         client.portal.call(asyncio.sleep, 0.05)  # let the background task run and its callback fire
     assert "source exploded" in caplog.text
-    assert xbrl_router._tasks == set()
+    assert get_job_launcher()._tasks == set()
     manifest = runs.load_manifest(run_id)
     assert manifest.status == "failed" and "source exploded" in manifest.error
 
@@ -361,7 +369,7 @@ def test_retry_of_executing_run_is_409(env, monkeypatch):
     async def stub(run_id, companies, **kw):
         calls.append(run_id)
 
-    monkeypatch.setattr(xbrl_router, "execute_xbrl_run", stub)
+    _patch_execute(monkeypatch, stub)
     run_id = create_xbrl_run([CO], None, False, runs)
     with run_lease(runs, run_id):  # another worker holds the run
         r = client.post(f"/api/xbrl/runs/{run_id}/retry")
@@ -390,7 +398,7 @@ def test_retry_marks_manifest_running_before_the_task_finishes(env, monkeypatch)
         JobManager(runs).record_progress(run_id, failed_delta=-1)  # the retry succeeded
         JobManager(runs).finish_run(run_id)
 
-    monkeypatch.setattr(xbrl_router, "execute_xbrl_run", stub)
+    _patch_execute(monkeypatch, stub)
     run_id = _finished_with_failure(runs)
     with client:
         assert client.post(f"/api/xbrl/runs/{run_id}/retry").status_code == 200
@@ -406,7 +414,7 @@ def test_retry_409_leaves_manifest_untouched(env, monkeypatch):
     async def stub(run_id, companies, **kw):
         raise AssertionError("must not launch")
 
-    monkeypatch.setattr(xbrl_router, "execute_xbrl_run", stub)
+    _patch_execute(monkeypatch, stub)
     run_id = _finished_with_failure(runs)
     before = runs.load_manifest(run_id)
     with run_lease(runs, run_id):
@@ -469,3 +477,17 @@ def test_retry_of_an_auto_run_keeps_routing(env, monkeypatch):
     assert client.post(f"/api/xbrl/runs/{run_id}/retry").status_code == 200
     assert calls[0]["market"] == "auto"
     assert (runs.run_dir(run_id) / "routing.json").read_bytes() == before
+
+
+def test_retry_of_a_completed_run_that_reached_every_company_is_400(env, monkeypatch):
+    client, _, _, runs = env
+
+    async def stub(run_id, companies, **kw):
+        raise AssertionError("must not launch")
+
+    _patch_execute(monkeypatch, stub)
+    run_id = create_xbrl_run([CO], None, False, runs)
+    runs.append_result(run_id, {"_key": CO.company_id})
+    JobManager(runs).finish_run(run_id)
+    r = client.post(f"/api/xbrl/runs/{run_id}/retry")
+    assert r.status_code == 400 and "already completed" in r.json()["detail"]

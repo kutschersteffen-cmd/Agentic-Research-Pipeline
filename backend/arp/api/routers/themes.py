@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,7 +13,7 @@ from arp.config import Settings
 from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.factory import batch_settings
-from arp.orchestration.jobs import NotResumable, check_resumable, resume_run
+from arp.orchestration.jobs import NotResumable, RunBusy, check_resumable, get_job_launcher, resume_run, run_lease
 from arp.research.activity_generator import build_theme
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.pipeline import create_theme_run, execute_theme_run
@@ -221,12 +220,14 @@ async def resume_theme_run_endpoint(
     llm = get_llm_client()  # surfaces a clean 503 before we schedule anything if unconfigured
     verifier_llm = get_verifier_llm_client()
 
-    async def _background() -> None:
-        await resume_run(
-            run_id, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store
-        )
-
-    asyncio.create_task(_background())
+    try:
+        with run_lease(run_store, run_id):  # busy now -> 409 here, not a log line later
+            pass
+    except RunBusy as exc:
+        raise HTTPException(409, str(exc)) from exc
+    get_job_launcher().launch(run_id, lambda: resume_run(
+        run_id, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store, lease=False,
+    ), run_store=run_store)
     return {"run_id": run_id, "status": "resumed"}
 
 
