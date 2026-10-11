@@ -110,7 +110,7 @@ async def retry_run(
     companies = run_store.load_companies(run_id)
     if not companies:
         raise HTTPException(400, "This run stored no companies and cannot be retried.")
-    # The lease is the truth (the OS frees it if a worker dies); a manifest stuck on "running" must not block retry.
+    # The lease is the truth (freed when a worker dies); a manifest stuck on "running" must not block retry.
     try:
         with run_lease(run_store, run_id):
             pass

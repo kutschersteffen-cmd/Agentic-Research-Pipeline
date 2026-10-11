@@ -5,7 +5,11 @@ import logging
 from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
+from functools import lru_cache
 from typing import TYPE_CHECKING
+
+from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.pool import NullPool
 
 from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
 from arp.orchestration.job_manager import JobManager
@@ -17,11 +21,6 @@ if TYPE_CHECKING:
     from arp.ingestion.registry import DocumentSourceRegistry
     from arp.llm.base import LLMClient
 
-try:  # POSIX only; same guard as KeyedLock. Without it a lease never conflicts.
-    import fcntl
-except ImportError:  # pragma: no cover - Windows
-    fcntl = None
-
 logger = logging.getLogger(__name__)
 
 
@@ -29,21 +28,35 @@ class RunBusy(RuntimeError):
     """Another worker already holds this run's lease."""
 
 
+_LEASE_NS = 0x41525054  # "ARPT": keeps run leases apart from any other advisory lock user
+_LEASE = text("SELECT pg_try_advisory_lock(:ns, hashtext(:id))")
+_UNLEASE = text("SELECT pg_advisory_unlock(:ns, hashtext(:id))")
+
+
+@lru_cache
+def _lease_engine(dsn: str) -> Engine:
+    """No pool: a lease holds its connection for the whole run, which must not use up the app's pool."""
+    return create_engine(dsn, poolclass=NullPool)
+
+
 @contextmanager
 def run_lease(run_store: RunStore, run_id: str) -> Iterator[None]:
-    """One worker per run: a non-blocking exclusive `flock` on
-    `runs/<id>/.worker`. Raises RunBusy if it is held -- by a thread or
-    process, through any RunStore. The OS frees it if the holder dies, so
-    a crashed worker never leaves a run stuck; the file itself is kept."""
-    if fcntl is None:  # pragma: no cover - Windows
-        yield
-        return
-    with (run_store.run_dir(run_id) / ".worker").open("a") as handle:
+    """One worker per run, across processes and machines: a Postgres advisory lock on the run id,
+    held on its own connection. Raises RunBusy if another session holds it. Freed when the holder
+    exits, or when its connection dies, so a crashed worker never leaves a run stuck."""
+    # ponytail: a dropped lease connection frees the lease while the worker runs on; a heartbeat that
+    # stops the worker is the upgrade path.
+    key = {"ns": _LEASE_NS, "id": run_id}
+    with _lease_engine(run_store.dsn).connect() as conn:
+        got = conn.scalar(_LEASE, key)
+        conn.commit()  # the session-level lock outlives the transaction; no transaction stays open
+        if not got:
+            raise RunBusy(f"Run {run_id} already has a worker")
         try:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            raise RunBusy(f"Run {run_id} already has a worker") from None
-        yield  # closing the handle releases the lock
+            yield
+        finally:
+            conn.execute(_UNLEASE, key)
+            conn.commit()
 
 
 _held: ContextVar[frozenset[str]] = ContextVar("held_runs", default=frozenset())
