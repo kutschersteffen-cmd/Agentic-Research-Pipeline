@@ -264,15 +264,15 @@ def _timeline(runs: list[tuple[str, str, list, list]]) -> list[tuple[str, str, d
     cosigns), oldest run first, decisions/cosigns as (row, ref) in stored order. Each run's results
     happen at its `updated_at`, a decision at `decided_at`, a cosign at `cosigned_at` (missing or
     unparsable: the run's `updated_at`, so after its results). Ties: results first, then the order
-    the files list them. Returns (kind, run_id, row, ref), kind "results" | "decision" | "cosign"."""
+    the files list them. Returns (kind, run_id, row, ref, at), kind "results" | "decision" | "cosign"."""
     events, seq = [], 0
     for run_id, updated_at, decisions, cosigns in runs:
         run_ts = _when(updated_at) or datetime.min.replace(tzinfo=UTC)
-        events.append((run_ts, 0, seq, ("results", run_id, None, None)))
+        events.append((run_ts, 0, seq, ("results", run_id, None, None, run_ts)))
         for kind, row, ref in _merged(decisions, cosigns):
             seq += 1
             ts = _when(row.get("decided_at" if kind == "decision" else "cosigned_at")) or run_ts
-            events.append((ts, 1, seq, (kind, run_id, row, ref)))
+            events.append((ts, 1, seq, (kind, run_id, row, ref, ts)))
         seq += 1
     return [e[3] for e in sorted(events, key=lambda e: e[:3])]
 
@@ -395,7 +395,8 @@ def _company_for(s: Session, by_key: dict[str, CompanyRef], key, *, have_compani
 def _replay_facts(s: Session, run_ids: list[str], report: ImportReport) -> None:
     """Re-derives the current facts of every (company, field, period_end, basis) the imported runs
     observed: the facts made from their observations are removed, then results, decisions and cosigns
-    are applied on one timeline (`_timeline`) through the live fact writers. Deterministic, so a
+    are applied on one timeline (`_timeline`) through the live fact writers, each fact version dated
+    by its event (R43: as-of queries see the file-era history). Deterministic, so a
     re-run derives the same facts. Refuses when such a key has a current fact from elsewhere (data
     written after cut-over), which the replay would otherwise bury."""
     obs_ids = select(m.FieldObservation.id).where(m.FieldObservation.run_id.in_(run_ids))
@@ -408,7 +409,8 @@ def _replay_facts(s: Session, run_ids: list[str], report: ImportReport) -> None:
         .where(m.CompanyFact.valid_to.is_(None), m.CompanyFact.observation_id.not_in(obs_ids))
     )
     if foreign:
-        raise ImportFailed(f"{foreign} current fact(s) on imported keys come from outside the import; not replaying")
+        raise ImportFailed(
+            f"already cut over; re-import not supported: {foreign} current fact(s) on imported keys come from outside the import")
     s.execute(update(m.CompanyFact).where(m.CompanyFact.observation_id.in_(obs_ids)).values(superseded_by=None))
     s.execute(delete(m.CompanyFact).where(m.CompanyFact.observation_id.in_(obs_ids)))
 
@@ -423,10 +425,10 @@ def _replay_facts(s: Session, run_ids: list[str], report: ImportReport) -> None:
     ])
     last_decision: dict[tuple, int] = {}
     last_cosign: dict[tuple, int] = {}
-    for kind, run_id, row, ref in timeline:
+    for kind, run_id, row, ref, at in timeline:
         with _source(f"run {run_id} {kind}"):
             if kind == "results":
-                _apply_results(s, runs[run_id])
+                _apply_results(s, runs[run_id], at)
                 continue
             key = (run_id, row.get("item_key"))
             if kind == "cosign":
@@ -436,11 +438,11 @@ def _replay_facts(s: Session, run_ids: list[str], report: ImportReport) -> None:
                 if ref.decision is None:
                     continue  # a non-review action: never applied
             RunStore._apply_review(s, run_id, row.get("item_key"), decisions_upto=last_decision.get(key, 0),
-                                   cosigns_upto=last_cosign.get(key, 0))
+                                   cosigns_upto=last_cosign.get(key, 0), at=at)
     report.fact_conflicts += _fact_conflicts(s, run_ids)
 
 
-def _apply_results(s: Session, run: m.Run) -> None:
+def _apply_results(s: Session, run: m.Run, at: datetime) -> None:
     """The fact updates `record_company_result` would have made for the run's stored results: its
     observations, paired in order with what `to_observations` gives for each result row."""
     trial = bool((run.params or {}).get("trial"))
@@ -458,7 +460,7 @@ def _apply_results(s: Session, run: m.Run) -> None:
             row = stored[company_id].popleft()
             if (row.field_id, row.period_end, row.basis) != (o.field_id, o.period_end, o.basis):
                 raise ImportFailed(f"observation {row.id} does not match result row field {o.field_id}")
-            observations_db.apply_observation(s, row, o)
+            observations_db.apply_observation(s, row, o, at=at)
 
 
 def _fact_conflicts(s: Session, run_ids: list[str]) -> list[dict]:
@@ -611,7 +613,7 @@ class _Replay:
         ])
         last_decision: dict[tuple, int] = {}
         last_cosign: dict[tuple, int] = {}
-        for kind, run_id, row, idx in timeline:
+        for kind, run_id, row, idx, _ in timeline:
             run, st = by_id[run_id], state[run_id]
             if kind == "results":
                 st.update(self._results(run))

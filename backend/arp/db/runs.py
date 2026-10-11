@@ -323,11 +323,13 @@ class RunStore:
 
     @staticmethod
     def _apply_review(
-        s: Session, run_id: str, item_key: str | None, *, decisions_upto: int | None = None, cosigns_upto: int | None = None
+        s: Session, run_id: str, item_key: str | None, *, decisions_upto: int | None = None, cosigns_upto: int | None = None,
+        at: datetime | None = None,
     ) -> None:
         """Once the item's decision is final (its cosign or second review done, where the run type
         needs one), the facts behind it take it (observations.apply_decision decides which).
-        Until then they stay as they are. `*_upto` (row ids) replay the item as it stood then."""
+        Until then they stay as they are. `*_upto` (row ids) replay the item as it stood then, `at`
+        dates the fact change (default: now)."""
         from arp.orchestration.review_queue import FINAL_STATES, item_state
         from arp.review.items import cosign_rule  # imports the extraction pipeline
 
@@ -352,7 +354,7 @@ class RunStore:
         eff = state.effective
         decision_id = next(i for i, r in rows if r is eff)
         edited = eff.get("corrected_value") or eff.get("edited_value")
-        observations_db.apply_decision(s, item.id, DecisionKind(eff["decision"]), edited, decision_id)
+        observations_db.apply_decision(s, item.id, DecisionKind(eff["decision"]), edited, decision_id, at=at)
 
     # No table for these: files under run_dir.
     def read_restatements(self, run_id: str) -> list[dict]:

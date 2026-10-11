@@ -176,6 +176,17 @@ def test_late_decision_on_older_run_wins(pg, legacy_settings):
     importer.import_all(pg, legacy_settings, dry_run=False)
     assert _current(pg, "fld_x") == [(10.0, m.FactStatus.APPROVED)]
     assert importer.verify(pg, legacy_settings).differences == []
+    # each version is dated by its event, so the company page's as-of shows the file-era history
+    with transaction(pg) as s:
+        acme = lookup(s, m.IdScheme.UNIVERSE, "acme")
+
+        def as_of(day):
+            return [(r.value, r.status) for r in facts(s, acme, as_of=datetime(*day, tzinfo=UTC), field_id="fld_x")]
+
+        assert as_of((2026, 1, 1)) == []  # before run A
+        assert as_of((2026, 1, 20)) == [(10.0, m.FactStatus.PENDING_REVIEW)]  # A's value, in review
+        assert as_of((2026, 2, 20)) == [(20.0, m.FactStatus.AUTO_ACCEPTED)]  # after B, before the decision
+        assert as_of((2026, 3, 2)) == [(10.0, m.FactStatus.APPROVED)]  # after the March approval
 
 
 def test_unknown_decision_is_skipped_and_listed_not_a_difference(pg, legacy_settings):

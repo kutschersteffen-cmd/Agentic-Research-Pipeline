@@ -7,7 +7,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Literal
 from uuid import UUID
@@ -146,18 +146,20 @@ def _current(session: Session, obs: FieldObservation) -> CompanyFact | None:
 def _write_fact(
     session: Session, obs: FieldObservation, *, value, status: FactStatus, value_state: ValueState,
     canonical_value, canonical_unit, decision_id: int | None = None, conflicting: bool = False,
+    at: datetime | None = None,
 ) -> None:
     """Applies `decide` to the key's current fact under a row lock. A concurrent first insert for
     the same key trips `uq_company_facts_current`; the savepoint is rolled back and the lookup
     retried once, which then sees the other writer's row. One clock_timestamp() closes the old
-    version and opens the new one, so versions never overlap or leave a gap."""
+    version and opens the new one, so versions never overlap or leave a gap. `at` (the importer's
+    replay) dates the change instead, never before the current version opened."""
     for attempt in (1, 2):
         try:
             with session.begin_nested():
                 current = _current(session, obs)
                 if decide(current, value, status, value_state) in ("noop", "keep"):
                     return
-                ts = session.scalar(select(func.clock_timestamp()))
+                ts = _at(session, at, current)
                 if current is not None:  # closed first: the partial unique index allows one open row
                     current.valid_to = ts
                     session.flush()
@@ -228,12 +230,13 @@ def fits(session: Session, observations: list[ObservationIn]) -> list[bool]:
     return [_fits(types.get((o.field_id, o.field_version), ""), o.value) for o in observations]
 
 
-def apply_observation(session: Session, row: FieldObservation, o: ObservationIn) -> None:
-    """The current-fact update for one stored observation (`row`, recorded from `o`); trial ones make none."""
+def apply_observation(session: Session, row: FieldObservation, o: ObservationIn, *, at: datetime | None = None) -> None:
+    """The current-fact update for one stored observation (`row`, recorded from `o`); trial ones make none.
+    `at` dates the change (default: now)."""
     if not o.trial:
         _write_fact(
             session, row, value=row.value, status=_status(o), value_state=o.value_state,
-            canonical_value=row.canonical_value, canonical_unit=o.canonical_unit, conflicting=o.conflicting_sources,
+            canonical_value=row.canonical_value, canonical_unit=o.canonical_unit, conflicting=o.conflicting_sources, at=at,
         )
 
 
@@ -304,23 +307,32 @@ def _edited(obs: FieldObservation, edit, *, whole_record: bool):
     return edit.get("value", obs.value)
 
 
-def _reject(session: Session, obs: FieldObservation) -> None:
+def _at(session: Session, at: datetime | None, current: CompanyFact | None) -> datetime:
+    """When a fact change happens: `at`, but not before the current version opened; None is now."""
+    if at is None:
+        return session.scalar(select(func.clock_timestamp()))
+    return max(at, current.valid_from) if current is not None else at
+
+
+def _reject(session: Session, obs: FieldObservation, at: datetime | None = None) -> None:
     """A rejected value that is the key's current pending fact stops being current; no other
     version takes its place."""
     with session.begin_nested():
         current = _current(session, obs)
         if current is not None and current.observation_id == obs.id and current.status == FactStatus.PENDING_REVIEW:
-            current.valid_to = session.scalar(select(func.clock_timestamp()))
+            current.valid_to = _at(session, at, current)
             session.flush()
 
 
 def apply_decision(
-    session: Session, review_item_id: int, decision: DecisionKind, edited_value: Any | None, decision_id: int
+    session: Session, review_item_id: int, decision: DecisionKind, edited_value: Any | None, decision_id: int,
+    *, at: datetime | None = None,
 ) -> None:
     """A final review decision on an item's observation, or, for an item about a whole record
     (no observation_id, keyed by the company id), on every observation of its run and company routed to review.
     approve/edit/correct/hold set the fact; reject retires a pending fact the rejected
-    observation made current; escalate changes nothing. Trial runs never make facts."""
+    observation made current; escalate changes nothing. Trial runs never make facts. `at` dates the
+    change (default: now)."""
     item = session.get(ReviewItem, review_item_id)
     if item is None or decision == DecisionKind.ESCALATE:
         return
@@ -342,7 +354,7 @@ def apply_decision(
     status = _DECIDED.get(decision)
     for obs in observations:
         if decision == DecisionKind.REJECT:
-            _reject(session, obs)
+            _reject(session, obs, at)
             continue
         value, state = obs.value, obs.value_state
         canonical_value, canonical_unit = obs.canonical_value, obs.canonical_unit
@@ -355,5 +367,5 @@ def apply_decision(
             canonical_value, canonical_unit = _numeric(edit.get("canonical_value")), edit.get("canonical_unit")
         _write_fact(
             session, obs, value=value, status=status, value_state=state, canonical_value=canonical_value,
-            canonical_unit=canonical_unit, decision_id=decision_id,
+            canonical_unit=canonical_unit, decision_id=decision_id, at=at,
         )
