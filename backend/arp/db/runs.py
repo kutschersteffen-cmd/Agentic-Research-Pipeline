@@ -446,7 +446,7 @@ class RunStore:
 
     def load_companies(self, run_id: str) -> list[CompanyRef] | None:
         """The companies a run was created over ([] when every one was an identity conflict), or
-        None for a run that never saved any (voting, older runs) and so cannot be resumed."""
+        None for a run that never saved any (older runs) and so cannot be resumed."""
         if not self.has_companies(run_id):
             return None
         with self._tx(run_id) as s:

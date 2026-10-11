@@ -112,6 +112,19 @@ async def test_execute_voting_run_queues_every_proposal_for_review(tmp_path, fak
     assert len(review_rows) == 1
     assert review_rows[0]["item_key"] == "C1:3"
 
+    # I1: the run saved its companies, so the vote is an observation and a pending fact of the company
+    from sqlalchemy import select
+
+    from arp.db import models as m
+    from arp.db.session import transaction
+
+    (saved,) = run_store.load_companies(run_id)
+    with transaction(pg) as s:
+        (fact,) = s.scalars(select(m.CompanyFact).where(m.CompanyFact.company_id == saved.entity_id)).all()
+        assert fact.field_id.startswith("vote:") and fact.status == m.FactStatus.PENDING_REVIEW
+        item = s.scalar(select(m.ReviewItem).where(m.ReviewItem.run_id == run_id))
+        assert item.company_id == saved.entity_id and item.observation_id == fact.observation_id
+
 
 def test_ballot_platform_writes_instruction_file_and_confirms(tmp_path):
     import asyncio
