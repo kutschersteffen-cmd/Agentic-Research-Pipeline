@@ -180,7 +180,7 @@ def test_auto_accepted_item_with_moved_span_is_escalated_and_not_published(world
     assert run().queued == 1
     cands, skips = run_candidates(run_store, "ext1")
     assert cands == [] and (ITEM, "not_final") in [(s.item_key, s.reason) for s in skips]
-    s = item_states(run_store, "ext1", cosign_required={"edit"})[ITEM]
+    s = item_states(run_store, "ext1")[ITEM]
     assert s.escalated and s.rows[0]["reason_code"] == "span_moved"
 
 
@@ -203,10 +203,10 @@ def test_decided_item_reopened_for_review(world):
         item_key=ITEM, decision="approve", reason_code=DecisionReason.CONFIRMED, reviewer="Alice",
         user_id="u_alice", role="analyst", snapshot_id="s", step="first",
     ))
-    assert ITEM in effective_decisions(run_store, "ext1", cosign_required={"edit"})
+    assert ITEM in effective_decisions(run_store, "ext1")
     new_parser("Preface.\n" + OLD_TEXT)
     assert run().queued == 1
-    assert ITEM not in effective_decisions(run_store, "ext1", cosign_required={"edit"})
+    assert ITEM not in effective_decisions(run_store, "ext1")
     carol = Principal(user_id="u_carol", name="Carol", role="approver")
     [item] = [i for i in list_open_items(run_store, carol) if i.item_key == ITEM]  # one, though queued twice
     assert item.escalated and "span_moved" in item.payload["review_reasons"]

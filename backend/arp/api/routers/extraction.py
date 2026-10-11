@@ -34,7 +34,7 @@ from arp.presets.registry import PRESETS, install_preset
 from arp.presets.remuneration import remuneration_summary
 from arp.review.context import similar_decisions, visible_history
 from arp.review.decide import DecisionError, bulk_accept
-from arp.review.items import cosign_rule, get_item
+from arp.review.items import get_item
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema, FieldQuality
 from arp.schemas.review import BulkAcceptRequest
@@ -432,12 +432,11 @@ def get_extraction_review_decisions(
 ) -> dict:
     """Public effective decision per final item_key, plus every decided key's state -- one call
     so the results table can show every field's review status without a request per field."""
-    rule = cosign_rule("extraction")
-    effective = effective_decisions(run_store, run_id, cosign_required=rule)
+    effective = effective_decisions(run_store, run_id)
     return {
         "decisions": {k: public_decision(d, principal) for k, d in effective.items()},
         "states": {k: {"state": s.state, "escalated": s.escalated}
-                   for k, s in item_states(run_store, run_id, cosign_required=rule).items()},
+                   for k, s in item_states(run_store, run_id).items()},
     }
 
 

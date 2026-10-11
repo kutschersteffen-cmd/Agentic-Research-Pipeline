@@ -43,7 +43,7 @@ from arp.orchestration.review_queue import FINAL_STATES, _kind, _value, agrees, 
 from arp.planning.doc_routing import input_hash, route_documents
 from arp.planning.periods import plan_periods, union_planned
 from arp.retrieval.content_store_factory import content_store_for
-from arp.review.items import REVIEWABLE_RUN_TYPES, cosign_rule
+from arp.review.items import REVIEWABLE_RUN_TYPES
 from arp.schemas.common import Citation, CompanyRef, DocType, ProvenanceInfo, SourceDocument, new_id
 from arp.schemas.datapoints import DataPointSchema, ExtractionRecord, FieldDefinition
 from arp.schemas.issuer import issuer_key
@@ -231,7 +231,7 @@ def reviewer_stats(run_store: RunStore, settings: Settings) -> list[ReviewerStat
     for m in run_store.list_runs():
         if m.run_type not in REVIEWABLE_RUN_TYPES:
             continue
-        for key, s in item_states(run_store, m.run_id, cosign_required=cosign_rule(m.run_type)).items():
+        for key, s in item_states(run_store, m.run_id).items():
             final = s.effective if s.state in FINAL_STATES else None
             for i, row in enumerate(s.rows):
                 uid = row.get("user_id")

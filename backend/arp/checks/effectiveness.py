@@ -6,7 +6,6 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from arp.orchestration.review_queue import _kind, effective_decisions
-from arp.review.items import cosign_rule
 from arp.schemas.review import field_item_key, period_key
 from arp.storage.run_store import RunStore
 
@@ -30,7 +29,7 @@ def effectiveness(run_store: RunStore, *, run_ids: list[str] | None = None) -> l
         runs = [r for r in runs if r in run_ids]
     counts: dict[tuple, list[int]] = defaultdict(lambda: [0, 0, 0, 0])  # fired, decided, hits, overturns
     for run_id in runs:
-        decisions = effective_decisions(run_store, run_id, cosign_required=cosign_rule("extraction"))
+        decisions = effective_decisions(run_store, run_id)
         for row in run_store.read_results(run_id):
             for f in row.get("fields", []):
                 kind = _kind(decisions.get(field_item_key(row.get("issuer_key", ""), f["field_id"], period_key(f))) or {})

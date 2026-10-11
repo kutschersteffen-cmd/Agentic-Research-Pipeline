@@ -13,7 +13,6 @@ from datetime import date
 from arp.holdings import security_master
 from arp.orchestration.review_queue import effective_decisions
 from arp.portfolio import feeds
-from arp.review.items import cosign_rule
 from arp.schemas.review import field_item_key, period_key
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
@@ -50,7 +49,7 @@ def _check_issues(run_store: RunStore) -> list[dict]:
     seen: set[str] = set()
     out = []
     for m in runs:
-        decisions = effective_decisions(run_store, m.run_id, cosign_required=cosign_rule("extraction"))
+        decisions = effective_decisions(run_store, m.run_id)
         for row in run_store.read_results(m.run_id):
             for f in row.get("fields", []):
                 key = field_item_key(row.get("issuer_key", ""), f["field_id"], period_key(f))
