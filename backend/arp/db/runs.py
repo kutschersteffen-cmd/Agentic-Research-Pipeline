@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, select, true, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -217,7 +217,7 @@ class RunStore:
         self._ensure_run(s, run_id)
         stmt = insert(ReviewItem).values(
             run_id=run_id, item_key=row["item_key"], company_id=company,
-            observation_id=observation_id or row.get("observation_id"), payload=row,
+            observation_id=observation_id or row.get("observation_id"), payload=row, queued_at=_row_ts(row, "queued_at"),
         )
         s.execute(
             stmt.on_conflict_do_update(
@@ -240,11 +240,13 @@ class RunStore:
         review_items: list[tuple[str, dict]],
         company: CompanyRef | None,
         errors: list[dict] = (),
+        apply_facts: bool = True,
     ) -> None:
         """One company's result in one transaction (spec §3.1): the run_results row, `errors`
         (values left out of `observations`), the observations with their citations and fact
-        updates, held documents, then the review items, each linked to the observation its
-        payload names (field, period and basis). A `_key` already stored writes nothing."""
+        updates (unless `apply_facts` is False: the importer replays facts afterwards), held documents,
+        then the review items, each linked to the observation its payload names (field, period and
+        basis). A `_key` already stored writes nothing."""
         row = _jsonb_safe(row)
         entity = company.entity_id if company is not None else None
         with self._tx(run_id) as s:
@@ -252,7 +254,7 @@ class RunStore:
                 return
             for e in errors:
                 s.execute(insert(RunError).values(run_id=run_id, company_id=entity, error=_jsonb_safe(e)))
-            ids = observations_db.record(s, observations)
+            ids = observations_db.record(s, observations, apply_facts=apply_facts)
             by_target = {
                 (o.field_id, o.period_end.isoformat() if o.period_end else None, o.basis): i
                 for o, i in zip(observations, ids, strict=True) if i is not None
@@ -281,9 +283,10 @@ class RunStore:
         with self._tx(run_id) as s:
             return list(s.scalars(select(ReviewDecision.row).where(ReviewDecision.run_id == run_id).order_by(ReviewDecision.id)))
 
-    def append_decision_row(self, run_id: str, row: dict) -> None:
+    def append_decision_row(self, run_id: str, row: dict, *, apply_facts: bool = True) -> None:
         """Raises ValueError for a `decision` that is no DecisionKind; only the non-review
-        actions in _NON_REVIEW_ACTIONS are stored without one."""
+        actions in _NON_REVIEW_ACTIONS are stored without one. `apply_facts=False` stores the row
+        without touching facts (the importer replays them afterwards)."""
         row = _jsonb_safe(row)
         decision = _decision_kind(row)
         with self._tx(run_id) as s:
@@ -297,14 +300,14 @@ class RunStore:
                     decided_at=_row_ts(row, "decided_at"),
                 )
             )
-            if decision is not None:
+            if decision is not None and apply_facts:
                 self._apply_review(s, run_id, row.get("item_key"))
 
     def read_cosigns(self, run_id: str) -> list[dict]:
         with self._tx(run_id) as s:
             return list(s.scalars(select(ReviewCosign.row).where(ReviewCosign.run_id == run_id).order_by(ReviewCosign.id)))
 
-    def append_cosign(self, run_id: str, row: dict) -> None:
+    def append_cosign(self, run_id: str, row: dict, *, apply_facts: bool = True) -> None:
         row = _jsonb_safe(row)
         with self._tx(run_id) as s:
             self._ensure_run(s, run_id)
@@ -315,13 +318,16 @@ class RunStore:
                     decided_at=_row_ts(row, "cosigned_at"),
                 )
             )
-            self._apply_review(s, run_id, row.get("item_key"))
+            if apply_facts:
+                self._apply_review(s, run_id, row.get("item_key"))
 
     @staticmethod
-    def _apply_review(s: Session, run_id: str, item_key: str | None) -> None:
+    def _apply_review(
+        s: Session, run_id: str, item_key: str | None, *, decisions_upto: int | None = None, cosigns_upto: int | None = None
+    ) -> None:
         """Once the item's decision is final (its cosign or second review done, where the run type
         needs one), the facts behind it take it (observations.apply_decision decides which).
-        Until then they stay as they are."""
+        Until then they stay as they are. `*_upto` (row ids) replay the item as it stood then."""
         from arp.orchestration.review_queue import FINAL_STATES, item_state
         from arp.review.items import cosign_rule  # imports the extraction pipeline
 
@@ -329,10 +335,15 @@ class RunStore:
         if item is None:
             return
         rows = s.execute(
-            select(ReviewDecision.id, ReviewDecision.row).where(ReviewDecision.review_item_id == item.id).order_by(ReviewDecision.id)
+            select(ReviewDecision.id, ReviewDecision.row).where(
+                ReviewDecision.review_item_id == item.id,
+                ReviewDecision.id <= decisions_upto if decisions_upto is not None else true(),
+            ).order_by(ReviewDecision.id)
         ).all()
         signed = set(s.scalars(
-            select(ReviewCosign.row["decision_decided_at"].astext).where(ReviewCosign.review_item_id == item.id)
+            select(ReviewCosign.row["decision_decided_at"].astext).where(
+                ReviewCosign.review_item_id == item.id, ReviewCosign.id <= cosigns_upto if cosigns_upto is not None else true(),
+            )
         ))
         run_type = s.scalar(select(Run.run_type).where(Run.run_id == run_id))
         state = item_state([r for _, r in rows], cosigned_at=signed, cosign_required=cosign_rule(run_type))

@@ -217,27 +217,42 @@ def _run_error(session: Session, o: ObservationIn, error: dict) -> None:
         session.add(RunError(run_id=o.run_id, company_id=o.company_id, error=error))
 
 
-def record(session: Session, observations: list[ObservationIn]) -> list[int | None]:
-    """Inserts the observations and their citations, then updates the current facts of every
-    non-trial observation. A value that does not fit its field's data type is left out (None in
-    the result) and a citation to an unregistered document dropped; each is reported to the
-    observation run's run_errors. Returns the observation ids, aligned with `observations`."""
-    from arp.db.runs import _jsonb_safe  # runs imports this module
-
-    if not observations:
-        return []
-    _ensure_fields(session, observations)
+def fits(session: Session, observations: list[ObservationIn]) -> list[bool]:
+    """Whether each value fits its field's registered data type (what `record` keeps)."""
     types = {
         (d.field_id, d.version): d.data_type
         for d in session.scalars(select(FieldDefinition).where(
             tuple_(FieldDefinition.field_id, FieldDefinition.version).in_({(o.field_id, o.field_version) for o in observations})
         ))
-    }
+    } if observations else {}
+    return [_fits(types.get((o.field_id, o.field_version), ""), o.value) for o in observations]
+
+
+def apply_observation(session: Session, row: FieldObservation, o: ObservationIn) -> None:
+    """The current-fact update for one stored observation (`row`, recorded from `o`); trial ones make none."""
+    if not o.trial:
+        _write_fact(
+            session, row, value=row.value, status=_status(o), value_state=o.value_state,
+            canonical_value=row.canonical_value, canonical_unit=o.canonical_unit, conflicting=o.conflicting_sources,
+        )
+
+
+def record(session: Session, observations: list[ObservationIn], *, apply_facts: bool = True) -> list[int | None]:
+    """Inserts the observations and their citations, then (unless `apply_facts` is False) updates the
+    current facts of every non-trial observation. A value that does not fit its field's data type is
+    left out (None in the result) and a citation to an unregistered document dropped; each is reported
+    to the observation run's run_errors. Returns the observation ids, aligned with `observations`."""
+    from arp.db.runs import _jsonb_safe  # runs imports this module
+
+    if not observations:
+        return []
+    _ensure_fields(session, observations)
+    ok = fits(session, observations)
     cited = {c.doc_id for o in observations for c in o.citations}
     known = set(session.scalars(select(Document.doc_id).where(Document.doc_id.in_(cited)))) if cited else set()
     ids: list[int | None] = []
-    for o in observations:
-        if not _fits(types.get((o.field_id, o.field_version), ""), o.value):
+    for o, fit in zip(observations, ok, strict=True):
+        if not fit:
             _run_error(session, o, _jsonb_safe({"kind": "invalid_value", "field_id": o.field_id, "raw": o.value}))
             ids.append(None)
             continue
@@ -258,11 +273,8 @@ def record(session: Session, observations: list[ObservationIn]) -> list[int | No
                 _run_error(session, o, {"kind": "unregistered_citation", "doc_id": c.doc_id})
                 continue
             session.add(ValueCitation(observation_id=row.id, **{**_jsonb_safe(vars(c)), "role": c.role}))
-        if not o.trial:
-            _write_fact(
-                session, row, value=row.value, status=_status(o), value_state=o.value_state,
-                canonical_value=row.canonical_value, canonical_unit=o.canonical_unit, conflicting=o.conflicting_sources,
-            )
+        if apply_facts:
+            apply_observation(session, row, o)
     session.flush()
     return ids
 

@@ -359,6 +359,9 @@ def db_import(dry_run: bool = typer.Option(False, "--dry-run", help="Import insi
     typer.echo(f"Fact conflicts (a later run replaced a different value): {len(report.fact_conflicts)}")
     for c in report.fact_conflicts:
         typer.echo(f"  {json.dumps(c, default=str)}")
+    typer.echo(f"Decisions skipped (not a review decision value): {len(report.skipped_decisions)}")
+    for c in report.skipped_decisions:
+        typer.echo(f"  {json.dumps(c, default=str)}")
 
 
 @db_app.command("verify")
@@ -371,6 +374,8 @@ def db_verify() -> None:
 
     settings = get_settings()
     report = verify(require_dsn(settings), settings)
+    for d in report.skipped_decisions:
+        typer.echo(f"skipped decision (not a difference): {json.dumps(d, default=str)}")
     for d in report.differences:
         typer.echo(json.dumps(d, default=str))
     if report.differences:

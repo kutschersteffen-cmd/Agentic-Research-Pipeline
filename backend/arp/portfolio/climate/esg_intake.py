@@ -137,12 +137,21 @@ def _provider_rows(payload: bytes) -> list[ProviderRow]:
     ]
 
 
+def esg_source_slug(provider: str) -> str:
+    return f"esg_{normalise_metric_code(provider)}"
+
+
+def esg_payload(rows: list[dict], month: str) -> bytes:
+    """The stored payload of a load; its sha256 is the load's natural key."""
+    return json.dumps({"month": month, "rows": sorted(rows, key=lambda r: r["company_id"])}, sort_keys=True).encode()
+
+
 def record_esg_load(session, rows: list[dict], *, provider: str, month: str, source_ref: str | None) -> IngestReport | None:
     """The file as a `kind = file` provider source (`esg_<provider>`): one load per distinct payload,
     observations on `prov:esg_<provider>:<field>`. Universe ids never create companies. None when
     the payload is unchanged."""
-    payload = json.dumps({"month": month, "rows": sorted(rows, key=lambda r: r["company_id"])}, sort_keys=True).encode()
-    source_id = ensure_source(session, f"esg_{normalise_metric_code(provider)}", name=f"ESG file ({provider})",
+    payload = esg_payload(rows, month)
+    source_id = ensure_source(session, esg_source_slug(provider), name=f"ESG file ({provider})",
                               kind="file", licence=Licence.INTERNAL_ONLY, id_scheme=IdScheme.UNIVERSE)
     load = record_load(session, source_id, payload, request={"provider": provider, "month": month, "source_ref": source_ref},
                        as_of=_month_end(month))
