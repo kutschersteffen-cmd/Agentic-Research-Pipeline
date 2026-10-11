@@ -20,7 +20,7 @@
     <main class="max-w-5xl mx-auto px-4 sm:px-6 py-12 space-y-12">
 
       <header class="space-y-4">
-        <p class="label text-slate-500">Architecture review · 2026-10-11 · scope: <span class="font-mono normal-case">backend/arp/db</span>, run store, run orchestration</p>
+        <p class="text-sm text-slate-500">Architecture review · 2026-10-11 · scope: <span class="font-mono normal-case">backend/arp/db</span>, run store, run orchestration</p>
         <h1 class="font-serif text-4xl">Agentic Research Pipeline</h1>
         <p class="text-sm text-slate-600 max-w-3xl">Scope taken from the last 80 commits. The Postgres cut-over and its fix series (C1–C2, I1–I6, M3–M8) touched <span class="font-mono">db/runs.py</span>, <span class="font-mono">db/importer.py</span> and <span class="font-mono">orchestration/batch_runner.py</span> more than anything else. No <span class="font-mono">GLOSSARY.md</span> and no ADRs exist, so no candidate conflicts with a recorded decision.</p>
         <div class="flex flex-wrap gap-4 text-xs text-slate-600">
@@ -49,7 +49,7 @@
           </ul>
           <div class="grid md:grid-cols-2 gap-4">
             <div class="rounded-lg border border-slate-200 p-3">
-              <p class="label text-slate-500 mb-2">Before: four copies of the rules</p>
+              <p class="text-xs font-semibold text-slate-500 mb-2">Before: four copies of the rules</p>
               <pre class="mermaid">
 flowchart TB
   BR[batch_runner._commit] --> RS[RunStore.record_company_result]
@@ -66,7 +66,7 @@ flowchart TB
               </pre>
             </div>
             <div class="rounded-lg border border-slate-200 p-3">
-              <p class="label text-slate-500 mb-2">After: one ledger, two state adapters</p>
+              <p class="text-xs font-semibold text-slate-500 mb-2">After: one ledger, two state adapters</p>
               <div class="relative h-[260px] flex flex-col items-center justify-between py-2">
                 <div class="flex flex-wrap justify-center gap-2 text-xs">
                   <span class="border border-slate-300 rounded px-2 py-1">batch run</span>
@@ -115,7 +115,7 @@ flowchart TB
           </ul>
           <div class="grid md:grid-cols-2 gap-4">
             <div class="rounded-lg border border-slate-200 p-3">
-              <p class="label text-slate-500 mb-2">Before: lifecycle spread across modules</p>
+              <p class="text-xs font-semibold text-slate-500 mb-2">Before: lifecycle spread across modules</p>
               <pre class="mermaid">
 flowchart TB
   C15[15 create_run callers<br/>only 5 pass companies] --> JM[JobManager.create_run<br/>companies optional]
@@ -131,7 +131,7 @@ flowchart TB
               </pre>
             </div>
             <div class="rounded-lg border border-slate-200 p-3">
-              <p class="label text-slate-500 mb-2">After</p>
+              <p class="text-xs font-semibold text-slate-500 mb-2">After</p>
               <pre class="mermaid">
 flowchart TB
   CALL[API · CLI · xbrl router] --> LC[Run lifecycle<br/>create · launch · resume · finish-on-crash]
@@ -169,7 +169,7 @@ flowchart TB
           <div class="grid md:grid-cols-2 gap-4">
             <!-- mass diagram -->
             <div class="rounded-lg border border-slate-200 p-3">
-              <p class="label text-slate-500 mb-2">Before: interface ≈ implementation</p>
+              <p class="text-xs font-semibold text-slate-500 mb-2">Before: interface ≈ implementation</p>
               <div class="h-[260px] flex items-end gap-6 justify-center">
                 <div class="flex flex-col items-center gap-1">
                   <div class="w-28 h-[200px] border-2 border-red-500 bg-red-50 text-[10px] p-2 space-y-1 text-red-800">
@@ -184,7 +184,7 @@ flowchart TB
               </div>
             </div>
             <div class="rounded-lg border border-slate-200 p-3">
-              <p class="label text-slate-500 mb-2">After: small interface, deep implementation</p>
+              <p class="text-xs font-semibold text-slate-500 mb-2">After: small interface, deep implementation</p>
               <div class="h-[260px] flex items-end gap-6 justify-center">
                 <div class="flex flex-col items-center gap-1">
                   <div class="w-28 h-[70px] border-2 border-emerald-600 bg-emerald-50 text-[10px] p-2 space-y-1 text-emerald-900">
@@ -226,7 +226,7 @@ flowchart TB
           <div class="grid md:grid-cols-2 gap-4">
             <!-- cross-section -->
             <div class="rounded-lg border border-slate-200 p-3">
-              <p class="label text-slate-500 mb-2">Before: retry in one caller</p>
+              <p class="text-xs font-semibold text-slate-500 mb-2">Before: retry in one caller</p>
               <div class="h-[260px] flex flex-col justify-center gap-2 text-xs">
                 <div class="border-l-4 border-red-500 bg-red-50 px-3 py-2">batch_runner · record_company_result <b>+ retry, SQLAlchemy imports</b></div>
                 <div class="border-l-4 border-slate-300 bg-slate-50 px-3 py-2">record_progress · no retry</div>
@@ -237,7 +237,7 @@ flowchart TB
               </div>
             </div>
             <div class="rounded-lg border border-slate-200 p-3">
-              <p class="label text-slate-500 mb-2">After: every write gets it</p>
+              <p class="text-xs font-semibold text-slate-500 mb-2">After: every write gets it</p>
               <div class="h-[260px] flex flex-col justify-center gap-2 text-xs">
                 <div class="grid grid-cols-2 gap-2">
                   <div class="border border-slate-300 px-2 py-1">record_company_result</div>
@@ -278,7 +278,7 @@ flowchart TB
           </ul>
           <div class="grid md:grid-cols-2 gap-4">
             <div class="rounded-lg border border-slate-200 p-3">
-              <p class="label text-slate-500 mb-2">Before: computed here, stored there</p>
+              <p class="text-xs font-semibold text-slate-500 mb-2">Before: computed here, stored there</p>
               <pre class="mermaid">
 flowchart LR
   D[(decision + cosign rows)] --> IS[item_states<br/>recompute]
@@ -291,7 +291,7 @@ flowchart LR
               </pre>
             </div>
             <div class="rounded-lg border border-slate-200 p-3">
-              <p class="label text-slate-500 mb-2">After</p>
+              <p class="text-xs font-semibold text-slate-500 mb-2">After</p>
               <pre class="mermaid">
 flowchart LR
   Q[queue · decide · cosign] --> L[Fact ledger<br/>returns new item state<br/>under the item's lock]
@@ -320,11 +320,11 @@ flowchart LR
           <p class="font-mono text-sm text-slate-700">tests/postgres_helpers.py · replace_results, edit_results, forget_companies (17 test files, incl. test_resume_run.py)</p>
           <div class="grid md:grid-cols-2 gap-4 text-xs">
             <div class="rounded-lg border border-slate-200 p-3 h-[140px] flex flex-col justify-center gap-2">
-              <p class="label text-slate-500">Before</p>
+              <p class="text-xs font-semibold text-slate-500">Before</p>
               <div class="flex items-center gap-2"><span class="border px-2 py-1">test</span><span class="text-red-600">— DELETE/UPDATE rows →</span><span class="border px-2 py-1">RunResult / RunCompany tables</span></div>
             </div>
             <div class="rounded-lg border border-slate-200 p-3 h-[140px] flex flex-col justify-center gap-2">
-              <p class="label text-slate-500">After</p>
+              <p class="text-xs font-semibold text-slate-500">After</p>
               <div class="flex items-center gap-2"><span class="border px-2 py-1">test</span><span class="text-slate-500">→</span><span class="deep text-white rounded px-2 py-1">ledger / RunStore interface</span></div>
             </div>
           </div>
