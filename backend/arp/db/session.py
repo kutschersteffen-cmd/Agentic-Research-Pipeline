@@ -2,15 +2,25 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import logging
+import time
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import TypeVar
 
 from sqlalchemy import Engine
+from sqlalchemy.exc import DisconnectionError, OperationalError
+from sqlalchemy.exc import TimeoutError as PoolTimeout
 from sqlalchemy.orm import Session
 
 from arp.config import get_settings
 from arp.storage.postgres import get_engine
+
+logger = logging.getLogger(__name__)
+T = TypeVar("T")
+_WRITE_RETRIES = 3
+_RETRY_BACKOFF_S = 0.5
 
 
 def require_dsn(settings) -> str:
@@ -73,3 +83,21 @@ def transaction(dsn: str | None = None) -> Iterator[Session]:
     """Session that commits on exit and rolls back on exception."""
     with Session(engine(dsn)) as session, session.begin():
         yield session
+
+
+def retrying(fn: Callable[..., T], *args, **kwargs) -> T:
+    """`fn(*args, **kwargs)`, retried with backoff while the database is unreachable, its pool
+    exhausted or its connection dropped (spec §5); any other error propagates at once. Only for
+    writes that are safe to repeat, and never inside a held RunStore.lock: a retry can't revive a
+    dead outer transaction."""
+    # ponytail: a commit whose confirmation was lost is written twice (progress counted twice, an
+    # error row stored twice); idempotency keys are the upgrade path.
+    for attempt in range(_WRITE_RETRIES + 1):
+        try:
+            return fn(*args, **kwargs)
+        except (OperationalError, PoolTimeout, DisconnectionError):
+            if attempt == _WRITE_RETRIES:
+                raise
+            logger.warning("Database write %s failed; retrying", getattr(fn, "__name__", fn), exc_info=True)
+            time.sleep(_RETRY_BACKOFF_S * 2**attempt)
+    raise AssertionError("unreachable")

@@ -303,10 +303,11 @@ async def test_company_batch_retries_pool_timeouts_and_disconnects(run_store, mo
     """I5: a pool timeout or a dropped connection while writing a company is retried, not a failed run."""
     import sqlalchemy.exc
 
+    from arp.db import session
     from arp.orchestration import batch_runner
     from arp.orchestration.job_manager import JobManager
 
-    monkeypatch.setattr(batch_runner, "_RETRY_BACKOFF_S", 0)
+    monkeypatch.setattr(session, "_RETRY_BACKOFF_S", 0)
     real, calls = run_store.record_company_result, []
 
     def flaky(*args, **kwargs):
@@ -350,3 +351,65 @@ def test_init_postgres_masks_the_password(pg):
 
     result = CliRunner().invoke(db_app, ["init-postgres"])
     assert result.exit_code == 0 and "Postgres schema ready" in result.output and "arp:arp@" not in result.output
+
+
+def test_retrying_gives_up_after_four_attempts_and_skips_other_errors(monkeypatch):
+    import sqlalchemy.exc
+
+    from arp.db import session
+
+    monkeypatch.setattr(session, "_RETRY_BACKOFF_S", 0)
+    calls = []
+
+    def dropped():
+        calls.append(1)
+        raise sqlalchemy.exc.DisconnectionError("gone")
+
+    with pytest.raises(sqlalchemy.exc.DisconnectionError):
+        session.retrying(dropped)
+    assert len(calls) == 4
+
+    def bad():
+        calls.append(2)
+        raise ValueError("not a connection problem")
+
+    with pytest.raises(ValueError):
+        session.retrying(bad)
+    assert calls.count(2) == 1
+
+
+async def test_company_batch_retries_progress_and_error_writes(run_store, monkeypatch):
+    """A dropped connection on the progress or error write is retried, not a failed run."""
+    import sqlalchemy.exc
+
+    from arp.db import session
+    from arp.orchestration import batch_runner
+    from arp.orchestration.job_manager import JobManager
+
+    monkeypatch.setattr(session, "_RETRY_BACKOFF_S", 0)
+
+    def fail_once(fn):
+        state = {"failed": False}
+
+        def wrapper(*args, **kwargs):
+            if not state["failed"]:
+                state["failed"] = True
+                raise sqlalchemy.exc.DisconnectionError("blip")
+            return fn(*args, **kwargs)
+
+        return wrapper
+
+    monkeypatch.setattr(JobManager, "record_progress", fail_once(JobManager.record_progress))
+    monkeypatch.setattr(run_store, "append_error", fail_once(run_store.append_error))
+    universe = [CompanyRef(company_id="A", name="A"), CompanyRef(company_id="B", name="B")]
+    run_id = JobManager(run_store).create_run("theme", {}, 2, companies=universe).run_id
+
+    async def worker(company):
+        if company.company_id == "B":
+            raise RuntimeError("worker failed")
+        return {}
+
+    await batch_runner.run_company_batch(run_id, universe, run_store=run_store, worker=worker, result_to_json=dict, concurrency=1)
+    manifest = run_store.load_manifest(run_id)
+    assert (manifest.status, manifest.completed_count, manifest.failed_count) == ("partially_completed", 1, 1)
+    assert [e["key"] for e in run_store.read_errors(run_id)] == ["B"]
