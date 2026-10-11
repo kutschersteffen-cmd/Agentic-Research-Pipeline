@@ -4,6 +4,23 @@ Research runs extract values about companies from documents and data sources; pe
 
 ## Language
 
+### Runs
+
+**Run**:
+One execution of a pipeline over its inputs, usually a list of companies, with a status, progress counts and the results it produced.
+_Avoid_: job, batch
+
+**Run type**:
+Which pipeline a run executes: extraction, financials, theme, xbrl_fetch and so on.
+
+**Resume**:
+Continuing a run that crashed, failed, was cancelled or did not reach every company, from what its creator stored; companies already done or stopped for review are not run again.
+_Avoid_: retry, restart, re-run
+
+**Lease**:
+The claim that one worker holds on a run while it executes; a second worker on the same run is refused.
+_Avoid_: lock (that is the short read-modify-write on a run's record)
+
 ### From run to fact
 
 **Observation**:
