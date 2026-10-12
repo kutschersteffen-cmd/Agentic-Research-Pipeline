@@ -106,6 +106,7 @@ async def test_resume_refuses_completed_run(tmp_path, fake, pg):
     settings = _settings(tmp_path)
     store = RunStore(pg, settings.runs_dir)
     run_id = create_transition_plan_run(COMPANIES[:1], settings, store)
+    store.append_result(run_id, {"_key": "c1"})  # every company reached
     JobManager(store).finish_run(run_id)
     before = store.load_manifest(run_id)
     with pytest.raises(NotResumable, match="already completed"):
@@ -249,6 +250,7 @@ async def test_resume_busy_run_refused(tmp_path, fake, api):
         res = TestClient(app).post(f"/api/runs/{run_id}/resume")
         assert res.status_code == 409
     assert TestClient(app).post("/api/runs/nope/resume").status_code == 404
+    store.append_result(run_id, {"_key": "c1"})  # every company reached
     JobManager(store).finish_run(run_id)
     assert TestClient(app).post(f"/api/runs/{run_id}/resume").status_code == 400
 
@@ -389,3 +391,187 @@ def test_voting_cli_batch_flag(tmp_path, monkeypatch, pg):
     (plain, batched), params = _batch_cli(tmp_path, monkeypatch, cli_voting, "run_voting", cli_voting.voting_app, ["run"], create_voting_run)
     assert not isinstance(plain, BatchingLLMClient) and isinstance(batched, BatchingLLMClient)
     assert params == [None, True]
+
+
+def _run(tmp_path, pg, n=1):
+    settings = _settings(tmp_path)
+    store = RunStore(pg, settings.runs_dir)
+    return store, create_transition_plan_run(COMPANIES[:n], settings, store)
+
+
+def test_crash_inside_the_lease_marks_the_run_failed(tmp_path, pg):
+    from arp.orchestration.jobs import hold_run
+
+    store, run_id = _run(tmp_path, pg)
+    with pytest.raises(RuntimeError), hold_run(store, run_id):
+        raise RuntimeError("boom")
+    manifest = store.load_manifest(run_id)
+    assert (manifest.status, manifest.error) == (JobStatus.FAILED, "RuntimeError: boom")
+
+
+def test_nested_holders_mark_failed_once(tmp_path, pg, monkeypatch):
+    from arp.orchestration.jobs import hold_run
+
+    store, run_id = _run(tmp_path, pg)
+    calls = []
+    finish = JobManager.finish_run
+    monkeypatch.setattr(JobManager, "finish_run", lambda self, *a, **kw: calls.append(a) or finish(self, *a, **kw))
+    with pytest.raises(RuntimeError), hold_run(store, run_id), hold_run(store, run_id):
+        raise RuntimeError("boom")
+    assert len(calls) == 1
+
+
+def test_busy_run_and_cancellation_are_not_failures(tmp_path, pg):
+    from arp.orchestration.jobs import hold_run
+
+    store, run_id = _run(tmp_path, pg)
+    before = store.load_manifest(run_id)
+    with run_lease(store, run_id), pytest.raises(RunBusy), hold_run(store, run_id):
+        pass
+    with pytest.raises(asyncio.CancelledError), hold_run(store, run_id):
+        raise asyncio.CancelledError
+    assert store.load_manifest(run_id).status == before.status == JobStatus.RUNNING
+
+
+def test_finish_run_failure_keeps_the_original_error(tmp_path, pg, monkeypatch):
+    from arp.orchestration.jobs import hold_run
+
+    store, run_id = _run(tmp_path, pg)
+
+    def broken(self, *a, **kw):
+        raise OSError("db down")
+
+    monkeypatch.setattr(JobManager, "finish_run", broken)
+    with pytest.raises(RuntimeError, match="boom"), hold_run(store, run_id):
+        raise RuntimeError("boom")
+
+
+def test_completed_run_that_missed_companies_is_resumable(tmp_path, pg):
+    from arp.orchestration.jobs import check_resumable
+
+    store, run_id = _run(tmp_path, pg, n=2)
+    JobManager(store).record_progress(run_id, completed_delta=1)
+    JobManager(store).finish_run(run_id)
+    assert check_resumable(store, run_id).run_id == run_id
+
+
+def test_completed_run_whose_rest_stopped_for_review_is_refused(tmp_path, pg):
+    from arp.orchestration.jobs import check_resumable
+
+    store, run_id = _run(tmp_path, pg, n=2)
+    store.append_result(run_id, {"_key": "c1"})
+    store.append_error(run_id, {"key": "c2", "review": True})  # stopped for a person
+    JobManager(store).finish_run(run_id)
+    with pytest.raises(NotResumable, match="already completed"):
+        check_resumable(store, run_id)
+
+
+def test_theme_resume_endpoint_crash_marks_run_failed(tmp_path, monkeypatch, api):
+    import arp.api.routers.themes as themes_router
+
+    settings, store = api
+    activity = ActivityDefinition(name="EV", in_scope_description="EVs.", out_of_scope_description="ICE.")
+    run_id = create_theme_run(ThemeDefinition(name="E", description="", activities=[activity]), COMPANIES[:1], settings, store)
+    JobManager(store).finish_run(run_id, error="killed")
+
+    async def boom(*_a, **_kw):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(themes_router, "resume_run", boom)
+    monkeypatch.setattr(themes_router, "get_llm_client", lambda: LLM)
+    monkeypatch.setattr(themes_router, "get_verifier_llm_client", lambda: LLM)
+    with TestClient(app) as client:
+        res = client.post(f"/api/themes/runs/{run_id}/resume")
+        assert res.json() == {"run_id": run_id, "status": "resumed"}
+        client.portal.call(asyncio.sleep, 0.05)
+    manifest = store.load_manifest(run_id)
+    assert (manifest.status, manifest.error) == (JobStatus.FAILED, "RuntimeError: boom")
+
+
+def test_completed_run_with_every_stored_company_done_is_refused_whatever_the_counts(tmp_path, pg):
+    """company_count counts refs save_companies may drop (duplicates, identity conflicts); the stored companies decide."""
+    from arp.orchestration.jobs import check_resumable
+
+    store, run_id = _run(tmp_path, pg, n=2)
+    for c in COMPANIES[:2]:
+        store.append_result(run_id, {"_key": c.company_id, "company_id": c.company_id})
+    JobManager(store).record_progress(run_id, completed_delta=1)  # counts under-report what was done
+    JobManager(store).finish_run(run_id)
+    with pytest.raises(NotResumable, match="already completed"):
+        check_resumable(store, run_id)
+
+
+def test_lease_leaves_no_worker_file(tmp_path, pg):
+    store, run_id = _run(tmp_path, pg)
+    with run_lease(store, run_id):
+        pass
+    assert not (store.runs_dir / run_id / ".worker").exists()
+
+
+def test_lease_conflicts_per_run_and_is_released(tmp_path, pg):
+    store = RunStore(pg, tmp_path / "runs")
+    with run_lease(store, "r1"):
+        with pytest.raises(RunBusy), run_lease(store, "r1"):
+            pass
+        with run_lease(store, "r2"):
+            pass
+    with run_lease(store, "r1"):
+        pass
+    with pytest.raises(RuntimeError), run_lease(store, "r1"):
+        raise RuntimeError
+    with run_lease(store, "r1"):
+        pass
+
+
+def test_lease_is_held_in_postgres(tmp_path, pg):
+    from sqlalchemy import text
+
+    from arp.db.session import transaction
+    from arp.orchestration.jobs import _LEASE_NS
+
+    store, run_id = _run(tmp_path, pg)
+    held = text("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND classid = :ns")
+    with run_lease(store, run_id), transaction(pg) as s:
+        assert s.scalar(held, {"ns": _LEASE_NS}) == 1
+
+
+def test_lease_cycles_leak_no_connections(tmp_path, pg):
+    from sqlalchemy import text
+
+    from arp.db.session import transaction
+
+    store, run_id = _run(tmp_path, pg)
+
+    def connections():
+        with transaction(pg) as s:
+            return s.scalar(text("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()"))
+
+    before = connections()
+    for _ in range(50):
+        with run_lease(store, run_id):
+            pass
+    assert connections() <= before
+
+
+def test_dead_lease_connection_keeps_the_runs_outcome(tmp_path, pg):
+    """The lease connection dropped mid-run (failover, idle NAT): the run's own result or error stands."""
+    from sqlalchemy import text
+
+    from arp.db.session import transaction
+    from arp.orchestration.jobs import _LEASE_NS
+
+    store, run_id = _run(tmp_path, pg)
+
+    def kill_lease():
+        with transaction(pg) as s:
+            s.execute(text("SELECT pg_terminate_backend(pid) FROM pg_locks WHERE locktype = 'advisory' AND classid = :ns"
+                           " AND database = (SELECT oid FROM pg_database WHERE datname = current_database())"),
+                      {"ns": _LEASE_NS})
+
+    with run_lease(store, run_id):
+        kill_lease()  # completes normally: no error
+    with pytest.raises(ValueError, match="real"), run_lease(store, run_id):
+        kill_lease()
+        raise ValueError("real")
+    with run_lease(store, run_id):  # and the lease is free again
+        pass

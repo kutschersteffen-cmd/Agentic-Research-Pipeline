@@ -127,7 +127,7 @@ def enriched_universe(run_store: RunStore, run_id: str) -> list[CompanyRef]:
     missing website/cik.
     """
     rows = run_store.read_results(run_id)
-    decisions = effective_decisions(run_store, run_id, cosign_required=set())
+    decisions = effective_decisions(run_store, run_id)
     companies: list[CompanyRef] = []
     for row in rows:
         result = IdentityResolutionResult.model_validate(row)

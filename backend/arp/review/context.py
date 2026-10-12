@@ -13,7 +13,7 @@ from arp.extraction.history import RunHistory
 from arp.extraction.pipeline import load_run_schema
 from arp.grounding import _page_for_offset
 from arp.orchestration.review_queue import ItemState, blind_for, effective_decisions, item_states, public_decision
-from arp.review.items import cosign_rule, get_item
+from arp.review.items import get_item
 from arp.schemas.common import new_id
 from arp.schemas.datapoints import CheckResult, is_failing
 from arp.schemas.review import ReviewItem, ReviewItemKind, field_item_key, period_key
@@ -139,9 +139,7 @@ def _visible(s: ItemState, principal: Principal, *, high_risk: bool) -> tuple[li
 
 
 def _state(run_store: RunStore, run_id: str, item_key: str) -> ItemState:
-    m = run_store.load_manifest(run_id)
-    rule = cosign_rule(m.run_type) if m else set()
-    return item_states(run_store, run_id, cosign_required=rule).get(item_key) or ItemState()
+    return item_states(run_store, run_id).get(item_key) or ItemState()
 
 
 def visible_history(run_store: RunStore, run_id: str, item_key: str, principal: Principal, *, high_risk: bool) -> list[dict]:
@@ -193,7 +191,7 @@ def similar_decisions(run_store: RunStore, *, run_id: str, item_key: str, limit:
     out: list[dict] = []
     # ponytail: full scan of past extraction runs per request; index by issuer once run count makes this slow
     for m in runs:
-        decisions = effective_decisions(run_store, m.run_id, cosign_required=cosign_rule("extraction"))
+        decisions = effective_decisions(run_store, m.run_id)
         for r in run_store.read_results(m.run_id):
             if r.get("issuer_key") != issuer:
                 continue

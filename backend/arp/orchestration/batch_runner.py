@@ -2,14 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TypeVar
 
-from sqlalchemy.exc import DisconnectionError, OperationalError
-from sqlalchemy.exc import TimeoutError as PoolTimeout
-
+from arp.db.session import retrying
 from arp.db.to_observations import to_observations
 from arp.llm.batching_client import BatchRequestFailed
 from arp.orchestration.job_manager import JobManager
@@ -25,8 +22,6 @@ ItemT = TypeVar("ItemT")
 ResultT = TypeVar("ResultT")
 
 _KEY_FIELD = "_key"
-_WRITE_RETRIES = 3
-_RETRY_BACKOFF_S = 0.5
 
 
 class ReviewRequired(Exception):
@@ -54,8 +49,8 @@ class BatchSinks:
 def run_sinks(run_store: RunStore, run_id: str) -> BatchSinks:
     return BatchSinks(
         done=lambda: run_store.done_keys(run_id, include_errors=True),
-        append_result=lambda row: run_store.append_result(run_id, row),
-        append_error=lambda row: run_store.append_error(run_id, row),
+        append_result=lambda row: retrying(run_store.append_result, run_id, row),
+        append_error=lambda row: retrying(run_store.append_error, run_id, row),
     )
 
 
@@ -113,10 +108,11 @@ async def run_batch(
                 row = {"key": key, "error": str(exc)}
                 if isinstance(exc, ReviewRequired):
                     row.update(review=True, report=exc.report)
+                # Writes run in threads: a retried write (sleeps, connect timeouts) must not stall the loop.
                 async with write_lock:
-                    sinks.append_error(row)
+                    await asyncio.to_thread(sinks.append_error, row)
                 if on_error:
-                    on_error(item, exc)
+                    await asyncio.to_thread(on_error, item, exc)
                 return
         record = result_to_json(result)
         record[_KEY_FIELD] = key
@@ -124,9 +120,9 @@ async def run_batch(
             await write_result(item, result, record)
         else:
             async with write_lock:
-                sinks.append_result(record)
+                await asyncio.to_thread(sinks.append_result, record)
         if on_success:
-            on_success(item, result)
+            await asyncio.to_thread(on_success, item, result)
 
     await asyncio.gather(*(_run_one(item) for item in items))
 
@@ -175,18 +171,12 @@ async def run_company_batch(
                             fiscal_year_end=company.fiscal_year_end)
             if company.entity_id is not None else []
         )
-        for attempt in range(_WRITE_RETRIES + 1):
-            try:
-                run_store.record_company_result(
-                    run_id, row, observations=observations, review_items=items, company=company, errors=errors,
-                )
-                break
-            except (OperationalError, PoolTimeout, DisconnectionError):  # unreachable, pool exhausted, connection dropped
-                if attempt == _WRITE_RETRIES:
-                    raise
-                logger.warning("Writing %s for run %s failed; retrying", company.company_id, run_id, exc_info=True)
-                time.sleep(_RETRY_BACKOFF_S * 2**attempt)
-        job_manager.record_progress(
+        retrying(
+            run_store.record_company_result,
+            run_id, row, observations=observations, review_items=items, company=company, errors=errors,
+        )
+        retrying(
+            job_manager.record_progress,
             run_id,
             completed_delta=1,
             review_delta=len(items),
@@ -201,10 +191,10 @@ async def run_company_batch(
         if isinstance(exc, BatchRequestFailed) and exc.result_type == "canceled" and _cancel_check():
             return  # stopped by the cancel, not failed: the run must end cancelled, not partial
         if isinstance(exc, ReviewRequired):
-            queue_for_review(run_store, run_id, company.company_id, exc.report, company=company)
-            job_manager.record_progress(run_id, review_delta=1)
+            retrying(queue_for_review, run_store, run_id, company.company_id, exc.report, company=company)
+            retrying(job_manager.record_progress, run_id, review_delta=1)
         else:
-            job_manager.record_progress(run_id, failed_delta=1)
+            retrying(job_manager.record_progress, run_id, failed_delta=1)
 
     async def _worker(company: CompanyRef) -> ResultT:
         with on_company(company.company_id):
@@ -237,4 +227,4 @@ async def run_company_batch(
             score_run(run_store, run_id)
         except Exception:  # noqa: BLE001
             logger.exception("Rules step failed for run %s", run_id)
-        job_manager.finish_run(run_id)
+        retrying(job_manager.finish_run, run_id)

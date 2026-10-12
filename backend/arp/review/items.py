@@ -46,7 +46,7 @@ def run_items(
         rows += [(c["candidate_id"], ReviewItemKind.RESTATEMENT_CANDIDATE, c)
                  for c in run_store.read_restatements(run_id)]
     rows += list(unqueued)
-    states = item_states(run_store, run_id, cosign_required=cosign_rule(run_type))
+    states = item_states(run_store, run_id)
     schema = load_run_schema(run_store, run_id)
     risky = {f.field_id for f in schema.fields if f.high_risk} if schema else set()
     items = []

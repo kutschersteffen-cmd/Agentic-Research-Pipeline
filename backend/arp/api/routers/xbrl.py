@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 from functools import partial
 from typing import Literal
@@ -14,7 +13,7 @@ from arp.api.deps import settings_dep
 from arp.config import Settings
 from arp.db.session import require_dsn
 from arp.orchestration.job_manager import JobManager
-from arp.orchestration.jobs import RunBusy, run_lease
+from arp.orchestration.jobs import NotResumable, RunBusy, check_resumable, get_job_launcher, resume_run, run_lease
 from arp.schemas.common import CompanyRef
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
@@ -30,7 +29,6 @@ from arp.xbrl_pipeline.verify import CircularRunError, UnsupportedRunError, veri
 from arp.xbrl_pipeline.views import download_path, list_company_files, pivot_facts, query_facts
 
 logger = logging.getLogger(__name__)
-_tasks: set[asyncio.Task] = set()
 
 router = APIRouter(prefix="/api/xbrl", tags=["xbrl"])
 
@@ -54,25 +52,6 @@ def _manifest(run_store: RunStore, run_id: str):
     if manifest is None:
         raise HTTPException(404, "Run not found")
     return manifest
-
-
-def _on_done(task: asyncio.Task, run_id: str, run_store: RunStore) -> None:
-    _tasks.discard(task)
-    if task.cancelled() or task.exception() is None:
-        return
-    logger.error("XBRL run %s failed", run_id, exc_info=task.exception())
-    try:  # a failure before the batch finished (e.g. build_source) would leave the run "running" forever
-        JobManager(run_store).finish_run(run_id, error=f"{type(task.exception()).__name__}: {task.exception()}")
-    except Exception:
-        logger.exception("could not mark XBRL run %s failed", run_id)
-
-
-def _launch(run_id: str, companies: list[CompanyRef], tags: list[str] | None, refresh: bool,
-            market: str, settings: Settings, run_store: RunStore) -> None:
-    task = asyncio.create_task(execute_xbrl_run(
-        run_id, companies, settings=settings, run_store=run_store, tags=tags, refresh=refresh, market=market), name=run_id)
-    _tasks.add(task)  # strong ref: a running task must not be garbage-collected
-    task.add_done_callback(lambda t: _on_done(t, run_id, run_store))
 
 
 class XbrlRunRequest(BaseModel):
@@ -103,7 +82,9 @@ async def start_run(
             raise HTTPException(400, str(exc)) from exc
     index = MasterIndex.build(IdentifierMapStore(settings.identifier_map_path)) if req.market == "auto" else None
     run_id = create_xbrl_run(companies, req.tags, req.refresh, run_store, market=req.market, index=index)
-    _launch(run_id, companies, req.tags, req.refresh, req.market, settings, run_store)
+    get_job_launcher().launch(run_id, lambda: execute_xbrl_run(
+        run_id, companies, settings=settings, run_store=run_store, tags=req.tags, refresh=req.refresh, market=req.market,
+    ), run_store=run_store)
     return {"run_id": run_id, "company_count": len(companies)}
 
 
@@ -125,21 +106,25 @@ def get_run_results(
 async def retry_run(
     run_id: str, settings: Settings = Depends(settings_dep), run_store: RunStore = Depends(_run_store)
 ) -> dict:
-    manifest = _manifest(run_store, run_id)
+    _manifest(run_store, run_id)
     companies = run_store.load_companies(run_id)
     if not companies:
         raise HTTPException(400, "This run stored no companies and cannot be retried.")
-    # The lease is the truth (the OS frees it if a worker dies); a manifest stuck on "running" must not block retry.
-    if any(t.get_name() == run_id for t in _tasks):
-        raise HTTPException(409, "This run is currently executing.")
+    # The lease is the truth (freed when a worker dies); a manifest stuck on "running" must not block retry.
     try:
         with run_lease(run_store, run_id):
             pass
     except RunBusy as exc:
         raise HTTPException(409, "This run is currently executing.") from exc
-    JobManager(run_store).mark_running(run_id)  # visible to the client before the task takes the lease
-    _launch(run_id, companies, manifest.params.get("tags"), bool(manifest.params.get("refresh")),
-            manifest.params.get("market", "sec"), settings, run_store)
+    try:
+        check_resumable(run_store, run_id)
+    except NotResumable as exc:
+        raise HTTPException(400, str(exc)) from exc
+    JobManager(run_store).mark_running(run_id)  # visible to the client before the job takes the lease
+    get_job_launcher().launch(
+        run_id, lambda: resume_run(run_id, settings=settings, run_store=run_store, registry=None, lease=False),
+        run_store=run_store,
+    )
     return {"run_id": run_id, "company_count": len(companies)}
 
 

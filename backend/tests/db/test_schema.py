@@ -13,7 +13,7 @@ TABLES = {
     "companies", "company_identifiers", "fields", "field_definitions", "data_schemas", "data_schema_fields",
     "provider_metric_codes", "runs", "run_companies", "run_results", "run_errors", "run_held_documents",
     "documents", "data_sources", "source_loads", "field_observations", "value_citations", "review_items",
-    "review_decisions", "review_cosigns", "company_facts",
+    "review_decisions", "review_cosigns", "company_facts", "review_item_observations",
 }
 
 
@@ -136,3 +136,18 @@ def test_legacy_tables_are_renamed_and_kept(pg):
     assert "id" in cols and "company_id" not in cols
     assert "fact_key" in {col["name"] for col in inspect(eng).get_columns("legacy_company_facts")}
     assert "field_id" in {col["name"] for col in inspect(eng).get_columns("company_facts")}
+
+
+def test_review_item_links_backfill_is_idempotent(run_store, pg):
+    from arp.storage.postgres_schema import _review_item_links
+    from tests.db.test_observations import _financials, _links, _write_extraction
+
+    _write_extraction(run_store, pg, 100.0)
+    _financials(run_store, pg, needs_review=True)
+    written = _links(pg)
+    assert len(written) == 3  # one value item, one whole record of two observations
+    with engine(pg).begin() as c:
+        c.execute(text("DELETE FROM review_item_observations"))
+        _review_item_links(c)
+        _review_item_links(c)
+    assert _links(pg) == written

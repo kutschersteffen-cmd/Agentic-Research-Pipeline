@@ -5,21 +5,22 @@ import logging
 from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
+from functools import lru_cache
 from typing import TYPE_CHECKING
 
+from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.pool import NullPool
+
 from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
+from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import JobStatus, RunManifest
+from arp.storage.postgres import _CONNECT_TIMEOUT_SECONDS
 from arp.storage.run_store import RunStore
 
 if TYPE_CHECKING:
     from arp.config import Settings
     from arp.ingestion.registry import DocumentSourceRegistry
     from arp.llm.base import LLMClient
-
-try:  # POSIX only; same guard as KeyedLock. Without it a lease never conflicts.
-    import fcntl
-except ImportError:  # pragma: no cover - Windows
-    fcntl = None
 
 logger = logging.getLogger(__name__)
 
@@ -28,21 +29,33 @@ class RunBusy(RuntimeError):
     """Another worker already holds this run's lease."""
 
 
+_LEASE_NS = 0x41525054  # "ARPT": keeps run leases apart from any other advisory lock user
+_LEASE = text("SELECT pg_try_advisory_lock(:ns, hashtext(:id))")
+
+
+@lru_cache
+def _lease_engine(dsn: str) -> Engine:
+    """No pool: a lease holds its connection for the whole run, which must not use up the app's pool."""
+    connect_args = {} if "connect_timeout" in dsn else {"connect_timeout": _CONNECT_TIMEOUT_SECONDS}
+    return create_engine(dsn, poolclass=NullPool, connect_args=connect_args)
+
+
 @contextmanager
 def run_lease(run_store: RunStore, run_id: str) -> Iterator[None]:
-    """One worker per run: a non-blocking exclusive `flock` on
-    `runs/<id>/.worker`. Raises RunBusy if it is held -- by a thread or
-    process, through any RunStore. The OS frees it if the holder dies, so
-    a crashed worker never leaves a run stuck; the file itself is kept."""
-    if fcntl is None:  # pragma: no cover - Windows
+    """One worker per run, across processes and machines: a Postgres advisory lock on the run id,
+    held on its own connection. Raises RunBusy if another session holds it. Freed when the holder
+    exits, or when its connection dies, so a crashed worker never leaves a run stuck."""
+    # ponytail: a dropped lease connection frees the lease while the worker runs on; a heartbeat that
+    # stops the worker is the upgrade path.
+    key = {"ns": _LEASE_NS, "id": run_id}
+    with _lease_engine(run_store.dsn).connect() as conn:
+        got = conn.scalar(_LEASE, key)
+        conn.commit()  # the session-level lock outlives the transaction; no transaction stays open
+        if not got:
+            raise RunBusy(f"Run {run_id} already has a worker")
+        # No unlock: closing the unpooled connection ends the session, which frees the lock, and an
+        # unlock on a connection that already died would replace the run's own outcome.
         yield
-        return
-    with (run_store.run_dir(run_id) / ".worker").open("a") as handle:
-        try:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            raise RunBusy(f"Run {run_id} already has a worker") from None
-        yield  # closing the handle releases the lock
 
 
 _held: ContextVar[frozenset[str]] = ContextVar("held_runs", default=frozenset())
@@ -54,7 +67,8 @@ def hold_run(run_store: RunStore, run_id: str) -> Iterator[None]:
     context already holds the run (a launcher or resume_run that then calls
     the pipeline), else takes the lease and marks it held. Every batch run
     goes through it (run_company_batch, execute_discovery_run), so a second
-    worker on the same run raises RunBusy however it was started."""
+    worker on the same run raises RunBusy however it was started. The
+    outermost holder marks the run failed when its body raises."""
     if run_id in _held.get():
         yield
         return
@@ -62,8 +76,19 @@ def hold_run(run_store: RunStore, run_id: str) -> Iterator[None]:
         token = _held.set(_held.get() | {run_id})
         try:
             yield
+        except Exception as exc:
+            _mark_failed(run_store, run_id, exc)
+            raise
         finally:
             _held.reset(token)
+
+
+def _mark_failed(run_store: RunStore, run_id: str, exc: Exception) -> None:
+    """A crash before the run finished would leave it "running" forever."""
+    try:
+        JobManager(run_store).finish_run(run_id, error=f"{type(exc).__name__}: {exc}")
+    except Exception:  # noqa: BLE001 - the run's own error is the one to raise
+        logger.exception("could not mark run %s failed", run_id)
 
 
 class LocalJobLauncher:
@@ -116,11 +141,18 @@ def get_job_launcher() -> LocalJobLauncher:
     return _launcher
 
 
-RESUMABLE = {"theme", "extraction", "financials", "tnfd", "transition_plan", "identity", "discovery"}
-
-
 class NotResumable(ValueError):
     """This run cannot be resumed; the message says why."""
+
+
+def _reached_every_company(run_store: RunStore, manifest: RunManifest) -> bool:
+    """Every stored company has a result or was stopped for review. company_count is no guide: it counts
+    refs save_companies may drop, and a company with review items counts as completed and for review."""
+    companies = run_store.load_companies(manifest.run_id)
+    if not companies:  # a theme run from before companies.json
+        return True
+    done = run_store.done_keys(manifest.run_id, include_errors=True)
+    return {c.company_id for c in companies} <= done
 
 
 def check_resumable(run_store: RunStore, run_id: str) -> RunManifest:
@@ -128,8 +160,8 @@ def check_resumable(run_store: RunStore, run_id: str) -> RunManifest:
     manifest = run_store.load_manifest(run_id)
     if manifest is None:
         raise NotResumable("Unknown run_id")
-    if manifest.status == JobStatus.COMPLETED:
-        raise NotResumable("already completed")
+    if manifest.status == JobStatus.COMPLETED and _reached_every_company(run_store, manifest):
+        raise NotResumable("already completed")  # a completed run that missed companies resumes for them
     if manifest.run_type not in RESUMABLE:
         raise NotResumable(f"{manifest.run_type} runs are not resumable; start a new run")
     # A theme run may instead have a universe file (runs from before companies.json).
@@ -201,7 +233,7 @@ async def resume_run(
     if run_settings.llm_batch:
         # A batch run resumes on batch clients: callers' pre-built clients are real-time.
         llm = verifier_llm = None
-    if run_type != "discovery":
+    if run_type not in {"discovery", "xbrl_fetch"}:  # no LLM steps
         llm = llm or build_llm_client(run_settings)
         verifier_llm = verifier_llm or build_verifier_llm_client(run_settings)
 
@@ -210,35 +242,80 @@ async def resume_run(
 
         common = {"settings": run_settings, "run_store": run_store}
         llms = {"llm": llm, "verifier_llm": verifier_llm, "registry": registry}
-        if run_type == "theme":
-            from arp.research.pipeline import resume_theme_run
+        return await _RESUME[run_type](run_id, manifest, companies, **common, **llms)
 
-            return await resume_theme_run(run_id, **llms, **common)
-        if run_type == "extraction":
-            from arp.extraction.pipeline import execute_extraction_run, load_run_schema
 
-            schema = load_run_schema(run_store, run_id)
-            return await execute_extraction_run(run_id, schema, companies, **llms, **common, xbrl_source=_xbrl_source(run_settings))
-        if run_type == "financials":
-            from arp.extraction.financials_pipeline import execute_financials_extraction_run
+async def _resume_theme(run_id, manifest, companies, *, settings, run_store, llm, verifier_llm, registry) -> str:
+    from arp.research.pipeline import resume_theme_run
 
-            return await execute_financials_extraction_run(
-                run_id, companies, **llms, **common, xbrl_source=_xbrl_source(run_settings)
-            )
-        if run_type == "tnfd":
-            from arp.extraction.tnfd_pipeline import execute_tnfd_extraction_run
+    return await resume_theme_run(run_id, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings,
+                                  run_store=run_store)
 
-            return await execute_tnfd_extraction_run(run_id, companies, manifest.params["as_of"], **llms, **common)
-        if run_type == "transition_plan":
-            from arp.transition_plan.pipeline import execute_transition_plan_run
 
-            return await execute_transition_plan_run(run_id, companies, **llms, **common)
-        if run_type == "identity":
-            from arp.discovery.identity_pipeline import execute_identity_run
+async def _resume_extraction(run_id, manifest, companies, *, settings, run_store, llm, verifier_llm, registry) -> str:
+    from arp.extraction.pipeline import execute_extraction_run, load_run_schema
 
-            return await execute_identity_run(run_id, companies, llm=llm, **common)
-        from arp.discovery.pipeline import execute_discovery_run
-        from arp.schemas.discovery import DiscoveryRunParams
+    schema = load_run_schema(run_store, run_id)
+    return await execute_extraction_run(run_id, schema, companies, llm=llm, verifier_llm=verifier_llm, registry=registry,
+                                        settings=settings, run_store=run_store, xbrl_source=_xbrl_source(settings))
 
-        params = DiscoveryRunParams.model_validate(manifest.params)
-        return await execute_discovery_run(run_id, companies, doc_types=params.doc_types or None, **common)
+
+async def _resume_financials(run_id, manifest, companies, *, settings, run_store, llm, verifier_llm, registry) -> str:
+    from arp.extraction.financials_pipeline import execute_financials_extraction_run
+
+    return await execute_financials_extraction_run(
+        run_id, companies, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store,
+        xbrl_source=_xbrl_source(settings),
+    )
+
+
+async def _resume_tnfd(run_id, manifest, companies, *, settings, run_store, llm, verifier_llm, registry) -> str:
+    from arp.extraction.tnfd_pipeline import execute_tnfd_extraction_run
+
+    return await execute_tnfd_extraction_run(run_id, companies, manifest.params["as_of"], llm=llm, verifier_llm=verifier_llm,
+                                             registry=registry, settings=settings, run_store=run_store)
+
+
+async def _resume_transition_plan(run_id, manifest, companies, *, settings, run_store, llm, verifier_llm, registry) -> str:
+    from arp.transition_plan.pipeline import execute_transition_plan_run
+
+    return await execute_transition_plan_run(run_id, companies, llm=llm, verifier_llm=verifier_llm, registry=registry,
+                                             settings=settings, run_store=run_store)
+
+
+async def _resume_identity(run_id, manifest, companies, *, settings, run_store, llm, verifier_llm, registry) -> str:
+    from arp.discovery.identity_pipeline import execute_identity_run
+
+    return await execute_identity_run(run_id, companies, llm=llm, settings=settings, run_store=run_store)
+
+
+async def _resume_discovery(run_id, manifest, companies, *, settings, run_store, **_) -> str:
+    from arp.discovery.pipeline import execute_discovery_run
+    from arp.schemas.discovery import DiscoveryRunParams
+
+    params = DiscoveryRunParams.model_validate(manifest.params)
+    return await execute_discovery_run(run_id, companies, doc_types=params.doc_types or None, settings=settings,
+                                       run_store=run_store)
+
+
+async def _resume_xbrl_fetch(run_id, manifest, companies, *, settings, run_store, **_) -> str:
+    from arp.xbrl_pipeline.fetch import execute_xbrl_run
+
+    return await execute_xbrl_run(
+        run_id, companies, settings=settings, run_store=run_store, tags=manifest.params.get("tags"),
+        refresh=bool(manifest.params.get("refresh")), market=manifest.params.get("market", "sec"),
+    )
+
+
+# One entry per resumable run type: how a resume continues it.
+_RESUME: dict[str, Callable[..., Awaitable[str]]] = {
+    "theme": _resume_theme,
+    "extraction": _resume_extraction,
+    "financials": _resume_financials,
+    "tnfd": _resume_tnfd,
+    "transition_plan": _resume_transition_plan,
+    "identity": _resume_identity,
+    "discovery": _resume_discovery,
+    "xbrl_fetch": _resume_xbrl_fetch,
+}
+RESUMABLE = frozenset(_RESUME)
