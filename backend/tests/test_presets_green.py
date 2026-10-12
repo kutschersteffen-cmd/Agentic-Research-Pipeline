@@ -164,3 +164,7 @@ def test_green_summary_endpoint(tmp_path, pg):
     assert got["rows"] == [{"company_id": "c1", "name": "Acme", "metric": "revenue", "period_end": "2024-12-31",
                             "unit": "EUR", "green_total": 100, "aligned": 40, "share": None, "beyond_taxonomy": 60,
                             "flag": None}]
+
+
+def test_every_green_field_is_high_risk():
+    assert all(f.high_risk for f in build_green_schema().fields)

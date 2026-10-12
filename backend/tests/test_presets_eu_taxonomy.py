@@ -106,3 +106,7 @@ def test_green_summary_endpoint_with_eu_taxonomy_run(tmp_path, pg):
         app.dependency_overrides.pop(get_run_store, None)
     assert (got["rows"][0]["aligned"], got["rows"][0]["beyond_taxonomy"]) == (60, 40)
     assert plain["rows"][0]["aligned"] is None
+
+
+def test_every_eu_taxonomy_field_is_high_risk():
+    assert all(f.high_risk for f in build_eu_taxonomy_schema().fields)

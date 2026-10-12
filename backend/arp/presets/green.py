@@ -60,7 +60,7 @@ def _green_rules() -> str:
 def _money(field_id: str, name: str, description: str, instructions: str, keywords: list[str], **checks) -> FieldDefinition:
     return FieldDefinition(
         field_id=field_id, name=name, description=description, data_type=FieldDataType.CURRENCY_AMOUNT,
-        extraction_instructions=instructions, seed_keywords=keywords, required=False,
+        extraction_instructions=instructions, seed_keywords=keywords, required=False, high_risk=True,
         check_config=CheckConfig(non_negative=True, **checks),
     )
 
@@ -93,7 +93,7 @@ def _metric_fields(m: str) -> list[FieldDefinition]:
             field_id=f"green_{m}_share_pct", name=f"Green {word} share", data_type=FieldDataType.PERCENTAGE, unit="%",
             description=f"Green {word} as a percentage of total {word}.",
             extraction_instructions=f"{common} The share as the company reports it.",
-            seed_keywords=[f"share of green {m}", f"green {m} %"], required=False,
+            seed_keywords=[f"share of green {m}", f"green {m} %"], required=False, high_risk=True,
         ),
         _money(f"transition_{m}_total", f"Transition {word}",
                f"{word.capitalize()} from transition activities, kept separate from green and never added to it.",
@@ -111,14 +111,14 @@ def _metric_fields(m: str) -> list[FieldDefinition]:
             field_id=f"green_{m}_framework", name=f"Green {word} framework", data_type=FieldDataType.ENUM,
             allowed_values=FRAMEWORKS, description=f"The framework the company's green {word} figure follows.",
             extraction_instructions=f"{common} Pick the framework the company names for its green figure.",
-            seed_keywords=[*kw, "taxonomy", "green bond principles", "climate bonds"], required=False,
+            seed_keywords=[*kw, "taxonomy", "green bond principles", "climate bonds"], required=False, high_risk=True,
         ),
         FieldDefinition(
             field_id=f"green_{m}_definition", name=f"Green {word} definition", data_type=FieldDataType.STRING,
             description=f"The company's own definition of green or low-carbon {word}, quoted.",
             extraction_instructions=f"{common} Quote the definition verbatim, with any thresholds, and say whether it "
                                     "counts gas or nuclear.",
-            seed_keywords=[*kw, "we define", "definition"], required=False,
+            seed_keywords=[*kw, "we define", "definition"], required=False, high_risk=True,
         ),
     ]
     return fields
