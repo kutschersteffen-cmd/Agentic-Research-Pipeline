@@ -25,6 +25,14 @@ def _disable_hybrid_retrieval_by_default(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _disable_rerank_by_default(monkeypatch):
+    """Settings.rerank_enabled defaults to True, but the cross-encoder
+    downloads a model on first use -- same no-network rule as hybrid
+    retrieval above. Tests of reranking patch `arp.retrieval.rerank._score`."""
+    monkeypatch.setenv("ARP_RERANK_ENABLED", "false")
+
+
+@pytest.fixture(autouse=True)
 def _review_quality_dir_in_tmp(monkeypatch, tmp_path):
     """A confirmed correction appends to settings.review_quality_dir; never the repo's data/ in tests."""
     monkeypatch.setenv("ARP_REVIEW_QUALITY_DIR", str(tmp_path / "review_quality"))

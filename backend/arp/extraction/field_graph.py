@@ -129,6 +129,12 @@ async def _gather_evidence(state: FieldState) -> dict:
 
         opensearch_client = get_client(settings.opensearch_url)
 
+    limits = {}
+    if settings is not None:
+        limits = {
+            "max_chunks": settings.evidence_max_chunks,
+            "rerank_candidates": settings.rerank_candidates if settings.rerank_enabled else None,
+        }
     evidence = select_relevant_chunks(
         all_chunks,
         field.seed_keywords,
@@ -138,6 +144,7 @@ async def _gather_evidence(state: FieldState) -> dict:
         retrieval_backend=settings.retrieval_backend if settings is not None else "bm25",
         opensearch_client=opensearch_client,
         fallback_to_all=field.high_risk,
+        **limits,
     )
     return {"evidence": evidence}
 

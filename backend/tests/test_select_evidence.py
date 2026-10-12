@@ -113,3 +113,53 @@ def test_opensearch_backend_without_client_falls_back_to_bm25():
     result = select_relevant_chunks(chunks, ["capex"], retrieval_backend="opensearch", opensearch_client=None)
     assert len(result) == 1
     assert result[0].text == chunks[0].text
+
+
+def test_rerank_candidates_reorders_by_scorer_not_bm25(monkeypatch):
+    from arp.retrieval import rerank
+
+    chunks = [_chunk("capex capex capex"), _chunk("capex capex"), _chunk("capex"), _chunk("capex other other")]
+    texts_seen = []
+
+    def scorer(query, texts):
+        texts_seen.append((query, list(texts)))
+        return [0.1, 0.2, 0.9][: len(texts)]  # favours the 3rd-ranked chunk
+
+    monkeypatch.setattr(rerank, "_score", scorer)
+    result = select_relevant_chunks(chunks, ["capex"], max_chunks=2, rerank_candidates=3)
+    assert len(texts_seen) == 1 and len(texts_seen[0][1]) == 3  # only the top rerank_candidates are scored
+    assert texts_seen[0][0] == "capex"
+    assert result[0].text == "capex"
+    assert len(result) == 2
+
+
+def test_rerank_applies_to_fallback_to_all_bm25(monkeypatch):
+    from arp.retrieval import rerank
+
+    chunks = [_chunk("alpha"), _chunk("beta"), _chunk("gamma")]
+    monkeypatch.setattr(rerank, "_score", lambda q, texts: [0.1, 0.2, 0.9])
+    result = select_relevant_chunks(
+        chunks, ["nonexistent-term-xyz"], max_chunks=2, fallback_to_all=True, rerank_candidates=3
+    )
+    assert [c.text for c in result] == ["gamma", "beta"]
+
+
+def test_rerank_applies_to_fallback_to_all_hybrid(monkeypatch):
+    from arp.retrieval import rerank, select_evidence
+
+    chunks = [_chunk("alpha"), _chunk("beta"), _chunk("gamma")]
+    monkeypatch.setattr(select_evidence, "_vector_ranking", lambda candidates, query_text, store: [])
+    monkeypatch.setattr(rerank, "_score", lambda q, texts: [0.1, 0.2, 0.9])
+    result = select_relevant_chunks(
+        chunks, ["nonexistent-term-xyz"], max_chunks=2, fallback_to_all=True, rerank_candidates=3,
+        hybrid_retrieval_enabled=True, content_store=object(),
+    )
+    assert [c.text for c in result] == ["gamma", "beta"]
+
+
+def test_rerank_unset_leaves_order_untouched(monkeypatch):
+    from arp.retrieval import rerank
+
+    monkeypatch.setattr(rerank, "_score", lambda q, texts: (_ for _ in ()).throw(AssertionError("scorer called")))
+    chunks = [_chunk("capex capex"), _chunk("capex")]
+    assert select_relevant_chunks(chunks, ["capex"], max_chunks=2)[0].text == "capex capex"

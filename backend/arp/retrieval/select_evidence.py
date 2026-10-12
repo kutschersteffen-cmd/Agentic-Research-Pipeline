@@ -3,6 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 from arp.retrieval.index_cache import INDEX_CACHE
+from arp.retrieval.rerank import rerank
 from arp.schemas.common import DocType, DocumentChunk
 from arp.storage.document_store import DocumentContentStore
 
@@ -88,6 +89,7 @@ def select_relevant_chunks(
     content_store: DocumentContentStore | None = None,
     retrieval_backend: str = "bm25",
     opensearch_client=None,
+    rerank_candidates: int | None = None,
 ) -> list[DocumentChunk]:
     """BM25-ranked evidence selection applied before any extraction/
     matching LLM call, so a call's context stays small (higher precision,
@@ -136,6 +138,10 @@ def select_relevant_chunks(
       `fallback_to_all`, RRF fusion with `hybrid_retrieval_enabled`'s
       local-embedding ranking) is unchanged, since this only swaps who
       computes the BM25 half, not what happens to its output.
+    - `rerank_candidates`: when set, the top `rerank_candidates` of the final
+      ranking (fused, BM25, or the `fallback_to_all` candidates) are reordered
+      by the local cross-encoder (see arp/retrieval/rerank.py) and the best
+      `max_chunks` kept. None (default) leaves the ranking untouched.
     """
     candidates = chunks
     if doc_type_filter:
@@ -147,6 +153,12 @@ def select_relevant_chunks(
         return candidates[:max_chunks]
 
     query_text = " ".join(query_terms)
+
+    def finish(ranked: list[DocumentChunk]) -> list[DocumentChunk]:
+        if rerank_candidates is None:
+            return ranked[:max_chunks]
+        return rerank(query_text, ranked[:rerank_candidates], max_chunks)
+
     use_opensearch_bm25 = retrieval_backend == "opensearch" and opensearch_client is not None
     if use_opensearch_bm25:
         by_id = {c.chunk_id: c for c in candidates}
@@ -163,12 +175,12 @@ def select_relevant_chunks(
     use_hybrid = hybrid_retrieval_enabled and content_store is not None
     if not use_hybrid:
         if require_hit and not scored and fallback_to_all:
-            return candidates[:max_chunks]
-        return [by_id[chunk_id] for chunk_id, _ in scored[:max_chunks]]
+            return finish(candidates)
+        return finish([by_id[chunk_id] for chunk_id, _ in scored])
 
     bm25_ranking = [chunk_id for chunk_id, _ in scored]
     vector_ranking = _vector_ranking(candidates, query_text, content_store)
     fused = _rrf_fuse([bm25_ranking, vector_ranking])
     if not fused and fallback_to_all:
-        return candidates[:max_chunks]
-    return [by_id[chunk_id] for chunk_id in fused[:max_chunks]]
+        return finish(candidates)
+    return finish([by_id[chunk_id] for chunk_id in fused])

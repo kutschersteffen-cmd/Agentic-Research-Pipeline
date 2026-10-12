@@ -132,6 +132,15 @@ class Settings(BaseSettings):
         "of this flag -- see arp/transition_plan/indicator_graph.py -- to keep its replication of the source "
         "paper's retrieval behavior exact.",
     )
+    rerank_enabled: bool = Field(
+        default=True,
+        description="Reorders the top rerank_candidates retrieved chunks per extraction field with a local "
+        "multilingual cross-encoder (arp/retrieval/rerank.py) before the best evidence_max_chunks go to the "
+        "extractor. The model downloads on first use; if it can't load, retrieval order is kept. "
+        "Set false to skip.",
+    )
+    rerank_candidates: int = Field(default=40, description="How many top-ranked chunks the reranker rescoring sees.")
+    evidence_max_chunks: int = Field(default=12, description="Chunks of evidence handed to the extractor per field.")
 
     # Precision controls
     grounding_fuzzy_threshold: float = Field(
