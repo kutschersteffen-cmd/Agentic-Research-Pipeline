@@ -11,12 +11,15 @@ from arp.presets.green import SCHEMA_ID as GREEN_SCHEMA_ID
 from arp.presets.green import build_green_schema
 from arp.presets.remuneration import SCHEMA_ID as REMUNERATION_SCHEMA_ID
 from arp.presets.remuneration import build_remuneration_schema
+from arp.presets.transition_plan import SCHEMA_ID as TRANSITION_PLAN_SCHEMA_ID
+from arp.presets.transition_plan import build_transition_plan_schema
 from arp.schemas.datapoints import DataPointSchema
 
 PRESETS: dict[str, Callable[[], DataPointSchema]] = {
     GREEN_SCHEMA_ID: build_green_schema,
     EU_TAXONOMY_SCHEMA_ID: build_eu_taxonomy_schema,
     REMUNERATION_SCHEMA_ID: build_remuneration_schema,
+    TRANSITION_PLAN_SCHEMA_ID: build_transition_plan_schema,
 }
 
 

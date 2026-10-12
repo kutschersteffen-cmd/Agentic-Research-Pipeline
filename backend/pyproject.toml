@@ -137,6 +137,7 @@ include = ["arp*"]
 # both use `pip install -e .`, so a non-editable wheel would drop it silently.
 "arp.transition_plan" = ["data/*.json"]
 "arp.replication" = ["data/*.json"]
+"arp.presets" = ["data/*.json"]
 "arp.decision" = ["data/*.json", "sample_data/*.csv"]
 "arp.reporting" = ["style/*.json", "style/*.md", "style/templates/*.j2", "style/fonts/*/*.ttf", "style/fonts/*/*.txt"]
 
