@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.schemas.common import Citation, DocumentChunk
-from arp.schemas.datapoints import FieldDefinition, ValueState
+from arp.schemas.datapoints import FieldDataType, FieldDefinition, ValueState
 
 _SYSTEM_PROMPT = """\
 You are a precise financial/ESG data extraction analyst. You will be given \
@@ -29,6 +29,14 @@ passage_id of the block the quote was copied from.
 - If the evidence contains materially conflicting values for this field \
   from different documents, set conflicting_sources=true and pick the most \
   authoritative/recent one as the primary value, citing both."""
+
+BOOLEAN_RULE = (
+    "This is a yes/no criterion. value=true: the evidence shows the criterion is met (quote it). "
+    "value=false: the evidence addresses this topic but shows the criterion is NOT met (quote what it says instead, "
+    "e.g. only an intensity target where an absolute target is asked for). If nothing in the evidence addresses "
+    "the topic, return an empty `values` list (not disclosed): never return false for missing evidence. "
+    "Where the extraction instructions say 'NO otherwise', apply NO only when the topic is addressed."
+)
 
 
 def format_evidence(chunks: list[DocumentChunk], header: tuple[str, ...] = ("doc_id", "passage_id", "doc_type", "section", "unit_note")) -> str:
@@ -87,6 +95,7 @@ async def extract_field(
         + (f" ({field.unit})" if field.unit else "")
         + (f"\nAllowed values: {field.allowed_values}" if field.allowed_values else "")
         + f"\nExtraction instructions: {field.extraction_instructions}\n\n"
+        + (f"{BOOLEAN_RULE}\n\n" if field.data_type == FieldDataType.BOOLEAN else "")
         + (
             "Report a value for each of these periods where disclosed (period end): "
             f"{', '.join(planned_periods)}. Set planned_period_end to the one each value belongs to; "
