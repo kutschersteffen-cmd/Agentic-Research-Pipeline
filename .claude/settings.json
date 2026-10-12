@@ -72,7 +72,8 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/hooks/check.sh\"",
-            "timeout": 600
+            "timeout": 600,
+            "statusMessage": "Running checks on changed code"
           }
         ]
       }

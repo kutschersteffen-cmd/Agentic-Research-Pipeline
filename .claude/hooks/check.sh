@@ -11,18 +11,23 @@ except Exception: print(False)')
 cd "$(git rev-parse --show-toplevel)" || exit 0
 base=$(git merge-base HEAD origin/main 2>/dev/null || echo HEAD)
 
-py=() tests=() frontend=0
+py=() mods=() tests=() frontend=0  # py: existing files to lint; mods: modules whose tests to run
 while IFS= read -r f; do
-  [ -f "$f" ] || continue  # deleted
   case "$f" in
-    backend/tests/*.py) py+=("${f#backend/}"); tests+=("${f#backend/}") ;;
-    backend/*.py) py+=("${f#backend/}") ;;
+    backend/tests/*.py) [ -f "$f" ] && { py+=("${f#backend/}"); tests+=("${f#backend/}"); } ;;
+    backend/*.py) mods+=("${f#backend/}"); [ -f "$f" ] && py+=("${f#backend/}") ;;
     frontend/node_modules/*) ;;
-    frontend/*) frontend=1 ;;
+    frontend/*) frontend=1 ;;  # deletions count too: they can break imports
   esac
 done < <({ git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u)
 
-[ ${#py[@]} -eq 0 ] && [ $frontend -eq 0 ] && exit 0
+[ ${#py[@]} -eq 0 ] && [ ${#mods[@]} -eq 0 ] && [ $frontend -eq 0 ] && exit 0
+
+# Skip when nothing changed since the last passing run: a long branch would otherwise
+# re-run the same tests at the end of every turn.
+stamp="$(git rev-parse --git-dir)/claude-check-passed"
+hash=$({ git diff "$base"; git ls-files --others --exclude-standard -z | xargs -0 -r cat; } 2>/dev/null | git hash-object --stdin)
+[ "$(cat "$stamp" 2>/dev/null)" = "$hash" ] && exit 0
 
 failures=""
 run() {  # run DIR CMD... ; record output on failure
@@ -37,14 +42,23 @@ need() {  # need TOOL INSTALL_HINT
   failures+=$'\n'"$1 not found. Install with: $2"$'\n'; return 1
 }
 
-if [ ${#py[@]} -gt 0 ]; then
-  if need ruff 'pip install -e "backend[dev]"'; then run backend ruff check "${py[@]}"; fi
-  for p in "${py[@]}"; do
-    case "$p" in tests/*) continue ;; esac
+# Same values as CI (.github/workflows/ci.yml) and the cloud setup script.
+export ARP_TEST_POSTGRES_DSN=${ARP_TEST_POSTGRES_DSN:-postgresql+psycopg://arp:arp@localhost:5432/arp_test}
+[ -z "$ARP_CHROMIUM_PATH" ] && [ -x /opt/pw-browsers/chromium ] && export ARP_CHROMIUM_PATH=/opt/pw-browsers/chromium
+postgres_up() {  # conftest fails, not skips, without Postgres; only checkable for the default DSN
+  [[ "$ARP_TEST_POSTGRES_DSN" != *@localhost:5432/* ]] && return 0
+  pg_isready -q -h localhost 2>/dev/null && return 0
+  failures+=$'\n'"Postgres is not running on localhost. Start it (see the setup script in docs/superpowers/specs/2026-10-11-engineering-process-design.md) or set ARP_TEST_POSTGRES_DSN."$'\n'
+  return 1
+}
+
+if [ ${#py[@]} -gt 0 ] || [ ${#mods[@]} -gt 0 ]; then
+  if [ ${#py[@]} -gt 0 ] && need ruff 'pip install -e "backend[dev]"'; then run backend ruff check "${py[@]}"; fi
+  for p in "${mods[@]}"; do
     mod=${p%.py}; mod=${mod//\//.}
     while IFS= read -r t; do tests+=("$t"); done < <(cd backend && grep -rlF "$mod" tests --include='*.py')
   done
-  if [ ${#tests[@]} -gt 0 ] && need pytest 'pip install -e "backend[dev]"'; then
+  if [ ${#tests[@]} -gt 0 ] && need pytest 'pip install -e "backend[dev]"' && postgres_up; then
     mapfile -t tests < <(printf '%s\n' "${tests[@]}" | sort -u)
     run backend python3 -m pytest -q "${tests[@]}"  # not bare pytest: it may be a uv tool without backend deps
   fi
@@ -60,6 +74,6 @@ if [ $frontend -eq 1 ]; then
   fi
 fi
 
-[ -z "$failures" ] && exit 0
+[ -z "$failures" ] && { echo "$hash" > "$stamp"; exit 0; }
 echo "Checks failed on the code you changed. Fix them before finishing:$failures" >&2
 exit 2

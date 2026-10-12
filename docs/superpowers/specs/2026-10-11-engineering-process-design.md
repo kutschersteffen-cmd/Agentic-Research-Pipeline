@@ -108,13 +108,24 @@ cd /home/user/Agentic-Research-Pipeline || exit 0
 pip install -q -e "backend[dev]"
 (cd frontend && npm ci --silent)
 bash .claude/hooks/install-plugins.sh
+# Postgres + pgvector for the backend tests (conftest fails without it), same DB as CI
+apt-get update -q && apt-get install -y -q postgresql-16-pgvector
+service postgresql start
+su postgres -c "psql -qc \"CREATE USER arp WITH PASSWORD 'arp' SUPERUSER;\"" || true
+su postgres -c "createdb -O arp arp_test" || true
 ```
 
-The last line also makes the plugins live in the first session instead of the second.
+The plugin line also makes the plugins live in the first session instead of the second.
+Gate A defaults `ARP_TEST_POSTGRES_DSN` to the CI value
+(`postgresql+psycopg://arp:arp@localhost:5432/arp_test`) and `ARP_CHROMIUM_PATH` to
+`/opt/pw-browsers/chromium` when it exists. Verified 2026-10-12: with these, the 100 test files
+selected by a change to `backend/arp/config.py` pass (Gate A run 4m45s). Without Postgres every
+backend test run fails in `conftest.py`, so Gate A blocks with a "Postgres is not running" message.
 
 ## Open risks
 
 - Frontend `npm test` has never run in CI. It passes locally (160 of 160 tests, 2026-10-11).
 - `ruff` in pre-commit may flag existing files on `--all-files`. It only checks staged files
   on normal commits, so it doesn't block unrelated work.
-- Gate A runtime depends on how many tests match. Not yet measured.
+- Gate A runtime depends on how many tests match: 4m45s for a change to `arp/config.py`
+  (100 test files). It re-runs only when the changed code differs from the last passing run.
