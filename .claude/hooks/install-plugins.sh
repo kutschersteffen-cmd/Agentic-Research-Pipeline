@@ -39,11 +39,14 @@ add_marketplace ayghri/i-have-adhd
 add_marketplace forrestchang/andrej-karpathy-skills
 add_marketplace blader/humanizer
 add_marketplace obra/superpowers-marketplace
+# This repo's own mods (.claude-plugin/marketplace.json), read straight from .claude/mods/.
+add_marketplace "${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 
 installed=()
 for spec in ponytail@ponytail ui-ux-pro-max@ui-ux-pro-max-skill impeccable@impeccable \
             i-have-adhd@i-have-adhd andrej-karpathy-skills@karpathy-skills humanizer@humanizer \
-            superpowers@superpowers-marketplace; do
+            superpowers@superpowers-marketplace \
+            runs-pane@arp-mods test-guard@arp-mods token-usage@arp-mods; do
   name=$(install_plugin "$spec") && [ -n "$name" ] && installed+=("$name")
 done
 
