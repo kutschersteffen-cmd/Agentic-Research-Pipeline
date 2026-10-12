@@ -105,6 +105,14 @@ Criterion values map onto the existing `ValueState`:
 The extractor prompt for boolean fields must say plainly that "no evidence" is `not_found`,
 never `False`.
 
+**Owner's decision: three outcomes.**
+- Indicator guidelines that say "YES if …, NO otherwise" are read as follows. NO applies
+  when the report addresses the topic but doesn't meet the criterion. For example, only
+  intensity targets are reported where an absolute target is asked for, so the quote shows
+  the intensity target.
+- NOT DISCLOSED applies when nothing relevant is found.
+- The guideline texts stay unchanged. The boolean prompt adds this rule on top of them.
+
 ### 2. The 64 indicators become a preset
 
 Add `presets/transition_plan.py`, built from `transition_plan/data/indicators.json`:
@@ -219,6 +227,7 @@ flow unchanged.
 ## Decided by the owner
 
 - One engine for both kinds; schemas define the questions.
+- Criteria have three outcomes: YES / NO (topic addressed, criterion not met) / NOT DISCLOSED.
 - Precision over coverage; "needs review" is acceptable.
 - Run time matters secondarily. Runs are 20–100 reports.
 - The 64 indicators and green capex are examples; other schemas of both kinds will follow.
