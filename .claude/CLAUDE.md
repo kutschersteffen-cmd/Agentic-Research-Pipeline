@@ -122,6 +122,14 @@ The gaps ponytail leaves from `karpathy-guidelines`. Where they clash, these win
 The Stop hook (`.claude/hooks/check.sh`) runs these on the code you changed and blocks finishing
 on failure; CI runs the full suites.
 
+## Factory
+
+The daily scout (`/factory-scout`) proposes issues, the person approves them with the `claude`
+label, and the hourly worker (`/factory-worker`) builds one approved issue into a PR. Labels:
+`claude-proposed` (waiting for the person) · `claude` (approved) · `claude-working` (claimed by a
+run) · `claude-needs-info` (question or failure in a comment) · `claude-pr-open` (PR waiting for
+review). Don't work by hand on an issue labelled `claude-working`.
+
 ## Invoking skills
 
 The `/` autocomplete menu is a terminal-only feature. In cloud sessions — claude.ai/code and
