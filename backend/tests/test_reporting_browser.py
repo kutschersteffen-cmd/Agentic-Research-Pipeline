@@ -1,6 +1,7 @@
 import pytest
 from pypdf import PdfReader
 
+from arp.config import Settings
 from arp.reporting.browser import BrowserUnavailable, measure, write_pdf, write_pngs
 from arp.reporting.html_render import render_deck_html
 from arp.schemas.reporting import ColumnKind, DatasetColumn, Deck, QuantitativeDataset, SlideContent, TableSpec
@@ -64,7 +65,7 @@ async def test_big_numbers_are_ink_and_labels_and_table_headers_mono(mode):
         SlideContent(headline="h", layout="table", variant="compact", table=TableSpec(dataset_id="d")),
     ])
     async with async_playwright() as p:
-        browser = await p.chromium.launch()
+        browser = await p.chromium.launch(executable_path=Settings().chromium_path)  # same browser as arp.reporting.browser
         page = await browser.new_page()
         await page.set_content(render_deck_html(deck, [ds], mode=mode))
         colours = await page.evaluate("[...document.querySelectorAll('.k-number')].map(e => getComputedStyle(e).color)")

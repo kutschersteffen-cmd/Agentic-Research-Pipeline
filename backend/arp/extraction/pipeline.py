@@ -133,6 +133,7 @@ async def _extract_company(
     qualities: dict[tuple[str, int], FieldQuality] | None = None,
     trial: bool = False,
     xbrl_source: XbrlFactSource | None = None,
+    field_limit: asyncio.Semaphore | None = None,
 ) -> ExtractionRecordResult:
     """`documents`, when supplied, skips the registry fetch -- for callers
     (like the revenue-exposure resolver) that already fetched a company's
@@ -149,7 +150,10 @@ async def _extract_company(
 
     `xbrl_source` (with settings.xbrl_facts_enabled): the company's XBRL facts
     are fetched once and fields with `xbrl_tags` take their tagged values first. Facts in an
-    ESEF filing among the documents count too: ahead of SEC's for a non-US filer."""
+    ESEF filing among the documents count too: ahead of SEC's for a non-US filer.
+
+    Fields are extracted concurrently. `field_limit` caps field graphs in flight; a run shares
+    one across its companies so the cap is run-wide. Defaults to max_concurrent_llm_calls per call."""
     if documents is None:
         documents = await registry.fetch_all(company)
     documents = [confirm_entity(d, company, identifier_map) for d in documents]
@@ -195,6 +199,31 @@ async def _extract_company(
         sources = esef + sec if not company.cik else sec + esef  # ESEF first for a non-US filer
         facts = ChainedFactSource(sources) if sources else None
 
+    limit = field_limit or asyncio.Semaphore(settings.max_concurrent_llm_calls)
+
+    async def _extract(field: FieldDefinition, h: str | None, slot: list[ExtractedField]) -> list[LLMUsage]:
+        async with limit:
+            extracted, _needs_review, field_usages = await extract_one_field(
+                company.name,
+                field,
+                documents=kept,
+                documents_by_id=documents_by_id,
+                llm=llm,
+                verifier_llm=verifier_llm,
+                settings=settings,
+                fuzzy_threshold=settings.grounding_fuzzy_threshold,
+                confidence_review_threshold=settings.confidence_review_threshold,
+                schema_version=f"{schema.schema_id}:v{schema.version}",
+                fiscal_year_end=company.fiscal_year_end,
+                planned_periods=planned_periods,
+                facts=facts,
+            )
+        slot.extend(f.model_copy(update={"input_hash": h}) for f in extracted)
+        return field_usages
+
+    # One slot per field, filled in place, so the record keeps the schema's field order.
+    slots: list[list[ExtractedField]] = []
+    pending = []
     for field in to_extract:
         h = input_hash(field, route_documents(field, kept), planned_periods, run_settings)
         prior = history.last_rows(company.company_id, field.field_id) if reuse and h else []
@@ -207,32 +236,21 @@ async def _extract_company(
             for r in prior
         ):
             run = history.last_run_id(company.company_id)
-            fields.extend(
+            slots.append([
                 ExtractedField.model_validate(r).model_copy(
                     update={"reused_from_run": run, "checks": [], "route_reasons": [], "route": None}
                 )
                 for r in prior
-            )
+            ])
             continue
-        extracted, needs_review, field_usages = await extract_one_field(
-            company.name,
-            field,
-            documents=kept,
-            documents_by_id=documents_by_id,
-            llm=llm,
-            verifier_llm=verifier_llm,
-            settings=settings,
-            fuzzy_threshold=settings.grounding_fuzzy_threshold,
-            confidence_review_threshold=settings.confidence_review_threshold,
-            schema_version=f"{schema.schema_id}:v{schema.version}",
-            fiscal_year_end=company.fiscal_year_end,
-            planned_periods=planned_periods,
-            facts=facts,
-        )
+        slots.append([])
+        pending.append(_extract(field, h, slots[-1]))
+    for field_usages in await asyncio.gather(*pending):
         usages.extend(field_usages)
+    fields.extend(f for slot in slots for f in slot)
 
-        fields.extend(f.model_copy(update={"input_hash": h}) for f in extracted)
-
+    # In a thread: a sync Postgres read here would stall every other company's LLM calls.
+    published = await asyncio.to_thread(_published_values, settings, key)
     fields = await check_record(
         schema,
         fields,
@@ -244,7 +262,7 @@ async def _extract_company(
             record_fields=fields,
             history=history,
             references=build_references(
-                fields, facts=facts, history=history, published=_published_values(settings, key),
+                fields, facts=facts, history=history, published=published,
                 company_id=company.company_id, issuer_key=key, specs={f.field_id: f for f in schema.fields},
             ),
         ),
@@ -380,6 +398,7 @@ async def execute_extraction_run(
     identifier_map = IdentifierMapStore(settings.identifier_map_path)
     manifest = run_store.load_manifest(run_id)
     trial = bool(manifest and manifest.params.get("trial"))
+    field_limit = asyncio.Semaphore(settings.max_concurrent_llm_calls)
 
     async def _worker(company: CompanyRef) -> ExtractionRecordResult:
         company = await prepare_company(
@@ -388,6 +407,7 @@ async def execute_extraction_run(
         result = await _extract_company(
             company, schema, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings,
             history=history, identifier_map=identifier_map, qualities=qualities, trial=trial, xbrl_source=xbrl_source,
+            field_limit=field_limit,
         )
         result.record.run_id = run_id
         open_restatement_candidates(run_store, run_id, result.record, history)
