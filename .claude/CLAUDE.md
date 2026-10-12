@@ -115,6 +115,9 @@ The gaps ponytail leaves from `karpathy-guidelines`. Where they clash, these win
 
 - Backend: `cd backend && ruff check . && python3 -m pytest tests/<file>`
 - Frontend: `cd frontend && npm run lint && npx tsc -b && npm test`
+- Dependencies install on demand: run `bash .claude/hooks/ensure-deps.sh backend` (or `frontend`,
+  `postgres`) before running tests by hand. It takes about 1 s when already installed. `/install-deps`
+  installs everything in the background.
 
 The Stop hook (`.claude/hooks/check.sh`) runs these on the code you changed and blocks finishing
 on failure; CI runs the full suites.
