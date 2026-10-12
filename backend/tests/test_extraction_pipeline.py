@@ -526,3 +526,35 @@ async def test_trial_run_rows_are_reviewable(pg, tmp_path, fake_llm):
     (q,) = await _run_trial(tmp_path, doc, llm)
     assert q["reason_codes"] == []
     assert "unreleased_version" in q["route_reasons"] and q["field"]["route"] == "review"
+
+
+@pytest.mark.parametrize("limit, peak", [(None, 3), (1, 1)])
+async def test_extract_company_runs_fields_concurrently_in_schema_order(tmp_path, monkeypatch, limit, peak):
+    import asyncio
+
+    from arp.extraction import pipeline
+    from arp.schemas.datapoints import ExtractedField
+
+    in_flight, seen = 0, []
+
+    async def _slow_field(company_name, field, **_):
+        nonlocal in_flight
+        in_flight += 1
+        seen.append(in_flight)
+        await asyncio.sleep(0.01)
+        in_flight -= 1
+        return [ExtractedField(field_id=field.field_id, field_name=field.name, value=None, confidence=0.0)], False, []
+
+    monkeypatch.setattr(pipeline, "extract_one_field", _slow_field)
+    base = _schema().fields[0]
+    schema = DataPointSchema(
+        name="Three", fields=[base.model_copy(update={"name": n, "field_id": n}) for n in ("a", "b", "c")]
+    )
+    doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="AR", full_text="Acme Corp.")
+    result = await _extract_company(
+        CompanyRef(company_id="c1", name="Acme Corp"), schema,
+        registry=DocumentSourceRegistry([_FixedDocSource([doc])]), llm=None, settings=_settings(tmp_path),
+        field_limit=asyncio.Semaphore(limit) if limit else None,
+    )
+    assert max(seen) == peak
+    assert [f.field_id for f in result.record.fields] == ["a", "b", "c"]
