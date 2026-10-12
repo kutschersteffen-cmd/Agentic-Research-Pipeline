@@ -175,13 +175,19 @@ class DataPointSchema(BaseModel):
     released_at: str | None = None
 
     @model_validator(mode="after")
-    def _derived_inputs_exist(self) -> DataPointSchema:
-        ids = {f.field_id for f in self.fields}
+    def _derived_inputs_valid(self) -> DataPointSchema:
+        by_id = {f.field_id: f for f in self.fields}
         for f in self.fields:
-            if f.derived_rule:
-                bad = [i for i in (*f.derived_rule.all_of, *f.derived_rule.any_of) if i not in ids or i == f.field_id]
-                if bad:
-                    raise ValueError(f"{f.field_id}: derived_rule names unknown or self field_id(s): {', '.join(bad)}")
+            if not f.derived_rule:
+                continue
+            for i in dict.fromkeys((*f.derived_rule.all_of, *f.derived_rule.any_of)):
+                src = by_id.get(i)
+                if src is None or i == f.field_id:
+                    raise ValueError(f"{f.field_id}: derived_rule names unknown or self field_id {i}")
+                if src.data_type != FieldDataType.BOOLEAN:
+                    raise ValueError(f"{f.field_id}: derived_rule input {i} is not a boolean field")
+                if src.derived_rule:
+                    raise ValueError(f"{f.field_id}: derived_rule input {i} is itself derived")
         return self
 
 

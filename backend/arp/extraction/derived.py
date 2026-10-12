@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from arp.schemas.datapoints import ExtractedField, FieldDefinition, ValueState, is_failing
+from arp.schemas.datapoints import ExtractedField, FieldDefinition, RouteKind, ValueState, is_failing
 from arp.schemas.review import ReasonCode
 
 
@@ -45,7 +45,10 @@ def evaluate_derived(spec: FieldDefinition, by_id: dict[str, ExtractedField]) ->
         for c in r.citations:
             seen.setdefault(c.model_dump_json(), c)
 
-    flagged = any(r.review_reasons or any(is_failing(c) for c in r.checks) for r in rows)
+    # A routed input that is not auto-accepted (low confidence, unaudited, unreleased...) holds the derived row back too.
+    flagged = any(
+        r.review_reasons or any(is_failing(c) for c in r.checks) or r.route not in (None, RouteKind.AUTO_ACCEPT) for r in rows
+    )
     found = value is not None
     return ExtractedField(
         field_id=spec.field_id,

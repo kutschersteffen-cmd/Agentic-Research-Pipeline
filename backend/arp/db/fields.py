@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from arp.db import models as m
 from arp.db.session import transaction
 from arp.schemas.common import now_iso
-from arp.schemas.datapoints import DataPointSchema, FieldQuality, FieldStatus
+from arp.schemas.datapoints import DataPointSchema, FieldDefinition, FieldQuality, FieldStatus
 
 _EXTRACTED_ID = re.compile(r"[a-z][a-z0-9_]*|theme:[^:\s]+|vote:[^:\s]+:[^:\s]+")
 _REGISTRY_LOCK = 7243001  # pg_advisory_xact_lock key serialising schema saves/releases
@@ -126,10 +126,11 @@ def _check_released_rows(s: Session, schema: DataPointSchema) -> None:
         if row is None or row.released_at is None:
             continue
         inc = f.model_dump(mode="json")
+        stored = FieldDefinition.model_validate(row.definition).model_dump(mode="json")  # keys added since release take their default
         same = (
             (row.name, row.data_type, row.unit) == (f.name, str(f.data_type.value), f.unit)
             and {k: v for k, v in inc.items() if k not in _LIFECYCLE}
-            == {k: v for k, v in row.definition.items() if k not in _LIFECYCLE}
+            == {k: v for k, v in stored.items() if k not in _LIFECYCLE}
             and (not f.effective_from or f.effective_from == row.effective_from.isoformat())
         )
         if not same:

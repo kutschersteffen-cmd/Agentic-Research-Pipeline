@@ -214,3 +214,19 @@ def test_released_field_readded_with_new_content_requires_new_version(pg):
     with pytest.raises(FieldVersionError):
         reg.save(readd)
     assert _row(pg, rel) == before
+
+
+def test_released_field_without_later_added_keys_is_not_a_change(pg):
+    """A definition stored before a key existed (e.g. derived_rule) re-saves unchanged."""
+    reg = SchemaRegistry(pg)
+    rel = _released_v1(reg)
+    with transaction(pg) as t:
+        row = t.get(m.FieldDefinition, (rel.fields[0].field_id, 1))
+        legacy = {k: v for k, v in row.definition.items() if k != "derived_rule"}
+        assert len(legacy) < len(row.definition)
+        row.definition = legacy
+    assert reg.save(rel).version == rel.version
+    edited = rel.model_copy(deep=True)
+    edited.fields[0].unit = "EUR"
+    with pytest.raises(FieldVersionError):
+        reg.save(edited)

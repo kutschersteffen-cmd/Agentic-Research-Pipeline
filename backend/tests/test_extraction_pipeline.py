@@ -561,7 +561,7 @@ async def test_extract_company_runs_fields_concurrently_in_schema_order(tmp_path
     assert [f.field_id for f in result.record.fields] == ["a", "b", "c"]
 
 
-@pytest.mark.parametrize("a_flagged", [False, True])
+@pytest.mark.parametrize("a_flagged", [False, "reason", "low_confidence"])
 async def test_derived_field_is_computed_not_extracted_and_routed(tmp_path, monkeypatch, a_flagged):
     from arp.extraction import pipeline
     from arp.extraction.pipeline import ExtractionRecordResult, review_items
@@ -572,10 +572,12 @@ async def test_derived_field_is_computed_not_extracted_and_routed(tmp_path, monk
 
     async def _stub(company_name, field, **_):
         asked.append(field.field_id)
-        reasons = [ReasonCode.NOT_GROUNDED] if a_flagged and field.field_id == "a" else []
+        a = field.field_id == "a"
+        reasons = [ReasonCode.NOT_GROUNDED] if a_flagged == "reason" and a else []
+        # low_confidence: routes to review through below_auto_accept_min alone, with no review_reasons
         row = ExtractedField(
-            field_id=field.field_id, field_name=field.name, value=True, value_state=ValueState.FOUND, confidence=0.95,
-            grounded=True, review_reasons=reasons,
+            field_id=field.field_id, field_name=field.name, value=True, value_state=ValueState.FOUND,
+            confidence=0.5 if a_flagged == "low_confidence" and a else 0.95, grounded=True, review_reasons=reasons,
         )
         return [row], False, []
 
@@ -601,6 +603,7 @@ async def test_derived_field_is_computed_not_extracted_and_routed(tmp_path, monk
     assert asked == ["a", "b"]  # the derived field never reaches the extraction graph
     d = next(f for f in result.record.fields if f.field_id == "d")
     assert d.value is True and d.value_state == ValueState.FOUND
-    assert (d.route, ReasonCode.CHECK_FAILED in d.review_reasons) == (("review" if a_flagged else "auto_accept"), a_flagged)
+    flagged = bool(a_flagged)
+    assert (d.route, ReasonCode.CHECK_FAILED in d.review_reasons) == (("review" if flagged else "auto_accept"), flagged)
     keys = [p["field_id"] for _, p in review_items(company, ExtractionRecordResult(result.record, None, 0.0))]
-    assert ("d" in keys) is a_flagged
+    assert ("d" in keys) is flagged

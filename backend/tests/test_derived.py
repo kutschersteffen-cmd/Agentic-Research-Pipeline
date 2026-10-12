@@ -126,3 +126,25 @@ def test_valid_schema_builds():
 def test_empty_or_unsatisfiable_rule_rejected(rule):
     with pytest.raises(ValidationError):
         DerivedRule(**rule)
+
+
+def test_input_not_auto_accepted_routes_derived():
+    from arp.schemas.datapoints import RouteKind
+
+    by_id = {"a": row("a", T).model_copy(update={"route": RouteKind.REVIEW}), "b": row("b", T).model_copy(update={"route": RouteKind.AUTO_ACCEPT})}
+    assert evaluate_derived(spec(all_of=["a", "b"]), by_id).review_reasons == [ReasonCode.CHECK_FAILED]
+    by_id["a"] = by_id["a"].model_copy(update={"route": RouteKind.AUTO_ACCEPT})
+    assert evaluate_derived(spec(all_of=["a", "b"]), by_id).review_reasons == []
+
+
+def test_derived_input_must_be_boolean_and_not_derived():
+    a = FieldDefinition(field_id="a", name="a", description="", data_type=FieldDataType.NUMBER, extraction_instructions="")
+    b = FieldDefinition(field_id="b", name="b", description="", data_type=FieldDataType.BOOLEAN, extraction_instructions="")
+    d1 = FieldDefinition(field_id="d1", name="d1", description="", data_type=FieldDataType.BOOLEAN, extraction_instructions="",
+                         derived_rule=DerivedRule(all_of=["b"]))
+    d2 = d1.model_copy(update={"field_id": "d2", "derived_rule": DerivedRule(all_of=["a"])})
+    d3 = d1.model_copy(update={"field_id": "d3", "derived_rule": DerivedRule(any_of=["d1"])})
+    with pytest.raises(ValidationError, match="not a boolean"):
+        DataPointSchema(name="s", fields=[a, b, d2])
+    with pytest.raises(ValidationError, match="itself derived"):
+        DataPointSchema(name="s", fields=[a, b, d1, d3])
