@@ -1,0 +1,1 @@
+{ "name": "test-guard", "version": "0.1.0", "description": "Toast when an edit removes tests or asserts under backend/tests or frontend/tests", "types": "./types/index.d.ts" }
