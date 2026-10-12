@@ -144,6 +144,9 @@ def _find_in_span(quote: str, source_text: str, fuzzy_threshold: float, lo: int,
     m = matcher.find_longest_match(0, n_hi - n_lo, 0, len(norm_quote))
     coverage = m.size / max(len(norm_quote), 1)
     if coverage >= fuzzy_threshold and m.size > 0:
+        # a digit outside the matched block is a number the matcher glossed over (2025 vs 2026)
+        if re.search(r"\d", norm_quote[: m.b] + norm_quote[m.b + m.size :]):
+            return None
         a = n_lo + m.a
         return Match(offsets[a], offsets[a + m.size - 1] + 1, "fuzzy", coverage)
     return None

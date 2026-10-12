@@ -1,4 +1,4 @@
-from arp.grounding import ground_citations, is_grounded
+from arp.grounding import _find_match, ground_citations, is_grounded
 from arp.schemas.common import Citation, DocType, SourceDocument
 
 
@@ -322,6 +322,18 @@ def test_fuzzy_match_span_is_original_slice():
     assert c.grounded and c.match_method == "fuzzy"
     assert c.span_text == text[c.char_start : c.char_end]
     assert c.span_text.startswith("The company")
+
+
+def test_fuzzy_rejects_changed_digit_outside_block():
+    src = "Taxonomy-aligned capital expenditure amounted to EUR 1,234 million in the reporting year 2025."
+    quote = "Taxonomy-aligned capital expenditure amounted to EUR 1,234 million in the reporting year 2026."
+    assert _find_match(quote, src, 0.92) is None
+
+
+def test_fuzzy_accepts_word_typo_when_digits_inside_block():
+    src = "In 2025 taxonomy-aligned capital expenditure amounted to EUR 1,234 million across the group."
+    quote = "In 2025 taxonomy-aligned capital expenditure amounted to EUR 1,234 million across the gruop."
+    assert _find_match(quote, src, 0.92) is not None
 
 
 def test_multichar_lowercase_keeps_offsets_aligned():
