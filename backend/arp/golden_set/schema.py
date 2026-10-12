@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from arp.schemas.common import DocType
-from arp.schemas.datapoints import FieldDefinition
+from arp.schemas.common import CompanyRef, DocType
+from arp.schemas.datapoints import FieldDefinition, ValueState
 
 
 class GoldenSetCase(BaseModel):
@@ -60,3 +60,30 @@ class GoldenSetReport(BaseModel):
     @property
     def all_passed(self) -> bool:
         return self.passed == self.total
+
+
+class ExpectedValue(BaseModel):
+    field_id: str
+    period_end: str | None = Field(default=None, description="None matches the field's latest-period row.")
+    value: str | float | bool | None = None
+    value_state: ValueState
+
+
+class RecordGoldenCase(BaseModel):
+    """A company with hand-checked answers for a whole schema. Its documents live in
+    `<documents_dir>/<company_id>/`."""
+
+    case_id: str
+    company: CompanyRef
+    expected: list[ExpectedValue]
+
+
+class PrecisionReport(BaseModel):
+    schema_id: str
+    total: int
+    auto_accepted: int
+    auto_accepted_correct: int
+    precision: float | None = Field(description="Correct share of auto-accepted rows; None when none were auto-accepted.")
+    review_rate: float
+    coverage: float
+    wrong_auto_accepted: list[dict] = Field(default_factory=list)

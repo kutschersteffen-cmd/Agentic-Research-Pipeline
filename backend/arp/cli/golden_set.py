@@ -9,11 +9,13 @@ from arp.api.auth import Principal
 from arp.bi.eval import load_bi_cases, run_bi_set
 from arp.cli._shared import _run_store
 from arp.config import get_settings
+from arp.golden_set.precision import load_record_cases, run_precision
 from arp.golden_set.role_runner import load_role_cases as load_role_golden_set_cases
 from arp.golden_set.role_runner import run_role_golden_set
 from arp.golden_set.runner import load_cases as load_golden_set_cases
 from arp.golden_set.runner import run_golden_set
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
+from arp.presets.registry import PRESETS
 from arp.review.items import list_open_items
 from arp.review.quality import seed_known_answers
 
@@ -128,3 +130,37 @@ def golden_set_seed_known_answers(
         count = max(1, round(settings.known_answer_rate * len(list_open_items(run_store, system))))
     run_id = seed_known_answers(run_store, settings, count=count, seed=seed)
     typer.echo(f"Seeded {count} known-answer item(s) in trial run {run_id}.")
+
+
+@golden_set_app.command("precision")
+def golden_set_precision(
+    schema_id: str = typer.Option(..., "--schema", help="Preset id of the schema to extract."),
+    cases_file: Path = typer.Option(..., "--cases", help="JSON array of RecordGoldenCase objects (hand-checked answers per company)."),
+    documents_dir: Path = typer.Option(..., "--documents-dir", help="Directory holding <company_id>/ document folders."),
+    min_precision: float = typer.Option(0.97, help="Exit non-zero if the precision of auto-accepted values falls below this."),
+) -> None:
+    """Extracts whole records for hand-checked companies and reports how many auto-accepted
+    values are right -- routed as if every field were released and audited."""
+    if schema_id not in PRESETS:
+        typer.echo(f"Unknown preset: {schema_id}. Known: {', '.join(PRESETS)}", err=True)
+        raise typer.Exit(1)
+    settings = get_settings()
+    report = asyncio.run(
+        run_precision(
+            load_record_cases(cases_file),
+            schema=PRESETS[schema_id](),
+            documents_dir=documents_dir,
+            llm=build_llm_client(settings),
+            verifier_llm=build_verifier_llm_client(settings),
+            settings=settings,
+        )
+    )
+    for w in report.wrong_auto_accepted:
+        typer.echo(f"WRONG {w['case_id']} {w['field_id']}: expected {w['expected']!r}, got {w['actual']!r}")
+    precision = "n/a (nothing auto-accepted)" if report.precision is None else f"{report.precision:.1%}"
+    typer.echo(
+        f"{report.schema_id}: precision {precision} ({report.auto_accepted_correct}/{report.auto_accepted} auto-accepted), "
+        f"coverage {report.coverage:.1%}, review rate {report.review_rate:.1%} of {report.total}."
+    )
+    if report.precision is not None and report.precision < min_precision:
+        raise typer.Exit(1)
