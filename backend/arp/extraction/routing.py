@@ -43,6 +43,6 @@ def route(
         reasons.append("first_audit_pending")
     if field.value_state in (ValueState.FOUND, ValueState.ZERO, ValueState.NOT_APPLICABLE) and field.confidence < spec.auto_accept_min:
         reasons.append("below_auto_accept_min")
-    if field.value_state == ValueState.NOT_FOUND and spec.high_risk:
+    if field.value_state == ValueState.NOT_FOUND and spec.high_risk and field.verifier_confidence is None:
         reasons.append("high_risk_not_found")
     return Route(RouteKind.REVIEW, reasons) if reasons else Route(RouteKind.AUTO_ACCEPT, [])

@@ -137,6 +137,7 @@ async def _gather_evidence(state: FieldState) -> dict:
         content_store=content_store,
         retrieval_backend=settings.retrieval_backend if settings is not None else "bm25",
         opensearch_client=opensearch_client,
+        fallback_to_all=field.high_risk,
     )
     return {"evidence": evidence}
 

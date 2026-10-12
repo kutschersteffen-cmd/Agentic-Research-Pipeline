@@ -70,6 +70,17 @@ def test_not_found_high_risk_reviews():
     assert route(nf, _AUDITED, _spec(high_risk=False)).kind == RouteKind.AUTO_ACCEPT
 
 
+def test_high_risk_not_found_agreed_by_verifier_auto_accepts():
+    nf = _field(value=None, value_state=ValueState.NOT_FOUND, confidence=0.95, citations=[], grounded=False,
+                verifier_confidence=0.9)
+    assert route(nf, _AUDITED, _spec(high_risk=True)).kind == RouteKind.AUTO_ACCEPT
+
+
+def test_high_risk_not_found_without_verifier_goes_to_review():
+    nf = _field(value=None, value_state=ValueState.NOT_FOUND, confidence=0.0, citations=[], grounded=False)
+    assert "high_risk_not_found" in route(nf, _AUDITED, _spec(high_risk=True)).reasons
+
+
 def test_entity_mismatch_holds():
     r = route(_field(), _AUDITED, _spec(), held="entity_mismatch")
     assert (r.kind, r.reasons) == (RouteKind.HOLD, ["entity_mismatch"])
