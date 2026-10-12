@@ -133,11 +133,11 @@ class Settings(BaseSettings):
         "paper's retrieval behavior exact.",
     )
     rerank_enabled: bool = Field(
-        default=True,
+        default=False,
         description="Reorders the top rerank_candidates retrieved chunks per extraction field with a local "
         "multilingual cross-encoder (arp/retrieval/rerank.py) before the best evidence_max_chunks go to the "
-        "extractor. The model downloads on first use; if it can't load, retrieval order is kept. "
-        "Set false to skip.",
+        "extractor. Opt-in (ARP_RERANK_ENABLED=true): the model downloads on first use "
+        "(~0.57 GB) and scoring 40 chunks took ~47 s on a 4-core CPU; if it can't load, retrieval order is kept.",
     )
     rerank_candidates: int = Field(default=40, description="How many top-ranked chunks the reranker rescoring sees.")
     evidence_max_chunks: int = Field(default=12, description="Chunks of evidence handed to the extractor per field.")

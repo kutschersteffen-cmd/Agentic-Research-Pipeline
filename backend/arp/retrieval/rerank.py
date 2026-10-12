@@ -1,3 +1,7 @@
+"""Local cross-encoder reranking of retrieved chunks. First use downloads ~0.57 GB, and on a
+4-core CPU scoring 40 chunks took ~47 s per field, so it is off by default until measured on
+target hardware (Settings.rerank_enabled)."""
+
 from __future__ import annotations
 
 import logging

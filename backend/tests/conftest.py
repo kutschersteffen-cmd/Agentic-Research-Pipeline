@@ -26,7 +26,7 @@ def _disable_hybrid_retrieval_by_default(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _disable_rerank_by_default(monkeypatch):
-    """Settings.rerank_enabled defaults to True, but the cross-encoder
+    """Settings.rerank_enabled is opt-in, and the cross-encoder
     downloads a model on first use -- same no-network rule as hybrid
     retrieval above. Tests of reranking patch `arp.retrieval.rerank._score`."""
     monkeypatch.setenv("ARP_RERANK_ENABLED", "false")
