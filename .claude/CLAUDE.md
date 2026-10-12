@@ -93,7 +93,8 @@ phase:
   `superpowers:writing-plans`. Apply ponytail's ladder to the plan itself: cut tasks that
   don't need to exist before writing them down. Trivial changes skip planning.
 - **Implementation → ponytail.** Smallest working diff; follow the plan's tasks, not more.
-- **Frontend design → impeccable and ui-ux-pro-max**, as before.
+- **Frontend design → impeccable and ui-ux-pro-max**, as before. After a UI change, screenshot
+  the affected page with Playwright and run `/impeccable:impeccable audit`.
 - **Review → ponytail.** Review with `/ponytail:ponytail-review` (over-engineering) plus
   `/code-review` (correctness). Do not use `superpowers:requesting-code-review` or
   `superpowers:receiving-code-review`.
@@ -107,6 +108,16 @@ The gaps ponytail leaves from `karpathy-guidelines`. Where they clash, these win
 - Ambiguity that would change the result → ask one question first. Otherwise default and say so.
 - Don't touch adjacent code, comments or formatting. Mention unrelated dead code, don't delete it.
 - Remove imports/variables your own change made unused.
+- Never delete or weaken an existing test to make it pass. List every test change in the PR
+  description.
+
+## Checks
+
+- Backend: `cd backend && ruff check . && python3 -m pytest tests/<file>`
+- Frontend: `cd frontend && npm run lint && npx tsc -b && npm test`
+
+The Stop hook (`.claude/hooks/check.sh`) runs these on the code you changed and blocks finishing
+on failure; CI runs the full suites.
 
 ## Invoking skills
 
