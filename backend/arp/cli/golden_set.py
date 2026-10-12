@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import typer
+from pydantic import ValidationError
 
 from arp.api.auth import Principal
 from arp.bi.eval import load_bi_cases, run_bi_set
@@ -180,7 +181,14 @@ def golden_set_export_labels(
     """Turns a run's reviewer decisions (approve, correct, reject as not disclosed) into cases for
     `golden-set precision`. Escalated and other rejected items are left out."""
     run_store = _run_store()
-    decisions = [ReviewDecision.model_validate(r) for r in run_store.read_decisions(run_id)]
+    decisions, legacy = [], 0
+    for r in run_store.read_decisions(run_id):
+        try:
+            decisions.append(ReviewDecision.model_validate(r))
+        except ValidationError:  # a pre-step row (e.g. decision "edit", no user_id): no final-state info to export
+            legacy += 1
+    if legacy:
+        typer.echo(f"Skipped {legacy} legacy decision row(s) that do not match the current review schema.", err=True)
     cases = export_cases(run_store, run_id, decisions)
     out.write_text(json.dumps([c.model_dump(mode="json") for c in cases], indent=2))
     typer.echo(f"Wrote {len(cases)} case(s), {sum(len(c.expected) for c in cases)} labelled value(s), to {out}.")

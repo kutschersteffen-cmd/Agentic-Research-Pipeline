@@ -23,10 +23,10 @@ def _field(field_id, value, period_end=None, state="found"):
     return {"field_id": field_id, "value": value, "value_state": state, "period_end": period_end}
 
 
-def _decision(field_id, kind, reason, *, period="unspecified", corrected=None, issuer=ISSUER):
+def _decision(field_id, kind, reason, *, period="unspecified", corrected=None, issuer=ISSUER, step="first", second_required=False):
     return ReviewDecision(
         item_key=field_item_key(issuer, field_id, period), decision=kind, reason_code=reason, reviewer="r", user_id="u",
-        role="reviewer", corrected_value=corrected, snapshot_id="s", step="first",
+        role="reviewer", corrected_value=corrected, snapshot_id="s", step=step, second_required=second_required,
     )
 
 
@@ -69,6 +69,16 @@ def test_last_decision_per_item_wins_and_uses_run_company():
     assert case.company.website == "https://acme.example"
 
 
+def test_only_final_decisions_are_exported():
+    pending = _decision("scope2", DecisionKind.APPROVE, DecisionReason.CONFIRMED, second_required=True)
+    assert export_cases(StubStore(ROWS), "run", [pending]) == []
+    second = _decision("scope2", DecisionKind.APPROVE, DecisionReason.CONFIRMED, step="second")
+    [case] = export_cases(StubStore(ROWS), "run", [pending, second])
+    assert [e.field_id for e in case.expected] == ["scope2"]
+    disagree = _decision("scope2", DecisionKind.REJECT, DecisionReason.NOT_DISCLOSED, step="second")
+    assert export_cases(StubStore(ROWS), "run", [pending, disagree]) == []
+
+
 def test_correction_to_not_disclosed_and_no_decisions():
     decisions = [_decision("scope2", DecisionKind.CORRECT, DecisionReason.NOT_DISCLOSED, corrected={"value": None})]
     [case] = export_cases(StubStore(ROWS), "run", decisions)
@@ -83,10 +93,14 @@ def test_cli_writes_cases_that_the_harness_loads(monkeypatch, tmp_path):
     from arp.golden_set.precision import load_record_cases
 
     store = StubStore(ROWS)
-    store.read_decisions = lambda run_id: [_decision("scope2", DecisionKind.APPROVE, DecisionReason.CONFIRMED).model_dump(mode="json")]
+    legacy = {"item_key": "k", "decision": "edit", "reviewer": "r", "edited_value": {"value": 1}}  # pre-step shape
+    store.read_decisions = lambda run_id: [
+        legacy, _decision("scope2", DecisionKind.APPROVE, DecisionReason.CONFIRMED).model_dump(mode="json")
+    ]
     monkeypatch.setattr(cli, "_run_store", lambda: store)
     out = tmp_path / "cases.json"
     result = CliRunner().invoke(cli.golden_set_app, ["export-labels", "--run-id", "run", "--out", str(out)])
     assert result.exit_code == 0, result.output
+    assert "Skipped 1 legacy decision row(s)" in result.output
     [case] = load_record_cases(out)
     assert [(e.field_id, e.value) for e in case.expected] == [("scope2", 50.0)]

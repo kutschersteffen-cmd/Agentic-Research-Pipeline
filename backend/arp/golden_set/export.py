@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from arp.golden_set.schema import ExpectedValue, RecordGoldenCase
+from arp.orchestration.review_queue import FINAL_STATES, item_state
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import ValueState
 from arp.schemas.review import DecisionKind, DecisionReason, ReviewDecision, field_item_key, period_key
@@ -15,15 +16,15 @@ def _state(value) -> ValueState:
     return ValueState.ZERO if isinstance(value, (int, float)) and not isinstance(value, bool) and value == 0 else ValueState.FOUND
 
 
-def _expected(d: ReviewDecision, field: dict) -> ExpectedValue | None:
+def _expected(d: dict, field: dict) -> ExpectedValue | None:
     period = field.get("period_end")
-    if d.decision == DecisionKind.APPROVE:
+    if d["decision"] == DecisionKind.APPROVE:
         value = field.get("value")
         state = ValueState(field["value_state"]) if "value_state" in field else _state(value)
-    elif d.decision == DecisionKind.CORRECT and d.corrected_value is not None:
-        value = d.corrected_value["value"]  # decide.py requires this key; None means "not disclosed"
-        state, period = _state(value), d.corrected_value.get("period_end") or period
-    elif d.decision == DecisionKind.REJECT and d.reason_code == DecisionReason.NOT_DISCLOSED:
+    elif d["decision"] == DecisionKind.CORRECT and d["corrected_value"] is not None:
+        value = d["corrected_value"]["value"]  # decide.py requires this key; None means "not disclosed"
+        state, period = _state(value), d["corrected_value"].get("period_end") or period
+    elif d["decision"] == DecisionKind.REJECT and d["reason_code"] == DecisionReason.NOT_DISCLOSED:
         value, state = None, ValueState.NOT_FOUND
     else:
         return None  # escalate, or a reject that says nothing about the right answer
@@ -31,8 +32,13 @@ def _expected(d: ReviewDecision, field: dict) -> ExpectedValue | None:
 
 
 def export_cases(run_store: RunStore, run_id: str, decisions: list[ReviewDecision]) -> list[RecordGoldenCase]:
-    """One case per company with a usable decision; the last decision per item wins."""
-    last = {d.item_key: d for d in decisions}  # decisions arrive in append order
+    """One case per company with a usable decision. Only final decisions count: a first review still
+    waiting for its second (or a disagreement, or an escalation) is not a label yet."""
+    rows: dict[str, list[dict]] = {}
+    for d in decisions:  # append order; ReviewDecision rows always carry a step, so no legacy co-sign rule applies
+        rows.setdefault(d.item_key, []).append(d.model_dump(mode="json"))
+    states = {k: item_state(v, cosigned_at=set(), cosign_required=set()) for k, v in rows.items()}
+    last = {k: st.effective for k, st in states.items() if st.state in FINAL_STATES}
     refs = {c.company_id: c for c in run_store.load_companies(run_id) or []}
     cases = []
     for row in run_store.read_results(run_id):
