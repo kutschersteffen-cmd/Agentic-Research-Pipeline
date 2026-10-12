@@ -249,6 +249,8 @@ async def _extract_company(
         usages.extend(field_usages)
     fields.extend(f for slot in slots for f in slot)
 
+    # In a thread: a sync Postgres read here would stall every other company's LLM calls.
+    published = await asyncio.to_thread(_published_values, settings, key)
     fields = await check_record(
         schema,
         fields,
@@ -260,7 +262,7 @@ async def _extract_company(
             record_fields=fields,
             history=history,
             references=build_references(
-                fields, facts=facts, history=history, published=_published_values(settings, key),
+                fields, facts=facts, history=history, published=published,
                 company_id=company.company_id, issuer_key=key, specs={f.field_id: f for f in schema.fields},
             ),
         ),

@@ -256,7 +256,8 @@ async def test_pipeline_queues_one_row_per_flagged_field(pg, tmp_path, fake_llm)
             "AdjudicatorOutput": [_UNSETTLED, _UNSETTLED],
         }
     )
-    settings = _settings(tmp_path)
+    # One field at a time: the scripted answers are handed out in call order.
+    settings = _settings(tmp_path).model_copy(update={"max_concurrent_llm_calls": 1})
     run_store = RunStore(pg, settings.runs_dir)
     run_id = _released_run(schema, [company], settings, run_store)
     await execute_extraction_run(
