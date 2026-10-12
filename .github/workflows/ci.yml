@@ -101,6 +101,9 @@ jobs:
       - name: Typecheck + build
         run: npm run build
 
+      - name: Test
+        run: npm test
+
   # Optional live Superset suite (backend/tests/test_bi_live_superset.py), left
   # off: it needs a running, bootstrapped Superset (docker compose --env-file
   # backend/.env up -d postgres superset; arp bi bootstrap), not available on a
