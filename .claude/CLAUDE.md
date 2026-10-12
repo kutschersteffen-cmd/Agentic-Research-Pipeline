@@ -146,7 +146,19 @@ Keep that edit when re-copying from upstream.
 
 ## Mods
 
-Three mods live in `.claude/skills/` and load automatically at session start:
+Three mods live in `.claude/mods/`. The repo root is a plugin marketplace
+(`.claude-plugin/marketplace.json`, name `arp-mods`), and `install-plugins.sh` installs the mods
+from it like the plugins above, so they are live from the session after the one that installed
+them. They are read straight from `.claude/mods/`: after editing one, run `/reload-plugins`. By hand:
+
+```
+claude plugin marketplace add .
+claude plugin install runs-pane@arp-mods
+claude plugin install test-guard@arp-mods
+claude plugin install token-usage@arp-mods
+```
+
+Keep them out of `.claude/skills/`: a trusted workspace would load them from there a second time.
 
 - `test-guard` — toast + status line when an edit under `backend/tests/` or `frontend/tests/`
   removes tests or asserts (counted by regex). Never blocks the edit.
@@ -155,7 +167,7 @@ Three mods live in `.claude/skills/` and load automatically at session start:
 - `token-usage` — status line after each turn: context fill, session cost, rate-limit use
   (`ctx 45k/200k (23%) · $1.23 · 5h 42%`).
 
-Check one with `claude plugin validate .claude/skills/<mod>` and `claude plugin test .claude/skills/<mod>`.
+Check one with `claude plugin validate .claude/mods/<mod>` and `claude plugin test .claude/mods/<mod>`.
 
 # graphify
 - **graphify** (`.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`
