@@ -12,6 +12,7 @@ from arp.checks.runner import CheckContext, check_record
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry, UnreleasedFieldError
 from arp.extraction.aggregator import no_evidence_field
+from arp.extraction.derived import evaluate_derived
 from arp.extraction.field_graph import MAX_END_DRIFT_DAYS, days_apart, extract_one_field
 from arp.extraction.history import RunHistory
 from arp.extraction.pre_steps import prepare_company
@@ -173,6 +174,7 @@ async def _extract_company(
     ]
     usages: list[LLMUsage] = []
     to_extract, fields = plan_fields(schema, company)
+    to_extract = [f for f in to_extract if not f.derived_rule]  # derived fields never reach the LLM graph
     all_held = bool(documents) and not kept
     if all_held:  # nothing left to extract from: every field is a held no-evidence row
         to_extract, fields = [], [no_evidence_field(f)[0] for f in schema.fields]
@@ -267,6 +269,16 @@ async def _extract_company(
             ),
         ),
     )
+
+    # After check_record, so an input that failed a check flags the derived row. A rule skipped by
+    # applicability or an all-held run already has its row. First row per field_id: latest period.
+    by_id: dict[str, ExtractedField] = {}
+    for f in fields:
+        by_id.setdefault(f.field_id, f)
+    for d in schema.fields:
+        if d.derived_rule and d.field_id not in by_id:
+            by_id[d.field_id] = row = evaluate_derived(d, by_id)  # schema order: a rule may use an earlier derived field
+            fields.append(row)
 
     specs = {f.field_id: f for f in schema.fields}
     routed = []

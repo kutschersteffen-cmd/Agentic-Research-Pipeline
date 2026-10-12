@@ -97,6 +97,23 @@ class DocumentRouting(BaseModel):
     fallback: bool = True
 
 
+class DerivedRule(BaseModel):
+    """A boolean computed from other boolean fields by three-valued logic; never extracted."""
+
+    all_of: list[str] = Field(default_factory=list, description="True when every one is True; False when any is False.")
+    any_of: list[str] = Field(default_factory=list, description="True when any is True; False when all are False.")
+    min_true: int | None = Field(default=None, description="At least this many of all_of + any_of are True.")
+
+    @model_validator(mode="after")
+    def _usable(self) -> DerivedRule:
+        n = len({*self.all_of, *self.any_of})
+        if not n:
+            raise ValueError("a derived rule needs all_of or any_of")
+        if self.min_true is not None and not 1 <= self.min_true <= n:
+            raise ValueError(f"min_true must be between 1 and {n}")
+        return self
+
+
 class FieldDefinition(BaseModel):
     field_id: str = Field(default_factory=lambda: new_id("fld"))
     name: str
@@ -127,6 +144,15 @@ class FieldDefinition(BaseModel):
     xbrl_tags: list[str] = Field(
         default_factory=list, description="XBRL concepts, e.g. 'us-gaap:Revenues', tried in order before any model call."
     )
+    derived_rule: DerivedRule | None = Field(
+        default=None, description="Boolean fields only: computed from other fields by rule, with no model call."
+    )
+
+    @model_validator(mode="after")
+    def _derived_is_boolean(self) -> FieldDefinition:
+        if self.derived_rule and self.data_type != FieldDataType.BOOLEAN:
+            raise ValueError(f"{self.field_id}: derived_rule needs a boolean field")
+        return self
 
 
 class FieldQuality(BaseModel):
@@ -147,6 +173,16 @@ class DataPointSchema(BaseModel):
     release_flag: bool = False
     released_by: str | None = None
     released_at: str | None = None
+
+    @model_validator(mode="after")
+    def _derived_inputs_exist(self) -> DataPointSchema:
+        ids = {f.field_id for f in self.fields}
+        for f in self.fields:
+            if f.derived_rule:
+                bad = [i for i in (*f.derived_rule.all_of, *f.derived_rule.any_of) if i not in ids or i == f.field_id]
+                if bad:
+                    raise ValueError(f"{f.field_id}: derived_rule names unknown or self field_id(s): {', '.join(bad)}")
+        return self
 
 
 class Alternative(BaseModel):
