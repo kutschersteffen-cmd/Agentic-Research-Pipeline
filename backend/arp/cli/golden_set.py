@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 import typer
@@ -9,6 +10,7 @@ from arp.api.auth import Principal
 from arp.bi.eval import load_bi_cases, run_bi_set
 from arp.cli._shared import _run_store
 from arp.config import get_settings
+from arp.golden_set.export import export_cases
 from arp.golden_set.precision import load_record_cases, run_precision
 from arp.golden_set.role_runner import load_role_cases as load_role_golden_set_cases
 from arp.golden_set.role_runner import run_role_golden_set
@@ -18,6 +20,7 @@ from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.presets.registry import PRESETS
 from arp.review.items import list_open_items
 from arp.review.quality import seed_known_answers
+from arp.schemas.review import ReviewDecision
 
 golden_set_app = typer.Typer(help="Golden-set regression testing for the extraction pipeline -- run before every prompt/model change reaches a real batch.")
 
@@ -167,3 +170,17 @@ def golden_set_precision(
         raise typer.Exit(1)
     if report.precision < min_precision:
         raise typer.Exit(1)
+
+
+@golden_set_app.command("export-labels")
+def golden_set_export_labels(
+    run_id: str = typer.Option(..., "--run-id", help="Extraction run whose review decisions become labelled cases."),
+    out: Path = typer.Option(..., "--out", help="File to write the JSON array of RecordGoldenCase objects to."),
+) -> None:
+    """Turns a run's reviewer decisions (approve, correct, reject as not disclosed) into cases for
+    `golden-set precision`. Escalated and other rejected items are left out."""
+    run_store = _run_store()
+    decisions = [ReviewDecision.model_validate(r) for r in run_store.read_decisions(run_id)]
+    cases = export_cases(run_store, run_id, decisions)
+    out.write_text(json.dumps([c.model_dump(mode="json") for c in cases], indent=2))
+    typer.echo(f"Wrote {len(cases)} case(s), {sum(len(c.expected) for c in cases)} labelled value(s), to {out}.")
