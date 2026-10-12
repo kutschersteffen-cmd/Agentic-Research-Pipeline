@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import date
 from typing import TypedDict
 
@@ -135,7 +136,8 @@ async def _gather_evidence(state: FieldState) -> dict:
             "max_chunks": settings.evidence_max_chunks,
             "rerank_candidates": settings.rerank_candidates if settings.rerank_enabled else None,
         }
-    evidence = select_relevant_chunks(
+    evidence = await asyncio.to_thread(  # BM25/embedding/rerank are CPU-bound; keep them off the event loop
+        select_relevant_chunks,
         all_chunks,
         field.seed_keywords,
         doc_type_filter=None if field.document_routing else field.source_doc_types or None,

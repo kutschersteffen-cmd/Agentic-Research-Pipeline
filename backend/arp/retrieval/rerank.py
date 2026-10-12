@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 RERANK_MODEL_NAME = "BAAI/bge-reranker-v2-m3-int8"
 
 _model = None
-_warned = False
+_unavailable = False
 
 
 def _get_model():
@@ -29,17 +29,19 @@ def _score(query: str, texts: list[str]) -> list[float]:
 
 def rerank(query: str, chunks: list[DocumentChunk], top_n: int) -> list[DocumentChunk]:
     """At most `top_n` of `chunks`, best cross-encoder score first. If the
-    model can't load or score, returns `chunks[:top_n]` unchanged and warns
-    once per process -- reranking is a precision boost, never a hard dependency."""
-    global _warned
+    model can't load or score, returns `chunks[:top_n]` unchanged, warns once
+    and skips every later call in this process (no per-field reload retries)
+    -- reranking is a precision boost, never a hard dependency."""
+    global _unavailable
     if not chunks:
         return []
+    if _unavailable:
+        return chunks[:top_n]
     try:
         scores = _score(query, [c.text for c in chunks])
     except Exception as exc:
-        if not _warned:
-            _warned = True
-            logger.warning("Reranker unavailable (%s: %s); keeping retrieval order.", type(exc).__name__, exc)
+        _unavailable = True
+        logger.warning("Reranker unavailable (%s: %s); keeping retrieval order.", type(exc).__name__, exc)
         return chunks[:top_n]
     order = sorted(range(len(chunks)), key=lambda i: scores[i], reverse=True)  # stable on ties
     return [chunks[i] for i in order[:top_n]]
