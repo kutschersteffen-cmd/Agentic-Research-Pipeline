@@ -95,32 +95,32 @@ The plugin section stays. Additions, about 12 lines, giving roughly 147 lines in
 - Gate B: `pre-commit run --all-files` passes on the current tree.
 - Gate C: `cd frontend && npm test` passes locally before the CI step is added.
 
-## Cloud environment setup script (outside the repo)
+## Dependencies: installed on demand
 
-A fresh cloud container has no backend or frontend dependencies, so Gate A's first stop would
-block on them. Measured 2026-10-11: `pip install -e "backend[dev]"` took 9m16s,
-`npm ci` 12s. The person running the cloud environment adds this to its setup script (environment
-settings → Edit → Setup script), so it runs before the session starts:
+Changed 2026-10-12: installing everything in the cloud setup script made every session wait
+3–10 minutes, including sessions that never ran a test. `.claude/hooks/ensure-deps.sh
+backend|frontend|postgres|all` now installs each part only when it is missing (about 1 s when
+present):
+
+- `backend`: CPU-only torch first (docling would otherwise pull ~4 GB of CUDA libraries; install
+  9m16s → 3m07s), then `pip install -e "backend[dev]"`.
+- `frontend`: `npm ci` (about 12 s).
+- `postgres`: pgvector via apt if missing, start the service, create the `arp` user and
+  `arp_test` database (same as CI).
+
+Gate A calls it before its checks; its timeout is 900 s so a first install plus tests fits.
+Claude calls it before running tests by hand (`CLAUDE.md` Checks). `/install-deps` runs `all` in
+the background to warm a session up. A per-part `flock` makes concurrent calls wait for one
+install. Gate A defaults `ARP_TEST_POSTGRES_DSN` to the CI value and `ARP_CHROMIUM_PATH` to
+`/opt/pw-browsers/chromium` when it exists.
+
+The cloud setup script keeps only the plugin install:
 
 ```bash
 #!/bin/bash
 cd /home/user/Agentic-Research-Pipeline || exit 0
-pip install -q -e "backend[dev]"
-(cd frontend && npm ci --silent)
 bash .claude/hooks/install-plugins.sh
-# Postgres + pgvector for the backend tests (conftest fails without it), same DB as CI
-apt-get update -q && apt-get install -y -q postgresql-16-pgvector
-service postgresql start
-su postgres -c "psql -qc \"CREATE USER arp WITH PASSWORD 'arp' SUPERUSER;\"" || true
-su postgres -c "createdb -O arp arp_test" || true
 ```
-
-The plugin line also makes the plugins live in the first session instead of the second.
-Gate A defaults `ARP_TEST_POSTGRES_DSN` to the CI value
-(`postgresql+psycopg://arp:arp@localhost:5432/arp_test`) and `ARP_CHROMIUM_PATH` to
-`/opt/pw-browsers/chromium` when it exists. Verified 2026-10-12: with these, the 100 test files
-selected by a change to `backend/arp/config.py` pass (Gate A run 4m45s). Without Postgres every
-backend test run fails in `conftest.py`, so Gate A blocks with a "Postgres is not running" message.
 
 ## Open risks
 

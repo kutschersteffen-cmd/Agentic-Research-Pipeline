@@ -49,8 +49,12 @@ echo 'X = 1' > "$tmp/backend/arp/_ok.py"
 (cd "$tmp" && echo '{}' | bash "$hook" >/dev/null 2>&1)  # passes once, records the pass
 scenario unchanged_since_pass 0 "" '{}' PATH=/usr/bin/false-dir:/bin  # ruff unreachable: only a skip passes
 
+echo '// touch' >> "$tmp/frontend/src/main.tsx"
+scenario frontend_deps_installed 0 ""  # clone has no node_modules: the hook installs them
+[ -d "$tmp/frontend/node_modules" ] && echo "PASS node_modules_present" || { echo "FAIL node_modules_present"; failed=1; }
+
 git -C "$tmp" rm -q frontend/src/App.tsx
-scenario deleted_frontend_file 2 node_modules
+scenario deleted_frontend_file 2 App
 
 printf 'def test_x():\n    assert True\n' > "$tmp/backend/tests/test__ok.py"
 scenario postgres_down 2 Postgres '{}' PGPORT=1 ARP_TEST_POSTGRES_DSN=
