@@ -32,6 +32,13 @@ def harness(monkeypatch, tmp_path):
     seen = {}
     monkeypatch.setattr(precision, "content_store_for", lambda settings: None)  # needs Postgres otherwise
 
+    async def identity(company, **kwargs):
+        seen["prepared_with"] = kwargs
+        return company
+
+    monkeypatch.setattr(precision, "prepare_company", identity)
+    monkeypatch.setattr("arp.orchestration.jobs._xbrl_source", lambda settings: "xbrl")  # Settings() enables XBRL facts
+
     async def run(rows, expected):
         async def fake_extract(company, schema, **kwargs):
             seen["schema"], seen["kwargs"] = schema, kwargs
@@ -74,6 +81,10 @@ async def test_precision_review_rate_and_coverage(harness):
     assert all(f.status.value == "released" for f in seen["schema"].fields)
     assert seen["kwargs"]["qualities"][("a", 1)].first_audit_passed
     assert seen["kwargs"]["trial"] is False
+    assert "history" not in seen["kwargs"]
+    assert seen["kwargs"]["identifier_map"] is not None
+    assert seen["kwargs"]["xbrl_source"] == "xbrl"
+    assert seen["prepared_with"]["parent_run"][1] == "golden-precision"
 
 
 @pytest.mark.asyncio
@@ -91,6 +102,9 @@ async def test_not_found_matches_not_found_and_numbers_use_relative_tolerance(ha
     report, _ = await harness(rows, expected)
     assert report.auto_accepted_correct == 2
     assert [w["field_id"] for w in report.wrong_auto_accepted] == ["c"]
+    # reports the value that was compared (canonical), not the raw one that looks equal to the expected
+    wrong = report.wrong_auto_accepted[0]
+    assert (wrong["expected"], wrong["actual"], wrong["actual_raw"]) == (1000.0, 1006.0, 1000.0)
 
 
 @pytest.mark.asyncio
@@ -102,14 +116,11 @@ async def test_no_auto_accepted_rows_gives_no_precision(harness):
     assert report.review_rate == 1.0
 
 
-def test_cli_exits_non_zero_below_min_precision(monkeypatch, tmp_path):
-    from typer.testing import CliRunner
-
+def _cli_args(monkeypatch, tmp_path, report):
     from arp.cli import golden_set as cli
-    from arp.golden_set.schema import PrecisionReport
 
     async def fake_run(cases, **kwargs):
-        return PrecisionReport(schema_id="s", total=2, auto_accepted=2, auto_accepted_correct=1, precision=0.5, review_rate=0.0, coverage=1.0)
+        return report
 
     monkeypatch.setattr(cli, "run_precision", fake_run)
     monkeypatch.setattr(cli, "build_llm_client", lambda s: None)
@@ -117,6 +128,33 @@ def test_cli_exits_non_zero_below_min_precision(monkeypatch, tmp_path):
     cases = tmp_path / "cases.json"
     cases.write_text("[]")
     schema_id = next(iter(cli.PRESETS))
-    args = ["precision", "--schema", schema_id, "--cases", str(cases), "--documents-dir", str(tmp_path)]
+    return cli, ["precision", "--schema", schema_id, "--cases", str(cases), "--documents-dir", str(tmp_path)]
+
+
+def test_cli_exits_non_zero_below_min_precision(monkeypatch, tmp_path):
+    from typer.testing import CliRunner
+
+    from arp.golden_set.schema import PrecisionReport
+
+    report = PrecisionReport(schema_id="s", total=2, auto_accepted=2, auto_accepted_correct=1, precision=0.5, review_rate=0.0, coverage=1.0)
+    cli, args = _cli_args(monkeypatch, tmp_path, report)
     assert CliRunner().invoke(cli.golden_set_app, [*args, "--min-precision", "0.97"]).exit_code == 1
     assert CliRunner().invoke(cli.golden_set_app, [*args, "--min-precision", "0.4"]).exit_code == 0
+
+
+def test_cli_fails_when_nothing_was_auto_accepted(monkeypatch, tmp_path):
+    from typer.testing import CliRunner
+
+    from arp.golden_set.schema import PrecisionReport
+
+    report = PrecisionReport(schema_id="s", total=2, auto_accepted=0, auto_accepted_correct=0, precision=None, review_rate=1.0, coverage=0.0)
+    cli, args = _cli_args(monkeypatch, tmp_path, report)
+    result = CliRunner().invoke(cli.golden_set_app, [*args, "--min-precision", "0.0"])
+    assert result.exit_code == 1
+    assert "no value was auto-accepted" in result.output
+
+
+def test_found_expected_value_needs_a_value():
+    with pytest.raises(ValueError, match="needs a value"):
+        ExpectedValue(field_id="a", value_state=ValueState.FOUND)
+    ExpectedValue(field_id="a", value_state=ValueState.NOT_FOUND)

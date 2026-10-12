@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.datapoints import FieldDefinition, ValueState
@@ -67,6 +67,12 @@ class ExpectedValue(BaseModel):
     period_end: str | None = Field(default=None, description="None matches the field's latest-period row.")
     value: str | float | bool | None = None
     value_state: ValueState
+
+    @model_validator(mode="after")
+    def _found_needs_value(self) -> ExpectedValue:
+        if self.value_state == ValueState.FOUND and self.value is None:
+            raise ValueError(f"{self.field_id}: value_state=found needs a value")
+        return self
 
 
 class RecordGoldenCase(BaseModel):

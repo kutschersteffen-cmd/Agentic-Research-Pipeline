@@ -162,5 +162,8 @@ def golden_set_precision(
         f"{report.schema_id}: precision {precision} ({report.auto_accepted_correct}/{report.auto_accepted} auto-accepted), "
         f"coverage {report.coverage:.1%}, review rate {report.review_rate:.1%} of {report.total}."
     )
-    if report.precision is not None and report.precision < min_precision:
+    if report.auto_accepted == 0:  # nothing to measure: a run that auto-accepts nothing cannot pass the gate
+        typer.echo("FAIL: no value was auto-accepted, so precision is unmeasured.", err=True)
+        raise typer.Exit(1)
+    if report.precision < min_precision:
         raise typer.Exit(1)
