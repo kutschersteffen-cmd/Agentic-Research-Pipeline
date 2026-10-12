@@ -1,0 +1,1 @@
+{ "name": "runs-pane", "version": "0.1.0", "description": "Live pane of pipeline runs from `arp runs list`", "types": "./types/index.d.ts" }

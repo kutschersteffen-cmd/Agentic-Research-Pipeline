@@ -144,6 +144,17 @@ Keep that edit when re-copying from upstream.
 - `grilling` — only as the interview step of `/improve-codebase-architecture`. For planning,
   `superpowers:brainstorming` still owns the phase.
 
+## Mods
+
+Two mods live in `.claude/skills/` and load automatically at session start:
+
+- `test-guard` — toast + status line when an edit under `backend/tests/` or `frontend/tests/`
+  removes tests or asserts (counted by regex). Never blocks the edit.
+- `runs-pane` — live pane of `arp runs list`, refreshed every 15 s; `/runs` refreshes now.
+  Needs `ARP_POSTGRES_DSN` and the backend installed, else it shows the error.
+
+Check one with `claude plugin validate .claude/skills/<mod>` and `claude plugin test .claude/skills/<mod>`.
+
 # graphify
 - **graphify** (`.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`
 When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
