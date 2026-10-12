@@ -121,3 +121,14 @@ def test_ungrounded_value_always_reviews_once():
         assert r.kind == RouteKind.REVIEW and r.reasons == ["not_grounded"]
     r = route(_field(grounded=False, review_reasons=[ReasonCode.NOT_GROUNDED]), _AUDITED, _spec())
     assert r.reasons.count("not_grounded") == 1
+
+
+def test_boolean_not_applicable_goes_to_review():
+    spec = _spec().model_copy(update={"data_type": FieldDataType.BOOLEAN})
+    r = route(_field(value=None, value_state=ValueState.NOT_APPLICABLE), _AUDITED, spec)
+    assert (r.kind, r.reasons) == (RouteKind.REVIEW, ["boolean_not_applicable"])
+
+
+def test_non_boolean_not_applicable_unaffected():
+    r = route(_field(value=None, value_state=ValueState.NOT_APPLICABLE), _AUDITED, _spec())
+    assert (r.kind, r.reasons) == (RouteKind.AUTO_ACCEPT, [])

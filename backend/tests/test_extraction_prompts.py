@@ -53,3 +53,8 @@ def test_uncited_false_is_not_grounded():
     verifier = VerifierOutput(agrees=True, confidence=0.9, notes="ok")
     out = build_extracted_fields(_field(FieldDataType.BOOLEAN), draft, verifier, {}, fuzzy_threshold=0.9, confidence_review_threshold=0.6)
     assert ReasonCode.NOT_GROUNDED in out[0].review_reasons
+
+
+def test_boolean_rule_forbids_not_applicable():
+    assert "answer N/A, return an empty `values` list (not disclosed)" in BOOLEAN_RULE
+    assert "never use state not_applicable for a yes/no criterion" in BOOLEAN_RULE

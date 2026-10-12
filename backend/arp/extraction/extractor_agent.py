@@ -36,6 +36,8 @@ BOOLEAN_RULE = (
     "e.g. only an intensity target where an absolute target is asked for). If nothing in the evidence addresses "
     "the topic, return an empty `values` list (not disclosed): never return false for missing evidence. "
     "Where the extraction instructions say 'NO otherwise', apply NO only when the topic is addressed."
+    " Where the extraction instructions say to answer N/A, return an empty `values` list (not disclosed); "
+    "never use state not_applicable for a yes/no criterion."
 )
 
 
