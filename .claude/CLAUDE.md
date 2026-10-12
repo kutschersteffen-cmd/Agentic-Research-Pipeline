@@ -146,12 +146,14 @@ Keep that edit when re-copying from upstream.
 
 ## Mods
 
-Two mods live in `.claude/skills/` and load automatically at session start:
+Three mods live in `.claude/skills/` and load automatically at session start:
 
 - `test-guard` — toast + status line when an edit under `backend/tests/` or `frontend/tests/`
   removes tests or asserts (counted by regex). Never blocks the edit.
 - `runs-pane` — live pane of `arp runs list`, refreshed every 15 s; `/runs` refreshes now.
   Needs `ARP_POSTGRES_DSN` and the backend installed, else it shows the error.
+- `token-usage` — status line after each turn: context fill, session cost, rate-limit use
+  (`ctx 45k/200k (23%) · $1.23 · 5h 42%`).
 
 Check one with `claude plugin validate .claude/skills/<mod>` and `claude plugin test .claude/skills/<mod>`.
 
