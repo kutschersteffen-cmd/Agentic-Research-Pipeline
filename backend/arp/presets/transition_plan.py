@@ -24,7 +24,7 @@ def build_transition_plan_schema() -> DataPointSchema:
                     "(targets, governance, strategy, tracking).",
         fields=[
             FieldDefinition(
-                field_id=f"tp_{i.identifier.lower()}", name=i.identifier, description=i.question,
+                field_id="tp_" + i.identifier.lower().replace(" ", "_"), name=i.identifier, description=i.question,
                 data_type=FieldDataType.BOOLEAN, extraction_instructions=i.guideline,
                 seed_keywords=keywords[i.identifier], required=False, high_risk=True,
             )

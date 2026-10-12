@@ -31,3 +31,10 @@ def test_field_mirrors_source_indicator():
     f = next(f for f in build_transition_plan_schema().fields if f.name == "A_headline_1")
     src = next(i for i in load_indicators() if i.identifier == "A_headline_1")
     assert (f.field_id, f.description, f.extraction_instructions) == ("tp_a_headline_1", src.question, src.guideline)
+
+
+def test_field_ids_are_whitespace_free_and_unique():
+    ids = [f.field_id for f in build_transition_plan_schema().fields]
+    assert not any(c.isspace() for i in ids for c in i)
+    assert len(set(ids)) == len(ids)
+    assert "tp_a_fossil_fuels_50" in ids
