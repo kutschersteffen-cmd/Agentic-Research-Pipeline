@@ -6,9 +6,12 @@
 # A per-part lock makes concurrent calls wait for one install instead of racing.
 
 cd "$(git rev-parse --show-toplevel)" || exit 1
+# The backend venv when there is one (a local checkout, e.g. Windows), else python3 (cloud).
+PY=python3
+for v in "$PWD/backend/.venv/bin/python" "$PWD/backend/.venv/Scripts/python.exe"; do [ -x "$v" ] && { PY=$v; break; }; done
 
 backend() {
-  python3 -c 'import fastapi, pytest' 2>/dev/null && command -v ruff >/dev/null && return 0
+  "$PY" -c 'import fastapi, pytest, ruff' 2>/dev/null && return 0
   echo "Installing backend dependencies (~3 min)..." >&2
   # CPU-only torch first: docling would otherwise pull ~4 GB of CUDA libraries.
   pip install -q torch --index-url https://download.pytorch.org/whl/cpu &&
@@ -23,6 +26,8 @@ frontend() {
 
 postgres() {  # same DB as CI: postgresql+psycopg://arp:arp@localhost:5432/arp_test
   pg_isready -q -h localhost 2>/dev/null && return 0
+  # No pg_isready (Windows, Postgres in Docker): an open port counts.
+  "$PY" -c "import socket; socket.create_connection(('127.0.0.1', 5432), 2)" 2>/dev/null && return 0
   if [ ! -f /usr/share/postgresql/16/extension/vector.control ]; then
     command -v apt-get >/dev/null || { echo "Postgres 16 with pgvector is not installed; install it or set ARP_TEST_POSTGRES_DSN." >&2; return 1; }
     echo "Installing Postgres + pgvector (~1 min)..." >&2
@@ -34,7 +39,8 @@ postgres() {  # same DB as CI: postgresql+psycopg://arp:arp@localhost:5432/arp_t
   pg_isready -q -h localhost 2>/dev/null || { echo "Postgres is not running on localhost." >&2; return 1; }
 }
 
-locked() {  # locked PART: run PART under its lock
+locked() {  # locked PART: run PART under its lock (unlocked without flock, e.g. Git Bash)
+  command -v flock >/dev/null || { "$1"; return; }
   ( flock 9; "$1" ) 9>"${TMPDIR:-/tmp}/ensure-deps-$1.lock"
 }
 
