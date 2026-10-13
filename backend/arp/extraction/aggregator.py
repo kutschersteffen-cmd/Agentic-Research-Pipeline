@@ -61,7 +61,11 @@ def build_extracted_fields(
         if verifier.agrees:
             f, _ = no_evidence_field(field)
             # Nothing claimed, nothing to ground (as before typed values).
-            return [f.model_copy(update={"grounded": True, "verifier_notes": "The extractor found no disclosed value."})]
+            # The verifier confidence marks the row as checked by a second pass (routing reads it).
+            return [f.model_copy(update={
+                "grounded": True, "verifier_notes": "The extractor found no disclosed value.",
+                "extractor_confidence": draft.confidence, "verifier_confidence": verifier.confidence,
+            })]
         # The verifier says a value exists: keep that claim visible (ungrounded) for review.
         values = [PeriodValue(state=ValueState.NOT_FOUND)]
 

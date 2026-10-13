@@ -47,3 +47,44 @@ async def test_gather_evidence_passes_rerank_settings(monkeypatch):
     assert (seen[0]["max_chunks"], seen[0]["rerank_candidates"], seen[0]["fallback_to_all"]) == (7, 33, True)
     assert (seen[1]["max_chunks"], seen[1]["rerank_candidates"]) == (12, None)
     assert "max_chunks" not in seen[2] and "rerank_candidates" not in seen[2]
+
+
+async def _route_boolean(fake_llm, drafts, adjudications=(), *, keyword="shoes", settings=None):
+    """A released, audited, high-risk boolean field through the real field graph and routing."""
+    from arp.extraction.routing import route
+    from arp.schemas.datapoints import FieldQuality, FieldStatus
+
+    field = FieldDefinition(
+        field_id="crit", name="crit", description="d", data_type=FieldDataType.BOOLEAN, extraction_instructions="look",
+        seed_keywords=[keyword], high_risk=True, status=FieldStatus.RELEASED,
+    )
+    llm = fake_llm({"ExtractionDraft": list(drafts), "AdjudicatorOutput": list(adjudications)})
+    rows, _, _ = await extract_one_field(
+        "Acme", field, documents=[_DOC], documents_by_id={_DOC.doc_id: _DOC}, llm=llm, verifier_llm=llm,
+        settings=settings, fuzzy_threshold=0.9, confidence_review_threshold=0.6,
+    )
+    audited = FieldQuality(field_id="crit", version=field.version, first_audit_passed=True)
+    return [route(r, audited, field) for r in rows]
+
+
+async def test_agreed_high_risk_not_found_auto_accepts_end_to_end(fake_llm):
+    from arp.schemas.datapoints import RouteKind
+
+    routes = await _route_boolean(fake_llm, [ExtractionDraft(confidence=0.9), ExtractionDraft(confidence=0.8)])
+    assert [(r.kind, r.reasons) for r in routes] == [(RouteKind.AUTO_ACCEPT, [])]
+
+
+async def test_blind_verifier_finding_a_value_sends_not_found_to_review(fake_llm):
+    from arp.extraction.adjudicator import AdjudicatorOutput
+    from arp.extraction.extractor_agent import PeriodValue
+    from arp.schemas.common import Citation
+    from arp.schemas.datapoints import RouteKind
+
+    found = PeriodValue(value=True, raw_value_text="We sell shoes", citations=[
+        Citation(doc_id=_DOC.doc_id, doc_type=_DOC.doc_type, quote="We sell shoes."),
+    ])
+    routes = await _route_boolean(
+        fake_llm, [ExtractionDraft(confidence=0.9), ExtractionDraft(values=[found], confidence=0.8)],
+        [AdjudicatorOutput(settled=False, notes="unclear")],
+    )
+    assert routes[0].kind == RouteKind.REVIEW and "verifier_disagrees" in routes[0].reasons
