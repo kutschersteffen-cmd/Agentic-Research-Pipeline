@@ -9,7 +9,7 @@ computes**, and **every citation is re-verified programmatically** against
 the source document rather than trusted from the model's self-report.
 
 Python (FastAPI + Typer CLI) backend, React/TypeScript (Vite) frontend,
-file-based state by default — no database required.
+Postgres + pgvector as the system of record (required).
 
 ## Functions
 
@@ -40,7 +40,8 @@ file-based state by default — no database required.
 ```
 backend/   Python (FastAPI + Typer CLI) — every agent pipeline
 frontend/  React + TypeScript (Vite) — authoring, monitoring, review UI
-runs/      file-based run state: manifest, results, errors, review queue
+Postgres   system of record (+ pgvector): companies, runs, review, facts, documents, embeddings, holdings
+runs/      run side files with no table: snapshots, events, restatement candidates
 taxonomies/ portfolios/ reports/ report_templates/ data/documents/
 frameworks/ versioned decision frameworks + the tables they are applied to
 indices/   index construction calibrations (versioned, effective-dated) + reviews
@@ -52,14 +53,15 @@ indices/   index construction calibrations (versioned, effective-dated) + review
 - **LangGraph** models each per-company multi-step flow as an explicit state
   graph (the classification debate, the extractor/verifier pair, …). Batch
   fan-out, checkpointing and resumability stay outside the graphs, in the
-  file-based run store.
+  Postgres run store (`arp/db/runs.py`).
 - **LlamaIndex** backs chunking and BM25 evidence selection; hybrid
   (BM25 + local multilingual embedding) retrieval is on by default.
 - **`arp/grounding.py`** is independent of all three and re-verifies every
   citation against the original document text.
 
-Every run type is checkpointed and resumable — results append to
-`runs/<run_id>/results.jsonl` as each company finishes, so an interrupted
+Every run type is checkpointed and resumable — each company's result
+is committed to Postgres in one transaction as it finishes, and a resume
+skips every result key already stored, so an interrupted
 batch picks back up without redoing completed work. Runs can be cancelled
 cooperatively (`arp runs cancel`) and resumed later.
 
