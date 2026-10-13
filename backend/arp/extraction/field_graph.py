@@ -112,11 +112,13 @@ def _route_after_tagged(state: FieldState) -> str:
     return "end" if state["extracted"] else "gather_evidence"
 
 
-async def _gather_evidence(state: FieldState) -> dict:
-    field = state["field"]
-    settings = state["settings"]
+def field_evidence(
+    field: FieldDefinition, documents: list[SourceDocument], settings: Settings | None, on_unranked_fallback=None
+) -> list[DocumentChunk]:
+    """The ranked evidence one field's extraction sees. Blocking (BM25/embedding/rerank are
+    CPU-bound); `golden-set retrieval` replays it, so the eval measures exactly this path."""
     all_chunks: list[DocumentChunk] = []
-    for doc in route_documents(field, state["documents"]):
+    for doc in route_documents(field, documents):
         all_chunks.extend(chunk_document(doc, keywords=field.seed_keywords))
     all_chunks = section_filter(field, all_chunks)
 
@@ -138,9 +140,7 @@ async def _gather_evidence(state: FieldState) -> dict:
             "max_chunks": settings.evidence_max_chunks,
             "rerank_candidates": settings.rerank_candidates if settings.rerank_enabled else None,
         }
-    unranked: list[bool] = []
-    evidence = await asyncio.to_thread(  # BM25/embedding/rerank are CPU-bound; keep them off the event loop
-        select_relevant_chunks,
+    return select_relevant_chunks(
         all_chunks,
         field.seed_keywords,
         doc_type_filter=None if field.document_routing else field.source_doc_types or None,
@@ -149,8 +149,15 @@ async def _gather_evidence(state: FieldState) -> dict:
         retrieval_backend=settings.retrieval_backend if settings is not None else "bm25",
         opensearch_client=opensearch_client,
         fallback_to_all=field.high_risk,
-        on_unranked_fallback=lambda: unranked.append(True),
+        on_unranked_fallback=on_unranked_fallback,
         **limits,
+    )
+
+
+async def _gather_evidence(state: FieldState) -> dict:
+    unranked: list[bool] = []
+    evidence = await asyncio.to_thread(  # keep the CPU-bound ranking off the event loop
+        field_evidence, state["field"], state["documents"], state["settings"], lambda: unranked.append(True)
     )
     return {"evidence": evidence, "evidence_unranked": bool(unranked)}
 
