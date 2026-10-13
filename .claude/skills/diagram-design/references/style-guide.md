@@ -16,17 +16,19 @@ Every token is referred to by **semantic role**, not by its hex value. Type refe
 
 | Role | Purpose | Default (light) | Default (dark) |
 |---|---|---|---|
-| `paper` | Page background, default node fill | `#f5f5f5` (white-smoke) | `#2d3142` (jet-black) |
-| `paper-2` | Diagram container bg, secondary fill | `#ececec` | `#393e53` |
-| `ink` | Primary text, primary stroke | `#2d3142` (jet-black) | `#f5f5f5` (white-smoke) |
-| `ink-strong` | High-contrast text on warm accent fills | `#111111` | `#111111` |
-| `muted` | Secondary text, default arrow stroke | `#4f5d75` (blue-slate) | `#bfc0c0` (silver) |
-| `soft` | Sublabels, boundary labels | `#5a6580` | `#949eb2` |
-| `rule` | Hairline borders | `rgba(45,49,66,0.12)` | `rgba(245,245,245,0.12)` |
-| `rule-solid` | Stronger borders, baselines | `#bfc0c0` (silver) | `rgba(191,192,192,0.25)` |
-| `accent` | Focal / 1–2 max per diagram | `#bf4520` (burnt-tangerine) | `#f08a59` |
-| `accent-tint` | Fill for accent-bordered boxes | `rgba(191,69,32,0.08)` | `rgba(240,138,89,0.10)` |
-| `link` | HTTP/API calls, external arrows | `#2e5aa8` | `#739fdf` |
+| `paper` | Page background, default node fill | `#f3f3f0` (graphite ground) | `#0c0d0f` (night ground) |
+| `paper-2` | Diagram container bg, secondary fill | `#ebebe7` (well grey) | `#18191c` (night well) |
+| `ink` | Primary text, primary stroke | `#141414` (ink) | `#e8e8e3` (night ink) |
+| `ink-strong` | High-contrast text on warm accent fills | `#000000` | `#000000` |
+| `muted` | Secondary text, default arrow stroke | `#5c5c57` (muted graphite) | `#9a9ba0` (night muted) |
+| `soft` | Sublabels, boundary labels | `#5c5c57` | `#9a9ba0` |
+| `rule` | Hairline borders | `rgba(20,20,20,0.12)` | `rgba(232,232,227,0.12)` |
+| `rule-solid` | Stronger borders, baselines | `#dcdcd7` (hairline) | `#26272c` (night hairline) |
+| `accent` | Focal / 1–2 max per diagram | `#b8400f` (signal orange ink) | `#c6ff3d` (signal lime) |
+| `accent-tint` | Fill for accent-bordered boxes | `#ffe6db` (signal orange wash) | `#33420c` (signal lime wash) |
+| `link` | HTTP/API calls, external arrows | `#141414` | `#e8e8e3` |
+
+> **Project skin: Agentic Research Pipeline.** Tokens come from the repo's `DESIGN.md` and `frontend/src/index.css`. The accent is the app's one signal colour, so it follows **The One Signal Rule**: use it only where *a person must act* (a proposal awaiting ratification, a flag awaiting review), never for "important" or the happy path. The app is monochrome with no link colour, so `link` is ink; tell external calls apart by a dashed stroke, not by hue. Contrast on `paper`: ink 16.6:1, muted 6.1:1, accent 5.0:1 (4.7:1 on `accent-tint`); dark accent 16.5:1. The app sets everything in Geist, so the title is Geist 600 too (this overrides the serif constraint below for this repo). Nodes are square (`radius-md` 0) to match the app's ruled instrument-panel look; start/end ovals keep their round ends because the shape carries meaning.
 
 > **Brand palette source:** this skin maps to a five-color brand palette: `jet-black #2d3142`, `silver #bfc0c0`, `white-smoke #f5f5f5`, `atomic-tangerine`, `blue-slate #4f5d75`. The light `accent` is not the raw brand tangerine. Raw atomic-tangerine reads 2.86:1 on `paper`, too faint for an arrow or a label, so the skin uses `#bf4520`, the same hue darkened until it clears 4.5:1 as text. The `soft`, `rule`, and `link` tokens are derived (a darker slate, ink at opacity, and a saturated variant in the blue-slate hue family) to cover roles the brand palette doesn't name directly. Every derived value is held to the contrast contract below.
 
@@ -90,7 +92,7 @@ A self-contained palette for the terminal-window primitive (see [primitive-termi
 
 | Role | Family | Size | Weight | Usage |
 |---|---|---|---|---|
-| `title` | Instrument Serif | 1.75rem | 400 | Page H1 |
+| `title` | Geist (sans) | 1.75rem | 600, tracked -0.035em | Page H1 (project skin: DESIGN.md is all Geist) |
 | `node-name` | Geist (sans) | 12px | 600 | Human-readable labels |
 | `sublabel` | Geist Mono | 9px | 400 | Port, protocol, URL, field type |
 | `eyebrow` | Geist Mono | 7–8px | 500, tracked 0.18em, uppercase | Type tags, axis labels |
@@ -191,9 +193,9 @@ Counting by script is still the trap. `Шкаф ODF-2` is four Cyrillic letters,
 | `stroke-thin` | `0.8` | Tag-box outlines, leaf nodes |
 | `stroke-default` | `1` | Most strokes |
 | `stroke-strong` | `1.2` | Emphasis strokes |
-| `radius-sm` | `4` | Small tags |
-| `radius-md` | `6` | Node boxes |
-| `radius-lg` | `8` | Containers, rings |
+| `radius-sm` | `2` | Small tags |
+| `radius-md` | `0` | Node boxes (square, per the project skin) |
+| `radius-lg` | `0` | Containers (square, per the project skin) |
 | `grid` | `4` | Every coord, size, and gap is divisible by 4 (hard rule) |
 
 ---
