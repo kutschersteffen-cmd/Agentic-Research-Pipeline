@@ -88,3 +88,37 @@ async def test_blind_verifier_finding_a_value_sends_not_found_to_review(fake_llm
         [AdjudicatorOutput(settled=False, notes="unclear")],
     )
     assert routes[0].kind == RouteKind.REVIEW and "verifier_disagrees" in routes[0].reasons
+
+
+async def test_agreed_not_found_on_unranked_fallback_evidence_goes_to_review(fake_llm):
+    from arp.config import Settings
+    from arp.schemas.datapoints import RouteKind
+
+    drafts = [ExtractionDraft(confidence=0.9), ExtractionDraft(confidence=0.8)]
+    bm25_only = Settings(hybrid_retrieval_enabled=False, rerank_enabled=False)
+    for settings in (bm25_only, None):  # a keyword miss hands both passes the first chunks in document order
+        routes = await _route_boolean(fake_llm, drafts, keyword="zzzunmatched", settings=settings)
+        assert [(r.kind, r.reasons) for r in routes] == [(RouteKind.REVIEW, ["high_risk_not_found_unranked"])]
+
+
+async def test_agreed_not_found_on_hybrid_ranked_fallback_auto_accepts(fake_llm, monkeypatch):
+    import numpy as np
+
+    from arp.config import Settings
+    from arp.retrieval import content_store_factory, embeddings
+    from arp.schemas.datapoints import RouteKind
+
+    class _Store:
+        def lookup_embeddings(self, chunk_ids, model):
+            return {}
+
+        def store_embeddings(self, vectors, model):
+            pass
+
+    monkeypatch.setattr(content_store_factory, "build_hybrid_content_store", lambda settings: _Store())
+    monkeypatch.setattr(embeddings, "embed_texts", lambda texts: [np.ones(3, dtype=np.float32) for _ in texts])
+    drafts = [ExtractionDraft(confidence=0.9), ExtractionDraft(confidence=0.8)]
+    routes = await _route_boolean(
+        fake_llm, drafts, keyword="zzzunmatched", settings=Settings(hybrid_retrieval_enabled=True, rerank_enabled=False)
+    )
+    assert [(r.kind, r.reasons) for r in routes] == [(RouteKind.AUTO_ACCEPT, [])]

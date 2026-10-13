@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+from collections.abc import Callable
 
 import numpy as np
 
@@ -97,6 +98,7 @@ def select_relevant_chunks(
     retrieval_backend: str = "bm25",
     opensearch_client=None,
     rerank_candidates: int | None = None,
+    on_unranked_fallback: Callable[[], None] | None = None,
 ) -> list[DocumentChunk]:
     """BM25-ranked evidence selection applied before any extraction/
     matching LLM call, so a call's context stays small (higher precision,
@@ -149,6 +151,9 @@ def select_relevant_chunks(
       ranking (fused, BM25, or the `fallback_to_all` candidates) are reordered
       by the local cross-encoder (see arp/retrieval/rerank.py) and the best
       `max_chunks` kept. None (default) leaves the ranking untouched.
+    - `on_unranked_fallback`: called when `fallback_to_all` returns candidates
+      that nothing ranked (no keyword hit, no vector ranking, no reranker), i.e.
+      the first chunks in document order.
     """
     candidates = chunks
     if doc_type_filter:
@@ -182,6 +187,8 @@ def select_relevant_chunks(
     use_hybrid = hybrid_retrieval_enabled and content_store is not None
     if not use_hybrid:
         if require_hit and not scored and fallback_to_all:
+            if on_unranked_fallback is not None and rerank_candidates is None:
+                on_unranked_fallback()
             return finish(candidates)
         return finish([by_id[chunk_id] for chunk_id, _ in scored])
 

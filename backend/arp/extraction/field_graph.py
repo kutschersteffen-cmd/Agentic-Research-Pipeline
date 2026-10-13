@@ -18,7 +18,8 @@ from arp.orchestration.step_tally import run_graph
 from arp.planning.doc_routing import route_documents, section_filter
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import DocumentChunk, ProvenanceInfo, SourceDocument
-from arp.schemas.datapoints import ExtractedField, FieldDefinition
+from arp.schemas.datapoints import ExtractedField, FieldDefinition, ValueState
+from arp.schemas.review import ReasonCode
 
 
 class FieldState(TypedDict):
@@ -35,6 +36,7 @@ class FieldState(TypedDict):
     planned_periods: list[str] | None
     confidence_review_threshold: float
     evidence: list[DocumentChunk]
+    evidence_unranked: bool
     draft: ExtractionDraft | None
     verifier: VerifierOutput | None
     adjudicator: AdjudicatorOutput | None
@@ -136,6 +138,7 @@ async def _gather_evidence(state: FieldState) -> dict:
             "max_chunks": settings.evidence_max_chunks,
             "rerank_candidates": settings.rerank_candidates if settings.rerank_enabled else None,
         }
+    unranked: list[bool] = []
     evidence = await asyncio.to_thread(  # BM25/embedding/rerank are CPU-bound; keep them off the event loop
         select_relevant_chunks,
         all_chunks,
@@ -146,9 +149,10 @@ async def _gather_evidence(state: FieldState) -> dict:
         retrieval_backend=settings.retrieval_backend if settings is not None else "bm25",
         opensearch_client=opensearch_client,
         fallback_to_all=field.high_risk,
+        on_unranked_fallback=lambda: unranked.append(True),
         **limits,
     )
-    return {"evidence": evidence}
+    return {"evidence": evidence, "evidence_unranked": bool(unranked)}
 
 
 def _route_after_evidence(state: FieldState) -> str:
@@ -221,6 +225,14 @@ async def _aggregate(state: FieldState) -> dict:
         field_version=state["field"].version,
     )
     extracted = [f.model_copy(update={"provenance": provenance}) for f in extracted]
+    if state["evidence_unranked"]:
+        # Both passes saw the first chunks in document order (only a high-risk field falls back), so their
+        # agreement that nothing is there proves nothing.
+        extracted = [
+            f.model_copy(update={"review_reasons": [*f.review_reasons, ReasonCode.HIGH_RISK_NOT_FOUND_UNRANKED]})
+            if f.value_state == ValueState.NOT_FOUND else f
+            for f in extracted
+        ]
     return {"extracted": extracted, "needs_review": any(f.review_reasons for f in extracted)}
 
 
@@ -290,6 +302,7 @@ async def extract_one_field(
         "fiscal_year_end": fiscal_year_end,
         "planned_periods": planned_periods,
         "evidence": [],
+        "evidence_unranked": False,
         "draft": None,
         "verifier": None,
         "adjudicator": None,

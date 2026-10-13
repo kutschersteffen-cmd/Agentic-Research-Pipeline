@@ -207,3 +207,16 @@ def test_concurrent_vector_rankings_embed_each_chunk_once(monkeypatch):
     for t in threads:
         t.join()
     assert (embedded["alpha"], embedded["beta"]) == (1, 1)
+
+
+def test_reports_an_unranked_fallback_only(monkeypatch):
+    from arp.retrieval import rerank
+
+    monkeypatch.setattr(rerank, "_score", lambda q, texts: [0.0] * len(texts))
+    chunks, calls = [_chunk("alpha"), _chunk("beta")], []
+    flag = lambda: calls.append(1)  # noqa: E731
+    select_relevant_chunks(chunks, ["zzz"], fallback_to_all=True, on_unranked_fallback=flag)
+    assert calls == [1]
+    select_relevant_chunks(chunks, ["alpha"], fallback_to_all=True, on_unranked_fallback=flag)  # a hit: BM25 ranked
+    select_relevant_chunks(chunks, ["zzz"], fallback_to_all=True, rerank_candidates=2, on_unranked_fallback=flag)
+    assert calls == [1]
