@@ -32,9 +32,10 @@ def _correct(expected: ExpectedValue, row: ExtractedField) -> bool:
         return False
     if expected.value is None:
         return True
-    actual = _compared(row)
     is_number = isinstance(expected.value, (int, float)) and not isinstance(expected.value, bool)
-    return _values_match(expected.value, actual, _NUMBER_TOLERANCE * abs(expected.value) if is_number else 0.0)
+    tolerance = _NUMBER_TOLERANCE * abs(expected.value) if is_number else 0.0
+    # A label may be the figure as printed (raw) or in the field's unit (canonical): either one matches.
+    return any(_values_match(expected.value, v, tolerance) for v in (row.value, row.canonical_value) if v is not None)
 
 
 def _find_row(expected: ExpectedValue, rows: list[ExtractedField]) -> ExtractedField | None:

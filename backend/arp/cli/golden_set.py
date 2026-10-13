@@ -11,6 +11,7 @@ from arp.api.auth import Principal
 from arp.bi.eval import load_bi_cases, run_bi_set
 from arp.cli._shared import _run_store
 from arp.config import get_settings
+from arp.extraction.pipeline import load_run_schema
 from arp.golden_set.export import export_cases
 from arp.golden_set.precision import load_record_cases, run_precision
 from arp.golden_set.role_runner import load_role_cases as load_role_golden_set_cases
@@ -189,6 +190,6 @@ def golden_set_export_labels(
             legacy += 1
     if legacy:
         typer.echo(f"Skipped {legacy} legacy decision row(s) that do not match the current review schema.", err=True)
-    cases = export_cases(run_store, run_id, decisions)
+    cases = export_cases(run_store, run_id, decisions, schema=load_run_schema(run_store, run_id))
     out.write_text(json.dumps([c.model_dump(mode="json") for c in cases], indent=2))
     typer.echo(f"Wrote {len(cases)} case(s), {sum(len(c.expected) for c in cases)} labelled value(s), to {out}.")

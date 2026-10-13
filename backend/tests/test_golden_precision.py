@@ -92,7 +92,7 @@ async def test_not_found_matches_not_found_and_numbers_use_relative_tolerance(ha
     rows = [
         _row("a", None, RouteKind.AUTO_ACCEPT, state=ValueState.NOT_FOUND),
         _row("b", 1000.0, RouteKind.AUTO_ACCEPT, canonical=1004.0),  # within 0.5% of canonical
-        _row("c", 1000.0, RouteKind.AUTO_ACCEPT, canonical=1006.0),  # outside
+        _row("c", 1006.0, RouteKind.AUTO_ACCEPT, canonical=1006000.0),  # outside, raw and canonical
     ]
     expected = [
         ExpectedValue(field_id="a", value_state=ValueState.NOT_FOUND),
@@ -102,9 +102,28 @@ async def test_not_found_matches_not_found_and_numbers_use_relative_tolerance(ha
     report, _ = await harness(rows, expected)
     assert report.auto_accepted_correct == 2
     assert [w["field_id"] for w in report.wrong_auto_accepted] == ["c"]
-    # reports the value that was compared (canonical), not the raw one that looks equal to the expected
+    # reports the canonical value and the raw one
     wrong = report.wrong_auto_accepted[0]
-    assert (wrong["expected"], wrong["actual"], wrong["actual_raw"]) == (1000.0, 1006.0, 1000.0)
+    assert (wrong["expected"], wrong["actual"], wrong["actual_raw"]) == (1000.0, 1006000.0, 1006.0)
+
+
+@pytest.mark.asyncio
+async def test_expected_value_matches_raw_or_canonical(harness):
+    rows = [
+        _row("raw", 1234.0, RouteKind.AUTO_ACCEPT, canonical=1.234e9),  # "EUR 1,234 million", labelled as printed
+        _row("canon", 1234.0, RouteKind.AUTO_ACCEPT, canonical=1.234e9),
+        _row("near", 1234.0, RouteKind.AUTO_ACCEPT, canonical=1.234e9),
+        _row("off", 1234.0, RouteKind.AUTO_ACCEPT, canonical=1.234e9),
+    ]
+    expected = [
+        ExpectedValue(field_id="raw", value=1234.0, value_state=ValueState.FOUND),
+        ExpectedValue(field_id="canon", value=1.234e9, value_state=ValueState.FOUND),
+        ExpectedValue(field_id="near", value=1238.0, value_state=ValueState.FOUND),  # within 0.5% of the raw value
+        ExpectedValue(field_id="off", value=1250.0, value_state=ValueState.FOUND),
+    ]
+    report, _ = await harness(rows, expected)
+    assert [w["field_id"] for w in report.wrong_auto_accepted] == ["off"]
+    assert report.auto_accepted_correct == 3
 
 
 @pytest.mark.asyncio

@@ -97,6 +97,7 @@ def test_cli_writes_cases_that_the_harness_loads(monkeypatch, tmp_path):
     store.read_decisions = lambda run_id: [
         legacy, _decision("scope2", DecisionKind.APPROVE, DecisionReason.CONFIRMED).model_dump(mode="json")
     ]
+    store.run_dir = lambda run_id: tmp_path  # no schema.json: values stay as stored
     monkeypatch.setattr(cli, "_run_store", lambda: store)
     out = tmp_path / "cases.json"
     result = CliRunner().invoke(cli.golden_set_app, ["export-labels", "--run-id", "run", "--out", str(out)])
@@ -104,3 +105,51 @@ def test_cli_writes_cases_that_the_harness_loads(monkeypatch, tmp_path):
     assert "Skipped 1 legacy decision row(s)" in result.output
     [case] = load_record_cases(out)
     assert [(e.field_id, e.value) for e in case.expected] == [("scope2", 50.0)]
+
+
+def _typed_schema():
+    from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
+
+    def f(field_id, data_type):
+        return FieldDefinition(field_id=field_id, name=field_id, description="d", extraction_instructions="x", data_type=data_type)
+
+    return DataPointSchema(name="s", fields=[
+        f("capex", FieldDataType.CURRENCY_AMOUNT), f("crit", FieldDataType.BOOLEAN), f("crit2", FieldDataType.BOOLEAN),
+        f("n", FieldDataType.NUMBER), f("blank", FieldDataType.NUMBER), f("name", FieldDataType.STRING),
+    ])
+
+
+def test_corrected_values_are_typed_by_the_field():
+    rows = [{"company_id": "acme", "issuer_key": ISSUER, "fields": [
+        _field(i, None, state="not_found") for i in ("capex", "crit", "crit2", "n", "blank", "name")
+    ]}]
+    corrected = {"capex": "1,234", "crit": "false", "crit2": "Yes", "n": "0", "blank": "  ", "name": "0"}
+    decisions = [_decision(i, DecisionKind.CORRECT, DecisionReason.WRONG_VALUE, corrected={"value": v}) for i, v in corrected.items()]
+    [case] = export_cases(StubStore(rows), "run", decisions, schema=_typed_schema())
+    got = {e.field_id: (e.value, e.value_state) for e in case.expected}
+    assert got == {
+        "capex": (1234.0, ValueState.FOUND),
+        "crit": (False, ValueState.FOUND),
+        "crit2": (True, ValueState.FOUND),
+        "n": (0.0, ValueState.ZERO),
+        "blank": (None, ValueState.NOT_FOUND),
+        "name": ("0", ValueState.FOUND),  # a string field keeps its text
+    }
+
+
+def test_exported_labels_score_against_the_rows_they_came_from():
+    from arp.golden_set.precision import _correct
+    from arp.schemas.datapoints import ExtractedField
+
+    scaled = ExtractedField(field_id="capex", field_name="capex", value=1234.0, canonical_value=1.234e9, confidence=0.9)
+    no = ExtractedField(field_id="crit", field_name="crit", value=False, confidence=0.9)
+    rows = [{"company_id": "acme", "issuer_key": ISSUER, "fields": [
+        {**scaled.model_dump(mode="json"), "value": 1234.0}, _field("crit", True),
+    ]}]
+    decisions = [
+        _decision("capex", DecisionKind.APPROVE, DecisionReason.CONFIRMED),
+        _decision("crit", DecisionKind.CORRECT, DecisionReason.WRONG_VALUE, corrected={"value": "false"}),
+    ]
+    [case] = export_cases(StubStore(rows), "run", decisions, schema=_typed_schema())
+    by_id = {e.field_id: e for e in case.expected}
+    assert _correct(by_id["capex"], scaled) and _correct(by_id["crit"], no)
