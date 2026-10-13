@@ -40,7 +40,7 @@ class SentimentScoreDraft(BaseModel):
 async def score_document_sentiment(ticker: str, document: SourceDocument, llm: LLMClient) -> tuple[SentimentScoreDraft, LLMUsage]:
     prompt = (
         f"Ticker: {ticker}\n"
-        f"Document date: {document.fiscal_period or document.fetched_at}\n\n"
+        f"Document date: {document.published_at or document.fiscal_period or document.fetched_at}\n\n"
         f"Text:\n{document.full_text}"
     )
     return await llm.complete_structured(system=_SYSTEM_PROMPT, prompt=prompt, output_model=SentimentScoreDraft)

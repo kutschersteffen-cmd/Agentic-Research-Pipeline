@@ -47,6 +47,7 @@ _SUBMISSIONS = {
             "accessionNumber": ["0000320193-24-000001"],
             "primaryDocument": ["aapl-10k.htm"],
             "filingDate": ["2024-01-01"],
+            "acceptanceDateTime": ["2024-01-01T16:30:12.000Z"],
         }
     }
 }
@@ -78,6 +79,7 @@ async def test_cached_submissions_and_filing_make_no_http_call(tmp_path, monkeyp
 
     assert len(docs) == 1
     assert docs[0].full_text == "Cached filing text about green capex."
+    assert docs[0].published_at == "2024-01-01T16:30:12.000Z"  # acceptance time, not the filing date
 
 
 async def test_expired_submissions_cache_is_refetched(tmp_path, monkeypatch):

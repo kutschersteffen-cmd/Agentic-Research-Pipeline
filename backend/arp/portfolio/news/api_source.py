@@ -2,7 +2,7 @@
 
 1. POST <ARP_NEWS_API_URL>/auth/oauth2/v2/token (client credentials, scope trapi) for a short-lived token.
 2. GET  <ARP_NEWS_API_URL>/data/news/v1/headlines?query=P:<permid> OR ...&dateFrom=...&limit=100, following meta.next.
-   Each headline: {"storyId", "newsItem": {"itemMeta": {"title": [{"$"}], "versionCreated": {"$"}},
+   Each headline: {"storyId", "newsItem": {"itemMeta": {"title": [{"$"}], "firstCreated": {"$"}, "versionCreated": {"$"}},
                                            "contentMeta": {"subject": [{"_qcode": "P:4295905573"}, ...]}}}
 The shape follows the RDP documentation; only `_stories` has to change if a live response differs.
 
@@ -60,7 +60,7 @@ def _stories(data: bytes) -> tuple[list[dict], str | None]:
             out.append({
                 "id": h["storyId"],
                 "headline": meta["title"][0]["$"],
-                "published_at": (meta.get("versionCreated") or meta["firstCreated"])["$"],
+                "published_at": (meta.get("firstCreated") or meta["versionCreated"])["$"],  # a revision moves versionCreated
                 "permids": [s["_qcode"][2:] for s in item.get("contentMeta", {}).get("subject", []) if s.get("_qcode", "").startswith("P:")],
             })
         return out, (body.get("meta") or {}).get("next")

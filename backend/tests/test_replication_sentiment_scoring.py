@@ -54,3 +54,11 @@ async def test_build_sentiment_panel_skips_periods_outside_the_grid(fake_llm):
     assert panel.values["AAA"] == [None]
     assert records == []
     assert usages == []
+
+
+async def test_the_prompt_is_dated_by_publication_not_fetch_time(fake_llm):
+    llm = fake_llm({"SentimentScoreDraft": [SentimentScoreDraft(score=0.0, quote="x", confidence=0.1)]})
+    doc = SourceDocument(doc_id="d1", company_id="AAA", doc_type=DocType.OTHER, title="t", full_text="x",
+                         fiscal_period="FY2023", published_at="2024-02-02T16:30:12.000Z", fetched_at="2026-10-13T00:00:00")
+    await score_document_sentiment("AAA", doc, llm)
+    assert "Document date: 2024-02-02T16:30:12.000Z\n" in llm.prompts[0]
