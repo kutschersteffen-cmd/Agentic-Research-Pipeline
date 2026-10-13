@@ -52,6 +52,15 @@ def _expected(d: dict, field: dict, data_type: FieldDataType | None = None) -> E
     return ExpectedValue(field_id=field["field_id"], period_end=period, value=value, value_state=state)
 
 
+def final_decisions(decisions: list[ReviewDecision]) -> dict[str, dict]:
+    """Each item's effective decision, for items whose review is final (co-signed where required)."""
+    rows: dict[str, list[dict]] = {}
+    for d in decisions:  # append order; ReviewDecision rows always carry a step, so no legacy co-sign rule applies
+        rows.setdefault(d.item_key, []).append(d.model_dump(mode="json"))
+    states = {k: item_state(v, cosigned_at=set(), cosign_required=set()) for k, v in rows.items()}
+    return {k: st.effective for k, st in states.items() if st.state in FINAL_STATES}
+
+
 def export_cases(
     run_store: RunStore, run_id: str, decisions: list[ReviewDecision], *, schema: DataPointSchema | None = None,
 ) -> list[RecordGoldenCase]:
@@ -59,11 +68,7 @@ def export_cases(
     waiting for its second (or a disagreement, or an escalation) is not a label yet. `schema` (the run's)
     types corrected values; without it they stay as the reviewer sent them."""
     data_types = {f.field_id: f.data_type for f in schema.fields} if schema else {}
-    rows: dict[str, list[dict]] = {}
-    for d in decisions:  # append order; ReviewDecision rows always carry a step, so no legacy co-sign rule applies
-        rows.setdefault(d.item_key, []).append(d.model_dump(mode="json"))
-    states = {k: item_state(v, cosigned_at=set(), cosign_required=set()) for k, v in rows.items()}
-    last = {k: st.effective for k, st in states.items() if st.state in FINAL_STATES}
+    last = final_decisions(decisions)
     refs = {c.company_id: c for c in run_store.load_companies(run_id) or []}
     cases = []
     for row in run_store.read_results(run_id):

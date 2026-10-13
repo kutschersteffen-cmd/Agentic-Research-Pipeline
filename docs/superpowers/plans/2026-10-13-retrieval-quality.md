@@ -1,5 +1,27 @@
 # Retrieval quality: eval set, reranker, embedding upgrade
 
+## Status (2026-10-13, after merging main)
+
+- **Phase 0: built** as `arp golden-set retrieval` (`backend/arp/golden_set/retrieval.py`). It replays `field_graph.field_evidence`, the exact path extraction uses, against reviewer-approved citations. It reports recall@5 and recall@`evidence_max_chunks`, plus seconds per field.
+- **Phase 1: already on main** (`arp/retrieval/rerank.py`, `rerank_enabled`, off by default). Not rebuilt. Re-measured on BASF 2025 (40 candidates of 3,500 chars, 4 CPUs):
+
+  | Reranker | Full chunks | Truncated to 1,500 chars | Truncated to 800 chars |
+  |---|---|---|---|
+  | `bge-reranker-v2-m3-int8` (main) | 75 s | 20 s | 10 s |
+  | `jina-reranker-v2-base-multilingual` | 51 s | 15 s | 9 s |
+
+  Truncation changes the top 5, so it would need eval before use.
+- **Phase 2: candidates changed.** Embedding all 299 BASF chunks takes:
+
+  | Embedder | Time | Notes |
+  |---|---|---|
+  | MiniLM (today) | 76 s | Truncates at 128 tokens: a chunk cut to 600 chars embeds identically to the full 3,500 |
+  | `minishlab/potion-multilingual-128M` | 0.6 s | Reads most of the chunk (cosine 0.89 at 600 chars vs full) |
+  | `multilingual-e5-large` | ~8.4 min | Too slow for the in-app wait on CPU |
+  | `Qwen3-Embedding-0.6B` | ~43 min | Too slow for the in-app wait on CPU |
+
+  The candidate is now potion vs MiniLM. Decide with `golden-set retrieval` on reviewed runs.
+
 ## Context
 
 The user decided to keep Docling as is; parsing is out of scope. What remains from the earlier recommendations is retrieval: which chunks reach the extractor (Claude Sonnet 5.5) and the verifier (Claude Opus 5.5).

@@ -14,6 +14,7 @@ from arp.config import get_settings
 from arp.extraction.pipeline import load_run_schema
 from arp.golden_set.export import export_cases
 from arp.golden_set.precision import load_record_cases, run_precision
+from arp.golden_set.retrieval import run_retrieval_eval
 from arp.golden_set.role_runner import load_role_cases as load_role_golden_set_cases
 from arp.golden_set.role_runner import run_role_golden_set
 from arp.golden_set.runner import load_cases as load_golden_set_cases
@@ -174,14 +175,7 @@ def golden_set_precision(
         raise typer.Exit(1)
 
 
-@golden_set_app.command("export-labels")
-def golden_set_export_labels(
-    run_id: str = typer.Option(..., "--run-id", help="Extraction run whose review decisions become labelled cases."),
-    out: Path = typer.Option(..., "--out", help="File to write the JSON array of RecordGoldenCase objects to."),
-) -> None:
-    """Turns a run's reviewer decisions (approve, correct, reject as not disclosed) into cases for
-    `golden-set precision`. Escalated and other rejected items are left out."""
-    run_store = _run_store()
+def _decisions(run_store, run_id: str) -> list[ReviewDecision]:
     decisions, legacy = [], 0
     for r in run_store.read_decisions(run_id):
         try:
@@ -190,6 +184,58 @@ def golden_set_export_labels(
             legacy += 1
     if legacy:
         typer.echo(f"Skipped {legacy} legacy decision row(s) that do not match the current review schema.", err=True)
+    return decisions
+
+
+@golden_set_app.command("export-labels")
+def golden_set_export_labels(
+    run_id: str = typer.Option(..., "--run-id", help="Extraction run whose review decisions become labelled cases."),
+    out: Path = typer.Option(..., "--out", help="File to write the JSON array of RecordGoldenCase objects to."),
+) -> None:
+    """Turns a run's reviewer decisions (approve, correct, reject as not disclosed) into cases for
+    `golden-set precision`. Escalated and other rejected items are left out."""
+    run_store = _run_store()
+    decisions = _decisions(run_store, run_id)
     cases = export_cases(run_store, run_id, decisions, schema=load_run_schema(run_store, run_id))
     out.write_text(json.dumps([c.model_dump(mode="json") for c in cases], indent=2))
     typer.echo(f"Wrote {len(cases)} case(s), {sum(len(c.expected) for c in cases)} labelled value(s), to {out}.")
+
+
+@golden_set_app.command("retrieval")
+def golden_set_retrieval(
+    run_id: str = typer.Option(..., "--run-id", help="Reviewed extraction run whose approved citations are the gold spans."),
+    documents_dir: Path = typer.Option(None, "--documents-dir", help="Directory holding <company_id>/ document folders. Defaults to the app's."),
+    hybrid: bool = typer.Option(None, "--hybrid/--no-hybrid", help="Override hybrid_retrieval_enabled."),
+    rerank: bool = typer.Option(None, "--rerank/--no-rerank", help="Override rerank_enabled."),
+    rerank_candidates: int = typer.Option(None, "--rerank-candidates", min=1, help="Override rerank_candidates."),
+    out: Path = typer.Option(None, "--out", help="Also write the JSON report here."),
+) -> None:
+    """Replays each reviewed field's evidence selection and reports how often it contains the span a
+    reviewer approved (recall@5 and @evidence_max_chunks), plus seconds per field. No LLM calls."""
+    settings = get_settings()
+    overrides = {"hybrid_retrieval_enabled": hybrid, "rerank_enabled": rerank, "rerank_candidates": rerank_candidates}
+    settings = settings.model_copy(update={k: v for k, v in overrides.items() if v is not None})
+    run_store = _run_store()
+    try:
+        report = asyncio.run(
+            run_retrieval_eval(
+                run_store, run_id, _decisions(run_store, run_id),
+                documents_dir=documents_dir or settings.documents_dir, settings=settings,
+            )
+        )
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    if out:
+        out.write_text(json.dumps(report, indent=2))
+    if report["stale_spans"]:
+        typer.echo(f"Left out {report['stale_spans']} span(s) whose text no longer matches the current parse.", err=True)
+    if not report["gold_spans"]:
+        typer.echo("No approved, grounded citations that match the current parse: review some items first.", err=True)
+        raise typer.Exit(1)
+    k = settings.evidence_max_chunks
+    typer.echo(
+        f"{report['gold_spans']} gold span(s) over {report['fields_ranked']} field(s): recall@5 {report['recall_at_5']:.1%}, "
+        f"recall@{k} {report[f'recall_at_{k}']:.1%}; {report['median_seconds_per_field']:.2f}s median, "
+        f"{report['max_seconds_per_field']:.2f}s max per field."
+    )
