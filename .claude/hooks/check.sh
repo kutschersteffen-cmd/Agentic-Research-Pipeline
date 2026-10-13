@@ -10,6 +10,9 @@ except Exception: print(False)')
 here=$(cd "$(dirname "$0")" && pwd)
 
 cd "$(git rev-parse --show-toplevel)" || exit 0
+# Same interpreter choice as ensure-deps.sh: the backend venv when there is one, else python3.
+PY=python3
+for v in "$PWD/backend/.venv/bin/python" "$PWD/backend/.venv/Scripts/python.exe"; do [ -x "$v" ] && { PY=$v; break; }; done
 base=$(git merge-base HEAD origin/main 2>/dev/null || echo HEAD)
 
 py=() mods=() tests=() frontend=0  # py: existing files to lint; mods: modules whose tests to run
@@ -52,14 +55,14 @@ postgres_up() {  # conftest fails, not skips, without Postgres; only manageable 
 }
 
 if { [ ${#py[@]} -gt 0 ] || [ ${#mods[@]} -gt 0 ]; } && ensure backend; then
-  [ ${#py[@]} -gt 0 ] && run backend ruff check "${py[@]}"
+  [ ${#py[@]} -gt 0 ] && run backend "$PY" -m ruff check "${py[@]}"
   for p in "${mods[@]}"; do
     mod=${p%.py}; mod=${mod//\//.}
     while IFS= read -r t; do tests+=("$t"); done < <(cd backend && grep -rlF "$mod" tests --include='*.py')
   done
   if [ ${#tests[@]} -gt 0 ] && postgres_up; then
     mapfile -t tests < <(printf '%s\n' "${tests[@]}" | sort -u)
-    run backend python3 -m pytest -q "${tests[@]}"  # not bare pytest: it may be a uv tool without backend deps
+    run backend "$PY" -m pytest -q "${tests[@]}"  # not bare pytest: it may be a uv tool without backend deps
   fi
 fi
 
