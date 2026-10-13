@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARP architecture deck</title>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper: #f3f3f0;   /* graphite ground */
+      --color-ink:   #141414;
+      --color-muted: #5c5c57;   /* muted graphite */
+      --color-rule:  rgba(20,20,20,0.12);
+      --font-sans:   'Geist', system-ui, sans-serif;
+      --font-mono:   'Geist Mono', ui-monospace, monospace;
+    }
+    html, body { height: 100%; }
+    body { font-family: var(--font-sans); background: var(--color-paper); color: var(--color-ink); overflow: hidden; }
+
+    .slide { display: none; height: 100vh; padding: 28px 56px 64px; flex-direction: column; }
+    .slide.split.active { display: grid; grid-template-columns: minmax(280px, 1fr) 2fr; gap: 40px; align-items: center; }
+    .split .figure { height: 100%; }
+    .slide.active { display: flex; }
+    .eyebrow { font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.18em;
+               text-transform: uppercase; color: var(--color-muted); margin-bottom: 8px; }
+    h1 { font-size: clamp(2rem, 1.2rem + 2.4vw, 3.25rem); font-weight: 600; line-height: 1.02; letter-spacing: -0.035em; margin-bottom: 20px; }
+    h2 { font-size: clamp(1.375rem, 1rem + 1vw, 1.875rem); font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 8px; }
+    .takeaway { font-size: 1rem; line-height: 1.45; color: var(--color-muted); max-width: 80ch; margin-bottom: 16px; }
+    .figure { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+    .figure svg { width: 100%; height: 100%; display: block; }
+
+    .title-slide { justify-content: center; }
+    .title-body { max-width: 760px; }
+    .lede { font-size: 1.125rem; line-height: 1.45; color: var(--color-muted); margin-bottom: 40px; }
+    .agenda { list-style: none; border-top: 1px solid var(--color-rule); }
+    .agenda li { display: flex; gap: 24px; padding: 12px 0; border-bottom: 1px solid var(--color-rule); font-size: 1rem; }
+    .agenda span { font-family: var(--font-mono); color: var(--color-muted); }
+
+    .controls { position: fixed; left: 56px; right: 56px; bottom: 20px; display: flex; align-items: center; gap: 8px;
+                border-top: 1px solid var(--color-rule); padding-top: 12px; }
+    .controls button { font: 500 0.875rem var(--font-sans); background: #ffffff; color: var(--color-ink);
+                       border: 1px solid var(--color-ink); padding: 6px 14px; cursor: pointer; }
+    .controls button:hover:not(:disabled) { background: var(--color-ink); color: #ffffff; }
+    .controls button:disabled { background: #ebebe7; color: var(--color-muted); border-color: #dcdcd7; cursor: default; }
+    .controls button:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; }
+    .counter { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--color-muted); margin-left: auto; }
+    .hint { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--color-muted); }
+
+    @media print {
+      @page { size: 1280px 720px; margin: 0; }
+      body { overflow: visible; }
+      .slide { display: flex; height: 720px; width: 1280px; page-break-after: always; }
+      .slide.split { display: grid; grid-template-columns: minmax(280px, 1fr) 2fr; gap: 40px; align-items: center; }
+      .controls { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="slide title-slide" aria-label="Slide 1: title">
+      <div class="title-body">
+        <p class="eyebrow">Architecture overview</p>
+        <h1>Agentic Research Pipeline</h1>
+        <p class="lede">Agent pipelines for investment research at scale: thematic universes, cited data extraction and portfolio analysis, for up to about 4,000 companies per run.</p>
+        <ol class="agenda">
+          <li><span>02</span>System</li>
+          <li><span>03</span>Workspaces</li>
+          <li><span>04</span>Tech stack</li>
+          <li><span>05</span>Each workspace</li>
+          <li><span>10</span>Standing agents</li>
+        </ol>
+      </div>
+    </section>
+    <section class="slide" aria-label="Slide 2: Two clients drive one Python package">
+      <div class="head">
+        <p class="eyebrow">02 · System</p>
+        <h2>Two clients drive one Python package</h2>
+        <p class="takeaway">The UI and the CLI both reach the agent pipelines. Results land in Postgres; proposals wait in the review queue for a person.</p>
+      </div>
+      <div class="figure"><svg viewBox="0 48 960 576" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="arp-architecture-title arp-architecture-desc">
+        <title id="arp-architecture-title">Agentic Research Pipeline architecture</title>
+        <desc id="arp-architecture-desc">A React UI talks to a FastAPI backend and a Typer CLI calls the backend package directly; agent pipelines use the Anthropic API and public data sources, write results to Postgres and file stores, and send proposals to a review queue where a person decides through the API.</desc>
+        <defs>
+          <marker id="arch-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5c5c57"/></marker>
+          <marker id="arch-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b8400f"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f3f3f0"/>
+
+        <!-- Zones -->
+        <rect x="24" y="64" width="192" height="336" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/>
+        <rect x="32" y="68" width="76" height="16" fill="#f3f3f0"/>
+        <text x="36" y="80" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">CLIENTS</text>
+
+        <rect x="240" y="64" width="432" height="336" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/>
+        <rect x="248" y="68" width="212" height="16" fill="#f3f3f0"/>
+        <text x="252" y="80" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">BACKEND · backend/arp</text>
+
+        <rect x="696" y="64" width="240" height="336" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/>
+        <rect x="704" y="68" width="52" height="16" fill="#f3f3f0"/>
+        <text x="708" y="80" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">DATA</text>
+
+        <!-- Arrows (drawn first, behind nodes) -->
+        <line x1="200" y1="140" x2="264" y2="140" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+        <line x1="424" y1="140" x2="488" y2="140" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+        <path d="M648,140 H744 Q752,140 752,148 V200" fill="none" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+        <line x1="344" y1="168" x2="344" y2="312" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+        <line x1="536" y1="312" x2="536" y2="168" stroke="#b8400f" stroke-width="1.4" marker-end="url(#arch-arrow-accent)"/>
+        <path d="M600,312 V236 Q600,228 608,228 H712" fill="none" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+        <line x1="648" y1="340" x2="712" y2="340" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+        <line x1="200" y1="340" x2="264" y2="340" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+        <line x1="376" y1="368" x2="376" y2="464" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+        <line x1="552" y1="368" x2="552" y2="464" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+
+        <!-- Arrow labels -->
+        <rect x="212" y="116" width="40" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="232" y="128" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">REST</text>
+        <rect x="428" y="116" width="56" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="456" y="128" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">DECIDE</text>
+        <rect x="664" y="116" width="64" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="696" y="128" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">PERSIST</text>
+        <rect x="352" y="232" width="76" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="390" y="244" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">START RUN</text>
+        <rect x="464" y="232" width="64" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="496" y="244" fill="#b8400f" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">PROPOSE</text>
+        <rect x="620" y="204" width="64" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="652" y="216" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">RESULTS</text>
+        <rect x="656" y="316" width="48" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="680" y="328" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">WRITE</text>
+        <rect x="204" y="316" width="56" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="232" y="328" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">DIRECT</text>
+        <rect x="384" y="408" width="80" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="424" y="420" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">LLM CALLS</text>
+        <rect x="560" y="408" width="48" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="584" y="420" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">FETCH</text>
+
+        <!-- Clients -->
+        <rect x="40" y="112" width="160" height="56" fill="#f3f3f0"/>
+        <rect x="40" y="112" width="160" height="56" fill="rgba(92,92,87,0.10)" stroke="#5c5c57" stroke-width="1"/>
+        <text x="120" y="136" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">React UI</text>
+        <text x="120" y="152" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Vite · :5173</text>
+
+        <rect x="40" y="312" width="160" height="56" fill="#f3f3f0"/>
+        <rect x="40" y="312" width="160" height="56" fill="rgba(92,92,87,0.10)" stroke="#5c5c57" stroke-width="1"/>
+        <text x="120" y="336" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">arp CLI</text>
+        <text x="120" y="352" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Typer</text>
+
+        <!-- Backend -->
+        <rect x="264" y="112" width="160" height="56" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+        <text x="344" y="136" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">FastAPI</text>
+        <text x="344" y="152" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">:8000 · sign-in</text>
+
+        <rect x="488" y="112" width="160" height="56" fill="#f3f3f0"/>
+        <rect x="488" y="112" width="160" height="56" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/>
+        <text x="568" y="136" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Review queue</text>
+        <text x="568" y="152" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">waits on a person</text>
+
+        <rect x="264" y="312" width="384" height="56" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+        <text x="456" y="336" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Agent pipelines</text>
+        <text x="456" y="352" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">LangGraph flows · batch runner · grounding</text>
+
+        <!-- Data -->
+        <rect x="712" y="200" width="200" height="56" fill="#f3f3f0"/>
+        <rect x="712" y="200" width="200" height="56" fill="rgba(20,20,20,0.05)" stroke="#5c5c57" stroke-width="1"/>
+        <text x="812" y="224" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Postgres + pgvector</text>
+        <text x="812" y="240" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">system of record</text>
+
+        <rect x="712" y="312" width="200" height="56" fill="#f3f3f0"/>
+        <rect x="712" y="312" width="200" height="56" fill="rgba(20,20,20,0.05)" stroke="#5c5c57" stroke-width="1"/>
+        <text x="812" y="336" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">File stores</text>
+        <text x="812" y="352" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">taxonomies · documents</text>
+
+        <!-- External -->
+        <rect x="296" y="464" width="160" height="56" fill="#f3f3f0"/>
+        <rect x="296" y="464" width="160" height="56" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/>
+        <text x="376" y="488" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Anthropic API</text>
+        <text x="376" y="504" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Claude · llm/base.py</text>
+
+        <rect x="472" y="464" width="160" height="56" fill="#f3f3f0"/>
+        <rect x="472" y="464" width="160" height="56" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/>
+        <text x="552" y="488" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Public sources</text>
+        <text x="552" y="504" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">EDGAR · GDELT · IR</text>
+
+        <!-- Legend -->
+        <line x1="32" y1="552" x2="928" y2="552" stroke="rgba(20,20,20,0.10)" stroke-width="0.8"/>
+        <text x="32" y="572" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEGEND</text>
+        <rect x="32" y="588" width="24" height="12" fill="rgba(92,92,87,0.10)" stroke="#5c5c57" stroke-width="1"/>
+        <text x="64" y="599" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Client</text>
+        <rect x="172" y="588" width="24" height="12" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+        <text x="204" y="599" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Service</text>
+        <rect x="312" y="588" width="24" height="12" fill="rgba(20,20,20,0.05)" stroke="#5c5c57" stroke-width="1"/>
+        <text x="344" y="599" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Store</text>
+        <rect x="452" y="588" width="24" height="12" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/>
+        <text x="484" y="599" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">External</text>
+        <rect x="592" y="588" width="24" height="12" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/>
+        <text x="624" y="599" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Waits on a person</text>
+      </svg></div>
+    </section>
+    <section class="slide" aria-label="Slide 3: Five workspaces hand work to each other">
+      <div class="head">
+        <p class="eyebrow">03 · Workspaces</p>
+        <h2>Five workspaces hand work to each other</h2>
+        <p class="takeaway">Templates, indicators and alerts flow left to right. Every workspace reads issuers from Data Hub’s security master.</p>
+      </div>
+      <div class="figure"><svg viewBox="0 24 1080 528" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="arp-workspaces-title arp-workspaces-desc">
+        <title id="arp-workspaces-title">ARP workspaces and their handoffs</title>
+        <desc id="arp-workspaces-desc">Four workspaces, R&amp;D Lab, Argus, Transition Intelligence Platform and StewardIQ, pass templates, transition-plan indicators and alerts from left to right; all four read issuer data from Data Hub, send flagged items to a shared review queue that waits on a person, and feed a shared presentations and reports tool.</desc>
+        <defs>
+          <marker id="ws-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5c5c57"/></marker>
+        </defs>
+
+        <rect x="0" y="24" width="1080" height="528" fill="#f3f3f0"/>
+
+        <!-- Arrows (drawn first, behind nodes) -->
+        <!-- Handoffs between workspaces -->
+        <line x1="212" y1="246" x2="308" y2="246" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-arrow)"/>
+        <line x1="492" y1="246" x2="588" y2="246" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-arrow)"/>
+        <line x1="772" y1="246" x2="868" y2="246" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-arrow)"/>
+        <!-- Into the shared tools -->
+        <line x1="176" y1="168" x2="176" y2="104" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-arrow)"/>
+        <line x1="344" y1="168" x2="344" y2="104" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-arrow)"/>
+        <line x1="736" y1="168" x2="736" y2="104" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-arrow)"/>
+        <line x1="904" y1="168" x2="904" y2="104" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-arrow)"/>
+        <!-- Data Hub feeds every workspace -->
+        <line x1="120" y1="392" x2="120" y2="324" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-arrow)"/>
+        <line x1="400" y1="392" x2="400" y2="324" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-arrow)"/>
+        <line x1="680" y1="392" x2="680" y2="324" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-arrow)"/>
+        <line x1="960" y1="392" x2="960" y2="324" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-arrow)"/>
+
+        <!-- Arrow labels -->
+        <rect x="224" y="222" width="72" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="260" y="234" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">TEMPLATES</text>
+        <rect x="500" y="222" width="80" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="540" y="234" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">INDICATORS</text>
+        <rect x="792" y="222" width="56" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="820" y="234" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">ALERTS</text>
+        <rect x="92" y="128" width="76" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="130" y="140" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">CONTESTED</text>
+        <rect x="352" y="128" width="60" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="382" y="140" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">FLAGGED</text>
+        <rect x="652" y="128" width="76" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="690" y="140" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">COMMITTEE</text>
+        <rect x="912" y="128" width="52" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="938" y="140" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">CLIENT</text>
+
+        <!-- Shared tools -->
+        <rect x="140" y="48" width="240" height="56" fill="#f3f3f0"/>
+        <rect x="140" y="48" width="240" height="56" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/>
+        <text x="260" y="72" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Review Queue</text>
+        <text x="260" y="88" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">approve, edit or reject</text>
+
+        <rect x="700" y="48" width="240" height="56" fill="#f3f3f0"/>
+        <rect x="700" y="48" width="240" height="56" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/>
+        <text x="820" y="72" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Presentations &amp; Reports</text>
+        <text x="820" y="88" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">pptx · docx · pdf</text>
+
+        <!-- Workspace: R&D Lab -->
+        <rect x="28" y="168" width="184" height="156" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+        <text x="40" y="192" fill="#141414" font-size="13" font-weight="600" font-family="'Geist', sans-serif">R&amp;D Lab</text>
+        <text x="40" y="212" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Themes, strategies</text>
+        <text x="40" y="226" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">and indices</text>
+        <line x1="40" y1="240" x2="200" y2="240" stroke="rgba(20,20,20,0.12)" stroke-width="0.8"/>
+        <text x="40" y="260" fill="#141414" font-size="11" font-family="'Geist Mono', monospace">Emerging Themes</text>
+        <text x="40" y="276" fill="#141414" font-size="11" font-family="'Geist Mono', monospace">Taxonomy Library</text>
+        <text x="40" y="292" fill="#141414" font-size="11" font-family="'Geist Mono', monospace">Decision Studio</text>
+        <text x="40" y="308" fill="#141414" font-size="11" font-family="'Geist Mono', monospace">Index Construction</text>
+
+        <!-- Workspace: Argus -->
+        <rect x="308" y="168" width="184" height="156" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+        <text x="320" y="192" fill="#141414" font-size="13" font-weight="600" font-family="'Geist', sans-serif">Argus</text>
+        <text x="320" y="212" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Cited data points</text>
+        <text x="320" y="226" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">from disclosures</text>
+        <line x1="320" y1="240" x2="480" y2="240" stroke="rgba(20,20,20,0.12)" stroke-width="0.8"/>
+        <text x="320" y="260" fill="#141414" font-size="11" font-family="'Geist Mono', monospace">Universe</text>
+        <text x="320" y="276" fill="#141414" font-size="11" font-family="'Geist Mono', monospace">Extraction</text>
+        <text x="320" y="292" fill="#141414" font-size="11" font-family="'Geist Mono', monospace">XBRL Facts</text>
+        <text x="320" y="308" fill="#141414" font-size="11" font-family="'Geist Mono', monospace">Transition Plan</text>
+
+        <!-- Workspace: Transition Intelligence Platform -->
+        <rect x="588" y="168" width="184" height="156" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+        <text x="600" y="192" fill="#141414" font-size="13" font-weight="600" font-family="'Geist', sans-serif">Transition</text>
+        <text x="600" y="208" fill="#141414" font-size="13" font-weight="600" font-family="'Geist', sans-serif">Intelligence Platform</text>
+        <text x="600" y="226" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Holdings and climate risk</text>
+        <line x1="600" y1="240" x2="760" y2="240" stroke="rgba(20,20,20,0.12)" stroke-width="0.8"/>
+        <text x="600" y="260" fill="#141414" font-size="11" font-family="'Geist Mono', monospace">Risk Monitoring</text>
+        <text x="600" y="276" fill="#141414" font-size="11" font-family="'Geist Mono', monospace">Transition Barriers</text>
+        <text x="600" y="292" fill="#141414" font-size="11" font-family="'Geist Mono', monospace">Transition Plan</text>
+
+        <!-- Workspace: StewardIQ -->
+        <rect x="868" y="168" width="184" height="156" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+        <text x="880" y="192" fill="#141414" font-size="13" font-weight="600" font-family="'Geist', sans-serif">StewardIQ</text>
+        <text x="880" y="212" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Engagement, voting</text>
+        <text x="880" y="226" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">and commitments</text>
+        <line x1="880" y1="240" x2="1040" y2="240" stroke="rgba(20,20,20,0.12)" stroke-width="0.8"/>
+        <text x="880" y="260" fill="#141414" font-size="11" font-family="'Geist Mono', monospace">Steward Workflow</text>
+        <text x="880" y="276" fill="#141414" font-size="11" font-family="'Geist Mono', monospace">Engagement</text>
+        <text x="880" y="292" fill="#141414" font-size="11" font-family="'Geist Mono', monospace">Proxy Voting</text>
+
+        <!-- Workspace: Data Hub (foundation) -->
+        <rect x="28" y="392" width="1024" height="56" fill="#f3f3f0"/>
+        <rect x="28" y="392" width="1024" height="56" fill="rgba(20,20,20,0.05)" stroke="#5c5c57" stroke-width="1"/>
+        <text x="540" y="416" fill="#141414" font-size="13" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Data Hub</text>
+        <text x="540" y="434" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">security master: one issuer per security · feeds · holdings intake · data library</text>
+
+        <!-- Legend -->
+        <line x1="28" y1="480" x2="1052" y2="480" stroke="rgba(20,20,20,0.10)" stroke-width="0.8"/>
+        <text x="28" y="500" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEGEND</text>
+        <rect x="28" y="516" width="24" height="12" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+        <text x="60" y="527" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Workspace (key screens listed)</text>
+        <rect x="268" y="516" width="24" height="12" fill="rgba(20,20,20,0.05)" stroke="#5c5c57" stroke-width="1"/>
+        <text x="300" y="527" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Data workspace</text>
+        <rect x="432" y="516" width="24" height="12" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/>
+        <text x="464" y="527" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Shared tool</text>
+        <rect x="580" y="516" width="24" height="12" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/>
+        <text x="612" y="527" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Waits on a person</text>
+      </svg></div>
+    </section>
+    <section class="slide" aria-label="Slide 4: One stack underneath every workspace">
+      <div class="head">
+        <p class="eyebrow">04 · Tech stack</p>
+        <h2>One stack underneath every workspace</h2>
+        <p class="takeaway">The LLM plans, deterministic code computes, and every citation is re-verified against its source.</p>
+      </div>
+      <div class="figure"><svg viewBox="0 0 1080 456" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="tech-stack-title tech-stack-desc"><title id="tech-stack-title">ARP tech stack</title><desc id="tech-stack-desc">Six layers from the React frontend through the FastAPI API and CLI, LangGraph orchestration, Claude and retrieval, deterministic engines, down to Postgres with pgvector and the optional search, object-storage and BI services.</desc><defs><marker id="tech-stack-ws-m" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5c5c57"/></marker><marker id="tech-stack-ws-a" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b8400f"/></marker></defs><rect x="0" y="0" width="1080" height="456" fill="#f3f3f0"/><rect x="112" y="24" width="940" height="64" fill="#ffffff" stroke="rgba(20,20,20,0.12)" stroke-width="1"/><text x="128" y="61" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">L1</text><text x="168" y="61" fill="#141414" font-size="14" font-weight="600" font-family="'Geist', sans-serif">Frontend</text><text x="352" y="61" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace">React 19 · TypeScript · Vite · React Flow · GoRules JDM editor · Superset embedded SDK</text>
+<rect x="112" y="88" width="940" height="64" fill="#f3f3f0" stroke="rgba(20,20,20,0.12)" stroke-width="1"/><text x="128" y="125" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">L2</text><text x="168" y="125" fill="#141414" font-size="14" font-weight="600" font-family="'Geist', sans-serif">API and CLI</text><text x="352" y="125" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace">FastAPI + Uvicorn · Typer CLI · Pydantic v2 settings and schemas · token sign-in</text>
+<rect x="112" y="152" width="940" height="64" fill="#ffffff" stroke="rgba(20,20,20,0.12)" stroke-width="1"/><text x="128" y="189" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">L3</text><text x="168" y="189" fill="#141414" font-size="14" font-weight="600" font-family="'Geist', sans-serif">Orchestration</text><text x="352" y="189" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace">LangGraph state graphs · resumable batch runner · interval schedulers · cost tracker</text>
+<rect x="112" y="216" width="940" height="64" fill="#f3f3f0" stroke="rgba(20,20,20,0.12)" stroke-width="1"/><text x="128" y="253" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">L4</text><text x="168" y="253" fill="#141414" font-size="14" font-weight="600" font-family="'Geist', sans-serif">AI and retrieval</text><text x="352" y="253" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace">Anthropic SDK (Claude, Message Batches) · LlamaIndex BM25 + fastembed · docling, trafilatura · grounding</text>
+<rect x="112" y="280" width="940" height="64" fill="#ffffff" stroke="rgba(20,20,20,0.12)" stroke-width="1"/><text x="128" y="317" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">L5</text><text x="168" y="317" fill="#141414" font-size="14" font-weight="600" font-family="'Geist', sans-serif">Deterministic engines</text><text x="352" y="317" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace">numpy · GoRules ZEN rules · cvxpy + SCIP (opt-in) · python-pptx, python-docx, reportlab · Playwright</text>
+<rect x="112" y="344" width="940" height="64" fill="#f3f3f0" stroke="rgba(20,20,20,0.12)" stroke-width="1"/><text x="128" y="381" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">L6</text><text x="168" y="381" fill="#141414" font-size="14" font-weight="600" font-family="'Geist', sans-serif">Storage and BI</text><text x="352" y="381" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace">Postgres 16 + pgvector (SQLAlchemy) · files + SQLite text cache · OpenSearch, MinIO, Superset (opt-in)</text>
+<rect x="112" y="24" width="940" height="384" fill="none" stroke="#141414" stroke-width="1"/>
+<line x1="72" y1="40" x2="72" y2="392" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#tech-stack-ws-m)"/><text x="60" y="64" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em" text-anchor="end">USER</text><text x="60" y="384" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em" text-anchor="end">DATA</text>
+<text x="112" y="444" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">The README’s two rules: the LLM (L4) plans, deterministic code (L5) computes, and every citation is re-verified against its source.</text></svg></div>
+    </section>
+    <section class="slide" aria-label="Slide 5: Spot themes, test strategies, build indices">
+      <div class="head">
+        <p class="eyebrow">05 · Workspace 1 · R&amp;D Lab</p>
+        <h2>Spot themes, test strategies, build indices</h2>
+        <p class="takeaway">Claude argues for, against and judges each company match; contested matches go to review before scoring.</p>
+      </div>
+      <div class="figure"><svg viewBox="0 0 1080 520" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="ws-rdlab-title ws-rdlab-desc"><title id="ws-rdlab-title">R&amp;D Lab in detail</title><desc id="ws-rdlab-desc">A thematic product runs from emerging-theme clustering through a ratified taxonomy, a Claude advocate, opponent and judge debate that matches companies, a review of contested matches, Decision Studio scoring and index construction; strategy replication feeds backtests into Decision Studio, and two standing agents propose taxonomy drafts and drift flags.</desc><defs><marker id="ws-rdlab-ws-m" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5c5c57"/></marker><marker id="ws-rdlab-ws-a" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b8400f"/></marker></defs><rect x="0" y="0" width="1080" height="520" fill="#f3f3f0"/><rect x="188" y="8" width="704" height="112" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/><rect x="196" y="12" width="130" height="16" fill="#f3f3f0"/><text x="200" y="24" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">STANDING AGENTS</text>
+<rect x="12" y="152" width="1056" height="152" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/><rect x="20" y="156" width="210" height="16" fill="#f3f3f0"/><text x="24" y="168" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">LAUNCH A THEMATIC PRODUCT</text>
+<rect x="12" y="320" width="176" height="108" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/><rect x="20" y="324" width="162" height="16" fill="#f3f3f0"/><text x="24" y="336" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">RESEARCH A STRATEGY</text>
+<line x1="176" y1="236" x2="200" y2="236" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-rdlab-ws-m)"/>
+<line x1="352" y1="236" x2="376" y2="236" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-rdlab-ws-m)"/>
+<line x1="528" y1="236" x2="552" y2="236" stroke="#b8400f" stroke-width="1.4" marker-end="url(#ws-rdlab-ws-a)"/>
+<line x1="704" y1="236" x2="728" y2="236" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-rdlab-ws-m)"/>
+<line x1="880" y1="236" x2="904" y2="236" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-rdlab-ws-m)"/>
+<line x1="276" y1="104" x2="276" y2="184" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-rdlab-ws-m)"/>
+<line x1="804" y1="104" x2="804" y2="184" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-rdlab-ws-m)"/>
+<path d="M176,384 H792 Q800,384 800,376 V288" fill="none" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-rdlab-ws-m)"/>
+<rect x="284" y="128" width="56" height="16" rx="2" fill="#f3f3f0"/><text x="312" y="140" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">DRAFTS</text>
+<rect x="812" y="128" width="92" height="16" rx="2" fill="#f3f3f0"/><text x="858" y="140" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">DRIFT FLAGS</text>
+<rect x="442" y="360" width="76" height="16" rx="2" fill="#f3f3f0"/><text x="480" y="372" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">BACKTESTS</text>
+<rect x="200" y="40" width="152" height="64" fill="#f3f3f0"/><rect x="200" y="40" width="152" height="64" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="276" y="61" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Taxonomy Researcher</text><text x="276" y="78" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">re-derives ratified</text><text x="276" y="93" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">taxonomies</text>
+<rect x="728" y="40" width="152" height="64" fill="#f3f3f0"/><rect x="728" y="40" width="152" height="64" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="804" y="61" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Calibration Agent</text><text x="804" y="78" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">newer docs than</text><text x="804" y="93" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">verdicts; no LLM</text>
+<rect x="24" y="184" width="152" height="104" fill="#f3f3f0"/><rect x="24" y="184" width="152" height="104" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="100" y="217.5" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Spot</text><text x="100" y="234.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">EDGAR, GDELT, RSS;</text><text x="100" y="249.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">fastembed, UMAP,</text><text x="100" y="264.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">HDBSCAN; capex gate</text>
+<rect x="200" y="184" width="152" height="104" fill="#f3f3f0"/><rect x="200" y="184" width="152" height="104" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="276" y="217.5" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Define</text><text x="276" y="234.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">9 derivation</text><text x="276" y="249.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">methods; a person</text><text x="276" y="264.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">ratifies a version</text>
+<rect x="376" y="184" width="152" height="104" fill="#f3f3f0"/><rect x="376" y="184" width="152" height="104" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="452" y="210" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Match</text><text x="452" y="227" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">LangGraph debate:</text><text x="452" y="242" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Claude advocate,</text><text x="452" y="257" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">opponent, judge;</text><text x="452" y="272" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Leontief exposure</text>
+<rect x="552" y="184" width="152" height="104" fill="#f3f3f0"/><rect x="552" y="184" width="152" height="104" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/><text x="628" y="225" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Review</text><text x="628" y="242" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">contested or</text><text x="628" y="257" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">mid-band matches</text>
+<rect x="728" y="184" width="152" height="104" fill="#f3f3f0"/><rect x="728" y="184" width="152" height="104" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="804" y="217.5" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Score</text><text x="804" y="234.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Decision Studio:</text><text x="804" y="249.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">GoRules ZEN rules;</text><text x="804" y="264.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">ratify, publish</text>
+<rect x="904" y="184" width="152" height="104" fill="#f3f3f0"/><rect x="904" y="184" width="152" height="104" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="980" y="217.5" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Construct</text><text x="980" y="234.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">numpy; cvxpy +</text><text x="980" y="249.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">SCIP opt-in;</text><text x="980" y="264.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">four-eyes approval</text>
+<rect x="24" y="352" width="152" height="64" fill="#f3f3f0"/><rect x="24" y="352" width="152" height="64" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="100" y="373" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Replicate</text><text x="100" y="390" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">arXiv, Claude spec;</text><text x="100" y="405" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">deflated Sharpe, PBO</text>
+<line x1="28" y1="448" x2="1052" y2="448" stroke="rgba(20,20,20,0.10)" stroke-width="0.8"/><text x="28" y="468" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEGEND</text><rect x="28" y="484" width="24" height="12" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="60" y="495" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Step / service</text><rect x="186" y="484" width="24" height="12" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/><text x="218" y="495" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Waits on a person</text></svg></div>
+    </section>
+    <section class="slide" aria-label="Slide 6: Extract cited data points, then score them">
+      <div class="head">
+        <p class="eyebrow">06 · Workspace 2 · Argus</p>
+        <h2>Extract cited data points, then score them</h2>
+        <p class="takeaway">Claude extracts, a second, different Claude model verifies, and grounding re-checks every citation. XBRL facts are used first.</p>
+      </div>
+      <div class="figure"><svg viewBox="0 0 1080 440" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="ws-argus-title ws-argus-desc"><title id="ws-argus-title">Argus in detail</title><desc id="ws-argus-desc">Companies are mapped through the security master, resolved to one issuer, and their disclosures discovered and parsed; Claude extracts each figure from BM25 and embedding-ranked evidence, a second Claude model verifies it, grounding re-checks every citation, flagged figures wait for a person, and a ratified template scores the run; XBRL facts are fetched separately and used first when they exist.</desc><defs><marker id="ws-argus-ws-m" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5c5c57"/></marker><marker id="ws-argus-ws-a" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b8400f"/></marker></defs><rect x="0" y="0" width="1080" height="440" fill="#f3f3f0"/><rect x="12" y="32" width="1056" height="152" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/><rect x="20" y="36" width="146" height="16" fill="#f3f3f0"/><text x="24" y="48" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">EXTRACT AND SCORE</text>
+<rect x="188" y="224" width="352" height="112" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/><rect x="196" y="228" width="91" height="16" fill="#f3f3f0"/><text x="200" y="240" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">XBRL FACTS</text>
+<line x1="176" y1="116" x2="200" y2="116" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-argus-ws-m)"/>
+<line x1="352" y1="116" x2="376" y2="116" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-argus-ws-m)"/>
+<line x1="528" y1="116" x2="552" y2="116" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-argus-ws-m)"/>
+<line x1="704" y1="116" x2="728" y2="116" stroke="#b8400f" stroke-width="1.4" marker-end="url(#ws-argus-ws-a)"/>
+<line x1="880" y1="116" x2="904" y2="116" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-argus-ws-m)"/>
+<path d="M100,168 V280 Q100,288 108,288 H200" fill="none" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-argus-ws-m)"/>
+<line x1="352" y1="288" x2="376" y2="288" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-argus-ws-m)"/>
+<path d="M528,288 H592 Q600,288 600,280 V168" fill="none" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-argus-ws-m)"/>
+<rect x="608" y="200" width="100" height="16" rx="2" fill="#f3f3f0"/><text x="658" y="212" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">TAGGED FIRST</text>
+<rect x="24" y="64" width="152" height="104" fill="#f3f3f0"/><rect x="24" y="64" width="152" height="104" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="100" y="97.5" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Universe</text><text x="100" y="114.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">security master:</text><text x="100" y="129.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">LEI, ISIN, CIK;</text><text x="100" y="144.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">routes SEC or ESEF</text>
+<rect x="200" y="64" width="152" height="104" fill="#f3f3f0"/><rect x="200" y="64" width="152" height="104" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="276" y="97.5" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Identify</text><text x="276" y="114.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">LangGraph: rules,</text><text x="276" y="129.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">EDGAR, web search;</text><text x="276" y="144.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Claude if ambiguous</text>
+<rect x="376" y="64" width="152" height="104" fill="#f3f3f0"/><rect x="376" y="64" width="152" height="104" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="452" y="97.5" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Documents</text><text x="452" y="114.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">crawl IR sites,</text><text x="452" y="129.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">EDGAR, xbrl.org;</text><text x="452" y="144.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">docling parsing</text>
+<rect x="552" y="64" width="152" height="104" fill="#f3f3f0"/><rect x="552" y="64" width="152" height="104" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="628" y="90" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Extract</text><text x="628" y="107" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">BM25 + fastembed;</text><text x="628" y="122" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Claude extracts,</text><text x="628" y="137" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">2nd model verifies;</text><text x="628" y="152" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">grounding re-check</text>
+<rect x="728" y="64" width="152" height="104" fill="#f3f3f0"/><rect x="728" y="64" width="152" height="104" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/><text x="804" y="105" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Review</text><text x="804" y="122" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">approve, edit or</text><text x="804" y="137" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">reject; co-sign</text>
+<rect x="904" y="64" width="152" height="104" fill="#f3f3f0"/><rect x="904" y="64" width="152" height="104" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="980" y="105" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Score</text><text x="980" y="122" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">ZEN rules on a</text><text x="980" y="137" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">ratified template</text>
+<rect x="200" y="256" width="152" height="64" fill="#f3f3f0"/><rect x="200" y="256" width="152" height="64" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="276" y="277" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Fetch</text><text x="276" y="294" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">SEC companyfacts,</text><text x="276" y="309" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">filings.xbrl.org</text>
+<rect x="376" y="256" width="152" height="64" fill="#f3f3f0"/><rect x="376" y="256" width="152" height="64" fill="rgba(20,20,20,0.05)" stroke="#5c5c57" stroke-width="1"/><text x="452" y="277" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Facts</text><text x="452" y="294" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">facts.jsonl per CIK;</text><text x="452" y="309" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">verifies a run</text>
+<line x1="28" y1="368" x2="1052" y2="368" stroke="rgba(20,20,20,0.10)" stroke-width="0.8"/><text x="28" y="388" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEGEND</text><rect x="28" y="404" width="24" height="12" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="60" y="415" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Step / service</text><rect x="186" y="404" width="24" height="12" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/><text x="218" y="415" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Waits on a person</text><rect x="363" y="404" width="24" height="12" fill="rgba(20,20,20,0.05)" stroke="#5c5c57" stroke-width="1"/><text x="395" y="415" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Store</text></svg></div>
+    </section>
+    <section class="slide" aria-label="Slide 7: Monitor holdings and climate transition risk">
+      <div class="head">
+        <p class="eyebrow">07 · Workspace 3 · Transition Intelligence Platform</p>
+        <h2>Monitor holdings and climate transition risk</h2>
+        <p class="takeaway">Every alert gets an owner. Emissions metrics are computed in code and shown in Superset.</p>
+      </div>
+      <div class="figure"><svg viewBox="0 0 1080 488" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="ws-tip-title ws-tip-desc"><title id="ws-tip-title">Transition Intelligence Platform in detail</title><desc id="ws-tip-desc">Monthly monitoring loads holdings, raises threshold and Claude-classified news alerts that an owner must act on, and computes WACI and financed emissions for Superset dashboards; the climate review combines sector barriers, Argus transition-plan indicators and Decision Studio tiers; alerts and tiers go to StewardIQ.</desc><defs><marker id="ws-tip-ws-m" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5c5c57"/></marker><marker id="ws-tip-ws-a" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b8400f"/></marker></defs><rect x="0" y="0" width="1080" height="488" fill="#f3f3f0"/><rect x="12" y="32" width="876" height="152" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/><rect x="20" y="36" width="154" height="16" fill="#f3f3f0"/><text x="24" y="48" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">MONTHLY MONITORING</text>
+<rect x="12" y="232" width="876" height="152" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/><rect x="20" y="236" width="210" height="16" fill="#f3f3f0"/><text x="24" y="248" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">CLIMATE TRANSITION REVIEW</text>
+<line x1="200" y1="116" x2="248" y2="116" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-tip-ws-m)"/>
+<line x1="424" y1="116" x2="472" y2="116" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-tip-ws-m)"/>
+<line x1="648" y1="116" x2="936" y2="116" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-tip-ws-m)"/>
+<path d="M520,168 V208 Q520,216 512,216 H344 Q336,216 336,224 V264" fill="none" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-tip-ws-m)"/>
+<line x1="200" y1="316" x2="248" y2="316" stroke="#5c5c57" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ws-tip-ws-m)"/>
+<line x1="424" y1="316" x2="472" y2="316" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-tip-ws-m)"/>
+<line x1="648" y1="316" x2="696" y2="316" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-tip-ws-m)"/>
+<line x1="872" y1="316" x2="936" y2="316" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-tip-ws-m)"/>
+<rect x="764" y="92" width="56" height="16" rx="2" fill="#f3f3f0"/><text x="792" y="104" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">ALERTS</text>
+<rect x="392" y="192" width="72" height="16" rx="2" fill="#f3f3f0"/><text x="428" y="204" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">IN SCOPE</text>
+<rect x="880" y="292" width="48" height="16" rx="2" fill="#f3f3f0"/><text x="904" y="304" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">TIERS</text>
+<rect x="24" y="64" width="176" height="104" fill="#f3f3f0"/><rect x="24" y="64" width="176" height="104" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="112" y="97.5" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Holdings intake</text><text x="112" y="114.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">CSV, Excel or API;</text><text x="112" y="129.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">exact security-</text><text x="112" y="144.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">master match</text>
+<rect x="248" y="64" width="176" height="104" fill="#f3f3f0"/><rect x="248" y="64" width="176" height="104" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/><text x="336" y="90" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Monitoring &amp; Alerts</text><text x="336" y="107" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">numeric thresholds;</text><text x="336" y="122" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Claude tags news,</text><text x="336" y="137" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">grounding checks it;</text><text x="336" y="152" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">an owner acts</text>
+<rect x="472" y="64" width="176" height="104" fill="#f3f3f0"/><rect x="472" y="64" width="176" height="104" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="560" y="97.5" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Dashboards</text><text x="560" y="114.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">WACI, PCAF emissions</text><text x="560" y="129.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">computed; bi views,</text><text x="560" y="144.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Superset embedded</text>
+<rect x="24" y="264" width="176" height="104" fill="#f3f3f0"/><rect x="24" y="264" width="176" height="104" fill="rgba(20,20,20,0.02)" stroke="rgba(20,20,20,0.30)" stroke-width="1" stroke-dasharray="4,3"/><text x="112" y="297.5" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">EUR-Lex refresh</text><text x="112" y="314.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">opt-in; httpx with</text><text x="112" y="329.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">SSRF guard; proposes,</text><text x="112" y="344.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">never applies</text>
+<rect x="248" y="264" width="176" height="104" fill="#f3f3f0"/><rect x="248" y="264" width="176" height="104" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="336" y="297.5" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Transition Barriers</text><text x="336" y="314.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">sector × jurisdiction</text><text x="336" y="329.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">ratings, static JSON;</text><text x="336" y="344.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">staleness tracking</text>
+<rect x="472" y="264" width="176" height="104" fill="#f3f3f0"/><rect x="472" y="264" width="176" height="104" fill="rgba(92,92,87,0.10)" stroke="#5c5c57" stroke-width="1"/><text x="560" y="297.5" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Transition Plan</text><text x="560" y="314.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">run by Argus: 64</text><text x="560" y="329.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">indicators, Claude</text><text x="560" y="344.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">answer + verifier</text>
+<rect x="696" y="264" width="176" height="104" fill="#f3f3f0"/><rect x="696" y="264" width="176" height="104" fill="rgba(92,92,87,0.10)" stroke="#5c5c57" stroke-width="1"/><text x="784" y="305" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Decision Studio</text><text x="784" y="322" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">R&amp;D Lab: ZEN rules;</text><text x="784" y="337" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">ratified, published</text>
+<rect x="936" y="64" width="120" height="304" fill="#f3f3f0"/><rect x="936" y="64" width="120" height="304" fill="rgba(92,92,87,0.10)" stroke="#5c5c57" stroke-width="1"/><text x="996" y="190" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">StewardIQ</text><text x="996" y="207" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">alerts become</text><text x="996" y="222" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">triggers;</text><text x="996" y="237" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">tiers drive</text><text x="996" y="252" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">selection</text>
+<line x1="28" y1="416" x2="1052" y2="416" stroke="rgba(20,20,20,0.10)" stroke-width="0.8"/><text x="28" y="436" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEGEND</text><rect x="28" y="452" width="24" height="12" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="60" y="463" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Step / service</text><rect x="186" y="452" width="24" height="12" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/><text x="218" y="463" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Waits on a person</text><rect x="363" y="452" width="24" height="12" fill="rgba(92,92,87,0.10)" stroke="#5c5c57" stroke-width="1"/><text x="395" y="463" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Other workspace</text><rect x="528" y="452" width="24" height="12" fill="rgba(20,20,20,0.02)" stroke="rgba(20,20,20,0.30)" stroke-width="1" stroke-dasharray="4,3"/><text x="560" y="463" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Opt-in</text></svg></div>
+    </section>
+    <section class="slide" aria-label="Slide 8: Engage companies, vote, report to clients">
+      <div class="head">
+        <p class="eyebrow">08 · Workspace 4 · StewardIQ</p>
+        <h2>Engage companies, vote, report to clients</h2>
+        <p class="takeaway">Rule tables propose; people confirm tiers, approve outreach with a second pair of eyes, and decide every vote.</p>
+      </div>
+      <div class="figure"><svg viewBox="0 0 1080 576" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="ws-stewardiq-title ws-stewardiq-desc"><title id="ws-stewardiq-title">StewardIQ in detail</title><desc id="ws-stewardiq-desc">Engagement runs from rule-based monitoring and selection through issue records, Claude-drafted outreach that needs four-eyes approval, and commitment tracking that loops missed commitments back to monitoring; proxy voting feeds vote outcomes in, and client reporting builds decks from the engagement records.</desc><defs><marker id="ws-stewardiq-ws-m" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5c5c57"/></marker><marker id="ws-stewardiq-ws-a" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b8400f"/></marker></defs><rect x="0" y="0" width="1080" height="576" fill="#f3f3f0"/><rect x="236" y="8" width="240" height="136" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/><rect x="244" y="12" width="107" height="16" fill="#f3f3f0"/><text x="248" y="24" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">PROXY SEASON</text>
+<rect x="16" y="168" width="1048" height="136" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/><rect x="180" y="172" width="162" height="16" fill="#f3f3f0"/><text x="184" y="184" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">ENGAGE AND ESCALATE</text>
+<rect x="440" y="352" width="200" height="132" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/><rect x="448" y="356" width="138" height="16" fill="#f3f3f0"/><text x="452" y="368" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">CLIENT REPORTING</text>
+<line x1="88" y1="116" x2="88" y2="200" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-stewardiq-ws-m)"/>
+<path d="M252,88 H168 Q160,88 160,96 V200" fill="none" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-stewardiq-ws-m)"/>
+<line x1="204" y1="244" x2="240" y2="244" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-stewardiq-ws-m)"/>
+<line x1="416" y1="244" x2="452" y2="244" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-stewardiq-ws-m)"/>
+<line x1="628" y1="244" x2="664" y2="244" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-stewardiq-ws-m)"/>
+<line x1="840" y1="244" x2="876" y2="244" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-stewardiq-ws-m)"/>
+<path d="M964,288 V312 Q964,320 956,320 H548 a 8,8 0 0,0 -16,0 H124 Q116,320 116,312 V288" fill="none" stroke="#5c5c57" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ws-stewardiq-ws-m)"/>
+<line x1="540" y1="288" x2="540" y2="384" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-stewardiq-ws-m)"/>
+<line x1="628" y1="428" x2="876" y2="428" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-stewardiq-ws-m)"/>
+<rect x="174" y="64" width="72" height="16" rx="2" fill="#f3f3f0"/><text x="210" y="76" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">OUTCOMES</text>
+<rect x="312" y="296" width="56" height="16" rx="2" fill="#f3f3f0"/><text x="340" y="308" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">MISSED</text>
+<rect x="548" y="328" width="64" height="16" rx="2" fill="#f3f3f0"/><text x="580" y="340" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">RECORDS</text>
+<rect x="706" y="404" width="92" height="16" rx="2" fill="#f3f3f0"/><text x="752" y="416" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">CLIENT DECK</text>
+<rect x="28" y="60" width="120" height="56" fill="#f3f3f0"/><rect x="28" y="60" width="120" height="56" fill="rgba(92,92,87,0.10)" stroke="#5c5c57" stroke-width="1"/><text x="88" y="84.5" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Risk Monitoring</text><text x="88" y="101.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">alerts (TIP)</text>
+<rect x="252" y="44" width="208" height="88" fill="#f3f3f0"/><rect x="252" y="44" width="208" height="88" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/><text x="356" y="69.5" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Proxy Voting</text><text x="356" y="86.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">LangGraph ballot graph</text><text x="356" y="101.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">rules first, Claude fallback</text><text x="356" y="116.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">person decides every item</text>
+<rect x="28" y="200" width="176" height="88" fill="#f3f3f0"/><rect x="28" y="200" width="176" height="88" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="116" y="233" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Monitoring</text><text x="116" y="250" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">ZEN trigger table</text><text x="116" y="265" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">vs. house policy</text>
+<rect x="240" y="200" width="176" height="88" fill="#f3f3f0"/><rect x="240" y="200" width="176" height="88" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="328" y="233" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Selection</text><text x="328" y="250" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">ZEN coverage tiers</text><text x="328" y="265" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">person confirms tier</text>
+<rect x="452" y="200" width="176" height="88" fill="#f3f3f0"/><rect x="452" y="200" width="176" height="88" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="540" y="233" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Engagement</text><text x="540" y="250" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">issue record +</text><text x="540" y="265" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">ZEN escalation ladder</text>
+<rect x="664" y="200" width="176" height="88" fill="#f3f3f0"/><rect x="664" y="200" width="176" height="88" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/><text x="752" y="233" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Drafting</text><text x="752" y="250" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Claude letter, dossier</text><text x="752" y="265" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">four-eyes approval</text>
+<rect x="876" y="200" width="176" height="88" fill="#f3f3f0"/><rect x="876" y="200" width="176" height="88" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="964" y="233" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Tracking</text><text x="964" y="250" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">commitments</text><text x="964" y="265" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">met or missed</text>
+<rect x="452" y="384" width="176" height="88" fill="#f3f3f0"/><rect x="452" y="384" width="176" height="88" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="540" y="417" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Client report</text><text x="540" y="434" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">program, policy, report</text><text x="540" y="449" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">python-pptx, Playwright</text>
+<rect x="876" y="400" width="176" height="56" fill="#f3f3f0"/><rect x="876" y="400" width="176" height="56" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/><text x="964" y="424.5" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Presentations</text><text x="964" y="441.5" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">jinja2 · Playwright PDF</text>
+<line x1="28" y1="504" x2="1052" y2="504" stroke="rgba(20,20,20,0.10)" stroke-width="0.8"/><text x="28" y="524" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEGEND</text><rect x="28" y="540" width="24" height="12" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="60" y="551" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Step / service</text><rect x="186" y="540" width="24" height="12" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/><text x="218" y="551" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Waits on a person</text><rect x="363" y="540" width="24" height="12" fill="rgba(92,92,87,0.10)" stroke="#5c5c57" stroke-width="1"/><text x="395" y="551" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Other workspace</text><rect x="528" y="540" width="24" height="12" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/><text x="560" y="551" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Shared tool</text><line x1="668" y1="546" x2="696" y2="546" stroke="#5c5c57" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#ws-stewardiq-ws-m)"/><text x="704" y="551" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Loops back</text></svg></div>
+    </section>
+    <section class="slide" aria-label="Slide 9: One issuer per security, for the whole tool">
+      <div class="head">
+        <p class="eyebrow">09 · Workspace 5 · Data Hub</p>
+        <h2>One issuer per security, for the whole tool</h2>
+        <p class="takeaway">Holdings match the security master exactly. Anything unmatched is fixed in the master, never in the holding.</p>
+      </div>
+      <div class="figure"><svg viewBox="0 0 1080 544" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="ws-datahub-title ws-datahub-desc"><title id="ws-datahub-title">Data Hub in detail</title><desc id="ws-datahub-desc">An approver uploads the security master, which replaces the identifier map; holdings intake matches each holding exactly by ISIN then LEI and saves snapshots to Postgres, unmatched securities wait for a person to fix the master, and the Issues, Feeds, Smart Search and Search screens sit on top.</desc><defs><marker id="ws-datahub-ws-m" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5c5c57"/></marker><marker id="ws-datahub-ws-a" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b8400f"/></marker></defs><rect x="0" y="0" width="1080" height="544" fill="#f3f3f0"/><rect x="16" y="32" width="1048" height="120" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/><rect x="24" y="36" width="210" height="16" fill="#f3f3f0"/><text x="28" y="48" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">MAP SECURITIES TO ISSUERS</text>
+<rect x="16" y="320" width="1048" height="120" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/><rect x="24" y="324" width="67" height="16" fill="#f3f3f0"/><text x="28" y="336" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">SCREENS</text>
+<line x1="236" y1="100" x2="300" y2="100" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-datahub-ws-m)"/>
+<line x1="508" y1="100" x2="572" y2="100" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-datahub-ws-m)"/>
+<line x1="780" y1="100" x2="844" y2="100" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-datahub-ws-m)"/>
+<line x1="676" y1="136" x2="676" y2="200" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-datahub-ws-m)"/>
+<path d="M572,236 H140 Q132,236 132,228 V136" fill="none" stroke="#b8400f" stroke-width="1.4" stroke-dasharray="4,3" marker-end="url(#ws-datahub-ws-a)"/>
+<line x1="676" y1="272" x2="676" y2="352" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-datahub-ws-m)"/>
+<line x1="844" y1="388" x2="780" y2="388" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-datahub-ws-m)"/>
+<line x1="508" y1="388" x2="572" y2="388" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ws-datahub-ws-m)"/>
+<rect x="248" y="76" width="40" height="16" rx="2" fill="#f3f3f0"/><text x="268" y="88" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">LOAD</text>
+<rect x="512" y="76" width="56" height="16" rx="2" fill="#f3f3f0"/><text x="540" y="88" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">LOOKUP</text>
+<rect x="792" y="76" width="40" height="16" rx="2" fill="#f3f3f0"/><text x="812" y="88" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">SAVE</text>
+<rect x="684" y="160" width="72" height="16" rx="2" fill="#f3f3f0"/><text x="720" y="172" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">NO MATCH</text>
+<rect x="310" y="212" width="84" height="16" rx="2" fill="#f3f3f0"/><text x="352" y="224" fill="#b8400f" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">FIX MASTER</text>
+<rect x="788" y="364" width="48" height="16" rx="2" fill="#f3f3f0"/><text x="812" y="376" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">STALE</text>
+<rect x="512" y="364" width="56" height="16" rx="2" fill="#f3f3f0"/><text x="540" y="376" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">FILTER</text>
+<rect x="28" y="64" width="208" height="72" fill="#f3f3f0"/><rect x="28" y="64" width="208" height="72" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/><text x="132" y="89" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Security master</text><text x="132" y="106" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">upload, approver role</text><text x="132" y="121" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">ISIN, LEI, CUSIP, FIGI…</text>
+<rect x="300" y="64" width="208" height="72" fill="#f3f3f0"/><rect x="300" y="64" width="208" height="72" fill="rgba(20,20,20,0.05)" stroke="#5c5c57" stroke-width="1"/><text x="404" y="89" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Identifier map</text><text x="404" y="106" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">identifier_map.jsonl</text><text x="404" y="121" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">replaced whole</text>
+<rect x="572" y="64" width="208" height="72" fill="#f3f3f0"/><rect x="572" y="64" width="208" height="72" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="676" y="89" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Holdings intake</text><text x="676" y="106" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">ISIN, then LEI, exact</text><text x="676" y="121" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">else provisional ARP: key</text>
+<rect x="844" y="64" width="208" height="72" fill="#f3f3f0"/><rect x="844" y="64" width="208" height="72" fill="rgba(20,20,20,0.05)" stroke="#5c5c57" stroke-width="1"/><text x="948" y="89" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Postgres + pgvector</text><text x="948" y="106" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">holdings snapshots</text><text x="948" y="121" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">SQLAlchemy · psycopg</text>
+<rect x="572" y="200" width="208" height="72" fill="#f3f3f0"/><rect x="572" y="200" width="208" height="72" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/><text x="676" y="225" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Unmatched</text><text x="676" y="242" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">fix the master,</text><text x="676" y="257" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">not the holding</text>
+<rect x="28" y="352" width="208" height="72" fill="#f3f3f0"/><rect x="28" y="352" width="208" height="72" fill="rgba(20,20,20,0.02)" stroke="rgba(20,20,20,0.30)" stroke-width="1" stroke-dasharray="4,3"/><text x="132" y="377" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Search</text><text x="132" y="394" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">OpenSearch multi_match</text><text x="132" y="409" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">documents index</text>
+<rect x="300" y="352" width="208" height="72" fill="#f3f3f0"/><rect x="300" y="352" width="208" height="72" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="404" y="377" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Smart Search</text><text x="404" y="394" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Claude writes a filter,</text><text x="404" y="409" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">code applies it</text>
+<rect x="572" y="352" width="208" height="72" fill="#f3f3f0"/><rect x="572" y="352" width="208" height="72" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="676" y="377" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Issues</text><text x="676" y="394" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">stale feeds, unmatched,</text><text x="676" y="409" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">failing checks</text>
+<rect x="844" y="352" width="208" height="72" fill="#f3f3f0"/><rect x="844" y="352" width="208" height="72" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/><text x="948" y="377" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Feeds</text><text x="948" y="394" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Refinitiv news (PermID)</text><text x="948" y="409" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">ESG API · 503 if unset</text>
+<line x1="28" y1="472" x2="1052" y2="472" stroke="rgba(20,20,20,0.10)" stroke-width="0.8"/><text x="28" y="492" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEGEND</text><rect x="28" y="508" width="24" height="12" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="60" y="519" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Step / service</text><rect x="186" y="508" width="24" height="12" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/><text x="218" y="519" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Waits on a person</text><rect x="363" y="508" width="24" height="12" fill="rgba(20,20,20,0.05)" stroke="#5c5c57" stroke-width="1"/><text x="395" y="519" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Store</text><rect x="466" y="508" width="24" height="12" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/><text x="498" y="519" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">External source</text><rect x="631" y="508" width="24" height="12" fill="rgba(20,20,20,0.02)" stroke="rgba(20,20,20,0.30)" stroke-width="1" stroke-dasharray="4,3"/><text x="663" y="519" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Opt-in</text></svg></div>
+    </section>
+    <section class="slide split" aria-label="Slide 10: The Taxonomy Researcher proposes, never applies">
+      <div class="head">
+        <p class="eyebrow">10 · Standing agents</p>
+        <h2>The Taxonomy Researcher proposes, never applies</h2>
+        <p class="takeaway">It re-searches sources for each ratified taxonomy and writes a DRAFT version only when the merge adds activities.</p>
+      </div>
+      <div class="figure"><svg viewBox="0 0 960 792" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="taxonomy-researcher-title taxonomy-researcher-desc">
+          <title id="taxonomy-researcher-title">Taxonomy Researcher flow</title>
+          <desc id="taxonomy-researcher-desc">For each ratified taxonomy the agent finds and ranks authority sources, extracts activities, merges them with the current taxonomy, and proposes a new draft version for human ratification only when the merge adds new activities; otherwise it logs a finding with no proposal.</desc>
+          <defs>
+            <marker id="tr-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5c5c57"/></marker>
+            <marker id="tr-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b8400f"/></marker>
+          </defs>
+
+          <rect width="100%" height="100%" fill="#f3f3f0"/>
+
+          <!-- Arrows (drawn first, behind nodes) -->
+          <line x1="330" y1="80" x2="330" y2="112" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#tr-arrow)"/>
+          <line x1="330" y1="160" x2="330" y2="184" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#tr-arrow)"/>
+          <line x1="330" y1="256" x2="330" y2="288" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#tr-arrow)"/>
+          <line x1="330" y1="336" x2="330" y2="360" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#tr-arrow)"/>
+          <line x1="330" y1="432" x2="330" y2="464" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#tr-arrow)"/>
+          <line x1="330" y1="512" x2="330" y2="536" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#tr-arrow)"/>
+          <line x1="330" y1="608" x2="330" y2="640" stroke="#b8400f" stroke-width="1.4" marker-end="url(#tr-arrow-accent)"/>
+          <!-- NO branches into the shared "No proposal" end -->
+          <path d="M430,220 H652 Q660,220 660,228 V548" fill="none" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#tr-arrow)"/>
+          <path d="M430,396 H588 Q596,396 596,404 V548" fill="none" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#tr-arrow)"/>
+          <line x1="430" y1="572" x2="528" y2="572" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#tr-arrow)"/>
+
+          <!-- Arrow labels -->
+          <rect x="338" y="264" width="32" height="16" rx="2" fill="#f3f3f0"/>
+          <text x="354" y="276" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">YES</text>
+          <rect x="338" y="440" width="32" height="16" rx="2" fill="#f3f3f0"/>
+          <text x="354" y="452" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">YES</text>
+          <rect x="338" y="616" width="32" height="16" rx="2" fill="#f3f3f0"/>
+          <text x="354" y="628" fill="#b8400f" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">YES</text>
+          <rect x="528" y="196" width="24" height="16" rx="2" fill="#f3f3f0"/>
+          <text x="540" y="208" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">NO</text>
+          <rect x="496" y="372" width="24" height="16" rx="2" fill="#f3f3f0"/>
+          <text x="508" y="384" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">NO</text>
+          <rect x="468" y="548" width="24" height="16" rx="2" fill="#f3f3f0"/>
+          <text x="480" y="560" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">NO</text>
+
+          <!-- Start -->
+          <rect x="230" y="32" width="200" height="48" rx="20" fill="#f3f3f0"/>
+          <rect x="230" y="32" width="200" height="48" rx="20" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/>
+          <text x="330" y="53" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Ratified taxonomy</text>
+          <text x="330" y="68" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">manual or scheduled run</text>
+
+          <!-- Step: discover + rank -->
+          <rect x="230" y="112" width="200" height="48" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+          <text x="330" y="133" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Discover + rank sources</text>
+          <text x="330" y="148" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">web search, LLM-ranked</text>
+
+          <!-- Decision 1 -->
+          <polygon points="330,184 430,220 330,256 230,220" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+          <text x="330" y="218" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Any source above</text>
+          <text x="330" y="232" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">authority floor?</text>
+
+          <!-- Step: extract -->
+          <rect x="230" y="288" width="200" height="48" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+          <text x="330" y="309" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Extract activities</text>
+          <text x="330" y="324" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">top-N sources, LLM</text>
+
+          <!-- Decision 2 -->
+          <polygon points="330,360 430,396 330,432 230,396" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+          <text x="330" y="394" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Groundable</text>
+          <text x="330" y="408" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">activities found?</text>
+
+          <!-- Step: merge -->
+          <rect x="230" y="464" width="200" height="48" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+          <text x="330" y="485" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Merge with taxonomy</text>
+          <text x="330" y="500" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">merge_taxonomies, LLM</text>
+
+          <!-- Decision 3 -->
+          <polygon points="330,536 430,572 330,608 230,572" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+          <text x="330" y="570" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">New activities</text>
+          <text x="330" y="584" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">after merge?</text>
+
+          <!-- End: draft proposal (focal: waits on a person) -->
+          <rect x="230" y="640" width="200" height="56" rx="20" fill="#f3f3f0"/>
+          <rect x="230" y="640" width="200" height="56" rx="20" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/>
+          <text x="330" y="664" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">New DRAFT version</text>
+          <text x="330" y="682" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">awaits human ratification</text>
+
+          <!-- End: no proposal -->
+          <rect x="528" y="548" width="200" height="48" rx="20" fill="#f3f3f0"/>
+          <rect x="528" y="548" width="200" height="48" rx="20" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/>
+          <text x="628" y="569" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">No proposal</text>
+          <text x="628" y="584" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">finding logged with reason</text>
+
+          <!-- Legend -->
+          <line x1="32" y1="728" x2="928" y2="728" stroke="rgba(20,20,20,0.10)" stroke-width="0.8"/>
+          <text x="32" y="744" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEGEND · SHAPE CARRIES TYPE</text>
+          <rect x="32" y="756" width="24" height="12" rx="6" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/>
+          <text x="64" y="767" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Start / end</text>
+          <rect x="172" y="756" width="24" height="12" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+          <text x="204" y="767" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Step</text>
+          <polygon points="300,762 312,756 324,762 312,768" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+          <text x="336" y="767" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Decision</text>
+          <rect x="440" y="756" width="24" height="12" rx="6" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/>
+          <text x="472" y="767" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Waits on a person</text>
+        </svg></div>
+    </section>
+    <section class="slide" aria-label="Slide 11: The Calibration Agent flags stale verdicts">
+      <div class="head">
+        <p class="eyebrow">11 · Standing agents</p>
+        <h2>The Calibration Agent flags stale verdicts</h2>
+        <p class="takeaway">A timestamp comparison with no LLM call: newer documents than a verdict raise a drift flag for a person.</p>
+      </div>
+      <div class="figure"><svg viewBox="0 52 960 296" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="calibration-agent-title calibration-agent-desc">
+          <title id="calibration-agent-title">Calibration Agent flow</title>
+          <desc id="calibration-agent-desc">For each completed theme run the agent groups verdicts by company, fetches the company's documents, and raises a drift flag for human review when a document was fetched after a verdict was generated; otherwise no flag is raised.</desc>
+          <defs>
+            <marker id="ca-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5c5c57"/></marker>
+            <marker id="ca-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b8400f"/></marker>
+          </defs>
+
+          <rect width="100%" height="100%" fill="#f3f3f0"/>
+
+          <!-- Arrows (drawn first, behind nodes) -->
+          <line x1="192" y1="120" x2="224" y2="120" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ca-arrow)"/>
+          <line x1="384" y1="120" x2="416" y2="120" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ca-arrow)"/>
+          <line x1="576" y1="120" x2="608" y2="120" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ca-arrow)"/>
+          <line x1="784" y1="120" x2="816" y2="120" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#ca-arrow)"/>
+          <line x1="696" y1="156" x2="696" y2="196" stroke="#b8400f" stroke-width="1.4" marker-end="url(#ca-arrow-accent)"/>
+
+          <!-- Arrow labels -->
+          <rect x="788" y="96" width="24" height="16" rx="2" fill="#f3f3f0"/>
+          <text x="800" y="108" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">NO</text>
+          <rect x="704" y="168" width="32" height="16" rx="2" fill="#f3f3f0"/>
+          <text x="720" y="180" fill="#b8400f" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.12em">YES</text>
+
+          <!-- Start -->
+          <rect x="32" y="96" width="160" height="48" rx="20" fill="#f3f3f0"/>
+          <rect x="32" y="96" width="160" height="48" rx="20" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/>
+          <text x="112" y="117" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Completed theme run</text>
+          <text x="112" y="132" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">manual or scheduled</text>
+
+          <!-- Step: group -->
+          <rect x="224" y="96" width="160" height="48" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+          <text x="304" y="117" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Group verdicts</text>
+          <text x="304" y="132" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">by company</text>
+
+          <!-- Step: fetch -->
+          <rect x="416" y="96" width="160" height="48" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+          <text x="496" y="117" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Fetch documents</text>
+          <text x="496" y="132" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">registry.fetch_all</text>
+
+          <!-- Decision -->
+          <polygon points="696,84 784,120 696,156 608,120" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+          <text x="696" y="118" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Document newer</text>
+          <text x="696" y="132" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">than verdict?</text>
+
+          <!-- End: no flag -->
+          <rect x="816" y="96" width="128" height="48" rx="20" fill="#f3f3f0"/>
+          <rect x="816" y="96" width="128" height="48" rx="20" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/>
+          <text x="880" y="117" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">No flag</text>
+          <text x="880" y="132" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">verdict stands</text>
+
+          <!-- End: drift flag (focal: waits on a person) -->
+          <rect x="616" y="196" width="160" height="56" rx="20" fill="#f3f3f0"/>
+          <rect x="616" y="196" width="160" height="56" rx="20" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/>
+          <text x="696" y="220" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Drift flag</text>
+          <text x="696" y="238" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">awaits human review</text>
+
+          <!-- Legend -->
+          <line x1="32" y1="284" x2="928" y2="284" stroke="rgba(20,20,20,0.10)" stroke-width="0.8"/>
+          <text x="32" y="300" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEGEND · SHAPE CARRIES TYPE</text>
+          <rect x="32" y="312" width="24" height="12" rx="6" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/>
+          <text x="64" y="323" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Start / end</text>
+          <rect x="172" y="312" width="24" height="12" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+          <text x="204" y="323" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Step</text>
+          <polygon points="300,318 312,312 324,318 312,324" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+          <text x="336" y="323" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Decision</text>
+          <rect x="440" y="312" width="24" height="12" rx="6" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/>
+          <text x="472" y="323" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Waits on a person</text>
+        </svg></div>
+    </section>
+  </main>
+  <nav class="controls" aria-label="Slide controls">
+    <button type="button" id="prev" aria-label="Previous slide">← Prev</button>
+    <button type="button" id="next" aria-label="Next slide">Next →</button>
+    <span class="hint">Arrow keys or space · Home / End</span>
+    <span class="counter" id="counter" aria-live="polite"></span>
+  </nav>
+  <script>
+    const slides = [...document.querySelectorAll('.slide')];
+    const counter = document.getElementById('counter');
+    const pad = (n) => String(n).padStart(2, '0');
+    let i = 0;
+    function show(n) {
+      i = Math.max(0, Math.min(slides.length - 1, n));
+      slides.forEach((s, k) => s.classList.toggle('active', k === i));
+      counter.textContent = pad(i + 1) + ' / ' + pad(slides.length);
+      document.getElementById('prev').disabled = i === 0;
+      document.getElementById('next').disabled = i === slides.length - 1;
+      history.replaceState(null, '', '#' + (i + 1));
+    }
+    document.getElementById('prev').onclick = () => show(i - 1);
+    document.getElementById('next').onclick = () => show(i + 1);
+    document.addEventListener('keydown', (e) => {
+      if (e.target.closest('button') && (e.key === ' ' || e.key === 'Enter')) return;
+      if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); show(i + 1); }
+      if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); show(i - 1); }
+      if (e.key === 'Home') show(0);
+      if (e.key === 'End') show(slides.length - 1);
+    });
+    show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+  </script>
+</body>
+</html>
