@@ -153,3 +153,17 @@ def test_exported_labels_score_against_the_rows_they_came_from():
     [case] = export_cases(StubStore(rows), "run", decisions, schema=_typed_schema())
     by_id = {e.field_id: e for e in case.expected}
     assert _correct(by_id["capex"], scaled) and _correct(by_id["crit"], no)
+
+
+def test_approved_label_is_the_scaled_value_so_a_scale_error_scores_wrong():
+    from arp.golden_set.precision import _correct
+    from arp.schemas.datapoints import ExtractedField
+
+    rows = [{"company_id": "acme", "issuer_key": ISSUER, "fields": [
+        {**_field("capex", 1234.0), "canonical_value": 1.234e9},
+    ]}]
+    [case] = export_cases(StubStore(rows), "run", [_decision("capex", DecisionKind.APPROVE, DecisionReason.CONFIRMED)])
+    [label] = case.expected
+    assert label.value == 1.234e9
+    wrong_scale = ExtractedField(field_id="capex", field_name="capex", value=1234.0, canonical_value=1.234e6, confidence=0.9)
+    assert not _correct(label, wrong_scale)

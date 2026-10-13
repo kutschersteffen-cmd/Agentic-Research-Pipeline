@@ -38,7 +38,8 @@ def _typed(value, data_type: FieldDataType | None):
 def _expected(d: dict, field: dict, data_type: FieldDataType | None = None) -> ExpectedValue | None:
     period = field.get("period_end")
     if d["decision"] == DecisionKind.APPROVE:
-        value = field.get("value")
+        # The scaled value, so a later scale error (raw 1234 read as thousands, not millions) cannot match it.
+        value = field["canonical_value"] if field.get("canonical_value") is not None else field.get("value")
         state = ValueState(field["value_state"]) if "value_state" in field else _state(value)
     elif d["decision"] == DecisionKind.CORRECT and d["corrected_value"] is not None:
         # decide.py requires this key; None means "not disclosed"
