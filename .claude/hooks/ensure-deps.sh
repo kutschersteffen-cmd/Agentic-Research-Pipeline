@@ -10,6 +10,12 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 backend() {
   python3 -c 'import fastapi, pytest' 2>/dev/null && command -v ruff >/dev/null && return 0
   echo "Installing backend dependencies (~3 min)..." >&2
+  # Cloud sessions: the proxy CA bundle lacks download.pytorch.org's root, so add certifi's roots.
+  # Runs in locked()'s subshell, so the exports reach only the pip commands below.
+  if [ -f /root/.ccr/ca-bundle.crt ] && certifi=$(python3 -c 'import certifi; print(certifi.where())' 2>/dev/null); then
+    ca=$(mktemp) && trap 'rm -f "$ca"' EXIT && cat /root/.ccr/ca-bundle.crt "$certifi" >"$ca" &&
+      export REQUESTS_CA_BUNDLE=$ca SSL_CERT_FILE=$ca PIP_CERT=$ca
+  fi
   # CPU-only torch first: docling would otherwise pull ~4 GB of CUDA libraries.
   pip install -q torch --index-url https://download.pytorch.org/whl/cpu &&
     pip install -q -e "backend[dev]"
