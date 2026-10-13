@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+
 import numpy as np
 
 from arp.retrieval.index_cache import INDEX_CACHE
@@ -8,6 +10,8 @@ from arp.schemas.common import DocType, DocumentChunk
 from arp.storage.document_store import DocumentContentStore
 
 _RRF_K = 60
+# Concurrent fields (worker threads) share a document's chunks: one embeds the missing ones, the rest reuse them.
+_EMBED_LOCK = threading.Lock()
 
 
 def _rrf_fuse(rankings: list[list[str]], k: int = _RRF_K) -> list[str]:
@@ -56,12 +60,15 @@ def _vector_ranking(candidates: list[DocumentChunk], query_text: str, content_st
 
     chunk_ids = [c.chunk_id for c in candidates]
     cached = content_store.lookup_embeddings(chunk_ids, EMBED_MODEL_NAME)
-    missing = [c for c in candidates if c.chunk_id not in cached]
-    if missing:
-        vectors = embed_texts([c.text for c in missing])
-        new_vectors = {c.chunk_id: vectors[i] for i, c in enumerate(missing)}
-        content_store.store_embeddings(new_vectors, EMBED_MODEL_NAME)
-        cached.update(new_vectors)
+    if any(c.chunk_id not in cached for c in candidates):
+        with _EMBED_LOCK:
+            cached = content_store.lookup_embeddings(chunk_ids, EMBED_MODEL_NAME)  # another field may have stored them
+            missing = [c for c in candidates if c.chunk_id not in cached]
+            if missing:
+                vectors = embed_texts([c.text for c in missing])
+                new_vectors = {c.chunk_id: vectors[i] for i, c in enumerate(missing)}
+                content_store.store_embeddings(new_vectors, EMBED_MODEL_NAME)
+                cached.update(new_vectors)
 
     query_vec = embed_texts([query_text])[0]
     query_norm = float(np.linalg.norm(query_vec)) or 1.0

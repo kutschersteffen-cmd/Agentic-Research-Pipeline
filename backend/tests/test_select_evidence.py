@@ -163,3 +163,47 @@ def test_rerank_unset_leaves_order_untouched(monkeypatch):
     monkeypatch.setattr(rerank, "_score", lambda q, texts: (_ for _ in ()).throw(AssertionError("scorer called")))
     chunks = [_chunk("capex capex"), _chunk("capex")]
     assert select_relevant_chunks(chunks, ["capex"], max_chunks=2)[0].text == "capex capex"
+
+
+def test_concurrent_vector_rankings_embed_each_chunk_once(monkeypatch):
+    import threading
+    import time
+    from collections import Counter
+
+    import numpy as np
+
+    from arp.retrieval import embeddings
+    from arp.retrieval.select_evidence import _vector_ranking
+
+    class _DictStore:  # the store's contract: lookup returns what was stored, storing a key again is harmless
+        def __init__(self):
+            self.rows = {}
+
+        def lookup_embeddings(self, chunk_ids, model):
+            return {i: self.rows[(i, model)] for i in chunk_ids if (i, model) in self.rows}
+
+        def store_embeddings(self, vectors, model):
+            for i, v in vectors.items():
+                self.rows.setdefault((i, model), v)
+
+    embedded = Counter()
+
+    def _embed(texts):
+        embedded.update(texts)
+        time.sleep(0.05)  # long enough for the other field's lookup to see the same missing chunks
+        return [np.ones(3, dtype=np.float32) for _ in texts]
+
+    monkeypatch.setattr(embeddings, "embed_texts", _embed)
+    chunks, store = [_chunk("alpha"), _chunk("beta")], _DictStore()
+    barrier = threading.Barrier(2)
+
+    def _rank():
+        barrier.wait()
+        _vector_ranking(chunks, "query", store)
+
+    threads = [threading.Thread(target=_rank) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert (embedded["alpha"], embedded["beta"]) == (1, 1)

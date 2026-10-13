@@ -35,11 +35,15 @@ class PgVectorEmbeddingsStore:
     def store_embeddings(self, vectors_by_chunk_id: dict[str, np.ndarray], embed_model: str) -> None:
         if not vectors_by_chunk_id:
             return
+        from sqlalchemy.dialects.postgresql import insert
+
         from arp.storage.postgres_models import ChunkEmbeddingModel
 
+        rows = [
+            {"chunk_id": chunk_id, "embed_model": embed_model, "embedding": vector.tolist()}
+            for chunk_id, vector in vectors_by_chunk_id.items()
+        ]
+        # An embedding is a pure function of the chunk text, so a row another field stored first is the same row.
         with self._Session(self._engine) as session:
-            for chunk_id, vector in vectors_by_chunk_id.items():
-                session.merge(
-                    ChunkEmbeddingModel(chunk_id=chunk_id, embed_model=embed_model, embedding=vector.tolist())
-                )
+            session.execute(insert(ChunkEmbeddingModel).values(rows).on_conflict_do_nothing())
             session.commit()
