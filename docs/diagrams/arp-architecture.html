@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARP architecture</title>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f3f3f0;   /* graphite ground */
+      --color-ink:     #141414;
+      --color-muted:   #5c5c57;   /* muted graphite */
+      --color-rule:    rgba(20,20,20,0.12);
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 3rem 1rem;
+    }
+
+    .frame { max-width: 1000px; width: 100%; min-width: 0; }
+    .diagram-container { width: 100%; overflow-x: auto; margin-bottom: 2rem; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 600;
+      letter-spacing: -0.035em;
+      line-height: 1.15;
+      margin-bottom: 0.75rem;
+    }
+
+    .lede {
+      font-size: 0.9375rem;
+      line-height: 1.45;
+      color: var(--color-muted);
+      max-width: 62ch;
+      margin-bottom: 2rem;
+    }
+
+    code { font-family: var(--font-mono); font-size: 0.8125rem; }
+
+    svg { width: 100%; min-width: 960px; display: block; }
+
+    footer {
+      border-top: 1px solid var(--color-rule);
+      padding-top: 0.75rem;
+      font-size: 0.875rem;
+      line-height: 1.45;
+      color: var(--color-muted);
+    }
+
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Architecture · Agentic Research Pipeline</p>
+    <h1>How the repo fits together</h1>
+    <p class="lede">The browser and the CLI both drive the same Python package, <code>backend/arp</code>. Its agent pipelines call Claude to plan and deterministic code to compute, re-check every citation against the source text, and store everything in Postgres. Anything a pipeline proposes waits in the review queue until a person decides.</p>
+
+    <div class="diagram-container">
+      <svg viewBox="0 48 960 576" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="arp-architecture-title arp-architecture-desc">
+        <title id="arp-architecture-title">Agentic Research Pipeline architecture</title>
+        <desc id="arp-architecture-desc">A React UI talks to a FastAPI backend and a Typer CLI calls the backend package directly; agent pipelines use the Anthropic API and public data sources, write results to Postgres and file stores, and send proposals to a review queue where a person decides through the API.</desc>
+        <defs>
+          <marker id="arch-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5c5c57"/></marker>
+          <marker id="arch-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b8400f"/></marker>
+        </defs>
+
+        <rect width="100%" height="100%" fill="#f3f3f0"/>
+
+        <!-- Zones -->
+        <rect x="24" y="64" width="192" height="336" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/>
+        <rect x="32" y="68" width="76" height="16" fill="#f3f3f0"/>
+        <text x="36" y="80" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">CLIENTS</text>
+
+        <rect x="240" y="64" width="432" height="336" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/>
+        <rect x="248" y="68" width="212" height="16" fill="#f3f3f0"/>
+        <text x="252" y="80" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">BACKEND · backend/arp</text>
+
+        <rect x="696" y="64" width="240" height="336" fill="none" stroke="rgba(20,20,20,0.16)" stroke-width="0.8"/>
+        <rect x="704" y="68" width="52" height="16" fill="#f3f3f0"/>
+        <text x="708" y="80" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.14em">DATA</text>
+
+        <!-- Arrows (drawn first, behind nodes) -->
+        <line x1="200" y1="140" x2="264" y2="140" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+        <line x1="424" y1="140" x2="488" y2="140" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+        <path d="M648,140 H744 Q752,140 752,148 V200" fill="none" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+        <line x1="344" y1="168" x2="344" y2="312" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+        <line x1="536" y1="312" x2="536" y2="168" stroke="#b8400f" stroke-width="1.4" marker-end="url(#arch-arrow-accent)"/>
+        <path d="M600,312 V236 Q600,228 608,228 H712" fill="none" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+        <line x1="648" y1="340" x2="712" y2="340" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+        <line x1="200" y1="340" x2="264" y2="340" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+        <line x1="376" y1="368" x2="376" y2="464" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+        <line x1="552" y1="368" x2="552" y2="464" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#arch-arrow)"/>
+
+        <!-- Arrow labels -->
+        <rect x="212" y="116" width="40" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="232" y="128" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">REST</text>
+        <rect x="428" y="116" width="56" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="456" y="128" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">DECIDE</text>
+        <rect x="664" y="116" width="64" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="696" y="128" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">PERSIST</text>
+        <rect x="352" y="232" width="76" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="390" y="244" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">START RUN</text>
+        <rect x="464" y="232" width="64" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="496" y="244" fill="#b8400f" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">PROPOSE</text>
+        <rect x="620" y="204" width="64" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="652" y="216" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">RESULTS</text>
+        <rect x="656" y="316" width="48" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="680" y="328" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">WRITE</text>
+        <rect x="204" y="316" width="56" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="232" y="328" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">DIRECT</text>
+        <rect x="384" y="408" width="80" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="424" y="420" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">LLM CALLS</text>
+        <rect x="560" y="408" width="48" height="16" rx="2" fill="#f3f3f0"/>
+        <text x="584" y="420" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">FETCH</text>
+
+        <!-- Clients -->
+        <rect x="40" y="112" width="160" height="56" fill="#f3f3f0"/>
+        <rect x="40" y="112" width="160" height="56" fill="rgba(92,92,87,0.10)" stroke="#5c5c57" stroke-width="1"/>
+        <text x="120" y="136" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">React UI</text>
+        <text x="120" y="152" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Vite · :5173</text>
+
+        <rect x="40" y="312" width="160" height="56" fill="#f3f3f0"/>
+        <rect x="40" y="312" width="160" height="56" fill="rgba(92,92,87,0.10)" stroke="#5c5c57" stroke-width="1"/>
+        <text x="120" y="336" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">arp CLI</text>
+        <text x="120" y="352" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Typer</text>
+
+        <!-- Backend -->
+        <rect x="264" y="112" width="160" height="56" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+        <text x="344" y="136" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">FastAPI</text>
+        <text x="344" y="152" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">:8000 · sign-in</text>
+
+        <rect x="488" y="112" width="160" height="56" fill="#f3f3f0"/>
+        <rect x="488" y="112" width="160" height="56" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/>
+        <text x="568" y="136" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Review queue</text>
+        <text x="568" y="152" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">waits on a person</text>
+
+        <rect x="264" y="312" width="384" height="56" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+        <text x="456" y="336" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Agent pipelines</text>
+        <text x="456" y="352" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">LangGraph flows · batch runner · grounding</text>
+
+        <!-- Data -->
+        <rect x="712" y="200" width="200" height="56" fill="#f3f3f0"/>
+        <rect x="712" y="200" width="200" height="56" fill="rgba(20,20,20,0.05)" stroke="#5c5c57" stroke-width="1"/>
+        <text x="812" y="224" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Postgres + pgvector</text>
+        <text x="812" y="240" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">system of record</text>
+
+        <rect x="712" y="312" width="200" height="56" fill="#f3f3f0"/>
+        <rect x="712" y="312" width="200" height="56" fill="rgba(20,20,20,0.05)" stroke="#5c5c57" stroke-width="1"/>
+        <text x="812" y="336" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">File stores</text>
+        <text x="812" y="352" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">taxonomies · documents</text>
+
+        <!-- External -->
+        <rect x="296" y="464" width="160" height="56" fill="#f3f3f0"/>
+        <rect x="296" y="464" width="160" height="56" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/>
+        <text x="376" y="488" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Anthropic API</text>
+        <text x="376" y="504" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Claude · llm/base.py</text>
+
+        <rect x="472" y="464" width="160" height="56" fill="#f3f3f0"/>
+        <rect x="472" y="464" width="160" height="56" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/>
+        <text x="552" y="488" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Public sources</text>
+        <text x="552" y="504" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">EDGAR · GDELT · IR</text>
+
+        <!-- Legend -->
+        <line x1="32" y1="552" x2="928" y2="552" stroke="rgba(20,20,20,0.10)" stroke-width="0.8"/>
+        <text x="32" y="572" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" letter-spacing="0.18em">LEGEND</text>
+        <rect x="32" y="588" width="24" height="12" fill="rgba(92,92,87,0.10)" stroke="#5c5c57" stroke-width="1"/>
+        <text x="64" y="599" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Client</text>
+        <rect x="172" y="588" width="24" height="12" fill="#ffffff" stroke="#141414" stroke-width="1"/>
+        <text x="204" y="599" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Service</text>
+        <rect x="312" y="588" width="24" height="12" fill="rgba(20,20,20,0.05)" stroke="#5c5c57" stroke-width="1"/>
+        <text x="344" y="599" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Store</text>
+        <rect x="452" y="588" width="24" height="12" fill="rgba(20,20,20,0.03)" stroke="rgba(20,20,20,0.30)" stroke-width="1"/>
+        <text x="484" y="599" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">External</text>
+        <rect x="592" y="588" width="24" height="12" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/>
+        <text x="624" y="599" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Waits on a person</text>
+      </svg>
+    </div>
+
+    <footer>Optional services in <code>docker-compose.yml</code>, not drawn: OpenSearch (full-text search), MinIO (object storage for document blobs) and Superset (BI dashboards over the <code>bi</code> views in Postgres).</footer>
+  </div>
+</body>
+</html>
