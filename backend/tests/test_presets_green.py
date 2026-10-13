@@ -164,3 +164,23 @@ def test_green_summary_endpoint(tmp_path, pg):
     assert got["rows"] == [{"company_id": "c1", "name": "Acme", "metric": "revenue", "period_end": "2024-12-31",
                             "unit": "EUR", "green_total": 100, "aligned": 40, "share": None, "beyond_taxonomy": 60,
                             "flag": None}]
+
+
+def test_every_green_field_is_high_risk():
+    assert not [f.field_id for f in build_green_schema().fields if not f.high_risk]
+
+
+def test_every_green_field_bumped_to_v2():
+    assert not [f.field_id for f in build_green_schema().fields if f.version < 2]
+
+
+
+def test_green_reinstall_over_released_v1_succeeds(pg):
+    # a deployment that released the preset before high_risk existed: v1 fields, not high_risk
+    reg = SchemaRegistry(pg)
+    old = build_green_schema().model_copy(deep=True)
+    for f in old.fields:
+        f.high_risk, f.version = False, 1
+    s = reg.save(old)
+    reg.release(s.schema_id, s.version)
+    assert install_preset(build_green_schema().schema_id, reg).version == 2

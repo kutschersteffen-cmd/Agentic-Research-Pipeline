@@ -1,21 +1,28 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 import typer
+from pydantic import ValidationError
 
 from arp.api.auth import Principal
 from arp.bi.eval import load_bi_cases, run_bi_set
 from arp.cli._shared import _run_store
 from arp.config import get_settings
+from arp.extraction.pipeline import load_run_schema
+from arp.golden_set.export import export_cases
+from arp.golden_set.precision import load_record_cases, run_precision
 from arp.golden_set.role_runner import load_role_cases as load_role_golden_set_cases
 from arp.golden_set.role_runner import run_role_golden_set
 from arp.golden_set.runner import load_cases as load_golden_set_cases
 from arp.golden_set.runner import run_golden_set
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
+from arp.presets.registry import PRESETS
 from arp.review.items import list_open_items
 from arp.review.quality import seed_known_answers
+from arp.schemas.review import ReviewDecision
 
 golden_set_app = typer.Typer(help="Golden-set regression testing for the extraction pipeline -- run before every prompt/model change reaches a real batch.")
 
@@ -128,3 +135,61 @@ def golden_set_seed_known_answers(
         count = max(1, round(settings.known_answer_rate * len(list_open_items(run_store, system))))
     run_id = seed_known_answers(run_store, settings, count=count, seed=seed)
     typer.echo(f"Seeded {count} known-answer item(s) in trial run {run_id}.")
+
+
+@golden_set_app.command("precision")
+def golden_set_precision(
+    schema_id: str = typer.Option(..., "--schema", help="Preset id of the schema to extract."),
+    cases_file: Path = typer.Option(..., "--cases", help="JSON array of RecordGoldenCase objects (hand-checked answers per company)."),
+    documents_dir: Path = typer.Option(..., "--documents-dir", help="Directory holding <company_id>/ document folders."),
+    min_precision: float = typer.Option(0.97, help="Exit non-zero if the precision of auto-accepted values falls below this."),
+) -> None:
+    """Extracts whole records for hand-checked companies and reports how many auto-accepted
+    values are right -- routed as if every field were released and audited."""
+    if schema_id not in PRESETS:
+        typer.echo(f"Unknown preset: {schema_id}. Known: {', '.join(PRESETS)}", err=True)
+        raise typer.Exit(1)
+    settings = get_settings()
+    report = asyncio.run(
+        run_precision(
+            load_record_cases(cases_file),
+            schema=PRESETS[schema_id](),
+            documents_dir=documents_dir,
+            llm=build_llm_client(settings),
+            verifier_llm=build_verifier_llm_client(settings),
+            settings=settings,
+        )
+    )
+    for w in report.wrong_auto_accepted:
+        typer.echo(f"WRONG {w['case_id']} {w['field_id']}: expected {w['expected']!r}, got {w['actual']!r}")
+    precision = "n/a (nothing auto-accepted)" if report.precision is None else f"{report.precision:.1%}"
+    typer.echo(
+        f"{report.schema_id}: precision {precision} ({report.auto_accepted_correct}/{report.auto_accepted} auto-accepted), "
+        f"coverage {report.coverage:.1%}, review rate {report.review_rate:.1%} of {report.total}."
+    )
+    if report.auto_accepted == 0:  # nothing to measure: a run that auto-accepts nothing cannot pass the gate
+        typer.echo("FAIL: no value was auto-accepted, so precision is unmeasured.", err=True)
+        raise typer.Exit(1)
+    if report.precision < min_precision:
+        raise typer.Exit(1)
+
+
+@golden_set_app.command("export-labels")
+def golden_set_export_labels(
+    run_id: str = typer.Option(..., "--run-id", help="Extraction run whose review decisions become labelled cases."),
+    out: Path = typer.Option(..., "--out", help="File to write the JSON array of RecordGoldenCase objects to."),
+) -> None:
+    """Turns a run's reviewer decisions (approve, correct, reject as not disclosed) into cases for
+    `golden-set precision`. Escalated and other rejected items are left out."""
+    run_store = _run_store()
+    decisions, legacy = [], 0
+    for r in run_store.read_decisions(run_id):
+        try:
+            decisions.append(ReviewDecision.model_validate(r))
+        except ValidationError:  # a pre-step row (e.g. decision "edit", no user_id): no final-state info to export
+            legacy += 1
+    if legacy:
+        typer.echo(f"Skipped {legacy} legacy decision row(s) that do not match the current review schema.", err=True)
+    cases = export_cases(run_store, run_id, decisions, schema=load_run_schema(run_store, run_id))
+    out.write_text(json.dumps([c.model_dump(mode="json") for c in cases], indent=2))
+    typer.echo(f"Wrote {len(cases)} case(s), {sum(len(c.expected) for c in cases)} labelled value(s), to {out}.")

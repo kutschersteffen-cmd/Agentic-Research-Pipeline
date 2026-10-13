@@ -113,3 +113,110 @@ def test_opensearch_backend_without_client_falls_back_to_bm25():
     result = select_relevant_chunks(chunks, ["capex"], retrieval_backend="opensearch", opensearch_client=None)
     assert len(result) == 1
     assert result[0].text == chunks[0].text
+
+
+def test_rerank_candidates_reorders_by_scorer_not_bm25(monkeypatch):
+    from arp.retrieval import rerank
+
+    chunks = [_chunk("capex capex capex"), _chunk("capex capex"), _chunk("capex"), _chunk("capex other other")]
+    texts_seen = []
+
+    def scorer(query, texts):
+        texts_seen.append((query, list(texts)))
+        return [0.1, 0.2, 0.9][: len(texts)]  # favours the 3rd-ranked chunk
+
+    monkeypatch.setattr(rerank, "_score", scorer)
+    result = select_relevant_chunks(chunks, ["capex"], max_chunks=2, rerank_candidates=3)
+    assert len(texts_seen) == 1 and len(texts_seen[0][1]) == 3  # only the top rerank_candidates are scored
+    assert texts_seen[0][0] == "capex"
+    assert result[0].text == "capex"
+    assert len(result) == 2
+
+
+def test_rerank_applies_to_fallback_to_all_bm25(monkeypatch):
+    from arp.retrieval import rerank
+
+    chunks = [_chunk("alpha"), _chunk("beta"), _chunk("gamma")]
+    monkeypatch.setattr(rerank, "_score", lambda q, texts: [0.1, 0.2, 0.9])
+    result = select_relevant_chunks(
+        chunks, ["nonexistent-term-xyz"], max_chunks=2, fallback_to_all=True, rerank_candidates=3
+    )
+    assert [c.text for c in result] == ["gamma", "beta"]
+
+
+def test_rerank_applies_to_fallback_to_all_hybrid(monkeypatch):
+    from arp.retrieval import rerank, select_evidence
+
+    chunks = [_chunk("alpha"), _chunk("beta"), _chunk("gamma")]
+    monkeypatch.setattr(select_evidence, "_vector_ranking", lambda candidates, query_text, store: [])
+    monkeypatch.setattr(rerank, "_score", lambda q, texts: [0.1, 0.2, 0.9])
+    result = select_relevant_chunks(
+        chunks, ["nonexistent-term-xyz"], max_chunks=2, fallback_to_all=True, rerank_candidates=3,
+        hybrid_retrieval_enabled=True, content_store=object(),
+    )
+    assert [c.text for c in result] == ["gamma", "beta"]
+
+
+def test_rerank_unset_leaves_order_untouched(monkeypatch):
+    from arp.retrieval import rerank
+
+    monkeypatch.setattr(rerank, "_score", lambda q, texts: (_ for _ in ()).throw(AssertionError("scorer called")))
+    chunks = [_chunk("capex capex"), _chunk("capex")]
+    assert select_relevant_chunks(chunks, ["capex"], max_chunks=2)[0].text == "capex capex"
+
+
+def test_concurrent_vector_rankings_embed_each_chunk_once(monkeypatch):
+    import threading
+    import time
+    from collections import Counter
+
+    import numpy as np
+
+    from arp.retrieval import embeddings
+    from arp.retrieval.select_evidence import _vector_ranking
+
+    class _DictStore:  # the store's contract: lookup returns what was stored, storing a key again is harmless
+        def __init__(self):
+            self.rows = {}
+
+        def lookup_embeddings(self, chunk_ids, model):
+            return {i: self.rows[(i, model)] for i in chunk_ids if (i, model) in self.rows}
+
+        def store_embeddings(self, vectors, model):
+            for i, v in vectors.items():
+                self.rows.setdefault((i, model), v)
+
+    embedded = Counter()
+
+    def _embed(texts):
+        embedded.update(texts)
+        time.sleep(0.05)  # long enough for the other field's lookup to see the same missing chunks
+        return [np.ones(3, dtype=np.float32) for _ in texts]
+
+    monkeypatch.setattr(embeddings, "embed_texts", _embed)
+    chunks, store = [_chunk("alpha"), _chunk("beta")], _DictStore()
+    barrier = threading.Barrier(2)
+
+    def _rank():
+        barrier.wait()
+        _vector_ranking(chunks, "query", store)
+
+    threads = [threading.Thread(target=_rank) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert (embedded["alpha"], embedded["beta"]) == (1, 1)
+
+
+def test_reports_an_unranked_fallback_only(monkeypatch):
+    from arp.retrieval import rerank
+
+    monkeypatch.setattr(rerank, "_score", lambda q, texts: [0.0] * len(texts))
+    chunks, calls = [_chunk("alpha"), _chunk("beta")], []
+    flag = lambda: calls.append(1)  # noqa: E731
+    select_relevant_chunks(chunks, ["zzz"], fallback_to_all=True, on_unranked_fallback=flag)
+    assert calls == [1]
+    select_relevant_chunks(chunks, ["alpha"], fallback_to_all=True, on_unranked_fallback=flag)  # a hit: BM25 ranked
+    select_relevant_chunks(chunks, ["zzz"], fallback_to_all=True, rerank_candidates=2, on_unranked_fallback=flag)
+    assert calls == [1]

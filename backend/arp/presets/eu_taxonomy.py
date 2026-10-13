@@ -24,12 +24,13 @@ def _common(k: str) -> str:
     )
 
 
+# v2: high_risk=True (blind verification); a released field must bump its version to change
 def _pct(k: str, suffix: str, name: str, what: str, keywords: list[str], **checks) -> FieldDefinition:
     return FieldDefinition(
         field_id=f"eut_{k}_{suffix}_pct", name=f"{name} ({KPIS[k]})", data_type=FieldDataType.PERCENTAGE, unit="%",
         description=f"{what} as a percentage of total {KPIS[k]}.",
         extraction_instructions=f"{_common(k)} {what}.", seed_keywords=[f"taxonomy {k}", *keywords],
-        required=False, check_config=CheckConfig(**checks),
+        required=False, high_risk=True, version=2, check_config=CheckConfig(**checks),
     )
 
 
@@ -52,7 +53,7 @@ def _kpi_fields(k: str) -> list[FieldDefinition]:
             extraction_instructions=f"{_common(k)} Give the total (denominator) amount in the reporting currency, never "
                                     "converted: unit as the ISO 4217 code (USD, EUR, GBP, ...) with the scale word separate, "
                                     "for example 'EUR million'.",
-            seed_keywords=[f"total {k}", f"taxonomy {k}", "denominator"], required=False,
+            seed_keywords=[f"total {k}", f"taxonomy {k}", "denominator"], required=False, high_risk=True, version=2,
             check_config=CheckConfig(non_negative=True),
         ),
     ]
@@ -73,12 +74,13 @@ def build_eu_taxonomy_schema() -> DataPointSchema:
                                         "in the EU Taxonomy KPI tables: 'yes' if the company reports any such activity, 'no' if it "
                                         "states it has none, 'not_disclosed' if the template is absent.",
                 seed_keywords=["nuclear", "fossil gas", "Template 1", "Complementary Delegated Act"], required=False,
+                high_risk=True, version=2,
             ),
             FieldDefinition(
                 field_id="eut_reporting_year", name="Taxonomy reporting year", data_type=FieldDataType.DATE,
                 description="The fiscal year the Taxonomy KPI tables cover.",
                 extraction_instructions="The fiscal year-end date the EU Taxonomy KPI tables (Article 8) cover.",
-                seed_keywords=["reporting year", "fiscal year", "taxonomy"], required=False,
+                seed_keywords=["reporting year", "fiscal year", "taxonomy"], required=False, high_risk=True, version=2,
             ),
         ],
     )

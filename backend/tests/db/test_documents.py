@@ -143,3 +143,32 @@ def test_embeddings_roundtrip_pgvector(pg):
     found = store.lookup_embeddings(["chk_a", "chk_b"], "model-x")
     assert set(found) == {"chk_a"} and np.allclose(found["chk_a"], vec)
     assert store.lookup_embeddings(["chk_a"], "model-y") == {}
+
+
+def test_store_embeddings_tolerates_existing_and_concurrent_keys(pg):
+    import threading
+
+    from arp.retrieval.embeddings import EMBED_DIM
+
+    store = PgVectorEmbeddingsStore(pg)
+    vectors = {f"chk_{i}": np.full(EMBED_DIM, i, dtype=np.float32) for i in range(200)}
+    store.store_embeddings({"chk_0": vectors["chk_0"]}, "model-x")
+    store.store_embeddings(vectors, "model-x")  # chk_0 already stored
+    # Concurrent fields embed the same new chunks and store the same keys at once.
+    fresh = {k.replace("chk_", "new_"): v for k, v in vectors.items()}
+    barrier, errors = threading.Barrier(4), []
+
+    def _store():
+        barrier.wait()
+        try:
+            store.store_embeddings(fresh, "model-x")
+        except Exception as exc:  # noqa: BLE001 -- collected and asserted below
+            errors.append(exc)
+
+    threads = [threading.Thread(target=_store) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert errors == []
+    assert len(store.lookup_embeddings([*vectors, *fresh], "model-x")) == 400

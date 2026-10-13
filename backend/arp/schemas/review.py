@@ -19,6 +19,7 @@ class ReasonCode(StrEnum):
     NUMBER_LOCALE_AMBIGUOUS = "number_locale_ambiguous"
     VERIFIER_CORRECTION_UNCITED = "verifier_correction_uncited"
     ADJUDICATOR_UNRESOLVED = "adjudicator_unresolved"
+    HIGH_RISK_NOT_FOUND_UNRANKED = "high_risk_not_found_unranked"
 
 
 class DecisionKind(StrEnum):

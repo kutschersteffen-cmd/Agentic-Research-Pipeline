@@ -3,9 +3,10 @@ from fastapi.testclient import TestClient
 from arp.api.deps import get_run_store
 from arp.api.main import app
 from arp.checks.plausibility import check_less_or_equal, check_part_of_whole, check_sum_to_target
+from arp.db.fields import SchemaRegistry
 from arp.presets.eu_taxonomy import build_eu_taxonomy_schema
 from arp.presets.green import green_summary
-from arp.presets.registry import PRESETS
+from arp.presets.registry import PRESETS, install_preset
 from arp.schemas.common import RunManifest
 from arp.schemas.datapoints import ExtractionRecord, FieldStatus
 from arp.storage.run_store import RunStore
@@ -106,3 +107,22 @@ def test_green_summary_endpoint_with_eu_taxonomy_run(tmp_path, pg):
         app.dependency_overrides.pop(get_run_store, None)
     assert (got["rows"][0]["aligned"], got["rows"][0]["beyond_taxonomy"]) == (60, 40)
     assert plain["rows"][0]["aligned"] is None
+
+
+def test_every_eu_taxonomy_field_is_high_risk():
+    assert not [f.field_id for f in build_eu_taxonomy_schema().fields if not f.high_risk]
+
+
+def test_every_eu_taxonomy_field_bumped_to_v2():
+    assert not [f.field_id for f in build_eu_taxonomy_schema().fields if f.version < 2]
+
+
+def test_eu_taxonomy_reinstall_over_released_v1_succeeds(pg):
+    # a deployment that released the preset before high_risk existed: v1 fields, not high_risk
+    reg = SchemaRegistry(pg)
+    old = build_eu_taxonomy_schema().model_copy(deep=True)
+    for f in old.fields:
+        f.high_risk, f.version = False, 1
+    s = reg.save(old)
+    reg.release(s.schema_id, s.version)
+    assert install_preset(build_eu_taxonomy_schema().schema_id, reg).version == 2

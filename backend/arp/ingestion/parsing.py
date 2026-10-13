@@ -147,6 +147,7 @@ def chunk_document(
                 company_id=doc.company_id,
                 doc_type=doc.doc_type,
                 section=t.caption,
+                unit_note=t.unit_note,
                 text=span_text,
                 char_start=t.char_start,
                 char_end=t.char_end,

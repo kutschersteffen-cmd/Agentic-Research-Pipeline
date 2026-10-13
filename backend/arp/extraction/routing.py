@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from arp.schemas.datapoints import (
     ExtractedField,
+    FieldDataType,
     FieldDefinition,
     FieldQuality,
     FieldStatus,
@@ -38,11 +39,13 @@ def route(
     reasons += [str(r) for r in field.review_reasons]
     if field.value_state in (ValueState.FOUND, ValueState.ZERO) and not field.grounded and "not_grounded" not in reasons:
         reasons.append("not_grounded")  # defence in depth: the grounding gate never relies on the reason alone
+    if field.value_state == ValueState.NOT_APPLICABLE and spec.data_type == FieldDataType.BOOLEAN:
+        reasons.append("boolean_not_applicable")  # a yes/no criterion is never N/A: not disclosed, so a human looks
     reasons += [f"check:{r.check_id}" for r in field.checks if is_failing(r)]
     if not quality.first_audit_passed:
         reasons.append("first_audit_pending")
     if field.value_state in (ValueState.FOUND, ValueState.ZERO, ValueState.NOT_APPLICABLE) and field.confidence < spec.auto_accept_min:
         reasons.append("below_auto_accept_min")
-    if field.value_state == ValueState.NOT_FOUND and spec.high_risk:
+    if field.value_state == ValueState.NOT_FOUND and spec.high_risk and field.verifier_confidence is None:
         reasons.append("high_risk_not_found")
     return Route(RouteKind.REVIEW, reasons) if reasons else Route(RouteKind.AUTO_ACCEPT, [])
