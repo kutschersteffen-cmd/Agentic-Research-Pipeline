@@ -54,6 +54,35 @@
       .slide.split { display: grid; grid-template-columns: minmax(280px, 1fr) 2fr; gap: 40px; align-items: center; }
       .controls { display: none; }
     }
+
+    .html .figure { display: block; overflow: auto; align-self: stretch; }
+    .matrix, .evidence { width: 100%; border-collapse: collapse; font-size: 0.9375rem; }
+    .matrix th, .matrix td, .evidence th, .evidence td { border-bottom: 1px solid var(--color-rule); padding: 10px 12px; text-align: left; vertical-align: top; }
+    .matrix thead th, .evidence thead th { font: 500 0.8125rem var(--font-mono); color: var(--color-muted); letter-spacing: 0.04em; border-bottom: 1px solid var(--color-ink); }
+    .matrix td { text-align: center; vertical-align: middle; width: 11%; }
+    .matrix thead th:not(:first-child) { text-align: center; }
+    .out { display: block; font-weight: 600; }
+    .via { display: block; font: 0.8125rem var(--font-mono); color: var(--color-muted); margin-top: 2px; }
+    .evidence th[scope=row] { font-weight: 600; width: 24%; }
+    .evidence td.src { width: 22%; font: 0.8125rem var(--font-mono); color: var(--color-muted); }
+    .mark { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--color-ink); vertical-align: middle; }
+    .mark.full { background: var(--color-ink); }
+    .key { font-size: 0.875rem; color: var(--color-muted); margin-top: 12px; display: flex; gap: 8px; align-items: center; }
+    .key .mark { width: 12px; height: 12px; }
+    .key .mark.ring { margin-left: 16px; }
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .compare { display: grid; grid-template-columns: 1fr 1.25fr; gap: 40px; }
+    .col-head { font: 500 0.8125rem var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-muted);
+                padding-bottom: 8px; border-bottom: 1px solid var(--color-ink); margin-bottom: 4px; }
+    .compare ol, .compare ul { list-style: none; counter-reset: step; }
+    .compare ol li { counter-increment: step; display: grid; grid-template-columns: 32px 1fr; padding: 10px 0;
+                     border-bottom: 1px solid var(--color-rule); font-size: 0.9375rem; line-height: 1.4; }
+    .compare ol li::before { content: counter(step, decimal-leading-zero); font: 0.8125rem var(--font-mono); color: var(--color-muted); padding-top: 2px; }
+    .compare ol li .via { grid-column: 2; }
+    .before li { color: var(--color-muted); }
+    .pairs li { padding: 10px 0; border-bottom: 1px solid var(--color-rule); font-size: 0.9375rem; line-height: 1.4; }
+    .pairs strong { display: block; font-weight: 600; }
+    .pairs span { color: var(--color-muted); }
   </style>
 </head>
 <body>
@@ -69,6 +98,7 @@
           <li><span>04</span>Tech stack</li>
           <li><span>05</span>Each workspace, with R&amp;D Lab step by step (06–11)</li>
           <li><span>16</span>Standing agents</li>
+          <li><span>18</span>Impact for an asset manager</li>
         </ol>
       </div>
     </section>
@@ -832,6 +862,58 @@
           <rect x="440" y="312" width="24" height="12" rx="6" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/>
           <text x="472" y="323" fill="#5c5c57" font-size="11" font-family="'Geist', sans-serif">Waits on a person</text>
         </svg></div>
+    </section>
+    <section class="slide html" aria-label="Slide 18: Six outcomes, spread across five teams">
+      <div class="head">
+        <p class="eyebrow">18 · Impact · Who gains</p>
+        <h2>Six outcomes, spread across five teams</h2>
+        <p class="takeaway">Each outcome rests on a feature that exists today; the mapping to teams is a judgement, not a measurement.</p>
+      </div>
+      <div class="figure"><table class="matrix"><thead><tr><th scope="col">Outcome</th><th scope="col">Stewardship &amp; ESG</th><th scope="col">Research</th><th scope="col">Portfolio &amp; risk</th><th scope="col">Product &amp; index</th><th scope="col">Compliance &amp; audit</th></tr></thead><tbody><tr><th scope="row"><span class="out">Cover the whole universe, not a sample</span><span class="via">about 4,000 companies per run; resumable batches</span></th><td><span class="mark full" aria-label="main beneficiary"></span></td><td><span class="mark full" aria-label="main beneficiary"></span></td><td><span class="mark ring" aria-label="also gains"></span></td><td><span class="mark ring" aria-label="also gains"></span></td><td><span class="sr">none</span></td></tr><tr><th scope="row"><span class="out">Every figure traceable to its page</span><span class="via">grounding re-check, second-model verifier, per-field audit</span></th><td><span class="mark ring" aria-label="also gains"></span></td><td><span class="mark full" aria-label="main beneficiary"></span></td><td><span class="mark ring" aria-label="also gains"></span></td><td><span class="sr">none</span></td><td><span class="mark full" aria-label="main beneficiary"></span></td></tr><tr><th scope="row"><span class="out">The tool proposes, a named person decides</span><span class="via">review queue, co-sign, four-eyes calibrations</span></th><td><span class="mark full" aria-label="main beneficiary"></span></td><td><span class="sr">none</span></td><td><span class="sr">none</span></td><td><span class="mark ring" aria-label="also gains"></span></td><td><span class="mark full" aria-label="main beneficiary"></span></td></tr><tr><th scope="row"><span class="out">Engagement and votes that close the loop</span><span class="via">triggers, escalation ladder, commitments, drafted votes</span></th><td><span class="mark full" aria-label="main beneficiary"></span></td><td><span class="sr">none</span></td><td><span class="mark ring" aria-label="also gains"></span></td><td><span class="sr">none</span></td><td><span class="mark ring" aria-label="also gains"></span></td></tr><tr><th scope="row"><span class="out">Climate numbers computed in code</span><span class="via">WACI and PCAF metrics; 64 walk-vs-talk indicators</span></th><td><span class="mark full" aria-label="main beneficiary"></span></td><td><span class="sr">none</span></td><td><span class="mark full" aria-label="main beneficiary"></span></td><td><span class="sr">none</span></td><td><span class="mark ring" aria-label="also gains"></span></td></tr><tr><th scope="row"><span class="out">A shorter path from idea to product</span><span class="via">themes → ratified taxonomy → scores → calibration</span></th><td><span class="sr">none</span></td><td><span class="mark full" aria-label="main beneficiary"></span></td><td><span class="mark ring" aria-label="also gains"></span></td><td><span class="mark full" aria-label="main beneficiary"></span></td><td><span class="sr">none</span></td></tr></tbody></table><p class="key"><span class="mark full"></span> main beneficiary <span class="mark ring"></span> also gains</p></div>
+    </section>
+    <section class="slide html" aria-label="Slide 19: Which holdings have a credible transition plan?">
+      <div class="head">
+        <p class="eyebrow">19 · Impact · One question</p>
+        <h2>Which holdings have a credible transition plan?</h2>
+        <p class="takeaway">The same question answered by hand and with ARP. The difference is coverage, a source for every answer, and a re-run instead of a rebuild.</p>
+      </div>
+      <div class="figure"><div class="compare"><div class="col before"><p class="col-head">By hand</p><ol><li>Analysts pick the sample of issuers they have time to read.</li><li>Annual and sustainability reports are read by hand.</li><li>Judgements go into a spreadsheet; the page reference stays in someone’s notes.</li><li>Scoring rules live in the spreadsheet and drift between years.</li><li>The committee deck is rebuilt by hand each time.</li></ol></div><div class="col after"><p class="col-head">With ARP</p><ol><li>Every holding is in scope, mapped through the security master.<span class="via">Argus · Universe</span></li><li>Reports are found, downloaded and parsed for each issuer.<span class="via">Argus · Documents</span></li><li>64 indicators are answered walk vs talk, each quote re-checked against its source.<span class="via">Transition Plan</span></li><li>A person reviews only the answers the tool flags.<span class="via">Review queue</span></li><li>A ratified template tiers issuers, and the tiers drive engagement selection.<span class="via">Decision Studio → StewardIQ</span></li><li>The deck renders from the same data and re-runs when disclosures change.<span class="via">Reporting · Calibration Agent</span></li></ol></div></div></div>
+    </section>
+    <section class="slide" aria-label="Slide 20: Every published number keeps its source">
+      <div class="head">
+        <p class="eyebrow">20 · Impact · Provenance</p>
+        <h2>Every published number keeps its source</h2>
+        <p class="takeaway">Any figure in a committee pack can be traced back to the page it came from, and to the person who approved it.</p>
+      </div>
+      <div class="figure"><svg viewBox="0 32 1080 352" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="impact-provenance-title impact-provenance-desc" style="min-width:1080px"><title id="impact-provenance-title">Provenance of a published figure</title><desc id="impact-provenance-desc">A figure starts in a source document, its quote is grounded against the text, Claude extracts it and a second Claude model verifies it, a person reviews it if flagged, and it is published in a write-once snapshot that the index review and the committee deck cite.</desc><defs><marker id="impact-provenance-ws-m" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#5c5c57"/></marker><marker id="impact-provenance-ws-a" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b8400f"/></marker></defs><rect x="0" y="32" width="1080" height="352" fill="#f3f3f0"/><line x1="268" y1="100" x2="316" y2="100" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#impact-provenance-ws-m)"/>
+<line x1="516" y1="100" x2="564" y2="100" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#impact-provenance-ws-m)"/>
+<line x1="764" y1="100" x2="812" y2="100" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#impact-provenance-ws-m)"/>
+<line x1="912" y1="136" x2="912" y2="224" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#impact-provenance-ws-m)"/>
+<line x1="812" y1="260" x2="764" y2="260" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#impact-provenance-ws-m)"/>
+<line x1="564" y1="260" x2="516" y2="260" stroke="#5c5c57" stroke-width="1.2" marker-end="url(#impact-provenance-ws-m)"/>
+<rect x="68" y="64" width="200" height="72" fill="#f3f3f0"/><rect x="68" y="64" width="200" height="72" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="168" y="89" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Source document</text><text x="168" y="106" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">filing or report;</text><text x="168" y="121" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">page and table kept</text>
+<rect x="316" y="64" width="200" height="72" fill="#f3f3f0"/><rect x="316" y="64" width="200" height="72" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="416" y="89" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Grounded quote</text><text x="416" y="106" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">exact, normalised or</text><text x="416" y="121" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">fuzzy match ≥ 0.92</text>
+<rect x="564" y="64" width="200" height="72" fill="#f3f3f0"/><rect x="564" y="64" width="200" height="72" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="664" y="89" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Extracted figure</text><text x="664" y="106" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">Claude reads ranked</text><text x="664" y="121" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">evidence chunks</text>
+<rect x="812" y="64" width="200" height="72" fill="#f3f3f0"/><rect x="812" y="64" width="200" height="72" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="912" y="89" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Verifier</text><text x="912" y="106" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">a different Claude</text><text x="912" y="121" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">model re-reads it</text>
+<rect x="812" y="224" width="200" height="72" fill="#f3f3f0"/><rect x="812" y="224" width="200" height="72" fill="#ffe6db" stroke="#b8400f" stroke-width="1"/><text x="912" y="249" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Reviewer decision</text><text x="912" y="266" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">flagged figures only;</text><text x="912" y="281" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">corrections co-signed</text>
+<rect x="564" y="224" width="200" height="72" fill="#f3f3f0"/><rect x="564" y="224" width="200" height="72" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="664" y="249" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Published snapshot</text><text x="664" y="266" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">write-once, named</text><text x="664" y="281" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">publisher</text>
+<rect x="316" y="224" width="200" height="72" fill="#f3f3f0"/><rect x="316" y="224" width="200" height="72" fill="#ffffff" stroke="#141414" stroke-width="1"/><text x="416" y="249" fill="#141414" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Index review and deck</text><text x="416" y="266" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">keep snapshot ids and</text><text x="416" y="281" fill="#5c5c57" font-size="11" font-family="'Geist Mono', monospace" text-anchor="middle">calibration version</text></svg></div>
+    </section>
+    <section class="slide html" aria-label="Slide 21: Decisions you can defend in committee">
+      <div class="head">
+        <p class="eyebrow">21 · Impact · Defensible decisions</p>
+        <h2>Decisions you can defend in committee</h2>
+        <p class="takeaway">For each decision the tool hands the committee its evidence, not just its answer.</p>
+      </div>
+      <div class="figure"><table class="evidence"><thead><tr><th scope="col">Decision</th><th scope="col">What the committee sees</th><th scope="col">Where it comes from</th></tr></thead><tbody><tr><th scope="row">Engage a company</th><td>The rule that fired, the holding alert or vote behind it, and the issuer’s tier</td><td class="src">StewardIQ · Monitoring</td></tr><tr><th scope="row">Vote against management</th><td>The house-policy rule, or the reason a person overrode it, plus the engagement history</td><td class="src">Proxy Voting · Checkpoint</td></tr><tr><th scope="row">Tier issuers on transition plans</th><td>64 walk-vs-talk indicators with cited quotes, scored by a ratified template</td><td class="src">Argus · Decision Studio</td></tr><tr><th scope="row">Report financed emissions</th><td>WACI and PCAF figures computed in code, with data coverage shown</td><td class="src">Transition Intelligence</td></tr><tr><th scope="row">Launch a thematic product</th><td>A ratified taxonomy, a reviewed universe and an approved, effective-dated calibration</td><td class="src">R&amp;D Lab</td></tr><tr><th scope="row">Adopt a strategy</th><td>In- and out-of-sample results and deflated Sharpe; overfitting (PBO) from the CLI</td><td class="src">Strategy Replication</td></tr></tbody></table></div>
+    </section>
+    <section class="slide html" aria-label="Slide 22: Prove the impact in a pilot">
+      <div class="head">
+        <p class="eyebrow">22 · Impact · Pilot</p>
+        <h2>Prove the impact in a pilot</h2>
+        <p class="takeaway">No customer benchmarks exist yet. A pilot can measure the gain with figures ARP already records.</p>
+      </div>
+      <div class="figure"><div class="compare"><div class="col after"><p class="col-head">Measure with what ARP already records</p><ul class="pairs"><li><strong>Cost and time per 1,000 issuers</strong><span><code>arp scale load --live</code>; the one report in the repo is simulated</span></li><li><strong>Review rate</strong><span>share of figures the tool flags for a person</span></li><li><strong>Override rate</strong><span>share of reviewed figures a person changed</span></li><li><strong>Coverage</strong><span>entities that pass Decision Studio’s sufficiency gate</span></li><li><strong>Freshness</strong><span>drift flags from the Calibration Agent</span></li></ul></div><div class="col"><p class="col-head">Settle before relying on it</p><ul class="pairs"><li><strong>Data handling</strong><span>document text and company data go to Anthropic’s API</span></li><li><strong>Sign-in</strong><span>dev mode is the default; switch to per-person tokens</span></li><li><strong>Known gaps</strong><span>ratifying has no four-eyes rule; theme review decisions may not reach results</span></li><li><strong>Evidence</strong><span>no customer benchmarks yet; see <code>docs/CORPORATE_READINESS_PLAN.md</code></span></li></ul></div></div></div>
     </section>
   </main>
   <nav class="controls" aria-label="Slide controls">
