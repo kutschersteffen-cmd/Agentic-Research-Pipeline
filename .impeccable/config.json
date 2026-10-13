@@ -1,0 +1,20 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "geist",
+        "createdAt": "2026-10-13T04:06:02.897Z",
+        "reason": "Repo DESIGN.md mandates Geist for all UI text; user chose to match DESIGN.md"
+      },
+      {
+        "rule": "overused-font",
+        "value": "geist mono",
+        "createdAt": "2026-10-13T04:06:02.910Z",
+        "reason": "Repo DESIGN.md mandates Geist Mono for labels and data; user chose to match DESIGN.md"
+      }
+    ]
+  }
+}
