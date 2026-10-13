@@ -135,6 +135,7 @@ class EdgarDocumentSource(DocumentSource):
                     title=title,
                     source_url=url,
                     fiscal_period=filing_date,
+                    published_at=recent.get("acceptanceDateTime", [None] * len(forms))[idx],
                     full_text=text,
                     sha256=hashlib.sha256(text.encode("utf-8")).hexdigest(),
                     language="en",

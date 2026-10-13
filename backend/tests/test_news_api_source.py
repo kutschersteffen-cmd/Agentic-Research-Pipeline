@@ -112,3 +112,11 @@ def test_feeds_pull_routes(env, monkeypatch, tmp_path):
         assert c.post("/api/feeds/news/pull").status_code == 502
     finally:
         app.dependency_overrides.clear()
+
+
+def test_a_revised_story_keeps_its_first_publication_time(env):
+    store, idmap = env
+    s = story("s1", "Vodafone fined", "2026-10-05T12:00:00Z", f"P:{PERMID_A}")
+    s["newsItem"]["itemMeta"]["firstCreated"] = {"$": "2026-10-01T09:00:00Z"}
+    pull_news(store, SETTINGS, idmap, fetcher=rdp([page(s)], []), today=date(2026, 10, 6))
+    assert [n.published_at for n in store.list_news()] == ["2026-10-01T09:00:00Z"]
