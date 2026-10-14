@@ -72,6 +72,7 @@ class Settings(BaseSettings):
     projects_dir: Path = Field(default=REPO_ROOT / "projects")
     documents_dir: Path = Field(default=REPO_ROOT / "data" / "documents")
     xbrl_dir: Path = Field(default=REPO_ROOT / "data" / "xbrl")
+    training_cutoffs_path: Path = Field(default=REPO_ROOT / "data" / "training_cutoffs.json")
     snapshot_store_dir: Path = REPO_ROOT / "data" / "snapshot_store"
     snapshot_pull_dir: Path = REPO_ROOT / "data" / "snapshots"  # where `arp snapshots pull` writes
     holdings_api_url: str | None = None  # base URL of the ARP instance snapshots are pulled from
