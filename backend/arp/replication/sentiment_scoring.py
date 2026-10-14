@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from statistics import fmean
+
 from pydantic import BaseModel, Field
 
 from arp.grounding import ground_citations
 from arp.llm.base import LLMClient, LLMUsage
 from arp.replication.characteristics_data import CharacteristicPanel
 from arp.schemas.common import Citation, SourceDocument
+from arp.schemas.portfolio import NewsItem
 
 _SYSTEM_PROMPT = """\
 You are scoring how positively or negatively one piece of text (a news \
@@ -62,15 +65,35 @@ class SentimentScoreRecord(BaseModel):
     model: str | None = None
 
 
+def build_manifest_from_store(items: list[NewsItem]) -> list[dict]:
+    """Turns stored NewsItems into the manifest `arp replicate score-sentiment`
+    reads. Each item lands in the month of its own `published_at` (event
+    time), keyed by company_id; apply any lag via characteristic_lag_months
+    downstream, not here. Items with no company_id are skipped (nothing to
+    attach the score to)."""
+    return [
+        {
+            "ticker": i.company_id,
+            "period_end": f"{i.published_at[:7]}-01",
+            "published_at": i.published_at,
+            "doc_id": i.news_id,
+            "text": f"{i.headline}\n\n{i.excerpt}".strip(),
+        }
+        for i in items
+        if i.company_id
+    ]
+
+
 async def build_sentiment_panel(
-    documents_by_ticker_period: dict[str, dict[str, SourceDocument]],
+    documents_by_ticker_period: dict[str, dict[str, SourceDocument | list[SourceDocument]]],
     period_ends: list[str],
     llm: LLMClient,
     *,
     fuzzy_threshold: float = 0.92,
 ) -> tuple[CharacteristicPanel, list[SentimentScoreRecord], list[LLMUsage]]:
-    """Scores one document per (ticker, period_end) cell present in
-    `documents_by_ticker_period` and assembles the results into a
+    """Scores every document in each (ticker, period_end) cell of
+    `documents_by_ticker_period` (a cell holds one document or a list; a
+    cell's value is the mean of its grounded scores) and assembles the results into a
     CharacteristicPanel ready to feed SignalType.TEXT_SENTIMENT -- the
     plumbing after this point is identical to VALUE (same
     CharacteristicPanel shape, same characteristic_lag_months handling in
@@ -90,26 +113,30 @@ async def build_sentiment_panel(
     period_index = {p: i for i, p in enumerate(period_ends)}
 
     for ticker, docs_by_period in documents_by_ticker_period.items():
-        for period_end, document in docs_by_period.items():
+        for period_end, cell in docs_by_period.items():
             if period_end not in period_index:
                 continue
-            draft, usage = await score_document_sentiment(ticker, document, llm)
-            usages.append(usage)
-            citation = Citation(doc_id=document.doc_id, doc_type=document.doc_type, quote=draft.quote)
-            grounded_citation = ground_citations([citation], {document.doc_id: document}, fuzzy_threshold)[0]
-            if grounded_citation.grounded:
-                values[ticker][period_index[period_end]] = draft.score
-            records.append(
-                SentimentScoreRecord(
-                    ticker=ticker,
-                    period_end=period_end,
-                    doc_id=document.doc_id,
-                    score=draft.score,
-                    citation=grounded_citation,
-                    confidence=draft.confidence,
-                    grounded=grounded_citation.grounded,
-                    model=usage.model,
+            grounded_scores: list[float] = []
+            for document in cell if isinstance(cell, list) else [cell]:
+                draft, usage = await score_document_sentiment(ticker, document, llm)
+                usages.append(usage)
+                citation = Citation(doc_id=document.doc_id, doc_type=document.doc_type, quote=draft.quote)
+                grounded_citation = ground_citations([citation], {document.doc_id: document}, fuzzy_threshold)[0]
+                if grounded_citation.grounded:
+                    grounded_scores.append(draft.score)
+                records.append(
+                    SentimentScoreRecord(
+                        ticker=ticker,
+                        period_end=period_end,
+                        doc_id=document.doc_id,
+                        score=draft.score,
+                        citation=grounded_citation,
+                        confidence=draft.confidence,
+                        grounded=grounded_citation.grounded,
+                        model=usage.model,
+                    )
                 )
-            )
+            if grounded_scores:
+                values[ticker][period_index[period_end]] = fmean(grounded_scores)
     panel = CharacteristicPanel(period_ends=period_ends, values=values, source="llm_sentiment")
     return panel, records, usages

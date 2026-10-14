@@ -7,7 +7,7 @@ from pathlib import Path
 
 import typer
 
-from arp.cli._shared import _run_store
+from arp.cli._shared import _portfolio_store, _run_store
 from arp.config import Settings, get_settings
 from arp.db.session import require_dsn
 from arp.discovery.academic_search import ArxivSearchClient, CompositeSearchClient, SemanticScholarSearchClient
@@ -22,7 +22,7 @@ from arp.replication.pipeline import run_replication
 from arp.replication.price_data import CsvPriceSource, PriceDataSource
 from arp.replication.regime_analysis import regime_stratified_report
 from arp.replication.sanity_check import sanity_check_report
-from arp.replication.sentiment_scoring import build_sentiment_panel
+from arp.replication.sentiment_scoring import build_manifest_from_store, build_sentiment_panel
 from arp.replication.spec_graph import extract_strategy_spec
 from arp.schemas.common import DocType, SourceDocument
 from arp.schemas.strategy_replication import BacktestResult, ReplicationComparisonReport, StrategySpec
@@ -203,12 +203,24 @@ def replicate_backtest(
     typer.echo(report.verdict_notes)
 
 
+@replicate_app.command("news-manifest")
+def replicate_news_manifest(
+    out: Path = typer.Option(..., help="Write the score-sentiment manifest JSON here."),
+) -> None:
+    """Builds a score-sentiment manifest from the news items stored in the portfolio store (one entry per
+    item, in the month of its published_at)."""
+    entries = build_manifest_from_store(_portfolio_store().list_news())
+    out.write_text(json.dumps(entries, indent=2))
+    typer.echo(f"Wrote {out} ({len(entries)} entries)")
+
+
 @replicate_app.command("score-sentiment")
 def replicate_score_sentiment(
     manifest: Path = typer.Option(
         ...,
-        help="JSON list of {ticker, period_end, text, doc_id?} objects -- one dated news/transcript excerpt per "
-        "cell. period_end values across the whole manifest define the panel's monthly grid.",
+        help="JSON list of {ticker, period_end, text, doc_id?, published_at?} objects -- dated news/transcript "
+        "excerpts; a cell with several is scored per excerpt and averaged. period_end values across the whole "
+        "manifest define the panel's monthly grid. 'news-manifest' builds one from stored news.",
     ),
     out: Path = typer.Option(..., help="Write the resulting characteristics CSV here (feed it to 'backtest --characteristics <name>=<out>')."),
     records_out: Path = typer.Option(None, help="Optionally also write the full per-cell audit trail (grounded quote, confidence) here as JSON."),
@@ -218,7 +230,7 @@ def replicate_score_sentiment(
     writes the result as a characteristics CSV for SignalType.TEXT_SENTIMENT. Requires ARP_ANTHROPIC_API_KEY."""
     entries = json.loads(manifest.read_text())
     period_ends = sorted({e["period_end"] for e in entries})
-    documents_by_ticker_period: dict[str, dict[str, SourceDocument]] = {}
+    documents_by_ticker_period: dict[str, dict[str, list[SourceDocument]]] = {}
     for e in entries:
         doc = SourceDocument(
             doc_id=e.get("doc_id") or f"{e['ticker']}_{e['period_end']}",
@@ -227,8 +239,9 @@ def replicate_score_sentiment(
             title=f"{e['ticker']} {e['period_end']}",
             full_text=e["text"],
             fiscal_period=e["period_end"],
+            published_at=e.get("published_at"),
         )
-        documents_by_ticker_period.setdefault(e["ticker"], {})[e["period_end"]] = doc
+        documents_by_ticker_period.setdefault(e["ticker"], {}).setdefault(e["period_end"], []).append(doc)
 
     settings = get_settings()
     llm = build_llm_client(settings)
