@@ -456,6 +456,7 @@ arp transition-plan indicators | run
 arp transition-barrier criteria | scores | sources | staleness | coverage | refresh
 arp report draft | plan | render | templates
 arp replicate extract | backtest | compare | discover-papers | score-sentiment | pbo | regime-report | sanity-check | golden-set
+arp signals evaluate | list | decide
 arp taxonomy-researcher run | schedule
 arp calibration run | schedule
 arp golden-set run | run-roles | planner | seed-known-answers
@@ -467,6 +468,8 @@ arp runs list | show | cancel
 arp retention cleanup [--apply]
 arp scale load | report
 ```
+
+`arp signals evaluate --scores S --prices P --category C --method M --universe U --start D --end D [--model M]` scores a signal against next-month returns, splits the evidence at the model's training cutoff and registers the experiment; `arp signals list` shows the registry and `arp signals decide <id> --decision graduate|shelve --approver A` records a decision (graduating needs 12+ post-cutoff IC months and an unchanged cutoff).
 
 `arp identity review <run_id> <item_key> --decision approve|correct|reject|escalate [--reason R] [--website W] [--cik C] [--comment T]`: `--reason` is required unless approving (default `confirmed`); `correct` needs `--website` and/or `--cik` and a `--comment` naming the source.
 

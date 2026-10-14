@@ -160,6 +160,8 @@ def run_backtest(
             long_tickers = [t for t, b in buckets.items() if b == long_bucket]
             short_tickers = [t for t, b in buckets.items() if b == short_bucket]
             n_active += 1
+            # A name with no return this month still carries weight (the portfolio holds it), but the leg
+            # return averages only names with a return, so cost and return can differ slightly in such months.
             for leg, tickers in (("long", long_tickers), ("short", short_tickers)):
                 for t in tickers:
                     month_weights[(leg, t)] = month_weights.get((leg, t), 0.0) + 1 / len(tickers)
