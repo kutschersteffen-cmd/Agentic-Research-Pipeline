@@ -48,7 +48,7 @@ def signals_evaluate(
     out: Path = typer.Option(None, help="Optionally write the evidence report JSON here."),
 ) -> None:
     """Scores the signal against next-month returns, splits the evidence at the model's training cutoff,
-    registers the experiment (once per recipe, data and model), and prints the windows."""
+    registers the experiment (once per recipe, data, model and cutoff), and prints the windows."""
     if category not in _CATEGORIES:
         typer.echo(f"--category must be one of {', '.join(_CATEGORIES)}, got {category!r}", err=True)
         raise typer.Exit(1)
@@ -56,6 +56,25 @@ def signals_evaluate(
         data_version = hashlib.sha256(scores.read_bytes() + prices.read_bytes()).hexdigest()[:12]
 
     try:
+        cutoffs_path = get_settings().training_cutoffs_path
+        cutoffs = load_cutoff_table(cutoffs_path)
+        cutoff = cutoffs.cutoff_for(model) if model else None
+        # Say which split applies: an unlisted model or a dropped --model otherwise changes the evidence silently.
+        if model is None:
+            typer.echo(
+                "no --model given: every period counts as post_cutoff; "
+                "use this only for a signal that involves no trained model",
+                err=True,
+            )
+        elif cutoff is None:
+            typer.echo(
+                f"model '{model}' has no recorded cutoff in {cutoffs_path}: every period is in_window and cannot graduate",
+                err=True,
+            )
+        else:
+            typer.echo(f"model '{model}': cutoff {cutoff} ({cutoffs.entries[model].source})", err=True)
+            if cutoff > end:
+                typer.echo(f"all periods are in_window: cutoff {cutoff} is after --end {end}", err=True)
         tickers = list(read_wide_csv(scores)[1])
         score_panel = CsvCharacteristicSource(scores).get_values(tickers, start, end)
         price_panel = CsvPriceSource(prices).get_monthly_returns(tickers, start, end)
@@ -64,7 +83,7 @@ def signals_evaluate(
             window_start=start, window_end=end, cost_bps=cost_bps,
         )
         registry = Registry(_run_store())
-        experiment_id = experiment_id_for(recipe, data_version=data_version, model=model)
+        experiment_id = experiment_id_for(recipe, data_version=data_version, model=model, cutoff=cutoff)
         # A re-run of a registered experiment is not a new trial, so it must not inflate the deflation.
         n_trials = registry.trial_count(recipe) + (0 if registry.has(experiment_id) else 1)
         report = evaluate_signal(
@@ -72,12 +91,12 @@ def signals_evaluate(
             price_panel,
             sentiment_spec("signal", start=start, end=end),
             model=model,
-            cutoffs=load_cutoff_table(get_settings().training_cutoffs_path),
+            cutoffs=cutoffs,
             cost_bps=cost_bps,
             n_trials=n_trials,
             baselines={"momentum": momentum_panel(price_panel)} if baseline_momentum else None,
         )
-        registry.register(recipe, report, data_version=data_version, model=model)
+        registry.register(recipe, report, data_version=data_version, model=model, cutoff=cutoff)
     except ValueError as exc:
         raise _fail(exc) from exc
 
@@ -115,7 +134,8 @@ def signals_decide(
 ) -> None:
     """Records a graduate/shelve decision; graduation is refused without post-cutoff evidence."""
     try:
-        record = Registry(_run_store()).decide(experiment_id, decision, approver=approver)  # type: ignore[arg-type]
+        cutoffs = load_cutoff_table(get_settings().training_cutoffs_path)
+        record = Registry(_run_store()).decide(experiment_id, decision, approver=approver, cutoffs=cutoffs)  # type: ignore[arg-type]
     except ValueError as exc:
         raise _fail(exc) from exc
     typer.echo(f"{record.experiment_id}: {record.decision} by {record.decided_by}")

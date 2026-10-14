@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from arp.schemas.common import JobStatus, RunManifest, now_iso
+from arp.signal_lab.cutoffs import CutoffTable
 from arp.signal_lab.evidence import EvidenceReport
 from arp.storage.run_store import RunStore
 
@@ -31,6 +32,7 @@ class ExperimentRecord(BaseModel):
     recipe: Recipe
     data_version: str
     model: str | None
+    cutoff: str | None = None
     evidence: EvidenceReport
     created_at: str
     decision: Literal["none", "graduate", "shelve"] = "none"
@@ -38,9 +40,10 @@ class ExperimentRecord(BaseModel):
     decided_at: str | None = None
 
 
-def experiment_id_for(recipe: Recipe, *, data_version: str, model: str | None) -> str:
+def experiment_id_for(recipe: Recipe, *, data_version: str, model: str | None, cutoff: str | None) -> str:
+    # The cutoff decides which months count as evidence, so a corrected cutoff must be a new experiment.
     canonical = json.dumps(
-        [recipe.model_dump(mode="json"), data_version, model], sort_keys=True, separators=(",", ":")
+        [recipe.model_dump(mode="json"), data_version, model, cutoff], sort_keys=True, separators=(",", ":")
     )
     return hashlib.sha256(canonical.encode()).hexdigest()[:16]
 
@@ -53,9 +56,15 @@ class Registry:
         return self.store.read_results(SIGNAL_REGISTRY_RUN_ID)
 
     def register(
-        self, recipe: Recipe, evidence: EvidenceReport, *, data_version: str, model: str | None
+        self,
+        recipe: Recipe,
+        evidence: EvidenceReport,
+        *,
+        data_version: str,
+        model: str | None,
+        cutoff: str | None,
     ) -> ExperimentRecord:
-        experiment_id = experiment_id_for(recipe, data_version=data_version, model=model)
+        experiment_id = experiment_id_for(recipe, data_version=data_version, model=model, cutoff=cutoff)
         with self.store.lock(SIGNAL_REGISTRY_RUN_ID):
             if self.store.load_manifest(SIGNAL_REGISTRY_RUN_ID) is None:
                 self.store.save_manifest(
@@ -66,6 +75,7 @@ class Registry:
                 recipe=recipe,
                 data_version=data_version,
                 model=model,
+                cutoff=cutoff,
                 evidence=evidence,
                 created_at=now_iso(),
             )
@@ -107,7 +117,12 @@ class Registry:
         )
 
     def decide(
-        self, experiment_id: str, decision: Literal["graduate", "shelve"], *, approver: str
+        self,
+        experiment_id: str,
+        decision: Literal["graduate", "shelve"],
+        *,
+        approver: str,
+        cutoffs: CutoffTable | None = None,
     ) -> ExperimentRecord:
         # Literal is only a type hint; the log is append-only, so a bad row could never be removed.
         if decision not in ("graduate", "shelve"):
@@ -118,6 +133,16 @@ class Registry:
             record = next((r for r in self._list() if r.experiment_id == experiment_id), None)
             if record is None:
                 raise ValueError(f"unknown experiment {experiment_id!r}")
+            if decision == "graduate":
+                if cutoffs is None:
+                    raise ValueError(f"cannot graduate {experiment_id}: a cutoff table is required to graduate")
+                # Evidence split at a since-corrected cutoff may count leaked months as post-cutoff.
+                if record.model is not None and cutoffs.cutoff_for(record.model) != record.cutoff:
+                    raise ValueError(
+                        f"cannot graduate {experiment_id}: the cutoff for model {record.model!r} changed since "
+                        f"the experiment was evaluated ({record.cutoff} -> {cutoffs.cutoff_for(record.model)}); "
+                        "re-run `arp signals evaluate`"
+                    )
             if decision == "graduate" and not any(
                 w.window == "post_cutoff" and w.ic.n >= MIN_POST_CUTOFF_IC_MONTHS for w in record.evidence.windows
             ):

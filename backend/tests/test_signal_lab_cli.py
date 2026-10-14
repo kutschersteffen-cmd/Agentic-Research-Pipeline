@@ -9,7 +9,9 @@ import pytest
 from typer.testing import CliRunner
 
 from arp.cli import app
+from arp.cli._shared import _run_store
 from arp.config import get_settings
+from arp.signal_lab.registry import Registry
 
 pytestmark = pytest.mark.usefixtures("pg")  # the CLI and the registry's RunStore need Postgres
 
@@ -144,3 +146,82 @@ def test_mismatched_grids_exit_1_with_a_message(env):
     result = _evaluate(env, dates)
     assert result.exit_code == 1
     assert result.stderr.strip()
+
+
+def test_rerun_does_not_inflate_trials(env):
+    dates = _write_panel(env, 40)
+    assert _evaluate(env, dates).exit_code == 0
+    second = _evaluate(env, dates, "--out", str(env / "report.json"))
+    assert second.exit_code == 0, second.output
+    assert json.loads((env / "report.json").read_text())["n_trials"] == 1
+    registry = Registry(_run_store())
+    [record] = registry.list_experiments()
+    assert record.evidence.n_trials == 1
+    assert registry.trial_count(record.recipe) == 1
+
+
+def test_corrected_cutoff_is_a_new_experiment_and_stale_one_cannot_graduate(env):
+    dates = _write_panel(env, 60)
+    _cutoff(env, dates[20])
+    old = _evaluate(env, dates, "--model", "m")
+    assert old.exit_code == 0, old.output
+    _cutoff(env, dates[52])
+    new = _evaluate(env, dates, "--model", "m")
+    assert new.exit_code == 0, new.output
+    old_id, new_id = _experiment_id(old), _experiment_id(new)
+    assert old_id != new_id
+    listing = CliRunner().invoke(app, ["signals", "list"]).stdout
+    assert old_id in listing and new_id in listing
+
+    stale = _decide(old_id)
+    assert stale.exit_code == 1
+    assert "changed since the experiment was evaluated" in stale.stderr
+    short = _decide(new_id)
+    assert short.exit_code == 1
+    assert "12 IC months" in short.stderr
+
+
+def test_evaluate_reports_listed_cutoff(env):
+    dates = _write_panel(env, 40)
+    _cutoff(env, dates[20])
+    result = _evaluate(env, dates, "--model", "m")
+    assert result.exit_code == 0, result.output
+    assert f"model 'm': cutoff {dates[20]} (test)" in result.stderr
+    assert "all periods are in_window" not in result.stderr
+
+
+def test_evaluate_warns_on_unlisted_model(env):
+    dates = _write_panel(env, 40)
+    result = _evaluate(env, dates, "--model", "m")
+    assert result.exit_code == 0, result.output
+    assert (
+        f"model 'm' has no recorded cutoff in {env / 'cutoffs.json'}: every period is in_window and cannot graduate"
+        in result.stderr
+    )
+
+
+def test_evaluate_warns_when_cutoff_after_end(env):
+    dates = _write_panel(env, 40)
+    _cutoff(env, "2030-01-31")
+    result = _evaluate(env, dates, "--model", "m")
+    assert result.exit_code == 0, result.output
+    assert "model 'm': cutoff 2030-01-31 (test)" in result.stderr
+    assert f"all periods are in_window: cutoff 2030-01-31 is after --end {dates[-1]}" in result.stderr
+
+
+def test_evaluate_warns_without_model(env):
+    dates = _write_panel(env, 40)
+    result = _evaluate(env, dates)
+    assert result.exit_code == 0, result.output
+    assert (
+        "no --model given: every period counts as post_cutoff; use this only for a signal that involves no trained model"
+        in result.stderr
+    )
+
+
+def test_evaluate_rejects_bad_cutoff_file(env):
+    dates = _write_panel(env, 40)
+    _cutoff(env, "2024")
+    result = _evaluate(env, dates, "--model", "m")
+    assert result.exit_code == 1
+    assert str(env / "cutoffs.json") in result.stderr
