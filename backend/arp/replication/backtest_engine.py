@@ -45,6 +45,7 @@ def run_backtest(
     benchmark_returns: list[float | None] | None = None,
     characteristics: dict[str, CharacteristicPanel] | None = None,
     allowed_period_ends: set[str] | None = None,
+    cost_bps: float = 0.0,
 ) -> BacktestResult:
     """Deterministic (zero-LLM) replication of `spec`'s signal + portfolio
     construction against `panel` (and, for a characteristic-based
@@ -79,6 +80,13 @@ def run_backtest(
     arp/replication/cpcv.py uses to evaluate a purged, embargoed,
     non-contiguous combinatorial train/test split against one shared panel
     without refetching or re-slicing data per split.
+
+    Each month's per-ticker leg weight is the mean, across the active
+    portfolios that month, of 1/len(bucket) for tickers in that portfolio's
+    leg. Traded weight is the sum over both legs of |w_t - w_{t-1}| against
+    the previously emitted month (the first emitted month trades 2.0);
+    `cost_bps` per unit of traded weight is deducted to give
+    `net_long_short`, which stays None at zero cost.
     """
     if spec.weighting.value != "equal":
         raise NotImplementedError("run_backtest only implements equal weighting today, got " + repr(spec.weighting))
@@ -111,6 +119,7 @@ def run_backtest(
     periods: list[PortfolioPeriodReturn] = []
     warnings: list[str] = []
     thin_formation_periods = 0
+    prev_weights: dict[tuple[str, str], float] = {}
 
     if spec.rebalance_anchor_month is not None and not rebalance_months:
         warnings.append(
@@ -133,6 +142,8 @@ def run_backtest(
         month_short: list[float] = []
         num_long = 0
         num_short = 0
+        month_weights: dict[tuple[str, str], float] = {}
+        n_active = 0
         active_formations = sorted(f for f in rebalance_months if m - k <= f < m)
         for f in active_formations:
             if f not in formation_cache:
@@ -148,6 +159,10 @@ def run_backtest(
                 continue
             long_tickers = [t for t, b in buckets.items() if b == long_bucket]
             short_tickers = [t for t, b in buckets.items() if b == short_bucket]
+            n_active += 1
+            for leg, tickers in (("long", long_tickers), ("short", short_tickers)):
+                for t in tickers:
+                    month_weights[(leg, t)] = month_weights.get((leg, t), 0.0) + 1 / len(tickers)
             lr = [panel.returns[t][m] for t in long_tickers if panel.returns[t][m] is not None]
             sr = [panel.returns[t][m] for t in short_tickers if panel.returns[t][m] is not None]
             if lr:
@@ -161,6 +176,9 @@ def run_backtest(
             continue  # warm-up window, or a period with no eligible names on one leg
         long_ret = _mean(month_long)
         short_ret = _mean(month_short)
+        month_weights = {key: w / n_active for key, w in month_weights.items()}
+        traded_weight = sum(abs(month_weights.get(key, 0.0) - prev_weights.get(key, 0.0)) for key in month_weights.keys() | prev_weights.keys())
+        prev_weights = month_weights
         periods.append(
             PortfolioPeriodReturn(
                 period_end=period_ends[m],
@@ -169,6 +187,7 @@ def run_backtest(
                 long_short_return_pct=(long_ret - short_ret) * 100,
                 num_long=num_long,
                 num_short=num_short,
+                traded_weight=traded_weight,
                 benchmark_return_pct=(
                     benchmark_returns[m] * 100 if benchmark_returns and benchmark_returns[m] is not None else None
                 ),
@@ -189,6 +208,8 @@ def run_backtest(
     bench_series = [p.benchmark_return_pct for p in periods]
     bench_series_clean = [b for b in bench_series if b is not None] if all(b is not None for b in bench_series) else None
 
+    net_ls_series = [p.long_short_return_pct - cost_bps / 10000 * p.traded_weight * 100 for p in periods]  # type: ignore[operator]
+
     return BacktestResult(
         spec_id=spec.spec_id,
         period_label=period_label,
@@ -202,5 +223,7 @@ def run_backtest(
         long_short=compute_leg_performance(ls_series, bench_series_clean),
         avg_num_long=_mean([p.num_long for p in periods]) if periods else 0.0,
         avg_num_short=_mean([p.num_short for p in periods]) if periods else 0.0,
+        net_long_short=compute_leg_performance(net_ls_series, bench_series_clean) if cost_bps != 0.0 else None,
+        monthly_turnover_pct=_mean([p.traded_weight for p in periods]) / 2 * 100 if periods else None,  # type: ignore[misc]
         warnings=warnings,
     )
