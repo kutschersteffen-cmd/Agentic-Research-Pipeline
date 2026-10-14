@@ -135,6 +135,14 @@ def mean_cross_correlation(a: CharacteristicPanel, b: CharacteristicPanel, *, mi
     return float(np.mean(corrs)) if corrs else None
 
 
+_MAX_DRAWS = 500_000
+
+
+def _draws_needed(n_boot: int, n_comparisons: int, confidence: float) -> int:
+    # Each Bonferroni tail needs >= 10 draws, else np.quantile clamps to the extreme and the interval is too narrow.
+    return max(n_boot, math.ceil(20 * max(1, n_comparisons) / (1 - confidence)))
+
+
 def compare_signals(
     a: list[float],
     b: list[float],
@@ -152,8 +160,12 @@ def compare_signals(
     diff = np.asarray(a, dtype=float) - np.asarray(b, dtype=float)
     if not np.isfinite(diff).all():
         return "insufficient_data"
+    draws = _draws_needed(n_boot, n_comparisons, confidence)
+    # Refuse rather than resample too little: a clamped tail would rank signals on a falsely narrow interval.
+    if draws > _MAX_DRAWS:
+        return "insufficient_data"
     rng = np.random.default_rng(seed)
-    idx = rng.integers(0, len(diff), size=(n_boot, len(diff)))
+    idx = rng.integers(0, len(diff), size=(draws, len(diff)))
     means = diff[idx].mean(axis=1)
     # Bonferroni: the more comparisons made, the wider the interval must clear zero.
     alpha = (1 - confidence) / max(1, n_comparisons)

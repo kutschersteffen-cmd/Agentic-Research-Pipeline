@@ -6,6 +6,7 @@ import pytest
 from arp.replication.characteristics_data import CharacteristicPanel
 from arp.replication.price_data import PricePanel
 from arp.signal_lab.stats import (
+    _draws_needed,
     compare_signals,
     mean_cross_correlation,
     newey_west_t,
@@ -186,3 +187,14 @@ def test_compare_more_comparisons_is_harder():
     b = _noise(2).tolist()
     assert compare_signals(a, b, n_comparisons=1) == "a_higher"
     assert compare_signals(a, b, n_comparisons=50) == "insufficient_data"
+
+
+def test_compare_too_many_comparisons_refuses():
+    assert compare_signals([100.0] * 60, [0.0] * 60, n_comparisons=5000) == "insufficient_data"
+
+
+@pytest.mark.parametrize("n_comparisons", [1, 50, 1000])
+def test_draws_needed_keeps_ten_draws_per_tail(n_comparisons):
+    draws = _draws_needed(2000, n_comparisons, 0.95)
+    assert draws >= 2000
+    assert draws >= 20 * n_comparisons / 0.05
