@@ -113,6 +113,8 @@ Ranking:
 
 ## Components
 
+Architecture picture: `docs/superpowers/specs/assets/signals-workbench-architecture.html`.
+
 1. **Recipe.** A versioned JSON document: category, text source, method, parameters,
    aggregation (per issuer and period), horizon, lag, universe. Stored once, usable from the app
    and from notebooks.

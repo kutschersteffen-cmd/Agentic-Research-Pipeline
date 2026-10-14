@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signals Workbench Architecture</title>
+<style>
+  :root {
+    --bg:#ffffff; --fg:#111827; --muted:#4b5563; --line:#9ca3af; --card:#f9fafb; --cardline:#d1d5db;
+    --ex:#047857; --ex-bg:#d1fae5; --pa:#b45309; --pa-bg:#fef3c7; --nw:#1d4ed8; --nw-bg:#dbeafe;
+    --guard:#b91c1c; --guard-bg:#fee2e2; --acc:#7c3aed; --acc-bg:#f5f3ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#0f172a; --fg:#e5e7eb; --muted:#9ca3af; --line:#4b5563; --card:#111c33; --cardline:#334155;
+      --ex:#34d399; --ex-bg:#064e3b; --pa:#fbbf24; --pa-bg:#451a03; --nw:#60a5fa; --nw-bg:#172554;
+      --guard:#f87171; --guard-bg:#450a0a; --acc:#a78bfa; --acc-bg:#2e1065;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#0f172a; --fg:#e5e7eb; --muted:#9ca3af; --line:#4b5563; --card:#111c33; --cardline:#334155;
+    --ex:#34d399; --ex-bg:#064e3b; --pa:#fbbf24; --pa-bg:#451a03; --nw:#60a5fa; --nw-bg:#172554;
+    --guard:#f87171; --guard-bg:#450a0a; --acc:#a78bfa; --acc-bg:#2e1065;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:1200px; margin:0 auto; padding:28px 16px 48px; }
+  h1 { font-size:24px; margin:0 0 4px; }
+  .sub { color:var(--muted); margin:0 0 18px; }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-bottom:22px; }
+  .tag { display:inline-block; padding:0 7px; border-radius:999px; font-size:10.5px; font-weight:700; margin-left:6px; vertical-align:1px; }
+  .t-ex { color:var(--ex); background:var(--ex-bg); } .t-pa { color:var(--pa); background:var(--pa-bg); } .t-nw { color:var(--nw); background:var(--nw-bg); }
+  .band { border:1.5px dashed var(--guard); background:var(--guard-bg); border-radius:10px; padding:10px 14px; margin:0 0 22px; }
+  .band h2 { margin:0 0 4px; font-size:13px; color:var(--guard); letter-spacing:.03em; }
+  .band p { margin:0; font-size:12.5px; }
+  .fronts { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:6px; }
+  .front { border:1.5px solid var(--acc); background:var(--acc-bg); border-radius:10px; padding:12px 14px; }
+  .front h3 { margin:0 0 4px; font-size:14px; }
+  .front p { margin:0; font-size:12.5px; }
+  .join { text-align:center; color:var(--muted); font-size:12.5px; margin:6px 0 10px; }
+  .engine { border:1.5px solid var(--acc); border-radius:10px; padding:14px; margin-bottom:6px; }
+  .engine > h2 { margin:0 0 12px; font-size:14px; color:var(--acc); }
+  .flow { display:grid; grid-template-columns:repeat(3,1fr); gap:34px 30px; }
+  .card { position:relative; border:1px solid var(--cardline); background:var(--card); border-radius:9px; padding:11px 12px; }
+  .card h3 { margin:0 0 6px; font-size:13.5px; }
+  .card ul { margin:0; padding-left:16px; font-size:12.5px; }
+  .card li { margin:2px 0; }
+  .n { display:inline-block; width:20px; height:20px; border-radius:50%; background:var(--acc); color:#fff; text-align:center;
+       font-size:11.5px; line-height:20px; margin-right:6px; }
+  .flow .card:not(:nth-child(3n))::after { content:"→"; position:absolute; right:-24px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:18px; }
+  .flow .card:nth-child(3)::before { content:"↓ continues below"; position:absolute; right:6px; bottom:-22px; color:var(--muted); font-size:11px; }
+  .after { border:1.5px solid var(--ex); background:var(--ex-bg); border-radius:10px; padding:11px 14px; margin-top:22px; font-size:13px; }
+  .after b { color:var(--ex); }
+  .foot { margin-top:22px; border-top:1px solid var(--line); padding-top:12px; font-size:12.5px; color:var(--muted); }
+  .foot ul { margin:4px 0 0; padding-left:18px; }
+  @media (max-width:880px) {
+    .fronts, .flow { grid-template-columns:1fr; }
+    .flow .card::after, .flow .card::before { display:none !important; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Signals workbench: architecture</h1>
+  <p class="sub">R&amp;D Lab, Signals lane. Design draft of 2026-10-14. Internal use only.</p>
+  <div class="legend">
+    <span><span class="tag t-ex">EXISTS</span> in the repo today</span>
+    <span><span class="tag t-pa">PARTIAL</span> exists, needs extending</span>
+    <span><span class="tag t-nw">NEW</span> to build</span>
+  </div>
+
+  <div class="band">
+    <h2>GUARDRAILS, ENFORCED BY THE ENGINE FOR EVERY METHOD <span class="tag t-nw">NEW</span></h2>
+    <p><b>Leakage:</b> event time vs knowledge time, training-cutoff map, only post-cutoff periods count as evidence, leakage rate reported, time-consistent models for long history.
+       <b>Ranking:</b> same universe, window and costs, every trial counted, rerun stability, overlap with the other four categories, "insufficient data" instead of a forced order.</p>
+  </div>
+
+  <div class="fronts">
+    <div class="front"><h3>App: Signals workspace <span class="tag t-nw">NEW</span></h3>
+      <p>Menus and selection: build a recipe, run, compare experiments, view evidence, decide.</p></div>
+    <div class="front"><h3>Notebook library <span class="tag t-nw">NEW</span></h3>
+      <p>Python module with the same components. Runs locally against the backend and database. Saved recipes appear in the app.</p></div>
+  </div>
+  <div class="join">both call the same engine ↓ so a result looks the same wherever it was produced</div>
+
+  <section class="engine">
+    <h2>WORKBENCH ENGINE (backend)</h2>
+    <div class="flow">
+      <div class="card"><h3><span class="n">1</span>Sources and adapters</h3>
+        <ul>
+          <li>Thomson Reuters news, full text <span class="tag t-pa">PARTIAL</span> headlines only today</li>
+          <li>SEC EDGAR filings <span class="tag t-pa">PARTIAL</span> acceptance time kept</li>
+          <li>Prices and point-in-time universe <span class="tag t-ex">EXISTS</span></li>
+          <li>Transcripts, analyst revisions, fundamentals <span class="tag t-nw">NEW</span> adapters, CSV first</li>
+        </ul></div>
+      <div class="card"><h3><span class="n">2</span>Point-in-time text store <span class="tag t-nw">NEW</span></h3>
+        <ul>
+          <li>Event time and knowledge time per item</li>
+          <li>Content hash, entity link</li>
+          <li>Timestamp fixes already made <span class="tag t-ex">EXISTS</span></li>
+          <li>Month bucketing <span class="tag t-ex">EXISTS</span> (<code>build_manifest_from_store</code>)</li>
+        </ul></div>
+      <div class="card"><h3><span class="n">3</span>Methods, one interface</h3>
+        <ul>
+          <li>Grounded LLM scoring <span class="tag t-ex">EXISTS</span></li>
+          <li>Issuer-first search scoring <span class="tag t-nw">NEW</span> tool pending</li>
+          <li>Embeddings + ridge/logistic head <span class="tag t-nw">NEW</span> (ChronoBERT, fastembed)</li>
+          <li>Topics and narrative attention <span class="tag t-nw">NEW</span> (BERTopic)</li>
+          <li>Learned lexicon (SESTM-style) <span class="tag t-nw">NEW</span></li>
+          <li>Transforms and composites <span class="tag t-pa">PARTIAL</span></li>
+        </ul></div>
+      <div class="card"><h3><span class="n">4</span>Recipe and experiment registry <span class="tag t-nw">NEW</span></h3>
+        <ul>
+          <li>Versioned recipe JSON</li>
+          <li>Trial counter, training-cutoff table</li>
+          <li>Decision log (graduate, shelve), append-only</li>
+          <li>Stored in the run store <span class="tag t-ex">EXISTS</span> and job manager <span class="tag t-ex">EXISTS</span></li>
+        </ul></div>
+      <div class="card"><h3><span class="n">5</span>Evidence harness</h3>
+        <ul>
+          <li>Backtest, deflated Sharpe, PBO, regimes <span class="tag t-ex">EXISTS</span></li>
+          <li>Rank-IC with robust t, rolling <span class="tag t-nw">NEW</span></li>
+          <li>In-window vs post-cutoff split, leakage report <span class="tag t-nw">NEW</span></li>
+          <li>Costs, turnover, value-weighting <span class="tag t-nw">NEW</span></li>
+          <li>Rerun stability, overlap with four categories <span class="tag t-nw">NEW</span></li>
+          <li>"Insufficient data" test <span class="tag t-nw">NEW</span></li>
+        </ul></div>
+      <div class="card"><h3><span class="n">6</span>Decision <span class="tag t-nw">NEW</span></h3>
+        <ul>
+          <li>Graduate: records approver and time, freezes the recipe version</li>
+          <li>Exports a characteristic panel <span class="tag t-pa">PARTIAL</span> (panel type exists)</li>
+          <li>Shelve: kept with its evidence, never deleted</li>
+        </ul></div>
+    </div>
+  </section>
+
+  <div class="after"><b>Next stage (separate design):</b> shared scoring rules engine, index and portfolio construction, backtest
+    <span class="tag t-ex">EXISTS</span>. Graduated signals feed it as inputs.</div>
+
+  <div class="foot">
+    The five categories run through this one engine: sentiment and narrative momentum (STOXX paper first), earnings-call tone, fundamental, price momentum, analyst revisions.
+    <ul>
+      <li>Reused as is: grounded scorer, replication engine, run store, job manager, index risk model (for residualisation), emerging-themes tags (for narrative attention).</li>
+      <li>Adopted libraries: scikit-learn, statsmodels, sentence-transformers or fastembed, ChronoBERT, BERTopic. Not used: FinBERT, Loughran-McDonald dictionary, Qlib.</li>
+      <li>Open: search tool and spend ceiling, who owns the cutoff dates, vendor names.</li>
+    </ul>
+  </div>
+</main>
+</body>
+</html>

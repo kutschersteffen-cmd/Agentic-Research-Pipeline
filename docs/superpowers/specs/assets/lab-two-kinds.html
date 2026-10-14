@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R&D Lab Design</title>
+<style>
+  :root {
+    --bg:#ffffff; --fg:#111827; --muted:#4b5563; --line:#9ca3af;
+    --themes:#1d4ed8; --themes-bg:#eff6ff;
+    --signals:#047857; --signals-bg:#ecfdf5;
+    --shared:#7c3aed; --shared-bg:#f5f3ff;
+    --guess:#b45309; --guess-bg:#fef3c7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#0f172a; --fg:#e5e7eb; --muted:#9ca3af; --line:#4b5563;
+      --themes:#60a5fa; --themes-bg:#172554;
+      --signals:#34d399; --signals-bg:#052e22;
+      --shared:#a78bfa; --shared-bg:#2e1065;
+      --guess:#fbbf24; --guess-bg:#422006;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#0f172a; --fg:#e5e7eb; --muted:#9ca3af; --line:#4b5563;
+    --themes:#60a5fa; --themes-bg:#172554;
+    --signals:#34d399; --signals-bg:#052e22;
+    --shared:#a78bfa; --shared-bg:#2e1065;
+    --guess:#fbbf24; --guess-bg:#422006;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:1180px; margin:0 auto; padding:32px 16px 48px; }
+  h1 { font-size:26px; margin:0 0 6px; }
+  .sub { color:var(--muted); margin:0 0 28px; }
+  .lane { margin:0 0 8px; }
+  .lane h2 { font-size:15px; margin:0 0 10px; letter-spacing:.02em; }
+  .themes h2 { color:var(--themes); } .signals h2 { color:var(--signals); } .shared h2 { color:var(--shared); }
+  .row { display:grid; grid-template-columns:repeat(4,1fr); gap:28px; }
+  .row.three { grid-template-columns:repeat(3,1fr); max-width:900px; margin:0 auto; }
+  .card { position:relative; border:1.5px solid; border-radius:10px; padding:14px 14px 12px; min-height:128px; }
+  .themes .card { border-color:var(--themes); background:var(--themes-bg); }
+  .signals .card { border-color:var(--signals); background:var(--signals-bg); }
+  .shared .card { border-color:var(--shared); background:var(--shared-bg); min-height:100px; }
+  .card h3 { margin:0 0 6px; font-size:15px; }
+  .card p { margin:0; font-size:13px; color:var(--fg); }
+  .card:not(:last-child)::after { content:"→"; position:absolute; right:-24px; top:50%;
+                                  transform:translateY(-50%); color:var(--muted); font-size:20px; }
+  .guess { display:inline-block; margin-top:8px; padding:1px 8px; border-radius:999px; font-size:11px;
+           font-weight:600; color:var(--guess); background:var(--guess-bg); }
+  .link { display:flex; align-items:center; justify-content:center; gap:10px; color:var(--muted);
+          font-size:13px; margin:14px 0; }
+  .link::before, .link::after { content:""; flex:1; border-top:1.5px dashed var(--line); max-width:220px; }
+  .feed { text-align:center; color:var(--muted); font-size:13px; margin:22px 0 14px; }
+  .feed b { color:var(--fg); }
+  .notes { margin-top:32px; border-top:1px solid var(--line); padding-top:16px; font-size:13px; color:var(--muted); }
+  .notes li { margin:4px 0; }
+  @media (max-width:860px) {
+    .row, .row.three { grid-template-columns:1fr; gap:22px; }
+    .card:not(:last-child)::after { content:"↓"; right:50%; top:auto; bottom:-24px; transform:translateX(50%); }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>R&amp;D Lab: two kinds of things, one shared build stage</h1>
+  <p class="sub">Draft for discussion. Items tagged <span class="guess" style="margin:0">guess</span> are my assumptions, not decisions.</p>
+
+  <section class="lane themes">
+    <h2>THEMES / TOPICS: what is the world talking about and doing?</h2>
+    <div class="row">
+      <div class="card"><h3>1 Detect</h3><p>Emerging themes, issues and risks across a large portfolio. Says (calls), does (capex, revenue), market test (stock impact).</p></div>
+      <div class="card"><h3>2 Define</h3><p>Taxonomy of activities, direct and indirect along the value chain, each with an authoritative source. Sectors and industries.</p></div>
+      <div class="card"><h3>3 Identify</h3><p>Extraction theme (JSON) that finds companies by their specific business activities, with cited evidence.</p></div>
+      <div class="card"><h3>4 Universe</h3><p>Companies with verified exposure, reviewed and effective-dated. User-defined topics enter at step 2.</p></div>
+    </div>
+  </section>
+
+  <div class="link">dashed link (guess): a theme can become a signal, e.g. theme attention</div>
+
+  <section class="lane signals">
+    <h2>SIGNALS: can text predict returns, honestly?</h2>
+    <div class="row">
+      <div class="card"><h3>1 Design</h3><p>Idea from a paper or a hunch. Category, e.g. Sentiment and narrative momentum (STOXX paper, first member).</p></div>
+      <div class="card"><h3>2 Generate</h3><p>Score issuer text or search results. Grounded, versioned, point-in-time.<br><span class="guess">guess: stored-text and issuer-first search as comparable variants</span></p></div>
+      <div class="card"><h3>3 Evidence</h3><p>Rank-IC, post-cutoff split, costs, deflated Sharpe, PBO. Leakage and memory diagnostics reported as numbers.</p></div>
+      <div class="card"><h3>4 Decide</h3><p>Graduate (feeds scoring) or shelve with the evidence kept. Gate: GO / NO-GO / insufficient data.</p></div>
+    </div>
+  </section>
+
+  <p class="feed"><b>Themes</b> feed Score through the verified universe. <b>Signals</b> feed Score only after they pass the Evidence gate.</p>
+
+  <section class="lane shared">
+    <h2>SHARED BUILD STAGE: used by both</h2>
+    <div class="row three">
+      <div class="card"><h3>5 Score</h3><p>Rules engine on the universe and on graduated signals.</p></div>
+      <div class="card"><h3>6 Construct</h3><p>Index or portfolio: screens, selection, weights, caps.</p></div>
+      <div class="card"><h3>7 Backtest</h3><p>Out of sample, costs, compared with alternatives.<br><span class="guess">guess: also tests themes</span></p></div>
+    </div>
+  </section>
+
+  <ul class="notes">
+    <li>Open: where Detect's market test lives. Your brief puts it in the Themes lane; it could also be a Signals evidence step.</li>
+    <li>Not shown: run history, review queue, approvals. Those exist today and would be reused.</li>
+  </ul>
+</main>
+</body>
+</html>
