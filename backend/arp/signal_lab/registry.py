@@ -109,6 +109,11 @@ class Registry:
     def decide(
         self, experiment_id: str, decision: Literal["graduate", "shelve"], *, approver: str
     ) -> ExperimentRecord:
+        # Literal is only a type hint; the log is append-only, so a bad row could never be removed.
+        if decision not in ("graduate", "shelve"):
+            raise ValueError(f"decision must be 'graduate' or 'shelve', got {decision!r}")
+        if not approver.strip():
+            raise ValueError("an approver is required")
         with self.store.lock(SIGNAL_REGISTRY_RUN_ID):
             record = next((r for r in self._list() if r.experiment_id == experiment_id), None)
             if record is None:

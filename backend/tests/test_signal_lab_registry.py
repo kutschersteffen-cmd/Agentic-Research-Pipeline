@@ -113,3 +113,23 @@ def test_has(registry):
     assert not registry.has(eid)
     _register(registry, rec)
     assert registry.has(eid)
+
+
+def test_decide_rejects_bad_decision_without_writing(registry):
+    rec = _register(registry, evidence=_evidence("post_cutoff", n=12))
+    before = len(registry.store.read_results(SIGNAL_REGISTRY_RUN_ID))
+    with pytest.raises(ValueError):
+        registry.decide(rec.experiment_id, "graduated", approver="a")
+    assert len(registry.store.read_results(SIGNAL_REGISTRY_RUN_ID)) == before
+    assert registry.list_experiments()[0].decision == "none"
+
+
+@pytest.mark.parametrize("approver", ["", "   "])
+@pytest.mark.parametrize("decision", ["graduate", "shelve"])
+def test_decide_requires_approver_without_writing(registry, decision, approver):
+    rec = _register(registry, evidence=_evidence("post_cutoff", n=12))
+    before = len(registry.store.read_results(SIGNAL_REGISTRY_RUN_ID))
+    with pytest.raises(ValueError):
+        registry.decide(rec.experiment_id, decision, approver=approver)
+    assert len(registry.store.read_results(SIGNAL_REGISTRY_RUN_ID)) == before
+    assert registry.list_experiments()[0].decision == "none"
