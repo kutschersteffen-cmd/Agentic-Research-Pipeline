@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from arp.replication.backtest_engine import run_backtest
@@ -43,22 +46,30 @@ def _run(holding: int, **kw):
     return run_backtest(_spec(holding), _panel(), period_label="in_sample", period_start="2000-01-01", period_end="2001-12-01", **kw)
 
 
-# Gross figures recorded from the engine before cost support was added.
-@pytest.mark.parametrize(
-    ("holding", "avg_num"),
-    [(1, 2.0), (3, 5.4)],
-)
-def test_zero_cost_leaves_results_unchanged(holding, avg_num):
+def _approx_equal(actual, expected):
+    if isinstance(expected, dict):
+        assert actual.keys() == expected.keys()
+        for key in expected:
+            _approx_equal(actual[key], expected[key])
+    elif isinstance(expected, list):
+        assert len(actual) == len(expected)
+        for a, e in zip(actual, expected, strict=True):
+            _approx_equal(a, e)
+    else:
+        assert actual == pytest.approx(expected)
+
+
+# Golden dumps produced by the engine at cd5a9f7 (before cost support) on this panel/spec; see fixture.
+_GOLDEN = json.loads((Path(__file__).parent / "replication_costs_golden.json").read_text())
+
+
+@pytest.mark.parametrize("holding", [1, 3])
+def test_zero_cost_leaves_results_unchanged(holding):
     result = _run(holding, cost_bps=0.0)
     assert result.net_long_short is None
-    assert len(result.periods) == 10
-    assert result.long_short.monthly_mean_return_pct == pytest.approx(3.575)
-    assert result.long_leg.monthly_mean_return_pct == pytest.approx(2.3)
-    assert result.short_leg.monthly_mean_return_pct == pytest.approx(-1.275)
-    assert result.avg_num_long == pytest.approx(avg_num)
-    assert result.avg_num_short == pytest.approx(avg_num)
-    assert result.periods[0].long_short_return_pct == pytest.approx(3.55)
-    assert all(w is not None for w in (p.traded_weight for p in result.periods))
+    dump = result.model_dump(exclude={"result_id", "spec_id", "generated_at", "monthly_turnover_pct"})
+    assert all(p.pop("traded_weight") is not None for p in dump["periods"])
+    _approx_equal(dump, _GOLDEN[str(holding)])
 
 
 def test_net_equals_gross_minus_cost():
