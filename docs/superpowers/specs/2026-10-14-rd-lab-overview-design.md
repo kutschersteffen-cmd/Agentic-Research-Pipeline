@@ -1,7 +1,7 @@
 # R&D Lab overview (lab-level design)
 
 Date: 2026-10-14
-Status: draft for approval
+Status: approved by the owner, 2026-10-14
 
 ## Intent
 
