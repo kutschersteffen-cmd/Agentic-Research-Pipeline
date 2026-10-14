@@ -92,3 +92,44 @@ def test_summarize_ic_hit_rate():
 def test_summarize_ic_empty():
     s = summarize_ic([])
     assert (s.n, s.mean, s.t_nw, s.hit_rate) == (0, None, None, None)
+
+
+def _identity_case():
+    scores = [[float(k) for k in range(12)] for _ in range(4)]
+    rets = [[None] * 12] + [[float(k) for k in range(12)] for _ in range(3)]
+    return _scores(scores), _prices(rets)
+
+
+def test_rank_ic_rejects_mismatched_grids():
+    s, p = _identity_case()
+    p.period_ends = DATES[1:]
+    with pytest.raises(ValueError, match="4 vs 3"):
+        rank_ic_series(s, p)
+
+
+@pytest.mark.parametrize("fm", [0, -1])
+def test_rank_ic_rejects_non_forward_months(fm):
+    s, p = _identity_case()
+    with pytest.raises(ValueError, match="forward_months"):
+        rank_ic_series(s, p, forward_months=fm)
+
+
+def test_rank_ic_treats_nan_as_missing():
+    s, p = _identity_case()
+    nan = float("nan")
+    for t in TICKERS[:3]:
+        s.values[t][0] = nan  # 9 names left in month 0 -> skipped
+    p.returns["T11"][2] = nan  # 11 names left in month 1 -> still scored
+    out = rank_ic_series(s, p)
+    assert [d for d, _ in out] == DATES[1:3]
+    assert all(ic == pytest.approx(1.0) for _, ic in out)
+
+
+def test_rank_ic_forward_months_two_and_short_ticker_list():
+    scores = [[float(k) for k in range(12)] for _ in range(4)]
+    rets = [[None] * 12, [None] * 12] + [[float(k) for k in range(12)] for _ in range(2)]
+    s, p = _scores(scores), _prices(rets)
+    out = rank_ic_series(s, p, forward_months=2)
+    assert [d for d, _ in out] == DATES[:2]
+    p.returns["T0"] = p.returns["T0"][:2]  # shorter than period_ends: skipped for that month, no IndexError
+    assert [d for d, _ in rank_ic_series(s, p, forward_months=2, min_names=12)] == []

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import numpy as np
 from pydantic import BaseModel
 
@@ -41,6 +43,18 @@ def rank_ic_series(
     forward_months: int = 1,
     min_names: int = 10,
 ) -> list[tuple[str, float]]:
+    if forward_months < 1:
+        raise ValueError(f"forward_months must be >= 1, got {forward_months}")
+    # Index pairing is only valid on an identical grid; a shifted grid would silently misalign every IC.
+    if scores.period_ends != prices.period_ends:
+        raise ValueError(
+            f"score and price grids differ ({len(scores.period_ends)} vs {len(prices.period_ends)} period_ends)"
+        )
+
+    def at(series: list[float | None], k: int) -> float | None:
+        v = series[k] if k < len(series) else None
+        return v if v is not None and math.isfinite(v) else None
+
     tickers = [t for t in scores.values if t in prices.returns]
     out: list[tuple[str, float]] = []
     for i, period_end in enumerate(scores.period_ends):
@@ -50,7 +64,7 @@ def rank_ic_series(
         pairs = [
             (s, r)
             for t in tickers
-            if (s := scores.values[t][i]) is not None and (r := prices.returns[t][j]) is not None
+            if (s := at(scores.values[t], i)) is not None and (r := at(prices.returns[t], j)) is not None
         ]
         if len(pairs) < min_names:
             continue
