@@ -139,6 +139,8 @@ _MAX_DRAWS = 500_000
 
 
 def _draws_needed(n_boot: int, n_comparisons: int, confidence: float) -> int:
+    if not 0 < confidence < 1:
+        raise ValueError(f"confidence must be strictly between 0 and 1, got {confidence}")
     # Each Bonferroni tail needs >= 10 draws, else np.quantile clamps to the extreme and the interval is too narrow.
     return max(n_boot, math.ceil(20 * max(1, n_comparisons) / (1 - confidence)))
 
@@ -155,12 +157,12 @@ def compare_signals(
 ) -> Literal["a_higher", "b_higher", "insufficient_data"]:
     if len(a) != len(b):
         raise ValueError(f"series lengths differ ({len(a)} vs {len(b)})")
+    draws = _draws_needed(n_boot, n_comparisons, confidence)
     if len(a) < min_periods:
         return "insufficient_data"
     diff = np.asarray(a, dtype=float) - np.asarray(b, dtype=float)
     if not np.isfinite(diff).all():
         return "insufficient_data"
-    draws = _draws_needed(n_boot, n_comparisons, confidence)
     # Refuse rather than resample too little: a clamped tail would rank signals on a falsely narrow interval.
     if draws > _MAX_DRAWS:
         return "insufficient_data"

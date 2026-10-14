@@ -198,3 +198,11 @@ def test_draws_needed_keeps_ten_draws_per_tail(n_comparisons):
     draws = _draws_needed(2000, n_comparisons, 0.95)
     assert draws >= 2000
     assert draws >= 20 * n_comparisons / 0.05
+
+
+@pytest.mark.parametrize("confidence", [0.0, 1.0, 1.2])
+def test_confidence_outside_open_unit_interval_raises(confidence):
+    with pytest.raises(ValueError):
+        compare_signals([1.0] * 3, [0.0] * 3, n_comparisons=1, confidence=confidence)
+    with pytest.raises(ValueError):
+        _draws_needed(2000, 1, confidence)
