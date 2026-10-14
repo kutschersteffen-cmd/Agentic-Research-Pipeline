@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from typing import Literal
 
 import numpy as np
 from pydantic import BaseModel
@@ -108,3 +109,57 @@ def summarize_ic(series: list[tuple[str, float]]) -> IcSummary:
         t_nw=newey_west_t(ics),
         hit_rate=sum(ic > 0 for ic in ics) / len(ics),
     )
+
+
+def mean_cross_correlation(a: CharacteristicPanel, b: CharacteristicPanel, *, min_names: int = 10) -> float | None:
+    if a.period_ends != b.period_ends:
+        raise ValueError(f"panel grids differ ({len(a.period_ends)} vs {len(b.period_ends)} period_ends)")
+
+    def at(series: list[float | None], k: int) -> float | None:
+        v = series[k] if k < len(series) else None
+        return v if v is not None and math.isfinite(v) else None
+
+    tickers = [t for t in a.values if t in b.values]
+    corrs: list[float] = []
+    for i in range(len(a.period_ends)):
+        pairs = [
+            (x, y)
+            for t in tickers
+            if (x := at(a.values[t], i)) is not None and (y := at(b.values[t], i)) is not None
+        ]
+        if len(pairs) < min_names:
+            continue
+        c = spearman([x for x, _ in pairs], [y for _, y in pairs])
+        if c is not None:
+            corrs.append(c)
+    return float(np.mean(corrs)) if corrs else None
+
+
+def compare_signals(
+    a: list[float],
+    b: list[float],
+    *,
+    n_comparisons: int,
+    confidence: float = 0.95,
+    n_boot: int = 2000,
+    seed: int = 0,
+    min_periods: int = 12,
+) -> Literal["a_higher", "b_higher", "insufficient_data"]:
+    if len(a) != len(b):
+        raise ValueError(f"series lengths differ ({len(a)} vs {len(b)})")
+    if len(a) < min_periods:
+        return "insufficient_data"
+    diff = np.asarray(a, dtype=float) - np.asarray(b, dtype=float)
+    if not np.isfinite(diff).all():
+        return "insufficient_data"
+    rng = np.random.default_rng(seed)
+    idx = rng.integers(0, len(diff), size=(n_boot, len(diff)))
+    means = diff[idx].mean(axis=1)
+    # Bonferroni: the more comparisons made, the wider the interval must clear zero.
+    alpha = (1 - confidence) / max(1, n_comparisons)
+    lo, hi = np.quantile(means, [alpha / 2, 1 - alpha / 2])
+    if lo > 0:
+        return "a_higher"
+    if hi < 0:
+        return "b_higher"
+    return "insufficient_data"

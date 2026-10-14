@@ -5,7 +5,14 @@ import pytest
 
 from arp.replication.characteristics_data import CharacteristicPanel
 from arp.replication.price_data import PricePanel
-from arp.signal_lab.stats import newey_west_t, rank_ic_series, spearman, summarize_ic
+from arp.signal_lab.stats import (
+    compare_signals,
+    mean_cross_correlation,
+    newey_west_t,
+    rank_ic_series,
+    spearman,
+    summarize_ic,
+)
 
 DATES = ["2020-01-31", "2020-02-29", "2020-03-31", "2020-04-30"]
 TICKERS = [f"T{i}" for i in range(12)]
@@ -133,3 +140,49 @@ def test_rank_ic_forward_months_two_and_short_ticker_list():
     assert [d for d, _ in out] == DATES[:2]
     p.returns["T0"] = p.returns["T0"][:2]  # shorter than period_ends: skipped for that month, no IndexError
     assert [d for d, _ in rank_ic_series(s, p, forward_months=2, min_names=12)] == []
+
+
+def test_cross_correlation_identical_panels_is_one():
+    rng = np.random.default_rng(0)
+    p = _scores([list(rng.normal(size=12)) for _ in range(4)])
+    assert mean_cross_correlation(p, p) == pytest.approx(1.0)
+
+
+def test_cross_correlation_mismatched_grids_raises():
+    a = _scores([[float(k) for k in range(12)]] * 4)
+    b = CharacteristicPanel(period_ends=DATES[:3], values={t: v[:3] for t, v in a.values.items()}, source="test")
+    with pytest.raises(ValueError):
+        mean_cross_correlation(a, b)
+
+
+def _noise(seed: int, n: int = 60) -> np.ndarray:
+    return np.random.default_rng(seed).normal(0.0, 0.5, n)
+
+
+def test_compare_clear_difference():
+    a = (1.0 + _noise(1)).tolist()
+    b = (0.0 + _noise(2)).tolist()
+    assert compare_signals(a, b, n_comparisons=1) == "a_higher"
+
+
+def test_compare_indistinguishable_is_insufficient():
+    assert compare_signals(_noise(1).tolist(), _noise(2).tolist(), n_comparisons=1) == "insufficient_data"
+
+
+def test_compare_too_few_periods():
+    assert compare_signals([5.0] * 6, [0.0] * 6, n_comparisons=1) == "insufficient_data"
+
+
+def test_compare_length_mismatch_raises():
+    with pytest.raises(ValueError):
+        compare_signals([1.0] * 12, [1.0] * 13, n_comparisons=1)
+
+
+EFFECT = 0.25
+
+
+def test_compare_more_comparisons_is_harder():
+    a = (EFFECT + _noise(1)).tolist()
+    b = _noise(2).tolist()
+    assert compare_signals(a, b, n_comparisons=1) == "a_higher"
+    assert compare_signals(a, b, n_comparisons=50) == "insufficient_data"
