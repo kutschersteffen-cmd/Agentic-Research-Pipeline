@@ -113,3 +113,17 @@ def test_mismatched_grids_propagate():
     prices.period_ends = DATES[:-1]
     with pytest.raises(ValueError):
         _eval(scores, prices)
+
+
+@pytest.mark.parametrize(
+    "update, kw",
+    [
+        ({"holding_period_months": 3}, {}),
+        ({"characteristic_lag_months": 1}, {}),
+        ({}, {"forward_months": 2}),
+    ],
+)
+def test_unsupported_horizons_raise(update, kw):
+    scores, prices = _data()
+    with pytest.raises(ValueError, match="one-month hold"):
+        evaluate_signal(scores, prices, SPEC.model_copy(update=update), model=MODEL, cutoffs=TABLE, **kw)

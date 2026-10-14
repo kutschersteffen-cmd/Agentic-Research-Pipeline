@@ -68,6 +68,13 @@ def evaluate_signal(
     baselines: dict[str, CharacteristicPanel] | None = None,
     forward_months: int = 1,
 ) -> EvidenceReport:
+    if spec.holding_period_months != 1 or spec.characteristic_lag_months != 0 or forward_months != 1:
+        raise ValueError(
+            "evidence is currently defined for a one-month hold, no characteristic lag and a one-month "
+            "forward return; other horizons need a change to how windows are assigned "
+            f"(got holding_period_months={spec.holding_period_months}, "
+            f"characteristic_lag_months={spec.characteristic_lag_months}, forward_months={forward_months})"
+        )
     ends = scores.period_ends
     # Window follows the FORMATION month: a portfolio built from possibly memorised scores
     # must not have its return counted as post-cutoff.
