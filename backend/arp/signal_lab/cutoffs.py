@@ -1,15 +1,28 @@
 from __future__ import annotations
 
+import datetime
 import json
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError, field_validator
 
 
 class ModelCutoff(BaseModel):
     cutoff: str
     source: str
+
+    # Cutoffs are compared as strings against period ends, so only YYYY-MM-DD orders correctly; "2024" would fail open.
+    @field_validator("cutoff")
+    @classmethod
+    def _iso_date(cls, v: str) -> str:
+        try:
+            ok = datetime.date.fromisoformat(v).isoformat() == v
+        except ValueError:
+            ok = False
+        if not ok:
+            raise ValueError(f"cutoff must be a YYYY-MM-DD date, got {v!r}")
+        return v
 
 
 class CutoffTable(BaseModel):
@@ -23,7 +36,19 @@ class CutoffTable(BaseModel):
 def load_cutoff_table(path: Path) -> CutoffTable:
     if not path.exists():
         return CutoffTable(entries={})
-    return CutoffTable(entries=json.loads(path.read_text()))
+    try:
+        raw = json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{path}: malformed JSON: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise ValueError(f"{path}: expected an object mapping model name to cutoff entry")
+    entries: dict[str, ModelCutoff] = {}
+    for model, entry in raw.items():
+        try:
+            entries[model] = ModelCutoff.model_validate(entry)
+        except ValidationError as exc:
+            raise ValueError(f"{path}: invalid cutoff entry for model {model!r}: {exc}") from exc
+    return CutoffTable(entries=entries)
 
 
 def period_window(
