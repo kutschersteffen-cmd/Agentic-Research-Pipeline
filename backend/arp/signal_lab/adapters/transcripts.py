@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Protocol
 
 from arp.signal_lab.text_store import TextRecord, make_record
+from arp.signal_lab.times import normalise_time
 
 _REQUIRED = ("issuer_key", "event_time", "title", "text")
 
@@ -29,13 +30,15 @@ class CsvTranscriptSource:
             if missing:
                 raise ValueError(f"{self._path.name}: missing column(s) {', '.join(missing)}")
             for n, row in enumerate(reader, start=1):  # data rows are 1-based; header is row 0
-                issuer, event_time = row["issuer_key"].strip(), row["event_time"].strip()
+                issuer, event_time = (row["issuer_key"] or "").strip(), (row["event_time"] or "").strip()
                 if not issuer or not event_time:
                     raise ValueError(f"{self._path.name} row {n}: issuer_key and event_time are required")
-                item_id = (row.get("source_item_id") or "").strip() or hashlib.sha256(
-                    f"{issuer}|{event_time}|{row['title']}".encode()
-                ).hexdigest()[:16]
+                if row["title"] is None or row["text"] is None:
+                    raise ValueError(f"{self._path.name} row {n}: truncated row")
                 try:
+                    item_id = (row.get("source_item_id") or "").strip() or hashlib.sha256(
+                        f"{issuer}|{normalise_time(event_time)}|{row['title']}".encode()
+                    ).hexdigest()[:16]
                     out.append(
                         make_record(
                             source="transcript",

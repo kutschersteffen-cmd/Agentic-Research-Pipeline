@@ -53,3 +53,16 @@ def test_default_source_item_id_is_stable(tmp_path):
     assert a.source_item_id == b.source_item_id
     assert len(a.source_item_id) == 16
     assert a.item_id == b.item_id
+
+
+@pytest.mark.parametrize("line", ["iss_a\n", "iss_a,2024-01-02T10:00:00Z\n", "iss_a,2024-01-02T10:00:00Z,t\n"])
+def test_truncated_row_raises_value_error_with_row(tmp_path, line):
+    path = _write(tmp_path, HEADER + line)
+    with pytest.raises(ValueError, match=r"calls\.csv.*row 1"):
+        CsvTranscriptSource(path).records()
+
+
+def test_default_source_item_id_ignores_time_spelling(tmp_path):
+    path = _write(tmp_path, HEADER + "iss_a,2024-01-02,t,x\niss_a,2024-01-02T23:59:59Z,t,x\n")
+    a, b = CsvTranscriptSource(path, now="2024-02-01T00:00:00Z").records()
+    assert a.source_item_id == b.source_item_id
