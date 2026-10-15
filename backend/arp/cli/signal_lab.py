@@ -163,6 +163,9 @@ def signals_pull_news_text(since: str = typer.Option(None, help="ISO date; defau
         result = pull_news_text(_text_store(), settings, IdentifierMapStore(settings.identifier_map_path), since=since)
     except ValueError as exc:
         raise _fail(exc) from exc
+    except Exception as exc:  # fetch failure or unexpected response; no traceback, it could show credentials
+        typer.echo(f"News text pull failed: {type(exc).__name__}: {exc}", err=True)
+        raise typer.Exit(1) from exc
     typer.echo(f"{result['stories']} stories, {result['records']} new records, {result['unmatched']} not matched to an issuer")
 
 

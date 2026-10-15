@@ -103,3 +103,36 @@ def test_pull_news_text_missing_credentials_exits_1(monkeypatch):
     assert result.exit_code == 1
     assert "News API is not configured" in result.stderr
     assert "s3cret-value" not in result.output + result.stderr
+
+
+def test_pull_news_text_network_error_is_contained(monkeypatch):
+    import httpx
+
+    def boom(*a, **k):
+        raise httpx.ConnectError("boom")
+
+    monkeypatch.setenv("ARP_NEWS_API_CLIENT_ID", "cid")
+    monkeypatch.setenv("ARP_NEWS_API_CLIENT_SECRET", "s3cret-value")
+    get_settings.cache_clear()
+    monkeypatch.setattr("arp.cli.signal_lab.pull_news_text", boom)
+    result = _run("pull-news-text")
+    assert result.exit_code == 1
+    assert "News text pull failed: ConnectError: boom" in result.stderr
+    assert "Traceback" not in result.output + result.stderr
+    assert "s3cret-value" not in result.output + result.stderr
+
+
+def test_build_panel_unknown_kind_exits_1(tmp_path):
+    _write_panel(tmp_path, 12)
+    result = _run("build-panel", "--kind", "bogus", "--csv", str(tmp_path / "x.csv"),
+                  "--prices", str(tmp_path / "prices.csv"), "--out", str(tmp_path / "p.csv"))
+    assert result.exit_code == 1
+    assert "--kind" in result.stderr
+
+
+def test_ingest_transcripts_malformed_csv_exits_1(tmp_path):
+    bad = tmp_path / "bad.csv"
+    bad.write_text("issuer_key,event_time,title,text\niss_a,2020-01-31T23:10:00,Q4,We grew.\n")
+    result = _run("ingest-transcripts", "--csv", str(bad))
+    assert result.exit_code == 1
+    assert "bad.csv row 1" in result.stderr

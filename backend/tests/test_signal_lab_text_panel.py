@@ -19,3 +19,8 @@ def test_manifest_skips_unlinked_and_buckets_by_event_month():
 def test_manifest_text_is_title_blank_line_body():
     [entry] = manifest_from_text_items([_rec("iss_a", title="Head", body="Line one\nLine two")])
     assert entry["text"] == "Head\n\nLine one\nLine two"
+
+
+def test_manifest_month_boundary_first_second():
+    [entry] = manifest_from_text_items([_rec("iss_a", event_time="2020-02-01T00:00:00Z")])
+    assert entry["period_end"] == "2020-02-01"
