@@ -37,7 +37,7 @@ def test_ingest_then_manifest_round_trip_and_idempotent(tx, tmp_path):
     out = tmp_path / "m.json"
     assert _run("text-manifest", "--out", str(out)).exit_code == 0
     [entry] = json.loads(out.read_text())
-    assert (entry["ticker"], entry["period_end"], entry["text"]) == ("iss_a", "2020-01-01", "Q4 call\n\nWe grew.")
+    assert (entry["ticker"], entry["period_end"], entry["text"]) == ("iss_a", "2020-01-31", "Q4 call\n\nWe grew.")
 
 
 def test_manifest_known_by_before_ingestion_excludes(tx, tmp_path):
@@ -136,3 +136,24 @@ def test_ingest_transcripts_malformed_csv_exits_1(tmp_path):
     result = _run("ingest-transcripts", "--csv", str(bad))
     assert result.exit_code == 1
     assert "bad.csv row 1" in result.stderr
+
+
+def test_manifest_period_ends_feed_evaluate_on_month_end_grid(tmp_path):
+    dates = _write_panel(tmp_path, 40)
+    tx = tmp_path / "t.csv"
+    tx.write_text("issuer_key,event_time,title,text\nT00,2016-01-15T10:00:00Z,Call,Good.\n")
+    _run("ingest-transcripts", "--csv", str(tx))
+    out = tmp_path / "m.json"
+    assert _run("text-manifest", "--out", str(out)).exit_code == 0
+    [entry] = json.loads(out.read_text())
+    assert entry["period_end"] in dates
+    scores = tmp_path / "scores.csv"  # hand-built stand-in for score-sentiment output (no LLM)
+    with scores.open("w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["date", "T00", "T01"])
+        for i, d in enumerate(dates):
+            w.writerow([d, i * 0.01, (i % 5) * 0.01])
+    ev = _run("evaluate", "--scores", str(scores), "--prices", str(tmp_path / "prices.csv"),
+              "--category", "sentiment_narrative", "--method", "toy", "--universe", "u",
+              "--start", dates[0], "--end", dates[-1])
+    assert ev.exit_code == 0, ev.output

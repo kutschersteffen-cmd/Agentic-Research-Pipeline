@@ -52,6 +52,8 @@ class CsvRevisionSource:
     def get_panel(
         self, issuer_keys: list[str], period_ends: list[str], *, window_months: int = 3
     ) -> CharacteristicPanel:
+        if window_months < 1:
+            raise ValueError("window_months must be >= 1")
         by_issuer: dict[str, list[tuple[str, int]]] = {}
         for issuer, moment, sign in self._revisions():
             by_issuer.setdefault(issuer, []).append((moment, sign))

@@ -14,6 +14,11 @@ def _panel(tmp_path, rows: str, issuers=("iss_a",), grid=GRID, **kw):
     return CsvRevisionSource(path).get_panel(list(issuers), grid, **kw)
 
 
+def test_window_months_below_one_is_refused(tmp_path):
+    with pytest.raises(ValueError, match="window_months must be >= 1"):
+        _panel(tmp_path, "iss_a,2024-01-10T10:00:00Z,up\n", window_months=0)
+
+
 def test_net_ratio_over_window(tmp_path):
     rows = "".join(f"iss_a,2024-01-1{n}T10:00:00Z,up\n" for n in (1, 2, 3)) + "iss_a,2024-01-20T10:00:00Z,down\n"
     p = _panel(tmp_path, rows)

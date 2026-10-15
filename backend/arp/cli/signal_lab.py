@@ -172,7 +172,7 @@ def signals_pull_news_text(since: str = typer.Option(None, help="ISO date; defau
 @signals_app.command("text-manifest")
 def signals_text_manifest(
     out: Path = typer.Option(..., help="Write the score-sentiment manifest JSON here."),
-    event_from: str = typer.Option(None, help="ISO time: earliest event time (naive times are refused)."),
+    event_from: str = typer.Option(None, help="ISO time: earliest event time; a date-only bound means the end of that day; naive times are refused."),
     event_to: str = typer.Option(None, help="ISO time: latest event time."),
     known_by: str = typer.Option(None, help="ISO time: only text stored by then (meaningful for live-ingested items only)."),
 ) -> None:
