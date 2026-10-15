@@ -22,7 +22,7 @@ def test_offset_converted_to_utc():
 
 
 @pytest.mark.parametrize(
-    "bad", ["2020-01-31T23:10:00", "31 Jan 2020", "", "2021-02-30", "2021-02-30T10:00:00Z"]
+    "bad", ["2020-01-31T23:10:00", "31 Jan 2020", "", "2021-02-30", "2021-02-30T10:00:00Z", "2020-W05-1", "20200131TZ"]
 )
 def test_invalid_raises(bad):
     with pytest.raises(ValueError):
@@ -40,3 +40,7 @@ def test_content_hash_stable_and_sensitive():
     assert base == content_hash_of("t", "b")
     assert base != content_hash_of("t", "b2")
     assert base != content_hash_of("t2", "b")
+
+
+def test_content_hash_title_body_boundary():
+    assert content_hash_of("a\nb", "c") != content_hash_of("a", "b\nc")

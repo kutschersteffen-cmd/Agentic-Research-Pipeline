@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import calendar
 import hashlib
+import re
 from datetime import UTC, date, datetime
 
 _FORMAT = "%Y-%m-%dT%H:%M:%SZ"
@@ -13,7 +14,7 @@ def _end_of_day(d: date) -> str:
 
 def normalise_time(value: str) -> str:
     """Canonical UTC-to-the-second string. Date-only means end of that day, conservatively."""
-    if len(value) == 10:
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
         return _end_of_day(date.fromisoformat(value))
     parsed = datetime.fromisoformat(value.upper())
     if parsed.tzinfo is None:
@@ -28,4 +29,4 @@ def month_end_time(period_end: str) -> str:
 
 
 def content_hash_of(title: str, body: str) -> str:
-    return hashlib.sha256(f"{title}\n{body}".encode()).hexdigest()
+    return hashlib.sha256(f"{len(title)}:{title}\n{body}".encode()).hexdigest()
