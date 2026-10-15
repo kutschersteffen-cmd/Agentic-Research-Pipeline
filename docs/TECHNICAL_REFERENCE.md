@@ -456,7 +456,7 @@ arp transition-plan indicators | run
 arp transition-barrier criteria | scores | sources | staleness | coverage | refresh
 arp report draft | plan | render | templates
 arp replicate extract | backtest | compare | discover-papers | score-sentiment | pbo | regime-report | sanity-check | golden-set
-arp signals evaluate | list | decide
+arp signals evaluate | list | decide | pull-news-text | text-manifest | ingest-transcripts | build-panel
 arp taxonomy-researcher run | schedule
 arp calibration run | schedule
 arp golden-set run | run-roles | planner | seed-known-answers
@@ -470,6 +470,8 @@ arp scale load | report
 ```
 
 `arp signals evaluate --scores S --prices P --category C --method M --universe U --start D --end D [--model M]` scores a signal against next-month returns, splits the evidence at the model's training cutoff and registers the experiment; `arp signals list` shows the registry and `arp signals decide <id> --decision graduate|shelve --approver A` records a decision (graduating needs 12+ post-cutoff IC months and an unchanged cutoff).
+
+`arp signals pull-news-text [--since D]` pulls Refinitiv headlines plus full story text into the point-in-time text store; `text-manifest --out M [--event-from T] [--event-to T] [--known-by T]` writes the `arp replicate score-sentiment` manifest from the store (`--known-by` only means something for live-ingested items); `ingest-transcripts --csv F` adds transcripts and reports how many were new; `build-panel --kind fundamentals|revisions --csv F --prices P --out O [--metric N] [--window-months 3]` builds a point-in-time panel on the price CSV's grid for `evaluate --scores`.
 
 `arp identity review <run_id> <item_key> --decision approve|correct|reject|escalate [--reason R] [--website W] [--cik C] [--comment T]`: `--reason` is required unless approving (default `confirmed`); `correct` needs `--website` and/or `--cik` and a `--comment` naming the source.
 

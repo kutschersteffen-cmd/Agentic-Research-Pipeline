@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import csv
 import hashlib
+import json
 from pathlib import Path
 from typing import get_args
 
@@ -8,13 +10,21 @@ import typer
 
 from arp.cli._shared import _run_store
 from arp.config import get_settings
+from arp.db.session import require_dsn
+from arp.portfolio.news.text_pull import pull_news_text
 from arp.replication._wide_csv import read_wide_csv
 from arp.replication.characteristics_data import CsvCharacteristicSource
 from arp.replication.price_data import CsvPriceSource
+from arp.signal_lab.adapters.fundamentals import CsvFundamentalSource
+from arp.signal_lab.adapters.revisions import CsvRevisionSource
+from arp.signal_lab.adapters.transcripts import CsvTranscriptSource
 from arp.signal_lab.baselines import momentum_panel
 from arp.signal_lab.cutoffs import load_cutoff_table
 from arp.signal_lab.evidence import evaluate_signal, sentiment_spec
 from arp.signal_lab.registry import Recipe, Registry, experiment_id_for
+from arp.signal_lab.text_panel import manifest_from_text_items
+from arp.signal_lab.text_store import TextStore
+from arp.storage.identifier_map import IdentifierMapStore
 
 signals_app = typer.Typer(
     help="Signals workbench: evaluate a signal's out-of-sample evidence, register it, and gate graduation."
@@ -139,3 +149,78 @@ def signals_decide(
     except ValueError as exc:
         raise _fail(exc) from exc
     typer.echo(f"{record.experiment_id}: {record.decision} by {record.decided_by}")
+
+
+def _text_store() -> TextStore:
+    return TextStore(require_dsn(get_settings()))
+
+
+@signals_app.command("pull-news-text")
+def signals_pull_news_text(since: str = typer.Option(None, help="ISO date; default: all stories the feed returns")) -> None:
+    """Pulls Refinitiv headlines plus full story text into the point-in-time text store."""
+    settings = get_settings()
+    try:
+        result = pull_news_text(_text_store(), settings, IdentifierMapStore(settings.identifier_map_path), since=since)
+    except ValueError as exc:
+        raise _fail(exc) from exc
+    typer.echo(f"{result['stories']} stories, {result['records']} new records, {result['unmatched']} not matched to an issuer")
+
+
+@signals_app.command("text-manifest")
+def signals_text_manifest(
+    out: Path = typer.Option(..., help="Write the score-sentiment manifest JSON here."),
+    event_from: str = typer.Option(None, help="ISO time: earliest event time (naive times are refused)."),
+    event_to: str = typer.Option(None, help="ISO time: latest event time."),
+    known_by: str = typer.Option(None, help="ISO time: only text stored by then (meaningful for live-ingested items only)."),
+) -> None:
+    """Builds a score-sentiment manifest from the text store, one entry per linked item in its event month."""
+    try:
+        items = _text_store().items(event_from=event_from, event_to=event_to, known_by=known_by)
+    except ValueError as exc:
+        raise _fail(exc) from exc
+    entries = manifest_from_text_items(items)
+    out.write_text(json.dumps(entries, indent=2))
+    typer.echo(f"Wrote {out} ({len(entries)} entries)")
+
+
+@signals_app.command("ingest-transcripts")
+def signals_ingest_transcripts(csv_path: Path = typer.Option(..., "--csv", help="Transcript CSV: issuer_key, event_time, title, text.")) -> None:
+    """Adds transcripts to the text store, stamped with the ingestion time unless the file gives knowledge_time."""
+    try:
+        records = CsvTranscriptSource(csv_path).records()
+        store = _text_store()
+        new = sum(store.add(r) for r in records)
+    except ValueError as exc:
+        raise _fail(exc) from exc
+    typer.echo(f"{len(records)} records, {new} new")
+
+
+@signals_app.command("build-panel")
+def signals_build_panel(
+    kind: str = typer.Option(..., help="fundamentals or revisions."),
+    csv_path: Path = typer.Option(..., "--csv", help="Vendor CSV for the chosen kind."),
+    prices: Path = typer.Option(..., help="Price CSV: its dates and columns set the panel's grid and issuers."),
+    out: Path = typer.Option(..., help="Write the wide scores CSV here (feed it to 'evaluate --scores')."),
+    metric: str = typer.Option(None, help="Required for fundamentals."),
+    window_months: int = typer.Option(3, help="Revisions only: trailing months of revisions per period."),
+) -> None:
+    """Builds a point-in-time characteristic panel from a vendor CSV on the price CSV's grid."""
+    try:
+        if kind not in ("fundamentals", "revisions"):
+            raise ValueError(f"--kind must be fundamentals or revisions, got {kind!r}")
+        if kind == "fundamentals" and not metric:
+            raise ValueError("--metric is required for --kind fundamentals")
+        dates, columns = read_wide_csv(prices)
+        issuers = list(columns)
+        if kind == "fundamentals":
+            panel = CsvFundamentalSource(csv_path).get_panel(metric, issuers, dates)
+        else:
+            panel = CsvRevisionSource(csv_path).get_panel(issuers, dates, window_months=window_months)
+    except ValueError as exc:
+        raise _fail(exc) from exc
+    with out.open("w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["date", *issuers])
+        for i, d in enumerate(dates):
+            writer.writerow([d, *("" if (v := panel.values[t][i]) is None else v for t in issuers)])
+    typer.echo(f"Wrote {out} ({len(dates)} periods x {len(issuers)} issuers)")
