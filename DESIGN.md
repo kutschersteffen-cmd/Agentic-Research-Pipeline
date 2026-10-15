@@ -7,6 +7,7 @@ colors:
   graphite-ground: "#f3f3f0"
   panel-white: "#ffffff"
   hairline: "#dcdcd7"
+  field-border: "#85857f"
   well-grey: "#ebebe7"
   sidebar-grey: "#eeeeea"
   muted-graphite: "#5c5c57"
@@ -20,6 +21,7 @@ colors:
   night-ground: "#0c0d0f"
   night-panel: "#131417"
   night-hairline: "#26272c"
+  night-field-border: "#707178"
   night-well: "#18191c"
   night-ink: "#e8e8e3"
   night-muted: "#9a9ba0"
@@ -62,7 +64,9 @@ rounded:
   lg: "0"
   pill: "999px"
 spacing:
+  s-0_5: "2px"
   s-1: "4px"
+  s-1_5: "6px"
   s-2: "8px"
   s-3: "12px"
   s-4: "16px"
@@ -139,6 +143,7 @@ A near-monochrome palette with one reserved signal per theme and a small set of 
 - **Graphite Ground** (#f3f3f0) / **Night Ground** (#0c0d0f): the page.
 - **Panel White** (#ffffff) / **Night Panel** (#131417): cards, tables, inputs.
 - **Hairline** (#dcdcd7 / #26272c): every border and divider.
+- **Field Border** (#85857f / #707178): the edge of form fields only; it clears 3:1 on the field and the page (WCAG 1.4.11), which the hairline does not.
 - **Well Grey** (#ebebe7 / #18191c): recessed areas, disabled controls, hover rows.
 - **Muted Graphite** (#5c5c57 / #9a9ba0): secondary text and labels; ≥4.5:1 on ground, panel and well.
 
@@ -148,6 +153,10 @@ A near-monochrome palette with one reserved signal per theme and a small set of 
 **Provenance Is Not Status.** Where a number came from (live, synthetic sample, portfolio holdings, not built) is shown with monochrome marks: filled, half, ring, dashed ring. Metric numbers are ink. Green, amber and red stay for status.
 
 **The Status Is Not The Signal Rule.** Green, amber and red describe runs and ratings. Red marks a failed run and also a Low (L) rating on Transition Barriers; that second use is a deliberate, confirmed exception, because the matrix reads as a traffic light. It never marks something waiting on a person.
+
+**Chart Colours.** Charts with categories use four slots, `--cat-1` to `--cat-4` (blue, magenta, gold, violet; `lib/palette.ts` explains the validation). They are neither status nor signal.
+
+**The Arcade Exception.** The hidden arcade games draw in their own neon palette, lime included. They sit outside the product and are the only place where lime is decoration.
 
 **The Icon Accent Rule.** Each process icon has exactly one element drawn in the signal colour, and it only lights up when that process waits on someone. Otherwise the whole icon is ink.
 
@@ -159,6 +168,8 @@ A near-monochrome palette with one reserved signal per theme and a small set of 
 **Character:** a plain, engineered sans for everything read, paired with a monospace that carries numbers, IDs, step labels and state, so data never shifts width and reads as measured.
 
 ### Hierarchy
+The CSS scale tokens are `--text-xs` (13px), `--text-sm` (14px), `--text-base` (15px), `--text-md` (16px), `--text-lg` (22px) and `--text-xl` (24px).
+
 - **Display** (600, clamp(2rem → 3.25rem), 1.02, −0.035em): the start-page status line only, e.g. "28 outputs wait on you."
 - **Headline** (600, 1.5rem, 1.1): page titles and process card names.
 - **Title** (600, 1rem, 1.3): card and section headings.
@@ -170,7 +181,7 @@ A near-monochrome palette with one reserved signal per theme and a small set of 
 
 ## Layout
 
-Spacing runs on a 4px base (4, 8, 12, 16, 24, 32, 48). Groups are tight (8–12px inside), sections are generous (24–48px between). A 248px sidebar holds navigation on wide screens; below 1024px it collapses into a drawer behind a top bar (53px), so tablets get the full width for tables and diagrams. The start page is a status line, then the five workspace cards (five columns on wide screens, three below 1400px, two below 1100px, one below 640px), then a row of run chips. Wide tables scroll inside their frame and show a shadow on any edge with more columns; tables never push the page sideways.
+Spacing runs on a 4px base (4, 8, 12, 16, 24, 32, 48), plus two half steps for dense parts: 2px (`--s-0_5`: the nav stack, segmented bars, compact pills and row buttons) and 6px (`--s-1_5`: chip rows, icon-to-label gaps). New padding, margin and gap values read from these tokens rather than raw pixels. Groups are tight (8–12px inside), sections are generous (24–48px between). A 248px sidebar holds navigation on wide screens; below 1024px it collapses into a drawer behind a top bar (53px), so tablets get the full width for tables and diagrams. The start page is a status line, then the five workspace cards (five columns on wide screens, three below 1400px, two below 1100px, one below 640px), then a row of run chips. Wide tables scroll inside their frame and show a shadow on any edge with more columns; tables never push the page sideways.
 
 ## Elevation & Depth
 
@@ -190,7 +201,7 @@ Square, like the start page, on every screen: cards, framed tables, inputs and b
 ## Components
 
 ### Buttons
-- **Shape:** gently rounded (8px).
+- **Shape:** square (`--r-md`, 0), like every control; see Shapes.
 - **Primary:** ink fill, white text (inverted in Night), 9px × 16px padding, weight 500.
 - **Hover / Focus:** deepens to pure black / white; keyboard focus shows a 2px outline.
 - **Secondary:** transparent with a hairline border and ink text; hover adds a 6% ink tint.
