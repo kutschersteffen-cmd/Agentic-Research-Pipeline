@@ -64,7 +64,7 @@ Not in this plan: wiring `EdgarDocumentSource.fetch` into the text store automat
 - Test: `backend/tests/test_signal_lab_times.py`
 
 **Interfaces:**
-- Produces: `normalise_time(value: str) -> str`; `month_end_time(period_end: str) -> str` (the last second of the month containing the ISO date); `content_hash_of(title: str, body: str) -> str` (SHA-256 hex of `title + "\n" + body`).
+- Produces: `normalise_time(value: str) -> str`; `month_end_time(period_end: str) -> str` (the last second of the month containing the ISO date); `content_hash_of(title: str, body: str) -> str` (SHA-256 hex of `f"{len(title)}:{title}\n{body}"`: length-prefixed, so a newline inside a title cannot make two different texts collide).
 
 - [ ] **Step 1: Write the failing tests**
   - `test_date_only_is_end_of_day` (Review Focus 1): `normalise_time("2020-01-31") == "2020-01-31T23:59:59Z"`.
