@@ -847,7 +847,8 @@ Each line gives the control, the source behind it, and its status in this repo.
       model (`backend/arp/index/risk.py`) that could provide residualisation.
 11. **Transaction costs and turnover.** These decide whether the signal survives at all
     (Lopez-Lira: 20 bps kills it; KKX: Sharpe 4.29 → 2.3 net).
-    - *Repo:* `BacktestResult.monthly_turnover_pct` is reserved but unset. **Gap.**
+    - *Repo:* the backtest engine fills `BacktestResult.monthly_turnover_pct` (mean traded weight
+      divided by 2, times 100), and `net_long_short` exists when `cost_bps` > 0.
 12. **Capacity.** Value-weighting collapses the news-sentiment edge (Lopez-Lira 2.97 → 0.56; KKX
     4.29 → 1.33).
     - Report equal-weighted and value-weighted side by side. *Repo:* value-weighting is declared

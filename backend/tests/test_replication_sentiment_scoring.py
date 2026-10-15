@@ -62,3 +62,39 @@ async def test_the_prompt_is_dated_by_publication_not_fetch_time(fake_llm):
                          fiscal_period="FY2023", published_at="2024-02-02T16:30:12.000Z", fetched_at="2026-10-13T00:00:00")
     await score_document_sentiment("AAA", doc, llm)
     assert "Document date: 2024-02-02T16:30:12.000Z\n" in llm.prompts[0]
+
+
+def test_build_manifest_from_store_buckets_by_event_month_and_skips_unlinked():
+    from arp.schemas.portfolio import NewsItem
+
+    items = [
+        NewsItem(news_id="n1", company_id="AAA", headline="Beat", excerpt="Sales rose.", published_at="2020-01-31T23:10:00Z"),
+        NewsItem(news_id="n2", company_id=None, headline="Macro", excerpt="", published_at="2020-01-05T00:00:00Z"),
+    ]
+    from arp.replication.sentiment_scoring import build_manifest_from_store
+
+    assert build_manifest_from_store(items) == [
+        {
+            "ticker": "AAA",
+            "period_end": "2020-01-01",
+            "published_at": "2020-01-31T23:10:00Z",
+            "doc_id": "n1",
+            "text": "Beat\n\nSales rose.",
+        }
+    ]
+
+
+async def test_build_sentiment_panel_averages_grounded_scores_in_a_cell(fake_llm):
+    docs = [_doc("a", "Sales rose sharply."), _doc("b", "Margins fell badly."), _doc("c", "Unscorable text here.")]
+    llm = fake_llm(
+        {
+            "SentimentScoreDraft": [
+                SentimentScoreDraft(score=0.8, quote="Sales rose sharply", confidence=0.9),
+                SentimentScoreDraft(score=-0.2, quote="Margins fell badly", confidence=0.9),
+                SentimentScoreDraft(score=1.0, quote="not in the text", confidence=0.9),  # ungrounded -> excluded
+            ]
+        }
+    )
+    panel, records, _ = await build_sentiment_panel({"AAA": {"2020-01-01": docs}}, ["2020-01-01"], llm)
+    assert panel.values["AAA"] == [pytest.approx(0.3)]
+    assert len(records) == 3

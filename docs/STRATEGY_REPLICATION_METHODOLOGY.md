@@ -644,8 +644,9 @@ Sharpe/return/t-stat numbers always come from the backend's
   that changes its own methodology partway through its sample (rare, but
   not unheard of) would need two specs and two backtests stitched
   together, not a single run.
-- No transaction-cost or turnover modeling yet
-  (`BacktestResult.monthly_turnover_pct` is reserved but unset).
+- Turnover and costs are modelled only as a flat charge: the backtest engine fills
+  `BacktestResult.monthly_turnover_pct` (mean traded weight divided by 2, times 100), and
+  `net_long_short` exists when `cost_bps` > 0.
 - No point-in-time universe reconstruction, survivorship-bias handling, or
   restatement-aware fundamentals (see "Price data" and "Characteristic
   data" above) — a real quant-research use of this beyond a worked example

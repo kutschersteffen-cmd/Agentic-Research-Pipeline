@@ -211,6 +211,7 @@ class PortfolioPeriodReturn(BaseModel):
     num_long: int
     num_short: int
     benchmark_return_pct: float | None = None
+    traded_weight: float | None = Field(default=None, description="Sum over both legs of |w_t - w_{t-1}| in absolute weight; the first emitted month trades the full 2.0.")
 
 
 class BacktestResult(BaseModel):
@@ -233,6 +234,7 @@ class BacktestResult(BaseModel):
     long_short: LegPerformance = Field(default_factory=LegPerformance)
     avg_num_long: float = 0.0
     avg_num_short: float = 0.0
+    net_long_short: LegPerformance | None = Field(default=None, description="Long-short performance after cost_bps * traded_weight per month; None when no cost was applied.")
     monthly_turnover_pct: float | None = None
     warnings: list[str] = Field(default_factory=list, description="Data-quality caveats, e.g. thin coverage in early periods, gaps in the panel.")
     generated_at: str = Field(default_factory=now_iso)

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analysts Lane Sketch</title>
+<style>
+  :root { --bg:#fff; --fg:#111827; --muted:#4b5563; --line:#9ca3af; --card:#f9fafb; --cl:#d1d5db;
+          --an:#b45309; --an-bg:#fffbeb; --ex:#047857; --ex-bg:#d1fae5; --nw:#1d4ed8; --nw-bg:#dbeafe; --pa:#b45309; --pa-bg:#fef3c7; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg:#0f172a; --fg:#e5e7eb; --muted:#9ca3af; --line:#4b5563; --card:#111c33; --cl:#334155;
+    --an:#fbbf24; --an-bg:#2a1a05; --ex:#34d399; --ex-bg:#064e3b; --nw:#60a5fa; --nw-bg:#172554; --pa:#fbbf24; --pa-bg:#451a03; } }
+  :root[data-theme="dark"] { --bg:#0f172a; --fg:#e5e7eb; --muted:#9ca3af; --line:#4b5563; --card:#111c33; --cl:#334155;
+    --an:#fbbf24; --an-bg:#2a1a05; --ex:#34d399; --ex-bg:#064e3b; --nw:#60a5fa; --nw-bg:#172554; --pa:#fbbf24; --pa-bg:#451a03; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:1180px; margin:0 auto; padding:24px 16px 44px; }
+  h1 { font-size:22px; margin:0 0 2px; } .sub { color:var(--muted); margin:0 0 6px; }
+  .pri { display:inline-block; font-size:12px; font-weight:700; color:var(--pa); background:var(--pa-bg); padding:1px 9px; border-radius:999px; margin-bottom:16px; }
+  h2 { font-size:13px; letter-spacing:.03em; color:var(--an); margin:20px 0 8px; }
+  .row { display:grid; grid-template-columns:repeat(4,1fr); gap:26px; }
+  .card { position:relative; border:1.5px solid var(--an); background:var(--an-bg); border-radius:9px; padding:10px 12px; min-height:108px; }
+  .card h3 { margin:0 0 4px; font-size:13.5px; } .card p { margin:0; font-size:12.5px; }
+  .row .card:not(:nth-child(4n))::after { content:"→"; position:absolute; right:-21px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:17px; }
+  .tag { display:inline-block; padding:0 7px; border-radius:999px; font-size:10.5px; font-weight:700; margin-left:5px; }
+  .t-ex { color:var(--ex); background:var(--ex-bg); } .t-nw { color:var(--nw); background:var(--nw-bg); }
+  .loop { border:1.5px dashed var(--line); border-radius:9px; padding:10px 14px; font-size:12.5px; color:var(--muted); margin-top:16px; }
+  .loop b { color:var(--fg); }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px; }
+  .box { border:1px solid var(--cl); background:var(--card); border-radius:9px; padding:10px 14px; font-size:12.5px; }
+  .box h3 { margin:0 0 4px; font-size:13px; } .box ul { margin:0; padding-left:17px; }
+  @media (max-width:900px) { .row, .cols { grid-template-columns:1fr; } .row .card::after { display:none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Analysts lane: sketch</h1>
+  <p class="sub">Equity analyst agents running sector rule packs. Daily batch. Internal use only.</p>
+  <span class="pri">Lower priority: after the Signals workbench, Themes gaps and shared stage</span>
+
+  <h2>JOB 2: DAILY WATCH OF A UNIVERSE NO HUMAN CAN READ</h2>
+  <div class="row">
+    <div class="card"><h3>1 Universe</h3><p>Point-in-time list of names to watch. Each carries its sector, its rule pack and the date of its last scorecard.</p></div>
+    <div class="card"><h3>2 Cheap daily screen</h3><p>Filters, classifiers and embeddings over new filings and news for every name. No analyst agent yet. <span class="tag t-ex">PARTIAL</span> news classifier and feeds exist</p></div>
+    <div class="card"><h3>3 Triage</h3><p>Trigger or stale? Escalate only names that tripped a screen or whose scorecard is out of date. Daily cost cap applies. <span class="tag t-ex">PARTIAL</span> staleness check exists</p></div>
+    <div class="card"><h3>4 Analyst agent</h3><p>Reads the evidence against the sector rules. Every claim cites a source quote, or the rule is marked "not found". <span class="tag t-nw">NEW</span></p></div>
+  </div>
+  <div class="row" style="margin-top:26px">
+    <div class="card"><h3>5 Scorecard + note</h3><p>One row per rule: evidence, quote, score, confidence. The note is written only from scorecard lines. <span class="tag t-nw">NEW</span></p></div>
+    <div class="card"><h3>6 Alert</h3><p>Event with cited evidence, materiality, and the scorecard lines it changed. <span class="tag t-nw">NEW</span></p></div>
+    <div class="card"><h3>7 Review queue</h3><p>A person accepts or overrides. Overrides are recorded. Count shows in "needs you". <span class="tag t-ex">EXISTS</span></p></div>
+    <div class="card"><h3>8 Decide and use</h3><p>Accepted scorecards feed shared scoring, or become a sixth signal category via the Signals workbench.</p></div>
+  </div>
+
+  <div class="loop"><b>Job 1, on demand:</b> a user picks a company and a rule pack and runs steps 4 to 7 directly, with no screen or triage.</div>
+
+  <div class="cols">
+    <div class="box"><h3>Sector rule packs</h3>
+      <ul><li>User-written in the app, or agent-derived from authoritative sources (like taxonomy research).</li>
+          <li>Versioned and ratified before an agent may use them.</li>
+          <li>Rules run in the deterministic rules engine <span class="tag t-ex">EXISTS</span> (Decision Studio templates).</li></ul></div>
+    <div class="box"><h3>Evidence for the lane</h3>
+      <ul><li>Alert precision and recall on a labelled sample of real events.</li>
+          <li>False-alert rate, cost per name per day, lag from event to alert.</li>
+          <li>Citations verify, reruns agree, human analyst agreement on a sample.</li>
+          <li>Where a rating exists: how it did against later returns.</li></ul></div>
+  </div>
+</main>
+</body>
+</html>
