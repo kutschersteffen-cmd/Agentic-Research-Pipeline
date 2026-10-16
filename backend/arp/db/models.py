@@ -310,6 +310,29 @@ class Document(Base):
     identity_review: Mapped[bool | None] = mapped_column(Boolean)
 
 
+class TextItem(Base):
+    """Insert-only point-in-time text: a correction is a new row with a later knowledge_time."""
+
+    __tablename__ = "text_items"
+    __table_args__ = (
+        UniqueConstraint("source", "source_item_id", "content_hash", name="uq_text_items_version"),
+        Index("ix_text_items_company_event", "company_id", "event_time"),
+        Index("ix_text_items_item_knowledge", "source", "source_item_id", "knowledge_time"),
+    )
+
+    item_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    source: Mapped[str] = mapped_column(Text)
+    source_item_id: Mapped[str] = mapped_column(Text)
+    company_id: Mapped[str | None] = mapped_column(Text)  # plain issuer key, no foreign key
+    event_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    knowledge_time: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revision_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    content_hash: Mapped[str] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text)
+    body: Mapped[str] = mapped_column(Text)
+    source_url: Mapped[str | None] = mapped_column(Text)
+
+
 # --- 2.3 runs --------------------------------------------------------------------
 
 

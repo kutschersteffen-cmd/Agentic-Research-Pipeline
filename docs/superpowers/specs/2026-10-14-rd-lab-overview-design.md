@@ -42,6 +42,9 @@ Themes and signals are different kinds of things and are not merged. Analysts ar
 Known gaps against today's code: the market test in Detect, entry from a user-defined topic,
 and the "verified exposure" standard in Identify. These get their own design.
 
+Add-on for that design (3-layer exposure framework and research replications, not yet reconciled):
+`docs/superpowers/plans/2026-10-15-themes-lane-addon-3-layer-exposure.md`.
+
 ### Analysts lane (summary; own design later; sketch at `docs/superpowers/specs/assets/analysts-lane-sketch.html`)
 
 Equity analyst agents that follow a **sector rule pack** (user-written or agent-derived from
