@@ -92,6 +92,8 @@ phase:
 - **Planning → superpowers.** For non-trivial work use `superpowers:brainstorming`, then
   `superpowers:writing-plans`. Apply ponytail's ladder to the plan itself: cut tasks that
   don't need to exist before writing them down. Trivial changes skip planning.
+  Every spec ends with an `## Acceptance` table in the format of
+  `docs/superpowers/ACCEPTANCE_TEMPLATE.md`; the owner approves it before implementation starts.
 - **Implementation → ponytail.** Smallest working diff; follow the plan's tasks, not more.
 - **Frontend design → impeccable and ui-ux-pro-max**, as before. After a UI change, screenshot
   the affected page with Playwright and run `/impeccable:impeccable audit`.
