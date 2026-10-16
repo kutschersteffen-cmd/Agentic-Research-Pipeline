@@ -18,13 +18,16 @@ from tests.test_signal_methods_embedding import DIM, FakeEmbedder
 class FakeTopicModel:
     """Topic 0 is any text containing this fit's keyword, topic 1 the rest, topic -1 text with 'noise'."""
 
-    def __init__(self, log: list[dict], keywords: list[str], sims: list[float]) -> None:
-        self.entry = {"docs": [], "shape": None}
+    def __init__(self, log: list[dict], keywords: list[str], sims: list[float], fail_on_fit: tuple[int, ...] = ()) -> None:
+        self.entry = {"docs": [], "shape": None, "queries": []}
+        self.fails = len(log) in fail_on_fit
         log.append(self.entry)
         self.keyword = keywords[min(len(log), len(keywords)) - 1]
         self.sims = sims
 
     def fit(self, docs, embeddings):
+        if self.fails:
+            raise RuntimeError("UMAP needs more points")
         self.entry["docs"], self.entry["shape"] = list(docs), embeddings.shape
 
     def transform(self, docs, embeddings):
@@ -32,14 +35,16 @@ class FakeTopicModel:
         return [-1 if "noise" in d else 0 if self.keyword in d else 1 for d in docs], None
 
     def find_topics(self, query, top_n):
-        return ([-1, 0, 1][: top_n + 1], self.sims[: top_n + 1])
+        self.entry["queries"].append((query, top_n))
+        # Like BERTopic: exactly top_n topics, the outlier topic -1 included in the ranking.
+        return ([-1, 0, 1][:top_n], self.sims[:top_n])
 
     def get_topic(self, topic_id):
         return [(self.keyword, 0.5), ("other", 0.1)]
 
 
-def _factory(log, keywords=("kw",), sims=(0.9, 0.8, 0.1)):
-    return lambda: FakeTopicModel(log, list(keywords), list(sims))
+def _factory(log, keywords=("kw",), sims=(0.9, 0.8, 0.1), fail_on_fit=()):
+    return lambda: FakeTopicModel(log, list(keywords), list(sims), tuple(fail_on_fit))
 
 
 def _inp(items: dict[tuple[str, int], list[str]], n: int, log, **factory_kw) -> MethodInput:
@@ -136,6 +141,26 @@ def test_outlier_topic_is_never_a_target_and_notes_describe_the_topic():
         {"refit_index": 11, "period_end": _month_ends(14)[11], "topics": [{"id": 0, "similarity": 0.8, "top_words": ["kw", "other"]}]}
     ]
     assert res.model == "fake-hash-embedder"
+
+
+def test_target_topic_is_found_when_outlier_ranks_first_and_query_reaches_the_model():
+    log: list[dict] = []
+    res = run_method(_spec(query=" my query "), _inp({("A", 11): ["kw"], ("A", 12): ["kw"]}, 14, log))
+    # With top_n=1 the model is asked for 2 topics: -1 (0.9) then 0 (0.8). Topic 0 is still the target.
+    assert log[0]["queries"] == [("my query", 2)]
+    assert res.panel.values["A"][12] == 1.0
+    assert res.notes["refits_without_topic"] == 0
+
+
+def test_a_failing_fit_leaves_that_refit_none_and_is_recorded():
+    log: list[dict] = []
+    res = run_method(_spec(), _inp(_wide(), 36, log, fail_on_fit=(1,)))
+    a = res.panel.values["A"]
+    assert a[11:23] == [1.0] * 12  # refit 11 fine
+    assert a[23:35] == [None] * 12  # refit 23 failed
+    assert a[35] == 1.0  # refit 35 fine
+    assert res.notes["refits_failed"] == [{"refit_index": 23, "period_end": _month_ends(36)[23], "error": "RuntimeError"}]
+    assert [r["refit_index"] for r in res.notes["refits"]] == [11, 35]
 
 
 def test_missing_embedder_or_topic_model_raises_value_error():

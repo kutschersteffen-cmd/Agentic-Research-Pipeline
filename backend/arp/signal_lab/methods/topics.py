@@ -66,9 +66,10 @@ def _params(params: dict) -> dict:
 
 
 def _target_topics(model, p: dict) -> list[tuple[int, float]]:
-    ids, sims = model.find_topics(p["query"], p["top_n"])
-    # -1 is BERTopic's outlier bucket, never a theme.
-    return [(int(t), float(s)) for t, s in zip(ids, sims, strict=True) if int(t) != -1 and s >= p["min_similarity"]]
+    # BERTopic ranks its outlier topic -1 among the results, so ask for one extra, drop it, then keep top_n.
+    ids, sims = model.find_topics(p["query"], p["top_n"] + 1)
+    ranked = [(int(t), float(s)) for t, s in zip(ids, sims, strict=True) if int(t) != -1][: p["top_n"]]
+    return [(t, s) for t, s in ranked if s >= p["min_similarity"]]
 
 
 def _top_words(model, topic_id: int) -> list[str]:
@@ -78,6 +79,10 @@ def _top_words(model, topic_id: int) -> list[str]:
 
 @register_method("topic_attention")
 def _topic_attention(params: dict, inp: MethodInput) -> MethodResult:
+    """Count items per issuer-month in the topics matching a query, refitting walk-forward.
+
+    `change` compares intensities across refits, whose target topics may differ.
+    """
     p = _params(params)
     embedder, factory = inp.resources.get("embedder"), inp.resources.get("topic_model")
     if embedder is None:
@@ -107,6 +112,7 @@ def _topic_attention(params: dict, inp: MethodInput) -> MethodResult:
     refits = list(range(p["min_train_months"] - 1, n, p["refit_months"]))
     notes_refits: list[dict] = []
     without_topic = 0
+    failed: list[dict] = []
     for k, r in enumerate(refits):
         # Point in time: the model sees only buckets <= r, i.e. text published by month_end_time(period_ends[r]).
         train = [x for m in range(r + 1) for x in month_items(m)]
@@ -114,7 +120,11 @@ def _topic_attention(params: dict, inp: MethodInput) -> MethodResult:
         model = None
         if train:
             model = factory()
-            model.fit([docs[x.item_id] for x in train], np.array([vectors[x.item_id] for x in train]))
+            try:
+                model.fit([docs[x.item_id] for x in train], np.array([vectors[x.item_id] for x in train]))
+            except Exception as e:  # noqa: BLE001  tiny training sets can make UMAP/HDBSCAN fail; that refit's months stay None
+                failed.append({"refit_index": r, "period_end": ends[r], "error": type(e).__name__})
+                continue
             found = _target_topics(model, p)
         notes_refits.append({
             "refit_index": r, "period_end": ends[r],
@@ -156,5 +166,5 @@ def _topic_attention(params: dict, inp: MethodInput) -> MethodResult:
                 prior = [v for v in intensity[max(0, i - lookback) : i] if v is not None]
                 out.append(x - sum(prior) / len(prior) if x is not None and len(prior) >= _MIN_PRIOR else None)
             values[t] = out
-    notes = {"refits": notes_refits, "refits_without_topic": without_topic}
+    notes = {"refits": notes_refits, "refits_without_topic": without_topic, "refits_failed": failed}
     return MethodResult(CharacteristicPanel(list(ends), values, f"topic_attention_{p['mode']}"), model=embedder.name, notes=notes)
