@@ -61,6 +61,15 @@ def test_zscore_has_mean_zero_and_none_when_degenerate():
     assert [got[t][2] for t in "ABC"] == [None] * 3  # only 2 names
 
 
+@pytest.mark.parametrize("op", ["zscore", "rank"])
+def test_constant_float_column_is_none(op):
+    # std() of a constant 0.1 column is rounding noise, not 0.0.
+    p = _panel({"A": [0.1, 1.0], "B": [0.1, 2.0], "C": [0.1, 3.0]})
+    got = apply_step(p, {"op": op}).values
+    assert [got[t][0] for t in "ABC"] == [None] * 3
+    assert got["A"][1] is not None
+
+
 def test_rank_is_average_rank_percentile():
     p = _panel({"A": [10.0, 1.0], "B": [20.0, 1.0], "C": [30.0, 2.0]})
     got = apply_step(p, {"op": "rank"}).values
@@ -126,7 +135,7 @@ def test_composite_ranks_then_averages():
 def test_composite_is_none_when_a_component_is_missing():
     got = run_method(_composite(), _inp(_components())).panel.values
     assert got["A"][3] is None  # b has no value for A in month 3
-    assert got["B"][3] is not None
+    assert got["B"][3] == pytest.approx((2 / 4 + 1 / 3) / 2)
 
 
 def test_composite_min_components_relaxes_it():
@@ -139,6 +148,10 @@ def test_composite_bad_params_raise_value_error():
         run_method(_composite(weights=[1.0]), _inp(_components()))
     with pytest.raises(ValueError, match="min_components"):
         run_method(_composite(min_components=3), _inp(_components()))
+    with pytest.raises(ValueError, match="weights"):
+        run_method(_composite(weights=[]), _inp(_components()))
+    with pytest.raises(ValueError, match="min_components"):
+        run_method(_composite(min_components=0), _inp(_components()))
     with pytest.raises(ValueError, match="at least one component"):
         run_method({"method": "composite", "params": {"components": []}}, _inp({}))
 
@@ -150,7 +163,6 @@ def test_composite_of_two_models_raises(monkeypatch):
     with pytest.raises(ValueError, match="composite of different models is not supported"):
         run_method(spec, _inp({}))
     # A model-free component next to a model is fine and keeps the model.
-    monkeypatch.setitem(base._METHODS, "plain", _model_method("m1", {"A": [1.0] * 4}))
     ok = {"method": "composite", "params": {"components": [{"method": "m1"}, _ref("a")]}}
     assert run_method(ok, _inp(_components())).model == "m1"
 

@@ -23,7 +23,7 @@ def _cross_section(panel: CharacteristicPanel, scale) -> dict[str, list[float | 
     for i in range(len(panel.period_ends)):
         names = [t for t, v in panel.values.items() if v[i] is not None]
         x = np.array([panel.values[t][i] for t in names], dtype=float)
-        if len(names) < 3 or x.std() == 0.0:
+        if len(names) < 3 or x.max() == x.min():
             continue
         for t, s in zip(names, scale(x), strict=True):
             out[t][i] = float(s)
@@ -80,12 +80,16 @@ def _composite(params: dict, inp: MethodInput) -> MethodResult:
     specs = params.get("components") or []
     if not specs:
         raise ValueError("composite needs at least one component")
-    weights = params.get("weights") or [1.0] * len(specs)
+    weights = params.get("weights")
+    if weights is None:
+        weights = [1.0] * len(specs)
     if len(weights) != len(specs):
         raise ValueError(f"composite got {len(weights)} weights for {len(specs)} components")
     if any(w <= 0 for w in weights):
         raise ValueError("composite weights must be positive")
-    need = params.get("min_components") or len(specs)
+    need = params.get("min_components")
+    if need is None:
+        need = len(specs)
     if not 1 <= need <= len(specs):
         raise ValueError(f"min_components must be between 1 and {len(specs)}, got {need}")
 
