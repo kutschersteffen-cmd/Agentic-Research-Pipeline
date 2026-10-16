@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { highlightParts } from "../lib/sourceText";
-import { FileFrame, FileLink } from "./FileLink";
+import type { PageBox } from "../types";
+import { FileFrame, FileImg, FileLink } from "./FileLink";
 
 /** A page of a document's stored text, with the cited span when there is one. */
 export interface SourceText {
@@ -73,6 +74,8 @@ export function SourcePanel({ source, onClose }: Props) {
 function TextView({ source, initial }: { source: ActiveSource; initial: SourceText }) {
   const [text, setText] = useState(initial);
   const [error, setError] = useState("");
+  const isPdf = !!source.src && decodeURIComponent(source.src.split("#")[0]).toLowerCase().endsWith(".pdf/raw");
+  const [view, setView] = useState<"page" | "text">(isPdf ? "page" : "text");
   const markRef = useRef<HTMLElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
   const parts =
@@ -113,36 +116,81 @@ function TextView({ source, initial }: { source: ActiveSource; initial: SourceTe
             </button>
           </>
         )}
+        {isPdf && text.page != null && (
+          <button className="secondary" onClick={() => setView(view === "page" ? "text" : "page")}>
+            {view === "page" ? "Show text" : "Show page"}
+          </button>
+        )}
         {source.src && (
           <FileLink url={source.src} name={source.title} open className="link-button">
             Open original
           </FileLink>
         )}
       </div>
-      {source.onSelectQuote && <p className="muted">Select text to use it as the correction's source.</p>}
+      {source.onSelectQuote && view === "text" && <p className="muted">Select text to use it as the correction's source.</p>}
       {error && <p className="error-text" role="alert">{error}</p>}
-      <pre
-        ref={preRef}
-        className="source-text"
-        onMouseUp={onSelect}
-        onKeyUp={onSelect}
-        tabIndex={0}
-        aria-label={source.onSelectQuote ? "Source text: select text to cite it as the correction's source" : "Source text"}
-      >
-        {parts ? (
-          <>
-            {parts.before}
-            <span className="source-line-hit">
-              {parts.lineBefore}
-              <mark ref={markRef}>{parts.mark}</mark>
-              {parts.lineAfter}
-            </span>
-            {parts.after}
-          </>
-        ) : (
-          text.page_text
-        )}
-      </pre>
+      {view === "page" && text.page != null ? (
+        <PageView rawUrl={source.src} page={text.page} mark={parts?.mark} />
+      ) : (
+        <pre
+          ref={preRef}
+          className="source-text"
+          onMouseUp={onSelect}
+          onKeyUp={onSelect}
+          tabIndex={0}
+          aria-label={source.onSelectQuote ? "Source text: select text to cite it as the correction's source" : "Source text"}
+        >
+          {parts ? (
+            <>
+              {parts.before}
+              <span className="source-line-hit">
+                {parts.lineBefore}
+                <mark ref={markRef}>{parts.mark}</mark>
+                {parts.lineAfter}
+              </span>
+              {parts.after}
+            </>
+          ) : (
+            text.page_text
+          )}
+        </pre>
+      )}
     </>
+  );
+}
+
+/** The PDF page as an image, the cited span boxed on it where the PDF's own text layer has it. */
+function PageView({ rawUrl, page, mark }: { rawUrl: string; page: number; mark?: string }) {
+  const [boxes, setBoxes] = useState<PageBox[] | null>(null); // null until searched
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => setLoaded(false), [rawUrl, page]);
+  useEffect(() => {
+    setBoxes(null);
+    if (!mark?.trim()) return;
+    let live = true;
+    api
+      .documentPageBoxes(rawUrl, page, mark)
+      .then((r) => live && setBoxes(r.boxes))
+      .catch(() => live && setBoxes([])); // no boxes: the page still shows
+    return () => {
+      live = false;
+    };
+  }, [rawUrl, page, mark]);
+  return (
+    <div className="source-page">
+      {boxes?.length === 0 && <p className="muted">The cited text could not be located on this page image; "Show text" has it marked.</p>}
+      <div className="source-page-sheet">
+        <FileImg url={api.documentPageUrl(rawUrl, page)} alt={`Page ${page} of the source document${boxes?.length ? ", the cited text boxed" : ""}`} className="source-page-img" onLoad={() => setLoaded(true)} />
+        {loaded && boxes?.map((b, i) => (
+          <div
+            key={i}
+            aria-hidden="true"
+            ref={i === 0 ? (el) => el?.scrollIntoView({ block: "center" }) : undefined}
+            className="source-page-box"
+            style={{ left: `${b.l * 100}%`, top: `${b.t * 100}%`, width: `${(b.r - b.l) * 100}%`, height: `${(b.b - b.t) * 100}%` }}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
