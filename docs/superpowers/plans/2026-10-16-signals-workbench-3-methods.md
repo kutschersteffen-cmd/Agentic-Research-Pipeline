@@ -131,23 +131,29 @@ Not in this plan: ChronoBERT vintage wrappers (the embedder is injectable, so a 
 
 ---
 
-### Task 4: Learned lexicon (SESTM-style, walk-forward)
+### Task 4: SESTM learned lexicon (full model, walk-forward)
 
 **Files:**
 - Create: `backend/arp/signal_lab/methods/lexicon.py`
 - Test: `backend/tests/test_signal_methods_lexicon.py`
 
 **Interfaces:**
-- Consumes: Task 1 (`text_buckets`, `trainable_months`).
-- Produces: method `learned_lexicon`, `params: {"min_docs": 20, "kappa": 0.05, "min_train_months": 24}`. A simplified screening version of Ke, Kelly and Xiu, not the full model. At formation `i`: build training documents from months `trainable_months(i)`, each labelled `1` if its issuer's return at `j + 1` is above that month's cross-sectional median, else `0`; tokens are lower-case alphabetic words of at least 3 letters; for each word seen in at least `min_docs` training documents, `tilt = P(label 1 | word in doc) - overall P(label 1)`; keep words with `abs(tilt) > kappa`. A document's score is the mean tilt of its kept words (`None` if it has none); a cell is the mean over the issuer's bucket-`i` documents. `None` before `min_train_months`. `model=None` (fitted only on the past, no pretrained model, no licensed dictionary). Add a comment: `shortcut: word screening only, no mixture model, upgrade if it ranks well`.
+- Consumes: Task 1 (`text_buckets`, `trainable_months`); numpy.
+- Produces: method `sestm`, `params: {"alpha_plus": 0.05, "alpha_minus": 0.05, "kappa": 20, "lam": 1.0, "min_train_months": 24}`. The three-step model of Ke, Kelly and Xiu, *Predicting Returns with Text Data* (NBER WP 26186), adapted to the monthly grid. At formation `i`, the training documents are the items in buckets `trainable_months(i)`; a document's return is its issuer's return at `j + 1`. Tokens are lower-case alphabetic words of at least 3 letters.
+  1. **Screening.** A document is positive if its return is above that month's cross-sectional median (monthly stand-in for the paper's return sign; centring on the median keeps the base rate near 1/2, as the paper's 1/2 threshold assumes). For word `w`, `k_w` = training documents containing it and `f_w` = share of them that are positive. The charged set `S` keeps words with `k_w >= kappa` and (`f_w >= 1/2 + alpha_plus` or `f_w <= 1/2 - alpha_minus`).
+  2. **Topics.** `p_hat` of a training document is the rank of its return among all training documents divided by their number. `h` is each document's count vector over `S` divided by its charged-word total `s` (documents with `s = 0` are left out). `O = h W' (W W')^-1` with `W = [p_hat; 1 - p_hat]`; negative entries are set to 0 and each of the two columns is rescaled to sum to 1. A column that sums to 0, or an empty `S`, means no model for that month: its values are `None` and the month is listed in `notes["months_without_model"]`.
+  3. **Scoring.** For a document with charged counts `d` and total `s > 0`, `p = argmax over p in [0.001, 0.999]` (grid step 0.001) of `(1/s) * sum_w d_w * log(p * O+_w + (1 - p) * O-_w) + lam * log(p * (1 - p))`. A document with `s = 0` has no score. A cell is the mean `p` over the issuer's bucket-`i` documents (`None` if none scored).
+  - `None` before `min_train_months`. `model=None` (fitted only on the past, no pretrained model, no licensed dictionary). Hyperparameters are recipe parameters, not tuned inside the method: every combination tried is a separate registered recipe, so it counts as a trial (the paper's validation window becomes the trial count). `notes` carries the size of `S` and its 20 most positive and most negative words at the last formation month.
 
-- [ ] **Step 1: Write the failing tests** (synthetic corpus where "growth" appears only before positive returns and "recall" before negative):
-  - `test_learned_lexicon_scores_known_words_correctly`: after enough months, a new "growth" document scores above a "recall" document.
+- [ ] **Step 1: Write the failing tests** (synthetic corpus: "growth" and "record" before above-median returns, "recall" and "probe" before below-median ones, plus neutral words):
+  - `test_screening_keeps_charged_and_drops_neutral_and_rare_words`: the charged set holds the four planted words, not the neutral ones nor a planted word seen fewer than `kappa` times.
+  - `test_topic_columns_are_nonnegative_and_sum_to_one`; on the planted corpus `O+` puts more mass on "growth" than `O-` does.
+  - `test_score_orders_positive_above_negative_documents`; `test_large_lam_pulls_the_score_to_one_half` (`lam=1000` gives `abs(p - 0.5) < 0.01`); `test_document_without_charged_words_has_no_score`.
   - `test_first_min_train_months_are_none` (Review Focus 2).
   - `test_labels_not_yet_realised_are_never_used` (Review Focus 2): replacing every return at indices `> i` with garbage leaves the score at `i` unchanged (`lookahead_violations` is empty).
-  - `test_rare_words_are_dropped` (below `min_docs`).
+  - `test_empty_charged_set_gives_none_and_is_listed`.
 - [ ] **Step 2: Run** and confirm FAIL. **Step 3: Implement.** **Step 4: Run tests and ruff.** Expected: PASS.
-- [ ] **Step 5: Commit** `feat(signal-lab): walk-forward learned lexicon method`.
+- [ ] **Step 5: Commit** `feat(signal-lab): walk-forward SESTM method`.
 
 ---
 
@@ -280,8 +286,8 @@ Not in this plan: ChronoBERT vintage wrappers (the embedder is injectable, so a 
 
 ## Self-review
 
-- **Spec coverage:** methods listed in Goals 2: grounded LLM scoring (Task 7), issuer-first search (Task 9, interface only), embeddings with a supervised head (Task 5), topic and attention (Task 3 term-based, Task 6 BERTopic), learned lexicon (Task 4), statistical transforms and composites (Task 2); FinBERT per the 2026-10-16 decision (Task 8). Guardrails: truncation check and walk-forward rule (Tasks 1 to 6), leakage rate and retry (Task 9), rerun stability (Task 7), trial counting and registration (Task 1), contaminated unknown models (Global Constraints, Tasks 5 to 8). Left out on purpose: see the roadmap note.
+- **Spec coverage:** methods listed in Goals 2: grounded LLM scoring (Task 7), issuer-first search (Task 9, interface only), embeddings with a supervised head (Task 5), topic and attention (Task 3 term-based, Task 6 BERTopic), SESTM learned lexicon, full three-step model (Task 4), statistical transforms and composites (Task 2); FinBERT per the 2026-10-16 decision (Task 8). Guardrails: truncation check and walk-forward rule (Tasks 1 to 6), leakage rate and retry (Task 9), rerun stability (Task 7), trial counting and registration (Task 1), contaminated unknown models (Global Constraints, Tasks 5 to 8). Left out on purpose: see the roadmap note.
 - **Step scan:** every step names a signature, test or command; no function bodies.
 - **Type consistency:** `MethodInput`, `MethodResult`, `run_method`, `text_buckets`, `trainable_months`, `lookahead_violations`, `score_hits`, the embedder interface are defined once (Tasks 1, 5, 7) and reused with the same names.
 - **Proportion:** similar in length to plans 1 and 2.
-- **Owner flags:** the simplified lexicon is a screening version of SESTM, not the paper's full model; composites refuse mixed models; FinBERT stays contaminated until a cutoff date is recorded; issuer-first needs an allowed search tool; BERTopic topic labels change at each refit, so a recipe names its topic by seed words, not by topic number.
+- **Owner flags:** SESTM uses the cross-sectional median as the monthly stand-in for the paper's return sign; composites refuse mixed models; FinBERT stays contaminated until a cutoff date is recorded; issuer-first needs an allowed search tool; BERTopic topic labels change at each refit, so a recipe names its topic by seed words, not by topic number.
