@@ -115,6 +115,11 @@ emerging_themes = [
 replication = [
     "yfinance>=0.2,<1.0",
 ]
+# Signal Lab topic attention (arp/signal_lab/methods/topics.py). Its UMAP,
+# HDBSCAN and scikit-learn dependencies are the ones `emerging_themes` already uses.
+topics = [
+    "bertopic>=0.16,<1.0",
+]
 
 [project.scripts]
 arp = "arp.cli:app"

@@ -5,5 +5,6 @@ from arp.signal_lab.methods import (
     base,  # noqa: F401  (importing a method module registers it)
     embedding,  # noqa: F401
     lexicon,  # noqa: F401
+    topics,  # noqa: F401
     transforms,  # noqa: F401
 )
