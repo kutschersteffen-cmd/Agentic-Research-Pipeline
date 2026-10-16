@@ -51,7 +51,7 @@ Not in this plan: ChronoBERT vintage wrappers (the embedder is injectable, so a 
 | `backend/arp/signal_lab/methods/transforms.py` | `transform` and `composite` methods |
 | `backend/arp/signal_lab/methods/attention.py` | `narrative_attention` |
 | `backend/arp/signal_lab/methods/topics.py` | `topic_attention` (BERTopic, refitted walk-forward), `default_topic_model` |
-| `backend/arp/signal_lab/methods/lexicon.py` | `learned_lexicon` |
+| `backend/arp/signal_lab/methods/lexicon.py` | `sestm` |
 | `backend/arp/signal_lab/methods/embedding.py` | `embedding_ridge`, `default_embedder` |
 | `backend/arp/signal_lab/methods/llm_scoring.py` | `grounded_llm`, `estimate_llm_calls`, `rerun_stability` |
 | `backend/arp/signal_lab/methods/finbert.py` | `finbert`, `default_finbert` |
