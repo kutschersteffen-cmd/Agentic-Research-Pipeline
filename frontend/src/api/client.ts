@@ -98,7 +98,7 @@ import type {
   TrendPoint,
 } from "../types";
 import type { XbrlRunMarket } from "../types";
-import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, ReviewItem, SimilarDecision } from "../types";
+import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision } from "../types";
 import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
 import type { BIChartPlan, BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
@@ -393,6 +393,12 @@ export const api = {
   },
   documentRawUrl: (companyId: string, docType: string, filename: string) =>
     `${API_BASE}/api/documents/${encodeURIComponent(companyId)}/${encodeURIComponent(docType)}/${encodeURIComponent(filename)}/raw`,
+  /** documentRawUrl's PDF, one page as a PNG (for FileImg) and the boxes around `q` on it. */
+  documentPageUrl: (rawUrl: string, page: number) => `${rawUrl.split("#")[0].replace(/\/raw$/, "")}/pages/${page}`,
+  documentPageBoxes: (rawUrl: string, page: number, q: string) =>
+    request<{ boxes: PageBox[] }>(
+      `${rawUrl.split("#")[0].replace(/\/raw$/, "").slice(API_BASE.length)}/pages/${page}/boxes?q=${encodeURIComponent(q)}`,
+    ),
   documentReadiness: (body: { universe_path?: string; companies?: unknown[] }) =>
     request<{ ready: (CompanyRef & { readiness: Readiness })[]; onboard: CompanyRef[]; readiness: Record<string, Readiness> }>(
       "/api/documents/readiness",

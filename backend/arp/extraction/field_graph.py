@@ -10,12 +10,14 @@ from arp.extraction.aggregator import build_extracted_fields, no_evidence_field
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue, extract_field
 from arp.extraction.graph_shape import build_extract_verify_graph
 from arp.extraction.verifier_agent import DisagreementType, VerifierOutput, blind_verify, verify_extraction
+from arp.extraction.vision_check import check_on_page
 from arp.ingestion.parsing import chunk_document
 from arp.ingestion.xbrl import FactSource, XbrlFact
 from arp.llm.base import LLMClient, LLMUsage
 from arp.normalise.value import typed_value
 from arp.orchestration.step_tally import run_graph
 from arp.planning.doc_routing import route_documents, section_filter
+from arp.retrieval.keywords_de import with_german
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import DocumentChunk, ProvenanceInfo, SourceDocument
 from arp.schemas.datapoints import ExtractedField, FieldDefinition, ValueState
@@ -47,6 +49,7 @@ class FieldState(TypedDict):
     extracted: list[ExtractedField]
     needs_review: bool
     facts: FactSource | None
+    grouped: tuple[ExtractionDraft, list[DocumentChunk], LLMUsage] | None  # draft, evidence and usage of a group call
 
 
 def _tagged_field(state: FieldState, fact: XbrlFact, period_end: str) -> ExtractedField:
@@ -117,9 +120,10 @@ def field_evidence(
 ) -> list[DocumentChunk]:
     """The ranked evidence one field's extraction sees. Blocking (BM25/embedding/rerank are
     CPU-bound); `golden-set retrieval` replays it, so the eval measures exactly this path."""
+    keywords = with_german(field.seed_keywords)
     all_chunks: list[DocumentChunk] = []
     for doc in route_documents(field, documents):
-        all_chunks.extend(chunk_document(doc, keywords=field.seed_keywords))
+        all_chunks.extend(chunk_document(doc, keywords=keywords))
     all_chunks = section_filter(field, all_chunks)
 
     content_store = None
@@ -142,7 +146,7 @@ def field_evidence(
         }
     return select_relevant_chunks(
         all_chunks,
-        field.seed_keywords,
+        keywords,
         doc_type_filter=None if field.document_routing else field.source_doc_types or None,
         hybrid_retrieval_enabled=settings is not None and settings.hybrid_retrieval_enabled,
         content_store=content_store,
@@ -154,7 +158,19 @@ def field_evidence(
     )
 
 
+def merge_evidence(rankings: list[list[DocumentChunk]], cap: int) -> list[DocumentChunk]:
+    """Several fields' ranked evidence as one list: round-robin, so each field's best passages make the cut."""
+    seen: dict[str, DocumentChunk] = {}
+    for rank in range(max(map(len, rankings), default=0)):
+        for r in rankings:
+            if rank < len(r) and len(seen) < cap:
+                seen.setdefault(r[rank].chunk_id, r[rank])
+    return list(seen.values())
+
+
 async def _gather_evidence(state: FieldState) -> dict:
+    if state.get("grouped"):
+        return {"evidence": state["grouped"][1], "evidence_unranked": False}
     unranked: list[bool] = []
     evidence = await asyncio.to_thread(  # keep the CPU-bound ranking off the event loop
         field_evidence, state["field"], state["documents"], state["settings"], lambda: unranked.append(True)
@@ -172,6 +188,9 @@ async def _finalize_no_evidence(state: FieldState) -> dict:
 
 
 async def _extract(state: FieldState) -> dict:
+    if state.get("grouped"):  # extracted by the group call; its usage is counted once, by the caller
+        draft, _, usage = state["grouped"]
+        return {"draft": draft, "extractor_usage": usage}
     draft, usage = await extract_field(
         state["company_name"], state["field"], state["evidence"], state["llm"], state["planned_periods"]
     )
@@ -240,7 +259,19 @@ async def _aggregate(state: FieldState) -> dict:
             if f.value_state == ValueState.NOT_FOUND else f
             for f in extracted
         ]
-    return {"extracted": extracted, "needs_review": any(f.review_reasons for f in extracted)}
+    usages = state["usages"]
+    if state["settings"] and state["settings"].vision_fallback_enabled:
+        passages = {c.chunk_id: c for c in state["evidence"]}
+        checked = []
+        for f in extracted:
+            if ReasonCode.NOT_GROUNDED in f.review_reasons:
+                f, usage = await check_on_page(
+                    state["company_name"], state["field"], f, passages, state["documents_by_id"], state["verifier_llm"]
+                )
+                usages = usages + [usage] if usage else usages
+            checked.append(f)
+        extracted = checked
+    return {"extracted": extracted, "needs_review": any(f.review_reasons for f in extracted), "usages": usages}
 
 
 # Compiled once and reused across every field invocation -- this graph runs
@@ -275,6 +306,7 @@ async def extract_one_field(
     fiscal_year_end: str | None = None,
     planned_periods: list[str] | None = None,
     facts: FactSource | None = None,
+    grouped: tuple[ExtractionDraft, list[DocumentChunk], LLMUsage] | None = None,
 ) -> tuple[list[ExtractedField], bool, list[LLMUsage]]:
     """Runs one field's evidence-gather -> extract -> independent-verify ->
     adjudicate (typed disagreements only) -> programmatic-grounding-check -> aggregate flow as a LangGraph graph.
@@ -294,6 +326,10 @@ async def extract_one_field(
 
     `facts` (the company's SEC companyfacts and/or ESEF filing facts), when
     supplied, lets a field with `xbrl_tags` take its tagged values with no model call.
+
+    `grouped` (draft, evidence, usage): the field was already extracted by a group call
+    (extractor_agent.extract_group); its evidence and draft are used as given, and verification,
+    adjudication and grounding run on it as on any field. The usage is not added again.
     """
     initial: FieldState = {
         "company_name": company_name,
@@ -320,6 +356,7 @@ async def extract_one_field(
         "extracted": [],
         "needs_review": False,
         "facts": facts,
+        "grouped": grouped,
     }
     final_state = await run_graph(_COMPILED_GRAPH, initial)
     return final_state["extracted"], final_state["needs_review"], final_state["usages"]

@@ -50,7 +50,7 @@ def _token(base: str, settings: Settings, fetch: Fetcher) -> str:
 
 
 def _stories(data: bytes) -> tuple[list[dict], str | None]:
-    """(stories as {id, headline, published_at, permids}, next-page cursor); ValueError for any other shape."""
+    """(stories as {id, headline, published_at, revised_at, permids}, next-page cursor); ValueError for any other shape."""
     try:
         body = json.loads(data)
         out = []
@@ -61,6 +61,7 @@ def _stories(data: bytes) -> tuple[list[dict], str | None]:
                 "id": h["storyId"],
                 "headline": meta["title"][0]["$"],
                 "published_at": (meta.get("firstCreated") or meta["versionCreated"])["$"],  # a revision moves versionCreated
+                "revised_at": (meta.get("versionCreated") or meta["firstCreated"])["$"],
                 "permids": [s["_qcode"][2:] for s in item.get("contentMeta", {}).get("subject", []) if s.get("_qcode", "").startswith("P:")],
             })
         return out, (body.get("meta") or {}).get("next")

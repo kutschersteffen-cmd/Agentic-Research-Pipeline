@@ -3,12 +3,13 @@ from __future__ import annotations
 import mimetypes
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from arp.api.deps import get_document_content_store, settings_dep
 from arp.config import Settings
+from arp.ingestion.pdf_page import find_boxes, render_page
 from arp.schemas.common import CompanyRef, DocType
 from arp.storage.document_store import DocumentContentStore, files_on_disk
 from arp.storage.safe_path import UnsafeIdentifierError, safe_filename, safe_id
@@ -115,6 +116,33 @@ def get_document_raw(
         media_type=media_type or "application/octet-stream",
         headers={"Content-Disposition": f'inline; filename="{path.name}"'},
     )
+
+
+def _pdf_path(settings: Settings, company_id: str, doc_type: DocType, filename: str) -> Path:
+    path = _safe_document_path(settings.documents_dir, company_id, doc_type.value, filename)
+    if path.suffix.lower() != ".pdf":
+        raise HTTPException(400, "Not a PDF")
+    return path
+
+
+@router.get("/{company_id}/{doc_type}/{filename}/pages/{page}")
+def get_document_page(
+    company_id: str, doc_type: DocType, filename: str, page: int, settings: Settings = Depends(settings_dep)
+) -> Response:
+    """One page of a PDF as a PNG, so the review screen can draw the cited span on it."""
+    png = render_page(str(_pdf_path(settings, company_id, doc_type, filename)), page)
+    if png is None:
+        raise HTTPException(404, "Page not found")
+    return Response(png, media_type="image/png")
+
+
+@router.get("/{company_id}/{doc_type}/{filename}/pages/{page}/boxes")
+def get_document_page_boxes(
+    company_id: str, doc_type: DocType, filename: str, page: int, q: str = Query(min_length=1, max_length=2000),
+    settings: Settings = Depends(settings_dep),
+) -> dict:
+    """Where `q` sits on the page, as fractions of the page size (see arp/ingestion/pdf_page.py)."""
+    return {"boxes": find_boxes(str(_pdf_path(settings, company_id, doc_type, filename)), page, q)}
 
 
 def _enrich_cached_rows(rows: list[dict], store: DocumentContentStore) -> list[dict]:

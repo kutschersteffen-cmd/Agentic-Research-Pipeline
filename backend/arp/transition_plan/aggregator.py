@@ -120,3 +120,36 @@ def answer_failed_indicator(indicator: TransitionPlanIndicator, error: str) -> I
         needs_review=True,
         assessment_error=True,
     )
+
+
+# child -> parent: a child YES needs its parent's YES (e.g. "net zero by 2050" needs a net zero target).
+REQUIRES_YES = {
+    "A_headline_2": "A_headline_1",
+    "A_ambition_4": "A_ambition_3",
+    "A_ambition_5": "A_headline_1",
+    "A_coverage_6": "A_headline_1",
+    "A_coverage_7": "A_headline_1",
+    "A_coverage_8": "A_headline_1",
+    "A_pathway_12": "A_pathway_11",
+    "A_progress_67": "A_emissions_59",
+    "A_progress_68": "A_emissions_60",
+    "A_progress_69": "A_emissions_61",
+}
+
+
+def apply_consistency_rules(assessments: list[IndicatorAssessment]) -> list[IndicatorAssessment]:
+    """Forces a child YES whose parent indicator is NO down to NO and routes it to review:
+    the two answers contradict each other, and the child is the narrower claim."""
+    by_id = {a.identifier: a for a in assessments}
+    out = []
+    for a in assessments:
+        parent = by_id.get(REQUIRES_YES.get(a.identifier, ""))
+        if a.verdict == Verdict.YES and parent is not None and parent.verdict == Verdict.NO:
+            note = f"Forced NO: {parent.identifier} is NO, and this indicator needs it to be YES."
+            a = a.model_copy(update={
+                "verdict": Verdict.NO,
+                "needs_review": True,
+                "verifier_notes": " ".join(filter(None, [a.verifier_notes, note])),
+            })
+        out.append(a)
+    return out

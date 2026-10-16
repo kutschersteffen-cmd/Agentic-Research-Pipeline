@@ -121,6 +121,12 @@ class Settings(BaseSettings):
     )
 
     document_cache_enabled: bool = Field(default=True)
+    vision_fallback_enabled: bool = Field(
+        default=False,
+        description="When an extracted value's citation fails the text grounding check, render the cited PDF page "
+        "and have the verifier model read the figure off the image (arp/extraction/vision_check.py). A match clears "
+        "the not-grounded review reason on fields that are not high-risk. Off by default: one image call per such value.",
+    )
     hybrid_retrieval_enabled: bool = Field(
         default=True,
         description="Adds a local-embedding vector ranking, fused with BM25 via reciprocal rank fusion, to "
@@ -142,6 +148,12 @@ class Settings(BaseSettings):
     )
     rerank_candidates: int = Field(default=40, description="How many top-ranked chunks the reranker rescoring sees.")
     evidence_max_chunks: int = Field(default=12, description="Chunks of evidence handed to the extractor per field.")
+    extraction_group_size: int = Field(
+        default=0, ge=0,
+        description="Opt-in: extract this many non-high-risk fields per model call, over their merged evidence (at most "
+        "2 x evidence_max_chunks), in schema order. Each field is still verified, adjudicated and grounded on its own; "
+        "a field the group call leaves out, or a failed group call, falls back to its own call. 0 or 1: one call per field.",
+    )
 
     # Precision controls
     grounding_fuzzy_threshold: float = Field(
