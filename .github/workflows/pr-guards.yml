@@ -1,0 +1,23 @@
+name: PR guards
+
+# Separate from CI so adding or removing a label re-runs only this check, not the test suites.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  test-guard:
+    name: No tests removed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Self-test the guard
+        run: python3 .github/scripts/test_guard.py --selftest
+
+      - name: Compare test counts with main
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'tests-weakened-ok') }}
+        run: python3 .github/scripts/test_guard.py origin/${{ github.base_ref }}
