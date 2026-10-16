@@ -168,7 +168,10 @@ not legal advice).
   unnecessary), Optuna (MIT; every trial still counts), Jupyter as an optional dependency group.
 - **Reimplement, do not adopt:** alphalens-style evidence in the numpy-based engine (adopting
   alphalens-reloaded would add pandas); Qlib (own data format; borrow ideas only).
-- **Do not use pending a licensing check:** FinBERT and Financial PhraseBank (CC BY-NC-SA 4.0),
+- **Owner decision 2026-10-16: use FinBERT** for internal research. Its licence is CC BY-NC-SA 4.0
+  (non-commercial, share-alike), so it stays internal: no output or model derived from it is
+  sold or distributed. Recheck before any commercial use.
+- **Do not use pending a licensing check:** Financial PhraseBank (CC BY-NC-SA 4.0),
   Loughran-McDonald dictionary (free for academic research, commercial use needs a licence).
 - **Fine for internal use:** vectorbt (Apache-2.0 with Commons Clause), gensim (LGPL), but
   neither is needed.
@@ -252,8 +255,8 @@ packaged.
    what is the spend ceiling for a run? (The STOXX paper used Google Search grounding; the repo
    has only an Anthropic client. Without an allowed tool, the issuer-first variant is built
    against an interface only.)
-4. Can FinBERT or the Loughran-McDonald dictionary be used internally? (Needs the licensing
-   owner; both stay out until answered.)
+4. Loughran-McDonald dictionary: usable internally? (Needs the licensing owner; stays out until
+   answered. FinBERT was approved for internal use by the owner on 2026-10-16.)
 
 ## Success
 
