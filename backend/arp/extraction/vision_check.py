@@ -13,12 +13,11 @@ import math
 from pydantic import BaseModel, Field
 
 from arp.checks.numeric import candidates
+from arp.ingestion.pdf_page import render_page
 from arp.llm.base import LLMClient, LLMUsage
 from arp.schemas.common import DocumentChunk, SourceDocument
 from arp.schemas.datapoints import ExtractedField, FieldDefinition
 from arp.schemas.review import ReasonCode
-
-_SCALE = 2.0  # 144 dpi: table digits stay legible, the image stays under the model's size limit
 
 _SYSTEM = """\
 You read one page of a company report as an image. Find the figure the question asks for and copy it \
@@ -42,22 +41,6 @@ def cited_page(
         if chunk and doc and doc.page_breaks and (doc.local_path or "").lower().endswith(".pdf"):
             return doc, bisect.bisect_right(doc.page_breaks, chunk.char_start)
     return None
-
-
-def render_page(pdf_path: str, page: int) -> bytes | None:
-    import io
-
-    import pypdfium2  # docling's own PDF backend, so always installed
-
-    pdf = pypdfium2.PdfDocument(pdf_path)
-    try:
-        if not 1 <= page <= len(pdf):
-            return None
-        buf = io.BytesIO()
-        pdf[page - 1].render(scale=_SCALE).to_pil().save(buf, format="PNG")
-        return buf.getvalue()
-    finally:
-        pdf.close()
 
 
 def same_figure(a: str | None, b: str | None) -> bool:

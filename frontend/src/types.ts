@@ -457,6 +457,14 @@ export interface EvidenceSpan {
   page_text: string | null;
 }
 
+/** Where a span sits on a PDF page, as fractions of the page size (top-left origin). */
+export interface PageBox {
+  l: number;
+  t: number;
+  r: number;
+  b: number;
+}
+
 export interface ItemSource {
   doc_id: string;
   doc_type: string;

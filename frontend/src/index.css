@@ -829,6 +829,13 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.source-page { flex: 1; min-height: 0; overflow: auto; margin-top: var(--s-1_5); }
+.source-page-sheet {
+  position: relative; /* boxes are fractions of the page image, so they ride on it */
+  --paper-mark: oklch(52% 0.125 70); /* Graphite's status-mid in both themes: the page image is always white paper */
+}
+.source-page-img { display: block; width: 100%; background: white; /* source page = paper, as .source-panel-iframe */ border: 1px solid var(--panel-border); border-radius: var(--r-sm); }
+.source-page-box { position: absolute; background: color-mix(in srgb, var(--paper-mark) 30%, transparent); outline: 2px solid var(--paper-mark); outline-offset: 1px; pointer-events: none; }
 .source-line-hit { background: color-mix(in srgb, var(--mid) 15%, transparent); }
 .source-text mark { background: color-mix(in srgb, var(--mid) 40%, transparent); color: inherit; border-bottom: 2px solid var(--mid); }
 .citation-list { margin: var(--s-1) 0; padding-left: 18px; }

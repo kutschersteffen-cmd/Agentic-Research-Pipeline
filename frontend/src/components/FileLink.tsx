@@ -71,7 +71,7 @@ export function FileFrame({ url, title, className }: { url: string; title: strin
   return <iframe className={className} src={src} title={title} sandbox={safe ? undefined : ""} />;
 }
 
-export function FileImg({ url, alt, className }: { url: string; alt: string; className?: string }) {
+export function FileImg({ url, alt, className, onLoad }: { url: string; alt: string; className?: string; onLoad?: () => void }) {
   const { src, safe } = useFileUrl(url);
-  return src && safe ? <img className={className} src={src} alt={alt} /> : <span className="muted">{alt}</span>;
+  return src && safe ? <img className={className} src={src} alt={alt} onLoad={onLoad} /> : <span className="muted">{alt}</span>;
 }
