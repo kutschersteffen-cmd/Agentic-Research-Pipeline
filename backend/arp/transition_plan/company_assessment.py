@@ -6,6 +6,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import CompanyRef, DocumentChunk, SourceDocument
 from arp.schemas.transition_plan import CategoryBreakdown, IndicatorCategory, TransitionPlanAssessmentRecord, Verdict, WalkOrTalk
+from arp.transition_plan.aggregator import apply_consistency_rules
 from arp.transition_plan.basic_info_agent import format_basic_info, get_basic_company_info
 from arp.transition_plan.indicator_graph import assess_one_indicator
 from arp.transition_plan.indicators import load_indicators
@@ -116,6 +117,6 @@ async def assess_company_transition_plan(
     record = _summarize(
         company,
         run_id,
-        {"indicators": assessments, "company_sector": company_sector, "company_location": company_location},
+        {"indicators": apply_consistency_rules(assessments), "company_sector": company_sector, "company_location": company_location},
     )
     return record, usages
