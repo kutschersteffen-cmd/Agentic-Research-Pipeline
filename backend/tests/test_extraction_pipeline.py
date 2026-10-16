@@ -327,7 +327,8 @@ async def test_zero_and_not_found_end_to_end(pg, tmp_path, fake_llm):
     )
     agree = VerifierOutput(agrees=True, confidence=0.9, notes="ok")
     llm = fake_llm({"ExtractionDraft": [zero, ExtractionDraft(values=[], confidence=0.9)], "VerifierOutput": [agree, agree]})
-    settings = _settings(tmp_path)
+    # One field at a time: the scripted answers are handed out in call order.
+    settings = _settings(tmp_path).model_copy(update={"max_concurrent_llm_calls": 1})
     run_store = RunStore(pg, settings.runs_dir)
     run_id = _released_run(schema, [company], settings, run_store)
     await execute_extraction_run(
