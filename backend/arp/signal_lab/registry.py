@@ -38,6 +38,7 @@ class ExperimentRecord(BaseModel):
     decision: Literal["none", "graduate", "shelve"] = "none"
     decided_by: str | None = None
     decided_at: str | None = None
+    notes: dict = {}
 
 
 def experiment_id_for(recipe: Recipe, *, data_version: str, model: str | None, cutoff: str | None) -> str:
@@ -63,6 +64,7 @@ class Registry:
         data_version: str,
         model: str | None,
         cutoff: str | None,
+        notes: dict | None = None,
     ) -> ExperimentRecord:
         experiment_id = experiment_id_for(recipe, data_version=data_version, model=model, cutoff=cutoff)
         with self.store.lock(SIGNAL_REGISTRY_RUN_ID):
@@ -78,6 +80,7 @@ class Registry:
                 cutoff=cutoff,
                 evidence=evidence,
                 created_at=now_iso(),
+                notes=notes or {},
             )
             # A repeat `_key` is a no-op, so re-registering neither duplicates the row nor adds a trial.
             self.store.append_result(
