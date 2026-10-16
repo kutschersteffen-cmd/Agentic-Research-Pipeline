@@ -18,11 +18,11 @@
 4. Notebook library.
 5. App screens and API.
 
-Not in this plan: BERTopic topic models (attention here is term-based), ChronoBERT vintage wrappers (the embedder is injectable, so a notebook can pass one), Optuna search, size/sector-neutral and value-weighted evidence views, a real search tool for the issuer-first variant (interface and leakage handling only; owner question 3 is parked), the Loughran-McDonald dictionary (licence unanswered), composites that mix different models, any UI.
+Not in this plan: ChronoBERT vintage wrappers (the embedder is injectable, so a notebook can pass one), Optuna search, size/sector-neutral and value-weighted evidence views, a real search tool for the issuer-first variant (interface and leakage handling only; owner question 3 is parked), the Loughran-McDonald dictionary (licence unanswered), composites that mix different models, any UI.
 
 ## Global Constraints
 
-- Python `>=3.11`; every module starts with `from __future__ import annotations`; no new core dependencies. FinBERT's `transformers`/`torch` go in an optional extra named `finbert` and are imported inside the function that needs them.
+- Python `>=3.11`; every module starts with `from __future__ import annotations`; no new core dependencies. FinBERT's `transformers`/`torch` go in an optional extra named `finbert`, and `bertopic` in an optional extra named `topics`; both are imported inside the function that needs them.
 - **Issuer key** is the one identity (`TextRecord.company_id`, panel and price columns). Tickers are never an identity.
 - **No look-ahead.** A value at grid index `i` may use only text with event time `<=` `month_end_time(period_ends[i])` and returns at indices `<= i`. Text is bucketed to grid index `i` when its event time is after `month_end_time(period_ends[i-1])` and `<= month_end_time(period_ends[i])`; for `i = 0` the bucket starts at the first second of that calendar month; earlier text is ignored.
 - **Walk-forward.** A fitted method scores month `i` using only training months `j < i`, labelled with the return at index `j + 1` (known by the end of month `i`). Fewer than `min_train_months` such months gives `None`.
@@ -35,11 +35,11 @@ Not in this plan: BERTopic topic models (attention here is term-based), ChronoBE
 
 ## Review Focus
 
-1. **Truncation invariance.** For every method, removing all text and prices after month `k` leaves the values at months `<= k` unchanged. (Task 1 supplies the check; Tasks 2 to 5 run it.)
-2. **Walk-forward.** A fitted method never trains on a label not yet realised at the formation month; the first `min_train_months` months are `None`. (Tasks 4, 5)
-3. **No coverage is `None`, not 0**; a composite with a missing component is `None` unless told otherwise. (Tasks 2, 3)
-4. **A missing model, tool or client raises a clear `ValueError`** naming what to pass; an unknown model is contaminated, never silently trusted. (Tasks 1, 5 to 8)
-5. **Rerun stability cannot be faked by a cache**, and residual leakage is reported beside the score, not hidden. (Tasks 6, 8)
+1. **Truncation invariance.** For every method, removing all text and prices after month `k` leaves the values at months `<= k` unchanged. (Task 1 supplies the check; Tasks 2 to 6 run it.)
+2. **Walk-forward.** A fitted method never trains on a label not yet realised at the formation month; the first `min_train_months` months are `None`; a topic model is refitted only on text already published. (Tasks 4, 5, 6)
+3. **No coverage is `None`, not 0**; a composite with a missing component is `None` unless told otherwise. (Tasks 2, 3, 6)
+4. **A missing model, tool or client raises a clear `ValueError`** naming what to pass; an unknown model is contaminated, never silently trusted. (Tasks 1, 5 to 9)
+5. **Rerun stability cannot be faked by a cache**, and residual leakage is reported beside the score, not hidden. (Tasks 7, 9)
 
 ## File structure
 
@@ -50,6 +50,7 @@ Not in this plan: BERTopic topic models (attention here is term-based), ChronoBE
 | `backend/arp/signal_lab/methods/checks.py` | `lookahead_violations` |
 | `backend/arp/signal_lab/methods/transforms.py` | `transform` and `composite` methods |
 | `backend/arp/signal_lab/methods/attention.py` | `narrative_attention` |
+| `backend/arp/signal_lab/methods/topics.py` | `topic_attention` (BERTopic, refitted walk-forward), `default_topic_model` |
 | `backend/arp/signal_lab/methods/lexicon.py` | `learned_lexicon` |
 | `backend/arp/signal_lab/methods/embedding.py` | `embedding_ridge`, `default_embedder` |
 | `backend/arp/signal_lab/methods/llm_scoring.py` | `grounded_llm`, `estimate_llm_calls`, `rerun_stability` |
@@ -57,7 +58,7 @@ Not in this plan: BERTopic topic models (attention here is term-based), ChronoBE
 | `backend/arp/signal_lab/methods/issuer_first.py` | `SearchTool` interface, `issuer_first` |
 | `backend/arp/signal_lab/registry.py` | modify: `ExperimentRecord.notes` |
 | `backend/arp/cli/signal_lab.py` | modify: `run` command |
-| `backend/pyproject.toml` | modify: optional extra `finbert` |
+| `backend/pyproject.toml` | modify: optional extras `finbert` and `topics` |
 | `backend/tests/test_signal_methods_*.py` | tests |
 
 ---
@@ -169,7 +170,35 @@ Not in this plan: BERTopic topic models (attention here is term-based), ChronoBE
 
 ---
 
-### Task 6: Grounded LLM scoring, cost estimate, rerun stability
+### Task 6: Topic attention with BERTopic (walk-forward refits)
+
+**Files:**
+- Create: `backend/arp/signal_lab/methods/topics.py`
+- Modify: `backend/pyproject.toml` (optional extra `topics = ["bertopic>=0.16,<1.0"]`; its UMAP, HDBSCAN and scikit-learn dependencies are the same ones the `emerging_themes` extra already uses)
+- Test: `backend/tests/test_signal_methods_topics.py`
+
+**Interfaces:**
+- Consumes: Task 1 (`text_buckets`, `register_method`); Task 5's embedder interface (`name`, `embed`); BERTopic (MIT, adopted in the spec).
+- Produces: a topic model factory is any callable `() -> model` where the model has `fit(docs: list[str], embeddings: numpy.ndarray)`, `transform(docs: list[str], embeddings: numpy.ndarray) -> (topics: list[int], probs)` and `find_topics(query: str, top_n: int) -> (topic_ids: list[int], similarities: list[float])` (the BERTopic methods of those names). `default_topic_model(seed: int = 42, min_topic_size: int = 10)` returns a factory building `BERTopic` with a fixed-seed UMAP (imported inside; `ValueError("topic attention needs the topics extra: pip install 'arp[topics]'")` if missing). Method `topic_attention`, `params: {"query": str, "top_n": 1, "min_similarity": 0.3, "refit_months": 12, "min_train_months": 12, "mode": "intensity" | "share" | "change", "lookback_months": 12}`, `resources["embedder"]` and `resources["topic_model"]` required.
+  - **Refit schedule (point in time):** refit grid months are `r = min_train_months - 1, + refit_months, ...`. The model for refit `r` is fitted only on items in buckets `<= r` (text already published by `month_end_time(period_ends[r])`). Months before the first refit are `None`.
+  - **Assignment:** items in month `m` are assigned with the model of the latest refit `r <= m`. The target topics are `find_topics(query, top_n)` on that model, keeping those with similarity `>= min_similarity`; no topic over the threshold makes that refit's months `None` and is counted in `notes["refits_without_topic"]`.
+  - **Values:** `intensity` is the number of the issuer's month-`m` items in a target topic; `share` divides by the issuer's month-`m` item count; `change` is intensity minus the mean over the previous `lookback_months` months (`None` with fewer than 3). An issuer with no items in the window is `None`, not 0.
+  - `model` is `embedder.name` (its cutoff decides the contamination split). `notes` carries, per refit, the matched topic ids, their similarities and their top words, so a reader can see what "the topic" meant at each refit.
+
+- [ ] **Step 1: Write the failing tests** (a fake topic model factory that assigns topics by a keyword and records the documents it was fitted on; the fake hashing embedder from Task 5):
+  - `test_each_refit_sees_only_published_text` (Review Focus 2): the fake records every fit; no fitted document has an event time after its refit month end.
+  - `test_months_use_the_latest_earlier_refit`: an item in month `r + 1` is assigned with the model fitted at `r`, not one fitted later.
+  - `test_intensity_share_and_change_values` (hand-computed); `test_issuer_with_no_items_is_none_not_zero` (Review Focus 3).
+  - `test_no_topic_over_threshold_gives_none_and_is_counted`.
+  - `test_missing_embedder_or_topic_model_raises_value_error` (Review Focus 4); `test_missing_topics_extra_raises_the_documented_error` (monkeypatch the import to fail).
+  - `test_topic_attention_has_no_lookahead` (Review Focus 1): `lookahead_violations` is empty with the fake factory.
+  - `test_real_bertopic_smoke` marked `pytest.importorskip("bertopic")`: a 200-document synthetic corpus with two vocabularies gives a non-empty `intensity` panel.
+- [ ] **Step 2: Run** and confirm FAIL. **Step 3: Implement.** **Step 4: Run tests and ruff.** Expected: PASS (the smoke test is skipped where `bertopic` is not installed).
+- [ ] **Step 5: Commit** `feat(signal-lab): BERTopic topic attention method`.
+
+---
+
+### Task 7: Grounded LLM scoring, cost estimate, rerun stability
 
 **Files:**
 - Create: `backend/arp/signal_lab/methods/llm_scoring.py`
@@ -190,7 +219,7 @@ Not in this plan: BERTopic topic models (attention here is term-based), ChronoBE
 
 ---
 
-### Task 7: FinBERT scoring
+### Task 8: FinBERT scoring
 
 **Files:**
 - Create: `backend/arp/signal_lab/methods/finbert.py`
@@ -207,15 +236,15 @@ Not in this plan: BERTopic topic models (attention here is term-based), ChronoBE
 
 ---
 
-### Task 8: Issuer-first search scoring (interface only)
+### Task 9: Issuer-first search scoring (interface only)
 
 **Files:**
 - Create: `backend/arp/signal_lab/methods/issuer_first.py`
 - Test: `backend/tests/test_signal_methods_issuer_first.py`
 
 **Interfaces:**
-- Consumes: Task 1; the scoring function from Task 6 (`score_hits`, extracted there if not already a named function; a hit is turned into a `SourceDocument` the same way).
-- Produces: `@dataclass SearchHit(url: str, title: str, text: str, published_at: str | None)`; `class SearchTool(Protocol)` with `search(self, query: str, *, before: str) -> list[SearchHit]`. Method `issuer_first`, `params: {"peer_group": str | None}`, `resources["search"]` and `resources["llm"]` required. Quarterly: only grid months that are calendar quarter ends are scored, other months `None`. For each issuer and such month `d`: query `"{issuer} {quarter} results"` with `before=month_end_time(d)`; our own hard filter drops every hit whose `published_at` is missing or after `month_end_time(d)`; if the tool returned any such hit it counts as a leak, the query is repeated once with `before` one day earlier, and a cell that still leaked is counted in the residual rate; surviving hits are scored with Task 6's grounded scorer. `notes`: `{"leak_rate_first_try": float, "leak_rate_after_retry": float, "cells": int}`. No search tool is shipped; with none in `resources` the method raises `ValueError("no search tool configured; the issuer-first variant is interface-only until the owner allows one")`.
+- Consumes: Task 1; the scoring function from Task 7 (`score_hits`, extracted there if not already a named function; a hit is turned into a `SourceDocument` the same way).
+- Produces: `@dataclass SearchHit(url: str, title: str, text: str, published_at: str | None)`; `class SearchTool(Protocol)` with `search(self, query: str, *, before: str) -> list[SearchHit]`. Method `issuer_first`, `params: {"peer_group": str | None}`, `resources["search"]` and `resources["llm"]` required. Quarterly: only grid months that are calendar quarter ends are scored, other months `None`. For each issuer and such month `d`: query `"{issuer} {quarter} results"` with `before=month_end_time(d)`; our own hard filter drops every hit whose `published_at` is missing or after `month_end_time(d)`; if the tool returned any such hit it counts as a leak, the query is repeated once with `before` one day earlier, and a cell that still leaked is counted in the residual rate; surviving hits are scored with Task 7's grounded scorer. `notes`: `{"leak_rate_first_try": float, "leak_rate_after_retry": float, "cells": int}`. No search tool is shipped; with none in `resources` the method raises `ValueError("no search tool configured; the issuer-first variant is interface-only until the owner allows one")`.
 
 - [ ] **Step 1: Write the failing tests** (fake `SearchTool` that sometimes returns a hit dated after `before`; fake LLM):
   - `test_hit_after_the_cutoff_never_reaches_the_scorer` (the hard filter, even when the tool ignores `before`).
@@ -226,15 +255,15 @@ Not in this plan: BERTopic topic models (attention here is term-based), ChronoBE
 
 ---
 
-### Task 9: `arp signals run` and docs
+### Task 10: `arp signals run` and docs
 
 **Files:**
 - Modify: `backend/arp/cli/signal_lab.py`, `docs/TECHNICAL_REFERENCE.md` (the `arp signals` entry)
 - Test: `backend/tests/test_signal_lab_cli_run.py` (uses `pg`; read `tests/test_signal_lab_cli.py` and `tests/test_signal_lab_cli_text.py` for the setup and synthetic CSV helpers)
 
 **Interfaces:**
-- Consumes: Tasks 1 to 8; `TextStore`; the price CSV helpers.
-- Produces: `arp signals run --recipe r.json --prices p.csv [--panel NAME=PATH.csv ...] [--known-by ISO] [--confirm-above 200] [--yes] [--out report.json]`. `r.json` holds the `Recipe` fields (`method` is a registered method name; `params` as that method takes). The command loads text from the store (`items(known_by=...)`), builds `MethodInput` (panels from `--panel`, which are plan 2's `build-panel` outputs), builds resources only for the chosen method (`grounded_llm` and `issuer_first`: the repo LLM client from settings; `embedding_ridge`: `default_embedder()`; `finbert`: `default_finbert()`; `issuer_first`: no search tool, so it exits 1 with the documented message), computes `data_version` as a hash of the item ids, the price file and the panel files, prints for `grounded_llm` the estimate and exits 1 unless `--yes` when `calls > --confirm-above`, then calls `run_recipe` and prints what `arp signals evaluate` prints plus any `notes`. A recipe window beyond the price file, an unknown method and every library `ValueError` exit 1 with the message on stderr and no traceback; any other exception prints `Run failed: <Type>: <msg>` and exits 1 (it may carry LLM or network detail, never print locals).
+- Consumes: Tasks 1 to 9; `TextStore`; the price CSV helpers.
+- Produces: `arp signals run --recipe r.json --prices p.csv [--panel NAME=PATH.csv ...] [--known-by ISO] [--confirm-above 200] [--yes] [--out report.json]`. `r.json` holds the `Recipe` fields (`method` is a registered method name; `params` as that method takes). The command loads text from the store (`items(known_by=...)`), builds `MethodInput` (panels from `--panel`, which are plan 2's `build-panel` outputs), builds resources only for the chosen method (`grounded_llm` and `issuer_first`: the repo LLM client from settings; `embedding_ridge`: `default_embedder()`; `topic_attention`: `default_embedder()` and `default_topic_model`; `finbert`: `default_finbert()`; `issuer_first`: no search tool, so it exits 1 with the documented message), computes `data_version` as a hash of the item ids, the price file and the panel files, prints for `grounded_llm` the estimate and exits 1 unless `--yes` when `calls > --confirm-above`, then calls `run_recipe` and prints what `arp signals evaluate` prints plus any `notes`. A recipe window beyond the price file, an unknown method and every library `ValueError` exit 1 with the message on stderr and no traceback; any other exception prints `Run failed: <Type>: <msg>` and exits 1 (it may carry LLM or network detail, never print locals).
 
 - [ ] **Step 1: Write the failing tests:**
   - `test_run_price_momentum_registers_an_experiment_and_prints_windows`.
@@ -251,8 +280,8 @@ Not in this plan: BERTopic topic models (attention here is term-based), ChronoBE
 
 ## Self-review
 
-- **Spec coverage:** methods listed in Goals 2: grounded LLM scoring (Task 6), issuer-first search (Task 8, interface only), embeddings with a supervised head (Task 5), topic and attention (Task 3, term-based), learned lexicon (Task 4), statistical transforms and composites (Task 2); FinBERT per the 2026-10-16 decision (Task 7). Guardrails: truncation check and walk-forward rule (Tasks 1 to 5), leakage rate and retry (Task 8), rerun stability (Task 6), trial counting and registration (Task 1), contaminated unknown models (Global Constraints, Tasks 5 to 7). Left out on purpose: see the roadmap note.
+- **Spec coverage:** methods listed in Goals 2: grounded LLM scoring (Task 7), issuer-first search (Task 9, interface only), embeddings with a supervised head (Task 5), topic and attention (Task 3 term-based, Task 6 BERTopic), learned lexicon (Task 4), statistical transforms and composites (Task 2); FinBERT per the 2026-10-16 decision (Task 8). Guardrails: truncation check and walk-forward rule (Tasks 1 to 6), leakage rate and retry (Task 9), rerun stability (Task 7), trial counting and registration (Task 1), contaminated unknown models (Global Constraints, Tasks 5 to 8). Left out on purpose: see the roadmap note.
 - **Step scan:** every step names a signature, test or command; no function bodies.
-- **Type consistency:** `MethodInput`, `MethodResult`, `run_method`, `text_buckets`, `trainable_months`, `lookahead_violations`, `score_hits` are defined once (Tasks 1, 6) and reused with the same names.
+- **Type consistency:** `MethodInput`, `MethodResult`, `run_method`, `text_buckets`, `trainable_months`, `lookahead_violations`, `score_hits`, the embedder interface are defined once (Tasks 1, 5, 7) and reused with the same names.
 - **Proportion:** similar in length to plans 1 and 2.
-- **Owner flags:** the simplified lexicon is a screening version of SESTM, not the paper's full model; composites refuse mixed models; FinBERT stays contaminated until a cutoff date is recorded; issuer-first needs an allowed search tool; term-based attention stands in for BERTopic.
+- **Owner flags:** the simplified lexicon is a screening version of SESTM, not the paper's full model; composites refuse mixed models; FinBERT stays contaminated until a cutoff date is recorded; issuer-first needs an allowed search tool; BERTopic topic labels change at each refit, so a recipe names its topic by seed words, not by topic number.
