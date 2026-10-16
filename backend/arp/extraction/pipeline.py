@@ -110,6 +110,8 @@ def input_settings(settings: Settings) -> dict:
         "hybrid_retrieval_enabled": settings.hybrid_retrieval_enabled,
         "retrieval_backend": settings.retrieval_backend,
         "xbrl_facts_enabled": settings.xbrl_facts_enabled,
+        # only when on, so turning it on doesn't change every existing hash
+        **({"vision_fallback_enabled": True} if settings.vision_fallback_enabled else {}),
     }
 
 

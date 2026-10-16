@@ -121,6 +121,12 @@ class Settings(BaseSettings):
     )
 
     document_cache_enabled: bool = Field(default=True)
+    vision_fallback_enabled: bool = Field(
+        default=False,
+        description="When an extracted value's citation fails the text grounding check, render the cited PDF page "
+        "and have the verifier model read the figure off the image (arp/extraction/vision_check.py). A match clears "
+        "the not-grounded review reason on fields that are not high-risk. Off by default: one image call per such value.",
+    )
     hybrid_retrieval_enabled: bool = Field(
         default=True,
         description="Adds a local-embedding vector ranking, fused with BM25 via reciprocal rank fusion, to "
