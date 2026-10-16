@@ -17,6 +17,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.normalise.value import typed_value
 from arp.orchestration.step_tally import run_graph
 from arp.planning.doc_routing import route_documents, section_filter
+from arp.retrieval.keywords_de import with_german
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import DocumentChunk, ProvenanceInfo, SourceDocument
 from arp.schemas.datapoints import ExtractedField, FieldDefinition, ValueState
@@ -118,9 +119,10 @@ def field_evidence(
 ) -> list[DocumentChunk]:
     """The ranked evidence one field's extraction sees. Blocking (BM25/embedding/rerank are
     CPU-bound); `golden-set retrieval` replays it, so the eval measures exactly this path."""
+    keywords = with_german(field.seed_keywords)
     all_chunks: list[DocumentChunk] = []
     for doc in route_documents(field, documents):
-        all_chunks.extend(chunk_document(doc, keywords=field.seed_keywords))
+        all_chunks.extend(chunk_document(doc, keywords=keywords))
     all_chunks = section_filter(field, all_chunks)
 
     content_store = None
@@ -143,7 +145,7 @@ def field_evidence(
         }
     return select_relevant_chunks(
         all_chunks,
-        field.seed_keywords,
+        keywords,
         doc_type_filter=None if field.document_routing else field.source_doc_types or None,
         hybrid_retrieval_enabled=settings is not None and settings.hybrid_retrieval_enabled,
         content_store=content_store,
