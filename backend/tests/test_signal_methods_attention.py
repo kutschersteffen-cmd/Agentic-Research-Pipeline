@@ -71,6 +71,35 @@ def test_no_coverage_is_none_but_no_matches_is_zero():
     assert res.panel.values["C"][0] is None
 
 
+def test_change_window_is_bounded_by_lookback():
+    texts = [_item("A", f"2018-{m:02d}-10T00:00:00Z", title="tariff", n=k)
+             for m, count in {1: 1, 2: 3, 3: 2, 4: 6}.items() for k in range(count)]
+    texts.append(_item("A", "2018-05-10T00:00:00Z", title="rain"))
+    vals = _run(texts, mode="change", lookback_months=3)[0].panel.values["A"]
+    assert vals[3] == pytest.approx(6 - (1 + 3 + 2) / 3)
+    assert vals[4] == pytest.approx(0 - (3 + 2 + 6) / 3)  # January has dropped out of the window
+
+
+def test_change_mean_skips_prior_months_without_coverage():
+    texts = [_item("A", "2018-01-10T00:00:00Z", title="tariff")]
+    texts += [_item("A", f"2018-{m:02d}-10T00:00:00Z", title="tariff", n=k)
+              for m, count in {7: 1, 8: 2, 9: 3}.items() for k in range(count)]
+    texts.append(_item("A", "2018-10-10T00:00:00Z", title="rain"))
+    vals = _run(texts, mode="change", lookback_months=4)[0].panel.values["A"]
+    assert vals[5] is None  # window 1..5 holds no items
+    assert vals[9] == pytest.approx(0 - (1 + 2 + 3) / 3)  # the None at index 5 is skipped, not counted as 0
+
+
+@pytest.mark.parametrize(
+    "params",
+    [{"terms": "tariff"}, {"terms": [1]}, {"terms": None}, {"lookback_months": "12"},
+     {"lookback_months": -1}, {"lookback_months": True}, {"lookback_months": 2.5}],
+)
+def test_bad_params_raise_value_error(params):
+    with pytest.raises(ValueError, match="narrative_attention"):
+        _run([], **params)
+
+
 def test_errors():
     with pytest.raises(ValueError, match="terms"):
         _run([], terms=[])
