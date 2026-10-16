@@ -121,3 +121,43 @@ def test_missing_llm_and_bad_peer_group_raise_value_error():
 def test_unnamed_model_raises():
     with pytest.raises(ValueError, match="no model"):
         run_method(_SPEC, _inp(ModelLLM([0.1], model=""), FakeSearch(), months=3, issuers="A"))
+
+
+def test_peer_group_is_appended_to_the_query_and_retry_reuses_it():
+    plain = FakeSearch()
+    run_method(_SPEC, _inp(ModelLLM([0.1]), plain, months=3, issuers="A"))
+    assert plain.calls == [("A 2018Q1 results", "2018-03-31T23:59:59Z")]
+
+    peers = FakeSearch(late={"A 2018Q1 results banks": {"2018-03-31T23:59:59Z"}})
+    spec = {"method": "issuer_first", "params": {"peer_group": "banks"}}
+    run_method(spec, _inp(ModelLLM([0.1]), peers, months=3, issuers="A"))
+    assert peers.calls == [
+        ("A 2018Q1 results banks", "2018-03-31T23:59:59Z"),
+        ("A 2018Q1 results banks", "2018-03-30T23:59:59Z"),
+    ]
+
+
+def test_empty_peer_group_raises():
+    with pytest.raises(ValueError, match="peer_group"):
+        run_method({"method": "issuer_first", "params": {"peer_group": ""}}, _inp(ModelLLM([]), FakeSearch()))
+
+
+def test_retry_hits_replace_the_first_tries():
+    class Shifting:
+        def search(self, query, *, before):
+            if before.startswith("2018-03-31"):
+                return [SearchHit("http://x/first", "F", "Sales rose first.", "2018-01-05T00:00:00Z"),
+                        SearchHit("http://x/late", "L", "Sales rose late.", "2018-07-01T00:00:00Z")]
+            return [SearchHit("http://x/retry", "R", "Sales rose retried.", "2018-01-06T00:00:00Z")]
+
+    llm = ModelLLM([0.4])
+    run_method(_SPEC, _inp(llm, Shifting(), months=3, issuers="A"))
+    assert len(llm.prompts) == 1 and "retried" in llm.prompts[0] and "first" not in llm.prompts[0]
+
+
+def test_repeated_url_in_a_cell_is_scored_once():
+    dup = SearchHit("http://x/A 2018Q1 results", "Head", "Sales rose.", "2018-01-05T00:00:00Z")
+    llm = ModelLLM([0.3])
+    res = run_method(_SPEC, _inp(llm, FakeSearch(extra={"A 2018Q1 results": [dup]}), months=3, issuers="A"))
+    assert len(llm.prompts) == 1
+    assert res.panel.values["A"] == [None, None, 0.3]

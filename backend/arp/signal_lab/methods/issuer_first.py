@@ -56,8 +56,8 @@ def _to_document(hit: SearchHit, issuer: str, published_at: str) -> SourceDocume
 @register_method("issuer_first")
 def _issuer_first(params: dict, inp: MethodInput) -> MethodResult:
     peer_group = params.get("peer_group")
-    if peer_group is not None and not isinstance(peer_group, str):
-        raise ValueError(f"issuer_first 'peer_group' must be a string or None, got {peer_group!r}")
+    if peer_group is not None and (not isinstance(peer_group, str) or not peer_group.strip()):
+        raise ValueError(f"issuer_first 'peer_group' must be a non-empty string or None, got {peer_group!r}")
     search = inp.resources.get("search")
     if search is None:
         raise ValueError("no search tool configured; the issuer-first variant is interface-only until the owner allows one")
@@ -74,24 +74,25 @@ def _issuer_first(params: dict, inp: MethodInput) -> MethodResult:
             if month % 3:
                 continue
             cutoff = month_end_time(period_end)
-            query = f"{issuer} {year}Q{month // 3} results"
+            query = f"{issuer} {year}Q{month // 3} results" + (f" {peer_group}" if peer_group else "")
             cells += 1
 
             hits = search.search(query, before=cutoff)
             if _leaks(hits, cutoff):
                 leaked_first += 1
                 day_before = (datetime.strptime(cutoff, _TIME_FORMAT) - timedelta(days=1)).strftime(_TIME_FORMAT)
+                # The retry is the tool's answer to the tighter cutoff, so its hits replace the first try's.
                 hits = search.search(query, before=day_before)
-                leaked_after += _leaks(hits, cutoff)
-            kept = []
+                leaked_after += int(_leaks(hits, cutoff))
+            kept = {}
             for h in hits:
                 t = _published(h)
                 if t is None:
                     undated += 1
                 elif t <= cutoff:
-                    kept.append(_to_document(h, issuer, t))
+                    kept.setdefault(h.url, _to_document(h, issuer, t))  # a repeated url must not double-weight the cell
             if kept:
-                docs.setdefault(issuer, {})[period_end] = kept
+                docs.setdefault(issuer, {})[period_end] = list(kept.values())
 
     scored, _, usages = _run(build_sentiment_panel(docs, period_ends, llm))
     values = {i: scored.values.get(i, [None] * len(period_ends)) for i in inp.prices.returns}
