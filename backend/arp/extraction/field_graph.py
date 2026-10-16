@@ -10,6 +10,7 @@ from arp.extraction.aggregator import build_extracted_fields, no_evidence_field
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue, extract_field
 from arp.extraction.graph_shape import build_extract_verify_graph
 from arp.extraction.verifier_agent import DisagreementType, VerifierOutput, blind_verify, verify_extraction
+from arp.extraction.vision_check import check_on_page
 from arp.ingestion.parsing import chunk_document
 from arp.ingestion.xbrl import FactSource, XbrlFact
 from arp.llm.base import LLMClient, LLMUsage
@@ -240,7 +241,19 @@ async def _aggregate(state: FieldState) -> dict:
             if f.value_state == ValueState.NOT_FOUND else f
             for f in extracted
         ]
-    return {"extracted": extracted, "needs_review": any(f.review_reasons for f in extracted)}
+    usages = state["usages"]
+    if state["settings"] and state["settings"].vision_fallback_enabled:
+        passages = {c.chunk_id: c for c in state["evidence"]}
+        checked = []
+        for f in extracted:
+            if ReasonCode.NOT_GROUNDED in f.review_reasons:
+                f, usage = await check_on_page(
+                    state["company_name"], state["field"], f, passages, state["documents_by_id"], state["verifier_llm"]
+                )
+                usages = usages + [usage] if usage else usages
+            checked.append(f)
+        extracted = checked
+    return {"extracted": extracted, "needs_review": any(f.review_reasons for f in extracted), "usages": usages}
 
 
 # Compiled once and reused across every field invocation -- this graph runs
