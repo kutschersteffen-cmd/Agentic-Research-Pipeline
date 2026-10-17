@@ -117,6 +117,17 @@ emerging_themes = [
 replication = [
     "yfinance>=0.2,<1.0",
 ]
+# Signal Lab topic attention (arp/signal_lab/methods/topics.py). Its UMAP,
+# HDBSCAN and scikit-learn dependencies are the ones `emerging_themes` already uses.
+topics = [
+    "bertopic>=0.16,<1.0",
+]
+# Signal Lab FinBERT scoring (arp/signal_lab/methods/finbert.py). ProsusAI/finbert is
+# CC BY-NC-SA 4.0: internal research only, nothing derived from it is sold or distributed.
+finbert = [
+    "transformers>=4.40,<6.0",
+    "torch>=2.2,<3.0",
+]
 
 [project.scripts]
 arp = "arp.cli:app"
