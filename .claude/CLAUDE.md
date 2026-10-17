@@ -7,6 +7,10 @@ what GitHub reports as the repository's default branch — that setting currentl
 `claude/*` feature branch and is wrong. Do not read the base off `git remote show origin`
 or `refs/remotes/origin/HEAD`.
 
+Agents driving a PR follow `.claude/skills/steward/SKILL.md`: a `risk:` label, a stop after three
+failed fix rounds, `factory:blocked` for spec questions, at most three agent PRs in flight. Once CI is
+green, the `evaluator` skill checks the spec's `evaluator` rows in the running app.
+
 Branch off `main` when starting work. If a branch was created from anything else, merge
 `origin/main` into it before opening the PR so the diff shows only the intended change.
 
@@ -93,7 +97,8 @@ phase:
   `superpowers:writing-plans`. Apply ponytail's ladder to the plan itself: cut tasks that
   don't need to exist before writing them down. Trivial changes skip planning.
   Every spec ends with an `## Acceptance` table in the format of
-  `docs/superpowers/ACCEPTANCE_TEMPLATE.md`; the owner approves it before implementation starts.
+  `docs/superpowers/ACCEPTANCE_TEMPLATE.md`; run the `spec-critic` skill on it, then the owner
+  approves it before implementation starts.
 - **Implementation → ponytail.** Smallest working diff; follow the plan's tasks, not more.
 - **Frontend design → impeccable and ui-ux-pro-max**, as before. After a UI change, screenshot
   the affected page with Playwright and run `/impeccable:impeccable audit`.
