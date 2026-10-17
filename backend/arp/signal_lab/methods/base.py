@@ -90,7 +90,13 @@ def _price_momentum(params: dict, inp: MethodInput) -> MethodResult:
 
 
 def run_recipe(
-    recipe: Recipe, inp: MethodInput, *, registry: Registry, cutoffs: CutoffTable, data_version: str
+    recipe: Recipe,
+    inp: MethodInput,
+    *,
+    registry: Registry,
+    cutoffs: CutoffTable,
+    data_version: str,
+    extra_notes: dict | None = None,
 ) -> ExperimentRecord:
     result = run_method({"method": recipe.method, "params": recipe.params}, inp)
     if result.panel.period_ends != inp.prices.period_ends:
@@ -111,5 +117,5 @@ def run_recipe(
         forward_months=recipe.forward_months,
     )
     return registry.register(
-        recipe, report, data_version=data_version, model=result.model, cutoff=cutoff, notes=result.notes
+        recipe, report, data_version=data_version, model=result.model, cutoff=cutoff, notes={**result.notes, **(extra_notes or {})}
     )

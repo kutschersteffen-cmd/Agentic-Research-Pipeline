@@ -30,3 +30,6 @@ Or open the `.py` directly in JupyterLab: right-click it, then "Open With" and "
 `lab.preview(...)` prints `[unregistered, not evidence]`. It has no experiment id, and `compare` and `decide`
 refuse it. Only `lab.run(...)` registers an experiment, and only registered experiments can be compared or graduated.
 `insufficient_data` from `compare` is a valid answer, not an error.
+
+The preview IC covers every month in the file, history included; the registered run reports the window only.
+The example's price file needs at least 14 month-end rows (the window starts at the 13th row, after a year of history).

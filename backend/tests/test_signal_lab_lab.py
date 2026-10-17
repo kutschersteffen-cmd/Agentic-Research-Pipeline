@@ -152,3 +152,14 @@ def test_importing_the_library_does_not_import_the_cli():
     code = "import arp.signal_lab.lab, sys; print(any(m.startswith('arp.cli') for m in sys.modules))"
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
     assert out.stdout.strip() == "False"
+
+
+def test_lab_run_records_history_from_in_notes_only_when_given(lab, env):
+    dates = _write_panel(env, 40)
+    recipe = _recipe(dates[13:])
+    plain_inp, plain_version = lab.inputs(recipe, env / "prices.csv")
+    hist_inp, hist_version = lab.inputs(recipe, env / "prices.csv", history_from=dates[0])
+    plain = lab.run(recipe, plain_inp, plain_version)
+    hist = lab.run(recipe, hist_inp, hist_version, history_from=dates[0])
+    assert plain.notes == {} and hist.notes == {"history_from": dates[0]}
+    assert plain.experiment_id != hist.experiment_id

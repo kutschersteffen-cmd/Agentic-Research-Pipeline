@@ -43,6 +43,7 @@ inp, data_version = lab.inputs(recipe, prices, texts=lab.texts(), history_from=d
 # %% [markdown]
 # ## Preview
 # A preview is quick feedback, not evidence: it has no experiment id and cannot be compared or graduated.
+# The preview IC covers every month in the file, history included; the registered run reports the window only.
 
 # %%
 preview = lab.preview(spec, inp)
@@ -61,7 +62,7 @@ print(f"look-ahead violations: {violations}")
 # Registration is what makes a result count. Running the same recipe on the same data again returns the same record.
 
 # %%
-base = lab.run(recipe, inp, data_version)
+base = lab.run(recipe, inp, data_version, history_from=dates[0])
 print(f"experiment_id: {base.experiment_id}")
 
 # %% [markdown]
@@ -70,7 +71,7 @@ print(f"experiment_id: {base.experiment_id}")
 
 # %%
 variant_recipe = recipe.model_copy(update={"method": "transform", "params": {"base": spec, "steps": [{"op": "zscore"}]}})
-variant = lab.run(variant_recipe, inp, data_version)
+variant = lab.run(variant_recipe, inp, data_version, history_from=dates[0])
 print(f"experiment_id: {variant.experiment_id}")
 
 # %% [markdown]

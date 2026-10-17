@@ -49,6 +49,12 @@ def compare_experiments(a_id: str, b_id: str, registry: Registry, *, confidence:
                 reason=f"no post-cutoff evidence for {experiment_id}",
             )
     for experiment_id, window in windows.items():
+        if not window.series and window.periods > 0 and window.long_short is None:
+            # The backtest produced no months (a real answer); an old row has a long_short but no stored series.
+            return Comparison(
+                a=a_id, b=b_id, verdict="insufficient_data", months=0, n_comparisons=n_comparisons,
+                reason=f"no post-cutoff portfolio months for {experiment_id}",
+            )
         if not window.series:
             raise ValueError(f"{experiment_id} was registered before series were stored; re-run it")
 

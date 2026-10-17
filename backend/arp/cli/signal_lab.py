@@ -336,7 +336,8 @@ def signals_run(
 
         cutoffs = load_cutoff_table(get_settings().training_cutoffs_path)
         record = methods_base.run_recipe(
-            recipe, inp, registry=Registry(_run_store()), cutoffs=cutoffs, data_version=data_version
+            recipe, inp, registry=Registry(_run_store()), cutoffs=cutoffs, data_version=data_version,
+            extra_notes={"history_from": history_from} if history_from else None,
         )
     except ValueError as exc:
         raise _fail(exc) from exc

@@ -102,10 +102,16 @@ class Lab:
     def check(self, spec: dict, inp: MethodInput, *, at: list[int] | None = None) -> list[tuple[str, int]]:
         return lookahead_violations(spec, inp, at=at)
 
-    def run(self, recipe: Recipe, inp: MethodInput, data_version: str) -> ExperimentRecord:
+    def run(
+        self, recipe: Recipe, inp: MethodInput, data_version: str, *, history_from: str | None = None
+    ) -> ExperimentRecord:
         """Registers the experiment. Unlike `arp signals run`, no LLM cost gate or resource building happens here:
-        the caller sets `inp.resources` and should check `estimate_llm_calls(inp)` first."""
-        return run_recipe(recipe, inp, registry=self.registry, cutoffs=self.cutoffs, data_version=data_version)
+        the caller sets `inp.resources` and should check `estimate_llm_calls(inp)` first. Pass the `history_from` the
+        inputs were loaded with so the row records it."""
+        return run_recipe(
+            recipe, inp, registry=self.registry, cutoffs=self.cutoffs, data_version=data_version,
+            extra_notes={"history_from": history_from} if history_from else None,
+        )
 
     def experiments(self) -> list[ExperimentRecord]:
         return self.registry.list_experiments()

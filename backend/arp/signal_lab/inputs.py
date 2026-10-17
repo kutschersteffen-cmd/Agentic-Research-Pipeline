@@ -43,6 +43,8 @@ def load_inputs(
     if history_from is not None:
         if history_from < dates[0] or history_from > dates[-1]:
             raise ValueError(f"history_from {history_from} is outside the price file {dates[0]}..{dates[-1]}")
+        if history_from not in dates:  # an off-grid date loads the same rows as the next one but hashes differently
+            raise ValueError(f"history_from {history_from} is not one of the price file's dates")
         if history_from > recipe.window_start:
             raise ValueError(f"history_from {history_from} is after the window start {recipe.window_start}")
     start = history_from or recipe.window_start

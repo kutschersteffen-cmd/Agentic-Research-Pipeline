@@ -9,6 +9,7 @@ from typer.testing import CliRunner
 from arp.cli import app
 from arp.cli._shared import _run_store
 from arp.config import get_settings
+from arp.schemas.strategy_replication import LegPerformance
 from arp.signal_lab.compare import compare_experiments
 from arp.signal_lab.evidence import EvidenceReport, WindowEvidence
 from arp.signal_lab.registry import Recipe, Registry
@@ -128,6 +129,37 @@ def test_old_row_without_series_raises_rerun(registry):
     a, b = _pair()
     a_id = _register(registry, "a", a)
     b_id = _register(registry, "b", [])
+    with pytest.raises(ValueError, match=f"{b_id} was registered before series were stored; re-run it"):
+        compare_experiments(a_id, b_id, registry)
+
+
+def _window_without_series(*, long_short) -> EvidenceReport:
+    window = WindowEvidence(
+        window="post_cutoff", periods=3, ic=IcSummary(n=3, mean=0.02, t_nw=1.0, hit_rate=0.5),
+        long_short=long_short, net_long_short=None, monthly_turnover_pct=None, deflated_sharpe=None, series=[],
+    )
+    return EvidenceReport(windows=[window], contamination_gap_ic=None, overlap={}, n_trials=1)
+
+
+def test_post_cutoff_window_without_backtest_months_is_insufficient_not_a_rerun(registry):
+    a, _ = _pair()
+    a_id = _register(registry, "a", a)
+    b_id = registry.register(
+        _recipe(method="b"), _window_without_series(long_short=None), data_version="v1", model=None, cutoff=None
+    ).experiment_id
+    result = compare_experiments(a_id, b_id, registry)
+    assert result.verdict == "insufficient_data"
+    assert result.reason == f"no post-cutoff portfolio months for {b_id}"
+    assert (result.months, result.n_comparisons) == (0, 1)
+
+
+def test_old_row_with_long_short_but_no_series_still_raises_rerun(registry):
+    a, _ = _pair()
+    a_id = _register(registry, "a", a)
+    leg = LegPerformance(annualized_return_pct=1.0, annualized_volatility_pct=2.0, sharpe_ratio=0.5)
+    b_id = registry.register(
+        _recipe(method="b"), _window_without_series(long_short=leg), data_version="v1", model=None, cutoff=None
+    ).experiment_id
     with pytest.raises(ValueError, match=f"{b_id} was registered before series were stored; re-run it"):
         compare_experiments(a_id, b_id, registry)
 

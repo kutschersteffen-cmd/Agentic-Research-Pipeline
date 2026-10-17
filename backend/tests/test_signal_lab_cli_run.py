@@ -6,8 +6,10 @@ import pytest
 from typer.testing import CliRunner
 
 from arp.cli import app
+from arp.cli._shared import _run_store
 from arp.config import get_settings
 from arp.signal_lab.methods import base
+from arp.signal_lab.registry import Registry
 from tests.test_signal_lab_cli import _write_panel
 
 pytestmark = pytest.mark.usefixtures("pg")
@@ -176,3 +178,16 @@ def test_run_with_history_from_registers_a_different_experiment(env):
     assert plain.stdout.splitlines()[0] != with_history.stdout.splitlines()[0]
     late = _run(env, recipe, "--history-from", dates[14])
     assert late.exit_code == 1 and "after the window start" in late.stderr
+
+
+def test_run_records_history_from_in_notes_only_when_given(env):
+    dates = _write_panel(env, 40)
+    recipe = _recipe(env, dates[13:])
+    plain = _run(env, recipe)
+    with_history = _run(env, recipe, "--history-from", dates[0])
+    assert plain.exit_code == with_history.exit_code == 0, with_history.output
+    assert "notes:" not in plain.stdout
+    assert f'notes: {{"history_from": "{dates[0]}"}}' in with_history.stdout
+    notes = {r.experiment_id: r.notes for r in Registry(_run_store()).list_experiments()}
+    assert notes[plain.stdout.splitlines()[0].split()[1]] == {}
+    assert notes[with_history.stdout.splitlines()[0].split()[1]] == {"history_from": dates[0]}

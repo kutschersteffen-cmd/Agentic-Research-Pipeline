@@ -107,3 +107,11 @@ def test_history_feeds_methods_not_evidence(pg, tmp_path):
     assert hist_dates[0] == DATES[14] and plain_dates[0] == DATES[27]
     assert set(plain_dates) <= set(hist_dates) and hist_dates[-1] == DATES[-1]
     assert plain_rec.experiment_id != hist_rec.experiment_id
+
+
+def test_history_from_must_be_a_price_file_date(tmp_path):
+    _write_prices(tmp_path)
+    # 2015-xx-15 loads the same rows as the month end after it, but would hash to a different experiment.
+    off_grid = DATES[1][:8] + "15"
+    with pytest.raises(ValueError, match=f"history_from {off_grid} is not one of the price file's dates"):
+        load_inputs(_momentum_recipe(), tmp_path / "prices.csv", history_from=off_grid)
