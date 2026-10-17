@@ -47,6 +47,8 @@ jobs:
       ARP_TEST_OPENSEARCH_URL: http://localhost:9200
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # diff-cover compares with the base branch
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -74,7 +76,12 @@ jobs:
         run: ruff check .
 
       - name: Pytest
-        run: pytest -q
+        run: pytest -q --cov=arp --cov-report=xml
+
+      # Lines this PR adds or changes must be >= 80% covered; untouched code doesn't count.
+      - name: Diff coverage (changed lines >= 80%)
+        if: github.event_name == 'pull_request'
+        run: diff-cover coverage.xml --compare-branch=origin/${{ github.base_ref }} --fail-under=80
 
   frontend:
     name: Frontend (build + lint)
@@ -84,6 +91,8 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # diff-cover compares with the base branch
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -101,8 +110,17 @@ jobs:
       - name: Typecheck + build
         run: npm run build
 
-      - name: Test
-        run: npm test
+      - name: Test (with coverage)
+        run: npm run test:coverage
+
+      # shortcut: node only reports files a test imports, so a never-imported file (every .tsx
+      # page today) is not gated; revisit once components get render tests.
+      - name: Diff coverage (changed lines >= 80%)
+        if: github.event_name == 'pull_request'
+        working-directory: .
+        run: |
+          sed 's|^SF:|SF:frontend/|' frontend/lcov.info > lcov.info
+          pipx run --spec 'diff-cover>=10.0,<11.0' diff-cover lcov.info --compare-branch=origin/${{ github.base_ref }} --fail-under=80
 
   # Optional live Superset suite (backend/tests/test_bi_live_superset.py), left
   # off: it needs a running, bootstrapped Superset (docker compose --env-file
