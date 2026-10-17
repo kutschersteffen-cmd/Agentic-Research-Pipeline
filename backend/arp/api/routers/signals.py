@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import tempfile
 from pathlib import Path
 from typing import Literal
@@ -21,6 +22,8 @@ from arp.signal_lab.methods.base import TEXTLESS_METHODS, get_method, method_nam
 from arp.signal_lab.registry import ExperimentRecord, Recipe, Registry
 from arp.signal_lab.text_store import TextStore
 from arp.storage.safe_path import safe_id
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/signals", tags=["signals"])
 
@@ -198,4 +201,5 @@ async def run(
     except ValueError as exc:
         raise _http(exc) from exc
     except Exception as exc:  # may carry library or database detail: the type only, never a traceback
+        logger.exception("signals run failed")
         raise HTTPException(500, detail=f"Run failed: {type(exc).__name__}") from exc

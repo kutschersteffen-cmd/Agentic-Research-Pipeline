@@ -529,3 +529,17 @@ def test_run_bad_parts_are_422(client, run_files):
     _scores_csv(tmp_path / "p1.csv", dates)
     resp = _post_run(client, recipe, prices, **{"../p1": tmp_path / "p1.csv"})
     assert (resp.status_code, resp.json()["detail"]) == (422, "Invalid panel name: '../p1'")
+
+
+def test_run_unexpected_failure_is_500_and_logged(client, run_files, monkeypatch, caplog):
+    tmp_path, dates, prices = run_files
+
+    def boom(*a, **k):
+        raise RuntimeError("secret detail")
+
+    monkeypatch.setattr(signals_router, "run_recipe", boom)
+    resp = _post_run(client, _recipe_file(tmp_path / "r.json", dates), prices)
+    assert (resp.status_code, resp.json()["detail"]) == (500, "Run failed: RuntimeError")
+    assert "secret detail" not in resp.text
+    logged = [r for r in caplog.records if r.message == "signals run failed"]
+    assert logged and "secret detail" in str(logged[0].exc_info[1])
