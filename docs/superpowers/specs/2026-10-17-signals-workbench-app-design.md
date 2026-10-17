@@ -66,7 +66,7 @@ Setup notes for the test-writer:
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
 | AC-1 | Two experiments registered | `GET /api/signals/experiments` | 200. JSON array of 2 items. Each item has at least the keys `experiment_id`, `category`, `method`, `universe`, `window_start`, `window_end`, `cost_bps`, `model`, `cutoff`, `decision`, `n_trials`, `created_at` | holdout |
-| AC-2 | Experiment A registered first, with post-cutoff `ic.mean` = 0.20; experiment B registered after it, with `ic.mean` = 0.01 | `GET /api/signals/experiments` | B is item 0, A is item 1. Order is the reverse of registration order, never `created_at` alone | holdout |
+| AC-2 | Experiment A registered first, with post-cutoff `ic.mean` = 0.20; experiment B registered after it, with `ic.mean` = 0.01 | `GET /api/signals/experiments` | B is item 0, A is item 1 | holdout |
 | AC-3 | A registered experiment `X` | `GET /api/signals/experiments/X` | 200. Body has the keys `experiment_id`, `recipe`, `notes`, `model`, `cutoff`, `decision`, `decided_by`, `evidence`. Each equals the same key of `model_dump(mode="json")` of X's record in `Registry.list_experiments()` (`decision` = the JSON string `"none"` and `decided_by` = null when undecided) | holdout |
 | AC-4 | No experiment `nope` | `GET /api/signals/experiments/nope` | 404, `detail` = `unknown experiment 'nope'` | holdout |
 | AC-5 | `main`'s method registry | `GET /api/signals/methods` | 200. The set of `name` values equals the registered method names. `runnable_in_app` is true for exactly `panel`, `price_momentum`, `narrative_attention`, `sestm`, `transform`, `composite`, and false for every other name | holdout |
@@ -82,6 +82,7 @@ Setup notes for the test-writer:
 | AC-15 | The same `price_momentum` recipe and CSV | `POST /api/signals/runs` twice | Both 200 with the same `experiment_id` | holdout |
 | AC-16 | The app with two registered experiments | Open `#/signals` | The "Experiments" table lists both, newest first | evaluator |
 | AC-17 | An experiment with `model` = `m1`, where `m1` is in the cutoff table with cutoff `2020-01-31`, registered with two windows, `WindowEvidence(window="in_window", ...)` and `WindowEvidence(window="post_cutoff", ...)` | Open it on the Evidence part | The `in_window` row carries the label `contaminated (in the model's training window)` | evaluator |
+| AC-59 | AC-17's experiment | Open it on the Evidence part | The `post_cutoff` row does not carry `contaminated (in the model's training window)` | evaluator |
 | AC-18 | An experiment with `model` = `m_unknown`, absent from the cutoff table | Open it on the Evidence part | The text `cutoff unknown: not evidence` is shown | evaluator |
 | AC-19 | AC-7's two experiments chosen on the Compare part, and no other experiment comparable to A registered | Press Compare | It shows `Insufficient data: these signals cannot be separated (36 months, 1 comparison)`. No text on the result says higher, better or winner | evaluator |
 | AC-20 | Signed in as `analyst`, an experiment open | Look at the decision controls | Graduate and Shelve are disabled, with `Requires approver` next to them | evaluator |
