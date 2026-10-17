@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 
+from arp.compute import client as compute_client
 from arp.schemas.common import DocumentChunk
 
 logger = logging.getLogger(__name__)
@@ -41,11 +42,16 @@ def rerank(query: str, chunks: list[DocumentChunk], top_n: int) -> list[Document
         return []
     if _unavailable:
         return chunks[:top_n]
-    try:
-        scores = _score(query, [c.text for c in chunks])
-    except Exception as exc:
-        _unavailable = True
-        logger.warning("Reranker unavailable (%s: %s); keeping retrieval order.", type(exc).__name__, exc)
-        return chunks[:top_n]
+    if compute_client.models_configured():  # the slow local model is never the fallback for the cloud one
+        scores = compute_client.rerank_scores(query, [c.text for c in chunks])
+        if scores is None:
+            return chunks[:top_n]
+    else:
+        try:
+            scores = _score(query, [c.text for c in chunks])
+        except Exception as exc:
+            _unavailable = True
+            logger.warning("Reranker unavailable (%s: %s); keeping retrieval order.", type(exc).__name__, exc)
+            return chunks[:top_n]
     order = sorted(range(len(chunks)), key=lambda i: scores[i], reverse=True)  # stable on ties
     return [chunks[i] for i in order[:top_n]]

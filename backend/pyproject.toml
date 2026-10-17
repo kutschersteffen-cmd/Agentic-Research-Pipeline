@@ -24,13 +24,18 @@ dependencies = [
     "beautifulsoup4>=4.12,<5.0",
     "lxml>=5.2,<7.0",
     "pypdf>=4.2,<7.0",
-    "docling>=2.0,<3.0",
+    # Exact: the cloud parser (arp/compute/) must report the same parser_version() as a local install.
+    "docling==2.140.0",
+    "docling-core==2.101.1",
+    "docling-ibm-models==4.0.3",
+    "docling-parse==7.22.3",
     "cryptography>=42.0,<51.0",
-    "trafilatura>=1.9,<3.0",
+    "trafilatura==2.3.1",
     "python-multipart>=0.0.9,<1.0",
     "numpy>=1.26,<3.0",
-    "openpyxl>=3.1,<4.0",
+    "openpyxl==3.1.5",
     "fastembed>=0.9,<1.0",
+    "google-auth>=2.40,<3.0",  # ID tokens for the Cloud Run compute services
     # Presentation & Reporting Tool (arp/reporting/): deterministic pptx/
     # docx/pdf rendering of an LLM-drafted ReportPlan. matplotlib backs
     # chart types with no native pptx/docx/pdf chart object (waterfall,

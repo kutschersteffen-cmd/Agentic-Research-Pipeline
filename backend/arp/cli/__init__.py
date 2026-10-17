@@ -5,6 +5,7 @@ import typer
 from arp.cli.bi import bi_app
 from arp.cli.calibration import calibration_app
 from arp.cli.climate import climate_app
+from arp.cli.compute import compute_app
 from arp.cli.db import db_app
 from arp.cli.decision import decision_app
 from arp.cli.discovery import discover_app
@@ -78,6 +79,7 @@ app.add_typer(portfolio_app, name="portfolio")
 app.add_typer(climate_app, name="climate")
 app.add_typer(decision_app, name="decision")
 app.add_typer(documents_app, name="documents")
+app.add_typer(compute_app, name="compute")
 app.add_typer(identity_app, name="identity")
 app.add_typer(index_app, name="index")
 app.add_typer(golden_set_app, name="golden-set")

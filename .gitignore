@@ -22,6 +22,7 @@ frontend/.vite/
 .env
 .env.*
 !.env.example
+backend/.gcp/
 
 # Runtime data (file-based storage) - keep folder structure, not contents
 runs/*

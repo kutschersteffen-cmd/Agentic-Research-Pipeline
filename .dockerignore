@@ -40,6 +40,7 @@ ballots/
 .env
 .env.*
 !backend/.env.example
+backend/.gcp/
 !frontend/.env.example
 
 .DS_Store

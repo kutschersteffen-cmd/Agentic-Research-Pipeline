@@ -1,0 +1,13 @@
+# Builds backend/Dockerfile.compute for scripts/gcp/deploy_compute.sh. The image bakes in the docling
+# and fastembed models (several GB with the CUDA wheels), hence the larger machine, disk and timeout.
+# It runs as arp-deployer so new projects need no extra grants on Cloud Build's default account.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-f", "backend/Dockerfile.compute", "-t", "${_IMAGE}", "."]
+images: ["${_IMAGE}"]
+serviceAccount: "projects/${PROJECT_ID}/serviceAccounts/arp-deployer@${PROJECT_ID}.iam.gserviceaccount.com"
+options:
+  machineType: E2_HIGHCPU_8
+  diskSizeGb: 100
+  logging: CLOUD_LOGGING_ONLY
+timeout: 3600s

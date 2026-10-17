@@ -1,0 +1,4 @@
+# Shell scripts and Dockerfiles must keep LF on Windows checkouts (Git for Windows defaults to
+# core.autocrlf=true): bash and Docker line continuations break on CRLF.
+*.sh text eol=lf
+Dockerfile* text eol=lf

@@ -10,6 +10,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
+from arp.compute import client as compute_client
 from arp.ingestion import esef
 from arp.ingestion.base import DocumentSource
 from arp.ingestion.doc_identity import CORRECTION_MARKERS, assign_identity, published_at_for
@@ -193,6 +194,14 @@ def _extract_pdf_text(path: Path) -> tuple[str, list[int], list[TableSpan]]:
     reported invalid and raises, same as before, and is caught by the
     caller as a normal per-file parse error.
     """
+    remote = compute_client.parse_pdf(path, parser_version())
+    if remote is not None:
+        return remote
+    return _extract_pdf_text_local(path)
+
+
+def _extract_pdf_text_local(path: Path) -> tuple[str, list[int], list[TableSpan]]:
+    """The docling parse itself, never sent to the cloud (`arp compute check` compares against it)."""
     doc = _convert(path)
     parts: list[str] = []
     page_breaks: list[int] = []
