@@ -61,7 +61,7 @@ export function SchemaPanel({ jobs, onChange, onNext, nextCustomId, defaultReque
     try {
       const res = await api.suggestRules(schema);
       const now = latest.current.find((x): x is CustomJob => x.id === id && x.profile === "custom");
-      if (!now?.schema) return;
+      if (now?.schema?.schema_id !== schema.schema_id) return; // a new draft replaced the schema these rules name
       const known = [
         ...now.schema.fields.flatMap((f) => (f.rules ?? []).map((rule) => ({ fieldId: f.field_id, rule }))),
         ...(now.dropped ?? []).map((d) => ({ fieldId: d.field_id, rule: d.rule })),
@@ -121,7 +121,7 @@ export function SchemaPanel({ jobs, onChange, onNext, nextCustomId, defaultReque
                 <RulesList
                   schema={j.schema}
                   waiting={j.waiting ?? []}
-                  busy={!!suggesting[j.id]}
+                  busy={!!(busy[j.id] || suggesting[j.id])}
                   onSuggestAgain={() => suggest(j.id, j.schema!)}
                   onChange={(n) =>
                     patch(j.id, { schema: n.schema, waiting: n.waiting, dropped: [...(j.dropped ?? []), ...n.dropped], ...(n.schema !== j.schema ? { confirmed: false } : {}) })

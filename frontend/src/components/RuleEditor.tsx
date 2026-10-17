@@ -109,7 +109,7 @@ export function RuleEditor({ fields, fieldId: fixed, rule: initial, onSave, onCa
               {OPS.map((op) => <option key={op}>{op}</option>)}
             </select>
             <input type="number" aria-label={`Condition ${i + 1} value`} placeholder="Value" value={num(c.value)} onChange={(e) => cond(i, { value: e.target.valueAsNumber })} />
-            <button type="button" className="secondary" onClick={() => set({ conditions: rule.conditions.filter((_, j) => j !== i) })}>Remove</button>
+            <button type="button" className="secondary" aria-label={`Remove condition ${i + 1}`} onClick={() => set({ conditions: rule.conditions.filter((_, j) => j !== i) })}>Remove</button>
           </div>
         ))}
         <div className="toolbar">
@@ -167,7 +167,7 @@ export function RuleEditor({ fields, fieldId: fixed, rule: initial, onSave, onCa
           <div className="inline-fields" key={i}>
             <FieldSelect label={`Input ${i + 1}`} value={id} options={others(NUMERIC)} onChange={(v) => set({ inputs: inputs.map((x, j) => (j === i ? v : x)) })} />
             {rule.formula === "sum" && inputs.length > 2 && (
-              <button type="button" className="secondary" onClick={() => set({ inputs: inputs.filter((_, j) => j !== i) })}>Remove</button>
+              <button type="button" className="secondary" aria-label={`Remove input ${i + 1}`} onClick={() => set({ inputs: inputs.filter((_, j) => j !== i) })}>Remove</button>
             )}
           </div>
         ))}

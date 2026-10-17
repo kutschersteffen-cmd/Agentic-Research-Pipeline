@@ -338,3 +338,28 @@ def test_editor_threshold_leaves_out_unit_less_currency_fields(page):
     options = rules.get_by_label("Condition 1 field").locator("option").all_inner_texts()
     assert "Green capex" not in options
     assert "Total capex" in options
+
+
+def test_suggest_again_disabled_while_a_new_draft_runs(page):
+    open_schema(page, schema(), suggestions(("ambition", R1())))
+    held = []
+    page.unroute("**/api/extraction/schemas/draft")
+    page.route("**/api/extraction/schemas/draft", lambda route: held.append(route))  # the redraft stays in flight until fulfilled
+    page.get_by_role("button", name="Draft extraction schema").click()
+    page.wait_for_function("() => [...document.querySelectorAll('button')].find(b => b.innerText === 'Draft extraction schema').disabled")
+    assert len(held) == 1
+    assert page.get_by_role("button", name="Suggest again").is_disabled()
+    held[0].fulfill(json=schema())
+
+
+def test_editor_remove_buttons_name_their_row(page):
+    open_schema(page, schema(), suggestions())
+    rules = add_rule(page, "Halving target", "threshold")
+    rules.get_by_role("button", name="Add a condition").click()
+    for n in (1, 2):
+        assert rules.get_by_role("button", name=f"Remove condition {n}", exact=True).is_visible()
+    rules.get_by_label("Checked field").select_option(label="Total capex")
+    rules.get_by_label("Kind").select_option("computed")
+    rules.get_by_label("Formula").select_option("sum")
+    rules.get_by_role("button", name="Add an input").click()
+    assert rules.get_by_role("button", name="Remove input 3", exact=True).is_visible()
