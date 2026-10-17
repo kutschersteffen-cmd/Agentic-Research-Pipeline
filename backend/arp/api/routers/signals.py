@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 import arp.signal_lab.methods  # noqa: F401  (importing registers every method)
+from arp.api.auth import Principal, require_role
 from arp.api.deps import get_run_store
 from arp.config import get_settings
 from arp.signal_lab.compare import Comparison, compare_experiments
@@ -65,6 +66,10 @@ class CompareRequest(BaseModel):
     b: str
 
 
+class DecisionRequest(BaseModel):
+    decision: Literal["graduate", "shelve"]
+
+
 def _load_cutoffs() -> CutoffTable:
     return load_cutoff_table(get_settings().training_cutoffs_path)
 
@@ -109,3 +114,25 @@ def compare(req: CompareRequest, registry: Registry = Depends(_registry)) -> Com
     except ValueError as exc:
         # Every compare error, an unknown id included, is a bad request body, not a missing URL.
         raise HTTPException(422, detail=str(exc)) from exc
+
+
+@router.post("/experiments/{experiment_id}/decision")
+def decide(
+    experiment_id: str,
+    req: DecisionRequest,
+    principal: Principal = Depends(require_role("approver")),
+    registry: Registry = Depends(_registry),
+) -> ExperimentDetail:
+    try:
+        cutoffs = _load_cutoffs()
+        if req.decision == "graduate":
+            record = next((r for r in registry.list_experiments() if r.experiment_id == experiment_id), None)
+            if record is not None and _cutoff_status(record, cutoffs) == "unknown":
+                raise HTTPException(
+                    422,
+                    detail=f"cannot graduate {experiment_id}: model {record.model!r} has no recorded training "
+                    "cutoff (cutoff unknown: not evidence)",
+                )
+        return _detail(registry.decide(experiment_id, req.decision, approver=principal.user_id, cutoffs=cutoffs), cutoffs)
+    except ValueError as exc:
+        raise _http(exc) from exc

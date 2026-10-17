@@ -4943,6 +4943,23 @@
     "title": "DecisionReason",
     "type": "string"
    },
+   "DecisionRequest": {
+    "properties": {
+     "decision": {
+      "enum": [
+       "graduate",
+       "shelve"
+      ],
+      "title": "Decision",
+      "type": "string"
+     }
+    },
+    "required": [
+     "decision"
+    ],
+    "title": "DecisionRequest",
+    "type": "object"
+   },
    "DecisionResult": {
     "description": "The output of applying one framework version to one dataset.",
     "properties": {
@@ -27349,6 +27366,58 @@
      }
     },
     "summary": "Get Experiment",
+    "tags": [
+     "signals"
+    ]
+   }
+  },
+  "/api/signals/experiments/{experiment_id}/decision": {
+   "post": {
+    "operationId": "decide_api_signals_experiments__experiment_id__decision_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "experiment_id",
+      "required": true,
+      "schema": {
+       "title": "Experiment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DecisionRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ExperimentDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Decide",
     "tags": [
      "signals"
     ]

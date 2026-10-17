@@ -4451,6 +4451,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/signals/experiments/{experiment_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decide */
+        post: operations["decide_api_signals_experiments__experiment_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/signals/methods": {
         parameters: {
             query?: never;
@@ -9247,6 +9264,14 @@ export interface components {
          * @enum {string}
          */
         DecisionReason: "confirmed" | "wrong_value" | "wrong_unit_or_scale" | "wrong_period" | "wrong_entity" | "not_disclosed" | "bad_source" | "needs_expert" | "other" | "span_moved";
+        /** DecisionRequest */
+        DecisionRequest: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "graduate" | "shelve";
+        };
         /**
          * DecisionResult
          * @description The output of applying one framework version to one dataset.
@@ -22041,6 +22066,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decide_api_signals_experiments__experiment_id__decision_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

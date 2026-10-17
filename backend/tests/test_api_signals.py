@@ -204,3 +204,91 @@ def test_library_registered_llm_experiment_is_listed(client, registry):
     a, _ = _pair()
     experiment_id = _register(registry, "grounded_llm", a, model="m1").experiment_id
     assert experiment_id in [r["experiment_id"] for r in client.get("/api/signals/experiments").json()]
+
+
+def _decide(client, experiment_id, decision):
+    return client.post(f"/api/signals/experiments/{experiment_id}/decision", json={"decision": decision})
+
+
+def _detail(client, experiment_id):
+    return client.get(f"/api/signals/experiments/{experiment_id}").json()
+
+
+def test_analyst_cannot_decide(client, registry):
+    a, _ = _pair()
+    experiment_id = _register(registry, "a", a).experiment_id
+    as_role("analyst")
+    assert _decide(client, experiment_id, "shelve").status_code == 403
+    assert _detail(client, experiment_id)["decision"] == "none"
+
+
+def test_shelve_records_approver(client, registry):
+    a, _ = _pair()
+    experiment_id = _register(registry, "a", a).experiment_id
+    as_role("approver")
+    resp = _decide(client, experiment_id, "shelve")
+    assert resp.status_code == 200
+    assert (resp.json()["decision"], resp.json()["decided_by"]) == ("shelve", "u_approver")
+    detail = _detail(client, experiment_id)
+    assert (detail["decision"], detail["decided_by"]) == ("shelve", "u_approver")
+
+
+def test_graduate_needs_12_months(client, registry):
+    experiment_id = _register(registry, "a", [(m, 0.01) for m in _months(5)]).experiment_id
+    as_role("approver")
+    resp = _decide(client, experiment_id, "graduate")
+    assert resp.status_code == 422
+    assert "needs post-cutoff evidence with at least 12 IC months" in resp.json()["detail"]
+
+
+def test_graduate_12_months_no_model(client, registry):
+    experiment_id = _register(registry, "a", [(m, 0.01) for m in _months(12)]).experiment_id
+    as_role("approver")
+    resp = _decide(client, experiment_id, "graduate")
+    assert (resp.status_code, resp.json()["decision"]) == (200, "graduate")
+
+
+def test_graduate_after_shelve_appends(client, registry):
+    experiment_id = _register(registry, "x", [(m, 0.01) for m in _months(12)]).experiment_id
+    as_role("approver")
+    assert _decide(client, experiment_id, "shelve").status_code == 200
+    assert _decide(client, experiment_id, "graduate").status_code == 200
+    assert _detail(client, experiment_id)["decision"] == "graduate"
+    rows = [
+        r for r in _run_store().read_results("signal_registry")
+        if r["type"] == "decision" and r["experiment_id"] == experiment_id
+    ]
+    assert [r["decision"] for r in rows] == ["shelve", "graduate"]
+
+
+def _register_model(registry, model: str, cutoff: str | None):
+    return registry.register(
+        _recipe(method="a"), _evidence([(m, 0.01) for m in _months(12)]), data_version="v1", model=model, cutoff=cutoff
+    ).experiment_id
+
+
+def test_graduate_refused_when_cutoff_changed(client, registry, tmp_path):
+    experiment_id = _register_model(registry, "m1", "2020-01-31")
+    (tmp_path / "cutoffs.json").write_text(json.dumps({"m1": {"cutoff": "2021-01-31", "source": "test"}}))
+    as_role("approver")
+    resp = _decide(client, experiment_id, "graduate")
+    assert resp.status_code == 422
+    assert "the cutoff for model 'm1' changed since the experiment was evaluated" in resp.json()["detail"]
+
+
+def test_graduate_refused_when_cutoff_unknown(client, registry):
+    experiment_id = _register_model(registry, "m_unknown", None)
+    as_role("approver")
+    resp = _decide(client, experiment_id, "graduate")
+    assert resp.status_code == 422
+    assert "cutoff unknown: not evidence" in resp.json()["detail"]
+    assert not [r for r in _run_store().read_results("signal_registry") if r["type"] == "decision"]
+
+
+def test_malformed_cutoff_table_is_422(client, registry, tmp_path):
+    experiment_id = _register(registry, "a", [(m, 0.01) for m in _months(12)]).experiment_id
+    (tmp_path / "cutoffs.json").write_text("{not json")
+    as_role("approver")
+    resp = _decide(client, experiment_id, "graduate")
+    assert resp.status_code == 422
+    assert "malformed JSON" in resp.json()["detail"]
