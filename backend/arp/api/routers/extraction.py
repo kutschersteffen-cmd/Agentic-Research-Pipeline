@@ -24,7 +24,7 @@ from arp.db.fields import SchemaRegistry
 from arp.db.session import transaction
 from arp.decision.templates import attach_to_run
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
-from arp.extraction.schema_builder import draft_schema
+from arp.extraction.schema_builder import RuleSuggestions, draft_schema, suggest_rules
 from arp.extraction.steps import MODES, ExtractionProfile, StepSettings, pipeline_shape, restart_overrides
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.factory import batch_settings
@@ -60,6 +60,17 @@ async def draft_schema_endpoint(req: DraftSchemaRequest) -> DataPointSchema:
     llm = get_llm_client()
     schema, _usage = await draft_schema(req.criteria_text, llm)
     return schema
+
+
+@router.post("/schemas/suggest-rules", response_model=RuleSuggestions)
+async def suggest_rules_endpoint(
+    schema: DataPointSchema, principal: Principal = Depends(require_role("analyst")),
+) -> RuleSuggestions:
+    """Proposes rules and the helper fields they need for a drafted schema. Saves nothing: the user
+    accepts, edits or drops each suggestion in the UI."""
+    llm = get_llm_client()
+    suggestions, _usage = await suggest_rules(schema, llm)
+    return suggestions
 
 
 def _registry_for(settings: Settings = Depends(settings_dep)) -> SchemaRegistry:
