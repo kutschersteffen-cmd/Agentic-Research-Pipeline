@@ -82,15 +82,8 @@ class ExtractionDraft(BaseModel):
         return data
 
 
-async def extract_field(
-    company_name: str,
-    field: FieldDefinition,
-    chunks: list[DocumentChunk],
-    llm: LLMClient,
-    planned_periods: list[str] | None = None,
-) -> tuple[ExtractionDraft, LLMUsage]:
-    prompt = (
-        f"Company: {company_name}\n\n"
+def _field_spec(field: FieldDefinition) -> str:
+    return (
         f"Field: {field.name}\n"
         f"Description: {field.description}\n"
         f"Data type: {field.data_type.value}"
@@ -98,14 +91,56 @@ async def extract_field(
         + (f"\nAllowed values: {field.allowed_values}" if field.allowed_values else "")
         + f"\nExtraction instructions: {field.extraction_instructions}\n\n"
         + (f"{BOOLEAN_RULE}\n\n" if field.data_type == FieldDataType.BOOLEAN else "")
-        + (
-            "Report a value for each of these periods where disclosed (period end): "
-            f"{', '.join(planned_periods)}. Set planned_period_end to the one each value belongs to; "
-            "leave it empty if none fits.\n\n"
-            if planned_periods
-            else ""
-        )
-        +
-        f"Evidence:\n{format_evidence(chunks)}"
     )
+
+
+def _periods(planned_periods: list[str] | None) -> str:
+    if not planned_periods:
+        return ""
+    return (
+        "Report a value for each of these periods where disclosed (period end): "
+        f"{', '.join(planned_periods)}. Set planned_period_end to the one each value belongs to; "
+        "leave it empty if none fits.\n\n"
+    )
+
+
+async def extract_field(
+    company_name: str,
+    field: FieldDefinition,
+    chunks: list[DocumentChunk],
+    llm: LLMClient,
+    planned_periods: list[str] | None = None,
+) -> tuple[ExtractionDraft, LLMUsage]:
+    prompt = f"Company: {company_name}\n\n{_field_spec(field)}{_periods(planned_periods)}Evidence:\n{format_evidence(chunks)}"
     return await llm.complete_structured(system=_SYSTEM_PROMPT, prompt=prompt, output_model=ExtractionDraft)
+
+
+_GROUP_RULE = """
+- You are given several fields at once. Return one entry in `fields` per field, with its exact field_id and \
+its own draft; read each field on its own definition and instructions, never letting one field's value \
+stand in for another's."""
+
+
+class FieldDraft(BaseModel):
+    field_id: str
+    draft: ExtractionDraft
+
+
+class GroupDraft(BaseModel):
+    fields: list[FieldDraft] = Field(default_factory=list)
+
+
+async def extract_group(
+    company_name: str,
+    fields: list[FieldDefinition],
+    chunks: list[DocumentChunk],
+    llm: LLMClient,
+    planned_periods: list[str] | None = None,
+) -> tuple[dict[str, ExtractionDraft], LLMUsage]:
+    """One call for several fields over their shared evidence: each field's draft by field_id. A field the
+    model left out (or an unknown field_id) is simply missing; the caller extracts it on its own."""
+    specs = "".join(f"### field_id: {f.field_id}\n{_field_spec(f)}" for f in fields)
+    prompt = f"Company: {company_name}\n\n{specs}{_periods(planned_periods)}Evidence:\n{format_evidence(chunks)}"
+    out, usage = await llm.complete_structured(system=_SYSTEM_PROMPT + _GROUP_RULE, prompt=prompt, output_model=GroupDraft)
+    known = {f.field_id for f in fields}
+    return {d.field_id: d.draft for d in out.fields if d.field_id in known}, usage

@@ -148,6 +148,12 @@ class Settings(BaseSettings):
     )
     rerank_candidates: int = Field(default=40, description="How many top-ranked chunks the reranker rescoring sees.")
     evidence_max_chunks: int = Field(default=12, description="Chunks of evidence handed to the extractor per field.")
+    extraction_group_size: int = Field(
+        default=0, ge=0,
+        description="Opt-in: extract this many non-high-risk fields per model call, over their merged evidence (at most "
+        "2 x evidence_max_chunks), in schema order. Each field is still verified, adjudicated and grounded on its own; "
+        "a field the group call leaves out, or a failed group call, falls back to its own call. 0 or 1: one call per field.",
+    )
 
     # Precision controls
     grounding_fuzzy_threshold: float = Field(

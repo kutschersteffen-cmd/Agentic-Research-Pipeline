@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import bisect
 import re
 
 from llama_index.core.node_parser import SentenceSplitter
@@ -10,6 +11,7 @@ from arp.schemas.common import DocType, DocumentChunk, SourceDocument
 
 _SPEAKER_LINE = re.compile(r"^\s*([A-Z][A-Za-z.'\-]+(?:\s[A-Z][A-Za-z.'\-]+){0,3})\s*[:\-]\s*$")
 _SECTION_HEADER = re.compile(r"^\s*(ITEM\s+\d+[A-Z]?\.?.{0,80}|PART\s+[IVX]+.{0,80})\s*$", re.IGNORECASE)
+_MD_HEADING = re.compile(r"^#{1,6}[ \t]+(.{1,120}?)[ \t#]*$", re.MULTILINE)  # Docling renders PDF/DOCX headings as markdown
 
 DEFAULT_CHUNK_CHARS = 3500
 DEFAULT_OVERLAP_CHARS = 300
@@ -88,9 +90,13 @@ def find_keyword_hits(text: str, keywords: list[str]) -> list[str]:
 
 def _compute_spans(doc: SourceDocument, chunk_chars: int, overlap_chars: int) -> tuple[ChunkSpan, ...]:
     is_transcript = doc.doc_type == DocType.EARNINGS_TRANSCRIPT
+    headings = [(m.start(), m.group(1).strip()) for m in _MD_HEADING.finditer(doc.full_text)]
+    starts = [h[0] for h in headings]
     spans = []
     for start, end in _sentence_aware_split(doc.full_text, chunk_chars, overlap_chars):
-        section = None if is_transcript else detect_section(doc.full_text, start)
+        # a 10-K ITEM/PART header nearby, else the last markdown heading at or before the chunk
+        i = bisect.bisect_right(starts, start)
+        section = None if is_transcript else detect_section(doc.full_text, start) or (headings[i - 1][1] if i else None)
         speaker = detect_speaker(doc.full_text, start) if is_transcript else None
         spans.append(ChunkSpan(char_start=start, char_end=end, section=section, speaker=speaker))
     return tuple(spans)

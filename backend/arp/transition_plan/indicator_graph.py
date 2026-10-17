@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from arp.config import Settings
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.step_tally import run_graph
+from arp.retrieval.keywords_de import with_german
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import DocumentChunk, SourceDocument
 from arp.schemas.transition_plan import IndicatorAssessment, TransitionPlanIndicator
@@ -62,7 +63,7 @@ async def _gather_evidence(state: IndicatorState) -> dict:
 
     evidence = select_relevant_chunks(
         state["all_chunks"],
-        [state["indicator"].question],
+        with_german([state["indicator"].question]),
         max_chunks=_MAX_CHUNKS,
         require_hit=False,
         fallback_to_all=True,

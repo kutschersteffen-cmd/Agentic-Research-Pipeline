@@ -13,7 +13,8 @@ from arp.config import Settings
 from arp.db.fields import SchemaRegistry, UnreleasedFieldError
 from arp.extraction.aggregator import no_evidence_field
 from arp.extraction.derived import evaluate_derived
-from arp.extraction.field_graph import MAX_END_DRIFT_DAYS, days_apart, extract_one_field
+from arp.extraction.extractor_agent import extract_group
+from arp.extraction.field_graph import MAX_END_DRIFT_DAYS, days_apart, extract_one_field, field_evidence, merge_evidence
 from arp.extraction.history import RunHistory
 from arp.extraction.pre_steps import prepare_company
 from arp.extraction.routing import route
@@ -110,6 +111,7 @@ def input_settings(settings: Settings) -> dict:
         "hybrid_retrieval_enabled": settings.hybrid_retrieval_enabled,
         "retrieval_backend": settings.retrieval_backend,
         "xbrl_facts_enabled": settings.xbrl_facts_enabled,
+        **({"extraction_group_size": settings.extraction_group_size} if settings.extraction_group_size > 1 else {}),
         # only when on, so turning it on doesn't change every existing hash
         **({"vision_fallback_enabled": True} if settings.vision_fallback_enabled else {}),
     }
@@ -205,7 +207,7 @@ async def _extract_company(
 
     limit = field_limit or asyncio.Semaphore(settings.max_concurrent_llm_calls)
 
-    async def _extract(field: FieldDefinition, h: str | None, slot: list[ExtractedField]) -> list[LLMUsage]:
+    async def _extract(field: FieldDefinition, h: str | None, slot: list[ExtractedField], grouped=None) -> list[LLMUsage]:
         async with limit:
             extracted, _needs_review, field_usages = await extract_one_field(
                 company.name,
@@ -221,13 +223,34 @@ async def _extract_company(
                 fiscal_year_end=company.fiscal_year_end,
                 planned_periods=planned_periods,
                 facts=facts,
+                grouped=grouped,
             )
         slot.extend(f.model_copy(update={"input_hash": h}) for f in extracted)
         return field_usages
 
+    async def _extract_group(items: list[tuple[FieldDefinition, str | None, list[ExtractedField]]]) -> list[LLMUsage]:
+        """One extract call for the group over its fields' merged evidence; each field is then verified,
+        adjudicated and grounded on its own. A field the group call left out, or a failed group call,
+        falls back to the field's own extract call."""
+        evidence = await asyncio.gather(*(asyncio.to_thread(field_evidence, f, kept, settings) for f, _, _ in items))
+        shared = merge_evidence(evidence, settings.evidence_max_chunks * 2)
+        drafts, usage = {}, None
+        if sum(1 for e in evidence if e) > 1:
+            try:
+                async with limit:
+                    drafts, usage = await extract_group(
+                        company.name, [f for (f, _, _), e in zip(items, evidence, strict=True) if e], shared, llm,
+                        planned_periods,
+                    )
+            except Exception as exc:  # noqa: BLE001 -- any failure: extract each field on its own, as without grouping
+                logger.warning("Group extraction failed for %s, extracting fields one by one: %s", company.company_id, exc)
+        calls = [_extract(f, h, slot, (drafts[f.field_id], shared, usage) if f.field_id in drafts else None)
+                 for f, h, slot in items]
+        return [*([usage] if usage else []), *(u for us in await asyncio.gather(*calls) for u in us)]
+
     # One slot per field, filled in place, so the record keeps the schema's field order.
     slots: list[list[ExtractedField]] = []
-    pending = []
+    todo: list[tuple[FieldDefinition, str | None, list[ExtractedField]]] = []
     for field in to_extract:
         h = input_hash(field, route_documents(field, kept), planned_periods, run_settings)
         prior = history.last_rows(company.company_id, field.field_id) if reuse and h else []
@@ -248,7 +271,12 @@ async def _extract_company(
             ])
             continue
         slots.append([])
-        pending.append(_extract(field, h, slots[-1]))
+        todo.append((field, h, slots[-1]))
+    size = settings.extraction_group_size
+    grouping = [size > 1 and not f.high_risk and not f.xbrl_tags for f, _, _ in todo]
+    groupable = [t for t, g in zip(todo, grouping, strict=True) if g]
+    pending = [_extract(*t) for t, g in zip(todo, grouping, strict=True) if not g]
+    pending += [_extract_group(groupable[i:i + size]) for i in range(0, len(groupable), size or 1)]  # schema order
     for field_usages in await asyncio.gather(*pending):
         usages.extend(field_usages)
     fields.extend(f for slot in slots for f in slot)
