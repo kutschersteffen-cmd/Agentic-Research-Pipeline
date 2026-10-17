@@ -59,9 +59,9 @@ def report_year(ctx: CheckContext) -> int | None:
 
 
 def _num(r: ExtractedField) -> float | None:
-    v = r.canonical_value if r.canonical_value is not None else r.value
-    if isinstance(v, (int, float)) and not isinstance(v, bool):
-        return float(v)
+    # canonical_value only: None means unit conversion failed, so `value` is in the wrong unit
+    if r.canonical_value is not None:
+        return r.canonical_value
     return 0.0 if r.value_state == ValueState.ZERO else None
 
 

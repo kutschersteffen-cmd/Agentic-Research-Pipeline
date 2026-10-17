@@ -265,3 +265,11 @@ async def test_ratio_with_zero_denominator():
     assert res.detail.endswith(
         "Failed. Found Green capex = 30 (p. 31), Total capex = 0 (p. 31), Green capex share = 20 (p. 31). Cannot divide by zero."
     )
+
+
+async def test_unconverted_number_is_not_found():
+    r10 = ThresholdRule(rule_id="R10", kind="threshold", when=True, conditions=[Condition(field="green", op=">=", value=25)])
+    green = _row("green", 30).model_copy(update={"canonical_value": None})  # unit conversion failed
+    _, res = _only(await _run({"ambition": [r10]}, [_row("ambition", True), green]), "ambition", "R10")
+    assert res.outcome == "fail"
+    assert res.detail.endswith("Failed. Not found: Green capex.")
