@@ -1,7 +1,7 @@
 # Schema rules: agent-suggested, owner-approved checks on extracted values
 
 Date: 2026-10-17
-Status: draft for approval
+Status: approved by the owner 2026-10-17
 Mockups: https://claude.ai/artifact/VJz7ui2A7U2887qnaWSUCB (private to the owner; screen 1 shows the
 existing "at most" and "jump" checks in the Rules list, which this spec leaves out)
 
