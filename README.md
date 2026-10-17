@@ -381,6 +381,23 @@ arp db reindex opensearch         # also: object-store, engagement
 - **OpenSearch** — full-text/vector search over documents and chunks
 - **Object storage** (S3-compatible, MinIO locally) — immutable copies of source documents
 
+## Cloud compute (optional)
+
+PDF parsing, reranking and embeddings can run on Google Cloud Run GPUs (NVIDIA L4, scale to zero)
+instead of your machine. Once set up there is nothing to do per session: the backend sends the work
+to the cloud on its own and computes locally whenever the cloud is unreachable
+([spec](docs/superpowers/specs/2026-10-17-cloud-compute-design.md)).
+
+```bash
+bash scripts/gcp/setup_compute.sh <project-id>   # once; a GCP project with billing enabled
+# paste the printed lines into backend/.env and the GitHub repository variables, then:
+pip install -e backend && arp compute check      # parse OK / rerank OK / embed OK
+```
+
+Every push to `main` that touches parsing or model code redeploys the services
+(`.github/workflows/deploy-compute.yml`). PDFs pass through the bucket `<project>-arp-compute` and
+are deleted after a day; the originals and the parse cache stay local.
+
 ## Documentation
 
 | Doc | Covers |

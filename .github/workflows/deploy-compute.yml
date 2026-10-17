@@ -1,0 +1,67 @@
+name: Deploy compute
+
+# Builds backend/Dockerfile.compute with Cloud Build and deploys the two Cloud Run GPU services
+# (arp-parse, arp-models; see arp/compute/) whenever parsing or model code lands on main, so the cloud
+# parser reports the same parser_version() as a local install. Authenticates with Workload Identity
+# Federation (no stored key). scripts/gcp/setup_compute.sh creates everything once and prints the four
+# repository variables below; without them the job warns and passes.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/arp/ingestion/**"
+      - "backend/arp/compute/**"
+      - "backend/arp/retrieval/rerank.py"
+      - "backend/arp/retrieval/embeddings.py"
+      - "backend/arp/schemas/common.py"
+      - "backend/pyproject.toml"
+      - "backend/Dockerfile.compute"
+      - "scripts/gcp/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-compute
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy compute services
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for the GCP repository variables
+        id: vars
+        env:
+          GCP_PROJECT: ${{ vars.GCP_PROJECT }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          GCP_DEPLOY_SA: ${{ vars.GCP_DEPLOY_SA }}
+        run: |
+          if [ -n "$GCP_PROJECT" ] && [ -n "$GCP_REGION" ] && [ -n "$GCP_WIF_PROVIDER" ] && [ -n "$GCP_DEPLOY_SA" ]; then
+            echo "configured=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "::warning::GCP repo variables not set; skipping the compute deploy (see scripts/gcp/setup_compute.sh)"
+            echo "configured=false" >>"$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.vars.outputs.configured == 'true'
+
+      - uses: google-github-actions/auth@v2
+        if: steps.vars.outputs.configured == 'true'
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+        if: steps.vars.outputs.configured == 'true'
+
+      - name: Build and deploy
+        if: steps.vars.outputs.configured == 'true'
+        env:
+          PROJECT: ${{ vars.GCP_PROJECT }}
+          REGION: ${{ vars.GCP_REGION }}
+        run: TAG="${GITHUB_SHA::7}" bash scripts/gcp/deploy_compute.sh

@@ -1,0 +1,35 @@
+# The Cloud Run GPU image for arp/compute/server.py, deployed as arp-parse and arp-models by
+# scripts/gcp/deploy_compute.sh. It installs backend/ from the same pyproject.toml as a local install,
+# so docling reports the same parser_version(), then swaps the CPU onnxruntime for the GPU build.
+# The CUDA libraries come from the PyTorch wheels docling pulls in; Cloud Run provides the driver.
+# Models are baked in so a cold start downloads nothing. Build context: the repo root.
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONUTF8=1 \
+    HF_HOME=/models/hf \
+    FASTEMBED_CACHE_PATH=/models/fastembed
+
+WORKDIR /app/backend
+COPY backend/ ./
+RUN pip install --no-cache-dir . \
+    && FASTEMBED_VERSION="$(pip show fastembed | sed -n 's/^Version: //p')" \
+    && pip uninstall -y onnxruntime fastembed \
+    && pip install --no-cache-dir "fastembed-gpu==${FASTEMBED_VERSION}"
+
+# The same converters the service builds (with and without OCR), plus both fastembed models.
+RUN python -c "\
+from docling.datamodel.base_models import InputFormat; \
+from fastembed import TextEmbedding; \
+from fastembed.rerank.cross_encoder import TextCrossEncoder; \
+from arp.compute.client import CLOUD_RERANK_MODEL; \
+from arp.ingestion.local_files import _docling_converter; \
+from arp.retrieval.embeddings import EMBED_MODEL_NAME; \
+[_docling_converter(ocr).initialize_pipeline(InputFormat.PDF) for ocr in (True, False)]; \
+TextCrossEncoder(CLOUD_RERANK_MODEL); \
+TextEmbedding(EMBED_MODEL_NAME)"
+
+CMD exec uvicorn arp.compute.server:app --host 0.0.0.0 --port "${PORT:-8080}"
