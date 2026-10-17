@@ -115,6 +115,7 @@ def _sestm(params: dict, inp: MethodInput) -> MethodResult:
     values: dict[str, list[float | None]] = {t: [None] * len(ends) for t in issuers}
     without_model: list[str] = []
     last_charged: dict[str, float] | None = None
+    # shortcut: full refit per month, slow on multi-year corpora; upgrade to incremental counts when a real corpus is used
     for i in range(len(ends)):
         months = [labelled[j] for j in trainable_months(i) if labelled[j]]
         if len(months) < min_train:

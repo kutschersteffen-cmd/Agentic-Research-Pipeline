@@ -109,4 +109,8 @@ def _composite(params: dict, inp: MethodInput) -> MethodResult:
             have = [(w, r[t][i]) for w, r in zip(weights, ranked, strict=True) if t in r and r[t][i] is not None]
             row.append(sum(w * x for w, x in have) / sum(w for w, _ in have) if len(have) >= need else None)
         values[t] = row
-    return MethodResult(CharacteristicPanel(list(ends), values, "composite"), model=models[0] if models else None)
+    return MethodResult(
+        CharacteristicPanel(list(ends), values, "composite"),
+        model=models[0] if models else None,
+        notes={"components": [r.notes for r in results]},
+    )

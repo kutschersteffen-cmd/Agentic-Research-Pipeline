@@ -146,3 +146,25 @@ def test_method_refuses_a_caching_client_when_stability_is_asked():
 async def test_works_inside_a_running_event_loop():
     res = run_method(_SPEC, _inp([_text("A", "2018-01-15T00:00:00Z")], ModelLLM([_draft(0.4)])))
     assert res.panel.values["A"] == [0.4, None, None]
+
+
+def test_issuers_outside_the_price_panel_are_not_scored_or_estimated():
+    texts = [_text("A", "2018-01-15T00:00:00Z")] + [_text("ZZZ", "2018-01-15T00:00:00Z", str(n)) for n in range(3)]
+    res = run_method(_SPEC, _inp(texts, ModelLLM([_draft(0.4)])))
+    assert (res.notes["calls"], list(res.panel.values)) == (1, ["A"])
+    assert estimate_llm_calls(_inp(texts))["calls"] == 1
+
+
+def test_main_run_and_reruns_share_one_event_loop():
+    import asyncio
+
+    class LoopLLM(ModelLLM):
+        loops: list = []
+
+        async def complete_structured(self, **kw):
+            self.loops.append(asyncio.get_running_loop())
+            return await super().complete_structured(**kw)
+
+    llm = LoopLLM([_draft(0.1)] * 3)
+    run_method({"method": "grounded_llm", "params": {"stability_runs": 2}}, _inp([_text("A", "2018-01-15T00:00:00Z")], llm))
+    assert len(llm.loops) == 3 and all(lp is llm.loops[0] for lp in llm.loops)

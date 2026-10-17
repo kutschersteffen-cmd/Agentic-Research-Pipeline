@@ -75,6 +75,15 @@ def test_lookahead_violations_catches_a_peeking_method(monkeypatch):
     assert lookahead_violations(spec, inp) == []
 
 
+def test_lookahead_violations_flags_a_panel_shorter_than_the_grid(monkeypatch):
+    def short(params: dict, inp: MethodInput) -> MethodResult:
+        n = len(inp.prices.period_ends)
+        return MethodResult(CharacteristicPanel(list(inp.prices.period_ends), {"A": [1.0] * (n - 1)}, "short"))
+
+    monkeypatch.setitem(base._METHODS, "short", short)
+    assert lookahead_violations({"method": "short", "params": {}}, MethodInput(texts=[], prices=_prices(4))) == [("A", 2)]
+
+
 @pytest.fixture
 def registry(pg, tmp_path) -> Registry:
     return Registry(RunStore(pg, tmp_path / "runs"))

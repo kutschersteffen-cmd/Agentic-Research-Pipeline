@@ -183,3 +183,12 @@ def test_transforms_and_composite_have_no_lookahead():
     assert lookahead_violations({"method": "transform", "params": {"base": mom, "steps": steps}}, inp) == []
     comp = {"method": "composite", "params": {"components": [_ref("x"), _ref("y")]}}
     assert lookahead_violations(comp, inp) == []
+
+
+def test_composite_keeps_component_notes_in_order(monkeypatch):
+    def noted(params: dict, inp: MethodInput) -> MethodResult:
+        return MethodResult(CharacteristicPanel(list(inp.prices.period_ends), {"A": [1.0] * 4}, "n"), notes={"leak": 0.1})
+
+    monkeypatch.setitem(base._METHODS, "noted", noted)
+    spec = {"method": "composite", "params": {"components": [{"method": "noted"}, _ref("a")]}}
+    assert run_method(spec, _inp(_components())).notes == {"components": [{"leak": 0.1}, {}]}

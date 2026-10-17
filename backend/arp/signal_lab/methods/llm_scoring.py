@@ -31,6 +31,7 @@ def _documents(inp: MethodInput) -> dict[str, dict[str, list[SourceDocument]]]:
     return {
         issuer: {period_ends[i]: [to_source_document(r) for r in bucket] for i, bucket in enumerate(buckets) if bucket}
         for issuer, buckets in text_buckets(inp.texts, period_ends).items()
+        if issuer in inp.prices.returns
     }
 
 
@@ -77,10 +78,12 @@ def _grounded_llm(params: dict, inp: MethodInput) -> MethodResult:
         raise ValueError("grounded_llm needs an LLM client in resources['llm']")
     docs = _documents(inp)
 
-    def score():
-        return _run(build_sentiment_panel(docs, inp.prices.period_ends, llm))
+    async def score_all():
+        # One event loop for every pass: a real client's connection pool is bound to the loop it first ran on.
+        return [await build_sentiment_panel(docs, inp.prices.period_ends, llm) for _ in range(1 + runs)]
 
-    panel, records, usages = score()
+    passes = _run(score_all())
+    panel, records, usages = passes[0]
     models = {u.model for u in usages if u.model}  # "" means the client did not report one
     if len(models) > 1:
         raise ValueError(f"grounded_llm calls used more than one model: {sorted(models)}")
@@ -88,9 +91,6 @@ def _grounded_llm(params: dict, inp: MethodInput) -> MethodResult:
         raise ValueError("the LLM client reported no model name; a model that is unnamed cannot be split at a cutoff")
     notes: dict = {"calls": len(usages), "ungrounded": sum(not r.grounded for r in records)}
     if runs:
-        def score_vector():
-            _, recs, used = score()
-            return [r.score for r in recs], used
-
-        notes["rerun_stability"] = rerun_stability(score_vector, runs)
+        vectors = iter(([r.score for r in recs], used) for _, recs, used in passes[1:])
+        notes["rerun_stability"] = rerun_stability(lambda: next(vectors), runs)
     return MethodResult(panel, model=next(iter(models), None), notes=notes)

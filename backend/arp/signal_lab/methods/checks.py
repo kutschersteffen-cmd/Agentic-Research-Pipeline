@@ -33,6 +33,6 @@ def lookahead_violations(spec: dict, inp: MethodInput, *, at: list[int] | None =
         for issuer, vals in full.items():
             trunc = got.get(issuer, [])
             bad += [
-                (issuer, i) for i in range(k + 1) if not _same(vals[i], trunc[i] if i < len(trunc) else None)
+                (issuer, i) for i in range(k + 1) if not _same(vals[i] if i < len(vals) else None, trunc[i] if i < len(trunc) else None)
             ]
     return sorted(set(bad), key=lambda b: (b[1], b[0]))
