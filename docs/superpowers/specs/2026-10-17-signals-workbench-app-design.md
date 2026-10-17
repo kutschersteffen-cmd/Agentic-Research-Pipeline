@@ -30,7 +30,7 @@ A Signals screen in the R&D Lab where a person sees every registered experiment 
    - A recipe that uses `grounded_llm`, `issuer_first`, `embedding_ridge`, `topic_attention` or `finbert` anywhere in its spec tree is refused, with a message that names the CLI command and the notebook class.
    - Reason: these methods are slow, cost money, or download models, and the CLI already has the cost gate.
    - Experiments made with them in the CLI or a notebook still appear in the app, because the registry is shared.
-2. **The experiments list is never ordered by a performance number.** It is ordered by registration time, newest first, and it takes no sort parameter. Ordering between two signals is only ever stated by a Compare result. This is the anti-goal "a signal ranked above another when the data cannot separate them".
+2. **The experiments list is never ordered by a performance number.** It is the registry's append order reversed (newest first, so equal `created_at` values still put the later registration first), and it takes no sort parameter. Ordering between two signals is only ever stated by a Compare result. This is the anti-goal "a signal ranked above another when the data cannot separate them".
 3. **Contaminated evidence is labelled where it is shown.**
    - The in-window row is labelled `contaminated (in the model's training window)` and still shows its numbers.
    - "No recorded cutoff" means the experiment names a `model` that is absent from the cutoff table. Such an experiment shows `cutoff unknown: not evidence`, and the API refuses to graduate it. An experiment with `model` = None used no trained model and shows no cutoff label.
@@ -69,7 +69,7 @@ Setup notes for the test-writer:
 | AC-2 | Experiment A registered first, with post-cutoff `ic.mean` = 0.20; experiment B registered after it, with `ic.mean` = 0.01 | `GET /api/signals/experiments` | B is item 0, A is item 1 | holdout |
 | AC-3 | A registered experiment `X` | `GET /api/signals/experiments/X` | 200. Body has the keys `experiment_id`, `recipe`, `notes`, `model`, `cutoff`, `decision`, `decided_by`, `evidence`. Each equals the same key of `model_dump(mode="json")` of X's record in `Registry.list_experiments()` (`decision` = the JSON string `"none"` and `decided_by` = null when undecided) | holdout |
 | AC-4 | No experiment `nope` | `GET /api/signals/experiments/nope` | 404, `detail` = `unknown experiment 'nope'` | holdout |
-| AC-5 | `main`'s method registry | `GET /api/signals/methods` | 200. The set of `name` values equals the registered method names. `runnable_in_app` is true for exactly `panel`, `price_momentum`, `narrative_attention`, `sestm`, `transform`, `composite`, and false for every other name | holdout |
+| AC-5 | `main`'s method registry | `GET /api/signals/methods` | 200. A JSON array; each item has the keys `name` and `runnable_in_app`. The set of `name` values equals the registered method names. `runnable_in_app` is true for exactly `panel`, `price_momentum`, `narrative_attention`, `sestm`, `transform`, `composite`, and false for every other name | holdout |
 | AC-6 | A and B comparable and registered with series over the same 36 post-cutoff period ends: A's month i = `0.10 + 0.01 * (-1)**i`, B's month i = `0.01 * (-1)**(i + 1)`. No other experiment comparable to A is registered | `POST /api/signals/compare` with `{"a": "<id of A>", "b": "<id of B>"}` | 200. Body has `verdict` = `a_higher`, `months` = 36, `n_comparisons` = 1 | holdout |
 | AC-7 | No other experiment comparable to A registered; A and B comparable and registered with identical series over 36 post-cutoff period ends (month i = `0.01 * (-1)**i`) | `POST /api/signals/compare` | 200. `verdict` = `insufficient_data`, `months` = 36 | holdout |
 | AC-8 | A and B registered with different `universe` | `POST /api/signals/compare` | 422. `detail` starts with `not comparable: universe differs` | holdout |
@@ -95,7 +95,7 @@ Setup notes for the test-writer:
 | AC-26 | AC-2's A and B (A registered first with post-cutoff `ic.mean` = 0.20, B after it with 0.01) | `GET /api/signals/experiments?sort=ic` | 200. The `experiment_id` order is B, A | holdout |
 | AC-27 | A `composite` recipe with one `price_momentum` component and one `grounded_llm` component | `POST /api/signals/runs`, multipart with `recipe` and a covering `prices` CSV | 422. `detail` = `grounded_llm runs from the CLI (arp signals run) or a notebook (arp.signal_lab.lab.Lab), not the app` | holdout |
 | AC-28 | Each of `issuer_first`, `embedding_ridge`, `topic_attention`, `finbert` | `POST /api/signals/runs`, multipart with a recipe of that method and a covering `prices` CSV | 422. `detail` = `<method> runs from the CLI (arp signals run) or a notebook (arp.signal_lab.lab.Lab), not the app` | holdout |
-| AC-29 | AC-13, AC-14, AC-27 or AC-28 just happened | `GET /api/signals/experiments` | The item count is unchanged from before that request | holdout |
+| AC-29 | AC-13, AC-14, AC-27, AC-28 or AC-56 just happened | `GET /api/signals/experiments` | The item count is unchanged from before that request | holdout |
 | AC-30 | AC-6 done once | The same `POST /api/signals/compare` again | Same `verdict`, `months` and `n_comparisons` as the first time | holdout |
 | AC-31 | AC-9 just happened | `GET /api/signals/experiments/X` | `decision` = the JSON string `"none"` | holdout |
 | AC-32 | An `approver`; X registered with a post-cutoff window whose `ic.n` = 12, and `model` = None | `POST .../X/decision` with `{"decision": "graduate"}` | 200. `decision` = `graduate` | holdout |
@@ -122,7 +122,7 @@ Setup notes for the test-writer:
 | AC-53 | Signed in as `approver`, an undecided experiment open | Press Shelve | The decision shown becomes `shelve`, with the approver's user id | evaluator |
 | AC-54 | The existing R&D Lab workspace page | Open `#/rdLab` | Every screen and process it lists on `main` is still listed | evaluator |
 | AC-55 | An experiment registered with `model` = None | Open it on the Evidence part | Neither `contaminated (in the model's training window)` nor `cutoff unknown: not evidence` appears on the page | evaluator |
-| AC-56 | A signed-in `viewer`; a recipe and a covering price CSV | `POST /api/signals/runs` | 403, and the experiment count from `GET /api/signals/experiments` is unchanged | holdout |
+| AC-56 | A signed-in `viewer`; a recipe and a covering price CSV | `POST /api/signals/runs` | 403 | holdout |
 | AC-57 | No `Authorization` header | Each of `GET /api/signals/experiments`, `GET /api/signals/methods`, `POST /api/signals/compare` | 401. `detail` = `Missing or invalid bearer token` | holdout |
 
 Must not change:
