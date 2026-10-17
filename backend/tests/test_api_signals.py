@@ -411,9 +411,11 @@ def test_run_refuses_llm_and_model_methods(client, run_files, method, params, re
 def test_run_window_outside_prices(client, tmp_path):
     prices_csv(tmp_path / "prices.csv", 36, 2020)
     recipe = _recipe_file(tmp_path / "r.json", ["2019-01-31", "2021-12-31"])
+    before = _count(client)
     resp = _post_run(client, recipe, tmp_path / "prices.csv")
     assert resp.status_code == 422
     assert resp.json()["detail"] == "recipe window 2019-01-31..2021-12-31 is outside the price file 2020-01-31..2022-12-31"
+    assert _count(client) == before
 
 
 def test_run_needs_analyst(client, run_files):

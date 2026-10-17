@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { activatable } from "../lib/activatable";
 import { apiMessage } from "../lib/projects";
@@ -140,12 +140,13 @@ function Compare({ experiments }: { experiments: SignalExperimentSummary[] }) {
 function Run({ methods, onRan }: { methods: SignalMethod[]; onRan: (d: SignalExperimentDetail) => void }) {
   const [recipe, setRecipe] = useState<File | null>(null);
   const [prices, setPrices] = useState<File | null>(null);
-  const [panels, setPanels] = useState<{ name: string; file: File | null }[]>([]);
+  const [panels, setPanels] = useState<{ id: number; name: string; file: File | null }[]>([]);
+  const nextPanelId = useRef(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const setPanel = (i: number, patch: Partial<{ name: string; file: File | null }>) =>
-    setPanels((ps) => ps.map((p, j) => (j === i ? { ...p, ...patch } : p)));
+  const setPanel = (id: number, patch: Partial<{ name: string; file: File | null }>) =>
+    setPanels((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
 
   async function submit() {
     if (!recipe || !prices) return;
@@ -175,16 +176,16 @@ function Run({ methods, onRan }: { methods: SignalMethod[]; onRan: (d: SignalExp
             <input type="file" accept=".csv" onChange={(e) => setPrices(e.target.files?.[0] ?? null)} />
           </label>
           {panels.map((p, i) => (
-            <div className="toolbar" key={i}>
-              <input aria-label={`Panel ${i + 1} name`} value={p.name} onChange={(e) => setPanel(i, { name: e.target.value })} placeholder="Panel name" />
-              <input aria-label={`Panel ${i + 1} file`} type="file" accept=".csv" onChange={(e) => setPanel(i, { file: e.target.files?.[0] ?? null })} />
-              <button className="secondary" onClick={() => setPanels((ps) => ps.filter((_, j) => j !== i))}>
+            <div className="toolbar" key={p.id}>
+              <input aria-label={`Panel ${i + 1} name`} value={p.name} onChange={(e) => setPanel(p.id, { name: e.target.value })} placeholder="Panel name" />
+              <input aria-label={`Panel ${i + 1} file`} type="file" accept=".csv" onChange={(e) => setPanel(p.id, { file: e.target.files?.[0] ?? null })} />
+              <button className="secondary" onClick={() => setPanels((ps) => ps.filter((q) => q.id !== p.id))}>
                 Remove
               </button>
             </div>
           ))}
           <div className="toolbar">
-            <button className="secondary" onClick={() => setPanels((ps) => [...ps, { name: "", file: null }])}>
+            <button className="secondary" onClick={() => setPanels((ps) => [...ps, { id: nextPanelId.current++, name: "", file: null }])}>
               Add panel
             </button>
             <button onClick={submit} disabled={busy || !recipe || !prices}>
@@ -216,6 +217,7 @@ export function SignalsWorkbench() {
   const [methods, setMethods] = useState<SignalMethod[]>([]);
   const [detail, setDetail] = useState<SignalExperimentDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const scrollToEvidence = useRef(false);
 
   const reload = () =>
     api
@@ -239,6 +241,14 @@ export function SignalsWorkbench() {
       setError(apiMessage(err));
     }
   }
+
+  // The Evidence part sits above Run, so after a run the user would otherwise see nothing change.
+  useEffect(() => {
+    if (detail && scrollToEvidence.current) {
+      scrollToEvidence.current = false;
+      document.getElementById("signals-evidence")?.scrollIntoView();
+    }
+  }, [detail]);
 
   function changed(d: SignalExperimentDetail) {
     setDetail(d);
@@ -299,7 +309,13 @@ export function SignalsWorkbench() {
 
       {detail && <Evidence key={detail.experiment_id} detail={detail} onDecided={changed} />}
       <Compare experiments={experiments} />
-      <Run methods={methods} onRan={changed} />
+      <Run
+        methods={methods}
+        onRan={(d) => {
+          scrollToEvidence.current = true;
+          changed(d);
+        }}
+      />
     </div>
   );
 }

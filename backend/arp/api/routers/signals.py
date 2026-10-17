@@ -185,21 +185,21 @@ async def run(
     registry: Registry = Depends(_registry),
 ) -> ExperimentDetail:
     # Read the form by hand: the panel parts are named panel_<name>, a set FastAPI can't declare.
-    form = await request.form()
-    for key in ("recipe", "prices"):
-        if not isinstance(form.get(key), UploadFile):
-            raise HTTPException(422, detail=f"missing file part {key!r}")
-    panel_bytes = {
-        key.removeprefix("panel_"): await part.read()
-        for key, part in form.multi_items()
-        if key.startswith("panel_") and isinstance(part, UploadFile)
-    }
-    try:
-        return await run_in_threadpool(
-            _run_upload, await form["recipe"].read(), await form["prices"].read(), panel_bytes, registry
-        )
-    except ValueError as exc:
-        raise _http(exc) from exc
-    except Exception as exc:  # may carry library or database detail: the type only, never a traceback
-        logger.exception("signals run failed")
-        raise HTTPException(500, detail=f"Run failed: {type(exc).__name__}") from exc
+    async with request.form() as form:
+        for key in ("recipe", "prices"):
+            if not isinstance(form.get(key), UploadFile):
+                raise HTTPException(422, detail=f"missing file part {key!r}")
+        panel_bytes = {
+            key.removeprefix("panel_"): await part.read()
+            for key, part in form.multi_items()
+            if key.startswith("panel_") and isinstance(part, UploadFile)
+        }
+        try:
+            return await run_in_threadpool(
+                _run_upload, await form["recipe"].read(), await form["prices"].read(), panel_bytes, registry
+            )
+        except ValueError as exc:
+            raise _http(exc) from exc
+        except Exception as exc:  # may carry library or database detail: the type only, never a traceback
+            logger.exception("signals run failed")
+            raise HTTPException(500, detail=f"Run failed: {type(exc).__name__}") from exc
