@@ -15,7 +15,7 @@ criteria below are checked by tests and agents the implementer cannot see or edi
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-1 |       |      |                          | holdout    |
+| AC-1 |       |      |                          | unit       |
 | AC-2 |       |      |                          | evaluator  |
 
 Must not change: <behaviours that stay as they are, each also an AC row>
@@ -29,9 +29,11 @@ Must not change: <behaviours that stay as they are, each also an AC row>
 - **IDs are stable.** Never renumber. Retire a row with ~~strikethrough~~ and the reason.
 - **Regressions are rows too.** Behaviour that must stay the same gets its own ID.
 - **"Checked by"** is one of:
-  - `holdout`: a deterministic test in the private holdout repo. The default.
+  - `holdout`: a deterministic test in the private holdout repo. The default once that repo and
+    its CI job exist; until then write `unit` and list the row as owed in the PR.
   - `evaluator`: a separate agent checks it by using the running app (UI flows, wording, layout).
-  - `unit`: the implementer's own tests are enough. Only for low-stakes rows.
+  - `unit`: the implementer's own tests are enough. Only for low-stakes rows, or until the
+    holdout repo exists.
 
 ## Who does what
 

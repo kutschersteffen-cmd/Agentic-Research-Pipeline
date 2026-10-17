@@ -6,6 +6,10 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, labeled, unlabeled]
 
+permissions:
+  contents: read
+  pull-requests: write  # to drop the override label on a new push
+
 jobs:
   test-guard:
     name: No tests removed
@@ -18,6 +22,13 @@ jobs:
       - name: Self-test the guard
         run: python3 .github/scripts/test_guard.py --selftest
 
+      # The label approves the commits the owner saw, not later ones: a new push drops it.
+      - name: Drop the override on a new push
+        if: ${{ github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'tests-weakened-ok') }}
+        run: gh pr edit ${{ github.event.pull_request.number }} --remove-label tests-weakened-ok
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - name: Compare test counts with main
-        if: ${{ !contains(github.event.pull_request.labels.*.name, 'tests-weakened-ok') }}
+        if: ${{ github.event.action == 'synchronize' || !contains(github.event.pull_request.labels.*.name, 'tests-weakened-ok') }}
         run: python3 .github/scripts/test_guard.py origin/${{ github.base_ref }}
