@@ -125,6 +125,9 @@ The gaps ponytail leaves from `karpathy-guidelines`. Where they clash, these win
 - API contract: after changing a request or response model, run `cd backend && python scripts/export_openapi.py`
   then `cd frontend && npm run gen:api`, fix the type errors `tsc -b` reports, and commit both generated files.
   A new `request<T>()` against an endpoint with a response model gets a line in `frontend/src/api/contract.ts`.
+- Browser flow (cloud session): `bash .claude/hooks/ensure-deps.sh postgres && bash backend/scripts/e2e_stack.sh up`,
+  then `cd backend && ARP_E2E_URL=http://localhost:5173 ARP_CHROMIUM_PATH=$(ls -d /opt/pw-browsers/chromium-*/chrome-linux/chrome | head -1) pytest -m e2e tests/e2e`;
+  `e2e_stack.sh down` when done. CI runs it as the "E2E (browser)" job.
 - Dependencies install on demand: run `bash .claude/hooks/ensure-deps.sh backend` (or `frontend`,
   `postgres`) before running tests by hand. It takes about 1 s when already installed. `/install-deps`
   installs everything in the background.
