@@ -6,6 +6,7 @@ from dataclasses import field as dc_field
 from datetime import date
 from typing import TYPE_CHECKING
 
+from arp.checks.rules import evaluate_rules
 from arp.schemas.common import CompanyRef, SourceDocument
 from arp.schemas.datapoints import (
     CheckOutcome,
@@ -111,7 +112,7 @@ async def check_record(
         if spec is None:
             out.append(field)
             continue
-        checks = await run_checks(spec, field, ctx, model_check=model_check)
+        checks = [*await run_checks(spec, field, ctx, model_check=model_check), *evaluate_rules(spec, field, ctx)]
         update: dict = {"checks": checks}
         failing = [r for r in checks if is_failing(r)]
         if failing:
