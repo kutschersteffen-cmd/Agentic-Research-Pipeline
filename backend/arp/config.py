@@ -148,6 +148,14 @@ class Settings(BaseSettings):
         "(~0.57 GB) and scoring 40 chunks took ~47 s on a 4-core CPU; if it can't load, retrieval order is kept.",
     )
     rerank_candidates: int = Field(default=40, description="How many top-ranked chunks the reranker rescoring sees.")
+    # Cloud Run GPU services (arp/compute/), set up by scripts/gcp/setup_compute.sh. Empty = compute locally.
+    compute_parse_url: str | None = Field(default=None, description="arp-parse service URL: PDF parsing on a GPU.")
+    compute_models_url: str | None = Field(default=None, description="arp-models service URL: rerank and embeddings.")
+    compute_bucket: str | None = Field(default=None, description="Cloud Storage bucket PDFs are uploaded to for parsing.")
+    # str, not Path: an empty env value must stay empty (Path("") is ".").
+    compute_credentials_file: str | None = Field(
+        default=None, description="Absolute path to the arp-client service-account JSON key."
+    )
     evidence_max_chunks: int = Field(default=12, description="Chunks of evidence handed to the extractor per field.")
     extraction_group_size: int = Field(
         default=0, ge=0,
