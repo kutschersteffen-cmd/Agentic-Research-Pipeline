@@ -141,7 +141,8 @@ next `main` deploy; the version and model headers keep a mismatched branch out o
 - a budget named `arp-compute` of `${BUDGET_AMOUNT:-50}` per month, in the billing account's currency, on
   the project's billing account, alerting billing admins at 50, 90 and 100 %.
 
-It then deploys once, writes the client key and prints the `.env` lines and repo variables. It is
+It then deploys once from the checked-out commit (image tag = first 7 characters of `git rev-parse HEAD`,
+the same rule as the workflow), writes the client key and prints the `.env` lines and repo variables. It is
 idempotent: a re-run creates nothing that exists (bucket, repo, accounts, binding, budget) and reuses the
 key file.
 
@@ -160,8 +161,9 @@ order (the CUDA libraries come from the PyTorch wheels), and the exact gcloud co
 
 `unit` rows need stubbed Google auth and storage, which only the implementer's test seams provide, so
 they stay `unit` rather than `holdout` *(my call)*. `evaluator` rows run on the owner's project in this
-order: `setup_compute.sh`, the repo variables set, the deploy workflow dispatched on the PR head, then the
-checks.
+order: `setup_compute.sh` run from a checkout of the PR head SHA S, the repo variables set, then the checks.
+(`workflow_dispatch` only runs workflow files on the default branch, so the workflow cannot deploy a PR
+head before merge; its trigger and gating are covered statically by AC-38 and AC-49.)
 
 | ID    | Given | When | Then (observable, exact) | Checked by |
 |-------|-------|------|--------------------------|------------|
@@ -200,8 +202,8 @@ checks.
 | AC-33 | the deployed services | a `POST` with no `Authorization` header to each service URL | HTTP 403 | evaluator |
 | AC-34 | both services at 0 instances, idle ≥ 20 min, no other traffic | 5 `POST`s with no `Authorization` header | `run.googleapis.com/container/instance_count` stays 0 over the next 5 min | evaluator |
 | AC-35 | the deployed services idle ≥ 20 min | the first rerank call from the backend | the cloud result is returned within 120 s; no fallback WARNING logged | evaluator |
-| AC-36 | the deployed services | `gcloud run services describe` for each | region `europe-west1`; min instances 0; max instances 2 / 1; concurrency 1 / 8; timeout 3600 s / 300 s; 1 `nvidia-l4` GPU; no `allUsers` invoker (`arp-parse` / `arp-models`) | evaluator |
-| AC-37 | GCP repo variables set | the deploy workflow dispatched on PR head SHA S | each service's latest ready revision runs image tag = the first 7 characters of S | evaluator |
+| AC-36 | the deployed services | `gcloud run services describe` and `gcloud run services get-iam-policy` for each | region `europe-west1`; min instances 0; max instances 2 / 1; concurrency 1 / 8; timeout 3600 s / 300 s; 1 `nvidia-l4` GPU; `get-iam-policy` lists no `allUsers` member (`arp-parse` / `arp-models`) | evaluator |
+| AC-37 | `setup_compute.sh` run from a checkout of PR head SHA S | `gcloud run services describe` for each service | the latest ready revision runs image tag = the first 7 characters of S | evaluator |
 | AC-38 | `deploy-compute.yml` | parsed as YAML | the deploy steps run only when all four GCP variables are non-empty; otherwise a step echoes `::warning::` and the job has no failing step | unit |
 | AC-39 | parse settings set; x.pdf not in the store; `/parse` stub answers 200 with text `T` | x.pdf is parsed through the store twice | exactly 1 `POST /parse`; the store entry for x.pdf has text `T` and `parser_version` = local `parser_version()` | unit |
 | AC-40 | `/parse` never answers; read timeout 1 s; local parser stubbed | 4 PDFs are parsed concurrently | exactly 2 `POST /parse` sent; all 4 return the local result | unit |

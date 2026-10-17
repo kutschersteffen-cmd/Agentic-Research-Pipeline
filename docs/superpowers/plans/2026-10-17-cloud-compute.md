@@ -239,14 +239,14 @@ def test_healthz_answers_during_parse(c) # Review 5
   4. Creates the service accounts. `arp-compute` gets `storage.objectViewer` on the bucket. `arp-client` gets `storage.objectCreator` and `storage.objectViewer` on the bucket. `arp-deployer` gets `run.admin`, `cloudbuild.builds.editor`, `artifactregistry.writer`, `storage.admin` and `iam.serviceAccountUser` on `arp-compute`.
   5. Creates the WIF pool `github` and provider `github`, with the condition `assertion.repository == '<owner/repo from git remote>'`, and gives `arp-deployer` the `workloadIdentityUser` role for that repo.
   6. Creates the budget, unless one named `arp-compute` exists on the billing account from `gcloud billing projects describe`. The amount is `${BUDGET_AMOUNT:-50}` in that account's currency, with thresholds at 0.5, 0.9 and 1.0.
-  7. Runs the first deploy with `deploy_compute.sh`, using `TAG=$(git rev-parse --short=7 HEAD)`.
+  7. Runs the first deploy with `deploy_compute.sh`, using `TAG=$(git rev-parse HEAD | cut -c1-7)` (AC-37).
   8. Gives `arp-client` `run.invoker` on both services.
   9. Creates the key `backend/.gcp/arp-client.json` unless it already exists. If an organisation policy blocks key creation, it prints that the key is the blocker and stops.
   10. Prints the `.env` lines (`ARP_COMPUTE_PARSE_URL`, `ARP_COMPUTE_MODELS_URL`, `ARP_COMPUTE_BUCKET`, `ARP_COMPUTE_CREDENTIALS_FILE=<absolute key path>`, `ARP_RERANK_ENABLED=true`) and the four repo variables.
-- [ ] **Step 6: Write `deploy-compute.yml`** to make the Step 1 tests pass. It has `permissions: {id-token: write, contents: read}` and `concurrency: deploy-compute`. When any `vars.GCP_*` is empty it logs `::warning::GCP repo variables not set; skipping the compute deploy`. Otherwise it runs `google-github-actions/auth@v2` (WIF) and `setup-gcloud@v2`, then `deploy_compute.sh` with `TAG=${GITHUB_SHA::7}` (AC-37).
+- [ ] **Step 6: Write `deploy-compute.yml`** to make the Step 1 tests pass. It has `permissions: {id-token: write, contents: read}` and `concurrency: deploy-compute`. When any `vars.GCP_*` is empty it logs `::warning::GCP repo variables not set; skipping the compute deploy`. Otherwise it runs `google-github-actions/auth@v2` (WIF) and `setup-gcloud@v2`, then `deploy_compute.sh` with `TAG=${GITHUB_SHA::7}`.
 - [ ] **Step 7: Verify locally.**
   - `cd backend && python3 -m pytest tests/test_deploy_compute_workflow.py -q` passes.
   - `bash -n scripts/gcp/*.sh` exits 0.
   - `shellcheck scripts/gcp/*.sh` shows no errors, if shellcheck is installed.
 - [ ] **Step 8: Commit** `feat(compute): Cloud Run image, one-time setup and auto-deploy`
-- [ ] **Step 9: Owner, once.** Run `bash scripts/gcp/setup_compute.sh <project-id>`, paste the printed lines into `backend/.env` and the repo variables, then run `pip install -e backend` (the pins). The evaluator then dispatches the deploy workflow on the PR head and checks the `evaluator` rows.
+- [ ] **Step 9: Owner, once.** Run `bash scripts/gcp/setup_compute.sh <project-id>`, paste the printed lines into `backend/.env` and the repo variables, then run `pip install -e backend` (the pins). For evaluation, the evaluator runs the setup script from a checkout of the PR head, then checks the `evaluator` rows. `workflow_dispatch` cannot deploy a PR head before merge.
