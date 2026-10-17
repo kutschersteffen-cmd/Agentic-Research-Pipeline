@@ -1,6 +1,17 @@
 import type { FieldDefinition } from "../types";
 
-export function SchemaFieldsEditor({ fields, onChange }: { fields: FieldDefinition[]; onChange: (fields: FieldDefinition[]) => void }) {
+/** `markers`: a read-only rules note per field id (from the Rules list); clicking one calls `onMarkerClick`. */
+export function SchemaFieldsEditor({
+  fields,
+  onChange,
+  markers = {},
+  onMarkerClick,
+}: {
+  fields: FieldDefinition[];
+  onChange: (fields: FieldDefinition[]) => void;
+  markers?: Record<string, string>;
+  onMarkerClick?: (fieldId: string) => void;
+}) {
   const update = (idx: number, patch: Partial<FieldDefinition>) =>
     onChange(fields.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
 
@@ -9,6 +20,11 @@ export function SchemaFieldsEditor({ fields, onChange }: { fields: FieldDefiniti
     {fields.map((f, idx) => (
       <div className="activity-editor" key={f.field_id}>
         <input aria-label={`Field ${idx + 1} name`} value={f.name} onChange={(e) => update(idx, { name: e.target.value })} />
+        {markers[f.field_id] && (
+          <button type="button" className="secondary rules-marker" onClick={() => onMarkerClick?.(f.field_id)}>
+            {markers[f.field_id]}
+          </button>
+        )}
         <label className="field-label">
           Description
           <textarea rows={2} value={f.description} onChange={(e) => update(idx, { description: e.target.value })} />

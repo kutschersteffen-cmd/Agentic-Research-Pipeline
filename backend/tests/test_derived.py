@@ -102,6 +102,13 @@ def test_input_with_failing_check_routes_derived():
     assert evaluate_derived(spec(all_of=["a"]), by_id).review_reasons == [ReasonCode.CHECK_FAILED]
 
 
+def test_input_with_failing_rule_routes_derived():
+    # A rule failure sets no review_reason on its row; the failing check alone still holds the derived row back.
+    bad = CheckResult(check_id="rule.R1", layer=3, outcome=CheckOutcome.FAIL, severity=Severity.WARN)
+    by_id = {"a": row("a", T).model_copy(update={"checks": [bad]})}
+    assert evaluate_derived(spec(all_of=["a"]), by_id).review_reasons == [ReasonCode.CHECK_FAILED]
+
+
 def _schema(rule, data_type=FieldDataType.BOOLEAN):
     a = FieldDefinition(field_id="a", name="a", description="", data_type=FieldDataType.BOOLEAN, extraction_instructions="")
     d = FieldDefinition(field_id="d", name="d", description="", data_type=data_type, extraction_instructions="", derived_rule=rule)

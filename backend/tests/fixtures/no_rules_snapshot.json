@@ -1,0 +1,1052 @@
+[
+  {
+    "checks": [
+      {
+        "check_id": "format.data_type",
+        "layer": 1,
+        "outcome": "pass",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "format.allowed_values",
+        "layer": 1,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.in_span",
+        "layer": 2,
+        "outcome": "pass",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.caption_scale",
+        "layer": 2,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.row_label",
+        "layer": 2,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.range",
+        "layer": 3,
+        "outcome": "fail",
+        "severity": "block",
+        "detail": "120 above max_value 100",
+        "threshold_ref": "s1:v1:check_config.max_value"
+      },
+      {
+        "check_id": "plausibility.sign",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.percentage",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.part_of_whole",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.sum_identity",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "le_of",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "sum_target",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "round_trip",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "unit not readable; cannot reverse the conversion",
+        "threshold_ref": null
+      }
+    ],
+    "route": "review",
+    "route_reasons": [
+      "check_failed",
+      "check:plausibility.range"
+    ]
+  },
+  {
+    "checks": [
+      {
+        "check_id": "format.data_type",
+        "layer": 1,
+        "outcome": "pass",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "format.allowed_values",
+        "layer": 1,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.in_span",
+        "layer": 2,
+        "outcome": "pass",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.caption_scale",
+        "layer": 2,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.row_label",
+        "layer": 2,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.range",
+        "layer": 3,
+        "outcome": "pass",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.sign",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.percentage",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.part_of_whole",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.sum_identity",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "le_of",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "sum_target",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "round_trip",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "unit not readable; cannot reverse the conversion",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "prior.comparative_jump",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "prior.last_decided",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "prior.rejected",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "consistency.entity",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "info",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "consistency.period",
+        "layer": 4,
+        "outcome": "fail",
+        "severity": "warn",
+        "detail": "period 2023-12-31 not reported by d1",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "cross_source",
+        "layer": 5,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      }
+    ],
+    "route": "review",
+    "route_reasons": [
+      "check_failed",
+      "check:consistency.period"
+    ]
+  },
+  {
+    "checks": [
+      {
+        "check_id": "format.data_type",
+        "layer": 1,
+        "outcome": "pass",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "format.allowed_values",
+        "layer": 1,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.in_span",
+        "layer": 2,
+        "outcome": "pass",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.caption_scale",
+        "layer": 2,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.row_label",
+        "layer": 2,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.range",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.sign",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.percentage",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.part_of_whole",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.sum_identity",
+        "layer": 3,
+        "outcome": "fail",
+        "severity": "warn",
+        "detail": "total 200 vs parts 30+160=190",
+        "threshold_ref": "total:v1:check_config.sum_tolerance"
+      },
+      {
+        "check_id": "le_of",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "sum_target",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "round_trip",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "unit not readable; cannot reverse the conversion",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "prior.comparative_jump",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "prior.last_decided",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "prior.rejected",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "consistency.entity",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "info",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "consistency.period",
+        "layer": 4,
+        "outcome": "pass",
+        "severity": "info",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "cross_source",
+        "layer": 5,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      }
+    ],
+    "route": "review",
+    "route_reasons": [
+      "check_failed",
+      "check:plausibility.sum_identity"
+    ]
+  },
+  {
+    "checks": [
+      {
+        "check_id": "format.data_type",
+        "layer": 1,
+        "outcome": "pass",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "format.allowed_values",
+        "layer": 1,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.in_span",
+        "layer": 2,
+        "outcome": "pass",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.caption_scale",
+        "layer": 2,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.row_label",
+        "layer": 2,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.range",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.sign",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.percentage",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.part_of_whole",
+        "layer": 3,
+        "outcome": "pass",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.sum_identity",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "le_of",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "sum_target",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "round_trip",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "unit not readable; cannot reverse the conversion",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "prior.comparative_jump",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "prior.last_decided",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "prior.rejected",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "consistency.entity",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "info",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "consistency.period",
+        "layer": 4,
+        "outcome": "pass",
+        "severity": "info",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "cross_source",
+        "layer": 5,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      }
+    ],
+    "route": "auto_accept",
+    "route_reasons": []
+  },
+  {
+    "checks": [
+      {
+        "check_id": "format.data_type",
+        "layer": 1,
+        "outcome": "pass",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "format.allowed_values",
+        "layer": 1,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.in_span",
+        "layer": 2,
+        "outcome": "pass",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.caption_scale",
+        "layer": 2,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.row_label",
+        "layer": 2,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.range",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.sign",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.percentage",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.part_of_whole",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.sum_identity",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "le_of",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "sum_target",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "round_trip",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "unit not readable; cannot reverse the conversion",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "prior.comparative_jump",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "prior.last_decided",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "prior.rejected",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "consistency.entity",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "info",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "consistency.period",
+        "layer": 4,
+        "outcome": "pass",
+        "severity": "info",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "cross_source",
+        "layer": 5,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      }
+    ],
+    "route": "auto_accept",
+    "route_reasons": []
+  },
+  {
+    "checks": [
+      {
+        "check_id": "format.data_type",
+        "layer": 1,
+        "outcome": "pass",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "format.allowed_values",
+        "layer": 1,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.in_span",
+        "layer": 2,
+        "outcome": "pass",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.caption_scale",
+        "layer": 2,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.row_label",
+        "layer": 2,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.range",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.sign",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.percentage",
+        "layer": 3,
+        "outcome": "fail",
+        "severity": "block",
+        "detail": "140 outside 0-100",
+        "threshold_ref": "builtin:percentage_0_100"
+      },
+      {
+        "check_id": "plausibility.part_of_whole",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.sum_identity",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "le_of",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "sum_target",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "round_trip",
+        "layer": 3,
+        "outcome": "pass",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      }
+    ],
+    "route": "review",
+    "route_reasons": [
+      "check_failed",
+      "check:plausibility.percentage"
+    ]
+  },
+  {
+    "checks": [
+      {
+        "check_id": "format.data_type",
+        "layer": 1,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "format.allowed_values",
+        "layer": 1,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.in_span",
+        "layer": 2,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.caption_scale",
+        "layer": 2,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "numeric.row_label",
+        "layer": 2,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.range",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.sign",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.percentage",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.part_of_whole",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "plausibility.sum_identity",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "le_of",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "sum_target",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "round_trip",
+        "layer": 3,
+        "outcome": "not_applicable",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "prior.comparative_jump",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "prior.last_decided",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "prior.rejected",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "consistency.entity",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "info",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "consistency.period",
+        "layer": 4,
+        "outcome": "not_applicable",
+        "severity": "info",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "cross_source",
+        "layer": 5,
+        "outcome": "not_applicable",
+        "severity": "warn",
+        "detail": "",
+        "threshold_ref": null
+      }
+    ],
+    "route": "review",
+    "route_reasons": [
+      "high_risk_not_found"
+    ]
+  },
+  {
+    "checks": [
+      {
+        "check_id": "format.data_type",
+        "layer": 1,
+        "outcome": "pass",
+        "severity": "block",
+        "detail": "",
+        "threshold_ref": null
+      },
+      {
+        "check_id": "format.allowed_values",
+        "layer": 1,
+        "outcome": "fail",
+        "severity": "block",
+        "detail": "'c' not in allowed_values",
+        "threshold_ref": null
+      }
+    ],
+    "route": "review",
+    "route_reasons": [
+      "check_failed",
+      "check:format.allowed_values",
+      "below_auto_accept_min"
+    ]
+  }
+]
