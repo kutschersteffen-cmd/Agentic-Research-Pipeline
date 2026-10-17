@@ -22,6 +22,7 @@ from arp.signal_lab.adapters.fundamentals import CsvFundamentalSource
 from arp.signal_lab.adapters.revisions import CsvRevisionSource
 from arp.signal_lab.adapters.transcripts import CsvTranscriptSource
 from arp.signal_lab.baselines import momentum_panel
+from arp.signal_lab.compare import compare_experiments
 from arp.signal_lab.cutoffs import load_cutoff_table
 from arp.signal_lab.evidence import EvidenceReport, evaluate_signal, sentiment_spec
 from arp.signal_lab.methods import base as methods_base
@@ -161,6 +162,24 @@ def signals_decide(
     except ValueError as exc:
         raise _fail(exc) from exc
     typer.echo(f"{record.experiment_id}: {record.decision} by {record.decided_by}")
+
+
+@signals_app.command("compare")
+def signals_compare(
+    a: str = typer.Argument(..., help="First experiment id."),
+    b: str = typer.Argument(..., help="Second experiment id."),
+    confidence: float = typer.Option(0.95, help="Confidence before the correction for the number of comparisons."),
+) -> None:
+    """Ranks two registered experiments on their common post-cutoff months, or says the data cannot separate them."""
+    try:
+        result = compare_experiments(a, b, Registry(_run_store()), confidence=confidence)
+    except ValueError as exc:
+        raise _fail(exc) from exc
+    typer.echo(
+        f"{result.verdict} ({result.months} common post-cutoff months, corrected for {result.n_comparisons} comparisons)"
+    )
+    if result.reason:
+        typer.echo(result.reason)
 
 
 def _text_store() -> TextStore:
