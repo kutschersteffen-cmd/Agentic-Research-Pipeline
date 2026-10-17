@@ -29,11 +29,12 @@ Must not change: <behaviours that stay as they are, each also an AC row>
 - **IDs are stable.** Never renumber. Retire a row with ~~strikethrough~~ and the reason.
 - **Regressions are rows too.** Behaviour that must stay the same gets its own ID.
 - **"Checked by"** is one of:
-  - `holdout`: a deterministic test in the private holdout repo. The default once that repo and
-    its CI job exist; until then write `unit` and list the row as owed in the PR.
+  - `holdout`: a deterministic test in the private `holdout` repo, written by the `test-writer`
+    skill. The default once the `HOLDOUT_TOKEN` secret is set (the Holdout acceptance job warns
+    while it's missing); until then write `unit` and list the row as owed in the PR.
   - `evaluator`: a separate agent checks it by using the running app (UI flows, wording, layout).
-  - `unit`: the implementer's own tests are enough. Only for low-stakes rows, or until the
-    holdout repo exists.
+  - `unit`: the implementer's own tests are enough. Only for low-stakes rows, or until
+    `HOLDOUT_TOKEN` is set.
   - `golden`: for AI output (extraction, ranking, summaries), which varies from run to run. "Then"
     is a score threshold on the golden set, never an exact value, for example
     `arp golden-set precision --schema <id> --cases <file> --documents-dir <dir> --min-precision 0.95`

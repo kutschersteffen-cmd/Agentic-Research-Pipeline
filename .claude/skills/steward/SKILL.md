@@ -18,6 +18,10 @@ Pick the highest tier any changed file falls in, add the label, and say why in o
 
 When unsure between two tiers, take the higher one. Never lower a label the owner set.
 
+When the PR implements a spec, put `Spec: <slug>` on its own line in the description (the spec file
+name without date and `.md`), so the Holdout acceptance job runs that spec's hidden tests. You never
+see those tests: a failure reads `<slug> AC-n: fail`; fix the behaviour the row describes.
+
 ## 2. Stop after three failed fix rounds
 
 A round is one pushed fix for a failing check. After the third pushed fix on which the **same check**
