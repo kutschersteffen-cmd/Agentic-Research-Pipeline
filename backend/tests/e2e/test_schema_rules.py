@@ -28,6 +28,7 @@ R5_SENTENCE = "Green capex share should equal Green capex ÷ Total capex × 100,
 R1_SENTENCE = "When Halving target is YES: needs Target reduction >= 50 and Target year <= 2030."
 R2_SENTENCE = "When Net zero by 2050 is YES: needs Net-zero target to be YES."
 R4_SENTENCE = "When Scope 1 target is YES: Target type must not be combined."
+RY_SENTENCE = "When Halving target is YES: needs Target year <= 2040."
 
 
 @pytest.fixture
@@ -130,26 +131,37 @@ def test_ac39_waiting_suggestion_shows_sentence_and_actions(page):
         assert it.get_by_role("button", name=name, exact=True).is_visible()
 
 
-def test_ac40_to_ac42_confirm_counts_waiting_suggestions(page):
+def test_ac40_two_waiting_disable_confirm(page):
     open_schema(page, schema(), suggestions(("ambition", R1()), ("nz2050", R2())))
     assert confirm(page).inner_text() == "2 rule suggestions waiting"
     assert confirm(page).is_disabled()
 
+
+def test_ac41_accepting_one_leaves_one_waiting(page):
+    open_schema(page, schema(), suggestions(("ambition", R1()), ("nz2050", R2())))
     item(page, R1_SENTENCE).get_by_role("button", name="Accept").click()
     assert confirm(page).inner_text() == "1 rule suggestion waiting"
     assert confirm(page).is_disabled()
 
+
+def test_ac42_none_waiting_enables_confirm(page):
+    open_schema(page, schema(), suggestions(("ambition", R1()), ("nz2050", R2())))
+    item(page, R1_SENTENCE).get_by_role("button", name="Accept").click()
     item(page, R2_SENTENCE).get_by_role("button", name="Drop").click()
     assert confirm(page).inner_text() == f"Confirm schema ({len(F['fields'])} fields)"
     assert confirm(page).is_enabled()
 
 
-def test_ac43_ac44_accept_adds_the_helper_field_once(page):
+def test_ac43_accept_adds_the_helper_field_once(page):
     open_schema(page, schema(drop=["total"]), suggestions(("share", R5()), helpers=["total"]))
     assert "Total capex" not in field_names(page)
-
     item(page, R5_SENTENCE).get_by_role("button", name="Accept").click()
     assert field_names(page).count("Total capex") == 1
+
+
+def test_ac44_accepted_item_shows_accepted_edit_drop(page):
+    open_schema(page, schema(drop=["total"]), suggestions(("share", R5()), helpers=["total"]))
+    item(page, R5_SENTENCE).get_by_role("button", name="Accept").click()
     it = item(page, R5_SENTENCE)
     assert it.get_by_text("Accepted", exact=True).is_visible()
     assert it.get_by_role("button", name="Edit").is_visible()
@@ -290,3 +302,39 @@ def test_ac71_accepted_rule_and_helper_reach_the_run(page):
     assert ambition["rules"] == [R1().model_dump(mode="json")]
     assert [f["field_id"] for f in sent["fields"]].count("pct") == 1
 
+
+
+def test_items_keep_arrival_order_within_a_field(page):
+    open_schema(page, schema(), suggestions(("ambition", R1()), ("ambition", R_YEAR)))
+    item(page, RY_SENTENCE).get_by_role("button", name="Accept").click()
+    texts = rules_list(page).get_by_role("listitem").all_inner_texts()
+    assert [i for i, t in enumerate(texts) if R1_SENTENCE in t] < [i for i, t in enumerate(texts) if RY_SENTENCE in t]
+
+
+def add_rule(page, checked, kind):
+    page.get_by_role("button", name="+ Add a rule").click()
+    rules = rules_list(page)
+    rules.get_by_label("Checked field").select_option(label=checked)
+    rules.get_by_label("Kind").select_option(kind)
+    return rules
+
+
+def test_editor_save_disabled_for_computed_on_a_non_numeric_field(page):
+    open_schema(page, schema(), suggestions())
+    rules = add_rule(page, "Halving target", "computed")
+    rules.get_by_label("Input 1").select_option(label="Green capex")
+    rules.get_by_label("Input 2").select_option(label="Total capex")
+    assert rules.get_by_role("button", name="Save").is_disabled()
+    rules.get_by_label("Checked field").select_option(label="Green capex share")  # control: numeric field
+    rules.get_by_label("Input 1").select_option(label="Green capex")
+    rules.get_by_label("Input 2").select_option(label="Total capex")
+    assert rules.get_by_role("button", name="Save").is_enabled()
+
+
+def test_editor_threshold_leaves_out_unit_less_currency_fields(page):
+    unitless = {**schema(), "fields": [{**f, "unit": None} if f["field_id"] == "green" else f for f in F["fields"]]}
+    open_schema(page, unitless, suggestions())
+    rules = add_rule(page, "Halving target", "threshold")
+    options = rules.get_by_label("Condition 1 field").locator("option").all_inner_texts()
+    assert "Green capex" not in options
+    assert "Total capex" in options

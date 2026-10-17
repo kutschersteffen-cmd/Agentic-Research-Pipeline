@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { ProposedTag } from "./ProposedTag";
 import { blankRule, RuleEditor } from "./RuleEditor";
 import { ruleInputs, ruleSentence } from "../lib/ruleSentence";
 import type { DataPointSchema, FieldDefinition, FieldRule, RuleSuggestion } from "../types";
@@ -30,12 +31,18 @@ export function ruleMarkers(schema: DataPointSchema, waiting: RuleSuggestion[]):
 /** Accepted rules and waiting suggestions: by checked field in schema order, then the order they arrived or were added in. */
 export function RulesList({ schema, waiting, onChange, onSuggestAgain, busy }: Props) {
   const [editing, setEditing] = useState<string | null>(null);
+  // Arrival order by rule_id: the first render's rules, then each id as it first shows up. Accepting keeps
+  // the rule_id, so an accepted suggestion keeps its place among the field's items.
+  const arrived = useRef<string[]>([]);
   const have = (id: string) => schema.fields.some((f) => f.field_id === id);
   const pos = (id: string) => (have(id) ? schema.fields.findIndex((f) => f.field_id === id) : schema.fields.length);
-  const items: Item[] = [
+  const unsorted: Item[] = [
     ...schema.fields.flatMap((f) => (f.rules ?? []).map((rule) => ({ key: `a:${rule.rule_id}`, fieldId: f.field_id, rule }))),
     ...waiting.map((s) => ({ key: `w:${s.rule.rule_id}`, fieldId: s.field_id, rule: s.rule, waiting: s })),
-  ].sort((a, b) => pos(a.fieldId) - pos(b.fieldId));
+  ];
+  for (const x of unsorted) if (!arrived.current.includes(x.rule.rule_id)) arrived.current.push(x.rule.rule_id);
+  const seq = (x: Item) => arrived.current.indexOf(x.rule.rule_id);
+  const items = unsorted.sort((a, b) => pos(a.fieldId) - pos(b.fieldId) || seq(a) - seq(b));
   /** Helper fields a suggestion would still add: the ones its rule names that the schema lacks. */
   const adds = (s: RuleSuggestion) => s.helper_fields.filter((h) => !have(h.field_id) && (h.field_id === s.field_id || ruleInputs(s.rule).includes(h.field_id)));
   const fieldsFor = (x: Item): FieldDefinition[] => (x.waiting ? [...schema.fields, ...adds(x.waiting)] : schema.fields);
@@ -69,13 +76,16 @@ export function RulesList({ schema, waiting, onChange, onSuggestAgain, busy }: P
       {!items.length && editing !== "new" && !busy && <p className="help-text">No rules yet. A rule only flags an answer for review; it never changes it.</p>}
       <ul className="rules-list" aria-label="Rules">
         {items.map((x) => (
-          <li key={x.key} className={x.waiting ? "rules-item rules-waiting" : "rules-item"} data-field={x.fieldId} data-reads={ruleInputs(x.rule).join(" ")} tabIndex={-1}>
+          <li key={x.key} className={x.waiting ? "rules-item proposed" : "rules-item"} data-field={x.fieldId} data-reads={ruleInputs(x.rule).join(" ")} tabIndex={-1}>
             {editing === x.key ? (
               <RuleEditor fields={fieldsFor(x)} fieldId={x.fieldId} rule={x.rule} onSave={(_, rule) => save(x, rule)} onCancel={() => setEditing(null)} />
             ) : (
               <>
                 <div className="rules-top">
-                  <span className="rules-kind">{x.rule.kind}</span>
+                  <span className="rules-kind">
+                    {x.rule.kind}
+                    {x.waiting && <ProposedTag>Waiting</ProposedTag>}
+                  </span>
                   <span className="rules-actions">
                     {x.waiting ? <button type="button" onClick={() => accept(x.waiting!)}>Accept</button> : <span className="rules-accepted">Accepted</span>}
                     <button type="button" className="secondary" onClick={() => setEditing(x.key)}>Edit</button>

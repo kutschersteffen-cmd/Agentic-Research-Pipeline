@@ -2063,16 +2063,14 @@ th[aria-sort="ascending"] .xbrl-sort, th[aria-sort="descending"] .xbrl-sort { co
 .company-page .split-review-main > .table-wrap { border: 1px solid var(--panel-border); padding: 0 var(--s-2); }
 .company-page .trail-panel { flex-basis: min(38%, 440px); height: auto; max-height: calc(100vh - 24px); }
 
-/* Schema screen Rules list: a suggestion waiting on the user carries the await orange; an accepted rule
-   drops it. Fields-editor markers are read-only links into this list. */
+/* Schema screen Rules list: a waiting suggestion is a proposed item (dashed, neutral box; only its
+   "Waiting" tag carries the signal); an accepted rule is solid. Fields-editor markers link into this list. */
 .rules-list { list-style: none; margin: var(--s-2) 0; padding: 0; display: grid; gap: var(--s-2); }
-.rules-item { border: 1px solid var(--panel-border); background: var(--panel); padding: var(--s-2) var(--s-3); display: grid; gap: var(--s-1_5); min-width: 0; font-size: var(--text-sm); scroll-margin-block: var(--s-8); }
-.rules-item.rules-waiting { border-color: var(--await-edge); background: var(--await); }
-/* Night's muted grey is 4:1 on the lime wash; mixing in ink lifts secondary text past 4.5:1 in both themes. */
-.rules-waiting :is(.rules-adds, .field-label, .muted) { color: color-mix(in srgb, var(--muted) 70%, var(--text)); }
+.rules-item:not(.proposed) { border: 1px solid var(--panel-border); background: var(--panel); }
+.rules-item { padding: var(--s-2) var(--s-3); display: grid; gap: var(--s-1_5); min-width: 0; font-size: var(--text-sm); scroll-margin-block: var(--s-8); }
 .rules-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s-2); }
-.rules-kind { font: 500 var(--text-xs) var(--font-mono); color: var(--muted); }
-.rules-waiting .rules-kind { color: var(--hi-ink); }
+.rules-kind { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); font: 500 var(--text-xs) var(--font-mono); color: var(--muted); }
+.rules-kind .proposed-tag { margin: 0; font-family: var(--font-display); }
 .rules-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1_5); }
 .rules-actions button, .rules-item .toolbar button, .rules-item .inline-fields button { margin-top: 0; padding: var(--s-1) var(--s-3); font-size: var(--text-sm); }
 .rules-accepted { color: var(--high); font-weight: 600; font-size: var(--text-sm); }

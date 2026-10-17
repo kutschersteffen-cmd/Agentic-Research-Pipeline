@@ -18,14 +18,15 @@ export function blankRule(kind: FieldRule["kind"], rule_id: string, when: RuleSc
 }
 
 /** Every input filled in and in range; the backend validates the rest when the schema is saved. */
-function complete(rule: FieldRule, fieldId: string): boolean {
+function complete(rule: FieldRule, fieldId: string, own: FieldDefinition | undefined): boolean {
   const ids = rule.kind === "threshold" ? rule.conditions.map((c) => c.field) : rule.kind === "computed" ? rule.inputs : [rule.field];
   if (!fieldId || ids.some((id) => !id) || ruleInputs(rule).includes(fieldId)) return false;
   if (rule.kind === "requires") return rule.equals !== "" && !(typeof rule.equals === "number" && Number.isNaN(rule.equals));
   if (rule.kind === "threshold") return rule.conditions.length > 0 && rule.conditions.every((c) => Number.isFinite(c.value));
   if (rule.kind === "series") return Number.isInteger(rule.years) && rule.years >= 1 && rule.years <= 5;
   if (rule.kind === "label") return rule.not_in.length > 0;
-  return Number.isFinite(rule.tolerance) && (rule.tolerance ?? 0) >= 0;
+  // A computed rule checks its own field against a number.
+  return NUMERIC.includes(own?.data_type ?? "") && Number.isFinite(rule.tolerance) && (rule.tolerance ?? 0) >= 0;
 }
 
 /** A field's possible values: YES / NO for a boolean, the allowed values for an enum. */
@@ -79,7 +80,7 @@ export function RuleEditor({ fields, fieldId: fixed, rule: initial, onSave, onCa
   const others = (types?: string[]) => fields.filter((f) => f.field_id !== fieldId && (!types || types.includes(f.data_type)));
   const whenOptions = valuesOf(byId(fieldId));
   if (rule.when != null && !whenOptions.some(([v]) => v === rule.when)) whenOptions.push([rule.when, String(rule.when)]);
-  const ok = complete(rule, fieldId);
+  const ok = complete(rule, fieldId, byId(fieldId));
 
   let params;
   if (rule.kind === "requires") {
@@ -103,7 +104,7 @@ export function RuleEditor({ fields, fieldId: fixed, rule: initial, onSave, onCa
       <>
         {rule.conditions.map((c, i) => (
           <div className="inline-fields" key={i}>
-            <FieldSelect label={`Condition ${i + 1} field`} value={c.field} options={others(NUMERIC)} onChange={(field) => cond(i, { field })} />
+            <FieldSelect label={`Condition ${i + 1} field`} value={c.field} options={others(NUMERIC).filter((f) => f.data_type !== "currency_amount" || f.unit)} onChange={(field) => cond(i, { field })} />
             <select aria-label={`Condition ${i + 1} operator`} value={c.op} onChange={(e) => cond(i, { op: e.target.value })}>
               {OPS.map((op) => <option key={op}>{op}</option>)}
             </select>
