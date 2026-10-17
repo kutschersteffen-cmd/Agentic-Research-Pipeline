@@ -6,7 +6,7 @@ import { useMe } from "../lib/reviewer";
 import { compareMessage, cutoffNotice, decisionBlocks, methodNote, windowLabel } from "../lib/signals";
 import type { SignalExperimentDetail, SignalExperimentSummary, SignalMethod } from "../types";
 
-const num = (v: number | null) => (v == null ? "—" : v.toFixed(3));
+const num = (v: number | null) => (v == null ? "—" : String(v));
 
 function Evidence({ detail, onDecided }: { detail: SignalExperimentDetail; onDecided: (d: SignalExperimentDetail) => void }) {
   const me = useMe();
