@@ -1,9 +1,18 @@
 import type { StageState } from "./stagedFlow";
-import type { DataPointSchema, ExtractionProfile, RunScoringKind, StepSettings } from "../types";
+import type { DataPointSchema, ExtractionProfile, RuleSuggestion, RunScoringKind, StepSettings } from "../types";
 
 export type BuiltIn = "financials" | "tnfd" | "transition_plan";
-/** `confirmed: false` = a drafted or edited schema the user has not confirmed yet; it cannot start. */
-export interface CustomJob { id: string; profile: "custom"; schema: DataPointSchema | null; request: string; confirmed?: boolean }
+/** `confirmed: false` = a drafted or edited schema the user has not confirmed yet; it cannot start.
+ *  `waiting`: rule suggestions not yet accepted or dropped; `dropped`: those dropped this session. */
+export interface CustomJob {
+  id: string;
+  profile: "custom";
+  schema: DataPointSchema | null;
+  request: string;
+  confirmed?: boolean;
+  waiting?: RuleSuggestion[];
+  dropped?: RuleSuggestion[];
+}
 export interface BuiltInJob { id: BuiltIn; profile: BuiltIn }
 export type Job = BuiltInJob | CustomJob;
 export interface JobSettings { stepSettings: StepSettings; templateId: string | null }

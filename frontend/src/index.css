@@ -2062,3 +2062,26 @@ th[aria-sort="ascending"] .xbrl-sort, th[aria-sort="descending"] .xbrl-sort { co
 .company-facts td:first-child, .company-facts .link-button { white-space: normal; overflow-wrap: anywhere; text-align: left; }
 .company-page .split-review-main > .table-wrap { border: 1px solid var(--panel-border); padding: 0 var(--s-2); }
 .company-page .trail-panel { flex-basis: min(38%, 440px); height: auto; max-height: calc(100vh - 24px); }
+
+/* Schema screen Rules list: a suggestion waiting on the user carries the await orange; an accepted rule
+   drops it. Fields-editor markers are read-only links into this list. */
+.rules-list { list-style: none; margin: var(--s-2) 0; padding: 0; display: grid; gap: var(--s-2); }
+.rules-item { border: 1px solid var(--panel-border); background: var(--panel); padding: var(--s-2) var(--s-3); display: grid; gap: var(--s-1_5); min-width: 0; font-size: var(--text-sm); scroll-margin-block: var(--s-8); }
+.rules-item.rules-waiting { border-color: var(--await-edge); background: var(--await); }
+/* Night's muted grey is 4:1 on the lime wash; mixing in ink lifts secondary text past 4.5:1 in both themes. */
+.rules-waiting :is(.rules-adds, .field-label, .muted) { color: color-mix(in srgb, var(--muted) 70%, var(--text)); }
+.rules-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s-2); }
+.rules-kind { font: 500 var(--text-xs) var(--font-mono); color: var(--muted); }
+.rules-waiting .rules-kind { color: var(--hi-ink); }
+.rules-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1_5); }
+.rules-actions button, .rules-item .toolbar button, .rules-item .inline-fields button { margin-top: 0; padding: var(--s-1) var(--s-3); font-size: var(--text-sm); }
+.rules-accepted { color: var(--high); font-weight: 600; font-size: var(--text-sm); }
+.rules-sentence { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+.rules-adds { margin: 0; color: var(--muted); font-size: var(--text-xs); }
+.rules-editor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 0 var(--s-2); }
+.rules-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.rules-fieldset .checkbox-label { margin: var(--s-1) 0; font-size: var(--text-sm); }
+.rules-marker { display: block; margin-top: var(--s-1_5); padding: var(--s-0_5) var(--s-2); font: 500 var(--text-xs) var(--font-mono); }
+@media (pointer: coarse) {
+  .rules-actions button, .rules-item .toolbar button, .rules-item .inline-fields button, .rules-marker { min-height: 44px; }
+}

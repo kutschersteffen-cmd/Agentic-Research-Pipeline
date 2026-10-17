@@ -207,6 +207,9 @@ export interface RuleSuggestions {
   helper_fields?: FieldDefinition[];
 }
 
+/** One suggested rule on the Schema screen, with the helper fields it would add (UI only, not served). */
+export interface RuleSuggestion { field_id: string; rule: FieldRule; helper_fields: FieldDefinition[] }
+
 export interface FieldDefinition {
   field_id: string;
   name: string;
