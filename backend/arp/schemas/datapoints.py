@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from arp.schemas.common import Citation, DocType, ProvenanceInfo, new_id, now_iso
 from arp.schemas.review import ReasonCode
+from arp.schemas.rules import ComputedRule, FieldRule, LabelRule, SeriesRule, ThresholdRule, rule_inputs
 
 
 class FieldDataType(StrEnum):
@@ -147,6 +148,7 @@ class FieldDefinition(BaseModel):
     derived_rule: DerivedRule | None = Field(
         default=None, description="Boolean fields only: computed from other fields by rule, with no model call."
     )
+    rules: list[FieldRule] = Field(default_factory=list, description="Typed conditions on this field's extracted value.")
 
     @model_validator(mode="after")
     def _derived_is_boolean(self) -> FieldDefinition:
@@ -189,6 +191,50 @@ class DataPointSchema(BaseModel):
                 if src.derived_rule:
                     raise ValueError(f"{f.field_id}: derived_rule input {i} is itself derived")
         return self
+
+    @model_validator(mode="after")
+    def _rules_valid(self) -> DataPointSchema:
+        by_id = {f.field_id: f for f in self.fields}
+        numeric = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
+        seen: set[str] = set()
+        for f in self.fields:
+            for r in f.rules:
+                bad = self._rule_problem(r, f, by_id, numeric)
+                if r.rule_id in seen:
+                    bad = "rule_id repeats"
+                seen.add(r.rule_id)
+                if bad:
+                    raise ValueError(f"rule {r.rule_id}: {bad}")
+        return self
+
+    @staticmethod
+    def _rule_problem(r, f: FieldDefinition, by_id: dict[str, FieldDefinition], numeric: set) -> str | None:
+        if f.derived_rule:
+            return f"{f.field_id} is a derived field"
+        names = rule_inputs(r)
+        for i in names:
+            src = by_id.get(i)
+            if src is None:
+                return f"unknown field {i}"
+            if i == f.field_id:
+                return f"names its own field {i}"
+            if src.derived_rule:
+                return f"names derived field {i}"
+        if isinstance(r, (ThresholdRule, SeriesRule, ComputedRule)):
+            for i in names + ([f.field_id] if isinstance(r, ComputedRule) else []):
+                if by_id[i].data_type not in numeric:
+                    return f"{i} is not a number, currency amount or percentage"
+        if isinstance(r, ThresholdRule):
+            for i in names:
+                if by_id[i].data_type == FieldDataType.CURRENCY_AMOUNT and not by_id[i].unit:
+                    return f"currency field {i} has no unit"
+        if isinstance(r, LabelRule):
+            src = by_id[r.field]
+            if src.data_type != FieldDataType.ENUM:
+                return f"{r.field} is not an enum field"
+            if not set(r.not_in) <= set(src.allowed_values or []):
+                return f"not_in holds values outside {r.field}'s allowed values"
+        return None
 
 
 class Alternative(BaseModel):

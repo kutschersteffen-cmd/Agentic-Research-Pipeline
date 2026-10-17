@@ -1,0 +1,110 @@
+[
+  {
+    "field_id": "ambition",
+    "rule": {
+      "rule_id": "R1",
+      "when": true,
+      "kind": "threshold",
+      "conditions": [
+        {
+          "field": "pct",
+          "op": ">=",
+          "value": 50.0
+        },
+        {
+          "field": "year",
+          "op": "<=",
+          "value": 2030.0
+        }
+      ]
+    },
+    "sentence": "When Halving target is YES: needs Target reduction >= 50 and Target year <= 2030."
+  },
+  {
+    "field_id": "nz2050",
+    "rule": {
+      "rule_id": "R2",
+      "when": true,
+      "kind": "requires",
+      "field": "nz",
+      "equals": true
+    },
+    "sentence": "When Net zero by 2050 is YES: needs Net-zero target to be YES."
+  },
+  {
+    "field_id": "declined",
+    "rule": {
+      "rule_id": "R3",
+      "when": true,
+      "kind": "series",
+      "field": "int1",
+      "years": 5,
+      "trend": "down"
+    },
+    "sentence": "When Intensity declined is YES: needs Scope 1 intensity for 5 years up to the report year, falling."
+  },
+  {
+    "field_id": "s1",
+    "rule": {
+      "rule_id": "R4",
+      "when": true,
+      "kind": "label",
+      "field": "kind",
+      "not_in": [
+        "combined"
+      ]
+    },
+    "sentence": "When Scope 1 target is YES: Target type must not be combined."
+  },
+  {
+    "field_id": "share",
+    "rule": {
+      "rule_id": "R5",
+      "when": null,
+      "kind": "computed",
+      "formula": "ratio_pct",
+      "inputs": [
+        "green",
+        "total"
+      ],
+      "tolerance": 1.0
+    },
+    "sentence": "Green capex share should equal Green capex ÷ Total capex × 100, within 1."
+  },
+  {
+    "field_id": "total",
+    "rule": {
+      "rule_id": "R6",
+      "when": null,
+      "kind": "computed",
+      "formula": "sum",
+      "inputs": [
+        "green",
+        "other"
+      ],
+      "tolerance": 0.5
+    },
+    "sentence": "Total capex should equal Green capex + Other capex, within 0.5."
+  },
+  {
+    "field_id": "ambition",
+    "rule": {
+      "rule_id": "R1",
+      "when": null,
+      "kind": "threshold",
+      "conditions": [
+        {
+          "field": "pct",
+          "op": ">=",
+          "value": 50.0
+        },
+        {
+          "field": "year",
+          "op": "<=",
+          "value": 2030.0
+        }
+      ]
+    },
+    "sentence": "Needs Target reduction >= 50 and Target year <= 2030."
+  }
+]

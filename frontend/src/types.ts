@@ -193,6 +193,23 @@ export interface RevenueExposureResult {
 
 export type FieldDataType = "number" | "currency_amount" | "percentage" | "string" | "boolean" | "enum" | "date";
 
+export type RuleScalar = boolean | string | number;
+interface FieldRuleBase { rule_id: string; when?: RuleScalar | null }
+export type FieldRule =
+  | (FieldRuleBase & { kind: "requires"; field: string; equals: RuleScalar })
+  | (FieldRuleBase & { kind: "threshold"; conditions: { field: string; op: ">=" | "<=" | ">" | "<" | "="; value: number }[] })
+  | (FieldRuleBase & { kind: "series"; field: string; years: number; trend?: "none" | "down" | "up" })
+  | (FieldRuleBase & { kind: "label"; field: string; not_in: string[] })
+  | (FieldRuleBase & { kind: "computed"; formula: "ratio_pct" | "sum"; inputs: string[]; tolerance?: number });
+
+export interface RuleSuggestions {
+  rules?: { field_id: string; rule: FieldRule }[];
+  helper_fields?: FieldDefinition[];
+}
+
+/** One suggested rule on the Schema screen, with the helper fields it would add (UI only, not served). */
+export interface RuleSuggestion { field_id: string; rule: FieldRule; helper_fields: FieldDefinition[] }
+
 export interface FieldDefinition {
   field_id: string;
   name: string;
@@ -205,6 +222,7 @@ export interface FieldDefinition {
   source_doc_types: DocType[];
   seed_keywords: string[];
   status?: "draft" | "released" | "retired";
+  rules?: FieldRule[];
 }
 
 export interface DataPointSchema {

@@ -3319,6 +3319,95 @@
     "title": "CompositeSignalComponent",
     "type": "object"
    },
+   "ComputedRule": {
+    "properties": {
+     "formula": {
+      "enum": [
+       "ratio_pct",
+       "sum"
+      ],
+      "title": "Formula",
+      "type": "string"
+     },
+     "inputs": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Inputs",
+      "type": "array"
+     },
+     "kind": {
+      "const": "computed",
+      "title": "Kind",
+      "type": "string"
+     },
+     "rule_id": {
+      "title": "Rule Id",
+      "type": "string"
+     },
+     "tolerance": {
+      "default": 0,
+      "title": "Tolerance",
+      "type": "number"
+     },
+     "when": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Applies only when the checked field has this value; empty = whenever found.",
+      "title": "When"
+     }
+    },
+    "required": [
+     "rule_id",
+     "kind",
+     "formula",
+     "inputs"
+    ],
+    "title": "ComputedRule",
+    "type": "object"
+   },
+   "Condition": {
+    "properties": {
+     "field": {
+      "title": "Field",
+      "type": "string"
+     },
+     "op": {
+      "enum": [
+       ">=",
+       "<=",
+       ">",
+       "<",
+       "="
+      ],
+      "title": "Op",
+      "type": "string"
+     },
+     "value": {
+      "title": "Value",
+      "type": "number"
+     }
+    },
+    "required": [
+     "field",
+     "op",
+     "value"
+    ],
+    "title": "Condition",
+    "type": "object"
+   },
    "Confidence": {
     "enum": [
      "high",
@@ -6444,6 +6533,40 @@
       "title": "Required",
       "type": "boolean"
      },
+     "rules": {
+      "description": "Typed conditions on this field's extracted value.",
+      "items": {
+       "discriminator": {
+        "mapping": {
+         "computed": "#/components/schemas/ComputedRule",
+         "label": "#/components/schemas/LabelRule",
+         "requires": "#/components/schemas/RequiresRule",
+         "series": "#/components/schemas/SeriesRule",
+         "threshold": "#/components/schemas/ThresholdRule"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/components/schemas/RequiresRule"
+        },
+        {
+         "$ref": "#/components/schemas/ThresholdRule"
+        },
+        {
+         "$ref": "#/components/schemas/SeriesRule"
+        },
+        {
+         "$ref": "#/components/schemas/LabelRule"
+        },
+        {
+         "$ref": "#/components/schemas/ComputedRule"
+        }
+       ]
+      },
+      "title": "Rules",
+      "type": "array"
+     },
      "seed_keywords": {
       "description": "Seed keywords driving evidence-chunk retrieval for this field.",
       "items": {
@@ -7640,6 +7763,57 @@
      "context_etag"
     ],
     "title": "ItemDecisionRequest",
+    "type": "object"
+   },
+   "LabelRule": {
+    "properties": {
+     "field": {
+      "title": "Field",
+      "type": "string"
+     },
+     "kind": {
+      "const": "label",
+      "title": "Kind",
+      "type": "string"
+     },
+     "not_in": {
+      "items": {
+       "type": "string"
+      },
+      "minItems": 1,
+      "title": "Not In",
+      "type": "array"
+     },
+     "rule_id": {
+      "title": "Rule Id",
+      "type": "string"
+     },
+     "when": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Applies only when the checked field has this value; empty = whenever found.",
+      "title": "When"
+     }
+    },
+    "required": [
+     "rule_id",
+     "kind",
+     "field",
+     "not_in"
+    ],
+    "title": "LabelRule",
     "type": "object"
    },
    "LayoutInstructions": {
@@ -10707,6 +10881,63 @@
     "title": "RequiredRow",
     "type": "object"
    },
+   "RequiresRule": {
+    "properties": {
+     "equals": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       }
+      ],
+      "title": "Equals"
+     },
+     "field": {
+      "title": "Field",
+      "type": "string"
+     },
+     "kind": {
+      "const": "requires",
+      "title": "Kind",
+      "type": "string"
+     },
+     "rule_id": {
+      "title": "Rule Id",
+      "type": "string"
+     },
+     "when": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Applies only when the checked field has this value; empty = whenever found.",
+      "title": "When"
+     }
+    },
+    "required": [
+     "rule_id",
+     "kind",
+     "field",
+     "equals"
+    ],
+    "title": "RequiresRule",
+    "type": "object"
+   },
    "RestartRequest": {
     "properties": {
      "company_ids": {
@@ -11114,6 +11345,72 @@
     ],
     "title": "Route",
     "type": "string"
+   },
+   "RuleSuggestion": {
+    "properties": {
+     "field_id": {
+      "description": "The field the rule sits on and checks.",
+      "title": "Field Id",
+      "type": "string"
+     },
+     "rule": {
+      "discriminator": {
+       "mapping": {
+        "computed": "#/components/schemas/ComputedRule",
+        "label": "#/components/schemas/LabelRule",
+        "requires": "#/components/schemas/RequiresRule",
+        "series": "#/components/schemas/SeriesRule",
+        "threshold": "#/components/schemas/ThresholdRule"
+       },
+       "propertyName": "kind"
+      },
+      "oneOf": [
+       {
+        "$ref": "#/components/schemas/RequiresRule"
+       },
+       {
+        "$ref": "#/components/schemas/ThresholdRule"
+       },
+       {
+        "$ref": "#/components/schemas/SeriesRule"
+       },
+       {
+        "$ref": "#/components/schemas/LabelRule"
+       },
+       {
+        "$ref": "#/components/schemas/ComputedRule"
+       }
+      ],
+      "title": "Rule"
+     }
+    },
+    "required": [
+     "field_id",
+     "rule"
+    ],
+    "title": "RuleSuggestion",
+    "type": "object"
+   },
+   "RuleSuggestions": {
+    "properties": {
+     "helper_fields": {
+      "description": "Fields the rules need that the schema lacks.",
+      "items": {
+       "$ref": "#/components/schemas/FieldDefinition"
+      },
+      "title": "Helper Fields",
+      "type": "array"
+     },
+     "rules": {
+      "items": {
+       "$ref": "#/components/schemas/RuleSuggestion"
+      },
+      "title": "Rules",
+      "type": "array"
+     }
+    },
+    "title": "RuleSuggestions",
+    "type": "object"
    },
    "RunDecision": {
     "properties": {
@@ -11772,6 +12069,63 @@
    "SentRequest": {
     "properties": {},
     "title": "SentRequest",
+    "type": "object"
+   },
+   "SeriesRule": {
+    "properties": {
+     "field": {
+      "title": "Field",
+      "type": "string"
+     },
+     "kind": {
+      "const": "series",
+      "title": "Kind",
+      "type": "string"
+     },
+     "rule_id": {
+      "title": "Rule Id",
+      "type": "string"
+     },
+     "trend": {
+      "default": "none",
+      "enum": [
+       "none",
+       "down",
+       "up"
+      ],
+      "title": "Trend",
+      "type": "string"
+     },
+     "when": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Applies only when the checked field has this value; empty = whenever found.",
+      "title": "When"
+     },
+     "years": {
+      "title": "Years",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "rule_id",
+     "kind",
+     "field",
+     "years"
+    ],
+    "title": "SeriesRule",
     "type": "object"
    },
    "SignalType": {
@@ -13168,6 +13522,52 @@
      "description"
     ],
     "title": "ThemeDefinition",
+    "type": "object"
+   },
+   "ThresholdRule": {
+    "properties": {
+     "conditions": {
+      "items": {
+       "$ref": "#/components/schemas/Condition"
+      },
+      "minItems": 1,
+      "title": "Conditions",
+      "type": "array"
+     },
+     "kind": {
+      "const": "threshold",
+      "title": "Kind",
+      "type": "string"
+     },
+     "rule_id": {
+      "title": "Rule Id",
+      "type": "string"
+     },
+     "when": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Applies only when the checked field has this value; empty = whenever found.",
+      "title": "When"
+     }
+    },
+    "required": [
+     "rule_id",
+     "kind",
+     "conditions"
+    ],
+    "title": "ThresholdRule",
     "type": "object"
    },
    "TierDefinition": {
@@ -20061,6 +20461,48 @@
      }
     },
     "summary": "Draft Schema Endpoint",
+    "tags": [
+     "extraction"
+    ]
+   }
+  },
+  "/api/extraction/schemas/suggest-rules": {
+   "post": {
+    "description": "Proposes rules and the helper fields they need for a drafted schema. Saves nothing: the user\naccepts, edits or drops each suggestion in the UI.",
+    "operationId": "suggest_rules_endpoint_api_extraction_schemas_suggest_rules_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DataPointSchema"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RuleSuggestions"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Suggest Rules Endpoint",
     "tags": [
      "extraction"
     ]

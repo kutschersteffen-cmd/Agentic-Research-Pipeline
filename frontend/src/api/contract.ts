@@ -3,7 +3,7 @@
 // Add a line when you type a new request<...>() against an endpoint with a response model.
 import type { components } from "./schema.gen";
 import type { Me } from "../lib/reviewKeys";
-import type { AlertRule, BIDesignResult, BIEmbedToken, BarrierStalenessReport, DataPointSchema, DatasetSummary, DecisionComparison, DecisionResult, EmergingThemesScheduleConfig, IndexCalibration, IndexReviewResult, MechanismEnvelope, PivotResult, PublishedDecision, QAAnswer, RuleGraph, SearchResponse, SmartSearchAnswer } from "../types";
+import type { AlertRule, BIDesignResult, BIEmbedToken, BarrierStalenessReport, DataPointSchema, DatasetSummary, DecisionComparison, DecisionResult, EmergingThemesScheduleConfig, IndexCalibration, IndexReviewResult, MechanismEnvelope, PivotResult, PublishedDecision, QAAnswer, RuleGraph, RuleSuggestions, SearchResponse, SmartSearchAnswer } from "../types";
 
 type S = components["schemas"];
 // FastAPI marks fields with defaults optional in the schema, but responses always carry every
@@ -31,6 +31,7 @@ export type ApiContract = [
   Satisfies<Served<S["PublishedDecision"]>, PublishedDecision>,
   Satisfies<QAAnswerServed, QAAnswer>,
   Satisfies<Served<S["ReviewResult"]>, IndexReviewResult>,
+  Satisfies<Served<S["RuleSuggestions"]>, RuleSuggestions>,
   Satisfies<Served<S["SearchAnswer"]>, SmartSearchAnswer>,
   Satisfies<Served<S["SearchResponse"]>, SearchResponse>,
   Satisfies<Served<S["StalenessReport"]>, BarrierStalenessReport>,

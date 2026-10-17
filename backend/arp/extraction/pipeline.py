@@ -256,10 +256,13 @@ async def _extract_company(
         prior = history.last_rows(company.company_id, field.field_id) if reuse and h else []
         if prior and history.last_rejected(company.company_id, field.field_id):
             prior = []  # a human rejected the last answer: ask again rather than reuse it
-        # ponytail: rows with failing checks re-extract; strip check-derived notes instead if that costs too many calls
+        # shortcut: rows with failing non-rule checks re-extract; strip check-derived notes instead if that costs too many calls
         if prior and all(
             r.get("input_hash") == h and (r.get("provenance") or {}).get("field_version") == field.version
-            and not any(is_failing(CheckResult.model_validate(c)) for c in r.get("checks", []))
+            and not any(  # a rule failure is a reviewer prompt, not a reason to re-ask the model
+                is_failing(res) and not res.check_id.startswith("rule.")
+                for res in map(CheckResult.model_validate, r.get("checks", []))
+            )
             for r in prior
         ):
             run = history.last_run_id(company.company_id)
