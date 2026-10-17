@@ -456,7 +456,7 @@ arp transition-plan indicators | run
 arp transition-barrier criteria | scores | sources | staleness | coverage | refresh
 arp report draft | plan | render | templates
 arp replicate extract | backtest | compare | discover-papers | score-sentiment | pbo | regime-report | sanity-check | golden-set
-arp signals evaluate | list | decide | pull-news-text | text-manifest | ingest-transcripts | build-panel
+arp signals evaluate | run | list | decide | pull-news-text | text-manifest | ingest-transcripts | build-panel
 arp taxonomy-researcher run | schedule
 arp calibration run | schedule
 arp golden-set run | run-roles | planner | seed-known-answers
@@ -472,6 +472,8 @@ arp scale load | report
 `arp signals evaluate --scores S --prices P --category C --method M --universe U --start D --end D [--model M]` scores a signal against next-month returns, splits the evidence at the model's training cutoff and registers the experiment; `arp signals list` shows the registry and `arp signals decide <id> --decision graduate|shelve --approver A` records a decision (graduating needs 12+ post-cutoff IC months and an unchanged cutoff).
 
 `arp signals pull-news-text [--since D]` pulls Refinitiv headlines plus full story text into the point-in-time text store; `text-manifest --out M [--event-from T] [--event-to T] [--known-by T]` writes the `arp replicate score-sentiment` manifest from the store (`--known-by` only means something for live-ingested items; a date-only bound means the end of that day); `ingest-transcripts --csv F` adds transcripts and reports how many were new; `build-panel --kind fundamentals|revisions --csv F --prices P --out O [--metric N] [--window-months 3]` builds a point-in-time panel on the price CSV's grid for `evaluate --scores`. The adapters and the manifest cut at the calendar month end, so the price CSV dates must be calendar month ends and the manifest `period_end` is the last day of the event month.
+
+`arp signals run --recipe R.json --prices P [--panel NAME=PATH ...] [--known-by T] [--confirm-above 200] [--yes] [--out O]` runs a method recipe (the `Recipe` fields as JSON) on the text store and the prices, registers the experiment once per recipe, data and model, and prints what `evaluate` prints plus the method's `notes`. Registered methods: `panel`, `price_momentum`, `transform`, `composite`, `narrative_attention`, `sestm`, `embedding_ridge`, `topic_attention`, `grounded_llm`, `finbert`, `issuer_first`; an unknown name exits 1 and lists them. The price CSV must use calendar month-end dates, and the recipe window must lie inside it. `--panel` takes `build-panel` outputs; the data version hashes the text item ids, the price file and the panel files. Before a `grounded_llm` run it prints the LLM call estimate (times `1 + stability_runs`) and exits 1 above `--confirm-above` unless `--yes`. `issuer_first` exits 1 until the owner allows a search tool.
 
 `arp identity review <run_id> <item_key> --decision approve|correct|reject|escalate [--reason R] [--website W] [--cik C] [--comment T]`: `--reason` is required unless approving (default `confirmed`); `correct` needs `--website` and/or `--cik` and a `--comment` naming the source.
 
