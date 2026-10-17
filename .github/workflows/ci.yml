@@ -129,6 +129,61 @@ jobs:
           sed 's|^SF:|SF:frontend/|' frontend/lcov.info > lcov.info
           pipx run --spec 'diff-cover>=10.0,<11.0' diff-cover lcov.info --compare-branch=origin/${{ github.base_ref }} --fail-under=80
 
+  # Browser flow tests against the slim app stack (API + built frontend + Postgres, demo data).
+  # The holdout acceptance tests and the evaluator agent reuse the same stack.
+  e2e:
+    name: E2E (browser)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: arp
+          POSTGRES_PASSWORD: arp
+          POSTGRES_DB: arp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend, frontend and Chromium
+        run: |
+          (cd backend && pip install -e ".[dev,postgres,opensearch,emerging_themes,object_storage]")
+          (cd frontend && npm ci)
+          python -m playwright install --with-deps chromium
+
+      - name: Start the app stack
+        run: bash backend/scripts/e2e_stack.sh up
+
+      - name: Browser tests
+        working-directory: backend
+        env:
+          ARP_E2E_URL: http://localhost:5173
+        run: pytest -q -m e2e tests/e2e
+
+      - name: Stack logs on failure
+        if: failure()
+        run: tail -n 50 "${TMPDIR:-/tmp}"/arp-e2e/*.log
+
   # Optional live Superset suite (backend/tests/test_bi_live_superset.py), left
   # off: it needs a running, bootstrapped Superset (docker compose --env-file
   # backend/.env up -d postgres superset; arp bi bootstrap), not available on a
