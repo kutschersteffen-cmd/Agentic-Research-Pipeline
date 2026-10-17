@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "gen:api": "npx --yes openapi-typescript@7.13.0 src/api/openapi.json -o src/api/schema.gen.ts",
     "test": "node --test --experimental-strip-types tests/*.test.ts",
     "test:coverage": "node --test --experimental-strip-types --experimental-test-coverage --test-coverage-exclude=tests/** --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=lcov.info tests/*.test.ts",
     "preview": "vite preview"

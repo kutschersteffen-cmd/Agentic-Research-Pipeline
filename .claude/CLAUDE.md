@@ -117,6 +117,9 @@ The gaps ponytail leaves from `karpathy-guidelines`. Where they clash, these win
 
 - Backend: `cd backend && ruff check . && python3 -m pytest tests/<file>`
 - Frontend: `cd frontend && npm run lint && npx tsc -b && npm test`
+- API contract: after changing a request or response model, run `cd backend && python scripts/export_openapi.py`
+  then `cd frontend && npm run gen:api`, fix the type errors `tsc -b` reports, and commit both generated files.
+  A new `request<T>()` against an endpoint with a response model gets a line in `frontend/src/api/contract.ts`.
 - Dependencies install on demand: run `bash .claude/hooks/ensure-deps.sh backend` (or `frontend`,
   `postgres`) before running tests by hand. It takes about 1 s when already installed. `/install-deps`
   installs everything in the background.

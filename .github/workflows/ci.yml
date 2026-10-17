@@ -75,6 +75,9 @@ jobs:
       - name: Ruff lint
         run: ruff check .
 
+      - name: API contract snapshot up to date
+        run: python scripts/export_openapi.py --check
+
       - name: Pytest
         run: pytest -q --cov=arp --cov-report=xml
 
@@ -106,6 +109,10 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      # schema.gen.ts must match the committed openapi.json; contract.ts then type-checks against it.
+      - name: Generated API types up to date
+        run: npm run gen:api && git diff --exit-code -- src/api/schema.gen.ts
 
       - name: Typecheck + build
         run: npm run build
