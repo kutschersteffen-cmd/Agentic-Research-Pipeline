@@ -128,6 +128,8 @@ The gaps ponytail leaves from `karpathy-guidelines`. Where they clash, these win
 - Browser flow (cloud session): `bash .claude/hooks/ensure-deps.sh postgres && bash backend/scripts/e2e_stack.sh up`,
   then `cd backend && ARP_E2E_URL=http://localhost:5173 ARP_CHROMIUM_PATH=$(ls -d /opt/pw-browsers/chromium-*/chrome-linux/chrome | head -1) pytest -m e2e tests/e2e`;
   `e2e_stack.sh down` when done. CI runs it as the "E2E (browser)" job.
+- Mutation check (do the tests catch bugs?): `cd backend && pip install mutmut==3.8.0 && python scripts/mutation_check.py --base origin/main`
+  (some tests need `ARP_TEST_POSTGRES_DSN`). CI runs it nightly and on `risk:high` PRs; surviving mutants are weak tests.
 - Dependencies install on demand: run `bash .claude/hooks/ensure-deps.sh backend` (or `frontend`,
   `postgres`) before running tests by hand. It takes about 1 s when already installed. `/install-deps`
   installs everything in the background.
