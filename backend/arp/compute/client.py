@@ -115,6 +115,12 @@ def _storage_token() -> str:
     return _token("access", "https://www.googleapis.com/auth/devstorage.read_write")
 
 
+def _auth(url: str) -> dict[str, str]:
+    """An ID token whose audience is the Cloud Run service URL (scheme and host, no path)."""
+    origin = httpx.URL(url)
+    return {"Authorization": f"Bearer {_id_token(f'{origin.scheme}://{origin.netloc.decode()}')}"}
+
+
 def _reason(response: httpx.Response) -> str:
     return f"{response.status_code} {response.text[:200]}"
 
@@ -124,15 +130,14 @@ def _post(
 ) -> httpx.Response | None:
     """POST with an ID token for the service. A connect error or 429/502/503/504 is retried once.
     Returns a 2xx, 404 or 422 response; anything else sets the cooldown and returns None."""
-    origin = httpx.URL(url)
-    audience = f"{origin.scheme}://{origin.netloc.decode()}"
     reason = ""
     for attempt in range(2):
         if attempt:
             _sleep(RETRY_DELAY_S)
         try:
-            auth = {"Authorization": f"Bearer {_id_token(audience)}"}
-            response = _http.post(url, json=payload, headers={**auth, **(headers or {})}, timeout=_timeout(timeout))
+            response = _http.post(
+                url, json=payload, headers={**_auth(url), **(headers or {})}, timeout=_timeout(timeout)
+            )
         except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
             reason = f"{type(exc).__name__}: {exc}"
             continue
@@ -243,3 +248,12 @@ def embed(texts: list[str]) -> np.ndarray | None:
             return None
         rows.extend(body["vectors"])
     return np.asarray(rows, dtype=np.float32)
+
+
+def healthz(url: str) -> dict | None:
+    """A compute service's /healthz (parser_version, cuda), for `arp compute check`; None on any failure."""
+    try:
+        response = _http.get(f"{url.rstrip('/')}/healthz", headers=_auth(url), timeout=_timeout(MODELS_TIMEOUT_S))
+        return response.json() if response.is_success else None
+    except Exception:  # noqa: BLE001
+        return None

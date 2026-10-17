@@ -197,6 +197,11 @@ def _extract_pdf_text(path: Path) -> tuple[str, list[int], list[TableSpan]]:
     remote = compute_client.parse_pdf(path, parser_version())
     if remote is not None:
         return remote
+    return _extract_pdf_text_local(path)
+
+
+def _extract_pdf_text_local(path: Path) -> tuple[str, list[int], list[TableSpan]]:
+    """The docling parse itself, never sent to the cloud (`arp compute check` compares against it)."""
     doc = _convert(path)
     parts: list[str] = []
     page_breaks: list[int] = []
