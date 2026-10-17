@@ -107,6 +107,8 @@ def main() -> int:
     overall = 100 * total_killed / (total_killed + total_survived) if total_killed + total_survived else 100.0
     if files:
         lines += ["", f"Overall: {total_killed} killed, {total_survived} survived, score {overall:.0f}%."]
+        if failed:
+            lines.append("mutmut failed on at least one file (see the table), so the score is incomplete.")
     if details:
         lines += ["", f"### Surviving mutants (first {SHOW_SURVIVORS} per file): the tests miss these bugs", ""] + details
     report = "\n".join(lines) + "\n"
