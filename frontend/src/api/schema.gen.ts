@@ -4400,6 +4400,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/signals/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Compare */
+        post: operations["compare_api_signals_compare_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/signals/experiments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Experiments */
+        get: operations["list_experiments_api_signals_experiments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/signals/experiments/{experiment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Experiment */
+        get: operations["get_experiment_api_signals_experiments__experiment_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/signals/methods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Methods */
+        get: operations["list_methods_api_signals_methods_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/smart-search": {
         parameters: {
             query?: never;
@@ -8360,6 +8428,24 @@ export interface components {
             /** Sector */
             sector: string | null;
         };
+        /** Comparison */
+        Comparison: {
+            /** A */
+            a: string;
+            /** B */
+            b: string;
+            /** Months */
+            months: number;
+            /** N Comparisons */
+            n_comparisons: number;
+            /** Reason */
+            reason?: string | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "a_higher" | "b_higher" | "insufficient_data";
+        };
         /**
          * CompositeSignalComponent
          * @description One sub-signal inside a COMPOSITE StrategySpec -- the same
@@ -9648,6 +9734,19 @@ export interface components {
          * @enum {string}
          */
         EscalationStage: "private_engagement" | "joint_engagement" | "written_escalation_to_board" | "escalation_to_chair" | "vote_against_management" | "file_or_cofile_resolution" | "public_statement";
+        /** EvidenceReport */
+        EvidenceReport: {
+            /** Contamination Gap Ic */
+            contamination_gap_ic: number | null;
+            /** N Trials */
+            n_trials: number;
+            /** Overlap */
+            overlap: {
+                [key: string]: number | null;
+            };
+            /** Windows */
+            windows: components["schemas"]["WindowEvidence"][];
+        };
         /** ExceptionDecisionRequest */
         ExceptionDecisionRequest: {
             /** Client Step */
@@ -9664,6 +9763,78 @@ export interface components {
              * @default
              */
             note: string;
+        };
+        /** ExperimentDetail */
+        ExperimentDetail: {
+            /** Created At */
+            created_at: string;
+            /** Cutoff */
+            cutoff?: string | null;
+            /**
+             * Cutoff Status
+             * @enum {string}
+             */
+            cutoff_status: "none" | "recorded" | "unknown";
+            /** Data Version */
+            data_version: string;
+            /** Decided At */
+            decided_at?: string | null;
+            /** Decided By */
+            decided_by?: string | null;
+            /**
+             * Decision
+             * @default none
+             * @enum {string}
+             */
+            decision: "none" | "graduate" | "shelve";
+            evidence: components["schemas"]["EvidenceReport"];
+            /** Experiment Id */
+            experiment_id: string;
+            /** Model */
+            model: string | null;
+            /**
+             * Notes
+             * @default {}
+             */
+            notes: {
+                [key: string]: unknown;
+            };
+            recipe: components["schemas"]["Recipe"];
+        };
+        /** ExperimentSummary */
+        ExperimentSummary: {
+            /** Category */
+            category: string;
+            /** Cost Bps */
+            cost_bps: number;
+            /** Created At */
+            created_at: string;
+            /** Cutoff */
+            cutoff: string | null;
+            /**
+             * Cutoff Status
+             * @enum {string}
+             */
+            cutoff_status: "none" | "recorded" | "unknown";
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "none" | "graduate" | "shelve";
+            /** Experiment Id */
+            experiment_id: string;
+            /** Method */
+            method: string;
+            /** Model */
+            model: string | null;
+            /** N Trials */
+            n_trials: number;
+            /** Universe */
+            universe: string;
+            /** Window End */
+            window_end: string;
+            /** Window Start */
+            window_start: string;
         };
         /** ExportRequest */
         ExportRequest: {
@@ -10125,6 +10296,17 @@ export interface components {
              * @description Empty: every portfolio.
              */
             portfolio_ids?: string[];
+        };
+        /** IcSummary */
+        IcSummary: {
+            /** Hit Rate */
+            hit_rate: number | null;
+            /** Mean */
+            mean: number | null;
+            /** N */
+            n: number;
+            /** T Nw */
+            t_nw: number | null;
         };
         /** IdentifierOut */
         IdentifierOut: {
@@ -10817,6 +10999,13 @@ export interface components {
             /** Source Notes */
             source_notes: string;
             theme: components["schemas"]["ThemeDefinition"];
+        };
+        /** MethodInfo */
+        MethodInfo: {
+            /** Name */
+            name: string;
+            /** Runnable In App */
+            runnable_in_app: boolean;
         };
         /**
          * MetricThresholdScreen
@@ -11594,6 +11783,38 @@ export interface components {
          * @enum {string}
          */
         RebalanceFrequency: "monthly" | "quarterly" | "annual" | "custom";
+        /** Recipe */
+        Recipe: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "sentiment_narrative" | "earnings_call_tone" | "fundamental" | "price_momentum" | "analyst_revisions";
+            /**
+             * Cost Bps
+             * @default 10
+             */
+            cost_bps: number;
+            /**
+             * Forward Months
+             * @default 1
+             */
+            forward_months: number;
+            /** Method */
+            method: string;
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Text Source */
+            text_source: string | null;
+            /** Universe */
+            universe: string;
+            /** Window End */
+            window_end: string;
+            /** Window Start */
+            window_start: string;
+        };
         /** RegimeBucketPerformance */
         RegimeBucketPerformance: {
             long_short?: components["schemas"]["LegPerformance"];
@@ -13386,6 +13607,30 @@ export interface components {
          * @enum {string}
          */
         WeightingScheme: "equal" | "value";
+        /** WindowEvidence */
+        WindowEvidence: {
+            deflated_sharpe: components["schemas"]["DeflatedSharpeAssessment"] | null;
+            ic: components["schemas"]["IcSummary"];
+            long_short: components["schemas"]["LegPerformance"] | null;
+            /** Monthly Turnover Pct */
+            monthly_turnover_pct: number | null;
+            net_long_short: components["schemas"]["LegPerformance"] | null;
+            /** Periods */
+            periods: number;
+            /**
+             * Series
+             * @default []
+             */
+            series: [
+                string,
+                number
+            ][];
+            /**
+             * Window
+             * @enum {string}
+             */
+            window: "in_window" | "post_cutoff";
+        };
         /** WithdrawRequest */
         WithdrawRequest: {
             /** Reason */
@@ -13539,6 +13784,13 @@ export interface components {
         arp__api__routers__portfolio__AskRequest: {
             /** Question */
             question: string;
+        };
+        /** CompareRequest */
+        arp__api__routers__signals__CompareRequest: {
+            /** A */
+            a: string;
+            /** B */
+            b: string;
         };
         /** CompareRequest */
         arp__api__routers__taxonomies__CompareRequest: {
@@ -21722,6 +21974,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compare_api_signals_compare_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["arp__api__routers__signals__CompareRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Comparison"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_experiments_api_signals_experiments_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentSummary"][];
+                };
+            };
+        };
+    };
+    get_experiment_api_signals_experiments__experiment_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_methods_api_signals_methods_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MethodInfo"][];
                 };
             };
         };

@@ -49,6 +49,10 @@ def get_method(name: str) -> MethodFn:
     return _METHODS[name]
 
 
+def method_names() -> list[str]:
+    return sorted(_METHODS)
+
+
 def run_method(spec: dict, inp: MethodInput) -> MethodResult:
     return get_method(spec["method"])(spec.get("params", {}), inp)
 
