@@ -165,3 +165,14 @@ def test_run_prints_method_notes(env, monkeypatch):
     result = _run(env, _recipe(env, dates, "noted"))
     assert result.exit_code == 0, result.output
     assert 'notes: {"a": 1, "b": 2}' in result.stdout
+
+
+def test_run_with_history_from_registers_a_different_experiment(env):
+    dates = _write_panel(env, 40)
+    recipe = _recipe(env, dates[13:])
+    plain = _run(env, recipe)
+    with_history = _run(env, recipe, "--history-from", dates[0])
+    assert plain.exit_code == with_history.exit_code == 0, with_history.output
+    assert plain.stdout.splitlines()[0] != with_history.stdout.splitlines()[0]
+    late = _run(env, recipe, "--history-from", dates[14])
+    assert late.exit_code == 1 and "after the window start" in late.stderr

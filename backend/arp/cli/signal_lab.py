@@ -25,6 +25,7 @@ from arp.signal_lab.baselines import momentum_panel
 from arp.signal_lab.compare import compare_experiments
 from arp.signal_lab.cutoffs import load_cutoff_table
 from arp.signal_lab.evidence import EvidenceReport, evaluate_signal, sentiment_spec
+from arp.signal_lab.inputs import load_inputs
 from arp.signal_lab.methods import base as methods_base
 from arp.signal_lab.methods.embedding import default_embedder
 from arp.signal_lab.methods.finbert import default_finbert
@@ -311,6 +312,7 @@ def signals_run(
     confirm_above: int = typer.Option(200, help="Refuse to run a recipe estimated to make more LLM calls than this unless --yes."),
     yes: bool = typer.Option(False, "--yes", help="Run even when the LLM call estimate exceeds --confirm-above."),
     out: Path = typer.Option(None, help="Optionally write the evidence report JSON here."),
+    history_from: str = typer.Option(None, help="ISO date: price history before the window start for methods to use; evidence still covers only the window."),
 ) -> None:
     """Runs a method recipe on the text store and prices, registers the experiment (once per recipe and data) and prints the windows."""
     try:
@@ -327,26 +329,8 @@ def signals_run(
                 raise ValueError(f"--panel must be NAME=PATH, got {item!r}")
             panel_files[name] = Path(path)
 
-        dates, columns = read_wide_csv(prices)
-        if recipe.window_start < dates[0] or recipe.window_end > dates[-1]:
-            raise ValueError(
-                f"recipe window {recipe.window_start}..{recipe.window_end} is outside the price file {dates[0]}..{dates[-1]}"
-            )
-        issuers = list(columns)
-        price_panel = CsvPriceSource(prices).get_monthly_returns(issuers, recipe.window_start, recipe.window_end)
-        panels = {
-            name: CsvCharacteristicSource(path).get_values(issuers, recipe.window_start, recipe.window_end)
-            for name, path in panel_files.items()
-        }
         texts = [] if names <= _TEXTLESS else _text_store().items(known_by=known_by)
-
-        digest = hashlib.sha256("\n".join(sorted(t.item_id for t in texts)).encode())
-        digest.update(prices.read_bytes())
-        for name in sorted(panel_files):
-            digest.update(panel_files[name].read_bytes())
-        data_version = digest.hexdigest()[:12]
-
-        inp = methods_base.MethodInput(texts=texts, prices=price_panel, panels=panels)
+        inp, data_version = load_inputs(recipe, prices, panels=panel_files, texts=texts, history_from=history_from)
         llm_nodes = [n for n in nodes if n["method"] == "grounded_llm"]
         if llm_nodes:
             est = estimate_llm_calls(inp)

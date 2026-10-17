@@ -78,7 +78,10 @@ def _panel(params: dict, inp: MethodInput) -> MethodResult:
     name = params["name"]
     if name not in inp.panels:
         raise ValueError(f"missing panel {name!r}; available: {', '.join(sorted(inp.panels)) or 'none'}")
-    return MethodResult(inp.panels[name])
+    model = params.get("model")
+    if model is not None and not isinstance(model, str):
+        raise ValueError(f"panel 'model' must be a string or null, got {model!r}")
+    return MethodResult(inp.panels[name], model=model)
 
 
 @register_method("price_momentum")
