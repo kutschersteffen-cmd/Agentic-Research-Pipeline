@@ -78,6 +78,7 @@ import type {
   AnalyticRequest,
   CompanyRef,
   DataPointSchema,
+  RuleSuggestions,
   DemoSeedSummary,
   EmergingThemeCandidate,
   EmergingThemesScheduleConfig,
@@ -316,6 +317,8 @@ export const api = {
   // Extraction
   draftSchema: (criteriaText: string) =>
     request("/api/extraction/schemas/draft", { method: "POST", body: JSON.stringify({ criteria_text: criteriaText }) }),
+  suggestRules: (schema: DataPointSchema) =>
+    request<RuleSuggestions>("/api/extraction/schemas/suggest-rules", { method: "POST", body: JSON.stringify(schema) }),
   getExtractionResults: (runId: string, offset = 0, limit = 500) =>
     request(`/api/extraction/runs/${runId}/results?offset=${offset}&limit=${limit}`),
   getExtractionReviewDecisions: (runId: string) => request(`/api/extraction/runs/${runId}/review-decisions`),
