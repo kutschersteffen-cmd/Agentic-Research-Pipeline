@@ -54,3 +54,6 @@ projects/*
 # graphify output
 graphify-out/
 data/xbrl/
+
+# mutmut work folder (backend/scripts/mutation_check.py cleans it up)
+backend/mutants/
