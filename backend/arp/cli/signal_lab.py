@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import get_args
 
 import typer
-from pydantic import ValidationError
 
 from arp.cli._shared import _run_store
 from arp.config import get_settings
@@ -26,6 +25,7 @@ from arp.signal_lab.compare import compare_experiments
 from arp.signal_lab.cutoffs import load_cutoff_table
 from arp.signal_lab.evidence import EvidenceReport, evaluate_signal, sentiment_spec
 from arp.signal_lab.inputs import load_inputs
+from arp.signal_lab.lab import load_recipe
 from arp.signal_lab.methods import base as methods_base
 from arp.signal_lab.methods.embedding import default_embedder
 from arp.signal_lab.methods.finbert import default_finbert
@@ -276,18 +276,6 @@ def _spec_nodes(spec: dict) -> Iterator[dict]:
             yield from _spec_nodes(child)
 
 
-def _load_recipe(path: Path) -> Recipe:
-    try:
-        return Recipe.model_validate(json.loads(path.read_text()))
-    except OSError as exc:
-        raise ValueError(f"cannot read recipe {path}: {exc.strerror}") from exc
-    except ValidationError as exc:
-        detail = "; ".join(f"{'.'.join(map(str, e['loc'])) or 'recipe'}: {e['msg']}" for e in exc.errors())
-        raise ValueError(f"invalid recipe {path}: {detail}") from exc
-    except ValueError as exc:  # malformed JSON
-        raise ValueError(f"invalid recipe {path}: {exc}") from exc
-
-
 def _resources(names: set[str]) -> dict:
     # Only what the chosen methods need: loading an embedding or FinBERT model is slow, an LLM client needs a key.
     # issuer_first gets no search tool: the method refuses with its documented message.
@@ -316,7 +304,7 @@ def signals_run(
 ) -> None:
     """Runs a method recipe on the text store and prices, registers the experiment (once per recipe and data) and prints the windows."""
     try:
-        recipe = _load_recipe(recipe_path)
+        recipe = load_recipe(recipe_path)
         spec = {"method": recipe.method, "params": recipe.params}
         nodes = list(_spec_nodes(spec))
         for node in nodes:

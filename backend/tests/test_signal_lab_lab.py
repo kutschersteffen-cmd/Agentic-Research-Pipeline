@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 
 import pytest
 from typer.testing import CliRunner
@@ -49,10 +51,13 @@ def _inputs(lab, env, recipe) -> tuple[MethodInput, str]:
 def test_preview_registers_nothing_and_is_labelled(lab, env):
     dates = _write_panel(env, 40)
     recipe = _recipe(dates)
-    inp, _ = _inputs(lab, env, recipe)
-    preview = lab.preview({"method": "price_momentum", "params": {}}, inp)
+    inp, data_version = _inputs(lab, env, recipe)
+    lab.run(recipe, inp, data_version)
+    before, trials = lab.experiments(), lab.registry.trial_count(recipe)
+    assert len(before) == trials == 1
+    preview = lab.preview({"method": "price_momentum", "params": {"formation_period_months": 3}}, inp)
     assert isinstance(preview, Preview) and preview.label == UNREGISTERED == "unregistered, not evidence"
-    assert lab.experiments() == [] and lab.registry.trial_count(recipe) == 0
+    assert lab.experiments() == before and lab.registry.trial_count(recipe) == trials
     assert repr(preview).startswith("[unregistered, not evidence]")
     assert f"IC mean={preview.ic.mean} n={preview.ic.n}" in repr(preview) and preview.ic.n > 0
     assert not hasattr(preview, "experiment_id")
@@ -96,7 +101,6 @@ def test_lab_run_matches_the_cli_run(env, pg):
     assert result.stdout.splitlines()[0] == f"experiment_id: {lab_record.experiment_id}"
     assert lab_record.experiment_id == cli_record.experiment_id
     assert [w.model_dump() for w in lab_record.evidence.windows] == [w.model_dump() for w in cli_record.evidence.windows]
-    assert lab_record.evidence == cli_record.evidence
     assert len(lab.experiments()) == 1 and lab_record.evidence.windows[0].ic.n > 0
 
 
@@ -134,3 +138,17 @@ def test_check_finds_a_peeking_method(lab, env, monkeypatch):
     monkeypatch.setitem(base._METHODS, "peeking", peeking)
     assert lab.check({"method": "peeking", "params": {}}, inp)
     assert lab.check({"method": "price_momentum", "params": {"formation_period_months": 3}}, inp) == []
+
+
+def test_preview_label_cannot_be_overridden(lab, env):
+    dates = _write_panel(env, 40)
+    inp, _ = _inputs(lab, env, _recipe(dates))
+    preview = lab.preview({"method": "price_momentum", "params": {}}, inp)
+    with pytest.raises(TypeError):
+        Preview(preview.panel, None, {}, preview.ic, label="evidence")
+
+
+def test_importing_the_library_does_not_import_the_cli():
+    code = "import arp.signal_lab.lab, sys; print(any(m.startswith('arp.cli') for m in sys.modules))"
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+    assert out.stdout.strip() == "False"

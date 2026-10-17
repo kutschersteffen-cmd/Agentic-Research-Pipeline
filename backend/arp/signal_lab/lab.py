@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
 from pydantic import ValidationError
 
-from arp.cli._shared import _run_store
 from arp.config import get_settings
 from arp.db.session import require_dsn
 from arp.replication.characteristics_data import CharacteristicPanel
@@ -30,7 +29,7 @@ class Preview:
     model: str | None
     notes: dict
     ic: IcSummary
-    label: str = UNREGISTERED
+    label: str = field(init=False, default=UNREGISTERED)
 
     def __repr__(self) -> str:
         return f"[{self.label}] model={self.model!r} IC mean={self.ic.mean} n={self.ic.n}"
@@ -70,11 +69,13 @@ class Lab:
 
     @classmethod
     def from_settings(cls) -> Lab:
+        from arp.cli._shared import _run_store  # lazy: importing the CLI here would make it a dependency of the library
+
         settings = get_settings()
         return cls(
             registry=Registry(_run_store()),
             cutoffs=load_cutoff_table(settings.training_cutoffs_path),
-            text_store=TextStore(require_dsn(settings)) if settings.postgres_dsn else None,
+            text_store=TextStore(require_dsn(settings)),
         )
 
     def texts(self, *, known_by: str | None = None) -> list[TextRecord]:
@@ -102,6 +103,8 @@ class Lab:
         return lookahead_violations(spec, inp, at=at)
 
     def run(self, recipe: Recipe, inp: MethodInput, data_version: str) -> ExperimentRecord:
+        """Registers the experiment. Unlike `arp signals run`, no LLM cost gate or resource building happens here:
+        the caller sets `inp.resources` and should check `estimate_llm_calls(inp)` first."""
         return run_recipe(recipe, inp, registry=self.registry, cutoffs=self.cutoffs, data_version=data_version)
 
     def experiments(self) -> list[ExperimentRecord]:
