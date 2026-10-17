@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     # LLM
     anthropic_api_key: str | None = Field(default=None)
+    gemini_api_key: str | None = Field(default=None, description="Google Gemini API key, needed only when a run uses a gemini-* model.")
     llm_model: str = Field(default="claude-sonnet-5-5")
     llm_verifier_model: str = Field(
         default="claude-opus-5-5",
