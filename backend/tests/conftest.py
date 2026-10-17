@@ -33,6 +33,15 @@ def _disable_rerank_by_default(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_remote_compute(monkeypatch):
+    """A developer's backend/.env may name the Cloud Run compute services
+    (arp/compute/); tests never send work there. Tests of the cloud path
+    patch arp.compute.client.get_settings."""
+    monkeypatch.setenv("ARP_COMPUTE_PARSE_URL", "")
+    monkeypatch.setenv("ARP_COMPUTE_MODELS_URL", "")
+
+
+@pytest.fixture(autouse=True)
 def _review_quality_dir_in_tmp(monkeypatch, tmp_path):
     """A confirmed correction appends to settings.review_quality_dir; never the repo's data/ in tests."""
     monkeypatch.setenv("ARP_REVIEW_QUALITY_DIR", str(tmp_path / "review_quality"))
