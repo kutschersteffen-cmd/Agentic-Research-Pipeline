@@ -57,3 +57,6 @@ data/xbrl/
 
 # mutmut work folder (backend/scripts/mutation_check.py cleans it up)
 backend/mutants/
+# Stryker work folder and report (.github/scripts/mutation_frontend.py)
+frontend/.stryker-tmp/
+frontend/reports/
