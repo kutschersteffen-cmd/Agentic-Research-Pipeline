@@ -14,6 +14,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 import httpx
+import numpy as np
 
 from arp.config import get_settings
 from arp.schemas.common import TableSpan
@@ -206,3 +207,39 @@ def parse_pdf(path: Path, parser_version: str) -> tuple[str, list[int], list[Tab
         except Exception as exc:  # noqa: BLE001
             _fail("parse", f"bad response: {type(exc).__name__}: {exc}")
             return None
+
+
+def _models_post(path: str, payload: dict, model: str) -> dict | None:
+    url = _configured("models")
+    if url is None or _cooling("models"):
+        return None
+    response = _post("models", f"{url}{path}", payload, MODELS_TIMEOUT_S, {"X-ARP-Model": model})
+    if response is None:
+        return None
+    if not response.is_success:  # 404/422 are passed through for parse only
+        _fail("models", _reason(response))
+        return None
+    try:
+        return response.json()
+    except Exception as exc:  # noqa: BLE001
+        _fail("models", f"bad response: {type(exc).__name__}: {exc}")
+        return None
+
+
+def rerank_scores(query: str, texts: list[str]) -> list[float] | None:
+    """Cross-encoder scores from arp-models, one per text, or None to keep the retrieval order."""
+    body = _models_post("/rerank", {"query": query, "texts": texts}, CLOUD_RERANK_MODEL)
+    return None if body is None else [float(s) for s in body["scores"]]
+
+
+def embed(texts: list[str]) -> np.ndarray | None:
+    """EMBED_MODEL_NAME vectors from arp-models, or None to embed every text locally (never a mix)."""
+    from arp.retrieval.embeddings import EMBED_MODEL_NAME
+
+    rows: list[list[float]] = []
+    for start in range(0, len(texts), EMBED_BATCH):
+        body = _models_post("/embed", {"texts": texts[start : start + EMBED_BATCH]}, EMBED_MODEL_NAME)
+        if body is None:
+            return None
+        rows.extend(body["vectors"])
+    return np.asarray(rows, dtype=np.float32)

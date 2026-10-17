@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from arp.compute import client as compute_client
+
 # 384-dim, ONNX, ~220MB -- multilingual (not the earlier bge-small-en-v1.5,
 # English-only) so DE-language disclosures rank meaningfully once hybrid
 # retrieval is the default (see Settings.hybrid_retrieval_enabled); still
@@ -39,5 +41,8 @@ def embed_texts(texts: list[str]) -> np.ndarray:
     """
     if not texts:
         return np.zeros((0, EMBED_DIM), dtype=np.float32)
+    remote = compute_client.embed(texts)
+    if remote is not None:
+        return remote
     model = _get_model()
     return np.asarray(list(model.embed(texts)), dtype=np.float32)
