@@ -5,6 +5,7 @@ export type DocType =
   | "earnings_transcript"
   | "investor_presentation"
   | "product_page"
+  | "research_paper"
   | "other";
 
 export type JobStatus = "pending" | "running" | "completed" | "partially_completed" | "failed" | "cancelled";
@@ -2222,7 +2223,7 @@ export interface IndexCalibration {
   effective_from: string;
   effective_to?: string | null;
   approved_by: string[];
-  created_by?: string;
+  created_by?: string | null;
   notes: string;
   created_at: string;
   spec: ConstructionSpec;
