@@ -391,7 +391,7 @@ to the cloud on its own and computes locally whenever the cloud is unreachable
 ```bash
 bash scripts/gcp/setup_compute.sh <project-id>   # once; a GCP project with billing enabled
 # paste the printed lines into backend/.env and the GitHub repository variables, then:
-pip install -e backend && arp compute check      # parse OK / rerank OK / embed OK
+pip install -e backend && cd backend && arp compute check   # parse OK / rerank OK / embed OK
 ```
 
 Every push to `main` that touches parsing or model code redeploys the services

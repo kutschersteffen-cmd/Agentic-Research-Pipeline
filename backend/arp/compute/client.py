@@ -28,6 +28,7 @@ PARSE_TIMEOUT_S = 1800.0  # read timeout for an upload or a parse; a 500-page OC
 MODELS_TIMEOUT_S = 180.0  # above an arp-models cold start
 EMBED_BATCH = 256
 PARSE_SLOTS = 2  # = arp-parse max instances, so extra callers queue here instead of getting 429
+MODELS_SLOTS = 8  # = arp-models concurrency x max instances, for the same reason
 CLOUD_RERANK_MODEL = "BAAI/bge-reranker-v2-m3"
 
 _STORAGE = "https://storage.googleapis.com"
@@ -40,6 +41,7 @@ _cooldown_until: dict[str, float] = {}
 last_error: dict[str, str] = {}
 _warned: set[str] = set()
 _parse_slots = threading.Semaphore(PARSE_SLOTS)
+_models_slots = threading.Semaphore(MODELS_SLOTS)
 _creds: dict[tuple[str, str], object] = {}
 _creds_lock = threading.Lock()
 
@@ -214,40 +216,62 @@ def parse_pdf(path: Path, parser_version: str) -> tuple[str, list[int], list[Tab
             return None
 
 
-def _models_post(path: str, payload: dict, model: str) -> dict | None:
+def _models_call(path: str, payload: dict, model: str, read):
+    """POST to arp-models and return read(json body); any failure, or a reply read() rejects, is None."""
     url = _configured("models")
-    if url is None or _cooling("models"):
+    if url is None:
         return None
-    response = _post("models", f"{url}{path}", payload, MODELS_TIMEOUT_S, {"X-ARP-Model": model})
+    with _models_slots:
+        if _cooling("models"):
+            return None
+        response = _post("models", f"{url}{path}", payload, MODELS_TIMEOUT_S, {"X-ARP-Model": model})
     if response is None:
         return None
-    if not response.is_success:  # 404/422 are passed through for parse only
-        _fail("models", _reason(response))
-        return None
     try:
-        return response.json()
-    except Exception as exc:  # noqa: BLE001
-        _fail("models", f"bad response: {type(exc).__name__}: {exc}")
+        if not response.is_success:  # 404/422 are passed through for parse only
+            raise ValueError(_reason(response))
+        return read(response.json())
+    except Exception as exc:  # noqa: BLE001 - a reply this backend can't use is a failure, never a raise
+        _fail("models", f"{type(exc).__name__}: {exc}")
         return None
+
+
+def _scores(body: dict, count: int) -> list[float]:
+    scores = [float(s) for s in body["scores"]]
+    if len(scores) != count:
+        raise ValueError(f"{len(scores)} scores for {count} texts")
+    return scores
+
+
+def _vectors(body: dict, count: int) -> np.ndarray:
+    from arp.retrieval.embeddings import EMBED_DIM
+
+    vectors = np.asarray(body["vectors"], dtype=np.float32)
+    if vectors.shape != (count, EMBED_DIM):
+        raise ValueError(f"vectors of shape {vectors.shape}, expected {(count, EMBED_DIM)}")
+    return vectors
 
 
 def rerank_scores(query: str, texts: list[str]) -> list[float] | None:
     """Cross-encoder scores from arp-models, one per text, or None to keep the retrieval order."""
-    body = _models_post("/rerank", {"query": query, "texts": texts}, CLOUD_RERANK_MODEL)
-    return None if body is None else [float(s) for s in body["scores"]]
+    payload = {"query": query, "texts": texts}
+    return _models_call("/rerank", payload, CLOUD_RERANK_MODEL, lambda body: _scores(body, len(texts)))
 
 
 def embed(texts: list[str]) -> np.ndarray | None:
     """EMBED_MODEL_NAME vectors from arp-models, or None to embed every text locally (never a mix)."""
     from arp.retrieval.embeddings import EMBED_MODEL_NAME
 
-    rows: list[list[float]] = []
+    parts: list[np.ndarray] = []
     for start in range(0, len(texts), EMBED_BATCH):
-        body = _models_post("/embed", {"texts": texts[start : start + EMBED_BATCH]}, EMBED_MODEL_NAME)
-        if body is None:
+        batch = texts[start : start + EMBED_BATCH]
+        vectors = _models_call(
+            "/embed", {"texts": batch}, EMBED_MODEL_NAME, lambda body, n=len(batch): _vectors(body, n)
+        )
+        if vectors is None:
             return None
-        rows.extend(body["vectors"])
-    return np.asarray(rows, dtype=np.float32)
+        parts.append(vectors)
+    return np.concatenate(parts)
 
 
 def healthz(url: str) -> dict | None:

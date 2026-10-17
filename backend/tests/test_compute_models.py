@@ -175,3 +175,46 @@ def test_models_unset_makes_no_requests(transport, monkeypatch):  # AC-1
     assert [c.chunk_id for c in rerank.rerank("q", [chunk("a"), chunk("b")], top_n=1)] == ["b"]
     assert embeddings.embed_texts(["t0"]).shape == (1, embeddings.EMBED_DIM)
     assert transport.requests == []
+
+
+@pytest.mark.parametrize("body", [{"detail": "x"}, {"scores": [0.5]}, {"scores": ["high", "low", "mid"]}])
+def test_malformed_rerank_reply_keeps_retrieval_order(transport, body):  # final review I6
+    transport.route(RERANK, 200, json=body)
+    out = rerank.rerank("q", [chunk("a"), chunk("b"), chunk("c")], top_n=2)
+    assert [c.chunk_id for c in out] == ["a", "b"]
+
+
+@pytest.mark.parametrize("vectors", [[[0.0] * 384], [[0.0] * 768] * 3, "nope"])
+def test_malformed_embed_reply_falls_back(transport, monkeypatch, vectors):  # final review I6
+    transport.route(EMBED, 200, json={"vectors": vectors})
+    monkeypatch.setattr(embeddings, "_get_model", lambda: _FakeLocalEmbedder())
+    out = embeddings.embed_texts(["t0", "t1", "t2"])
+    assert out.shape == (3, embeddings.EMBED_DIM) and (out[2] == -3.0).all()
+
+
+def test_models_calls_capped_at_service_capacity(transport):  # final review I5
+    import threading
+    import time
+
+    state = {"in_flight": 0, "max": 0}
+    lock, full = threading.Lock(), threading.Event()
+
+    def handler(request):
+        with lock:
+            state["in_flight"] += 1
+            state["max"] = max(state["max"], state["in_flight"])
+            if state["in_flight"] >= client.MODELS_SLOTS:
+                full.set()
+        full.wait(2)
+        time.sleep(0.05)
+        with lock:
+            state["in_flight"] -= 1
+        return httpx.Response(200, json={"scores": [0.1]})
+
+    transport.route(RERANK, handler)
+    threads = [threading.Thread(target=client.rerank_scores, args=("q", ["a"])) for _ in range(12)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(10)
+    assert state["max"] == client.MODELS_SLOTS == 8

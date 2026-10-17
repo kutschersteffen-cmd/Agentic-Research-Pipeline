@@ -15,10 +15,13 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app/backend
 COPY backend/ ./
-RUN pip install --no-cache-dir . \
+# torch and onnxruntime-gpu pinned as a pair: both built for CUDA 13 (the Cloud Run L4 driver), and
+# onnxruntime-gpu loads the cuDNN that torch ships. A mismatch puts the models on the CPU, which
+# server._require_cuda turns into a 503 that `arp compute check` reports.
+RUN pip install --no-cache-dir . "torch==2.14.1" \
     && FASTEMBED_VERSION="$(pip show fastembed | sed -n 's/^Version: //p')" \
     && pip uninstall -y onnxruntime fastembed \
-    && pip install --no-cache-dir "fastembed-gpu==${FASTEMBED_VERSION}"
+    && pip install --no-cache-dir "fastembed-gpu==${FASTEMBED_VERSION}" "onnxruntime-gpu==1.31.0"
 
 # The same converters the service builds (with and without OCR), plus both fastembed models.
 RUN python -c "\

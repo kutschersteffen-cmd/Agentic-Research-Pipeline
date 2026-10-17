@@ -54,10 +54,18 @@ def _load_embedder():
     return TextEmbedding(EMBED_MODEL_NAME, cuda=True)
 
 
+def _require_cuda(model):
+    session = getattr(getattr(model, "model", None), "model", None)  # fastembed's onnxruntime session
+    providers = session.get_providers() if session is not None else []
+    if "CUDAExecutionProvider" not in providers:  # onnxruntime falls back to CPU with only a warning
+        raise HTTPException(503, f"model not on the GPU: providers={providers}")
+    return model
+
+
 def _model(name: str, load):
     with _models_lock:  # a burst on a cold instance must not load several copies onto one GPU
         if name not in _models:
-            _models[name] = load()
+            _models[name] = _require_cuda(load())
         return _models[name]
 
 

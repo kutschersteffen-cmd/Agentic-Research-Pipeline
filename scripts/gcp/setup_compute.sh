@@ -74,9 +74,11 @@ g iam service-accounts add-iam-policy-binding "$SA_DEPLOYER" --role roles/iam.wo
   --member "principalSet://iam.googleapis.com/$POOL/attribute.repository/$GITHUB_REPO" >/dev/null
 
 echo "6/10 Budget alert arp-compute (${BUDGET_AMOUNT:-50} per month, alerts at 50/90/100 %)"
-if ! gcloud billing budgets list --billing-account "$ACCOUNT" --format='value(displayName)' | grep -qx arp-compute; then
-  CURRENCY="$(gcloud billing accounts describe "$ACCOUNT" --format='value(currencyCode)')"
-  gcloud billing budgets create --billing-account "$ACCOUNT" --display-name arp-compute \
+# Through g: the budgets API bills its quota to --project, not to gcloud's default project.
+BUDGETS="$(g billing budgets list --billing-account "$ACCOUNT" --format='value(displayName)')"
+if ! grep -qx arp-compute <<<"$BUDGETS"; then
+  CURRENCY="$(g billing accounts describe "$ACCOUNT" --format='value(currencyCode)')"
+  g billing budgets create --billing-account "$ACCOUNT" --display-name arp-compute \
     --budget-amount "${BUDGET_AMOUNT:-50}${CURRENCY}" --filter-projects "projects/$PROJECT" \
     --threshold-rule percent=0.5 --threshold-rule percent=0.9 --threshold-rule percent=1.0
 fi
@@ -120,5 +122,5 @@ GCP_REGION=$REGION
 GCP_WIF_PROVIDER=$POOL/providers/github
 GCP_DEPLOY_SA=$SA_DEPLOYER
 
-Then run: pip install -e backend && arp compute check
+Then run: pip install -e backend && cd backend && arp compute check
 EOF

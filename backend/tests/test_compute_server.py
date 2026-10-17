@@ -94,6 +94,7 @@ def test_model_built_once_under_burst(monkeypatch):  # Review 4
         def __init__(self, *args, **kwargs):
             built.append(1)
             threading.Event().wait(0.1)
+            self.model = type("Inner", (), {"model": _Session(["CUDAExecutionProvider", "CPUExecutionProvider"])})()
 
     monkeypatch.setattr(server, "_load_embedder", SlowModel)
     monkeypatch.setattr(server, "_models", {})
@@ -122,3 +123,23 @@ def test_healthz_answers_during_parse(c, tmp_path, monkeypatch):  # Review 5
     assert c.get("/healthz").json() == {"parser_version": "v1", "cuda": False}
     release.set()
     worker.join(5)
+
+
+class _Session:
+    def __init__(self, providers):
+        self._providers = providers
+
+    def get_providers(self):
+        return self._providers
+
+
+class _CpuEmbedder:
+    def __init__(self):
+        self.model = type("Inner", (), {"model": _Session(["CPUExecutionProvider"])})()
+
+
+def test_model_on_cpu_is_503(monkeypatch):  # final review I4
+    monkeypatch.setattr(server, "_load_embedder", _CpuEmbedder)
+    monkeypatch.setattr(server, "_models", {})
+    r = TestClient(server.app).post("/embed", json={"texts": ["a"]}, headers={"X-ARP-Model": EMBED_MODEL_NAME})
+    assert r.status_code == 503 and "CPUExecutionProvider" in r.json()["detail"]
