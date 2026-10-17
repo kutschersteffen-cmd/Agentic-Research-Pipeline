@@ -12,6 +12,10 @@ from arp.net_safety import UnsafeURLError, assert_safe_fetch_target
         "http://10.0.0.5/",  # private
         "http://192.168.1.1/",  # private
         "http://0.0.0.0/",  # unspecified
+        # Each of these is caught by one check alone (found by the mutation check):
+        "http://224.0.0.1/",  # multicast only
+        "http://[ff02::1]/",  # IPv6 multicast only
+        "http://[4000::1]/",  # IPv6 reserved only
         "ftp://169.254.169.254/",  # disallowed scheme
         "file:///etc/passwd",  # disallowed scheme
     ],

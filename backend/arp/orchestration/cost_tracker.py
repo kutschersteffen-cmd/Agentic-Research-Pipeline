@@ -14,6 +14,9 @@ _PRICE_PER_MILLION_TOKENS: dict[str, tuple[float, float]] = {
     "claude-sonnet-5": (2.0, 10.0),
     "claude-fable-5": (10.0, 50.0),
     "claude-haiku-4-5-20251001": (1.0, 5.0),
+    # Gemini introductory prices: Argon doubles on 2026-12-01, 3.8 Flash on 2027-01-01 (ai.google.dev pricing)
+    "gemini-4-argon": (2.0, 10.0),
+    "gemini-3.8-flash": (0.75, 3.75),
 }
 _DEFAULT_PRICE = (3.0, 15.0)
 
@@ -21,7 +24,8 @@ _DEFAULT_PRICE = (3.0, 15.0)
 # above, the normal input rate. Reads are 0.1x input on most models but 0.05x
 # on claude-opus-5-5 and claude-sonnet-5-5; writes are 1.25x for the 5-minute
 # TTL arp/llm/langchain_client.py uses.
-_CACHE_READ_MULTIPLIER: dict[str, float] = {"claude-opus-5-5": 0.05, "claude-sonnet-5-5": 0.05}
+# Gemini's implicit cache reads: 0.05x on gemini-4-argon, 0.1x on gemini-3.8-flash (the default); no write premium.
+_CACHE_READ_MULTIPLIER: dict[str, float] = {"claude-opus-5-5": 0.05, "claude-sonnet-5-5": 0.05, "gemini-4-argon": 0.05}
 _DEFAULT_CACHE_READ_MULTIPLIER = 0.1
 _CACHE_WRITE_MULTIPLIER = 1.25
 

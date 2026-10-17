@@ -1,0 +1,83 @@
+name: Mutation check
+
+# Checks that the tests would catch a bug: mutmut (backend/scripts/mutation_check.py) and Stryker
+# (.github/scripts/mutation_frontend.py) plant small bugs in changed files and run the tests that
+# import each one. Slow, so it runs nightly on what main changed and on PRs labelled risk:high, never
+# on every PR. Report only for now: scores and surviving mutants land in the job summary; a tool
+# failure turns the job red.
+on:
+  schedule:
+    - cron: "23 3 * * *"
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled]
+
+jobs:
+  mutation:
+    name: Mutation check (backend)
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'risk:high')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: arp
+          POSTGRES_PASSWORD: arp
+          POSTGRES_DB: arp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      ARP_TEST_POSTGRES_DSN: postgresql+psycopg://arp:arp@localhost:5432/arp_test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install backend package and mutmut
+        run: pip install -e ".[dev,postgres,opensearch,emerging_themes,object_storage]" "mutmut==3.8.0"
+
+      - name: Mutation check
+        env:
+          SCOPE: ${{ github.event_name == 'pull_request' && format('--base=origin/{0}', github.base_ref) || '--since=26 hours' }}
+        run: python scripts/mutation_check.py "$SCOPE" --summary "$GITHUB_STEP_SUMMARY"
+
+  mutation-frontend:
+    name: Mutation check (frontend)
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'risk:high')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Mutation check
+        env:
+          SCOPE: ${{ github.event_name == 'pull_request' && format('--base=origin/{0}', github.base_ref) || '--since=26 hours' }}
+        run: python3 .github/scripts/mutation_frontend.py "$SCOPE" --summary "$GITHUB_STEP_SUMMARY"

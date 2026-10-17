@@ -15,6 +15,7 @@ import type {
   StepSettings,
 } from "../types";
 import { pollAfter } from "../lib/poll";
+import { modeOf, withMode } from "../lib/runModes";
 
 const CARD_W = 214;
 const PILL_W = 170;
@@ -194,6 +195,13 @@ interface Props {
  * each step shows how many items went through it and how long they took --
  * for the whole run or one company -- and can stop the run or restart it
  * from that step. */
+const MODE_LABEL: Record<string, string> = { cheap: "Cheap", normal: "Normal", max: "Max" };
+const MODE_HELP: Record<string, string> = {
+  cheap: "Gemini 3.8 Flash drafts, Claude Sonnet checks; 5 fields per call, 8 passages. Lowest cost.",
+  normal: "Claude Sonnet drafts, Claude Opus checks; the app's standard settings.",
+  max: "Claude Opus drafts, Gemini 4 Argon checks; 20 re-ranked passages, page image check, more goes to review.",
+};
+
 export function PipelineEditor({ profile, value = {}, onChange, runId, onRestarted }: Props) {
   const [shape, setShape] = useState<PipelineShape | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -444,6 +452,7 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
     onChange?.(copy);
   };
   const changedCount = Object.keys(value).length;
+  const mode = modeOf(shape.modes, value, shape.defaults);
 
   async function stop() {
     if (!runId) return;
@@ -503,6 +512,20 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
             </span>
           )}
         </div>
+      )}
+      {!runId && (
+        <p className="pipeline-mode">
+          <label htmlFor="run-mode">Mode</label>{" "}
+          <select id="run-mode" value={mode ?? ""} onChange={(e) => e.target.value && onChange?.(withMode(shape.modes[e.target.value], value, shape.defaults))}>
+            {!mode && <option value="">Custom</option>}
+            {Object.keys(shape.modes).map((m) => (
+              <option key={m} value={m}>
+                {MODE_LABEL[m] ?? m}
+              </option>
+            ))}
+          </select>{" "}
+          <span className="help-text">{mode ? MODE_HELP[mode] : "Settings changed by hand; pick a mode to start from its settings."}</span>
+        </p>
       )}
       <div className="chart-scroll">
       {/* Touch: the canvas does not pan, so it is drawn wide enough for every step at the 0.9 zoom below and the page scrolls it sideways. */}
@@ -601,7 +624,7 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
                   <>
                     <input id={id} list={`${id}-models`} value={(v as string) ?? ""} onChange={(e) => set(key, e.target.value.trim() || null)} />
                     <datalist id={`${id}-models`}>
-                      {[...new Set([shape.defaults.llm_model, shape.defaults.llm_verifier_model])].map((m) => (
+                      {[...new Set([shape.defaults.llm_model, shape.defaults.llm_verifier_model, ...Object.values(shape.modes).flatMap((m) => [m.llm_model ?? "", m.llm_verifier_model ?? ""])])].filter(Boolean).map((m) => (
                         <option key={m} value={m} />
                       ))}
                     </datalist>

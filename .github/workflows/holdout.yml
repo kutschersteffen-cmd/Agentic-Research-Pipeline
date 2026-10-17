@@ -1,0 +1,87 @@
+name: Holdout acceptance
+
+# Runs the hidden acceptance tests (private repo kutschersteffen-cmd/holdout) against this PR's build:
+# regression/ always, plus specs/<slug>/ when the PR description names its spec as "Spec: <slug>".
+# The holdout repo's own run.py prints only "AC-n pass|fail", so the implementing agent, which can
+# read these logs, learns which row failed and never how it was checked. The tests are fetched after
+# the app has started and deleted when the job ends; no artifact is uploaded.
+# Needs the HOLDOUT_TOKEN secret (read-only access to the holdout repo); without it the job warns and passes.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  holdout:
+    name: Holdout acceptance
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: arp
+          POSTGRES_PASSWORD: arp
+          POSTGRES_DB: arp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      ARP_POSTGRES_DSN: postgresql+psycopg://arp:arp@localhost:5432/arp_test
+    steps:
+      - name: Check for the token
+        id: key
+        env:
+          KEY: ${{ secrets.HOLDOUT_TOKEN }}
+        run: |
+          if [ -n "$KEY" ]; then echo "present=true" >>"$GITHUB_OUTPUT"; else
+            echo "present=false" >>"$GITHUB_OUTPUT"
+            echo "::warning title=Hidden tests not run::Add the HOLDOUT_TOKEN repository secret (read-only access to kutschersteffen-cmd/holdout)."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.key.outputs.present == 'true'
+
+      - uses: actions/setup-python@v5
+        if: steps.key.outputs.present == 'true'
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: backend/pyproject.toml
+
+      - uses: actions/setup-node@v4
+        if: steps.key.outputs.present == 'true'
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Start the app (this PR)
+        if: steps.key.outputs.present == 'true'
+        run: |
+          (cd backend && pip install -e ".[dev,postgres,opensearch,emerging_themes,object_storage]")
+          (cd frontend && npm ci)
+          python -m playwright install --with-deps chromium
+          bash backend/scripts/e2e_stack.sh up
+
+      - uses: actions/checkout@v4
+        if: steps.key.outputs.present == 'true'
+        with:
+          repository: kutschersteffen-cmd/holdout
+          token: ${{ secrets.HOLDOUT_TOKEN }}
+          path: .holdout
+
+      - name: Run the hidden tests
+        if: steps.key.outputs.present == 'true'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          spec=$(printf '%s\n' "$PR_BODY" | sed -n 's/^Spec: *\([A-Za-z0-9_.-]*\).*/\1/p' | head -1)
+          python .holdout/run.py ${spec:+--spec "$spec"}
+
+      - name: Remove the hidden tests
+        if: always()
+        run: rm -rf .holdout

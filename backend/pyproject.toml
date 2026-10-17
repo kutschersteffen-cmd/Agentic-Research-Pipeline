@@ -10,6 +10,7 @@ dependencies = [
     # are unchanged from the original stated minimums. Bump the upper bound
     # deliberately, verifying against the test suite, rather than removing it.
     "anthropic>=1.13,<2.0",
+    "google-genai>=1.75,<2.0",  # gemini-* models (arp/llm/gemini_client.py)
     "langchain-core>=0.3,<2.0",
     "langgraph>=0.2,<2.0",
     "llama-index-core>=0.12,<1.0",
@@ -164,6 +165,7 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
     "live_superset: needs a running Superset (set ARP_TEST_SUPERSET_URL); skipped otherwise",
+    "e2e: browser flow against the running app (scripts/e2e_stack.sh; set ARP_E2E_URL); skipped otherwise",
 ]
 
 [tool.ruff]

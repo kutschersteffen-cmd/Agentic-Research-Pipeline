@@ -2853,6 +2853,10 @@ export interface StepSettings {
   llm_verifier_model?: string | null;
   grounding_fuzzy_threshold?: number | null;
   confidence_review_threshold?: number | null;
+  evidence_max_chunks?: number | null;
+  rerank_enabled?: boolean | null;
+  extraction_group_size?: number | null;
+  vision_fallback_enabled?: boolean | null;
 }
 export type StepSettingKey = keyof StepSettings;
 
@@ -2883,6 +2887,8 @@ export interface PipelineShape {
   edges: { source: string; target: string; conditional: boolean }[];
   setting_info: Record<StepSettingKey, StepSettingInfo>;
   defaults: Required<{ [K in StepSettingKey]: NonNullable<StepSettings[K]> }>;
+  /** Run modes (cheap / normal / max): each fills these step settings. */
+  modes: Record<string, StepSettings>;
 }
 
 export interface RunSteps {

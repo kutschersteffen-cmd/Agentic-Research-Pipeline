@@ -12153,6 +12153,23 @@
       ],
       "title": "Decision Framework Version"
      },
+     "mode": {
+      "anyOf": [
+       {
+        "enum": [
+         "cheap",
+         "normal",
+         "max"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Run mode preset (arp/extraction/steps.py MODES); `step_settings` override it per setting.",
+      "title": "Mode"
+     },
      "profile": {
       "enum": [
        "custom",
@@ -12213,6 +12230,32 @@
        }
       ],
       "title": "Confidence Review Threshold"
+     },
+     "evidence_max_chunks": {
+      "anyOf": [
+       {
+        "maximum": 50.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence Max Chunks"
+     },
+     "extraction_group_size": {
+      "anyOf": [
+       {
+        "maximum": 20.0,
+        "minimum": 0.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Extraction Group Size"
      },
      "grounding_fuzzy_threshold": {
       "anyOf": [
@@ -12305,6 +12348,28 @@
        }
       ],
       "title": "Pre Parse Index Enabled"
+     },
+     "rerank_enabled": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rerank Enabled"
+     },
+     "vision_fallback_enabled": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Vision Fallback Enabled"
      },
      "xbrl_facts_enabled": {
       "anyOf": [

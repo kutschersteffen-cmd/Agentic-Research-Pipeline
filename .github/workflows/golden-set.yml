@@ -1,0 +1,88 @@
+name: Golden set
+
+# AI output varies from run to run, so unit tests replace the model with a stand-in. This check runs
+# the real extractor -> verifier -> grounding pipeline on the bundled golden set (manually verified
+# extractions) whenever a PR touches extraction prompts, the LLM clients, grounding or the model
+# settings, and fails if any case fails. It calls the real model, so it needs the
+# ARP_ANTHROPIC_API_KEY repository secret; without it the job warns and passes.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/arp/extraction/**"
+      - "backend/arp/llm/**"
+      - "backend/arp/golden_set/**"
+      - "backend/arp/grounding.py"
+      - "backend/arp/config.py"
+  workflow_dispatch:
+
+jobs:
+  golden-set:
+    name: Golden set (real model)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:  # the arp CLI needs its system of record even for the golden set
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: arp
+          POSTGRES_PASSWORD: arp
+          POSTGRES_DB: arp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      ARP_POSTGRES_DSN: postgresql+psycopg://arp:arp@localhost:5432/arp_test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # config.py changes often for other reasons; only its model settings matter here.
+      - name: Decide whether the change touches the model path
+        id: scope
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          if [ -z "$BASE" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; exit 0; fi
+          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py)
+          model=$(git diff -U0 "origin/$BASE...HEAD" -- arp/config.py | grep -E '^[+-] .*(llm_|_api_key|grounding_|confidence_review)' || true)
+          if [ -n "$other$model" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; else echo "run=false" >>"$GITHUB_OUTPUT"; echo "Only unrelated config.py lines changed; golden set not needed."; fi
+
+      - name: Check for the API key
+        id: key
+        if: steps.scope.outputs.run == 'true'
+        env:
+          KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then echo "present=true" >>"$GITHUB_OUTPUT"; else
+            echo "present=false" >>"$GITHUB_OUTPUT"
+            echo "::warning title=Golden set not run::Add the ARP_ANTHROPIC_API_KEY repository secret so AI changes are checked against the golden set."
+          fi
+
+      - name: Set up Python
+        if: steps.key.outputs.present == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install backend package
+        if: steps.key.outputs.present == 'true'
+        run: pip install -e ".[postgres]"
+
+      - name: Run the golden set
+        if: steps.key.outputs.present == 'true'
+        env:
+          ARP_ANTHROPIC_API_KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
+        run: |
+          set -o pipefail
+          arp db init-postgres
+          arp golden-set run | tee -a "$GITHUB_STEP_SUMMARY"

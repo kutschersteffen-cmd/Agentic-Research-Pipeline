@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -24,7 +25,7 @@ from arp.db.session import transaction
 from arp.decision.templates import attach_to_run
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.schema_builder import draft_schema
-from arp.extraction.steps import ExtractionProfile, StepSettings, pipeline_shape, restart_overrides
+from arp.extraction.steps import MODES, ExtractionProfile, StepSettings, pipeline_shape, restart_overrides
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.factory import batch_settings
 from arp.orchestration.review_queue import effective_decisions, item_states, public_decision, record_cosign
@@ -190,6 +191,9 @@ class StartRequest(BaseModel):
     universe_path: str | None = None
     decision_framework_id: str | None = Field(default=None, description="Decision Studio framework applied as the run's last step.")
     decision_framework_version: int | None = None
+    mode: Literal["cheap", "normal", "max"] | None = Field(
+        default=None, description="Run mode preset (arp/extraction/steps.py MODES); `step_settings` override it per setting.",
+    )
     step_settings: StepSettings | None = Field(default=None, description="Per-run step settings from the node editor.")
     trial: bool = Field(default=False, description="custom: allow draft fields; the run is marked as a trial.")
     batch: bool = Field(default=False, description="Run through the Message Batches API: 50% cheaper, slower.")
@@ -209,6 +213,8 @@ async def start_extraction(
     It hands the request to that pipeline's own start endpoint, which stays
     available for existing callers. Returns `run_type` so a caller knows
     which results to read."""
+    if req.mode:
+        settings = MODES[req.mode].apply(settings)
     if req.step_settings:
         settings = req.step_settings.apply(settings)
     return await _dispatch(req, settings, run_store, registry, decision_store, xbrl_source)

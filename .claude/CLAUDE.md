@@ -7,6 +7,17 @@ what GitHub reports as the repository's default branch — that setting currentl
 `claude/*` feature branch and is wrong. Do not read the base off `git remote show origin`
 or `refs/remotes/origin/HEAD`.
 
+Agents driving a PR follow `.claude/skills/steward/SKILL.md`: a `risk:` label, a stop after three
+failed fix rounds, `factory:blocked` for spec questions, at most three agent PRs in flight. Once CI is
+green, the `evaluator` skill checks the spec's `evaluator` rows in the running app.
+Hidden acceptance tests live in the private `holdout` repo, written by the `test-writer` skill in a
+session that never works on the implementation; the Holdout acceptance job runs them on PRs that say
+`Spec: <slug>` and prints only `AC-n pass|fail`. Never attach `holdout` to an implementing session.
+If CI goes red on `main` after a merge, the Main guard workflow opens a `Revert <sha>` PR (or an issue);
+merge it, or close it when a fix is already on the way.
+Every Monday a scheduled task runs the `retro` skill: it logs the week's failures in
+`docs/FACTORY_RETRO_LOG.md` and opens a `Factory retro <date>` PR with at most three rule changes.
+
 Branch off `main` when starting work. If a branch was created from anything else, merge
 `origin/main` into it before opening the PR so the diff shows only the intended change.
 
@@ -93,7 +104,8 @@ phase:
   `superpowers:writing-plans`. Apply ponytail's ladder to the plan itself: cut tasks that
   don't need to exist before writing them down. Trivial changes skip planning.
   Every spec ends with an `## Acceptance` table in the format of
-  `docs/superpowers/ACCEPTANCE_TEMPLATE.md`; the owner approves it before implementation starts.
+  `docs/superpowers/ACCEPTANCE_TEMPLATE.md`; run the `spec-critic` skill on it, then the owner
+  approves it before implementation starts.
 - **Implementation → ponytail.** Smallest working diff; follow the plan's tasks, not more.
 - **Frontend design → impeccable and ui-ux-pro-max**, as before. After a UI change, screenshot
   the affected page with Playwright and run `/impeccable:impeccable audit`.
@@ -120,6 +132,15 @@ The gaps ponytail leaves from `karpathy-guidelines`. Where they clash, these win
 - API contract: after changing a request or response model, run `cd backend && python scripts/export_openapi.py`
   then `cd frontend && npm run gen:api`, fix the type errors `tsc -b` reports, and commit both generated files.
   A new `request<T>()` against an endpoint with a response model gets a line in `frontend/src/api/contract.ts`.
+- Browser flow (cloud session): `bash .claude/hooks/ensure-deps.sh postgres && bash backend/scripts/e2e_stack.sh up`,
+  then `cd backend && ARP_E2E_URL=http://localhost:5173 ARP_CHROMIUM_PATH=$(ls -d /opt/pw-browsers/chromium-*/chrome-linux/chrome | head -1) pytest -m e2e tests/e2e`;
+  `e2e_stack.sh down` when done. CI runs it as the "E2E (browser)" job.
+- Mutation check (do the tests catch bugs?): `cd backend && pip install mutmut==3.8.0 && python scripts/mutation_check.py --base origin/main`
+  (some tests need `ARP_TEST_POSTGRES_DSN`). CI runs it nightly and on `risk:high` PRs; surviving mutants are weak tests.
+  Frontend: `python3 .github/scripts/mutation_frontend.py --base=origin/main` (Stryker via npx, `frontend/stryker.config.json`).
+- Golden set (real model): PRs touching `arp/extraction`, `arp/llm`, `arp/golden_set`, `arp/grounding.py` or model
+  settings in `arp/config.py` run `arp golden-set run` in CI and fail if any case fails. Needs the
+  `ARP_ANTHROPIC_API_KEY` repo secret; without it the check warns and passes.
 - Dependencies install on demand: run `bash .claude/hooks/ensure-deps.sh backend` (or `frontend`,
   `postgres`) before running tests by hand. It takes about 1 s when already installed. `/install-deps`
   installs everything in the background.
