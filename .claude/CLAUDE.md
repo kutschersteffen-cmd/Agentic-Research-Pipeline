@@ -132,6 +132,9 @@ The gaps ponytail leaves from `karpathy-guidelines`. Where they clash, these win
   `e2e_stack.sh down` when done. CI runs it as the "E2E (browser)" job.
 - Mutation check (do the tests catch bugs?): `cd backend && pip install mutmut==3.8.0 && python scripts/mutation_check.py --base origin/main`
   (some tests need `ARP_TEST_POSTGRES_DSN`). CI runs it nightly and on `risk:high` PRs; surviving mutants are weak tests.
+- Golden set (real model): PRs touching `arp/extraction`, `arp/llm`, `arp/golden_set`, `arp/grounding.py` or model
+  settings in `arp/config.py` run `arp golden-set run` in CI and fail if any case fails. Needs the
+  `ARP_ANTHROPIC_API_KEY` repo secret; without it the check warns and passes.
 - Dependencies install on demand: run `bash .claude/hooks/ensure-deps.sh backend` (or `frontend`,
   `postgres`) before running tests by hand. It takes about 1 s when already installed. `/install-deps`
   installs everything in the background.
