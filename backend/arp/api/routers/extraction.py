@@ -63,9 +63,7 @@ async def draft_schema_endpoint(req: DraftSchemaRequest) -> DataPointSchema:
 
 
 @router.post("/schemas/suggest-rules", response_model=RuleSuggestions)
-async def suggest_rules_endpoint(
-    schema: DataPointSchema, principal: Principal = Depends(require_role("analyst")),
-) -> RuleSuggestions:
+async def suggest_rules_endpoint(schema: DataPointSchema) -> RuleSuggestions:
     """Proposes rules and the helper fields they need for a drafted schema. Saves nothing: the user
     accepts, edits or drops each suggestion in the UI."""
     llm = get_llm_client()

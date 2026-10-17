@@ -133,3 +133,11 @@ def test_helper_reusing_an_existing_field_id_gets_a_new_one(suggest):
         rules=[_share_ratio("a", "other")], helper_fields=[_helper("other", "Total capex")]))
     helper_id = out["helper_fields"][0]["field_id"]
     assert helper_id != "other" and out["rules"][0]["rule"]["inputs"] == ["green", helper_id]
+
+
+def test_rule_like_content_on_helpers_is_stripped(suggest):
+    bad = ThresholdRule(rule_id="x", kind="threshold", conditions=[Condition(field="ghost", op=">=", value=1)])
+    helper = _helper("h_total", "Total capex").model_copy(update={"rules": [bad]})
+    out = suggest(_f_minus_total(), RuleSuggestions(rules=[_share_ratio("a", "h_total")], helper_fields=[helper]))
+    assert len(out["rules"]) == 1  # the helper's bad rule did not poison validation
+    assert out["helper_fields"][0]["rules"] == []

@@ -148,6 +148,8 @@ async def suggest_rules(schema: DataPointSchema, llm: LLMClient) -> tuple[RuleSu
     ids: dict[str, str] = {}
     helpers: list[FieldDefinition] = []
     for h in out.helper_fields:
+        # A helper only holds a value; rule-like content from the model would apply on Accept unvalidated.
+        h = h.model_copy(update={"rules": [], "derived_rule": None, "applicability_rules": None})
         key = h.name.strip().casefold()
         if key in by_name:
             ids[h.field_id] = by_name[key]
