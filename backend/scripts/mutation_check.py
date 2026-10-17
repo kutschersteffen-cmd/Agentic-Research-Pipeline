@@ -20,6 +20,10 @@ from pathlib import Path
 
 CFG = Path("setup.cfg")  # mutmut's fallback config; written per file, removed afterwards
 SHOW_SURVIVORS = 5
+_NOTHING_COVERED = "could not find any test case for any mutant"  # mutmut 3.8 stops with exit 1
+# Inside mutmut's backend/mutants/ copy, config.py's REPO_ROOT resolves to backend/, so every
+# selected test that reads repo files (docs/, schemas/, ...) fails before a mutant runs.
+SKIP = {"arp/config.py": "skipped: in mutmut's copy REPO_ROOT points at backend/"}
 
 
 def git(*args: str) -> str:
@@ -48,13 +52,16 @@ def mutate(path: str, tests: list[str]) -> dict[str, list[str]]:
     selection = "".join(f"\n    {t}" for t in tests)
     CFG.write_text(
         f"[mutmut]\nsource_paths = arp/\nonly_mutate = {path}\nmutate_only_covered_lines = true\n"
+        "also_copy =\n    scripts/\n"  # tests run inside mutants/; test_mutation_check.py reads scripts/ from there
         f"pytest_add_cli_args_test_selection ={selection}\n"
     )
     shutil.rmtree("mutants", ignore_errors=True)
     run = subprocess.run(["mutmut", "run"], capture_output=True, text=True, timeout=1800)
     out = subprocess.run(["mutmut", "results", "--all", "true"], capture_output=True, text=True).stdout
     groups: dict[str, list[str]] = {}
-    if run.returncode != 0:  # e.g. a selected test fails before any mutant runs
+    if run.returncode != 0 and _NOTHING_COVERED in run.stdout:  # e.g. an empty __init__.py: nothing to judge
+        groups["uncovered"] = []
+    elif run.returncode != 0:  # e.g. a selected test fails before any mutant runs
         groups["error"] = (run.stdout + run.stderr).strip().splitlines()[-3:]
     for line in out.splitlines():
         name, sep, outcome = line.strip().rpartition(": ")
@@ -83,11 +90,17 @@ def main() -> int:
     details: list[str] = []
     try:
         for f in files:
+            if f in SKIP:
+                lines.append(f"| `{f}` | – | – | – | {SKIP[f]} |")
+                continue
             tests = tests_for(f)
             if not tests:
                 lines.append(f"| `{f}` | none import it | – | – | **no tests** |")
                 continue
             g = mutate(f, tests)
+            if "uncovered" in g:
+                lines.append(f"| `{f}` | {len(tests)} | – | – | no mutant is covered by these tests |")
+                continue
             if "error" in g:
                 lines.append(f"| `{f}` | {len(tests)} | – | – | **mutmut failed**: {' / '.join(g['error'])[-160:]} |")
                 failed = True
