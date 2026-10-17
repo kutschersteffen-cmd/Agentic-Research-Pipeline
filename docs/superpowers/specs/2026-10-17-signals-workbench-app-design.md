@@ -1,7 +1,7 @@
 # Signals workbench in the app (API and screen)
 
 Date: 2026-10-17
-Status: draft for owner approval
+Status: approved by the owner 2026-10-17
 Parent: `docs/superpowers/specs/2026-10-14-signals-workbench-design.md` (Component 7, "App screens"). Plans 1 to 4 are merged: registry, evidence, methods, `arp signals run|compare|decide`, the `Lab` notebook library.
 
 ## Intent
