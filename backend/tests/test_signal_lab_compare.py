@@ -153,6 +153,27 @@ def test_post_cutoff_window_without_backtest_months_is_insufficient_not_a_rerun(
     assert (result.months, result.n_comparisons) == (0, 1)
 
 
+def test_real_post_cutoff_window_without_portfolio_months_is_insufficient(registry):
+    # Built by evaluate_signal, not by hand: a one-month window has no forward month, so no backtest periods.
+    from arp.signal_lab.baselines import momentum_panel
+    from arp.signal_lab.cutoffs import CutoffTable
+    from arp.signal_lab.evidence import evaluate_signal, sentiment_spec
+    from tests.test_signal_methods_base import _prices
+
+    prices = _prices(30)
+    last = prices.period_ends[-1]
+    report = evaluate_signal(
+        momentum_panel(prices), prices, sentiment_spec("signal", start=last, end=last),
+        model=None, cutoffs=CutoffTable(entries={}),
+    )
+    a, _ = _pair()
+    a_id = _register(registry, "a", a)
+    b_id = registry.register(_recipe(method="b"), report, data_version="v1", model=None, cutoff=None).experiment_id
+    result = compare_experiments(a_id, b_id, registry)
+    assert result.verdict == "insufficient_data"
+    assert result.reason == f"no post-cutoff portfolio months for {b_id}"
+
+
 def test_old_row_with_long_short_but_no_series_still_raises_rerun(registry):
     a, _ = _pair()
     a_id = _register(registry, "a", a)

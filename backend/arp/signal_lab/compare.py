@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from arp.schemas.strategy_replication import LegPerformance
 from arp.signal_lab.registry import ExperimentRecord, Registry
 from arp.signal_lab.stats import compare_signals
 
@@ -49,7 +50,7 @@ def compare_experiments(a_id: str, b_id: str, registry: Registry, *, confidence:
                 reason=f"no post-cutoff evidence for {experiment_id}",
             )
     for experiment_id, window in windows.items():
-        if not window.series and window.periods > 0 and window.long_short is None:
+        if not window.series and window.periods > 0 and window.long_short in (None, LegPerformance()):
             # The backtest produced no months (a real answer); an old row has a long_short but no stored series.
             return Comparison(
                 a=a_id, b=b_id, verdict="insufficient_data", months=0, n_comparisons=n_comparisons,
