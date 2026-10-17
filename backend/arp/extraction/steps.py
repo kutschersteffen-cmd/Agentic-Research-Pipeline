@@ -33,6 +33,10 @@ class StepSettings(BaseModel):
     llm_verifier_model: str | None = Field(default=None, min_length=1)
     grounding_fuzzy_threshold: float | None = Field(default=None, ge=0.5, le=1.0)
     confidence_review_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
+    evidence_max_chunks: int | None = Field(default=None, ge=1, le=50)
+    rerank_enabled: bool | None = None
+    extraction_group_size: int | None = Field(default=None, ge=0, le=20)
+    vision_fallback_enabled: bool | None = None
 
     def apply(self, settings: Settings) -> Settings:
         return settings.model_copy(update=self.model_dump(exclude_none=True))
@@ -53,6 +57,28 @@ SETTING_INFO: dict[str, dict] = {
     "llm_verifier_model": {"label": "Verifier model", "type": "model", "help": "Checks the draft; keep it different from the extractor so the two don't share blind spots."},
     "grounding_fuzzy_threshold": {"label": "Quote match threshold", "type": "number", "min": 0.5, "max": 1.0, "step": 0.01, "help": "How closely a quote must match its source to count as grounded."},
     "confidence_review_threshold": {"label": "Review below confidence", "type": "number", "min": 0.0, "max": 1.0, "step": 0.05, "help": "Answers under this confidence go to the review queue."},
+    "evidence_max_chunks": {"label": "Evidence passages", "type": "number", "min": 1, "max": 50, "step": 1, "help": "How many ranked passages each field's extractor sees."},
+    "rerank_enabled": {"label": "Re-rank evidence", "type": "bool", "help": "A cross-encoder re-scores the top passages before the best go to the extractor."},
+    "extraction_group_size": {"label": "Fields per call", "type": "number", "min": 0, "max": 20, "step": 1, "help": "Extract this many non-high-risk fields in one call over their shared evidence; each is still verified on its own. 0 or 1: one call per field."},
+    "vision_fallback_enabled": {"label": "Page image check", "type": "bool", "help": "A value whose quote is not found in the text is read off the PDF page image; a match clears the not-grounded flag on non-high-risk fields."},
+}
+
+# Run modes: one choice that fills the step settings above. Every mode keeps the safety rules (grounding,
+# blind verification of high-risk fields, review routing); the extractor and verifier are always different
+# models, and Cheap and Max pair a Claude with a Gemini model so the two don't share blind spots.
+MODES: dict[str, StepSettings] = {
+    "cheap": StepSettings(
+        llm_model="gemini-3.8-flash", llm_verifier_model="claude-sonnet-5-5", extraction_group_size=5,
+        evidence_max_chunks=8, rerank_enabled=False, vision_fallback_enabled=False, confidence_review_threshold=0.5,
+    ),
+    "normal": StepSettings(
+        llm_model="claude-sonnet-5-5", llm_verifier_model="claude-opus-5-5", extraction_group_size=0,
+        evidence_max_chunks=12, vision_fallback_enabled=False, confidence_review_threshold=0.6,
+    ),
+    "max": StepSettings(
+        llm_model="claude-opus-5-5", llm_verifier_model="gemini-4-argon", extraction_group_size=0,
+        evidence_max_chunks=20, rerank_enabled=True, vision_fallback_enabled=True, confidence_review_threshold=0.8,
+    ),
 }
 
 STEP_INFO: dict[str, dict[str, str]] = {
@@ -77,8 +103,9 @@ STEP_INFO: dict[str, dict[str, str]] = {
 _REVIEW = ["grounding_fuzzy_threshold", "confidence_review_threshold"]
 PROFILES: dict[str, dict] = {
     "custom": {"item": "each field of each company", "settings": {
-        "try_tagged": ["xbrl_facts_enabled"], "gather_evidence": ["hybrid_retrieval_enabled"], "extract": ["llm_model"], "verify": ["llm_verifier_model"], "adjudicate": ["llm_verifier_model"],
-        "aggregate": _REVIEW}},
+        "try_tagged": ["xbrl_facts_enabled"], "gather_evidence": ["hybrid_retrieval_enabled", "evidence_max_chunks", "rerank_enabled"],
+        "extract": ["llm_model", "extraction_group_size"], "verify": ["llm_verifier_model"], "adjudicate": ["llm_verifier_model"],
+        "aggregate": [*_REVIEW, "vision_fallback_enabled"]}},
     "financials": {"item": "each company", "settings": {
         "gather_evidence": ["hybrid_retrieval_enabled", "xbrl_facts_enabled"], "extract": ["llm_model"], "verify": ["llm_verifier_model"], "aggregate": _REVIEW}},
     "tnfd": {"item": "each company", "settings": {
@@ -135,6 +162,7 @@ def pipeline_shape(profile: str, settings: Settings) -> dict:
         "edges": edges,
         "setting_info": SETTING_INFO,
         "defaults": StepSettings.effective(settings).model_dump(),
+        "modes": {name: m.model_dump(exclude_none=True) for name, m in MODES.items()},
     }
 
 

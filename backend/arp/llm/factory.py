@@ -3,6 +3,7 @@ from __future__ import annotations
 from arp.config import Settings
 from arp.llm.base import LLMClient
 from arp.llm.batching_client import BatchingLLMClient
+from arp.llm.gemini_client import GeminiClient
 from arp.llm.langchain_client import LangChainAnthropicClient
 
 
@@ -14,6 +15,16 @@ def batch_settings(settings: Settings, batch: bool) -> Settings:
 
 
 def build_llm_client(settings: Settings, *, model: str | None = None, cache_refresh: bool | None = None) -> LLMClient:
+    model = model or settings.llm_model
+    refresh = settings.llm_cache_refresh if cache_refresh is None else cache_refresh
+    if model.startswith("gemini-"):
+        if not settings.gemini_api_key:
+            raise RuntimeError(f"ARP_GEMINI_API_KEY is not set, and the run uses the Gemini model {model}.")
+        # shortcut: no Gemini batch client, so a batch run sends Gemini calls one by one; add one if volume needs it
+        return GeminiClient(
+            api_key=settings.gemini_api_key, model=model, cache_dir=settings.cache_dir,
+            cache_enabled=settings.llm_cache_enabled, cache_refresh=refresh,
+        )
     if not settings.anthropic_api_key:
         raise RuntimeError(
             "ARP_ANTHROPIC_API_KEY is not set. Provide an Anthropic API key via environment variable "
@@ -21,10 +32,10 @@ def build_llm_client(settings: Settings, *, model: str | None = None, cache_refr
         )
     kwargs = dict(
         api_key=settings.anthropic_api_key,
-        model=model or settings.llm_model,
+        model=model,
         cache_dir=settings.cache_dir,
         cache_enabled=settings.llm_cache_enabled,
-        cache_refresh=settings.llm_cache_refresh if cache_refresh is None else cache_refresh,
+        cache_refresh=refresh,
         prompt_cache_enabled=settings.llm_prompt_cache_enabled,
     )
     if settings.llm_batch:

@@ -10,6 +10,7 @@ dependencies = [
     # are unchanged from the original stated minimums. Bump the upper bound
     # deliberately, verifying against the test suite, rather than removing it.
     "anthropic>=1.13,<2.0",
+    "google-genai>=1.75,<2.0",  # gemini-* models (arp/llm/gemini_client.py)
     "langchain-core>=0.3,<2.0",
     "langgraph>=0.2,<2.0",
     "llama-index-core>=0.12,<1.0",

@@ -12467,6 +12467,11 @@ export interface components {
             /** Decision Framework Version */
             decision_framework_version?: number | null;
             /**
+             * Mode
+             * @description Run mode preset (arp/extraction/steps.py MODES); `step_settings` override it per setting.
+             */
+            mode?: ("cheap" | "normal" | "max") | null;
+            /**
              * Profile
              * @enum {string}
              */
@@ -12489,6 +12494,10 @@ export interface components {
         StepSettings: {
             /** Confidence Review Threshold */
             confidence_review_threshold?: number | null;
+            /** Evidence Max Chunks */
+            evidence_max_chunks?: number | null;
+            /** Extraction Group Size */
+            extraction_group_size?: number | null;
             /** Grounding Fuzzy Threshold */
             grounding_fuzzy_threshold?: number | null;
             /** Hybrid Retrieval Enabled */
@@ -12505,6 +12514,10 @@ export interface components {
             pre_identity_enabled?: boolean | null;
             /** Pre Parse Index Enabled */
             pre_parse_index_enabled?: boolean | null;
+            /** Rerank Enabled */
+            rerank_enabled?: boolean | null;
+            /** Vision Fallback Enabled */
+            vision_fallback_enabled?: boolean | null;
             /** Xbrl Facts Enabled */
             xbrl_facts_enabled?: boolean | null;
         };
