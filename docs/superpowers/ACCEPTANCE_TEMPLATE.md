@@ -34,6 +34,11 @@ Must not change: <behaviours that stay as they are, each also an AC row>
   - `evaluator`: a separate agent checks it by using the running app (UI flows, wording, layout).
   - `unit`: the implementer's own tests are enough. Only for low-stakes rows, or until the
     holdout repo exists.
+  - `golden`: for AI output (extraction, ranking, summaries), which varies from run to run. "Then"
+    is a score threshold on the golden set, never an exact value, for example
+    `arp golden-set precision --schema <id> --cases <file> --documents-dir <dir> --min-precision 0.95`
+    exits 0. Unit tests for the same feature replace the model with a stand-in so they are repeatable.
+- **Before the owner sees it**, run the `spec-critic` skill on the spec and fix what it flags.
 
 ## Who does what
 
