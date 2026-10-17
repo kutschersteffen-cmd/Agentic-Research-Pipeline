@@ -6,7 +6,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.normalise.units import lookup_unit, split_unit
 from arp.schemas.common import DocType, new_id
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
-from arp.schemas.rules import ComputedRule, FieldRule, ThresholdRule, rule_inputs
+from arp.schemas.rules import ComputedRule, FieldRule, RequiresRule, ThresholdRule, rule_inputs
 
 _SYSTEM_PROMPT = """\
 You design precise, machine-checkable extraction schemas for pulling data \
@@ -128,6 +128,17 @@ def _remap(rule: FieldRule, ids: dict[str, str]) -> FieldRule:
     return rule.model_copy(update={"field": g(rule.field)})
 
 
+def _fits(v, f: FieldDefinition) -> bool:
+    """A `when`/`equals` that can match the field's value: typed equality never matches "true" to true."""
+    if f.data_type == FieldDataType.BOOLEAN:
+        return isinstance(v, bool)
+    if f.data_type == FieldDataType.ENUM:
+        return isinstance(v, str) and v in (f.allowed_values or [])
+    if f.data_type in (FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE):
+        return isinstance(v, (int, float)) and not isinstance(v, bool)
+    return isinstance(v, str)
+
+
 def _describe(f: FieldDefinition) -> str:
     return (
         f"- field_id: {f.field_id}; name: {f.name}; data_type: {f.data_type.value}; unit: {f.unit or 'none'}; "
@@ -148,8 +159,10 @@ async def suggest_rules(schema: DataPointSchema, llm: LLMClient) -> tuple[RuleSu
     ids: dict[str, str] = {}
     helpers: list[FieldDefinition] = []
     for h in out.helper_fields:
-        # A helper only holds a value; rule-like content from the model would apply on Accept unvalidated.
-        h = h.model_copy(update={"rules": [], "derived_rule": None, "applicability_rules": None})
+        # A helper only holds a value: keep the draft's keys, so no model-set rule or setting applies on Accept.
+        h = FieldDefinition(
+            field_id=h.field_id, **h.model_dump(include=set(_FieldDraft.model_fields) - {"unit"}), unit=_readable_unit(h.unit)
+        )
         key = h.name.strip().casefold()
         if key in by_name:
             ids[h.field_id] = by_name[key]
@@ -162,11 +175,16 @@ async def suggest_rules(schema: DataPointSchema, llm: LLMClient) -> tuple[RuleSu
         helpers.append(h)
 
     fields = [*schema.fields, *helpers]
+    by_id = {f.field_id: f for f in fields}
     kept: list[RuleSuggestion] = []
     for sug in out.rules:
         target = ids.get(sug.field_id, sug.field_id)
         rule = _remap(sug.rule, ids).model_copy(update={"rule_id": new_id("rule")})
         if target not in used_ids:
+            continue
+        if (rule.when is not None and not _fits(rule.when, by_id[target])) or (
+            isinstance(rule, RequiresRule) and rule.field in by_id and not _fits(rule.equals, by_id[rule.field])
+        ):
             continue
         try:
             DataPointSchema(

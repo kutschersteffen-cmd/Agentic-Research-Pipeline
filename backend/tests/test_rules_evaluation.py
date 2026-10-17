@@ -79,6 +79,12 @@ async def test_r1_fail_routes_to_review():  # AC-2
     assert "check:rule.R1" in r.reasons
 
 
+async def test_rule_failure_leaves_review_reasons_and_notes_alone():
+    # Reused rows keep review_reasons/verifier_notes, so a rule failure must not write them.
+    (row,) = [r for r in await _run({"ambition": [R1()]}, _r1_rows()) if r.field_id == "ambition"]
+    assert row.review_reasons == [] and row.verifier_notes is None
+
+
 async def test_r1_detail_exact():  # AC-3
     _, res = _only(await _run({"ambition": [R1()]}, _r1_rows()), "ambition", "R1")
     assert res.detail == f"{R1_SENTENCE} Failed. Found Target reduction = 42 (p. 31), Target year = 2030 (p. 31)."
@@ -186,6 +192,20 @@ async def test_when_on_enum_matches_string():
     assert res.outcome == "pass"
     _, res = _only(await _run(schema_rules, [_row("kind", "standalone"), _row("s1", True)]), "kind", "R11")
     assert res.outcome == "not_applicable"
+
+
+async def test_requires_number_compares_canonical_value():
+    # value as printed (EUR billions) differs from canonical_value in the field's unit (EUR millions)
+    green = _row("green", 0.03).model_copy(update={"canonical_value": 30.0})
+    rule = RequiresRule(rule_id="R12", kind="requires", field="green", equals=30)
+    _, res = _only(await _run({"ambition": [rule]}, [_row("ambition", True), green]), "ambition", "R12")
+    assert res.outcome == "pass"
+    rule = rule.model_copy(update={"equals": 0.03})
+    _, res = _only(await _run({"ambition": [rule]}, [_row("ambition", True), green]), "ambition", "R12")
+    assert res.outcome == "fail"
+    on_green = RequiresRule(rule_id="R13", kind="requires", when=30, field="ambition", equals=True)
+    _, res = _only(await _run({"green": [on_green]}, [_row("ambition", True), green]), "green", "R13")
+    assert res.outcome == "pass"  # a numeric `when` matches canonical_value too
 
 
 # --- series (R3) ---

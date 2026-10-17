@@ -120,7 +120,12 @@ async def test_reused_row_reruns_rules(tmp_path):  # AC-66
     _, rows2, llm2, _ = await _run(tmp_path, _schema(pct_version=2), answers)
     assert rows2["ambition"]["reused_from_run"] == run1 and rows2["pct"]["reused_from_run"] is None
     assert rows2["pct"]["value"] == 55.0 and llm2.calls
-    assert _rule_result(rows2["ambition"])["outcome"] == "pass"
+    amb = rows2["ambition"]
+    assert _rule_result(amb)["outcome"] == "pass"
+    # The old rule failure leaves nothing behind on the reused row.
+    assert "check_failed" not in amb["review_reasons"]
+    assert "check_failed" not in amb["route_reasons"] and not [r for r in amb["route_reasons"] if r.startswith("check:")]
+    assert "rule.R1" not in (amb["verifier_notes"] or "")
 
 
 async def test_review_context_keeps_run_time_sentence(tmp_path):  # AC-38

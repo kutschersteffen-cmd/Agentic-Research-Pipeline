@@ -4,6 +4,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import settings_dep
@@ -45,7 +46,8 @@ def _post(client, schema):
 
 def _rejected(client, schema, rule_id):
     r = _post(client, schema)
-    assert r.status_code == 422 and rule_id in r.text, r.text
+    # detail[].input echoes the posted schema, so check the messages, not the whole body
+    assert r.status_code == 422 and any(f"rule {rule_id}:" in e["msg"] for e in r.json()["detail"]), r.text
 
 
 def _one(field_id, rule, **overrides):
@@ -85,7 +87,7 @@ def test_label_value_outside_allowed_rejected(client):  # AC-27
 def test_series_years_out_of_range_rejected(client, years):  # AC-28
     r3 = R3().model_copy(update={"years": years})
     r = client.post("/api/extraction/schemas", json=_one("declined", r3).model_dump(mode="json"))
-    assert r.status_code == 422 and "R3" in r.text, r.text
+    assert r.status_code == 422 and any("rule R3:" in e["msg"] for e in r.json()["detail"]), r.text
 
 
 def test_rule_naming_derived_field_rejected(client):  # AC-29, AC-67, controls AC-70
@@ -140,3 +142,19 @@ def test_released_schema_without_rules_resaves_same_versions(client, pg):  # AC-
     assert r.json()["version"] == s.version
     assert [(f["field_id"], f["version"]) for f in r.json()["fields"]] == [(f.field_id, f.version) for f in s.fields]
 
+
+
+@pytest.mark.parametrize(("formula", "inputs", "tolerance", "msg"), [
+    ("sum", ["green", "other"], -0.1, "tolerance must not be negative"),
+    ("ratio_pct", ["green"], 1, "ratio_pct needs exactly 2 inputs"),
+    ("ratio_pct", ["green", "total", "other"], 1, "ratio_pct needs exactly 2 inputs"),
+    ("sum", ["green"], 1, "sum needs at least 2 inputs"),
+])
+def test_computed_shape_rejected(formula, inputs, tolerance, msg):
+    with pytest.raises(ValidationError, match=f"rule R9: {msg}"):
+        ComputedRule(rule_id="R9", kind="computed", formula=formula, inputs=inputs, tolerance=tolerance)
+
+
+def test_computed_shape_accepted():
+    ComputedRule(rule_id="R9", kind="computed", formula="ratio_pct", inputs=["green", "total"], tolerance=0)
+    ComputedRule(rule_id="R9", kind="computed", formula="sum", inputs=["green", "other", "total"])

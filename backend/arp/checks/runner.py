@@ -114,7 +114,8 @@ async def check_record(
             continue
         checks = [*await run_checks(spec, field, ctx, model_check=model_check), *evaluate_rules(spec, field, ctx)]
         update: dict = {"checks": checks}
-        failing = [r for r in checks if is_failing(r)]
+        # Rule failures route via check:rule.* only: a reused row keeps these two fields, so they must not go stale.
+        failing = [r for r in checks if is_failing(r) and not r.check_id.startswith("rule.")]
         if failing:
             if ReasonCode.CHECK_FAILED not in field.review_reasons:
                 update["review_reasons"] = [*field.review_reasons, ReasonCode.CHECK_FAILED]

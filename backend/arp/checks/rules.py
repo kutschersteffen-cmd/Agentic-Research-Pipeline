@@ -81,6 +81,15 @@ def _same(a, b) -> bool:
     return a == b
 
 
+def _is_num(v) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _matches(r: ExtractedField, target) -> bool:
+    """`when`/`equals` against a row: a number compares as canonical_value (spec "Numbers"), the rest typed."""
+    return _num(r) == target if _is_num(target) else _same(_shown(r), target)
+
+
 def _pick(fid: str, row: ExtractedField, ctx: CheckContext) -> ExtractedField | None:
     """The other field's row for this checked row (spec "Periods", order 1-4), or None."""
     rows = [r for r in ctx.record_fields if r.field_id == fid]
@@ -168,13 +177,14 @@ def _eval(rule: FieldRule, row: ExtractedField, ctx: CheckContext, names: dict[s
     picked = {i: _pick(i, row, ctx) for i in ids}
     if isinstance(rule, ComputedRule):
         return _eval_computed(rule, row, picked, names, field_id)
-    found, missing = _found_part(ids, picked, names, numeric=isinstance(rule, ThresholdRule))
+    numeric = isinstance(rule, ThresholdRule) or (isinstance(rule, RequiresRule) and _is_num(rule.equals))
+    found, missing = _found_part(ids, picked, names, numeric=numeric)
     if missing:
         return False, _detail(found, missing)
     if isinstance(rule, ThresholdRule):
         ok = all(_OPS[c.op](_num(picked[c.field]), c.value) for c in rule.conditions)
     elif isinstance(rule, RequiresRule):
-        ok = _same(_shown(picked[rule.field]), rule.equals)
+        ok = _matches(picked[rule.field], rule.equals)
     else:  # LabelRule
         v = _shown(picked[rule.field])
         ok = not (isinstance(v, str) and v in rule.not_in)
@@ -187,7 +197,7 @@ def evaluate_rules(spec: FieldDefinition, row: ExtractedField, ctx: CheckContext
     out = []
     for rule in spec.rules:
         outcome, detail = CheckOutcome.NOT_APPLICABLE, ""
-        if _found(row) and (rule.when is None or _same(_shown(row), rule.when)):
+        if _found(row) and (rule.when is None or _matches(row, rule.when)):
             ok, part = _eval(rule, row, ctx, names, spec.field_id)
             outcome = CheckOutcome.PASS if ok else CheckOutcome.FAIL
             detail = "" if ok else f"{rule_sentence(rule, spec.field_id, ctx.schema)} Failed. {part}"

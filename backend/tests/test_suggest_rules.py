@@ -141,3 +141,40 @@ def test_rule_like_content_on_helpers_is_stripped(suggest):
     out = suggest(_f_minus_total(), RuleSuggestions(rules=[_share_ratio("a", "h_total")], helper_fields=[helper]))
     assert len(out["rules"]) == 1  # the helper's bad rule did not poison validation
     assert out["helper_fields"][0]["rules"] == []
+
+
+def test_wrong_typed_when_or_equals_dropped(suggest):
+    def req(on, field, equals, when=None):
+        return RuleSuggestion(field_id=on, rule=RequiresRule(rule_id="x", kind="requires", when=when, field=field, equals=equals))
+
+    def thr(on, when):
+        return RuleSuggestion(field_id=on, rule=ThresholdRule(
+            rule_id="x", kind="threshold", when=when, conditions=[Condition(field="pct", op=">=", value=50)]))
+
+    out = suggest(schema_f(), RuleSuggestions(rules=[
+        req("nz2050", "nz", "true"),             # equals "true" on a boolean: never matches
+        req("nz2050", "nz", True, when="true"),  # when "true" on a boolean
+        req("nz2050", "kind", "partial"),        # not an allowed enum value
+        req("nz2050", "kind", 1.0),              # a number for an enum
+        req("nz2050", "pct", True),              # a boolean for a percentage
+        thr("year", "2030"),                     # a string when on a number
+        req("nz2050", "nz", True, when=True),    # kept
+        req("nz2050", "kind", "combined"),       # kept
+        thr("year", 2030.0),                     # kept
+    ]))
+    assert [(r["field_id"], r["rule"]["when"], r["rule"].get("equals")) for r in out["rules"]] == [
+        ("nz2050", True, True), ("nz2050", None, "combined"), ("year", 2030.0, None),
+    ]
+
+
+def test_helper_keeps_only_draft_keys(suggest):
+    helper = FieldDefinition.model_validate({
+        **_helper("h_total", "Total capex").model_dump(),
+        "unit": "millions (report in the reporting currency)", "high_risk": True, "auto_accept_min": 0.1,
+        "status": "released", "version": 7, "xbrl_tags": ["us-gaap:Capex"], "required": False, "seed_keywords": ["capex"],
+        "check_config": {"min_value": 5}, "document_routing": {"sections": ["Capex"]},
+    })
+    out = suggest(_f_minus_total(), RuleSuggestions(rules=[_share_ratio("a", "h_total")], helper_fields=[helper]))
+    fresh = FieldDefinition(field_id="h_total", name="Total capex", description="Total capex.", data_type=T.CURRENCY_AMOUNT,
+                            extraction_instructions="Find it.", seed_keywords=["capex"])
+    assert out["helper_fields"] == [fresh.model_dump(mode="json")]  # unreadable unit dropped, model-set settings gone

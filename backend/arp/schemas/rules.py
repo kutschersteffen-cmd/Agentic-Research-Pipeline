@@ -58,8 +58,10 @@ class ComputedRule(_RuleBase):
     def _shape(self) -> ComputedRule:
         if self.tolerance < 0:
             raise ValueError(f"rule {self.rule_id}: tolerance must not be negative")
-        if len(self.inputs) != 2 if self.formula == "ratio_pct" else len(self.inputs) < 2:
-            raise ValueError(f"rule {self.rule_id}: {self.formula} needs {'exactly 2' if self.formula == 'ratio_pct' else 'at least 2'} inputs")
+        if self.formula == "ratio_pct" and len(self.inputs) != 2:
+            raise ValueError(f"rule {self.rule_id}: ratio_pct needs exactly 2 inputs")
+        if self.formula == "sum" and len(self.inputs) < 2:
+            raise ValueError(f"rule {self.rule_id}: sum needs at least 2 inputs")
         return self
 
 
