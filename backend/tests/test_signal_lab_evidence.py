@@ -7,7 +7,7 @@ from arp.replication.characteristics_data import CharacteristicPanel
 from arp.replication.price_data import PricePanel
 from arp.signal_lab.baselines import momentum_panel
 from arp.signal_lab.cutoffs import CutoffTable, ModelCutoff
-from arp.signal_lab.evidence import evaluate_signal, sentiment_spec
+from arp.signal_lab.evidence import WindowEvidence, evaluate_signal, sentiment_spec
 
 N_MONTHS = 60
 TICKERS = [f"T{i}" for i in range(20)]
@@ -127,3 +127,34 @@ def test_unsupported_horizons_raise(update, kw):
     scores, prices = _data()
     with pytest.raises(ValueError, match="one-month hold"):
         evaluate_signal(scores, prices, SPEC.model_copy(update=update), model=MODEL, cutoffs=TABLE, **kw)
+
+
+def test_window_series_matches_the_deflated_sharpe_input():
+    scores, prices = _data()
+    import arp.signal_lab.evidence as ev
+
+    real = ev.deflated_sharpe_ratio
+    fed: list[list[float]] = []
+
+    def spy(series, **kw):
+        fed.append(list(series))
+        return real(series, **kw)
+
+    ev.deflated_sharpe_ratio = spy
+    try:
+        report = _eval(scores, prices)
+    finally:
+        ev.deflated_sharpe_ratio = real
+    assert [w.window for w in report.windows] == ["in_window", "post_cutoff"]
+    for w, expected in zip(report.windows, fed, strict=True):
+        assert [v for _, v in w.series] == expected
+    in_dates = [d for d, _ in report.windows[0].series]
+    post_dates = [d for d, _ in report.windows[1].series]
+    assert in_dates == DATES[1 : CUTOFF_IDX + 2]
+    assert post_dates == DATES[CUTOFF_IDX + 2 :]
+
+
+def test_old_evidence_rows_without_series_still_load():
+    w = _eval(*_data()).windows[0].model_dump(mode="json")
+    w.pop("series", None)
+    assert WindowEvidence.model_validate(w).series == []

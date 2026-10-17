@@ -29,6 +29,8 @@ class WindowEvidence(BaseModel):
     net_long_short: LegPerformance | None
     monthly_turnover_pct: float | None
     deflated_sharpe: DeflatedSharpeAssessment | None
+    # (period_end, net long-short return in percent; gross when cost is zero), the deflated Sharpe's input.
+    series: list[tuple[str, float]] = []
 
 
 class EvidenceReport(BaseModel):
@@ -117,6 +119,7 @@ def evaluate_signal(
                 net_long_short=bt.net_long_short,
                 monthly_turnover_pct=bt.monthly_turnover_pct,
                 deflated_sharpe=deflated_sharpe_ratio(series, n_trials=n_trials) if series else None,
+                series=[(p.period_end, v) for p, v in zip(bt.periods, series, strict=True)],
             )
         )
 
