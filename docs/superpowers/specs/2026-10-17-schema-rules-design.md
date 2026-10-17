@@ -190,7 +190,7 @@ first letter is capitalized.
 The backend renders it for check details with `arp.checks.rules.rule_sentence(rule, field_id,
 schema) -> str`. The frontend renders it for the Rules list and live editing with
 `ruleSentence(rule, fieldId, fields): string` exported from `frontend/src/lib/ruleSentence.ts`. Both
-are tested against one fixture file, `backend/tests/fixtures/rule_sentences.json` (AC-31, AC-32).
+are tested against one fixture file, `backend/tests/fixtures/rule_sentences.json` (AC-31, AC-62).
 
 ### Suggesting rules
 
@@ -243,6 +243,8 @@ Mockup screen 1 (B) and screen 2, without the "at most" and "jump" items.
   where N counts its accepted and waiting rules and M its waiting ones. It shows `1 rule` / `N rules`
   when M is 0, and nothing when N is 0. Clicking the marker scrolls the Rules list to that field's first
   rule. A field that another accepted rule reads shows `used by a rule`.
+- The Rules list is grouped by checked field, in the schema's field order; within a field, items keep
+  the order they arrived or were added in.
 - The fields editor gets no rule inputs and no Accept / Edit / Drop.
 - Editing a field still clears "confirmed", as today.
 
@@ -334,28 +336,28 @@ otherwise. Single-period rows have no `period_end` unless stated. The current re
 | AC-32 | F with R1–R6 | it is POSTed to `/api/extraction/schemas`, then fetched with GET | the fetched fields' `rules` equal the posted ones | unit |
 | AC-33 | A released schema version; a field gains R1 without a version bump | the schema is POSTed to `/api/extraction/schemas` | status 400, body contains `changing it needs` | unit |
 | AC-34 | Must not change: a schema saved and released on `main` (no `rules` key in its stored body) | it is fetched and POSTed again unchanged | the response has the same schema version and the same field versions | unit |
-| AC-35 | An LLM stand-in returning 2 rules: one valid with helper field "Total capex", one naming field id `ghost` | `POST /api/extraction/schemas/suggest-rules` with F minus `total` | the response has exactly 1 rule and exactly 1 helper field, named "Total capex" | unit |
+| AC-35 | An LLM stand-in returning 2 rules: one valid with helper field "Total capex", one naming field id `ghost` with its own helper field "Ghost capex" | `POST /api/extraction/schemas/suggest-rules` with F minus `total` | the response has exactly 1 rule and exactly 1 helper field, named "Total capex" | unit |
 | AC-36 | An LLM stand-in returning 2 valid rules that each add a helper field named "total capex" and "Total Capex" | suggest-rules with F minus `total` | the response has exactly 1 helper field, and both rules name its id | unit |
-| AC-37 | Any schema list | `POST /api/extraction/schemas/suggest-rules` is called | `GET /api/extraction/schemas` lists the same schemas as before | unit |
+| AC-37 | An existing schema list; an LLM stand-in returning 1 valid rule with a helper field | `POST /api/extraction/schemas/suggest-rules` is called | the call returns 200, and `GET /api/extraction/schemas` lists the same schema ids and versions as before | unit |
 | AC-38 | A run with R1 failing (AC-1); R1's threshold then edited from 50 to 40 and saved as a new field version | the review context for that run's `ambition` item is fetched | its `failed_checks` include an entry whose `plain` is the AC-3 string | unit |
 | AC-39 | Browser test; draft and suggest-rules stubbed to return F's fields and R1 (helper `pct`) waiting | drafting finishes | the Rules list shows R1's sentence with buttons Accept, Edit and Drop | unit |
 | AC-40 | Browser test; stub returns 2 waiting suggestions | the user looks at the confirm button | it is disabled and reads `2 rule suggestions waiting` | unit |
 | AC-41 | As AC-40; the user accepts one | the user looks at the confirm button | it is disabled and reads `1 rule suggestion waiting` | unit |
 | AC-42 | As AC-41; the user drops the other | the user looks at the confirm button | it is enabled and reads `Confirm schema (N fields)` with N the schema's field count | unit |
-| AC-43 | Browser test; a waiting suggestion adds helper field "Total capex" | the user clicks Accept | the fields list contains "Total capex" | unit |
+| AC-43 | Browser test; drafted fields are F minus `total`; a waiting suggestion adds helper field `total` named "Total capex" | the user clicks Accept | the fields list contains "Total capex" exactly once, and did not before the click | unit |
 | AC-44 | As AC-43 | the user clicks Accept | the item shows `Accepted`, Edit and Drop, and no Accept button | unit |
 | AC-45 | Browser test; two waiting suggestions name the same helper field id | the user accepts both | the fields list contains that field once | unit |
 | AC-46 | Browser test; a waiting suggestion adds a helper field | the user clicks Drop | the suggestion is gone and the fields list is unchanged | unit |
 | AC-47 | Browser test; an accepted rule with a helper field | the user clicks Drop | the rule is gone and the helper field stays in the fields list | unit |
 | AC-48 | Browser test; R1 open in Edit | the user changes 50 to 40 | the sentence reads `When Halving target is YES: needs Target reduction >= 40 and Target year <= 2030.` before saving | unit |
 | AC-49 | Browser test; `ambition` has 1 accepted and 1 waiting rule | the user looks at `ambition` in the fields editor | its marker reads `2 rules · 1 waiting` | unit |
-| AC-50 | As AC-49 | the user clicks the marker | `ambition`'s first rule is inside the viewport | unit |
+| AC-50 | As AC-49, viewport 1280×600, with `ambition`'s rules below the fold before the click | the user clicks the marker | the first Rules-list item whose checked field is `ambition` is inside the viewport | unit |
 | AC-51 | Browser test; a field with no rules that no rule reads | the user looks at it in the fields editor | it shows no marker | unit |
 | AC-52 | Browser test; R1 accepted | the user looks at `pct` in the fields editor | it shows `used by a rule` | unit |
 | AC-53 | Browser test; the fields editor with rules present | the user looks at the fields editor | it has no Accept, Edit or Drop buttons and no rule inputs | unit |
 | AC-54 | Browser test; + Add a rule, field `ambition`, `when` YES, kind threshold, `pct >= 50`, saved | the user looks at the Rules list | it shows the rule as `Accepted` with sentence `When Halving target is YES: needs Target reduction >= 50.` | unit |
 | AC-55 | Browser test; R1 accepted, R2 dropped; Suggest again stubbed to return R1, R2 and R4 | the new suggestions arrive | the list shows R1 once (accepted) and R4 waiting, and no R2 | unit |
-| AC-56 | Browser test; every suggestion dropped, schema confirmed, run started | the run request is sent | its `datapoint_schema` has no `rules` on any field and only the drafted fields | unit |
+| AC-56 | Browser test; every suggestion dropped, schema confirmed, run started | the run request is sent | every field in its `datapoint_schema` has `rules` absent or equal to `[]`, and its field ids equal the drafted fields' ids | unit |
 | AC-57 | Must not change: browser test; a confirmed schema | the user edits a field name | the confirm button is enabled again and reads `Confirm schema (N fields)` | unit |
 | AC-58 | The real app with a real model, default green capex request, light and dark theme, 390 px and 1280 px wide; if fewer than 3 suggestions arrive, the evaluator creates the rest with + Add a rule | the evaluator drafts the schema, then accepts one item, edits one and drops one | the Rules list and editor show no horizontal page scroll and no overlapping text | evaluator |
 | AC-59 | Must not change: a fixed record and schema with no rules; expected `checks`, `route` and `route_reasons` captured on `main` and committed as a snapshot | the record goes through checks and routing | the output equals the snapshot | unit |
@@ -365,7 +367,7 @@ otherwise. Single-period rows have no `period_end` unless stated. The current re
 | AC-63 | An LLM stand-in returning 1 valid rule with helper field "TOTAL CAPEX" | suggest-rules with the full F | the response has 0 helper fields, and the rule names `total` | unit |
 | AC-64 | F with R1 and the AC-1 values, plus `ambition` holding a non-boolean value so layer 1 fails with BLOCK | the company's checks and routing finish | `ambition`'s `checks` still include `rule.R1` | unit |
 | AC-65 | Must not change: a prior run's row whose failing checks include a check not starting `rule.`, reuse allowed | the next run processes the company | the new row has no `reused_from_run` | unit |
-| AC-66 | As AC-21, but in the new run `pct` is 55 | the next run processes the company | the reused `ambition` row's `rule.R1` has `outcome` `pass` | unit |
+| AC-66 | As AC-21; in the new run `pct`'s field version is bumped, so `pct` is extracted again as 55, while `ambition` is reused | the next run processes the company | the reused `ambition` row's `rule.R1` has `outcome` `pass` | unit |
 | AC-67 | F with `nz2050` given a `derived_rule` (any_of `nz`) and R2 | it is POSTed to `/api/extraction/schemas` | status 422, and the body contains `R2` | unit |
 | AC-68 | F with rule R9 on `ambition`: computed `sum`, inputs `green`, `other`, tolerance 1 | it is POSTed to `/api/extraction/schemas` | status 422, and the body contains `R9` | unit |
 | AC-69 | Control for AC-25: F with `green`'s unit empty and no rules | it is POSTed to `/api/extraction/schemas` | status 200 | unit |
@@ -373,6 +375,8 @@ otherwise. Single-period rows have no `period_end` unless stated. The current re
 | AC-71 | Browser test; R1 accepted with helper `pct`, schema confirmed, run started | the run request is sent | its `datapoint_schema` has R1 in `ambition`'s `rules`, and `pct` appears once in its fields | unit |
 | AC-72 | F with rule R10 on `ambition`: threshold, `when` YES, `green >= 25`; `ambition`=true, `green`=30 | the company's checks and routing finish | `rule.R10` has `outcome` `pass` | unit |
 | AC-73 | The real app, the Schema screen with suggestions (AC-58 setup) | the evaluator reads the Rules list, confirm button and field markers | the labels read exactly `Accepted`, `+ Add a rule`, `Suggest again`, `N rule suggestion(s) waiting`, `Confirm schema (N fields)`, `N rules · M waiting` and `used by a rule`, with N and M filled in | evaluator |
+| AC-74 | F with R1; `ambition`=true in two rows, period ends 2023-12-31 and 2024-12-31; `pct` 55 (2023-12-31) and 42 (2024-12-31); `year`=2030 with no `period_end` | the company's checks and routing finish | `ambition` has two `rule.R1` results: `pass` on the 2023 row, `fail` on the 2024 row | unit |
+| AC-75 | F with R1; `ambition`=true for 2024-12-31; `pct` rows for 2022-12-31 and 2023-12-31 only; `year`=2030 | the company's checks and routing finish | `rule.R1` has `outcome` `fail` and its `detail` ends with `Not found: Target reduction.` | unit |
 
 "Browser test" rows run in the E2E job (`backend/tests/e2e`) and stub the draft and suggest-rules
 calls with Playwright request routing, so the suggestions are fixed.
