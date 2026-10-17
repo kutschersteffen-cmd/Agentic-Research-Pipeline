@@ -129,6 +129,11 @@ finbert = [
     "transformers>=4.40,<6.0",
     "torch>=2.2,<3.0",
 ]
+# Signal Lab notebook library (notebooks/signals/): open the percent-format .py files in JupyterLab.
+notebooks = [
+    "jupyterlab>=4,<5",
+    "jupytext>=1.16,<2",
+]
 
 [project.scripts]
 arp = "arp.cli:app"
