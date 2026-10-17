@@ -27448,6 +27448,27 @@
     ]
    }
   },
+  "/api/signals/runs": {
+   "post": {
+    "operationId": "run_api_signals_runs_post",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ExperimentDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Run",
+    "tags": [
+     "signals"
+    ]
+   }
+  },
   "/api/smart-search": {
    "post": {
     "description": "A plain-language question becomes a filter over issues, outputs or feeds (the model's only job); code applies it.\nEvery call leaves an audit row, like Ask the Portfolio.",

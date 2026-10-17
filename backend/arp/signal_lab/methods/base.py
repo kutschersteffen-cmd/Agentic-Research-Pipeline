@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from bisect import bisect_left
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -55,6 +55,21 @@ def method_names() -> list[str]:
 
 def run_method(spec: dict, inp: MethodInput) -> MethodResult:
     return get_method(spec["method"])(spec.get("params", {}), inp)
+
+
+TEXTLESS_METHODS = frozenset({"panel", "price_momentum", "transform", "composite"})
+
+
+def spec_nodes(spec: dict) -> Iterator[dict]:
+    """The spec and every spec nested under a transform's `base` or a composite's `components`."""
+    yield spec
+    params = spec.get("params")
+    if not isinstance(params, dict):
+        return
+    children = [params.get("base"), *(params["components"] if isinstance(params.get("components"), list) else [])]
+    for child in children:
+        if isinstance(child, dict):
+            yield from spec_nodes(child)
 
 
 def text_buckets(texts: list[TextRecord], period_ends: list[str]) -> dict[str, list[list[TextRecord]]]:

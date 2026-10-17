@@ -1,14 +1,21 @@
 from __future__ import annotations
 
 import calendar
+import csv
 import json
+import os
+import random
+import tempfile
 
 import pytest
 from fastapi.testclient import TestClient
+from typer.testing import CliRunner
 
 from arp.api.auth import Principal, current_user
 from arp.api.main import app
+from arp.api.routers import signals as signals_router
 from arp.api.routers.signals import APP_RUNNABLE
+from arp.cli import app as app_cli
 from arp.cli._shared import _run_store
 from arp.config import get_settings
 from arp.signal_lab.evidence import EvidenceReport, WindowEvidence
@@ -292,3 +299,233 @@ def test_malformed_cutoff_table_is_422(client, registry, tmp_path):
     resp = _decide(client, experiment_id, "graduate")
     assert resp.status_code == 422
     assert "malformed JSON" in resp.json()["detail"]
+
+
+ISSUERS = [f"T{i:02d}" for i in range(30)]
+REFUSAL = "{} runs from the CLI (arp signals run) or a notebook (arp.signal_lab.lab.Lab), not the app"
+
+
+def prices_csv(path, months: int, start: int = 2016) -> list[str]:
+    """Wide month-end prices: 30 issuers, seeded random walks above 1000, every value distinct to 2 decimals."""
+    rng = random.Random(11)
+    dates = _months(months, start)
+    levels = {t: 5000.0 + 100 * i for i, t in enumerate(ISSUERS)}
+    rows, seen = [], set()
+    for d in dates:
+        for t in ISSUERS:
+            levels[t] = round(levels[t] * (1 + rng.gauss(0.01, 0.05)), 2)
+            while levels[t] in seen:  # nudge a collision so every price is distinct
+                levels[t] = round(levels[t] + 0.01, 2)
+            seen.add(levels[t])
+        rows.append([d, *(levels[t] for t in ISSUERS)])
+    assert min(seen) > 1000
+    with path.open("w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["date", *ISSUERS])
+        writer.writerows(rows)
+    return dates
+
+
+def _scores_csv(path, dates: list[str]) -> None:
+    """The wide shape `build-panel` writes and `--panel` reads: a date column plus one column per issuer."""
+    rng = random.Random(3)
+    with path.open("w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["date", *ISSUERS])
+        writer.writerows([d, *(round(rng.gauss(0, 1), 4) for _ in ISSUERS)] for d in dates)
+
+
+def _recipe_file(path, dates, method="price_momentum", params=None, **extra):
+    recipe = {
+        "category": "sentiment_narrative", "method": method, "text_source": None, "params": params or {},
+        "universe": "toy30", "window_start": dates[0], "window_end": dates[-1], **extra,
+    }
+    path.write_text(json.dumps(recipe))
+    return path
+
+
+def _post_run(client, recipe, prices, **panels):
+    files = {"recipe": ("r.json", recipe.read_bytes(), "application/json"), "prices": ("p.csv", prices.read_bytes(), "text/csv")}
+    files.update({f"panel_{name}": (f"{name}.csv", p.read_bytes(), "text/csv") for name, p in panels.items()})
+    return client.post("/api/signals/runs", files=files)
+
+
+def _cli_id(recipe, prices) -> str:
+    result = CliRunner().invoke(app_cli, ["signals", "run", "--recipe", str(recipe), "--prices", str(prices)])
+    assert result.exit_code == 0, result.output
+    line = next(ln for ln in result.stdout.splitlines() if ln.startswith("experiment_id:"))
+    return line.split()[1]
+
+
+def _count(client) -> int:
+    return len(client.get("/api/signals/experiments").json())
+
+
+def _ingest(tmp_path, dates) -> None:
+    path = tmp_path / "t.csv"
+    rows = [f"{t},{d}T10:00:00Z,Call,Strong growth in {t} this quarter." for d in dates[:8] for t in ISSUERS[:10]]
+    path.write_text("issuer_key,event_time,title,text\n" + "\n".join(rows) + "\n")
+    result = CliRunner().invoke(app_cli, ["signals", "ingest-transcripts", "--csv", str(path)])
+    assert result.exit_code == 0, result.output
+
+
+@pytest.fixture
+def run_files(client, tmp_path):
+    dates = prices_csv(tmp_path / "prices.csv", 40)
+    return tmp_path, dates, tmp_path / "prices.csv"
+
+
+def test_run_matches_cli_id(client, run_files):
+    tmp_path, dates, prices = run_files
+    recipe = _recipe_file(tmp_path / "r.json", dates)
+    resp = _post_run(client, recipe, prices)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["experiment_id"] == _cli_id(recipe, prices)
+
+
+def test_run_twice_same_id_one_row(client, run_files):
+    tmp_path, dates, prices = run_files
+    recipe = _recipe_file(tmp_path / "r.json", dates)
+    first = _post_run(client, recipe, prices).json()["experiment_id"]
+    trials = client.get("/api/signals/experiments").json()[0]["n_trials"]
+    assert _post_run(client, recipe, prices).json()["experiment_id"] == first
+    listed = [r for r in client.get("/api/signals/experiments").json() if r["experiment_id"] == first]
+    assert len(listed) == 1 and listed[0]["n_trials"] == trials
+
+
+@pytest.mark.parametrize(
+    "method,params,refused",
+    [
+        *((m, {}, m) for m in ("grounded_llm", "issuer_first", "embedding_ridge", "topic_attention", "finbert")),
+        ("composite", {"components": [{"method": "price_momentum"}, {"method": "grounded_llm"}]}, "grounded_llm"),
+    ],
+)
+def test_run_refuses_llm_and_model_methods(client, run_files, method, params, refused):
+    tmp_path, dates, prices = run_files
+    before = _count(client)
+    resp = _post_run(client, _recipe_file(tmp_path / "r.json", dates, method, params), prices)
+    assert (resp.status_code, resp.json()["detail"]) == (422, REFUSAL.format(refused))
+    assert _count(client) == before
+
+
+def test_run_window_outside_prices(client, tmp_path):
+    prices_csv(tmp_path / "prices.csv", 36, 2020)
+    recipe = _recipe_file(tmp_path / "r.json", ["2019-01-31", "2021-12-31"])
+    resp = _post_run(client, recipe, tmp_path / "prices.csv")
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "recipe window 2019-01-31..2021-12-31 is outside the price file 2020-01-31..2022-12-31"
+
+
+def test_run_needs_analyst(client, run_files):
+    tmp_path, dates, prices = run_files
+    before = _count(client)
+    as_role("viewer")
+    assert _post_run(client, _recipe_file(tmp_path / "r.json", dates), prices).status_code == 403
+    assert _count(client) == before
+
+
+def _numbers(value):
+    if isinstance(value, bool):
+        return
+    if isinstance(value, int | float):
+        yield value
+    elif isinstance(value, dict):
+        for v in value.values():
+            yield from _numbers(v)
+    elif isinstance(value, list | tuple):
+        for v in value:
+            yield from _numbers(v)
+
+
+def test_run_stores_no_prices(client, run_files):
+    tmp_path, dates, prices = run_files
+    experiment_id = _post_run(client, _recipe_file(tmp_path / "r.json", dates), prices).json()["experiment_id"]
+    with prices.open(newline="") as f:
+        price_values = {float(v) for row in list(csv.reader(f))[1:] for v in row[1:]}
+    rows = [r for r in _run_store().read_results("signal_registry") if r.get("experiment_id") == experiment_id]
+    assert rows
+    for doc in (client.get(f"/api/signals/experiments/{experiment_id}").json(), rows):
+        assert not set(_numbers(doc)) & price_values
+
+
+@pytest.fixture
+def temp_dirs(monkeypatch):
+    names = []
+
+    class Recording(tempfile.TemporaryDirectory):
+        def __init__(self, *a, **k):
+            super().__init__(*a, **k)
+            names.append(self.name)
+
+    monkeypatch.setattr(signals_router.tempfile, "TemporaryDirectory", Recording)
+    return names
+
+
+def test_upload_dir_removed(client, run_files, temp_dirs):
+    tmp_path, dates, prices = run_files
+    assert _post_run(client, _recipe_file(tmp_path / "r.json", dates), prices).status_code == 200
+    late = _recipe_file(tmp_path / "late.json", dates, window_end="2099-12-31")
+    assert _post_run(client, late, prices).status_code == 422
+    assert len(temp_dirs) == 2
+    assert not any(os.path.exists(name) for name in temp_dirs)
+
+
+def test_run_narrative_attention_matches_cli(client, run_files):
+    tmp_path, dates, prices = run_files
+    _ingest(tmp_path, dates)
+    recipe = _recipe_file(tmp_path / "r.json", dates, "narrative_attention", {"terms": ["growth"]})
+    resp = _post_run(client, recipe, prices)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["experiment_id"] == _cli_id(recipe, prices)
+
+
+@pytest.mark.parametrize(
+    "method,params",
+    [
+        ("panel", {"name": "p1"}),
+        ("sestm", {}),
+        ("transform", {"base": {"method": "price_momentum"}}),
+        ("composite", {"components": [{"method": "price_momentum"}, {"method": "price_momentum", "params": {"formation_period_months": 6}}]}),
+    ],
+)
+def test_run_app_runnable_methods(client, run_files, method, params):
+    tmp_path, dates, prices = run_files
+    panels = {}
+    if method == "panel":
+        _scores_csv(tmp_path / "p1.csv", dates)
+        panels["p1"] = tmp_path / "p1.csv"
+    if method == "sestm":
+        _ingest(tmp_path, dates)
+    resp = _post_run(client, _recipe_file(tmp_path / "r.json", dates, method, params), prices, **panels)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["experiment_id"]
+
+
+def test_run_malformed_inputs_are_422(client, run_files):
+    tmp_path, dates, prices = run_files
+    bad = tmp_path / "bad.json"
+    bad.write_text("{")
+    resp = _post_run(client, bad, prices)
+    assert resp.status_code == 422 and resp.json()["detail"].startswith("invalid recipe")
+    recipe = json.loads(_recipe_file(tmp_path / "r.json", dates).read_text())
+    del recipe["universe"]
+    bad.write_text(json.dumps(recipe))
+    resp = _post_run(client, bad, prices)
+    assert resp.status_code == 422 and "universe" in resp.json()["detail"]
+
+
+def test_run_method_failure_is_422(client, run_files, temp_dirs):
+    tmp_path, dates, prices = run_files
+    resp = _post_run(client, _recipe_file(tmp_path / "r.json", dates, "panel", {"name": "p1"}), prices)
+    assert (resp.status_code, resp.json()["detail"]) == (422, "missing panel 'p1'; available: none")
+    assert temp_dirs and not any(os.path.exists(name) for name in temp_dirs)
+
+
+def test_run_bad_parts_are_422(client, run_files):
+    tmp_path, dates, prices = run_files
+    recipe = _recipe_file(tmp_path / "r.json", dates, "panel", {"name": "p1"})
+    resp = client.post("/api/signals/runs", files={"recipe": ("r.json", recipe.read_bytes(), "application/json")})
+    assert (resp.status_code, resp.json()["detail"]) == (422, "missing file part 'prices'")
+    _scores_csv(tmp_path / "p1.csv", dates)
+    resp = _post_run(client, recipe, prices, **{"../p1": tmp_path / "p1.csv"})
+    assert (resp.status_code, resp.json()["detail"]) == (422, "Invalid panel name: '../p1'")

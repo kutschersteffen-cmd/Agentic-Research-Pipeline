@@ -3,7 +3,6 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
-from collections.abc import Iterator
 from pathlib import Path
 from typing import get_args
 
@@ -261,21 +260,6 @@ def signals_build_panel(
     typer.echo(f"Wrote {out} ({len(dates)} periods x {len(issuers)} issuers)")
 
 
-_TEXTLESS = {"panel", "price_momentum", "transform", "composite"}
-
-
-def _spec_nodes(spec: dict) -> Iterator[dict]:
-    """The spec and every spec nested under a transform's `base` or a composite's `components`."""
-    yield spec
-    params = spec.get("params")
-    if not isinstance(params, dict):
-        return
-    children = [params.get("base"), *(params["components"] if isinstance(params.get("components"), list) else [])]
-    for child in children:
-        if isinstance(child, dict):
-            yield from _spec_nodes(child)
-
-
 def _resources(names: set[str]) -> dict:
     # Only what the chosen methods need: loading an embedding or FinBERT model is slow, an LLM client needs a key.
     # issuer_first gets no search tool: the method refuses with its documented message.
@@ -306,7 +290,7 @@ def signals_run(
     try:
         recipe = load_recipe(recipe_path)
         spec = {"method": recipe.method, "params": recipe.params}
-        nodes = list(_spec_nodes(spec))
+        nodes = list(methods_base.spec_nodes(spec))
         for node in nodes:
             methods_base.get_method(node.get("method"))  # unknown names fail before any slow work
         names = {node["method"] for node in nodes}
@@ -317,7 +301,7 @@ def signals_run(
                 raise ValueError(f"--panel must be NAME=PATH, got {item!r}")
             panel_files[name] = Path(path)
 
-        texts = [] if names <= _TEXTLESS else _text_store().items(known_by=known_by)
+        texts = [] if names <= methods_base.TEXTLESS_METHODS else _text_store().items(known_by=known_by)
         inp, data_version = load_inputs(recipe, prices, panels=panel_files, texts=texts, history_from=history_from)
         llm_nodes = [n for n in nodes if n["method"] == "grounded_llm"]
         if llm_nodes:
