@@ -75,8 +75,8 @@ limit. Both are built here.
   bump that the owner approves.
 - Automated extraction from company disclosures. They stay manual, as today.
 - Scraping dashboards or logging into subscription trackers.
-- Changing the transition plan assessment, Decision Studio or StewardIQ. They keep reading the current
-  rating through the existing dataset functions.
+- Changing the transition plan assessment, Decision Studio or StewardIQ. They read the matrix through
+  the existing dataset functions, which from now on return each cell's current (ratified) rating.
 
 ## Anti-goals (a failure even if it works)
 
@@ -136,7 +136,13 @@ Paths are under `backend/arp/` unless they start with `frontend/` or `docs/`.
   (`decision/levels.py`). The schema rules design approved today
   (`docs/superpowers/specs/2026-10-17-schema-rules-design.md`) evaluates its typed rules in plain
   Python (`checks/rules.py`).
-- **Roles.** `api/auth.py` has viewer, analyst and approver (`require_role`).
+- **Roles.** `api/auth.py` has viewer, analyst and approver (`require_role`; approver outranks
+  analyst).
+- **Review decisions.** `review/decide.py` requires a second, different reviewer for corrections,
+  high-risk items and decisions that change a published value (`published_change`). It samples 10% of
+  approvals (`second_review_sample_rate`) and 20% of bulk accepts (`bulk_accept_sample_rate`) for a
+  second review. A second review by the same person is refused with HTTP 409 `second review must be a
+  different person`. Bulk accept is `POST /api/extraction/items/bulk-accept` (`run_id` plus items).
 - **UI.** `frontend/src/pages/TransitionBarrierAssessment.tsx` shows the matrix, a criterion's rubric
   and its cells (rating, confidence, evidence, last verified), staleness, and starts a refresh.
 - **Consumers.** `decision/sources.py::from_transition_barrier` feeds the matrix into Decision Studio.
@@ -149,27 +155,33 @@ Paths are under `backend/arp/` unless they start with `frontend/` or `docs/`.
 ```
 rule book ──► sources & search ──► fact extraction ──► derivation ──► review ──► current rating
  (stage 1)                          (stage 2, RAG)     (stage 3,       (named      (history kept)
-                                    + analyst facts     rules engine)   person)
+                                    + analyst facts     rules engine)   people)
 ```
 
 One unit of work is a **cell**: one criterion × one region. A derivation run covers one or more
 cells.
 
+**Data directory.** A new setting, `ARP_TRANSITION_BARRIER_DATA_DIR`, names the directory that holds
+`criteria_schema.json`, `assessment_scores.json`, `source_registry.json` and the new `rule_book.json`.
+It defaults to the bundled `backend/arp/transition_barrier/data/`. Tests and the evaluator point it at
+a fixture directory.
+
 ### 1. The rule book
 
-A new file, `backend/arp/transition_barrier/data/rule_book.json`, is the only authority for how a
-cell is rated. Sketch (field names beyond these are the builder's call):
+`rule_book.json` is the only authority for how a cell is rated. Sketch (field names beyond these are
+the builder's call):
 
 ```json
 {
   "version": 1,
-  "approved_by": "<owner>",
-  "approved_at": "2026-..",
-  "actions": { "Steel": [{"id": "steel.h2_dri", "label": "Hydrogen-based direct reduced iron"}, "..."] },
-  "conversions": [{"from": "CNY", "to": "USD", "rate": 0.14, "year": 2025, "source": {"...": "..."}}],
+  "fingerprint": "<sha256>",
+  "history": [{"version": 1, "fingerprint": "<sha256>", "approved_by": "<owner>", "approved_at": "2026-.."}],
+  "actions": {"Steel": [{"id": "steel.h2_dri", "label": "Hydrogen-based direct reduced iron"}]},
+  "conversions": [{"from": "CNY", "to": "USD", "rate": 0.14, "year": 2025, "source": {"title": "...", "url": "..."}}],
+  "domain_tiers": {"eur-lex.europa.eu": "primary", "iea.org": "primary", "reuters.com": "news"},
   "criteria": {
     "STL-R1": {
-      "rationale": "Without a carbon price that reaches the gap between ... every low-carbon route ...",
+      "rationale": "Without a carbon price that closes the cost gap ..., no low-carbon steel route pays ...",
       "actions": ["steel.h2_dri", "steel.scrap_eaf", "steel.ccus"],
       "facts": [
         {"id": "price", "label": "Effective carbon price", "type": "number", "unit": "USD/tCO2",
@@ -193,70 +205,140 @@ cell is rated. Sketch (field names beyond these are the builder's call):
 The `definition` is what the extractor is told and what a reviewer checks against: period, scope,
 "net of what". `max_age_days` feeds confidence. Facts are always per region.
 
-**Parameters.** Thresholds live in `params`, never inline in a condition, so each one carries a
-`source` and a `rationale`. `by_region` overrides the value for one region (example: a hydrogen
-breakeven cost that differs by region), with its own source.
+**Computed facts.** Many criteria compare two measured quantities, for example renewable against
+fossil LCOE (`PWR-T1`), or SAF capacity as a share of jet fuel demand (`AVI-T1`). Sources rarely state
+those ratios. So a fact may be computed from other facts of the same criterion: `{"id", "label",
+"formula": "ratio" | "ratio_pct" | "difference", "inputs": [a, b]}`.
 
-**Conditions.** A condition is `{fact, op, value | param}`, with `op` one of `>=`, `<=`, `>`, `<`, `=`,
-`in`. Conditions group with `all` / `any`, nested at most two levels. A comparison is valid only between
-a fact and a value of the same type and unit.
+- `ratio` = a ÷ b and `ratio_pct` = a ÷ b × 100. Both need a and b in the same unit, and the result
+  has no unit (`ratio_pct` is in percent points).
+- `difference` = a − b, in the inputs' shared unit.
+- A computed fact has no quote of its own. It counts when every input counts, and its confidence is
+  the lowest of its inputs'.
+
+**Parameters.** Thresholds live in `params`, never inline in a condition, so each one carries a
+`source` and a `rationale`. `by_region` overrides the value for one region (for example a hydrogen
+breakeven cost that differs by region). Each override carries its own source.
+
+**Open parameters.** Where no defensible number exists yet, a parameter is `{"id", "label", "status":
+"open", "question"}`, with no value. The validator accepts it and counts it. A condition that reads an
+open parameter is `unknown`, so the cell stays on its current rating, flagged
+`Not re-derived: open threshold <parameter label>`. Version 1 can therefore merge with open questions,
+and each one closes in a later version.
+
+**Conditions.** A condition is one of:
+
+- `{fact, op, value}`;
+- `{fact, op, param}`;
+- `{fact, op, other_fact}`, comparing two facts of the same type and unit, for example renewable LCOE
+  `<=` fossil LCOE.
+
+`op` is one of `>=`, `<=`, `>`, `<`, `=` or `in`. Conditions group with `all` / `any`, nested at most
+two levels.
 
 **Levels.** `H` is tested first, then `M`. `L` applies when both are false. There is no explicit L
 condition, so the three levels cover every case by construction.
 
 **Conversions.** Facts are compared in the rule book's unit. A value extracted in another unit (CNY,
-EUR, short tons) is converted by code using the `conversions` table. Every rate cites its source and
-year. Comparisons use the unrounded converted value; screens and detail sentences show it rounded to
-two decimals, followed by the extracted value in brackets. A unit not in the table makes the fact not
-count ("Unit not convertible: KRW/tCO2").
+EUR, short tons) is converted by code using the `conversions` table.
+
+- **Rate choice:** the rate whose `year` equals the fact's as-of year; if there is none, the latest
+  earlier year. If there is no earlier year either, the fact doesn't count, with reason
+  `No CNY to USD rate for 2023 or earlier` (currencies and year filled in).
+- **Unknown units:** a unit with no row in the table makes the fact not count, with reason
+  `Unit not convertible: KRW/tCO2`.
+- **Display:** comparisons use the unrounded value. Screens and detail sentences show at most two
+  decimals with trailing zeros dropped (`72`, `9.37`, `10`). A converted value is followed by the
+  extracted value in brackets: `9.37 USD/tCO2 (66.9 CNY/tCO2)`.
+
+Every rate cites its source and year.
 
 **Actions.** Per sector, a list of decarbonisation actions with stable ids. Each criterion names the
 actions it limits. The next project matches plan actions against these ids.
 
-**Rendering.** Sentences are rendered from the conditions, never stored, so they cannot disagree with
-what the engine evaluates:
+**Domain tiers.** `domain_tiers` maps a web domain (subdomains included) to a source tier (section
+2). Search uses it to classify what it finds.
 
-- a condition renders as `<fact label> <op> <value> <unit>`, for example
-  `Effective carbon price >= 50 USD/tCO2`;
-- a boolean renders as `<fact label> is Yes` or `is No`;
+**Rendering.** Sentences are rendered from the conditions, never stored:
+
+- `{fact, op, value | param}` renders as `<fact label> <op> <value> <unit>`, for example
+  `Effective carbon price >= 50 USD/tCO2`; a computed fact without a unit renders as
+  `LCOE ratio <= 1`;
+- a boolean renders as `<fact label> is Yes` or `<fact label> is No`;
+- `{fact, op, other_fact}` renders as `<label> <op> <other label>`, for example
+  `Renewable LCOE <= New-build fossil LCOE`;
 - `all` joins with ` and `, `any` with ` or `, and nested groups are bracketed;
 - `L` renders as `Otherwise (neither H nor M holds)`.
 
 The `/criteria` API's `rating_rubric` (`{H, M, L}`) is filled from these renderings. The free-text
-`rating_rubric` in `criteria_schema.json` is removed, so no second wording exists. The Word report
-script reads the rendered text.
+`rating_rubric` in `criteria_schema.json` is removed, so no second wording exists.
 
-**Methodology document.** `arp transition-barrier rules render` writes `docs/transition_barrier/RULE_BOOK.md`:
-per sector and criterion, the rationale, actions, facts with definitions, the H/M/L sentences, and every
-threshold with its value, source and rationale. The committed file must equal the render output (a
-test checks this), the same way the Word report is generated from the JSON.
+**Methodology document.** `arp transition-barrier rules render` writes
+`docs/transition_barrier/RULE_BOOK.md`. Per sector and criterion it shows the rationale, the actions,
+the facts with their definitions, the H/M/L sentences, and every threshold with its value, source and
+rationale. Open thresholds are listed with their questions. A test checks that the committed file
+equals the render output.
 
-**Validation.** `arp transition-barrier rules validate` and the loader reject a rule book where:
+**Versioning.** `fingerprint` is the SHA-256 (hex) of the rule book serialised as JSON with sorted
+keys, separators `,` and `:`, UTF-8, and without the `fingerprint` and `history` fields.
+`arp transition-barrier rules sign --approved-by <name>` increments `version`, writes the new
+fingerprint and appends a `history` entry. A content change without signing leaves a stale
+fingerprint, which the validator reports as a changed rule book under an unchanged version.
 
-1. a criterion in `criteria_schema.json` has no entry, or an entry has no criterion;
-2. a condition names a fact or parameter that doesn't exist in its criterion;
-3. a comparison's types or units don't match;
-4. a parameter has no `source` or no `rationale`;
-5. a criterion has no `rationale`, no facts or no `H` and `M` levels;
-6. a criterion's `actions` name an id not in its sector's action list;
-7. a registered source has no `tier`;
-8. the content changed but `version` did not. How the content is fingerprinted (a hash next to the
-   version is enough) is the builder's call.
+**Validation.** `arp transition-barrier rules validate [--data-dir <dir>]` and the app's loader check
+the rule book against the criteria schema in the same directory. The validator prints every error,
+one per line, in the order of the list below, and exits 1 if there is any. The app refuses to start with an invalid rule book, naming
+the first error. CI runs the validator. It rejects a rule book where:
 
-The app refuses to start with an invalid rule book, naming the first error. CI runs the validator.
+1. a criterion in `criteria_schema.json` has no entry: `Missing rule book entry: <code>`; or an entry
+   has no criterion: `Rule book entry without criterion: <code>`;
+2. a condition names an unknown fact or parameter:
+   `<code>: condition names unknown fact '<id>'` (or `unknown parameter`);
+3. a comparison's types or units don't match: `<code>: '<id>' (<unit>) compared with '<id>' (<unit>)`;
+4. a parameter that isn't open has no source or no rationale: `<code>: parameter '<id>' has no source`
+   (or `no rationale`); a `by_region` override has no source:
+   `<code>: parameter '<id>' override for <region> has no source`; an open parameter has no question:
+   `<code>: open parameter '<id>' has no question`;
+5. a criterion has no rationale, no facts, or no H or M level: `<code>: no rationale`, `<code>: no
+   facts`, `<code>: no H level`, `<code>: no M level`;
+6. a fact has no definition: `<code>: fact '<id>' has no definition`; or a computed fact's inputs are
+   missing, not numeric, or in different units;
+7. a criterion's actions name an id not in its sector's list: `<code>: unknown action '<id>'`;
+8. a registered source has no tier: `Source '<source key>' has no tier`;
+9. the fingerprint doesn't match the content: `Rule book content changed but version is still <n>`.
+
+On success it prints `Rule book v<version>: OK, <n> criteria, <m> open thresholds`.
 
 **Content of version 1.** The builder drafts all 35 entries from today's rubrics, evidence and
 sources. Each vague word ("material", "meaningful", "significant") becomes a number, and each number
-cites a source. Where no defensible number can be found, the draft says so in the entry, as an open
-question for the owner, rather than inventing one. The draft's pull request includes an **impact
-table**: for each of the 105 cells, the current rating, and the rating the draft rules would give
-using the figures in today's evidence text, read by hand. Every difference is listed with its reason.
-`STL-R1` China is expected to be one of them. The owner approves version 1 in that pull request.
+cites a source. Where no defensible number can be found, the parameter is open, with the question
+stated, so nothing is invented.
+
+The version 1 pull request also cleans up the registry:
+
+- every bundled source either points at a fetchable document (not a landing page such as
+  `https://www.mee.gov.cn/`), or is marked `manual` with a reason (subscription, dashboard, company
+  disclosure);
+- sources that today's evidence cites but the registry lacks are added (for `STL-R1` China: ICAP,
+  IEEFA, Transition Asia);
+- the two copy-pasted URLs noted in `docs/TRANSITION_BARRIER_ASSESSMENT.md` are re-sourced.
+
+The pull request includes an **impact table**. For each of the 105 cells it shows the current rating
+and the rating the draft rules would give using the figures in today's evidence text, read by hand.
+Every difference is listed with its reason. `STL-R1` China is expected to be one of them. The owner
+approves version 1 in that pull request.
+
+**Changing the rules later.** Every result stores a snapshot of the criterion's rule entry it was
+evaluated under, together with the version. Its detail sentences render from that snapshot, so an old
+rating always reads with its own rules. When the current entry for a criterion differs from a cell's
+snapshot, the cell shows `Rules changed since this rating (v<n>)` until it is re-derived. Hand-rated
+cells are not touched: they show as hand-rated on 2026-08-14, before the rule book existed.
+`assessment_scores.json` keeps its hand ratings.
 
 ### 2. Sources and search for new material
 
-**Registry.** The existing source registry (`criteria_schema.json` `primary_sources`) stays the list of
-sources a criterion may use. Each source gains a `tier`:
+**Registry.** The bundled registry (`criteria_schema.json` `primary_sources`) lists the sources a
+criterion may use in all three regions. Each source gains a `tier`:
 
 | Tier | Examples | May ground a fact | Fact confidence at most |
 |---|---|---|---|
@@ -264,40 +346,60 @@ sources a criterion may use. Each source gains a `tier`:
 | `secondary` | research institutes, industry trackers, think tanks, industry associations | yes | medium |
 | `news` | news and commentary | no | n/a |
 
-The builder assigns the tier for the 86 existing sources in the version 1 pull request, for the owner
-to check. Sources approved later (see below) are stored with the ratified results, not written into
-the bundled files, and `GET /sources` lists bundled and approved sources together.
+The builder assigns the tier for every bundled source in the version 1 pull request, for the owner to
+check. A source approved later applies to the criterion and region it was proposed for. It is stored
+with the ratified results, never written into the bundled files. `GET /sources` lists bundled and
+approved sources together, each with its tier and, for approved ones, its region.
 
 **Documents.** Fetching a source stores the document (PDF or HTML) and its as-of date: the
 publication date, or the data year where the document states one. Re-fetching an unchanged document
 is a no-op. Documents are parsed with page breaks (`parse_file_to_text_with_pages`), so every quote
-gets a page. A barrier source document must not create a company record. It stays out of the
-`documents` table's company path, or uses another way the builder chooses. All fetches go through the
-SSRF guard, and all fetching and searching stays behind `ARP_TRANSITION_BARRIER_REFRESH_ENABLED`.
+gets a page. A barrier source document must not create a company record. How it avoids the
+`documents` table's company path is the builder's call.
+
+**The refresh flag.** `ARP_TRANSITION_BARRIER_REFRESH_ENABLED` now gates every request to a source or
+search provider: fetching, edition checks, search, and the existing EUR-Lex refresh. With the flag
+off:
+
+- `POST /search` answers 409;
+- `POST /derive` still runs, using stored documents and analyst facts only, and its results note
+  `Sources not fetched: refresh is disabled`.
+
+So the engine and analyst facts work without network access. All requests go through the SSRF guard;
+a URL the guard refuses is skipped and creates no review item.
 
 **Newer editions.** For each registered source with a periodic cadence, a check looks for a newer
 edition (next year's report, an amended act). Legal sources reuse the existing EUR-Lex/ELI version
 check. A newer edition becomes a `new_source` review item that proposes replacing the old entry.
 
-**Policy-change search.** Monthly, and on demand for a cell, a search runs per cell. The monthly
-run is a scheduled job, following the interval-job pattern of
-`portfolio/monitoring/scheduler.py`, and only runs while the refresh flag is on. Queries are built
-from the criterion, the region and the fact definitions. Each result is classified by tier:
+**Policy-change search.** A search runs per cell, monthly and on demand. The monthly search is one
+run of type `transition_barrier_search` covering every cell. A scheduled job, following the interval
+pattern of `portfolio/monitoring/scheduler.py`, starts it when the latest such run finished at least
+`ARP_TRANSITION_BARRIER_SEARCH_INTERVAL_DAYS` (default 30) days ago and the refresh flag is on.
 
-- a `primary` or `secondary` result not already registered becomes a `new_source` review item for that
-  criterion and region;
-- a `news` result that suggests a change puts a `possible_change` flag on the cell, with the article's
-  title, URL and date, and queues a derivation run for the cell from its registered sources.
+Queries are built from the criterion, the region and the fact definitions. Each result's tier comes
+from `domain_tiers`; a domain not in the list is `unclassified`.
+
+- A `primary`, `secondary` or `unclassified` result that isn't registered becomes a `new_source`
+  review item for that criterion and region. Approving an `unclassified` one requires choosing its
+  tier.
+- A `news` result goes to a change check: a model reads its title and snippet with the criterion and
+  region, and answers whether it suggests a change. On yes, the cell gets the flag
+  `Possible change: <article title>` (with URL and date), a `possible_change` review item, and a
+  derivation run from its registered sources. The model's answer can only raise a flag and queue a
+  re-derivation; it never touches a fact or a rating.
 
 Results are matched by normalised URL. A URL a person rejected is never proposed again for the same
-criterion. The search provider sits behind the existing `WebSearchClient` interface
-(`arp/discovery/site_finder.py`); which provider to use is the builder's call, and the owner approves
-any paid one.
+criterion and region. The search provider sits behind the existing `WebSearchClient` interface
+(`arp/discovery/site_finder.py`). Which provider is the builder's call; a paid one needs the owner's
+approval.
 
 ### 3. Fact extraction (RAG)
 
-**Unit.** One fact for one cell. Inputs: the fact's definition, the region, and the documents of the
-criterion's registered sources (approved new sources included).
+**Unit.** One fact for one cell. The inputs are the fact's definition, the region, and the fetched
+documents of the cell's sources: the criterion's bundled sources plus sources approved for that
+criterion and region. A pending `new_source` is not read. A cell with no fetched documents runs no
+extraction, so a derivation from analyst facts alone makes no model call.
 
 **Steps.** A rule book fact maps onto a `FieldDefinition`: its type, unit and allowed values carry
 over, and its definition becomes the extraction instructions. It then runs through the existing
@@ -307,40 +409,59 @@ name.
 1. Retrieve passages relevant to the fact from those documents.
 2. The model returns either `not_found`, or a value in the source's own unit with the exact quote, the
    page or locator, and the as-of date.
-3. Code checks the result. The quote check is `ground_citations`, run against the passages the model
-   was shown. A fact counts only if all of these pass:
-   - the quote is found in the document text;
-   - for numbers, the number appears in the quote;
-   - the unit is the fact's unit or convertible through the `conversions` table;
-   - the source's tier may ground a fact.
+3. Code checks the result. A value counts only if all of these pass:
+   - the quote has an exact, normalised or fuzzy (score ≥ 0.92) match in a passage the model was shown
+     (`ground_citations` with `passages`); otherwise `Quote not found in source`;
+   - for numbers, the number appears in the quote; otherwise `Number not in quote`;
+   - the unit is the fact's unit, or convertible (section 1);
+   - the source's tier may ground a fact; otherwise `News cannot ground a fact`.
 
-   A fact that fails keeps its failure reason ("Quote not found in source", "Number not in quote",
-   "Unit not convertible: …", "News cannot ground a fact"). Both reviewer and cell detail show it.
+   A value that fails keeps its failure reason, and both the reviewer and the cell detail show it.
 
 **Several values for one fact.** When more than one counted value exists for a fact (two sources, two
 editions), the engine evaluates each value. If they all give the same rating, the rating stands and
-every value is shown. If they give different ratings, the cell is a **conflict**: no rating is proposed,
-and the review item shows each value with its source. This is operating rule 4 of the existing
-module.
+every value is shown. If they give different ratings, the result is a **conflict**: no rating is
+proposed, and the review item lists each value as `<value shown>, <document title>`. This is
+operating rule 4 of the existing module.
 
-**Fact confidence.**
+**Fact confidence**, per counted value:
 
-- `high`: counted, from a `primary` source, as-of date within `max_age_days`;
-- `medium`: counted, but from a `secondary` source or older than `max_age_days`;
+- `high`: from a `primary` source, as-of date within `max_age_days` of the run date;
+- `medium`: from a `secondary` source, or older than `max_age_days`;
 - `low`: entered by an analyst without a document (below).
 
-**Analyst-entered facts.** For sources code cannot read, an analyst enters the value, unit, quote, page
-and source. With an uploaded document, the quote is checked exactly as above. Without one, the fact is
-marked "not machine-checked" and its confidence is `low`. The analyst's name is recorded on the fact.
+**Analyst-entered facts.** For sources code cannot read, an analyst (role `analyst` or higher) enters
+the value, unit, quote, page and source.
+
+- **The source** is either a registered source of the cell, or an uploaded document. An uploaded
+  document needs a title, a publisher, an as-of date and a tier stated by the analyst. It is used only
+  to check this fact's quote; extraction never reads it. Tier `news` is refused with
+  HTTP 422 `News cannot ground a fact.`
+- **With an uploaded document,** the quote is checked against it as above. A failed check is refused
+  with HTTP 422 `Quote not found in the uploaded document.`
+- **Without a document,** the fact is marked `not machine-checked` and its confidence is `low`.
+- **Always:** a number must appear in its quote, or the fact is refused with HTTP 422
+  `Number not in quote.`
+
+The analyst's name is recorded on the fact.
+
+**Choosing between conflicting values.** For a conflict, an analyst can choose which value counts with
+a written reason (`POST /cells/{code}/{region}/choices`). An empty reason is refused with HTTP 422
+`A reason is required.` A choice re-derives the cell using only the chosen value, and the choice, its
+reason and its author appear in the cell's history.
 
 ### 4. Derivation (the rules engine)
 
-The engine is code only. Input: the rule book version, and the counted facts for a cell. Output: a
-result. No model is involved.
+The engine is code only. Its inputs are a rule entry and the counted values for a cell, and its output
+is a result. No model is involved.
 
-**Three-valued logic.** A condition is `pass`, `fail` or `unknown`. It is `unknown` when its fact has
-no counted value. `all` fails if any part fails, passes if every part passes, and is otherwise
-`unknown`. `any` passes if any part passes, fails if every part fails, and is otherwise `unknown`. Then:
+**Three-valued logic.** A condition is `pass`, `fail` or `unknown`. It is `unknown` when a fact it
+reads has no counted value, or when it reads an open parameter.
+
+- `all` fails if any part fails, passes if every part passes, and is otherwise `unknown`.
+- `any` passes if any part passes, fails if every part fails, and is otherwise `unknown`.
+
+The two levels then give the rating:
 
 | H | M | Rating |
 |---|---|---|
@@ -350,84 +471,129 @@ no counted value. `all` fails if any part fails, passes if every part passes, an
 | fail | unknown | `not_rated` |
 | fail | fail | `L` |
 
-A `not_rated` result names the facts whose absence made it unknown. So a missing fact only blocks a
-rating when it could change it: with a carbon price of 30 and a high level of 50, a missing border-levy
-fact cannot make the cell `H`, and the result is `M`.
+A `not_rated` result names the facts (or open parameters) that made it unknown. So a missing fact only
+blocks a rating when it could change it. With a carbon price of 30 and a high level of 50, a missing
+border-levy fact cannot make the cell `H`, and the result is `M`.
 
 **Result.** Each result records:
 
 - the rating, or `not_rated` or `conflict`;
-- each level's outcome, and each condition's outcome with the value used (in the rule book's unit and
-  as extracted) and its citation;
-- the missing facts and the confidence;
-- the rule book version and the run id.
+- each level's outcome;
+- each condition's outcome, with the values used (as shown and as extracted) and their citations;
+- the missing facts and open parameters;
+- the confidence;
+- the rule entry snapshot, the rule book version and the run id.
 
-**Confidence of a result** is the lowest confidence among the facts the result read.
+**Confidence of a result** is the lowest confidence among all counted values of all the criterion's
+facts. That includes facts read only by a level that didn't decide the rating, and every value when a
+fact has several. This is my call, and it is the stricter of the two readings.
 
-**Detail sentence.** Each level renders as its sentence followed by one clause per condition. AC-7 has
-the exact form.
+**Detail sentences.** Each level evaluated renders as `<level>: <level sentence>.`, followed by one
+clause per condition:
+
+- one value: `<label> = <value shown> (<document title>, p. <page>): <outcome>.`
+- several values: `<label> = <v1> (<doc 1>, p. <p1>), <v2> (<doc 2>, p. <p2>): <outcome>.`
+- no counted value: `<label> not found: unknown.`
+- a fact compared with a fact: `<label> = <v> (<cite>) vs <other label> = <v> (<cite>): <outcome>.`
+- a computed fact: `<label> = <v> from <input label> = <v> (<cite>) and <input label> = <v> (<cite>): <outcome>.`
+- an analyst fact without a document: `(<source title>, entered by <user>)` in place of
+  `(<document title>, p. <page>)`.
+
+Booleans show as `Yes` / `No`; numbers as in section 1.
+
+**What a ratified derived cell shows** in `GET /scores`:
+
+- `confidence`: the result's confidence;
+- `evidence`: the detail of `H`, followed by a space and the detail of `M` when `H` failed;
+- `source`: the titles of the documents (or registered sources) that the counted values cite, without
+  duplicates, in the rule book's fact order, joined with `; `.
 
 **Engine.** A plain Python evaluator over the rule book's structured conditions, in
 `transition_barrier/`. That is my call, and it changes what I said in chat ("reuses the GoRules
 engine"). GoRules expressions fail on a missing value, so the three-valued logic and the
 per-condition evidence would have to be rebuilt around it. In-app rule editing, the one thing GoRules
-would add, is a non-goal. The newly approved schema rules design made the same choice for the same
+would add, is a non-goal. The schema rules design approved today made the same choice for the same
 kind of typed condition.
 
 ### 5. Review and ratification
 
-Every derived result becomes a review item. Kinds:
+Every derived result becomes a review item, queued with `queue_for_review` under a new run type,
+`transition_barrier_derivation`. That run type is added to `REVIEWABLE_RUN_TYPES` and to the
+frontend's reviewable kinds, so items show in the existing review screens. Decisions go through the
+existing `POST /api/review/runs/{run_id}/items/{item_key}/decision` and `review/decide.py`, so its
+second-review rules apply.
 
-- **changed**: the proposed rating differs from the current one;
-- **unchanged**: same rating, new evidence;
-- **not rated** and **conflict**: resolved by adding an analyst fact, or by choosing which value counts
-  with a written reason, which re-derives the cell; or dismissed, which keeps the current rating;
-- **new source** and **possible change**, from search. Approving or rejecting a possible-change item
-  clears its flag; the re-derivation it queued runs either way.
+| Kind | What it is | Who decides |
+|---|---|---|
+| `changed` | proposed rating differs from the current one | an analyst approves; a second, different person with the approver role confirms *(pending the owner's answer, see below)* |
+| `unchanged` | same rating, new evidence | one analyst, with the existing second-review sampling; bulk accept allowed |
+| `not_rated`, `conflict` | no rating proposed | resolved by an analyst fact or a choice (section 3), or dismissed by an analyst, which keeps the current rating |
+| `new_source` | a source found by search or a newer edition | an approver |
+| `possible_change` | a news flag | an analyst; approving or rejecting clears the flag, and the queued re-derivation runs either way |
 
-Items are queued with `queue_for_review` under a new run type, `transition_barrier_derivation`.
-That run type is added to `REVIEWABLE_RUN_TYPES` and to the frontend's reviewable kinds, so items show
-in the existing review screens.
+**Pending the owner's answer:** whether a rating change needs a second person. The design assumes yes,
+because `review/decide.py` already treats a decision that changes a published value as needing a
+second reviewer (`published_change`), and a rating change is exactly that. If one approver is enough,
+`changed` becomes a single decision by an approver.
 
-A person with the `approver` role approves or rejects each item; entering an analyst fact needs
-`analyst` *(my call)*. Their name and the time are recorded. Unchanged items can be approved in bulk,
-and each item in the batch still records the approver. An approved result becomes
-the cell's current rating, and `last_verified` becomes the approval date, so staleness counts from
-there. A rejected result changes nothing.
+Rules on top of the existing ones:
 
-**Storage.** Ratified results are stored append-only next to runs and results. The current rating of a
-cell is its latest ratified result. A cell never re-derived keeps its bundled rating, labelled
-"hand-rated 2026-08-14". The bundled JSON is never written at run time; the existing byte-identity test
-stays.
+- rejecting a `changed` item is final at once; only an approval needs the second review;
+- the existing different-person check runs first. After it, confirming a `changed` item needs the
+  approver role, or HTTP 403 `a rating change is confirmed by an approver`;
+- nobody may decide an item whose result uses a fact they entered, or HTTP 409
+  `you entered a fact this result uses`.
 
-A cell whose latest derivation was `not_rated`, or that has an open `possible_change`, keeps its
-current rating and shows a flag: "Not re-derived: missing <fact labels>" or "Possible change: <article
-title>".
+When an item's decision is final, an approved result becomes the cell's current rating.
+`ratified_by` is the person whose decision made it final, and `last_verified` is that decision's date,
+so staleness counts from there. A rejected result changes nothing. Every decision's author and time is
+recorded in the cell's history.
+
+**Storage.** Ratified results, approved sources, analyst facts and choices are stored append-only next
+to runs and results. A cell's current rating is its latest ratified result. A cell never re-derived
+keeps its bundled rating (`basis` `hand_rated`). The bundled JSON is never written at run time, and the
+existing byte-identity test stays.
+
+**Flags.** A cell keeps its current rating and shows a flag in these cases:
+
+- its latest derivation was `not_rated`: `Not re-derived: missing <fact labels>` or
+  `Not re-derived: open threshold <parameter label>`;
+- it has an open `possible_change` item: `Possible change: <article title>`;
+- its rules changed since its rating: `Rules changed since this rating (v<n>)`.
+
+**Consumers.** The dataset functions in `transition_barrier/dataset.py` return current ratings, so
+Decision Studio (`from_transition_barrier`) and every other reader see ratified ratings. They must pick
+up a new approval without a restart. `arp transition-barrier export --out <file>` writes the criteria
+(with rendered rubrics) and the current scores. `scripts/build_transition_barrier_report.js` reads
+that export, so the Word report shows the same matrix as the app.
 
 ### 6. Screens
 
 The layout is the builder's call, following `DESIGN.md`. What each screen must show:
 
 - **Criterion page** (existing, Transition Barriers): the rationale, the actions it limits, the facts
-  with their definitions, the H/M/L sentences, and each threshold with its value, source and rationale,
-  plus the rule book version.
-- **Cell detail**: rating, confidence, ratified by and when; each level and condition as pass, fail or
-  unknown; for every figure, its quote, document title, page and a link that opens the source; flags;
-  the cell's rating history.
-- **Review**: barrier items in the existing review screens, with approve, reject and bulk-approve.
-- **Analyst fact entry**: a form on the cell detail, with optional document upload.
+  with their definitions, the H/M/L sentences, each threshold with its value, source and rationale (or
+  its open question), and the rule book version.
+- **Cell detail**:
+  - rating, confidence, and who ratified it and when (or "hand-rated 2026-08-14");
+  - each level and condition as pass, fail or unknown;
+  - for every figure, its quote, document title, page, and a link that opens the source;
+  - flags and the rating history;
+  - the analyst fact form, with optional document upload, and the conflict choice.
+- **Review**: barrier items in the existing review screens, with approve, reject, second review and
+  bulk accept.
 
 ### 7. Interfaces
 
 New CLI commands under `arp transition-barrier`:
 
-- `rules validate`: exit 0 and print `Rule book v<version>: <n> criteria, OK`, or exit 1 and print one
-  line per error.
+- `rules validate [--data-dir <dir>]`: see Validation.
+- `rules sign --approved-by <name> [--data-dir <dir>]`: bump the version and re-fingerprint.
 - `rules render`: write `docs/transition_barrier/RULE_BOOK.md`.
+- `export --out <file>`: current criteria and scores, for the Word report.
 - `derive --code <code> --region <region>`: start a derivation run for one cell and print its run id.
 - `search --code <code> --region <region>`: run the policy-change search for one cell.
-- `golden --cases <file> --documents-dir <dir> --min-precision <x>`: fact-extraction precision on a
-  golden set; exit 0 when precision ≥ x.
+- `golden --cases <file> --documents-dir <dir> --min-precision <x> --min-coverage <y>`: see section 8.
 
 New and changed API routes under `/api/transition-barrier`:
 
@@ -435,24 +601,49 @@ New and changed API routes under `/api/transition-barrier`:
   `derived`), `ratified_by` (null when hand-rated) and `flags` (a list of strings, empty by default).
 - `GET /criteria/{code}`: `rating_rubric` comes from the rule book. The response gains `rationale`,
   `actions`, `facts`, `params` and `rule_book_version`.
-- `GET /cells/{code}/{region}`: the current rating, the latest result (levels, conditions, facts with
-  citations and failure reasons), flags and the rating history.
-- `POST /derive` with `{"cells": [{"code", "region"}]}`: starts a run and returns `{"run_id"}`. When
-  `ARP_TRANSITION_BARRIER_REFRESH_ENABLED` is false it answers 409, as `POST /refresh/runs` does today.
+- `GET /sources`: bundled and approved sources, each with `tier`, and `region` for approved ones.
+- `GET /cells/{code}/{region}`: the current rating, the latest result (levels, conditions, values with
+  citations and failure reasons), flags and the history.
+- `POST /derive` with `{"cells": [{"code", "region"}]}`: starts a run and returns `{"run_id"}`.
+- `POST /search` with the same body: starts a search run, or answers 409 when the refresh flag is off.
 - `POST /cells/{code}/{region}/facts`: an analyst fact (multipart, optional document).
+- `POST /cells/{code}/{region}/choices`: choose a conflicting value, with a reason.
 
-Review decisions use the existing `POST /api/review/runs/{run_id}/items/{item_key}/decision`.
+Review decisions use the existing `POST /api/review/runs/{run_id}/items/{item_key}/decision` and
+`POST /api/extraction/items/bulk-accept`.
 
-### 8. Build order
+### 8. Golden set
+
+Fact extraction is measured on a golden set of at least 40 facts from at least 12 source documents.
+Each case names the cell, the fact, the document, and the correct value, unit and page.
+
+- **precision** = correct counted values ÷ counted values. A counted value is correct when it equals
+  the label in the rule book's unit at two decimals (booleans and enums exactly, dates to the day) and
+  its page equals the label's.
+- **coverage** = cases with a counted value ÷ cases.
+
+The set lives with the holdout tests once the holdout repo is attached to the build. Until then it
+lives in `backend/tests/golden/transition_barrier/`, listed as owed in the pull request. It uses only
+documents the repo may store (law texts, and agency reports whose terms allow it). The builder drafts
+the labels.
+
+**Pending the owner's answer:** who checks the drafted labels. That's about 40 values with their
+pages, roughly two hours of work.
+
+### 9. Build order
 
 Each phase is one pull request.
 
-1. **Rule book.** Format, validator, rendering, the `/criteria` change, version 1 content, source tiers,
-   impact table, `RULE_BOOK.md`. The owner approves the rules here, before any extraction code merges.
-2. **Engine and ratification.** Derivation, storage, review items, cell detail, analyst facts. Usable
-   from this phase on with analyst-entered facts.
-3. **Extraction.** Document fetching, retrieval, fact extraction and checks, golden-set evaluation.
-4. **Search.** Newer editions, policy-change search, the monthly schedule.
+1. **Rule book.** The data directory setting, format, validator, `sign`, rendering, the `/criteria`
+   change, `export` and the Word report change, version 1 content, source tiers, domain tiers, the
+   registry clean-up, the impact table and `RULE_BOOK.md`. The owner approves the rules here, before
+   any extraction code merges.
+2. **Engine and ratification.** Derivation, storage, review items, cell detail, analyst facts,
+   choices, flags, and the consumers reading current ratings. Usable from this phase on with
+   analyst-entered facts.
+3. **Extraction.** Document fetching and storage, retrieval, fact extraction and checks, and the
+   golden set.
+4. **Search.** Newer editions, policy-change search, the change check, the monthly schedule.
 
 The owner described the flow as rules, then extraction, then engine. Building the engine before
 extraction is my call: the engine is small and deterministic, and analysts can use it with entered
@@ -460,10 +651,12 @@ facts while extraction, the riskiest part, is built.
 
 ## Constraints
 
-- The model extracts facts. It never outputs a rating, a condition outcome or a confidence.
+- The model extracts facts and answers the news change check. It never outputs a rating, a condition
+  outcome or a confidence.
 - Precision first: "not rated" is acceptable; a wrong figure that counts is not.
 - The existing operating rules in `docs/TRANSITION_BARRIER_ASSESSMENT.md` stay in force.
-- Tests make no network calls and no model calls; fetch, search and the model are stubbed.
+- Tests make no network calls and no model calls: fetch, search and the model are stubbed
+  (`FakeSearchClient`, `FakeLLMClient`, injected transports).
 - Request/response model changes follow the API contract steps in `.claude/CLAUDE.md`.
 - At most three agent pull requests in flight (`.claude/skills/steward/SKILL.md`), so phases 3 and 4
   wait for earlier ones to merge or run one at a time.
@@ -471,87 +664,212 @@ facts while extraction, the riskiest part, is built.
 ## Left to the builder
 
 - Storage layout and table names, and JSON field names beyond the sketch.
+- How barrier documents stay out of the company path of the `documents` table.
 - Retrieval settings (passages, re-ranking), prompts, search query wording.
 - The search provider behind `WebSearchClient` (paid ones need the owner's approval).
-- How the rule book's content fingerprint is stored.
+- How the dataset functions pick up new approvals (cache invalidation).
 - Screen layout and wording beyond the strings in the acceptance table.
 - A cap on how many value combinations a conflict check evaluates.
+- The fixture documents' wording, as long as the quotes and pages in the acceptance table hold.
 
 ## Acceptance
 
-**Fixture rule book RB** (version 7) with one criterion, `STL-R1`:
+### Fixtures
+
+**Data directory F** (`ARP_TRANSITION_BARRIER_DATA_DIR`, in `backend/tests/fixtures/transition_barrier/`):
+
+- `criteria_schema.json` holds one criterion, `STL-R1` (Steel, Regulation). Its registered sources
+  are D1 and D2 (tier `primary`) and D3 (tier `secondary`).
+- `assessment_scores.json` holds the three bundled STL-R1 cells: European Union `H`, United States
+  `L`, China `L`, each with `last_verified` 2026-08-14.
+- `rule_book.json` is **RB**, version 7, signed.
+
+**RB, criterion `STL-R1`:**
 
 | Fact id | Label | Type |
 |---|---|---|
 | `price` | "Effective carbon price" | number, unit `USD/tCO2`, `max_age_days` 365 |
-| `applies` | "Carbon price applies to steel" | boolean |
-| `levy` | "Border levy in force" | boolean |
+| `applies` | "Carbon price applies to steel" | boolean, no age limit |
+| `levy` | "Border levy in force" | boolean, no age limit |
 
-- Parameters: `p_high` = 50 USD/tCO2, `p_material` = 10 USD/tCO2, each with a source and a rationale.
-- `H`: `all(price >= p_high, levy = true)`. `M`: `all(applies = true, price >= p_material)`.
-- Conversions: CNY → USD at 0.14 (2025).
+- **Parameters:** `p_high` "High price level" = 50 USD/tCO2; `p_material` "Material price level" =
+  10 USD/tCO2. Each has a source and a rationale.
+- **Levels:** `H` = `all(price >= p_high, levy = true)`; `M` = `all(applies = true, price >= p_material)`.
+- **Actions:** `steel.h2_dri`, `steel.scrap_eaf`.
+- **Conversions:** CNY → USD at 0.139 (2024) and 0.14 (2025).
+- **Domain tiers:** `eur-lex.europa.eu` primary, `reuters.com` news.
 
-**Fixture documents:** D1 "EU ETS Market Report 2026" (primary), D2 "CBAM Regulation 2023/956"
-(primary), D3 "Steel Policy Tracker" (secondary), N1 "Reuters: carbon price falls" (news).
+**Documents:**
 
-Unless a row says otherwise, the region is "European Union" and the cell's current rating is the
-bundled hand rating `H`. The facts are:
+| Id | Title | Tier | As-of |
+|---|---|---|---|
+| D1 | "EU ETS Market Report 2026" | primary | 2026-03-31 |
+| D2 | "CBAM Regulation 2023/956" | primary | 2023-05-16 |
+| D3 | "Steel Policy Tracker" | secondary | 2026-06-30 |
+| N1 | "Reuters: carbon price falls" (`https://www.reuters.com/x`) | news | 2026-10-01 |
 
-- `price` = 72 from D1, p. 12;
-- `applies` = true from D1, p. 4;
-- `levy` = true from D2, p. 3.
+**Users:** `a.analyst` and `b.analyst` (role analyst), `a.approver` and `b.approver` (role approver).
 
-Every fact is counted, from a primary source, with an as-of date within `max_age_days`.
+**Defaults**, unless a row says otherwise:
+
+- the region is European Union, and the cell's current rating is the bundled hand rating `H`;
+- the run date is 2026-10-20;
+- the refresh flag is on, and both second-review sample rates are 0;
+- the counted values are `price` = 72 (D1, p. 12), `applies` = Yes (D1, p. 4) and `levy` = Yes (D2, p. 3).
+
+"Derived" means a derivation run for the cell has finished.
+
+### Engine
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-1 | RB and the default facts | the cell is derived | result rating `H`; both `H` conditions `pass` | unit |
+| AC-1 | the defaults | the cell is derived | result rating `H`; both `H` conditions `pass`; result confidence `high` | unit |
 | AC-2 | `price` = 30 | the cell is derived | result rating `M`; `H` level `fail` | unit |
-| AC-3 | `price` = 9, `levy` = false | the cell is derived | result rating `L` | unit |
-| AC-4 | `price` has no counted value | the cell is derived | result rating `not_rated`; missing facts = `["Effective carbon price"]` | unit |
-| AC-5 | `price` = 30, `levy` has no counted value | the cell is derived | result rating `M` (`H` fails on price whatever the levy) | unit |
-| AC-6 | `price` = 72, `levy` has no counted value | the cell is derived | result rating `not_rated`; missing facts = `["Border levy in force"]` | unit |
-| AC-7 | the default facts | the cell is derived | the `H` level's detail is exactly `H: Effective carbon price >= 50 USD/tCO2 and Border levy in force is Yes. Effective carbon price = 72 USD/tCO2 (EU ETS Market Report 2026, p. 12): pass. Border levy in force = Yes (CBAM Regulation 2023/956, p. 3): pass.` | unit |
-| AC-8 | `price`'s quote does not occur in D1's text | the cell is derived | `price` is not counted with reason `Quote not found in source`; result rating `not_rated` | unit |
-| AC-9 | `price` = 72 but its quote contains no `72` | the cell is derived | `price` is not counted with reason `Number not in quote` | unit |
-| AC-10 | the only `price` value comes from N1 | the cell is derived | `price` is not counted with reason `News cannot ground a fact` | unit |
-| AC-11 | `price` extracted as 66.9 CNY/tCO2 from D1 | the cell is derived | `price` is counted and shown as `9.37 USD/tCO2 (66.9 CNY/tCO2)`; result rating `L` | unit |
-| AC-12 | `price` extracted as 66.9 KRW/tCO2 | the cell is derived | `price` not counted with reason `Unit not convertible: KRW/tCO2` | unit |
-| AC-13 | `price` has counted values 72 (D1) and 30 (D3) | the cell is derived | result rating `conflict`; no proposed rating; the review item lists both values with their documents | unit |
-| AC-14 | `price` has counted values 72 (D1) and 65 (D3) | the cell is derived | result rating `H`; the `price` condition shows both values | unit |
-| AC-15 | `levy` from D3 (secondary) | the cell is derived | `levy` confidence `medium`; result confidence `medium` | unit |
-| AC-16 | `price` as-of date 400 days before the run | the cell is derived | `price` confidence `medium` | unit |
-| AC-17 | `applies` entered by analyst "a.analyst" without a document | the cell is derived | `applies` confidence `low`, marked `not machine-checked`; result confidence `low` | unit |
-| AC-18 | the default facts | the cell is derived | the result records `rule_book_version` 7 and its run id | unit |
-| AC-19 | `price` = 30 | `POST /derive` for the cell, then `GET /scores?sector=Steel&region=European Union` | the STL-R1 cell still shows rating `H`, `basis` `hand_rated`; the review queue has one item for the cell with current `H` and proposed `M` | unit |
-| AC-20 | AC-19's item | user "a.approver" (role approver) approves it | `GET /scores` shows STL-R1 EU rating `M`, `basis` `derived`, `ratified_by` `a.approver`, `last_verified` = the approval date | unit |
-| AC-21 | AC-19's item | a user with role analyst submits an approve decision | HTTP 403; the cell still shows `H` | unit |
-| AC-22 | AC-19's item | "a.approver" rejects it | the cell still shows `H`, `basis` `hand_rated` | unit |
-| AC-23 | three cells derived with unchanged ratings | "a.approver" approves them in one bulk action | each cell shows `basis` `derived` and `ratified_by` `a.approver` | unit |
-| AC-24 | AC-4's result | `GET /cells/STL-R1/European Union` | rating still `H`; `flags` contains `Not re-derived: missing Effective carbon price` | unit |
-| AC-25 | any derivation, approval or rejection | the run finishes | the files in `backend/arp/transition_barrier/data/` are byte-identical to before | unit |
-| AC-26 | the shipped rule book | `arp transition-barrier rules validate` | exit 0, prints `Rule book v1: 35 criteria, OK` | unit |
-| AC-27 | RB with `H` naming fact `prices` | `rules validate` | exit 1, prints `STL-R1: condition names unknown fact 'prices'` | unit |
-| AC-28 | RB with `p_high` lacking `source` | `rules validate` | exit 1, prints `STL-R1: parameter 'p_high' has no source` | unit |
-| AC-29 | RB with `rationale` empty | `rules validate` | exit 1, prints `STL-R1: no rationale` | unit |
-| AC-30 | `criteria_schema.json` has STL-T1 but RB has no entry for it | `rules validate` | exit 1, prints `Missing rule book entry: STL-T1` | unit |
-| AC-31 | RB with `p_high` changed to 60, version still 7 | `rules validate` | exit 1, prints `Rule book content changed but version is still 7` | unit |
-| AC-32 | RB | `GET /criteria/STL-R1` | `rating_rubric` = `{"H": "Effective carbon price >= 50 USD/tCO2 and Border levy in force is Yes", "M": "Carbon price applies to steel is Yes and Effective carbon price >= 10 USD/tCO2", "L": "Otherwise (neither H nor M holds)"}` | unit |
-| AC-33 | the shipped rule book | `rules render` | the output equals the committed `docs/transition_barrier/RULE_BOOK.md` | unit |
-| AC-34 | search stub returns URL U (classified primary, not registered) for STL-R1 China | `arp transition-barrier search --code STL-R1 --region China` | one `new_source` review item with U, STL-R1, China | unit |
-| AC-35 | AC-34's item | "a.approver" approves it | `GET /sources` lists U for STL-R1 | unit |
-| AC-36 | AC-34's item rejected | the search runs again and returns U | no new review item | unit |
-| AC-37 | search stub returns N1 for STL-R1 European Union | the search runs | the cell's `flags` contains `Possible change: Reuters: carbon price falls`; a derivation run exists for the cell; no fact cites N1 | unit |
-| AC-38 | `ARP_TRANSITION_BARRIER_REFRESH_ENABLED` false | `POST /derive` | HTTP 409; no outbound request made | unit |
-| AC-39 | an uploaded PDF and a quote not in it | `POST /cells/STL-R1/European Union/facts` | HTTP 422 with message `Quote not found in the uploaded document.` | unit |
-| AC-40 | golden set G: at least 40 facts from at least 12 source documents, values and pages labelled by a person | `arp transition-barrier golden --cases G --documents-dir <dir> --min-precision 0.95` | exits 0 | golden |
-| AC-41 | the running app after AC-20 | open Transition Barriers, then the STL-R1 European Union cell | shows rating M, its confidence, "ratified by a.approver" with the date; each condition as pass, fail or unknown; each figure with its quote, document title, page, and a link that opens the source | evaluator |
-| AC-42 | the running app | open the STL-R1 criterion | shows the rationale, the actions it limits, each fact with its definition, the H, M and L sentences, each threshold with value, source and rationale, and the rule book version | evaluator |
-| AC-43 | the running app with AC-19's item | open the review screen | the item is listed with current and proposed rating; approve and reject work from there; unchanged items can be bulk-approved | evaluator |
-| AC-44 | a cell never re-derived | `GET /scores` | rating, confidence, evidence, source and `last_verified` equal the bundled values; `basis` `hand_rated`, `flags` `[]` | unit |
-| AC-45 | the existing refresh slice | `GET /refresh/coverage` | the same response as before this change | unit |
-| AC-46 | refresh flag on; the last policy-change search finished 31 days ago | the scheduler ticks | one search has run for each of the 105 cells | unit |
-| AC-47 | a registered source without `tier` | `rules validate` | exit 1, prints `Source '<source key>' has no tier` | unit |
+| AC-3 | `price` = 9, `levy` = No | the cell is derived | result rating `L` | unit |
+| AC-4 | `price` has no counted value | the cell is derived | result rating `not_rated`; missing facts `["Effective carbon price"]` | unit |
+| AC-5 | `price` = 30, `levy` has no counted value | the cell is derived | result rating `M` | unit |
+| AC-6 | `levy` has no counted value | the cell is derived | result rating `not_rated`; missing facts `["Border levy in force"]` | unit |
+| AC-7 | the defaults | the cell is derived | the `H` detail is exactly `H: Effective carbon price >= 50 USD/tCO2 and Border levy in force is Yes. Effective carbon price = 72 USD/tCO2 (EU ETS Market Report 2026, p. 12): pass. Border levy in force = Yes (CBAM Regulation 2023/956, p. 3): pass.` | unit |
+| AC-8 | AC-6's Given | the cell is derived | the `H` detail ends with `Border levy in force not found: unknown.` | unit |
+| AC-9 | the defaults | the cell is derived | the result records rule book version 7, its run id, and a snapshot equal to RB's `STL-R1` entry | unit |
+| AC-10 | refresh flag off; no source document fetched; the three default values entered as analyst facts with D1 and D2 uploaded; the model client raises on any call | the cell is derived | result rating `H` | unit |
 
-Must not change: the bundled data files at run time (AC-25), cells never re-derived (AC-44), the
-refresh coverage report (AC-45), and the 409 when the refresh flag is off (AC-38).
+### Fact checks and conversions
+
+| ID | Given | When | Then (observable, exact) | Checked by |
+|------|-------|------|--------------------------|------------|
+| AC-11 | the extracted `price` quote has no exact, normalised or fuzzy (≥ 0.92) match in any passage the model was shown | the cell is derived | `price` is not counted, with reason `Quote not found in source` | unit |
+| AC-12 | AC-11's Given | the cell is derived | result rating `not_rated` | unit |
+| AC-13 | `price` extracted as 72 with a quote that contains no `72` | the cell is derived | `price` is not counted, with reason `Number not in quote` | unit |
+| AC-14 | `price` extracted as 66.9 CNY/tCO2 from D1 (as-of 2025) | the cell is derived | the `price` clause shows `9.37 USD/tCO2 (66.9 CNY/tCO2)`; result rating `L` | unit |
+| AC-15 | `price` extracted as 71.42 CNY/tCO2 (as-of 2025) | the cell is derived | the `price` clause in `M` shows `10 USD/tCO2 (71.42 CNY/tCO2)` with outcome `fail`; result rating `L` | unit |
+| AC-16 | `price` extracted as 66.9 CNY/tCO2 from a document with as-of 2024 | the cell is derived | the `price` clause shows `9.3 USD/tCO2 (66.9 CNY/tCO2)` | unit |
+| AC-17 | `price` extracted as 66.9 CNY/tCO2 from a document with as-of 2023 | the cell is derived | `price` is not counted, with reason `No CNY to USD rate for 2023 or earlier` | unit |
+| AC-18 | `price` extracted as 66.9 KRW/tCO2 | the cell is derived | `price` is not counted, with reason `Unit not convertible: KRW/tCO2` | unit |
+
+### Several values and confidence
+
+| ID | Given | When | Then (observable, exact) | Checked by |
+|------|-------|------|--------------------------|------------|
+| AC-19 | `price` counted as 72 (D1, p. 12) and 30 (D3, p. 7) | the cell is derived | result rating `conflict`; no proposed rating | unit |
+| AC-20 | AC-19's Given | the cell is derived | one review item of kind `conflict` listing exactly `72 USD/tCO2, EU ETS Market Report 2026` and `30 USD/tCO2, Steel Policy Tracker` | unit |
+| AC-21 | `price` counted as 72 (D1, p. 12) and 65 (D3, p. 7) | the cell is derived | result rating `H`; the `price` clause is `Effective carbon price = 72 USD/tCO2 (EU ETS Market Report 2026, p. 12), 65 USD/tCO2 (Steel Policy Tracker, p. 7): pass.` | unit |
+| AC-22 | AC-21's Given | the cell is derived | result confidence `medium` | unit |
+| AC-23 | `levy` counted from D3 instead of D2 | the cell is derived | result confidence `medium` | unit |
+| AC-24 | D1's as-of date is 2025-09-01 (414 days before the run) | the cell is derived | `price` confidence `medium` | unit |
+| AC-25 | `applies` entered by `a.analyst` citing D1 without a document | the cell is derived | result rating `H`; result confidence `low`; `applies` marked `not machine-checked` | unit |
+
+### Analyst facts and choices
+
+| ID | Given | When | Then (observable, exact) | Checked by |
+|------|-------|------|--------------------------|------------|
+| AC-26 | `a.analyst` | `POST /cells/STL-R1/European Union/facts` with `price` 72, no document, quote `about USD 70` | HTTP 422 `Number not in quote.` | unit |
+| AC-27 | `a.analyst`, an uploaded PDF that doesn't contain the quote | `POST /cells/STL-R1/European Union/facts` | HTTP 422 `Quote not found in the uploaded document.` | unit |
+| AC-28 | `a.analyst`, an uploaded document stated as tier `news` | `POST /cells/STL-R1/European Union/facts` | HTTP 422 `News cannot ground a fact.` | unit |
+| AC-29 | `a.analyst`, D1 uploaded as primary, a quote on p. 12 containing `72` | `POST .../facts` with `price` 72, then the cell is derived | `price` counted with confidence `high` | unit |
+| AC-30 | AC-19's conflict | `POST /cells/STL-R1/European Union/choices` choosing D1's value with an empty reason | HTTP 422 `A reason is required.` | unit |
+| AC-31 | AC-19's conflict | `a.analyst` chooses D1's value with reason `newer data` | the cell is re-derived with rating `H`; `GET /cells/STL-R1/European Union` history has an entry with `a.analyst`, D1's value and `newer data` | unit |
+
+### Review and ratification
+
+| ID | Given | When | Then (observable, exact) | Checked by |
+|------|-------|------|--------------------------|------------|
+| AC-32 | `price` = 30 | `POST /derive` for the cell; the run finishes; `GET /scores?sector=Steel&region=European Union` | STL-R1 shows rating `H`, `basis` `hand_rated` | unit |
+| AC-33 | AC-32 | the run's review items are listed | exactly one item, kind `changed`, current `H`, proposed `M` | unit |
+| AC-34 | AC-33's item | `a.analyst` approves it | `GET /scores` still shows STL-R1 European Union `H` | unit |
+| AC-35 | AC-34 | `a.approver` approves it as second reviewer | `GET /scores` shows rating `M`, `basis` `derived`, `ratified_by` `a.approver`, `last_verified` = the date of `a.approver`'s decision | unit |
+| AC-36 | AC-35 | `GET /scores` | STL-R1 European Union `confidence` `high` and `source` `EU ETS Market Report 2026; CBAM Regulation 2023/956` | unit |
+| AC-37 | AC-35 | `GET /scores` | `evidence` is the `H` detail (`... = 30 USD/tCO2 (EU ETS Market Report 2026, p. 12): fail. ...`), a space, then the `M` detail, both in AC-7's form | unit |
+| AC-38 | AC-34 | `a.analyst` submits the second review | HTTP 409 `second review must be a different person` | unit |
+| AC-39 | AC-34 | `b.analyst` submits the second review | HTTP 403 `a rating change is confirmed by an approver` | unit |
+| AC-40 | AC-33's item | `a.approver` rejects it | `GET /scores` shows STL-R1 European Union `H`, `basis` `hand_rated` | unit |
+| AC-41 | a `changed` item whose result uses a fact `a.approver` entered | `a.approver` decides it | HTTP 409 `you entered a fact this result uses` | unit |
+| AC-42 | refresh flag off; `b.analyst` entered the default values for European Union, and `price` 9, `applies` Yes, `levy` No for United States and China; all three cells derived as `unchanged` | `a.analyst` bulk-accepts the three items | each cell shows `basis` `derived` and `ratified_by` `a.analyst` | unit |
+| AC-43 | AC-35, then `price` = 9 derived and ratified by `a.analyst` and `a.approver` | `GET /cells/STL-R1/European Union` | the history's ratings are, in order: `H` hand-rated 2026-08-14, `M` ratified by `a.approver`, `L` ratified by `a.approver` | unit |
+| AC-44 | AC-4's result | `GET /cells/STL-R1/European Union` | rating `H`; `flags` contains `Not re-derived: missing Effective carbon price` | unit |
+| AC-45 | the actions of AC-25, AC-29, AC-31, AC-35, AC-40, AC-74 and AC-77 have all run | the files of the data directory are compared with before | byte-identical | unit |
+| AC-46 | AC-35, then RB with `p_high` = 60 signed as version 8 | `GET /cells/STL-R1/European Union` | `flags` contains `Rules changed since this rating (v7)` | unit |
+| AC-47 | AC-46 | `GET /cells/STL-R1/European Union` | the current result's `H` detail starts `H: Effective carbon price >= 50 USD/tCO2` | unit |
+| AC-48 | RB with `p_high` open, signed | the cell is derived | result rating `not_rated`; `flags` contains `Not re-derived: open threshold High price level` | unit |
+
+### Rule book validation, rendering and consumers
+
+| ID | Given | When | Then (observable, exact) | Checked by |
+|------|-------|------|--------------------------|------------|
+| AC-49 | the bundled data directory | `arp transition-barrier rules validate` | exit 0; prints `Rule book v<version in rule_book.json>: OK, 35 criteria, <open parameter count> open thresholds` | unit |
+| AC-50 | F | `rules validate --data-dir F` | exit 0; prints `Rule book v7: OK, 1 criteria, 0 open thresholds` | unit |
+| AC-51 | F with `p_high` open and signed | `rules validate --data-dir F` | exit 0; prints `Rule book v8: OK, 1 criteria, 1 open thresholds` | unit |
+| AC-52 | F with `H` naming fact `prices` | `rules validate --data-dir F` | exit 1; output contains `STL-R1: condition names unknown fact 'prices'` | unit |
+| AC-53 | F with `p_high` lacking `source` | `rules validate --data-dir F` | exit 1; output contains `STL-R1: parameter 'p_high' has no source` | unit |
+| AC-54 | F with a China override of `p_high` lacking `source` | `rules validate --data-dir F` | exit 1; output contains `STL-R1: parameter 'p_high' override for China has no source` | unit |
+| AC-55 | F with an empty `rationale` | `rules validate --data-dir F` | exit 1; output contains `STL-R1: no rationale` | unit |
+| AC-56 | F with `price` lacking `definition` | `rules validate --data-dir F` | exit 1; output contains `STL-R1: fact 'price' has no definition` | unit |
+| AC-57 | F with no `M` level | `rules validate --data-dir F` | exit 1; output contains `STL-R1: no M level` | unit |
+| AC-58 | F with `p_high` in `EUR/tCO2` | `rules validate --data-dir F` | exit 1; output contains `STL-R1: 'price' (USD/tCO2) compared with 'p_high' (EUR/tCO2)` | unit |
+| AC-59 | F with `STL-R1` actions including `steel.foo` | `rules validate --data-dir F` | exit 1; output contains `STL-R1: unknown action 'steel.foo'` | unit |
+| AC-60 | F with `STL-T1` added to the criteria schema only | `rules validate --data-dir F` | exit 1; output contains `Missing rule book entry: STL-T1` | unit |
+| AC-61 | F with a rule book entry `XXX-T9` that has no criterion | `rules validate --data-dir F` | exit 1; output contains `Rule book entry without criterion: XXX-T9` | unit |
+| AC-62 | F with D3's `tier` removed | `rules validate --data-dir F` | exit 1; output contains `Source '<D3's key>' has no tier` | unit |
+| AC-63 | F with `p_high` changed to 60 and not signed | `rules validate --data-dir F` | exit 1; output contains `Rule book content changed but version is still 7` | unit |
+| AC-64 | AC-52's directory | the API starts | startup fails with an error containing `STL-R1: condition names unknown fact 'prices'` | unit |
+| AC-65 | F | `GET /criteria/STL-R1` | `rating_rubric` = `{"H": "Effective carbon price >= 50 USD/tCO2 and Border levy in force is Yes", "M": "Carbon price applies to steel is Yes and Effective carbon price >= 10 USD/tCO2", "L": "Otherwise (neither H nor M holds)"}` | unit |
+| AC-66 | F | `GET /criteria/STL-R1` | `rule_book_version` 7; `actions` `["steel.h2_dri", "steel.scrap_eaf"]`; `params` includes `p_high` with value 50, its source and its rationale | unit |
+| AC-67 | the bundled data directory | `arp transition-barrier rules render` | the output equals the committed `docs/transition_barrier/RULE_BOOK.md` | unit |
+| AC-68 | AC-35 | `arp transition-barrier export --out X`, then the Word report script with X | the script exits 0; the report's STL-R1 European Union rating is `M` | unit |
+| AC-69 | AC-35 | Decision Studio loads its transition-barrier source | the STL-R1 European Union row has rating `M` | unit |
+| AC-70 | RB2: F plus facts `ren` "Renewable LCOE" and `fos` "New-build fossil LCOE" (both USD/MWh), computed `ratio` "LCOE ratio" = `ratio(ren, fos)`, and `H` = `ratio <= p_parity` (1); `ren` = 45 (D1, p. 8), `fos` = 60 (D1, p. 9) | the cell is derived | the `ratio` clause is `LCOE ratio = 0.75 from Renewable LCOE = 45 USD/MWh (EU ETS Market Report 2026, p. 8) and New-build fossil LCOE = 60 USD/MWh (EU ETS Market Report 2026, p. 9): pass.` | unit |
+| AC-71 | RB2 with `H` = `ren <= fos` | `GET /criteria/STL-R1` | `rating_rubric.H` = `Renewable LCOE <= New-build fossil LCOE` | unit |
+
+### Sources and search
+
+| ID | Given | When | Then (observable, exact) | Checked by |
+|------|-------|------|--------------------------|------------|
+| AC-72 | the search stub returns `https://eur-lex.europa.eu/eli/reg/2026/123/oj` (U) for STL-R1 China; U is not registered | `arp transition-barrier search --code STL-R1 --region China` | one `new_source` review item with U, `STL-R1`, `China`, tier `primary` | unit |
+| AC-73 | the search stub returns `https://example-institute.org/report.pdf` | the search runs for STL-R1 China | one `new_source` item with tier `unclassified` | unit |
+| AC-74 | AC-72's item | `a.approver` approves it | `GET /sources` lists U for `STL-R1`, region `China`, tier `primary` | unit |
+| AC-75 | AC-72's item still pending | STL-R1 China is derived | no request is made to U | unit |
+| AC-76 | AC-72's item rejected | the search runs again and returns U | no new review item | unit |
+| AC-77 | the search stub returns N1 for STL-R1 European Union; the change-check stub answers yes | the search runs | the cell's `flags` contains `Possible change: Reuters: carbon price falls` | unit |
+| AC-78 | AC-77 | the search run finishes | a derivation run for the cell exists, started after the search | unit |
+| AC-79 | AC-78's derivation run finishes | its result is read | no value in it cites N1 | unit |
+| AC-80 | AC-77's Given with the change-check stub answering no | the search runs | the cell's `flags` is `[]` | unit |
+| AC-81 | the edition stub reports a 2027 edition of D1 | the edition check runs for STL-R1 | one `new_source` item proposing to replace D1 | unit |
+| AC-82 | the search stub returns `http://169.254.169.254/latest` | the search runs | no request is made to that URL; no review item is created | unit |
+| AC-83 | the refresh flag is off | `POST /search` for the cell | HTTP 409; no request to any source or search provider | unit |
+| AC-84 | the refresh flag is off; no source document fetched; the default values entered as analyst facts | `POST /derive` for the cell; the run finishes | result rating `H`; the result notes `Sources not fetched: refresh is disabled`; no request to any source or search provider | unit |
+| AC-85 | the bundled data directory, refresh flag on, the latest `transition_barrier_search` run finished 31 days ago | the scheduler ticks | one new `transition_barrier_search` run, covering 105 cells | unit |
+| AC-86 | the same with 29 days | the scheduler ticks | no new search run | unit |
+| AC-87 | the same with 31 days and the refresh flag off | the scheduler ticks | no new search run; no request to any source or search provider | unit |
+| AC-88 | the companies table has N rows | D1 is fetched and stored for STL-R1 | the companies table still has N rows | unit |
+
+### Extraction quality
+
+| ID | Given | When | Then (observable, exact) | Checked by |
+|------|-------|------|--------------------------|------------|
+| AC-89 | golden set G (section 8): at least 40 facts from at least 12 documents, labels checked by a person | `arp transition-barrier golden --cases G --documents-dir <dir> --min-precision 0.95 --min-coverage 0.5` | exits 0 | golden |
+
+### In the running app
+
+The app runs with `ARP_TRANSITION_BARRIER_DATA_DIR` = F and the refresh flag off. D1–D3 are PDF files
+in F that the evaluator uploads through the analyst form.
+
+| ID | Given | When | Then (observable, exact) | Checked by |
+|------|-------|------|--------------------------|------------|
+| AC-90 | none | open Transition Barriers, then the STL-R1 criterion | shows the rationale, the two actions, each fact with its definition, the H, M and L sentences of AC-65, and `p_high` and `p_material` each with value, source and rationale, plus "rule book v7" | evaluator |
+| AC-91 | `a.analyst` has entered `price` 30 (D1, p. 12), `applies` Yes (D1, p. 4) and `levy` Yes (D2, p. 3) through the form and started a derivation | open the review screen | the STL-R1 European Union item is listed with current `H` and proposed `M` | evaluator |
+| AC-92 | AC-91 | `b.analyst` approves the item in the review screen, then `a.approver` confirms it there | the cell detail shows rating `M`, confidence `high`, "ratified by a.approver" with the date | evaluator |
+| AC-93 | AC-92 | open the cell detail | each condition shows pass, fail or unknown; each figure shows its quote, document title and page, and its link opens that document | evaluator |
+| AC-94 | AC-91 | `b.analyst` rejects the item in the review screen | the cell detail shows rating `H`, hand-rated 2026-08-14 | evaluator |
+| AC-95 | `a.analyst` entered the default values for European Union, and `price` 9, `applies` Yes, `levy` No for United States and China, and derived all three | `b.analyst` bulk-accepts the three items in the review screen | each cell's detail shows "ratified by b.analyst" | evaluator |
+
+### Must not change
+
+| ID | Given | When | Then (observable, exact) | Checked by |
+|------|-------|------|--------------------------|------------|
+| AC-96 | the bundled data directory; a cell never re-derived | `GET /scores` | rating, confidence, evidence, source and `last_verified` equal the bundled values; `basis` `hand_rated`, `ratified_by` null, `flags` `[]` | unit |
+| AC-97 | AC-96's Given | `GET /matrix` | every field present before this change has the same value; the cell has `basis` `hand_rated`, `ratified_by` null, `flags` `[]` | unit |
+| AC-98 | the existing refresh slice | `GET /refresh/coverage` | the same response as before this change | unit |
+| AC-99 | the refresh flag is off | `POST /refresh/runs` | HTTP 409, as before this change | unit |
+
+Must not change: cells never re-derived (AC-96, AC-97), the bundled data files at run time (AC-45),
+the refresh coverage report (AC-98), and the existing refresh's 409 when the flag is off (AC-99).
