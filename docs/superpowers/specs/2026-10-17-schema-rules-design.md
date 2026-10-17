@@ -109,13 +109,19 @@ Shared definitions:
 
 - **Not found**: no row for that field and period, or a row that is not `found`/`zero`, or a row that
   is not grounded.
-- **Numbers** are compared as `canonical_value`. If the values a rule compares have different
-  `canonical_unit`s, the rule fails with "Units differ". A `threshold` value is in the field's `unit`.
+- **Numbers** are compared as `canonical_value`, which is in the field's `unit` when one is set. A
+  `threshold` constant is in that same unit, so it is compared as is. Only these groups must share one
+  `canonical_unit`, or the rule fails with "Units differ": `series`, every row of `field`; `sum`, every
+  input and the checked field; `ratio_pct`, its two inputs. A `threshold` condition compares one field
+  with its constant and never fails on units.
 - **Periods** *(builder-check call)*: a rule gives one result per row of the field it checks. For each
-  other field it reads, it takes that field's row with the same `period_end`. If none matches and the
-  other field has exactly one row, it takes that row. If the checked row has no `period_end`, it takes
-  the other field's row with the latest `period_end`. `series` ignores this and reads every row of its
-  `field`.
+  other field it reads, it picks one row, trying these in order:
+  1. the other field's row with the same `period_end`, where two missing `period_end`s count as equal;
+  2. if the other field has exactly one row, that row;
+  3. if the checked row has no `period_end`, the other field's row with the latest `period_end`;
+  4. otherwise none, so the field counts as not found.
+
+  `series` ignores this and reads every row of its `field`.
 - **Current reporting year**: the latest period-end year in the company's period plan for the run. With
   no period plan, a `series` rule fails with "Report year unknown".
 
@@ -125,15 +131,18 @@ Shared definitions:
 
 1. named fields (including `computed` inputs) don't exist in the schema;
 2. named fields (including `computed` inputs) include the rule's own field;
-3. `threshold`, `series` or `computed` fields are not `number`, `currency_amount` or `percentage`;
+3. `threshold`, `series` or `computed` fields, including a `computed` rule's own field, are not
+   `number`, `currency_amount` or `percentage`;
 4. `threshold` names a `currency_amount` field whose `unit` is empty;
 5. `label` field is not an `enum`;
 6. `not_in` holds a value outside the `label` field's `allowed_values`;
 7. `series.years` is outside 1–5;
 8. named fields are derived fields;
-9. `rule_id` repeats within the schema.
+9. `rule_id` repeats within the schema;
+10. own field is a derived field.
 
-The suggestion endpoint runs the same validation and drops invalid suggestions.
+Every rejection message names the rule's `rule_id`, so it appears in the 422 body. The suggestion
+endpoint runs the same validation and drops invalid suggestions.
 
 ### Running rules
 
@@ -154,7 +163,8 @@ Each rule adds one `CheckResult` per row of the field, after the layer results:
   - `Units differ.` or `Report year unknown.`
 - `threshold_ref` = `<field_id>:v<version>:rules.<rule_id>`
 
-Value formatting in sentences and details: booleans as `YES`/`NO`, whole numbers without a decimal
+Details print each row's `value` (as extracted, not `canonical_value`). Value formatting in sentences
+and details: booleans as `YES`/`NO`, whole numbers without a decimal
 point (`42`, not `42.0`), other numbers as stored, `Expected` rounded to 2 decimals with trailing
 zeros dropped, enum values as stored.
 
@@ -177,8 +187,10 @@ Rendered from kind, parameters and current field names, never typed by hand:
 With a `when`, the sentence is `When <this field> is <when>: <rule part>`. Without one, the rule part's
 first letter is capitalized.
 
-The backend renders it for check details. The frontend renders it for the Rules list and live
-editing. Both are tested against the same fixture file of expected sentences (AC-31).
+The backend renders it for check details with `arp.checks.rules.rule_sentence(rule, field_id,
+schema) -> str`. The frontend renders it for the Rules list and live editing with
+`ruleSentence(rule, fieldId, fields): string` exported from `frontend/src/lib/ruleSentence.ts`. Both
+are tested against one fixture file, `backend/tests/fixtures/rule_sentences.json` (AC-31, AC-32).
 
 ### Suggesting rules
 
@@ -196,6 +208,10 @@ threshold. It suggests only the five rule kinds.
 - Every returned rule is validated against the schema plus the returned helper fields, and invalid
   ones are dropped. Helper fields no kept rule names are dropped too.
 - It saves nothing. Same role as the existing draft endpoint.
+- It gets its model the way the draft endpoint does, from `get_llm_client()` in
+  `arp/api/routers/extraction.py`. The model's structured output has the same shape as the response
+  (`{rules: [{field_id, rule}], helper_fields: [FieldDefinition]}`), before merging and validation. A
+  test stand-in replaces `get_llm_client` and returns that output from `complete_structured`.
 
 Suggestion quality is not an acceptance criterion, because model output varies. The guard is that
 nothing applies until the user accepts it.
@@ -301,27 +317,27 @@ otherwise. Single-period rows have no `period_end` unless stated. The current re
 | AC-15 | Same as AC-13 but the 2024 value is 11 | the company's checks and routing finish | `rule.R3` has `outcome` `fail` | unit |
 | AC-16 | Same as AC-13 but the 2022 row's `canonical_unit` is `tCO2e/USDm` | the company's checks and routing finish | `rule.R3` has `outcome` `fail` and its `detail` ends with `Units differ.` | unit |
 | AC-17 | F with R4; `s1`=true, `kind`=`combined` | the company's checks and routing finish | `rule.R4` has `outcome` `fail` | unit |
-| AC-18 | F with R5; `green`=30, `total`=200, `share`=20 | the company's checks and routing finish | `rule.R5` has `outcome` `fail` and its `detail` ends with `Expected 15.` | unit |
+| AC-18 | F with R5; `green`=30, `total`=200, `share`=20 | the company's checks and routing finish | the `rule.R5` `detail` is exactly `Green capex share should equal Green capex ÷ Total capex × 100, within 1. Failed. Found Green capex = 30 (p. 31), Total capex = 200 (p. 31), Green capex share = 20 (p. 31). Expected 15.` | unit |
 | AC-19 | Same as AC-18 but `share`=15.4 | the company's checks and routing finish | `rule.R5` has `outcome` `pass` | unit |
 | AC-20 | F with R6; `green`=30, `other`=170, `total`=200.4 | the company's checks and routing finish | `rule.R6` has `outcome` `pass` | unit |
 | AC-21 | A prior run's `ambition` row whose only failing check is `rule.R1`, reuse allowed | the next run processes the company | the new `ambition` row has `reused_from_run` set to the prior run's id | unit |
-| AC-22 | F with R1 where `pct` is replaced by `ghost` (not in F) | it is POSTed to `/api/extraction/schemas` | status 422 | unit |
-| AC-23 | F with R5 whose inputs are `share`, `total` | it is POSTed to `/api/extraction/schemas` | status 422 | unit |
-| AC-24 | F with a threshold rule on `ambition` naming field `kind` | it is POSTed to `/api/extraction/schemas` | status 422 | unit |
-| AC-25 | F with `green`'s unit empty and a threshold rule on `ambition` naming `green` | it is POSTed to `/api/extraction/schemas` | status 422 | unit |
-| AC-26 | F with R4 naming `pct` instead of `kind` | it is POSTed to `/api/extraction/schemas` | status 422 | unit |
-| AC-27 | F with R4 whose `not_in` is `partial` | it is POSTed to `/api/extraction/schemas` | status 422 | unit |
-| AC-28 | F with R3 whose `years` is 0, and separately 6 | each is POSTed to `/api/extraction/schemas` | status 422 for both | unit |
-| AC-29 | F with `nz` given a `derived_rule` (any_of `ambition`) and R2 | it is POSTed to `/api/extraction/schemas` | status 422 | unit |
-| AC-30 | F with R1 and a second rule also named `R1` on `nz2050` | it is POSTed to `/api/extraction/schemas` | status 422 | unit |
-| AC-31 | `rule_sentences.json` holding R1–R6 and R1 without `when`, each with its expected sentence: R1 `When Halving target is YES: needs Target reduction >= 50 and Target year <= 2030.`; R2 `When Net zero by 2050 is YES: needs Net-zero target to be YES.`; R3 `When Intensity declined is YES: needs Scope 1 intensity for 5 years up to the report year, falling.`; R4 `When Scope 1 target is YES: Target type must not be combined.`; R5 `Green capex share should equal Green capex ÷ Total capex × 100, within 1.`; R6 `Total capex should equal Green capex + Other capex, within 0.5.`; R1 without `when` `Needs Target reduction >= 50 and Target year <= 2030.` | the backend and frontend sentence renderers run on the file | both produce every expected sentence exactly | unit |
+| AC-22 | F with R1 where `pct` is replaced by `ghost` (not in F) | it is POSTed to `/api/extraction/schemas` | status 422, and the body contains `R1` | unit |
+| AC-23 | F with R5 whose inputs are `share`, `total` | it is POSTed to `/api/extraction/schemas` | status 422, and the body contains `R5` | unit |
+| AC-24 | F with rule R7 on `ambition`: threshold, `kind >= 1` | it is POSTed to `/api/extraction/schemas` | status 422, and the body contains `R7` | unit |
+| AC-25 | F with `green`'s unit empty and rule R8 on `ambition`: threshold, `green >= 25` | it is POSTed to `/api/extraction/schemas` | status 422, and the body contains `R8` | unit |
+| AC-26 | F with R4 naming `pct` instead of `kind` | it is POSTed to `/api/extraction/schemas` | status 422, and the body contains `R4` | unit |
+| AC-27 | F with R4 whose `not_in` is `partial` | it is POSTed to `/api/extraction/schemas` | status 422, and the body contains `R4` | unit |
+| AC-28 | F with R3 whose `years` is 0, and separately 6 | each is POSTed to `/api/extraction/schemas` | status 422 for both, and each body contains `R3` | unit |
+| AC-29 | F with `nz` given a `derived_rule` (any_of `ambition`) and R2 | it is POSTed to `/api/extraction/schemas` | status 422, and the body contains `R2` | unit |
+| AC-30 | F with R1 and a second rule also named `R1` on `nz2050` | it is POSTed to `/api/extraction/schemas` | status 422, and the body contains `R1` | unit |
+| AC-31 | `backend/tests/fixtures/rule_sentences.json`, a JSON list of `{field_id, rule, sentence}` over schema F, holding R1–R6 and R1 without `when`, each with its expected sentence: R1 `When Halving target is YES: needs Target reduction >= 50 and Target year <= 2030.`; R2 `When Net zero by 2050 is YES: needs Net-zero target to be YES.`; R3 `When Intensity declined is YES: needs Scope 1 intensity for 5 years up to the report year, falling.`; R4 `When Scope 1 target is YES: Target type must not be combined.`; R5 `Green capex share should equal Green capex ÷ Total capex × 100, within 1.`; R6 `Total capex should equal Green capex + Other capex, within 0.5.`; R1 without `when` `Needs Target reduction >= 50 and Target year <= 2030.` | `rule_sentence` runs on each entry | it returns every expected sentence exactly | unit |
 | AC-32 | F with R1–R6 | it is POSTed to `/api/extraction/schemas`, then fetched with GET | the fetched fields' `rules` equal the posted ones | unit |
 | AC-33 | A released schema version; a field gains R1 without a version bump | the schema is POSTed to `/api/extraction/schemas` | status 400, body contains `changing it needs` | unit |
 | AC-34 | Must not change: a schema saved and released on `main` (no `rules` key in its stored body) | it is fetched and POSTed again unchanged | the response has the same schema version and the same field versions | unit |
 | AC-35 | An LLM stand-in returning 2 rules: one valid with helper field "Total capex", one naming field id `ghost` | `POST /api/extraction/schemas/suggest-rules` with F minus `total` | the response has exactly 1 rule and exactly 1 helper field, named "Total capex" | unit |
 | AC-36 | An LLM stand-in returning 2 valid rules that each add a helper field named "total capex" and "Total Capex" | suggest-rules with F minus `total` | the response has exactly 1 helper field, and both rules name its id | unit |
 | AC-37 | Any schema list | `POST /api/extraction/schemas/suggest-rules` is called | `GET /api/extraction/schemas` lists the same schemas as before | unit |
-| AC-38 | A run with R1 failing (AC-1); R1's threshold then edited from 50 to 40 and the schema saved | the review context for that run's `ambition` item is fetched | its `failed_checks` include an entry whose `plain` is the AC-3 string | unit |
+| AC-38 | A run with R1 failing (AC-1); R1's threshold then edited from 50 to 40 and saved as a new field version | the review context for that run's `ambition` item is fetched | its `failed_checks` include an entry whose `plain` is the AC-3 string | unit |
 | AC-39 | Browser test; draft and suggest-rules stubbed to return F's fields and R1 (helper `pct`) waiting | drafting finishes | the Rules list shows R1's sentence with buttons Accept, Edit and Drop | unit |
 | AC-40 | Browser test; stub returns 2 waiting suggestions | the user looks at the confirm button | it is disabled and reads `2 rule suggestions waiting` | unit |
 | AC-41 | As AC-40; the user accepts one | the user looks at the confirm button | it is disabled and reads `1 rule suggestion waiting` | unit |
@@ -337,14 +353,26 @@ otherwise. Single-period rows have no `period_end` unless stated. The current re
 | AC-51 | Browser test; a field with no rules that no rule reads | the user looks at it in the fields editor | it shows no marker | unit |
 | AC-52 | Browser test; R1 accepted | the user looks at `pct` in the fields editor | it shows `used by a rule` | unit |
 | AC-53 | Browser test; the fields editor with rules present | the user looks at the fields editor | it has no Accept, Edit or Drop buttons and no rule inputs | unit |
-| AC-54 | Browser test; + Add a rule, field `ambition`, kind threshold, `pct >= 50`, saved | the user looks at the Rules list | it shows the rule as `Accepted` with sentence `When Halving target is YES: needs Target reduction >= 50.` | unit |
+| AC-54 | Browser test; + Add a rule, field `ambition`, `when` YES, kind threshold, `pct >= 50`, saved | the user looks at the Rules list | it shows the rule as `Accepted` with sentence `When Halving target is YES: needs Target reduction >= 50.` | unit |
 | AC-55 | Browser test; R1 accepted, R2 dropped; Suggest again stubbed to return R1, R2 and R4 | the new suggestions arrive | the list shows R1 once (accepted) and R4 waiting, and no R2 | unit |
 | AC-56 | Browser test; every suggestion dropped, schema confirmed, run started | the run request is sent | its `datapoint_schema` has no `rules` on any field and only the drafted fields | unit |
 | AC-57 | Must not change: browser test; a confirmed schema | the user edits a field name | the confirm button is enabled again and reads `Confirm schema (N fields)` | unit |
-| AC-58 | The real app with a real model, default green capex request, light and dark theme, 390 px and 1280 px wide | the evaluator drafts the schema and accepts, edits and drops a suggestion | the Rules list and editor show no horizontal page scroll and no overlapping text, and wording matches this spec | evaluator |
+| AC-58 | The real app with a real model, default green capex request, light and dark theme, 390 px and 1280 px wide; if fewer than 3 suggestions arrive, the evaluator creates the rest with + Add a rule | the evaluator drafts the schema, then accepts one item, edits one and drops one | the Rules list and editor show no horizontal page scroll and no overlapping text | evaluator |
 | AC-59 | Must not change: a fixed record and schema with no rules; expected `checks`, `route` and `route_reasons` captured on `main` and committed as a snapshot | the record goes through checks and routing | the output equals the snapshot | unit |
 | AC-60 | Must not change: the existing `check_config` tests | they run | they pass unchanged | unit |
 | AC-61 | Must not change: the PR's diff | `git diff --name-only origin/main...HEAD` runs | it lists no path under `backend/arp/transition_plan/` | evaluator |
+| AC-62 | The AC-31 fixture file | the frontend `ruleSentence` runs on each entry | it returns every expected sentence exactly | unit |
+| AC-63 | An LLM stand-in returning 1 valid rule with helper field "TOTAL CAPEX" | suggest-rules with the full F | the response has 0 helper fields, and the rule names `total` | unit |
+| AC-64 | F with R1 and the AC-1 values, plus `ambition` holding a non-boolean value so layer 1 fails with BLOCK | the company's checks and routing finish | `ambition`'s `checks` still include `rule.R1` | unit |
+| AC-65 | Must not change: a prior run's row whose failing checks include a check not starting `rule.`, reuse allowed | the next run processes the company | the new row has no `reused_from_run` | unit |
+| AC-66 | As AC-21, but in the new run `pct` is 55 | the next run processes the company | the reused `ambition` row's `rule.R1` has `outcome` `pass` | unit |
+| AC-67 | F with `nz2050` given a `derived_rule` (any_of `nz`) and R2 | it is POSTed to `/api/extraction/schemas` | status 422, and the body contains `R2` | unit |
+| AC-68 | F with rule R9 on `ambition`: computed `sum`, inputs `green`, `other`, tolerance 1 | it is POSTed to `/api/extraction/schemas` | status 422, and the body contains `R9` | unit |
+| AC-69 | Control for AC-25: F with `green`'s unit empty and no rules | it is POSTed to `/api/extraction/schemas` | status 200 | unit |
+| AC-70 | Control for AC-29 and AC-67: F with AC-29's `derived_rule` and no rules, and separately F with AC-67's `derived_rule` and no rules | each is POSTed to `/api/extraction/schemas` | status 200 for both | unit |
+| AC-71 | Browser test; R1 accepted with helper `pct`, schema confirmed, run started | the run request is sent | its `datapoint_schema` has R1 in `ambition`'s `rules`, and `pct` appears once in its fields | unit |
+| AC-72 | F with rule R10 on `ambition`: threshold, `when` YES, `green >= 25`; `ambition`=true, `green`=30 | the company's checks and routing finish | `rule.R10` has `outcome` `pass` | unit |
+| AC-73 | The real app, the Schema screen with suggestions (AC-58 setup) | the evaluator reads the Rules list, confirm button and field markers | the labels read exactly `Accepted`, `+ Add a rule`, `Suggest again`, `N rule suggestion(s) waiting`, `Confirm schema (N fields)`, `N rules · M waiting` and `used by a rule`, with N and M filled in | evaluator |
 
 "Browser test" rows run in the E2E job (`backend/tests/e2e`) and stub the draft and suggest-rules
 calls with Playwright request routing, so the suggestions are fixed.
