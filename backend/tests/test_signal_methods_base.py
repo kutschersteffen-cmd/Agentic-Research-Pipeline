@@ -62,6 +62,20 @@ def test_panel_method_missing_name_raises():
         run_method({"method": "panel", "params": {"name": "missing"}}, inp)
 
 
+def test_panel_method_passes_model_through():
+    inp = MethodInput(texts=[], prices=_prices(3), panels={"s": CharacteristicPanel(_month_ends(3), {"A": [1.0] * 3}, "s")})
+    assert run_method({"method": "panel", "params": {"name": "s", "model": "m1"}}, inp).model == "m1"
+    assert run_method({"method": "panel", "params": {"name": "s", "model": None}}, inp).model is None
+    assert run_method({"method": "panel", "params": {"name": "s"}}, inp).model is None
+
+
+@pytest.mark.parametrize("bad", [1, True, ["m"]])
+def test_panel_method_rejects_non_string_model(bad):
+    inp = MethodInput(texts=[], prices=_prices(3), panels={"s": CharacteristicPanel(_month_ends(3), {"A": [1.0] * 3}, "s")})
+    with pytest.raises(ValueError, match="model"):
+        run_method({"method": "panel", "params": {"name": "s", "model": bad}}, inp)
+
+
 def _peeking(params: dict, inp: MethodInput) -> MethodResult:
     vals = {t: r[1:] + [None] for t, r in inp.prices.returns.items()}
     return MethodResult(CharacteristicPanel(list(inp.prices.period_ends), vals, "peek"))
