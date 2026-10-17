@@ -60,6 +60,8 @@ Setup notes for the test-writer:
 - Roles come from the existing users file: `viewer` < `analyst` < `approver`. Listing, reading, the method list and compare accept any signed-in user (`viewer` and up); `POST /api/signals/runs` needs `analyst`; decisions need `approver`. Holdout tests call reads as `viewer` and runs as `analyst`.
 - The text store is `TextStore(dsn)` on the same `ARP_POSTGRES_DSN` that the API and `arp signals` read; seeding it with `arp signals ingest-transcripts` under that DSN makes the texts visible to both.
 - Dates are `YYYY-MM-DD` throughout.
+- A price CSV *covers* a recipe when its earliest date ≤ `window_start` and its latest date ≥ `window_end`. The range in AC-14's message is the CSV's earliest..latest date. The app adds no lookback requirement of its own.
+- Holdout tests run the app with `ARP_AUTH_MODE=local` (not `dev`) and sign in with a bearer token from the users file.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
@@ -88,7 +90,7 @@ Setup notes for the test-writer:
 | AC-23 | The existing R&D Lab workspace page | Open `#/rdLab` | Its screen list contains `Signals workbench`, linking to `#/signals` | evaluator |
 | AC-24 | The existing tests for `arp signals` and `arp.signal_lab` in `backend/tests/` | The full backend suite runs | They pass with no edits to those test files | unit |
 | AC-25 | One experiment registered with `arp signals run` and one with `Lab.run` | `GET /api/signals/experiments` | Both ids are in the list | holdout |
-| AC-26 | Two registered experiments | `GET /api/signals/experiments?sort=ic` | 200. The `experiment_id` order equals the order returned without the parameter | holdout |
+| AC-26 | AC-2's A and B (A registered first with post-cutoff `ic.mean` = 0.20, B after it with 0.01) | `GET /api/signals/experiments?sort=ic` | 200. The `experiment_id` order is B, A | holdout |
 | AC-27 | A `composite` recipe with one `price_momentum` component and one `grounded_llm` component | `POST /api/signals/runs`, multipart with `recipe` and a covering `prices` CSV | 422. `detail` = `grounded_llm runs from the CLI (arp signals run) or a notebook (arp.signal_lab.lab.Lab), not the app` | holdout |
 | AC-28 | Each of `issuer_first`, `embedding_ridge`, `topic_attention`, `finbert` | `POST /api/signals/runs`, multipart with a recipe of that method and a covering `prices` CSV | 422. `detail` = `<method> runs from the CLI (arp signals run) or a notebook (arp.signal_lab.lab.Lab), not the app` | holdout |
 | AC-29 | AC-13, AC-14, AC-27 or AC-28 just happened | `GET /api/signals/experiments` | The item count is unchanged from before that request | holdout |
@@ -119,6 +121,7 @@ Setup notes for the test-writer:
 | AC-54 | The existing R&D Lab workspace page | Open `#/rdLab` | Every screen and process it lists on `main` is still listed | evaluator |
 | AC-55 | An experiment registered with `model` = None | Open it on the Evidence part | Neither `contaminated (in the model's training window)` nor `cutoff unknown: not evidence` appears on the page | evaluator |
 | AC-56 | A signed-in `viewer`; a recipe and a covering price CSV | `POST /api/signals/runs` | 403, and the experiment count from `GET /api/signals/experiments` is unchanged | holdout |
+| AC-57 | No `Authorization` header | Each of `GET /api/signals/experiments`, `GET /api/signals/methods`, `POST /api/signals/compare` | 401. `detail` = `Missing or invalid bearer token` | holdout |
 
 Must not change:
 - CLI and library behaviour (AC-24).
