@@ -10,6 +10,8 @@ or `refs/remotes/origin/HEAD`.
 Agents driving a PR follow `.claude/skills/steward/SKILL.md`: a `risk:` label, a stop after three
 failed fix rounds, `factory:blocked` for spec questions, at most three agent PRs in flight. Once CI is
 green, the `evaluator` skill checks the spec's `evaluator` rows in the running app.
+If CI goes red on `main` after a merge, the Main guard workflow opens a `Revert <sha>` PR (or an issue);
+merge it, or close it when a fix is already on the way.
 
 Branch off `main` when starting work. If a branch was created from anything else, merge
 `origin/main` into it before opening the PR so the diff shows only the intended change.

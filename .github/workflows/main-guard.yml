@@ -1,0 +1,53 @@
+name: Main guard
+
+# After a merge, CI runs on main (ci.yml's push trigger, which includes the E2E browser job). If that
+# run fails, propose a revert of the merge so main can go back to its last green state in one click.
+# Nothing is merged automatically: the revert is a PR for the owner, or an issue when a PR can't be made.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: read
+
+jobs:
+  revert:
+    name: Propose a revert of a red main
+    if: github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Self-test the revert script
+        run: bash .github/scripts/revert_red_main.sh --selftest
+
+      - name: Open a revert PR, or an issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          short=$(git rev-parse --short "$SHA")
+          # Only the tip: a later merge gets its own CI run and its own decision.
+          if [ "$(git rev-parse origin/main)" != "$SHA" ]; then echo "main moved past $short; nothing to do"; exit 0; fi
+          if git ls-remote --exit-code origin "revert-$short" >/dev/null; then echo "revert-$short already exists"; exit 0; fi
+          failed=$(gh run view "$RUN_ID" --json jobs --jq '.jobs[] | select(.conclusion == "failure") | "- " + .name')
+          subject=$(git log -1 --format=%s "$SHA")
+          body=$(printf 'CI failed on `main` after %s (%s).\n\nFailed jobs:\n%s\n\nRun: %s\n\nThis reverts it so `main` returns to the state before. Merge it if the failure is real; close it if it was a flake or a fix is already on the way. CI does not start on PRs opened by the Actions token: push a commit to this branch, or run CI from the Actions tab, to see it green first.' "$short" "$subject" "$failed" "$RUN_URL")
+          if branch=$(bash .github/scripts/revert_red_main.sh "$SHA"); then
+            git push origin "$branch"
+            gh pr create --base main --head "$branch" --label risk:high --title "Revert $short: CI red on main" --body "$body" \
+              || gh issue create --title "CI red on main at $short (revert branch $branch ready)" --body "$body"
+          else
+            gh issue create --title "CI red on main at $short (not reverted automatically)" --body "$body"
+          fi
