@@ -11,7 +11,7 @@ from arp.schemas.common import DocType
 # changed algorithm never returns a stale span computed under the old one
 # -- the same "a changed input orphans old entries" idiom as
 # arp/llm/cache.py::DiskLLMCache.make_key, just for an in-process cache.
-_SPAN_ALGO_VERSION = 2  # 2: markdown headings as sections
+_SPAN_ALGO_VERSION = 3  # 2: markdown headings as sections; 3: ITEM/PART headers across the document
 
 _MAX_CACHED_DOCUMENTS = 256
 
