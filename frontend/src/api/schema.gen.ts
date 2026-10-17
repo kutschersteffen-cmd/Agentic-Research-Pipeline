@@ -1985,6 +1985,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/extraction/schemas/suggest-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suggest Rules Endpoint
+         * @description Proposes rules and the helper fields they need for a drafted schema. Saves nothing: the user
+         *     accepts, edits or drops each suggestion in the UI.
+         */
+        post: operations["suggest_rules_endpoint_api_extraction_schemas_suggest_rules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/extraction/schemas/{schema_id}": {
         parameters: {
             query?: never;
@@ -8379,6 +8400,45 @@ export interface components {
              */
             weight: number;
         };
+        /** ComputedRule */
+        ComputedRule: {
+            /**
+             * Formula
+             * @enum {string}
+             */
+            formula: "ratio_pct" | "sum";
+            /** Inputs */
+            inputs: string[];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "computed";
+            /** Rule Id */
+            rule_id: string;
+            /**
+             * Tolerance
+             * @default 0
+             */
+            tolerance: number;
+            /**
+             * When
+             * @description Applies only when the checked field has this value; empty = whenever found.
+             */
+            when?: boolean | string | number | null;
+        };
+        /** Condition */
+        Condition: {
+            /** Field */
+            field: string;
+            /**
+             * Op
+             * @enum {string}
+             */
+            op: ">=" | "<=" | ">" | "<" | "=";
+            /** Value */
+            value: number;
+        };
         /**
          * Confidence
          * @enum {string}
@@ -9728,6 +9788,11 @@ export interface components {
              */
             required: boolean;
             /**
+             * Rules
+             * @description Typed conditions on this field's extracted value.
+             */
+            rules?: (components["schemas"]["RequiresRule"] | components["schemas"]["ThresholdRule"] | components["schemas"]["SeriesRule"] | components["schemas"]["LabelRule"] | components["schemas"]["ComputedRule"])[];
+            /**
              * Seed Keywords
              * @description Seed keywords driving evidence-chunk retrieval for this field.
              */
@@ -10319,6 +10384,25 @@ export interface components {
              */
             decision: "approve" | "correct" | "reject" | "escalate";
             reason_code: components["schemas"]["DecisionReason"];
+        };
+        /** LabelRule */
+        LabelRule: {
+            /** Field */
+            field: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "label";
+            /** Not In */
+            not_in: string[];
+            /** Rule Id */
+            rule_id: string;
+            /**
+             * When
+             * @description Applies only when the checked field has this value; empty = whenever found.
+             */
+            when?: boolean | string | number | null;
         };
         /**
          * LayoutInstructions
@@ -11790,6 +11874,25 @@ export interface components {
             /** Value */
             value: number | null;
         };
+        /** RequiresRule */
+        RequiresRule: {
+            /** Equals */
+            equals: boolean | string | number;
+            /** Field */
+            field: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "requires";
+            /** Rule Id */
+            rule_id: string;
+            /**
+             * When
+             * @description Applies only when the checked field has this value; empty = whenever found.
+             */
+            when?: boolean | string | number | null;
+        };
         /** RestartRequest */
         RestartRequest: {
             /**
@@ -12009,6 +12112,26 @@ export interface components {
          * @enum {string}
          */
         Route: "auto_accept" | "review" | "hold";
+        /** RuleSuggestion */
+        RuleSuggestion: {
+            /**
+             * Field Id
+             * @description The field the rule sits on and checks.
+             */
+            field_id: string;
+            /** Rule */
+            rule: components["schemas"]["RequiresRule"] | components["schemas"]["ThresholdRule"] | components["schemas"]["SeriesRule"] | components["schemas"]["LabelRule"] | components["schemas"]["ComputedRule"];
+        };
+        /** RuleSuggestions */
+        RuleSuggestions: {
+            /**
+             * Helper Fields
+             * @description Fields the rules need that the schema lacks.
+             */
+            helper_fields?: components["schemas"]["FieldDefinition"][];
+            /** Rules */
+            rules?: components["schemas"]["RuleSuggestion"][];
+        };
         /** RunDecision */
         RunDecision: {
             /** Framework */
@@ -12294,6 +12417,31 @@ export interface components {
         };
         /** SentRequest */
         SentRequest: Record<string, never>;
+        /** SeriesRule */
+        SeriesRule: {
+            /** Field */
+            field: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "series";
+            /** Rule Id */
+            rule_id: string;
+            /**
+             * Trend
+             * @default none
+             * @enum {string}
+             */
+            trend: "none" | "down" | "up";
+            /**
+             * When
+             * @description Applies only when the checked field has this value; empty = whenever found.
+             */
+            when?: boolean | string | number | null;
+            /** Years */
+            years: number;
+        };
         /**
          * SignalType
          * @description Which deterministic signal implementation in arp/replication/signals.py
@@ -12924,6 +13072,23 @@ export interface components {
             name: string;
             /** Theme Id */
             theme_id?: string;
+        };
+        /** ThresholdRule */
+        ThresholdRule: {
+            /** Conditions */
+            conditions: components["schemas"]["Condition"][];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "threshold";
+            /** Rule Id */
+            rule_id: string;
+            /**
+             * When
+             * @description Applies only when the checked field has this value; empty = whenever found.
+             */
+            when?: boolean | string | number | null;
         };
         /** TierDefinition */
         TierDefinition: {
@@ -17200,6 +17365,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DataPointSchema"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    suggest_rules_endpoint_api_extraction_schemas_suggest_rules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DataPointSchema"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleSuggestions"];
                 };
             };
             /** @description Validation Error */
