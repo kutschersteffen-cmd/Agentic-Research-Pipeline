@@ -10,7 +10,7 @@ from arp.ingestion.chunk_spans import ChunkSpan, get_span_cache
 from arp.schemas.common import DocType, DocumentChunk, SourceDocument
 
 _SPEAKER_LINE = re.compile(r"^\s*([A-Z][A-Za-z.'\-]+(?:\s[A-Z][A-Za-z.'\-]+){0,3})\s*[:\-]\s*$")
-_SECTION_HEADER = re.compile(r"^\s*(ITEM\s+\d+[A-Z]?\.?.{0,80}|PART\s+[IVX]+.{0,80})\s*$", re.IGNORECASE)
+_SECTION_HEADER = re.compile(r"^[ \t]*(ITEM[ \t]+\d+[A-Z]?\.?.{0,80}|PART[ \t]+[IVX]+.{0,80}?)[ \t]*$", re.IGNORECASE | re.MULTILINE)
 _MD_HEADING = re.compile(r"^#{1,6}[ \t]+(.{1,120}?)[ \t#]*$", re.MULTILINE)  # Docling renders PDF/DOCX headings as markdown
 
 DEFAULT_CHUNK_CHARS = 3500
@@ -66,14 +66,6 @@ def _sentence_aware_split(text: str, chunk_chars: int, overlap_chars: int) -> li
     return _fill_coverage_gaps(len(text), spans)
 
 
-def detect_section(text: str, pos: int, window: int = 400) -> str | None:
-    snippet = text[max(0, pos - window) : pos]
-    matches = list(_SECTION_HEADER.finditer(snippet))
-    if matches:
-        return matches[-1].group(1).strip()
-    return None
-
-
 def detect_speaker(text: str, pos: int, window: int = 400) -> str | None:
     snippet = text[max(0, pos - window) : pos]
     for line in reversed(snippet.splitlines()):
@@ -90,13 +82,13 @@ def find_keyword_hits(text: str, keywords: list[str]) -> list[str]:
 
 def _compute_spans(doc: SourceDocument, chunk_chars: int, overlap_chars: int) -> tuple[ChunkSpan, ...]:
     is_transcript = doc.doc_type == DocType.EARNINGS_TRANSCRIPT
-    headings = [(m.start(), m.group(1).strip()) for m in _MD_HEADING.finditer(doc.full_text)]
+    # 10-K ITEM/PART header lines and markdown headings: a chunk's section is the last one at or before it
+    headings = sorted((m.start(), m.group(1).strip()) for p in (_SECTION_HEADER, _MD_HEADING) for m in p.finditer(doc.full_text))
     starts = [h[0] for h in headings]
     spans = []
     for start, end in _sentence_aware_split(doc.full_text, chunk_chars, overlap_chars):
-        # a 10-K ITEM/PART header nearby, else the last markdown heading at or before the chunk
         i = bisect.bisect_right(starts, start)
-        section = None if is_transcript else detect_section(doc.full_text, start) or (headings[i - 1][1] if i else None)
+        section = None if is_transcript or not i else headings[i - 1][1]
         speaker = detect_speaker(doc.full_text, start) if is_transcript else None
         spans.append(ChunkSpan(char_start=start, char_end=end, section=section, speaker=speaker))
     return tuple(spans)
