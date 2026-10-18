@@ -108,6 +108,14 @@ class EdgarNameMatch(BaseModel):
     title: str
 
 
+class GleifMatch(BaseModel):
+    """One ISSUED GLEIF record returned by a legal-name search."""
+
+    lei: str
+    legal_name: str
+    country: str | None = None
+
+
 class WebSearchHit(BaseModel):
     """A raw web search result, kept as-is (title/url/snippet) rather than
     LLM-summarized, so the adjudicate step reasons over the real signal
