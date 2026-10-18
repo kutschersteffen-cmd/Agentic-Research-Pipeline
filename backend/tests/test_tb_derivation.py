@@ -159,10 +159,11 @@ def test_ac18_open_threshold_is_not_rated(client, env):
     variant(env, "p_high", value=None, status="open", question="What is high?")
     defaults(as_user(client, B_APPROVER))
     derive(as_user(client, A_ANALYST))
-    result = latest(client)["latest_result"]
+    cell = latest(client)
+    result = cell["latest_result"]
     assert (result["rating"], result["open_params"], result["rule_book_version"]) == ("not_rated", ["High price level"], 8)
-    # the flag text of AC-18 comes with the flags work; the cell keeps its hand rating meanwhile
-    assert latest(client)["rating"] == "H"
+    assert "Not re-derived: open threshold High price level" in cell["flags"]
+    assert cell["rating"] == "H"  # the cell keeps its hand rating
 
 
 def test_ac19_open_material_threshold_does_not_block_h(client, env):
@@ -250,7 +251,8 @@ def test_run_finishes_with_one_result_and_item_per_cell(client, env):
 
 def test_latest_result_is_null_before_any_run(client):
     cell = latest(client)
-    assert (cell["rating"], cell["basis"], cell["latest_result"], cell["flags"], cell["history"]) == ("H", "hand_rated", None, [], [])
+    assert (cell["rating"], cell["basis"], cell["latest_result"], cell["flags"]) == ("H", "hand_rated", None, [])
+    assert cell["history"] == [{"at": "2026-08-14", "by": None, "kind": "rating", "rating": "H", "basis": "hand_rated"}]
     assert cell["last_verified"] == "2026-08-14"
 
 

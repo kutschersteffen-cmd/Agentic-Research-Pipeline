@@ -12,7 +12,7 @@ from arp.db.session import transaction
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.schemas.transition_barrier import PrimarySource
 from arp.storage.document_blob_store import blob_store_for
-from arp.transition_barrier.engine import Value, fact_confidence
+from arp.transition_barrier.engine import Value, _show, fact_confidence
 from arp.transition_barrier.facts import FactRefused
 from arp.transition_barrier.rule_book import CriterionRules
 
@@ -60,6 +60,17 @@ def cell_choices(code: str, region: str) -> list[dict]:
     with transaction() as s:
         rows = s.scalars(select(BarrierChoice).where(BarrierChoice.code == code, BarrierChoice.region == region).order_by(BarrierChoice.id))
         return [_row(r) for r in rows]
+
+
+def fact_labels(facts: list[dict], registry: list[PrimarySource]) -> dict[str, str]:
+    """`<value shown>, <document title>` for each fact row, by fact id (a registered source shows its name)."""
+    docs = _documents({f["document_id"] for f in facts if f["document_id"]})
+    names = {s.key: s.source_name for s in registry}
+    return {
+        str(f["id"]): f"{_show(f['value'], f['unit'])}, "
+        + (docs[f["document_id"]]["title"] if f["document_id"] else names.get(f["source_key"], f["source_key"]))
+        for f in facts
+    }
 
 
 def document(doc_id: int, blobs=None) -> tuple[dict, bytes] | None:

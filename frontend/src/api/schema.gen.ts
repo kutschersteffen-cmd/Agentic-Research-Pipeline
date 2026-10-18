@@ -7733,6 +7733,12 @@ export interface components {
          * @description One criterion's rating for one region -- one of the 105 matrix cells.
          */
         BarrierScore: {
+            /**
+             * Basis
+             * @default hand_rated
+             * @enum {string}
+             */
+            basis: "hand_rated" | "derived";
             category: components["schemas"]["Pillar"];
             /** Code */
             code: string;
@@ -7745,10 +7751,21 @@ export interface components {
              */
             evidence: string;
             /**
+             * Flags
+             * @description Reasons to doubt the rating, e.g. 'Not re-derived: missing ...'.
+             * @default []
+             */
+            flags: string[];
+            /**
              * Last Verified
              * @description ISO date this cell was last checked against its sources. Drives staleness, not confidence.
              */
             last_verified: string;
+            /**
+             * Ratified By
+             * @description user_id of the person whose decision made the derived rating current; null when hand-rated.
+             */
+            ratified_by?: string | null;
             rating: components["schemas"]["Rating"];
             region: components["schemas"]["Region"];
             /** Sector */

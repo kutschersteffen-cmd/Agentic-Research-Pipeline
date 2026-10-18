@@ -43,7 +43,7 @@ from arp.transition_barrier.derivation import (
     execute_derivation_run,
 )
 from arp.transition_barrier.facts import FactRefused, UploadMeta, check_fact
-from arp.transition_barrier.ratings import current_cell, latest_result
+from arp.transition_barrier.ratings import Ratings
 from arp.transition_barrier.refresh.pipeline import (
     RefreshDisabledError,
     create_refresh_run,
@@ -330,10 +330,10 @@ def start_derivation(
 def get_cell(code: str, region: str, run_store: RunStore = Depends(get_run_store)) -> dict:
     """The cell's current rating, and the latest derivation result for it (which may not be ratified)."""
     _cell(code, region)
-    latest = latest_result(run_store, code, region)
+    book = Ratings(run_store)
+    latest = book.latest(code, region)
     return {
-        **current_cell(code, region, run_store).model_dump(mode="json", exclude={"result", "ratified_at"}),
-        "flags": [],  # flags and history are not built yet
-        "history": [],
+        **book.cell(code, region).model_dump(mode="json", exclude={"result", "ratified_at"}),
+        "history": book.history(code, region),
         "latest_result": latest and latest.model_dump(mode="json"),
     }
