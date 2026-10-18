@@ -39,3 +39,19 @@ test("Argus runs the universe step and the XBRL process", () => {
   assert.deepEqual(xbrl.steps.map((s) => s.tab), ["argusUniverse", "xbrl", "xbrl", "xbrl"]);
   assert.deepEqual(xbrl.steps[1].runTypes, ["xbrl_fetch"]);
 });
+
+test("R&D Lab gains the Signals workbench and keeps what it had", () => {
+  const rdLab = WORKSPACES.find((w) => w.id === "rdLab")!;
+  const kept: [string, string][] = [
+    ["#/emergingThemes", "Emerging Themes"],
+    ["#/taxonomy", "Taxonomy Library"],
+    ["#/theme", "Thematic Universe"],
+    ["#/strategyReplication", "Strategy Replication"],
+    ["#/decision", "Decision Studio"],
+    ["#/index", "Index Construction"],
+  ];
+  for (const pair of [...kept, ["#/signals", "Signals workbench"]]) assert.ok(rdLab.screens.some(([h, l]) => h === pair[0] && l === pair[1]), pair[0]);
+  const ids = rdLab.processes.map((p) => p.id);
+  for (const id of ["thematic", "strategy", "signal"]) assert.ok(ids.includes(id), id);
+  assert.deepEqual(rdLab.processes.find((p) => p.id === "signal")!.steps.map((s) => s.label), ["Run", "Evidence", "Compare", "Decide"]);
+});
