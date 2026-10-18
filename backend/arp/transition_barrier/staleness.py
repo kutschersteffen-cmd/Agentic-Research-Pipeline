@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from arp.schemas.transition_barrier import BarrierScore, StalenessReport
-from arp.transition_barrier.dataset import load_scores
+from arp.transition_barrier.dataset import current_scores
 
 # 18 months. A rating that has not been re-checked in this long is stale
 # regardless of how confident the analyst was when they set it.
@@ -36,7 +36,7 @@ def stale_scores(
     now: date | None = None,
     scores: list[BarrierScore] | None = None,
 ) -> list[BarrierScore]:
-    rows = scores if scores is not None else load_scores()
+    rows = scores if scores is not None else current_scores()
     return [s for s in rows if is_stale(s, threshold_days=threshold_days, now=now)]
 
 
@@ -46,7 +46,7 @@ def build_staleness_report(
     now: date | None = None,
     scores: list[BarrierScore] | None = None,
 ) -> StalenessReport:
-    rows = scores if scores is not None else load_scores()
+    rows = scores if scores is not None else current_scores()
     stale = stale_scores(threshold_days=threshold_days, now=now, scores=rows)
     return StalenessReport(
         threshold_days=threshold_days,

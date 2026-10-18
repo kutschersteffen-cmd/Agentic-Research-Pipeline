@@ -7,8 +7,9 @@ from datetime import UTC, datetime
 import pytest
 from fastapi.testclient import TestClient
 
+from arp.api.deps import settings_dep
 from arp.api.main import app
-from arp.config import get_settings
+from arp.config import Settings, get_settings
 from arp.transition_barrier import dataset
 from tests.test_tb_derivation import (  # noqa: F401  (env is a fixture)
     API,
@@ -170,6 +171,16 @@ def test_ac72_ac73_ac141_rules_changed_flag(client, env):  # noqa: F811
     decide(client, A_ANALYST, run_id, KEY)  # `unchanged`: one analyst is enough
     cell = latest(client)
     assert (cell["flags"], cell["evidence"].startswith("H: Effective carbon price >= 60 USD/tCO2")) == ([], True)
+
+
+def test_staleness_counts_from_the_decision_date(client):
+    decide(client, A_APPROVER, ratify_change(client), KEY)
+    app.dependency_overrides[settings_dep] = lambda: Settings(transition_barrier_staleness_days=30)
+    report = as_user(client, A_ANALYST).get(f"{API}/staleness").json()
+    # the two hand-rated cells (verified 2026-08-14) are stale; the ratified one counts from today
+    assert (report["total"], report["stale"], report["fresh"]) == (3, 2, 1)
+    cell = as_user(client, A_ANALYST).get(f"{API}/matrix").json()["cells"]["STL-R1"]
+    assert [cell[r]["stale"] for r in ("European Union", "United States", "China")] == [False, True, True]
 
 
 def test_source_comes_from_the_ratified_snapshot(client, env):  # noqa: F811
