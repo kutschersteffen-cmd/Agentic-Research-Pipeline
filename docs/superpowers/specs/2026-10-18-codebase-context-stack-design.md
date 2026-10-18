@@ -71,7 +71,11 @@ The stack gives each kind of question one source:
 - **Quiet week:** the weekly run skips extraction when every commit on `main` since the last refresh
   merge touches only generated paths (`openwiki/`, `graphify-out/`); it then opens no PR and does not
   republish.
-- **Data commit:** the `main` commit the outputs were built from. The Atlas header shows it.
+- **Data commit:** the commit the outputs were built from: the PR head for the bootstrap publish
+  (recorded in the implementing PR description), the `main` commit for refresh and daily publishes
+  (recorded in the refresh PR body, or the task's final message for the daily task). The Atlas header
+  shows it.
+- **Atlas URL location:** one line `Atlas: <url>` in `.claude/CLAUDE.md`; the skill reads it from there.
 - **Existing `# graphify` section** in `.claude/CLAUDE.md` (the skill pointer) stays unchanged;
   `graphify claude install` is not run.
 - **Context exclusion:** `.claude/settings.json` `permissions.deny` gains `Read(./graphify-out/graph.json)`,
@@ -104,7 +108,9 @@ notes/                          committed, human-written; starts with README.md
   `install-openwiki` (`openwiki@0.7.2` when missing), `register-openwiki` (checks the committed
   project-scope `.mcp.json` entry works), `update-graph`. It logs each step to
   `~/.cache/arp-context/session.log` as `arp-context: <step> ok` or `arp-context: <step> failed (<reason>)`.
-  `ARP_CONTEXT_FAIL=<step>` forces that step to fail (for tests). Any failure leaves the committed outputs
+  `ARP_CONTEXT_FAIL=<step>` forces that step to fail (for tests). Every install honours the standard
+  `HTTPS_PROXY`/`HTTP_PROXY` variables. The script writes nothing to stdout (it would land in the cached
+  prompt). Any failure leaves the committed outputs
   untouched and never fails the session. The project-scope `.mcp.json` for OpenWiki is committed by the
   implementing PR, so the job writes nothing tracked.
 - **Graph reflects the branch.** The job brings the graph up to date with the checked-out code using
@@ -121,7 +127,8 @@ notes/                          committed, human-written; starts with README.md
   4. Then source files, only for detail the above doesn't give.
   Plus: "After a change that alters behaviour, say whether `openwiki/` needs an update." and "Never edit
   `openwiki/` or `graphify-out/` by hand." The same file gains the Atlas URL, the optional setup-script
-  snippet, and a short "Open the repo in Obsidian" paragraph.
+  snippet, and a short "Open the repo in Obsidian" paragraph. No `@`-import of anything under
+  `openwiki/` or `graphify-out/` (it would change the cached prompt on every refresh).
 - **Existing `/graphify` skill** in `.claude/skills/graphify/` stays, refreshed from `graphify install`
   for the pinned version.
 - **Prompt cache / context size.** See the context-exclusion call above.
@@ -158,11 +165,16 @@ it sends the push notification `Atlas not republished: run /context-refresh`.
   the full page, "Used by" list, notes that link to it, "Open on GitHub" link to the file on `main`.
 - **Phone (<1024 px):** search first; selected node shows a one-hop mini graph, wiki excerpt and a
   tappable list of connected nodes. Bottom tabs: Explore, Wiki, Report, and Ask when available.
+- **Nodes:** Graphify emits file nodes and entity nodes (functions, classes). Search results and path
+  endpoints include file nodes (label = basename, path = repo-relative file); selecting a result shows
+  that node. Each search result element carries the attribute `data-atlas-result`.
+- **Status line** under the graph, for the current view: `N nodes · M edges · K inferred`, plus
+  `· H hops` in the path view.
 - **Wiki tab** renders `openwiki/` pages; links between pages open inside the tab. **Report tab**
   renders `GRAPH_REPORT.md`.
 - **Ask** (tab on phone, "Ask Claude about this" button on laptop): uses the artifact runtime's
-  ask-Claude capability, grounded on the selected node and its wiki page. Absent capability → neither
-  tab nor button is rendered.
+  ask-Claude capability, grounded on the selected node and its wiki page. Absent capability, or the URL
+  hash `#noask`, → neither tab nor button is rendered.
 - Header: data commit (see calls) as a 7-character SHA and build time in ISO 8601 UTC.
 - The default view may be thinned (e.g. communities collapsed) so phones stay responsive; search reaches
   every node.
@@ -176,10 +188,28 @@ it sends the push notification `Atlas not republished: run /context-refresh`.
 
 ### Ignore files
 
-`.graphifyignore` and `.openwikiignore` both exclude at least: `.env*`, `*secret*`, `*credential*`,
-`*.key`, `*.pem`; local data folders `data/`, `runs/`, `engagements/`, `ballots/`; `node_modules/`,
-build output (`dist/`, `build/`), lockfiles, the generated API client under `frontend/src/api/`;
-`graphify-out/` and `.obsidian/`.
+`.graphifyignore` and `.openwikiignore` both contain at least these exact lines:
+
+```
+.env*
+*secret*
+*credential*
+*.key
+*.pem
+data/
+runs/
+engagements/
+ballots/
+node_modules/
+dist/
+build/
+package-lock.json
+*.lock
+frontend/src/api/schema.gen.ts
+frontend/src/api/openapi.json
+graphify-out/
+.obsidian/
+```
 
 ### Controls
 
@@ -206,10 +236,10 @@ merges; all others on the implementing PR. "≥4/5" rows run five fresh sessions
 | AC-1  | A fresh cloud session on the PR branch, 5 minutes after start | `graphify --version` | Exits 0; stdout contains `0.9.92` | evaluator |
 | AC-2  | Same session | `openwiki --version` | Exits 0; stdout contains `0.7.2` | evaluator |
 | AC-3  | Tools not installed | `.claude/hooks/context-stack.sh` (no flag) | Exits 0 within 5 s | holdout |
-| AC-4  | Network to npm and PyPI blocked | `.claude/hooks/context-stack.sh` (no flag) | Exits 0 within 5 s | holdout |
-| AC-5  | Network to npm and PyPI blocked, tools not installed | Session job | `~/.cache/arp-context/session.log` has a line matching `^arp-context: install-graphify failed \(.+\)$` | holdout |
-| AC-6  | Same as AC-5, job finished | `pgrep -f 'graphify\|openwiki\|pip install\|npm install'` | Exits 1 | holdout |
-| AC-7  | Tools installed, `ARP_CONTEXT_FAIL=update-graph` | Session job, then `git diff --quiet graphify-out/graph.json` | Exits 0 | holdout |
+| AC-4  | `HTTPS_PROXY=HTTP_PROXY=http://127.0.0.1:9`, `NO_PROXY` unset | `.claude/hooks/context-stack.sh` (no flag) | Exits 0 within 5 s | holdout |
+| AC-5  | `HTTPS_PROXY=HTTP_PROXY=http://127.0.0.1:9`, `NO_PROXY` unset, tools not installed | Session job | `~/.cache/arp-context/session.log` has a line matching `^arp-context: install-graphify failed \(.+\)$` | holdout |
+| AC-6  | Same as AC-5, job finished | List processes (psutil, or `pgrep -f` run directly, not through a shell) | No process other than the checker and its ancestors has a command line matching the ERE `graphify`, `openwiki`, `pip install` or `npm install` | holdout |
+| AC-7  | Tools installed; the test builds a code-only `graphify-out/graph.json` and commits it; `ARP_CONTEXT_FAIL=update-graph` | Session job, then `git diff --quiet graphify-out/graph.json` | Exits 0 | holdout |
 | AC-8  | Same as AC-7 | `graphify query "grounding"` | Exits 0; output contains `backend/arp/grounding.py` | holdout |
 | AC-9  | *First refresh* merged; branch adds function `foo_ctx_probe` in new file `backend/arp/ctx_probe.py` | Session job, then `graphify query "foo_ctx_probe"` | Exits 0; output contains `backend/arp/ctx_probe.py` | evaluator |
 | AC-10 | Same as AC-9 | `graphify query "ACCEPTANCE_TEMPLATE"` | Exits 0; output contains `docs/superpowers/ACCEPTANCE_TEMPLATE.md` | evaluator |
@@ -236,37 +266,39 @@ merges; all others on the implementing PR. "≥4/5" rows run five fresh sessions
 | AC-31 | An earlier `Context refresh` PR still open | Weekly task fired by hand | Exactly one open PR whose title starts `Context refresh`, titled with today's UTC date | evaluator |
 | AC-32 | AC-29's PR merged, no other commits on `main`, daily task disabled | Weekly task fired by hand | No open PR whose title starts `Context refresh` | evaluator |
 | AC-33 | Same as AC-32 | Atlas header read before and after | SHA and build time unchanged | evaluator |
-| AC-34 | *First refresh* PR | Each `openwiki/` page except `INSTRUCTIONS.md` | Has ≥1 claim in the pinned OpenWiki's claims store; every claim's file exists at the PR's base commit and its line range ends at or before that file's last line | evaluator |
-| AC-35 | `def CTX_IGNORE_CANARY(): pass` in each of `x_secret.py`, `x_credential.py`, `data/x.py`, `runs/x.py`, `engagements/x.py`, `ballots/x.py` | `scripts/vault.sh` | `grep -r CTX_IGNORE_CANARY graphify-out/` exits 1 | holdout |
-| AC-36 | `.graphifyignore` and `.openwikiignore` | Read | Each contains every pattern listed under Ignore files | holdout |
-| AC-37 | *First refresh* run with the AC-35 canaries plus `CTX_IGNORE_CANARY` in `.env.ctx` and `x.pem` | It finishes | `grep -r CTX_IGNORE_CANARY graphify-out/ openwiki/` exits 1, and no published Atlas data file contains the string | evaluator |
+| AC-34 | *First refresh* PR | Each `openwiki/` page except `INSTRUCTIONS.md` | Has ≥1 claim under `openwiki/.claims/`; every claim's `repo://<path>#L<a>-L<b>` evidence names a file that exists at the PR's base commit with ≥`b` lines | evaluator |
+| AC-35 | Tools installed; `def CTX_IGNORE_CANARY(): pass` in each of `x_secret.py`, `x_credential.py`, `data/x.py`, `runs/x.py`, `engagements/x.py`, `ballots/x.py`; `def CTX_IGNORE_CANARY_OK(): pass` in `x_ok.py` | `scripts/vault.sh` | Exits 0; `grep -r CTX_IGNORE_CANARY_OK graphify-out/obsidian/` exits 0; `grep -rw CTX_IGNORE_CANARY graphify-out/` exits 1 | holdout |
+| AC-36 | `.graphifyignore` and `.openwikiignore` | Read | Each contains every line of the Ignore files block as an exact line | holdout |
+| AC-36b | — | `.claude/hooks/context-stack.sh`, with and without `--foreground` | stdout is empty in both cases | holdout |
+| AC-36c | `.claude/CLAUDE.md` | `grep -E '^@(graphify-out\|openwiki)/' .claude/CLAUDE.md` (unescaped ERE) | Exits 1 | holdout |
+| AC-37 | In a session on `main` after the first refresh, the AC-35 files plus `CTX_IGNORE_CANARY` in `.env.ctx` and `x.pem`, all untracked | `/context-refresh` run by hand | `graphify-out/` contains a node from `x_ok.py`; `grep -rw CTX_IGNORE_CANARY graphify-out/ openwiki/` exits 1; no published Atlas data file contains `CTX_IGNORE_CANARY` as a whole word | evaluator |
 | AC-38 | Atlas URL, laptop at 1440 px | Page loads | Header search box plus left, middle and right panes visible side by side | evaluator |
-| AC-39 | Same | Type `grounding`, select `backend/arp/grounding.py` | Right pane shows path `backend/arp/grounding.py` and a "Used by" list with ≥1 entry | evaluator |
+| AC-39 | Same | Type `grounding`, select the file node `backend/arp/grounding.py` | Right pane shows path `backend/arp/grounding.py` and a "Used by" list with ≥1 entry | evaluator |
 | AC-40 | *First refresh*; same selection | Read right pane | Shows a wiki excerpt of ≥1 sentence that appears word for word in an `openwiki/` page | evaluator |
 | AC-41 | Same selection | Inspect "Open on GitHub" | href is `https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/main/backend/arp/grounding.py` | evaluator |
-| AC-42 | Same selection | Click "2 hops" | Shown node count equals the undirected 2-hop neighbourhood size of that node in the published graph data (node included) | evaluator |
-| AC-43 | Laptop | "Path A → B" from `backend/arp/api/app.py` to `backend/arp/grounding.py` | First node `app.py`, last `grounding.py`, hop count equals the undirected shortest-path length in the published graph data | evaluator |
-| AC-44 | Laptop, default filters | Count INFERRED edges drawn | 0 | evaluator |
-| AC-45 | Laptop, INFERRED filter on, graph data has ≥1 INFERRED edge in view | Count INFERRED edges drawn | ≥1, drawn dashed | evaluator |
+| AC-42 | Same selection | Click "2 hops" | Status line `N` equals the undirected 2-hop neighbourhood size of that node in the published graph data (node included) | evaluator |
+| AC-43 | Laptop | "Path A → B" from file node `backend/arp/api/app.py` to file node `backend/arp/grounding.py` | Path shows `app.py` first and `grounding.py` last; status line `H` equals the undirected shortest-path length in the published graph data | evaluator |
+| AC-44 | Laptop, default filters | Read status line | `K` is `0` | evaluator |
+| AC-45 | Laptop, INFERRED filter on, graph data has ≥1 INFERRED edge in view | Read status line; look at the graph | `K` ≥ 1; at least one dashed edge visible | evaluator |
 | AC-46 | `notes/ctx-probe.md` links `[[backend/arp/grounding.py]]`; Atlas republished | Select `grounding.py` | Right pane lists `ctx-probe` under notes | evaluator |
 | AC-47 | Atlas URL at 390 px width (Chromium emulation) | Page loads | `document.documentElement.scrollWidth` ≤ 390 | evaluator |
 | AC-48 | Same | Inspect | Search box, Explore, Wiki and Report tabs are present | evaluator |
-| AC-49 | Same, `grounding.py` selected | Tap the first connected node | Shown file path changes to that node's path | evaluator |
-| AC-50 | Same, cache disabled, no network throttling, 4× CPU throttling | Type `grounding` as soon as the box accepts input | Time from `navigationStart` to the first result element in the DOM ≤3 s | evaluator |
+| AC-49 | Same, `grounding.py` selected | Tap the first connected node whose path differs from `backend/arp/grounding.py` | Shown file path changes to that node's path | evaluator |
+| AC-50 | Same, cache disabled, no network throttling, 4× CPU throttling | Type `grounding` as soon as the box accepts input | In the artifact content frame, `performance.now()` at the first insertion of an element matching `[data-atlas-result]` is ≤3000 | evaluator |
 | AC-51 | Same | Search 3 node names taken from the published graph data, one from its smallest community | Each appears in results | evaluator |
 | AC-52 | Atlas in the Claude app | Type `grounding` | Results list `backend/arp/grounding.py` | evaluator |
-| AC-53 | Atlas header | Read | 7-char SHA equal to `git rev-parse --short` of the data commit | evaluator |
+| AC-53 | Atlas header | Read | 7-char SHA equal to `git rev-parse --short` of the data commit recorded as the spec says (PR description, refresh PR body or daily task message) | evaluator |
 | AC-54 | Atlas header | Read | Build time in ISO 8601 UTC (`YYYY-MM-DDTHH:MMZ`) | evaluator |
 | AC-55 | *First refresh*; Wiki tab, a page linking another wiki page | Tap the link | Target page's H1 shows in the Wiki tab; browser URL host and path unchanged | evaluator |
 | AC-56 | Report tab | Open | Shows the first H1 of the published `GRAPH_REPORT.md` | evaluator |
-| AC-57 | Page loaded with the ask-Claude capability absent (stubbed undefined before load) | Inspect DOM | No Ask tab and no "Ask Claude about this" button | evaluator |
+| AC-57 | Atlas URL opened with hash `#noask` | Inspect DOM | No Ask tab and no "Ask Claude about this" button | evaluator |
 | AC-58 | Account with the capability | Ask "what does this do?" with `grounding.py` selected | In ≥4/5 runs the answer contains `grounding` | evaluator |
 | AC-59 | `main` moved since last Atlas publish | Daily task fired by hand | Atlas header SHA equals the new `main` short SHA | evaluator |
 | AC-60 | `main` unchanged since last Atlas publish | Daily task fired by hand | Atlas header SHA and build time unchanged | evaluator |
-| AC-61 | Skill run in a session where the Atlas publish is refused (artifact URL in the skill replaced by an invalid one) | It finishes | A push notification with text `Atlas not republished: run /context-refresh` is sent | evaluator |
+| AC-61 | The `Atlas:` line in `.claude/CLAUDE.md` set to `https://claude.ai/artifact/invalid` in the session | `/context-refresh --atlas-only` run | Transcript shows a push notification with exactly `Atlas not republished: run /context-refresh`, and no Artifact publish without a `url` | evaluator |
 | AC-62 | *First refresh*; a laptop clone | `scripts/vault.sh` | Exits 0; `graphify-out/obsidian/` has ≥N `.md` files, N = distinct community ids in `graph.json` | evaluator |
 | AC-63 | Clean checkout | Hash `notes/` and `.obsidian/` before and after `scripts/vault.sh` | Identical | holdout |
-| AC-64 | *First refresh*; same as AC-62 | Every `[[...]]` link in `notes/README.md` and in 3 export files (the first 3 by name) | Each resolves by exact path relative to the vault root (`.md` added when there is no extension) to an existing file | evaluator |
+| AC-64 | *First refresh*; same as AC-62 | Every `[[...]]` link in `notes/README.md` and in 3 export files (the first 3 by name) | After stripping `\|alias` and `#heading`, each target resolves to an existing file either as an exact vault-root-relative path or as a basename (`.md` added when there is no extension) unique in the vault | evaluator |
 | AC-65 | New session | `echo $OPENWIKI_TELEMETRY_DISABLED` | Prints `1` | evaluator |
 | AC-66 | `.claude/skills/context-refresh/SKILL.md` | Read | Contains `OPENWIKI_TELEMETRY_DISABLED=1` | holdout |
 | AC-67 | Repo after the change | `git check-ignore -q` on `.obsidian/x`, `graphify-out/obsidian/x`, `graphify-out/cache/x` | Exits 0 for each | holdout |
