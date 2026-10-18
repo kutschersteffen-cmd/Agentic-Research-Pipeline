@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import functools
 import json
+import logging
 import re
 from typing import Any, Literal
 from urllib.parse import urljoin, urlparse
@@ -16,6 +17,8 @@ from pydantic import BaseModel
 from arp.discovery.names import clean_name, names_match
 from arp.net_safety import UnsafeURLError, ssrf_guard_request_hook
 from arp.schemas.common import CompanyRef
+
+logger = logging.getLogger(__name__)
 
 AGGREGATOR_DOMAINS: frozenset[str] = frozenset(
     {
@@ -83,14 +86,14 @@ async def _get(client: httpx.AsyncClient, url: str) -> httpx.Response | None:
     return resp
 
 
-def _jsonld_blocks(soup: BeautifulSoup) -> list[Any]:
-    blocks = []
+def _jsonld_organizations(soup: BeautifulSoup) -> list[dict]:
+    orgs = []
     for script in soup.find_all("script", type="application/ld+json"):
         try:
-            blocks.append(json.loads(script.string or ""))
-        except ValueError:
+            orgs += _organizations(json.loads(script.string or ""))
+        except (ValueError, RecursionError):  # malformed or absurdly nested block: skip it
             continue
-    return blocks
+    return orgs
 
 
 def _organizations(node: Any) -> list[dict]:
@@ -99,8 +102,8 @@ def _organizations(node: Any) -> list[dict]:
         return [org for item in node for org in _organizations(item)]
     if not isinstance(node, dict):
         return []
-    types = node.get("@type", [])
-    types = [types] if isinstance(types, str) else types
+    types = node.get("@type")
+    types = [types] if isinstance(types, str) else types if isinstance(types, list) else []
     is_org = any(isinstance(t, str) and ("Organization" in t or t.endswith(("Corporation", "Company"))) for t in types)
     return ([node] if is_org else []) + [org for value in node.values() for org in _organizations(value)]
 
@@ -122,7 +125,7 @@ def _homepage_evidence(soup: BeautifulSoup, company: CompanyRef) -> list[str]:
     site_name = soup.find("meta", property="og:site_name")
     if site_name and names_match(site_name.get("content", ""), company.name):
         evidence.append("name_in_site_name")
-    orgs = _organizations(_jsonld_blocks(soup))
+    orgs = _jsonld_organizations(soup)
     if any(names_match(str(org.get(key, "")), company.name) for org in orgs for key in ("name", "legalName")):
         evidence.append("name_in_jsonld")
     lei_codes = " ".join(str(org.get("leiCode", "")) for org in orgs)
@@ -133,9 +136,14 @@ def _homepage_evidence(soup: BeautifulSoup, company: CompanyRef) -> list[str]:
 def _imprint_url(soup: BeautifulSoup, page_url: str) -> str | None:
     site = registrable_domain(page_url)
     for a in soup.find_all("a", href=True):
-        href = urljoin(page_url, a["href"]).split("#")[0]
-        if _IMPRINT_TEXT.search(a.get_text(" ", strip=True)) and registrable_domain(href) == site:
-            return href
+        if not _IMPRINT_TEXT.search(a.get_text(" ", strip=True)):
+            continue
+        try:
+            href = urljoin(page_url, a["href"]).split("#")[0]
+            if registrable_domain(href) == site:
+                return href
+        except ValueError:  # malformed href, e.g. "http://[bad"
+            continue
     return None
 
 
@@ -169,7 +177,8 @@ async def check_homepage(
     ) as client:
         try:
             resp = await _get(client, url)
-        except (httpx.HTTPError, httpx.InvalidURL, UnsafeURLError):
+        except (httpx.HTTPError, httpx.InvalidURL, UnsafeURLError, ValueError) as exc:  # ValueError: bad Location
+            logger.info("Site check fetch failed for %s: %s", url, exc)
             return fetch_failed
         if resp is None:
             return blocklisted
@@ -183,7 +192,8 @@ async def check_homepage(
         if imprint_url:
             try:
                 imprint = await _get(client, imprint_url)
-            except (httpx.HTTPError, httpx.InvalidURL, UnsafeURLError):
+            except (httpx.HTTPError, httpx.InvalidURL, UnsafeURLError, ValueError) as exc:
+                logger.info("Site check fetch failed for %s: %s", imprint_url, exc)
                 imprint = None
             if imprint is not None and not imprint.is_redirect and imprint.status_code < 400:
                 evidence += _imprint_evidence(imprint.text, company)

@@ -171,3 +171,26 @@ async def test_non_html_homepage_is_fetch_failed():
     result = await check_homepage(H1_URL, W, UA, transport=transport)
     assert result.verdict == "unclear"
     assert result.evidence == ["fetch_failed"]
+
+
+async def test_malformed_page_content_does_not_raise():
+    deep = "[" * 100_000 + "]" * 100_000
+    page = (
+        "<html><head><title>Testwerke AG</title>"
+        '<script type="application/ld+json">{"@type": null, "name": "Testwerke AG"}</script>'
+        '<script type="application/ld+json">{"@type": 5, "name": "Testwerke AG"}</script>'
+        '<script type="application/ld+json">{not json</script>'
+        f'<script type="application/ld+json">{deep}</script>'
+        '</head><body><a href="http://[bad/impressum">Impressum</a></body></html>'
+    )
+    transport, _ = _transport({H1_URL: _html(page)})
+    result = await check_homepage(H1_URL, W, UA, transport=transport)
+    assert result.verdict == "unclear"
+    assert result.evidence == ["name_in_title"]
+
+
+async def test_malformed_redirect_location_is_fetch_failed():
+    transport, _ = _transport({H1_URL: _redirect("http://[bad/")})
+    result = await check_homepage(H1_URL, W, UA, transport=transport)
+    assert result.verdict == "unclear"
+    assert result.evidence == ["fetch_failed"]
