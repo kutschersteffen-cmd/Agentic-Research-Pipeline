@@ -1,7 +1,7 @@
 // Atlas page: wires atlas-core (pure logic) to the DOM and a sigma graph. Labels go in via textContent only;
 // Markdown goes through marked then DOMPurify. Node ids change between rebuilds, so nothing persists them.
 import {
-  buildIndex, search, neighbourhood, shortestPath, statusLine, githubUrl, resolveWikiLink, notesFor,
+  buildIndex, search, neighbourhood, shortestPath, statusLine, githubUrl, resolveWikiLink, relativeTo, notesFor,
 } from './atlas-core.mjs';
 
 const COLLAPSE_OVER = 2000; // whole-repo view shows areas instead of nodes above this many nodes
@@ -152,7 +152,6 @@ function pickFromSearch(n) {
   $('results').hidden = true;
   setTab('explore');
   select(n.id);
-  if (phoneQuery.matches) $('right').scrollIntoView({ block: 'start' });
 }
 
 // ---------- selection and detail ----------
@@ -167,6 +166,8 @@ function select(id) {
   markSelection();
   renderDetail();
   renderGraph();
+  // On phone the right pane is display: contents, so scroll its first visible child instead.
+  if (phoneQuery.matches) $('d-kind').scrollIntoView({ block: 'start' });
 }
 
 function selectArea(cid) {
@@ -491,7 +492,7 @@ function pathView(g, pos, sizes) {
   if (!path) {
     empty.textContent = `No path from ${G.nodes[state.pathFrom].label} to ${G.nodes[state.pathTo].label} with the current filters.`;
     empty.hidden = false;
-    return { nodes: [], edges: [], status: statusLine({ nodes: 0, edges: 0, inferred: 0, hops: 0 }) };
+    return { nodes: [], edges: [], status: 'No path between these nodes' };
   }
   const edges = [];
   let inferred = 0;
@@ -609,7 +610,7 @@ function setView(v) {
   for (const b of document.querySelectorAll('[data-view]')) b.setAttribute('aria-pressed', String(b.dataset.view === v));
   $('pathbar').hidden = v !== 'path';
   if (v === 'path') {
-    if (state.pathFrom === null && state.sel !== null) {
+    if (state.sel !== null) {
       state.pathFrom = state.sel;
       $('path-from').value = G.nodes[state.sel].path || G.nodes[state.sel].label;
     }
@@ -651,12 +652,6 @@ function renderMarkdown(target, md, slug) {
       if (link.slug !== undefined) showWiki(link.slug); else showNotFound(link.missing);
     });
   }
-}
-
-// Wiki pages link relative to their own folder; resolve before matching slugs.
-function relativeTo(href, slug) {
-  if (!slug || /^([a-z][a-z0-9+.-]*:|\/\/)/i.test(href)) return href;
-  try { return decodeURI(new URL(href, `https://wiki.invalid/${slug}`).pathname.slice(1)); } catch { return href; }
 }
 
 function renderWikiIndex() {

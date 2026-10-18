@@ -90,6 +90,16 @@ export function resolveWikiLink(href, slugs) {
   return slugs.includes(slug) ? { slug } : { missing: href };
 }
 
+// Wiki pages link relative to their own folder (slug `a/b` links `../c.md`); returns the link from the wiki root.
+export function relativeTo(href, slug) {
+  if (!slug || /^([a-z][a-z0-9+.-]*:|\/\/)/i.test(href)) return href;
+  try {
+    return decodeURIComponent(new URL(href, `https://wiki.invalid/${slug}`).pathname.slice(1));
+  } catch {
+    return href;
+  }
+}
+
 export function notesFor(notes, path) {
   return path ? notes.filter((n) => n.links.includes(path)).map((n) => n.name) : [];
 }

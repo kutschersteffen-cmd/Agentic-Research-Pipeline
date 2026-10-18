@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  search, buildIndex, neighbourhood, shortestPath, statusLine, githubUrl, resolveWikiLink, notesFor,
+  search, buildIndex, neighbourhood, shortestPath, statusLine, githubUrl, resolveWikiLink, relativeTo, notesFor,
 } from './atlas-core.mjs';
 
 const node = (id, extra = {}) => ({ id, label: `n${id}`, path: null, community: 0, kind: 'entity', inferredDeg: 0, ...extra });
@@ -109,4 +109,14 @@ test('notesFor', () => {
   ];
   assert.deepEqual(notesFor(notes, 'backend/arp/grounding.py'), ['ctx-probe']);
   assert.deepEqual(notesFor(notes, null), []);
+});
+
+test('relativeTo resolves wiki links against the current page folder', () => {
+  assert.equal(relativeTo('../x.md', 'backend/api'), 'x.md');
+  assert.equal(relativeTo('y.md', 'backend/api'), 'backend/y.md');
+  assert.equal(relativeTo('/x.md', 'backend/api'), 'x.md');
+  assert.equal(relativeTo('my%20page.md', 'docs/a'), 'docs/my page.md');
+  assert.equal(relativeTo('caf%C3%A9.md#top', 'a'), 'café.md');
+  assert.equal(relativeTo('https://x.org/a', 'backend/api'), 'https://x.org/a');
+  assert.equal(relativeTo('../x.md', null), '../x.md');
 });

@@ -23,8 +23,11 @@ def kind(n):
     if n.get("file_type") in ("document", "doc_ref", "rationale"):
         return "doc"
     src = n.get("source_file") or ""
-    # Graphify gives each code file one node labelled with its basename; everything else in the file is an entity.
-    return "file" if n.get("file_type") == "code" and src and n.get("label") == os.path.basename(src) else "entity"
+    label = n.get("label") or ""
+    # Graphify gives each code file one node labelled with its basename, or with a path suffix such as
+    # `extraction/aggregator.py` when basenames clash; everything else in the file is an entity.
+    is_file = label == os.path.basename(src) or src.endswith("/" + label)
+    return "file" if n.get("file_type") == "code" and src and is_file else "entity"
 
 
 def graph_data(raw):
@@ -42,8 +45,11 @@ def graph_data(raw):
     nodes, communities = [], {}
     for i, n in enumerate(raw["nodes"]):
         c = n.get("community")
-        nodes.append({"id": i, "label": n.get("label") or n["id"], "path": n.get("source_file") or None,
-                      "community": c, "kind": kind(n), "inferredDeg": inferred_deg[i]})
+        k = kind(n)
+        # File nodes show the basename, so exact-name search ranks a disambiguated file like any other.
+        label = os.path.basename(n["source_file"]) if k == "file" else n.get("label") or n["id"]
+        nodes.append({"id": i, "label": label, "path": n.get("source_file") or None,
+                      "community": c, "kind": k, "inferredDeg": inferred_deg[i]})
         if c is not None:
             entry = communities.setdefault(c, {"id": c, "label": n.get("community_name") or f"Community {c}", "size": 0})
             entry["size"] += 1
@@ -124,6 +130,9 @@ def selftest():
              "community": 1, "community_name": "Community 1"},
             {"id": "d", "label": "Design notes", "file_type": "document", "source_file": "docs/x.md",
              "community": 1, "community_name": "Community 1"},
+            {"id": "e", "label": "extraction/aggregator.py", "file_type": "code",
+             "source_file": "backend/arp/extraction/aggregator.py"},
+            {"id": "f", "label": "py", "file_type": "code", "source_file": "backend/arp/x.py"},
         ], "links": [
             {"source": "a", "target": "b", "relation": "contains", "confidence": "EXTRACTED"},
             {"source": "b", "target": "c", "relation": "calls", "confidence": "INFERRED"},
@@ -149,7 +158,10 @@ def selftest():
         assert main(base + ["--out", str(out)]) == 0
         d = out / "data"
         g = json.loads((d / "graph.json").read_text())
-        assert [n["kind"] for n in g["nodes"]] == ["file", "entity", "entity", "doc"], g["nodes"]
+        assert [n["kind"] for n in g["nodes"]] == ["file", "entity", "entity", "doc", "file", "entity"], g["nodes"]
+        # Disambiguated file label: a file node, shown under its basename.
+        assert g["nodes"][4]["label"] == "aggregator.py" and g["nodes"][4]["path"] == "backend/arp/extraction/aggregator.py"
+        assert g["nodes"][5]["label"] == "py", g["nodes"][5]
         assert g["nodes"][1] == {"id": 1, "label": "ground()", "path": "backend/arp/grounding.py",
                                  "community": 0, "kind": "entity", "inferredDeg": 1}, g["nodes"][1]
         assert g["nodes"][2]["path"] is None
