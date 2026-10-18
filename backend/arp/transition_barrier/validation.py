@@ -10,7 +10,17 @@ import json
 import re
 from pathlib import Path
 
-from arp.transition_barrier.rule_book import RULE_BOOK_FILE, RuleBookError, RuleBookNotFound, compute_fingerprint
+from pydantic import ValidationError
+
+from arp.transition_barrier.rule_book import (
+    RULE_BOOK_FILE,
+    RuleBook,
+    RuleBookError,
+    RuleBookNotFound,
+    compute_fingerprint,
+)
+
+STALE_FINGERPRINT = "Rule book content changed but version is still"
 
 _OPS = {">=", "<=", ">", "<", "=", "in"}
 _ORDERED = {">=", "<=", ">", "<"}
@@ -287,7 +297,7 @@ def validate_rule_book(raw_rule_book: dict, raw_schema: dict) -> list[str]:
                     r8.append(f"Source '{key}' has no tier")
 
     fingerprint_ok = raw_rule_book.get("fingerprint") == compute_fingerprint(raw_rule_book)
-    r9 = [] if fingerprint_ok else [f"Rule book content changed but version is still {raw_rule_book.get('version')}"]
+    r9 = [] if fingerprint_ok else [f"{STALE_FINGERPRINT} {raw_rule_book.get('version')}"]
 
     return (
         r1
@@ -316,9 +326,28 @@ def read_and_validate(directory: Path) -> tuple[dict, dict, list[str]]:
             raws.append(json.loads(p.read_text(encoding="utf-8")))
         except FileNotFoundError:
             raise RuleBookError(f"File not found: {p}") from None
+        except OSError as exc:  # IsADirectoryError, PermissionError
+            raise RuleBookError(f"Cannot read {p}: {exc.strerror or exc}") from None
         except ValueError as exc:
             raise RuleBookError(f"{p.name} is not valid JSON: {exc}") from None
     raw, schema = raws
     if not isinstance(raw, dict) or not isinstance(schema, dict):
         raise RuleBookError("rule_book.json and criteria_schema.json must each hold a JSON object")
-    return raw, schema, validate_rule_book(raw, schema)
+    errors = validate_rule_book(raw, schema)
+    if all(e.startswith(STALE_FINGERPRINT) for e in errors):
+        errors = _model_errors(raw) + errors
+    return raw, schema, errors
+
+
+def _model_errors(raw: dict) -> list[str]:
+    """Backstop: whatever the raw rules let through must still load, so "valid" always means "loads"."""
+    try:
+        RuleBook.model_validate(raw)
+    except ValidationError as exc:
+        lines = []
+        for e in exc.errors():
+            loc = [str(part) for part in e["loc"]]
+            who, path = (loc[1], loc[2:]) if loc[0] == "criteria" and len(loc) > 2 else ("Rule book", loc)
+            lines.append(f"{who}: invalid {'.'.join(path)}: {e['msg']}")
+        return lines
+    return []

@@ -24,7 +24,7 @@ from arp.transition_barrier.refresh.router import coverage_summary, route_source
 from arp.transition_barrier.render import render_rule_book_md
 from arp.transition_barrier.rule_book import RuleBookError, RuleBookNotFound, load_rule_book, sign_rule_book
 from arp.transition_barrier.staleness import build_staleness_report
-from arp.transition_barrier.validation import count_open, read_and_validate
+from arp.transition_barrier.validation import STALE_FINGERPRINT, count_open, read_and_validate
 
 transition_barrier_app = typer.Typer(
     help="Transition Barrier Assessment: the 105-cell sector x region transition-feasibility matrix (35 criteria x EU/US/China)."
@@ -32,8 +32,6 @@ transition_barrier_app = typer.Typer(
 
 rules_app = typer.Typer(help="The rule book: validate it, sign a new version, render it as a document.")
 transition_barrier_app.add_typer(rules_app, name="rules")
-
-_STALE_FINGERPRINT = "Rule book content changed but version is still"
 
 
 def _fail(lines: list[str]) -> typer.Exit:
@@ -67,7 +65,7 @@ def rules_sign(
 ) -> None:
     """Bump the version, re-fingerprint and log the approval. A stale fingerprint is what this fixes."""
     directory, _, _, errors = _load_raw(data_dir_opt)
-    blocking = [e for e in errors if not e.startswith(_STALE_FINGERPRINT)]
+    blocking = [e for e in errors if not e.startswith(STALE_FINGERPRINT)]
     if blocking:
         raise _fail(blocking)
     typer.echo(f"Signed rule book v{sign_rule_book(directory, approved_by, date.today())}")

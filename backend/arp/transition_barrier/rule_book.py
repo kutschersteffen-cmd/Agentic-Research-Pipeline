@@ -6,7 +6,7 @@ from datetime import date
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 RULE_BOOK_FILE = "rule_book.json"
 
@@ -66,7 +66,7 @@ class CriterionRules(BaseModel):
 
 
 class RuleBook(BaseModel):
-    version: int
+    version: int = Field(strict=True)
     fingerprint: str
     history: list[dict]
     actions: dict[str, list[dict]]

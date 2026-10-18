@@ -461,6 +461,73 @@ def test_cli_validate_wrong_shape_has_no_traceback(fixture_dir):
     assert result.exception is None or isinstance(result.exception, SystemExit)
 
 
+def _drop_label(rb):
+    del _stl(rb)["facts"][0]["label"]
+
+
+def _drop_history(rb):
+    del rb["history"]
+
+
+def _int_enum(rb):
+    fact = {"id": "stage", "label": "Stage", "type": "enum", "allowed_values": [1, 2], "definition": "Stage."}
+    _stl(rb)["facts"].append(fact)
+
+
+def _str_max_age(rb):
+    _stl(rb)["facts"][0]["max_age_days"] = "x"
+
+
+def _drop_version(rb):
+    del rb["version"]
+
+
+def _str_version(rb):
+    rb["version"] = "7"
+
+
+_LOAD_BREAKERS = [
+    (_drop_label, "STL-R1: invalid facts.0.label: Field required"),
+    (_drop_history, "Rule book: invalid history: Field required"),
+    (_int_enum, "STL-R1: invalid facts.3.allowed_values.0: Input should be a valid string"),
+    (_str_max_age, "STL-R1: invalid facts.0.max_age_days: Input should be a valid integer"),
+    (_drop_version, "Rule book: invalid version: Field required"),
+    (_str_version, "Rule book: invalid version: Input should be a valid integer"),
+]
+
+
+@pytest.mark.parametrize(("mutate", "line"), _LOAD_BREAKERS)
+def test_cli_validate_reports_what_would_not_load(fixture_dir, mutate, line):
+    """The raw rules pass these; the model backstop turns each into an error line, not a traceback."""
+    rb, _ = _fx(fixture_dir)
+    mutate(rb)
+    rb["fingerprint"] = compute_fingerprint(rb)
+    _write_rb(fixture_dir, rb)
+    result = _rules("validate", "--data-dir", str(fixture_dir))
+    assert result.exit_code == 1
+    assert result.output.startswith(line)
+    assert "Traceback" not in result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+def test_cli_sign_refuses_what_would_not_load(fixture_dir):
+    rb, _ = _fx(fixture_dir)
+    del rb["version"]  # also leaves the fingerprint stale, which sign alone would accept
+    _write_rb(fixture_dir, rb)
+    result = _rules("sign", "--approved-by", "owner", "--data-dir", str(fixture_dir))
+    assert result.exit_code == 1
+    assert result.output.startswith("Rule book: invalid version: Field required\n")
+
+
+def test_cli_validate_unreadable_rule_book(fixture_dir):
+    (fixture_dir / "rule_book.json").unlink()
+    (fixture_dir / "rule_book.json").mkdir()
+    result = _rules("validate", "--data-dir", str(fixture_dir))
+    assert result.exit_code == 1
+    assert result.output.startswith(f"Cannot read {fixture_dir / 'rule_book.json'}: ")
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
 def test_cli_sign(fixture_dir):
     rb, _ = _fx(fixture_dir)
     _stl(rb)["params"][0]["value"] = 60
@@ -568,6 +635,17 @@ def test_ac92_check_rule_book_names_first_error(fixture_dir):
     dataset.check_rule_book()
     _break_h_fact(fixture_dir)
     with pytest.raises(RuleBookError, match=re.escape("STL-R1: condition names unknown fact 'prices'")):
+        dataset.check_rule_book()
+
+
+@pytest.mark.parametrize(("mutate", "line"), _LOAD_BREAKERS)
+def test_check_rule_book_refuses_what_would_not_load(fixture_dir, mutate, line):
+    """The app must refuse to start, not pass the gate and then fail every /criteria."""
+    rb, _ = _fx(fixture_dir)
+    mutate(rb)
+    rb["fingerprint"] = compute_fingerprint(rb)
+    _write_rb(fixture_dir, rb)
+    with pytest.raises(RuleBookError, match="^" + re.escape(line)):
         dataset.check_rule_book()
 
 
