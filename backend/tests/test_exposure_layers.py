@@ -84,6 +84,18 @@ def test_via_tie_takes_sorted_path():
     assert round(s1.l2, 4) == 0.34 and s1.l2_via == ["S1", "P"]
 
 
+def test_via_is_the_biggest_contribution():
+    run = [("P", "P", 0.4), ("Q", "Q", 0.4)]
+    s1 = _by_key(compute_layers(run, [Edge("S1", "P", 0.1), Edge("S1", "Q", 0.9)], {}, DEFAULT))["S1"]
+    assert s1.l2_via == ["S1", "Q"]
+
+
+def test_loop_back_edge_does_not_end_the_search():
+    edges = [Edge("S", "X", 0.5), Edge("X", "S", 0.5), Edge("X", "A", 0.5)]  # X's first edge leads back to S
+    s = _by_key(compute_layers([("A", "A", 1.0)], edges, {}, DEFAULT))["S"]
+    assert round(s.l2, 4) == round(0.5 * 0.5 * 0.85**2, 4) and s.l2_via == ["S", "X", "A"]
+
+
 def test_equal_scores_rank_by_key():
     r = _by_key(compute_layers([("Q", "Q", 0.4), ("P", "P", 0.4)], [], {}, DEFAULT))
     assert (r["P"].rank, r["Q"].rank) == (1, 2) and round(r["P"].score, 4) == round(r["Q"].score, 4) == 0.18
@@ -134,6 +146,12 @@ def test_l1_ignores_exclude_qualitative_and_missing():
         {"_key": "n", "company_matches": [{"company_id": "n", "verdict": "include", "revenue_exposure": None}]},
     ]
     assert [l1 for _key, _name, l1 in run_company_l1(refs, rows)] == [None, None, None]
+
+
+def test_result_row_without_matches():
+    refs = [CompanyRef(company_id="a", name="A")]
+    rows = [{"_key": "step-1"}, {"_key": "a", "company_matches": [_match("a", "include", 0.6, "catalogue")]}]
+    assert [l1 for _key, _name, l1 in run_company_l1(refs, rows)] == [0.6]
 
 
 def test_run_company_keys_deduplicated():
