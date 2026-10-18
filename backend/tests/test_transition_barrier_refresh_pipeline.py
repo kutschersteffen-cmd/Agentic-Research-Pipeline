@@ -132,3 +132,13 @@ async def test_a_fetch_failure_does_not_abort_the_run(run_store, monkeypatch):
 async def test_execute_refuses_when_disabled(run_store):
     with pytest.raises(RefreshDisabledError):
         await execute_refresh_run("whatever", settings=Settings(anthropic_api_key="unused"), run_store=run_store)
+
+
+async def test_refresh_reads_the_current_ratings_once(run_store, no_network, monkeypatch):
+    from arp.transition_barrier import ratings
+
+    built = []
+    real = ratings.Ratings.__init__
+    monkeypatch.setattr(ratings.Ratings, "__init__", lambda self, rs: (built.append(1), real(self, rs))[1])
+    await run_refresh(settings=_settings(), run_store=run_store)
+    assert len(built) == 1

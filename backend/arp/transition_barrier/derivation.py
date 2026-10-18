@@ -13,7 +13,7 @@ from arp.storage.run_store import RunStore
 from arp.transition_barrier import RUN_TYPE, clock, store
 from arp.transition_barrier.dataset import data_dir, load_criteria
 from arp.transition_barrier.engine import Result, derive
-from arp.transition_barrier.ratings import current_cell, item_key
+from arp.transition_barrier.ratings import Ratings, item_key
 from arp.transition_barrier.rule_book import CriterionRules, load_rule_book
 
 NOT_FETCHED = "Sources not fetched: refresh is disabled"
@@ -58,6 +58,7 @@ def execute_derivation_run(run_store: RunStore, run_id: str, settings: Settings,
     today = today or clock.today()
     notes = [] if settings.transition_barrier_refresh_enabled else [NOT_FETCHED]
     version = load_rule_book(data_dir())[0].version
+    book = Ratings(run_store)  # the run's own items are undecided, so no cell's rating changes during it
     try:
         for cell in run_store.load_manifest(run_id).params["cells"]:
             code, region = cell["code"], cell["region"]
@@ -68,7 +69,7 @@ def execute_derivation_run(run_store: RunStore, run_id: str, settings: Settings,
             )
             key = item_key(code, region)
             run_store.append_result(run_id, {"_key": key, **result.model_dump(mode="json")})
-            payload = _payload(result, current_cell(code, region, run_store).rating.value, key)
+            payload = _payload(result, book.cell(code, region).rating.value, key)
             queue_for_review(run_store, run_id, key, {"code": code, "region": region, **payload})
             jobs.record_progress(run_id, completed_delta=1, review_delta=1)
     except Exception as exc:

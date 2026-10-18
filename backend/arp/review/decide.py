@@ -23,6 +23,7 @@ from arp.schemas.review import BulkAcceptRequest, BulkItem, ItemDecisionRequest,
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
 from arp.transition_barrier import RUN_TYPE as BARRIER_RUN_TYPE
+from arp.transition_barrier.ratings import current_cell
 
 if TYPE_CHECKING:
     from arp.api.auth import Principal
@@ -47,6 +48,8 @@ _REQUIRED_KEY = {"value": "value", "restatement_candidate": "value", "sector_cod
 
 
 ENTERED_FACT = "you entered a fact this result uses"
+STALE_RESULT = "the cell's rating changed since this result; derive again"
+FINAL_ITEM = "this item is final; derive the cell again"
 
 
 class DecisionError(Exception):
@@ -157,6 +160,18 @@ def _step(s, req: ItemDecisionRequest, principal: Principal, *, rating_change: b
     return "first"  # pending, second_done or final: a new round
 
 
+def _barrier_refused(run_store: RunStore, payload: dict, state: str, decision: str) -> str | None:
+    """A final barrier item is never decided again, and an approve only ratifies a result
+    derived from the cell's current rating: otherwise one person could undo a two-person change."""
+    if state in FINAL_STATES:
+        return FINAL_ITEM
+    if decision != "approve" or payload["kind"] not in ("changed", "unchanged"):
+        return None
+    # shortcut: a full Ratings pass per approve (twice per bulk item); share one per bulk call if bulk accept gets slow
+    current = current_cell(payload["code"], payload["region"], run_store).rating.value
+    return STALE_RESULT if payload["current"] != current else None
+
+
 def decide(
     run_store: RunStore, run_id: str, item_key: str, req: ItemDecisionRequest, principal: Principal, *,
     settings: Settings, content_store: DocumentContentStore | None,
@@ -181,6 +196,8 @@ def _decide_locked(
         raise DecisionError(400, "decide this item through its run's review endpoint")
     _check_kind(kind, req, principal)
     s = _state(run_store, run_id, item_key)
+    if barrier and (why := _barrier_refused(run_store, item.payload, s.state, req.decision)):
+        raise DecisionError(409, why)
     step = _step(s, req, principal, rating_change=barrier and item.payload["kind"] == "changed")
     bundle = build_context(run_store, run_id, item_key, principal, settings=settings, content_store=content_store)
     if bundle["etag"] != req.context_etag:
@@ -254,12 +271,18 @@ def _barrier_refusal(run_store: RunStore, run_id: str, it: BulkItem, principal: 
     item = get_item(run_store, run_id, it.item_key, principal)
     if item is None:
         return "was not found"
+    if item.state in FINAL_STATES:
+        return FINAL_ITEM
     if item.payload["kind"] == "changed":
         return "a rating change is not bulk-accepted"
+    if item.payload["kind"] != "unchanged":
+        return "no rating proposed"
     if principal.user_id in item.payload["entered_by"]:
         return ENTERED_FACT
     if item.state != "pending" or item.escalated:
         return "is not pending" if item.state != "pending" else "is escalated"
+    if why := _barrier_refused(run_store, item.payload, item.state, "approve"):
+        return why
     bundle = build_context(run_store, run_id, it.item_key, principal, settings=settings, content_store=content_store)
     return "changed since you loaded it; reload" if bundle["etag"] != it.context_etag else None
 

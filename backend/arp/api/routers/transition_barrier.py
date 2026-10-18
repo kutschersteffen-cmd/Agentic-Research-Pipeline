@@ -29,6 +29,7 @@ from arp.storage.run_store import RunStore
 from arp.transition_barrier import store
 from arp.transition_barrier.dataset import (
     build_matrix,
+    current_scores,
     filter_scores,
     load_criteria,
     load_source_registry,
@@ -92,7 +93,8 @@ def list_scores(
 @router.get("/matrix")
 def get_matrix(settings: Settings = Depends(settings_dep)) -> dict:
     """The full 35x3 grid plus the summary counts the heatmap header shows."""
-    grid = build_matrix()
+    scores = current_scores()  # one pass over the derivation runs for the whole response
+    grid = build_matrix(scores)
     threshold = settings.transition_barrier_staleness_days
     return {
         "sectors": sectors(),
@@ -111,8 +113,8 @@ def get_matrix(settings: Settings = Depends(settings_dep)) -> dict:
             for code, by_region in grid.items()
         },
         "distribution": {
-            "overall": rating_distribution(),
-            **{r.value: rating_distribution(r) for r in Region},
+            "overall": rating_distribution(scores=scores),
+            **{r.value: rating_distribution(r, scores) for r in Region},
         },
     }
 
@@ -281,8 +283,11 @@ class ChoiceRequest(BaseModel):
 
 
 @router.post("/cells/{code}/{region}/choices", status_code=201)
-def add_choice(code: str, region: str, req: ChoiceRequest, user: Principal = Depends(current_user)) -> dict:
-    """For a conflict, the analyst picks which value counts, with a written reason."""
+def add_choice(
+    code: str, region: str, req: ChoiceRequest, user: Principal = Depends(current_user),
+    settings: Settings = Depends(settings_dep), run_store: RunStore = Depends(get_run_store),
+) -> dict:
+    """For a conflict, the analyst picks which value counts, with a written reason; the cell is derived again with it."""
     rules, _ = _cell(code, region)
     if req.fact not in {f.id for f in rules.facts if f.type}:
         raise HTTPException(422, f"Unknown fact {req.fact}")
@@ -292,7 +297,9 @@ def add_choice(code: str, region: str, req: ChoiceRequest, user: Principal = Dep
         )
     except FactRefused as exc:
         raise HTTPException(exc.status, exc.message) from None
-    return {"id": choice_id}
+    run_id = create_derivation_run(run_store, [(code, region)])
+    execute_derivation_run(run_store, run_id, settings)
+    return {"id": choice_id, "run_id": run_id}
 
 
 @router.get("/documents/{doc_id}")
@@ -301,7 +308,9 @@ def get_document(doc_id: int, blobs=Depends(blob_store_dep)) -> Response:
     if found is None:
         raise HTTPException(404, "Document not found")
     _, data = found  # the uploaded name is client-supplied: it stays in the database, never in a header
-    return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="document-{doc_id}.pdf"'})
+    return Response(data, media_type="application/pdf", headers={
+        "Content-Disposition": f'inline; filename="document-{doc_id}.pdf"', "X-Content-Type-Options": "nosniff",
+    })
 
 
 class CellRef(BaseModel):

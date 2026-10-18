@@ -144,22 +144,22 @@ def filter_scores(
     return rows
 
 
-def build_matrix() -> dict[str, dict[str, BarrierScore]]:
+def build_matrix(scores: list[BarrierScore] | None = None) -> dict[str, dict[str, BarrierScore]]:
     """The 35x3 grid as {criterion_code: {region: score}} -- the shape the
-    frontend heatmap consumes.
+    frontend heatmap consumes. `scores`: current_scores() the caller already read.
     """
     grid: dict[str, dict[str, BarrierScore]] = {}
-    for score in current_scores():
+    for score in current_scores() if scores is None else scores:
         grid.setdefault(score.code, {})[score.region.value] = score
     return grid
 
 
-def rating_distribution(region: Region | None = None) -> dict[str, int]:
+def rating_distribution(region: Region | None = None, scores: list[BarrierScore] | None = None) -> dict[str, int]:
     """H/M/L counts, optionally for one region. Always returns all three keys so
-    a zero count is visible rather than missing.
+    a zero count is visible rather than missing. `scores`: current_scores() the caller already read.
     """
     counts = {"H": 0, "M": 0, "L": 0}
-    for score in current_scores():
+    for score in current_scores() if scores is None else scores:
         if region is None or score.region is region:
             counts[score.rating.value] += 1
     return counts

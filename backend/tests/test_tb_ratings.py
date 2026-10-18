@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from collections import Counter
+from datetime import UTC, date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,7 +11,8 @@ from fastapi.testclient import TestClient
 from arp.api.deps import settings_dep
 from arp.api.main import app
 from arp.config import Settings, get_settings
-from arp.transition_barrier import dataset
+from arp.transition_barrier import dataset, ratings
+from arp.transition_barrier.rule_book import sign_rule_book
 from tests.test_tb_derivation import (  # noqa: F401  (env is a fixture)
     API,
     CELL,
@@ -199,7 +201,8 @@ def test_stale_item_does_not_roll_back(client):
     decide(client, A_ANALYST, newer, KEY)
     decide(client, A_APPROVER, newer, KEY)
     assert latest(client)["latest_result"]["rating"] == "L" and scores(client)["rating"] == "L"
-    decide(client, A_ANALYST, older, KEY)  # first review only: not final
+    r = attempt(client, A_ANALYST, older)  # derived when the cell was H; it is L now
+    assert (r.status_code, r.json()["detail"]) == (409, STALE)
     assert scores(client)["rating"] == "L"
     decide(client, A_APPROVER, older, KEY, "reject")
     assert scores(client)["rating"] == "L"
@@ -210,9 +213,13 @@ def test_older_item_decided_before_the_newer_one_loses(client):
     older = derive(as_user(client, A_ANALYST))
     enter(as_user(client, B_APPROVER), "price", 9, "D1", 16)
     newer = derive(as_user(client, A_ANALYST))
-    for run_id in (older, newer):
-        decide(client, A_ANALYST, run_id, KEY)
-        decide(client, A_APPROVER, run_id, KEY)
+    decide(client, A_ANALYST, older, KEY)
+    decide(client, A_APPROVER, older, KEY)
+    r = attempt(client, A_ANALYST, newer)  # derived when the cell was H; it is M now
+    assert (r.status_code, r.json()["detail"]) == (409, STALE)
+    again = derive(as_user(client, A_ANALYST))  # M -> L
+    decide(client, A_ANALYST, again, KEY)
+    decide(client, A_APPROVER, again, KEY)
     assert scores(client)["rating"] == "L"
 
 
@@ -241,3 +248,90 @@ def test_ac131_hand_rated_matrix_cells(bundled):
     for s in dataset.load_scores():
         cell = cells[s.code][s.region.value]
         assert {k: cell[k] for k in s.model_dump(mode="json")} == {**s.model_dump(mode="json"), **NEW}
+
+
+STALE = "the cell's rating changed since this result; derive again"
+FINAL = "this item is final; derive the cell again"
+
+
+def attempt(client, who, run_id, decision="approve"):
+    """One decision on the cell's item in `run_id`, returned as the response (the caller checks the status)."""
+    c = as_user(client, who)
+    etag = c.get(f"/api/review/runs/{run_id}/items/{KEY}/context").json()["etag"]
+    reason = "confirmed" if decision == "approve" else "wrong_value"
+    return c.post(f"/api/review/runs/{run_id}/items/{KEY}/decision", json={"decision": decision, "reason_code": reason, "context_etag": etag})
+
+
+def bulk(client, who, run_id):
+    c = as_user(client, who)
+    etag = c.get(f"/api/review/runs/{run_id}/items/{KEY}/context").json()["etag"]
+    r = c.post("/api/extraction/items/bulk-accept", json={"run_id": run_id, "items": [{"item_key": KEY, "context_etag": etag}]})
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def stale_unchanged_item(client):
+    """An `unchanged` H item, then a newer `changed` H -> M item that a.analyst and a.approver ratify."""
+    defaults(as_user(client, B_APPROVER))  # price 72: H, unchanged
+    older = derive(as_user(client, A_ANALYST))
+    enter(as_user(client, B_APPROVER), "price", 30, "D1", 13)  # replaces the D1 price
+    newer = derive(as_user(client, A_ANALYST))
+    decide(client, A_ANALYST, newer, KEY)
+    decide(client, A_APPROVER, newer, KEY)
+    assert scores(client)["rating"] == "M"
+    return older
+
+
+def test_stale_unchanged_item_cannot_undo_a_ratified_change(client):
+    older = stale_unchanged_item(client)
+    r = attempt(client, B_ANALYST, older)
+    assert (r.status_code, r.json()["detail"]) == (409, STALE)
+    assert attempt(client, B_ANALYST, older, "reject").status_code == 200  # a reject changes nothing
+    s = scores(client)
+    assert (s["rating"], s["basis"], s["ratified_by"]) == ("M", "derived", "a.approver")
+
+
+def test_bulk_accept_refuses_a_stale_unchanged_item(client):
+    older = stale_unchanged_item(client)
+    assert bulk(client, B_ANALYST, older) == {"accepted": 0, "second_review": [], "refused": [{"item_key": KEY, "reason": STALE}]}
+    s = scores(client)
+    assert (s["rating"], s["ratified_by"]) == ("M", "a.approver")
+
+
+def test_a_final_item_is_not_decided_again(client):
+    run_id = ratify_change(client)
+    decide(client, A_APPROVER, run_id, KEY)
+    for who, decision in ((B_ANALYST, "reject"), (A_APPROVER, "approve")):
+        r = attempt(client, who, run_id, decision)
+        assert (r.status_code, r.json()["detail"]) == (409, FINAL)
+    assert bulk(client, B_ANALYST, run_id) == {"accepted": 0, "second_review": [], "refused": [{"item_key": KEY, "reason": FINAL}]}
+    s = scores(client)
+    assert (s["rating"], s["basis"], s["ratified_by"]) == ("M", "derived", "a.approver")
+
+
+def test_matrix_distribution_counts_its_own_cells(client):
+    decide(client, A_APPROVER, ratify_change(client), KEY)
+    matrix = as_user(client, A_ANALYST).get(f"{API}/matrix").json()
+    by_region = {r: Counter(c[r]["rating"] for c in matrix["cells"].values()) for r in matrix["regions"]}
+    overall = sum(by_region.values(), Counter())
+    assert matrix["distribution"]["overall"] == {k: overall[k] for k in "HML"}
+    assert all(matrix["distribution"][r] == {k: n[k] for k in "HML"} for r, n in by_region.items())
+    assert matrix["cells"]["STL-R1"]["European Union"]["rating"] == "M"
+
+
+def test_one_ratings_pass_per_request(client, monkeypatch):
+    built = []
+    real = ratings.Ratings.__init__
+    monkeypatch.setattr(ratings.Ratings, "__init__", lambda self, rs: (built.append(1), real(self, rs))[1])
+    derive(as_user(client, A_ANALYST), [EU, US, ("STL-R1", "China")])
+    assert len(built) == 1
+    built.clear()
+    assert as_user(client, A_ANALYST).get(f"{API}/matrix").status_code == 200
+    assert len(built) == 1
+
+
+def test_signing_without_changing_the_criterion_flags_nothing(client, env):  # noqa: F811
+    decide(client, A_APPROVER, ratify_change(client), KEY)
+    assert sign_rule_book(env[1], "owner", date(2026, 10, 18)) == 8  # STL-R1's rules are as they were
+    dataset.reset_caches()
+    assert latest(client)["flags"] == []

@@ -7,7 +7,7 @@ from arp.orchestration.job_manager import JobManager
 from arp.orchestration.review_queue import queue_for_review
 from arp.schemas.transition_barrier import BarrierRefreshFinding
 from arp.storage.run_store import RunStore
-from arp.transition_barrier.dataset import filter_scores
+from arp.transition_barrier.dataset import current_scores
 from arp.transition_barrier.refresh.eurlex import build_client, fetch_version
 from arp.transition_barrier.refresh.reconciler import is_auto_applicable, reconcile
 from arp.transition_barrier.refresh.router import RoutedSource, automatable_sources, coverage_summary
@@ -51,6 +51,7 @@ async def execute_refresh_run(run_id: str, *, settings: Settings, run_store: Run
     job_manager = JobManager(run_store)
     routed: list[RoutedSource] = automatable_sources()
     findings: list[BarrierRefreshFinding] = []
+    scores = current_scores()  # one read of the ratings for the whole run
 
     async with build_client() as client:
         for source in routed:
@@ -59,7 +60,8 @@ async def execute_refresh_run(run_id: str, *, settings: Settings, run_store: Run
                 reconcile(score, fetched, recorded_point_in_time=score.last_verified)
                 for code in source.source.used_by_criteria
                 for region in source.regions
-                for score in filter_scores(code=code, region=region)
+                for score in scores
+                if score.code == code and score.region == region
             ]
 
             needs_review = 0

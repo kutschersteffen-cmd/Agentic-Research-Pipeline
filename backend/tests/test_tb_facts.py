@@ -7,8 +7,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from arp.api.auth import current_user
+from arp.api.deps import get_run_store
 from arp.api.main import app
 from arp.config import get_settings
+from arp.storage.run_store import RunStore
 from arp.transition_barrier import dataset, store
 from arp.transition_barrier.facts import pdf_pages
 from arp.transition_barrier.rule_book import load_rule_book
@@ -34,7 +36,9 @@ def fixture_dir(tmp_path, monkeypatch, pg):
     monkeypatch.setenv("ARP_TRANSITION_BARRIER_DATA_DIR", str(target))
     get_settings.cache_clear()
     dataset.reset_caches()
+    app.dependency_overrides[get_run_store] = lambda: RunStore(pg, tmp_path / "runs")  # a choice runs a derivation
     yield target
+    app.dependency_overrides.pop(get_run_store, None)
     app.dependency_overrides.pop(current_user, None)
     get_settings.cache_clear()
     dataset.reset_caches()
@@ -183,6 +187,20 @@ def test_document_is_served(client):
     assert r.status_code == 200 and r.headers["content-type"] == "application/pdf"
     assert r.content == pdf and out["id"]
     assert client.get("/api/transition-barrier/documents/999").status_code == 404
+
+
+def test_document_is_not_sniffed(client):
+    enter(client, "price", 72, "D1", 12)
+    r = client.get(f"/api/transition-barrier/documents/{values()[0].document_id}")
+    assert (r.status_code, r.headers["x-content-type-options"]) == (200, "nosniff")
+
+
+def test_document_without_its_blob_is_404(client):
+    enter(client, "price", 72, "D1", 12)
+    doc_id = values()[0].document_id
+    shutil.rmtree(get_settings().blob_store_dir)  # the stored bytes are gone, the database row stays
+    r = client.get(f"/api/transition-barrier/documents/{doc_id}")
+    assert (r.status_code, r.json()) == (404, {"detail": "Document not found"})
 
 
 @pytest.mark.parametrize("name", ["报告.pdf", 'a"b\r\nX-Evil: 1.pdf'])

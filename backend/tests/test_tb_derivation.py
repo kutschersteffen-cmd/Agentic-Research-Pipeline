@@ -197,14 +197,15 @@ def test_ac37_conflict_item_lists_values_in_order(client):
 def choose(client, d1_id):
     r = as_user(client, A_ANALYST).post(f"{CELL}/choices", json={"fact": "price", "value_id": d1_id, "reason": "newer data"})
     assert r.status_code == 201, r.text
+    return r.json()
 
 
 def test_ac51_ac53_ac139_choice(client):
     d1_id = conflict(client)
     derive(as_user(client, A_ANALYST))
-    choose(client, d1_id)
-    derive(as_user(client, A_ANALYST))
+    out = choose(client, d1_id)  # the choice alone re-derives the cell
     result = latest(client)["latest_result"]
+    assert result["run_id"] == out["run_id"]
     assert result["rating"] == "H"
     assert price_clause(result) == f"Effective carbon price = 72 USD/tCO2 ({D1_TITLE}, p. 12): pass."  # AC-51
     derive(as_user(client, A_ANALYST))
@@ -293,14 +294,15 @@ def test_approved_not_rated_ratifies_nothing(client):
 
 
 def test_newest_final_decision_wins(client):
-    defaults(as_user(client, B_APPROVER), price=30, price_page=13)
+    defaults(as_user(client, B_APPROVER))  # price 72: H, unchanged
     older = derive(as_user(client, A_ANALYST))
-    enter(as_user(client, B_APPROVER), "price", 9, "D1", 16)
+    enter(as_user(client, B_APPROVER), "price", "72.005", "D1", 15)  # still H, from another figure
     newer = derive(as_user(client, A_ANALYST))
     for run_id in (newer, older):  # the older item is approved last, so its decision is the latest
-        decide(client, A_ANALYST, run_id, "STL-R1:European Union")
-        decide(client, A_APPROVER, run_id, "STL-R1:European Union")
-    assert latest(client)["latest_result"]["rating"] == "L" and latest(client)["rating"] == "M"
+        decide(client, A_ANALYST, run_id, "STL-R1:European Union")  # `unchanged`, both derived from H: allowed
+    cell = latest(client)
+    assert price_clause(cell["latest_result"]) == f"Effective carbon price = 72.01 USD/tCO2 ({D1_TITLE}, p. 15): pass."
+    assert f"Effective carbon price = 72 USD/tCO2 ({D1_TITLE}, p. 12)" in cell["evidence"]
 
 
 def test_unknown_cell_404(client):

@@ -63,8 +63,8 @@ class Ratings:
         self._bundled = {(s.code, s.region.value): s for s in load_scores()}
 
     @cached_property
-    def _version(self) -> int:
-        return load_rule_book(data_dir())[0].version
+    def _criteria(self) -> dict[str, CriterionRules]:
+        return load_rule_book(data_dir())[0].criteria
 
     def latest(self, code: str, region: str) -> Result | None:
         """The result of the newest finished derivation run that covered the cell."""
@@ -83,9 +83,9 @@ class Ratings:
         if not self._ratified.get(key):
             return CellView(**{**bundled, "flags": flags})
         decided_at, row, result = self._ratified[key][-1]
-        if result.rule_book_version < self._version:
-            flags.append(f"Rules changed since this rating (v{result.rule_book_version})")
         rules = CriterionRules.model_validate(result.snapshot)  # the rules it was derived with, not today's
+        if rules.model_dump(mode="json") != self._criteria[code].model_dump(mode="json"):  # only this criterion's rules count
+            flags.append(f"Rules changed since this rating (v{result.rule_book_version})")
         return CellView(
             **{**bundled, "rating": result.rating, "confidence": result.confidence, "evidence": cell_evidence(result),
                "source": cell_source(result, rules), "last_verified": decided_at[:10], "basis": "derived",

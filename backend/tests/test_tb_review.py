@@ -47,9 +47,10 @@ def env(tmp_path, pg):
 
 def queue(env, i: int, kind: str, *, entered_by=()):
     rs, _, run_id = env
-    proposed = "M" if kind == "changed" else "H"
+    current = "H" if i == 0 else "L"  # the shipped hand ratings: an approve needs the item's `current` to be the cell's
+    proposed = {"changed": "M", "unchanged": current}.get(kind)
     queue_for_review(rs, run_id, cell(i), {
-        "kind": kind, "code": "STL-R1", "region": REGIONS[i], "current": "H", "proposed": proposed,
+        "kind": kind, "code": "STL-R1", "region": REGIONS[i], "current": current, "proposed": proposed,
         "values": [], "result_key": f"{cell(i)}:r1", "entered_by": list(entered_by), "rule_book_version": 7,
     })
 
@@ -162,6 +163,18 @@ def test_ac67_refusals(env):
     assert {state(env, cell(i)) for i in range(3)} == {"pending"}
 
 
+def test_bulk_refuses_items_without_a_proposed_rating(env):
+    queue(env, 1, "not_rated")
+    queue(env, 2, "conflict")
+    r = bulk(env, A_ANALYST, [cell(1), cell(2)])
+    assert r.status_code == 200, r.text
+    assert r.json() == {
+        "accepted": 0, "second_review": [],
+        "refused": [{"item_key": cell(i), "reason": "no rating proposed"} for i in (1, 2)],
+    }
+    assert {state(env, cell(i)) for i in (1, 2)} == {"pending"}
+
+
 def test_bulk_stale_etag_refuses_only_that_item(env):
     queue(env, 1, "unchanged")
     queue(env, 2, "unchanged")
@@ -206,10 +219,10 @@ def _extraction(rs):
 
 def test_ac134_extraction_second_review_unchanged(env):
     _extraction(env[0])
-    env[1].second_review_sample_rate = 1.0
     key = "ISS1:f1:2024-12-31"
-    r = decide(env, A_ANALYST, APPROVE, key=key, run_id="ext1")
-    assert (r.json()["state"], r.json()["second_reasons"]) == ("first_done", ["sample"])
+    assert decide(env, A_ANALYST, REJECT, key=key, run_id="ext1").json()["state"] == "final"
+    r = decide(env, A_ANALYST, APPROVE, key=key, run_id="ext1")  # overturns its own final outcome: a published change
+    assert (r.json()["state"], r.json()["second_reasons"]) == ("first_done", ["published_change"])
     r = decide(env, B_ANALYST, APPROVE, key=key, run_id="ext1")
     assert r.status_code == 200 and r.json()["state"] == "second_done"
 

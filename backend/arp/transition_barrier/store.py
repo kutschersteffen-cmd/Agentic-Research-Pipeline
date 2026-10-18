@@ -80,6 +80,8 @@ def document(doc_id: int, blobs=None) -> tuple[dict, bytes] | None:
             return None
         meta = _row(row)
     blobs = blobs or blob_store_for(IndexingConfig.from_settings(get_settings()))
+    if not blobs.exists(meta["content_key"]):  # removed or expired from the blob store
+        return None
     return meta, blobs.get(meta["content_key"])
 
 

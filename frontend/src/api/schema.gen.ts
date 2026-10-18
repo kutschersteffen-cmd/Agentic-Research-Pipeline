@@ -5965,7 +5965,7 @@ export interface paths {
         put?: never;
         /**
          * Add Choice
-         * @description For a conflict, the analyst picks which value counts, with a written reason.
+         * @description For a conflict, the analyst picks which value counts, with a written reason; the cell is derived again with it.
          */
         post: operations["add_choice_api_transition_barrier_cells__code___region__choices_post"];
         delete?: never;
