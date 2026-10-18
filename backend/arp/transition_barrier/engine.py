@@ -13,6 +13,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from arp.transition_barrier.render import _with_unit, render_group
 from arp.transition_barrier.rule_book import CriterionRules
 
 MAX_COMBINATIONS = 1000
@@ -46,6 +47,7 @@ class Value:
 
 class ConditionResult(BaseModel):
     fact: str
+    text: str = ""
     outcome: str  # pass | fail | unknown | mixed (combinations disagree)
     clause: str = ""
 
@@ -77,6 +79,34 @@ def fact_confidence(tier: str | None, as_of: date | None, max_age_days: int | No
     return "high" if tier == "primary" and fresh else "medium"
 
 
+def _show(value, unit: str | None) -> str:
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    if isinstance(value, date):
+        return value.isoformat()
+    return _with_unit(value, unit) if isinstance(value, (int, float)) else str(value)
+
+
+def _cite(v: Value) -> str:
+    where = f"entered by {v.entered_by}" if not v.machine_checked else f"p. {v.page}" if v.page else v.locator
+    return f"{v.document}, {where}" if where else str(v.document)
+
+
+def _entry(v: Value) -> dict:
+    shown = None if v.value is None else _show(v.value, v.unit)
+    entry = asdict(v)
+    if isinstance(v.value, date):
+        entry["value"] = v.value.isoformat()  # JSON-ready: the entry goes into a JSONB column
+    return {**entry, "shown": shown, "extracted": shown}  # extracted differs from shown only after conversion
+
+
+def _leaf_nodes(node: dict) -> list[dict]:
+    for key in ("all", "any"):
+        if key in node:
+            return [leaf for child in node[key] for leaf in _leaf_nodes(child)]
+    return [node]
+
+
 def _lowest(confidences) -> str:
     return min(confidences, key=_RANK.__getitem__, default="low")
 
@@ -98,6 +128,17 @@ class _Combo:
         self.region = region
         self.picked = picked
         self.computed: dict[str, Value] = {}
+        self.inputs: dict[Value, tuple[Value, Value]] = {}  # a computed value -> the two values it came from
+
+    def describe(self, v: Value | None) -> str | None:
+        """`<shown> (<cite>)`, or `<shown> from <input> and <input>` for a computed value."""
+        if v is None:
+            return None
+        shown = _show(v.value, v.unit)
+        if v not in self.inputs:
+            return f"{shown} ({_cite(v)})"
+        a, b = (f"{self.facts[i.fact].label} = {self.describe(i)}" for i in self.inputs[v])
+        return f"{shown} from {a} and {b}"
 
     def resolve(self, fid: str) -> tuple[Value | None, list[str]]:
         """The value of a fact, or the labels that keep it from having one."""
@@ -120,13 +161,14 @@ class _Combo:
             machine_checked=a.machine_checked and b.machine_checked, counted=reason is None, reason=reason,
         )  # fmt: skip
         self.computed[fid] = v
+        self.inputs[v] = (a, b)
         return (None, [f.label]) if reason else (v, [])
 
     def leaf(self, node: dict) -> dict:
         fact = self.facts[node["fact"]]
         left, missing = self.resolve(node["fact"])
         opens: list[str] = []
-        right = None
+        right = other = None
         if "param" in node:
             p = self.params[node["param"]]
             if p.status == "open":
@@ -135,18 +177,20 @@ class _Combo:
                 override = p.by_region.get(self.region)
                 right = override.value if override else p.value
         elif "other_fact" in node:
-            right, more = self.resolve(node["other_fact"])
+            other, more = self.resolve(node["other_fact"])
+            right = other
             missing += more
         else:
             right = node["value"]
+        seen = {"fact": node["fact"], "left": self.describe(left), "other": self.describe(other)}
         if missing or opens:
-            return {"fact": node["fact"], "outcome": "unknown", "missing": missing, "opens": opens}
+            return {**seen, "outcome": "unknown", "missing": missing, "opens": opens}
         kind = fact.type
         if "other_fact" in node:
             right = right.value
         right = [_coerce(r, kind) for r in right] if isinstance(right, list) else _coerce(right, kind)
         ok = _OPS[node["op"]](_coerce(left.value, kind), right)
-        return {"fact": node["fact"], "outcome": "pass" if ok else "fail", "missing": [], "opens": []}
+        return {**seen, "outcome": "pass" if ok else "fail", "missing": [], "opens": []}
 
     def group(self, node: dict, leaves: list[dict]) -> str:
         if "all" not in node and "any" not in node:
@@ -189,6 +233,34 @@ def _in_order(labels, order: list[str]) -> list[str]:
     return sorted(set(labels), key=order.index)
 
 
+def _clause(node: dict, rules: CriterionRules, seen: list[dict], outcome: str) -> str:
+    """One condition's sentence; `seen` holds its leaf from every value combination."""
+    labels = {f.id: f.label for f in rules.facts}
+    lefts = list(dict.fromkeys(lf["left"] for lf in seen if lf["left"]))
+    if not lefts:
+        return f"{labels[node['fact']]} not found: unknown."
+    text = f"{labels[node['fact']]} = {', '.join(lefts)}"
+    if "other_fact" in node:
+        others = list(dict.fromkeys(lf["other"] for lf in seen if lf["other"]))
+        text += f" vs {labels[node['other_fact']]}" + (f" = {', '.join(others)}" if others else " not found")
+    return f"{text}: {outcome}."
+
+
+def cell_evidence(result: Result) -> str:
+    """The detail of H, then the detail of M when H failed."""
+    h, m = result.levels.get("H"), result.levels.get("M")
+    return "" if h is None else f"{h.detail} {m.detail}" if h.outcome == "fail" else h.detail
+
+
+def cell_source(result: Result, rules: CriterionRules) -> str:
+    """The distinct titles the counted values cite, in the rule book's fact order."""
+    order = {f.id: i for i, f in enumerate(rules.facts)}
+    cited = sorted(
+        (e for e in result.values if e["counted"] and e["document"] and e["fact"] in order), key=lambda e: order[e["fact"]]
+    )
+    return "; ".join(dict.fromkeys(e["document"] for e in cited))
+
+
 def derive(
     rules: CriterionRules,
     region: str,
@@ -206,7 +278,7 @@ def derive(
         if v.counted and v.fact in known:
             counted.setdefault(v.fact, []).append(v)
     confidence = _lowest(v.confidence for vs in counted.values() for v in vs)
-    entries = [asdict(v) for v in values]
+    entries = [_entry(v) for v in values]
 
     def result(rating, levels=None, missing=(), opens=()):
         return Result(
@@ -228,18 +300,26 @@ def derive(
         combo = _Combo(rules, region, {v.fact: v for v in pick})
         runs.append(combo.run(rules.levels))
         for v in combo.computed.values():
-            entry = asdict(v)
+            entry = _entry(v)
             if entry not in entries:
                 entries.append(entry)
 
     levels = {}
     for name in ("H", "M"):
         per_run = [r["levels"][name] for r in runs]
-        conditions = [
-            ConditionResult(fact=per_run[0][1][i]["fact"], outcome=_merge([p[1][i]["outcome"] for p in per_run]))
-            for i in range(len(per_run[0][1]))
-        ]
-        levels[name] = LevelResult(outcome=_merge([p[0] for p in per_run]), conditions=conditions)
+        conditions = []
+        for i, node in enumerate(_leaf_nodes(rules.levels[name])):
+            seen = [p[1][i] for p in per_run]
+            outcome = _merge([lf["outcome"] for lf in seen])
+            conditions.append(ConditionResult(
+                fact=node["fact"], text=render_group(node, rules, region), outcome=outcome,
+                clause=_clause(node, rules, seen, outcome),
+            ))  # fmt: skip
+        sentence = render_group(rules.levels[name], rules, region)
+        detail = " ".join([f"{name}: {sentence}.", *(c.clause for c in conditions)])
+        levels[name] = LevelResult(
+            outcome=_merge([p[0] for p in per_run]), text=sentence, detail=detail, conditions=conditions
+        )  # fmt: skip
 
     ratings = {r["rating"] for r in runs}
     rating = ratings.pop() if len(ratings) == 1 else "not_rated" if "not_rated" in ratings else "conflict"
