@@ -1,18 +1,21 @@
-// Builds the Transition Barrier Assessment report straight from the normalized
-// JSON, so the document cannot drift from the data it describes.
+// Builds the Transition Barrier Assessment report from `arp transition-barrier
+// export`, so the document shows the same matrix and rubrics as the app.
 const fs = require("fs");
-const path = require("path");
+
+const [OUT, EXPORT] = process.argv.slice(2);
+if (!OUT || !EXPORT) {
+  console.error("Usage: node scripts/build_transition_barrier_report.js <out.docx> <export.json>");
+  console.error("Make the export with: arp transition-barrier export --out <export.json>");
+  process.exit(1);
+}
+
 const {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
   Table, TableRow, TableCell, WidthType, ShadingType, BorderStyle, PageBreak,
   ExternalHyperlink, PageOrientation,
 } = require("docx");
 
-const DATA = path.resolve(__dirname, "..", "backend", "arp", "transition_barrier", "data");
-const read = (f) => JSON.parse(fs.readFileSync(path.join(DATA, f), "utf8"));
-const criteria = read("criteria_schema.json").criteria;
-const scores = read("assessment_scores.json").scores;
-const registry = read("source_registry.json").sources;
+const { criteria, scores, sources: registry } = JSON.parse(fs.readFileSync(EXPORT, "utf8"));
 
 // Landscape A4 content width, in DXA. 1440 DXA = 1 inch.
 const PAGE_W = 16838, PAGE_H = 11906, MARGIN = 720;
@@ -233,8 +236,12 @@ children.push(tbl(mw, ["Code", "Criterion", ...REGIONS],
 
 // ----------------------------------------------------------------- sources
 children.push(new Paragraph({ children: [new PageBreak()] }));
-children.push(p("The 86 sources", { heading: HeadingLevel.HEADING_1, after: 160 }));
-children.push(p("Grouped by access pattern — how the source can actually be retrieved, which determines whether re-verification can be automated. Only the 15 legal/regulatory sources are automated today; the other 71 require manual verification.", { after: 200 }));
+const entries = Object.entries(registry);
+const nLegal = entries.filter(([, v]) => v.access_pattern === "legal_regulatory_text").length;
+const nNoUrl = entries.filter(([, v]) => !v.url).length;
+const nLinks = criteria.reduce((n, c) => n + c.primary_sources.length, 0);
+children.push(p(`The ${entries.length} sources`, { heading: HeadingLevel.HEADING_1, after: 160 }));
+children.push(p(`Grouped by access pattern — how the source can actually be retrieved, which determines whether re-verification can be automated. Only the ${nLegal} legal/regulatory sources are automated today; the other ${entries.length - nLegal} require manual verification. A source marked Manual cannot be fetched as a document; the reason is given.`, { after: 200 }));
 
 const PATTERN_LABEL = {
   legal_regulatory_text: "Legal / regulatory text",
@@ -250,11 +257,10 @@ const PATTERN_NOTE = {
   industry_tracker_database: "Not automated. Mostly subscription or session-gated.",
   periodic_pdf_report: "Not automated. Annual PDFs where the locator field doubles as the extraction instruction.",
   government_agency_publication: "Not automated. The weakest single-source reliability, especially for non-English sources.",
-  company_disclosure: "Deliberately never auto-extracted — discovery and triage only. These are the 7 sources with no fixed URL, since which company matters depends on who is being assessed.",
+  company_disclosure: `Deliberately never auto-extracted — discovery and triage only. These are the ${nNoUrl} sources with no fixed URL, since which company matters depends on who is being assessed.`,
 };
 const ORDER = ["legal_regulatory_text", "structured_api_or_dashboard", "industry_tracker_database", "periodic_pdf_report", "government_agency_publication", "company_disclosure"];
 
-const entries = Object.entries(registry);
 const sw = (() => {
   const name = 3600, pub = 2600, crit = 1900, cad = 2100;
   return [name, pub, crit, cad, CONTENT_W - name - pub - crit - cad];
@@ -273,7 +279,7 @@ ORDER.forEach((pat) => {
       cell(v.publisher, { width: sw[1] }),
       cell([...v.used_by_criteria].sort().join(", "), { width: sw[2] }),
       cell(v.refresh_cadence, { width: sw[3] }),
-      cell(v.locator, { width: sw[4] }),
+      cell(v.manual ? `Manual: ${v.manual_reason} ${v.locator}` : v.locator, { width: sw[4] }),
     ] })),
   ));
 });
@@ -283,17 +289,16 @@ children.push(new Paragraph({ children: [new PageBreak()] }));
 children.push(p("Known data issues", { heading: HeadingLevel.HEADING_1, after: 160 }));
 children.push(p("Recorded rather than silently patched, so a reader can judge what still needs a human.", { after: 160 }));
 [
-  "Two source URLs look copy-pasted from a neighbouring entry and have been left as-is rather than guessed at: US_SAF_Grand_Challenge_IRA_40B_tax_credit points at sustainability.gov/buyclean (the Buy Clean entry's URL), and IEA_CCUS_Projects_Database points at co2re.co (the Global CCS Institute's URL). Both need a human to re-source.",
-  "95 criterion-source links dedupe to 86 registry entries. The registry keeps per-criterion duplicates for company disclosures rather than sharing one key.",
+  `${nLinks} criterion-source links dedupe to ${entries.length} registry entries. The registry keeps per-criterion duplicates for company disclosures rather than sharing one key.`,
   "Source count corrected from 7 to 6 for structured_api_or_dashboard. The original notes claimed 7 and named an LSE_Grantham_CCLW entry that does not exist in the registry.",
   "Criterion codes normalised to hyphens. Shipping originally used underscores (SHP_T1); all 35 now match the same pattern, pinned by a schema constraint and a test.",
-  "7 of 95 source entries carry no URL. These are the company_disclosure entries, which correctly record a retrieval methodology instead.",
+  `${nNoUrl} of ${nLinks} source entries carry no URL. These are the company_disclosure entries, which correctly record a retrieval methodology instead.`,
 ].forEach((t) => children.push(rich([{ text: "•  " }, { text: t }], { after: 100 })));
 
 const doc = new Document({
   creator: "Agentic Research Pipeline",
   title: "Transition Barrier Assessment",
-  description: "105-cell sector x region transition-feasibility matrix: 35 criteria x EU/US/China, with 86 verified sources.",
+  description: `105-cell sector x region transition-feasibility matrix: 35 criteria x EU/US/China, with ${Object.keys(registry).length} verified sources.`,
   styles: {
     default: {
       heading1: { run: { size: 34, bold: true, color: ACCENT, font: "Calibri" }, paragraph: { spacing: { before: 240, after: 140 } } },
@@ -332,8 +337,7 @@ function repack(buf) {
 }
 
 Packer.toBuffer(doc).then((buf) => {
-  const out = process.argv[2] || "Transition_Barrier_Assessment_Report.docx";
   const final = repack(buf);
-  fs.writeFileSync(out, final);
-  console.log("wrote", out, (final.length / 1024).toFixed(1) + " KB");
+  fs.writeFileSync(OUT, final);
+  console.log("wrote", OUT, (final.length / 1024).toFixed(1) + " KB");
 });

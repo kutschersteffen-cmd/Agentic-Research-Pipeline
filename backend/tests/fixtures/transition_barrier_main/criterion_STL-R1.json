@@ -1,0 +1,140 @@
+{
+  "criterion": {
+    "code": "STL-R1",
+    "sector": "Steel",
+    "category": "Regulation",
+    "criterion": "Effective carbon price on steel production incl. border adjustment",
+    "metric": "ETS/carbon tax price applicable to steel production, adjusted for free allocation phase-out and any import border levy (e.g. CBAM)",
+    "unit": "USD/tCO2 net of free allocation",
+    "rating_rubric": {
+      "H": "Effective carbon price (net of free allocation) exceeds USD 50/tCO2 with border levy protecting domestic producers from unpriced imports",
+      "M": "Carbon price applies but free allocation still material, or no border levy protecting against unpriced competition",
+      "L": "No material carbon price on steel production"
+    },
+    "primary_sources": [
+      {
+        "source_name": "EU CBAM Regulation (2023/956) and implementing acts",
+        "publisher": "European Commission / Official Journal of the EU",
+        "url": "https://eur-lex.europa.eu/eli/reg/2023/956/oj/eng",
+        "access_pattern": "legal_regulatory_text",
+        "refresh_cadence": "check for amending acts quarterly; consolidated text updates automatically at EUR-Lex",
+        "locator": "Full regulation text; Annex I for sectoral scope (steel, cement, aluminium, fertilisers, electricity, hydrogen); definitive regime phase-in from 1 January 2026"
+      },
+      {
+        "source_name": "EU ETS free allocation benchmarks - steel",
+        "publisher": "European Commission DG CLIMA",
+        "url": "https://eur-lex.europa.eu/eli/reg_impl/2021/447/2026-03-18/eng",
+        "access_pattern": "legal_regulatory_text",
+        "refresh_cadence": "annual (benchmark periods run in multi-year blocks; check for new implementing regulation at each period start)",
+        "locator": "Annex tables give benchmark values (allowances per tonne of product) by sector including steel hot metal, cement clinker, ammonia"
+      },
+      {
+        "source_name": "China national ETS sector coverage roadmap",
+        "publisher": "Ministry of Ecology and Environment (China)",
+        "url": "https://www.mee.gov.cn/",
+        "access_pattern": "government_agency_publication",
+        "refresh_cadence": "quarterly given active expansion phase",
+        "locator": "November 2025 MEE allocation plan for steel/cement/aluminium sectors confirms 2024-2025 free allocation basis and 2027 target for absolute cap transition"
+      },
+      {
+        "source_name": "NGFS Climate Scenarios",
+        "publisher": "Network for Greening the Financial System (127 central banks and supervisors), hosted by IIASA",
+        "url": "https://www.ngfs.net/ngfs-scenarios-portal/data-resources/",
+        "access_pattern": "structured_api_or_dashboard",
+        "refresh_cadence": "new phase roughly every 12-18 months (Phase 5 released Nov 2024; short-term scenarios added May 2025)",
+        "locator": "Downloadable in CSV/XLSX; gives projected carbon prices, policy phase-out dates, and macro-financial impacts under Orderly/Disorderly/Hot House World scenario families — used here to source the carbon price trajectory that the H/M/L threshold in this criterion's rubric is benchmarked against."
+      }
+    ]
+  },
+  "scores": [
+    {
+      "code": "STL-R1",
+      "sector": "Steel",
+      "category": "Regulation",
+      "criterion": "Effective carbon price on steel production incl. border adjustment",
+      "region": "European Union",
+      "rating": "H",
+      "confidence": "high",
+      "evidence": "EU ETS price in the effective range plus CBAM definitive-regime entry from 2026, phasing out free allocation for steel in parallel, creates the H-level combination of price and border protection",
+      "source": "EU CBAM Regulation 2023/956; European Commission DG CLIMA free allocation benchmarks",
+      "last_verified": "2026-08-14"
+    },
+    {
+      "code": "STL-R1",
+      "sector": "Steel",
+      "category": "Regulation",
+      "criterion": "Effective carbon price on steel production incl. border adjustment",
+      "region": "United States",
+      "rating": "L",
+      "confidence": "high",
+      "evidence": "No federal carbon price applies to steel production and no equivalent border adjustment mechanism is in force",
+      "source": "World Bank Carbon Pricing Dashboard",
+      "last_verified": "2026-08-14"
+    },
+    {
+      "code": "STL-R1",
+      "sector": "Steel",
+      "category": "Regulation",
+      "criterion": "Effective carbon price on steel production incl. border adjustment",
+      "region": "China",
+      "rating": "L",
+      "confidence": "high",
+      "evidence": "China's national ETS was expanded in 2025 to formally include the steel sector (alongside cement and aluminium smelting), raising national coverage from ~40% to ~60%+ of emissions. However, the post-expansion carbon price (CNY 66.9-97/tonne through late 2024-2025, approx. USD 9-14/tonne) remains far below the level needed to close the green steel cost gap: analysis shows a carbon price of approximately CNY 890/tonne (~USD 124/t) would be needed for DRI-H2 cost parity at current green hydrogen prices — roughly 9x the current price and 1.6x the EU ETS level. First compliance deadline for the newly covered sectors is end-2025, covering 2024 emissions, with free allocation dominating in the initial 2024-2026 period.",
+      "source": "Ministry of Ecology and Environment (China) allocation plan (Nov 2025); ICAP China National ETS tracker; IEEFA ETS reforms analysis; Transition Asia sector brief (Sept 2025) for the 890 yuan/t breakeven calculation",
+      "last_verified": "2026-08-14"
+    }
+  ],
+  "sources": [
+    {
+      "key": "EU_CBAM_Regulation_2023_956_and_implementing_acts",
+      "source_name": "EU CBAM Regulation (2023/956) and implementing acts",
+      "publisher": "European Commission / Official Journal of the EU",
+      "used_by_criteria": [
+        "STL-R1"
+      ],
+      "access_pattern": "legal_regulatory_text",
+      "refresh_cadence": "check for amending acts quarterly; consolidated text updates automatically at EUR-Lex",
+      "locator": "Full regulation text; Annex I for sectoral scope (steel, cement, aluminium, fertilisers, electricity, hydrogen); definitive regime phase-in from 1 January 2026",
+      "url": "https://eur-lex.europa.eu/eli/reg/2023/956/oj/eng"
+    },
+    {
+      "key": "EU_ETS_free_allocation_benchmarks_steel",
+      "source_name": "EU ETS free allocation benchmarks - steel",
+      "publisher": "European Commission DG CLIMA",
+      "used_by_criteria": [
+        "STL-R1"
+      ],
+      "access_pattern": "legal_regulatory_text",
+      "refresh_cadence": "annual (benchmark periods run in multi-year blocks; check for new implementing regulation at each period start)",
+      "locator": "Annex tables give benchmark values (allowances per tonne of product) by sector including steel hot metal, cement clinker, ammonia",
+      "url": "https://eur-lex.europa.eu/eli/reg_impl/2021/447/2026-03-18/eng"
+    },
+    {
+      "key": "China_national_ETS_sector_coverage_roadmap",
+      "source_name": "China national ETS sector coverage roadmap",
+      "publisher": "Ministry of Ecology and Environment (China)",
+      "used_by_criteria": [
+        "STL-R1"
+      ],
+      "access_pattern": "government_agency_publication",
+      "refresh_cadence": "quarterly given active expansion phase",
+      "locator": "November 2025 MEE allocation plan for steel/cement/aluminium sectors confirms 2024-2025 free allocation basis and 2027 target for absolute cap transition",
+      "url": "https://www.mee.gov.cn/"
+    },
+    {
+      "key": "NGFS_Scenario_Explorer",
+      "source_name": "NGFS Climate Scenarios",
+      "publisher": "Network for Greening the Financial System (127 central banks and supervisors), hosted by IIASA",
+      "used_by_criteria": [
+        "CEM-R1",
+        "CHM-R1",
+        "PWR-R1",
+        "STL-R1"
+      ],
+      "access_pattern": "structured_api_or_dashboard",
+      "refresh_cadence": "new phase roughly every 12-18 months (Phase 5 released Nov 2024; short-term scenarios added May 2025)",
+      "locator": "Downloadable in CSV/XLSX; gives projected carbon prices, policy phase-out dates, and macro-financial impacts under Orderly/Disorderly/Hot House World scenario families — used here to source the carbon price trajectory that the H/M/L threshold in this criterion's rubric is benchmarked against.",
+      "url": "https://www.ngfs.net/ngfs-scenarios-portal/data-resources/"
+    }
+  ]
+}

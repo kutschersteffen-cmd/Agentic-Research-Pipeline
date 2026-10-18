@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import date
 from pathlib import Path
 
 import typer
@@ -10,19 +11,79 @@ from arp.cli._shared import _run_store
 from arp.config import get_settings
 from arp.schemas.transition_barrier import Pillar, Region
 from arp.transition_barrier.dataset import (
+    data_dir,
     filter_scores,
     load_criteria,
+    load_scores,
     load_source_registry,
     rating_distribution,
     sources_for_criterion,
 )
 from arp.transition_barrier.refresh.pipeline import RefreshDisabledError, run_refresh
 from arp.transition_barrier.refresh.router import coverage_summary, route_sources
+from arp.transition_barrier.render import render_rule_book_md
+from arp.transition_barrier.rule_book import RuleBookError, RuleBookNotFound, load_rule_book, sign_rule_book
 from arp.transition_barrier.staleness import build_staleness_report
+from arp.transition_barrier.validation import STALE_FINGERPRINT, count_open, read_and_validate
 
 transition_barrier_app = typer.Typer(
     help="Transition Barrier Assessment: the 105-cell sector x region transition-feasibility matrix (35 criteria x EU/US/China)."
 )
+
+rules_app = typer.Typer(help="The rule book: validate it, sign a new version, render it as a document.")
+transition_barrier_app.add_typer(rules_app, name="rules")
+
+
+def _fail(lines: list[str]) -> typer.Exit:
+    for line in lines:
+        typer.echo(line)
+    return typer.Exit(code=1)
+
+
+def _load_raw(directory: Path | None) -> tuple[Path, dict, dict, list[str]]:
+    """Raw rule book and schema plus their validation errors. Models are only built after this passes."""
+    directory = directory or data_dir()
+    try:
+        return (directory, *read_and_validate(directory))
+    except (RuleBookNotFound, RuleBookError) as exc:
+        raise _fail([str(exc)]) from None
+
+
+@rules_app.command("validate")
+def rules_validate(data_dir_opt: Path = typer.Option(None, "--data-dir", help="Directory with rule_book.json.")) -> None:
+    """Check the rule book against the criteria schema; print every error, one per line."""
+    _, raw, _, errors = _load_raw(data_dir_opt)
+    if errors:
+        raise _fail(errors)
+    typer.echo(f"Rule book v{raw['version']}: OK, {len(raw['criteria'])} criteria, {count_open(raw)} open thresholds")
+
+
+@rules_app.command("sign")
+def rules_sign(
+    approved_by: str = typer.Option(..., "--approved-by", help="Who approved this version."),
+    data_dir_opt: Path = typer.Option(None, "--data-dir", help="Directory with rule_book.json."),
+) -> None:
+    """Bump the version, re-fingerprint and log the approval. A stale fingerprint is what this fixes."""
+    directory, _, _, errors = _load_raw(data_dir_opt)
+    blocking = [e for e in errors if not e.startswith(STALE_FINGERPRINT)]
+    if blocking:
+        raise _fail(blocking)
+    typer.echo(f"Signed rule book v{sign_rule_book(directory, approved_by, date.today())}")
+
+
+@rules_app.command("render")
+def rules_render(
+    data_dir_opt: Path = typer.Option(None, "--data-dir", help="Directory with rule_book.json."),
+    out: Path = typer.Option(Path("docs/transition_barrier/RULE_BOOK.md"), help="Where to write the document."),
+) -> None:
+    """Write the rule book as a Markdown document."""
+    directory, _, schema, errors = _load_raw(data_dir_opt)
+    if errors:
+        raise _fail(errors)
+    rule_book, _ = load_rule_book(directory)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(render_rule_book_md(rule_book, schema), encoding="utf-8")
+    typer.echo(f"Wrote {out}")
 
 
 @transition_barrier_app.command("criteria")
@@ -32,7 +93,10 @@ def transition_barrier_criteria(
     out: Path = typer.Option(None, help="Write the criteria as JSON here; omit to print a summary."),
 ) -> None:
     """List the 35 criteria with their metrics and H/M/L rubrics."""
-    criteria = load_criteria()
+    try:
+        criteria = load_criteria()
+    except (RuleBookNotFound, RuleBookError) as exc:
+        raise _fail([str(exc)]) from None
     if sector:
         criteria = [c for c in criteria if c.sector == sector]
     if pillar:
@@ -44,6 +108,24 @@ def transition_barrier_criteria(
     for c in criteria:
         typer.echo(f"{c.code}  [{c.sector} / {c.category.value}]  {c.criterion}  ({c.unit})")
     typer.echo(f"\n{len(criteria)} criteria")
+
+
+@transition_barrier_app.command("export")
+def transition_barrier_export(
+    out: Path = typer.Option(..., help="Where to write the JSON export."),
+) -> None:
+    """Write the current criteria (with rendered rubrics), scores and sources as JSON, for the Word report."""
+    try:
+        criteria = load_criteria()
+    except (RuleBookNotFound, RuleBookError) as exc:
+        raise _fail([str(exc)]) from None
+    payload = {
+        "criteria": [c.model_dump(mode="json") for c in criteria],
+        "scores": [s.model_dump(mode="json") for s in load_scores()],
+        "sources": {s.key: s.model_dump(mode="json", exclude={"key"}) for s in load_source_registry()},
+    }
+    out.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    typer.echo(f"Wrote {out}")
 
 
 @transition_barrier_app.command("scores")
@@ -71,7 +153,7 @@ def transition_barrier_sources(
     access_pattern: str = typer.Option(None, help="Filter by access pattern, e.g. 'legal_regulatory_text'."),
     out: Path = typer.Option(None, help="Write the matching sources as JSON here."),
 ) -> None:
-    """List the 86 deduplicated sources behind the matrix."""
+    """List the 89 deduplicated sources behind the matrix."""
     sources = sources_for_criterion(code) if code else load_source_registry()
     if access_pattern:
         sources = [s for s in sources if s.access_pattern.value == access_pattern]

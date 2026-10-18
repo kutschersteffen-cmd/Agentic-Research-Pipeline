@@ -1233,6 +1233,14 @@
    "BarrierCriterion": {
     "description": "One of the 35 transition-barrier criteria: a sector x pillar pair with a\nmeasurable metric and an explicit H/M/L rubric. Static reference data, not a\nper-run record. See arp/transition_barrier/dataset.py for the loader.",
     "properties": {
+     "actions": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Actions",
+      "type": "array"
+     },
      "category": {
       "$ref": "#/components/schemas/Pillar"
      },
@@ -1246,10 +1254,28 @@
       "title": "Criterion",
       "type": "string"
      },
+     "facts": {
+      "default": [],
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Facts",
+      "type": "array"
+     },
      "metric": {
       "description": "What is actually measured, in enough detail to re-derive the rating.",
       "title": "Metric",
       "type": "string"
+     },
+     "params": {
+      "default": [],
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Params",
+      "type": "array"
      },
      "primary_sources": {
       "items": {
@@ -1262,12 +1288,28 @@
       "additionalProperties": {
        "type": "string"
       },
-      "description": "The H/M/L thresholds, verbatim from the research tool.",
+      "description": "The H/M/L sentences, rendered from the rule book's conditions.",
       "propertyNames": {
        "$ref": "#/components/schemas/Rating"
       },
       "title": "Rating Rubric",
       "type": "object"
+     },
+     "rationale": {
+      "default": "",
+      "title": "Rationale",
+      "type": "string"
+     },
+     "rule_book_version": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rule Book Version"
      },
      "sector": {
       "title": "Sector",
@@ -9884,10 +9926,52 @@
      "access_pattern": {
       "$ref": "#/components/schemas/AccessPattern"
      },
+     "cadence": {
+      "anyOf": [
+       {
+        "enum": [
+         "annual",
+         "quarterly"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cadence"
+     },
+     "key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Key"
+     },
      "locator": {
       "description": "Where in the source the figure sits. Doubles as the extraction instruction for a refresh run.",
       "title": "Locator",
       "type": "string"
+     },
+     "manual": {
+      "default": false,
+      "title": "Manual",
+      "type": "boolean"
+     },
+     "manual_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Manual Reason"
      },
      "publisher": {
       "title": "Publisher",
@@ -9900,6 +9984,16 @@
      "source_name": {
       "title": "Source Name",
       "type": "string"
+     },
+     "tier": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Tier"
+       },
+       {
+        "type": "null"
+       }
+      ]
      },
      "url": {
       "anyOf": [
@@ -10772,7 +10866,7 @@
     "type": "string"
    },
    "RegistrySource": {
-    "description": "One of the 86 deduplicated sources behind the matrix. A derived view over\nthe primary_sources[] entries in criteria_schema.json, which stays\nauthoritative if the two ever disagree.",
+    "description": "One of the 94 deduplicated sources behind the matrix. A derived view over\nthe primary_sources[] entries in criteria_schema.json, which stays\nauthoritative if the two ever disagree.",
     "properties": {
      "access_pattern": {
       "$ref": "#/components/schemas/AccessPattern"
@@ -10785,6 +10879,22 @@
      "locator": {
       "title": "Locator",
       "type": "string"
+     },
+     "manual": {
+      "default": false,
+      "title": "Manual",
+      "type": "boolean"
+     },
+     "manual_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Manual Reason"
      },
      "publisher": {
       "title": "Publisher",
@@ -14017,6 +14127,16 @@
     ],
     "title": "ThresholdRule",
     "type": "object"
+   },
+   "Tier": {
+    "description": "How far a source may ground a fact (rule book design, section 2).",
+    "enum": [
+     "primary",
+     "secondary",
+     "news"
+    ],
+    "title": "Tier",
+    "type": "string"
    },
    "TierDefinition": {
     "properties": {
@@ -31682,7 +31802,7 @@
   },
   "/api/transition-barrier/sources": {
    "get": {
-    "description": "The 86 deduplicated sources behind the matrix.",
+    "description": "The 94 deduplicated sources behind the matrix.",
     "operationId": "list_sources_api_transition_barrier_sources_get",
     "responses": {
      "200": {
