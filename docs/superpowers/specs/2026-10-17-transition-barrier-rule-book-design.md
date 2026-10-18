@@ -210,9 +210,10 @@ fossil LCOE (`PWR-T1`), or SAF capacity as a share of jet fuel demand (`AVI-T1`)
 those ratios. So a fact may be computed from other facts of the same criterion: `{"id", "label",
 "formula": "ratio" | "ratio_pct" | "difference", "inputs": [a, b]}`.
 
-- `ratio` = a ÷ b and `ratio_pct` = a ÷ b × 100. Both need a and b in the same unit, and the result
-  has no unit (`ratio_pct` is in percent points).
-- `difference` = a − b, in the inputs' shared unit.
+- `ratio` = a ÷ b and `ratio_pct` = a ÷ b × 100. Both need a and b in the same unit. A `ratio` has no
+  unit and shows as a bare number (`0.75`); a `ratio_pct` is in percent points and shows with `%`
+  (`75%`).
+- `difference` = a − b, in the inputs' shared unit, and shows with that unit (`-15 USD/MWh`).
 - A computed fact has no quote of its own. It counts when every input counts, and its confidence is
   the lowest of its inputs'. When it doesn't count, the missing facts named are its uncounted inputs.
 
@@ -394,8 +395,9 @@ longer read. Edition checks run inside `transition_barrier_search` runs.
 
 **Policy-change search.** A search runs per cell, monthly and on demand. The monthly search is one
 run of type `transition_barrier_search` covering every cell. A scheduled job, following the interval
-pattern of `portfolio/monitoring/scheduler.py`, starts it when the refresh flag is on and either no such run exists, or the latest one finished at
-least `ARP_TRANSITION_BARRIER_SEARCH_INTERVAL_DAYS` (default 30) days ago (30 days counts).
+pattern of `portfolio/monitoring/scheduler.py`, starts it when the refresh flag is on and either no scheduled run exists, or the latest scheduled
+run finished at least `ARP_TRANSITION_BARRIER_SEARCH_INTERVAL_DAYS` (default 30) days ago (30 days
+counts). On-demand searches for single cells don't count towards the interval.
 
 Queries are built from the criterion, the region and the fact definitions. Each result's tier comes
 from `domain_tiers`; a domain not in the list is `unclassified`.
@@ -471,7 +473,9 @@ the value, unit, quote, page and source.
 
 An upload missing any of its four fields is refused with HTTP 422
 `An uploaded document needs a title, publisher, as-of date and tier.` The checks run in this order:
-required fields, tier, number in quote, quote in the uploaded document. The analyst's
+required fields, tier, number in quote, quote in the uploaded document. A newer analyst fact for the
+same fact and the same source replaces the earlier one in later derivations; both stay in the
+history. The analyst's
 name is recorded on the fact.
 
 **Choosing between conflicting values.** For a conflict, an analyst can choose which value counts with
@@ -770,11 +774,20 @@ source and a rationale.
 |---|---|---|
 | D1 | 4 | `The carbon price applies to steel producers.` |
 | D1 | 12 | `The effective carbon price was USD 72/tCO2.` |
+| D1 | 8 | `Renewable LCOE was USD 45/MWh.` |
+| D1 | 9 | `New-build fossil LCOE was USD 60/MWh.` |
 | D1 | 13 | `The floor price was USD 30/tCO2.` |
+| D1 | 14 | `The effective carbon price was USD 45/tCO2.` |
+| D1 | 15 | `The effective carbon price was USD 72.005/tCO2.` |
+| D1 | 16 | `The effective carbon price fell to USD 9/tCO2.` |
 | D2 | 3 | `The border levy applies from 1 January 2026.` |
+| D3 | 7 | `Estimates range from USD 30/tCO2 to USD 65/tCO2.` |
 | D3 | 8 | `The carbon price applies to steel.` |
 | D3 | 9 | `The effective carbon price was USD 9/tCO2.` |
 | D3 | 10 | `No border levy is in force.` |
+| D3 | 11 | `The effective carbon price was USD 40/tCO2.` |
+| D3 | 12 | `New-build fossil LCOE was USD 60/MWh.` |
+| D3 | 13 | `A border levy is in force.` |
 
 **Users:** `a.analyst` and `b.analyst` (role analyst), `a.approver` and `b.approver` (role approver).
 
@@ -789,12 +802,12 @@ A row that gives only a value keeps the default citation, except `price` = 30, w
 and `price` = 9, which cites D3 p. 9. "Derived" means a derivation run for the cell has finished.
 Result fields named in a Then column are read from the latest result in `GET /cells/<code>/<region>`.
 
-In the review and ratification rows, the counted values are analyst facts entered by `b.approver`,
-with their documents uploaded, unless the row says otherwise. Every uploaded document is sent with its
-title, as-of date and tier from the documents table and publisher `Fixture`, unless the row says
-otherwise.
+Unless a row says a value is extracted, or says otherwise, counted values are analyst facts entered
+by `b.approver`, with their documents uploaded and each value's quote taken from the quotes table.
+Every uploaded document is sent with its title, as-of date and tier from the documents table (or the
+row) and publisher `Fixture`, unless the row says otherwise.
 
-### Engine (phase 2)
+### Engine (phase 2, except AC-9 in phase 3)
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
@@ -806,23 +819,26 @@ otherwise.
 | AC-6 | `levy` has no counted value | the cell is derived | result rating `not_rated`; missing facts `["Border levy in force"]` | unit |
 | AC-7 | the defaults | the cell is derived | the `H` detail is exactly `H: Effective carbon price >= 50 USD/tCO2 and Border levy in force is Yes. Effective carbon price = 72 USD/tCO2 (EU ETS Market Report 2026, p. 12): pass. Border levy in force = Yes (CBAM Regulation 2023/956, p. 3): pass.` | unit |
 | AC-8 | AC-6's Given | the cell is derived | the `H` detail ends with `Border levy in force not found: unknown.` | unit |
-| AC-9 | `levy` cited by locator `Art. 36` with no page | the cell is derived | the `levy` clause is `Border levy in force = Yes (CBAM Regulation 2023/956, Art. 36): pass.` | unit |
+| AC-9 | `levy` extracted from D2 as an HTML document, cited by locator `Art. 36` with no page | the cell is derived | the `levy` clause is `Border levy in force = Yes (CBAM Regulation 2023/956, Art. 36): pass.` | unit |
 | AC-10 | the defaults | the cell is derived | the result records rule book version 7, its run id, and a snapshot equal to RB's `STL-R1` entry | unit |
 | AC-11 | refresh flag off; no source document fetched; the default values entered as analyst facts with D1 and D2 uploaded; the model client raises on any call | the cell is derived | result rating `H` | unit |
 | AC-12 | RB3; `price` = 30; `applies` has no counted value | the cell is derived | result rating `M` | unit |
 | AC-13 | RB3; `price` = 9; `applies` has no counted value | the cell is derived | result rating `not_rated`; missing facts `["Carbon price applies to steel"]` | unit |
 | AC-14 | RB4 | `GET /criteria/STL-R1` | `rating_rubric.M` = `Carbon price applies to steel is Yes and (Effective carbon price >= 10 USD/tCO2 or Border levy in force is Yes)` | unit |
-| AC-15 | RB5; region China; `price` = 45 | the cell is derived | result rating `H` | unit |
-| AC-16 | RB5; region European Union; `price` = 45 | the cell is derived | result rating `M` | unit |
+| AC-15 | RB5; region China; `price` = 45 (D1, p. 14) | the cell is derived | result rating `H` | unit |
+| AC-143 | AC-15's Given | the cell is derived | the `H` detail starts `H: Effective carbon price >= 40 USD/tCO2 and Border levy in force is Yes. Effective carbon price = 45 USD/tCO2 (EU ETS Market Report 2026, p. 14): pass.` | unit |
+| AC-16 | RB5; region European Union; `price` = 45 (D1, p. 14) | the cell is derived | result rating `M` | unit |
 | AC-17 | RB5 | `GET /criteria/STL-R1` | `rating_rubric.H` = `Effective carbon price >= 50 USD/tCO2 (China: 40 USD/tCO2) and Border levy in force is Yes` | unit |
 | AC-18 | RB6 | the cell is derived; then `GET /cells/STL-R1/European Union` | result rating `not_rated`; `flags` contains `Not re-derived: open threshold High price level` | unit |
 | AC-19 | RB7; the defaults | the cell is derived; then `GET /cells/STL-R1/European Union` | result rating `H`; `flags` `[]` | unit |
 | AC-20 | RB6 | `GET /criteria/STL-R1` | `rating_rubric.H` = `Effective carbon price >= [open: High price level] and Border levy in force is Yes` | unit |
 | AC-21 | RB2; `ren` = 45 (D1, p. 8), `fos` = 60 (D1, p. 9) | the cell is derived | the `ratio` clause is `LCOE ratio = 0.75 from Renewable LCOE = 45 USD/MWh (EU ETS Market Report 2026, p. 8) and New-build fossil LCOE = 60 USD/MWh (EU ETS Market Report 2026, p. 9): pass.` | unit |
 | AC-22 | RB2; `ren` = 45; `fos` has no counted value | the cell is derived | result rating `not_rated`; missing facts `["New-build fossil LCOE"]` | unit |
-| AC-23 | RB2; `ren` = 45 (D1); `fos` = 60 (D3) | the cell is derived | `ratio` confidence `medium` | unit |
+| AC-23 | RB2; `ren` = 45 (D1, p. 8); `fos` = 60 (D3, p. 12) | the cell is derived | `ratio` confidence `medium` | unit |
 | AC-24 | RB8; AC-21's values | the cell is derived | the `H` clause is `Renewable LCOE = 45 USD/MWh (EU ETS Market Report 2026, p. 8) vs New-build fossil LCOE = 60 USD/MWh (EU ETS Market Report 2026, p. 9): pass.` | unit |
 | AC-25 | RB8 | `GET /criteria/STL-R1` | `rating_rubric.H` = `Renewable LCOE <= New-build fossil LCOE` | unit |
+| AC-146 | RB2 with `ratio` = `ratio_pct(ren, fos)` and `p_parity` = 100 (unit `%`); AC-21's values | the cell is derived | the `ratio` clause starts `LCOE ratio = 75% from` | unit |
+| AC-147 | RB2 with `ratio` = `difference(ren, fos)`, `p_parity` = 0 USD/MWh; AC-21's values | the cell is derived | the `ratio` clause starts `LCOE ratio = -15 USD/MWh from` | unit |
 
 ### Fact checks and conversions (phase 3, except AC-35 in phase 2)
 
@@ -837,7 +853,7 @@ otherwise.
 | AC-32 | `price` extracted as 66.9 CNY/tCO2 with its own as-of date 2024-06-30 | the cell is derived | the `price` clause shows `9.3 USD/tCO2 (66.9 CNY/tCO2)` | unit |
 | AC-33 | `price` extracted as 66.9 CNY/tCO2 with its own as-of date 2023-06-30 | the cell is derived | `price` is not counted, with reason `No CNY to USD rate for 2023 or earlier` | unit |
 | AC-34 | `price` extracted as 66.9 KRW/tCO2 | the cell is derived | `price` is not counted, with reason `Unit not convertible: KRW/tCO2` | unit |
-| AC-35 | `price` = 72.005 | the cell is derived | the `price` clause shows `72.01 USD/tCO2` | unit |
+| AC-35 | `price` = 72.005 (D1, p. 15) | the cell is derived | the `price` clause shows `72.01 USD/tCO2` | unit |
 
 ### Several values and confidence (phase 2)
 
@@ -849,7 +865,7 @@ otherwise.
 | AC-39 | AC-38's Given | the cell is derived | result confidence `medium` | unit |
 | AC-40 | `levy` = No; `price` counted as 72 (D1, p. 12) and 30 (D3, p. 7) | the cell is derived | result rating `M`; the `price` clause in `H` is `Effective carbon price = 72 USD/tCO2 (EU ETS Market Report 2026, p. 12), 30 USD/tCO2 (Steel Policy Tracker, p. 7): mixed.` | unit |
 | AC-41 | `levy` has no counted value; `price` counted as 72 (D1) and 30 (D3) | the cell is derived | result rating `not_rated`; missing facts `["Border levy in force"]` | unit |
-| AC-42 | `levy` counted from D3 instead of D2 | the cell is derived | result confidence `medium` | unit |
+| AC-42 | `levy` = Yes from D3, p. 13, instead of D2 | the cell is derived | result confidence `medium` | unit |
 | AC-43 | D1's as-of date is 2025-09-01 (414 days before the run) | the cell is derived | `price` confidence `medium` | unit |
 | AC-44 | D1's as-of date is 2025-10-20 (365 days before the run) | the cell is derived | `price` confidence `high` | unit |
 | AC-45 | `applies` entered by `a.analyst` citing D1, without a document | the cell is derived | result rating `H`; result confidence `low`; `applies` marked `not machine-checked` | unit |
@@ -862,6 +878,7 @@ otherwise.
 | AC-47 | as `a.analyst` | `POST .../facts`: `price` 72, quote `USD 72/tCO2`, page 12, an uploaded PDF "Extra report" (tier primary, as-of 2026-05-01) that doesn't contain the quote | HTTP 422 `Quote not found in the uploaded document.` | unit |
 | AC-48 | as `a.analyst` | `POST .../facts`: `price` 72, quote `USD 72/tCO2`, page 12, an uploaded document "Carbon Weekly", publisher `Fixture`, as-of 2026-09-01, tier `news` | HTTP 422 `News cannot ground a fact.` | unit |
 | AC-49 | as `a.analyst` | `POST .../facts`: `price` 72, quote `The effective carbon price was USD 72/tCO2.`, page 12, D1 uploaded (tier primary, as-of 2026-03-31); then the cell is derived | `price` counted with confidence `high` | unit |
+| AC-145 | as `a.analyst` | `POST .../facts`: `price` 72, quote `about USD 70`, page 12, D1 uploaded with no publisher and tier `news` | HTTP 422 `An uploaded document needs a title, publisher, as-of date and tier.` | unit |
 | AC-50 | AC-36's conflict, as `a.analyst` | `POST /cells/STL-R1/European Union/choices` choosing D1's value with an empty reason | HTTP 422 `A reason is required.` | unit |
 | AC-51 | AC-36's conflict | `a.analyst` chooses D1's value with reason `newer data` | the cell is re-derived with rating `H`; its `price` clause cites only EU ETS Market Report 2026 | unit |
 | AC-52 | AC-51 | `GET /cells/STL-R1/European Union` | the history has an entry with `a.analyst`, `72 USD/tCO2, EU ETS Market Report 2026` and `newer data` | unit |
@@ -886,9 +903,9 @@ otherwise.
 | AC-65 | refresh flag off; `b.analyst` entered the default values for European Union, and for United States and China `price` 9 (D3, p. 9), `applies` Yes (D3, p. 8), `levy` No (D3, p. 10); one `POST /derive` with the three cells; all three items are `unchanged` | `a.analyst` bulk-accepts the three items | each cell shows `basis` `derived` and `ratified_by` `a.analyst` | unit |
 | AC-66 | one `POST /derive` for European Union with `price` 30 (`changed`) and United States with `price` 9, `applies` Yes, `levy` No (`unchanged`) | `a.analyst` bulk-accepts both items | the `changed` item is refused with reason `a rating change is not bulk-accepted`; STL-R1 European Union still shows `H`; STL-R1 United States shows `basis` `derived`, `ratified_by` `a.analyst` | unit |
 | AC-67 | AC-65's Given | `b.analyst` bulk-accepts the three items | each item is refused with reason `you entered a fact this result uses` | unit |
-| AC-68 | AC-57, then `price` = 9 derived and ratified (`a.analyst` approves, `a.approver` confirms) | `GET /cells/STL-R1/European Union` | the history's ratings are, in order: `H` hand-rated 2026-08-14, `M` ratified by `a.approver`, `L` ratified by `a.approver` | unit |
-| AC-69 | AC-4's result | `GET /cells/STL-R1/European Union` | rating `H`; `flags` contains `Not re-derived: missing Effective carbon price` | unit |
-| AC-70 | AC-69 | `a.analyst` dismisses the item; then `GET /cells/STL-R1/European Union` | rating `H`; `flags` still contains `Not re-derived: missing Effective carbon price` | unit |
+| AC-68 | AC-57, then `b.approver` enters `price` 9 citing D1, p. 16, which replaces the earlier D1 value; the cell is derived and ratified (`a.analyst` approves, `a.approver` confirms) | `GET /cells/STL-R1/European Union` | the history's ratings are, in order: `H` hand-rated 2026-08-14, `M` ratified by `a.approver`, `L` ratified by `a.approver` | unit |
+| AC-69 | AC-4's result | `GET /cells/STL-R1/European Union` | the cell's current rating (not the latest result's) is `H`; `flags` contains `Not re-derived: missing Effective carbon price` | unit |
+| AC-70 | AC-69 | `a.analyst` dismisses the item; then `GET /cells/STL-R1/European Union` | the cell's current rating is `H`; `flags` still contains `Not re-derived: missing Effective carbon price` | unit |
 | AC-140 | AC-69, then the cell is derived with the defaults and its item not yet decided | `GET /cells/STL-R1/European Union` | `flags` `[]` | unit |
 | AC-71 | each of AC-49, AC-51, AC-57, AC-63 and AC-65, run separately from a fresh copy of F | the action finishes | every file in that copy is byte-identical to before | unit |
 | AC-72 | AC-57, then RB with `p_high` = 60 signed as version 8 and the app restarted | `GET /cells/STL-R1/European Union` | `flags` contains `Rules changed since this rating (v7)` | unit |
@@ -948,10 +965,11 @@ otherwise.
 | AC-114 | the refresh flag is off | `POST /search` for the cell | HTTP 409; no request to any source or search provider | unit |
 | AC-115 | the refresh flag is off; no source document fetched; the default values entered as analyst facts | `POST /derive` for the cell; the run finishes | result rating `H`; the result notes `Sources not fetched: refresh is disabled`; no request to any source or search provider | unit |
 | AC-116 | the companies table has N rows | D1 is fetched and stored for STL-R1 | the companies table still has N rows | unit |
-| AC-117 | the bundled data directory; refresh flag on; the latest `transition_barrier_search` run finished 31 days ago | the scheduler ticks | one new `transition_barrier_search` run, covering 105 cells | unit |
+| AC-117 | the bundled data directory; refresh flag on; the latest scheduled `transition_barrier_search` run finished 31 days ago | the scheduler ticks | one new `transition_barrier_search` run, covering 105 cells | unit |
 | AC-118 | the same with exactly 30 days | the scheduler ticks | one new search run | unit |
 | AC-119 | the same with 29 days | the scheduler ticks | no new search run | unit |
-| AC-120 | the bundled data directory; refresh flag on; no `transition_barrier_search` run has ever run | the scheduler ticks | one new search run | unit |
+| AC-120 | the bundled data directory; refresh flag on; no scheduled `transition_barrier_search` run has ever run | the scheduler ticks | one new search run | unit |
+| AC-144 | AC-117's Given, plus an on-demand search for STL-R1 China that finished 1 day ago | the scheduler ticks | one new `transition_barrier_search` run, covering 105 cells | unit |
 | AC-121 | AC-117's Given with the refresh flag off | the scheduler ticks | no new search run; no request to any source or search provider | unit |
 
 ### Extraction quality (phase 3)
