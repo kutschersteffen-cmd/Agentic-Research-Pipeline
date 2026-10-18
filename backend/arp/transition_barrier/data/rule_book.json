@@ -2595,24 +2595,24 @@
       }
     },
     "SHP-D1": {
-      "rationale": "The first ships able to burn zero- and near-zero-emission fuels (shp.alt_fuel_vessels) and the plants that make those fuels (shp.green_fuels) need buyers who commit cargo volume and pay the fuel premium; green corridors concentrate that demand on one route. The Global Maritime Forum's 2025 progress report names cargo owners' willingness to pay a higher fuel premium as a key obstacle, which is why H needs committed cargo and a disclosed premium mechanism. The rubric's M 'limited committed volume' is not tested as a number: a region with an announced corridor that fails H is M.",
+      "rationale": "The first ships able to burn zero- and near-zero-emission fuels (shp.alt_fuel_vessels) and the plants that make those fuels (shp.green_fuels) need buyers who commit cargo volume and pay the fuel premium; green corridors concentrate that demand on one route. The Global Maritime Forum's 2025 progress report names cargo owners' willingness to pay a higher fuel premium as a key obstacle, which is why H needs committed cargo and a disclosed premium mechanism on more than one corridor. M needs at least one corridor on the region's main trade routes with a signed cargo commitment; an announced corridor without one is L, as the rubric's L ('no active green corridor commitments') reads. The rubric's 'limited committed volume' is not tested as a number.",
       "actions": [
         "shp.alt_fuel_vessels",
         "shp.green_fuels"
       ],
       "facts": [
         {
-          "id": "announced",
-          "label": "Green corridor announced",
+          "id": "committed_any",
+          "label": "Corridor with signed cargo commitment",
           "type": "boolean",
-          "definition": "At least one green shipping corridor initiative with a port in the region at one end is listed as an active initiative in the Global Maritime Forum's latest Annual Progress Report on Green Shipping Corridors (any stage: Initiation, Exploration, Preparation or Realisation), or has been announced by its participants since that report."
+          "definition": "At least one green shipping corridor initiative on the region's main trade routes (at least one end is one of the region's main container or bulk ports by cargo throughput, as named by the source), listed as an active initiative in the Global Maritime Forum's latest Annual Progress Report on Green Shipping Corridors (any stage: Initiation, Exploration, Preparation or Realisation) or announced by its participants since that report, for which one or more cargo owners have signed a commitment to ship a stated cargo volume on zero- or near-zero-emission vessels or fuels on that corridor (memoranda of understanding and letters of intent do not count), as of the latest report or announcement."
         },
         {
           "id": "qualifying",
           "label": "Corridors with committed cargo and a premium mechanism",
           "type": "number",
           "unit": "corridors",
-          "definition": "Number of green shipping corridor initiatives with a port in the region at one end, active as defined for the announced corridor, for which (a) one or more cargo owners have signed a commitment to ship a stated cargo volume on zero- or near-zero-emission vessels or fuels on that corridor (memoranda of understanding and letters of intent do not count), and (b) the participants have disclosed how the fuel cost premium is paid (for example a green freight surcharge, a book-and-claim purchase, a cost-pooling mechanism or a cargo owners' alliance tender such as ZEMBA's), as of the latest report or announcement.",
+          "definition": "Number of green shipping corridor initiatives on the region's main trade routes (at least one end is one of the region's main container or bulk ports by cargo throughput, as named by the source), active as defined for the corridor with a signed cargo commitment, for which (a) one or more cargo owners have signed a commitment to ship a stated cargo volume on zero- or near-zero-emission vessels or fuels on that corridor (memoranda of understanding and letters of intent do not count), and (b) the participants have disclosed how the fuel cost premium is paid (for example a green freight surcharge, a book-and-claim purchase, a cost-pooling mechanism or a cargo owners' alliance tender such as ZEMBA's), as of the latest report or announcement.",
           "max_age_days": 365
         }
       ],
@@ -2644,7 +2644,7 @@
         "M": {
           "all": [
             {
-              "fact": "announced",
+              "fact": "committed_any",
               "op": "=",
               "value": true
             }
@@ -2792,7 +2792,7 @@
           "value": 30,
           "unit": "%",
           "by_region": {},
-          "rationale": "The rubric's 'material ZEV share within the assessment horizon' has no number. The Global MOU on zero-emission medium- and heavy-duty vehicles, signed by governments since COP26, sets 30% of new sales by 2030 as its interim goal on the way to a full transition by 2040; a standard that requires at least that share matches what its signatories regard as on track. One benchmark is applied to all regions. The MOU covers trucks and buses above 3.5 tonnes and is non-binding; here it serves only as the line.",
+          "rationale": "The rubric's 'material ZEV share within the assessment horizon' has no number. The Global MOU on zero-emission medium- and heavy-duty vehicles, signed by governments since COP26, sets 30% of new sales by 2030 as its interim goal on the way to a full transition by 2040; a standard that requires at least that share matches what its signatories regard as on track. One benchmark is applied to all regions. The 2030 horizon and the scope are imported from the MOU: its 30% covers all medium- and heavy-duty vehicles above 3.5 tonnes, buses included, while the fact here is heavy-truck sales; the MOU is non-binding and serves only as the line. Owner to confirm both.",
           "source": {
             "title": "Global Memorandum of Understanding on Zero-Emission Medium- and Heavy-Duty Vehicles (Global Drive to Zero / CALSTART and the Netherlands, 2021)",
             "url": "https://globaldrivetozero.org/site/wp-content/uploads/2021/11/Global-MOU-ZE-MHDVs.pdf",
@@ -2859,7 +2859,7 @@
           "value": 3.33,
           "unit": "points per 100 km",
           "by_region": {},
-          "rationale": "By 31 December 2030 the EU requires heavy-duty recharging pools on the TEN-T core network in each direction at most 60 km apart, each with at least two recharging points of at least 350 kW: at least 2 points per 60 km, or 3.33 points per 100 km per direction (200 ÷ 60 = 3.333, rounded down). Recital 19 gives the purpose: enough fast recharging points for heavy-duty vehicles 'to ensure full connectivity throughout the Union'. That is the rubric's 'unconstrained long-haul operation'. One benchmark is applied to all regions.",
+          "rationale": "By 31 December 2030 the EU requires heavy-duty recharging pools on the TEN-T core network in each direction at most 60 km apart, each with at least two recharging points of at least 350 kW: at least 2 points per 60 km, or 3.33 points per 100 km per direction (200 ÷ 60 = 3.333; rounding down to 3.33 is deliberately lenient, so a network that just meets the 60 km rule is not missed by rounding). Recital 19 gives the purpose: enough fast recharging points for heavy-duty vehicles 'to ensure full connectivity throughout the Union'. That is the rubric's 'unconstrained long-haul operation'. One benchmark is applied to all regions.",
           "source": {
             "title": "Regulation (EU) 2023/1804 on the deployment of alternative fuels infrastructure (AFIR)",
             "url": "https://eur-lex.europa.eu/eli/reg/2023/1804/oj/eng",
@@ -2896,7 +2896,7 @@
       }
     },
     "OGU-T1": {
-      "rationale": "Leak detection and repair (ogu.ldar) and ending routine flaring (ogu.flaring) are the core upstream methane abatement measures, and they cut methane only where operators actually run them. H needs them across a majority of the region's production; M needs them at the region's largest operators. Production counts where it is located: for the EU, sites in the EU, not North Sea fields outside it run by EU-based companies.",
+      "rationale": "Leak detection and repair (ogu.ldar) and ending routine flaring (ogu.flaring) are the core upstream methane abatement measures, and they cut methane only where operators actually run them. H needs them across a majority of the region's production; M needs them at the region's largest operators, defined in words rather than by a production share; owner to confirm. Production counts where it is located: for the EU, sites in the EU, not North Sea fields outside it run by EU-based companies.",
       "actions": [
         "ogu.ldar",
         "ogu.flaring"
@@ -2954,7 +2954,7 @@
       }
     },
     "OGU-R1": {
-      "rationale": "Without a binding limit or a fee, leak repair (ogu.ldar) and ending routine flaring and venting (ogu.flaring) stay voluntary, and operators that skip them produce more cheaply. A limit or fee in force on existing operations, with penalties, makes abatement the norm; one that applies only to new sources, or whose deadlines lie ahead, is in phase-in. A fee counts only where it can be collected now, so the US Waste Emissions Charge does not count.",
+      "rationale": "Without a binding limit or a fee, leak repair (ogu.ldar) and ending routine flaring and venting (ogu.flaring) stay voluntary, and operators that skip them produce more cheaply. A limit or fee in force on existing operations, with penalties, is H; one that covers only new or modified sources, or whose deadlines lie ahead, is phase-in (M). A fee counts only where it can be collected now, so the US Waste Emissions Charge does not count. Three readings are open for the owner: whether performance standards without a price count as limits (yes per the rubric's 'limit and/or fee'; today's US L reads no), whether a limit covering only new or modified sources counts as in force (H) or phase-in (M, as written here), and whether a fee-only reading is wanted, which would also leave the EU's H, resting on limits, to be re-justified.",
       "actions": [
         "ogu.ldar",
         "ogu.flaring"
