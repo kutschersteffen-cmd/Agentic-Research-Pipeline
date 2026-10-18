@@ -396,13 +396,16 @@ Other sources search through `WebSearchClient` for the source's title with a lat
 the source's domain whose title equals the source's title with a later year is a newer edition. It
 becomes a `new_source` review item that proposes replacing the old entry, and it inherits the old
 entry's tier. Approving it replaces that source for its criterion in every region the old one applied
-to: the old document is no longer read, and `GET /sources` no longer lists it. Edition checks run
+to: the old document is no longer read, and `GET /sources` no longer lists it. A result that is a
+newer edition becomes only the edition item, never also a plain `new_source`. Edition checks run
 inside every `transition_barrier_search` run, for the sources of the cells it covers.
 
 **Policy-change search.** A search runs per cell, monthly and on demand. The monthly search is one
 run of type `transition_barrier_search` covering every cell. A scheduled job, following the interval
 pattern of `portfolio/monitoring/scheduler.py`, calls one scheduler tick (also
-`arp transition-barrier search-tick [--now <ISO datetime>]`). A tick starts the monthly run when the refresh flag is on and either no scheduled run exists, or the latest scheduled
+`arp transition-barrier search-tick [--now <ISO datetime>]`). A run started by a tick at time T is
+recorded as started and finished at T, and the interval compares UTC calendar dates. A tick starts the
+monthly run when the refresh flag is on and either no scheduled run exists, or the latest scheduled
 run finished at least `ARP_TRANSITION_BARRIER_SEARCH_INTERVAL_DAYS` (default 30) days ago (30 days
 counts). On-demand searches for single cells don't count towards the interval.
 
@@ -446,7 +449,8 @@ name.
    - the source's tier may ground a fact; otherwise `News cannot ground a fact`.
 
    A value that fails keeps its failure reason, and both the reviewer and the cell detail show it.
-   The page shown for a value is the page where its quote was found.
+   The page shown for a value is the page where its quote was found. An HTML document has no pages:
+   its values have `page` null and keep the locator the model returned.
 
 **Several values for one fact.** When more than one counted value exists for a fact (two sources, two
 editions), the engine evaluates every combination of values:
@@ -457,7 +461,11 @@ editions), the engine evaluates every combination of values:
 - otherwise the result is a **conflict**: no rating is proposed, and the review item lists each value
   as `<value shown>, <document title>`. This is operating rule 4 of the existing module.
 
-Values are listed in the order of their sources in the registry, then by page.
+Values are listed with registered-source values first, in registry order and then by page, followed
+by values from uploaded documents in the order they were entered, then by page.
+
+**Dates.** The run date, and every age and interval computed from it, come from one clock,
+`transition_barrier.clock.today()`, which tests freeze. The CLI commands take `--now` to set it.
 
 **Fact confidence**, per counted value:
 
@@ -644,9 +652,10 @@ New CLI commands under `arp transition-barrier`:
 - `rules sign --approved-by <name> [--data-dir <dir>]`: bump the version and re-fingerprint.
 - `rules render [--out <file>]`: write `docs/transition_barrier/RULE_BOOK.md`, or the given file.
 - `export --out <file>`: current criteria and scores, for the Word report.
-- `derive --code <code> --region <region>`: start a derivation run for one cell and print its run id.
-- `search --code <code> --region <region>`: run the policy-change search and edition checks for one
-  cell (an on-demand `transition_barrier_search` run).
+- `derive --code <code> --region <region> [--now <ISO date>]`: start a derivation run for one cell
+  and print its run id.
+- `search --code <code> --region <region> [--now <ISO datetime>]`: run the policy-change search and
+  edition checks for one cell (an on-demand `transition_barrier_search` run).
 - `search-tick [--now <ISO datetime>]`: one scheduler tick (section 2).
 - `golden --cases <file> --documents-dir <dir> --min-precision <x> --min-coverage <y>`: prints
   `precision <p>, coverage <c>` (numbers as in section 1) and exits 0 only when both meet their minimum.
@@ -680,7 +689,8 @@ Review decisions use the existing `POST /api/review/runs/{run_id}/items/{item_ke
   - `levels.H` and `levels.M`: `outcome`, `detail`, and `conditions[]`, each with `text` (the rendered
     condition), `outcome` (`pass`, `fail`, `unknown` or `mixed`) and `clause`.
   - `values[]`: `fact`, `value`, `unit`, `shown`, `extracted`, `document`, `page`, `locator`,
-    `confidence`, `machine_checked`, `counted`, `reason`.
+    `confidence`, `machine_checked`, `counted`, `reason`. Each computed fact also has one entry, with
+    `document` and `page` null.
   - `history[]`: `at`, `by`, `kind` (`rating`, `fact`, `choice` or `decision`), plus `rating` and
     `basis` for ratings, `value` (shown with its document) and `reason` for choices.
 - A barrier review item's payload: `kind`; for `changed` and `unchanged`, `current` and `proposed`; for
@@ -843,7 +853,8 @@ stub returns nothing unless a row says otherwise.
 **Defaults**, unless a row says otherwise:
 
 - the region is European Union, and the cell's current rating is the bundled hand rating `H`;
-- the run date is 2026-10-20;
+- the run date is 2026-10-20 (the clock in section 3 frozen at that date);
+- a D1 value is entered before any D3 value;
 - the refresh flag is on, and both second-review sample rates are 0;
 - the counted values are `price` = 72 (D1, p. 12), `applies` = Yes (D1, p. 4) and `levy` = Yes (D2, p. 3).
 
@@ -868,7 +879,7 @@ row) and publisher `Fixture`, unless the row says otherwise.
 | AC-6 | `levy` has no counted value | the cell is derived | result rating `not_rated`; missing facts `["Border levy in force"]` | unit |
 | AC-7 | the defaults | the cell is derived | the `H` detail is exactly `H: Effective carbon price >= 50 USD/tCO2 and Border levy in force is Yes. Effective carbon price = 72 USD/tCO2 (EU ETS Market Report 2026, p. 12): pass. Border levy in force = Yes (CBAM Regulation 2023/956, p. 3): pass.` | unit |
 | AC-8 | AC-6's Given | the cell is derived | the `H` detail ends with `Border levy in force not found: unknown.` | unit |
-| AC-9 | `levy` extracted from D2 as an HTML document, cited by locator `Art. 36` with no page | the cell is derived | the `levy` clause is `Border levy in force = Yes (CBAM Regulation 2023/956, Art. 36): pass.` | unit |
+| AC-9 | the fetch stub serves D2 as HTML containing the p. 3 quote; `levy` extracted from it with locator `Art. 36` | the cell is derived | the `levy` value has `page` null and `locator` `Art. 36`; its clause is `Border levy in force = Yes (CBAM Regulation 2023/956, Art. 36): pass.` | unit |
 | AC-10 | the defaults | the cell is derived | the result records rule book version 7, its run id, and a snapshot equal to RB's `STL-R1` entry | unit |
 | AC-11 | refresh flag off; no source document fetched; the default values entered as analyst facts with D1 and D2 uploaded; the model client raises on any call | the cell is derived | result rating `H` | unit |
 | AC-12 | RB3; `price` = 30; `applies` has no counted value | the cell is derived | result rating `M` | unit |
@@ -883,7 +894,7 @@ row) and publisher `Fixture`, unless the row says otherwise.
 | AC-20 | RB6 | `GET /criteria/STL-R1` | `rating_rubric.H` = `Effective carbon price >= [open: High price level] and Border levy in force is Yes` | unit |
 | AC-21 | RB2; `ren` = 45 (D1, p. 8), `fos` = 60 (D1, p. 9) | the cell is derived | the `ratio` clause is `LCOE ratio = 0.75 from Renewable LCOE = 45 USD/MWh (EU ETS Market Report 2026, p. 8) and New-build fossil LCOE = 60 USD/MWh (EU ETS Market Report 2026, p. 9): pass.` | unit |
 | AC-22 | RB2; `ren` = 45; `fos` has no counted value | the cell is derived | result rating `not_rated`; missing facts `["New-build fossil LCOE"]` | unit |
-| AC-23 | RB2; `ren` = 45 (D1, p. 8); `fos` = 60 (D3, p. 12) | the cell is derived | `ratio` confidence `medium` | unit |
+| AC-23 | RB2; `ren` = 45 (D1, p. 8); `fos` = 60 (D3, p. 12) | the cell is derived | the `values[]` entry for `ratio` has `value` 0.75 and `confidence` `medium` | unit |
 | AC-24 | RB8; AC-21's values | the cell is derived | the `H` clause is `Renewable LCOE = 45 USD/MWh (EU ETS Market Report 2026, p. 8) vs New-build fossil LCOE = 60 USD/MWh (EU ETS Market Report 2026, p. 9): pass.` | unit |
 | AC-25 | RB8 | `GET /criteria/STL-R1` | `rating_rubric.H` = `Renewable LCOE <= New-build fossil LCOE` | unit |
 | AC-146 | RB2 with `ratio` = `ratio_pct(ren, fos)` and `p_parity` = 100 (unit `%`); AC-21's values | the cell is derived | the `ratio` clause starts `LCOE ratio = 75% from` | unit |
@@ -1015,7 +1026,7 @@ row) and publisher `Fixture`, unless the row says otherwise.
 | AC-108 | AC-106 | the runs are listed | exactly one derivation run for STL-R1 European Union created after the search run started | unit |
 | AC-109 | AC-107's item | `a.analyst` rejects it | the cell's `flags` is `[]` | unit |
 | AC-110 | AC-106's Given with the change-check stub answering no | the search runs | the cell's `flags` is `[]` | unit |
-| AC-111 | the search stub returns `https://climate.ec.europa.eu/eu-ets-market-report-2027.pdf` titled "EU ETS Market Report 2027" | `arp transition-barrier search --code STL-R1 --region European Union` | one `new_source` item with that URL, `replaces` `eu_ets_report` and tier `primary` | unit |
+| AC-111 | the search stub returns `https://climate.ec.europa.eu/eu-ets-market-report-2027.pdf` titled "EU ETS Market Report 2027" | `arp transition-barrier search --code STL-R1 --region European Union` | exactly one `new_source` item with that URL, `replaces` `eu_ets_report` and tier `primary` | unit |
 | AC-112 | AC-111's item | `a.approver` approves it | `GET /sources` lists the 2027 edition for `STL-R1` with no region, and no longer lists D1 | unit |
 | AC-113 | the search stub returns `http://169.254.169.254/latest` | the search runs | no request is made to that URL; no review item is created | unit |
 | AC-114 | the refresh flag is off | `POST /search` for the cell | HTTP 409; no request to any source or search provider | unit |
@@ -1025,7 +1036,7 @@ row) and publisher `Fixture`, unless the row says otherwise.
 | AC-118 | the same | `search-tick --now` T + 30 days | one new search run | unit |
 | AC-119 | the same | `search-tick --now` T + 29 days | no new search run | unit |
 | AC-120 | the bundled data directory; refresh flag on; no scheduled `transition_barrier_search` run has ever run | `search-tick` | one new search run | unit |
-| AC-144 | AC-117's Given, plus an on-demand `search` for STL-R1 China that finished at T + 30 days | `search-tick --now` T + 31 days | one new `transition_barrier_search` run, covering 105 cells | unit |
+| AC-144 | AC-117's Given, plus `search --code STL-R1 --region China --now` T + 30 days | `search-tick --now` T + 31 days | one new `transition_barrier_search` run, covering 105 cells | unit |
 | AC-121 | AC-117's Given with the refresh flag off | `search-tick --now` T + 31 days | no new search run; no request to any source or search provider | unit |
 
 ### Extraction quality (phase 3)
@@ -1063,7 +1074,9 @@ through the analyst form.
 | AC-136 | AC-135's Given | Decision Studio loads its transition-barrier source | its 105 ratings equal `assessment_scores.json` | unit |
 | AC-137 | AC-116, run from a fresh copy of F | the fetch finishes | every file in that copy is byte-identical to before | unit |
 | AC-138 | each of AC-102 and AC-106, run separately from a fresh copy of F | the action finishes | every file in that copy is byte-identical to before | unit |
+| AC-155 | the bundled data directory | `GET /criteria/STL-R1` | every field `main` returns, except `rating_rubric`, has the same value as on `main` | unit |
 
-Must not change: cells never re-derived (AC-130, AC-131, AC-135, AC-136), the bundled data files at
+Must not change: the criteria API's existing fields (AC-155), cells never re-derived (AC-130, AC-131,
+AC-135, AC-136), the bundled data files at
 run time (AC-71, AC-137, AC-138), the refresh coverage report (AC-132), the existing refresh's 409 (AC-133), and second
 review for other run types (AC-134).
