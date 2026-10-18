@@ -506,3 +506,17 @@ def test_cli_render_refuses_invalid(fixture_dir, tmp_path):
     assert result.exit_code == 1
     assert "STL-R1: condition names unknown fact 'prices'" in result.output
     assert not out.exists()
+
+
+def test_bundled_sources_have_key_and_tier():
+    data = Path(dataset.__file__).parent / "data"
+    criteria = json.loads((data / "criteria_schema.json").read_text())["criteria"]
+    registry = json.loads((data / "source_registry.json").read_text())["sources"]
+    entries = [(c["code"], s) for c in criteria for s in c["primary_sources"]]
+    assert len(entries) == 95
+    for code, s in entries:
+        assert s.get("key") in registry, (code, s["source_name"])
+        assert code in registry[s["key"]]["used_by_criteria"], (code, s["key"])
+        assert s.get("tier") in {"primary", "secondary"}, (code, s["source_name"])
+        assert s.get("cadence") in {None, "annual", "quarterly"}, (code, s["source_name"])
+    assert {s["key"] for _, s in entries} == set(registry)
