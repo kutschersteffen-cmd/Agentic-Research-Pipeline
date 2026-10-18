@@ -50,7 +50,7 @@ import type {
 } from "../types";
 import { tagQuery } from "../lib/xbrlTags";
 import { encodeRef, factsUrl, type FactFilters } from "../pages/company/companyQuery";
-import type { CompanyFactRow, CompanySearchHit, CompanySummary, FactTrail } from "../types";
+import type { CompanyFactRow, CompanySearchHit, CompanySummary, FactTrail, ThemeLayers } from "../types";
 import type {
   AggregationResult,
   DatasetSummary,
@@ -330,6 +330,8 @@ export const api = {
   startThemeRun: (body: unknown) => request<{ run_id: string; company_count: number }>("/api/themes/runs", { method: "POST", body: JSON.stringify(body) }),
   getThemeResults: (runId: string, offset = 0, limit = 500) =>
     request(`/api/themes/runs/${runId}/results?offset=${offset}&limit=${limit}`),
+  getThemeLayers: (runId: string, asOf: string) =>
+    request<ThemeLayers>(`/api/themes/runs/${encodeURIComponent(runId)}/layers?as_of=${encodeURIComponent(asOf)}`),
   submitThemeReview: (runId: string, body: unknown) =>
     request(`/api/themes/runs/${runId}/review`, { method: "POST", body: JSON.stringify(body) }),
 
