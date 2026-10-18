@@ -177,10 +177,11 @@ After `download_documents`, each `.pdf` gets `check_document(path, company) -> D
 
 - `page_count`: total pages.
 - `reporting_year`: `doc_identity.reporting_year(title, first-page text)`, title from PDF metadata.
-- `company_match`: `"identifier"` if the LEI or ISIN appears; else `"name"` if any line on the
-  pages read matches the company name with `names_match`, or the text contains the company name with
-  its legal suffix removed (case-insensitive); else `"no_text"` if the pages read have under 200
-  characters of text; else `"none"`.
+- `company_match`: `"identifier"` if the LEI or ISIN appears (compared after stripping and
+  upper-casing both); else `"name"` if the text, cleaned with `clean_name`, contains every word of the
+  company's cleaned name as whole words in sequence; else `"no_text"` if the pages read have under 200
+  characters of text; else `"none"`. (Amended 2026-10-18 after the final review: the earlier per-line
+  `names_match` let a one-word line such as "Bank" match "Bank of Ireland Group plc".)
 
 `DiscoveredDocument` gets `company_match`, `page_count`, `reporting_year`, all optional and `None`
 for non-PDF documents and for EDGAR and ESEF documents. A company whose documents include one with
@@ -378,6 +379,7 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
 | AC-87 | W; Wikidata P1278 → H3; EDGAR name search returns no matches; web search returns nothing | identity run | verdict `uncertain`, `flagged_for_review` true, `reason_codes` `["match_ambiguous"]`, `resolved_website` `null` | unit |
 | AC-88 | as AC-20, but Wikidata P1278 → H4 | identity run | `resolved_website` `https://www.testwerke.de/`, verdict `resolved`, confidence 0.95, `match_rule` `ambiguous`, `flagged_for_review` true | unit |
 | AC-89 | W; Wikidata P1278 → H3; the search client would return the H1 URL | discovery run | `homepage_used` `null`, `homepage_check.verdict` `rejected`; the search client receives 0 queries | unit |
+| AC-90 | Company `Bank of Ireland Group plc`, no identifiers; a 30-page PDF whose page 1 is the single line `Bank`, page 2 has 200+ characters of filler with no company name | `check_document(path, company)` | `company_match` `none` | unit |
 
 Must not change: a supplied website is never checked (AC-25) and a company with a supplied website or
 CIK makes no new identity lookup (AC-22, AC-44, AC-47, AC-51); the identifier-rule path without a Wikidata hit
