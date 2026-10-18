@@ -61,3 +61,6 @@ backend/mutants/
 # Stryker work folder and report (.github/scripts/mutation_frontend.py)
 frontend/.stryker-tmp/
 frontend/reports/
+
+# Obsidian vault config
+.obsidian/

@@ -1,0 +1,145 @@
+<title>Codebase Atlas</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="atlas.css">
+<link rel="preload" href="data/graph.json" as="fetch" crossorigin="anonymous">
+
+<header class="top">
+  <div class="brand">
+    <h1 class="brand-name">Codebase Atlas</h1>
+    <span class="brand-repo">Agentic-Research-Pipeline</span>
+  </div>
+  <div class="search">
+    <label class="sr-only" for="q">Search files and symbols</label>
+    <input id="q" type="search" placeholder="Search files, classes, functions" autocomplete="off" spellcheck="false"
+           aria-controls="results" aria-describedby="search-hint">
+    <span id="search-hint" class="sr-only">Results appear below as you type.</span>
+    <ul id="results" class="results" aria-label="Search results" hidden></ul>
+  </div>
+  <dl class="meta">
+    <div><dt>Data</dt><dd id="meta-commit">…</dd></div>
+    <div><dt>Graph built</dt><dd id="meta-built">…</dd></div>
+    <div><dt>Docs built</dt><dd id="meta-docs">…</dd></div>
+  </dl>
+  <nav class="tabs" aria-label="Sections">
+    <button type="button" class="tab" data-tab="explore" aria-pressed="true">Explore</button>
+    <button type="button" class="tab" data-tab="wiki" aria-pressed="false">Wiki</button>
+    <button type="button" class="tab" data-tab="report" aria-pressed="false">Report</button>
+  </nav>
+</header>
+
+<main id="view-explore" class="explore">
+  <aside id="left" class="pane left" aria-label="Areas, filters and hubs">
+    <section class="block">
+      <h2 class="eyebrow">Show</h2>
+      <div class="filters">
+        <label><input type="checkbox" id="f-code" checked> Code</label>
+        <label><input type="checkbox" id="f-docs" checked> Docs</label>
+        <label><input type="checkbox" id="f-inferred"> INFERRED edges <span class="dash-key" aria-hidden="true"></span></label>
+      </div>
+    </section>
+    <section class="block">
+      <h2 class="eyebrow">Top hubs</h2>
+      <ol id="hubs" class="list hubs"></ol>
+    </section>
+    <section class="block grow">
+      <h2 class="eyebrow">Areas <span id="area-count" class="count"></span></h2>
+      <ul id="areas" class="list areas"></ul>
+    </section>
+  </aside>
+
+  <section id="center" class="pane center" aria-label="Graph">
+    <div class="viewbar">
+      <div class="views" role="group" aria-label="Graph view">
+        <button type="button" data-view="whole" aria-pressed="true">Whole repo</button>
+        <button type="button" data-view="hops" aria-pressed="false">2 hops</button>
+        <button type="button" data-view="path" aria-pressed="false">Path A → B</button>
+      </div>
+      <div class="zoom" role="group" aria-label="Zoom">
+        <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+        <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
+        <button type="button" id="zoom-reset" aria-label="Fit graph">Fit</button>
+      </div>
+    </div>
+    <div id="pathbar" class="pathbar" hidden>
+      <div class="endpoint">
+        <label for="path-from">From</label>
+        <input id="path-from" type="search" autocomplete="off" spellcheck="false" placeholder="Start node">
+        <ul class="results" id="path-from-results" aria-label="Start node results" hidden></ul>
+      </div>
+      <div class="endpoint">
+        <label for="path-to">To</label>
+        <input id="path-to" type="search" autocomplete="off" spellcheck="false" placeholder="End node">
+        <ul class="results" id="path-to-results" aria-label="End node results" hidden></ul>
+      </div>
+    </div>
+    <div class="stage">
+      <div id="graph" class="graph" aria-hidden="true"></div>
+      <canvas id="dashes" class="dashes" aria-hidden="true"></canvas>
+      <p id="graph-empty" class="graph-empty" hidden></p>
+    </div>
+    <ol id="path-list" class="path-list" aria-label="Path" hidden></ol>
+    <p class="status"><span id="status">Loading graph…</span> <span id="status-note" class="status-note"></span></p>
+  </section>
+
+  <aside id="right" class="pane right" aria-label="Selected node">
+    <div id="detail-empty" class="empty">
+      <h2>Pick a file or symbol</h2>
+      <p>Search above, or click a hub or a node in the graph. Its path, area, wiki excerpt, users and notes show here.</p>
+    </div>
+    <div id="detail" hidden>
+      <p class="eyebrow" id="d-kind"></p>
+      <h2 id="d-label" class="d-label"></h2>
+      <p id="d-path" class="d-path"></p>
+      <p class="d-area"><span class="swatch" id="d-swatch"></span><span id="d-area"></span></p>
+      <p class="d-actions">
+        <a id="d-github" href="#" target="_blank" rel="noopener noreferrer">Open on GitHub</a>
+      </p>
+      <section class="block">
+        <h3 class="eyebrow">Wiki</h3>
+        <div id="d-wiki" class="prose excerpt"></div>
+      </section>
+      <section class="block">
+        <h3 class="eyebrow">Used by <span id="d-usedby-count" class="count"></span></h3>
+        <ul id="d-usedby" class="list nodes"></ul>
+      </section>
+      <section class="block">
+        <h3 class="eyebrow">Uses <span id="d-uses-count" class="count"></span></h3>
+        <ul id="d-uses" class="list nodes"></ul>
+      </section>
+      <section class="block">
+        <h3 class="eyebrow">Notes</h3>
+        <div id="d-notes"></div>
+      </section>
+    </div>
+    <div id="area-detail" hidden>
+      <p class="eyebrow">Area</p>
+      <h2 class="d-label"><span class="swatch" id="a-swatch"></span><span id="a-label"></span></h2>
+      <p id="a-size" class="d-path"></p>
+      <h3 class="eyebrow">Largest members</h3>
+      <ul id="a-members" class="list nodes"></ul>
+    </div>
+  </aside>
+</main>
+
+<main id="view-wiki" class="doc-view" hidden>
+  <nav class="doc-index" aria-label="Wiki pages"><ul id="wiki-index" class="list"></ul></nav>
+  <article id="wiki-page" class="prose doc"></article>
+</main>
+
+<main id="view-report" class="doc-view single" hidden>
+  <article id="report" class="prose doc"></article>
+</main>
+
+<main id="view-ask" class="doc-view single" hidden></main>
+
+<p id="load-error" class="load-error" role="alert" hidden></p>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/graphology/0.25.4/graphology.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/graphology-library@0.8.0/dist/graphology-library.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/2.4.0/sigma.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<script type="module" src="atlas.js"></script>
