@@ -142,8 +142,9 @@ request.
      légales|legal information` (case-insensitive) is fetched, giving `name_on_imprint`,
      `lei_on_imprint`, `isin_on_imprint`.
 3. Verdict: any `lei_*`/`isin_*` evidence → `owned`; `name_on_imprint` plus one homepage name signal →
-   `owned`; with `identifier_source=True`, any one name signal (homepage or imprint) → `owned`, and
-   `identifier_source` is appended to the evidence; any other evidence → `unclear`; none → `rejected`.
+   `owned`; with `identifier_source=True`, any one name signal (homepage or imprint) → `owned`; any
+   other evidence → `unclear`; none → `rejected`. Whenever `identifier_source=True` and the verdict is
+   `owned` (by any rule), `identifier_source` is appended as the last evidence code.
    `identifier_source=True` means the URL came from Wikidata by identifier (`homepage_from_ids`): an
    exact, identifier-keyed source that only needs the page to agree on the name. (Added 2026-10-18 after
    the live test: large companies print no LEI on their homepage or imprint, so without it no homepage
@@ -159,8 +160,10 @@ request.
   applying its IR-hint and first-result rules.
 - `_discover_for_company`: a supplied `company.website` is used as today, unchecked. Otherwise the
   homepage comes from `homepage_from_ids` (with the company's LEI, ISIN and CIK, supplied or not),
-  then search, and is passed through `check_homepage` (with `identifier_source=True` when it came from
-  `homepage_from_ids`). A
+  then search, and is passed through `check_homepage` (with `identifier_source=True` only when this URL
+  was returned by `homepage_from_ids`; a search-found URL never gets it, whatever identifiers the
+  company has). Search runs only when `homepage_from_ids` returns `None`; a `rejected` Wikidata
+  homepage is not replaced by a search result. A
   `rejected` homepage is not crawled: `homepage_used` is `None` and the new
   `DiscoveryCompanyResult.homepage_check` holds the `SiteCheck`. `owned` and `unclear` are crawled, with
   `homepage_check` set.
@@ -361,16 +364,24 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
 | AC-73 | as AC-72 | discovery run | the manifest entry for `https://www.testwerke.de/b.pdf` has `alias_of` `https://www.testwerke.de/a.pdf` | unit |
 | AC-74 | W; Wikidata P1278 → H4 | identity run | verdict `resolved`, `flagged_for_review` false, `resolved_website` `https://www.testwerke.de/`, confidence 1.0 | unit |
 | AC-75 | W; Wikidata P1278 → `https://www.testwerke.de/`, which returns HTTP 404 | identity run | verdict `uncertain`, `flagged_for_review` true, `reason_codes` `["match_ambiguous"]`, `resolved_website` `https://www.testwerke.de/` | unit |
-| AC-76 | W; Wikidata P1278 → H4 | discovery run | `homepage_used` `https://www.testwerke.de/`, `homepage_check.verdict` `owned`, `homepage_check.evidence` exactly `["name_in_title", "identifier_source"]`; the crawl fetches H4 | unit |
-| AC-77 | Company named `Testwerke AG`, no identifiers; search returns only the H4 URL | discovery run | `homepage_check.verdict` `unclear`, `homepage_check.evidence` exactly `["name_in_title"]` | unit |
+| AC-76 | W; Wikidata P1278 → H4 | discovery run | `homepage_used` `https://www.testwerke.de/`, `homepage_check.verdict` `owned`, `homepage_check.evidence` exactly `["name_in_title", "identifier_source"]`; H4 receives exactly 2 requests for path `/` (check, then crawl) | unit |
+| AC-77 | Company named `Testwerke AG`, no identifiers; search returns only the H4 URL | discovery run | `homepage_used` `https://www.testwerke.de/`, `homepage_check.verdict` `unclear`, `homepage_check.evidence` exactly `["name_in_title"]`; H4 receives exactly 2 requests for path `/` | unit |
 | AC-78 | W, H4 | `check_homepage(H4, W, identifier_source=True)` | verdict `owned`, evidence exactly `["name_in_title", "identifier_source"]` | unit |
 | AC-79 | W, H2 | `check_homepage(H2, W, identifier_source=True)` | verdict `rejected`, evidence exactly `["blocklisted_domain"]` | unit |
 | AC-80 | W with supplied CIK `123`, no website; Wikidata P1278 → H4 | discovery run | `homepage_used` `https://www.testwerke.de/`, `homepage_check.verdict` `owned` | unit |
 | AC-81 | W, H3 | `check_homepage(H3, W, identifier_source=True)` | verdict `rejected`, evidence `[]` | unit |
+| AC-82 | W, H4 plus a link `Impressum` to `/impressum` whose text contains `Testwerke AG` and no identifier | `check_homepage(that URL, W)` (flag off) | verdict `owned`, evidence, compared as a set, exactly `{"name_in_title", "name_on_imprint"}` | unit |
+| AC-83 | W, H1 | `check_homepage(H1, W, identifier_source=True)` | verdict `owned`, evidence, compared as a set, exactly `{"name_in_title", "name_on_imprint", "lei_on_imprint", "identifier_source"}` | unit |
+| AC-84 | W; Wikidata returns nothing for all identifiers; search returns only the H4 URL | discovery run | `homepage_check.verdict` `unclear`, `homepage_check.evidence` exactly `["name_in_title"]` | unit |
+| AC-85 | W, H1 URL returning HTTP 404 | `check_homepage(H1 URL, W, identifier_source=True)` | verdict `unclear`, evidence exactly `["fetch_failed"]` | unit |
+| AC-86 | W; `https://www.testwerke.de/` has title `Willkommen` and a link `Impressum` to `/impressum` whose text contains `Testwerke AG` and no identifier | `check_homepage(that URL, W, identifier_source=True)` | verdict `owned`, evidence exactly `["name_on_imprint", "identifier_source"]` | unit |
+| AC-87 | W; Wikidata P1278 → H3; EDGAR name search returns no matches; web search returns nothing | identity run | verdict `uncertain`, `flagged_for_review` true, `reason_codes` `["match_ambiguous"]`, `resolved_website` `null` | unit |
+| AC-88 | as AC-20, but Wikidata P1278 → H4 | identity run | `resolved_website` `https://www.testwerke.de/`, verdict `resolved`, confidence 0.95, `match_rule` `ambiguous`, `flagged_for_review` true | unit |
+| AC-89 | W; Wikidata P1278 → H3; the search client would return the H1 URL | discovery run | `homepage_used` `null`, `homepage_check.verdict` `rejected`; the search client receives 0 queries | unit |
 
 Must not change: a supplied website is never checked (AC-25) and a company with a supplied website or
 CIK makes no new identity lookup (AC-22, AC-44, AC-47, AC-51); the identifier-rule path without a Wikidata hit
 (AC-17); an ISIN-only company with no GLEIF hit (AC-14); adjudicated results stay flagged (AC-20);
 amendment filings are not picked (AC-35); a `200` with new bytes is still an update (AC-63); no stored
 headers means a plain GET (AC-64); new bytes at a new URL are still new (AC-67); US ticker resolution (AC-37); no downloaded document is
-dropped (AC-30); a search-found homepage is never `owned` on name alone (AC-77); the full backend suite passes.
+dropped (AC-30); a search-found homepage with a single name signal is `unclear`, not `owned` (AC-77, AC-84); the full backend suite passes.
