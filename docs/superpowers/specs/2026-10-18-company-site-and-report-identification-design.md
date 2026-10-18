@@ -22,6 +22,10 @@ The LLM keeps its single adjudicate call. This adds no agent loop.
 5. Mark each downloaded PDF with whether it names the company, and send the ones that don't to review.
 6. Fetch 20-F and 40-F annual reports for foreign SEC filers. Stop a non-US ticker from resolving to a
    US company's CIK.
+7. Don't download an unchanged report again: send the stored ETag and Last-Modified back, and reuse the
+   stored copy on `304 Not Modified`.
+8. Don't announce a known file as new just because its URL changed: the same bytes at a new URL are
+   recorded as an alias, with no "new document" event.
 
 ## Non-goals
 
@@ -34,6 +38,8 @@ The LLM keeps its single adjudicate call. This adds no agent loop.
 - An LLM check of downloaded documents. The checks here are deterministic.
 - Checking HTML, XHTML or ZIP downloads. Only PDFs get the document check.
 - Paid search APIs (Serper and similar).
+- Recognising the same report in different bytes (language editions, web vs print, re-saved PDFs).
+  `doc_identity`'s report-year grouping keeps handling those as versions, as on `main`.
 
 ## Anti-goals (a failure even if it works)
 
@@ -61,6 +67,14 @@ The LLM keeps its single adjudicate call. This adds no agent loop.
 - `arp/ingestion/edgar.py::EdgarDocumentSource.fetch`: newest `10-K` in `filings.recent`; CIK from
   `company.cik` or from the SEC ticker map by `company.ticker`, whatever the company's country.
 - `arp/ingestion/doc_identity.py::reporting_year` finds the year in a title or text.
+- `arp/discovery/downloader.py::download_documents` sends a plain GET for every candidate on every run
+  and records the response's ETag and Last-Modified on the `DiscoveredDocument`, but never sends them
+  back.
+- `arp/discovery/change_detector.py::ChangeDetector.diff_and_record` keeps one manifest per company,
+  keyed by URL. An unknown URL is a `new_document` event, a known URL with a new hash an
+  `updated_document` event; events go to the global feed, the webhook and `on_events` (refresh).
+- The file store (`upload_or_fail`) and the document registry (`derive_doc_id`) are keyed by content
+  hash, so the same bytes are stored and registered once already.
 - ESEF fetching by LEI already exists (`arp/xbrl_pipeline/fetch_esef.py`, `poll_esef_filings`) and is
   not changed.
 
@@ -197,6 +211,30 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
 - Ticker → CIK only runs when `company.country` is empty or one of `US`, `USA`, `United States`
   (case-insensitive). Otherwise a missing CIK means no EDGAR fetch.
 
+### Not downloading again (conditional GET)
+
+- `ChangeDetector` gets a public read of a company's manifest (builder names it), and
+  `_discover_for_company` passes the entries to `download_documents`.
+- For a candidate URL that is in the manifest, the request carries `If-None-Match: <http_etag>` when an
+  ETag was stored and `If-Modified-Since: <http_last_modified>` when a Last-Modified was stored, copied
+  as stored. With neither stored, the request is a plain GET, as on `main`.
+- On `304`: the stored blob is checked with `store.exists(sha256)` and the stored `local_path` with a
+  file-exists check. If both are there, the `DiscoveredDocument` is the manifest entry (same `sha256`,
+  `local_path`, `http_etag`, `http_last_modified`, `company_match`, `page_count`, `reporting_year`), the
+  document check does not run again, and a `CaptureRecord` with `status` 304, `content_key` = the stored
+  `sha256`, `collected` true is appended. If either is missing, the URL is fetched again with a plain
+  GET and handled as a new download.
+- A `200` is handled exactly as on `main`, conditional headers or not.
+
+### Same file, new URL (alias)
+
+- In `diff_and_record`, a document whose URL is not in the manifest but whose `sha256` equals the
+  `sha256` of an entry under another URL raises no event. Its manifest entry is written as usual plus
+  `"alias_of": "<that other URL>"` (the first such URL in manifest order).
+- `DiscoveredDocument` gets `alias_of: str | None = None`; the alias's entry in `documents_found`
+  carries it.
+- Everything else in `diff_and_record` is unchanged, including for ESEF polling.
+
 ## Constraints
 
 - Every new outbound request goes through `ssrf_guard_request_hook`, with the discovery user agent.
@@ -227,6 +265,10 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
 - **P2** PDF, 30 pages: page 1 text `Testwerke AG Annual Report 2025`, no identifiers.
 - **P3** PDF, 30 pages: page 1 text `Otherco plc Annual Report 2025`, no mention of Testwerke.
 - **P4** PDF, 30 pages, image-only (no text layer).
+- **Two-run setup** (rows AC-56 to AC-66): W with supplied website `https://www.testwerke.de/`, one
+  `ChangeDetector` state dir and one file store shared by both runs. Run 1: the homepage links only to
+  `https://www.testwerke.de/gb2025.pdf`, which returns P1 with `ETag: "v1"` and
+  `Last-Modified: Wed, 01 Apr 2026 08:00:00 GMT`. Run 2 follows; each row says what changes.
 - **Fake LLM**: records each prompt it receives and returns a fixed `IdentityAdjudication`.
 
 | ID    | Given | When | Then (observable, exact) | Checked by |
@@ -286,9 +328,22 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
 | AC-53 | W, H1 whose `Impressum` link points to `https://legal.testwerke.de/impressum` (same text as H1's imprint) | `check_homepage(H1, W)` | verdict `owned`; evidence, compared as a set, exactly `{"name_in_title", "name_on_imprint", "lei_on_imprint"}` | unit |
 | AC-54 | W; `https://testwerke.de/` returns 301 to `https://www.linkedin.com/company/testwerke/` | `check_homepage("https://testwerke.de/", W)` | verdict `rejected`, evidence exactly `["blocklisted_domain"]` | unit |
 | AC-55 | as AC-54 | `check_homepage("https://testwerke.de/", W)` | `www.linkedin.com` receives 0 requests | unit |
+| AC-56 | Two-run setup; in run 2 the PDF URL returns `304` | run 2 | the run-2 request for `gb2025.pdf` carries `If-None-Match: "v1"` | unit |
+| AC-57 | as AC-56 | run 2 | the run-2 request for `gb2025.pdf` carries `If-Modified-Since: Wed, 01 Apr 2026 08:00:00 GMT` | unit |
+| AC-58 | as AC-56 | run 2 | the run-2 document has the same `sha256` and `local_path` as in run 1, `company_match` `identifier`, `page_count` 30, `reporting_year` 2025 | unit |
+| AC-59 | as AC-56 | run 2 | `diff_and_record` returns 0 events; the global events feed has the same number of lines after run 2 as after run 1 | unit |
+| AC-60 | as AC-56 | run 2 | the capture log has one new record with `status` 304, `content_key` = P1's sha256, `collected` true | unit |
+| AC-61 | as AC-56, but P1's blob is deleted from the file store before run 2; the URL returns P1 with `200` to a request without conditional headers | run 2 | `gb2025.pdf` receives 2 requests in run 2; the second has neither `If-None-Match` nor `If-Modified-Since` | unit |
+| AC-62 | as AC-61 | run 2 | the run-2 document's `sha256` is P1's sha256 and the file store has the blob again | unit |
+| AC-63 | Two-run setup; in run 2 the PDF URL ignores the conditional headers and returns P2 with `200` | run 2 | exactly 1 event, type `updated_document`, for `https://www.testwerke.de/gb2025.pdf` (as on `main`) | unit |
+| AC-64 | Two-run setup, but in run 1 the PDF response has no `ETag` and no `Last-Modified` | run 2 | the run-2 request for `gb2025.pdf` has neither `If-None-Match` nor `If-Modified-Since` (as on `main`) | unit |
+| AC-65 | Two-run setup; in run 2 the homepage links only to `https://www.testwerke.de/gb2025.pdf?v=2`, which returns P1 with `200` | run 2 | `diff_and_record` returns 0 events; the global events feed has the same number of lines after run 2 as after run 1 | unit |
+| AC-66 | as AC-65 | run 2 | the company's manifest entry for `https://www.testwerke.de/gb2025.pdf?v=2` has `alias_of` `https://www.testwerke.de/gb2025.pdf` | unit |
+| AC-67 | as AC-65, but `?v=2` returns P2 | run 2 | exactly 1 event, type `new_document`, for `https://www.testwerke.de/gb2025.pdf?v=2` (as on `main`) | unit |
 
 Must not change: a supplied website is never checked (AC-25) and a company with a supplied website or
 CIK makes no new identity lookup (AC-22, AC-44, AC-47, AC-51); the identifier-rule path without a Wikidata hit
 (AC-17); an ISIN-only company with no GLEIF hit (AC-14); adjudicated results stay flagged (AC-20);
-amendment filings are not picked (AC-35); US ticker resolution (AC-37); no downloaded document is
+amendment filings are not picked (AC-35); a `200` with new bytes is still an update (AC-63); no stored
+headers means a plain GET (AC-64); new bytes at a new URL are still new (AC-67); US ticker resolution (AC-37); no downloaded document is
 dropped (AC-30); the full backend suite passes.
