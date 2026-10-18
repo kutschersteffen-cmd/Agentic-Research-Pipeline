@@ -90,6 +90,52 @@
         "id": "avi.e_saf",
         "label": "Power-to-liquid synthetic aviation fuel (e-SAF)"
       }
+    ],
+    "Shipping": [
+      {
+        "id": "shp.alt_fuel_vessels",
+        "label": "Newbuild vessels able to run on methanol, ammonia or LNG (dual-fuel)"
+      },
+      {
+        "id": "shp.green_fuels",
+        "label": "Production and bunkering of low- and zero-GHG marine fuels (bio- and e-methanol, green ammonia, bio-LNG)"
+      },
+      {
+        "id": "shp.efficiency",
+        "label": "Energy-efficiency retrofits and wind-assisted propulsion"
+      }
+    ],
+    "Heavy-Duty Road Transport": [
+      {
+        "id": "hdt.bev_trucks",
+        "label": "Battery-electric heavy trucks"
+      },
+      {
+        "id": "hdt.fcev_trucks",
+        "label": "Hydrogen fuel-cell heavy trucks"
+      },
+      {
+        "id": "hdt.public_charging",
+        "label": "Public high-power charging for heavy trucks on freight corridors"
+      },
+      {
+        "id": "hdt.h2_refuelling",
+        "label": "Public hydrogen refuelling for heavy trucks"
+      }
+    ],
+    "Oil & Gas Upstream": [
+      {
+        "id": "ogu.ldar",
+        "label": "Methane leak detection and repair (LDAR)"
+      },
+      {
+        "id": "ogu.flaring",
+        "label": "Ending routine flaring and venting (flare gas recovery or re-injection)"
+      },
+      {
+        "id": "ogu.electrification",
+        "label": "Electrification of upstream operations (power from shore or renewables)"
+      }
     ]
   },
   "conversions": [
@@ -179,6 +225,17 @@
         "title": "NIST Handbook 44 – 2025 (Appendix B. Units and Systems of Measurement; Appendix C. General Tables of Units of Measurement)",
         "url": "https://nvlpubs.nist.gov/nistpubs/hb/2025/NIST.HB.44-2025.pdf",
         "locator": "Appendix C, p. C-25, note 21: 'by custom, 42 gallons comprise a barrel of crude oil or petroleum products for statistical purposes'; 42 x 3.785411784 = 158.987294928 L (NIST SP 811 Appendix B.9: barrel [for petroleum, 42 gallons (U.S.)] to liter 1.589 873 E+02)."
+      }
+    },
+    {
+      "from": "mile",
+      "to": "km",
+      "rate": 1.609344,
+      "year": 1959,
+      "source": {
+        "title": "NIST Handbook 44 – 2025 (Appendix B. Units and Systems of Measurement; Appendix C. General Tables of Units of Measurement)",
+        "url": "https://nvlpubs.nist.gov/nistpubs/hb/2025/NIST.HB.44-2025.pdf",
+        "locator": "Appendix C, p. C-24, 'Units of Length': '1 mile (mi) = 5280 feet (exactly) = 1.609 344 kilometers (exactly)', with all SI equivalents based on the international foot (0.3048 m exactly). Exact since 1959 (Appendix B, p. B-8), so the row carries year 1959, like the gallon and barrel rows. A cost per mile converts by dividing by this rate (USD/mile ÷ 1.609344 = USD/km)."
       }
     }
   ],
@@ -2414,6 +2471,591 @@
               "fact": "offtake_signed",
               "op": "=",
               "value": true
+            }
+          ]
+        }
+      }
+    },
+    "SHP-T1": {
+      "rationale": "A ship ordered today runs for decades on the fuels its engines can burn, so the share of new orders able to use methanol, ammonia or LNG (shp.alt_fuel_vessels) sets how fast the fleet can switch fuel, and it is the demand signal against which producers of low- and zero-GHG marine fuels (shp.green_fuels) finance plants. LNG counts because the metric names it, although fossil LNG cuts emissions far less than methanol or ammonia made from renewable or biogenic sources. The rubric's 'relevant vessel class' is read as all vessel classes ordered by the region's owners combined, because no class is named per region; owner to confirm.",
+      "actions": [
+        "shp.alt_fuel_vessels",
+        "shp.green_fuels"
+      ],
+      "facts": [
+        {
+          "id": "alt_share",
+          "label": "Alternative-fuel-capable share of new orders",
+          "type": "number",
+          "unit": "%",
+          "definition": "Share of the new ocean-going merchant vessels (all vessel classes combined) contracted in the latest full calendar year by shipowners based in the region that are specified to run on methanol, ammonia or LNG (dual-fuel or single-fuel engines for that fuel installed at delivery), by gross tonnage; by vessel count only where the source gives no gross-tonnage share. 'Ready' notations (a ship prepared for a later conversion) do not count. Owners are assigned by the domicile of the ordering owner, not by flag state or building yard. Denominator: all new vessels contracted by the same owners in the same year.",
+          "max_age_days": 365
+        }
+      ],
+      "params": [
+        {
+          "id": "p_high",
+          "label": "High alternative-fuel order share",
+          "value": 30,
+          "unit": "%",
+          "by_region": {},
+          "rationale": "Today's rubric sets H at alternative-fuel-capable vessels exceeding 30% of new orders. No external benchmark for 30% was found, so the framework value is carried over. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "SHP-T1 rating_rubric.H: 'Alternative-fuel-capable vessels exceed 30% of new orders in the relevant vessel class'"
+          }
+        },
+        {
+          "id": "p_low",
+          "label": "Low alternative-fuel order share",
+          "value": 10,
+          "unit": "%",
+          "by_region": {},
+          "rationale": "Today's rubric sets M at 10-30% of new orders and L below 10%, so 10% itself is M. No external benchmark for 10% was found, so the framework value is carried over. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "SHP-T1 rating_rubric.M: 'Alternative-fuel-capable vessels 10-30% of new orders'; L: 'Alternative-fuel-capable vessels below 10% of new orders'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "alt_share",
+              "op": ">",
+              "param": "p_high"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "alt_share",
+              "op": ">=",
+              "param": "p_low"
+            }
+          ]
+        }
+      }
+    },
+    "SHP-R1": {
+      "rationale": "Zero- and low-GHG marine fuels (shp.green_fuels) and the ships that burn them (shp.alt_fuel_vessels) cost more than fossil bunker fuel and conventional ships, and efficiency retrofits (shp.efficiency) pay back faster when fuel and emissions cost more. A carbon price makes every tonne emitted cost money; a binding fuel GHG intensity limit forces fuel switching whatever the price. Both together close the gap from two sides; neither leaves decarbonisation voluntary. The rubric names no price level, so any compliance price counts.",
+      "actions": [
+        "shp.alt_fuel_vessels",
+        "shp.green_fuels",
+        "shp.efficiency"
+      ],
+      "facts": [
+        {
+          "id": "price_applies",
+          "label": "Carbon price applies to shipping",
+          "type": "boolean",
+          "definition": "A compliance carbon price (emissions trading system or carbon tax) in force covers greenhouse gas emissions from ships on voyages within, to or from the region in the current or latest compliance year, with an obligation to surrender allowances or pay (monitoring and reporting alone does not count). A scheme in phase-in counts, for example the EU ETS, under which shipping companies surrender allowances for 40% of verified emissions reported for 2024, 70% for 2025 and 100% from 2026 (Article 3gb of Directive 2003/87/EC as amended by Directive (EU) 2023/959). National, EU-wide or global (IMO) measures count once in force; an IMO measure approved or adopted but not yet in force does not count. Schemes of individual provinces, states or cities do not count for the region (for example the Shanghai pilot ETS, which added local shipping in 2016)."
+        },
+        {
+          "id": "mandate_applies",
+          "label": "Binding fuel GHG intensity mandate applies",
+          "type": "boolean",
+          "definition": "A law or regulation in force requires ships on voyages within, to or from the region to keep the greenhouse gas intensity of the energy used on board below a limit that tightens over time, with penalties for exceeding it, in the current or latest reporting period (for example Regulation (EU) 2023/1805, Article 4(2): the reference value of 91.16 gCO2e/MJ reduced by 2% from 1 January 2025, rising to 80% from 1 January 2050, and Article 23 FuelEU penalties). The same scope rules apply as for the carbon price. Ship design or operational efficiency ratings (for example IMO EEXI and CII) are not fuel intensity mandates."
+        }
+      ],
+      "params": [],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "price_applies",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "mandate_applies",
+              "op": "=",
+              "value": true
+            }
+          ]
+        },
+        "M": {
+          "any": [
+            {
+              "fact": "price_applies",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "mandate_applies",
+              "op": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    },
+    "SHP-D1": {
+      "rationale": "The first ships able to burn zero- and near-zero-emission fuels (shp.alt_fuel_vessels) and the plants that make those fuels (shp.green_fuels) need buyers who commit cargo volume and pay the fuel premium; green corridors concentrate that demand on one route. The Global Maritime Forum's 2025 progress report names cargo owners' willingness to pay a higher fuel premium as a key obstacle, which is why H needs committed cargo and a disclosed premium mechanism. The rubric's M 'limited committed volume' is not tested as a number: a region with an announced corridor that fails H is M.",
+      "actions": [
+        "shp.alt_fuel_vessels",
+        "shp.green_fuels"
+      ],
+      "facts": [
+        {
+          "id": "announced",
+          "label": "Green corridor announced",
+          "type": "boolean",
+          "definition": "At least one green shipping corridor initiative with a port in the region at one end is listed as an active initiative in the Global Maritime Forum's latest Annual Progress Report on Green Shipping Corridors (any stage: Initiation, Exploration, Preparation or Realisation), or has been announced by its participants since that report."
+        },
+        {
+          "id": "qualifying",
+          "label": "Corridors with committed cargo and a premium mechanism",
+          "type": "number",
+          "unit": "corridors",
+          "definition": "Number of green shipping corridor initiatives with a port in the region at one end, active as defined for the announced corridor, for which (a) one or more cargo owners have signed a commitment to ship a stated cargo volume on zero- or near-zero-emission vessels or fuels on that corridor (memoranda of understanding and letters of intent do not count), and (b) the participants have disclosed how the fuel cost premium is paid (for example a green freight surcharge, a book-and-claim purchase, a cost-pooling mechanism or a cargo owners' alliance tender such as ZEMBA's), as of the latest report or announcement.",
+          "max_age_days": 365
+        }
+      ],
+      "params": [
+        {
+          "id": "p_multiple",
+          "label": "Multiple corridors threshold",
+          "value": 1,
+          "unit": "corridors",
+          "by_region": {},
+          "rationale": "Today's rubric H asks for 'multiple' active corridors. 'Multiple' means more than one, so H needs more than one qualifying corridor; this is the word's definition, not a judgement.",
+          "source": {
+            "title": "Merriam-Webster Dictionary, 'multiple' (adjective)",
+            "url": "https://www.merriam-webster.com/dictionary/multiple",
+            "locator": "Adjective, sense 1: 'consisting of, including, or involving more than one'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "qualifying",
+              "op": ">",
+              "param": "p_multiple"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "announced",
+              "op": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    },
+    "HDT-T1": {
+      "rationale": "Fleet operators buy battery-electric (hdt.bev_trucks) or fuel-cell (hdt.fcev_trucks) trucks at scale only once they cost no more over their life than diesel. Parity usually comes first in regional, depot-based work, where trucks charge at their own base, and last in long-haul. Costs include the purchase incentives a buyer can get today, as today's evidence does. Studies that quote USD per mile convert through the mile row (USD/mile ÷ 1.609344 = USD/km); EUR and CNY use the currency rows.",
+      "actions": [
+        "hdt.bev_trucks",
+        "hdt.fcev_trucks"
+      ],
+      "facts": [
+        {
+          "id": "ze_tco_reg",
+          "label": "Zero-emission truck TCO, regional",
+          "type": "number",
+          "unit": "USD/km",
+          "definition": "Total cost of ownership per kilometre of a new zero-emission heavy truck (battery-electric, or fuel-cell electric where its cost of ownership is lower) of the region's heaviest truck class (EU and China category N3, US Class 8) in regional or depot-based operation (the truck returns to its base each day and charges or refuels there), bought in the latest year: purchase price net of the purchase incentives available to the buyer, energy, maintenance, tolls and road charges and other operating costs over the source's ownership period, divided by the kilometres driven in that period. Central estimate of the latest regional study (for example ICCT); the zero-emission and diesel figures come from the same study, year and duty cycle.",
+          "max_age_days": 730
+        },
+        {
+          "id": "diesel_tco_reg",
+          "label": "Diesel truck TCO, regional",
+          "type": "number",
+          "unit": "USD/km",
+          "definition": "Total cost of ownership per kilometre of a new diesel heavy truck doing the same work of the region's heaviest truck class (EU and China category N3, US Class 8) in regional or depot-based operation (the truck returns to its base each day and charges or refuels there), bought in the latest year: purchase price net of the purchase incentives available to the buyer, energy, maintenance, tolls and road charges and other operating costs over the source's ownership period, divided by the kilometres driven in that period. Central estimate of the latest regional study (for example ICCT); the zero-emission and diesel figures come from the same study, year and duty cycle.",
+          "max_age_days": 730
+        },
+        {
+          "id": "ze_tco_lh",
+          "label": "Zero-emission truck TCO, long-haul",
+          "type": "number",
+          "unit": "USD/km",
+          "definition": "Total cost of ownership per kilometre of a new zero-emission heavy truck (battery-electric, or fuel-cell electric where its cost of ownership is lower) of the region's heaviest truck class (EU and China category N3, US Class 8) in long-haul operation (multi-day or long-distance trips that depend on charging or refuelling away from the base), bought in the latest year: purchase price net of the purchase incentives available to the buyer, energy, maintenance, tolls and road charges and other operating costs over the source's ownership period, divided by the kilometres driven in that period. Central estimate of the latest regional study (for example ICCT); the zero-emission and diesel figures come from the same study, year and duty cycle.",
+          "max_age_days": 730
+        },
+        {
+          "id": "diesel_tco_lh",
+          "label": "Diesel truck TCO, long-haul",
+          "type": "number",
+          "unit": "USD/km",
+          "definition": "Total cost of ownership per kilometre of a new diesel heavy truck doing the same work of the region's heaviest truck class (EU and China category N3, US Class 8) in long-haul operation (multi-day or long-distance trips that depend on charging or refuelling away from the base), bought in the latest year: purchase price net of the purchase incentives available to the buyer, energy, maintenance, tolls and road charges and other operating costs over the source's ownership period, divided by the kilometres driven in that period. Central estimate of the latest regional study (for example ICCT); the zero-emission and diesel figures come from the same study, year and duty cycle.",
+          "max_age_days": 730
+        },
+        {
+          "id": "tco_ratio_reg",
+          "label": "TCO ratio, regional",
+          "formula": "ratio",
+          "inputs": [
+            "ze_tco_reg",
+            "diesel_tco_reg"
+          ],
+          "definition": "Zero-emission truck TCO divided by diesel truck TCO in regional or depot-based operation: 1 is parity, 1.2 means 20% above diesel."
+        },
+        {
+          "id": "tco_ratio_lh",
+          "label": "TCO ratio, long-haul",
+          "formula": "ratio",
+          "inputs": [
+            "ze_tco_lh",
+            "diesel_tco_lh"
+          ],
+          "definition": "Zero-emission truck TCO divided by diesel truck TCO in long-haul operation: 1 is parity."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_within",
+          "label": "Close to TCO parity",
+          "value": 1.2,
+          "by_region": {},
+          "rationale": "Today's rubric sets M at a TCO within 20% of parity and L at more than 20% above diesel for all duty cycles, so a ratio of 1.2 or less in any duty cycle keeps a region out of L. No external benchmark for 20% was found, so the framework value is carried over. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "HDT-T1 rating_rubric.M: 'TCO within 20% of parity for depot-based cycles; long-haul not yet competitive'; L: 'TCO more than 20% above diesel for all duty cycles'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "ze_tco_reg",
+              "op": "<=",
+              "other_fact": "diesel_tco_reg"
+            }
+          ]
+        },
+        "M": {
+          "any": [
+            {
+              "fact": "tco_ratio_reg",
+              "op": "<=",
+              "param": "p_within"
+            },
+            {
+              "fact": "tco_ratio_lh",
+              "op": "<=",
+              "param": "p_within"
+            }
+          ]
+        }
+      }
+    },
+    "HDT-R1": {
+      "rationale": "Truck makers build battery-electric (hdt.bev_trucks) and fuel-cell (hdt.fcev_trucks) models in volume, and price them to sell, when a binding standard with penalties requires a rising zero-emission share of their sales. An announced standard, or one that is binding but weak in the near term, signals direction but forces little production. 'Material ZEV share within the assessment horizon' is read as the share the Global MOU on zero-emission medium- and heavy-duty vehicles sets for 2030, applied to all regions.",
+      "actions": [
+        "hdt.bev_trucks",
+        "hdt.fcev_trucks"
+      ],
+      "facts": [
+        {
+          "id": "status",
+          "label": "Heavy truck CO2 standard or ZEV mandate",
+          "type": "enum",
+          "allowed_values": [
+            "in_force",
+            "announced",
+            "none"
+          ],
+          "definition": "in_force: a national or EU-wide law or regulation applies to makers of new heavy trucks in the current model or reporting year and sets either a CO2 emission (or fuel-consumption) limit or a minimum zero-emission share of sales; announced: such a standard or mandate is adopted or formally proposed by the government but its first compliance year has not started; none: neither exists, or it has been repealed. Rules of individual states or provinces count as announced for the region where they can legally be enforced; a state rule whose federal waiver Congress has disapproved counts as none (for example California's Advanced Clean Trucks waiver, disapproved by H.J.Res.87, P.L. 119-15, approved 12 June 2025)."
+        },
+        {
+          "id": "penalties",
+          "label": "Penalties for missing the standard",
+          "type": "boolean",
+          "definition": "The law requires fines or other financial penalties on manufacturers that miss the standard or mandate (for example the excess CO2 emissions premium in Article 8(1) of Regulation (EU) 2019/1242, as amended by Regulation (EU) 2024/1610)."
+        },
+        {
+          "id": "zev_share",
+          "label": "Required ZEV share of new heavy truck sales in 2030",
+          "type": "number",
+          "unit": "%",
+          "definition": "Share of new heavy truck sales in 2030 that must be zero-emission for manufacturers to comply with the standard or mandate in force: the share the law sets (ZEV mandate) or, for a CO2 standard, the share that the regulator's impact assessment or an independent analysis (for example ICCT) estimates is needed to meet the 2030 target. Zero where no requirement applies in 2030.",
+          "max_age_days": 365
+        }
+      ],
+      "params": [
+        {
+          "id": "p_material",
+          "label": "Material ZEV share by 2030",
+          "value": 30,
+          "unit": "%",
+          "by_region": {},
+          "rationale": "The rubric's 'material ZEV share within the assessment horizon' has no number. The Global MOU on zero-emission medium- and heavy-duty vehicles, signed by governments since COP26, sets 30% of new sales by 2030 as its interim goal on the way to a full transition by 2040; a standard that requires at least that share matches what its signatories regard as on track. One benchmark is applied to all regions. The MOU covers trucks and buses above 3.5 tonnes and is non-binding; here it serves only as the line.",
+          "source": {
+            "title": "Global Memorandum of Understanding on Zero-Emission Medium- and Heavy-Duty Vehicles (Global Drive to Zero / CALSTART and the Netherlands, 2021)",
+            "url": "https://globaldrivetozero.org/site/wp-content/uploads/2021/11/Global-MOU-ZE-MHDVs.pdf",
+            "locator": "Section 1 'Overall ambition': 'enable ZE-MHDVs to reach 30% of sales of new MHDVs by 2030, as well as enable a full transition to ZE-MHDVs in new fleets by 2040'; footnote 1: MHDVs are vehicles 'with gross vehicle weight above 3,500 kilograms'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "status",
+              "op": "=",
+              "value": "in_force"
+            },
+            {
+              "fact": "penalties",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "zev_share",
+              "op": ">=",
+              "param": "p_material"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "status",
+              "op": "in",
+              "value": [
+                "in_force",
+                "announced"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "HDT-D1": {
+      "rationale": "Battery-electric (hdt.bev_trucks) and fuel-cell (hdt.fcev_trucks) trucks can leave depot work for long-haul only where public high-power charging (hdt.public_charging) or hydrogen refuelling (hdt.h2_refuelling) lines the main freight corridors. H uses the density the EU requires on its core network by 2030 so that heavy trucks can travel throughout the Union, applied to all regions. A corridor average can hide gaps: the EU rule also sets a maximum distance between charging pools, which this density does not test.",
+      "actions": [
+        "hdt.public_charging",
+        "hdt.h2_refuelling",
+        "hdt.bev_trucks",
+        "hdt.fcev_trucks"
+      ],
+      "facts": [
+        {
+          "id": "density",
+          "label": "Heavy-duty charging and refuelling density on primary freight corridors",
+          "type": "number",
+          "unit": "points per 100 km",
+          "definition": "Publicly accessible recharging points dedicated to heavy-duty electric vehicles with an individual power output of at least 350 kW, plus publicly accessible hydrogen refuelling points suitable for heavy-duty vehicles, located along the region's primary freight corridors, per 100 km of corridor in each direction of travel (a site serving both directions counts for each direction). Primary freight corridors: the TEN-T core road network in the EU; in the US and China, the national highway or expressway network the source uses for freight. Latest count.",
+          "max_age_days": 365
+        }
+      ],
+      "params": [
+        {
+          "id": "p_sufficient",
+          "label": "Density for unconstrained long-haul",
+          "value": 3.33,
+          "unit": "points per 100 km",
+          "by_region": {},
+          "rationale": "By 31 December 2030 the EU requires heavy-duty recharging pools on the TEN-T core network in each direction at most 60 km apart, each with at least two recharging points of at least 350 kW: at least 2 points per 60 km, or 3.33 points per 100 km per direction (200 ÷ 60 = 3.333, rounded down). Recital 19 gives the purpose: enough fast recharging points for heavy-duty vehicles 'to ensure full connectivity throughout the Union'. That is the rubric's 'unconstrained long-haul operation'. One benchmark is applied to all regions.",
+          "source": {
+            "title": "Regulation (EU) 2023/1804 on the deployment of alternative fuels infrastructure (AFIR)",
+            "url": "https://eur-lex.europa.eu/eli/reg/2023/1804/oj/eng",
+            "locator": "Article 4(1)(c): 'by 31 December 2030, along the TEN-T core road network, publicly accessible recharging pools dedicated to heavy-duty electric vehicles are deployed in each direction of travel with a maximum distance of 60 km between them and that each recharging pool offers a power output of at least 3 600 kW and includes at least two recharging points with an individual power output of at least 350 kW'; recital 19"
+          }
+        },
+        {
+          "id": "p_minimal",
+          "label": "Density above minimal",
+          "status": "open",
+          "question": "Below what density of public heavy-duty charging and hydrogen refuelling points per 100 km of primary freight corridor is the infrastructure 'minimal' (rubric L), restricting operation to depot-based captive fleets? No sourced line was found. AFIR's first milestone (Article 4(1)(a): by 31 December 2025, pools with at least one 350 kW point along at least 15% of the TEN-T network length in each direction) is a coverage share, not a density.",
+          "unit": "points per 100 km"
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "density",
+              "op": ">=",
+              "param": "p_sufficient"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "density",
+              "op": ">=",
+              "param": "p_minimal"
+            }
+          ]
+        }
+      }
+    },
+    "OGU-T1": {
+      "rationale": "Leak detection and repair (ogu.ldar) and ending routine flaring (ogu.flaring) are the core upstream methane abatement measures, and they cut methane only where operators actually run them. H needs them across a majority of the region's production; M needs them at the region's largest operators. Production counts where it is located: for the EU, sites in the EU, not North Sea fields outside it run by EU-based companies.",
+      "actions": [
+        "ogu.ldar",
+        "ogu.flaring"
+      ],
+      "facts": [
+        {
+          "id": "coverage",
+          "label": "Production covered by LDAR and flaring reduction",
+          "type": "number",
+          "unit": "%",
+          "definition": "Share of the region's upstream oil and gas production in the latest full year (energy-equivalent volume produced at sites located in the region) that comes from sites that both run a leak detection and repair programme (periodic surveys of components for methane leaks with repair deadlines, whether required by regulation or run voluntarily) and use flaring reduction (no routine flaring, or associated gas recovered, used or re-injected). Denominator: all upstream oil and gas production in the region in the same year.",
+          "max_age_days": 365
+        },
+        {
+          "id": "major_ops",
+          "label": "Deployed at the region's major operators",
+          "type": "boolean",
+          "definition": "The largest upstream producers in the region (the national oil companies, and the companies with the largest shares of the region's production as named by the source) run LDAR programmes and flaring reduction across their operations in the region, as they report or as a regulator or the IEA reports."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_majority",
+          "label": "Majority of production",
+          "value": 50,
+          "unit": "%",
+          "by_region": {},
+          "rationale": "Today's rubric H asks for deployment 'across a majority of regional production'. A majority is more than half, so H needs coverage above 50%; this is the word's definition, not a judgement.",
+          "source": {
+            "title": "Merriam-Webster Dictionary, 'majority' (noun)",
+            "url": "https://www.merriam-webster.com/dictionary/majority",
+            "locator": "Noun, sense 1a: 'a number or percentage equaling more than half of a total'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "coverage",
+              "op": ">",
+              "param": "p_majority"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "major_ops",
+              "op": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    },
+    "OGU-R1": {
+      "rationale": "Without a binding limit or a fee, leak repair (ogu.ldar) and ending routine flaring and venting (ogu.flaring) stay voluntary, and operators that skip them produce more cheaply. A limit or fee in force on existing operations, with penalties, makes abatement the norm; one that applies only to new sources, or whose deadlines lie ahead, is in phase-in. A fee counts only where it can be collected now, so the US Waste Emissions Charge does not count.",
+      "actions": [
+        "ogu.ldar",
+        "ogu.flaring"
+      ],
+      "facts": [
+        {
+          "id": "status",
+          "label": "Binding methane limit or fee",
+          "type": "enum",
+          "allowed_values": [
+            "in_force",
+            "phase_in",
+            "none"
+          ],
+          "definition": "in_force: a national or EU-wide law or regulation in force sets, for existing upstream oil and gas operations in the current year, a binding methane limit (a cap on methane emissions or intensity, a ban on routine venting or flaring, or mandatory leak detection and repair with repair deadlines) or a methane fee that the authority collects for the current year; phase_in: such a limit or fee is adopted or formally proposed but applies so far only to new or modified sources, or its compliance deadlines for existing operations have not arrived or have been extended into the future; none: neither, or only monitoring, reporting or non-binding action plans and targets. A fee counts only where the authority can collect it for the current year: the US Waste Emissions Charge does not count, because Congress nullified its implementing rule (H.J.Res.35, P.L. 119-2, approved 14 March 2025) and P.L. 119-21, section 60012(b), replaced 'calendar year 2024' with 'calendar year 2034' in Clean Air Act section 136(g)."
+        },
+        {
+          "id": "enforcement",
+          "label": "Enforcement mechanism",
+          "type": "boolean",
+          "definition": "The law requires penalties for non-compliance (fines or periodic penalty payments) and gives an authority power to inspect or verify (for example Regulation (EU) 2024/1787, Article 33)."
+        }
+      ],
+      "params": [],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "status",
+              "op": "=",
+              "value": "in_force"
+            },
+            {
+              "fact": "enforcement",
+              "op": "=",
+              "value": true
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "status",
+              "op": "in",
+              "value": [
+                "in_force",
+                "phase_in"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "OGU-D1": {
+      "rationale": "Here H means lower stranding risk, as today's rubric says: stable demand keeps the cash flow and field life over which upstream operators recover what they spend cutting their own emissions, such as electrifying operations (ogu.electrification) or recovering flare gas (ogu.flaring). Under structural decline fields close earlier and that spending pays back over fewer years. The rubric reads only the stated-policies trajectory, so the announced-pledges scenario named in the metric is not a fact here. Its lines between stable, moderate and structural decline have no numbers and are open.",
+      "actions": [
+        "ogu.electrification",
+        "ogu.flaring"
+      ],
+      "facts": [
+        {
+          "id": "demand_change",
+          "label": "Oil and gas demand change to 2035 (stated policies)",
+          "type": "number",
+          "unit": "%",
+          "definition": "Percentage change in the region's combined oil and natural gas demand (in energy units, oil and gas added together) from the base year of the latest IEA World Energy Outlook (2024 where available) to 2035 under the IEA Stated Policies Scenario (STEPS), for the WEO's European Union, United States or China region. Negative for a decline.",
+          "max_age_days": 365
+        }
+      ],
+      "params": [
+        {
+          "id": "p_stable",
+          "label": "Largest decline still stable",
+          "status": "open",
+          "question": "What is the largest fall in combined oil and gas demand to 2035 under stated policies that still counts as 'stable' (rubric H: stable or growing)? The rubric's M ('flat to moderate decline') overlaps H ('stable'), so the line needs a number; no sourced line was found. A line at 0% would make H mean no decline.",
+          "unit": "%"
+        },
+        {
+          "id": "p_structural",
+          "label": "Decline short of structural",
+          "status": "open",
+          "question": "What fall in combined oil and gas demand to 2035 under stated policies marks a 'structural decline' (rubric L) rather than a 'moderate decline' (rubric M)? No sourced line was found.",
+          "unit": "%"
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "demand_change",
+              "op": ">=",
+              "param": "p_stable"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "demand_change",
+              "op": ">=",
+              "param": "p_structural"
             }
           ]
         }
