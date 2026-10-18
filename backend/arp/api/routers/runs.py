@@ -18,6 +18,7 @@ from arp.orchestration.jobs import NotResumable, RunBusy, check_resumable, get_j
 from arp.research.pipeline import load_theme_run_matches, rank_theme_matches
 from arp.research.results_diff import diff_theme_results
 from arp.schemas.thematic import CompanyMatch
+from arp.schemas.transition_barrier import BarrierRefreshFinding
 from arp.storage.run_store import RunStore
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
@@ -232,7 +233,7 @@ def export_run_csv(run_id: str, run_store: RunStore = Depends(get_run_store)) ->
             writer.writerow(
                 [record["code"], record["region"], record["source_key"], record["outcome"],
                  record["current_rating"], record.get("proposed_rating"),
-                 record["outcome"] == "rating_change_candidate",
+                 BarrierRefreshFinding.model_validate(record).needs_review,
                  record.get("detail"), record.get("source_quote"), record.get("checked_at")]
             )
     else:  # discovery
