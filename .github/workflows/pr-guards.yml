@@ -71,3 +71,10 @@ jobs:
 
       - name: Self-test the session hook
         run: bash .claude/hooks/context_stack_selftest.sh
+
+      # Node 22 rejects a bare directory after --test, so name the files.
+      - name: Test Atlas page logic
+        run: node --test scripts/atlas/*.test.mjs
+
+      - name: Self-test the Atlas data builder
+        run: python3 scripts/atlas/build_data.py --selftest
