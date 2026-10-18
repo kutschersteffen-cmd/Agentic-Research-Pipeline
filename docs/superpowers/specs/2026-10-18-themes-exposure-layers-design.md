@@ -17,7 +17,7 @@ The score orders companies only where the data supports it. A company with no ev
 
 ## Scope
 
-- **Supply edges:** a new Postgres table of supplier-to-customer edges, keyed by issuer key, each with a revenue share, a cited source passage, the date the relationship held (`effective_date`) and the date it became public (`published_at`). Filled by CSV import (`arp theme edges import`).
+- **Company graph:** a Neo4j graph of companies (owner decision 2026-10-18: one graph that can connect companies for several purposes). This spec adds its first relationship, supply edges from supplier to customer, keyed by issuer key, each with a revenue share, a cited source passage, the date the relationship held (`effective_date`) and the date it became public (`published_at`). Filled by CSV import (`arp theme edges import`).
 - **Layers computation:** for a theme run and an `as_of` date, compute Layer 1, Layer 2 and `S` per company. Exposed through `arp theme layers` and `GET /api/themes/runs/{run_id}/layers`.
 - **Screen:** a "Layers" table on the existing Thematic Universe page (`#/theme`) for the selected run, with an `As of` date input that defaults to today (UTC).
 
@@ -36,7 +36,9 @@ The score orders companies only where the data supports it. A company with no ev
 8. **Names:** a run company's name is its name in the run; a supplier outside the run takes `supplier_name` from the edge version used.
 9. **Edges come from CSV only** in this release. Extracting major-customer disclosures from filings with the LLM is the next item, and it must cite passages the same way.
 10. **Identity** is the issuer key from `arp.schemas.issuer.issuer_key` (registry UUID first). The edge CSV has no ticker column; tickers stay attributes only.
-11. **Computed on read**, not stored: the layers are a pure function of the run, the edge table, the settings and `as_of`, so there is no new run type and no recompute step.
+11. **Computed on read**, not stored: the layers are a pure function of the run, the company graph, the settings and `as_of`, so there is no new run type and no recompute step.
+12. **The company graph** (owner decision 2026-10-18) runs in Neo4j, connected through `ARP_NEO4J_URI`, `ARP_NEO4J_USER` and `ARP_NEO4J_PASSWORD`. Each company is one `Company` node keyed by `issuer_key` (unique), with `name`. Each edge version is one `SUPPLIES_TO` relationship from supplier to customer carrying `revenue_share`, `source_doc`, `source_passage`, `effective_date` and `published_at`. Other relationship types can join the same nodes later; none is added here. Theme runs and the rest of the app stay in Postgres. The builder adds Neo4j wherever the app's dependencies are started: the local setup, `ensure-deps.sh`, the e2e stack and CI. Neo4j Community Edition (GPLv3) is enough for internal use.
+13. **Without Neo4j configured** (`ARP_NEO4J_URI` unset), the layers endpoint answers 503 with `detail` = `company graph not configured: set ARP_NEO4J_URI`, and both CLI commands exit 1 with the same message. Every other part of the app works as before.
 
 ## Not in this spec
 
@@ -44,13 +46,14 @@ The score orders companies only where the data supports it. A company with no ev
 - LLM extraction of supply edges from filings.
 - The four research replications (THEME, FinDKG, FundaPod, LLM Black-Litterman), the analyst/skeptic/auditor agents and LangGraph.
 - The Thematic Bubble Indicator, the CVXPY optimiser and any portfolio weights.
-- Neo4j, Qdrant, Elasticsearch; broker execution, direct indexing.
+- Relationship types other than `SUPPLIES_TO` (ownership, competitors, partnerships); a graph view on the page.
+- Qdrant, Elasticsearch; broker execution, direct indexing.
 - Publishing `S` into Decision Studio. The layer columns can be joined into a Decision Studio dataset later; Decision Studio rules cannot walk a graph, so the layers are computed here.
 
 ## Acceptance
 
 Setup notes for the test-writer:
-- The edge table, the theme run and the API share the Postgres database at `ARP_POSTGRES_DSN` and the runs directory at `ARP_RUNS_DIR`.
+- The theme run lives in the Postgres database at `ARP_POSTGRES_DSN` and the runs directory at `ARP_RUNS_DIR`; supply edges live in the Neo4j graph at `ARP_NEO4J_URI` (with `ARP_NEO4J_USER` and `ARP_NEO4J_PASSWORD`). The CLI and the API read the same settings. Each test starts from an empty graph.
 - A theme run is created through `RunStore(dsn, runs_dir)`: `save_manifest(RunManifest(run_id=R, run_type="theme"))`, `save_companies(R, [CompanyRef(company_id=..., entity_id=<uuid>, name=...)])`, and one `append_result(R, {"_key": <company_id>, "company_matches": [CompanyMatch.model_dump(mode="json"), ...]})` per company. Each `entity_id` must first exist as a row of the `companies` table (`arp.db.models.Company`). A company's issuer key is `issuer_key(CompanyRef)[0]`, which is the `entity_id` as a string.
 - **Fixture F** (used by many rows):
   - Run `R` with companies A, B and C (names `A`, `B`, `C`), each with one match with verdict `include`:
@@ -119,11 +122,16 @@ Setup notes for the test-writer:
 | AC-52 | Fixture F plus an S1→A row with `revenue_share` 0.90, `effective_date` 2023-06-30, `published_at` 2024-05-01 | `GET .../layers?as_of=2024-06-30` | S1's `l2` = 0.204 (the later `effective_date` wins over the later publication) | holdout |
 | AC-53 | Fixture F imported | `GET .../layers?as_of=2024-03-01` (equal to `published_at`) | `[r["issuer_key"] for r in rows]` = [A, B, S1, S2, C] | holdout |
 | AC-54 | Fixture F with `ARP_THEME_LAYER_DECAY=0` | `GET .../layers?as_of=2024-06-30` | 503, `detail` contains `ARP_THEME_LAYER_DECAY` | holdout |
+| AC-55 | `ARP_NEO4J_URI` unset | `GET /api/themes/runs/R/layers?as_of=2024-06-30` | 503, `detail` = `company graph not configured: set ARP_NEO4J_URI` | holdout |
+| AC-56 | `ARP_NEO4J_URI` unset | `arp theme edges import --csv <file>` | Exit 1, stderr contains `company graph not configured: set ARP_NEO4J_URI` | holdout |
+| AC-57 | AC-1 just happened | Query the graph: `MATCH (s:Company)-[r:SUPPLIES_TO]->(c:Company) RETURN s.issuer_key, c.issuer_key, r.revenue_share` | Exactly 2 records: (S1's key, A's key, 0.4) and (S2's key, S1's key, 0.5) | holdout |
+| AC-58 | `ARP_NEO4J_URI` unset; an existing theme run | `GET /api/runs/<it>/results` | 200, same body as with Neo4j configured | holdout |
 | AC-32 | Fixture F's run, once without and once with fixture F's edge CSV imported | `GET /api/runs/R/results`, `GET /api/runs/R/export.csv` and `GET /api/runs/R/export.xlsx` | The results body and the CSV body are identical in both cases; the XLSX has the same cell values in every sheet | holdout |
 | AC-45 | An existing theme run selected on `#/theme` | Look at the existing results table | It shows the same columns and rows as on `main` before this change | evaluator |
 | AC-33 | The existing tests under `backend/tests/` for theme runs and revenue exposure | The full backend suite runs | They pass with no edits to those test files | unit |
 
 Must not change:
+- Every part of the app other than the layers works without Neo4j (AC-58).
 - The theme run's ranked results, CSV and XLSX exports (AC-32).
 - The existing results table on `#/theme` (AC-45).
 - `CompanyMatch` and every existing theme-run test (AC-33).
