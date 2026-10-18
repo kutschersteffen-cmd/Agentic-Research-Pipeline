@@ -8,13 +8,18 @@
 export OPENWIKI_TELEMETRY_DISABLED=1
 
 if [ "${1:-}" != --foreground ]; then
-  nohup bash "$0" --foreground </dev/null >/dev/null 2>&1 &
+  # Own session: the job survives the hook runner killing our process group.
+  setsid nohup bash "$0" --foreground </dev/null >/dev/null 2>&1 &
   exit 0
 fi
 
 exec </dev/null >/dev/null
 log="$HOME/.cache/arp-context/session.log"
-mkdir -p "${log%/*}" && : >"$log" || exit 0
+mkdir -p "${log%/*}" || exit 0
+# One job at a time per user (startup then resume, two sessions in one container); a later one just leaves.
+exec 9>"${log%/*}/job.lock"
+if command -v flock >/dev/null && ! flock -n 9; then exit 0; fi
+: >"$log" || exit 0
 cd "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null
 
 # step NAME COMMAND...: runs the command, logs "ok" or "failed (<its error line>)"
@@ -39,8 +44,10 @@ install_graphify() { graphify --version 2>/dev/null | grep -qF 0.9.92 || pip ins
 install_openwiki() { npm ls -g --depth=0 openwiki 2>/dev/null | grep -qF openwiki@0.7.2 || npm install -g --loglevel=error openwiki@0.7.2; }
 # "installed" means both the committed .mcp.json entry and .claude/skills/openwiki are intact.
 register_openwiki() {
-  openwiki integrations list --project . | grep -q '^claude[[:space:]]installed' ||
-    { echo "openwiki claude integration not installed (.mcp.json, .claude/skills/openwiki)"; return 1; }
+  local s
+  command -v openwiki >/dev/null || { echo "openwiki not on PATH"; return 1; }
+  s=$(openwiki integrations list --project . | grep '^claude')
+  [[ $s == claude$'\t'installed* ]] || { echo "openwiki reports: ${s:-no claude status}" | tr '\t' ' '; return 1; }
 }
 fetch_graph() {
   local f
