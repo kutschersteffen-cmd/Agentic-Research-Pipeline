@@ -48,6 +48,48 @@
         "id": "cement.alt_fuels",
         "label": "Alternative and low-carbon kiln fuels"
       }
+    ],
+    "Chemicals": [
+      {
+        "id": "chem.low_carbon_h2",
+        "label": "Low-carbon hydrogen as feedstock for ammonia and methanol"
+      },
+      {
+        "id": "chem.e_cracker",
+        "label": "Electrically heated steam cracking"
+      },
+      {
+        "id": "chem.ccus",
+        "label": "Carbon capture and storage on ammonia, hydrogen and other chemical plants"
+      }
+    ],
+    "Critical Minerals & Mining": [
+      {
+        "id": "min.electric_fleet",
+        "label": "Battery-electric mining haulage, loading and drilling equipment"
+      },
+      {
+        "id": "min.new_supply",
+        "label": "New domestic or allied mine and processing capacity for transition minerals"
+      },
+      {
+        "id": "min.recycling",
+        "label": "Recycling of critical minerals from end-of-life products and waste"
+      }
+    ],
+    "Aviation": [
+      {
+        "id": "avi.hefa_saf",
+        "label": "HEFA sustainable aviation fuel from waste oils and fats"
+      },
+      {
+        "id": "avi.advanced_bio_saf",
+        "label": "Advanced biofuel SAF (alcohol-to-jet, gasification with Fischer-Tropsch)"
+      },
+      {
+        "id": "avi.e_saf",
+        "label": "Power-to-liquid synthetic aviation fuel (e-SAF)"
+      }
     ]
   },
   "conversions": [
@@ -1374,6 +1416,935 @@
                 "binding",
                 "voluntary_or_pilot"
               ]
+            }
+          ]
+        }
+      }
+    },
+    "CHM-T1": {
+      "rationale": "Low-carbon ammonia and methanol replace grey hydrogen from unabated natural gas reforming with hydrogen from renewable electrolysis (chem.low_carbon_h2) or from gas reforming with carbon capture (chem.ccus), and hydrogen is their main feedstock. Unless low-carbon hydrogen comes close to the cost of grey hydrogen, or the carbon price on grey hydrogen closes the gap, the switch needs lasting subsidy; without any low-carbon hydrogen supply in the region it cannot start at all.",
+      "actions": [
+        "chem.low_carbon_h2",
+        "chem.ccus"
+      ],
+      "facts": [
+        {
+          "id": "lc_cost",
+          "label": "Low-carbon hydrogen cost",
+          "type": "number",
+          "unit": "USD/kg H2",
+          "definition": "Levelised cost of low-carbon hydrogen delivered to chemical plants in the region (production plus transport and storage), latest year reported: the cheaper of hydrogen from electrolysis powered by renewable electricity and hydrogen from natural gas reforming with carbon capture and storage. Before production subsidies such as US Section 45V credits; central estimate for the region's typical sites.",
+          "max_age_days": 730
+        },
+        {
+          "id": "grey_cost",
+          "label": "Grey hydrogen cost",
+          "type": "number",
+          "unit": "USD/kg H2",
+          "definition": "Levelised cost of hydrogen from unabated natural gas steam methane reforming in the region at the region's prevailing natural gas price, for the same year as the low-carbon hydrogen cost, excluding any carbon price. The natural gas route is used as the metric states, also where coal gasification is the region's main route (as in China).",
+          "max_age_days": 730
+        },
+        {
+          "id": "grey_cost_carbon",
+          "label": "Grey hydrogen cost with carbon price",
+          "type": "number",
+          "unit": "USD/kg H2",
+          "definition": "Grey hydrogen cost as defined for this criterion plus the carbon price unabated hydrogen production pays in the region: the allowance price or tax rate of the same year times the CO2 emitted per kg of grey hydrogen, at the full price (the cost avoided per tonne abated, gross of free allocation). Equal to the grey hydrogen cost where no compliance carbon price covers hydrogen production.",
+          "max_age_days": 730
+        },
+        {
+          "id": "cost_ratio",
+          "label": "Low-carbon to grey hydrogen cost",
+          "formula": "ratio",
+          "inputs": [
+            "lc_cost",
+            "grey_cost"
+          ],
+          "definition": "Low-carbon hydrogen cost divided by grey hydrogen cost without carbon price: 1.2 is 20% above grey, 2 is twice grey."
+        },
+        {
+          "id": "supply_chain",
+          "label": "Low-carbon hydrogen supply present",
+          "type": "boolean",
+          "definition": "At least one plant producing low-carbon hydrogen (electrolysis powered by renewable electricity, or natural gas reforming with carbon capture and storage) is operating or under construction in the region to supply an industrial or chemical user (demonstration units below commercial operation do not count)."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_within",
+          "label": "Low-carbon hydrogen cost close to grey",
+          "value": 1.2,
+          "by_region": {},
+          "rationale": "Today's rubric rates low-carbon hydrogen 'within 20% of grey hydrogen cost' H; within 20% is a cost ratio of at most 1.2. No external benchmark for this line was found, so the framework value is carried over. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "CHM-T1 rating_rubric.H: 'Low-carbon hydrogen cost within 20% of grey hydrogen cost, or carbon price closes the gap'"
+          }
+        },
+        {
+          "id": "p_double",
+          "label": "Low-carbon hydrogen cost gap still counted as moderate",
+          "value": 2,
+          "by_region": {},
+          "rationale": "Today's rubric rates a low-carbon hydrogen cost 20-100% above grey M and 'more than 2x' grey L; 100% above grey is a cost ratio of 2. No external benchmark for this line was found, so the framework value is carried over. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "CHM-T1 rating_rubric.M: 'Low-carbon hydrogen cost 20-100% above grey hydrogen cost'; rating_rubric.L: 'Low-carbon hydrogen more than 2x grey hydrogen cost, or no low-carbon hydrogen supply chain present'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "supply_chain",
+              "op": "=",
+              "value": true
+            },
+            {
+              "any": [
+                {
+                  "fact": "cost_ratio",
+                  "op": "<=",
+                  "param": "p_within"
+                },
+                {
+                  "fact": "lc_cost",
+                  "op": "<=",
+                  "other_fact": "grey_cost_carbon"
+                }
+              ]
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "supply_chain",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "cost_ratio",
+              "op": "<=",
+              "param": "p_double"
+            }
+          ]
+        }
+      }
+    },
+    "CHM-T2": {
+      "rationale": "Electric steam cracking (chem.e_cracker) replaces the fuel-fired furnaces of a steam cracker with electric heating. Producers can only plan it into a cracker revamp or new build once a production-size unit has run, or been committed, in the region; while the technology there is at demonstration or laboratory stage, no producer can commit capital to it.",
+      "actions": [
+        "chem.e_cracker"
+      ],
+      "facts": [
+        {
+          "id": "trl",
+          "label": "Electric cracking readiness in the region",
+          "type": "number",
+          "unit": "TRL",
+          "definition": "Technology readiness level on the EU Horizon 2020 scale (TRL 4 'technology validated in lab', TRL 5 'technology validated in relevant environment', TRL 6 'technology demonstrated in relevant environment', TRL 7 'system prototype demonstration in operational environment', TRL 8 'system complete and qualified') reached by the most advanced electrically heated steam cracking unit built in the region, latest status. Units in other regions do not count. 0 where no unit beyond laboratory scale has been built in the region.",
+          "max_age_days": 365
+        },
+        {
+          "id": "commercial",
+          "label": "Commercial-scale electric cracker operating or at FID",
+          "type": "boolean",
+          "definition": "An electrically heated cracking furnace sized as a production furnace of a commercial steam cracker (not a demonstration unit) is operating in the region, or a final investment decision on one has been announced."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_trl_high",
+          "label": "Readiness level for commercial use",
+          "value": 7,
+          "unit": "TRL",
+          "by_region": {},
+          "rationale": "Today's rubric sets H at 'TRL 7+', on the scale where TRL 7 is a system prototype demonstrated in an operational environment (Horizon 2020 Work Programme 2014-2015, General Annexes, Annex G). No external benchmark for where H should start was found, so the framework value is carried over. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "CHM-T2 rating_rubric.H: 'TRL 7+ with commercial-scale pilot operating or announced FID'"
+          }
+        },
+        {
+          "id": "p_trl_mid",
+          "label": "Readiness level for demonstration",
+          "value": 5,
+          "unit": "TRL",
+          "by_region": {},
+          "rationale": "Today's rubric rates 'TRL 5-6, demonstration scale only' M and 'TRL below 5, lab/concept stage only' L; TRL 5 is the first level validated outside the laboratory (Horizon 2020 Annex G: 'technology validated in relevant environment'). Framework value carried over. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "CHM-T2 rating_rubric.M: 'TRL 5-6, demonstration scale only'; rating_rubric.L: 'TRL below 5, lab/concept stage only'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "trl",
+              "op": ">=",
+              "param": "p_trl_high"
+            },
+            {
+              "fact": "commercial",
+              "op": "=",
+              "value": true
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "trl",
+              "op": ">=",
+              "param": "p_trl_mid"
+            }
+          ]
+        }
+      }
+    },
+    "CHM-R1": {
+      "rationale": "Low-carbon ammonia and methanol (chem.low_carbon_h2), carbon capture (chem.ccus) and electric cracking (chem.e_cracker) all cost more than fossil production unless its CO2 is priced. A high carbon price closes that gap; a border levy and a legislated end to free allocation stop unpriced imports and free allowances from undoing it. In chemicals both must cover ammonia and the steam-cracker products, because those are the plants the actions change.",
+      "actions": [
+        "chem.low_carbon_h2",
+        "chem.ccus",
+        "chem.e_cracker"
+      ],
+      "facts": [
+        {
+          "id": "applies",
+          "label": "Carbon price applies to chemicals",
+          "type": "boolean",
+          "definition": "A compliance carbon price (emissions trading system or carbon tax) covers CO2 from chemicals production (at least ammonia or steam cracking) in the region in the latest compliance year, with an obligation to surrender allowances or pay the tax (monitoring and reporting alone does not count)."
+        },
+        {
+          "id": "price",
+          "label": "Carbon price on chemicals",
+          "type": "number",
+          "unit": "USD/tCO2",
+          "definition": "Average allowance price or tax rate per tonne CO2 applying to chemicals production in the region over the latest full calendar year, gross of free allocation (the marginal price a producer saves per tonne abated). Zero where no compliance price applies.",
+          "max_age_days": 365
+        },
+        {
+          "id": "levy",
+          "label": "Border carbon levy in force for chemicals",
+          "type": "boolean",
+          "definition": "A border carbon adjustment requires importers into the region to pay for the embedded emissions (a financial obligation, not only reporting) of both ammonia and steam-cracker products (high-value chemicals such as ethylene and propylene, or their polymers), for imports in the current or latest year. Coverage of ammonia or fertilisers alone does not count: the EU CBAM covers ammonia (Regulation (EU) 2023/956, Annex I, CN 2814) but leaves organic chemicals out of scope (recital 34)."
+        },
+        {
+          "id": "fa_phaseout",
+          "label": "Free allocation phase-out legislated for chemicals",
+          "type": "boolean",
+          "definition": "Law in force sets an end date for free allocation of allowances to both ammonia and steam-cracker producers, with a schedule of reductions that has started to apply (for example the EU CBAM factor in Article 10a(1a) of Directive 2003/87/EC as amended by Directive (EU) 2023/959, which applies to CBAM goods only). A phase-out for ammonia alone, or free allocation that is merely planned to be reviewed, does not count."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_high",
+          "label": "High carbon price level",
+          "value": 50,
+          "unit": "USD/tCO2",
+          "by_region": {},
+          "rationale": "Today's rubric sets H at above USD 50/tCO2. That is the lower end of the High-Level Commission's 2030 range for a Paris-consistent explicit carbon price (USD 50–100, 2017 dollars), the level at which a carbon price starts to close the cost gap of low-carbon production routes.",
+          "source": {
+            "title": "Report of the High-Level Commission on Carbon Prices (Carbon Pricing Leadership Coalition / World Bank, 2017)",
+            "url": "https://business.columbia.edu/sites/default/files-efs/imce-uploads/Joseph_Stiglitz/CarbonPricing_FullReport.pdf",
+            "locator": "Executive Summary, PDF p. 10: 'at least US$40–80/tCO2 by 2020 and US$50–100/tCO2 by 2030'"
+          }
+        },
+        {
+          "id": "p_material",
+          "label": "Material carbon price level",
+          "value": 33.92,
+          "unit": "USD/tCO2",
+          "by_region": {},
+          "rationale": "The rubric's L reads 'no material carbon price' without a number. The OECD's lowest carbon price benchmark, EUR 30/tCO2 (a historic low-end estimate of carbon costs), is the line: a price below the low end of what emissions cost is not material. Converted at the 2025 Federal Reserve annual average of 1.1306 USD per EUR (this rule book's EUR to USD conversion for 2025): 30 x 1.1306 = USD 33.92/tCO2. Same line as STL-R1 and CEM-R1.",
+          "source": {
+            "title": "OECD, Effective Carbon Rates 2021 (brochure)",
+            "url": "https://www.oecd.org/tax/tax-policy/effective-carbon-rates-2021-brochure.pdf",
+            "locator": "p. 4, Box 1 'Carbon pricing benchmarks': '1. EUR 30 per tonne of CO2, a historic low-end price benchmark of carbon costs in the early and mid-2010s.'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "applies",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "price",
+              "op": ">",
+              "param": "p_high"
+            },
+            {
+              "fact": "levy",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "fa_phaseout",
+              "op": "=",
+              "value": true
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "applies",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "price",
+              "op": ">=",
+              "param": "p_material"
+            }
+          ]
+        }
+      }
+    },
+    "CHM-D1": {
+      "rationale": "Green ammonia and methanol plants (chem.low_carbon_h2) cost more to build and run than fossil plants and are financed against long-term offtake contracts. Signed volumes at a disclosed premium show that shipping lines and industrial buyers will pay the cost gap; without them projects do not reach a final investment decision.",
+      "actions": [
+        "chem.low_carbon_h2"
+      ],
+      "facts": [
+        {
+          "id": "signed",
+          "label": "Binding green ammonia or methanol offtake signed",
+          "type": "boolean",
+          "definition": "At least one binding offtake or purchase agreement for green ammonia or green methanol has been signed by a shipping company or industrial user based in the region (the producer may be anywhere), latest status; pilot-scale volumes count. Term sheets, memoranda of understanding and letters of intent do not count. Green: made with hydrogen from electrolysis powered by renewable electricity (e-ammonia, e-methanol) or, for methanol, from sustainable biomass (bio-methanol); fossil-based product with carbon capture does not count."
+        },
+        {
+          "id": "volume",
+          "label": "Signed green ammonia and methanol offtake",
+          "type": "number",
+          "unit": "t/yr",
+          "definition": "Sum of the annual volumes at full delivery (tonnes of product per year) under all binding agreements of the kind defined for this criterion, signed by buyers based in the region and not yet expired, latest status. Ammonia and methanol tonnes are added as reported.",
+          "max_age_days": 365
+        },
+        {
+          "id": "premium",
+          "label": "Offtake premium disclosed",
+          "type": "boolean",
+          "definition": "At least one of these agreements discloses that the buyer pays a price premium over the fossil equivalent (the amount, or the existence of a premium, stated by a party to the agreement)."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_material",
+          "label": "Material offtake volume",
+          "status": "open",
+          "question": "Above what annual signed volume (t/yr) is green ammonia and methanol offtake 'material' for a region? No sourced line was found. Candidates for the owner: the annual output of one commercial-scale plant, or a share of the fuel needed for the IMO 2023 GHG Strategy's 2030 ambition (zero or near-zero GHG fuels at least 5%, striving for 10%, of the energy used by international shipping), converted to tonnes per region.",
+          "unit": "t/yr"
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "signed",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "premium",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "volume",
+              "op": ">=",
+              "param": "p_material"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "signed",
+              "op": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    },
+    "MIN-T1": {
+      "rationale": "Battery-electric haulage, loading and drilling equipment (min.electric_fleet) replaces diesel-powered mobile machines at mines. Miners commit whole fleets only after the equipment has run in routine production at other operating mines; while it is still on trial, electrification stays a pilot. The metric's share of equipment orders and the readiness of electrified ore processing are not tested, because today's rubric rates on deployment only.",
+      "actions": [
+        "min.electric_fleet"
+      ],
+      "facts": [
+        {
+          "id": "multi_mine",
+          "label": "Battery-electric equipment in production at more than one mine",
+          "type": "boolean",
+          "definition": "Battery-electric haulage, loading or drilling equipment is in routine production use (bought or leased for operations, not a trial or pilot) at more than one operating mine in the region, latest status."
+        },
+        {
+          "id": "deployed",
+          "label": "Battery-electric equipment at an operating mine",
+          "type": "boolean",
+          "definition": "Battery-electric haulage, loading or drilling equipment is in trial, pilot or production use at at least one operating mine in the region, latest status."
+        }
+      ],
+      "params": [],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "multi_mine",
+              "op": "=",
+              "value": true
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "deployed",
+              "op": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    },
+    "MIN-R1": {
+      "rationale": "Long permitting delays new mines and processing plants for transition minerals (min.new_supply). A statutory fast-track with a maximum timeline lets a developer plan financing around a known decision date; a discretionary or open-ended process does not.",
+      "actions": [
+        "min.new_supply"
+      ],
+      "facts": [
+        {
+          "id": "regime",
+          "label": "Fast-track permitting for strategic minerals projects",
+          "type": "enum",
+          "allowed_values": [
+            "statutory",
+            "discretionary",
+            "none"
+          ],
+          "definition": "statutory: law in force sets a fast-track permitting procedure with a binding maximum duration for projects designated as strategic minerals projects (for example Regulation (EU) 2024/1252, Article 11); discretionary: a fast-track, priority or coordination process exists for such projects (for example designation for expedited review by executive decision) but sets no binding maximum duration; none: neither exists. National or EU-wide procedures count; procedures of individual states, provinces or member states count as discretionary for the region."
+        },
+        {
+          "id": "max_months",
+          "label": "Statutory maximum permitting time",
+          "type": "number",
+          "unit": "months",
+          "definition": "Maximum duration in months that the statutory fast-track allows for the permit-granting process of a strategic project involving extraction, as written in the law in force: the standard limit, without case-by-case extensions for exceptional cases and without periods the law itself leaves out of the count. Under Regulation (EU) 2024/1252 this is 27 months (Article 11(1)(a)); Article 11(3) leaves the environmental impact assessment report step out of the count and Article 11(4) allows up to six months' extension.",
+          "max_age_days": 365
+        }
+      ],
+      "params": [
+        {
+          "id": "p_fast",
+          "label": "Fast permitting limit",
+          "value": 30,
+          "unit": "months",
+          "by_region": {},
+          "rationale": "Today's rubric sets H at a statutory maximum 'below 30 months'. No external benchmark for 30 months was found; it sits just above the EU Critical Raw Materials Act's 27-month limit for extraction projects (Regulation (EU) 2024/1252, Article 11(1)(a)), on which today's EU H rating rests. Framework value carried over. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "MIN-R1 rating_rubric.H: 'Statutory fast-track permitting in force with maximum timeline below 30 months'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "regime",
+              "op": "=",
+              "value": "statutory"
+            },
+            {
+              "fact": "max_months",
+              "op": "<",
+              "param": "p_fast"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "regime",
+              "op": "in",
+              "value": [
+                "statutory",
+                "discretionary"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "MIN-R2": {
+      "rationale": "A content requirement that makes a subsidy or a public contract depend on minerals from domestic or allied sources gives new mines, refineries and recycling plants in the region and its partners (min.new_supply, min.recycling) a protected market against cheaper incumbent supply. The effect scales with the money at stake and the share of content required; a requirement with no money attached, a low share or unclear enforcement moves little investment.",
+      "actions": [
+        "min.new_supply",
+        "min.recycling"
+      ],
+      "facts": [
+        {
+          "id": "rule",
+          "label": "Domestic or allied content requirement",
+          "type": "enum",
+          "allowed_values": [
+            "binding",
+            "other",
+            "none"
+          ],
+          "definition": "binding: law in force makes eligibility for a subsidy, tax credit or public-procurement award conditional on a minimum share of critical-mineral content extracted, processed or recycled domestically or in allied (for example free-trade-agreement) countries, checked before payment or award; other: a domestic or allied sourcing requirement, benchmark or target for critical minerals exists in law or policy but is not such a condition, or its enforcement is unclear (for example the 2030 capacity benchmarks of Regulation (EU) 2024/1252, Article 5); none: neither exists. Export controls on the region's own minerals are not a content requirement. National or EU-wide rules count; rules of individual states, provinces or member states count as other."
+        },
+        {
+          "id": "min_share",
+          "label": "Required domestic or allied content",
+          "type": "number",
+          "unit": "%",
+          "definition": "Minimum share of critical-mineral content (by value or quantity, as the rule defines it) that must come from domestic or allied sources under the binding requirement in the current year.",
+          "max_age_days": 365
+        },
+        {
+          "id": "subsidy",
+          "label": "Subsidy tied to the requirement",
+          "type": "number",
+          "unit": "USD million/yr",
+          "definition": "Public money per year whose award depends on meeting the binding requirement: the annual budget or official cost estimate of the subsidy or tax credit, or the annual value of the public procurement covered, latest year.",
+          "max_age_days": 365
+        }
+      ],
+      "params": [
+        {
+          "id": "p_low_share",
+          "label": "Low content threshold",
+          "status": "open",
+          "question": "Below what required domestic or allied content share is a binding requirement's threshold 'low' (rubric M)? No sourced line was found.",
+          "unit": "%"
+        },
+        {
+          "id": "p_material_subsidy",
+          "label": "Material subsidy value",
+          "status": "open",
+          "question": "Above what annual subsidy or procurement value tied to the requirement (USD million per year) is the subsidy 'material' (rubric H)? No sourced line was found; a measure relative to the region's size (for example to its annual critical-mineral imports) may fit better than an absolute amount, which would change the fact.",
+          "unit": "USD million/yr"
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "rule",
+              "op": "=",
+              "value": "binding"
+            },
+            {
+              "fact": "min_share",
+              "op": ">=",
+              "param": "p_low_share"
+            },
+            {
+              "fact": "subsidy",
+              "op": ">=",
+              "param": "p_material_subsidy"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "rule",
+              "op": "in",
+              "value": [
+                "binding",
+                "other"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "MIN-D1": {
+      "rationale": "New mines and refineries for transition minerals (min.new_supply) are financed against long-term offtake contracts and committed capacity. Where signed offtakes and committed expansions cover a large share of the region's projected supply gap, the supply its clean-energy manufacturing needs is being built; where they cover little, the gap stays open. Tonnes of different minerals cannot be added, so lithium, named in today's evidence, is the reference mineral (owner to confirm).",
+      "actions": [
+        "min.new_supply"
+      ],
+      "facts": [
+        {
+          "id": "covered",
+          "label": "Lithium supply secured for 2030",
+          "type": "number",
+          "unit": "kt Li/yr",
+          "definition": "Annual lithium volume (kt lithium content per year) expected in 2030 under signed long-term offtake agreements of buyers based in the region with new or expanding mines or refineries anywhere, plus the 2030 output of new lithium extraction or refining capacity in the region with a final investment decision or under construction, counting a volume once where an offtake comes from such capacity. Latest status.",
+          "max_age_days": 365
+        },
+        {
+          "id": "gap",
+          "label": "Projected lithium supply gap for 2030",
+          "type": "number",
+          "unit": "kt Li/yr",
+          "definition": "The region's projected 2030 lithium demand under the IEA Net Zero Emissions by 2050 Scenario minus the region's refined lithium production in the latest year (kt lithium content per year), from the latest IEA Global Critical Minerals Outlook or its data explorer. Zero or negative where latest production already meets projected 2030 demand.",
+          "max_age_days": 730
+        },
+        {
+          "id": "coverage",
+          "label": "Share of lithium supply gap covered",
+          "formula": "ratio_pct",
+          "inputs": [
+            "covered",
+            "gap"
+          ],
+          "definition": "Secured lithium supply as a share of the region's projected 2030 supply gap: 100% is fully covered. Only meaningful when the gap is positive."
+        },
+        {
+          "id": "no_gap",
+          "label": "No projected lithium supply gap",
+          "type": "boolean",
+          "definition": "The region's refined lithium production in the latest year already meets or exceeds its projected 2030 lithium demand under the IEA Net Zero Emissions by 2050 Scenario."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_material",
+          "label": "Material share of the supply gap",
+          "status": "open",
+          "question": "What share of the region's projected 2030 lithium supply gap must signed offtakes and committed capacity cover to count as 'a material share' (rubric H)? No sourced line was found. Also: is lithium the right reference mineral, or should the owner name another or one criterion per mineral?",
+          "unit": "%"
+        },
+        {
+          "id": "p_minimal",
+          "label": "Minimal share of the supply gap",
+          "status": "open",
+          "question": "Below what share of the projected 2030 lithium supply gap is offtake activity 'minimal' (rubric L) rather than 'some offtake agreements signed but gap remains largely uncovered' (rubric M)? No sourced line was found.",
+          "unit": "%"
+        }
+      ],
+      "levels": {
+        "H": {
+          "any": [
+            {
+              "fact": "no_gap",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "coverage",
+              "op": ">=",
+              "param": "p_material"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "coverage",
+              "op": ">=",
+              "param": "p_minimal"
+            }
+          ]
+        }
+      }
+    },
+    "AVI-T1": {
+      "rationale": "HEFA, advanced biofuel and synthetic fuel plants (avi.hefa_saf, avi.advanced_bio_saf, avi.e_saf) cut aviation emissions only in the volumes they can produce. Where regional SAF capacity is a tiny share of jet fuel demand, blending mandates and airline targets cannot be met from regional supply at any price; plants at final investment decision or under construction show the share will keep growing.",
+      "actions": [
+        "avi.hefa_saf",
+        "avi.advanced_bio_saf",
+        "avi.e_saf"
+      ],
+      "facts": [
+        {
+          "id": "saf_cap",
+          "label": "SAF production capacity",
+          "type": "number",
+          "unit": "million litres/yr",
+          "definition": "Combined nameplate capacity to produce neat sustainable aviation fuel (from biomass, waste or renewable electricity, meeting ASTM D7566 or an equivalent standard) of plants operating in the region at the end of the latest year, in million litres per year. Plants that can switch between renewable diesel and SAF count at their stated maximum SAF output; co-processing in fossil refineries counts at its stated renewable jet output.",
+          "max_age_days": 365
+        },
+        {
+          "id": "jet_demand",
+          "label": "Jet fuel demand",
+          "type": "number",
+          "unit": "million litres/yr",
+          "definition": "Total jet fuel (kerosene-type aviation fuel) consumed in the region in the latest full calendar year, including fuel uplifted for international flights departing the region, in million litres per year.",
+          "max_age_days": 730
+        },
+        {
+          "id": "saf_share",
+          "label": "SAF capacity share of jet fuel demand",
+          "formula": "ratio_pct",
+          "inputs": [
+            "saf_cap",
+            "jet_demand"
+          ],
+          "definition": "SAF production capacity as a share of the region's jet fuel demand: 5% means capacity could supply one twentieth of the fuel used."
+        },
+        {
+          "id": "pipeline",
+          "label": "SAF expansion at FID or under construction",
+          "type": "boolean",
+          "definition": "At least one new SAF plant or SAF capacity expansion in the region has taken a final investment decision or is under construction, latest status. Announcements without a final investment decision do not count."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_high",
+          "label": "High SAF capacity share",
+          "value": 5,
+          "unit": "%",
+          "by_region": {},
+          "rationale": "Today's rubric sets H at SAF capacity that 'exceeds 5% of regional jet fuel demand'. No external benchmark for this line was found; for scale, ReFuelEU Aviation requires a minimum 2% SAF share from 2025 and 6% from 2030 (Regulation (EU) 2023/2405, Annex I). Framework value carried over. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "AVI-T1 rating_rubric.H: 'SAF capacity exceeds 5% of regional jet fuel demand with credible near-term expansion pipeline'"
+          }
+        },
+        {
+          "id": "p_low",
+          "label": "Low SAF capacity share",
+          "value": 1,
+          "unit": "%",
+          "by_region": {},
+          "rationale": "Today's rubric rates SAF capacity 'between 1-5% of demand' M and 'below 1%' L. No external benchmark for this line was found, so the framework value is carried over. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "AVI-T1 rating_rubric.M: 'SAF capacity between 1-5% of demand'; rating_rubric.L: 'SAF capacity below 1% of regional jet fuel demand'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "saf_share",
+              "op": ">",
+              "param": "p_high"
+            },
+            {
+              "fact": "pipeline",
+              "op": "=",
+              "value": true
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "saf_share",
+              "op": ">=",
+              "param": "p_low"
+            }
+          ]
+        }
+      }
+    },
+    "AVI-R1": {
+      "rationale": "A binding blending mandate creates assured demand for SAF (avi.hefa_saf, avi.advanced_bio_saf, avi.e_saf) that rises on a known schedule, which is what lets producers finance new plants; penalties make that demand real. An announced mandate or a voluntary target signals direction but assures no demand.",
+      "actions": [
+        "avi.hefa_saf",
+        "avi.advanced_bio_saf",
+        "avi.e_saf"
+      ],
+      "facts": [
+        {
+          "id": "status",
+          "label": "SAF blending mandate",
+          "type": "enum",
+          "allowed_values": [
+            "in_force",
+            "announced_or_voluntary",
+            "none"
+          ],
+          "definition": "in_force: a law or regulation in force in the region requires fuel suppliers or airlines to supply or use a minimum share of SAF in the current year; announced_or_voluntary: such a mandate is adopted or announced but its first obligation year has not started, or the region has only a voluntary or non-binding SAF target; none: neither exists. National or EU-wide rules count; rules of individual states, provinces or member states count as announced_or_voluntary. Tax credits without a minimum share are not mandates, and offsetting schemes such as CORSIA are not SAF targets."
+        },
+        {
+          "id": "escalating",
+          "label": "Mandated share rises by law",
+          "type": "boolean",
+          "definition": "The law sets minimum SAF shares for later years that are higher than the current year's (for example Regulation (EU) 2023/2405, Annex I: 2% from 2025, 6% from 2030, rising to 70% from 2050)."
+        },
+        {
+          "id": "penalties",
+          "label": "Penalties for missing the mandate",
+          "type": "boolean",
+          "definition": "The law requires fines or other financial penalties on fuel suppliers or airlines that miss the mandated share (for example Regulation (EU) 2023/2405, Article 12(4): a fine not less than twice the SAF price difference times the quantity not complying)."
+        }
+      ],
+      "params": [],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "status",
+              "op": "=",
+              "value": "in_force"
+            },
+            {
+              "fact": "escalating",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "penalties",
+              "op": "=",
+              "value": true
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "status",
+              "op": "in",
+              "value": [
+                "in_force",
+                "announced_or_voluntary"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "AVI-D1": {
+      "rationale": "SAF (avi.hefa_saf, avi.advanced_bio_saf, avi.e_saf) costs more than fossil jet fuel, and producers finance plants against offtake contracts. Where tax credits, tradable credits or emissions-trading value cover most of the premium and airlines and corporate buyers have signed large offtakes, plants get built; where the airline or passenger bears the full premium with no offset and no contracts, SAF stays a niche.",
+      "actions": [
+        "avi.hefa_saf",
+        "avi.advanced_bio_saf",
+        "avi.e_saf"
+      ],
+      "facts": [
+        {
+          "id": "premium",
+          "label": "SAF price premium",
+          "type": "number",
+          "unit": "USD/litre",
+          "definition": "Price of neat SAF minus the price of fossil jet fuel in the region, average of the latest year, before any tax credit, tradable credit or other offset, per litre. A premium stated as a price multiple is converted with the fossil jet fuel price of the same year and region.",
+          "max_age_days": 365
+        },
+        {
+          "id": "offset",
+          "label": "Premium offset per litre",
+          "type": "number",
+          "unit": "USD/litre",
+          "definition": "Value per litre of SAF, in the same year, of the mechanisms in force in the region that pay or credit SAF: production or blender tax credits (for example US Section 45Z), tradable credits that SAF generates (for example US RINs or state low-carbon fuel standard credits), and allowances or carbon costs avoided under an emissions trading system (for example the EU ETS allowances reserved to cover part of the SAF price difference under Directive (EU) 2023/958, and the carbon cost avoided because SAF emissions count as zero). Fines a mandate imposes for not supplying SAF are not counted: they are why the premium is paid, not an offset of it. Zero where no mechanism applies.",
+          "max_age_days": 365
+        },
+        {
+          "id": "offset_share",
+          "label": "Share of SAF premium offset",
+          "formula": "ratio_pct",
+          "inputs": [
+            "offset",
+            "premium"
+          ],
+          "definition": "Premium offset per litre as a share of the SAF price premium: 100% means fully offset."
+        },
+        {
+          "id": "offset_mech",
+          "label": "Premium offset mechanism in force",
+          "type": "boolean",
+          "definition": "At least one mechanism of the kinds listed for the premium offset is in force in the region and available for SAF supplied in the current year."
+        },
+        {
+          "id": "offtake_vol",
+          "label": "SAF volume under signed offtakes",
+          "type": "number",
+          "unit": "million litres/yr",
+          "definition": "Annual SAF volume under signed offtake or purchase agreements, book-and-claim certificate purchases included, of airlines and corporate buyers based in the region, for the current or latest delivery year, in million litres per year.",
+          "max_age_days": 365
+        },
+        {
+          "id": "jet_demand",
+          "label": "Jet fuel demand",
+          "type": "number",
+          "unit": "million litres/yr",
+          "definition": "Total jet fuel (kerosene-type aviation fuel) consumed in the region in the latest full calendar year, including fuel uplifted for international flights departing the region, in million litres per year.",
+          "max_age_days": 730
+        },
+        {
+          "id": "offtake_share",
+          "label": "SAF offtake share of jet fuel demand",
+          "formula": "ratio_pct",
+          "inputs": [
+            "offtake_vol",
+            "jet_demand"
+          ],
+          "definition": "SAF volume under signed offtakes as a share of the region's jet fuel demand."
+        },
+        {
+          "id": "offtake_signed",
+          "label": "SAF offtake signed",
+          "type": "boolean",
+          "definition": "At least one signed SAF offtake or purchase agreement of the kind defined for this criterion exists for an airline or corporate buyer based in the region."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_substantial",
+          "label": "Substantial offset share",
+          "status": "open",
+          "question": "What share of the SAF price premium must offsets cover for the premium to be 'substantially offset' (rubric H)? No sourced line was found.",
+          "unit": "%"
+        },
+        {
+          "id": "p_material",
+          "label": "Material offtake share",
+          "status": "open",
+          "question": "What share of the region's jet fuel demand must signed SAF offtakes cover to be 'material offtake agreements' (rubric H)? No sourced line was found; one candidate is the region's mandated SAF share (ReFuelEU Aviation: 2% from 2025), which would need a by-region value.",
+          "unit": "%"
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "offset_mech",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "offtake_signed",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "offset_share",
+              "op": ">=",
+              "param": "p_substantial"
+            },
+            {
+              "fact": "offtake_share",
+              "op": ">=",
+              "param": "p_material"
+            }
+          ]
+        },
+        "M": {
+          "any": [
+            {
+              "fact": "offset_mech",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "offtake_signed",
+              "op": "=",
+              "value": true
             }
           ]
         }
