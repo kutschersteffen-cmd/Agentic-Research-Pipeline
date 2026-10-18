@@ -32,7 +32,7 @@ function Figure({ v, label }: { v: BarrierValue; label: string }) {
 
 /** A conflict: the facts with several counted values, and the choice of which counts. */
 function ConflictChoice({ code, region, cell, labels, onChosen }: {
-  code: string; region: string; cell: BarrierCell; labels: Record<string, string>; onChosen: () => void;
+  code: string; region: string; cell: BarrierCell; labels: Record<string, string>; onChosen: (runId: string) => void;
 }) {
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
@@ -43,8 +43,7 @@ function ConflictChoice({ code, region, cell, labels, onChosen }: {
   async function choose(fact: string) {
     setError(null);
     try {
-      await api.chooseBarrierValue(code, region, { fact, value_id: picked[fact], reason: reasons[fact] ?? "" });
-      onChosen();
+      onChosen((await api.chooseBarrierValue(code, region, { fact, value_id: picked[fact], reason: reasons[fact] ?? "" })).run_id);
     } catch (err) {
       setError(errorDetail(err as Error));
     }
@@ -53,7 +52,7 @@ function ConflictChoice({ code, region, cell, labels, onChosen }: {
   return (
     <div className="card">
       <h2>Choose the value that counts</h2>
-      <p className="help-text">Sources disagree. Pick one value for each fact and say why, then derive the cell again.</p>
+      <p className="help-text">Sources disagree. Pick one value for each fact and say why; the cell is derived again with it.</p>
       {facts.map((fact) => (
         <fieldset key={fact}>
           <legend>{labels[fact] ?? fact}</legend>
@@ -178,7 +177,7 @@ export function BarrierCellDetail({ code, region }: { code: string; region: stri
                   <thead>
                     <tr><th>Fact</th><th>Value</th><th>Source</th><th>Quote</th><th>Confidence</th><th>Status</th></tr>
                   </thead>
-                  <tbody>{result.values.map((v) => <Figure key={v.id} v={v} label={labels[v.fact] ?? v.fact} />)}</tbody>
+                  <tbody>{result.values.map((v, i) => <Figure key={`${i}:${v.id}`} v={v} label={labels[v.fact] ?? v.fact} />)}</tbody>
                 </table>
               </div>
             )}
@@ -186,7 +185,7 @@ export function BarrierCellDetail({ code, region }: { code: string; region: stri
         )}
       </div>
 
-      {result?.rating === "conflict" && <ConflictChoice code={code} region={region} cell={cell} labels={labels} onChosen={() => void load()} />}
+      {result?.rating === "conflict" && <ConflictChoice code={code} region={region} cell={cell} labels={labels} onChosen={(runId) => { setDerived(runId); void load(); }} />}
 
       <div className="card">
         <h2>Enter a fact</h2>

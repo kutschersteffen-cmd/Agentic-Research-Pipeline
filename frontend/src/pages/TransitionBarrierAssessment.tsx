@@ -419,5 +419,5 @@ function BarrierMatrixPage() {
 
 /** `#/transitionBarrier` is the matrix; `#/transitionBarrier/cell/<code>/<region>` is one cell. */
 export function TransitionBarrierAssessment({ params = [] }: { params?: string[] }) {
-  return params[0] === "cell" && params[1] && params[2] ? <BarrierCellDetail code={params[1]} region={params[2]} /> : <BarrierMatrixPage />;
+  return params[0] === "cell" && params[1] && params[2] ? <BarrierCellDetail key={`${params[1]}/${params[2]}`} code={params[1]} region={params[2]} /> : <BarrierMatrixPage />;
 }

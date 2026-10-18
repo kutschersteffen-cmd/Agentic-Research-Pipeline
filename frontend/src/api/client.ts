@@ -416,7 +416,7 @@ export const api = {
     );
   },
   chooseBarrierValue: (code: string, region: string, body: { fact: string; value_id: string; reason: string }) =>
-    request<{ id: number }>(
+    request<{ id: number; run_id: string }>(
       `/api/transition-barrier/cells/${encodeURIComponent(code)}/${encodeURIComponent(region)}/choices`,
       { method: "POST", body: JSON.stringify(body) },
     ),
