@@ -193,7 +193,7 @@ Changed cells: MIN-R2 EU (H to M), MIN-R2 CN (M to L), AVI-T1 US (L to M), OGU-R
 
 **STL-R1, CEM-R1, CHM-R1**
 
-- 'Net of free allocation' is read as a free-allocation phase-out written into law plus the gross price, not price times paid share. Alternative: a literal net price, which would put the EU (free allocation about 97.5% of benchmark in 2026) at M or lower. Moves STL-R1 EU, CEM-R1 EU, CHM-R1 EU (currently H, H, M and not rated).
+- 'Net of free allocation' is read as a free-allocation phase-out written into law plus the gross price, not price times paid share. Alternative: a literal net price, which would put the EU (free allocation about 97.5% of benchmark in 2026) at M or lower. Moves STL-R1 EU, CEM-R1 EU, CHM-R1 EU (current H, H, M; all three not rated under v1).
 - CEM-R1 US: California cap-and-trade covers in-state cement, but the fact reads federal coverage. Alternative: a sub-national scope. Would move CEM-R1 US from L.
 - CHM-R1: the levy and phase-out count only if they cover both ammonia and steam-cracker products; CBAM covers ammonia but not organic chemicals, so EU levy is No. Alternative: either product counts. Moves CHM-R1 EU (H becomes possible).
 
