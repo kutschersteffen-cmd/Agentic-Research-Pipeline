@@ -22,7 +22,7 @@ If you're on macOS/Linux, or not behind a corporate proxy, the plain
 7. [Postgres (required)](#postgres-required)
 8. [Running the app](#running-the-app)
 9. [Verifying your setup](#verifying-your-setup)
-10. [LLM provider: current state and Gemini](#llm-provider-current-state-and-gemini)
+10. [LLM provider: Claude and Gemini](#llm-provider-claude-and-gemini)
 11. [Troubleshooting](#troubleshooting)
 12. [Keeping your setup up to date](#keeping-your-setup-up-to-date)
 
@@ -379,46 +379,34 @@ step is the problem; it's also the fastest way to hand a precise report
 to whoever set up your corporate network policy, if the issue turns out
 to be on that side.
 
-## LLM provider: current state and Gemini
+## LLM provider: Claude and Gemini
 
-**As of this version, the codebase only supports Anthropic Claude as the
-LLM provider** — the client is `backend/arp/llm/langchain_client.py`
-(`LangChainAnthropicClient`, built on the `anthropic` SDK), wired up in
-`backend/arp/llm/factory.py`, which raises immediately if
-`ARP_ANTHROPIC_API_KEY` is missing. Every agent in the codebase calls
-through the single `LLMClient.complete_structured` interface
-(`backend/arp/llm/base.py`), which is provider-agnostic by design — but
-today only one implementation of it exists.
+Claude (Anthropic) and Gemini (Google) are both supported. The model id picks
+the client: `backend/arp/llm/factory.py` sends `gemini-*` models to
+`GeminiClient` (`backend/arp/llm/gemini_client.py`, on Google's `google-genai`
+SDK) and every other model to `LangChainAnthropicClient`
+(`backend/arp/llm/langchain_client.py`). Every agent calls through the single
+`LLMClient.complete_structured` interface (`backend/arp/llm/base.py`).
 
-If your organization's policy ends up mandating **Gemini** instead of (or
-alongside) Claude, that's a real code change, not a config toggle:
+- **Keys:** `ARP_ANTHROPIC_API_KEY` for Claude models, `ARP_GEMINI_API_KEY`
+  for Gemini models. Each is needed only when a run uses that provider's
+  model, and the factory raises a clear error naming the missing key.
+- **Choosing models:** the default extractor and verifier are Claude. On the
+  Extraction screen, the step editor's **Mode** selector (Cheap / Normal /
+  Max) sets models per run; Cheap and Max pair a Claude model with a Gemini
+  model. The model fields in the step editor accept any model id.
+- **Batch runs:** the Message Batches API (50% cheaper) is Anthropic only. A
+  batch run sends its Gemini calls one by one.
+- **Network:** add `generativelanguage.googleapis.com` to whatever proxy or
+  certificate setup you did for `api.anthropic.com` above.
+- **Vertex AI is not supported.** A plain Gemini API key is needed. If your
+  organization only allows Vertex AI (Google Application Default
+  Credentials, a service account JSON or `gcloud auth
+  application-default login`), `GeminiClient` would need a Vertex option.
+  That is a small change to how it builds `genai.Client`, but it is not done.
 
-- A new `LLMClient` implementation (e.g. `LangChainGeminiClient`, using
-  `langchain-google-genai` or Vertex AI's SDK) matching the same
-  `complete_structured` contract, including its structured-output/schema
-  enforcement, validation-retry loop, and usage/cost accounting fields
-  (`LLMUsage`).
-- A provider switch in `backend/arp/config.py` /
-  `backend/arp/llm/factory.py` (e.g. `ARP_LLM_PROVIDER=anthropic|gemini`),
-  since `ARP_ANTHROPIC_API_KEY` and the Anthropic-specific prompt-caching
-  logic (`_CACHE_CONTROL` in `langchain_client.py`) don't carry over
-  as-is.
-- If your org uses **Vertex AI** rather than a plain Gemini API key,
-  authentication would go through Google Application Default Credentials
-  (a service account JSON, or `gcloud auth application-default login`)
-  instead of an API key in `.env` — a different corporate setup step from
-  everything above (typically its own certificate/proxy considerations
-  for `*.googleapis.com`, handled the same way as
-  `api.anthropic.com`/PyPI/npm above once you know the provider's
-  hostname).
-- This is a good-sized, self-contained change — worth its own task rather
-  than folding into environment setup. This document intentionally
-  doesn't attempt it, so that adding Gemini support doesn't silently
-  regress the existing, tested Anthropic path.
-
-Until that lands, plan on `ARP_ANTHROPIC_API_KEY` for actually running
-the pipelines end-to-end; `pytest -q` in `backend/` needs no API key at
-all (every LLM call is mocked in the unit test suite).
+`pytest -q` in `backend/` needs no API key at all (every LLM call is mocked in
+the unit test suite).
 
 ## Troubleshooting
 

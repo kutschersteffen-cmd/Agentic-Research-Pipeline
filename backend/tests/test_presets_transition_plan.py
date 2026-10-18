@@ -38,3 +38,10 @@ def test_field_ids_are_whitespace_free_and_unique():
     assert not any(c.isspace() for i in ids for c in i)
     assert len(set(ids)) == len(ids)
     assert "tp_a_fossil_fuels_50" in ids
+
+
+def test_scope_1_target_guideline_asks_about_scope_1():
+    f = next(f for f in build_transition_plan_schema().fields if f.name == "A_coverage_6")
+    assert "reported for scope 1 emissions" in f.extraction_instructions
+    assert "scope 2 emissions of the company" not in f.extraction_instructions
+    assert f.version == 2  # the guideline changed, so a released v1 can't be overwritten
