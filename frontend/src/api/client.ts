@@ -534,7 +534,7 @@ export const api = {
     request<{ errors: { key: string; error: string }[] }>(`/api/runs/${encodeURIComponent(runId)}/errors`),
   exportRunCsvUrl: (runId: string) => `${API_BASE}/api/runs/${runId}/export.csv`,
   cancelRun: (runId: string) => request(`/api/runs/${runId}/cancel`, { method: "POST" }),
-  resumeThemeRun: (runId: string) => request(`/api/themes/runs/${runId}/resume`, { method: "POST" }),
+  resumeRun: (runId: string) => request(`/api/runs/${runId}/resume`, { method: "POST" }),
   listKnownCompanies: (runType: string) => request(`/api/runs/known-companies?run_type=${runType}`),
 
   // Universe from an in-hand company list (e.g. filtered thematic-run matches)
