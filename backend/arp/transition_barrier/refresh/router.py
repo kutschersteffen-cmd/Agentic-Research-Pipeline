@@ -35,7 +35,7 @@ class RoutedSource:
 def route_sources(sources: list[RegistrySource] | None = None) -> list[RoutedSource]:
     """Classify every registry source by whether this slice can refresh it.
 
-    Returns all 86, not just the automatable ones -- the point is an honest
+    Returns all 89, not just the automatable ones -- the point is an honest
     inventory of coverage, so a caller can see what is still manual.
     """
     routed: list[RoutedSource] = []

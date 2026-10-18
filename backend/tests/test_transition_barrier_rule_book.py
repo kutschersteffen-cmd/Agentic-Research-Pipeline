@@ -513,12 +513,18 @@ def test_bundled_sources_have_key_and_tier():
     criteria = json.loads((data / "criteria_schema.json").read_text())["criteria"]
     registry = json.loads((data / "source_registry.json").read_text())["sources"]
     entries = [(c["code"], s) for c in criteria for s in c["primary_sources"]]
-    assert len(entries) == 95
+    assert len(entries) == 102
     for code, s in entries:
         assert s.get("key") in registry, (code, s["source_name"])
         assert code in registry[s["key"]]["used_by_criteria"], (code, s["key"])
         assert s.get("tier") in {"primary", "secondary"}, (code, s["source_name"])
         assert s.get("cadence") in {None, "annual", "quarterly"}, (code, s["source_name"])
+        # registry clean-up: a source is a fetchable URL, or manual with a reason
+        assert s.get("url") or s.get("manual"), (code, s["key"])
+        assert bool(s.get("manual")) == bool(s.get("manual_reason")), (code, s["key"])
+        assert {f: s.get(f) for f in ("url", "locator", "manual", "manual_reason")} == {
+            f: registry[s["key"]].get(f) for f in ("url", "locator", "manual", "manual_reason")
+        }, (code, s["key"])
     assert {s["key"] for _, s in entries} == set(registry)
 
 
@@ -563,6 +569,13 @@ def test_ac92_check_rule_book_names_first_error(fixture_dir):
     _break_h_fact(fixture_dir)
     with pytest.raises(RuleBookError, match=re.escape("STL-R1: condition names unknown fact 'prices'")):
         dataset.check_rule_book()
+
+
+def test_criteria_cli_reports_rule_book_error(fixture_dir):
+    _break_h_fact(fixture_dir)
+    result = _runner.invoke(transition_barrier_app, ["criteria"])
+    assert result.exit_code == 1
+    assert result.output == "STL-R1: condition names unknown fact 'prices'\n"
 
 
 def test_check_rule_book_missing(fixture_dir):
@@ -613,6 +626,18 @@ def test_rating_rubric_only_in_rule_book():
         assert not any("rating_rubric" in c for c in criteria), directory
 
 
+# The registry clean-up changes STL-R1's sources on purpose (ruling R11; listed in the PR
+# as a deviation from AC-155's literal text), so source lists are compared for shape only.
+_SHAPE_ONLY = {"criterion.primary_sources", "sources"}
+
+
+def _same_shape(main, now, path):
+    """Each main entry's keys are still present; values and added entries may differ."""
+    assert isinstance(now, list) and len(now) >= len(main), path
+    for i, (m, n) in enumerate(zip(main, now[: len(main)], strict=True)):
+        assert set(m) <= set(n), f"{path}.{i}"
+
+
 def _same_as_main(main, now, path=""):
     """Every field main returned has the same value now; fields added since are ignored."""
     if isinstance(main, dict):
@@ -621,6 +646,9 @@ def _same_as_main(main, now, path=""):
             if path + key == "criterion.rating_rubric":
                 continue
             assert key in now, path + key
+            if path + key in _SHAPE_ONLY:
+                _same_shape(value, now[key], path + key)
+                continue
             _same_as_main(value, now[key], f"{path}{key}.")
     elif isinstance(main, list):
         assert isinstance(now, list) and len(now) == len(main), path

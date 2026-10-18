@@ -78,7 +78,7 @@ def load_scores(path: Path | None = None) -> list[BarrierScore]:
 
 @lru_cache
 def load_source_registry(path: Path | None = None) -> list[RegistrySource]:
-    """The 86 deduplicated sources behind the matrix.
+    """The 89 deduplicated sources behind the matrix.
 
     Unlike the other two files, `sources` here is a JSON *object* keyed by an
     internal identifier rather than an array, so the key is folded into each

@@ -95,7 +95,10 @@ def transition_barrier_criteria(
     out: Path = typer.Option(None, help="Write the criteria as JSON here; omit to print a summary."),
 ) -> None:
     """List the 35 criteria with their metrics and H/M/L rubrics."""
-    criteria = load_criteria()
+    try:
+        criteria = load_criteria()
+    except (RuleBookNotFound, RuleBookError) as exc:
+        raise _fail([str(exc)]) from None
     if sector:
         criteria = [c for c in criteria if c.sector == sector]
     if pillar:
@@ -152,7 +155,7 @@ def transition_barrier_sources(
     access_pattern: str = typer.Option(None, help="Filter by access pattern, e.g. 'legal_regulatory_text'."),
     out: Path = typer.Option(None, help="Write the matching sources as JSON here."),
 ) -> None:
-    """List the 86 deduplicated sources behind the matrix."""
+    """List the 89 deduplicated sources behind the matrix."""
     sources = sources_for_criterion(code) if code else load_source_registry()
     if access_pattern:
         sources = [s for s in sources if s.access_pattern.value == access_pattern]

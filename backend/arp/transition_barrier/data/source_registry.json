@@ -1,14 +1,14 @@
 {
   "_meta": {
-    "description": "86 distinct sources deduplicated across the 35-criteria schema. Derived from docs/Transition_Barrier_Assessment.xlsx (Sources sheet), verified 2026-08-14. Treat data/criteria_schema.json as authoritative if the two ever disagree -- this file is a derived view.",
+    "description": "89 distinct sources deduplicated across the 35-criteria schema. Derived from docs/Transition_Barrier_Assessment.xlsx (Sources sheet), verified 2026-08-14. Treat data/criteria_schema.json as authoritative if the two ever disagree -- this file is a derived view.",
     "verified_date": "2026-08-14",
-    "source_count": 86,
+    "source_count": 89,
     "access_pattern_counts": {
       "company_disclosure": 7,
       "government_agency_publication": 21,
-      "industry_tracker_database": 10,
+      "industry_tracker_database": 11,
       "legal_regulatory_text": 15,
-      "periodic_pdf_report": 27,
+      "periodic_pdf_report": 29,
       "structured_api_or_dashboard": 6
     }
   },
@@ -22,7 +22,9 @@
       "access_pattern": "company_disclosure",
       "refresh_cadence": "per company reporting cycle (typically annual, some quarterly)",
       "locator": "No single URL — retrieve from the specific company's investor relations page (annual report, capital markets day materials, or sustainability report). Identify relevant companies via sector leaders named in Mission Possible Partnership / BloombergNEF sector trackers, then search each company's IR site directly. This is the source type flagged in the Automation Pipeline Design Document (Section 5.6) as requiring discovery-and-triage rather than single-URL retrieval.",
-      "url": null
+      "url": null,
+      "manual": true,
+      "manual_reason": "Company disclosure: no single URL; which companies matter depends on who is assessed."
     },
     "BloombergNEF_Energy_Storage_Outlook": {
       "source_name": "BloombergNEF Energy Storage Outlook",
@@ -33,7 +35,9 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "varies by report series, generally annual",
       "locator": "Subscription service; specific report titles vary by year — verify current title via BNEF's published research index at each review cycle",
-      "url": "https://about.bnef.com/"
+      "url": "https://about.bnef.com/",
+      "manual": true,
+      "manual_reason": "Subscription: BloombergNEF research needs a paid BloombergNEF subscription."
     },
     "BloombergNEF_Corporate_Energy_Market_Outlook": {
       "source_name": "BloombergNEF Corporate Energy Market Outlook",
@@ -44,7 +48,9 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "varies by report series, generally annual",
       "locator": "Subscription service; specific report titles vary by year — verify current title via BNEF's published research index at each review cycle",
-      "url": "https://about.bnef.com/"
+      "url": "https://about.bnef.com/",
+      "manual": true,
+      "manual_reason": "Subscription: BloombergNEF research needs a paid BloombergNEF subscription."
     },
     "BloombergNEF_Hydrogen_Levelized_Cost_Report": {
       "source_name": "BloombergNEF Hydrogen Levelized Cost Report",
@@ -55,7 +61,9 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "varies by report series, generally annual",
       "locator": "Subscription service; specific report titles vary by year — verify current title via BNEF's published research index at each review cycle",
-      "url": "https://about.bnef.com/"
+      "url": "https://about.bnef.com/",
+      "manual": true,
+      "manual_reason": "Subscription: BloombergNEF research needs a paid BloombergNEF subscription."
     },
     "BloombergNEF_Green_Steel_Tracker_Premium_report": {
       "source_name": "BloombergNEF Green Steel Tracker / Premium report",
@@ -66,7 +74,9 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "varies by report series, generally annual",
       "locator": "Subscription service; specific report titles vary by year — verify current title via BNEF's published research index at each review cycle",
-      "url": "https://about.bnef.com/"
+      "url": "https://about.bnef.com/",
+      "manual": true,
+      "manual_reason": "Subscription: BloombergNEF research needs a paid BloombergNEF subscription."
     },
     "California_Advanced_Clean_Fleets_Advanced_Clean_Trucks_regulation": {
       "source_name": "California Advanced Clean Fleets / Advanced Clean Trucks regulation",
@@ -88,7 +98,9 @@
       "access_pattern": "industry_tracker_database",
       "refresh_cadence": "monthly, publisher updates",
       "locator": "Monthly public charging infrastructure statistics",
-      "url": "http://www.evcipa.org.cn/"
+      "url": "http://www.evcipa.org.cn/",
+      "manual": true,
+      "manual_reason": "evcipa.org.cn returned 503; monthly statistics are posted as news items with no stable document URL."
     },
     "Clarksons_Research_World_Fleet_Register": {
       "source_name": "Clarksons Research World Fleet Register",
@@ -99,7 +111,9 @@
       "access_pattern": "industry_tracker_database",
       "refresh_cadence": "continuous (subscription required for full access)",
       "locator": "Subscription database; new-build order book filterable by fuel type and propulsion",
-      "url": "https://www.clarksons.net/wfr/"
+      "url": "https://www.clarksons.net/wfr/",
+      "manual": true,
+      "manual_reason": "Subscription: the World Fleet Register needs a paid Clarksons Research account."
     },
     "RE100_Annual_Report": {
       "source_name": "RE100 Annual Report",
@@ -109,8 +123,8 @@
       ],
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual",
-      "locator": "Annual report on corporate renewable procurement volumes by RE100 member companies",
-      "url": "https://www.there100.org/re100-progress-and-insights-annual-report"
+      "locator": "2024 RE100 annual disclosure report (May 2025): section 4.1 procurement type mix, including recognised PPA volumes by company and market",
+      "url": "https://www.theclimategroup.org/hubfs/2024%20RE100%20Annual%20disclosure%20report%20(3)%20(1).pdf"
     },
     "DNV_Alternative_Fuels_Insight_platform": {
       "source_name": "DNV Alternative Fuels Insight platform",
@@ -121,7 +135,9 @@
       "access_pattern": "industry_tracker_database",
       "refresh_cadence": "continuously updated by publisher",
       "locator": "Free public dashboard tracking alternative-fuel vessel orders and bunkering infrastructure by fuel type",
-      "url": "https://afi.dnv.com/"
+      "url": "https://afi.dnv.com/",
+      "manual": true,
+      "manual_reason": "Dashboard: the order book is read in DNV's interactive web app, not a fetchable document."
     },
     "Mission_Possible_Reaching_Net_Zero_Carbon_Emissions_from_Harder_to_Abate_Sectors": {
       "source_name": "Mission Possible: Reaching Net-Zero Carbon Emissions from Harder-to-Abate Sectors",
@@ -136,7 +152,7 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "irregular — ETC publishes updates and sector-specific follow-ons rather than a fixed annual cycle; check publications page each review",
       "locator": "Sector-specific technical abatement pathways for cement, steel, plastics, aviation, shipping, trucking; distinguishes proven-technology sectors from those needing further technology investment",
-      "url": "https://www.energy-transitions.org/publications/mission-possible/"
+      "url": "https://www.energy-transitions.org/wp-content/uploads/2020/08/ETC_MissionPossible_FullReport.pdf"
     },
     "EU_Innovation_Fund_award_decisions": {
       "source_name": "EU Innovation Fund award decisions",
@@ -147,7 +163,9 @@
       "access_pattern": "government_agency_publication",
       "refresh_cadence": "per call round (roughly annual)",
       "locator": "Award decisions by call round, searchable by sector and project",
-      "url": "https://cinea.ec.europa.eu/programmes/innovation-fund_en"
+      "url": "https://cinea.ec.europa.eu/programmes/innovation-fund/innovation-fund-project-portfolio-dashboard_en",
+      "manual": true,
+      "manual_reason": "Dashboard: awarded projects are listed in CINEA's interactive project portfolio dashboard."
     },
     "EU_REPowerEU_Fit_for_55_targets": {
       "source_name": "EU REPowerEU / Fit for 55 targets",
@@ -157,8 +175,8 @@
       ],
       "access_pattern": "legal_regulatory_text",
       "refresh_cadence": "quarterly",
-      "locator": "Article 3 for the binding 2030 EU-wide renewable target (42.5% headline, with 45% indicative); REPowerEU permitting acceleration provisions",
-      "url": "https://eur-lex.europa.eu/eli/dir/2018/2001/oj"
+      "locator": "Directive (EU) 2023/2413 Article 1(2) replaces Article 3(1) of Directive (EU) 2018/2001: binding 2030 EU-wide renewable target of at least 42.5%, endeavour to reach 45%; permitting acceleration in the inserted Articles 15c (renewables acceleration areas), 16a and 16b (permit-granting inside and outside those areas)",
+      "url": "https://eur-lex.europa.eu/eli/dir/2023/2413/oj/eng"
     },
     "EU_CBAM_scope_review_chemicals_inclusion_status": {
       "source_name": "EU CBAM scope review - chemicals inclusion status",
@@ -179,7 +197,7 @@
       ],
       "access_pattern": "legal_regulatory_text",
       "refresh_cadence": "quarterly",
-      "locator": "Article 3 for TEN-T road network charging point power/distance requirements; Article 6 for hydrogen refuelling",
+      "locator": "Article 4 for heavy-duty charging along the TEN-T road network (pool power and distance requirements, e.g. Article 4(1)(c)); Article 3 covers light-duty vehicles; Article 6 for hydrogen refuelling",
       "url": "https://eur-lex.europa.eu/eli/reg/2023/1804/2026-01-08/eng"
     },
     "EU_CBAM_Regulation_2023_956_and_implementing_acts": {
@@ -245,8 +263,8 @@
       ],
       "access_pattern": "government_agency_publication",
       "refresh_cadence": "annual, criteria updated periodically per sector",
-      "locator": "Sector-specific GPP criteria documents, incl. construction/buildings and infrastructure",
-      "url": "https://green-business.ec.europa.eu/green-public-procurement_en"
+      "locator": "EU GPP criteria for office building design, construction and management (SWD(2016) 180): voluntary criteria, incl. life-cycle assessment (criterion 10.1) and declared embodied CO2 of the main building elements (criterion 8.2); other sector criteria on the GPP criteria page",
+      "url": "https://circabc.europa.eu/rest/download/862af61d-a410-4baa-a7b9-22273623db57"
     },
     "EU_Green_Public_Procurement_construction_criteria": {
       "source_name": "EU Green Public Procurement - construction criteria",
@@ -256,8 +274,8 @@
       ],
       "access_pattern": "government_agency_publication",
       "refresh_cadence": "annual, criteria updated periodically per sector",
-      "locator": "Sector-specific GPP criteria documents, incl. construction/buildings and infrastructure",
-      "url": "https://green-business.ec.europa.eu/green-public-procurement_en"
+      "locator": "EU GPP criteria for office building design, construction and management (SWD(2016) 180): voluntary criteria, incl. life-cycle assessment (criterion 10.1) and declared embodied CO2 of the main building elements (criterion 8.2); other sector criteria on the GPP criteria page",
+      "url": "https://circabc.europa.eu/rest/download/862af61d-a410-4baa-a7b9-22273623db57"
     },
     "EU_ETS_Price": {
       "source_name": "EU ETS carbon price",
@@ -268,7 +286,9 @@
       "access_pattern": "structured_api_or_dashboard",
       "refresh_cadence": "continuous / check at each review cycle",
       "locator": "Daily EUA auction and spot price",
-      "url": "https://www.eex.com/en/market-data/environmental-markets/spot-market"
+      "url": "https://www.eex.com/en/market-data/environmental-markets/spot-market",
+      "manual": true,
+      "manual_reason": "Dashboard: daily prices are shown in EEX's market-data pages, not a fetchable document."
     },
     "Global_Cement_and_Concrete_Association_GCCA_sustainability_data": {
       "source_name": "Global Cement and Concrete Association (GCCA) sustainability data",
@@ -279,7 +299,9 @@
       "access_pattern": "industry_tracker_database",
       "refresh_cadence": "annual",
       "locator": "Getting the Numbers Right (GNR) database; clinker ratio and thermal/electrical intensity by region",
-      "url": "https://gccassociation.org/sustainability-innovation/gnr-gcca-in-numbers/"
+      "url": "https://gccassociation.org/gnr/",
+      "manual": true,
+      "manual_reason": "Dashboard: GNR 2.0 data are read in GCCA's interactive GNR tool."
     },
     "Global_CCS_Institute_CO2RE_database": {
       "source_name": "Global CCS Institute CO2RE database",
@@ -290,7 +312,9 @@
       "access_pattern": "industry_tracker_database",
       "refresh_cadence": "continuously updated by publisher; check quarterly",
       "locator": "Filterable database of CCS/CCUS facilities by status (operational/construction/planned), sector, and region",
-      "url": "https://co2re.co/FacilityData"
+      "url": "https://co2re.co/FacilityData",
+      "manual": true,
+      "manual_reason": "Dashboard: facility data are read in the Global CCS Institute's interactive CO2RE database."
     },
     "Getting_to_Zero_Coalition_Green_Corridors_tracker": {
       "source_name": "Getting to Zero Coalition Green Corridors tracker",
@@ -300,8 +324,8 @@
       ],
       "access_pattern": "industry_tracker_database",
       "refresh_cadence": "check semi-annually",
-      "locator": "List of announced and active green shipping corridor initiatives with participants and status",
-      "url": "https://www.globalmaritimeforum.org/green-corridors"
+      "locator": "Annual Progress Report on Green Shipping Corridors 2025 (Global Maritime Forum / Getting to Zero Coalition): announced and active corridor initiatives with participants and maturity stage",
+      "url": "https://assets.ctfassets.net/gk3lrimlph5v/7zsVf5G9wzNPhEjFPjCrFC/f2918a81c76b734952c6ed4024ef42d9/Annual_progress_report_on_green_shipping_corridors_2025.pdf"
     },
     "Company_investor_disclosures__CEM_D1": {
       "source_name": "Company investor disclosures",
@@ -312,7 +336,9 @@
       "access_pattern": "company_disclosure",
       "refresh_cadence": "per company reporting cycle (typically annual, some quarterly)",
       "locator": "No single URL — retrieve from the specific company's investor relations page (annual report, capital markets day materials, or sustainability report). Identify relevant companies via sector leaders named in Mission Possible Partnership / BloombergNEF sector trackers, then search each company's IR site directly. This is the source type flagged in the Automation Pipeline Design Document (Section 5.6) as requiring discovery-and-triage rather than single-URL retrieval.",
-      "url": null
+      "url": null,
+      "manual": true,
+      "manual_reason": "Company disclosure: no single URL; which companies matter depends on who is assessed."
     },
     "Company_investor_disclosures__MIN_D1": {
       "source_name": "Company investor disclosures",
@@ -323,7 +349,9 @@
       "access_pattern": "company_disclosure",
       "refresh_cadence": "per company reporting cycle (typically annual, some quarterly)",
       "locator": "No single URL — retrieve from the specific company's investor relations page (annual report, capital markets day materials, or sustainability report). Identify relevant companies via sector leaders named in Mission Possible Partnership / BloombergNEF sector trackers, then search each company's IR site directly. This is the source type flagged in the Automation Pipeline Design Document (Section 5.6) as requiring discovery-and-triage rather than single-URL retrieval.",
-      "url": null
+      "url": null,
+      "manual": true,
+      "manual_reason": "Company disclosure: no single URL; which companies matter depends on who is assessed."
     },
     "Company_investor_disclosures__STL_D1": {
       "source_name": "Company investor disclosures",
@@ -334,7 +362,9 @@
       "access_pattern": "company_disclosure",
       "refresh_cadence": "per company reporting cycle (typically annual, some quarterly)",
       "locator": "No single URL — retrieve from the specific company's investor relations page (annual report, capital markets day materials, or sustainability report). Identify relevant companies via sector leaders named in Mission Possible Partnership / BloombergNEF sector trackers, then search each company's IR site directly. This is the source type flagged in the Automation Pipeline Design Document (Section 5.6) as requiring discovery-and-triage rather than single-URL retrieval.",
-      "url": null
+      "url": null,
+      "manual": true,
+      "manual_reason": "Company disclosure: no single URL; which companies matter depends on who is assessed."
     },
     "IATA_Sustainable_Aviation_Fuel_Fact_Sheet_SAF_Tracker": {
       "source_name": "IATA Sustainable Aviation Fuel Fact Sheet / SAF Tracker",
@@ -344,8 +374,8 @@
       ],
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual, with interim updates",
-      "locator": "Annual SAF production volume vs. global jet fuel demand; price differential data",
-      "url": "https://www.iata.org/en/iata-repository/publications/economic-reports/sustainable-aviation-fuel-fact-sheet/"
+      "locator": "SAF fact sheet (PDF, June 2026 edition when checked): SAF production tracker table with annual output and share of jet fuel use; cost relative to conventional jet fuel",
+      "url": "https://www.iata.org/en/iata-repository/pressroom/fact-sheets/fact-sheet-sustainable-aviation-fuels/"
     },
     "IATA_SAF_price_tracking": {
       "source_name": "IATA SAF price tracking",
@@ -356,7 +386,9 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "periodic, check quarterly",
       "locator": "IATA SAF programme page; price tracking data typically published via IATA Economics reports and SAF fact sheets",
-      "url": "https://www.iata.org/en/programs/environment/sustainable-aviation-fuels/"
+      "url": "https://www.iata.org/en/programs/environment/sustainable-aviation-fuels/",
+      "manual": true,
+      "manual_reason": "No single document: IATA publishes SAF prices in press releases and economic reports as they come out."
     },
     "ICAO_CORSIA_scheme_status": {
       "source_name": "ICAO CORSIA scheme status",
@@ -367,7 +399,9 @@
       "access_pattern": "government_agency_publication",
       "refresh_cadence": "annual, check ahead of each phase transition",
       "locator": "State participation list (voluntary pilot phase 2021-2026, first obligatory phase from 2027); China participation status",
-      "url": "https://www.icao.int/environmental-protection/CORSIA/Pages/state-pairs.aspx"
+      "url": "https://www.icao.int/corsia-state-pairs",
+      "manual": true,
+      "manual_reason": "icao.int returns 403 to automated requests; the CORSIA State pairs document is reissued each year."
     },
     "ICCT_Total_Cost_of_Ownership_analyses": {
       "source_name": "ICCT Total Cost of Ownership analyses",
@@ -378,7 +412,9 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual, check for new regional TCO updates",
       "locator": "Search publications by 'total cost of ownership' + region; separate reports for EU, US, China",
-      "url": "https://theicct.org/publications/"
+      "url": "https://theicct.org/publications/",
+      "manual": true,
+      "manual_reason": "No single document: ICCT publishes a separate TCO study per region; use the latest for each region."
     },
     "IEA_World_Energy_Investment": {
       "source_name": "IEA World Energy Investment",
@@ -389,7 +425,9 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual, typically published June",
       "locator": "Annual global and regional energy investment tracking by technology and sector",
-      "url": "https://www.iea.org/reports/world-energy-investment-2025"
+      "url": "https://www.iea.org/reports/world-energy-investment-2025",
+      "manual": true,
+      "manual_reason": "iea.org returns 403 to automated requests; fetch the page in a browser."
     },
     "IEA_Energy_Storage": {
       "source_name": "IEA Energy Storage",
@@ -400,7 +438,9 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual",
       "locator": "IEA Energy System tracking page for grid-scale storage; annual data updates within IEA Electricity report",
-      "url": "https://www.iea.org/energy-system/electricity/grid-scale-storage"
+      "url": "https://www.iea.org/energy-system/electricity/grid-scale-storage",
+      "manual": true,
+      "manual_reason": "iea.org returns 403 to automated requests; fetch the page in a browser."
     },
     "IEA_Renewables_market_report": {
       "source_name": "IEA Renewables market report",
@@ -411,7 +451,9 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual, typically published October",
       "locator": "/executive-summary sub-page for VRE integration phase assessment by country",
-      "url": "https://www.iea.org/reports/renewables-2024"
+      "url": "https://www.iea.org/reports/renewables-2024",
+      "manual": true,
+      "manual_reason": "iea.org returns 403 to automated requests; fetch the page in a browser."
     },
     "IEA_Global_Hydrogen_Review": {
       "source_name": "IEA Global Hydrogen Review",
@@ -423,7 +465,9 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual, typically published October",
       "locator": "Sub-pages: /hydrogen-production, /hydrogen-demand, /policies, /trade-and-infrastructure, /investment-finance-and-innovation",
-      "url": "https://www.iea.org/reports/global-hydrogen-review-2024"
+      "url": "https://www.iea.org/reports/global-hydrogen-review-2024",
+      "manual": true,
+      "manual_reason": "iea.org returns 403 to automated requests; fetch the page in a browser."
     },
     "IEA_CCUS_Projects_Database": {
       "source_name": "IEA CCUS Projects Database",
@@ -433,8 +477,10 @@
       ],
       "access_pattern": "industry_tracker_database",
       "refresh_cadence": "continuously updated by publisher; check quarterly",
-      "locator": "Filterable database of CCS/CCUS facilities by status (operational/construction/planned), sector, and region",
-      "url": "https://co2re.co/FacilityData"
+      "locator": "Downloadable list of CO2 capture, transport, storage and use projects by status (operational, construction, planned), sector, country and capacity; projects of at least 100 kt CO2 per year",
+      "url": "https://www.iea.org/data-and-statistics/data-product/ccus-projects-database",
+      "manual": true,
+      "manual_reason": "iea.org returns 403 to automated requests; fetch the page in a browser."
     },
     "IEA_Cement_Technology_Roadmap": {
       "source_name": "IEA Cement Technology Roadmap",
@@ -445,7 +491,9 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual",
       "locator": "IEA Energy System tracking page for cement sector; technology roadmap content integrated into IEA industry tracking",
-      "url": "https://www.iea.org/energy-system/industry/cement"
+      "url": "https://www.iea.org/energy-system/industry/cement",
+      "manual": true,
+      "manual_reason": "iea.org returns 403 to automated requests; fetch the page in a browser."
     },
     "IEA_The_Future_of_Petrochemicals": {
       "source_name": "IEA The Future of Petrochemicals",
@@ -455,9 +503,11 @@
         "CHM-T2"
       ],
       "access_pattern": "periodic_pdf_report",
-      "refresh_cadence": "annual, typically published October",
-      "locator": "Regional demand projections under STEPS, APS, and NZE scenarios, by fuel and sector",
-      "url": "https://www.iea.org/reports/world-energy-outlook-2024"
+      "refresh_cadence": "one-off report (October 2018)",
+      "locator": "2018 report on primary chemicals: production routes, feedstock and energy use by region, and the Clean Technology Scenario's technology options",
+      "url": "https://www.iea.org/reports/the-future-of-petrochemicals",
+      "manual": true,
+      "manual_reason": "iea.org returns 403 to automated requests; fetch the page in a browser."
     },
     "IEA_Critical_Minerals_Outlook": {
       "source_name": "IEA Critical Minerals Outlook",
@@ -468,7 +518,9 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual",
       "locator": "Sub-pages: /market-review, /outlook-for-key-minerals, /executive-summary",
-      "url": "https://www.iea.org/reports/global-critical-minerals-outlook-2024"
+      "url": "https://www.iea.org/reports/global-critical-minerals-outlook-2024",
+      "manual": true,
+      "manual_reason": "iea.org returns 403 to automated requests; fetch the page in a browser."
     },
     "IEA_Critical_Minerals_Outlook_demand_supply_gap_tables": {
       "source_name": "IEA Critical Minerals Outlook - demand-supply gap tables",
@@ -479,7 +531,9 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual",
       "locator": "Sub-pages: /market-review, /outlook-for-key-minerals, /executive-summary",
-      "url": "https://www.iea.org/reports/global-critical-minerals-outlook-2024"
+      "url": "https://www.iea.org/reports/global-critical-minerals-outlook-2024",
+      "manual": true,
+      "manual_reason": "iea.org returns 403 to automated requests; fetch the page in a browser."
     },
     "IEA_Aviation_tracking_report": {
       "source_name": "IEA Aviation tracking report",
@@ -488,9 +542,11 @@
         "AVI-T1"
       ],
       "access_pattern": "periodic_pdf_report",
-      "refresh_cadence": "annual, typically published October",
-      "locator": "Regional demand projections under STEPS, APS, and NZE scenarios, by fuel and sector",
-      "url": "https://www.iea.org/reports/world-energy-outlook-2024"
+      "refresh_cadence": "annual",
+      "locator": "Aviation tracking page: activity, energy demand, emissions and sustainable aviation fuel progress against the Net Zero Scenario",
+      "url": "https://www.iea.org/energy-system/transport/aviation",
+      "manual": true,
+      "manual_reason": "iea.org returns 403 to automated requests; fetch the page in a browser."
     },
     "IEA_Global_EV_Outlook_heavy_duty_vehicles_chapter": {
       "source_name": "IEA Global EV Outlook - heavy-duty vehicles chapter",
@@ -499,9 +555,11 @@
         "HDT-T1"
       ],
       "access_pattern": "periodic_pdf_report",
-      "refresh_cadence": "annual, typically published October",
-      "locator": "Regional demand projections under STEPS, APS, and NZE scenarios, by fuel and sector",
-      "url": "https://www.iea.org/reports/world-energy-outlook-2024"
+      "refresh_cadence": "annual, typically published in spring (May in 2025)",
+      "locator": "Heavy-duty truck sections: electric truck sales by region and total cost of ownership of electric heavy-duty trucks in several markets",
+      "url": "https://www.iea.org/reports/global-ev-outlook-2025",
+      "manual": true,
+      "manual_reason": "iea.org returns 403 to automated requests; fetch the page in a browser."
     },
     "IEA_Methane_Tracker": {
       "source_name": "IEA Methane Tracker",
@@ -512,7 +570,9 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual, typically published March",
       "locator": "/key-findings sub-page; includes IEA Methane Abatement Model (2024) for country/segment abatement cost curves",
-      "url": "https://www.iea.org/reports/global-methane-tracker-2025"
+      "url": "https://www.iea.org/reports/global-methane-tracker-2025",
+      "manual": true,
+      "manual_reason": "iea.org returns 403 to automated requests; fetch the page in a browser."
     },
     "IEA_World_Energy_Outlook_regional_demand_scenarios": {
       "source_name": "IEA World Energy Outlook - regional demand scenarios",
@@ -523,7 +583,9 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual, typically published October",
       "locator": "Regional demand projections under STEPS, APS, and NZE scenarios, by fuel and sector",
-      "url": "https://www.iea.org/reports/world-energy-outlook-2024"
+      "url": "https://www.iea.org/reports/world-energy-outlook-2024",
+      "manual": true,
+      "manual_reason": "iea.org returns 403 to automated requests; fetch the page in a browser."
     },
     "IMO_GHG_Strategy_implementation_tracker": {
       "source_name": "IMO GHG Strategy implementation tracker",
@@ -556,7 +618,7 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual, typically published September",
       "locator": "Executive summary PDF gives headline LCOE figures by technology and region",
-      "url": "https://www.irena.org/Publications/2024/Sep/Renewable-Power-Generation-Costs-in-2023"
+      "url": "https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2024/Sep/IRENA_Renewable_power_generation_costs_in_2023.pdf"
     },
     "Lazard_Levelized_Cost_of_Energy_Analysis": {
       "source_name": "Lazard Levelized Cost of Energy Analysis",
@@ -567,18 +629,19 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual",
       "locator": "Unsubsidized LCOE ranges by technology, US-focused",
-      "url": "https://www.lazard.com/research-insights/levelized-cost-of-energyplus/"
+      "url": "https://www.lazard.com/media/kcfconhf/lazards-lcoeplus_vf.pdf"
     },
     "China_national_ETS_sector_coverage_roadmap": {
       "source_name": "China national ETS sector coverage roadmap",
       "publisher": "Ministry of Ecology and Environment (China)",
       "used_by_criteria": [
+        "CEM-R1",
         "STL-R1"
       ],
       "access_pattern": "government_agency_publication",
       "refresh_cadence": "quarterly given active expansion phase",
-      "locator": "November 2025 MEE allocation plan for steel/cement/aluminium sectors confirms 2024-2025 free allocation basis and 2027 target for absolute cap transition",
-      "url": "https://www.mee.gov.cn/"
+      "locator": "MEE allocation plan for steel, cement and aluminium smelting, 2024 and 2025 (issued 18 November 2025), section 三 (配额计算方法): 2024 allowances equal verified 2024 emissions; 2025 allowances by sector emission-intensity balance values. The 2024-2026 start-up stage and the deepening stage from 2027 are in the MEE work plan of 26 March 2025 (mee.gov.cn W020250326367625819894.pdf).",
+      "url": "https://www.mee.gov.cn/xxgk2018/xxgk/xxgk03/202511/W020251118634892868994.pdf"
     },
     "China_methane_control_action_plan": {
       "source_name": "China methane control action plan",
@@ -588,8 +651,8 @@
       ],
       "access_pattern": "government_agency_publication",
       "refresh_cadence": "annual",
-      "locator": "Ministry of Ecology and Environment official site; methane action plan published in Chinese, search for '甲烷排放控制行动方案'",
-      "url": "https://www.mee.gov.cn/"
+      "locator": "甲烷排放控制行动方案 (MEE and 10 other departments, November 2023): oil and gas tasks 4-6 (venting control, leak detection and repair, reducing routine flaring) and the aim of zero routine flaring in onshore oil and gas production",
+      "url": "https://www.mee.gov.cn/xxgk2018/xxgk/xxgk03/202311/W020231107750707766959.pdf"
     },
     "China_NEV_mandate_commercial_vehicles": {
       "source_name": "China NEV mandate - commercial vehicles",
@@ -599,8 +662,8 @@
       ],
       "access_pattern": "government_agency_publication",
       "refresh_cadence": "annual",
-      "locator": "NEV credit requirements and commercial vehicle sales share targets",
-      "url": "https://www.miit.gov.cn/"
+      "locator": "MIIT decision amending the dual-credit measures (乘用车企业平均燃料消耗量与新能源汽车积分并行管理办法), in force 1 January 2021: NEV credit ratios by year. The measures cover passenger cars (乘用车) only; no commercial-vehicle NEV credit requirement is in this text",
+      "url": "https://www.gov.cn/zhengce/zhengceku/2020-06/22/content_5521144.htm"
     },
     "China_Ministry_of_Natural_Resources_mining_approval_process": {
       "source_name": "China Ministry of Natural Resources mining approval process",
@@ -611,7 +674,9 @@
       "access_pattern": "government_agency_publication",
       "refresh_cadence": "annual",
       "locator": "Official ministry site; mining licence and approval procedures published in Chinese only — requires translation for non-Chinese-speaking researchers",
-      "url": "https://www.mnr.gov.cn/"
+      "url": "https://www.mnr.gov.cn/",
+      "manual": true,
+      "manual_reason": "mnr.gov.cn did not respond to requests from outside China, and approval procedures are spread over several MNR notices in Chinese, with no single document."
     },
     "Mission_Possible_Partnership_Steel_sector_tracker": {
       "source_name": "Mission Possible Partnership Steel sector tracker",
@@ -621,8 +686,10 @@
       ],
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual, but publication timing is less regular than IEA/IRENA",
-      "locator": "Sector-specific transition strategy reports; check publications page for the current version per sector",
-      "url": "https://missionpossiblepartnership.org/publications/"
+      "locator": "MPP Global Project Tracker: announced, FID and operational near-zero steel plants, updated quarterly",
+      "url": "https://missionpossiblepartnership.org/tracker",
+      "manual": true,
+      "manual_reason": "Dashboard: the project list is read in MPP's interactive tracker, not a fetchable document."
     },
     "Mission_Possible_Partnership_Steel_Transition_Strategy": {
       "source_name": "Mission Possible Partnership Steel Transition Strategy",
@@ -632,8 +699,8 @@
       ],
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual, but publication timing is less regular than IEA/IRENA",
-      "locator": "Sector-specific transition strategy reports; check publications page for the current version per sector",
-      "url": "https://missionpossiblepartnership.org/publications/"
+      "locator": "Making Net-Zero Steel Possible (MPP steel transition strategy, September 2022): technology cost comparison of hydrogen DRI-EAF against BF-BOF and the hydrogen cost assumptions",
+      "url": "https://www.energy-transitions.org/wp-content/uploads/2022/09/Making-Net-Zero-Steel-possible.pdf"
     },
     "China_industrial_decarbonisation_funding_programmes": {
       "source_name": "China industrial decarbonisation funding programmes",
@@ -643,8 +710,10 @@
       ],
       "access_pattern": "government_agency_publication",
       "refresh_cadence": "quarterly given active expansion phase",
-      "locator": "November 2025 MEE allocation plan for steel/cement/aluminium sectors confirms 2024-2025 free allocation basis and 2027 target for absolute cap transition",
-      "url": "https://www.mee.gov.cn/"
+      "locator": "NDRC central-budget investment programmes for industrial energy saving and carbon reduction; no single programme document identified yet",
+      "url": "https://www.ndrc.gov.cn/",
+      "manual": true,
+      "manual_reason": "No single document: NDRC funding runs through several programmes, and no rating has yet been checked against one."
     },
     "China_NEA_renewable_targets": {
       "source_name": "China NEA renewable targets",
@@ -654,8 +723,8 @@
       ],
       "access_pattern": "government_agency_publication",
       "refresh_cadence": "quarterly",
-      "locator": "Annual and quarterly capacity addition statistics; 14th Five-Year Plan renewable targets (exceeded 1,200 GW wind+solar target in 2024, six years ahead of the original 2030 goal)",
-      "url": "https://www.nea.gov.cn/"
+      "locator": "14th Five-Year Plan for Renewable Energy (NDRC, NEA and seven other bodies, 2021, published June 2022): 2025 targets (专栏 1) and the goal of more than 1,200 GW wind plus solar by 2030; NEA's annual and quarterly capacity statistics are released as separate news items on nea.gov.cn",
+      "url": "https://www.ndrc.gov.cn/xxgk/zcfb/ghwb/202206/P020220602315308557623.pdf"
     },
     "NGFS_Scenario_Explorer": {
       "source_name": "NGFS Climate Scenarios",
@@ -669,7 +738,9 @@
       "access_pattern": "structured_api_or_dashboard",
       "refresh_cadence": "new phase roughly every 12-18 months (Phase 5 released Nov 2024; short-term scenarios added May 2025)",
       "locator": "Downloadable in CSV/XLSX; gives projected carbon prices, policy phase-out dates, and macro-financial impacts under Orderly/Disorderly/Hot House World scenario families — used here to source the carbon price trajectory that the H/M/L threshold in this criterion's rubric is benchmarked against.",
-      "url": "https://www.ngfs.net/ngfs-scenarios-portal/data-resources/"
+      "url": "https://www.ngfs.net/ngfs-scenarios-portal/data-resources/",
+      "manual": true,
+      "manual_reason": "Dashboard: scenario data are downloaded from the NGFS / IIASA scenario portal; ngfs.net returns 403 to automated requests."
     },
     "OECD_Steel_Market_Developments": {
       "source_name": "OECD Steel Market Developments",
@@ -680,7 +751,9 @@
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "semi-annual",
       "locator": "Semi-annual OECD Steel Committee market monitoring report",
-      "url": "https://www.oecd.org/en/topics/sub-issues/steel-market-developments.html"
+      "url": "https://www.oecd.org/en/topics/sub-issues/steel-market-developments.html",
+      "manual": true,
+      "manual_reason": "oecd.org returns 403 to automated requests; the semi-annual report is listed on this topic page."
     },
     "EU_Critical_Raw_Materials_Act_Regulation_2024_1252": {
       "source_name": "EU Critical Raw Materials Act (Regulation 2024/1252)",
@@ -690,7 +763,7 @@
       ],
       "access_pattern": "legal_regulatory_text",
       "refresh_cadence": "quarterly",
-      "locator": "Article 3 for 2030 benchmarks (10% extraction / 40% processing / 25% recycling); Chapter III for Strategic Projects fast-track permitting (Article 12: 27-month target for extraction projects)",
+      "locator": "Article 5(1) for the 2030 benchmarks (10% extraction / 40% processing / 25% recycling); Chapter III for Strategic Projects; Article 11 for permit-granting: 11(1)(a) 27 months for extraction projects, 11(3) excludes the environmental impact assessment step, 11(4) allows an extension of at most six months",
       "url": "https://eur-lex.europa.eu/eli/reg/2024/1252/2024-05-03/eng"
     },
     "EU_Critical_Raw_Materials_Act_benchmarks": {
@@ -701,7 +774,7 @@
       ],
       "access_pattern": "legal_regulatory_text",
       "refresh_cadence": "quarterly",
-      "locator": "Article 3 for 2030 benchmarks (10% extraction / 40% processing / 25% recycling); Chapter III for Strategic Projects fast-track permitting (Article 12: 27-month target for extraction projects)",
+      "locator": "Article 5(1) for the 2030 benchmarks (10% extraction / 40% processing / 25% recycling); Chapter III for Strategic Projects; Article 11 for permit-granting: 11(1)(a) 27 months for extraction projects, 11(3) excludes the environmental impact assessment step, 11(4) allows an extension of at most six months",
       "url": "https://eur-lex.europa.eu/eli/reg/2024/1252/2024-05-03/eng"
     },
     "EU_ReFuelEU_Aviation_Regulation_2023_2405": {
@@ -735,7 +808,7 @@
       "access_pattern": "legal_regulatory_text",
       "refresh_cadence": "quarterly",
       "locator": "GHG intensity reduction targets by year, escalating from 2025",
-      "url": "https://eur-lex.europa.eu/legal-content/en/LSU/?uri=CELEX%3A32023R1805"
+      "url": "https://eur-lex.europa.eu/eli/reg/2023/1805/oj/eng"
     },
     "EU_CO2_emission_standards_for_heavy_duty_vehicles_Regulation_2024_1610": {
       "source_name": "EU CO2 emission standards for heavy-duty vehicles (Regulation 2024/1610)",
@@ -768,7 +841,9 @@
       "access_pattern": "industry_tracker_database",
       "refresh_cadence": "continuous",
       "locator": "Subscription service; mining equipment and production tracking",
-      "url": "https://www.spglobal.com/marketintelligence/en/sector/metals-mining"
+      "url": "https://www.spglobal.com/marketintelligence/en/sector/metals-mining",
+      "manual": true,
+      "manual_reason": "Subscription: S&P Global Market Intelligence is a paid service."
     },
     "China_National_ETS_Price": {
       "source_name": "China national ETS price",
@@ -779,7 +854,9 @@
       "access_pattern": "structured_api_or_dashboard",
       "refresh_cadence": "continuous",
       "locator": "Daily CEA closing price; ICAP page gives narrative context on scope and allocation method",
-      "url": "https://www.cneeex.com/"
+      "url": "https://www.cneeex.com/",
+      "manual": true,
+      "manual_reason": "Dashboard: daily CEA prices are shown on the exchange's website, which returned HTTP 420 to automated requests."
     },
     "US_DOE_Industrial_Demonstrations_Program_awards": {
       "source_name": "US DOE Industrial Demonstrations Program awards",
@@ -801,7 +878,9 @@
       "access_pattern": "structured_api_or_dashboard",
       "refresh_cadence": "continuously updated",
       "locator": "Public charging and alternative fuel infrastructure station locator and counts, filterable by vehicle class",
-      "url": "https://afdc.energy.gov/"
+      "url": "https://afdc.energy.gov/",
+      "manual": true,
+      "manual_reason": "Dashboard: station counts come from the AFDC station locator, an interactive tool."
     },
     "US_SAF_Grand_Challenge_IRA_40B_tax_credit": {
       "source_name": "US SAF Grand Challenge / IRA 40B tax credit",
@@ -811,8 +890,8 @@
       ],
       "access_pattern": "government_agency_publication",
       "refresh_cadence": "annual, monitor for continuity under current administration priorities",
-      "locator": "Low-embodied-carbon material procurement standards for federal construction contracts",
-      "url": "https://www.sustainability.gov/buyclean/"
+      "locator": "SAF Grand Challenge Roadmap (DOE, September 2022): the goals of 3 billion gallons of SAF per year by 2030 and 35 billion by 2050, a volume goal rather than a blending mandate. The IRA section 40B SAF credit is Treasury/IRS guidance and is not in this document.",
+      "url": "https://www.energy.gov/sites/default/files/2022-09/beto-saf-gc-roadmap-report-sept-2022.pdf"
     },
     "US_Fixing_America_s_Surface_Transportation_Act_permitting_reform_tracker": {
       "source_name": "US Fixing America's Surface Transportation Act / permitting reform tracker",
@@ -823,7 +902,9 @@
       "access_pattern": "government_agency_publication",
       "refresh_cadence": "monitor closely given active legislative attention",
       "locator": "Track federal permitting reform legislation via Congress.gov; also monitor Federal Permitting Improvement Steering Council dashboard",
-      "url": "https://www.congress.gov/bill/118th-congress/house-bill/1"
+      "url": "https://www.congress.gov/bill/118th-congress/house-bill/1",
+      "manual": true,
+      "manual_reason": "congress.gov returns 403 to automated requests, and the tracker spans several bills and the Permitting Council dashboard."
     },
     "US_EPA_Heavy_Duty_Phase_3_GHG_standards": {
       "source_name": "US EPA Heavy-Duty Phase 3 GHG standards",
@@ -833,8 +914,8 @@
       ],
       "access_pattern": "government_agency_publication",
       "refresh_cadence": "monitor closely given litigation risk",
-      "locator": "Final rule and implementation status; subject to ongoing litigation and potential reconsideration under the current administration",
-      "url": "https://www.epa.gov/regulations-emissions-vehicles-and-engines/final-rule-greenhouse-gas-emissions-standards-heavy"
+      "locator": "Final rule, 89 FR 29440 (22 April 2024): CO2 standards for heavy-duty vehicles, model years 2027-2032. Repealed with all vehicle GHG standards by 91 FR 7686 (18 February 2026, effective 20 April 2026, FR doc 2026-03157)",
+      "url": "https://www.federalregister.gov/documents/2024/04/22/2024-06809/greenhouse-gas-emissions-standards-for-heavy-duty-vehicles-phase-3"
     },
     "US_EPA_Methane_Emissions_Reduction_Program_Waste_Emissions_Charge_IRA": {
       "source_name": "US EPA Methane Emissions Reduction Program / Waste Emissions Charge (IRA)",
@@ -844,7 +925,7 @@
       ],
       "access_pattern": "government_agency_publication",
       "refresh_cadence": "monitor closely",
-      "locator": "Congressional Review Act joint resolution (H.J.Res.35, P.L. 119-2, signed 14 March 2025) nullified the 2024 WEC implementing rule; EPA barred from collecting the charge until 2034; underlying statutory obligation remains but is currently unenforceable",
+      "locator": "EPA notice (90 FR 21225, 19 May 2025) removing the 2024 WEC implementing rule after the Congressional Review Act joint resolution (H.J.Res.35, P.L. 119-2, signed 14 March 2025) nullified it. The charge itself is delayed by P.L. 119-21 section 60012(b), which replaces 'calendar year 2024' with 'calendar year 2034' in Clean Air Act section 136(g); the underlying statutory obligation remains.",
       "url": "https://www.federalregister.gov/documents/2025/05/19/2025-08688/congressional-review-act-revocation-of-waste-emissions-charge-for-petroleum-and-natural-gas-systems"
     },
     "US_Federal_Buy_Clean_Initiative": {
@@ -855,8 +936,8 @@
       ],
       "access_pattern": "government_agency_publication",
       "refresh_cadence": "annual, monitor for continuity under current administration priorities",
-      "locator": "Low-embodied-carbon material procurement standards for federal construction contracts",
-      "url": "https://www.sustainability.gov/buyclean/"
+      "locator": "Biden-era progress report on the Federal Buy Clean Initiative (low-embodied-carbon material purchases by GSA, FHWA and EPA); EO 14057, which set up Buy Clean, was rescinded in January 2025",
+      "url": "https://sustainability.gov/pdfs/federal-buy-clean-initiative_progress-and-path-forward.pdf"
     },
     "US_Inflation_Reduction_Act_Section_30D_critical_minerals_requirements": {
       "source_name": "US Inflation Reduction Act Section 30D critical minerals requirements",
@@ -877,8 +958,10 @@
       ],
       "access_pattern": "industry_tracker_database",
       "refresh_cadence": "annual",
-      "locator": "Company-level methane reporting status and gold standard reporting members",
-      "url": "https://www.ogmpartnership.com/"
+      "locator": "An Eye on Methane 2025 (UNEP IMEO, 22 October 2025): OGMP 2.0 member reporting levels (Gold Standard) and share of global oil and gas production covered",
+      "url": "https://www.unep.org/resources/eye-methane-2025",
+      "manual": true,
+      "manual_reason": "unep.org returns 403 to automated requests; fetch the report page in a browser."
     },
     "USGS_Mineral_Commodity_Summaries": {
       "source_name": "USGS Mineral Commodity Summaries",
@@ -889,7 +972,7 @@
       "access_pattern": "structured_api_or_dashboard",
       "refresh_cadence": "annual, published January/February; data-only releases also available via data.usgs.gov by commodity",
       "locator": "Two-page synopses per mineral commodity; world production, reserves, and US import reliance tables",
-      "url": "https://www.usgs.gov/publications/mineral-commodity-summaries-2025"
+      "url": "https://pubs.usgs.gov/periodicals/mcs2025/mcs2025.pdf"
     },
     "National_state_building_codes_register": {
       "source_name": "National/state building codes register",
@@ -900,7 +983,9 @@
       "access_pattern": "government_agency_publication",
       "refresh_cadence": "annual, varies significantly by jurisdiction",
       "locator": "No single global register — International Code Council (US) as a starting reference point; verify per-jurisdiction embodied carbon requirements via national standards bodies named in the criteria",
-      "url": "https://www.iccsafe.org/"
+      "url": "https://www.iccsafe.org/",
+      "manual": true,
+      "manual_reason": "No single register: building codes and their embodied-carbon rules vary by jurisdiction."
     },
     "World_Bank_Carbon_Pricing_Dashboard": {
       "source_name": "World Bank Carbon Pricing Dashboard",
@@ -911,7 +996,9 @@
       "access_pattern": "structured_api_or_dashboard",
       "refresh_cadence": "continuous; annual report each spring",
       "locator": "Interactive dashboard; filter by jurisdiction and instrument type (ETS / carbon tax); underlying annual report is 'State and Trends of Carbon Pricing'",
-      "url": "https://carbonpricingdashboard.worldbank.org/"
+      "url": "https://carbonpricingdashboard.worldbank.org/",
+      "manual": true,
+      "manual_reason": "Dashboard: interactive dashboard, which returns 403 to automated requests; the annual State and Trends of Carbon Pricing report holds the same figures."
     },
     "First_Movers_Coalition_Cement_Concrete_commitments": {
       "source_name": "First Movers Coalition Cement & Concrete commitments",
@@ -922,7 +1009,9 @@
       "access_pattern": "industry_tracker_database",
       "refresh_cadence": "annual, updated at major COP/WEF events",
       "locator": "Member company demand commitments by sector",
-      "url": "https://www.weforum.org/communities/first-movers-coalition/"
+      "url": "https://initiatives.weforum.org/first-movers-coalition/commitments",
+      "manual": true,
+      "manual_reason": "Dashboard: the commitments list is drawn by a script on the page, with no fetchable document."
     },
     "World_Steel_Association_Steel_Statistical_Yearbook": {
       "source_name": "World Steel Association Steel Statistical Yearbook",
@@ -932,8 +1021,8 @@
       ],
       "access_pattern": "periodic_pdf_report",
       "refresh_cadence": "annual",
-      "locator": "Annual production, EAF vs. BF-BOF share, and scrap consumption data by country",
-      "url": "https://worldsteel.org/data/world-steel-in-figures/"
+      "locator": "World Steel in Figures 2026 (worldsteel's free summary of the yearbook data, finalised 8 June 2026): crude steel production by process (EAF share) by country and ferrous scrap trade; scrap consumption is not in the free booklet",
+      "url": "https://worldsteel.org/wp-content/uploads/World-Steel-in-Figures-2026.pdf"
     },
     "Company_consortium_technical_disclosures": {
       "source_name": "Company/consortium technical disclosures",
@@ -944,7 +1033,9 @@
       "access_pattern": "company_disclosure",
       "refresh_cadence": "per company reporting cycle (typically annual, some quarterly)",
       "locator": "No single URL — retrieve from the specific company's investor relations page (annual report, capital markets day materials, or sustainability report). Identify relevant companies via sector leaders named in Mission Possible Partnership / BloombergNEF sector trackers, then search each company's IR site directly. This is the source type flagged in the Automation Pipeline Design Document (Section 5.6) as requiring discovery-and-triage rather than single-URL retrieval.",
-      "url": null
+      "url": null,
+      "manual": true,
+      "manual_reason": "Company disclosure: no single URL; which companies matter depends on who is assessed."
     },
     "Company_investor_disclosures__CHM_D1": {
       "source_name": "Company investor disclosures",
@@ -955,7 +1046,9 @@
       "access_pattern": "company_disclosure",
       "refresh_cadence": "per company reporting cycle (typically annual, some quarterly)",
       "locator": "No single URL — retrieve from the specific company's investor relations page (annual report, capital markets day materials, or sustainability report). Identify relevant companies via sector leaders named in Mission Possible Partnership / BloombergNEF sector trackers, then search each company's IR site directly. This is the source type flagged in the Automation Pipeline Design Document (Section 5.6) as requiring discovery-and-triage rather than single-URL retrieval.",
-      "url": null
+      "url": null,
+      "manual": true,
+      "manual_reason": "Company disclosure: no single URL; which companies matter depends on who is assessed."
     },
     "Company_disclosures__SHP_D1": {
       "source_name": "Company disclosures",
@@ -966,7 +1059,47 @@
       "access_pattern": "company_disclosure",
       "refresh_cadence": "per company reporting cycle (typically annual, some quarterly)",
       "locator": "No single URL — retrieve from the specific company's investor relations page (annual report, capital markets day materials, or sustainability report). Identify relevant companies via sector leaders named in Mission Possible Partnership / BloombergNEF sector trackers, then search each company's IR site directly. This is the source type flagged in the Automation Pipeline Design Document (Section 5.6) as requiring discovery-and-triage rather than single-URL retrieval.",
-      "url": null
+      "url": null,
+      "manual": true,
+      "manual_reason": "Company disclosure: no single URL; which companies matter depends on who is assessed."
+    },
+    "ICAP_China_National_ETS_factsheet": {
+      "source_name": "ICAP ETS factsheet: China National ETS",
+      "publisher": "International Carbon Action Partnership (ICAP)",
+      "used_by_criteria": [
+        "CEM-R1",
+        "PWR-R1",
+        "STL-R1"
+      ],
+      "access_pattern": "industry_tracker_database",
+      "refresh_cadence": "annual, updated with the ICAP Status Report (spring), with news items between editions",
+      "locator": "Factsheet sections on coverage (power, steel, cement and aluminium smelting after the 2025 expansion), allocation (free, output-based) and prices",
+      "url": "https://icapcarbonaction.com/en/ets/china-national-ets"
+    },
+    "IEEFA_China_ETS_reforms": {
+      "source_name": "IEEFA: China's emissions trading system (ETS) reforms: On track, but needs robust enforcement",
+      "publisher": "Institute for Energy Economics and Financial Analysis (IEEFA)",
+      "used_by_criteria": [
+        "CEM-R1",
+        "STL-R1"
+      ],
+      "access_pattern": "periodic_pdf_report",
+      "refresh_cadence": "one-off report (3 November 2025)",
+      "locator": "Analysis of the national ETS after the 2025 sector expansion: free allocation, the expected move to absolute caps by 2027, and auctions and a fixed cap reduction rate as missing enforcement tools",
+      "url": "https://ieefa.org/resources/chinas-emissions-trading-system-ets-reforms-track-needs-robust-enforcement",
+      "manual": true,
+      "manual_reason": "ieefa.org report pages return 403 to automated requests; fetch the page in a browser."
+    },
+    "Transition_Asia_Steel_Enters_China_ETS": {
+      "source_name": "Transition Asia: Steel Enters China's National Emissions Trading Scheme",
+      "publisher": "Transition Asia",
+      "used_by_criteria": [
+        "STL-R1"
+      ],
+      "access_pattern": "periodic_pdf_report",
+      "refresh_cadence": "one-off brief (March 2025)",
+      "locator": "Page 2: the carbon price for a zero green-steel premium at current green hydrogen prices is 890 yuan/t CO2 (about USD 124), 220 yuan/t at China's 2030 hydrogen target of USD 2.4/kg; the evidence text dates this brief September 2025, but the figure is in this March 2025 brief",
+      "url": "https://transitionasia.org/wp-content/uploads/2025/03/EN_Steel-Enters-China-ETS.pdf"
     }
   }
 }

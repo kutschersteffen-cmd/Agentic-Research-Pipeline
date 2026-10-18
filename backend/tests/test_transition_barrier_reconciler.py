@@ -83,7 +83,7 @@ def test_celex_like_ignores_version_and_language():
 
 def test_router_only_automates_legal_sources_and_reports_the_rest_honestly():
     routed = route_sources()
-    assert len(routed) == 86, "the router must account for every source, not just the automatable ones"
+    assert len(routed) == 89, "the router must account for every source, not just the automatable ones"
 
     automatable = automatable_sources()
     assert automatable, "the EUR-Lex slice should find work to do"
@@ -95,7 +95,7 @@ def test_router_only_automates_legal_sources_and_reports_the_rest_honestly():
 
 def test_coverage_summary_partitions_the_registry():
     summary = coverage_summary()
-    assert summary["automatable"] + summary["manual"] == summary["total_sources"] == 86
+    assert summary["automatable"] + summary["manual"] == summary["total_sources"] == 89
     legal = [s for s in load_source_registry() if s.access_pattern is AccessPattern.LEGAL_REGULATORY_TEXT]
     assert summary["automatable"] == len(legal) == 15
 

@@ -107,7 +107,7 @@ def get_matrix(settings: Settings = Depends(settings_dep)) -> dict:
 
 @router.get("/sources", response_model=list[RegistrySource])
 def list_sources() -> list[RegistrySource]:
-    """The 86 deduplicated sources behind the matrix."""
+    """The 89 deduplicated sources behind the matrix."""
     return load_source_registry()
 
 

@@ -31,10 +31,10 @@ EXPECTED_SECTOR_COUNTS = {
 }
 
 EXPECTED_ACCESS_PATTERN_COUNTS = {
-    AccessPattern.PERIODIC_PDF_REPORT: 27,
+    AccessPattern.PERIODIC_PDF_REPORT: 29,
     AccessPattern.GOVERNMENT_AGENCY_PUBLICATION: 21,
     AccessPattern.LEGAL_REGULATORY_TEXT: 15,
-    AccessPattern.INDUSTRY_TRACKER_DATABASE: 10,
+    AccessPattern.INDUSTRY_TRACKER_DATABASE: 11,
     AccessPattern.COMPANY_DISCLOSURE: 7,
     AccessPattern.STRUCTURED_API_OR_DASHBOARD: 6,
 }
@@ -102,8 +102,8 @@ def test_matrix_is_35_by_3():
 
 def test_source_registry_shape_and_access_pattern_split():
     sources = load_source_registry()
-    assert len(sources) == 86
-    assert len({s.key for s in sources}) == 86
+    assert len(sources) == 89
+    assert len({s.key for s in sources}) == 89
     assert collections.Counter(s.access_pattern for s in sources) == EXPECTED_ACCESS_PATTERN_COUNTS
 
 

@@ -89,6 +89,9 @@ class PrimarySource(BaseModel):
     key: str | None = None
     tier: Tier | None = None
     cadence: Literal["annual", "quarterly"] | None = None
+    # True when the source cannot be fetched as a document (subscription, dashboard, company disclosure, blocked site).
+    manual: bool = False
+    manual_reason: str | None = None
 
 
 class BarrierCriterion(BaseModel):
@@ -129,7 +132,7 @@ class BarrierScore(BaseModel):
 
 
 class RegistrySource(BaseModel):
-    """One of the 86 deduplicated sources behind the matrix. A derived view over
+    """One of the 89 deduplicated sources behind the matrix. A derived view over
     the primary_sources[] entries in criteria_schema.json, which stays
     authoritative if the two ever disagree.
     """
@@ -142,6 +145,8 @@ class RegistrySource(BaseModel):
     refresh_cadence: str
     locator: str
     url: str | None = None
+    manual: bool = False
+    manual_reason: str | None = None
 
 
 class StalenessReport(BaseModel):

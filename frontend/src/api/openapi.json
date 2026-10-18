@@ -9577,6 +9577,22 @@
       "title": "Locator",
       "type": "string"
      },
+     "manual": {
+      "default": false,
+      "title": "Manual",
+      "type": "boolean"
+     },
+     "manual_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Manual Reason"
+     },
      "publisher": {
       "title": "Publisher",
       "type": "string"
@@ -10402,7 +10418,7 @@
     "type": "string"
    },
    "RegistrySource": {
-    "description": "One of the 86 deduplicated sources behind the matrix. A derived view over\nthe primary_sources[] entries in criteria_schema.json, which stays\nauthoritative if the two ever disagree.",
+    "description": "One of the 89 deduplicated sources behind the matrix. A derived view over\nthe primary_sources[] entries in criteria_schema.json, which stays\nauthoritative if the two ever disagree.",
     "properties": {
      "access_pattern": {
       "$ref": "#/components/schemas/AccessPattern"
@@ -10415,6 +10431,22 @@
      "locator": {
       "title": "Locator",
       "type": "string"
+     },
+     "manual": {
+      "default": false,
+      "title": "Manual",
+      "type": "boolean"
+     },
+     "manual_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Manual Reason"
      },
      "publisher": {
       "title": "Publisher",
@@ -31009,7 +31041,7 @@
   },
   "/api/transition-barrier/sources": {
    "get": {
-    "description": "The 86 deduplicated sources behind the matrix.",
+    "description": "The 89 deduplicated sources behind the matrix.",
     "operationId": "list_sources_api_transition_barrier_sources_get",
     "responses": {
      "200": {

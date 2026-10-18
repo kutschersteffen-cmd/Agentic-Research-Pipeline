@@ -172,7 +172,7 @@ Changed cells: MIN-R2 EU (H to M), MIN-R2 CN (M to L), AVI-T1 US (L to M), OGU-R
 - Rubric-sourced thresholds: 17 numbers come from today's rubric with no external benchmark (cited to the framework at commit 2e97f40); confirm or replace each: PWR-T1 `p_within` (1.3); PWR-R1 `p_material` (15); PWR-R2 `p_slow` (7); STL-T1 `p_within` (2); STL-T2 `p_high` (50); STL-T2 `p_low` (25); CHM-T1 `p_within` (1.2); CHM-T1 `p_double` (2); CHM-T2 `p_trl_high` (7); CHM-T2 `p_trl_mid` (5); MIN-R1 `p_fast` (30); MIN-R1 `p_slow` (60); AVI-T1 `p_high` (5); AVI-T1 `p_low` (1); SHP-T1 `p_high` (30); SHP-T1 `p_low` (10); HDT-T1 `p_within` (1.2).
 - Version 1 is signed with `approved_by` = `pending-owner-approval`; approving it in this PR needs one re-sign if any value above or any open threshold changes.
 - Exchange rates: CNY and EUR to USD use Federal Reserve G.5A annual averages for 2023-2025. Volume and length rows (gallon, barrel, mile) carry year 1959, the year the units became exact, so they cover every as-of date.
-- Source tiers (from task 6.0): IEA_CCUS_Projects_Database primary although its registry URL points at co2re.co (alternative: downgrade or fix the URL; the domain tier for co2re.co is secondary); OGMP 2.0 reporting primary (UNEP-run, company-reported data); EU and China ETS price feeds secondary (exchange data, not regulator publications). Other judgement calls: ICC code register, First Movers Coalition, EVCIPA charging statistics, RE100, Mission Possible and IATA entries secondary; Congress.gov permitting tracker primary.
+- Source tiers (from task 6.0): IEA_CCUS_Projects_Database primary (its URL pointed at co2re.co until the registry clean-up and now points at the IEA's own CCUS Projects Database page); OGMP 2.0 reporting primary (UNEP-run, company-reported data); EU and China ETS price feeds secondary (exchange data, not regulator publications). Other judgement calls: ICC code register, First Movers Coalition, EVCIPA charging statistics, RE100, Mission Possible and IATA entries secondary; Congress.gov permitting tracker primary.
 
 **PWR-T1**
 
@@ -327,12 +327,24 @@ Changed cells: MIN-R2 EU (H to M), MIN-R2 CN (M to L), AVI-T1 US (L to M), OGU-R
 
 ## Registry errors found
 
-Errors in source locators and URLs found while checking the primary texts. None is fixed in this PR except where the registry clean-up task says so.
+Errors in source locators and URLs found while checking the primary texts. The registry clean-up in this PR fixed the first six; the list of fixes that touch sources these notes rely on follows the list.
 
 - MIN-R1 and MIN-R2 (CRMA, Regulation (EU) 2024/1252): the locator says 'Article 12: 27-month target'. The limit is in Article 11 (11(1)(a) 27 months; 11(3) excludes the EIA step; 11(4) allows an extension of at most six months). The same locator puts the 2030 benchmarks in 'Article 3'; the verified text has them in Article 5(1).
 - HDT-D1 (AFIR, Regulation (EU) 2023/1804): the locator says 'Article 3 for TEN-T road network charging'. The heavy-duty targets are in Article 4 (Article 3 is light-duty).
 - OGU-R1 (US Waste Emissions Charge): the locator attributes 'EPA barred from collecting the charge until 2034' to the Congressional Review Act resolution. P.L. 119-2 only nullified the 2024 implementing rule; the 2034 delay is P.L. 119-21 section 60012(b), which replaces 'calendar year 2024' with 'calendar year 2034' in Clean Air Act section 136(g).
-- CEM-T1: `IEA_CCUS_Projects_Database` points at co2re.co, the Global CCS Institute's site (copy-pasted from `Global_CCS_Institute_CO2RE_database`). Needs a human to re-source; tiered primary in v1 on the publisher's name.
-- `US_SAF_Grand_Challenge_IRA_40B_tax_credit` points at sustainability.gov/buyclean, the Buy Clean entry's URL (noted earlier in docs/TRANSITION_BARRIER_ASSESSMENT.md; URL clean-up is task 7).
-- Two company-disclosure registry rows have url null where the criteria schema has a url (STL-D1 and CEM-D1 company investor disclosures); matched by name and criterion.
+- CEM-T1: `IEA_CCUS_Projects_Database` pointed at co2re.co, the Global CCS Institute's site (copy-pasted from `Global_CCS_Institute_CO2RE_database`). Re-sourced to the IEA's CCUS Projects Database page; tiered primary on the publisher's name.
+- `US_SAF_Grand_Challenge_IRA_40B_tax_credit` pointed at sustainability.gov/buyclean, the Buy Clean entry's URL, with the Buy Clean locator. Re-sourced to the SAF Grand Challenge Roadmap (DOE, September 2022).
+- Two company-disclosure registry rows had url null where the criteria schema had a url (STL-D1 and CEM-D1 company investor disclosures). The schema now has null too, and both are marked manual.
 - Could not be fetched, so not verified (not errors): iea.org returns 403 to every client (the IEA figure for CEM-T2 was read from a search-engine copy); the OECD Effective Carbon Rates 2021 component-6 page returns 403, so the brochure PDF is cited instead.
+
+Registry clean-up fixes that touch sources these notes rely on:
+
+- MIN-R1, MIN-R2: both CRMA locators now cite Article 5(1) for the benchmarks and Article 11 (11(1)(a), 11(3), 11(4)) for the permitting limit.
+- HDT-D1: the AFIR locator now cites Article 4 for heavy-duty charging.
+- OGU-R1 US: the Waste Emissions Charge locator now attributes the 2034 delay to P.L. 119-21 section 60012(b) and the nullified rule to P.L. 119-2 (EPA notice 90 FR 21225).
+- STL-R1 CN, CEM-R1 CN, PWR-R1 CN: added the ICAP China National ETS factsheet (all three), the IEEFA ETS reforms report of 3 November 2025 (STL-R1, CEM-R1) and the Transition Asia brief (STL-R1); `China_national_ETS_sector_coverage_roadmap` now points at the MEE allocation plan of 18 November 2025 and also backs CEM-R1. The 890 yuan/t figure the STL-R1 CN reason relies on is in Transition Asia's March 2025 brief; the evidence text dates it September 2025.
+- AVI-R1 US: the registry source is now the SAF Grand Challenge Roadmap, which states the 3 billion gallon (2030) volume goal the M reading rests on.
+- HDT-R1 US: the EPA Phase 3 source now points at the final rule (89 FR 29440) and its locator records the repeal (91 FR 7686, effective 20 April 2026).
+- HDT-R1 CN: the MIIT source now points at the 2020 amendment of the dual-credit measures, which cover passenger cars (乘用车) only; the evidence's claim that the NEV credit system extends to commercial vehicles is not in that text.
+- STL-R2 US: the Buy Clean source now points at the Biden-era progress report, and its locator records that EO 14057 was rescinded in January 2025.
+- PWR-R2 EU: the renewable-target source now points at Directive (EU) 2023/2413 (42.5% target), not the 2018 text.
