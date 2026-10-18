@@ -1,7 +1,7 @@
 # Failed-run recovery: Resume everywhere, and failed runs in "Needs you"
 
 Date: 2026-10-18
-Status: draft, waiting for owner approval (spec-critic rounds 1 and 2 fixed, round 3 pending)
+Status: draft, waiting for owner approval (spec-critic rounds 1 and 2 fixed, round 3 fixed, round 4 pending)
 Origin: the 2026-10-17 review of the `setup.sh` script (Celery, dead-letter queue, re-drive) against ARP.
 That script's idea worth keeping is "a failed job is visible and one click re-runs it". ARP already has
 the engine (`POST /api/runs/{run_id}/resume`); this spec closes the UI gap. Items 1 and 2 of the
@@ -79,10 +79,10 @@ can be resumed from there, from Run History and from the run's progress panel, w
   `failed`, `partially_completed`, `cancelled`. (Progress panel and Run History offer Resume after a
   cancel too, as the progress panel does today for theme runs.)
 - `needsAttentionRuns(runs, now: Date)`: runs whose type is in `RESUMABLE_RUN_TYPES`, whose status is
-  `failed` or `partially_completed`, and whose `updated_at` parses as a date and is at most 14 days (14 x 24 h) before `now`
+  `failed` or `partially_completed`, and whose `updated_at` parses as a date and is at most 14 days (14 x 24 h) before `now` (an `updated_at` after `now`, from clock skew, counts as inside the window)
   **(my call)**. A run with a missing or unparseable `updated_at` is excluded. It returns the matching runs in input order, takes `now` as an argument and never reads the clock.
 
-**Progress panel.** `canResume` becomes `canResumeRun(runType, manifest.status)`. The click calls
+**Progress panel.** `canResume` becomes `canResumeRun(runType, manifest.status)`. The Resume button's accessible name is exactly `Resume run`. The click calls
 `api.resumeRun(runId)` (`POST /api/runs/{id}/resume`). The button is disabled while the request is in
 flight, as today. Everything after the click is as today. Error text appears in the existing
 `role="alert"` paragraph directly under the toolbar.
@@ -152,13 +152,13 @@ element. Every row that says "exactly one POST" means one `POST /api/runs/<run_i
 | AC-4 | `needsAttentionRuns(runs, now)` | given resumable-type runs with status `cancelled`, `completed`, `running`, `pending`, each updated 1 hour before `now` | returns none of them | unit |
 | AC-5 | `needsAttentionRuns(runs, now)` | given a `failed` `holdings` run and a `partially_completed` `proxy_voting` run, each updated 1 hour before `now` | returns none of them | unit |
 | AC-6 | `needsAttentionRuns(runs, now)` | given a `failed` resumable run updated exactly 14 days before `now`, and another updated 14 days and 1 second before `now` | returns the first and not the second | unit |
-| AC-7 | `needsAttentionRuns(runs, now)` | given one `failed` and one `partially_completed` resumable run, each updated 1 day before `now` | returns both runs | unit |
+| AC-7 | `needsAttentionRuns(runs, now)` | given one `failed` and one `partially_completed` resumable run, each updated 1 day before `now` | returns both runs, in the same order as the input | unit |
 | AC-8 | `needsAttentionRuns(runs, now)` | given a `failed` resumable run whose `updated_at` is the empty string, and another whose `updated_at` is `"not a date"` | returns neither | unit |
 | AC-9 | a `failed` extraction run | its panel is shown | a button with accessible name `Resume run` is visible | evaluator |
 | AC-10 | that panel | the button is clicked | exactly one POST is sent | evaluator |
 | AC-11 | that click, then the status endpoint returns `running` | the next status refresh arrives | the status pill reads `running` | evaluator |
 | AC-12 | the same state as AC-11 | the next status refresh arrives | no button named `Resume run` is present | evaluator |
-| AC-13 | a `failed` `theme` run | `Resume run` is clicked in its panel | exactly one POST is sent and no request goes to any path starting `/api/themes/runs/` | evaluator |
+| AC-13 | a `failed` `theme` run | `Resume run` is clicked in its panel | exactly one POST is sent and no request goes to `/api/themes/runs/<run_id>/resume` | evaluator |
 | AC-14 | a `cancelled` `tnfd` run | its panel is shown | a button named `Resume run` is visible | evaluator |
 | AC-15 | a `failed` `holdings` run | its panel is shown | no button named `Resume run` is present | evaluator |
 | AC-16 | the resume response held for 2 seconds | the panel's Resume button is clicked twice within 200 ms | exactly one POST is sent | evaluator |
@@ -180,9 +180,9 @@ element. Every row that says "exactly one POST" means one `POST /api/runs/<run_i
 | AC-32 | the row of AC-24 | its link is clicked | the URL hash becomes `#/history` | evaluator |
 | AC-33 | the click of AC-31, then the runs poll returns the run as `running` | the next poll arrives | no row mentioning `<run_id>` is present | evaluator |
 | AC-34 | failed run A updated `now - 5 days`, a review item whose run was updated `now - 3 days`, failed run B updated `now - 1 day` | the start page is opened | the rows appear top to bottom as A, the review item, B | evaluator |
-| AC-35 | a `cancelled` `tnfd` run, a `failed` `holdings` run and a `failed` extraction run updated `now - 15 days` | the start page is opened | no row mentions any of their run ids | evaluator |
+| AC-35 | a `cancelled` `tnfd` run and a `failed` `holdings` run, each updated `now - 1 hour` | the start page is opened | no row mentions either run id | evaluator |
 | AC-36 | the resume response held for 2 seconds | a "Needs you" Resume button is clicked twice within 200 ms | exactly one POST is sent | evaluator |
-| AC-37 | no review items, ballots, stages or blocking issues, and only runs that are `completed`, `running`, `cancelled`, or `failed` and updated `now - 15 days` | the start page is opened | the text `Nothing waits on you.` is shown | evaluator |
+| AC-37 | no review items, ballots, stages or blocking issues, and only runs that are `completed`, `running` or `cancelled`, each updated `now - 1 hour`, plus a `failed` extraction run updated `now - 15 days` | the start page is opened | the text `Nothing waits on you.` is shown | evaluator |
 | AC-38 | the server answers the resume call with 409 and detail `busy` | Resume is clicked in the panel | a `role="alert"` element in the panel reads `409: busy` | evaluator |
 | AC-39 | the same answer | Resume is clicked in Run History | the `role="alert"` paragraph above the table reads `409: busy` | evaluator |
 | AC-40 | the same answer | Resume is clicked in a "Needs you" row | a `role="alert"` element inside that row reads `409: busy` | evaluator |
@@ -191,6 +191,9 @@ element. Every row that says "exactly one POST" means one `POST /api/runs/<run_i
 | AC-43 | the 409 answer of AC-38 | the error is shown in the panel | the panel's Resume button is enabled | evaluator |
 | AC-44 | the 409 answer of AC-39 | the error is shown in Run History | that row's Resume button is enabled | evaluator |
 | AC-45 | the 409 answer of AC-40 | the error is shown in the "Needs you" row | that row's Resume button is enabled | evaluator |
+
+| AC-51 | a `failed` extraction run updated `now - 15 days` | the start page is opened | no row mentions its run id | evaluator |
+| AC-52 | `needsAttentionRuns(runs, now)` | given a `failed` resumable run updated 1 minute after `now` | returns it | unit |
 
 Must not change (each also a row):
 
@@ -201,3 +204,6 @@ Must not change (each also a row):
 | AC-48 | a `failed` extraction run with error `boom` and `failed_count` 2 | Run History is opened | its `.run-error` element reads `boom`, its progress cell contains `2 companies failed`, and its row still has a CSV link | evaluator |
 | AC-49 | the branch | `npm test` in `frontend/` and `pytest tests/e2e/test_app_smoke.py` in `backend/` are run, and `git diff origin/main` is inspected for test files | both pass, and the diff of existing test files has no removed lines | unit (CI) |
 | AC-50 | the branch | `git diff origin/main --name-only` is run | no path starts with `backend/`; none of `frontend/src/api/openapi.json`, `frontend/src/api/schema.gen.ts`, `frontend/src/api/contract.ts`, `frontend/src/App.tsx` is listed | unit (CI) |
+| AC-53 | a `failed` extraction run updated `now - 1 hour` | the app is opened | the sidebar's entries and count badges are identical to the same page with that run `completed` | evaluator |
+| AC-54 | a `proxy_voting` run with `review_count` 2, updated `now - 1 day` | the start page is opened | its row's `.needs-you-what` element reads `Proxy voting run <run_id>: 2 ballots to decide` and its `.needs-you-meta` element starts with `StewardIQ · waiting since ` | evaluator |
+| AC-55 | that row | the start page is opened | the row contains no button with an accessible name starting `Resume run` | evaluator |
