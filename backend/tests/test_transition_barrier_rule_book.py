@@ -391,3 +391,118 @@ def test_errors_come_in_rule_order(fixture_dir):
     ]
     assert all(w in errors for w in wanted)
     assert [errors.index(w) for w in wanted] == sorted(errors.index(w) for w in wanted)
+
+
+# --- rules CLI ---------------------------------------------------------------------------
+
+from typer.testing import CliRunner  # noqa: E402
+
+from arp.cli.transition_barrier import transition_barrier_app  # noqa: E402
+
+_runner = CliRunner()
+
+
+def _rules(*args):
+    return _runner.invoke(transition_barrier_app, ["rules", *args])
+
+
+def _write_rb(data_dir, rb):
+    (data_dir / "rule_book.json").write_text(json.dumps(rb), encoding="utf-8")
+
+
+def test_ac75_cli_validate(fixture_dir):
+    result = _rules("validate", "--data-dir", str(fixture_dir))
+    assert result.exit_code == 0
+    assert result.output == "Rule book v7: OK, 1 criteria, 0 open thresholds\n"
+
+
+def test_ac76_cli_validate_open(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    rb = _rb6(rb)
+    rb["fingerprint"] = compute_fingerprint(rb)
+    _write_rb(fixture_dir, rb)
+    result = _rules("validate", "--data-dir", str(fixture_dir))
+    assert result.exit_code == 0
+    assert result.output == "Rule book v8: OK, 1 criteria, 1 open thresholds\n"
+
+
+def test_ac77_cli_validate_error(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    _stl(rb)["levels"]["H"]["all"][0]["fact"] = "prices"
+    rb["fingerprint"] = compute_fingerprint(rb)
+    _write_rb(fixture_dir, rb)
+    result = _rules("validate", "--data-dir", str(fixture_dir))
+    assert result.exit_code == 1
+    assert "STL-R1: condition names unknown fact 'prices'" in result.output
+
+
+def test_cli_validate_uses_data_dir_setting(fixture_dir):
+    assert "Rule book v7: OK" in _rules("validate").output
+
+
+def test_cli_validate_missing_rule_book(tmp_path):
+    result = _rules("validate", "--data-dir", str(tmp_path))
+    assert result.exit_code == 1
+    assert result.output == f"Rule book not found: {tmp_path / 'rule_book.json'}\n"
+
+
+def test_cli_validate_invalid_json(fixture_dir):
+    (fixture_dir / "rule_book.json").write_text("{nope", encoding="utf-8")
+    result = _rules("validate", "--data-dir", str(fixture_dir))
+    assert result.exit_code == 1
+    assert "rule_book.json is not valid JSON" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_cli_validate_wrong_shape_has_no_traceback(fixture_dir):
+    (fixture_dir / "rule_book.json").write_text("[]", encoding="utf-8")
+    result = _rules("validate", "--data-dir", str(fixture_dir))
+    assert result.exit_code == 1
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+
+
+def test_cli_sign(fixture_dir):
+    rb, _ = _fx(fixture_dir)
+    _stl(rb)["params"][0]["value"] = 60
+    _write_rb(fixture_dir, rb)  # stale fingerprint: exactly what signing fixes
+    result = _rules("sign", "--approved-by", "owner", "--data-dir", str(fixture_dir))
+    assert result.exit_code == 0
+    assert result.output == "Signed rule book v8\n"
+    assert _rules("validate", "--data-dir", str(fixture_dir)).exit_code == 0
+    assert _raw(fixture_dir)["history"][-1]["approved_at"] == date.today().isoformat()
+
+
+def test_cli_sign_refuses_other_errors(fixture_dir):
+    rb, _ = _fx(fixture_dir)
+    _stl(rb)["levels"]["H"]["all"][0]["fact"] = "prices"
+    _write_rb(fixture_dir, rb)
+    before = (fixture_dir / "rule_book.json").read_text(encoding="utf-8")
+    result = _rules("sign", "--approved-by", "owner", "--data-dir", str(fixture_dir))
+    assert result.exit_code == 1
+    assert "STL-R1: condition names unknown fact 'prices'" in result.output
+    assert (fixture_dir / "rule_book.json").read_text(encoding="utf-8") == before
+
+
+def test_cli_sign_missing_rule_book(tmp_path):
+    result = _rules("sign", "--approved-by", "owner", "--data-dir", str(tmp_path))
+    assert result.exit_code == 1
+    assert result.output.startswith("Rule book not found: ")
+
+
+def test_cli_render(fixture_dir, tmp_path):
+    out = tmp_path / "RULE_BOOK.md"
+    result = _rules("render", "--data-dir", str(fixture_dir), "--out", str(out))
+    assert result.exit_code == 0
+    assert out.read_text(encoding="utf-8").startswith("# Transition barrier rule book")
+    assert str(out) in result.output
+
+
+def test_cli_render_refuses_invalid(fixture_dir, tmp_path):
+    rb, _ = _fx(fixture_dir)
+    _stl(rb)["levels"]["H"]["all"][0]["fact"] = "prices"
+    _write_rb(fixture_dir, rb)
+    out = tmp_path / "RULE_BOOK.md"
+    result = _rules("render", "--data-dir", str(fixture_dir), "--out", str(out))
+    assert result.exit_code == 1
+    assert "STL-R1: condition names unknown fact 'prices'" in result.output
+    assert not out.exists()

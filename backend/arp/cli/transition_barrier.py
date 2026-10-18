@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import date
 from pathlib import Path
 
 import typer
@@ -10,6 +11,7 @@ from arp.cli._shared import _run_store
 from arp.config import get_settings
 from arp.schemas.transition_barrier import Pillar, Region
 from arp.transition_barrier.dataset import (
+    data_dir,
     filter_scores,
     load_criteria,
     load_source_registry,
@@ -18,11 +20,82 @@ from arp.transition_barrier.dataset import (
 )
 from arp.transition_barrier.refresh.pipeline import RefreshDisabledError, run_refresh
 from arp.transition_barrier.refresh.router import coverage_summary, route_sources
+from arp.transition_barrier.render import render_rule_book_md
+from arp.transition_barrier.rule_book import RULE_BOOK_FILE, load_rule_book, sign_rule_book
 from arp.transition_barrier.staleness import build_staleness_report
+from arp.transition_barrier.validation import count_open, validate_rule_book
 
 transition_barrier_app = typer.Typer(
     help="Transition Barrier Assessment: the 105-cell sector x region transition-feasibility matrix (35 criteria x EU/US/China)."
 )
+
+rules_app = typer.Typer(help="The rule book: validate it, sign a new version, render it as a document.")
+transition_barrier_app.add_typer(rules_app, name="rules")
+
+_STALE_FINGERPRINT = "Rule book content changed but version is still"
+
+
+def _fail(lines: list[str]) -> typer.Exit:
+    for line in lines:
+        typer.echo(line)
+    return typer.Exit(code=1)
+
+
+def _load_raw(directory: Path | None) -> tuple[Path, dict, dict, list[str]]:
+    """Raw rule book and schema plus their validation errors. Models are only built after this passes."""
+    directory = directory or data_dir()
+    path = directory / RULE_BOOK_FILE
+    if not path.exists():
+        raise _fail([f"Rule book not found: {path}"])
+    raws = []
+    for p in (path, directory / "criteria_schema.json"):
+        try:
+            raws.append(json.loads(p.read_text(encoding="utf-8")))
+        except FileNotFoundError:
+            raise _fail([f"File not found: {p}"]) from None
+        except ValueError as exc:
+            raise _fail([f"{p.name} is not valid JSON: {exc}"]) from None
+    raw, schema = raws
+    if not isinstance(raw, dict) or not isinstance(schema, dict):
+        raise _fail(["rule_book.json and criteria_schema.json must each hold a JSON object"])
+    return directory, raw, schema, validate_rule_book(raw, schema)
+
+
+@rules_app.command("validate")
+def rules_validate(data_dir_opt: Path = typer.Option(None, "--data-dir", help="Directory with rule_book.json.")) -> None:
+    """Check the rule book against the criteria schema; print every error, one per line."""
+    _, raw, _, errors = _load_raw(data_dir_opt)
+    if errors:
+        raise _fail(errors)
+    typer.echo(f"Rule book v{raw['version']}: OK, {len(raw['criteria'])} criteria, {count_open(raw)} open thresholds")
+
+
+@rules_app.command("sign")
+def rules_sign(
+    approved_by: str = typer.Option(..., "--approved-by", help="Who approved this version."),
+    data_dir_opt: Path = typer.Option(None, "--data-dir", help="Directory with rule_book.json."),
+) -> None:
+    """Bump the version, re-fingerprint and log the approval. A stale fingerprint is what this fixes."""
+    directory, _, _, errors = _load_raw(data_dir_opt)
+    blocking = [e for e in errors if not e.startswith(_STALE_FINGERPRINT)]
+    if blocking:
+        raise _fail(blocking)
+    typer.echo(f"Signed rule book v{sign_rule_book(directory, approved_by, date.today())}")
+
+
+@rules_app.command("render")
+def rules_render(
+    data_dir_opt: Path = typer.Option(None, "--data-dir", help="Directory with rule_book.json."),
+    out: Path = typer.Option(Path("docs/transition_barrier/RULE_BOOK.md"), help="Where to write the document."),
+) -> None:
+    """Write the rule book as a Markdown document."""
+    directory, _, schema, errors = _load_raw(data_dir_opt)
+    if errors:
+        raise _fail(errors)
+    rule_book, _ = load_rule_book(directory)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(render_rule_book_md(rule_book, schema), encoding="utf-8")
+    typer.echo(f"Wrote {out}")
 
 
 @transition_barrier_app.command("criteria")
