@@ -7,11 +7,14 @@ from pathlib import Path
 import typer
 
 from arp.cli._shared import _registry, _run_store, _taxonomy_store
-from arp.config import get_settings
+from arp.company_graph import NOT_CONFIGURED, CompanyGraphError, import_edges, open_graph, parse_edge_csv
+from arp.config import Settings, get_settings
+from arp.db.session import require_dsn
 from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
 from arp.orchestration.jobs import resume_run
 from arp.research.activity_generator import build_theme
+from arp.research.exposure_layers import load_run_layers, parse_as_of
 from arp.research.indirect_exposure.core_sectors import classify_theme_core_sectors
 from arp.research.indirect_exposure.criticality import apply_criticality_overlay
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
@@ -23,9 +26,51 @@ from arp.research.revenue_exposure.catalogue import load_catalogue
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
 from arp.schemas.thematic import ThemeDefinition
+from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 
 theme_app = typer.Typer(help="Thematic investment universe screening.")
+edges_app = typer.Typer(help="Supply edges in the company graph (Neo4j), for the exposure layers.")
+theme_app.add_typer(edges_app, name="edges")
+
+
+@edges_app.command("import")
+def theme_edges_import(csv_path: Path = typer.Option(..., "--csv", help="Edge CSV: supplier_key, supplier_name, customer_key, "
+                       "customer_name, revenue_share, source_doc, source_passage, effective_date, published_at.")) -> None:
+    """Adds the CSV's supply-edge versions to the company graph; all rows or none."""
+    settings = Settings()  # read when the command starts, like the rest of its environment
+    try:
+        if not settings.neo4j_uri:
+            raise CompanyGraphError(NOT_CONFIGURED)
+        rows = parse_edge_csv(csv_path)
+        with open_graph(settings) as driver:
+            new = import_edges(driver, rows)
+    except (ValueError, CompanyGraphError, OSError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"{len(rows)} rows, {new} new")
+
+
+def _num(x: float | None) -> str:
+    return "-" if x is None else f"{x:.4f}"
+
+
+@theme_app.command("layers")
+def theme_layers(
+    run_id: str = typer.Option(..., "--run"),
+    as_of: str = typer.Option(None, "--as-of", help="YYYY-MM-DD; defaults to today (UTC)."),
+) -> None:
+    """Layer 1 (direct), Layer 2 (value chain), Layer 3 and score S per company of a theme run, tab-separated."""
+    settings = Settings()
+    try:
+        _params, rows = load_run_layers(settings, RunStore(require_dsn(settings), settings.runs_dir), run_id, parse_as_of(as_of))
+    except (LookupError, ValueError, CompanyGraphError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    typer.echo("rank\tissuer_key\tname\tl1\tl2\tl3\tscore\tstatus")
+    for r in rows:
+        cells = ["-" if r.rank is None else str(r.rank), r.issuer_key, r.name, _num(r.l1), _num(r.l2), _num(r.l3), _num(r.score), r.status]
+        typer.echo("\t".join(cells))
 
 
 @theme_app.command("decompose")

@@ -5,8 +5,10 @@ Computed on read from a theme run, the supply edges known at `as_of` and the set
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import UTC, date, datetime
 
 from arp.config import Settings
 from arp.schemas.common import CompanyRef
@@ -139,3 +141,30 @@ def compute_layers(
     for rank, r in enumerate((r for r in rows if r.score is not None), start=1):
         r.rank = rank
     return rows
+
+
+def load_run_layers(settings: Settings, run_store, run_id: str, as_of: date) -> tuple[LayerParams, list[LayerRow]]:
+    """The layers of a theme run at `as_of`. Raises, in this order: LookupError (no such theme run),
+    LayerSettingsError, CompanyGraphError (not configured or unreachable)."""
+    from arp.company_graph import edges_at, open_graph  # company_graph imports Edge from here
+
+    manifest = run_store.load_manifest(run_id)
+    if manifest is None or manifest.run_type != "theme":
+        raise LookupError(f"unknown theme run '{run_id}'")
+    params = layer_params(settings)
+    with open_graph(settings) as driver:
+        edges, names = edges_at(driver, as_of)
+    run = run_company_l1(run_store.load_companies(run_id) or [], run_store.read_results(run_id))
+    return params, compute_layers(run, edges, names, params)
+
+
+def parse_as_of(value: str | None) -> date:
+    """`as_of` in YYYY-MM-DD form; today (UTC) when omitted."""
+    if value is None:
+        return datetime.now(UTC).date()
+    try:
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+            raise ValueError
+        return date.fromisoformat(value)
+    except ValueError:
+        raise ValueError("as_of must be a date in YYYY-MM-DD form") from None

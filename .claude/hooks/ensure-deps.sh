@@ -33,7 +33,7 @@ postgres() {  # same DB as CI: postgresql+psycopg://arp:arp@localhost:5432/arp_t
     echo "Installing Postgres + pgvector (~1 min)..." >&2
     apt-get update -q >/dev/null && apt-get install -y -q postgresql-16-pgvector >/dev/null || return 1
   fi
-  service postgresql start >/dev/null 2>&1
+  service postgresql start >/dev/null 2>&1 9>&-  # 9>&-: the server must not inherit (and hold) the lock
   su postgres -c "psql -qc \"CREATE USER arp WITH PASSWORD 'arp' SUPERUSER;\"" >/dev/null 2>&1
   su postgres -c "createdb -O arp arp_test" >/dev/null 2>&1
   pg_isready -q -h localhost 2>/dev/null || { echo "Postgres is not running on localhost." >&2; return 1; }
@@ -48,7 +48,7 @@ neo4j() {  # same graph as CI: bolt://localhost:7687, user neo4j, password arp_n
     mkdir -p "$dir" && curl -fsSL "https://dist.neo4j.org/neo4j-community-$v-unix.tar.gz" | tar -xz -C "$dir" || return 1
     "$dir/neo4j-community-$v/bin/neo4j-admin" dbms set-initial-password arp_neo4j_test >/dev/null || return 1
   fi
-  "$dir/neo4j-community-$v/bin/neo4j" start >/dev/null 2>&1
+  "$dir/neo4j-community-$v/bin/neo4j" start >/dev/null 2>&1 9>&-
   for _ in $(seq 1 60); do
     "$PY" -c "import socket; socket.create_connection(('127.0.0.1', 7687), 2)" 2>/dev/null && return 0
     sleep 1
