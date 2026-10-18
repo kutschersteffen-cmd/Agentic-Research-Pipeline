@@ -8178,6 +8178,29 @@
     "title": "LabelRule",
     "type": "object"
    },
+   "LayerWeights": {
+    "properties": {
+     "w1": {
+      "title": "W1",
+      "type": "number"
+     },
+     "w2": {
+      "title": "W2",
+      "type": "number"
+     },
+     "w3": {
+      "title": "W3",
+      "type": "number"
+     }
+    },
+    "required": [
+     "w1",
+     "w2",
+     "w3"
+    ],
+    "title": "LayerWeights",
+    "type": "object"
+   },
    "LayoutInstructions": {
     "description": "User-supplied constraints on shape and structure. Everything here is\na *hint* the Content Planner must respect deterministically-checkable\nbounds on (target_length is enforced by the renderer, not just the\nLLM), not a suggestion it can silently ignore.",
     "properties": {
@@ -13970,6 +13993,160 @@
      "description"
     ],
     "title": "ThemeDefinition",
+    "type": "object"
+   },
+   "ThemeLayerRow": {
+    "properties": {
+     "in_run": {
+      "title": "In Run",
+      "type": "boolean"
+     },
+     "issuer_key": {
+      "title": "Issuer Key",
+      "type": "string"
+     },
+     "l1": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "L1"
+     },
+     "l2": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "L2"
+     },
+     "l2_via": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "L2 Via"
+     },
+     "l3": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "L3"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "pure_play": {
+      "title": "Pure Play",
+      "type": "boolean"
+     },
+     "rank": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rank"
+     },
+     "score": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Score"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "issuer_key",
+     "name",
+     "in_run",
+     "l1",
+     "l2",
+     "l3",
+     "score",
+     "pure_play",
+     "status",
+     "rank",
+     "l2_via"
+    ],
+    "title": "ThemeLayerRow",
+    "type": "object"
+   },
+   "ThemeLayers": {
+    "properties": {
+     "as_of": {
+      "format": "date",
+      "title": "As Of",
+      "type": "string"
+     },
+     "decay": {
+      "title": "Decay",
+      "type": "number"
+     },
+     "max_hops": {
+      "title": "Max Hops",
+      "type": "integer"
+     },
+     "pure_play_threshold": {
+      "title": "Pure Play Threshold",
+      "type": "number"
+     },
+     "rows": {
+      "items": {
+       "$ref": "#/components/schemas/ThemeLayerRow"
+      },
+      "title": "Rows",
+      "type": "array"
+     },
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     },
+     "weights": {
+      "$ref": "#/components/schemas/LayerWeights"
+     }
+    },
+    "required": [
+     "run_id",
+     "as_of",
+     "weights",
+     "decay",
+     "max_hops",
+     "pure_play_threshold",
+     "rows"
+    ],
+    "title": "ThemeLayers",
     "type": "object"
    },
    "ThresholdRule": {
@@ -30573,6 +30750,65 @@
      }
     },
     "summary": "Get Theme Run",
+    "tags": [
+     "themes"
+    ]
+   }
+  },
+  "/api/themes/runs/{run_id}/layers": {
+   "get": {
+    "description": "Layer 1 (direct revenue share), Layer 2 (value chain, from the company graph's supply edges\nknown at `as_of`), Layer 3 (no data yet) and score S per company; computed on read.",
+    "operationId": "get_theme_layers_api_themes_runs__run_id__layers_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "As Of"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ThemeLayers"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Theme Layers",
     "tags": [
      "themes"
     ]
