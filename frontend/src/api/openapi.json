@@ -2131,6 +2131,24 @@
     "title": "CategoryScreen",
     "type": "object"
    },
+   "CellRef": {
+    "properties": {
+     "code": {
+      "title": "Code",
+      "type": "string"
+     },
+     "region": {
+      "title": "Region",
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "region"
+    ],
+    "title": "CellRef",
+    "type": "object"
+   },
    "ChartPlan": {
     "properties": {
      "charts": {
@@ -5366,53 +5384,6 @@
     ],
     "title": "DerivationMethod",
     "type": "string"
-   },
-   "DeriveRequest": {
-    "properties": {
-     "cluster_threshold": {
-      "default": 0.72,
-      "title": "Cluster Threshold",
-      "type": "number"
-     },
-     "dataset_id": {
-      "title": "Dataset Id",
-      "type": "string"
-     },
-     "framework_id": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "description": "With `save`: store the derivation as the next version of this framework instead of starting a new one, so deriving again on the same table does not leave a trail of one-version frameworks.",
-      "title": "Framework Id"
-     },
-     "name": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Name"
-     },
-     "save": {
-      "default": false,
-      "description": "Persist the derived framework as v1 straight away.",
-      "title": "Save",
-      "type": "boolean"
-     }
-    },
-    "required": [
-     "dataset_id"
-    ],
-    "title": "DeriveRequest",
-    "type": "object"
    },
    "DerivedRule": {
     "description": "A boolean computed from other boolean fields by three-valued logic; never extracted.",
@@ -15091,6 +15062,53 @@
     "title": "CompareRequest",
     "type": "object"
    },
+   "arp__api__routers__decision__DeriveRequest": {
+    "properties": {
+     "cluster_threshold": {
+      "default": 0.72,
+      "title": "Cluster Threshold",
+      "type": "number"
+     },
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "framework_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "With `save`: store the derivation as the next version of this framework instead of starting a new one, so deriving again on the same table does not leave a trail of one-version frameworks.",
+      "title": "Framework Id"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "save": {
+      "default": false,
+      "description": "Persist the derived framework as v1 straight away.",
+      "title": "Save",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "dataset_id"
+    ],
+    "title": "DeriveRequest",
+    "type": "object"
+   },
    "arp__api__routers__extraction__RunRequest": {
     "properties": {
      "batch": {
@@ -15545,6 +15563,23 @@
      "as_of"
     ],
     "title": "RunRequest",
+    "type": "object"
+   },
+   "arp__api__routers__transition_barrier__DeriveRequest": {
+    "properties": {
+     "cells": {
+      "items": {
+       "$ref": "#/components/schemas/CellRef"
+      },
+      "minItems": 1,
+      "title": "Cells",
+      "type": "array"
+     }
+    },
+    "required": [
+     "cells"
+    ],
+    "title": "DeriveRequest",
     "type": "object"
    },
    "arp__api__routers__transition_plan__RunRequest": {
@@ -17270,7 +17305,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/DeriveRequest"
+        "$ref": "#/components/schemas/arp__api__routers__decision__DeriveRequest"
        }
       }
      },
@@ -31363,6 +31398,60 @@
     ]
    }
   },
+  "/api/transition-barrier/cells/{code}/{region}": {
+   "get": {
+    "description": "The cell's current rating, and the latest derivation result for it (which may not be ratified).",
+    "operationId": "get_cell_api_transition_barrier_cells__code___region__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "code",
+      "required": true,
+      "schema": {
+       "title": "Code",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "region",
+      "required": true,
+      "schema": {
+       "title": "Region",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Cell Api Transition Barrier Cells  Code   Region  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Cell",
+    "tags": [
+     "transition-barrier"
+    ]
+   }
+  },
   "/api/transition-barrier/cells/{code}/{region}/choices": {
    "post": {
     "description": "For a conflict, the analyst picks which value counts, with a written reason.",
@@ -31557,6 +31646,50 @@
      }
     },
     "summary": "Get Criterion",
+    "tags": [
+     "transition-barrier"
+    ]
+   }
+  },
+  "/api/transition-barrier/derive": {
+   "post": {
+    "description": "Derive the cells from their stored facts. Phase 2 is code and database only, so the run has finished when this answers.",
+    "operationId": "start_derivation_api_transition_barrier_derive_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/arp__api__routers__transition_barrier__DeriveRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Start Derivation Api Transition Barrier Derive Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Start Derivation",
     "tags": [
      "transition-barrier"
     ]

@@ -5,7 +5,7 @@ import hashlib
 from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import blob_store_dep, get_run_store, settings_dep
@@ -29,7 +29,6 @@ from arp.storage.run_store import RunStore
 from arp.transition_barrier import store
 from arp.transition_barrier.dataset import (
     build_matrix,
-    data_dir,
     filter_scores,
     load_criteria,
     load_source_registry,
@@ -37,14 +36,20 @@ from arp.transition_barrier.dataset import (
     sectors,
     sources_for_criterion,
 )
+from arp.transition_barrier.derivation import (
+    UnknownCell,
+    cell_rules,
+    create_derivation_run,
+    execute_derivation_run,
+)
 from arp.transition_barrier.facts import FactRefused, UploadMeta, check_fact
+from arp.transition_barrier.ratings import current_cell, latest_result
 from arp.transition_barrier.refresh.pipeline import (
     RefreshDisabledError,
     create_refresh_run,
     execute_refresh_run,
 )
 from arp.transition_barrier.refresh.router import coverage_summary
-from arp.transition_barrier.rule_book import load_rule_book
 from arp.transition_barrier.staleness import build_staleness_report, staleness_days
 
 router = APIRouter(prefix="/api/transition-barrier", tags=["transition-barrier"])
@@ -200,10 +205,10 @@ def submit_refresh_review(
 
 def _cell(code: str, region: str):
     """The criterion's rules and registered sources, or 404 for a cell that doesn't exist."""
-    criterion = next((c for c in load_criteria() if c.code == code), None)
-    if criterion is None or region not in {r.value for r in Region}:
-        raise HTTPException(404, f"Unknown cell {code} / {region}")
-    return load_rule_book(data_dir())[0].criteria[code], criterion.primary_sources
+    try:
+        return cell_rules(code, region)
+    except UnknownCell as exc:
+        raise HTTPException(404, str(exc)) from None
 
 
 def _iso(text: str) -> date | None:
@@ -297,3 +302,38 @@ def get_document(doc_id: int, blobs=Depends(blob_store_dep)) -> Response:
         raise HTTPException(404, "Document not found")
     _, data = found  # the uploaded name is client-supplied: it stays in the database, never in a header
     return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="document-{doc_id}.pdf"'})
+
+
+class CellRef(BaseModel):
+    code: str
+    region: str
+
+
+class DeriveRequest(BaseModel):
+    cells: list[CellRef] = Field(min_length=1)
+
+
+@router.post("/derive")
+def start_derivation(
+    req: DeriveRequest, settings: Settings = Depends(settings_dep), run_store: RunStore = Depends(get_run_store)
+) -> dict:
+    """Derive the cells from their stored facts. Phase 2 is code and database only, so the run has finished when this answers."""
+    try:
+        run_id = create_derivation_run(run_store, [(c.code, c.region) for c in req.cells])
+    except UnknownCell as exc:
+        raise HTTPException(404, str(exc)) from None
+    execute_derivation_run(run_store, run_id, settings)
+    return {"run_id": run_id}
+
+
+@router.get("/cells/{code}/{region}")
+def get_cell(code: str, region: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+    """The cell's current rating, and the latest derivation result for it (which may not be ratified)."""
+    _cell(code, region)
+    latest = latest_result(run_store, code, region)
+    return {
+        **current_cell(code, region, run_store).model_dump(mode="json", exclude={"result", "ratified_at"}),
+        "flags": [],  # flags and history are not built yet
+        "history": [],
+        "latest_result": latest and latest.model_dump(mode="json"),
+    }

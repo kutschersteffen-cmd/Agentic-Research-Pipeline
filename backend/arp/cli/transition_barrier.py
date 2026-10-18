@@ -19,6 +19,7 @@ from arp.transition_barrier.dataset import (
     rating_distribution,
     sources_for_criterion,
 )
+from arp.transition_barrier.derivation import UnknownCell, create_derivation_run, execute_derivation_run
 from arp.transition_barrier.refresh.pipeline import RefreshDisabledError, run_refresh
 from arp.transition_barrier.refresh.router import coverage_summary, route_sources
 from arp.transition_barrier.render import render_rule_book_md
@@ -214,3 +215,23 @@ def transition_barrier_refresh() -> None:
     typer.echo(f"{len(findings)} checks, {len(needs_review)} queued for human review.")
     for finding in needs_review:
         typer.echo(f"  [{finding.outcome.value}] {finding.code} / {finding.region.value}: {finding.detail}")
+
+
+@transition_barrier_app.command("derive")
+def transition_barrier_derive(
+    code: str = typer.Option(..., help="Criterion code, e.g. 'STL-R1'."),
+    region: str = typer.Option(..., help="Region, e.g. 'European Union'."),
+    now: str = typer.Option(None, "--now", help="Run date, YYYY-MM-DD (default: today)."),
+) -> None:
+    """Derive one cell from its stored facts and queue the result for review. Prints the run id."""
+    try:
+        today = date.fromisoformat(now) if now else None
+    except ValueError:
+        raise _fail(["--now must be YYYY-MM-DD."]) from None
+    run_store = _run_store()
+    try:
+        run_id = create_derivation_run(run_store, [(code, region)])
+    except UnknownCell as exc:
+        raise _fail([str(exc)]) from None
+    execute_derivation_run(run_store, run_id, get_settings(), today=today)
+    typer.echo(run_id)

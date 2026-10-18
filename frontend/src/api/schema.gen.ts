@@ -5934,6 +5934,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/transition-barrier/cells/{code}/{region}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cell
+         * @description The cell's current rating, and the latest derivation result for it (which may not be ratified).
+         */
+        get: operations["get_cell_api_transition_barrier_cells__code___region__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/transition-barrier/cells/{code}/{region}/choices": {
         parameters: {
             query?: never;
@@ -6010,6 +6030,26 @@ export interface paths {
         get: operations["get_criterion_api_transition_barrier_criteria__code__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transition-barrier/derive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Derivation
+         * @description Derive the cells from their stored facts. Phase 2 is code and database only, so the run has finished when this answers.
+         */
+        post: operations["start_derivation_api_transition_barrier_derive_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8134,6 +8174,13 @@ export interface components {
              */
             type: "category_screen";
         };
+        /** CellRef */
+        CellRef: {
+            /** Code */
+            code: string;
+            /** Region */
+            region: string;
+        };
         /** ChartPlan */
         ChartPlan: {
             /** Charts */
@@ -9563,29 +9610,6 @@ export interface components {
          * @enum {string}
          */
         DerivationMethod: "llm_draft" | "industry_anchored" | "authority_source" | "etf_index_holdings" | "news_transcript_mining" | "empirical" | "emerging_signal_discovery" | "merged" | "manual";
-        /** DeriveRequest */
-        DeriveRequest: {
-            /**
-             * Cluster Threshold
-             * @default 0.72
-             */
-            cluster_threshold: number;
-            /** Dataset Id */
-            dataset_id: string;
-            /**
-             * Framework Id
-             * @description With `save`: store the derivation as the next version of this framework instead of starting a new one, so deriving again on the same table does not leave a trail of one-version frameworks.
-             */
-            framework_id?: string | null;
-            /** Name */
-            name?: string | null;
-            /**
-             * Save
-             * @description Persist the derived framework as v1 straight away.
-             * @default false
-             */
-            save: boolean;
-        };
         /**
          * DerivedRule
          * @description A boolean computed from other boolean fields by three-valued logic; never extracted.
@@ -13898,6 +13922,29 @@ export interface components {
             /** Version */
             version?: number | null;
         };
+        /** DeriveRequest */
+        arp__api__routers__decision__DeriveRequest: {
+            /**
+             * Cluster Threshold
+             * @default 0.72
+             */
+            cluster_threshold: number;
+            /** Dataset Id */
+            dataset_id: string;
+            /**
+             * Framework Id
+             * @description With `save`: store the derivation as the next version of this framework instead of starting a new one, so deriving again on the same table does not leave a trail of one-version frameworks.
+             */
+            framework_id?: string | null;
+            /** Name */
+            name?: string | null;
+            /**
+             * Save
+             * @description Persist the derived framework as v1 straight away.
+             * @default false
+             */
+            save: boolean;
+        };
         /** RunRequest */
         arp__api__routers__extraction__RunRequest: {
             /**
@@ -14083,6 +14130,11 @@ export interface components {
             decision_framework_version?: number | null;
             /** Universe Path */
             universe_path?: string | null;
+        };
+        /** DeriveRequest */
+        arp__api__routers__transition_barrier__DeriveRequest: {
+            /** Cells */
+            cells: components["schemas"]["CellRef"][];
         };
         /** RunRequest */
         arp__api__routers__transition_plan__RunRequest: {
@@ -15139,7 +15191,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DeriveRequest"];
+                "application/json": components["schemas"]["arp__api__routers__decision__DeriveRequest"];
             };
         };
         responses: {
@@ -25040,6 +25092,40 @@ export interface operations {
             };
         };
     };
+    get_cell_api_transition_barrier_cells__code___region__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+                region: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     add_choice_api_transition_barrier_cells__code___region__choices_post: {
         parameters: {
             query?: never;
@@ -25146,6 +25232,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_derivation_api_transition_barrier_derive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["arp__api__routers__transition_barrier__DeriveRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

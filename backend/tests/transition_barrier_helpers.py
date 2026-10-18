@@ -96,3 +96,10 @@ def enter_fact(
         form["unit"] = unit
     files = {"file": (filename or f"{doc}.pdf", pdf or fixture_pdf(doc), "application/pdf")}
     return client.post(f"{cell}/facts", data=form, files=files)
+
+
+def derive(client, cells=(("STL-R1", "European Union"),)):
+    """`POST /derive` for the cells (code, region); returns the id of the finished run."""
+    r = client.post("/api/transition-barrier/derive", json={"cells": [{"code": c, "region": g} for c, g in cells]})
+    assert r.status_code == 200, r.text
+    return r.json()["run_id"]
