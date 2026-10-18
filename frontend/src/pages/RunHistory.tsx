@@ -5,7 +5,7 @@ import { api } from "../api/client";
 import { useResume } from "../lib/useResume";
 import type { ReviewableRunKind, RunManifest } from "../types";
 
-const REVIEWABLE_KINDS = new Set<ReviewableRunKind>(["theme", "extraction", "financials", "identity", "transition_plan", "tnfd"]);
+const REVIEWABLE_KINDS = new Set<ReviewableRunKind>(["theme", "extraction", "financials", "identity", "transition_plan", "tnfd", "transition_barrier_derivation"]);
 
 function isReviewable(runType: string): runType is ReviewableRunKind {
   return REVIEWABLE_KINDS.has(runType as ReviewableRunKind);

@@ -113,6 +113,8 @@ import type {
   BarrierCriterionDetail,
   BarrierMatrix,
   BarrierRefreshCoverage,
+  BarrierCell,
+  BarrierFactForm,
   BarrierStalenessReport,
 } from "../types";
 
@@ -234,6 +236,11 @@ export const api = {
     request<{ state: ItemState; snapshot_id: string; second_reasons: string[] }>(
       `/api/review/runs/${encodeURIComponent(runId)}/items/${encodeURIComponent(itemKey)}/decision`,
       { method: "POST", body: JSON.stringify(body) },
+    ),
+  bulkAcceptItems: (runId: string, items: { item_key: string; context_etag: string }[]) =>
+    request<{ accepted: number; second_review: string[]; refused?: { item_key: string; reason: string }[] }>(
+      "/api/extraction/items/bulk-accept",
+      { method: "POST", body: JSON.stringify({ run_id: runId, items }) },
     ),
   getSimilarDecisions: (runId: string, itemKey: string) =>
     request<{ items: SimilarDecision[] }>(
@@ -395,6 +402,25 @@ export const api = {
     request<BarrierCriterionDetail>(`/api/transition-barrier/criteria/${encodeURIComponent(code)}`),
   getBarrierStaleness: () => request<BarrierStalenessReport>("/api/transition-barrier/staleness"),
   getBarrierRefreshCoverage: () => request<BarrierRefreshCoverage>("/api/transition-barrier/refresh/coverage"),
+  getBarrierCell: (code: string, region: string) =>
+    request<BarrierCell>(`/api/transition-barrier/cells/${encodeURIComponent(code)}/${encodeURIComponent(region)}`),
+  deriveBarrierCells: (cells: { code: string; region: string }[]) =>
+    request<{ run_id: string }>("/api/transition-barrier/derive", { method: "POST", body: JSON.stringify({ cells }) }),
+  addBarrierFact: (code: string, region: string, f: BarrierFactForm) => {
+    const form = new FormData();
+    for (const [k, v] of Object.entries(f)) if (k !== "file" && v) form.append(k, v as string);
+    if (f.file) form.append("file", f.file);
+    return request<{ id: number; page: number | null; machine_checked: boolean }>(
+      `/api/transition-barrier/cells/${encodeURIComponent(code)}/${encodeURIComponent(region)}/facts`,
+      { method: "POST", body: form },
+    );
+  },
+  chooseBarrierValue: (code: string, region: string, body: { fact: string; value_id: string; reason: string }) =>
+    request<{ id: number }>(
+      `/api/transition-barrier/cells/${encodeURIComponent(code)}/${encodeURIComponent(region)}/choices`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  barrierDocumentUrl: (id: number, page: number | null) => `${API_BASE}/api/transition-barrier/documents/${id}${page ? `#page=${page}` : ""}`,
   startBarrierRefreshRun: () =>
     request<{ run_id: string; source_count: number }>("/api/transition-barrier/refresh/runs", { method: "POST" }),
 

@@ -43,6 +43,7 @@ class Value:
     counted: bool = True
     reason: str | None = None
     document_id: int | None = None
+    quote: str | None = None  # the exact words the figure was taken from; computed facts have none
 
 
 class ConditionResult(BaseModel):

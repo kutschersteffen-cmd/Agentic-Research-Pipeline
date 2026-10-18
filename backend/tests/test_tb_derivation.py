@@ -28,6 +28,7 @@ from tests.transition_barrier_helpers import (
     B_APPROVER,
     CELL,
     FIXTURES,
+    QUOTES,
     derive,
     enter_fact,
 )
@@ -225,6 +226,13 @@ def test_ac54_ac55_change_is_queued_not_applied(client):
     p = item["payload"]
     assert (item["kind"], p["kind"], p["current"], p["proposed"]) == ("barrier_cell", "changed", "H", "M")
     assert (p["entered_by"], p["rule_book_version"], p["code"], p["region"]) == (["b.approver"], 7, "STL-R1", "European Union")
+
+
+def test_result_values_carry_their_quote(client):
+    defaults(as_user(client, B_APPROVER), price=30, price_page=13)
+    derive(as_user(client, A_ANALYST))
+    values = {v["fact"]: v for v in latest(client)["latest_result"]["values"]}
+    assert values["price"]["quote"] == QUOTES["D1"][13]
 
 
 def test_unchanged_item(client):

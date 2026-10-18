@@ -22,6 +22,7 @@ export const ITEM_KIND_LABEL: Record<ReviewItemKind, string> = {
   sector_code: "Sector code",
   identity: "Identity",
   security: "Security",
+  barrier_cell: "Rating",
   quarantined_document: "Held document",
   restatement_candidate: "Restatement",
   other: "Other",
@@ -34,6 +35,7 @@ export const DECISION_REASONS = [
 /** `other`: only an extraction failure report decides here; the legacy kinds keep their own endpoints. */
 export const decisionChoices = (kind: ReviewItemKind, runType?: string): ItemDecisionBody["decision"][] =>
   kind === "quarantined_document" || (kind === "other" && runType === "extraction") ? ["approve", "reject", "escalate"]
+  : kind === "barrier_cell" ? ["approve", "reject"]
   : kind === "other" ? []
   : ["approve", "correct", "reject", "escalate"];
 

@@ -147,6 +147,7 @@ def cell_values(code: str, region: str, rules: CriterionRules, registry: list[Pr
                 page=f["page"], locator=f["locator"],
                 confidence=fact_confidence(d and d["tier"], d and d["as_of"], defs[f["fact"]].max_age_days, today, d is not None),
                 machine_checked=f["machine_checked"], entered_by=f["entered_by"], document_id=f["document_id"],
+                quote=f["quote"] or None,
             )
         )
     return out
