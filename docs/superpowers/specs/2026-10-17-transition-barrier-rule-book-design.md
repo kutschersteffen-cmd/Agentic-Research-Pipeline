@@ -1,7 +1,7 @@
 # Transition barriers: rule book, cited facts, derived ratings
 
 Date: 2026-10-17
-Status: draft for approval
+Status: approved by the owner 2026-10-18
 
 ## Intent
 
