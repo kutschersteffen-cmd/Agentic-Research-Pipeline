@@ -47,6 +47,7 @@ from arp.api.routers import (
     runs,
     search,
     security_master,
+    signals,
     snapshots,
     stewardship,
     taxonomies,
@@ -148,6 +149,8 @@ app.include_router(taxonomy_researcher.router, dependencies=[Depends(authorize)]
 app.include_router(calibration.router, dependencies=[Depends(authorize)])
 app.include_router(reporting.router, dependencies=[Depends(authorize)])
 app.include_router(replication.router, dependencies=[Depends(authorize)])
+# current_user, not authorize: any signed-in user may read and compare (POST /compare is not a change).
+app.include_router(signals.router, dependencies=[Depends(current_user)])
 app.include_router(index.router, dependencies=[Depends(authorize)])
 app.include_router(review.router, dependencies=[Depends(authorize)])
 app.include_router(publish.router, dependencies=[Depends(authorize)])

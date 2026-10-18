@@ -3,7 +3,7 @@
 // Add a line when you type a new request<...>() against an endpoint with a response model.
 import type { components } from "./schema.gen";
 import type { Me } from "../lib/reviewKeys";
-import type { AlertRule, BIDesignResult, BIEmbedToken, BarrierStalenessReport, DataPointSchema, DatasetSummary, DecisionComparison, DecisionResult, EmergingThemesScheduleConfig, IndexCalibration, IndexReviewResult, MechanismEnvelope, PivotResult, PublishedDecision, QAAnswer, RuleGraph, RuleSuggestions, SearchResponse, SmartSearchAnswer } from "../types";
+import type { AlertRule, BIDesignResult, BIEmbedToken, BarrierStalenessReport, DataPointSchema, DatasetSummary, DecisionComparison, DecisionResult, EmergingThemesScheduleConfig, IndexCalibration, IndexReviewResult, MechanismEnvelope, PivotResult, PublishedDecision, QAAnswer, RuleGraph, RuleSuggestions, SearchResponse, SignalComparison, SignalExperimentDetail, SignalExperimentSummary, SignalMethod, SmartSearchAnswer } from "../types";
 
 type S = components["schemas"];
 // FastAPI marks fields with defaults optional in the schema, but responses always carry every
@@ -19,12 +19,16 @@ export type ApiContract = [
   Satisfies<Served<S["AlertRule"]>, AlertRule>,
   Satisfies<Served<S["DataPointSchema"]>, DataPointSchema>,
   Satisfies<Served<S["DatasetSummary"]>, DatasetSummary>,
+  Satisfies<Served<S["Comparison"]>, SignalComparison>,
   Satisfies<Served<S["DecisionComparison"]>, DecisionComparison>,
   Satisfies<Served<S["DecisionResult"]>, DecisionResult>,
   Satisfies<Served<S["DesignResult"]>, BIDesignResult>,
   Satisfies<Served<S["EmbedToken"]>, BIEmbedToken>,
   Satisfies<Served<S["EmergingThemesScheduleConfig"]>, EmergingThemesScheduleConfig>,
+  Satisfies<Served<S["ExperimentDetail"]>, SignalExperimentDetail>,
+  Satisfies<Served<S["ExperimentSummary"]>, SignalExperimentSummary>,
   Satisfies<Served<S["IndexCalibration"]>, IndexCalibration>,
+  Satisfies<Served<S["MethodInfo"]>, SignalMethod>,
   Satisfies<MechanismEnvelopeServed, MechanismEnvelope>,
   Satisfies<Served<S["PivotResult"]>, PivotResult>,
   Satisfies<Served<S["Principal"]>, Me>,

@@ -107,6 +107,7 @@ phase:
   Every spec ends with an `## Acceptance` table in the format of
   `docs/superpowers/ACCEPTANCE_TEMPLATE.md`; run the `spec-critic` skill on it, then the owner
   approves it before implementation starts.
+  Show the owner every spec or plan for approval as a claude.ai artifact (Artifact tool), never only as chat text or a file path.
 - **Implementation → ponytail.** Smallest working diff; follow the plan's tasks, not more.
 - **Frontend design → impeccable and ui-ux-pro-max**, as before. After a UI change, screenshot
   the affected page with Playwright and run `/impeccable:impeccable audit`.

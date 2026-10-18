@@ -3268,6 +3268,55 @@
     "title": "CompanySummary",
     "type": "object"
    },
+   "Comparison": {
+    "properties": {
+     "a": {
+      "title": "A",
+      "type": "string"
+     },
+     "b": {
+      "title": "B",
+      "type": "string"
+     },
+     "months": {
+      "title": "Months",
+      "type": "integer"
+     },
+     "n_comparisons": {
+      "title": "N Comparisons",
+      "type": "integer"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "verdict": {
+      "enum": [
+       "a_higher",
+       "b_higher",
+       "insufficient_data"
+      ],
+      "title": "Verdict",
+      "type": "string"
+     }
+    },
+    "required": [
+     "a",
+     "b",
+     "verdict",
+     "months",
+     "n_comparisons"
+    ],
+    "title": "Comparison",
+    "type": "object"
+   },
    "CompositeSignalComponent": {
     "description": "One sub-signal inside a COMPOSITE StrategySpec -- the same\nper-signal parameters a standalone MOMENTUM/VALUE/TEXT_SENTIMENT spec\nwould carry, minus everything about portfolio construction (buckets,\nlegs, holding period, rebalancing), which is decided once at the\ncomposite level, not per component.",
     "properties": {
@@ -4894,6 +4943,23 @@
     "title": "DecisionReason",
     "type": "string"
    },
+   "DecisionRequest": {
+    "properties": {
+     "decision": {
+      "enum": [
+       "graduate",
+       "shelve"
+      ],
+      "title": "Decision",
+      "type": "string"
+     }
+    },
+    "required": [
+     "decision"
+    ],
+    "title": "DecisionRequest",
+    "type": "object"
+   },
    "DecisionResult": {
     "description": "The output of applying one framework version to one dataset.",
     "properties": {
@@ -6193,6 +6259,54 @@
     "title": "EscalationStage",
     "type": "string"
    },
+   "EvidenceReport": {
+    "properties": {
+     "contamination_gap_ic": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Contamination Gap Ic"
+     },
+     "n_trials": {
+      "title": "N Trials",
+      "type": "integer"
+     },
+     "overlap": {
+      "additionalProperties": {
+       "anyOf": [
+        {
+         "type": "number"
+        },
+        {
+         "type": "null"
+        }
+       ]
+      },
+      "title": "Overlap",
+      "type": "object"
+     },
+     "windows": {
+      "items": {
+       "$ref": "#/components/schemas/WindowEvidence"
+      },
+      "title": "Windows",
+      "type": "array"
+     }
+    },
+    "required": [
+     "windows",
+     "contamination_gap_ic",
+     "overlap",
+     "n_trials"
+    ],
+    "title": "EvidenceReport",
+    "type": "object"
+   },
    "ExceptionDecisionRequest": {
     "properties": {
      "client_step": {
@@ -6223,6 +6337,205 @@
      "decision"
     ],
     "title": "ExceptionDecisionRequest",
+    "type": "object"
+   },
+   "ExperimentDetail": {
+    "properties": {
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "cutoff": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cutoff"
+     },
+     "cutoff_status": {
+      "enum": [
+       "none",
+       "recorded",
+       "unknown"
+      ],
+      "title": "Cutoff Status",
+      "type": "string"
+     },
+     "data_version": {
+      "title": "Data Version",
+      "type": "string"
+     },
+     "decided_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decided At"
+     },
+     "decided_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decided By"
+     },
+     "decision": {
+      "default": "none",
+      "enum": [
+       "none",
+       "graduate",
+       "shelve"
+      ],
+      "title": "Decision",
+      "type": "string"
+     },
+     "evidence": {
+      "$ref": "#/components/schemas/EvidenceReport"
+     },
+     "experiment_id": {
+      "title": "Experiment Id",
+      "type": "string"
+     },
+     "model": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Model"
+     },
+     "notes": {
+      "additionalProperties": true,
+      "default": {},
+      "title": "Notes",
+      "type": "object"
+     },
+     "recipe": {
+      "$ref": "#/components/schemas/Recipe"
+     }
+    },
+    "required": [
+     "experiment_id",
+     "recipe",
+     "data_version",
+     "model",
+     "evidence",
+     "created_at",
+     "cutoff_status"
+    ],
+    "title": "ExperimentDetail",
+    "type": "object"
+   },
+   "ExperimentSummary": {
+    "properties": {
+     "category": {
+      "title": "Category",
+      "type": "string"
+     },
+     "cost_bps": {
+      "title": "Cost Bps",
+      "type": "number"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "cutoff": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cutoff"
+     },
+     "cutoff_status": {
+      "enum": [
+       "none",
+       "recorded",
+       "unknown"
+      ],
+      "title": "Cutoff Status",
+      "type": "string"
+     },
+     "decision": {
+      "enum": [
+       "none",
+       "graduate",
+       "shelve"
+      ],
+      "title": "Decision",
+      "type": "string"
+     },
+     "experiment_id": {
+      "title": "Experiment Id",
+      "type": "string"
+     },
+     "method": {
+      "title": "Method",
+      "type": "string"
+     },
+     "model": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Model"
+     },
+     "n_trials": {
+      "title": "N Trials",
+      "type": "integer"
+     },
+     "universe": {
+      "title": "Universe",
+      "type": "string"
+     },
+     "window_end": {
+      "title": "Window End",
+      "type": "string"
+     },
+     "window_start": {
+      "title": "Window Start",
+      "type": "string"
+     }
+    },
+    "required": [
+     "experiment_id",
+     "category",
+     "method",
+     "universe",
+     "window_start",
+     "window_end",
+     "cost_bps",
+     "model",
+     "cutoff",
+     "decision",
+     "n_trials",
+     "created_at",
+     "cutoff_status"
+    ],
+    "title": "ExperimentSummary",
     "type": "object"
    },
    "ExportRequest": {
@@ -7232,6 +7545,55 @@
      }
     },
     "title": "HoldingsUniverseRequest",
+    "type": "object"
+   },
+   "IcSummary": {
+    "properties": {
+     "hit_rate": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Hit Rate"
+     },
+     "mean": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Mean"
+     },
+     "n": {
+      "title": "N",
+      "type": "integer"
+     },
+     "t_nw": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "T Nw"
+     }
+    },
+    "required": [
+     "n",
+     "mean",
+     "t_nw",
+     "hit_rate"
+    ],
+    "title": "IcSummary",
     "type": "object"
    },
    "IdentifierOut": {
@@ -8595,6 +8957,24 @@
      "source_notes"
     ],
     "title": "MergeResponse",
+    "type": "object"
+   },
+   "MethodInfo": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "runnable_in_app": {
+      "title": "Runnable In App",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "name",
+     "runnable_in_app"
+    ],
+    "title": "MethodInfo",
     "type": "object"
    },
    "MetricThresholdScreen": {
@@ -10264,6 +10644,74 @@
     ],
     "title": "RebalanceFrequency",
     "type": "string"
+   },
+   "Recipe": {
+    "properties": {
+     "category": {
+      "enum": [
+       "sentiment_narrative",
+       "earnings_call_tone",
+       "fundamental",
+       "price_momentum",
+       "analyst_revisions"
+      ],
+      "title": "Category",
+      "type": "string"
+     },
+     "cost_bps": {
+      "default": 10.0,
+      "title": "Cost Bps",
+      "type": "number"
+     },
+     "forward_months": {
+      "default": 1,
+      "title": "Forward Months",
+      "type": "integer"
+     },
+     "method": {
+      "title": "Method",
+      "type": "string"
+     },
+     "params": {
+      "additionalProperties": true,
+      "title": "Params",
+      "type": "object"
+     },
+     "text_source": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Text Source"
+     },
+     "universe": {
+      "title": "Universe",
+      "type": "string"
+     },
+     "window_end": {
+      "title": "Window End",
+      "type": "string"
+     },
+     "window_start": {
+      "title": "Window Start",
+      "type": "string"
+     }
+    },
+    "required": [
+     "category",
+     "method",
+     "text_source",
+     "params",
+     "universe",
+     "window_start",
+     "window_end"
+    ],
+    "title": "Recipe",
+    "type": "object"
    },
    "RegimeBucketPerformance": {
     "properties": {
@@ -14147,6 +14595,95 @@
     "title": "WeightingScheme",
     "type": "string"
    },
+   "WindowEvidence": {
+    "properties": {
+     "deflated_sharpe": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DeflatedSharpeAssessment"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "ic": {
+      "$ref": "#/components/schemas/IcSummary"
+     },
+     "long_short": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LegPerformance"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "monthly_turnover_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Monthly Turnover Pct"
+     },
+     "net_long_short": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/LegPerformance"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "periods": {
+      "title": "Periods",
+      "type": "integer"
+     },
+     "series": {
+      "default": [],
+      "items": {
+       "maxItems": 2,
+       "minItems": 2,
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "number"
+        }
+       ],
+       "type": "array"
+      },
+      "title": "Series",
+      "type": "array"
+     },
+     "window": {
+      "enum": [
+       "in_window",
+       "post_cutoff"
+      ],
+      "title": "Window",
+      "type": "string"
+     }
+    },
+    "required": [
+     "window",
+     "periods",
+     "ic",
+     "long_short",
+     "net_long_short",
+     "monthly_turnover_pct",
+     "deflated_sharpe"
+    ],
+    "title": "WindowEvidence",
+    "type": "object"
+   },
    "WithdrawRequest": {
     "properties": {
      "reason": {
@@ -14560,6 +15097,24 @@
      "question"
     ],
     "title": "AskRequest",
+    "type": "object"
+   },
+   "arp__api__routers__signals__CompareRequest": {
+    "properties": {
+     "a": {
+      "title": "A",
+      "type": "string"
+     },
+     "b": {
+      "title": "B",
+      "type": "string"
+     }
+    },
+    "required": [
+     "a",
+     "b"
+    ],
+    "title": "CompareRequest",
     "type": "object"
    },
    "arp__api__routers__taxonomies__CompareRequest": {
@@ -26705,6 +27260,212 @@
     "summary": "Upload",
     "tags": [
      "security-master"
+    ]
+   }
+  },
+  "/api/signals/compare": {
+   "post": {
+    "operationId": "compare_api_signals_compare_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/arp__api__routers__signals__CompareRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Comparison"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Compare",
+    "tags": [
+     "signals"
+    ]
+   }
+  },
+  "/api/signals/experiments": {
+   "get": {
+    "operationId": "list_experiments_api_signals_experiments_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/ExperimentSummary"
+         },
+         "title": "Response List Experiments Api Signals Experiments Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Experiments",
+    "tags": [
+     "signals"
+    ]
+   }
+  },
+  "/api/signals/experiments/{experiment_id}": {
+   "get": {
+    "operationId": "get_experiment_api_signals_experiments__experiment_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "experiment_id",
+      "required": true,
+      "schema": {
+       "title": "Experiment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ExperimentDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Experiment",
+    "tags": [
+     "signals"
+    ]
+   }
+  },
+  "/api/signals/experiments/{experiment_id}/decision": {
+   "post": {
+    "operationId": "decide_api_signals_experiments__experiment_id__decision_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "experiment_id",
+      "required": true,
+      "schema": {
+       "title": "Experiment Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DecisionRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ExperimentDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Decide",
+    "tags": [
+     "signals"
+    ]
+   }
+  },
+  "/api/signals/methods": {
+   "get": {
+    "operationId": "list_methods_api_signals_methods_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/MethodInfo"
+         },
+         "title": "Response List Methods Api Signals Methods Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Methods",
+    "tags": [
+     "signals"
+    ]
+   }
+  },
+  "/api/signals/runs": {
+   "post": {
+    "operationId": "run_api_signals_runs_post",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ExperimentDetail"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Run",
+    "tags": [
+     "signals"
     ]
    }
   },
