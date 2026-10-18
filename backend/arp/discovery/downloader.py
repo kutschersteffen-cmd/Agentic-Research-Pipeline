@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import re
@@ -9,6 +10,7 @@ from urllib.parse import urlparse
 import httpx
 
 from arp.discovery.crawler import CandidateDocumentLink
+from arp.discovery.doc_check import check_document
 from arp.net_safety import UnsafeURLError, ssrf_guard_request_hook
 from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import CaptureRecord, DiscoveredDocument
@@ -125,6 +127,7 @@ async def download_documents(
             filename = _slugify(candidate.link_text or Path(urlparse(candidate.url).path).stem) + ext
             dest_path = dest_dir / filename
             dest_path.write_bytes(content)
+            check = await asyncio.to_thread(check_document, dest_path, company) if ext == ".pdf" else None
 
             discovered.append(
                 DiscoveredDocument(
@@ -136,6 +139,7 @@ async def download_documents(
                     http_last_modified=resp.headers.get("last-modified"),
                     http_etag=resp.headers.get("etag"),
                     capture_id=record.capture_id,
+                    **(check._asdict() if check else {}),
                 )
             )
     return discovered

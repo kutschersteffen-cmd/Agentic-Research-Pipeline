@@ -140,10 +140,12 @@ async def execute_discovery_run(
         return result
 
     def _on_success(company: CompanyRef, result: DiscoveryCompanyResult) -> None:
+        # no documents, or a PDF that doesn't name the company (doc_check), needs a reviewer
+        flagged = any(d.company_match in ("none", "no_text") for d in result.documents_found)
         job_manager.record_progress(
             run_id,
             completed_delta=1,
-            review_delta=0 if result.documents_found else 1,
+            review_delta=1 if not result.documents_found or flagged else 0,
         )
 
     def _on_error(company: CompanyRef, exc: Exception) -> None:

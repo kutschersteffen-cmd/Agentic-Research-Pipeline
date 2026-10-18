@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -23,6 +24,10 @@ class DiscoveredDocument(BaseModel):
     http_etag: str | None = None
     capture_id: str | None = None
     discovered_at: str = Field(default_factory=now_iso)
+    # PDF document check (arp/discovery/doc_check.py); None for other files and EDGAR/ESEF documents.
+    company_match: Literal["identifier", "name", "none", "no_text"] | None = None
+    page_count: int | None = None
+    reporting_year: int | None = None
 
 
 class CaptureRecord(BaseModel):
