@@ -580,7 +580,7 @@ def test_bundled_sources_have_key_and_tier():
     criteria = json.loads((data / "criteria_schema.json").read_text())["criteria"]
     registry = json.loads((data / "source_registry.json").read_text())["sources"]
     entries = [(c["code"], s) for c in criteria for s in c["primary_sources"]]
-    assert len(entries) == 102
+    assert len(entries) == 108
     for code, s in entries:
         assert s.get("key") in registry, (code, s["source_name"])
         assert code in registry[s["key"]]["used_by_criteria"], (code, s["key"])

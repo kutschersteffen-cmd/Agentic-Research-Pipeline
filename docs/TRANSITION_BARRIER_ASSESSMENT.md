@@ -148,8 +148,8 @@ cell was verified on 2026-08-14, so the matrix tips into stale on **2028-02-13**
 The design is a five-stage flow — Source Router → Retriever → Extractor → Rater →
 Reconciler. **What is built today is the first slice: EUR-Lex legal sources only.**
 
-`GET /api/transition-barrier/refresh/coverage` reports this honestly: **15 of 89 sources**
-are automatable, 74 still require manual verification. The router returns a reason for every
+`GET /api/transition-barrier/refresh/coverage` reports this honestly: **15 of 94 sources**
+are automatable, 79 still require manual verification. The router returns a reason for every
 source it cannot handle rather than silently skipping it.
 
 EUR-Lex was chosen first because it is the only category with genuinely stable identifiers:
@@ -222,7 +222,7 @@ derived view.
 
 Recorded rather than silently patched:
 
-- **102 criterion-source links dedupe to 89 registry entries.** The registry keeps
+- **108 criterion-source links dedupe to 94 registry entries.** The registry keeps
   per-criterion duplicates for company disclosures rather than sharing one key.
 - **Source count corrected from 7 to 6** for `structured_api_or_dashboard`. The original
   notes claimed 7 and named an `LSE_Grantham_CCLW` entry that does not exist in the registry;
@@ -416,7 +416,7 @@ Recorded rather than silently patched:
 
 ---
 
-### The 89 sources
+### The 94 sources
 
 A source marked _manual_ cannot be fetched as a document (subscription, dashboard, company
 disclosure or a site that blocks automated requests); the reason is its `manual_reason` in
@@ -470,14 +470,16 @@ disclosure or a site that blocks automated requests); the reason is its `manual_
 | Oil and Gas Methane Partnership (OGMP 2.0) reporting | United Nations Environment Programme | `OGU-T1` | annual | [link](https://www.unep.org/resources/eye-methane-2025), _manual_ |
 | S&P Global Market Intelligence - Metals & Mining | S&P Global | `MIN-T1` | continuous | [link](https://www.spglobal.com/marketintelligence/en/sector/metals-mining), _manual_ |
 
-#### Periodic PDF report (29)
+#### Periodic PDF report (32)
 
 | Source | Publisher | Criteria | Refresh cadence | URL |
 | --- | --- | --- | --- | --- |
+| Berkeley Lab Queued Up: Characteristics of Power Plants Seeking Transmission Interconnection (2026 edition) | Lawrence Berkeley National Laboratory (LBNL) | `PWR-R2` | annual, slide deck and data file each spring (2026 edition May 2026); the latest edition is always linked from https://emp.lbl.gov/queues | [link](https://eta-publications.lbl.gov/sites/default/files/2026-06/queued_up_2026_edition.pdf) |
 | BloombergNEF Corporate Energy Market Outlook | BloombergNEF | `PWR-D1` | varies by report series, generally annual | [link](https://about.bnef.com/), _manual_ |
 | BloombergNEF Energy Storage Outlook | BloombergNEF | `PWR-T2` | varies by report series, generally annual | [link](https://about.bnef.com/), _manual_ |
 | BloombergNEF Green Steel Tracker / Premium report | BloombergNEF | `STL-D1` | varies by report series, generally annual | [link](https://about.bnef.com/), _manual_ |
 | BloombergNEF Hydrogen Levelized Cost Report | BloombergNEF | `STL-T1` | varies by report series, generally annual | [link](https://about.bnef.com/), _manual_ |
+| CRS R48906: Inflation Reduction Act Methane Emissions Charge: Overview and Considerations for Policymakers | Congressional Research Service (CRS) | `OGU-R1` | one-off report (15 April 2026); CRS revises reports as events change | [link](https://www.congress.gov/crs-product/R48906), _manual_ |
 | IATA SAF price tracking | International Air Transport Association | `AVI-D1` | periodic, check quarterly | [link](https://www.iata.org/en/programs/environment/sustainable-aviation-fuels/), _manual_ |
 | IATA Sustainable Aviation Fuel Fact Sheet / SAF Tracker | International Air Transport Association | `AVI-T1` | annual, with interim updates | [link](https://www.iata.org/en/iata-repository/pressroom/fact-sheets/fact-sheet-sustainable-aviation-fuels/) |
 | ICCT Total Cost of Ownership analyses | International Council on Clean Transportation | `HDT-T1` | annual, check for new regional TCO updates | [link](https://theicct.org/publications/), _manual_ |
@@ -496,6 +498,7 @@ disclosure or a site that blocks automated requests); the reason is its `manual_
 | IEEFA: China's emissions trading system (ETS) reforms: On track, but needs robust enforcement | Institute for Energy Economics and Financial Analysis (IEEFA) | `CEM-R1`, `STL-R1` | one-off report (3 November 2025) | [link](https://ieefa.org/resources/chinas-emissions-trading-system-ets-reforms-track-needs-robust-enforcement), _manual_ |
 | IRENA Renewable Power Generation Costs | International Renewable Energy Agency | `PWR-T1` | annual, typically published September | [link](https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2024/Sep/IRENA_Renewable_power_generation_costs_in_2023.pdf) |
 | Lazard Levelized Cost of Energy Analysis | Lazard | `PWR-T1` | annual | [link](https://www.lazard.com/media/kcfconhf/lazards-lcoeplus_vf.pdf) |
+| MEE Progress Report of China's National Carbon Market (2025) | Ministry of Ecology and Environment of the People's Republic of China (MEE) | `PWR-R1` | annual, released at the China Carbon Market Conference in September (the 2026 edition followed in September 2026) | [link](https://www.mee.gov.cn/ywgz/ydqhbh/wsqtkz/202509/W020250927515319387445.pdf) |
 | Mission Possible Partnership Steel sector tracker | Mission Possible Partnership | `STL-D1` | annual, but publication timing is less regular than IEA/IRENA | [link](https://missionpossiblepartnership.org/tracker), _manual_ |
 | Mission Possible Partnership Steel Transition Strategy | Mission Possible Partnership / Energy Transitions Commission | `STL-T1` | annual, but publication timing is less regular than IEA/IRENA | [link](https://www.energy-transitions.org/wp-content/uploads/2022/09/Making-Net-Zero-Steel-possible.pdf) |
 | Mission Possible: Reaching Net-Zero Carbon Emissions from Harder-to-Abate Sectors | Energy Transitions Commission (ETC) | `AVI-T1`, `CEM-T1`, `CHM-T1`, `SHP-T1`, `STL-T1` | irregular — ETC publishes updates and sector-specific follow-ons rather than a fixed annual cycle; check publications page each review | [link](https://www.energy-transitions.org/wp-content/uploads/2020/08/ETC_MissionPossible_FullReport.pdf) |
@@ -504,7 +507,7 @@ disclosure or a site that blocks automated requests); the reason is its `manual_
 | Transition Asia: Steel Enters China's National Emissions Trading Scheme | Transition Asia | `STL-R1` | one-off brief (March 2025) | [link](https://transitionasia.org/wp-content/uploads/2025/03/EN_Steel-Enters-China-ETS.pdf) |
 | World Steel Association Steel Statistical Yearbook | World Steel Association (worldsteel) | `STL-T2` | annual | [link](https://worldsteel.org/wp-content/uploads/World-Steel-in-Figures-2026.pdf) |
 
-#### Government agency publication (21)
+#### Government agency publication (23)
 
 | Source | Publisher | Criteria | Refresh cadence | URL |
 | --- | --- | --- | --- | --- |
@@ -521,6 +524,7 @@ disclosure or a site that blocks automated requests); the reason is its `manual_
 | ICAO CORSIA scheme status | International Civil Aviation Organization | `AVI-R1` | annual, check ahead of each phase transition | [link](https://www.icao.int/corsia-state-pairs), _manual_ |
 | IMO GHG Strategy implementation tracker | International Maritime Organization | `CHM-D1` | check ahead of each MEPC session (roughly biannual) for mid-term measures progress | [link](https://www.imo.org/en/OurWork/Environment/Pages/2023-IMO-Strategy-on-Reduction-of-GHG-Emissions-from-Ships.aspx) |
 | IMO Revised GHG Strategy and mid-term measures | International Maritime Organization | `SHP-R1` | check ahead of each MEPC session (roughly biannual) for mid-term measures progress | [link](https://www.imo.org/en/OurWork/Environment/Pages/2023-IMO-Strategy-on-Reduction-of-GHG-Emissions-from-Ships.aspx) |
+| MOFCOM announcements on export controls of critical-mineral items | Ministry of Commerce of the People's Republic of China (MOFCOM), with the General Administration of Customs | `MIN-R2` | irregular, announcements are issued as decided; MOFCOM keeps one announcement list per year (/zcfb/blgg/gg/<year>/index.html) | [link](https://www.mofcom.gov.cn/zcfb/blgg/gg/2025/index.html) |
 | National/state building codes register | Various national standards bodies | `STL-R2` | annual, varies significantly by jurisdiction | [link](https://www.iccsafe.org/), _manual_ |
 | US DOE Industrial Demonstrations Program awards | US Department of Energy | `CEM-R2` | monitor closely for continuity under current administration | [link](https://www.energy.gov/oced/industrial-demonstrations-program) |
 | US EPA Heavy-Duty Phase 3 GHG standards | US Environmental Protection Agency | `HDT-R1` | monitor closely given litigation risk | [link](https://www.federalregister.gov/documents/2024/04/22/2024-06809/greenhouse-gas-emissions-standards-for-heavy-duty-vehicles-phase-3) |
@@ -529,6 +533,7 @@ disclosure or a site that blocks automated requests); the reason is its `manual_
 | US Fixing America's Surface Transportation Act / permitting reform tracker | US Department of Interior / Congressional Research Service | `MIN-R1` | monitor closely given active legislative attention | [link](https://www.congress.gov/bill/118th-congress/house-bill/1), _manual_ |
 | US Inflation Reduction Act Section 30D critical minerals requirements | US Internal Revenue Service / US Treasury | `MIN-R2` | monitor closely — credit status changed materially in 2025 | [link](https://www.energy.gov/mesc/30d-new-clean-vehicle-credit) |
 | US SAF Grand Challenge / IRA 40B tax credit | US Department of Energy / US Treasury | `AVI-R1` | annual, monitor for continuity under current administration priorities | [link](https://www.energy.gov/sites/default/files/2022-09/beto-saf-gc-roadmap-report-sept-2022.pdf) |
+| US Treasury/IRS Section 45V final regulations (TD 10023) | US Department of the Treasury, Internal Revenue Service | `CHM-T1`, `STL-T1` | one-off final rule (90 FR 2224, 10 January 2025); later changes to the credit come by statute or a new rulemaking | [link](https://www.govinfo.gov/content/pkg/FR-2025-01-10/pdf/2024-31513.pdf) |
 
 #### Company disclosure (7)
 

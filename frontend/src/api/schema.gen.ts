@@ -6171,7 +6171,7 @@ export interface paths {
         };
         /**
          * List Sources
-         * @description The 89 deduplicated sources behind the matrix.
+         * @description The 94 deduplicated sources behind the matrix.
          */
         get: operations["list_sources_api_transition_barrier_sources_get"];
         put?: never;
@@ -11942,7 +11942,7 @@ export interface components {
         Region: "European Union" | "United States" | "China";
         /**
          * RegistrySource
-         * @description One of the 89 deduplicated sources behind the matrix. A derived view over
+         * @description One of the 94 deduplicated sources behind the matrix. A derived view over
          *     the primary_sources[] entries in criteria_schema.json, which stays
          *     authoritative if the two ever disagree.
          */

@@ -78,8 +78,8 @@ def test_matrix_endpoint_returns_105_cells_with_staleness():
     assert json.loads(json.dumps(matrix))["cells"]["PWR-T1"]["European Union"]["rating"] == "H"
 
 
-def test_sources_endpoint_returns_all_89():
-    assert len(list_sources()) == 89
+def test_sources_endpoint_returns_all_94():
+    assert len(list_sources()) == 94
 
 
 def test_staleness_endpoint_honours_the_configured_threshold():
@@ -94,9 +94,9 @@ def test_staleness_endpoint_honours_the_configured_threshold():
 
 def test_refresh_coverage_is_honest_about_what_is_not_automated():
     coverage = get_refresh_coverage()
-    assert coverage["total_sources"] == 89
+    assert coverage["total_sources"] == 94
     assert coverage["automatable"] == 15
-    assert coverage["manual"] == 74
+    assert coverage["manual"] == 79
     assert coverage["enabled_patterns"] == ["legal_regulatory_text"]
 
 

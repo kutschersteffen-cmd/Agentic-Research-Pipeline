@@ -10866,7 +10866,7 @@
     "type": "string"
    },
    "RegistrySource": {
-    "description": "One of the 89 deduplicated sources behind the matrix. A derived view over\nthe primary_sources[] entries in criteria_schema.json, which stays\nauthoritative if the two ever disagree.",
+    "description": "One of the 94 deduplicated sources behind the matrix. A derived view over\nthe primary_sources[] entries in criteria_schema.json, which stays\nauthoritative if the two ever disagree.",
     "properties": {
      "access_pattern": {
       "$ref": "#/components/schemas/AccessPattern"
@@ -31802,7 +31802,7 @@
   },
   "/api/transition-barrier/sources": {
    "get": {
-    "description": "The 89 deduplicated sources behind the matrix.",
+    "description": "The 94 deduplicated sources behind the matrix.",
     "operationId": "list_sources_api_transition_barrier_sources_get",
     "responses": {
      "200": {

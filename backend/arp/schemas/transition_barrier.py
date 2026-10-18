@@ -132,7 +132,7 @@ class BarrierScore(BaseModel):
 
 
 class RegistrySource(BaseModel):
-    """One of the 89 deduplicated sources behind the matrix. A derived view over
+    """One of the 94 deduplicated sources behind the matrix. A derived view over
     the primary_sources[] entries in criteria_schema.json, which stays
     authoritative if the two ever disagree.
     """

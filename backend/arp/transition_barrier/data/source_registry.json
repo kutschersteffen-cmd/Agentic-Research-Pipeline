@@ -1,14 +1,14 @@
 {
   "_meta": {
-    "description": "89 distinct sources deduplicated across the 35-criteria schema. Derived from docs/Transition_Barrier_Assessment.xlsx (Sources sheet), verified 2026-08-14. Treat data/criteria_schema.json as authoritative if the two ever disagree -- this file is a derived view.",
+    "description": "94 distinct sources deduplicated across the 35-criteria schema. Derived from docs/Transition_Barrier_Assessment.xlsx (Sources sheet), verified 2026-08-14. Treat data/criteria_schema.json as authoritative if the two ever disagree -- this file is a derived view.",
     "verified_date": "2026-08-14",
-    "source_count": 89,
+    "source_count": 94,
     "access_pattern_counts": {
       "company_disclosure": 7,
-      "government_agency_publication": 21,
+      "government_agency_publication": 23,
       "industry_tracker_database": 11,
       "legal_regulatory_text": 15,
-      "periodic_pdf_report": 29,
+      "periodic_pdf_report": 32,
       "structured_api_or_dashboard": 6
     }
   },
@@ -1100,6 +1100,64 @@
       "refresh_cadence": "one-off brief (March 2025)",
       "locator": "Page 2: the carbon price for a zero green-steel premium at current green hydrogen prices is 890 yuan/t CO2 (about USD 124), 220 yuan/t at China's 2030 hydrogen target of USD 2.4/kg; the evidence text dates this brief September 2025, but the figure is in this March 2025 brief",
       "url": "https://transitionasia.org/wp-content/uploads/2025/03/EN_Steel-Enters-China-ETS.pdf"
+    },
+    "China_MEE_National_Carbon_Market_Progress_Report": {
+      "source_name": "MEE Progress Report of China's National Carbon Market (2025)",
+      "publisher": "Ministry of Ecology and Environment of the People's Republic of China (MEE)",
+      "used_by_criteria": [
+        "PWR-R1"
+      ],
+      "access_pattern": "periodic_pdf_report",
+      "refresh_cadence": "annual, released at the China Carbon Market Conference in September (the 2026 edition followed in September 2026)",
+      "locator": "Chapter 4 (market vibrancy of the national ETS), part (2) 'Trading prices reflected supply and demand interaction', PDF page 24: the 2024 composite closing price ranged from 69 to 106 yuan/tonne, year-end 97.49 yuan/tonne",
+      "url": "https://www.mee.gov.cn/ywgz/ydqhbh/wsqtkz/202509/W020250927515319387445.pdf"
+    },
+    "LBNL_Queued_Up_interconnection_queues": {
+      "source_name": "Berkeley Lab Queued Up: Characteristics of Power Plants Seeking Transmission Interconnection (2026 edition)",
+      "publisher": "Lawrence Berkeley National Laboratory (LBNL)",
+      "used_by_criteria": [
+        "PWR-R2"
+      ],
+      "access_pattern": "periodic_pdf_report",
+      "refresh_cadence": "annual, slide deck and data file each spring (2026 edition May 2026); the latest edition is always linked from https://emp.lbl.gov/queues",
+      "locator": "Duration trends, PDF pages 51-52: median time from interconnection request to commercial operation, 61 months for projects completed in 2025, by region",
+      "url": "https://eta-publications.lbl.gov/sites/default/files/2026-06/queued_up_2026_edition.pdf"
+    },
+    "US_Treasury_IRS_Section_45V_final_regulations": {
+      "source_name": "US Treasury/IRS Section 45V final regulations (TD 10023)",
+      "publisher": "US Department of the Treasury, Internal Revenue Service",
+      "used_by_criteria": [
+        "CHM-T1",
+        "STL-T1"
+      ],
+      "access_pattern": "government_agency_publication",
+      "refresh_cadence": "one-off final rule (90 FR 2224, 10 January 2025); later changes to the credit come by statute or a new rulemaking",
+      "locator": "§ 1.45V-1(b) amount of credit; § 1.45V-4 lifecycle GHG emissions rate (45VH2-GREET), with § 1.45V-4(d) (from 90 FR 2316) on energy attribute certificates: incrementality, temporal matching, deliverability",
+      "url": "https://www.govinfo.gov/content/pkg/FR-2025-01-10/pdf/2024-31513.pdf"
+    },
+    "China_MOFCOM_export_control_announcements": {
+      "source_name": "MOFCOM announcements on export controls of critical-mineral items",
+      "publisher": "Ministry of Commerce of the People's Republic of China (MOFCOM), with the General Administration of Customs",
+      "used_by_criteria": [
+        "MIN-R2"
+      ],
+      "access_pattern": "government_agency_publication",
+      "refresh_cadence": "irregular, announcements are issued as decided; MOFCOM keeps one announcement list per year (/zcfb/blgg/gg/<year>/index.html)",
+      "locator": "2025 announcement list (in Chinese): MOFCOM/GAC No. 10 (tungsten, tellurium, bismuth, molybdenum, indium) and No. 18 (medium and heavy rare earths); MOFCOM/GAC Nos. 55 to 58 and MOFCOM Nos. 61 and 62 (October 2025) were suspended by MOFCOM/GAC No. 70",
+      "url": "https://www.mofcom.gov.cn/zcfb/blgg/gg/2025/index.html"
+    },
+    "CRS_R48906_IRA_methane_emissions_charge": {
+      "source_name": "CRS R48906: Inflation Reduction Act Methane Emissions Charge: Overview and Considerations for Policymakers",
+      "publisher": "Congressional Research Service (CRS)",
+      "used_by_criteria": [
+        "OGU-R1"
+      ],
+      "access_pattern": "periodic_pdf_report",
+      "refresh_cadence": "one-off report (15 April 2026); CRS revises reports as events change",
+      "locator": "Summary and 'Introduction and Recent Developments': the Congressional Review Act disapproval of EPA's WEC rule (H.J.Res. 35, signed 14 March 2025) and P.L. 119-21's change to the WEC start date",
+      "url": "https://www.congress.gov/crs-product/R48906",
+      "manual": true,
+      "manual_reason": "congress.gov returns 403 to automated requests; fetch the page in a browser."
     }
   }
 }

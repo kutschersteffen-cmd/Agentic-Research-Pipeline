@@ -151,6 +151,17 @@
           "key": "ICAP_China_National_ETS_factsheet",
           "tier": "secondary",
           "cadence": "annual"
+        },
+        {
+          "source_name": "MEE Progress Report of China's National Carbon Market (2025)",
+          "publisher": "Ministry of Ecology and Environment of the People's Republic of China (MEE)",
+          "url": "https://www.mee.gov.cn/ywgz/ydqhbh/wsqtkz/202509/W020250927515319387445.pdf",
+          "access_pattern": "periodic_pdf_report",
+          "refresh_cadence": "annual, released at the China Carbon Market Conference in September (the 2026 edition followed in September 2026)",
+          "locator": "Chapter 4 (market vibrancy of the national ETS), part (2) 'Trading prices reflected supply and demand interaction', PDF page 24: the 2024 composite closing price ranged from 69 to 106 yuan/tonne, year-end 97.49 yuan/tonne",
+          "key": "China_MEE_National_Carbon_Market_Progress_Report",
+          "tier": "primary",
+          "cadence": "annual"
         }
       ]
     },
@@ -196,6 +207,17 @@
           "key": "China_NEA_renewable_targets",
           "tier": "primary",
           "cadence": "quarterly"
+        },
+        {
+          "source_name": "Berkeley Lab Queued Up: Characteristics of Power Plants Seeking Transmission Interconnection (2026 edition)",
+          "publisher": "Lawrence Berkeley National Laboratory (LBNL)",
+          "url": "https://eta-publications.lbl.gov/sites/default/files/2026-06/queued_up_2026_edition.pdf",
+          "access_pattern": "periodic_pdf_report",
+          "refresh_cadence": "annual, slide deck and data file each spring (2026 edition May 2026); the latest edition is always linked from https://emp.lbl.gov/queues",
+          "locator": "Duration trends, PDF pages 51-52: median time from interconnection request to commercial operation, 61 months for projects completed in 2025, by region",
+          "key": "LBNL_Queued_Up_interconnection_queues",
+          "tier": "secondary",
+          "cadence": "annual"
         }
       ]
     },
@@ -285,6 +307,16 @@
           "locator": "Sector-specific technical abatement pathways for cement, steel, plastics, aviation, shipping, trucking; distinguishes proven-technology sectors from those needing further technology investment",
           "key": "Mission_Possible_Reaching_Net_Zero_Carbon_Emissions_from_Harder_to_Abate_Sectors",
           "tier": "secondary"
+        },
+        {
+          "source_name": "US Treasury/IRS Section 45V final regulations (TD 10023)",
+          "publisher": "US Department of the Treasury, Internal Revenue Service",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2025-01-10/pdf/2024-31513.pdf",
+          "access_pattern": "government_agency_publication",
+          "refresh_cadence": "one-off final rule (90 FR 2224, 10 January 2025); later changes to the credit come by statute or a new rulemaking",
+          "locator": "§ 1.45V-1(b) amount of credit; § 1.45V-4 lifecycle GHG emissions rate (45VH2-GREET), with § 1.45V-4(d) (from 90 FR 2316) on energy attribute certificates: incrementality, temporal matching, deliverability",
+          "key": "US_Treasury_IRS_Section_45V_final_regulations",
+          "tier": "primary"
         }
       ]
     },
@@ -790,6 +822,16 @@
           "locator": "Sector-specific technical abatement pathways for cement, steel, plastics, aviation, shipping, trucking; distinguishes proven-technology sectors from those needing further technology investment",
           "key": "Mission_Possible_Reaching_Net_Zero_Carbon_Emissions_from_Harder_to_Abate_Sectors",
           "tier": "secondary"
+        },
+        {
+          "source_name": "US Treasury/IRS Section 45V final regulations (TD 10023)",
+          "publisher": "US Department of the Treasury, Internal Revenue Service",
+          "url": "https://www.govinfo.gov/content/pkg/FR-2025-01-10/pdf/2024-31513.pdf",
+          "access_pattern": "government_agency_publication",
+          "refresh_cadence": "one-off final rule (90 FR 2224, 10 January 2025); later changes to the credit come by statute or a new rulemaking",
+          "locator": "§ 1.45V-1(b) amount of credit; § 1.45V-4 lifecycle GHG emissions rate (45VH2-GREET), with § 1.45V-4(d) (from 90 FR 2316) on energy attribute certificates: incrementality, temporal matching, deliverability",
+          "key": "US_Treasury_IRS_Section_45V_final_regulations",
+          "tier": "primary"
         }
       ]
     },
@@ -1011,6 +1053,16 @@
           "key": "EU_Critical_Raw_Materials_Act_benchmarks",
           "tier": "primary",
           "cadence": "quarterly"
+        },
+        {
+          "source_name": "MOFCOM announcements on export controls of critical-mineral items",
+          "publisher": "Ministry of Commerce of the People's Republic of China (MOFCOM), with the General Administration of Customs",
+          "url": "https://www.mofcom.gov.cn/zcfb/blgg/gg/2025/index.html",
+          "access_pattern": "government_agency_publication",
+          "refresh_cadence": "irregular, announcements are issued as decided; MOFCOM keeps one announcement list per year (/zcfb/blgg/gg/<year>/index.html)",
+          "locator": "2025 announcement list (in Chinese): MOFCOM/GAC No. 10 (tungsten, tellurium, bismuth, molybdenum, indium) and No. 18 (medium and heavy rare earths); MOFCOM/GAC Nos. 55 to 58 and MOFCOM Nos. 61 and 62 (October 2025) were suspended by MOFCOM/GAC No. 70",
+          "key": "China_MOFCOM_export_control_announcements",
+          "tier": "primary"
         }
       ]
     },
@@ -1509,6 +1561,18 @@
           "key": "China_methane_control_action_plan",
           "tier": "primary",
           "cadence": "annual"
+        },
+        {
+          "source_name": "CRS R48906: Inflation Reduction Act Methane Emissions Charge: Overview and Considerations for Policymakers",
+          "publisher": "Congressional Research Service (CRS)",
+          "url": "https://www.congress.gov/crs-product/R48906",
+          "access_pattern": "periodic_pdf_report",
+          "refresh_cadence": "one-off report (15 April 2026); CRS revises reports as events change",
+          "locator": "Summary and 'Introduction and Recent Developments': the Congressional Review Act disapproval of EPA's WEC rule (H.J.Res. 35, signed 14 March 2025) and P.L. 119-21's change to the WEC start date",
+          "key": "CRS_R48906_IRA_methane_emissions_charge",
+          "tier": "secondary",
+          "manual": true,
+          "manual_reason": "congress.gov returns 403 to automated requests; fetch the page in a browser."
         }
       ]
     },
