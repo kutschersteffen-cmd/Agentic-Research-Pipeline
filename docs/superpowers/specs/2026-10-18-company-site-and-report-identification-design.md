@@ -222,7 +222,8 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
   file-exists check. If both are there, the `DiscoveredDocument` is the manifest entry (same `sha256`,
   `local_path`, `http_etag`, `http_last_modified`, `company_match`, `page_count`, `reporting_year`), the
   document check does not run again, and a `CaptureRecord` with `status` 304, `content_key` = the stored
-  `sha256`, `collected` true is appended. If either is missing, the URL is fetched again with a plain
+  `sha256`, `collected` true is appended to the discovery capture log
+  (`<documents_dir>/_captures.jsonl`, `downloader.CAPTURE_LOG`), with `url_chain` ending in the URL. If either is missing, the URL is fetched again with a plain
   GET and handled as a new download.
 - A `200` is handled exactly as on `main`, conditional headers or not.
 
@@ -230,7 +231,9 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
 
 - In `diff_and_record`, a document whose URL is not in the manifest but whose `sha256` equals the
   `sha256` of an entry under another URL raises no event. Its manifest entry is written as usual plus
-  `"alias_of": "<that other URL>"` (the first such URL in manifest order).
+  `"alias_of": "<that other URL>"` (the first such URL in manifest order). The comparison is against the
+  manifest as it stands at that point in the run, entries written earlier in the same run included, so
+  when one run finds the same bytes at two URLs, the first is `new_document` and the second an alias.
 - `DiscoveredDocument` gets `alias_of: str | None = None`; the alias's entry in `documents_found`
   carries it.
 - Everything else in `diff_and_record` is unchanged, including for ESEF polling.
@@ -331,15 +334,21 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
 | AC-56 | Two-run setup; in run 2 the PDF URL returns `304` | run 2 | the run-2 request for `gb2025.pdf` carries `If-None-Match: "v1"` | unit |
 | AC-57 | as AC-56 | run 2 | the run-2 request for `gb2025.pdf` carries `If-Modified-Since: Wed, 01 Apr 2026 08:00:00 GMT` | unit |
 | AC-58 | as AC-56 | run 2 | the run-2 document has the same `sha256` and `local_path` as in run 1, `company_match` `identifier`, `page_count` 30, `reporting_year` 2025 | unit |
-| AC-59 | as AC-56 | run 2 | `diff_and_record` returns 0 events; the global events feed has the same number of lines after run 2 as after run 1 | unit |
-| AC-60 | as AC-56 | run 2 | the capture log has one new record with `status` 304, `content_key` = P1's sha256, `collected` true | unit |
+| AC-59 | as AC-56 | run 2 | the global events feed has the same number of lines after run 2 as after run 1 | unit |
+| AC-60 | as AC-56 | run 2 | exactly one record whose `url_chain` ends in `https://www.testwerke.de/gb2025.pdf` is appended to `<documents_dir>/_captures.jsonl` in run 2, with `status` 304, `content_key` = P1's sha256, `collected` true | unit |
 | AC-61 | as AC-56, but P1's blob is deleted from the file store before run 2; the URL returns P1 with `200` to a request without conditional headers | run 2 | `gb2025.pdf` receives 2 requests in run 2; the second has neither `If-None-Match` nor `If-Modified-Since` | unit |
-| AC-62 | as AC-61 | run 2 | the run-2 document's `sha256` is P1's sha256 and the file store has the blob again | unit |
+| AC-62 | as AC-61 | run 2 | the file store has P1's blob again (`store.exists(<P1 sha256>)` is true) | unit |
 | AC-63 | Two-run setup; in run 2 the PDF URL ignores the conditional headers and returns P2 with `200` | run 2 | exactly 1 event, type `updated_document`, for `https://www.testwerke.de/gb2025.pdf` (as on `main`) | unit |
 | AC-64 | Two-run setup, but in run 1 the PDF response has no `ETag` and no `Last-Modified` | run 2 | the run-2 request for `gb2025.pdf` has neither `If-None-Match` nor `If-Modified-Since` (as on `main`) | unit |
-| AC-65 | Two-run setup; in run 2 the homepage links only to `https://www.testwerke.de/gb2025.pdf?v=2`, which returns P1 with `200` | run 2 | `diff_and_record` returns 0 events; the global events feed has the same number of lines after run 2 as after run 1 | unit |
+| AC-65 | Two-run setup; in run 2 the homepage links only to `https://www.testwerke.de/gb2025.pdf?v=2`, which returns P1 with `200` | run 2 | the global events feed has the same number of lines after run 2 as after run 1 | unit |
 | AC-66 | as AC-65 | run 2 | the company's manifest entry for `https://www.testwerke.de/gb2025.pdf?v=2` has `alias_of` `https://www.testwerke.de/gb2025.pdf` | unit |
 | AC-67 | as AC-65, but `?v=2` returns P2 | run 2 | exactly 1 event, type `new_document`, for `https://www.testwerke.de/gb2025.pdf?v=2` (as on `main`) | unit |
+| AC-68 | as AC-61 | run 2 | the run-2 document's `sha256` is P1's sha256 | unit |
+| AC-69 | as AC-56, but the run-1 `local_path` file is deleted before run 2; the URL returns P1 with `200` to a request without conditional headers | run 2 | `gb2025.pdf` receives 2 requests in run 2; the second has neither `If-None-Match` nor `If-Modified-Since` | unit |
+| AC-70 | as AC-69 | run 2 | the run-2 document's `local_path` exists on disk | unit |
+| AC-71 | as AC-65 | run 2 | `documents_found` has one entry for `https://www.testwerke.de/gb2025.pdf?v=2`, with `alias_of` `https://www.testwerke.de/gb2025.pdf` | unit |
+| AC-72 | W with supplied website `https://www.testwerke.de/`, empty state dir; the homepage links only to `/a.pdf` and `/b.pdf`, both returning P1 | discovery run | the global events feed gains exactly 1 line, a `new_document` for `https://www.testwerke.de/a.pdf` | unit |
+| AC-73 | as AC-72 | discovery run | the manifest entry for `https://www.testwerke.de/b.pdf` has `alias_of` `https://www.testwerke.de/a.pdf` | unit |
 
 Must not change: a supplied website is never checked (AC-25) and a company with a supplied website or
 CIK makes no new identity lookup (AC-22, AC-44, AC-47, AC-51); the identifier-rule path without a Wikidata hit
