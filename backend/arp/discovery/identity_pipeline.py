@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 
+import httpx
+
 from arp.config import Settings
 from arp.discovery.identity_graph import resolve_company_identity
 from arp.discovery.match_rules import needs_recheck
@@ -42,6 +44,7 @@ async def execute_identity_run(
     edgar: EdgarDocumentSource | None = None,
     search_client: WebSearchClient | None = None,
     previous_run_id: str | None = None,
+    transport: httpx.AsyncBaseTransport | None = None,
 ) -> str:
     """Resolves each company's real-world identity (website/CIK) via the
     propose -> resolve -> challenge -> adjudicate graph
@@ -82,6 +85,8 @@ async def execute_identity_run(
             max_search_results=settings.identity_resolution_max_search_results,
             confidence_threshold=settings.identity_resolution_confidence_threshold,
             identifier_map=idmap,
+            lookup_user_agent=settings.discovery_user_agent,
+            transport=transport,
         )
         return IdentityResolutionOutcome(result, combine_usage(*usages) if usages else LLMUsage())
 
@@ -154,6 +159,6 @@ def enriched_universe(run_store: RunStore, run_id: str) -> list[CompanyRef]:
             continue
         companies.append(CompanyRef(
             company_id=result.company_id, name=result.input_name, website=website, cik=cik,
-            lei=result.identifiers.get("lei"), isin=result.identifiers.get("isin"),
+            lei=result.identifiers.get("lei") or result.derived_lei or result.resolved_lei, isin=result.identifiers.get("isin"),
         ))
     return companies

@@ -133,6 +133,7 @@ class IdentitySignals(BaseModel):
 
     edgar_matches: list[EdgarNameMatch] = Field(default_factory=list)
     search_results: list[WebSearchHit] = Field(default_factory=list)
+    gleif_matches: list[GleifMatch] = Field(default_factory=list)
 
 
 class IdentityAdjudication(BaseModel):
@@ -145,6 +146,7 @@ class IdentityAdjudication(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     resolved_website: str | None = None
     resolved_cik: str | None = None
+    resolved_lei: str | None = None
     rationale: str
 
 
@@ -159,6 +161,8 @@ class IdentityResolutionResult(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     resolved_website: str | None = None
     resolved_cik: str | None = None
+    resolved_lei: str | None = None
+    derived_lei: str | None = Field(default=None, description="LEI looked up from the ISIN at GLEIF (not supplied).")
     signals: IdentitySignals
     rationale: str
     flagged_for_review: bool = False
