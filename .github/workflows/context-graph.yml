@@ -17,22 +17,31 @@ on:
 permissions:
   contents: write  # to push context-data
 
+concurrency:
+  group: context-graph
+  cancel-in-progress: false
+
 jobs:
   build:
     name: Build and publish graph
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          persist-credentials: false  # the build runs third-party code; the token goes only to the git steps
 
       # No context-data branch yet (first run) is fine: the build then starts from scratch.
       - name: Fetch the previous graph
         id: prev
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p /tmp/prev
-          if git fetch --depth 1 origin context-data:refs/remotes/origin/context-data &&
+          if git fetch --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+               context-data:refs/remotes/origin/context-data &&
              git show origin/context-data:graph.json >/tmp/prev/graph.json &&
              git show origin/context-data:meta.json >/tmp/prev/meta.json; then
             echo "path=/tmp/prev/graph.json" >>"$GITHUB_OUTPUT"
@@ -58,7 +67,8 @@ jobs:
       - name: Build the graph
         env:
           ARP_PREV_GRAPH: ${{ steps.prev.outputs.path }}
-          ANTHROPIC_API_KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
+          # Only docs mode calls Claude, so only it gets the key.
+          ANTHROPIC_API_KEY: ${{ steps.mode.outputs.flag == '--with-docs' && secrets.ARP_ANTHROPIC_API_KEY || '' }}
           FLAG: ${{ steps.mode.outputs.flag }}
         run: bash scripts/build_graph.sh $FLAG
 

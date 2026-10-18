@@ -36,6 +36,8 @@ jobs:
   context-guard:
     name: Generated context guard
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,6 +54,8 @@ jobs:
   context-selftests:
     name: Context stack self-tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 

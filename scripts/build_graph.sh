@@ -7,19 +7,27 @@
 set -euo pipefail
 
 graphify --version 2>/dev/null | grep -q 0.9.92 || pip install --quiet graphifyy==0.9.92
+if [ "${1:-}" = --with-docs ]; then
+  # The claude backend needs the [anthropic] extra, which a plain graphifyy install lacks.
+  python3 -c 'import anthropic' 2>/dev/null || pip install --quiet "graphifyy[anthropic]==0.9.92"
+  python3 -c 'import anthropic' || { echo "build_graph: --with-docs needs the anthropic package" >&2; exit 1; }
+fi
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-out="$tmp/graphify-out"
+# Build in a dir named like the repo: GRAPH_REPORT.md takes its title from the build dir's name.
+work="$tmp/$(basename "$PWD")"
+mkdir "$work"
+out="$work/graphify-out"
 prev_meta=""
 [ -n "${ARP_PREV_GRAPH:-}" ] && prev_meta="$(dirname "$ARP_PREV_GRAPH")/meta.json"
 
 [ "${ARP_CONTEXT_FAIL:-}" = build ] && { echo "build_graph: forced failure (ARP_CONTEXT_FAIL=build)" >&2; exit 1; }
 
 if [ "${1:-}" = --with-docs ]; then
-  graphify extract . --backend claude --out "$tmp"
+  graphify extract . --backend claude --out "$work"
 else
-  graphify extract . --code-only --out "$tmp"
+  graphify extract . --code-only --out "$work"
   # `graphify update` drops non-code nodes, so re-add the previous ones (and links touching them) by hand.
   if [ -f "${ARP_PREV_GRAPH:-}" ]; then
     OUT="$out/graph.json" python3 - <<'PY'
@@ -43,7 +51,7 @@ PY
 fi
 
 # Backend none: keep "Community N" names instead of labelling them with a model call.
-GRAPHIFY_BACKEND=none graphify cluster-only "$tmp"
+GRAPHIFY_BACKEND=none graphify cluster-only "$work"
 
 OUT="$out/meta.json" PREV_META="$prev_meta" WITH_DOCS="${1:-}" python3 - <<'PY'
 import datetime, json, os, subprocess

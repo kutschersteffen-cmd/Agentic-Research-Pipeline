@@ -82,6 +82,13 @@ mkdir -p "$tmp/stub" && printf '#!/bin/sh\nprintf "claude\\tmodified\\tClaude Co
 run --foreground "${quiet[@]}" PATH="$tmp/stub:$tmp/bin:/usr/bin:/bin"
 check register_status 'grep -qx "arp-context: register-openwiki failed (openwiki reports: claude modified Claude Code)" "$log"'
 
+# No setsid on PATH (macOS, Git Bash): the hook still starts the job in the background.
+mkdir -p "$tmp/nosetsid" && for f in /usr/bin/* /bin/*; do [ "${f##*/}" = setsid ] || ln -sf "$f" "$tmp/nosetsid/"; done
+run "${quiet[@]}" PATH="$tmp/bin:$tmp/nosetsid"
+for _ in $(seq 100); do grep -q "^arp-context: fetch-graph" "$log" 2>/dev/null && break; sleep 0.2; done
+check no_setsid "$quick"' && grep -q "^arp-context: fetch-graph" "$log"'
+stop_job
+
 # Two jobs at once (startup then resume): the second sees the lock and leaves, so the graph is fetched once.
 rm -rf "$tmp/home" "$work/graphify-out" && mkdir -p "$tmp/home"
 both() { (cd "$work" && env -u ARP_CONTEXT_FAIL -u CLAUDE_PROJECT_DIR "${quiet[@]}" HOME="$tmp/home" bash "$hook" --foreground); }

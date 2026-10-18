@@ -33,11 +33,11 @@ def kind(n):
 def graph_data(raw):
     index = {n["id"]: i for i, n in enumerate(raw["nodes"])}
     links, inferred_deg = [], [0] * len(index)
-    for l in raw.get("links", []):
-        s, t = index.get(l["source"]), index.get(l["target"])
+    for link in raw.get("links", []):
+        s, t = index.get(link["source"]), index.get(link["target"])
         if s is None or t is None:
             continue
-        inf = l.get("confidence") == "INFERRED"
+        inf = link.get("confidence") == "INFERRED"
         links.append({"s": s, "t": t, "inferred": inf})
         if inf:
             inferred_deg[s] += 1
@@ -72,6 +72,8 @@ def wiki_data(root):
 def notes_data(root):
     notes = []
     for f in sorted(Path(root).glob("*.md")) if os.path.isdir(root) else []:
+        if f.name == "README.md":  # explains notes/, links to files only as examples
+            continue
         md = f.read_text(encoding="utf-8")
         targets = (m.split("|")[0].split("#")[0].strip() for m in WIKILINK.findall(md))
         notes.append({"name": f.stem, "md": md, "links": list(dict.fromkeys(t for t in targets if t))})
@@ -151,6 +153,7 @@ def selftest():
         (t / "notes" / "ctx-probe.md").write_text(
             "Tolerance [[backend/arp/grounding.py|grounding]] and [[grounding#Tolerance]], again "
             "[[backend/arp/grounding.py]].\n")
+        (t / "notes" / "README.md").write_text("How to write a note: [[backend/arp/grounding.py]]\n")
         base = ["--graph", str(t / "graph.json"), "--meta", str(t / "meta.json"), "--report", str(t / "report.md"),
                 "--wiki", str(wiki), "--notes", str(t / "notes")]
 

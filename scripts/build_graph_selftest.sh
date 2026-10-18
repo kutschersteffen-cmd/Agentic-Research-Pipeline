@@ -5,7 +5,7 @@ repo=$(git rev-parse --show-toplevel)
 build="$repo/scripts/build_graph.sh"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-cd "$tmp" || exit 1
+mkdir "$tmp/ctxprobe" && cd "$tmp/ctxprobe" || exit 1
 git init -q && git config user.email t@t && git config user.name t
 cp "$repo/.graphifyignore" .
 mkdir data runs engagements ballots
@@ -45,10 +45,21 @@ import json
 g = json.load(open("graphify-out/graph.json"))
 assert any(n.get("file_type") == "rationale" for n in g["nodes"]), "fixture has no rationale node"
 g["nodes"].append({"id": "doc_probe", "file_type": "document", "source_file": "docs/x.md"})
-json.dump(g, open("first.json", "w"))
+json.dump(g, open("../first.json", "w"))
 PY
 rm -rf graphify-out
 scenario rebuild 0 'grep -q doc_probe graphify-out/graph.json' ARP_PREV_GRAPH="$tmp/first.json"
+
+scenario report_title 0 'head -n 1 graphify-out/GRAPH_REPORT.md | grep -q "^# Graph Report - ctxprobe "'
+
+# --with-docs must find its Claude backend before any model call; the forced failure stops right after that check.
+if env -u ARP_PREV_GRAPH ARP_CONTEXT_FAIL=build bash "$build" --with-docs 2>&1 | grep -q 'forced failure' &&
+   python3 -c 'import anthropic'; then
+  echo "PASS with_docs_backend"
+else
+  echo "FAIL with_docs_backend"
+  failed=1
+fi
 
 mkdir graphify-out && echo previous > graphify-out/graph.json
 scenario forced_failure 1 '[ "$(cat graphify-out/graph.json)" = previous ]' ARP_CONTEXT_FAIL=build

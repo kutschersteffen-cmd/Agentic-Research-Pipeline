@@ -8,8 +8,9 @@
 export OPENWIKI_TELEMETRY_DISABLED=1
 
 if [ "${1:-}" != --foreground ]; then
-  # Own session: the job survives the hook runner killing our process group.
-  setsid nohup bash "$0" --foreground </dev/null >/dev/null 2>&1 &
+  # Own session: the job survives the hook runner killing our process group. No setsid (macOS, Git Bash): nohup only.
+  s=; command -v setsid >/dev/null && s=setsid
+  $s nohup bash "$0" --foreground </dev/null >/dev/null 2>&1 &
   exit 0
 fi
 

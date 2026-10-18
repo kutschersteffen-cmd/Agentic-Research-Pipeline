@@ -170,8 +170,10 @@ Atlas: https://claude.ai/artifact/HiK8Umom2NheYkkQFFjRau
 The Atlas page shows the graph, the wiki, the notes and the graph report in one place, on a laptop or a
 phone. `/context-refresh --atlas-only` republishes it daily, `/context-refresh` weekly with the wiki PR.
 
-Optional: to have graphify and OpenWiki ready before a cloud session starts, add this to the cloud
-environment's setup script (otherwise the session hook installs them in the background):
+Add this to the cloud environment's setup script. The weekly scheduled `/context-refresh` needs it to update
+the wiki: the OpenWiki MCP server starts before the session hook's background install, so without it the
+`openwiki_*` tools never load in a fresh scheduled container. Otherwise it is optional and only has graphify
+and OpenWiki ready in the first session:
 
 ```
 pip install graphifyy==0.9.92 && npm i -g openwiki@0.7.2
