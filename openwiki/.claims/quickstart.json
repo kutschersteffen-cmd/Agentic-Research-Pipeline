@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:b87ca24d5f86f25195002694bdb9640f13807f80353cdfea511d00a79a45695d",
+  "claims": [
+    {
+      "id": "claim_f0495042a6c54c05b28f046a341c4400",
+      "statement": "The repository's two design rules are that the LLM plans while deterministic code computes, and that every citation is re-verified programmatically against the source document.",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L1-L12",
+          "version": "repo-lines-v1:sha256:1715a0e4f77c553683912ac2d5abd3b352b177adbe650fb2a66ef154591d805c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU5Zjg3OGZlMDhmNmVhYjY0NDFjZGE4YWE4NTExZjBhYjg5MTI5MTc4ZmVjYmZjOGMzZTk1OWIyYzQ5ZjZkNTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg3OGQyYjVkZmY4ODhhMzRkZjVhZmViYTZiYjRhNzgyN2JjYTY3MDMzNzdiNGVlNDNjOGJiZTQyNzZlY2U3ZWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNjYTFjZWEzMjg1NmJlMDliYTQxZjA1OWY2MDMxZmNlMzZhNmZlYzRjMmQ4MjFlMWY1NjZkY2NkNDNiYWRiZDYifQ"
+        },
+        {
+          "resource": "repo://backend/arp/grounding.py#L189-L198",
+          "version": "repo-lines-v1:sha256:26e41677ea3bcad0721667e9e2a2624f8487f9d466907e609acc9f92bee1f173:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY4NWQxMDVmN2VmN2Q5NjlkMTVlNjExZDFiMTkzZTZhZDA1ZTI1OGJlNzc5OGUyYmQyZTYyMmZhODgyOGRhMTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhZTMyZWRjN2JiNWQxN2I3ZmJkODEzMDc4MDI2YzBhZmQ3YjllMWE1NmM5MjVkMzM3YjZmNzYxNTc4NDdlYWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ3MDE0OWUwNjlhZDY3ZWNjZjQ3MzY0NmZmMWM3NTAwNTBkMzI5ZDExMDAxOGRjNTc2Njg3OGVhZmExZDYwN2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNiNzdhMDVkZjVlODE2NTEyY2QzOTczYmQxYTVmZjM3MDRiMzQ0OWMxZmNlMjlhMjAwMGM0OWQ1ZDkyYmYyMTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_768de7c4713f4f7682077c221037156e",
+      "statement": "Local setup installs the backend with pip install -e .[dev], starts Postgres with docker compose, creates the schema with arp db init-postgres, serves the API with uvicorn on port 8000, and runs the frontend with npm run dev on port 5173.",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L80-L89",
+          "version": "repo-lines-v1:sha256:f645acb9454f6801a292363eb20e79d2ee384cba014fa14a0536da9855623988:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImViMTlhZDY4YWQzNzEwODlmMDE2MzhmOTIxN2FkNDNjMjAxYmViM2MyMjg2YmQzYWI1MmUzNDU1NmU0YmIzMjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ3YzA2YzU2MWQ1YzMyNzM0MzY4NTI2OGE0NmIzMzkxZjM5OThlZWU4OTBkMmJlNTFmMGQyMWNjNGE1M2FlNmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMzYTU1NjQ5NjdlNTU3MmZkZGU1Mjg2MTA1NWUyNDFiYzhmODM4M2EzMGFkYTUwZTU3MDU0NjJmYWFiOTQ4ZTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRhYTNmZDNkM2RlMDhiOTJkNjhjNzU4Y2YyMTM2Y2IyMzU3YWYyNWEyMGFiNDhiNWFkYzBlNzZmZDQzZWQ4NDgifQ"
+        },
+        {
+          "resource": "repo://backend/arp/cli/db.py#L15-L30",
+          "version": "repo-lines-v1:sha256:1d8d586826e57db37c87d8058eced4aa8ae87ca38b5447a4daaab188f9c6237c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI2Y2VkNDA0ZjNhNjMzN2RkZWI2NjIxMTFjN2JkNDQzYWNkYWEyNTc1NmY5NzIxMjRiNjAwZWM3N2Q4M2UzYjciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZlMzFjYmE0YzMyYTE5NWMyYTE4OTg0OWZkYWY1OTNhOTg0MjhmY2Y2ZTFmMDgxYTQ5NzA2N2Y5NjhkZTg5ZjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE5OGIwNjNkOWI0N2U2NTM3OTYyNTU3MmNjZTE5NzY2OWQ1NzY3ZTEyYzE4YmUwNzU2NTJiOGNkOTgxY2U4ZDUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFhMjBiNjMyMjMwNDliYmY2ZjllZDNkMDhkMTg4ZjAyMmVjYTZiYzgyYjJlMGI0ZDBmMzQ0NTRmODY5MTk3NDcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8efcfd8a46c14948bdb98205ff1709cb",
+      "statement": "The arp console script maps to the Typer app in arp.cli, which requires a reachable Postgres for every command and a cut-over database for every command except arp db.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/cli/__init__.py#L40-L61",
+          "version": "repo-lines-v1:sha256:ff90675ace3bb7a00f309de5682867c7c9238b4caaad6204e0031ee9614b42e2:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJmY2FmNzJlMTZiMTUwYWMyNWZhZjQ0ZTUxM2U5ZDY2MTc0M2QxYjY4YmJlMjVhOWVjYTM4ZDJiNzJhZDk2MjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRiMGYyZDM4MzY3MzU3ZjE2OWRmMGIzODFiODliZjE4YzJhMDliZmZhNTIyOGIzZjIxNWU4M2I0YmQzZGMyYzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBmNWQ2MDc2N2FiNjYwZGUyYjk4ZjFhNTdjYTE0MTRlY2E2MjY2ZjBiYzk2MzA2YzNiMGI5Mzc5ZDE5MjRiNzkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI1MmRjYjhlYjBjNDBjNDg1ZmE0NDIwODkwOGQ5YTg3OWFiY2U2OGM1MjczOTViYzE3Y2M4ZGY2YjdlYWZjOTUifQ"
+        },
+        {
+          "resource": "repo://backend/pyproject.toml#L143-L144",
+          "version": "repo-lines-v1:sha256:79d4e6ea2979ff70aee42d6eeb392dbe80a57957f26f9f15f2889194e94b8534:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNGVhYjRlYzYzZGU1MTdkYTRjZDhlNWM4MzA3ZmIyYzc3MzdkMzkxOTBhYjY5ZjMyYTVlOWVmODFlYTQ0MTZkZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNjQ2OGIyNzIwZDFkZWViNzc0Y2QwNDAxMDZhNDhjYzY4NWQ1NjVhZmM5Y2YzZTYyMWUxMWM4Y2Y4MGY1MTgyZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZmVmYjc1MDk0ZjE5NTdjZjJhYThjZGY4ZjU4MWE2NDhjMzM2YTQyYzhhYmVkOTE4ZDUwM2RmMDhiZmM5YTM1YSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDY1MjljZWY0MTJmMzUzNjNiZWVhODIyYTExOWQ4YTc4NGMwNjc2ZGUzNWZmNGYwMDg1MjkzYzA2MzQxZWUwNSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_252e4114501048cd83a002ab1d75ae4c",
+      "statement": "Settings are read from ARP_-prefixed environment variables and the .env file.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/config.py#L14-L14",
+          "version": "repo-lines-v1:sha256:50c92be45489c471018be54cb7a60a281703542449c223b45487bb0c94e64ccd:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNTBjOTJiZTQ1NDg5YzQ3MTAxOGJlNTRjYjdhNjBhMjgxNzAzNTQyNDQ5YzIyM2I0NTQ4N2JiMGM5NGU2NGNjZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTBjOTJiZTQ1NDg5YzQ3MTAxOGJlNTRjYjdhNjBhMjgxNzAzNTQyNDQ5YzIyM2I0NTQ4N2JiMGM5NGU2NGNjZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYjg0NWFhMjQ4NzNjM2U0YjVhZWJmZWU1YmUyOTZkMmFiMGE2YWUzMjE1YmRmMTI2NDYyYzg2ZTY1YjgyNjU0OCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMGFmYTU4YWYwMzIxZDY5MjBiYTAzMTA0NjgxNzBhYTE3N2I4NjY1MmUzNThhOWExNjRiMzM0NThjNDkwZTRlNSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_35d15575f7a243358a7e05467b4f3eae",
+      "statement": "The default auth mode is dev, which signs in same-site loopback or trusted-network requests as an approver; local mode uses per-person bearer tokens from a users file with viewer, analyst or approver roles.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/api/auth.py#L16-L77",
+          "version": "repo-lines-v1:sha256:ec251dc5b665518f674e2290439d890e2a7b13eed673bd84512e9d0746affdea:eyJzZWxlY3RlZExpbmVDb3VudCI6NjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcxMGU0YjcxOGM2ZTNkNGFmNzE3NDUyMjU3M2IwYWQxNTNkZTI0Yzg3ZjdjM2Y4ZmZhZTM0ODQ3ZDRiNjZlOWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUwYzg4OTE4MzVlNDJmZmJjMWZkOGRkNWU4ZDY4N2FmMWEzZDk3OTZhZTkwY2JlNDMzYjU4NTYyOTRhYThiOTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkzYTQ4NjM5ZDk1N2M3MTIzY2NjYmE3ZmFiMGJjZDJjYWE2NTcwNDFiMmY0YjZhZTAzNzQzMGJjOTQ0OWE0ZjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAzZTBiMDczNTVmN2U0OTIyYjg0ODE3MDY5MWIzMDcyOGUwOTQ3YmU1ODgzNjUzZWJkYTU1ZTEyMjgxMTNiNTIifQ"
+        },
+        {
+          "resource": "repo://backend/arp/config.py#L55-L57",
+          "version": "repo-lines-v1:sha256:152dd01538b70d5891c6d1eb6bd5a8895d430db575887e0b9ee65e6b27c5b62a:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOGQzMDkxM2Q5MzEyZDk0ZTEzMDExOWZkYzUxOTBjMDFmZDZiMDcxNGQ1N2Y1ZmM1NWJiNGVjODM1ODA3NjkzZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZmJmODI0MWExNDlhMTMyNmVkNGRlNzA4YmY1MGU2M2EzMGIxZTMxZTU4MzkwZWU5ZWQ0NzM2MmYwMmM5OGUxMCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYWYzNTM5ZjIyMDIzZTBiOTgxNzlhNGY2YjUxODBkZGFiOTIxODRmN2YzMTJhYWRjZmQ4OTIwYjczZGJlNDdkZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTM2YmUwNGIxY2ViYmExNDZjMzgyNDNjMGU3Nzc4MGJiOTg3MWI4MGIwYmVjNWUyYzdjZjg2NjU4ODEwMGU1YSJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-18T15:42:30.245Z"
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "pages": {
+    "/openwiki/architecture/data-flow.md": {
+      "pageVersion": "sha256:116f91e7592314bb487dc690a5bbe922b940aa3deeb05d11738993e4b2a9e32d",
+      "completedBy": "claude-code",
+      "completedRunId": "bde188a1-8103-4278-95a3-ae9047a5e620",
+      "gitHead": "f7cb49c28ee83af19c634af059c1d982199958a3",
+      "sourceFingerprint": "sha256:ebf5dc96782cb5a5175e681b819f8c267957b433c50e66dc57167c1849c38772"
+    },
+    "/openwiki/architecture/frontend.md": {
+      "pageVersion": "sha256:228e49a1c68fea68ff0cd6ec9f2a519ee9499844dbfaf07dc10dc246e09032d5",
+      "completedBy": "claude-code",
+      "completedRunId": "bde188a1-8103-4278-95a3-ae9047a5e620",
+      "gitHead": "f7cb49c28ee83af19c634af059c1d982199958a3",
+      "sourceFingerprint": "sha256:ebf5dc96782cb5a5175e681b819f8c267957b433c50e66dc57167c1849c38772"
+    },
+    "/openwiki/architecture/overview.md": {
+      "pageVersion": "sha256:1ff3993251a1c1f27b042af98b27599057b0af6f3da1610c044db46a1bcec30b",
+      "completedBy": "claude-code",
+      "completedRunId": "bde188a1-8103-4278-95a3-ae9047a5e620",
+      "gitHead": "f7cb49c28ee83af19c634af059c1d982199958a3",
+      "sourceFingerprint": "sha256:ebf5dc96782cb5a5175e681b819f8c267957b433c50e66dc57167c1849c38772"
+    },
+    "/openwiki/integrations/llm-and-retrieval.md": {
+      "pageVersion": "sha256:90743fbca79b067ef80ac245d10f1b7f4d8ef3fde7705e3b59346a224d5f37d6",
+      "completedBy": "claude-code",
+      "completedRunId": "bde188a1-8103-4278-95a3-ae9047a5e620",
+      "gitHead": "f7cb49c28ee83af19c634af059c1d982199958a3",
+      "sourceFingerprint": "sha256:ebf5dc96782cb5a5175e681b819f8c267957b433c50e66dc57167c1849c38772"
+    },
+    "/openwiki/operations/runs-and-review.md": {
+      "pageVersion": "sha256:3010a1391ec886754a5faf813d988a4d432696ef60860c631cd7f4a599c386c6",
+      "completedBy": "claude-code",
+      "completedRunId": "bde188a1-8103-4278-95a3-ae9047a5e620",
+      "gitHead": "f7cb49c28ee83af19c634af059c1d982199958a3",
+      "sourceFingerprint": "sha256:ebf5dc96782cb5a5175e681b819f8c267957b433c50e66dc57167c1849c38772"
+    },
+    "/openwiki/pipeline/extraction.md": {
+      "pageVersion": "sha256:52f8cb3aa920fa8f60536c9c512438898399736dfd2a973dd9922e9dc349a01c",
+      "completedBy": "claude-code",
+      "completedRunId": "bde188a1-8103-4278-95a3-ae9047a5e620",
+      "gitHead": "f7cb49c28ee83af19c634af059c1d982199958a3",
+      "sourceFingerprint": "sha256:ebf5dc96782cb5a5175e681b819f8c267957b433c50e66dc57167c1849c38772"
+    },
+    "/openwiki/pipeline/grounding.md": {
+      "pageVersion": "sha256:62907bd06ba05a0d7abce8d7ff3ff2c62c6ea3cc2646da6e097f4fb591054941",
+      "completedBy": "claude-code",
+      "completedRunId": "bde188a1-8103-4278-95a3-ae9047a5e620",
+      "gitHead": "f7cb49c28ee83af19c634af059c1d982199958a3",
+      "sourceFingerprint": "sha256:ebf5dc96782cb5a5175e681b819f8c267957b433c50e66dc57167c1849c38772"
+    },
+    "/openwiki/pipeline/publish.md": {
+      "pageVersion": "sha256:7ec56c938fd9fda18915ca6a3b3ccf7ba8b530e7876e0b771a46905c4c4f629d",
+      "completedBy": "claude-code",
+      "completedRunId": "bde188a1-8103-4278-95a3-ae9047a5e620",
+      "gitHead": "f7cb49c28ee83af19c634af059c1d982199958a3",
+      "sourceFingerprint": "sha256:ebf5dc96782cb5a5175e681b819f8c267957b433c50e66dc57167c1849c38772"
+    },
+    "/openwiki/quickstart.md": {
+      "pageVersion": "sha256:b87ca24d5f86f25195002694bdb9640f13807f80353cdfea511d00a79a45695d",
+      "completedBy": "claude-code",
+      "completedRunId": "bde188a1-8103-4278-95a3-ae9047a5e620",
+      "gitHead": "f7cb49c28ee83af19c634af059c1d982199958a3",
+      "sourceFingerprint": "sha256:ebf5dc96782cb5a5175e681b819f8c267957b433c50e66dc57167c1849c38772"
+    }
+  }
+}
