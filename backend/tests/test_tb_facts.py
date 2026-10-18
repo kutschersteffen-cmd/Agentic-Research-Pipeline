@@ -185,6 +185,16 @@ def test_document_is_served(client):
     assert client.get("/api/transition-barrier/documents/999").status_code == 404
 
 
+@pytest.mark.parametrize("name", ["报告.pdf", 'a"b\r\nX-Evil: 1.pdf'])
+def test_document_served_whatever_the_upload_name(client, name):
+    pdf = fixture_pdf("D1")
+    enter(client, "price", 72, "D1", 12, pdf=pdf, filename=name)
+    doc_id = values()[0].document_id
+    r = client.get(f"/api/transition-barrier/documents/{doc_id}")
+    assert (r.status_code, r.headers["content-type"], r.content) == (200, "application/pdf", pdf)
+    assert "X-Evil" not in r.headers
+
+
 def test_choice_holds_until_new_value(client):
     d1 = enter(client, "price", 72, "D1", 12)
     enter(client, "price", 30, "D3", 7)

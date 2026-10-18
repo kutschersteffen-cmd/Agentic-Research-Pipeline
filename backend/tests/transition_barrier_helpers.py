@@ -77,7 +77,7 @@ def fixture_pdf(doc: str) -> bytes:
 
 def enter_fact(
     client, fact, value, doc, page, *, as_user=B_APPROVER, quote=None, title=None, publisher="Fixture", as_of=None,
-    tier=None, pdf=None, unit=None, cell=CELL,
+    tier=None, pdf=None, unit=None, cell=CELL, filename=None,
 ):
     """Posts an analyst fact citing `doc` uploaded as its PDF, with the documents table's title, as-of and tier."""
     d_title, d_tier, d_as_of = DOCS[doc]
@@ -94,5 +94,5 @@ def enter_fact(
     }
     if unit:
         form["unit"] = unit
-    files = {"file": (f"{doc}.pdf", pdf or fixture_pdf(doc), "application/pdf")}
+    files = {"file": (filename or f"{doc}.pdf", pdf or fixture_pdf(doc), "application/pdf")}
     return client.post(f"{cell}/facts", data=form, files=files)

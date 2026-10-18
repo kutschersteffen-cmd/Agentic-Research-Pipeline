@@ -295,6 +295,5 @@ def get_document(doc_id: int, blobs=Depends(blob_store_dep)) -> Response:
     found = store.document(doc_id, blobs)
     if found is None:
         raise HTTPException(404, "Document not found")
-    meta, data = found
-    name = (meta["filename"] or f"document-{doc_id}.pdf").replace('"', "")
-    return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{name}"'})
+    _, data = found  # the uploaded name is client-supplied: it stays in the database, never in a header
+    return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="document-{doc_id}.pdf"'})
