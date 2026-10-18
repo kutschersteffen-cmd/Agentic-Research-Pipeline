@@ -184,6 +184,13 @@ def test_ac12():
     assert run(rb_variant(3), defaults(price=val("price", 30), applies=None)).rating == "M"
 
 
+def test_missing_fact_that_cannot_change_the_rating_is_not_named():
+    # RB4: M = all(applies, any(price >= p_material, levy)); the any already passes on price = 30.
+    r = run(rb_variant(4), defaults(price=val("price", 30), applies=None, levy=None))
+    assert r.rating == "not_rated"
+    assert r.missing_facts == ["Carbon price applies to steel"]
+
+
 def test_ac13():
     r = run(rb_variant(3), defaults(price=val("price", 9), applies=None))
     assert r.rating == "not_rated"

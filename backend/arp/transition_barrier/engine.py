@@ -153,9 +153,14 @@ class _Combo:
             leaves.append(self.leaf(node))
             return leaves[-1]["outcome"]
         key = "all" if "all" in node else "any"
+        start = len(leaves)
         outs = [self.group(c, leaves) for c in node[key]]
         decisive, other = ("fail", "pass") if key == "all" else ("pass", "fail")
-        return decisive if decisive in outs else other if all(o == other for o in outs) else "unknown"
+        out = decisive if decisive in outs else other if all(o == other for o in outs) else "unknown"
+        if out != "unknown":  # a decided group: its unknown leaves could not change the outcome
+            for lf in leaves[start:]:
+                lf["blocking"] = False
+        return out
 
     def run(self, levels: dict[str, dict]) -> dict:
         res = {}
@@ -167,7 +172,7 @@ class _Combo:
             "not_rated" if m == "unknown" else "L"
         )  # fmt: skip
         deciding = h_leaves if h == "unknown" else m_leaves if rating == "not_rated" else []
-        unknown = [lf for lf in deciding if lf["outcome"] == "unknown"]
+        unknown = [lf for lf in deciding if lf["outcome"] == "unknown" and lf.get("blocking", True)]
         return {
             "rating": rating,
             "levels": res,
