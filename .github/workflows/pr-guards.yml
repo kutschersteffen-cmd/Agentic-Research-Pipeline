@@ -32,3 +32,53 @@ jobs:
       - name: Compare test counts with main
         if: ${{ github.event.action == 'synchronize' || !contains(github.event.pull_request.labels.*.name, 'tests-weakened-ok') }}
         run: python3 .github/scripts/test_guard.py origin/${{ github.base_ref }}
+
+  context-guard:
+    name: Generated context guard
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Self-test the guard
+        run: python3 .github/scripts/context_guard.py --selftest
+
+      - name: Reject generated wiki files outside context-refresh/*
+        run: python3 .github/scripts/context_guard.py --head-ref "$HEAD_REF"
+        env:
+          HEAD_REF: ${{ github.head_ref }}  # via env: branch names are attacker-controlled
+
+  context-selftests:
+    name: Context stack self-tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install graphify
+        run: pip install graphifyy==0.9.92
+
+      - name: Self-test build_graph.sh
+        run: bash scripts/build_graph_selftest.sh
+
+      - name: Self-test the session hook
+        run: bash .claude/hooks/context_stack_selftest.sh
+
+      # Node 22 rejects a bare directory after --test, so name the files.
+      - name: Test Atlas page logic
+        run: node --test scripts/atlas/*.test.mjs
+
+      - name: Self-test the Atlas data builder
+        run: python3 scripts/atlas/build_data.py --selftest

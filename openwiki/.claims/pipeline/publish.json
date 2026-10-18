@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:7ec56c938fd9fda18915ca6a3b3ccf7ba8b530e7876e0b771a46905c4c4f629d",
+  "claims": [
+    {
+      "id": "claim_437ae197750c4ad08d7d64a1c19ce79f",
+      "statement": "Publishing a run and withdrawing a release through the API require the approver role; a concurrent conflict returns 409 and an invalid withdrawal returns 422.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/api/routers/publish.py#L15-L72",
+          "version": "repo-lines-v1:sha256:9a141eadd7ed565000ba42e3c0e196d9f50392ab844f2aa873d4937027cc2495:eyJzZWxlY3RlZExpbmVDb3VudCI6NTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE5MjZlMDJiZmQ0YWZmMjc5MzdhYTE3NmQzODM3ZjkyMWI1MzZiMDIwZDUyM2U2ZTA1NTM5ZjEwMTQ4OWViZTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRjYzM1ZTJhZjc3ZDdhODUxNjRlNTBjMGE3MTI4NzU3MTU1ZDc0ODY3YjgzYjlkYzIxY2RhMTI0MjIwNzdmMzkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ2MWM1ODhkMjczZjFiYTM1YzMxMjUwNTVmNTQ4MTc4MWQyNmM3Y2M4ZTlhZGExZDFkYTAzYjg4ZjAxZjkyOGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjljZTVmMDQxZTVlZmYxMDBmYzZkM2MxMTk2ZTZiZjVhYzljMDVjMGE2YzE4OGQ2NjUwZTc4MTcyN2VkMmVlZTgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b11ace84d53041a9bc6a72a5566cd1aa",
+      "statement": "The CLI offers publish run, withdraw (approver only) and backfill, which republishes every non-trial extraction run as the system oldest first, relying on reconfirmation for idempotency.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/cli/publish.py#L20-L50",
+          "version": "repo-lines-v1:sha256:eced27310eb18556e317d55920e55bb234223a4cc765a46c177ade025662fa19:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmNWU3MjdiNzc0MTYwNWFhMDg5MGYzNTZlZTAyZjJkMTMzNjY3YzY4YjJmZjVlZjY3YWI2ODkwNWI0MDBkOTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk2ODcxOGI0NjI5NzljMzFjZDM4MmJhZDE5YTY5Y2UyYTQ4MDI1N2RhMjMxZjBjY2MxMjEzZDVmYWQyODg2N2UiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjcxY2QyZGVkMGRlMGFmMmIzMDYzOWQ0YmRkMTlmMmJjNTUzNDM4OGI3MDc4ZDg1ZmQyNWU2MDU2YjQ4NzMwOTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc0YmQyZDM4NWIxNzM0NTUzNjFhMzkyZmZhM2JmMTdiM2U5NDY1NTZkYTQ3M2Q2ZTIxYjlkMzk4ODM3NDExZGUifQ"
+        },
+        {
+          "resource": "repo://backend/arp/cli/publish.py#L82-L99",
+          "version": "repo-lines-v1:sha256:c8e4060a35e79f9289070d7e8f985ce553e38150e1dae635efcd1d3c63b003ad:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZkYzE3OTZhM2JhMjkxZDBmNTZiMTgyYzIyM2NkMjY5MTNiMDZlMGJkZmZkNDY5Y2Q2MTQwZGZjOGViNmYyZjMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhkZWMwNGZlMWE5MGEzY2UxMmU0YmUxY2ZhMmM2ZmMzZTU1ODEyMDdhZTk5MGRjZWQzOTVlOGU5ZmYxYTFkNGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY0MTUyY2VjMDU2MjdkY2IxZjc5NmQ4ZDc5OTZkZDY1MWJhNzQwZThmN2IyNTU0MmZkZDMxYWE3ODFlMzM2OTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e5e1836061ee4dd3aebc67cf1751f583",
+      "statement": "Candidate selection publishes nothing for trial or non-extraction runs, publishes auto-accepted rows and final approve or correct/edit decisions, and skips rejected, held, not-final, no-value and no-period items.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/publish/candidates.py#L60-L114",
+          "version": "repo-lines-v1:sha256:14c22959808c455b0d66c11a16b8d3c9cec44e6fa24b6c20ec7cac81f961a48d:eyJzZWxlY3RlZExpbmVDb3VudCI6NTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE2NjU3ZmViZjc2NWQxZWFiY2Y1ZjA1NGY4MGJmNGVhM2ZjMTk4YzZhZGJhZWE3YzUwODMzYjI3NGYzZWRjYzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlkM2M0NDRkMjY1MmQ2Mzg1MjQ2NWZmNzgwODk3MzJhNmZmODA1MWZhNmJmMDk1NWIwYjkwY2EzMzdhM2M1NWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUwODEwNDEzYWIyN2E5YmU4M2QyMTQwMjhjNTgxYzZhNzc0YThhNGVhNTlkZjE4ZTVlZjcwZDE5NTA4NjQ3OTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFhYWVkOWIyNmNlZjY0MzRhMDllM2MwMDBhYmE1OWI1ODVkODJlYjJmM2FlZGYwY2NlYmU5YjY4NGIyZGQzY2IifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_032148a3989b4cc9bdceee664b95aa2e",
+      "statement": "An edited or corrected candidate is published with the correction's own citation, never the field's original citation.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/publish/candidates.py#L15-L30",
+          "version": "repo-lines-v1:sha256:0133469ff77281863a9e8ddc9e5efd9f6b4cf916fa1d4e0d46373b36b9e9ed32:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBlZGFkOWI5ZjNmOGQ4ZTRjOTAyZGM2ZGJkODI3NjY4ZmEyYmY0NTExMGI0MjE3ODRmYmE2MGIyNDBhNTA2ZGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3MjE1ODE2NDg3YTEwNGMyOGM0NTM0ZDY2Nzg4OTU2NDYxMGM0MTQwZTFiMjFkMWUwZDUyMjFkOTdmMjExMDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAyMWU4ZjgwYzk5YzY1ODQ4MWI4OWM4MzI0OWFmNjFjYTUxNjgzODc1OTU4NjdiOGM2ZWZkZWU0OTMwM2JlODEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU0MDYyZTUxOWRiZGQwNDc1MmUzMWVhMTIwMWUyN2QxNGU1NDI1ZDk1MzEyZTYxNzkxNDliOTkyZGRhZTJjNTcifQ"
+        },
+        {
+          "resource": "repo://backend/arp/publish/candidates.py#L54-L57",
+          "version": "repo-lines-v1:sha256:28055c387105520e0bb6f09127c9492319883bcded4758a389696f494b315773:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNTY0MjkzMTY2NTJiNGZiNDUxODVjYTU5NDhlZGNhMDkwNzk1Y2ViN2U5NmFiMzZkMDI4MGE1Mzc5NmMxMDkwOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzllNTdjODY3NDZlNmNlY2FmOGFiMzJjYjNkNzNkYTNiODlkNGQ4ZDk4YTA3YmNmNmMzNTk2ODBkYjcyY2MwNCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTA4MTA0MTNhYjI3YTliZTgzZDIxNDAyOGM1ODFjNmE3NzRhOGE0ZWE1OWRmMThlNWVmNzBkMTk1MDg2NDc5NyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMWNjNWNiYTNkMWVkYzZkNmUyZGY4NDU5MmJkN2QxZGM5YTcxMGJiM2Y1YzNiN2JmOWIxOGZiZDdjOWRjYTNkOSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_31c54b63acdc45daadefe3d344b544f6",
+      "statement": "A restatement publishes only after the workbench's second review or an approver resolution; otherwise it is skipped as restatement_pending.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/publish/candidates.py#L116-L133",
+          "version": "repo-lines-v1:sha256:6dc9173909e89db4dcd56ab54c398696c4a72020ccc17b0ca4481b4f6c9d1151:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE4M2U2OTQyODZiMDE4NGMzYTk1NTE4NWVmZjE5ZGM3NTA0MTVhNjkzNjgwYjdkMDI4NDgzODI3Yzg4NmY0YzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUwODEzZGFkNzg3NGQwZWZhNmVkODE2OGRmMjQ2ZjViYzhlY2VlZGZmMTRiMTM2NGFiNDExNjRhOTNmNTFjMDkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhlMDM2OTdmNTZiNWQwNGUxY2EwN2IxMzk1NTNjZDgyZmQxNDc3MDdiNjJmZGQxMzM3YTg2MjBlZjIzNDc5YzMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_df3b330a714a4c15bfee08d8acd5ddf2",
+      "statement": "publish_run drops duplicate fact keys and internal_only provider facts, then groups candidates by issuer and cited document and blocks a whole group if its release was withdrawn or a citation fails the lineage gate.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/publish/release.py#L54-L132",
+          "version": "repo-lines-v1:sha256:5879fc962eba4d4afe847c6cdb3332a4ba8b6d343d297a4134241d8df995e0e4:eyJzZWxlY3RlZExpbmVDb3VudCI6NzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA1OTE4M2QyNmUwMDIxYjE1ZGNhMDdkODhhNjMwNzg2MjE5YTE5NmI3YjJmODBiZWIwMTBjYjU1MDYxZjM1MGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMTFjMDU2N2QwYTVmOWU5YjEzNWY2NWNkMjUzNzJkZmQ2Mjg3NzVmN2MxZWQyNTNmOGJhZDQyZGQyZDY2NjkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhjYzRhN2QxY2M3OTZhYmEzZTQ2NzIzMzI3ZjUxN2U5ZjgxMTk4MmQyNTBmMDcwMjk4NmU0YjU3NjRhZDk1ODkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY2NzY3YmZkOThlNDAyNzQyZTA3Y2QxYzdkMzE5NDU3NjI4ODQ3ZmI0M2YxOGEyNGYzODkxYmNhZjZlMjdmYTYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b9c363b595134ddb8ec3c1d466f306ac",
+      "statement": "The lineage gate returns no_grounded_citation, original_missing or hash_mismatch by re-reading the archived original and comparing its sha256 to the blob key, resolving EDGAR blob keys through the registry storage_uri.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/publish/gate.py#L19-L49",
+          "version": "repo-lines-v1:sha256:591a1f836c0853a7fca88da1adad0d79eb88faf0218a5a491bb75197b5729b63:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZlMWJjOWI5OGZiYTRlMmY4ZDczN2NkYjNjNTU1MTQwNmFhYjZmYmM5NDllYTYzYjgyN2ZhZGFmNjJlY2IzNDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhjZTQ5NzZhNTVlYTQwYmU2ZTdjY2ZiODY5MjFmYzg2YzM3NDZiY2RjNzA4OWFmM2NmYzc0Y2FmOGQwZTQzNjEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA3NmJlYjk5MDVkMzE0OTNjMTU4NTViNTg2NTk1NjI0MDdjMzllYTVhODQxNTM5YzU2OGY1NTM5N2I3YzlkYWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZiYjg1NDliODk5YTMzZWYyOTVhZmU3NTA1ZGVkMGU1ZjdmN2U4NjYyNzE4Y2U1OTk4ZjQ3ZDliYWYxZGI4NDAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_31db89fb548a46da8ea5a0608094e759",
+      "statement": "plan_version reconfirms an unchanged value, skips a candidate observed before the current fact, and otherwise inserts a new version while closing the previous one with valid_to and superseded_by.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/publish/facts.py#L73-L88",
+          "version": "repo-lines-v1:sha256:830cd2ff42cb85f4d463a91c38f0804c596549f4e8d741b2c0cd06f2aa81b492:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVhZmVjMzRkM2U0MDlkNzAzOTJjZjlkZmU3Zjc2ZTk5ZDc4YzMyZDNlMzhjODMyOGM5MDZmNjBkYmY3MjI4ZTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJlODgzYjBjNDE2Y2Y3NmY4ODliMzA4NWU3MjE3ZmI3NzcyMmE3YmUxNmRjMDg0MzNjMmIwYmE4ZmQ5NTE4ZTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ1OTNiYzQ5MGUxYjYyYjFiYzZiMWY5Y2UyNzYxYmJmODRhZTUwM2JmOWRmMWY1ZWI5MjI0YTA5Y2ViOWJhMjMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIwNjQ2YWY2OGFhNjRjOWQwZmU0NjA5ZTAxN2I0MTVjMjYwNjBmMDRmNDI5ZGM4ZTQyMTAzYWRhNjk5MTI3NDAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_12edcb79b77a4883b8a6beb5e05eadc6",
+      "statement": "A release is created only when a group has at least one inserted fact, and each insert emits a published or restated event.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/publish/release.py#L78-L93",
+          "version": "repo-lines-v1:sha256:b4115f6f815e035d186ef2ac440488c537c63756a523f25cae42e6cfd5a5edd8:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzZWVkYzE3MmJkMGVjNGYyNWM2NDFjYjQwZDA2ZTNiNmQ0NzM2MjU2Y2RkZjRjMjVmNGQ4YjY1YWE5MDBmZDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0ZTlmN2IyYjBkNDBjOWI5Zjc4ZTExMTA2ZDhiMDYxMWY2M2JhZTk0NWQ2NTljZWY1NTYxYTVlYjllMzhlYzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdkNjgxZmI3N2M5ZTFmNWMyYmE5NTI2NDUzOWExMjFlMjdjMmM0OGRkYmRmNDE5ZWI4ODZjN2FiMGZmYzAzYWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRmMTE5OTdlMzI2YjBkZTRiMTBiNDlhMTE1OTA1MmY0NTBkM2FjMTBmOWE1Yjc1ZjA0NDM0MDY4MjQzYjNmNzcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ca095c314cb64cf8af8ccf2ff629372f",
+      "statement": "save_release writes in key order in one transaction, refuses internal_only facts with LicenceRefused, raises ConcurrentPublish on lost races, and commits outbox events under a global advisory lock so event ids follow commit order.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/publish/facts.py#L321-L373",
+          "version": "repo-lines-v1:sha256:701a55cd45fe0dc3a7ef122b2fdc1a7f906279d8565e426683863ad6c6cfbe73:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3YWEyNDlmZTViMjVjOGYyMWJkMzI4MDNlZmE3ZjRlZWVhNDEwZjBlMDZkMTczMzhhZjg0MzE5NWExZjVjZTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmNmNTc0ZWI0NzljMzFmM2M4YzY4ZjRmMzllNjFjMDc2ZGExYjI2NzkxNDE3OWJhOGI4Y2RjMDM2YmIzMzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkxMTk0MTg3OGU1MjViMDE5ZjNlNzNhZmI1MDBhNjBmNjgwOWE1YmJjN2YyMDE4NmNiNzljMDAyMmVhNGExYzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc2ZDQ5M2UwNDMwZGY5OWY3YTQzYWExZTQ0YzJiNjY1ZDA2NjI3NzRjZWZjMzQ4YzllOTBmZDMxYTUyYTFkNjQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_624987eaca5d45749fbafb8941bd205e",
+      "statement": "published_facts is unique on issuer_key, field_id, period_end, basis and version.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/storage/postgres_models.py#L228-L238",
+          "version": "repo-lines-v1:sha256:a988cabcd1bb1da964ea3252db634b8c51ed8e3d2c509cb07fa3ef39b3e7f121:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM5OGY2MDRiYWU4ODRhMTI2YWE4MDhmZDdmNzE5MzgxNGRmY2E5ZWI1Y2QwMTFhOWYwYTBhZTk5M2Y5NjdiZGIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQwN2U0YjMyZTRhYjEzMDM3ZDQ1MzJiOTU5M2ZjNTVhYzJlMjY2ZDlkOTRiM2E5MTNlZjNkYWJlMTBjMWU2MTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkzM2FiNTBkZWU4ZGQyNzc2MzQ5YjJjOWNkYzAzZTBhNTU3NzFhMTdiYWZkODU3Y2YwNzcxNTM1ODgzZjhlODQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_430c2fb8f2c0476c937751946c609764",
+      "statement": "Withdrawal requires a reason, refuses an already withdrawn release, closes the release's current facts, and restores the latest earlier version not from a withdrawn release as a new copied version with restored_from set.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/publish/release.py#L135-L192",
+          "version": "repo-lines-v1:sha256:cf7fda1f243dbb0bbb6642970b760ebe5c9e05d9672ac361a9714c711d0c3105:eyJzZWxlY3RlZExpbmVDb3VudCI6NTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFhMDNlNDJmMDAxZjBjNDA1NTMzNjUxN2U2NzE5ZWRlMjk3Y2FlNjUwYmQ2Mzg1Zjc0Zjc3Nzg2ODM5YmZiZWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJlYTcwNzgzYjFhZTMwZTJjODUzMjVmOGE0MDg0MGIzMzU0YTdkNjFjYmNjMWE1NDM2MThhNWI3YmI1MTNkMjQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ3MjIzMTA2ZmQ4NzQyYjcwZWEyMzNmOWRjMzU5ZjRiMDJiYmIwNjliNzI4M2VlZjc2MjQ5OTUxNmJkN2I5YzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2a23fd4c5b6548e8beb67c03b2187005",
+      "statement": "As-of reads show a fact when valid_from <= bound and valid_to is null or later, keep the highest visible version per key, and treat a bare date as end of day UTC.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/publish/reader.py#L27-L68",
+          "version": "repo-lines-v1:sha256:d13d7b5bb94a99b2cc14dbc2d5f671b87c43340f2e234594ff457b999f797089:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJmOGQ0YTVhZWU1N2VhMjAwODIzOTJjOWJmOTUyMmQyYThlZWNmYjI0YzRhN2YxMWNhMGU4ZDYxZGUyOGNjNDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM2M2ZiNzM3MjY2NjcyNDI5MDU3ZmY0YjQ0YTVmYWNhYTU4MDRhMmY5YTI4OTNhODJlN2E5YzlhZTc1ZGJmNzMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY2YWNjOTRmNDFjY2E5MWMyYzA5ZDIxNzcxZTMzMjJjZTZhODE4NzJiMzFkOWZjNDdlN2FkOTdkMjhhODY4ZGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgwNzlmYWMzODQzMmQ3YzE1MTYwZjkyYTFjYmM3MDcxYTkwZmExZDNiNmRiNDM2MGJiYTk4NGJlNmU2Mzg0OWIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9ef8a04e24774f328e9340f72c1971eb",
+      "statement": "The publishing scheduler is disabled by default; when enabled it runs parser-change re-grounding each tick and once a day re-grounds a date-seeded sample of 20 published facts, logging non-ok results as drift, plus holdings pulls, monthly snapshots and corrections, with one job's failure never stopping the others.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/config.py#L87-L89",
+          "version": "repo-lines-v1:sha256:5144fd076b9cc517494be6e6b1cb9e9cdd92193e90cef2699201593d860a53b2:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTU2MjBhYTM1N2NlYjA4Y2RiZGI1MWIzNGFkMjg1ZDgwOTk1NTQyNGY1ZGRjZjEyNzNjZDg5Y2VjM2YxN2U4OCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNGRkODliMjkyNjYzZDE3N2NkZWNmOWM4NGU1ZjhkYzA3MGFmMzM2YzhkNDYzY2E2OWMyMmQ0MTU2NTAyMTI0ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMzY1OTAwZTEyMGI3MmM3MjdjNWFlODU1ZWI2YzQ2NzQ1YzZkMjJkZTc5OTZlNGM3ZjI5Y2I2NjlhMzFiMDkxMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTg1YTRkNGE4YzYwODdkZWUxMzc0YTZhMWZiNWM0Zjc3MjRlOWExOGM1NDEyOGZmZmE3NzRkN2E1NDRjOGJlYSJ9"
+        },
+        {
+          "resource": "repo://backend/arp/publish/scheduler.py#L80-L203",
+          "version": "repo-lines-v1:sha256:cb54978fb17f791f889bfae544df806902982f2620e5585f6d502c791e5741c4:eyJzZWxlY3RlZExpbmVDb3VudCI6MTI0LCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiIwMWJhNDcxOWM4MGI2ZmU5MTFiMDkxYTdjMDUxMjRiNjRlZWVjZTk2NGUwOWMwNThlZjhmOTgwNWRhY2E1NDZiIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIxOGQwNGU3Y2IxYjc3NjYwYjEwMjExYzZmZGNkNTQwNzBhOWE1Zjk4OGEyMjMxNzM5MzIwMWU4N2U1ZTdmYjUzIiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiI0MTQ0MmY5OWFiNzdhYjk1NzQ1OWUyMDY3MWE3Yzc5ZjI1NmE1OWQwNzQ5MmU0OTg4MmQyNzViNzVkMTM0ZTVlIiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-18T15:42:30.245Z"
+  }
+}

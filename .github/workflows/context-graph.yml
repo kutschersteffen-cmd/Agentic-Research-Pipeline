@@ -1,0 +1,87 @@
+name: Context graph
+
+# Builds the Graphify knowledge graph of the repo each night and force-pushes it as one orphan commit
+# to the context-data branch (no history, so the 26 MB graph.json never piles up). Code is re-extracted
+# every night without an API key; docs are re-extracted with Claude on Mondays or on request, and the
+# daily builds carry the doc nodes over from the previous graph.
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+    inputs:
+      with_docs:
+        description: Also extract docs with Claude (needs the ARP_ANTHROPIC_API_KEY secret)
+        type: boolean
+        default: false
+
+permissions:
+  contents: write  # to push context-data
+
+concurrency:
+  group: context-graph
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and publish graph
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false  # the build runs third-party code; the token goes only to the git steps
+
+      # No context-data branch yet (first run) is fine: the build then starts from scratch.
+      - name: Fetch the previous graph
+        id: prev
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/prev
+          if git fetch --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+               context-data:refs/remotes/origin/context-data &&
+             git show origin/context-data:graph.json >/tmp/prev/graph.json &&
+             git show origin/context-data:meta.json >/tmp/prev/meta.json; then
+            echo "path=/tmp/prev/graph.json" >>"$GITHUB_OUTPUT"
+          else
+            echo "No previous graph; building from scratch."
+          fi
+
+      - name: Decide whether to extract docs
+        id: mode
+        env:
+          SCHEDULED: ${{ github.event.schedule }}
+          WITH_DOCS: ${{ inputs.with_docs }}
+        run: |
+          if { [ -n "$SCHEDULED" ] && [ "$(date -u +%u)" = 1 ]; } || [ "$WITH_DOCS" = true ]; then
+            echo "flag=--with-docs" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build the graph
+        env:
+          ARP_PREV_GRAPH: ${{ steps.prev.outputs.path }}
+          # Only docs mode calls Claude, so only it gets the key.
+          ANTHROPIC_API_KEY: ${{ steps.mode.outputs.flag == '--with-docs' && secrets.ARP_ANTHROPIC_API_KEY || '' }}
+          FLAG: ${{ steps.mode.outputs.flag }}
+        run: bash scripts/build_graph.sh $FLAG
+
+      - name: Publish to context-data
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dir=$(mktemp -d)
+          cp graphify-out/graph.json graphify-out/GRAPH_REPORT.md graphify-out/meta.json "$dir"
+          cd "$dir"
+          git init --quiet
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit --quiet -m "Context graph $(date -u +%F)"
+          git push --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:refs/heads/context-data

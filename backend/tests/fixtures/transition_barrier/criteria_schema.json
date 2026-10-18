@@ -1,0 +1,50 @@
+{
+  "_meta": {
+    "description": "Fixture F: one criterion.",
+    "verified_date": "2026-08-14",
+    "criteria_count": 1
+  },
+  "criteria": [
+    {
+      "code": "STL-R1",
+      "sector": "Steel",
+      "category": "Regulation",
+      "criterion": "Effective carbon price on steel production incl. border adjustment",
+      "metric": "ETS/carbon tax price applicable to steel production, adjusted for free allocation phase-out and any import border levy (e.g. CBAM)",
+      "unit": "USD/tCO2 net of free allocation",
+      "primary_sources": [
+        {
+          "key": "eu_ets_report",
+          "tier": "primary",
+          "cadence": "annual",
+          "source_name": "EU ETS Market Report 2026",
+          "publisher": "Fixture",
+          "url": "https://climate.ec.europa.eu/eu-ets-market-report-2026.pdf",
+          "access_pattern": "periodic_pdf_report",
+          "refresh_cadence": "annual",
+          "locator": "Whole report"
+        },
+        {
+          "key": "cbam_regulation",
+          "tier": "primary",
+          "source_name": "CBAM Regulation 2023/956",
+          "publisher": "Fixture",
+          "url": "https://eur-lex.europa.eu/eli/reg/2023/956/oj",
+          "access_pattern": "legal_regulatory_text",
+          "refresh_cadence": "annual",
+          "locator": "Full regulation text"
+        },
+        {
+          "key": "steel_policy_tracker",
+          "tier": "secondary",
+          "source_name": "Steel Policy Tracker",
+          "publisher": "Fixture",
+          "url": "https://example.org/steel-policy-tracker",
+          "access_pattern": "industry_tracker_database",
+          "refresh_cadence": "annual",
+          "locator": "Whole tracker"
+        }
+      ]
+    }
+  ]
+}

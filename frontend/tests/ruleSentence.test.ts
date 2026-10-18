@@ -1,8 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { ruleInputs, ruleSentence, sameRule } from "../src/lib/ruleSentence.ts";
 import type { FieldDefinition, FieldRule } from "../src/types.ts";
+
+// Walk up from this file to the repo root: mutation testing runs the tests from a sandbox copy of frontend/.
+const fixture = (rel: string): URL => {
+  for (let dir = new URL(".", import.meta.url); dir.pathname !== "/"; dir = new URL("..", dir)) {
+    if (existsSync(new URL(rel, dir))) return new URL(rel, dir);
+  }
+  throw new Error(`fixture not found: ${rel}`);
+};
 
 // Names of the spec's fixture schema F; the renderer reads only field_id and name.
 const names: Record<string, string> = {
@@ -12,7 +20,7 @@ const names: Record<string, string> = {
 };
 const fields = Object.entries(names).map(([field_id, name]) => ({ field_id, name })) as FieldDefinition[];
 const cases: { field_id: string; rule: FieldRule; sentence: string }[] = JSON.parse(
-  readFileSync(new URL("../../backend/tests/fixtures/rule_sentences.json", import.meta.url), "utf8"),
+  readFileSync(fixture("backend/tests/fixtures/rule_sentences.json"), "utf8"),
 );
 
 test("every fixture rule renders its expected sentence", () => {

@@ -54,19 +54,33 @@ def find_boxes(pdf_path: str, page: int, text: str) -> list[dict]:
             if not 1 <= page <= len(pdf):
                 return []
             p = pdf[page - 1]
-            w, h = p.get_size()
+            rotation = p.get_rotation()
+            w, h = p.get_size()  # as displayed, so swapped on a quarter-turned page
+            if rotation in (90, 270):
+                w, h = h, w
             tp = p.get_textpage()
             whole, *numbers = _needles(text)
             found = _boxes_for(tp, whole, w, h) if whole else []
             if not found:
                 found = [b for n in numbers for b in _boxes_for(tp, n, w, h)]
-            return found[:_MAX_BOXES]
+            return [_rotated(b, rotation) for b in found[:_MAX_BOXES]]
         finally:
             pdf.close()
 
 
+def _rotated(b: dict, rotation: int) -> dict:
+    """A box on the unrotated page turned clockwise by the page's /Rotate, as the rendered image shows it."""
+    if rotation == 90:
+        return {"l": 1 - b["b"], "t": b["l"], "r": 1 - b["t"], "b": b["r"]}
+    if rotation == 180:
+        return {"l": 1 - b["r"], "t": 1 - b["b"], "r": 1 - b["l"], "b": 1 - b["t"]}
+    if rotation == 270:
+        return {"l": b["t"], "t": 1 - b["r"], "r": b["b"], "b": 1 - b["l"]}
+    return b
+
+
 def _boxes_for(tp, needle: str, w: float, h: float) -> list[dict]:
-    # shortcut: assumes an unrotated page; map through the page rotation if rotated reports show up
+    """Boxes in fractions of the unrotated page: pdfium reports text rects before the page's /Rotate."""
     out = []
     searcher = tp.search(needle)
     while hit := searcher.get_next():

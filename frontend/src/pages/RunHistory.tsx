@@ -1,7 +1,8 @@
-import { isTrialRun, RUN_TYPE_LABEL, runTypeLabel, TRIAL_TITLE, when } from "../lib/runs";
+import { canResumeRun, isTrialRun, RUN_TYPE_LABEL, runTypeLabel, TRIAL_TITLE, when } from "../lib/runs";
 import { FileLink } from "../components/FileLink";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
+import { useResume } from "../lib/useResume";
 import type { ReviewableRunKind, RunManifest } from "../types";
 
 const REVIEWABLE_KINDS = new Set<ReviewableRunKind>(["theme", "extraction", "financials", "identity", "transition_plan", "tnfd"]);
@@ -18,11 +19,16 @@ export function RunHistory({ onOpenReview }: Props = {}) {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [filter, setFilter] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const { busyId, error: resumeError, resume, clearError } = useResume();
+  // The reload after a resume must use the filter current when it runs, not the click's render.
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
 
   async function load() {
     setError(null);
+    clearError();
     try {
-      const res = (await api.listRuns(filter || undefined)) as { runs: RunManifest[] };
+      const res = (await api.listRuns(filterRef.current || undefined)) as { runs: RunManifest[] };
       setRuns(res.runs);
     } catch (err) {
       setError(`Runs could not be loaded: ${(err as Error).message}.`);
@@ -34,6 +40,7 @@ export function RunHistory({ onOpenReview }: Props = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
+  const shownError = error ?? resumeError?.message;
   const totalCost = runs.reduce((sum, r) => sum + r.estimated_cost_usd, 0);
 
   return (
@@ -58,7 +65,7 @@ export function RunHistory({ onOpenReview }: Props = {}) {
           {runs.length} {runs.length === 1 ? "run" : "runs"} · estimated spend <span className="mono">${totalCost.toFixed(2)}</span>
         </span>
       </div>
-      {error && <p className="error-text" role="alert">{error}</p>}
+      {shownError && <p className="error-text" role="alert">{shownError}</p>}
 
       <section className="card">
         <div className="table-wrap">
@@ -110,6 +117,19 @@ export function RunHistory({ onOpenReview }: Props = {}) {
                           {" "}
                           <button className="link-button" onClick={() => onOpenReview(runType, r.run_id)}>
                             Review
+                          </button>
+                        </>
+                      )}
+                      {canResumeRun(r.run_type, r.status) && (
+                        <>
+                          {" "}
+                          <button
+                            className="link-button"
+                            aria-label={`Resume run ${r.run_id}`}
+                            disabled={busyId !== null}
+                            onClick={() => resume(r.run_id, load)}
+                          >
+                            Resume
                           </button>
                         </>
                       )}

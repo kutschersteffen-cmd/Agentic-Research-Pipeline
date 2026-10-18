@@ -2,10 +2,8 @@
 
 ## Pull requests
 
-**The base branch for every pull request is `main`.** Always target `main`, regardless of
-what GitHub reports as the repository's default branch — that setting currently points at a
-`claude/*` feature branch and is wrong. Do not read the base off `git remote show origin`
-or `refs/remotes/origin/HEAD`.
+**The base branch for every pull request is `main`**, which is also the repository's default
+branch. `main` is protected: a PR merges only once its required CI checks are green.
 
 Agents driving a PR follow `.claude/skills/steward/SKILL.md`: a `risk:` label, a stop after three
 failed fix rounds, `factory:blocked` for spec questions, at most three agent PRs in flight. Once CI is
@@ -15,6 +13,9 @@ session that never works on the implementation; the Holdout acceptance job runs 
 `Spec: <slug>` and prints only `AC-n pass|fail`. Never attach `holdout` to an implementing session.
 If CI goes red on `main` after a merge, the Main guard workflow opens a `Revert <sha>` PR (or an issue);
 merge it, or close it when a fix is already on the way.
+To run a feature through all of this, start a cloud session and type `/factory <feature>`: the
+`factory` skill starts one session per stage, tracks them and updates the Factory Board; `/factory`
+alone shows where each feature stands.
 Every Monday a scheduled task runs the `retro` skill: it logs the week's failures in
 `docs/FACTORY_RETRO_LOG.md` and opens a `Factory retro <date>` PR with at most three rule changes.
 
@@ -106,6 +107,7 @@ phase:
   Every spec ends with an `## Acceptance` table in the format of
   `docs/superpowers/ACCEPTANCE_TEMPLATE.md`; run the `spec-critic` skill on it, then the owner
   approves it before implementation starts.
+  Show the owner every spec or plan for approval as a claude.ai artifact (Artifact tool), never only as chat text or a file path.
 - **Implementation → ponytail.** Smallest working diff; follow the plan's tasks, not more.
 - **Frontend design → impeccable and ui-ux-pro-max**, as before. After a UI change, screenshot
   the affected page with Playwright and run `/impeccable:impeccable audit`.
@@ -147,6 +149,39 @@ The gaps ponytail leaves from `karpathy-guidelines`. Where they clash, these win
 
 The Stop hook (`.claude/hooks/check.sh`) runs these on the code you changed and blocks finishing
 on failure; CI runs the full suites.
+
+## Codebase context
+
+To find your way around the code, read in this order:
+
+1. The wiki first: the OpenWiki search tool (`openwiki_search`), or read `openwiki/quickstart.md` if the
+   tool is not loaded.
+2. Then `graphify query "<question>"`, `graphify path "A" "B"` or `graphify explain "X"` before grepping.
+   INFERRED edges are guesses: check the source. The graph is `main` as of last night; your own changes
+   are not in it. The session hook downloads it into `graphify-out/` a few minutes into a new container.
+3. Then `notes/`. Notes override the wiki where they conflict.
+4. Then source files, only for detail the above doesn't give.
+
+After a change that alters behaviour, say whether `openwiki/` needs an update. Never edit `openwiki/` by
+hand: the weekly `/context-refresh` PR regenerates it. Only `openwiki/INSTRUCTIONS.md` is hand-written.
+
+Atlas: https://claude.ai/artifact/HiK8Umom2NheYkkQFFjRau
+
+The Atlas page shows the graph, the wiki, the notes and the graph report in one place, on a laptop or a
+phone. `/context-refresh --atlas-only` republishes it daily, `/context-refresh` weekly with the wiki PR.
+
+Add this to the cloud environment's setup script. The weekly scheduled `/context-refresh` needs it to update
+the wiki: the OpenWiki MCP server starts before the session hook's background install, so without it the
+`openwiki_*` tools never load in a fresh scheduled container. Otherwise it is optional and only has graphify
+and OpenWiki ready in the first session:
+
+```
+pip install graphifyy==0.9.92 && npm i -g openwiki@0.7.2
+```
+
+**Open the repo in Obsidian** (laptop): run `bash scripts/vault.sh`, which downloads last night's graph
+and exports it to `graphify-out/obsidian/`, then open the repo root as a vault. The wiki, the graph
+export and `notes/` are all in it; `[[...]]` links in notes resolve against the repo root.
 
 ## Invoking skills
 

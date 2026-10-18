@@ -1,0 +1,139 @@
+{
+  "version": 7,
+  "fingerprint": "c488333aa5100ce91a257f61893d29f34cda90e5024fbd3ff96f4694befa5e56",
+  "history": [
+    {
+      "version": 7,
+      "fingerprint": "c488333aa5100ce91a257f61893d29f34cda90e5024fbd3ff96f4694befa5e56",
+      "approved_by": "fixture",
+      "approved_at": "2026-10-01"
+    }
+  ],
+  "actions": {
+    "Steel": [
+      {
+        "id": "steel.h2_dri",
+        "label": "Hydrogen-based direct reduced iron"
+      },
+      {
+        "id": "steel.scrap_eaf",
+        "label": "Scrap-based electric arc furnace"
+      }
+    ]
+  },
+  "conversions": [
+    {
+      "from": "CNY",
+      "to": "USD",
+      "rate": 0.139,
+      "year": 2024,
+      "source": {
+        "title": "Fixture rate",
+        "url": "https://example.org/fx"
+      }
+    },
+    {
+      "from": "CNY",
+      "to": "USD",
+      "rate": 0.14,
+      "year": 2025,
+      "source": {
+        "title": "Fixture rate",
+        "url": "https://example.org/fx"
+      }
+    }
+  ],
+  "domain_tiers": {
+    "eur-lex.europa.eu": "primary",
+    "reuters.com": "news"
+  },
+  "criteria": {
+    "STL-R1": {
+      "rationale": "Without a carbon price that closes the cost gap, no low-carbon steel route pays for itself.",
+      "actions": [
+        "steel.h2_dri",
+        "steel.scrap_eaf"
+      ],
+      "facts": [
+        {
+          "id": "price",
+          "label": "Effective carbon price",
+          "type": "number",
+          "unit": "USD/tCO2",
+          "definition": "Price per tonne CO2 paid by steel producers in the latest full year, net of free allocation.",
+          "max_age_days": 365
+        },
+        {
+          "id": "applies",
+          "label": "Carbon price applies to steel",
+          "type": "boolean",
+          "definition": "Whether a carbon price applies to steel production in the region."
+        },
+        {
+          "id": "levy",
+          "label": "Border levy in force",
+          "type": "boolean",
+          "definition": "Whether a carbon border levy on steel imports is in force."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_high",
+          "label": "High price level",
+          "value": 50,
+          "unit": "USD/tCO2",
+          "by_region": {},
+          "rationale": "Fixture rationale for the high price level.",
+          "source": {
+            "title": "Fixture source",
+            "url": "https://example.org/p_high",
+            "locator": "Table 1"
+          }
+        },
+        {
+          "id": "p_material",
+          "label": "Material price level",
+          "value": 10,
+          "unit": "USD/tCO2",
+          "by_region": {},
+          "rationale": "Fixture rationale for the material price level.",
+          "source": {
+            "title": "Fixture source",
+            "url": "https://example.org/p_material",
+            "locator": "Table 1"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "price",
+              "op": ">=",
+              "param": "p_high"
+            },
+            {
+              "fact": "levy",
+              "op": "=",
+              "value": true
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "applies",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "price",
+              "op": ">=",
+              "param": "p_material"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

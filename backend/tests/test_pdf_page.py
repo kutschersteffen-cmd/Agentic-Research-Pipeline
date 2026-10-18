@@ -1,5 +1,8 @@
+import io
+
 import pytest
 from fastapi import HTTPException
+from PIL import Image, ImageOps
 from reportlab.pdfgen import canvas
 
 from arp.api.routers.documents import get_document_page, get_document_page_boxes
@@ -71,3 +74,20 @@ def test_concurrent_calls_do_not_crash(docs_dir):
 
     with ThreadPoolExecutor(8) as pool:
         assert set(pool.map(work, range(200))) == {b"\x89PNG", 1}
+
+
+@pytest.mark.parametrize("rotation", [0, 90, 180, 270])
+def test_box_lands_on_the_text_of_a_rotated_page(tmp_path, rotation):
+    pdf = tmp_path / f"rot{rotation}.pdf"
+    c = canvas.Canvas(str(pdf), pagesize=(595, 842) if rotation in (0, 180) else (842, 595))
+    c.setPageRotation(rotation)  # reportlab swaps the page size back, so the text sits on a portrait page
+    c.drawString(72, 500, "Spills: 7 incidents in FY2024.")
+    c.showPage()
+    c.save()
+    [box] = find_boxes(str(pdf), 1, "Spills: 7 incidents in FY2024.")
+    img = Image.open(io.BytesIO(render_page(str(pdf), 1))).convert("L")
+    w, h = img.size
+    ink = ImageOps.invert(img).getbbox()  # where the text is drawn on the page image, as shown to the reviewer
+    pad = 0.01
+    assert box["l"] - pad <= ink[0] / w and ink[2] / w <= box["r"] + pad
+    assert box["t"] - pad <= ink[1] / h and ink[3] / h <= box["b"] + pad

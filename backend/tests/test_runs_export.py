@@ -99,3 +99,32 @@ def test_csv_export_has_value_state_columns(tmp_path, pg):
     rows = list(csv.DictReader(io.StringIO(TestClient(app).get(f"{prefix}/r1/export.csv").text)))
     assert [(r["value_state"], r["value"]) for r in rows] == [("zero", "0.0"), ("not_found", "")]
     assert rows[0]["period_end"] == "2024-12-31" and rows[0]["unit"] == "USD" and rows[0]["basis"] == "reported"
+
+
+def test_barrier_refresh_csv_needs_review_follows_the_finding_rule(tmp_path, pg):
+    import csv
+    import io
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from arp.api.deps import get_run_store
+    from arp.api.routers import runs
+    from arp.schemas.common import RunManifest
+    from arp.schemas.transition_barrier import BarrierRefreshFinding, Rating, RefreshOutcome, Region
+    from arp.storage.run_store import RunStore
+
+    store = RunStore(pg, tmp_path)
+    store.save_manifest(RunManifest(run_id="r1", run_type="transition_barrier_refresh"))
+    replace_results(store, "r1", [
+        BarrierRefreshFinding(
+            code="POL-T1", region=Region.EUROPEAN_UNION, source_key="s1", outcome=outcome, current_rating=Rating.HIGH,
+        ).model_dump(mode="json")
+        for outcome in (RefreshOutcome.FETCH_FAILED, RefreshOutcome.UNCHANGED)
+    ])
+    app = FastAPI()
+    app.include_router(runs.router)
+    app.dependency_overrides[get_run_store] = lambda: store
+    prefix = next(r.path for r in runs.router.routes if r.path.endswith("/export.csv")).removesuffix("/{run_id}/export.csv")
+    rows = list(csv.DictReader(io.StringIO(TestClient(app).get(f"{prefix}/r1/export.csv").text)))
+    assert [(r["outcome"], r["needs_review"]) for r in rows] == [("fetch_failed", "True"), ("unchanged", "False")]

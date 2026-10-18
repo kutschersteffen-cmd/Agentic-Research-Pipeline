@@ -33,6 +33,7 @@ const StewardWorkflow = lazy(() => import("./pages/StewardWorkflow").then((x) =>
 const PortfolioRiskMonitoringTool = lazy(() => import("./pages/PortfolioRiskMonitoringTool").then((x) => ({ default: x.PortfolioRiskMonitoringTool })));
 const ReportBuilder = lazy(() => import("./pages/ReportBuilder").then((x) => ({ default: x.ReportBuilder })));
 const StrategyReplication = lazy(() => import("./pages/StrategyReplication").then((x) => ({ default: x.StrategyReplication })));
+const SignalsWorkbench = lazy(() => import("./pages/SignalsWorkbench").then((x) => ({ default: x.SignalsWorkbench })));
 const Search = lazy(() => import("./pages/Search").then((x) => ({ default: x.Search })));
 const SecurityMaster = lazy(() => import("./pages/SecurityMaster").then((x) => ({ default: x.SecurityMaster })));
 const Feeds = lazy(() => import("./pages/Feeds").then((x) => ({ default: x.Feeds })));
@@ -80,6 +81,7 @@ const TABS = [
   { id: "voting", label: "Proxy Voting" },
   { id: "reporting", label: "Presentations & Reports" },
   { id: "strategyReplication", label: "Strategy Replication" },
+  { id: "signals", label: "Signals workbench" },
   { id: "decision", label: "Decision Studio" },
   { id: "index", label: "Index Construction" },
   { id: "xbrl", label: "XBRL Facts" },
@@ -116,7 +118,7 @@ const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boo
   { label: "Output", ids: ["reporting", "library", "history"] },
   {
     label: "All screens",
-    ids: ["feeds", "issues", "smartSearch", "outputs", "securityMaster", "stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "emergingThemes", "taxonomy", "theme", "strategyReplication", "decision", "index", "xbrl", "identity", "arcade"],
+    ids: ["feeds", "issues", "smartSearch", "outputs", "securityMaster", "stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "emergingThemes", "taxonomy", "theme", "strategyReplication", "signals", "decision", "index", "xbrl", "identity", "arcade"],
     collapsed: true,
   },
 ];
@@ -412,6 +414,7 @@ function App() {
         {active === "voting" && <VotingRuns selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("voting", id)} />}
         {active === "reporting" && <ReportBuilder />}
         {active === "strategyReplication" && <StrategyReplication />}
+        {active === "signals" && <SignalsWorkbench />}
         {active === "decision" && <DecisionStudio key={route.params.join("/")} initialSource={route.params[0]} initialRunId={route.params[1]} />}
         {active === "index" && <IndexBuilder />}
         {active === "argusUniverse" && <ArgusUniverse onSendUniverse={sendUniverse("Argus Universe")} />}
