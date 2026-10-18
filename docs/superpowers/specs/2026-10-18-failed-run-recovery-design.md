@@ -191,7 +191,6 @@ element. Every row that says "exactly one POST" means one `POST /api/runs/<run_i
 | AC-43 | the 409 answer of AC-38 | the error is shown in the panel | the panel's Resume button is enabled | evaluator |
 | AC-44 | the 409 answer of AC-39 | the error is shown in Run History | that row's Resume button is enabled | evaluator |
 | AC-45 | the 409 answer of AC-40 | the error is shown in the "Needs you" row | that row's Resume button is enabled | evaluator |
-
 | AC-51 | a `failed` extraction run updated `now - 15 days` | the start page is opened | no row mentions its run id | evaluator |
 | AC-52 | `needsAttentionRuns(runs, now)` | given a `failed` resumable run updated 1 minute after `now` | returns it | unit |
 
