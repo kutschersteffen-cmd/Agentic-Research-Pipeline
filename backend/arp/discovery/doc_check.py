@@ -28,7 +28,8 @@ def check_document(path: Path, company: CompanyRef) -> DocCheck:
         n = len(reader.pages)
         read = sorted(set(range(min(PAGES_HEAD, n))) | set(range(max(0, n - PAGES_TAIL), n)))
         texts = {i: reader.pages[i].extract_text() or "" for i in read}
-        title = (reader.metadata.title if reader.metadata else None) or ""
+        title = reader.metadata.title if reader.metadata else None
+        title = title if isinstance(title, str) else ""  # pypdf returns the raw object for a numeric/array /Title
     except Exception:  # noqa: BLE001 - an unreadable PDF has no text we can check
         return DocCheck("no_text", None, None)
 

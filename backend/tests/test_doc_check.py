@@ -48,6 +48,17 @@ def test_check_corrupt_pdf_is_no_text(tmp_path):
     assert check_document(truncated, W) == DocCheck("no_text", None, None)
 
 
+def test_check_non_string_title_still_checks(tmp_path):
+    from pypdf import PdfWriter
+    from pypdf.generic import NameObject, NumberObject
+
+    writer = PdfWriter(clone_from=p2(tmp_path / "p2.pdf"))
+    writer.add_metadata({"/Title": "x"})
+    writer._info.get_object()[NameObject("/Title")] = NumberObject(2025)
+    odd = tmp_path / "odd_title.pdf"
+    writer.write(odd)
+    assert check_document(odd, W) == DocCheck("name", 30, 2025)
+
 # --- discovery run ----------------------------------------------------------------------------
 
 class _NullSearchClient(WebSearchClient):
