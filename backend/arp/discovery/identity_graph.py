@@ -81,7 +81,8 @@ async def _checked_homepage(state: IdentityState, company: CompanyRef, **ids: st
 async def _check_known(state: IdentityState) -> dict:
     company = state["company"]
     isin = (company.isin or "").strip().upper()
-    if state["lookup_user_agent"] is None or company.lei or not isin_is_valid(isin):
+    # A supplied LEI, website or CIK already settles the rules; no new lookup for those.
+    if state["lookup_user_agent"] is None or company.lei or company.website or company.cik or not isin_is_valid(isin):
         return {}
     async with _lookup_client(state) as client:
         return {"derived_lei": await lei_for_isin(client, isin)}

@@ -246,3 +246,31 @@ async def test_ac_51_supplied_cik_no_wikidata(fake_llm):
     web = _Web(wikidata={"P1278": [H1_URL]}, homepage=H4)
     await _run(W.model_copy(update={"cik": "123"}), web, fake_llm({}))
     assert web.requests["query.wikidata.org"] == []
+
+
+async def test_derived_lei_result_reused_without_gleif(tmp_path, fake_llm, pg):
+    settings = Settings(
+        anthropic_api_key="unused",
+        runs_dir=tmp_path / "runs",
+        identifier_map_path=tmp_path / "idmap.jsonl",
+        cache_dir=tmp_path / "cache",
+        discovery_user_agent=UA,
+    )
+    run_store = RunStore(pg, settings.runs_dir)
+    run = dict(llm=fake_llm({}), settings=settings, run_store=run_store, edgar=_FakeEdgar(), search_client=_NullSearch())
+    first = await execute_identity_run(
+        create_identity_run([W_NO_LEI], run_store), [W_NO_LEI], **run, transport=_Web(gleif_isin=[W_RECORD]).transport
+    )
+    web = _Web(gleif_isin=[W_RECORD])
+    second = await execute_identity_run(
+        create_identity_run([W_NO_LEI], run_store), [W_NO_LEI], **run, previous_run_id=first, transport=web.transport
+    )
+    assert web.requests["api.gleif.org"] == []
+    assert run_store.read_results(second)[0]["derived_lei"] == LEI
+
+
+async def test_supplied_website_skips_isin_lookup(fake_llm):
+    web = _Web(gleif_isin=[W_RECORD])
+    result, _ = await _run(W_NO_LEI.model_copy(update={"website": H1_URL}), web, fake_llm({}))
+    assert result.match_rule == "supplied"
+    assert web.requests["api.gleif.org"] == []
