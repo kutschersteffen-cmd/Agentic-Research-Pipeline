@@ -699,6 +699,9 @@ Review decisions use the existing `POST /api/review/runs/{run_id}/items/{item_ke
   `date`.
 - `GET /sources`: each entry has `key`, `title`, `url`, `code`, `region` (null for all regions),
   `tier` and `cadence`.
+- `GET /criteria/{code}`: `rating_rubric`, `rationale`, `actions`, `facts`, `params` and
+  `rule_book_version` all sit in the response's `criterion` object; `scores` and `sources` stay as
+  they are.
 
 ### 8. Golden set
 
