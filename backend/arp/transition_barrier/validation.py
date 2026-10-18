@@ -6,9 +6,11 @@ which would hide exactly what this module reports. Nothing here raises on malfor
 
 from __future__ import annotations
 
+import json
 import re
+from pathlib import Path
 
-from arp.transition_barrier.rule_book import compute_fingerprint
+from arp.transition_barrier.rule_book import RULE_BOOK_FILE, RuleBookError, RuleBookNotFound, compute_fingerprint
 
 _OPS = {">=", "<=", ">", "<", "=", "in"}
 _ORDERED = {">=", "<=", ">", "<"}
@@ -298,3 +300,25 @@ def validate_rule_book(raw_rule_book: dict, raw_schema: dict) -> list[str]:
         + r8
         + r9
     )
+
+
+def read_and_validate(directory: Path) -> tuple[dict, dict, list[str]]:
+    """Raw rule book and criteria schema from `directory`, plus their validation errors.
+
+    Raises RuleBookNotFound or RuleBookError when the files can't be read as JSON objects.
+    """
+    path = Path(directory) / RULE_BOOK_FILE
+    if not path.exists():
+        raise RuleBookNotFound(f"Rule book not found: {path}")
+    raws = []
+    for p in (path, Path(directory) / "criteria_schema.json"):
+        try:
+            raws.append(json.loads(p.read_text(encoding="utf-8")))
+        except FileNotFoundError:
+            raise RuleBookError(f"File not found: {p}") from None
+        except ValueError as exc:
+            raise RuleBookError(f"{p.name} is not valid JSON: {exc}") from None
+    raw, schema = raws
+    if not isinstance(raw, dict) or not isinstance(schema, dict):
+        raise RuleBookError("rule_book.json and criteria_schema.json must each hold a JSON object")
+    return raw, schema, validate_rule_book(raw, schema)

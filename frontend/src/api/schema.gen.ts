@@ -7476,6 +7476,11 @@ export interface components {
          *     per-run record. See arp/transition_barrier/dataset.py for the loader.
          */
         BarrierCriterion: {
+            /**
+             * Actions
+             * @default []
+             */
+            actions: string[];
             category: components["schemas"]["Pillar"];
             /**
              * Code
@@ -7485,19 +7490,40 @@ export interface components {
             /** Criterion */
             criterion: string;
             /**
+             * Facts
+             * @default []
+             */
+            facts: {
+                [key: string]: unknown;
+            }[];
+            /**
              * Metric
              * @description What is actually measured, in enough detail to re-derive the rating.
              */
             metric: string;
+            /**
+             * Params
+             * @default []
+             */
+            params: {
+                [key: string]: unknown;
+            }[];
             /** Primary Sources */
             primary_sources: components["schemas"]["PrimarySource"][];
             /**
              * Rating Rubric
-             * @description The H/M/L thresholds, verbatim from the research tool.
+             * @description The H/M/L sentences, rendered from the rule book's conditions.
              */
             rating_rubric: {
                 [key: string]: string;
             };
+            /**
+             * Rationale
+             * @default
+             */
+            rationale: string;
+            /** Rule Book Version */
+            rule_book_version?: number | null;
             /** Sector */
             sector: string;
             /** Unit */

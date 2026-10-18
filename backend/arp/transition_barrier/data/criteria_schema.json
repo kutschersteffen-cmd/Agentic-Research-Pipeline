@@ -12,11 +12,6 @@
       "criterion": "Levelised cost of renewable generation vs. new-build fossil",
       "metric": "LCOE of utility-scale solar PV and onshore wind (USD/MWh) vs. LCOE of new-build CCGT/coal in the same region",
       "unit": "USD/MWh, ratio",
-      "rating_rubric": {
-        "H": "Renewable LCOE at or below new-build fossil LCOE without subsidy",
-        "M": "Renewable LCOE within 10-30% of new-build fossil LCOE, or below only with subsidy",
-        "L": "Renewable LCOE more than 30% above new-build fossil LCOE"
-      },
       "primary_sources": [
         {
           "source_name": "IEA World Energy Investment",
@@ -60,11 +55,6 @@
       "criterion": "Grid-scale storage / firming technology readiness",
       "metric": "Deployed grid-scale battery storage capacity (GWh) relative to variable renewable capacity (GW) in the region; TRL of long-duration storage",
       "unit": "GWh storage per GW variable renewables",
-      "rating_rubric": {
-        "H": "Storage-to-renewables ratio and grid flexibility sufficient to avoid material curtailment (region-specific benchmark, informed by IEA grid integration studies)",
-        "M": "Storage deployment underway but curtailment or grid congestion already material",
-        "L": "Storage capacity negligible relative to variable renewable penetration"
-      },
       "primary_sources": [
         {
           "source_name": "IEA Energy Storage",
@@ -96,11 +86,6 @@
       "criterion": "Effective carbon price on power generation",
       "metric": "Carbon price applicable to power sector emissions (ETS price, carbon tax, or implicit price via clean energy mandate penalty)",
       "unit": "USD/tCO2",
-      "rating_rubric": {
-        "H": "Effective carbon price exceeds USD 60/tCO2 or binding 100% clean generation mandate with penalty",
-        "M": "Effective carbon price USD 15-60/tCO2, or clean generation target without binding penalty",
-        "L": "No material carbon price or clean generation mandate"
-      },
       "primary_sources": [
         {
           "source_name": "EU ETS carbon price",
@@ -151,11 +136,6 @@
       "criterion": "Renewable deployment target and permitting regime",
       "metric": "Legally binding renewable capacity target (GW or % of generation) by target year; average grid connection queue time (years)",
       "unit": "GW target, years to connect",
-      "rating_rubric": {
-        "H": "Legally binding target with permitting reform reducing connection queue below 3 years",
-        "M": "Target exists (binding or aspirational) but connection queue exceeds 3 years",
-        "L": "No binding target, or connection queue exceeds 7 years"
-      },
       "primary_sources": [
         {
           "source_name": "EU REPowerEU / Fit for 55 targets",
@@ -199,11 +179,6 @@
       "criterion": "Corporate and utility PPA market depth",
       "metric": "Annual volume of signed corporate/utility power purchase agreements (GW) for renewable generation in the region",
       "unit": "GW/year signed",
-      "rating_rubric": {
-        "H": "PPA market established and growing; multi-year forward contracting standard practice",
-        "M": "PPA market exists but thin or concentrated in few counterparties",
-        "L": "PPA market negligible; renewable generation sold predominantly on spot/merchant basis"
-      },
       "primary_sources": [
         {
           "source_name": "BloombergNEF Corporate Energy Market Outlook",
@@ -235,11 +210,6 @@
       "criterion": "Green hydrogen cost vs. DRI-H2 breakeven",
       "metric": "Delivered cost of green hydrogen (USD/kg) at production site, vs. estimated breakeven cost for DRI-H2 route to be cost-competitive with BF-BOF at prevailing carbon price",
       "unit": "USD/kg H2",
-      "rating_rubric": {
-        "H": "Green hydrogen cost at or below breakeven (typically cited ~USD 1.5-2.0/kg range, region-specific)",
-        "M": "Green hydrogen cost within 2x of breakeven",
-        "L": "Green hydrogen cost more than 2x breakeven, or no green hydrogen supply chain present"
-      },
       "primary_sources": [
         {
           "source_name": "IEA Global Hydrogen Review",
@@ -292,11 +262,6 @@
       "criterion": "Scrap steel availability (EAF route feasibility)",
       "metric": "Domestic scrap steel collection and availability as % of crude steel production capacity",
       "unit": "% of production",
-      "rating_rubric": {
-        "H": "Scrap availability exceeds 50% of production capacity, supporting EAF as viable low-carbon route without new technology",
-        "M": "Scrap availability 25-50% of production capacity",
-        "L": "Scrap availability below 25% of production capacity"
-      },
       "primary_sources": [
         {
           "source_name": "World Steel Association Steel Statistical Yearbook",
@@ -328,11 +293,6 @@
       "criterion": "Effective carbon price on steel production incl. border adjustment",
       "metric": "ETS/carbon tax price applicable to steel production, adjusted for free allocation phase-out and any import border levy (e.g. CBAM)",
       "unit": "USD/tCO2 net of free allocation",
-      "rating_rubric": {
-        "H": "Effective carbon price (net of free allocation) exceeds USD 50/tCO2 with border levy protecting domestic producers from unpriced imports",
-        "M": "Carbon price applies but free allocation still material, or no border levy protecting against unpriced competition",
-        "L": "No material carbon price on steel production"
-      },
       "primary_sources": [
         {
           "source_name": "EU CBAM Regulation (2023/956) and implementing acts",
@@ -385,11 +345,6 @@
       "criterion": "Green/low-carbon steel public procurement or building-code mandate",
       "metric": "Existence and scope of government mandate requiring low-carbon steel in public infrastructure procurement or building codes",
       "unit": "Binary/scope descriptor",
-      "rating_rubric": {
-        "H": "Binding mandate in force covering material share of public procurement or construction",
-        "M": "Voluntary standard or pilot mandate exists",
-        "L": "No mandate or standard exists"
-      },
       "primary_sources": [
         {
           "source_name": "EU Green Public Procurement criteria - construction",
@@ -433,11 +388,6 @@
       "criterion": "Green steel price premium and recoverability",
       "metric": "Market premium for certified low-carbon steel (USD/tonne) vs. conventional, and share of premium covered by signed offtake contracts",
       "unit": "USD/tonne premium; % under contract",
-      "rating_rubric": {
-        "H": "Documented offtake contracts (e.g. automotive OEM commitments) cover a material share of announced low-carbon capacity at a disclosed premium",
-        "M": "Premium exists and some pilot offtake agreements signed, but limited volume",
-        "L": "No documented premium recovery mechanism; no material offtake contracts identified"
-      },
       "primary_sources": [
         {
           "source_name": "BloombergNEF Green Steel Tracker / Premium report",
@@ -479,11 +429,6 @@
       "criterion": "CCS capture technology deployment status",
       "metric": "Number and capacity (Mtpa CO2) of operational or under-construction full-scale cement CCS facilities in the region",
       "unit": "Mtpa capacity, facility count",
-      "rating_rubric": {
-        "H": "At least one full-scale (>0.3 Mtpa) operational facility in the region with a track record",
-        "M": "Facility under construction or in final investment decision (FID) stage",
-        "L": "No full-scale facility operational, under construction, or FID-approved in the region"
-      },
       "primary_sources": [
         {
           "source_name": "Global CCS Institute CO2RE database",
@@ -524,11 +469,6 @@
       "criterion": "Clinker substitution rate (SCM availability)",
       "metric": "Average clinker-to-cement ratio in the region; availability of supplementary cementitious materials (fly ash, slag, calcined clay)",
       "unit": "Clinker ratio (%)",
-      "rating_rubric": {
-        "H": "Regional clinker ratio below 0.65 with active SCM substitution programmes",
-        "M": "Clinker ratio 0.65-0.80",
-        "L": "Clinker ratio above 0.80 with limited SCM availability"
-      },
       "primary_sources": [
         {
           "source_name": "Global Cement and Concrete Association (GCCA) sustainability data",
@@ -561,11 +501,6 @@
       "criterion": "Effective carbon price on cement production incl. border adjustment",
       "metric": "ETS/carbon tax price applicable to cement, net of free allocation, adjusted for any import border levy",
       "unit": "USD/tCO2 net of free allocation",
-      "rating_rubric": {
-        "H": "Effective net carbon price exceeds USD 50/tCO2 with border levy in force",
-        "M": "Carbon price applies but free allocation still material or no border levy",
-        "L": "No material carbon price on cement production"
-      },
       "primary_sources": [
         {
           "source_name": "EU CBAM Regulation - cement sector scope",
@@ -607,11 +542,6 @@
       "criterion": "CCS infrastructure support scheme",
       "metric": "Existence of public funding mechanism for CCS infrastructure (capture, transport, storage) applicable to cement plants",
       "unit": "Binary/scope, EUR or USD committed",
-      "rating_rubric": {
-        "H": "Dedicated public funding scheme active with disbursed grants to cement CCS projects",
-        "M": "Funding scheme exists but no disbursement to cement sector yet, or funding limited/competitive",
-        "L": "No public funding mechanism identified for industrial CCS"
-      },
       "primary_sources": [
         {
           "source_name": "EU Innovation Fund award decisions",
@@ -653,11 +583,6 @@
       "criterion": "Low-carbon cement premium recoverability",
       "metric": "Market premium for low-carbon/CCS-derived cement (USD/tonne) vs. conventional; share recoverable via green public procurement",
       "unit": "USD/tonne premium; % public procurement covered",
-      "rating_rubric": {
-        "H": "Green public procurement rules or embodied-carbon building codes create binding demand covering a material share of low-carbon capacity",
-        "M": "Voluntary standards or pilot procurement commitments exist",
-        "L": "No recoverable premium mechanism identified"
-      },
       "primary_sources": [
         {
           "source_name": "EU Green Public Procurement - construction criteria",
@@ -700,11 +625,6 @@
       "criterion": "Green/blue hydrogen availability for ammonia and feedstock use",
       "metric": "Delivered cost of low-carbon hydrogen (USD/kg) vs. grey hydrogen cost at prevailing natural gas price",
       "unit": "USD/kg H2, cost ratio",
-      "rating_rubric": {
-        "H": "Low-carbon hydrogen cost within 20% of grey hydrogen cost, or carbon price closes the gap",
-        "M": "Low-carbon hydrogen cost 20-100% above grey hydrogen cost",
-        "L": "Low-carbon hydrogen more than 2x grey hydrogen cost, or no low-carbon hydrogen supply chain present"
-      },
       "primary_sources": [
         {
           "source_name": "IEA Global Hydrogen Review",
@@ -747,11 +667,6 @@
       "criterion": "Electrification of process heat (steam cracking) readiness",
       "metric": "TRL of electric steam cracker technology; number of announced/piloted electric cracker projects",
       "unit": "TRL, project count",
-      "rating_rubric": {
-        "H": "TRL 7+ with commercial-scale pilot operating or announced FID",
-        "M": "TRL 5-6, demonstration scale only",
-        "L": "TRL below 5, lab/concept stage only"
-      },
       "primary_sources": [
         {
           "source_name": "IEA The Future of Petrochemicals",
@@ -783,11 +698,6 @@
       "criterion": "Effective carbon price on chemicals production incl. border adjustment",
       "metric": "ETS/carbon tax price applicable to chemicals production, net of free allocation, adjusted for any border levy where scope includes chemicals",
       "unit": "USD/tCO2 net of free allocation",
-      "rating_rubric": {
-        "H": "Effective net carbon price exceeds USD 50/tCO2 with border levy protection in force",
-        "M": "Carbon price applies but free allocation material or no border levy",
-        "L": "No material carbon price on chemicals production"
-      },
       "primary_sources": [
         {
           "source_name": "EU ETS free allocation benchmarks - chemicals subsectors",
@@ -829,11 +739,6 @@
       "criterion": "Green ammonia/methanol offtake market",
       "metric": "Volume (tonnes/year) of signed offtake agreements for green ammonia or green methanol, primarily driven by shipping fuel demand",
       "unit": "Tonnes/year signed offtake",
-      "rating_rubric": {
-        "H": "Material signed offtake volume from shipping or industrial buyers at disclosed premium",
-        "M": "Pilot-scale offtake agreements signed, limited volume",
-        "L": "No material offtake agreements identified"
-      },
       "primary_sources": [
         {
           "source_name": "IMO GHG Strategy implementation tracker",
@@ -864,11 +769,6 @@
       "criterion": "Mine electrification and processing technology readiness",
       "metric": "Share of new mining equipment orders that are battery-electric; TRL of electrified ore processing",
       "unit": "% of equipment orders",
-      "rating_rubric": {
-        "H": "Battery-electric equipment commercially deployed at scale (multiple operating mines)",
-        "M": "Pilot deployments underway, limited scale",
-        "L": "Battery-electric equipment not yet deployed at operating mines in the region"
-      },
       "primary_sources": [
         {
           "source_name": "IEA Critical Minerals Outlook",
@@ -900,11 +800,6 @@
       "criterion": "Fast-track permitting regime for strategic minerals projects",
       "metric": "Statutory maximum permitting timeline (months) for a designated strategic minerals project",
       "unit": "Months",
-      "rating_rubric": {
-        "H": "Statutory fast-track permitting in force with maximum timeline below 30 months",
-        "M": "Fast-track process exists but timeline exceeds 30 months or is discretionary",
-        "L": "No fast-track permitting regime; standard permitting exceeds 5 years"
-      },
       "primary_sources": [
         {
           "source_name": "EU Critical Raw Materials Act (Regulation 2024/1252)",
@@ -947,11 +842,6 @@
       "criterion": "Domestic sourcing / content requirement policy",
       "metric": "Existence and threshold of domestic or allied-sourcing content requirements tied to subsidy eligibility or public procurement",
       "unit": "Binary, % threshold",
-      "rating_rubric": {
-        "H": "Binding domestic/allied content requirement in force tied to material subsidy value",
-        "M": "Requirement exists but threshold low or enforcement unclear",
-        "L": "No domestic content requirement policy identified"
-      },
       "primary_sources": [
         {
           "source_name": "US Inflation Reduction Act Section 30D critical minerals requirements",
@@ -983,11 +873,6 @@
       "criterion": "Committed offtake and supply agreements vs. identified demand gap",
       "metric": "Volume of long-term offtake agreements signed (tonnes/year) as a share of the region's projected NZE-scenario demand gap for the mineral",
       "unit": "% of demand gap covered",
-      "rating_rubric": {
-        "H": "Signed offtake agreements and committed expansion capacity cover a material share of the identified regional supply gap",
-        "M": "Some offtake agreements signed but gap remains largely uncovered",
-        "L": "Minimal offtake activity relative to the scale of the demand gap"
-      },
       "primary_sources": [
         {
           "source_name": "IEA Critical Minerals Outlook - demand-supply gap tables",
@@ -1030,11 +915,6 @@
       "criterion": "SAF production capacity vs. jet fuel demand",
       "metric": "Regional SAF production capacity (million litres/year) as a share of total regional jet fuel demand",
       "unit": "% of jet fuel demand",
-      "rating_rubric": {
-        "H": "SAF capacity exceeds 5% of regional jet fuel demand with credible near-term expansion pipeline",
-        "M": "SAF capacity between 1-5% of demand",
-        "L": "SAF capacity below 1% of regional jet fuel demand"
-      },
       "primary_sources": [
         {
           "source_name": "IATA Sustainable Aviation Fuel Fact Sheet / SAF Tracker",
@@ -1077,11 +957,6 @@
       "criterion": "SAF blending mandate",
       "metric": "Legally binding minimum SAF blending percentage by target year",
       "unit": "% mandate by year",
-      "rating_rubric": {
-        "H": "Binding blending mandate in force with escalating schedule and penalties for non-compliance",
-        "M": "Mandate announced but not yet in force, or voluntary target only",
-        "L": "No blending mandate or target identified"
-      },
       "primary_sources": [
         {
           "source_name": "EU ReFuelEU Aviation Regulation (2023/2405)",
@@ -1125,11 +1000,6 @@
       "criterion": "SAF price premium and corporate offtake coverage",
       "metric": "SAF price premium vs. conventional jet fuel (USD/litre or multiple); volume covered by corporate/airline offtake agreements",
       "unit": "Price multiple; % covered by offtake",
-      "rating_rubric": {
-        "H": "Premium substantially offset by mandate compliance value or tax credit, with material offtake agreements in place",
-        "M": "Premium partially offset; limited offtake agreements",
-        "L": "Full premium borne by airline/passenger with no offset mechanism or offtake coverage"
-      },
       "primary_sources": [
         {
           "source_name": "IATA SAF price tracking",
@@ -1160,11 +1030,6 @@
       "criterion": "Dual-fuel/alternative-fuel vessel order book",
       "metric": "Share of new vessel orders (by gross tonnage or vessel count) specified as methanol, ammonia, or LNG dual-fuel capable",
       "unit": "% of new orders",
-      "rating_rubric": {
-        "H": "Alternative-fuel-capable vessels exceed 30% of new orders in the relevant vessel class",
-        "M": "Alternative-fuel-capable vessels 10-30% of new orders",
-        "L": "Alternative-fuel-capable vessels below 10% of new orders"
-      },
       "primary_sources": [
         {
           "source_name": "Clarksons Research World Fleet Register",
@@ -1205,11 +1070,6 @@
       "criterion": "Effective carbon price / fuel intensity mandate on shipping",
       "metric": "Carbon price applicable to shipping emissions (e.g. EU ETS maritime inclusion) and/or binding fuel greenhouse gas intensity reduction mandate",
       "unit": "USD/tCO2; % intensity reduction mandate",
-      "rating_rubric": {
-        "H": "Both a carbon price and a binding fuel intensity mandate apply to shipping in this region",
-        "M": "One of the two mechanisms applies",
-        "L": "Neither mechanism applies; shipping decarbonisation remains voluntary"
-      },
       "primary_sources": [
         {
           "source_name": "EU ETS Maritime inclusion (Directive 2023/959)",
@@ -1252,11 +1112,6 @@
       "criterion": "Green shipping corridor and cargo owner offtake commitments",
       "metric": "Number of announced green shipping corridors; volume of freight committed by cargo owners (via Cargo Owners for Zero Emission Vessels or equivalent) to low-carbon shipping",
       "unit": "Corridor count; committed freight volume",
-      "rating_rubric": {
-        "H": "Multiple active green corridors with committed cargo volumes and disclosed premium mechanism",
-        "M": "Green corridors announced but limited committed volume",
-        "L": "No active green corridor commitments in the region's main trade routes"
-      },
       "primary_sources": [
         {
           "source_name": "Getting to Zero Coalition Green Corridors tracker",
@@ -1287,11 +1142,6 @@
       "criterion": "Battery-electric/fuel-cell truck TCO parity",
       "metric": "Total cost of ownership (TCO) of battery-electric heavy truck vs. diesel equivalent for the dominant regional duty cycle (regional distribution vs. long-haul)",
       "unit": "TCO ratio (BEV:diesel)",
-      "rating_rubric": {
-        "H": "TCO parity or advantage achieved for at least regional/depot-based duty cycles",
-        "M": "TCO within 20% of parity for depot-based cycles; long-haul not yet competitive",
-        "L": "TCO more than 20% above diesel for all duty cycles"
-      },
       "primary_sources": [
         {
           "source_name": "IEA Global EV Outlook - heavy-duty vehicles chapter",
@@ -1324,11 +1174,6 @@
       "criterion": "Zero-emission heavy vehicle sales mandate or CO2 standard",
       "metric": "Binding CO2 emission standard or zero-emission sales mandate for new heavy trucks, with target year and stringency",
       "unit": "% reduction or % ZEV by year",
-      "rating_rubric": {
-        "H": "Binding standard/mandate in force with penalties, requiring material ZEV share within the assessment horizon",
-        "M": "Standard announced but not yet binding, or binding with limited near-term stringency",
-        "L": "No binding CO2 standard or ZEV mandate for heavy trucks"
-      },
       "primary_sources": [
         {
           "source_name": "EU CO2 emission standards for heavy-duty vehicles (Regulation 2024/1610)",
@@ -1381,11 +1226,6 @@
       "criterion": "Charging/refuelling infrastructure density on freight corridors",
       "metric": "Number of public heavy-duty charging/hydrogen refuelling points per 100km on the region's primary freight corridors",
       "unit": "Points per 100km",
-      "rating_rubric": {
-        "H": "Infrastructure density sufficient for unconstrained long-haul operation on primary corridors",
-        "M": "Infrastructure present but limited to depot/regional use, gaps on long-haul corridors",
-        "L": "Minimal public infrastructure; operation restricted to depot-based captive fleets"
-      },
       "primary_sources": [
         {
           "source_name": "EU Alternative Fuels Infrastructure Regulation (2023/1804) compliance tracking",
@@ -1427,11 +1267,6 @@
       "criterion": "Methane abatement technology deployment",
       "metric": "Share of regional upstream production covered by leak detection and repair (LDAR) programmes and flaring reduction technology",
       "unit": "% of production covered",
-      "rating_rubric": {
-        "H": "LDAR and flaring reduction technology deployed across a majority of regional production",
-        "M": "Deployed at major operators but not sector-wide",
-        "L": "Minimal deployment; routine flaring and unmonitored leakage remain common"
-      },
       "primary_sources": [
         {
           "source_name": "IEA Methane Tracker",
@@ -1464,11 +1299,6 @@
       "criterion": "Methane regulation and fee structure",
       "metric": "Existence of a binding methane emission limit or fee applicable to upstream operations",
       "unit": "Binary; USD/tonne methane fee where applicable",
-      "rating_rubric": {
-        "H": "Binding methane limit and/or fee in force with enforcement mechanism",
-        "M": "Regulation announced or in phase-in, not yet fully enforced",
-        "L": "No binding methane regulation identified"
-      },
       "primary_sources": [
         {
           "source_name": "EU Methane Regulation (2024/1787)",
@@ -1511,11 +1341,6 @@
       "criterion": "Market demand trajectory / structural decline exposure",
       "metric": "Projected regional oil and gas demand trajectory to 2035 under stated policy vs. announced pledges scenarios (IEA)",
       "unit": "% change in demand 2024-2035",
-      "rating_rubric": {
-        "H": "Demand trajectory stable or growing under stated policies (lower stranding risk near-term, i.e. more 'feasible' to continue operating economically)",
-        "M": "Demand trajectory flat to moderate decline",
-        "L": "Demand trajectory in structural decline under regional policy settings"
-      },
       "primary_sources": [
         {
           "source_name": "IEA World Energy Outlook - regional demand scenarios",

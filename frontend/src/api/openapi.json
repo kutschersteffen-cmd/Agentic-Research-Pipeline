@@ -1233,6 +1233,14 @@
    "BarrierCriterion": {
     "description": "One of the 35 transition-barrier criteria: a sector x pillar pair with a\nmeasurable metric and an explicit H/M/L rubric. Static reference data, not a\nper-run record. See arp/transition_barrier/dataset.py for the loader.",
     "properties": {
+     "actions": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Actions",
+      "type": "array"
+     },
      "category": {
       "$ref": "#/components/schemas/Pillar"
      },
@@ -1246,10 +1254,28 @@
       "title": "Criterion",
       "type": "string"
      },
+     "facts": {
+      "default": [],
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Facts",
+      "type": "array"
+     },
      "metric": {
       "description": "What is actually measured, in enough detail to re-derive the rating.",
       "title": "Metric",
       "type": "string"
+     },
+     "params": {
+      "default": [],
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Params",
+      "type": "array"
      },
      "primary_sources": {
       "items": {
@@ -1262,12 +1288,28 @@
       "additionalProperties": {
        "type": "string"
       },
-      "description": "The H/M/L thresholds, verbatim from the research tool.",
+      "description": "The H/M/L sentences, rendered from the rule book's conditions.",
       "propertyNames": {
        "$ref": "#/components/schemas/Rating"
       },
       "title": "Rating Rubric",
       "type": "object"
+     },
+     "rationale": {
+      "default": "",
+      "title": "Rationale",
+      "type": "string"
+     },
+     "rule_book_version": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rule Book Version"
      },
      "sector": {
       "title": "Sector",

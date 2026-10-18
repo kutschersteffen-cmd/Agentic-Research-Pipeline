@@ -520,3 +520,241 @@ def test_bundled_sources_have_key_and_tier():
         assert s.get("tier") in {"primary", "secondary"}, (code, s["source_name"])
         assert s.get("cadence") in {None, "annual", "quarterly"}, (code, s["source_name"])
     assert {s["key"] for _, s in entries} == set(registry)
+
+
+# --- wired into the app (Task 7) ---------------------------------------------------------
+
+import asyncio  # noqa: E402
+import re  # noqa: E402
+import subprocess  # noqa: E402
+
+from arp.transition_barrier.rule_book import RuleBookError  # noqa: E402
+
+REPO = Path(__file__).resolve().parents[2]
+BUNDLED = Path(dataset.__file__).parent / "data"
+MAIN_SRC = Path(__file__).parent / "fixtures" / "transition_barrier_main"
+REGIONS = ["European Union", "United States", "China"]
+
+
+@pytest.fixture
+def bundled(monkeypatch):
+    monkeypatch.delenv("ARP_TRANSITION_BARRIER_DATA_DIR", raising=False)
+    get_settings.cache_clear()
+    dataset.reset_caches()
+    yield BUNDLED
+    get_settings.cache_clear()
+    dataset.reset_caches()
+
+
+def _break_h_fact(data_dir):
+    """AC-77's directory: H names fact 'prices', signed so that is the only error."""
+    rb, _ = _fx(data_dir)
+    _stl(rb)["levels"]["H"]["all"][0]["fact"] = "prices"
+    rb["fingerprint"] = compute_fingerprint(rb)
+    _write_rb(data_dir, rb)
+
+
+def _bundled_scores():
+    return json.loads((BUNDLED / "assessment_scores.json").read_text(encoding="utf-8"))["scores"]
+
+
+def test_ac92_check_rule_book_names_first_error(fixture_dir):
+    dataset.check_rule_book()
+    _break_h_fact(fixture_dir)
+    with pytest.raises(RuleBookError, match=re.escape("STL-R1: condition names unknown fact 'prices'")):
+        dataset.check_rule_book()
+
+
+def test_check_rule_book_missing(fixture_dir):
+    (fixture_dir / "rule_book.json").unlink()
+    with pytest.raises(RuleBookNotFound, match=r"^Rule book not found: "):
+        dataset.check_rule_book()
+
+
+def test_ac92_startup_fails_before_postgres(fixture_dir, monkeypatch):
+    from arp.api import main
+
+    touched = []
+    monkeypatch.setattr(main, "require_postgres", lambda settings: touched.append(settings))
+    _break_h_fact(fixture_dir)
+
+    async def start():
+        async with main.lifespan(main.app):
+            pass
+
+    with pytest.raises(RuleBookError, match=re.escape("STL-R1: condition names unknown fact 'prices'")):
+        asyncio.run(start())
+    assert touched == []
+
+
+def test_ac93_ac94_criterion_from_rule_book(fixture_dir):
+    from arp.api.routers.transition_barrier import get_criterion
+
+    raw = _stl(_raw(fixture_dir))
+    c = get_criterion("STL-R1")["criterion"]
+    assert c["rating_rubric"] == {
+        "H": "Effective carbon price >= 50 USD/tCO2 and Border levy in force is Yes",
+        "M": "Carbon price applies to steel is Yes and Effective carbon price >= 10 USD/tCO2",
+        "L": "Otherwise (neither H nor M holds)",
+    }
+    assert c["rule_book_version"] == 7
+    assert c["actions"] == ["steel.h2_dri", "steel.scrap_eaf"]
+    assert c["rationale"] == raw["rationale"]
+    assert [f["id"] for f in c["facts"]] == ["price", "applies", "levy"]
+    p_high = next(p for p in c["params"] if p["id"] == "p_high")
+    assert p_high["value"] == 50
+    assert p_high["source"]["title"] == raw["params"][0]["source"]["title"]
+    assert p_high["rationale"] == raw["params"][0]["rationale"]
+
+
+def test_rating_rubric_only_in_rule_book():
+    for directory in (BUNDLED, FIXTURE_SRC):
+        criteria = json.loads((directory / "criteria_schema.json").read_text(encoding="utf-8"))["criteria"]
+        assert not any("rating_rubric" in c for c in criteria), directory
+
+
+def _same_as_main(main, now, path=""):
+    """Every field main returned has the same value now; fields added since are ignored."""
+    if isinstance(main, dict):
+        assert isinstance(now, dict), path
+        for key, value in main.items():
+            if path + key == "criterion.rating_rubric":
+                continue
+            assert key in now, path + key
+            _same_as_main(value, now[key], f"{path}{key}.")
+    elif isinstance(main, list):
+        assert isinstance(now, list) and len(now) == len(main), path
+        for i, (m, n) in enumerate(zip(main, now, strict=True)):
+            _same_as_main(m, n, f"{path}{i}.")
+    else:
+        assert now == main, path
+
+
+def test_ac155_criterion_keeps_main_fields(bundled):
+    from arp.api.routers.transition_barrier import get_criterion
+
+    main = json.loads((MAIN_SRC / "criterion_STL-R1.json").read_text(encoding="utf-8"))
+    now = json.loads(json.dumps(get_criterion("STL-R1")))
+    _same_as_main(main, now)
+    assert set(now["criterion"]["rating_rubric"]) == {"H", "M", "L"}
+
+
+def test_ac74_bundled_validate(bundled):
+    raw = _raw(BUNDLED)
+    result = _rules("validate")
+    assert result.exit_code == 0
+    assert result.output == f"Rule book v{raw['version']}: OK, 35 criteria, {count_open(raw)} open thresholds\n"
+
+
+def test_ac95_committed_rule_book_doc_is_current(bundled, tmp_path):
+    out = tmp_path / "RULE_BOOK.md"
+    assert _rules("render", "--out", str(out)).exit_code == 0
+    committed = REPO / "docs" / "transition_barrier" / "RULE_BOOK.md"
+    assert out.read_text(encoding="utf-8") == committed.read_text(encoding="utf-8")
+
+
+def _export(tmp_path):
+    out = tmp_path / "export.json"
+    result = _runner.invoke(transition_barrier_app, ["export", "--out", str(out)])
+    assert result.exit_code == 0, result.output
+    return out, json.loads(out.read_text(encoding="utf-8"))
+
+
+def _node_with(*modules) -> str | None:
+    """Why the report script can't run here, or None when it can."""
+    try:
+        probe = "".join(f"require({m!r});" for m in modules)
+        ok = subprocess.run(["node", "-e", probe], cwd=REPO, capture_output=True).returncode == 0
+    except FileNotFoundError:
+        return "node is not installed"
+    return None if ok else f"node can't load {', '.join(modules)}"
+
+
+def test_ac135_export_and_word_report(bundled, tmp_path):
+    out, export = _export(tmp_path)
+    assert [(s["code"], s["region"], s["rating"]) for s in export["scores"]] == [
+        (s["code"], s["region"], s["rating"]) for s in _bundled_scores()
+    ]
+    assert len(export["criteria"]) == 35 and all(set(c["rating_rubric"]) == {"H", "M", "L"} for c in export["criteria"])
+    assert export["sources"].keys() == json.loads((BUNDLED / "source_registry.json").read_text())["sources"].keys()
+
+    reason = _node_with("docx", "adm-zip")
+    if reason:
+        pytest.skip(f"{reason}; the export half of AC-135 ran")
+    docx = tmp_path / "report.docx"
+    run = subprocess.run(
+        ["node", str(REPO / "scripts" / "build_transition_barrier_report.js"), str(docx), str(out)],
+        cwd=REPO, capture_output=True, text=True,
+    )
+    assert run.returncode == 0, run.stderr
+    import zipfile
+
+    xml = zipfile.ZipFile(docx).read("word/document.xml").decode("utf-8")
+    shown = re.findall(r">([HML])  \((?:high|medium|low)\)<", xml)
+    by_cell = {(s["code"], s["region"]): s["rating"] for s in _bundled_scores()}
+    assert shown == [by_cell[(c["code"], r)] for c in export["criteria"] for r in REGIONS]
+
+
+def test_report_script_requires_export(tmp_path):
+    if _node_with() is not None:
+        pytest.skip("node is not installed")
+    run = subprocess.run(
+        ["node", str(REPO / "scripts" / "build_transition_barrier_report.js"), str(tmp_path / "r.docx")],
+        cwd=REPO, capture_output=True, text=True,
+    )
+    assert run.returncode == 1
+    assert "Usage: node scripts/build_transition_barrier_report.js <out.docx> <export.json>" in run.stderr
+
+
+def test_ac136_decision_studio_ratings(bundled):
+    from arp.decision import sources
+
+    scale = {"H": 100.0, "M": 50.0, "L": 0.0}
+    cells: dict[tuple[str, str, str], list[float]] = {}
+    for s in _bundled_scores():
+        cells.setdefault((s["sector"], s["region"], s["category"]), []).append(scale[s["rating"]])
+    assert sum(len(v) for v in cells.values()) == 105
+
+    seen = 0
+    for row in sources.from_transition_barrier().rows:
+        for pillar in ("Technology", "Regulation", "Demand_Economics"):
+            members = cells.get((row["Sector"], row["Region"], pillar.replace("_", " & ")), [])
+            value = row[f"{pillar}_Feasibility_0_100"]
+            assert value == (f"{sum(members) / len(members):.1f}" if members else ""), (row["Assessment"], pillar)
+            seen += len(members)
+    assert seen == 105
+
+
+def test_ac130_ac131_existing_cell_fields(bundled):
+    from arp.api.routers.transition_barrier import get_matrix, list_scores
+    from arp.config import Settings
+
+    rows = {(s["code"], s["region"]): s for s in _bundled_scores()}
+    for score in list_scores():
+        assert score.model_dump(mode="json") == rows[(score.code, score.region.value)]
+    matrix = get_matrix(settings=Settings(anthropic_api_key="unused"))
+    for (code, region), row in rows.items():
+        cell = matrix["cells"][code][region]
+        assert {k: cell[k] for k in row} == row
+
+
+def test_ac132_refresh_coverage_unchanged(tmp_path, monkeypatch):
+    from arp.api.routers.transition_barrier import get_refresh_coverage
+
+    target = tmp_path / "pre_change"
+    target.mkdir()
+    for name in ("criteria_schema.json", "source_registry.json"):
+        shutil.copy(MAIN_SRC / name, target / name)
+    for name in ("rule_book.json", "assessment_scores.json"):
+        shutil.copy(BUNDLED / name, target / name)
+    monkeypatch.setenv("ARP_TRANSITION_BARRIER_DATA_DIR", str(target))
+    get_settings.cache_clear()
+    dataset.reset_caches()
+    try:
+        dataset.check_rule_book()
+        assert len(_raw(target)["criteria"]) == 35
+        expected = json.loads((MAIN_SRC / "refresh_coverage.json").read_text(encoding="utf-8"))
+        assert get_refresh_coverage() == expected
+    finally:
+        get_settings.cache_clear()
+        dataset.reset_caches()

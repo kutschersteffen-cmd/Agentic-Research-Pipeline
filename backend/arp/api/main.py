@@ -61,6 +61,7 @@ from arp.api.routers import (
     xbrl,
 )
 from arp.db.session import require_cutover, require_postgres
+from arp.transition_barrier.dataset import check_rule_book
 
 logging.basicConfig(level=logging.INFO)
 
@@ -68,6 +69,7 @@ logging.basicConfig(level=logging.INFO)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = settings_dep()
+    check_rule_book()  # an invalid rule book stops startup, naming its first error
     require_postgres(settings)  # Postgres is the system of record: no DSN or no answer, no app
     require_cutover(settings)  # nor on an un-migrated or un-imported database
     settings.ensure_dirs()

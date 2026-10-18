@@ -12,25 +12,58 @@ from arp.schemas.transition_barrier import (
     Region,
     RegistrySource,
 )
+from arp.transition_barrier.render import rubric
+from arp.transition_barrier.rule_book import RuleBookError, load_rule_book
+from arp.transition_barrier.validation import read_and_validate
 
 
 def data_dir() -> Path:
     return get_settings().transition_barrier_data_dir
 
 
+def check_rule_book(directory: Path | None = None) -> None:
+    """Raise RuleBookNotFound, or RuleBookError naming the first error, unless the rule book is valid.
+
+    Validates the raw JSON before any model is built, so a bad file reads as an error line.
+    """
+    _, _, errors = read_and_validate(directory or data_dir())
+    if errors:
+        raise RuleBookError(errors[0])
+
+
 @lru_cache
 def load_criteria(path: Path | None = None) -> list[BarrierCriterion]:
     """The 35 transition-barrier criteria: 9 hard-to-abate sectors x the three
     constraint pillars (Technology / Regulation / Demand & Economics), each with
-    a measurable metric and an explicit H/M/L rubric.
+    a measurable metric and an H/M/L rubric rendered from the rule book
+    (rule_book.json), which also supplies rationale, actions, facts and params.
 
     Derived from the working research tool (docs/transition_barrier/
     Transition_Barrier_Assessment.xlsx, "Criteria Reference" sheet), verified
     against each primary publisher in August 2026. This file is authoritative:
     source_registry.json is a derived view over its primary_sources[] entries.
     """
-    rows = json.loads((path or data_dir() / "criteria_schema.json").read_text())["criteria"]
-    return [BarrierCriterion.model_validate(row) for row in rows]
+    directory = path.parent if path else data_dir()
+    check_rule_book(directory)
+    rule_book, _ = load_rule_book(directory)
+    rows = json.loads((path or directory / "criteria_schema.json").read_text())["criteria"]
+    out = []
+    for row in rows:
+        rules = rule_book.criteria[row["code"]]
+        out.append(
+            BarrierCriterion.model_validate(
+                {
+                    **row,
+                    "rating_rubric": rubric(rules),
+                    "rationale": rules.rationale,
+                    "actions": rules.actions,
+                    "facts": [f.model_dump(mode="json") for f in rules.facts],
+                    "params": [p.model_dump(mode="json") for p in rules.params],
+                    "rule_book_version": rule_book.version,
+                }
+            )
+        )
+    return out
 
 
 @lru_cache

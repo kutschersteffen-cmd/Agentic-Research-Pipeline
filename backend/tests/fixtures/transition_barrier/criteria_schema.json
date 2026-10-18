@@ -12,11 +12,6 @@
       "criterion": "Effective carbon price on steel production incl. border adjustment",
       "metric": "ETS/carbon tax price applicable to steel production, adjusted for free allocation phase-out and any import border levy (e.g. CBAM)",
       "unit": "USD/tCO2 net of free allocation",
-      "rating_rubric": {
-        "H": "Effective carbon price >= 50 USD/tCO2 and Border levy in force is Yes",
-        "M": "Carbon price applies to steel is Yes and Effective carbon price >= 10 USD/tCO2",
-        "L": "Otherwise (neither H nor M holds)"
-      },
       "primary_sources": [
         {
           "key": "eu_ets_report",

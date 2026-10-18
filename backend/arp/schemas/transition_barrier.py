@@ -103,8 +103,14 @@ class BarrierCriterion(BaseModel):
     criterion: str
     metric: str = Field(description="What is actually measured, in enough detail to re-derive the rating.")
     unit: str
-    rating_rubric: dict[Rating, str] = Field(description="The H/M/L thresholds, verbatim from the research tool.")
+    rating_rubric: dict[Rating, str] = Field(description="The H/M/L sentences, rendered from the rule book's conditions.")
     primary_sources: list[PrimarySource]
+    # From the rule book (rule_book.json); defaults let a bare criteria_schema.json row parse.
+    rationale: str = ""
+    actions: list[str] = []
+    facts: list[dict] = []
+    params: list[dict] = []
+    rule_book_version: int | None = None
 
 
 class BarrierScore(BaseModel):

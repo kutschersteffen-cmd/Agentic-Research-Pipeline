@@ -1,18 +1,21 @@
-// Builds the Transition Barrier Assessment report straight from the normalized
-// JSON, so the document cannot drift from the data it describes.
+// Builds the Transition Barrier Assessment report from `arp transition-barrier
+// export`, so the document shows the same matrix and rubrics as the app.
 const fs = require("fs");
-const path = require("path");
+
+const [OUT, EXPORT] = process.argv.slice(2);
+if (!OUT || !EXPORT) {
+  console.error("Usage: node scripts/build_transition_barrier_report.js <out.docx> <export.json>");
+  console.error("Make the export with: arp transition-barrier export --out <export.json>");
+  process.exit(1);
+}
+
 const {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
   Table, TableRow, TableCell, WidthType, ShadingType, BorderStyle, PageBreak,
   ExternalHyperlink, PageOrientation,
 } = require("docx");
 
-const DATA = path.resolve(__dirname, "..", "backend", "arp", "transition_barrier", "data");
-const read = (f) => JSON.parse(fs.readFileSync(path.join(DATA, f), "utf8"));
-const criteria = read("criteria_schema.json").criteria;
-const scores = read("assessment_scores.json").scores;
-const registry = read("source_registry.json").sources;
+const { criteria, scores, sources: registry } = JSON.parse(fs.readFileSync(EXPORT, "utf8"));
 
 // Landscape A4 content width, in DXA. 1440 DXA = 1 inch.
 const PAGE_W = 16838, PAGE_H = 11906, MARGIN = 720;
@@ -332,8 +335,7 @@ function repack(buf) {
 }
 
 Packer.toBuffer(doc).then((buf) => {
-  const out = process.argv[2] || "Transition_Barrier_Assessment_Report.docx";
   const final = repack(buf);
-  fs.writeFileSync(out, final);
-  console.log("wrote", out, (final.length / 1024).toFixed(1) + " KB");
+  fs.writeFileSync(OUT, final);
+  console.log("wrote", OUT, (final.length / 1024).toFixed(1) + " KB");
 });

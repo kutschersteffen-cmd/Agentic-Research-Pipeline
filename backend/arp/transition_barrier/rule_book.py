@@ -15,6 +15,10 @@ class RuleBookNotFound(FileNotFoundError):
     pass
 
 
+class RuleBookError(ValueError):
+    """The rule book can't be read or fails validation; the message is the first error line."""
+
+
 class SourceRef(BaseModel):
     title: str
     url: str | None = None

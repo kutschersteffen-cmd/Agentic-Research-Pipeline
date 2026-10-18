@@ -14,6 +14,7 @@ from arp.transition_barrier.dataset import (
     data_dir,
     filter_scores,
     load_criteria,
+    load_scores,
     load_source_registry,
     rating_distribution,
     sources_for_criterion,
@@ -21,9 +22,9 @@ from arp.transition_barrier.dataset import (
 from arp.transition_barrier.refresh.pipeline import RefreshDisabledError, run_refresh
 from arp.transition_barrier.refresh.router import coverage_summary, route_sources
 from arp.transition_barrier.render import render_rule_book_md
-from arp.transition_barrier.rule_book import RULE_BOOK_FILE, load_rule_book, sign_rule_book
+from arp.transition_barrier.rule_book import RuleBookError, RuleBookNotFound, load_rule_book, sign_rule_book
 from arp.transition_barrier.staleness import build_staleness_report
-from arp.transition_barrier.validation import count_open, validate_rule_book
+from arp.transition_barrier.validation import count_open, read_and_validate
 
 transition_barrier_app = typer.Typer(
     help="Transition Barrier Assessment: the 105-cell sector x region transition-feasibility matrix (35 criteria x EU/US/China)."
@@ -44,21 +45,10 @@ def _fail(lines: list[str]) -> typer.Exit:
 def _load_raw(directory: Path | None) -> tuple[Path, dict, dict, list[str]]:
     """Raw rule book and schema plus their validation errors. Models are only built after this passes."""
     directory = directory or data_dir()
-    path = directory / RULE_BOOK_FILE
-    if not path.exists():
-        raise _fail([f"Rule book not found: {path}"])
-    raws = []
-    for p in (path, directory / "criteria_schema.json"):
-        try:
-            raws.append(json.loads(p.read_text(encoding="utf-8")))
-        except FileNotFoundError:
-            raise _fail([f"File not found: {p}"]) from None
-        except ValueError as exc:
-            raise _fail([f"{p.name} is not valid JSON: {exc}"]) from None
-    raw, schema = raws
-    if not isinstance(raw, dict) or not isinstance(schema, dict):
-        raise _fail(["rule_book.json and criteria_schema.json must each hold a JSON object"])
-    return directory, raw, schema, validate_rule_book(raw, schema)
+    try:
+        return (directory, *read_and_validate(directory))
+    except (RuleBookNotFound, RuleBookError) as exc:
+        raise _fail([str(exc)]) from None
 
 
 @rules_app.command("validate")
@@ -117,6 +107,24 @@ def transition_barrier_criteria(
     for c in criteria:
         typer.echo(f"{c.code}  [{c.sector} / {c.category.value}]  {c.criterion}  ({c.unit})")
     typer.echo(f"\n{len(criteria)} criteria")
+
+
+@transition_barrier_app.command("export")
+def transition_barrier_export(
+    out: Path = typer.Option(..., help="Where to write the JSON export."),
+) -> None:
+    """Write the current criteria (with rendered rubrics), scores and sources as JSON, for the Word report."""
+    try:
+        criteria = load_criteria()
+    except (RuleBookNotFound, RuleBookError) as exc:
+        raise _fail([str(exc)]) from None
+    payload = {
+        "criteria": [c.model_dump(mode="json") for c in criteria],
+        "scores": [s.model_dump(mode="json") for s in load_scores()],
+        "sources": {s.key: s.model_dump(mode="json", exclude={"key"}) for s in load_source_registry()},
+    }
+    out.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    typer.echo(f"Wrote {out}")
 
 
 @transition_barrier_app.command("scores")
