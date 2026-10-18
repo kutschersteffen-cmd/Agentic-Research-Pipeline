@@ -174,6 +174,11 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId, initialRun
     return theme?.activities.find((a) => a.activity_id === activityId)?.name ?? activityId;
   }
 
+  // A run opened from #/theme/<run id> shows its stored results straight away.
+  useEffect(() => {
+    if (initialRunId) api.getThemeResults(initialRunId).then((res) => setResults((res as { results: CompanyMatch[] }).results)).catch(() => {});
+  }, [initialRunId]);
+
   async function refreshResults() {
     if (!runId) return;
     const res = (await api.getThemeResults(runId)) as { results: CompanyMatch[] };

@@ -127,3 +127,13 @@ def test_two_include_matches_take_the_highest(client, run_store, neo4j_graph):
     keys = make_theme_run(run_store, "M1", {"M": [(0.20, "catalogue"), (0.50, "extracted")]})
     row = _layers(client, run_id="M1").json()["rows"][0]
     assert (row["issuer_key"], row["l1"], row["score"]) == (keys["M"], 0.5, 0.225)
+
+
+def test_layer_settings_read_per_request(client, run_store, neo4j_graph, tmp_path, monkeypatch):
+    """The settings cache is warm from an earlier request; a changed setting still applies."""
+    fixture_f(run_store, tmp_path)
+    assert _layers(client).json()["max_hops"] == 2
+    monkeypatch.setenv("ARP_THEME_LAYER_MAX_HOPS", "1")
+    assert _layers(client).json()["max_hops"] == 1
+    monkeypatch.delenv("ARP_NEO4J_URI")
+    assert _layers(client).json()["detail"] == "company graph not configured: set ARP_NEO4J_URI"

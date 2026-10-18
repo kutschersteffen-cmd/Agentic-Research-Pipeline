@@ -301,11 +301,11 @@ def _r4(x: float | None) -> float | None:
 
 @router.get("/runs/{run_id}/layers", response_model=ThemeLayers)
 def get_theme_layers(
-    run_id: str, as_of: str | None = None,
-    settings: Settings = Depends(settings_dep), run_store: RunStore = Depends(get_run_store),
+    run_id: str, as_of: str | None = None, run_store: RunStore = Depends(get_run_store),
 ) -> ThemeLayers:
     """Layer 1 (direct revenue share), Layer 2 (value chain, from the company graph's supply edges
     known at `as_of`), Layer 3 (no data yet) and score S per company; computed on read."""
+    settings = Settings()  # the layer and graph settings as they are now, not as first cached
     try:
         day = parse_as_of(as_of)
     except ValueError as exc:
