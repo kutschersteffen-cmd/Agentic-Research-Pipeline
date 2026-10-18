@@ -60,6 +60,11 @@ dependencies = [
     "sqlalchemy>=2.0,<3.0",
     "psycopg[binary]>=3.1,<4.0",
     "pgvector>=0.3,<1.0",
+    # Company site / report identification (arp/discovery/names.py, site checks):
+    # fuzzy name match, legal-suffix stripping, host -> registrable domain.
+    "rapidfuzz>=3.14,<4.0",
+    "cleanco>=2.3,<3.0",
+    "tldextract>=5.4,<6.0",
 ]
 
 [project.optional-dependencies]
