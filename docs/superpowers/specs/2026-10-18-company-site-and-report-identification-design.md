@@ -118,7 +118,7 @@ request.
 
 ### Site check (`arp/discovery/site_check.py`)
 
-`check_homepage(url, company, user_agent, *, transport=None) -> SiteCheck`, with
+`check_homepage(url, company, user_agent, *, identifier_source=False, transport=None) -> SiteCheck`, with
 `SiteCheck(verdict: "owned" | "unclear" | "rejected", evidence: list[str])`.
 
 1. If the URL's registrable domain is on `AGGREGATOR_DOMAINS` → `rejected`, evidence
@@ -142,7 +142,12 @@ request.
      légales|legal information` (case-insensitive) is fetched, giving `name_on_imprint`,
      `lei_on_imprint`, `isin_on_imprint`.
 3. Verdict: any `lei_*`/`isin_*` evidence → `owned`; `name_on_imprint` plus one homepage name signal →
-   `owned`; any other evidence → `unclear`; none → `rejected`.
+   `owned`; with `identifier_source=True`, any one name signal (homepage or imprint) → `owned`, and
+   `identifier_source` is appended to the evidence; any other evidence → `unclear`; none → `rejected`.
+   `identifier_source=True` means the URL came from Wikidata by identifier (`homepage_from_ids`): an
+   exact, identifier-keyed source that only needs the page to agree on the name. (Added 2026-10-18 after
+   the live test: large companies print no LEI on their homepage or imprint, so without it no homepage
+   was ever `owned`.) It changes nothing for blocklisted URLs or fetch errors.
 4. Errors: if the homepage request raises (`httpx.HTTPError`, `UnsafeURLError`) or returns HTTP ≥ 400,
    the result is `unclear` with evidence exactly `["fetch_failed"]`; an unreachable site is the
    crawler's call, not this check's. A failed imprint request (error or ≥ 400) is ignored: the
@@ -154,7 +159,8 @@ request.
   applying its IR-hint and first-result rules.
 - `_discover_for_company`: a supplied `company.website` is used as today, unchecked. Otherwise the
   homepage comes from `homepage_from_ids` (with the company's LEI, ISIN and CIK, supplied or not),
-  then search, and is passed through `check_homepage`. A
+  then search, and is passed through `check_homepage` (with `identifier_source=True` when it came from
+  `homepage_from_ids`). A
   `rejected` homepage is not crawled: `homepage_used` is `None` and the new
   `DiscoveryCompanyResult.homepage_check` holds the `SiteCheck`. `owned` and `unclear` are crawled, with
   `homepage_check` set.
@@ -186,7 +192,7 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
   `needs_recheck` stays consistent.
 - Resolved by identifier (`exact_lei` / `identifier_map`) with neither a website nor a CIK supplied
   (the existing `lookup` condition in `_apply_rules`): call
-  `homepage_from_ids`, then `check_homepage`. `owned` → verdict `resolved`, not flagged,
+  `homepage_from_ids`, then `check_homepage(..., identifier_source=True)`. `owned` → verdict `resolved`, not flagged,
   `resolved_website` set, confidence 1.0. `unclear` → verdict `uncertain`, flagged, reason
   `match_ambiguous`, `resolved_website` set. `rejected` or no Wikidata hit → today's behaviour (EDGAR
   name lookup, flagged).
@@ -197,7 +203,7 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
   Code keeps it only if it equals one of `signals.gleif_matches[*].lei`, the same rule as for CIK.
   A dropped LEI makes the result `uncertain` and flagged.
 - After adjudication, if `resolved_lei` is set and `resolved_website` is not, `homepage_from_ids(lei=…)`
-  plus `check_homepage` run. `owned` or `unclear` sets `resolved_website`; `rejected` leaves it empty.
+  plus `check_homepage(..., identifier_source=True)` run. `owned` or `unclear` sets `resolved_website`; `rejected` leaves it empty.
   Verdict, confidence, `match_rule` (`ambiguous`) and `flagged_for_review` (true) stay as the
   adjudicate path sets them on `main`: the site check only fills in the website for the reviewer.
   The run still makes exactly one LLM call for this company.
@@ -295,7 +301,7 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
 | AC-13 | W without LEI; GLEIF ISIN filter for `DE000TST0006` returns one `ISSUED` record with W's LEI; Wikidata empty | identity run | result `derived_lei` = `5299009TESTWERKE0063`, `match_rule` = `exact_lei`, `resolved_issuer_key` = `5299009TESTWERKE0063`, `identifiers` = `{"isin": "DE000TST0006"}` | unit |
 | AC-14 | W without LEI; GLEIF returns no record for the ISIN; EDGAR name search and GLEIF name search return nothing; web search returns nothing; Fake LLM returns verdict `unresolved`, confidence 0.0 | identity run | `derived_lei` `null`, `match_rule` `ambiguous`, verdict `unresolved`, `flagged_for_review` true (as on `main`) | unit |
 | AC-15 | W; Wikidata P1278 → H1; H1 as fixture | identity run | verdict `resolved`, `flagged_for_review` false, `resolved_website` `https://www.testwerke.de/`, confidence 1.0 | unit |
-| AC-16 | W; Wikidata P1278 → H4 | identity run | verdict `uncertain`, `flagged_for_review` true, `reason_codes` `["match_ambiguous"]`, `resolved_website` `https://www.testwerke.de/` | unit |
+| ~~AC-16~~ | ~~W; Wikidata P1278 → H4~~ | ~~identity run~~ | Retired 2026-10-18: with `identifier_source`, H4 is now `owned` (AC-74). Was: verdict `uncertain`, `flagged_for_review` true, `reason_codes` `["match_ambiguous"]`, `resolved_website` `https://www.testwerke.de/` | unit |
 | AC-17 | W; Wikidata empty for all identifiers; EDGAR name search returns no matches; web search returns nothing | identity run | verdict `uncertain`, `flagged_for_review` true, `reason_codes` `["match_ambiguous"]`, `match_rule` `exact_lei`, `resolved_website` `null`, `resolved_cik` `null` (as on `main`) | unit |
 | AC-18 | Company named `Testwerke AG`, no identifiers, no website; EDGAR no matches; web search returns nothing; GLEIF name search returns W's record | identity run | the Fake LLM's prompt contains the line `  - lei=5299009TESTWERKE0063 name='Testwerke AG' country=DE` | unit |
 | AC-19 | as AC-18; Fake LLM returns verdict `resolved`, confidence 0.95, `resolved_lei` `5299009OTHERCO000060`, `resolved_website` `null`, `resolved_cik` `null` | identity run | result `resolved_lei` `null`, verdict `uncertain`, `flagged_for_review` true | unit |
@@ -305,7 +311,7 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
 | AC-23 | Company named `Testwerke AG`, no identifiers; search returns [H2 URL, H1 URL]; H1 fixture | discovery run | result `homepage_used` `https://www.testwerke.de/` | unit |
 | AC-24 | Company named `Testwerke AG`, no identifiers; search returns only H3 | discovery run | `homepage_used` `null`, `homepage_check.verdict` `rejected`; H3 receives exactly 1 request (the check), and no request for any other H3 path | unit |
 | AC-25 | W with supplied website H3 (page links to nothing) | discovery run | `homepage_used` `https://www.otherco.co.uk/`, `homepage_check` `null`; H3 receives exactly 1 request for path `/` | unit |
-| AC-26 | W; Wikidata P1278 → H4 | discovery run | `homepage_used` `https://www.testwerke.de/`, `homepage_check.verdict` `unclear`; the crawl fetches H4 | unit |
+| ~~AC-26~~ | ~~W; Wikidata P1278 → H4~~ | ~~discovery run~~ | Retired 2026-10-18: now `owned` (AC-76). Was: `homepage_used` `https://www.testwerke.de/`, `homepage_check.verdict` `unclear`; the crawl fetches H4 | unit |
 | AC-27 | W with supplied website `https://www.testwerke.de/`, whose page links only to P1 | discovery run | the document's `company_match` `identifier`, `page_count` 30, `reporting_year` 2025 | unit |
 | AC-28 | W with supplied website `https://www.testwerke.de/`, whose page links only to P2 | discovery run | the document's `company_match` `name` | unit |
 | AC-29 | W with supplied website `https://www.testwerke.de/`, whose page links only to P3 | discovery run | the document's `company_match` `none` | unit |
@@ -325,7 +331,7 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
 | AC-43 | as AC-15 | identity run | the Fake LLM received 0 prompts | unit |
 | AC-44 | as AC-22 | identity run | Wikidata, GLEIF and `https://www.testwerke.de/` receive 0 requests | unit |
 | AC-45 | as AC-20 | identity run | the Fake LLM received exactly 1 prompt | unit |
-| AC-46 | W with supplied CIK `123`, no website; Wikidata P1278 → H4 | discovery run | `homepage_used` `https://www.testwerke.de/`, `homepage_check.verdict` `unclear` | unit |
+| ~~AC-46~~ | ~~W with supplied CIK `123`, no website; Wikidata P1278 → H4~~ | ~~discovery run~~ | Retired 2026-10-18: now `owned` (AC-80). Was: `homepage_used` `https://www.testwerke.de/`, `homepage_check.verdict` `unclear` | unit |
 | AC-47 | W with supplied CIK `123`, no website | identity run | `match_rule` `exact_lei`, verdict `resolved`, `resolved_website` `null` (as on `main`) | unit |
 | AC-48 | W, H1 whose `/impressum` request raises `httpx.ConnectError` | `check_homepage(H1, W)` | verdict `unclear`, evidence exactly `["name_in_title"]` | unit |
 | AC-49 | W, H1 URL returning HTTP 404 | `check_homepage` | verdict `unclear`, evidence exactly `["fetch_failed"]` | unit |
@@ -353,10 +359,18 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
 | AC-71 | as AC-65 | run 2 | `documents_found` has one entry for `https://www.testwerke.de/gb2025.pdf?v=2`, with `alias_of` `https://www.testwerke.de/gb2025.pdf` | unit |
 | AC-72 | W with supplied website `https://www.testwerke.de/`, empty state dir; the homepage links only to `/a.pdf` and then `/b.pdf`, both returning P1; `/a.pdf`'s response is delayed so that `/b.pdf` finishes downloading first | discovery run | the global events feed gains exactly 1 line, a `new_document` for `https://www.testwerke.de/a.pdf` | unit |
 | AC-73 | as AC-72 | discovery run | the manifest entry for `https://www.testwerke.de/b.pdf` has `alias_of` `https://www.testwerke.de/a.pdf` | unit |
+| AC-74 | W; Wikidata P1278 → H4 | identity run | verdict `resolved`, `flagged_for_review` false, `resolved_website` `https://www.testwerke.de/`, confidence 1.0 | unit |
+| AC-75 | W; Wikidata P1278 → `https://www.testwerke.de/`, which returns HTTP 404 | identity run | verdict `uncertain`, `flagged_for_review` true, `reason_codes` `["match_ambiguous"]`, `resolved_website` `https://www.testwerke.de/` | unit |
+| AC-76 | W; Wikidata P1278 → H4 | discovery run | `homepage_used` `https://www.testwerke.de/`, `homepage_check.verdict` `owned`, `homepage_check.evidence` exactly `["name_in_title", "identifier_source"]`; the crawl fetches H4 | unit |
+| AC-77 | Company named `Testwerke AG`, no identifiers; search returns only the H4 URL | discovery run | `homepage_check.verdict` `unclear`, `homepage_check.evidence` exactly `["name_in_title"]` | unit |
+| AC-78 | W, H4 | `check_homepage(H4, W, identifier_source=True)` | verdict `owned`, evidence exactly `["name_in_title", "identifier_source"]` | unit |
+| AC-79 | W, H2 | `check_homepage(H2, W, identifier_source=True)` | verdict `rejected`, evidence exactly `["blocklisted_domain"]` | unit |
+| AC-80 | W with supplied CIK `123`, no website; Wikidata P1278 → H4 | discovery run | `homepage_used` `https://www.testwerke.de/`, `homepage_check.verdict` `owned` | unit |
+| AC-81 | W, H3 | `check_homepage(H3, W, identifier_source=True)` | verdict `rejected`, evidence `[]` | unit |
 
 Must not change: a supplied website is never checked (AC-25) and a company with a supplied website or
 CIK makes no new identity lookup (AC-22, AC-44, AC-47, AC-51); the identifier-rule path without a Wikidata hit
 (AC-17); an ISIN-only company with no GLEIF hit (AC-14); adjudicated results stay flagged (AC-20);
 amendment filings are not picked (AC-35); a `200` with new bytes is still an update (AC-63); no stored
 headers means a plain GET (AC-64); new bytes at a new URL are still new (AC-67); US ticker resolution (AC-37); no downloaded document is
-dropped (AC-30); the full backend suite passes.
+dropped (AC-30); a search-found homepage is never `owned` on name alone (AC-77); the full backend suite passes.
