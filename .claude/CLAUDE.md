@@ -15,6 +15,9 @@ session that never works on the implementation; the Holdout acceptance job runs 
 `Spec: <slug>` and prints only `AC-n pass|fail`. Never attach `holdout` to an implementing session.
 If CI goes red on `main` after a merge, the Main guard workflow opens a `Revert <sha>` PR (or an issue);
 merge it, or close it when a fix is already on the way.
+To run a feature through all of this, start a cloud session and type `/factory <feature>`: the
+`factory` skill starts one session per stage, tracks them and updates the Factory Board; `/factory`
+alone shows where each feature stands.
 Every Monday a scheduled task runs the `retro` skill: it logs the week's failures in
 `docs/FACTORY_RETRO_LOG.md` and opens a `Factory retro <date>` PR with at most three rule changes.
 
