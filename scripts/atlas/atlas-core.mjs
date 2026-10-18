@@ -1,5 +1,6 @@
 // Pure logic for the Atlas page: search, graph walks, links. No DOM; labels stay plain data.
 // Graph shape (from build_data.py): {nodes: [{id, label, path, community, kind, inferredDeg}], links: [{s, t, inferred}]}.
+// Adjacency is cached by graph object identity: pass a new graph object per filter state.
 
 const REPO = 'https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/main/';
 const adjCache = new WeakMap();
@@ -17,11 +18,13 @@ function adjacency(graph) {
   return adj;
 }
 
-// Entries are pre-sorted (file nodes first, then by degree), so search is one scan that stops at `limit`.
+// Entries are pre-sorted (file nodes first, then by degree); search ranks exact-name hits above that order.
 export function buildIndex(graph) {
   const adj = adjacency(graph);
   const entries = graph.nodes.map((node) => ({
     node,
+    name: node.label.toLowerCase(),
+    stem: node.label.toLowerCase().replace(/\.[^.]*$/, ''),
     key: `${node.label}\n${node.path ?? ''}`.toLowerCase(),
     file: node.kind === 'file' ? 0 : 1,
     deg: adj.get(node.id).length,
@@ -32,15 +35,15 @@ export function buildIndex(graph) {
 
 export function search(index, query, limit = 20) {
   const q = query.trim().toLowerCase();
-  const out = [];
-  if (!q) return out;
+  if (!q) return [];
+  const exact = [];
+  const rest = [];
+  // Keep scanning past `limit` so an exact hit late in the order is never cut off.
   for (const e of index.entries) {
-    if (e.key.includes(q)) {
-      out.push(e.node);
-      if (out.length >= limit) break;
-    }
+    if (e.name === q || e.stem === q) exact.push(e.node);
+    else if (rest.length < limit && e.key.includes(q)) rest.push(e.node);
   }
-  return out;
+  return exact.concat(rest).slice(0, limit);
 }
 
 export function neighbourhood(graph, id, hops) {

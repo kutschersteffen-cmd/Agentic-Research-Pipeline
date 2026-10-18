@@ -7,6 +7,8 @@ Usage: build_data.py --graph graph.json --meta meta.json --report GRAPH_REPORT.m
 Exits 2 and writes nothing when an input file is missing.
 """
 import argparse
+import contextlib
+import io
 import json
 import os
 import re
@@ -168,10 +170,12 @@ def selftest():
         out2.mkdir()
         (out2 / "keep").write_text("x")
         no_graph = base[2:] + ["--out", str(out2)]
-        assert main(no_graph) == 2
-        assert main(["--graph", str(t / "nope.json")] + no_graph) == 2
+        with contextlib.redirect_stderr(io.StringIO()) as err:
+            assert main(no_graph) == 2
+            assert main(["--graph", str(t / "nope.json")] + no_graph) == 2
+            assert main(["--graph", str(t / "nope.json")] + base[2:] + ["--out", str(t / "out3")]) == 2
+        assert err.getvalue().count("--graph missing") == 3, err.getvalue()
         assert sorted(p.name for p in out2.iterdir()) == ["keep"]
-        assert main(["--graph", str(t / "nope.json")] + base[2:] + ["--out", str(t / "out3")]) == 2
         assert not (t / "out3").exists()
 
         # Missing wiki/notes dirs are fine (first run).

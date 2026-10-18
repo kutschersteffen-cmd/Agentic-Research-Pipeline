@@ -42,6 +42,26 @@ test('search_prefers_file_node', () => {
   assert.deepEqual(res.map((n) => n.id), [1, 0]);
 });
 
+test('search_exact_name_first', () => {
+  const g = {
+    nodes: [
+      node(0, { label: 'test_grounding.py', path: 'backend/tests/test_grounding.py', kind: 'file' }),
+      node(1, { label: 'grounding.py', path: 'backend/arp/grounding.py', kind: 'file' }),
+      node(2), node(3),
+    ],
+    links: [{ s: 0, t: 2 }, { s: 0, t: 3 }],
+  };
+  assert.deepEqual(search(buildIndex(g), 'grounding').map((n) => n.id), [1, 0]);
+});
+
+test('search_exact_entity_survives_limit', () => {
+  const files = Array.from({ length: 25 }, (_, i) => node(i, { label: `run_${i}.py`, path: `pkg/run_${i}.py`, kind: 'file' }));
+  const g = { nodes: [...files, node(25, { label: 'run' })], links: [] };
+  const res = search(buildIndex(g), 'run');
+  assert.equal(res.length, 20);
+  assert.equal(res[0].id, 25);
+});
+
 test('search matches path and is case-insensitive, respects limit', () => {
   const g = { nodes: [node(0, { label: 'x', path: 'backend/arp/Grounding.py' }), node(1)], links: [] };
   assert.deepEqual(search(buildIndex(g), 'GROUNDING').map((n) => n.id), [0]);
