@@ -9504,6 +9504,32 @@
      "access_pattern": {
       "$ref": "#/components/schemas/AccessPattern"
      },
+     "cadence": {
+      "anyOf": [
+       {
+        "enum": [
+         "annual",
+         "quarterly"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cadence"
+     },
+     "key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Key"
+     },
      "locator": {
       "description": "Where in the source the figure sits. Doubles as the extraction instruction for a refresh run.",
       "title": "Locator",
@@ -9520,6 +9546,16 @@
      "source_name": {
       "title": "Source Name",
       "type": "string"
+     },
+     "tier": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Tier"
+       },
+       {
+        "type": "null"
+       }
+      ]
      },
      "url": {
       "anyOf": [
@@ -13569,6 +13605,16 @@
     ],
     "title": "ThresholdRule",
     "type": "object"
+   },
+   "Tier": {
+    "description": "How far a source may ground a fact (rule book design, section 2).",
+    "enum": [
+     "primary",
+     "secondary",
+     "news"
+    ],
+    "title": "Tier",
+    "type": "string"
    },
    "TierDefinition": {
     "properties": {

@@ -11248,6 +11248,10 @@ export interface components {
          */
         PrimarySource: {
             access_pattern: components["schemas"]["AccessPattern"];
+            /** Cadence */
+            cadence?: ("annual" | "quarterly") | null;
+            /** Key */
+            key?: string | null;
             /**
              * Locator
              * @description Where in the source the figure sits. Doubles as the extraction instruction for a refresh run.
@@ -11259,6 +11263,7 @@ export interface components {
             refresh_cadence: string;
             /** Source Name */
             source_name: string;
+            tier?: components["schemas"]["Tier"] | null;
             /**
              * Url
              * @description None for company_disclosure sources, where the relevant company varies by who is being assessed.
@@ -13090,6 +13095,12 @@ export interface components {
              */
             when?: boolean | string | number | null;
         };
+        /**
+         * Tier
+         * @description How far a source may ground a fact (rule book design, section 2).
+         * @enum {string}
+         */
+        Tier: "primary" | "secondary" | "news";
         /** TierDefinition */
         TierDefinition: {
             /**

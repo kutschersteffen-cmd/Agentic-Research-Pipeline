@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -61,6 +62,14 @@ class AccessPattern(StrEnum):
     STRUCTURED_API_OR_DASHBOARD = "structured_api_or_dashboard"
 
 
+class Tier(StrEnum):
+    """How far a source may ground a fact (rule book design, section 2)."""
+
+    PRIMARY = "primary"
+    SECONDARY = "secondary"
+    NEWS = "news"
+
+
 class PrimarySource(BaseModel):
     """One source attached to one criterion in criteria_schema.json. These six
     fields are all that the data actually carries -- the original design notes
@@ -76,6 +85,10 @@ class PrimarySource(BaseModel):
     access_pattern: AccessPattern
     refresh_cadence: str
     locator: str = Field(description="Where in the source the figure sits. Doubles as the extraction instruction for a refresh run.")
+    # None until the bundled file is filled in; the rule book validator reports a missing tier.
+    key: str | None = None
+    tier: Tier | None = None
+    cadence: Literal["annual", "quarterly"] | None = None
 
 
 class BarrierCriterion(BaseModel):

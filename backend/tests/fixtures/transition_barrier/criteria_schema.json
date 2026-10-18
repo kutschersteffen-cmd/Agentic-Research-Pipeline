@@ -32,7 +32,6 @@
         {
           "key": "cbam_regulation",
           "tier": "primary",
-          "cadence": "annual",
           "source_name": "CBAM Regulation 2023/956",
           "publisher": "Fixture",
           "url": "https://eur-lex.europa.eu/eli/reg/2023/956/oj",
@@ -43,7 +42,6 @@
         {
           "key": "steel_policy_tracker",
           "tier": "secondary",
-          "cadence": "annual",
           "source_name": "Steel Policy Tracker",
           "publisher": "Fixture",
           "url": "https://example.org/steel-policy-tracker",
