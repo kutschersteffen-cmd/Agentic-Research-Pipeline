@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from arp.discovery.site_check import SiteCheck
 from arp.schemas.common import DocType, new_id, now_iso
 from arp.schemas.review import ReasonCode
 
@@ -72,6 +73,7 @@ class DiscoveryCompanyResult(BaseModel):
         ),
     )
     crawl_error: str | None = Field(default=None, description="Why the homepage was unreachable, when homepage_unreachable is True.")
+    homepage_check: SiteCheck | None = Field(default=None, description="Check of a derived homepage; None when supplied or none found.")
     documents_found: list[DiscoveredDocument] = Field(default_factory=list)
     new_events: list[DocumentEvent] = Field(default_factory=list)
     generated_at: str = Field(default_factory=now_iso)

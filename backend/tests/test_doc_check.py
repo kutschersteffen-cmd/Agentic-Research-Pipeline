@@ -2,19 +2,16 @@
 
 from __future__ import annotations
 
-import functools
 from pathlib import Path
 
 import httpx
 
 from arp.config import Settings
-from arp.discovery import downloader
-from arp.discovery import pipeline as pipeline_module
-from arp.discovery.crawler import CandidateDocumentLink
+from arp.discovery import crawler, downloader
 from arp.discovery.doc_check import DocCheck, check_document
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
 from arp.discovery.site_finder import WebSearchClient
-from arp.schemas.common import CompanyRef, DocType
+from arp.schemas.common import CompanyRef
 from arp.storage.run_store import RunStore
 from tests.pdf_fixtures import p1, p2, p3, p4
 
@@ -73,37 +70,29 @@ def _pdf(builder, tmp_path) -> httpx.Response:
 async def _discover(tmp_path, monkeypatch, pg, served: dict[str, httpx.Response]):
     """Discovery run for W with supplied website; the homepage links only to the paths in `served`.
     Returns (documents_found as dicts, run manifest)."""
-    links = [
-        CandidateDocumentLink(
-            url=SITE + path, doc_type=DocType.ANNUAL_REPORT_10K,
-            link_text="Annual Report 2025" if path.endswith(".html") else "Geschäftsbericht 2025",
-        )
-        for path in served
-    ]
-
-    async def _crawl(root_url, config):  # shortcut: stands in for the crawl until it takes a transport (Task 8)
-        assert root_url == W_SITE.website
-        return links
+    links = "".join(
+        f'<a href="{path}">{"Annual Report 2025" if path.endswith(".html") else "Geschäftsbericht 2025"}</a>' for path in served
+    )
+    homepage = httpx.Response(200, html=f"<html><body>{links}</body></html>")
 
     def handler(request: httpx.Request) -> httpx.Response:
-        return served.get(request.url.path) or httpx.Response(404)
+        return homepage if request.url.path == "/" else served.get(request.url.path) or httpx.Response(404)
 
     async def _no_ssrf(request):
         return None
 
-    monkeypatch.setattr(pipeline_module, "crawl_for_documents", _crawl)
+    monkeypatch.setattr(crawler, "ssrf_guard_request_hook", _no_ssrf)
     monkeypatch.setattr(downloader, "ssrf_guard_request_hook", _no_ssrf)
-    monkeypatch.setattr(
-        pipeline_module, "download_documents",
-        functools.partial(downloader.download_documents, transport=httpx.MockTransport(handler)),
-    )
     settings = Settings(
         documents_dir=tmp_path / "documents", discovery_state_dir=tmp_path / "state",
-        runs_dir=tmp_path / "runs", cache_dir=tmp_path / "cache",
+        runs_dir=tmp_path / "runs", cache_dir=tmp_path / "cache", discovery_request_delay_seconds=0,
     )
     run_store = RunStore(pg, settings.runs_dir)
     run_id = create_discovery_run([W_SITE], None, "manual", run_store)
-    await execute_discovery_run(run_id, [W_SITE], settings=settings, run_store=run_store, search_client=_NullSearchClient())
+    await execute_discovery_run(
+        run_id, [W_SITE], settings=settings, run_store=run_store, search_client=_NullSearchClient(),
+        transport=httpx.MockTransport(handler),
+    )
     rows = run_store.read_results(run_id)
     assert len(rows) == 1
     return rows[0]["documents_found"], run_store.load_manifest(run_id)
