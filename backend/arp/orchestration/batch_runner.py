@@ -10,7 +10,7 @@ from arp.db.session import retrying
 from arp.db.to_observations import to_observations
 from arp.llm.batching_client import BatchRequestFailed
 from arp.orchestration.job_manager import JobManager
-from arp.orchestration.jobs import hold_run
+from arp.orchestration.jobs import hold_run, traceback_tail
 from arp.orchestration.review_queue import queue_for_review
 from arp.orchestration.step_tally import on_company, tally_run
 from arp.schemas.common import CompanyRef
@@ -108,6 +108,8 @@ async def run_batch(
                 row = {"key": key, "error": str(exc)}
                 if isinstance(exc, ReviewRequired):
                     row.update(review=True, report=exc.report)
+                else:
+                    row["traceback"] = traceback_tail(exc)
                 # Writes run in threads: a retried write (sleeps, connect timeouts) must not stall the loop.
                 async with write_lock:
                     await asyncio.to_thread(sinks.append_error, row)

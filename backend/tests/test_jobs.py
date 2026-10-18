@@ -2,6 +2,8 @@ import asyncio
 import subprocess
 import sys
 import threading
+from datetime import datetime
+from unittest.mock import patch
 
 import pytest
 
@@ -10,7 +12,7 @@ from arp.discovery.identity_pipeline import create_identity_run
 from arp.discovery.pipeline import create_discovery_run
 from arp.extraction.financials_pipeline import create_financials_extraction_run
 from arp.orchestration.job_manager import JobManager
-from arp.orchestration.jobs import LocalJobLauncher, RunBusy, run_lease
+from arp.orchestration.jobs import LocalJobLauncher, RunBusy, _mark_failed, hold_run, run_lease
 from arp.schemas.common import CompanyRef
 from arp.storage.run_store import RunStore
 from arp.transition_plan.pipeline import create_transition_plan_run
@@ -79,6 +81,40 @@ def test_local_launcher_runs_job_under_lease(tmp_path, pg):
 
     asyncio.run(go())
     assert outcome == ["busy"]
+
+
+def _fail_under_hold_run(store, message):
+    run = JobManager(store).create_run("extraction", {}, 0)
+    with pytest.raises(RuntimeError), hold_run(store, run.run_id):
+        raise RuntimeError(message)
+    return run.run_id
+
+
+def test_failed_job_records_run_failed_event(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
+    run_id = _fail_under_hold_run(store, "provider down")
+    manifest = store.load_manifest(run_id)
+    assert manifest.status == "failed"
+    assert manifest.error == "RuntimeError: provider down"
+    (event,) = store.read_events(run_id)
+    assert event["type"] == "run_failed"
+    assert datetime.fromisoformat(event["at"]).tzinfo is not None
+    assert "RuntimeError: provider down" in event["traceback"]
+
+
+def test_run_failed_event_traceback_is_cut(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
+    run_id = _fail_under_hold_run(store, "x" * 20000)
+    (event,) = store.read_events(run_id)
+    assert len(event["traceback"]) == 8000
+
+
+def test_event_write_failure_does_not_break_mark_failed(tmp_path, pg):
+    store = RunStore(pg, tmp_path)
+    run = JobManager(store).create_run("extraction", {}, 0)
+    with patch.object(RunStore, "append_event", side_effect=OSError("disk full")):
+        _mark_failed(store, run.run_id, RuntimeError("provider down"))
+    assert store.load_manifest(run.run_id).status == "failed"
 
 
 def _plain(companies):

@@ -1,5 +1,7 @@
 
-from arp.orchestration.batch_runner import run_batch, run_sinks
+import traceback
+
+from arp.orchestration.batch_runner import ReviewRequired, run_batch, run_sinks
 from arp.storage.run_store import RunStore
 
 
@@ -58,6 +60,43 @@ async def test_run_batch_isolates_failures(tmp_path, pg):
     error_rows = store.read_errors("r")
     assert len(error_rows) == 1
     assert error_rows[0]["key"] == "bad"
+
+
+async def _run_failing(store, exc):
+    async def worker(item: str) -> str:
+        raise exc
+
+    await run_batch(
+        ["C1"],
+        item_key=lambda i: i,
+        worker=worker,
+        sinks=run_sinks(store, "r"),
+        concurrency=1,
+        result_to_json=lambda r: {"value": r},
+    )
+    return store.read_errors("r")
+
+
+async def test_company_failure_keeps_traceback(tmp_path, pg):
+    (row,) = await _run_failing(RunStore(pg, tmp_path), ValueError("boom"))
+    assert row["key"] == "C1"
+    assert row["error"] == "boom"
+    assert "Traceback (most recent call last)" in row["traceback"]
+    assert "ValueError: boom" in row["traceback"]
+
+
+async def test_review_required_row_has_no_traceback(tmp_path, pg):
+    (row,) = await _run_failing(RunStore(pg, tmp_path), ReviewRequired("look", {"why": "x"}))
+    assert row["review"] is True
+    assert row["report"] == {"why": "x"}
+    assert "traceback" not in row
+
+
+async def test_company_traceback_is_cut_to_8000_characters(tmp_path, pg):
+    exc = ValueError("x" * 20000)
+    (row,) = await _run_failing(RunStore(pg, tmp_path), exc)
+    assert len(row["traceback"]) == 8000
+    assert row["traceback"] == "".join(traceback.format_exception(exc))[-8000:]
 
 
 async def test_run_batch_cancel_check_stops_new_items(tmp_path, pg):
