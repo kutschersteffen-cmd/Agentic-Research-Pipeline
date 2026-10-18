@@ -63,9 +63,8 @@ if { [ ${#py[@]} -gt 0 ] || [ ${#mods[@]} -gt 0 ]; } && ensure backend; then
   done
   if [ ${#tests[@]} -gt 0 ] && postgres_up; then
     mapfile -t tests < <(printf '%s\n' "${tests[@]}" | sort -u)
-    # Graph tests skip without Neo4j, so a failed start (no Java, no network) skips them rather than blocking.
-    [[ "$ARP_TEST_NEO4J_URI" == bolt://localhost:7687 ]] && (cd backend && grep -lq neo4j_graph "${tests[@]}") &&
-      { bash "$here/ensure-deps.sh" neo4j >/dev/null 2>&1 || unset ARP_TEST_NEO4J_URI; }
+    # Graph tests fail without Neo4j, like Postgres; start it only for the default URI and only when they are selected.
+    [[ "$ARP_TEST_NEO4J_URI" == bolt://localhost:7687 ]] && (cd backend && grep -lq neo4j_graph "${tests[@]}") && ensure neo4j
     run backend "$PY" -m pytest -q "${tests[@]}"  # not bare pytest: it may be a uv tool without backend deps
   fi
 fi

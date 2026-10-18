@@ -156,3 +156,10 @@ def test_layer_params_rejects_bad_setting(monkeypatch, env, value):
     monkeypatch.setenv(env, value)
     with pytest.raises(LayerSettingsError, match=env):
         layer_params(Settings())
+
+
+def test_layer_params_accepts_range_edges(monkeypatch):
+    for env, value in {"ARP_THEME_LAYER_W1": "0", "ARP_THEME_LAYER_W2": "0", "ARP_THEME_LAYER_W3": "0",
+                       "ARP_THEME_LAYER_DECAY": "1", "ARP_THEME_LAYER_MAX_HOPS": "1"}.items():
+        monkeypatch.setenv(env, value)
+    assert layer_params(Settings()) == LayerParams(0.0, 0.0, 0.0, 1.0, 1, 0.5)

@@ -162,15 +162,15 @@ def sample_house_universe(tmp_path, monkeypatch):
 
 @pytest.fixture
 def neo4j_graph(monkeypatch):
-    """An empty company graph (ARP_TEST_NEO4J_URI, e.g. `bash .claude/hooks/ensure-deps.sh neo4j`); skips without one.
-    Also sets ARP_NEO4J_* so the app and CLI under test use the same graph; yields a driver."""
+    """An empty company graph (ARP_TEST_NEO4J_URI); fails without one, like Postgres. Also sets
+    ARP_NEO4J_* so the app and CLI under test use the same graph; yields a driver."""
     from neo4j import GraphDatabase
 
     from arp.config import get_settings
 
     uri = os.environ.get("ARP_TEST_NEO4J_URI")
     if not uri:
-        pytest.skip("ARP_TEST_NEO4J_URI not set")
+        pytest.fail("ARP_TEST_NEO4J_URI is required: bash .claude/hooks/ensure-deps.sh neo4j", pytrace=False)
     user = os.environ.get("ARP_TEST_NEO4J_USER", "neo4j")
     password = os.environ.get("ARP_TEST_NEO4J_PASSWORD", "arp_neo4j_test")
     monkeypatch.setenv("ARP_NEO4J_URI", uri)
