@@ -1521,6 +1521,87 @@
     "title": "BestInClassCoverage",
     "type": "object"
    },
+   "Body_add_fact_api_transition_barrier_cells__code___region__facts_post": {
+    "properties": {
+     "as_of": {
+      "default": "",
+      "title": "As Of",
+      "type": "string"
+     },
+     "fact": {
+      "title": "Fact",
+      "type": "string"
+     },
+     "file": {
+      "anyOf": [
+       {
+        "contentMediaType": "application/octet-stream",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "File"
+     },
+     "locator": {
+      "default": "",
+      "title": "Locator",
+      "type": "string"
+     },
+     "page": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page"
+     },
+     "publisher": {
+      "default": "",
+      "title": "Publisher",
+      "type": "string"
+     },
+     "quote": {
+      "default": "",
+      "title": "Quote",
+      "type": "string"
+     },
+     "source_key": {
+      "default": "",
+      "title": "Source Key",
+      "type": "string"
+     },
+     "tier": {
+      "default": "",
+      "title": "Tier",
+      "type": "string"
+     },
+     "title": {
+      "default": "",
+      "title": "Title",
+      "type": "string"
+     },
+     "unit": {
+      "default": "",
+      "title": "Unit",
+      "type": "string"
+     },
+     "value": {
+      "title": "Value",
+      "type": "string"
+     }
+    },
+    "required": [
+     "fact",
+     "value"
+    ],
+    "title": "Body_add_fact_api_transition_barrier_cells__code___region__facts_post",
+    "type": "object"
+   },
    "Body_mechanism_from_indicators_api_decision_mechanisms_from_indicators_post": {
     "properties": {
      "file": {
@@ -2254,6 +2335,36 @@
      }
     },
     "title": "CheckConfig",
+    "type": "object"
+   },
+   "ChoiceRequest": {
+    "properties": {
+     "fact": {
+      "title": "Fact",
+      "type": "string"
+     },
+     "reason": {
+      "default": "",
+      "title": "Reason",
+      "type": "string"
+     },
+     "value_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "integer"
+       }
+      ],
+      "title": "Value Id"
+     }
+    },
+    "required": [
+     "fact",
+     "value_id"
+    ],
+    "title": "ChoiceRequest",
     "type": "object"
    },
    "Citation": {
@@ -31252,6 +31363,134 @@
     ]
    }
   },
+  "/api/transition-barrier/cells/{code}/{region}/choices": {
+   "post": {
+    "description": "For a conflict, the analyst picks which value counts, with a written reason.",
+    "operationId": "add_choice_api_transition_barrier_cells__code___region__choices_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "code",
+      "required": true,
+      "schema": {
+       "title": "Code",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "region",
+      "required": true,
+      "schema": {
+       "title": "Region",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ChoiceRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Add Choice Api Transition Barrier Cells  Code   Region  Choices Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Add Choice",
+    "tags": [
+     "transition-barrier"
+    ]
+   }
+  },
+  "/api/transition-barrier/cells/{code}/{region}/facts": {
+   "post": {
+    "description": "An analyst enters a fact for sources code cannot read: from a registered source, or with an uploaded PDF.",
+    "operationId": "add_fact_api_transition_barrier_cells__code___region__facts_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "code",
+      "required": true,
+      "schema": {
+       "title": "Code",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "region",
+      "required": true,
+      "schema": {
+       "title": "Region",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_add_fact_api_transition_barrier_cells__code___region__facts_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Add Fact Api Transition Barrier Cells  Code   Region  Facts Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Add Fact",
+    "tags": [
+     "transition-barrier"
+    ]
+   }
+  },
   "/api/transition-barrier/criteria": {
    "get": {
     "description": "The 35 criteria (9 sectors x 3 constraint pillars) with their metrics,\nH/M/L rubrics and primary sources. Static reference data, not per-run state.",
@@ -31318,6 +31557,46 @@
      }
     },
     "summary": "Get Criterion",
+    "tags": [
+     "transition-barrier"
+    ]
+   }
+  },
+  "/api/transition-barrier/documents/{doc_id}": {
+   "get": {
+    "operationId": "get_document_api_transition_barrier_documents__doc_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "doc_id",
+      "required": true,
+      "schema": {
+       "title": "Doc Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Document",
     "tags": [
      "transition-barrier"
     ]

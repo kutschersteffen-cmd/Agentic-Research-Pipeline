@@ -5934,6 +5934,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/transition-barrier/cells/{code}/{region}/choices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Choice
+         * @description For a conflict, the analyst picks which value counts, with a written reason.
+         */
+        post: operations["add_choice_api_transition_barrier_cells__code___region__choices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transition-barrier/cells/{code}/{region}/facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Fact
+         * @description An analyst enters a fact for sources code cannot read: from a registered source, or with an uploaded PDF.
+         */
+        post: operations["add_fact_api_transition_barrier_cells__code___region__facts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/transition-barrier/criteria": {
         parameters: {
             query?: never;
@@ -5968,6 +6008,23 @@ export interface paths {
          *     deduplicated source records -- what the UI detail drawer needs in one call.
          */
         get: operations["get_criterion_api_transition_barrier_criteria__code__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transition-barrier/documents/{doc_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Document */
+        get: operations["get_document_api_transition_barrier_documents__doc_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7758,6 +7815,57 @@ export interface components {
              */
             type: "best_in_class_coverage";
         };
+        /** Body_add_fact_api_transition_barrier_cells__code___region__facts_post */
+        Body_add_fact_api_transition_barrier_cells__code___region__facts_post: {
+            /**
+             * As Of
+             * @default
+             */
+            as_of: string;
+            /** Fact */
+            fact: string;
+            /** File */
+            file?: string | null;
+            /**
+             * Locator
+             * @default
+             */
+            locator: string;
+            /** Page */
+            page?: number | null;
+            /**
+             * Publisher
+             * @default
+             */
+            publisher: string;
+            /**
+             * Quote
+             * @default
+             */
+            quote: string;
+            /**
+             * Source Key
+             * @default
+             */
+            source_key: string;
+            /**
+             * Tier
+             * @default
+             */
+            tier: string;
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+            /**
+             * Unit
+             * @default
+             */
+            unit: string;
+            /** Value */
+            value: string;
+        };
         /** Body_mechanism_from_indicators_api_decision_mechanisms_from_indicators_post */
         Body_mechanism_from_indicators_api_decision_mechanisms_from_indicators_post: {
             /** File */
@@ -8125,6 +8233,18 @@ export interface components {
              * @default 0.01
              */
             sum_tolerance: number;
+        };
+        /** ChoiceRequest */
+        ChoiceRequest: {
+            /** Fact */
+            fact: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Value Id */
+            value_id: string | number;
         };
         /** Citation */
         Citation: {
@@ -24920,6 +25040,82 @@ export interface operations {
             };
         };
     };
+    add_choice_api_transition_barrier_cells__code___region__choices_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+                region: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChoiceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_fact_api_transition_barrier_cells__code___region__facts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+                region: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_add_fact_api_transition_barrier_cells__code___region__facts_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_criteria_api_transition_barrier_criteria_get: {
         parameters: {
             query?: never;
@@ -24960,6 +25156,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_document_api_transition_barrier_documents__doc_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                doc_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

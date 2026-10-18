@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from pydantic import BaseModel
 
 from arp.api.auth import Principal, current_user
-from arp.api.deps import get_run_store, settings_dep
+from arp.api.deps import blob_store_dep, get_run_store, settings_dep
 from arp.api.review_endpoints import (
     ReviewDecisionRequest,
     get_review_decisions,
@@ -23,8 +26,10 @@ from arp.schemas.transition_barrier import (
     StalenessReport,
 )
 from arp.storage.run_store import RunStore
+from arp.transition_barrier import store
 from arp.transition_barrier.dataset import (
     build_matrix,
+    data_dir,
     filter_scores,
     load_criteria,
     load_source_registry,
@@ -32,12 +37,14 @@ from arp.transition_barrier.dataset import (
     sectors,
     sources_for_criterion,
 )
+from arp.transition_barrier.facts import FactRefused, UploadMeta, check_fact
 from arp.transition_barrier.refresh.pipeline import (
     RefreshDisabledError,
     create_refresh_run,
     execute_refresh_run,
 )
 from arp.transition_barrier.refresh.router import coverage_summary
+from arp.transition_barrier.rule_book import load_rule_book
 from arp.transition_barrier.staleness import build_staleness_report, staleness_days
 
 router = APIRouter(prefix="/api/transition-barrier", tags=["transition-barrier"])
@@ -189,3 +196,105 @@ def submit_refresh_review(
         edited_value=req.edited_value,
         comment=req.comment,
     )
+
+
+def _cell(code: str, region: str):
+    """The criterion's rules and registered sources, or 404 for a cell that doesn't exist."""
+    criterion = next((c for c in load_criteria() if c.code == code), None)
+    if criterion is None or region not in {r.value for r in Region}:
+        raise HTTPException(404, f"Unknown cell {code} / {region}")
+    return load_rule_book(data_dir())[0].criteria[code], criterion.primary_sources
+
+
+def _iso(text: str) -> date | None:
+    try:
+        return date.fromisoformat(text) if text else None
+    except ValueError:
+        raise HTTPException(422, "As-of date must be YYYY-MM-DD.") from None
+
+
+@router.post("/cells/{code}/{region}/facts", status_code=201)
+def add_fact(
+    code: str,
+    region: str,
+    fact: str = Form(...),
+    value: str = Form(...),
+    unit: str = Form(""),
+    quote: str = Form(""),
+    page: int | None = Form(None),
+    locator: str = Form(""),
+    source_key: str = Form(""),
+    file: UploadFile | None = File(None),
+    title: str = Form(""),
+    publisher: str = Form(""),
+    as_of: str = Form(""),
+    tier: str = Form(""),
+    user: Principal = Depends(current_user),
+    settings: Settings = Depends(settings_dep),
+    blobs=Depends(blob_store_dep),
+) -> dict:
+    """An analyst enters a fact for sources code cannot read: from a registered source, or with an uploaded PDF."""
+    rules, registry = _cell(code, region)
+    fact_def = next((f for f in rules.facts if f.id == fact), None)
+    if fact_def is None:
+        raise HTTPException(422, f"Unknown fact {fact}")
+    if fact_def.type is None:
+        raise HTTPException(422, f"{fact} is computed and can't be entered")
+    data = file.file.read(settings.max_upload_bytes + 1) if file and file.filename else None
+    if data is not None and len(data) > settings.max_upload_bytes:
+        raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
+    if data is not None and not data.startswith(b"%PDF-"):
+        raise HTTPException(422, "Upload a PDF document.")
+    upload = None if data is None else UploadMeta(title.strip(), publisher.strip(), _iso(as_of.strip()), tier.strip())
+    try:
+        checked = check_fact(fact_def, value=value, unit=unit.strip() or None, quote=quote, page=page, upload=upload, pdf=data)
+        if upload is None and source_key not in {s.key for s in registry}:
+            raise FactRefused(422, f"Unknown source {source_key}" if source_key else "Name a registered source or upload a document.")
+        document_id = None
+        if upload is not None:
+            content_key = hashlib.sha256(data).hexdigest()
+            blobs.put(content_key, data)
+            document_id = store.add_document(
+                title=upload.title, publisher=upload.publisher, as_of=upload.as_of, tier=upload.tier, filename=file.filename,
+                content_key=content_key, page_texts=checked.pages, uploaded_by=user.user_id,
+            )
+        stored = checked.value.isoformat() if isinstance(checked.value, date) else checked.value
+        fact_id = store.add_fact(
+            code=code, region=region, fact=fact, value=stored, unit=fact_def.unit if fact_def.type == "number" else None,
+            quote=quote, page=checked.page, locator=locator or None, source_key=None if upload else source_key,
+            document_id=document_id, entered_by=user.user_id, machine_checked=checked.machine_checked,
+        )
+    except FactRefused as exc:
+        raise HTTPException(exc.status, exc.message) from None
+    return {"id": fact_id, "page": checked.page, "machine_checked": checked.machine_checked}
+
+
+class ChoiceRequest(BaseModel):
+    fact: str
+    value_id: str | int
+    reason: str = ""
+
+
+@router.post("/cells/{code}/{region}/choices", status_code=201)
+def add_choice(code: str, region: str, req: ChoiceRequest, user: Principal = Depends(current_user)) -> dict:
+    """For a conflict, the analyst picks which value counts, with a written reason."""
+    rules, _ = _cell(code, region)
+    if req.fact not in {f.id for f in rules.facts if f.type}:
+        raise HTTPException(422, f"Unknown fact {req.fact}")
+    try:
+        choice_id = store.add_choice(
+            code=code, region=region, fact=req.fact, value_id=str(req.value_id), reason=req.reason, chosen_by=user.user_id
+        )
+    except FactRefused as exc:
+        raise HTTPException(exc.status, exc.message) from None
+    return {"id": choice_id}
+
+
+@router.get("/documents/{doc_id}")
+def get_document(doc_id: int, blobs=Depends(blob_store_dep)) -> Response:
+    found = store.document(doc_id, blobs)
+    if found is None:
+        raise HTTPException(404, "Document not found")
+    meta, data = found
+    name = (meta["filename"] or f"document-{doc_id}.pdf").replace('"', "")
+    return Response(data, media_type="application/pdf", headers={"Content-Disposition": f'inline; filename="{name}"'})
