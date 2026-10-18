@@ -39,6 +39,7 @@ def _mutmut(monkeypatch, run_returncode, run_stdout="", seen=None):
         if cmd[:2] == ["mutmut", "run"]:
             if seen is not None:
                 seen["cfg"] = Path("setup.cfg").read_text()
+                seen["env"] = kwargs.get("env") or {}
             return _Run(run_returncode, run_stdout)
         return _Run(0)
 
@@ -81,3 +82,12 @@ def test_uncovered_file_does_not_fail_the_job(monkeypatch, capsys):
 def test_config_is_skipped_not_mutated(monkeypatch, capsys):
     assert _main(monkeypatch, ["arp/config.py"], lambda path, tests: pytest.fail("mutmut ran on arp/config.py")) == 0
     assert "skipped" in capsys.readouterr().out
+
+
+def test_mutants_copy_finds_the_rule_book(monkeypatch, tmp_path):
+    """Tests that start the API check the rule book; mutmut's copy must get its real path, not REPO_ROOT's."""
+    monkeypatch.chdir(tmp_path)
+    seen = {}
+    _mutmut(monkeypatch, 0, seen=seen)
+    mutation_check.mutate("arp/x.py", ["tests/test_x.py"])
+    assert seen["env"]["ARP_TRANSITION_BARRIER_DATA_DIR"] == str(tmp_path / "arp/transition_barrier/data")
