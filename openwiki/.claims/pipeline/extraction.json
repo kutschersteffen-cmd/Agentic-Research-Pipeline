@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:52f8cb3aa920fa8f60536c9c512438898399736dfd2a973dd9922e9dc349a01c",
+  "claims": [
+    {
+      "id": "claim_f778f6e513374c08a3dade51936d2234",
+      "statement": "An extraction run refuses to start unless the registered schema and every field are released, unless it is a trial run; the registered schema snapshot is saved as schema.json and reloaded at execution.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/pipeline.py#L359-L390",
+          "version": "repo-lines-v1:sha256:544d9aa71e5d00a055096a075996b8ed2389b4f4eab439f8945b7136f43a1e71:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5ZDVmYTIzNDVhZWEyOGU3NGQzNTJmZTYwYTYxY2MyZGIxNjA4M2E1MTBhOTczMGY3MGM2ZjFlMmM4ZGE1NDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjljZjA5OGZlNjhmMTdjMzY3Y2NiYjQ1OWQ0YTc3NjA0YWJkZjA1MjIwOTIzNDg2MDEzNmIzNzRmNGNmNjZlYTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY3Zjc4YTcyZDJhYzZjZjM2MDdkNDI3OTFlNDUxMGMwZjg5N2Y2MTk1MTQ4NDBmMzIxMTVkMDZhODFmZDBkNjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE1MjI3MzVhMDE3NTQ4ZWUyZjE4Y2U4NWRlN2Q0NGUwNTBhNWFlYmE1YTVkMGY1YWE0YWFkMGY3MjE4YmFjYzEifQ"
+        },
+        {
+          "resource": "repo://backend/arp/extraction/pipeline.py#L440-L440",
+          "version": "repo-lines-v1:sha256:77c76bb9fa7c1d8dea354589110cb825cd4674671775ea150f622e20ecea310a:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNzdjNzZiYjlmYTdjMWQ4ZGVhMzU0NTg5MTEwY2I4MjVjZDQ2NzQ2NzE3NzVlYTE1MGY2MjJlMjBlY2VhMzEwYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzdjNzZiYjlmYTdjMWQ4ZGVhMzU0NTg5MTEwY2I4MjVjZDQ2NzQ2NzE3NzVlYTE1MGY2MjJlMjBlY2VhMzEwYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNWVhNTcyOTQwZTNiYzgxY2EwYmQ5ZTM2NmY3YjQwYjM5ODg4ZTQwMGE4YmFkN2FiYTE0OWFhOTc4ZjM5NDdiYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMjY2MjdiYjAzNGU2ODQ1M2NjNmJlNDBhMzU4N2RjNDcyYjBiMTFlNGNlNzA3NmUyNWUyZGI0NjJlNmE2YWI3YSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_7072de2aac274105a5b13e7903792758",
+      "statement": "Documents whose entity check returns MISMATCH are held and excluded from extraction unless a human released them; if all documents are held every field becomes a held no-evidence row.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/pipeline.py#L163-L184",
+          "version": "repo-lines-v1:sha256:e3a1802df3b9f94d4c0557c3c7ef3ee7ed81b2be804de10c6400d17677e83e5b:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJmMGJlYjBjYjViMDIxZDE4ODM0MjA4YjAyMjg2YTY3MGJhNjJlNGQ3ZDUwZWUyY2NlYThmZDMxZWNlMjJhMmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxMGQ0OTU1Y2I2NTRjYTk4ZjAxZjQ0Y2MwN2ZlMDQ0ZmMzZGQ0YzZhMjI2OGExZGI4YWUyMjAxZDZhNWZhM2UiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQwMTJmMjcyNzgxNGM5YzFmMDY4NmY5OTFhNDQyMzNlOGQxZmMyMjZhMGYxMDMxMTIyN2E3NzBiZDAzMmNmOTkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEwZTRjZmZjODBmMWU2ZDA1MzkyYjliZGY1YjRiODc5MzIzMDdiOWIxNmNmYjZlNjExNGRjNDlmY2QxNDRiYmYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_19940d02eef147048891c8fd126b35e4",
+      "statement": "A field reuses the previous run's rows without a model call when the input hash and field version match, the last answer was not rejected, and no non-rule check failed; a cache-refresh restart disables reuse.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/pipeline.py#L190-L277",
+          "version": "repo-lines-v1:sha256:39129ac71ddac946aa94a5d68fd203a6d022a2f1f632805569f74d7f0ba3f5f2:eyJzZWxlY3RlZExpbmVDb3VudCI6ODgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdiMWE5Y2FmOWVhMDFkOGFiOTBlMmM2Yzc3NTZlZjgzMzU3MmNmZTVhZWFkMGIxZDVjNDQ5NTI4NmRiYzA4OGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZmOWRhYmI2MmQyMWU2YTA0MzJkYzZmMGU4NWZlMDMyYmQzMDI2NjdlZjYxN2E1ODA3OTE4NmZjM2QzYTFjNWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5OGE1Y2I2Y2I0OWU4MTM0NzRkM2NkNjc1ZmM1OWE5ZTI0ZmUyMWI3MWJkODY4MGM2YjE4MTVkZGQ3MThmMWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ4NDcyN2ZiNjg0Y2JjMGUzYTBmODQ2YzM1YjNkYjZkZDFjY2QzZmFjZDIzNmFkODgxZTQyMDg1OTE5N2IzY2MifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_53b65c736cc94f04924a82b5a28eba9d",
+      "statement": "The input hash covers the extractor and verifier models, grounding and review thresholds, retrieval options and XBRL setting.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/pipeline.py#L104-L117",
+          "version": "repo-lines-v1:sha256:40c4d637955a31ec58f14a2ab426884c214d0d490a92c78c03801b881fbeb91d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE1ZjJjNTQ0ZjNiMTgwZjMyZWY1ZjMxY2I4NDZjMTM2ZTdhZGFmODhmZjEyOGJhNmMwMjFiYzE0YmUyY2UxMzYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ3ZTg3YTkwY2Y5MDBmMDZmZjdkOGYwNGEwOTVlNzNkYzEyMzlkYjVjZjc4NjQ2M2Q1NGQ5N2E2MzQ5YTQ4NzgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVlZTllNWI0NjhlNzFlZjE0NGUxODBjOGRlMjAxMjkxZmYyY2VkOGI3MWFlZDMzNTRkMjZlMjRmMjU2YTdkY2YifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_102a15024c98409b9606dd2a1d520bbf",
+      "statement": "With extraction_group_size above 1, low-risk fields without XBRL tags share one extract call over merged evidence, each field is still verified and grounded separately, and a failed group call falls back to per-field calls.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/pipeline.py#L231-L285",
+          "version": "repo-lines-v1:sha256:3d4229636b60c1722f30197abd7ad10b873893538b63c2a41f883e3bd9063a1e:eyJzZWxlY3RlZExpbmVDb3VudCI6NTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVhMjI0MWViM2IxNGVkMzliZmZjM2Q2MDQwODUwZGQ5YTJjZTIwM2IyZjRiMDE5OWUxNzYyYjM3NjJmNTUyZTkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIwYjM2OWU0ZTRmY2FlMzY3OTc5NzFiYmE3OGUzZDI4OWU2NjViYzI5M2E3ZTkwMjU2YjgzYmJiMTE3NzBlNGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjFhMzk0OGIxMTk4YjhiZTRlMWE5Y2RlNDBkYWI4ZjhmYmZmOGEwNDBjOWMxZDA4ZjMwZjJlNmZjNDk3NjAzZjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImExZmNkZjRmZjU5ZjU2MDIyMjg2Y2QzZjgyNjJhNjI5MzNkN2FhMGUyZGJhMjRkZGU3ZmUwNTFkZmIxZTMyNjcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b08b7863491941f1bcd36256d9e7ece3",
+      "statement": "One shared graph shape (optional try_tagged, gather_evidence, finalize_no_evidence, extract, verify, optional adjudicate, aggregate) is compiled by the custom-field, financials, TNFD and replication spec graphs.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/field_graph.py#L279-L291",
+          "version": "repo-lines-v1:sha256:08bfb17198a2bf7c8a17378fb5c835e97eacf875df8be7374c353e5126592e16:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQwN2FiNzY1YmMxNTQ1ODFlYWFhNDFkNjYxYjc0YWJmMWU5ZmRlMjFmYmI3NWEyZWM2NjFmNDAyODBjNjMyYTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhZmJhMDUyN2MzOTUzYzRiNmUwZTViNTczOWJhODM2MTJmODA1M2JjZGM5NDY2NzMwMTkzY2QxZDU5MGI0MDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM1ZGMyY2U5ZWFjMzYxMTU0NWJmNjRkOWIzOTg5MjgyYTY1NWZkNDc1ZDRkYTUyOTBlY2FlNTJmZjU5YzdiYzMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU4NzNmMjNiZGZlOGEwZGIzMGE5NTQwYmYwN2MxNzRlYjFkMzQzOWJhZTE2OWJiNDAzMTZlZGE2YjEwMTEwMjQifQ"
+        },
+        {
+          "resource": "repo://backend/arp/extraction/graph_shape.py#L10-L64",
+          "version": "repo-lines-v1:sha256:848fe2539bdfae196df1cbd32d911ffba46eb489e7bad470a759cd30c3af8556:eyJzZWxlY3RlZExpbmVDb3VudCI6NTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzNTQ0MjBiYjkzYzI4N2I5YzU2YWU0M2ZmMmM1YzdiZmYxOTdiZTY1OWQ2NjFjMmFmYzI2ZDMwMzZlNGVjYTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI4ZTBmNDYzYzRkMjQyOTEwNTEwNzMzZjllMmZiZTJlNjY4ODFhMTZhYzk1OWI4NzBjYzJjZDllMzNkNGQzODAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjIxY2EwMGQ4ZTZjNTljZmU4NmMwNmYyNDBiZThlYzc1YzQ0NTkwMWE2ZWM3OTA5NmI2ZDU2MTMwN2M1Y2Q3ZGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_aed93654037b42839ade7c6ff4ecc278",
+      "statement": "A field with xbrl_tags takes the filer's tagged facts only when a fact exists within 7 days of every planned period end, producing method tagged with confidence 1.0 and no model call.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/field_graph.py#L55-L111",
+          "version": "repo-lines-v1:sha256:ac4c4faa6e609b2016b40f26ab45a3d0d76187bdb69fb7b8836e8e54b8bb84c6:eyJzZWxlY3RlZExpbmVDb3VudCI6NTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVjN2FhMWI2OTY0MTgxZTE3M2MyYmUxNTU3MTlmYWQwZGViZmRhZjNmYzg3OWJhMGE0MzU5NjQxOGJhMDk4YTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBlMWQyNWIwNzQ0MTFjYWQ1ZDUxNjI4MmUyY2YzNjEyZjRlMzQzZWE4YjdhNTMxNDNmM2FmNGM0ZmQ1NTZjM2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYwODQxNjZmZTZhZjM4MTYzNjYyY2RiMmIwZWYzZWRkOWNlOTI5OTQ3OTU2ODI2ZDMyNWNiMDAyZWQyYTE1YTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVkZWJkYTU5MDRlZGZhOThhN2ZiMDJiN2FkY2M1ZWM5YTgxM2JjN2M3NTJjNWI0YzEzOTViZTJlODkyZDY1NGQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a85781c8545b49bea52aa89677820bf4",
+      "statement": "A field with no matching evidence is reported as not found without being routed to review.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/aggregator.py#L233-L250",
+          "version": "repo-lines-v1:sha256:a96c5a4e5be6634bb900c77b52506a8566efcca8a3411c807812c69608bbfeed:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVmY2JlY2UyYWEyMGE5MzJhMjM4ZDA3NjkyOTc3MjYxOTRkMmI5OTcxMWMzODJiZTc0ODdjMDk5ODYzYzQ1OTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwYzFmMTg4ZjE0MmVkN2E4MjQ2ODBiMjA3MTcyYzU1MTliYzYxNGE0OGZkYTdjZjE2N2VkYjhkZGY3OTk1NmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBiNDY4YWQwYWJkNWRmODYyMGJiOTRiZGZmZTg1ZjQyMTEwZWNkYThhZjc2NGE0ZDVjM2JhMDZiYWE1Zjc3M2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://backend/arp/extraction/field_graph.py#L181-L187",
+          "version": "repo-lines-v1:sha256:767f317632d58aa1734fdab7aa2fa1390676a034f029f9bd612dd8179a2f05a9:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZWE2ZWRlNmNmNTYzYjZkZGVhMmU3ZmY1ZjBmMzhlOGI0NDVhMmEyMjM1ZDRlZjgzZDZkY2U0ZGQxZWU0ZTUzMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYmRlNGY5N2M4NDQwMDNjZWNhODlmZThlNzFjYjlhN2FjMWMzMzg5ODFjMjIwMDI3YWNlMGEwNzA3OGY5MTQyZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYTcxMzhmNzMwNTNkMjI3Yjc0NWQ1NTcxZWY4MzNjNDI3MTMyODEwZmUwOTIwMDA4NWM1MmIyOWRlOWZhYzQ4MSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiY2JhODg3MGEwYzU1MjE3ZDYwNDI2NGNmN2FmOTcyOGYzYjJhZGEwZjEzZTdjYWZiMWY0NmI0N2E0NTRiM2M1MCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_d7f607f5469e4742ab6f532cbed0586b",
+      "statement": "High-risk fields are verified blind: the verifier model re-extracts without the draft and code decides the disagreement type, including power-of-ten unit or scale mismatches.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/field_graph.py#L200-L210",
+          "version": "repo-lines-v1:sha256:e4558e144f0bd275c92ca475c53a4a07d1bd86ac304a8ba34249f2c6151889b8:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY1YTNhNDQ5NDhmOWU2ZTYxOGRjYmYwYjVmODlkZmIwZjBkNGI5NjllYzk2MjZmN2U0MDBhM2Y4ZGE1MDM1OTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImViNDc3ODEwN2M3MzU2ZjM3MjM5MjE0MmYwMTcyMzU4YWQ5NjUwMzY4MGZiZmY5MzliZTBiOWJhMzlhZmQ3OTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhkMTc2NGM4MzkxZDkxNDdjODcyOWYzZTQ5OWRkY2Q3YWM3ZTFjODVjMGE1OWVlZDVjODQwNTRmZTYzMTYwYWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNiZGJmYTM2YmI3ODk0NWYwMTk2NzRlY2U4ZGNiNDZjYjYxNWZjNWRhZTQ1NWU0YWFkMjJkMDA3MWM0Y2U0YTEifQ"
+        },
+        {
+          "resource": "repo://backend/arp/extraction/verifier_agent.py#L84-L146",
+          "version": "repo-lines-v1:sha256:b795ce10023937814bb6f823ded0f5fb2f9c563958700f87912a7efb19809679:eyJzZWxlY3RlZExpbmVDb3VudCI6NjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmOGU1MjFhMmZhMDZmNmE4MjkyOTcyMDlhM2IyZmNkOWJiZjJhMjgzYTQwMzAzZTYyMDk5YjIyYWYxMDZlYTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBlMmFlNjdhMGU3OWM5NTEzMGI3ZWVhOGE3MmFkYTY4ZDBlYjQxZjQ3NWUwMmU5ZTg2YzUxNjkzZmZkYjJhOWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_645c19e8d00c4cc1bbdcf721b9695c1b",
+      "statement": "Only a typed verifier disagreement routes to the adjudicator, a third call on the verifier client.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/adjudicator.py#L37-L42",
+          "version": "repo-lines-v1:sha256:6d90fe26ccb03059dae9f877b84a4b4befa6bbd027c5735be6551f2db073047d:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMzk4MmM0ZWNkYTA2YzIwNWQ2NjRlYmZjNTJmNjVkMWI0OWUyNDA1YWY0ODY3YjRjMDliN2M5NmQ0YTE0MDRiMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYjliNDE1M2FmMzZhNzlhM2M2YjEwMDU3OTQyODhkNDVlNTQ3Nzc2YTQ2MjI1ZDA1OGM3ODZiMDIxZWEyMjQzMCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjYyZDRiODQwMDQ5OGI3ZTFiZTRhZjBjZmRkZWQ3ZDQxYmUyNGRmMzU1MjQ4M2NiNDZlYzA1ZDk3N2Y2ZGU3ZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzJlMjkyYWQyZjM4ZDEyMTFjY2NkNDFlOGE2ZmYwZjQyNWRmNmRkNDBiMTE0YmQwNzY0NmY0NTMzNzlhOTEwNCJ9"
+        },
+        {
+          "resource": "repo://backend/arp/extraction/field_graph.py#L213-L225",
+          "version": "repo-lines-v1:sha256:d0b6a8929c9f433987bbb7268fd528a2a42172eaa39bbdacf5b2d8b972033bd6:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk3YTA1NDQ0ZDgwYjU2ZGExNGRmNTAwMzc3MWQzMjQyYjgwYTdiOGM2MjIwY2YxYzUyMGM3MjU1NTM4NzNhYWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFkNGZiZTU2ZjUwZTY5ZjVhZTZjMGM4M2EyMTE2ZDc4MjAxMTk3ODkzY2IwOWE3NWJjNzZkZDMzODY3ODkwNDQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgyZjE4NmM0MjAzMGExNTJmYTRjYjUyMzYxNmY4ZmUwMjQ3YzAxNWRhNmRkODY0MGRmOWY0MTNiZjEzMzI3MDUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRlYWIyMWFhODZlMjk0ZGZjMTk3N2FhNzNlMzcyMTI3YmUwOTdjYjU0NmZhYjc0YTllN2Q5YTY5N2MxYTQ2ZTMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8e9d719cb5004efc80bdd5cbf628ae9a",
+      "statement": "The extractor prompt requires verbatim quotes tagged with doc_id and passage_id, forbids estimating values, and forbids unit conversion by the model.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/extractor_agent.py#L9-L32",
+          "version": "repo-lines-v1:sha256:c38365680bd8b34e187d25f04a7b16f32a62cc8b901de7dfcc7a147a9532c916:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM2Yjc1ZjY2M2UzODA4MzY5YTliYjA3MWY0NWZhNWUwOGI1YmUxZGNlM2E1MjIxMTUwNmU0ZTEzNTM5MmIxZjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdmZDk2NWVlN2Q3ZWFkZmI2MThiMWFkZTNjYjE1MThhYmUxNTkzNDY4YWNhMGViNzMyOGZmNDdlM2JkMWQxY2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhkZmVhMDAxODM0YWUwNDNkZTdjYzAzMjZiZTUwZGQ5ZGU5MDVhY2U4NzY3ZmVjNThmZjczYTIxYTFhMTgzYzIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7a07386bd95a4ac8836380a407f13bb2",
+      "statement": "Aggregation grounds citations only against the passages shown, applies a verifier correction or adjudicator value only when one of its citations grounds, keeps unresolved positions as alternatives, and sets confidence to the minimum of extractor and verifier confidence.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/aggregator.py#L104-L159",
+          "version": "repo-lines-v1:sha256:38307b037fd71ca329655cc2d637a9abe5108bff39804b243e0b522223ce096b:eyJzZWxlY3RlZExpbmVDb3VudCI6NTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRhMTAxZmFiZjBkNjMxNWUxYTNkYjZhMDk2NzRhYzI0NGE3ZDNlYWJiNTI4NWFlNDliYzI3MDc4ZDRiYWYyMjMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU4MWJiY2E1MDJkY2E2ODcxOGEwZWNkZDViOWU1ZmE1M2U2ZmZlNTllZjkwYzE1MWJiMmY3NDNhYzk4Y2UwODQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY0YzhlNDgwMzFhODU4YWFjZmE1ZGFjMmM2MmNmMWNkMWZkYzQyMGYzNDEzNTQ5MWI2ZDg5Yzg4NWY2MTQ2ZDQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM2ZDUzNDU1Mzk5NjkxOTc5NDY2MDIwMzNiZTY3YzNhNmQwZWY1OGFhYmFmYjExNWYyYjgxNDY4MjhkNThiMzkifQ"
+        },
+        {
+          "resource": "repo://backend/arp/extraction/field_graph.py#L228-L240",
+          "version": "repo-lines-v1:sha256:7a2a38890f5164f0c103492c77633daf0da3c5e6c5d736cd92f8218876dbd1cb:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg4OGZlN2RhMjE0MjI1ZTFmNTk0MTA5YjE2OTc5Yzc0NzNkOGE4YmRhMWU3MjNlOTI0Zjc2MWYyNWIxZGM5N2YiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwYzFmMTg4ZjE0MmVkN2E4MjQ2ODBiMjA3MTcyYzU1MTliYzYxNGE0OGZkYTdjZjE2N2VkYjhkZGY3OTk1NmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJkZDk2YjRlMGQ5OTUzYWNhZmI3ZmNkY2U2ODdjN2UxOGZmNmZmMWQ1OTIyNjQ5MDM2OTU5MzYwZGFlNjc3NTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZjYWFjYTU2M2MzZTgxOGY5ZWQyYzhiZGE2ZmNiZjMxYjA4ZDM2MWVlMTc0NDQxMjgzZDNlNzE4YjQ1ZWE1OTIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a45d940a49bf4172b17293e85f72c63d",
+      "statement": "Aggregation adds review reasons not_grounded, verifier_disagrees, verifier_correction_uncited, adjudicator_unresolved, conflict and low_confidence.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/aggregator.py#L181-L197",
+          "version": "repo-lines-v1:sha256:041cea95e0fd667b1406a12baba04bc1d0eb19072bfc4f3e2ab55184ed605b32:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxYjJlMTMxN2RlYWE0MjkxMjQyMDM3M2VlNThmZjM4MjY1M2Q3MzI4NDdiOGJkY2RlNjljNjI4MTg1MDQ2NTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU5ZjI2ZTFhZTBmNjMwZGFjNTlkYjY2NWVjNjc5MmRjODQ4NjljM2ZkYzRlYmI0NjJiN2Y2YTg4NDJlNmQxMGYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZkYTJhY2NjZjUxYTU4YmZmYmIxZDBiMDY3NTdlNTcyMDExOWZiNDE2NDdhMTUyMzE3Y2E2YTg0MTJiZDczZDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU4YWU0Y2IzMjZiNTEwMmRiZDAzZjBjNmZiYTlkNTE1YWYyMjAwYTJkYjYyNGY2MjQyMDhhMmRkMzkwYjlkM2UifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d0da0fc959a24f79ba3bc2ddf7d02902",
+      "statement": "Routing is rules-only: hold for entity mismatch, auto_accept for applicability-rule skips or rows with no reasons, and review for trial or unreleased versions, review reasons, ungrounded found values, boolean not-applicable, failed checks, pending first audit, confidence below auto_accept_min, or high-risk not-found without a verifier pass.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/routing.py#L26-L51",
+          "version": "repo-lines-v1:sha256:fe682f15d74bbe1eac796a2043c0c10ee46695f4d5d6177bbc4e89c6fe3dbb11:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYwODBmYWJmMDRlNTdhZTc3MDQyZGZjMjRhYWY3YjU5NGQwNTMzNjk5NjkzNThhYmFlYzJjNjZlZmRmODhmZjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyZmUxY2UxMjRhNjBjZDg3MDY0MzBiYTI2ZDc1NGZmY2NiMmMwMzgzOWI4ZDdiYjU2N2M3OTA2ZjZhZDMzYmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNkZjViZTdlZWIyYzRlYzY1OWJlMDgzNTA0M2YzOGEwOTYxMzdhZGQ2ZmIwNzNmM2UwNTI4ZmZjNzYzY2NmMDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_27a752c8d45b44d8879d75ad716ea1ee",
+      "statement": "Failing non-rule record checks add the check_failed review reason.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/checks/runner.py#L105-L125",
+          "version": "repo-lines-v1:sha256:c55ae42d3a409b1296375ad831202ff3cd96764d6488b3b2995b0d1b83104a3c:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVmYzczYTk2ZjczZGE4N2RiMjg0NDI3ZDFiZDhjZTQyYjA2NDJhZDJiNjI3MWMxNWQ4OWVlODk5YjllOTY0M2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU0NTI2YWZkNzhlMmJiZGM0N2QwODZmNjliOTdhZjYwZTQ5MjAzZDNjNDlhMTAwMDNmNTQxNzEyODlmOTYxZTQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgxYzE5YmUyNTRmMjMzNTUxN2FhODM2NGJhYTk3ZDM5ZjRjN2FhODYwMWQxYTg5MzJkNmYwMzdmZDY1MDExNzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_33d0323e3f89406d8613625972fbbb86",
+      "statement": "Derived fields are evaluated after routing with three-valued logic where undisclosed inputs never count as false.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/derived.py#L1-L30",
+          "version": "repo-lines-v1:sha256:4b91921e10b638b411b58f951456ae489fb635c95693964bad07c573552ae1a2:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzYTQ1MDVmOWNkNWRiNWJiMDcxMTYzOGVlZWU3ZGViODdjYzI2NjlhMjM3ZGM4NTUwY2JhYjk0MWYzZjQ3MDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzNGFkOTQ5NGNiYWMzMTQ2OWM3N2M0MTM1Njg2OTc2NzRjMjg1ODBlODY3M2Q1ZjY3MzAzODk3ODUzZjVmMGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU1MDA1MDAyN2IzMzc0NzUxMjkwZTc3YjhhZjIyYmE2NTg0NjA4Yzc0MjE3ZjdkNmRhNzE5MjM0MzU1MWNkODMifQ"
+        },
+        {
+          "resource": "repo://backend/arp/extraction/pipeline.py#L314-L325",
+          "version": "repo-lines-v1:sha256:05bd38a5d8b034915b167fb9961fc7bba3a95e43b0e8657d568ef019aa224b6b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFkNmM5NDAxYzkyM2U2NDAyODY2MDdiYzg2OGVjMjRmZDVmY2YyNDVjOTRhNWVjMjEwZTljMDNhZDgwYjQ2ZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU5YWRkYTQ0ZjlmNGMyYjc0MGZjNDRlZDE2OTA0MDQ5Nzk3MTJjZDhkYWQwN2Q2ODQ5ZWRlM2NlNDRlZTA5ZGQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjMwNmJjYzhmYzhiOGZjODZkNzlmNjdjYWZjYjBkODg4ZWFhMTM0ZDQ4MDgyNTExZDA5OTVhMTMyMGVjMzljZDYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA0ZGU0M2U4NDJjMGNkMDU2OTU4ODhmNzc0M2FkNzVhMjY0MjIyMWVmMjdhMWE5OGE3YzE2MmQ3NTViMWIzN2EifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_dbc6b2c1e0f44480a1fb21dddfe57386",
+      "statement": "Review items are created for every field routed to review, keyed by issuer_key, field_id and period.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/pipeline.py#L393-L415",
+          "version": "repo-lines-v1:sha256:8b1606211ad9f10975206325bd16b735ac886ed3d023f54d19f087516717585b:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUzOWUzMDQ2MDg5MmU5Y2U3YjY4YzY4M2Q3NDE2ZjExYzNmMmIwMTgyNDBmN2MxNmE1NjBmNGFkZDlmYzBmZmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFkZDI0NDU4MmI2ZmIwM2QyM2I4NDE1YWJlY2QzNDZiMGM5ZjQ2NmI2Zjc1MmIwNjgxODljZTdlOWEyZGMzNTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE5ZTUzYzcxMTg5N2Y1Yjc1M2YwZWQwMDJjZjgwN2QyNTdiMDEwYzJjNDM2YjRkOGY5MzUyMjc0Y2E3OWU3MTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgxNjY4NWFjZGUyYzYwYmJjZjExNmY3N2RkY2M1NTlkYWQwYmIyNzIxYWNmMDJjYzgxNmY5MDgzNmJkZTE5MWQifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-18T15:42:30.245Z"
+  }
+}

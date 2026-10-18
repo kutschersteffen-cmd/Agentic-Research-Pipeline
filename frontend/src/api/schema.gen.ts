@@ -6192,7 +6192,7 @@ export interface paths {
         };
         /**
          * List Sources
-         * @description The 86 deduplicated sources behind the matrix.
+         * @description The 94 deduplicated sources behind the matrix.
          */
         get: operations["list_sources_api_transition_barrier_sources_get"];
         put?: never;
@@ -7599,6 +7599,11 @@ export interface components {
          *     per-run record. See arp/transition_barrier/dataset.py for the loader.
          */
         BarrierCriterion: {
+            /**
+             * Actions
+             * @default []
+             */
+            actions: string[];
             category: components["schemas"]["Pillar"];
             /**
              * Code
@@ -7608,19 +7613,40 @@ export interface components {
             /** Criterion */
             criterion: string;
             /**
+             * Facts
+             * @default []
+             */
+            facts: {
+                [key: string]: unknown;
+            }[];
+            /**
              * Metric
              * @description What is actually measured, in enough detail to re-derive the rating.
              */
             metric: string;
+            /**
+             * Params
+             * @default []
+             */
+            params: {
+                [key: string]: unknown;
+            }[];
             /** Primary Sources */
             primary_sources: components["schemas"]["PrimarySource"][];
             /**
              * Rating Rubric
-             * @description The H/M/L thresholds, verbatim from the research tool.
+             * @description The H/M/L sentences, rendered from the rule book's conditions.
              */
             rating_rubric: {
                 [key: string]: string;
             };
+            /**
+             * Rationale
+             * @default
+             */
+            rationale: string;
+            /** Rule Book Version */
+            rule_book_version?: number | null;
             /** Sector */
             sector: string;
             /** Unit */
@@ -11509,17 +11535,29 @@ export interface components {
          */
         PrimarySource: {
             access_pattern: components["schemas"]["AccessPattern"];
+            /** Cadence */
+            cadence?: ("annual" | "quarterly") | null;
+            /** Key */
+            key?: string | null;
             /**
              * Locator
              * @description Where in the source the figure sits. Doubles as the extraction instruction for a refresh run.
              */
             locator: string;
+            /**
+             * Manual
+             * @default false
+             */
+            manual: boolean;
+            /** Manual Reason */
+            manual_reason?: string | null;
             /** Publisher */
             publisher: string;
             /** Refresh Cadence */
             refresh_cadence: string;
             /** Source Name */
             source_name: string;
+            tier?: components["schemas"]["Tier"] | null;
             /**
              * Url
              * @description None for company_disclosure sources, where the relevant company varies by who is being assessed.
@@ -11934,7 +11972,7 @@ export interface components {
         Region: "European Union" | "United States" | "China";
         /**
          * RegistrySource
-         * @description One of the 86 deduplicated sources behind the matrix. A derived view over
+         * @description One of the 94 deduplicated sources behind the matrix. A derived view over
          *     the primary_sources[] entries in criteria_schema.json, which stays
          *     authoritative if the two ever disagree.
          */
@@ -11947,6 +11985,13 @@ export interface components {
             key: string;
             /** Locator */
             locator: string;
+            /**
+             * Manual
+             * @default false
+             */
+            manual: boolean;
+            /** Manual Reason */
+            manual_reason?: string | null;
             /** Publisher */
             publisher: string;
             /** Refresh Cadence */
@@ -13427,6 +13472,12 @@ export interface components {
              */
             when?: boolean | string | number | null;
         };
+        /**
+         * Tier
+         * @description How far a source may ground a fact (rule book design, section 2).
+         * @enum {string}
+         */
+        Tier: "primary" | "secondary" | "news";
         /** TierDefinition */
         TierDefinition: {
             /**

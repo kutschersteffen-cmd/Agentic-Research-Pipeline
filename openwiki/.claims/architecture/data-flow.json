@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:116f91e7592314bb487dc690a5bbe922b940aa3deeb05d11738993e4b2a9e32d",
+  "claims": [
+    {
+      "id": "claim_ebb42350af774fa1b7f964cbed06f488",
+      "statement": "DocumentSourceRegistry fetches all document sources concurrently, skips a source that raises, and de-duplicates documents by sha256 in source order.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/ingestion/registry.py#L18-L41",
+          "version": "repo-lines-v1:sha256:8efddf4eaacbf09c7cc7975c0c09caa2c7af1741c5cd9db85ac1e7a84d59b896:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNiNGM2ZTc5YThhYTdhMTQ0NjljNDA0ZTdjMDFmZTk4NTg5Y2ZjMzEzMDFhM2NmNGM0ZTM1MWJlNDVmYWZhZmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjViZTI3OWNhOTNjZDYzYzU3ZTEwMjMyNzEyYjEwZTgxNjdlNjVhMWQ3NWJjYjZlMmJlZDcxNmNiNzM2MDM0NjYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNkZjNjNWE2NTU5YzU5NTAxODI3NGQ5OTAzMTZiODgwNzcxYTJmYzM1NGYzNDg1ZmZhYmFiYzI5OTYyMTc5OTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0e12456272d548278953431e2af6c0fa",
+      "statement": "The API's document registry is built from LocalFileDocumentSource, EdgarDocumentSource and, only when esef_enabled is set, EsefDocumentSource.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/api/deps.py#L107-L131",
+          "version": "repo-lines-v1:sha256:305b5feb09b16705af8d63b95ec320a3a32f8f8077b450872c5610e8c021dbbd:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJjZjdiMTI1MDEzODg3NjM0ZTQxMmY3ZDI1ZDE5YWI3NjU0ZWMyZDk4NzJjYjYzMTU0MDY0MTQyYmIzOWUwYzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBlNDk1MzU1ZjA3NzZhMzg4MjJkNjc3NDQ2OTgxMDczNmI3OWE2MWIzNTNlYTlkMGVmODQ2YjlmYzRhODQ1ZTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE1YzM2MGI1ZmM1NzkxYzQ4ODUzZmNhYjM2N2YxNmMxNDQ4YWMzYjhjZmYyODcyMjU0NGI3MzFkYmJkNTZiYTcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d7ca98b1427e4acab0e592ad88e10735",
+      "statement": "LocalFileDocumentSource reads documents_dir/<company_id>/<doc_type>/*, the layout shared by manual uploads and the discovery crawler, and archives original bytes in a blob store where a failed upload raises.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/ingestion/local_files.py#L286-L293",
+          "version": "repo-lines-v1:sha256:3c76aa13a3e73240d6e2c21d58664afa2e7b0b8d5868792eeacbe1673d7d9ed6:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODhiOTRiOGY2YTQ2MGY0YTQ1MzJiYzI1N2EwNDFhNTI1ZWI4NmExNWNhZTI4MDAxMTczMzZkM2NmZWYxODQ2YiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYjIzYWRmNmNlOTNjODcwZjJmNDUzZWQ2NTYwZmRlOGJlYWNmZTczMDJkNWQ2Njc2NGIyNTFkOWJmMzUxNTU1MSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzk0Y2UxZWE3MzNhYWMzOWQxZjlhODExYTM2ZDljNmJiZWFlMTkxYzFjOTI5NzA2ZjA5ZDFmMDVmODcxMWI1MyJ9"
+        },
+        {
+          "resource": "repo://backend/arp/ingestion/local_files.py#L398-L420",
+          "version": "repo-lines-v1:sha256:c5dc9d3a8bf28f65c52b1c39c0e00ce494dedd383cfdfaf4abdd09aed4cac290:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMDUwOWI4ODI4NTEwNGFlZmZiZWM2M2JlNTE3ODUyN2E3N2UxNDY3MDY4NzJlYjkwYmU0YzhkZWZlZGU1NWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY0NTVkNGUyNmFhMjZjMGZlZmNmZWJkOTVmZDY0YjBmZTZlNGJjNWQ4ZDIzOTQ1NGViMWUyY2I0OTE2NzBjZDUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMxZWZlNjUyN2RkYmYyMDA2YWU1N2Q2NDM1Nzk1YTNkZWZmNDUzYmI1MzYxNDAwM2I5NjgxZDI1MGZjNWJlMDgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_30eb470f07784b0597f144e626aa197f",
+      "statement": "schedule_llm_run builds the extractor and verifier LLM clients before creating the run manifest, so a missing key fails without leaving an orphaned running run, then launches the run in the background.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/api/run_scheduling.py#L19-L60",
+          "version": "repo-lines-v1:sha256:7c2893ff4b081d0cf96739a5f3f3505575cae4bb8eba6f4912064d5172760d5d:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRmY2YzZDE1MzgwMTdjMjEwYjllMDIxYWE3MDFkYTAwNmMxYWZjYTFhNTU4MDBlZGYyM2ViYmFkMzAwZmRkOWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM4ODgwMTZhOGM2ZTRmNmQzMWY0ZjllY2RmYWVmOTlhMDgwYmU0OGEyOGVmYjliZWY1MjlkZDJhZDllMzJkZjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRmNmIyZjFiMmM4N2RmY2IyZmFiMDdhMTU5ZWFkOGRiOTA5ODQ2OTAzYjJhZjViMTU3YWRmZjU5ZTY3NjEyMTMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_054043adbb604bd684f67cdfbf38af56",
+      "statement": "create_extraction_run refuses to start a non-trial run unless the registered schema and all its fields are released, and writes the registered schema to the run's schema.json.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/extraction/pipeline.py#L359-L390",
+          "version": "repo-lines-v1:sha256:544d9aa71e5d00a055096a075996b8ed2389b4f4eab439f8945b7136f43a1e71:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5ZDVmYTIzNDVhZWEyOGU3NGQzNTJmZTYwYTYxY2MyZGIxNjA4M2E1MTBhOTczMGY3MGM2ZjFlMmM4ZGE1NDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjljZjA5OGZlNjhmMTdjMzY3Y2NiYjQ1OWQ0YTc3NjA0YWJkZjA1MjIwOTIzNDg2MDEzNmIzNzRmNGNmNjZlYTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY3Zjc4YTcyZDJhYzZjZjM2MDdkNDI3OTFlNDUxMGMwZjg5N2Y2MTk1MTQ4NDBmMzIxMTVkMDZhODFmZDBkNjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImE1MjI3MzVhMDE3NTQ4ZWUyZjE4Y2U4NWRlN2Q0NGUwNTBhNWFlYmE1YTVkMGY1YWE0YWFkMGY3MjE4YmFjYzEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ca9ca9316ac4476ba6189ecfd999287a",
+      "statement": "After each company finishes, run_company_batch converts the result to observations and calls RunStore.record_company_result, which writes the run_results row, run errors, field observations with citations, fact updates, held documents and review items in one transaction; a _key already stored writes nothing.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/db/runs.py#L220-L256",
+          "version": "repo-lines-v1:sha256:bffd46772659db250fef007b3afaf200fb46575217534f719fb900b8fbc719f1:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwMGY3MzkxNzU5M2E4OWYxMTViZmZjNTlhZDI5MTc2ODEzOWEyNDVhZjA2YzkxYzEyMTdmZTc5NTc5NjE4MmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkyMzY5MGQ0YTFiNzIzZjUwNmI2NTQ2MDEzMThlNGZlM2U2ZDQ3MzdhNTg1YzQwYjM2NGQzNGY3Njk3NTEwM2UiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNlZTFmODgyOWQ3MjZhMTA1OGJlN2Q0YWRhOWFkMzc4NDZmZTcwNDVmNzZmNTBkOGYxY2YxMWE3MzNlY2QwNjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIzNTZlYWY5N2JjMmI5MWFhYjUzYWE2YWY3NzY3MGYzODM1YWFjNDQ2N2I1MTQ4ODhlMTYxYmViMmJmNGQ2OTYifQ"
+        },
+        {
+          "resource": "repo://backend/arp/orchestration/batch_runner.py#L163-L189",
+          "version": "repo-lines-v1:sha256:3912e6389869a361fb38e9a92d80fbd8f5a8bf5d287ec43aa56a098e093653e8:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzZGI3MDNhZmVlMjkyMjJmNTk3N2VkOGZlN2YwMmM0MDFmYzlkYTJhZGYxYmRmMjg0ODkzYTU3MTA5NmMzZjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY1NjEyNTFmZmE2MzA5ZmVhOTU5ZmYzZjA5ODZiMDExMGVjZDBiNTk0ZjFjMzViN2QzZjlkYjI2N2Q2OTVjNGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZiNmYyMDk5MTgwZjVjZmMxNGQ5ZTgwMzIzMDZiNDZhZGEzM2FlMGFlMGU1YzJlNmZlNDI4ZjE0NDY4Mzg0NDgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_527bd0994ee74fb88bb7f60e530b7e19",
+      "statement": "The current-fact rule never lets a not-found value remove a fact, never lets a pending-review value displace one, never lets a held value displace an accepted fact, and supersedes only on a differing accepted value or status.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/db/observations.py#L107-L123",
+          "version": "repo-lines-v1:sha256:ceb39d3ee2d8bf6b7dbcc670c153efbdcb9598f72e463e39f0824a8fd89d17a6:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEyOTIyMmNiOWMxN2M2OWQ4M2U1MWQ1ZDUyNTFhMWM0MjYyNjEyNTZkMjJlMjJlYjQ5NjJkOGQ1ZDM1MGVkMDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmNDBiZTU2YzliZTZiY2JhZmUzZGM3MTRiZjY3NmFjZDIyMGQzYzUwNzJjNjllOTRjMDc3YWZjYjViMzVhODAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZmYmQ3ZjY5MDBjZjAwYWExMGFlNjY3NjJhMTMxZGI5NmUxYzc3MWY2ZWI2MDljNmEzOTFmYjUwMDA0ZmViZTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjExZDU5MWYxNzFjNTA0Y2JhYmMxNDg3ZThmNTQ4YzViYmM3M2I3NmMwM2FmMDIzZjIzYzRhYzdlOTU0NTVlNWUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a62a17441ac94f80a4bd93481c32a70d",
+      "statement": "A review decision is appended to review_decisions and applied to company_facts; reject retires only a pending fact the rejected observation made current, escalate changes nothing, and trial runs never produce facts.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/db/observations.py#L390-L437",
+          "version": "repo-lines-v1:sha256:4eb4aeaf2346ef045c1e06e2ea66bfdeed1fd92c9bae0a02dc09a558f281f6da:eyJzZWxlY3RlZExpbmVDb3VudCI6NDgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3MTMwM2Q1NTQ0N2M1NWI5OGVmMDMxYmE4NDZjNmZkNTJiMmU2OGFmNTI2MmQxZjYwOTMyMjAxZDc3MTFkZDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU5MDlhNTNhNjE4ZDAyOGUxZDMwMDBjMGE3YWJjZWVjYmU1ZmIzN2Y0ZTUxMWVmZTQ2NjQzZmFkNmU2Njg3MmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBkMWVlOWE0ODQ5YzUxMGMxNmYxNDFlMzFjM2I1YWIwYTRiNzU1MThmYjVkMjNmZmE3NjU1MGViNmEzODZhOTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNkMjVjYzFmNTllZjNjNTFlMGRhMmI3MjBiZDlkOTllY2IyNDVlM2JjMDVlNzk4Njc1ZDFlYmEwYWMzYzA4MTUifQ"
+        },
+        {
+          "resource": "repo://backend/arp/db/runs.py#L267-L287",
+          "version": "repo-lines-v1:sha256:06a7948132215e710c198f810278b283209608b57fa6a0b250453315cbdcc583:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVjNzM1NjYxMDg4ZWZjNjQ3MmNhMzUwNGNiOTFjZWRlNjZkODUxYzk4NjFmMjliNmYxYjM2Njk3ZWMzNGVjNzkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc0Y2M4YzgzN2E3NDMxMzU5ODEzMGU2OWY3MTljNTZhNjRlNzJlMjM2YmNhYjEzZDlmYmVkOGY3NWU0YWU0Y2IiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjMzYTQ5NTExOWNjZDE1MjA2NjBkNzhiNjM3YjBmZGZmZWRlYTQ2NjQ3MWIyYTVhMThmM2U1ZDE5NDdmNDQyYWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdmMjk0YmU4YTA0MWYwZDY4MGVhYTdiY2JmMmU0ZmQ4OWMxMDc1NzNjZTk5M2E0OWE1ZDM1MjA3OThjMDcxN2QifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_bc30bb90a8b74d66a07f9c86acd2fba6",
+      "statement": "Publishing a run requires the approver role via POST /api/publish/runs/{run_id}, and no frontend source calls the /api/publish endpoints.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/api/routers/publish.py#L15-L47",
+          "version": "repo-lines-v1:sha256:8a1237218fed02d114f6599f8cc0cf3ee010f24c04364e12be248b01fa4328a7:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE5MjZlMDJiZmQ0YWZmMjc5MzdhYTE3NmQzODM3ZjkyMWI1MzZiMDIwZDUyM2U2ZTA1NTM5ZjEwMTQ4OWViZTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTNmNDBlMzc4MWViODk2YzgyZDA0NmEwODA2N2ExMWUzNWNkZjJmMWRmYWYyNmZlYTkwYjhkYjY2NzY0MTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ2MWM1ODhkMjczZjFiYTM1YzMxMjUwNTVmNTQ4MTc4MWQyNmM3Y2M4ZTlhZGExZDFkYTAzYjg4ZjAxZjkyOGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRiZjZmNzYxNGVjYjU5MWU3MTU3OTVjMTQ0YTJjODA2NjUwYzFkYzgwYTEwZmJkOTllY2YwNGRjODlkZDExNzUifQ"
+        },
+        {
+          "resource": "repo://frontend/src/api/client.ts",
+          "version": "repo-file-v1:sha256:50e8f34e9e29a6f1d9044acb067d111a036bb444194df661de586aabccab8ce0"
+        }
+      ]
+    },
+    {
+      "id": "claim_0796abe7570149409861c03212c5b51b",
+      "statement": "Company facts and their trail are served from company_facts by GET /api/companies/{ref}/facts and GET /api/facts/{fact_id}/trail, which the frontend calls through getCompanyFacts and getFactTrail.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/api/routers/companies.py#L34-L52",
+          "version": "repo-lines-v1:sha256:18cf4f13eabe0dad7846d08ff670207567b2814ac30eea6a378d818b9ba8afbc:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM4MjU4MzQyZGQzY2NmMmRmOTI3YjNiY2RiOGI3MWIxYWM1MzQ4MzRjMDUyMTY2MzdlODAwYWNjYjE5MDcyZGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM3NWNkNGRlNzUxNGFmOWNmYTRkZmZkN2Q4ODFkNWNkZDYwZTc1NTM1M2NkYjU3YmI1MGMzYmI5MWJmOTBlNTUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk1M2FkMzU5YjBjYTM5MThkMGFhODVkZDk0YjQzZTg0NjI1NDQxZjgwNTViMDY5OGQ1YTVmNmNjNGM2YjhkNmMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://frontend/src/api/client.ts#L403-L405",
+          "version": "repo-lines-v1:sha256:7eea1009a798652092f395d9607c60a7c1eced4b4c37a999c8ac77824cb0aedc:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNTQxYTc5NzZlODdjMmU5YjZhNGJmZTAyOTFmZjBkYjU3MGYxNTgxNDg0NjgwNGNmZWY5ZDc3MGZmNGRjNjBlZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDNhNDIwYjE3NzljNDc5M2Q2ZTlkM2NhNTk1NzliODU5YWEyZWE3YzdjMTVmM2JlM2U5MWU3OWZjYWU2OTVjOSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjZlZTAwYmE5MTY1YTE3YzU2NjMzOTk3Y2Y3ZmFiMjQ5OGRlYjE3NTMwMWFlZTY0ZTYxYzU3Yzc5MzgwYzk0OCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjJkZjIxMWMyZTFmMjk5NzAxMTFiYmFlMWJmZTczODlhY2IzOWEyZGRlN2RlMzViNGIyNzUwNTYyMDI5M2NkMCJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-18T15:42:30.245Z"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "_meta": {
+    "description": "Fixture F: derived from criteria_schema.json.",
+    "verified_date": "2026-08-14",
+    "source_count": 3
+  },
+  "sources": {
+    "eu_ets_report": {
+      "source_name": "EU ETS Market Report 2026",
+      "publisher": "Fixture",
+      "used_by_criteria": [
+        "STL-R1"
+      ],
+      "access_pattern": "periodic_pdf_report",
+      "refresh_cadence": "annual",
+      "locator": "Whole report",
+      "url": "https://climate.ec.europa.eu/eu-ets-market-report-2026.pdf"
+    },
+    "cbam_regulation": {
+      "source_name": "CBAM Regulation 2023/956",
+      "publisher": "Fixture",
+      "used_by_criteria": [
+        "STL-R1"
+      ],
+      "access_pattern": "legal_regulatory_text",
+      "refresh_cadence": "annual",
+      "locator": "Full regulation text",
+      "url": "https://eur-lex.europa.eu/eli/reg/2023/956/oj"
+    },
+    "steel_policy_tracker": {
+      "source_name": "Steel Policy Tracker",
+      "publisher": "Fixture",
+      "used_by_criteria": [
+        "STL-R1"
+      ],
+      "access_pattern": "industry_tracker_database",
+      "refresh_cadence": "annual",
+      "locator": "Whole tracker",
+      "url": "https://example.org/steel-policy-tracker"
+    }
+  }
+}

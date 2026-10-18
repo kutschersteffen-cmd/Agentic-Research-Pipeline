@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:228e49a1c68fea68ff0cd6ec9f2a519ee9499844dbfaf07dc10dc246e09032d5",
+  "claims": [
+    {
+      "id": "claim_fec9aebd937a43e785735329380e42a7",
+      "statement": "The frontend uses the URL hash as the source of truth for navigation: parseHash maps #/<tab>/<params> to a TABS id, falls back to home for unknown tabs, and a refused leave restores the previous hash via history.replaceState.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/App.tsx#L146-L153",
+          "version": "repo-lines-v1:sha256:31e1a2d16263d48d07cb77bcf7f20607b53c43528cb485e617a0818fdcf607c4:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMjhmYTBmNjcyOWY4ZjFjODhlNTJjZmY3MGI0Njg5YTlmNmE2NjA4MTU4MmUyZDI3MDc1MTNiMTUxMzgzOTMyNyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDg1ZDkxZjM4NjkyN2RjZjE4MjlmNWRhYzc0ZTFjZDljZmIzMWQxOGE4MDYyMjgyMzY5NjIzZGIxNjUzMTM3YyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiN2FiNGI3MzE0YWMxNDFiN2YzN2YzOTUxODNiYjkyOWY1NTI2YTlhM2VlM2FiZGE3ZDUxNjA3NDVjNjljZTgzMCJ9"
+        },
+        {
+          "resource": "repo://frontend/src/App.tsx#L180-L198",
+          "version": "repo-lines-v1:sha256:5cbb1e64e675c35deabe875202aa43b3818f5fc961657d96ee736a2a7960b13f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMwM2ZjZmJkODc0OWRkOTE5NmQ4ODhhZDc2NGZkYzFjYWFjYzU1OWI0ZTdhNDM1ZWYzYzk3NmE1OGUzMmFlOTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ4ZDU2NjM2NmY0MDUwYzVhOTZiN2U2YTg4Nzk5NmMxNDcxOTFjY2M5NzUwMzFiMDA2NTcyZGExNmIxMjU4MDMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZiOGU4YTBlNThlYzc3ZjhjNDg2NmY3MzM5MDc1NDEzYzhiNDRlMjI0MGM2Nzk4M2IzZGNiMmRkN2JmZjg4OTIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_139fbcb00f2c41ee90c5aab70067d961",
+      "statement": "Every page in App.tsx is loaded lazily with React.lazy.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/App.tsx#L18-L49",
+          "version": "repo-lines-v1:sha256:8f100e8455ffa1a1bb93b02dc81149cce6ed4e6b390c9273b9aa63b28806a1f0:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE1NzI4N2MxM2EwMWI3ZDM1YmI2N2ViNTY0MmUzYzdiMjIzNmY5MTJkOGFmZmE0MWZlYzQ2ZWJlYjYyODZiYzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU5ZDAzN2RjMDE5NTYxZTM5N2U2YTViYjBlN2ZkZjI1MjI0ZDU3NzVjZTczOTJlYjMwZjBmZDM2MDY1NmFlODMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE4ZmY4NmUzOWIzNTRlZWNiOTZhMjcxZWJhYjZiM2M5MDdkYzM3ZDcwYzNkNDBjNDJmM2FjNWM1MGYwNGE4ZTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI0NGYzODQ3ZTI4NTBjYzkzZDQyNDA3NDIyNDVjMWUyMGMxMTJhZmUyNWUwMWY1MzZjMzc5NDY4MGFjMDBmZTkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a784375fa73743f39dd747cfb16872d9",
+      "statement": "main.tsx reloads the page at most once per 10 seconds on vite:preloadError so a tab open across a deploy does not blank on missing chunks.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/main.tsx#L6-L18",
+          "version": "repo-lines-v1:sha256:d709e8d6a88bb0c99be02822dbe9736c810c0dc30eac8d204c2f90fb847c472a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBlNWRkMmMzOTVkMDA0ZjFlNmU4YzU0NTYzMDBlZWJkM2Q5ZDQ3MDIyZWNiMjU1ZWVjZjNlZmJlNmU1NGJkMGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg1ODBiNzY1MThkYWU5NzlmYWViZDAyMzY3YTI5MjkyYTUwZDk3NjA5MjI1MWEzOGE2Y2UzMDg4MGJhNDI4MjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFhMzYwMTBmZTEyMmYwZGY2NDQ5MTQ0MGFmYTNmMGQ0NGE5YTQ3ZjQ5YWMxN2Q4ZWZlOGRiMDcxM2M3NzQ1YzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM3MzU4ODhjZTBjN2Y5ZWFmY2JmMGVhY2Y0ZDQ2MmVjYWEzNzdkNzc5YTZiODM3MmQ3NjNkOTk5NDcxYTExZDIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9346858fb4aa49689e0258bee75209dd",
+      "statement": "All API calls go through request<T>(), which prefixes VITE_API_BASE (default http://localhost:8000) and uses authFetch to add a bearer token, clear the token on 401 and throw on any non-2xx response.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/api/client.ts#L119-L175",
+          "version": "repo-lines-v1:sha256:056d834337a8a62286aab1c0f591f2b38bf48526adf87a195a3f343e0608d3e5:eyJzZWxlY3RlZExpbmVDb3VudCI6NTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3NjIyOTBiOTUyMGRlZGQ0YWEzOWUwOGY3MjBhNjBmZTgyNjZmMGM5OTNkZWRmOWE3MzQyMWE0MTNlMTAyN2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVmOWM5NWY3MDkzYTcyNjMzZDBkYzAwYWUxZTMxNTAzNDM3YTVlZTc2YTQ2ZGIzMjY3ODI4MmQwN2Q5MzA0MjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI0OGMzYjM0ZmI2N2UyZjMyYTRjMmMyZTM5MjI2NTZkMGRhZGQ1Y2UzZjQ4MzM4MGIyZTA3YjEyMjM4YWM4ZWUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9a7f06c00cc24a1094f98b9d176df1a6",
+      "statement": "The bearer token is stored in localStorage under arp.token with an in-memory fallback when storage is blocked.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/lib/auth.ts#L1-L40",
+          "version": "repo-lines-v1:sha256:11216f21fc38569c1dfa28ad22fbe429b5085040c74ac84530359a8dc8f04a62:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5OTJlYmY2NTdmNGI2ZjgwZTkwMzJhOGZlOWY0M2ZlNWEzZGFhYjQ4ZWIwNjdhY2Y4NDZkYjFlMGE3ZjA1YzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3ZTU3ODhkNWQ5ZDczZDI0YTgxZGJjMGE1YTc0YmZhODJjOWMzYjNhZjk5ZTUyYWY3OTZlOTBiNDY4YThhM2QiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzMmFkZjVmZTk3OGQzZDg1ZTk0MGRjZWQ4MTgxYzA0YjQyODZhMDQ0MzlhMzc0ZTE2NjVkMmJjMmUyMWU3M2MifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_52a6dd11a16f497480e30389e152ac5d",
+      "statement": "frontend/src/api/contract.ts makes tsc -b fail when a backend response schema from schema.gen.ts no longer fits the frontend type it is read into; schema.gen.ts is generated from openapi.json by npm run gen:api.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/package.json#L6-L14",
+          "version": "repo-lines-v1:sha256:6884d402f6eff8275ccebf06f430049d679a985fe85682581569f88d335ae57f:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMzQ4MzNkNTk0OWMwM2E0MGNhOTUyNDkxNjEwYTY2NTk2NDRiM2FhNDY2MzYyZjc5OTAyMGRiZjE5ODE1NDdkYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNGQ1Y2QyZmI0ZjNkZjg4NDUxNTI1NWIzOTUyM2YyZjhiNTQ3MmJlZWE5ZjU2NmZmY2EyMDRkYjgwMjU2MTA0MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiN2E2M2JmMDk0ZjUzYTg5MTIzMjc5MjRlMjllMTE5MzIzYjJjOTU5YWNjMDEzMmZhZmEyNzE1MmI1YmQ5Zjg2NyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOThkOWZmNTVjZjlkM2QyZDY3MWM2YWJmMzJhZjk5YTQzYmZjYWRhMDkwZGVhZDQ1MDYxOWY0MWMyZGQ4YjdlYiJ9"
+        },
+        {
+          "resource": "repo://frontend/src/api/contract.ts#L1-L42",
+          "version": "repo-lines-v1:sha256:9c31b7d3c48d0471c3dd91f00b879cb9fb7d0e8bfbddd0ff2e5cc1e11c20646e:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg2YzMxNzljNzE5MzdiYzFjNzBjZmU4YWZjZTRhY2I5OGMwMjY0MzVkMzg3NzYwMDY2YjA0ZTBkNDMxZmU3ODUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIwMmQyYzBkNmRjNWU3NGQ5MmZhMTRiOTFkYmVhMjY0MDkwYmViMzVmZGI5MTg4ZDliMzQxMTgxZGNlOWY0Y2UiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_068d90c0150843209af240b74c3511c0",
+      "statement": "The Review Queue loads flagged items from every run, sorts them lowest confidence first, starts filtered when opened from #/review/<kind>/<run id>, and posts decisions to /api/review/runs/{run}/items/{key}/decision.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/api/client.ts#L224-L237",
+          "version": "repo-lines-v1:sha256:69e4ead180e731de8663bd325891ef5c3d18676b9bb22cfee2875e82f970bb58:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcxYjQ5YzRmNjU5MTA1ZDg5NGM3ODVlMWM2ODA3YTNmZjJjNmJlNmUzNjFhZWUzNGY0ZTY0OGQ5NGQ5Yzc2MTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcwMmM0MTRiNTRjZjg2ZGZiNGY5MGRmZTdkN2JkYmZhNjY2YjdkZGRkMzJmMTI4NmYyMzBhNWI1MzI0MTgxOGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZiNTgwZTk2NGY4M2E0NzNmNDNkNDQzODQ2Mjk0OWQ2OGI1NjAwZmRhNzg3ZjE2Mzc0NWQwMGRlODljYmYzNmEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdjNWNjZDU3M2Y4YTRjNGRhYTc1OTczYmMzZmQ5MDEwNGNmYTgyOTMxN2EwN2IzOWJjZmZiNTA0NDVkZDkzNDAifQ"
+        },
+        {
+          "resource": "repo://frontend/src/pages/ReviewQueue.tsx#L26-L57",
+          "version": "repo-lines-v1:sha256:6dad73fb03ec2038920fc562c49d50fd3fd3f18a05c2c39e8dcba95837ef25a5:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkwNzI5MjU2NWEyOTg1MjdkNTRmMTE2OTM1NjVjNTA0ODgxYTQ4ZDEzZmY1MDlhZmU0ODFhMzIyY2YzOGQ3NjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMwNGY5NjhhZjBlNzk0Y2VhN2YzZWU5YzcxODY1NzhkNjgyNWQwZjBmNTEzY2JkMzVmZTgyYzUwYmYwOGY5NTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAwMTk1NjgyY2Y3N2RiYmM3YjRmMzJjZjZmMzMxNGI1ZDNmZDM4MDJmMTkwNDQ2NTRlYTIxZDE0YzU0MTM1N2MifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_514387cebaa94e04a6c2b4470440b89f",
+      "statement": "The Extraction page starts every extraction profile through POST /api/extraction/start.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/api/client.ts#L349-L352",
+          "version": "repo-lines-v1:sha256:e75572443e87a99ac767ef730f37ab81a38ae259c9ad60837590b10ac3fc6a66:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNTQzODU1MGQwMjA2NjJkYzg5NTdlMWJlMDAzZmViZjJmOWM4M2VjM2FlMzA1ZTViNzMxOTAzOTMyZmIwNmQyMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTE5MjE5ZDAwYzEzNTI0NjU0NjllZjZmYWExNmYxMzAxMzdlNDcxNWM1NzRhYWY0ZWY4MTYzYmZiOTdmZmNlYyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOGJiOTgyMGNkODA1NDI1OTM1NDBmNmZkNDYxOGY1NzVkMjk2MmE2OGQ5M2QyMDc5ODM3OThkM2FjNDY5N2FjOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTUwYTk5ZDY4ZTgzZjVjMWNmNTUxNmEwYjY0ZGQzMmRkYWI0ODE3NzhmNDQwYjZiZjdjN2FhYjA5M2UzMmNlMiJ9"
+        },
+        {
+          "resource": "repo://frontend/src/pages/Extraction.tsx#L171-L171",
+          "version": "repo-lines-v1:sha256:383cbce416d045b028eea9c1bf0034f974a3713a40f762b2460fa051050ddb5f:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMzgzY2JjZTQxNmQwNDViMDI4ZWVhOWMxYmYwMDM0Zjk3NGEzNzEzYTQwZjc2MmIyNDYwZmEwNTEwNTBkZGI1ZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzgzY2JjZTQxNmQwNDViMDI4ZWVhOWMxYmYwMDM0Zjk3NGEzNzEzYTQwZjc2MmIyNDYwZmEwNTEwNTBkZGI1ZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjc0N2RhZjExN2EyMTI0NjM1NGQwMmVkYmY3YTExMjA4MzhjMDM4MGY5MTZlYTUyNThjOGM3OTZkNDAyNDg2OSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTg1ZmRlMTdiNGQ2NzlhMGEwMWI5MGVkZGMwYzk5NmU5M2I1ZDNiNDdkOTU2NjQ1NDUyNmRlN2M5YjNlNmU5ZiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_47cc6e777777486f90386d35e95642ce",
+      "statement": "The Vite dev and preview servers send COOP same-origin and COEP require-corp headers because Decision Studio's rule engine needs SharedArrayBuffer.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/vite.config.ts#L1-L16",
+          "version": "repo-lines-v1:sha256:e162082f32ce4ff75e2dbf06116831b4cbe9bee2ae7a927661f7148a1c359ab4:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM2OTRiMTEzZWZmMTAxNWRlOTYwYzdkZWFmOTZiNzAxM2FmMjliNGFiZmUwYjlhZjZhODNmZjExOGYxYWYwN2UiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkzY2FkNjllZjRiOTY3M2YyODc3YTM3YWU1Zjc2NWY5MmJkZDQ2ZTIzNTM1NTgzN2VkZWU1OTZhMjU5ZTc0ODciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg1ODBiNzY1MThkYWU5NzlmYWViZDAyMzY3YTI5MjkyYTUwZDk3NjA5MjI1MWEzOGE2Y2UzMDg4MGJhNDI4MjUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b135c80586ba44b6a7cec96a242355b6",
+      "statement": "usePoll re-runs a function a fixed interval after each call settles and pauses while the tab is hidden.",
+      "evidence": [
+        {
+          "resource": "repo://frontend/src/lib/poll.ts#L5-L40",
+          "version": "repo-lines-v1:sha256:9043bf0013f93f7c74ef60781539ce52d64315ce527a4bb786d53ea9430204d5:eyJzZWxlY3RlZExpbmVDb3VudCI6MzYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhNTg3MGNiN2M3MzVkNzI5OTY5YTY3YzExYjg5MDBlYzE5ZDgzZjJmNjk0MTI0ZWI5NDQ5NWIwNTc0OTVkN2UiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFkOWUxMjU0NjQyNTU3NmQzZGVhZThjOWI5ZGJmMTI4ZDVkNmRkYWY1ZDdmZTg1NzkzNDkyN2RlZmZhM2I5ZGQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM4OGI0Y2NjN2IxNzhkZDI5YzZjZjQ4OGQyY2Q5YTk3NTQ0ZWQ5NmNkYTFjNjM1M2FkNGI5OWU2ZWM4NjBlZjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIwZThhYjYzM2ZjOTU4M2ExZTY0MzQ0NWRlZDQyODkxNDQxOGJmY2M3MmFmYzg2MGI1ZjQwMWIzYTM5ODc1NGYifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-18T15:42:30.245Z"
+  }
+}

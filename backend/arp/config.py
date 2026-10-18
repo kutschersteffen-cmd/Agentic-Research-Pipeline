@@ -414,6 +414,10 @@ class Settings(BaseSettings):
         "confidence: a high-confidence rating that has not been re-checked in 18 months is stale, not "
         "low-confidence.",
     )
+    transition_barrier_data_dir: Path = Field(
+        default=REPO_ROOT / "backend" / "arp" / "transition_barrier" / "data",
+        description="Directory holding criteria_schema.json, assessment_scores.json and source_registry.json.",
+    )
 
     skip_cutover_check: bool = Field(
         default=False,
