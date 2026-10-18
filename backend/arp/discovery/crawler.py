@@ -105,7 +105,9 @@ def _same_site(url: str, root_netloc: str) -> bool:
     return netloc == root or netloc.endswith("." + root)
 
 
-async def crawl_for_documents(root_url: str, config: CrawlConfig) -> list[CandidateDocumentLink]:
+async def crawl_for_documents(
+    root_url: str, config: CrawlConfig, *, transport: httpx.AsyncBaseTransport | None = None
+) -> list[CandidateDocumentLink]:
     """Bounded, same-site, robots.txt-respecting crawl for investor
     disclosure documents.
 
@@ -133,6 +135,7 @@ async def crawl_for_documents(root_url: str, config: CrawlConfig) -> list[Candid
         timeout=config.timeout_seconds,
         follow_redirects=True,
         event_hooks={"request": [ssrf_guard_request_hook]},
+        transport=transport,
     ) as client:
         while queue and len(visited) < config.max_pages:
             url, depth = queue.pop(0)

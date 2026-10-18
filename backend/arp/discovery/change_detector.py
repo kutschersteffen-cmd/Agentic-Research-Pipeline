@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import httpx
+from pydantic import ValidationError
 
 from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import DiscoveredDocument, DocumentEvent, DocumentEventType
@@ -58,6 +59,16 @@ class ChangeDetector:
         except (json.JSONDecodeError, OSError):
             return {}
 
+    def known_documents(self, company_id: str) -> dict[str, DiscoveredDocument]:
+        """The company's manifest entries by URL; entries that no longer parse are skipped."""
+        known = {}
+        for url, entry in self._load_manifest(company_id).items():
+            try:
+                known[url] = DiscoveredDocument.model_validate(entry)
+            except ValidationError:
+                logger.warning("Skipping unparseable manifest entry %s for %s", url, company_id)
+        return known
+
     def _save_manifest(self, company_id: str, manifest: dict[str, dict]) -> None:
         self._manifest_path(company_id).write_text(json.dumps(manifest, indent=2))
 
@@ -70,10 +81,15 @@ class ChangeDetector:
         for doc in discovered_docs:
             prior = manifest.get(doc.url)
             if prior is None:
-                events.append(
-                    DocumentEvent(event_type=DocumentEventType.NEW_DOCUMENT, company_id=company.company_id,
-                                  company_name=company.name, document=doc)
+                # same bytes already known under another URL (this run's earlier entries included): an alias, no event
+                doc.alias_of = next(
+                    (url for url, entry in manifest.items() if doc.sha256 and entry.get("sha256") == doc.sha256), None
                 )
+                if doc.alias_of is None:
+                    events.append(
+                        DocumentEvent(event_type=DocumentEventType.NEW_DOCUMENT, company_id=company.company_id,
+                                      company_name=company.name, document=doc)
+                    )
             elif prior.get("sha256") != doc.sha256:
                 events.append(
                     DocumentEvent(event_type=DocumentEventType.UPDATED_DOCUMENT, company_id=company.company_id,

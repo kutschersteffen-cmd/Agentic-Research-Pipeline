@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import httpx
+
+from arp.discovery.gleif import name_matches
 from arp.discovery.site_finder import WebSearchClient
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.llm.base import LLMClient, LLMUsage
@@ -22,7 +25,7 @@ from arp.schemas.discovery import IdentityAdjudication, IdentitySignals, WebSear
 
 _ADJUDICATE_SYSTEM = """\
 You are verifying which real company a name refers to, using SEC EDGAR \
-matches and web search results actually found for it -- never inventing a \
+matches, GLEIF matches and web search results actually found for it -- never inventing a \
 candidate name, ticker, or URL yourself. Actively look for: no real EDGAR \
 or web match at all; more than one similarly plausible EDGAR match (e.g. a \
 common name, multiple listings, a holding company vs. an operating \
@@ -37,10 +40,10 @@ real ambiguity; 'unresolved' if there is no credible match at all. \
 confidence must reflect your actual certainty -- low confidence for \
 anything short of a clean, unambiguous match; do not soften real ambiguity \
 to seem more useful, since 'uncertain' is exactly what routes to human \
-review. resolved_website and resolved_cik MUST be copied verbatim from a \
-URL or CIK that actually appears in the provided signals -- never invent \
-one, even a plausible-looking one; leave either null if no signal supports \
-it. Set them only when verdict is 'resolved'."""
+review. resolved_website, resolved_cik and resolved_lei MUST be copied \
+verbatim from a URL, CIK or LEI that actually appears in the provided \
+signals -- never invent one, even a plausible-looking one; leave any of them \
+null if no signal supports it. Set them only when verdict is 'resolved'."""
 
 
 def _format_signals(signals: IdentitySignals) -> str:
@@ -50,6 +53,11 @@ def _format_signals(signals: IdentitySignals) -> str:
         lines.extend(f"  - ticker={m.ticker} cik={m.cik} title={m.title!r}" for m in signals.edgar_matches)
     else:
         lines.append("SEC EDGAR matches: none found")
+    if signals.gleif_matches:
+        lines.append("GLEIF matches:")
+        lines.extend(f"  - lei={m.lei} name={m.legal_name!r} country={m.country}" for m in signals.gleif_matches)
+    else:
+        lines.append("GLEIF matches: none found")
     if signals.search_results:
         lines.append("Web search results:")
         lines.extend(f"  - title={r.title!r} url={r.url} snippet={r.snippet!r}" for r in signals.search_results)
@@ -64,6 +72,7 @@ async def gather_signals(
     edgar: EdgarDocumentSource,
     search_client: WebSearchClient,
     max_search_results: int = 5,
+    gleif_client: httpx.AsyncClient | None = None,
 ) -> IdentitySignals:
     """Deterministic, non-LLM step: looks up real signals for the company
     name via SEC EDGAR's own company map (arp/ingestion/edgar.py::
@@ -85,7 +94,8 @@ async def gather_signals(
             seen_urls.add(r.url)
             search_results.append(WebSearchHit(title=r.title, url=r.url, snippet=r.snippet))
 
-    return IdentitySignals(edgar_matches=edgar_matches, search_results=search_results)
+    gleif_matches = await name_matches(gleif_client, company_name) if gleif_client else []
+    return IdentitySignals(edgar_matches=edgar_matches, search_results=search_results, gleif_matches=gleif_matches)
 
 
 async def adjudicate_identity(
