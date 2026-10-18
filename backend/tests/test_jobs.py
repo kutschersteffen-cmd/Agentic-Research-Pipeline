@@ -112,8 +112,9 @@ def test_run_failed_event_traceback_is_cut(tmp_path, pg):
 def test_event_write_failure_does_not_break_mark_failed(tmp_path, pg):
     store = RunStore(pg, tmp_path)
     run = JobManager(store).create_run("extraction", {}, 0)
-    with patch.object(RunStore, "append_event", side_effect=OSError("disk full")):
+    with patch.object(RunStore, "append_event", side_effect=OSError("disk full")) as append_event:
         _mark_failed(store, run.run_id, RuntimeError("provider down"))
+    append_event.assert_called_once()
     assert store.load_manifest(run.run_id).status == "failed"
 
 

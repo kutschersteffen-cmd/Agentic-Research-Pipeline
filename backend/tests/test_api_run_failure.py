@@ -72,6 +72,16 @@ def test_company_errors_values_and_order_skip_review_rows(client, store):
     assert "ValueError: boom2" in errors[1]["traceback"]
 
 
+def test_derived_error_rows_without_key_are_not_company_errors(client, store):
+    seed(store)
+    store.append_error("r1", {"kind": "invalid_value", "field_id": "f", "raw": "x"})
+    store.append_error("r1", {"key": "C1", "error": "boom1"})
+    store.append_error("r1", {"kind": "unregistered_citation", "doc_id": "d1"})
+    r = failure(client)
+    assert r.status_code == 200
+    assert r.json()["company_errors"] == [{"key": "C1", "error": "boom1", "traceback": None}]
+
+
 def test_row_without_traceback_gives_null(client, store):
     seed(store)
     store.append_error("r1", {"key": "C4", "error": "old failure"})
@@ -101,6 +111,7 @@ def test_latest_run_failed_event_wins(client, store):
     store.append_event("r1", {"type": "run_failed", "at": "t1", "traceback": "T1"})
     store.append_event("r1", {"type": "run_started", "at": "t2"})
     store.append_event("r1", {"type": "run_failed", "at": "t3", "traceback": "T2"})
+    store.append_event("r1", {"type": "run_started", "at": "t4"})
     traceback = failure(client).json()["traceback"]
     assert "T2" in traceback
     assert "T1" not in traceback

@@ -159,7 +159,8 @@ def get_run_failure(run_id: str, run_store: RunStore = Depends(get_run_store)) -
     # Review rows are not failures; a dict keeps the first-seen position of a key and the last row's value.
     latest = {}
     for row in run_store.read_errors(run_id):
-        if not row.get("review"):
+        # Derived rows (invalid_value, unregistered_citation, identity_conflict) carry no key.
+        if "key" in row and not row.get("review"):
             latest[row["key"]] = row
     traceback = None
     for event in run_store.read_events(run_id):
