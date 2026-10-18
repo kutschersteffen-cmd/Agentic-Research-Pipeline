@@ -113,7 +113,9 @@ request.
    ariva.de, crunchbase.com, dnb.com, annualreports.com, responsibilityreports.com, sec.gov, xbrl.org,
    gleif.org, facebook.com, x.com, twitter.com, youtube.com, glassdoor.com.
 2. Fetch the page (SSRF hook, as in `crawler.py`). Redirects are followed, at most 5 hops, each through
-   the SSRF hook; evidence is read from the final page. "Same-site" below means the same registrable
+   the SSRF hook; evidence is read from the final page. If a redirect points to a URL whose registrable domain is on
+   `AGGREGATOR_DOMAINS`, the result is `rejected` with evidence exactly `["blocklisted_domain"]` and that
+   URL is not requested. "Same-site" below means the same registrable
    domain (`tldextract`) as the final URL, so `legal.testwerke.de` is same-site as `www.testwerke.de`.
    Collect evidence, each code at most once:
    - `name_in_title`: `<title>` matches the company name (`names_match`, also on each part when the title
@@ -282,6 +284,8 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
 | AC-51 | as AC-47 | identity run | Wikidata receives 0 requests | unit |
 | AC-52 | W; `https://testwerke.de/` returns 301 to `https://www.testwerke.de/` (H1) | `check_homepage("https://testwerke.de/", W)` | verdict `owned`; evidence contains `lei_on_imprint` | unit |
 | AC-53 | W, H1 whose `Impressum` link points to `https://legal.testwerke.de/impressum` (same text as H1's imprint) | `check_homepage(H1, W)` | verdict `owned`; evidence, compared as a set, exactly `{"name_in_title", "name_on_imprint", "lei_on_imprint"}` | unit |
+| AC-54 | W; `https://testwerke.de/` returns 301 to `https://www.linkedin.com/company/testwerke/` | `check_homepage("https://testwerke.de/", W)` | verdict `rejected`, evidence exactly `["blocklisted_domain"]` | unit |
+| AC-55 | as AC-54 | `check_homepage("https://testwerke.de/", W)` | `www.linkedin.com` receives 0 requests | unit |
 
 Must not change: a supplied website is never checked (AC-25) and a company with a supplied website or
 CIK makes no new identity lookup (AC-22, AC-44, AC-47, AC-51); the identifier-rule path without a Wikidata hit
