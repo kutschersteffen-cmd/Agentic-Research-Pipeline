@@ -26,7 +26,12 @@ else
 import json, os
 g = json.load(open(os.environ["OUT"]))
 p = json.load(open(os.environ["ARP_PREV_GRAPH"]))
-kept = [n for n in p["nodes"] if n.get("file_type") != "code"]
+# Code files also yield rationale nodes, which the fresh extract owns: skip nodes from those extensions or with a fresh id.
+# shortcut: a language that vanished from the repo keeps its stale rationale nodes, rebuild with --with-docs to clear.
+ext = lambda n: os.path.splitext(n.get("source_file") or "")[1]
+code_ext = {ext(n) for n in g["nodes"]}
+fresh = {n["id"] for n in g["nodes"]}
+kept = [n for n in p["nodes"] if n.get("file_type") != "code" and n["id"] not in fresh and ext(n) not in code_ext]
 g["nodes"] += kept
 ids = {n["id"] for n in g["nodes"]}
 kept_ids = {n["id"] for n in kept}

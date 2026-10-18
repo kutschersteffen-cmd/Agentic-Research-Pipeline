@@ -10,6 +10,7 @@ git init -q && git config user.email t@t && git config user.name t
 cp "$repo/.graphifyignore" .
 mkdir data runs engagements ballots
 echo 'def CTX_IGNORE_CANARY_OK(): return 1' > x_ok.py
+printf 'def f():\n    """Explains why f exists."""\n    # WHY: kept simple on purpose\n    return 1\n' > x_doc.py
 for f in x_secret.py x_credential.py data/x.py runs/x.py engagements/x.py ballots/x.py; do
   echo 'def CTX_IGNORE_CANARY(): return 1' > "$f"
 done
@@ -20,7 +21,7 @@ failed=0
 scenario() {
   local name=$1 want=$2 check=$3 got
   shift 3
-  env "$@" bash "$build" >/dev/null 2>&1
+  env -u ARP_PREV_GRAPH -u ARP_CONTEXT_FAIL "$@" bash "$build" >/dev/null 2>&1
   got=$?
   if [ "$got" = "$want" ] && bash -c "$check"; then
     echo "PASS $name"
@@ -36,6 +37,18 @@ scenario canary 0 '
 
 echo '{"nodes":[{"id":"doc_probe","file_type":"document","source_file":"docs/x.md"}],"links":[]}' > "$tmp/prev.json"
 scenario keeps_doc_nodes 0 'grep -q doc_probe graphify-out/graph.json' ARP_PREV_GRAPH="$tmp/prev.json"
+
+# second build fed with the first one's output (rationale nodes must not clash), plus a doc node
+bash "$build" >/dev/null 2>&1
+python3 - <<'PY'
+import json
+g = json.load(open("graphify-out/graph.json"))
+assert any(n.get("file_type") == "rationale" for n in g["nodes"]), "fixture has no rationale node"
+g["nodes"].append({"id": "doc_probe", "file_type": "document", "source_file": "docs/x.md"})
+json.dump(g, open("first.json", "w"))
+PY
+rm -rf graphify-out
+scenario rebuild 0 'grep -q doc_probe graphify-out/graph.json' ARP_PREV_GRAPH="$tmp/first.json"
 
 mkdir graphify-out && echo previous > graphify-out/graph.json
 scenario forced_failure 1 '[ "$(cat graphify-out/graph.json)" = previous ]' ARP_CONTEXT_FAIL=build

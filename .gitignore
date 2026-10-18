@@ -62,6 +62,5 @@ backend/mutants/
 frontend/.stryker-tmp/
 frontend/reports/
 
-# Graphify / Obsidian output (scripts/build_graph.sh)
-graphify-out/
+# Obsidian vault config
 .obsidian/
