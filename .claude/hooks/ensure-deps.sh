@@ -1,6 +1,6 @@
 #!/bin/bash
 # Install what the checks need, only when it is missing (~1s when everything is there).
-# Usage: bash .claude/hooks/ensure-deps.sh backend|frontend|postgres|all
+# Usage: bash .claude/hooks/ensure-deps.sh backend|frontend|postgres|neo4j|all
 # Called by check.sh before running checks, by Claude before running tests by hand,
 # and by the /install-deps skill to warm everything up in the background.
 # A per-part lock makes concurrent calls wait for one install instead of racing.
@@ -39,18 +39,36 @@ postgres() {  # same DB as CI: postgresql+psycopg://arp:arp@localhost:5432/arp_t
   pg_isready -q -h localhost 2>/dev/null || { echo "Postgres is not running on localhost." >&2; return 1; }
 }
 
+neo4j() {  # same graph as CI: bolt://localhost:7687, user neo4j, password arp_neo4j_test
+  "$PY" -c "import socket; socket.create_connection(('127.0.0.1', 7687), 2)" 2>/dev/null && return 0
+  local v=5.26.0 dir="${XDG_CACHE_HOME:-$HOME/.cache}/neo4j"
+  command -v java >/dev/null || { echo "Neo4j needs Java 17+; install it, or run Neo4j in Docker and set ARP_TEST_NEO4J_URI." >&2; return 1; }
+  if [ ! -x "$dir/neo4j-community-$v/bin/neo4j" ]; then
+    echo "Installing Neo4j $v Community (~1 min)..." >&2
+    mkdir -p "$dir" && curl -fsSL "https://dist.neo4j.org/neo4j-community-$v-unix.tar.gz" | tar -xz -C "$dir" || return 1
+    "$dir/neo4j-community-$v/bin/neo4j-admin" dbms set-initial-password arp_neo4j_test >/dev/null || return 1
+  fi
+  "$dir/neo4j-community-$v/bin/neo4j" start >/dev/null 2>&1
+  for _ in $(seq 1 60); do
+    "$PY" -c "import socket; socket.create_connection(('127.0.0.1', 7687), 2)" 2>/dev/null && return 0
+    sleep 1
+  done
+  echo "Neo4j did not start on localhost:7687; see $dir/neo4j-community-$v/logs/neo4j.log" >&2; return 1
+}
+
 locked() {  # locked PART: run PART under its lock (unlocked without flock, e.g. Git Bash)
   command -v flock >/dev/null || { "$1"; return; }
   ( flock 9; "$1" ) 9>"${TMPDIR:-/tmp}/ensure-deps-$1.lock"
 }
 
 case "$1" in
-  backend|frontend|postgres) locked "$1" ;;
+  backend|frontend|postgres|neo4j) locked "$1" ;;
   all)
     locked postgres & p=$!
+    locked neo4j & n=$!
     locked frontend & f=$!
     locked backend; b=$?
-    wait $p; pc=$?; wait $f; fc=$?
-    exit $(( b || pc || fc )) ;;
-  *) echo "Usage: $0 backend|frontend|postgres|all" >&2; exit 2 ;;
+    wait $p; pc=$?; wait $n; nc=$?; wait $f; fc=$?
+    exit $(( b || pc || nc || fc )) ;;
+  *) echo "Usage: $0 backend|frontend|postgres|neo4j|all" >&2; exit 2 ;;
 esac

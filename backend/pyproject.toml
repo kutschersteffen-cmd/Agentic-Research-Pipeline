@@ -60,6 +60,8 @@ dependencies = [
     "sqlalchemy>=2.0,<3.0",
     "psycopg[binary]>=3.1,<4.0",
     "pgvector>=0.3,<1.0",
+    # Company graph (arp/company_graph.py): supply edges for theme exposure layers, in Neo4j.
+    "neo4j>=5.28,<6.0",
 ]
 
 [project.optional-dependencies]

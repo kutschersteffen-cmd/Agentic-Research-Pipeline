@@ -158,3 +158,26 @@ def sample_house_universe(tmp_path, monkeypatch):
     HouseUniverseSetting(get_settings().stewardship_streams_dir).set("sample", "tests")
     yield
     get_settings.cache_clear()
+
+
+@pytest.fixture
+def neo4j_graph(monkeypatch):
+    """An empty company graph (ARP_TEST_NEO4J_URI, e.g. `bash .claude/hooks/ensure-deps.sh neo4j`); skips without one.
+    Also sets ARP_NEO4J_* so the app and CLI under test use the same graph; yields a driver."""
+    from neo4j import GraphDatabase
+
+    from arp.config import get_settings
+
+    uri = os.environ.get("ARP_TEST_NEO4J_URI")
+    if not uri:
+        pytest.skip("ARP_TEST_NEO4J_URI not set")
+    user = os.environ.get("ARP_TEST_NEO4J_USER", "neo4j")
+    password = os.environ.get("ARP_TEST_NEO4J_PASSWORD", "arp_neo4j_test")
+    monkeypatch.setenv("ARP_NEO4J_URI", uri)
+    monkeypatch.setenv("ARP_NEO4J_USER", user)
+    monkeypatch.setenv("ARP_NEO4J_PASSWORD", password)
+    get_settings.cache_clear()
+    with GraphDatabase.driver(uri, auth=(user, password)) as driver:
+        driver.execute_query("MATCH (n) DETACH DELETE n")
+        yield driver
+    get_settings.cache_clear()

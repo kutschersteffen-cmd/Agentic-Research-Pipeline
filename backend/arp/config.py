@@ -427,6 +427,11 @@ class Settings(BaseSettings):
         "system of record (companies, runs, review, facts, documents, embeddings, holdings), so the app and CLI "
         "refuse to start without it. Create or upgrade the schema with `arp db init-postgres`.",
     )
+    # Neo4j company graph (arp/company_graph.py): supply edges for theme exposure layers.
+    # Optional: unset (or empty), only the layers and `arp theme edges import` report it.
+    neo4j_uri: str | None = Field(default=None, description="Bolt URI, e.g. bolt://localhost:7687.")
+    neo4j_user: str = Field(default="neo4j")
+    neo4j_password: str | None = Field(default=None)
     postgres_pool_size: int = Field(
         default=10,
         description="Connections each process keeps pooled: a batch writes up to max_concurrent_llm_calls (8) "
