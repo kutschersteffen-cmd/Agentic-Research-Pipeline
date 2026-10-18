@@ -1,6 +1,6 @@
 # Codebase context stack: Graphify + OpenWiki + Obsidian + Atlas page
 
-Status: draft for owner approval · 2026-10-18
+Status: approved by owner · 2026-10-18
 Source brief: the owner's doc "Codebase Context Stack: Graphify + OpenWiki + Obsidian"
 (claude.ai artifact 2ZXu36Gky3UcZck7STkBPJ). Mockups: claude.ai artifact LpT9iVAaTGbn7kkCVRiXJY.
 
