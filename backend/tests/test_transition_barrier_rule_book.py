@@ -340,3 +340,54 @@ def test_malformed_input_does_not_raise(fixture_dir):
     rb, schema = _fx(fixture_dir)
     _stl(rb)["levels"]["H"]["all"][0].update(param=["x"], fact="price")
     assert any("invalid condition" in e for e in _check(rb, schema))
+
+
+def test_malformed_schema_side_does_not_raise(fixture_dir):
+    for bad in (None, 5, [], ["x"], {"x": 1}):
+        rb, schema = _fx(fixture_dir)
+        crit = schema["criteria"][0]
+        crit["sector"] = bad
+        crit["primary_sources"][0].update(key=bad, tier=bad)
+        crit["primary_sources"][1] = bad
+        assert isinstance(validate_rule_book(rb, schema), list)
+        rb, schema = _fx(fixture_dir)
+        rb["actions"]["Steel"][0]["id"] = bad
+        rb["actions"]["Steel"][1] = bad
+        _stl(rb)["actions"] = [bad, "steel.h2_dri"]
+        assert isinstance(_check(rb, schema), list)
+        rb, schema = _fx(fixture_dir)
+        _stl(rb)["levels"]["H"]["all"][0].update(fact=bad)
+        assert isinstance(_check(rb, schema), list)
+    rb, schema = _fx(fixture_dir)
+    _stl(rb)["levels"]["H"]["all"][0]["fact"] = ["price"]
+    assert "STL-R1: invalid condition: fact must be an id" in _check(rb, schema)
+
+
+def test_errors_come_in_rule_order(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    schema["criteria"][0]["primary_sources"][2].pop("tier")
+    schema["criteria"].append({**schema["criteria"][0], "code": "STL-T1"})
+    rb["criteria"]["XXX-T9"] = json.loads(json.dumps(_stl(rb)))
+    c = _stl(rb)
+    c["levels"]["H"]["all"][0]["fact"] = "prices"
+    c["levels"]["H"]["all"][1] = {"fact": "levy", "op": "=", "value": True, "x": 0}
+    c["levels"]["M"]["all"][1] = {"fact": "price", "op": ">=", "value": 10}
+    del c["params"][0]["source"]
+    c["rationale"] = ""
+    del c["facts"][0]["definition"]
+    c["actions"].append("steel.foo")
+    errors = validate_rule_book(rb, schema)  # not re-signed: rule 9 fires too
+    wanted = [
+        "Missing rule book entry: STL-T1",
+        "Rule book entry without criterion: XXX-T9",
+        "STL-R1: condition names unknown fact 'prices'",
+        "STL-R1: condition on 'price' uses an inline number; use a parameter",
+        "STL-R1: parameter 'p_high' has no source",
+        "STL-R1: no rationale",
+        "STL-R1: fact 'price' has no definition",
+        "STL-R1: unknown action 'steel.foo'",
+        "Source 'steel_policy_tracker' has no tier",
+        "Rule book content changed but version is still 7",
+    ]
+    assert all(w in errors for w in wanted)
+    assert [errors.index(w) for w in wanted] == sorted(errors.index(w) for w in wanted)

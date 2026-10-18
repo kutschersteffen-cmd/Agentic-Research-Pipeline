@@ -98,6 +98,8 @@ def _rule2(code, scans, facts, params):
 
 def _condition_lines(code, c, facts, params) -> list[str]:
     fid, op = c["fact"], c.get("op")
+    if not isinstance(fid, str):
+        return [f"{code}: invalid condition: fact must be an id"]
     refs = [k for k in ("value", "param", "other_fact") if k in c]
     if not _in(op, _OPS):
         return [f"{code}: unknown operator '{op}'"]
@@ -268,16 +270,19 @@ def validate_rule_book(raw_rule_book: dict, raw_schema: dict) -> list[str]:
             scan = {"conds": [], "bad": [], "deep": False}
             _walk(node, 1, scan)
             scans.append((level, scan))
-        sector_ids = {a.get("id") for a in _dicts(actions_raw.get(crit.get("sector")))}
+        sector = crit.get("sector")
+        sector_actions = actions_raw.get(sector) if isinstance(sector, str) else None
+        sector_ids = {a["id"] for a in _dicts(sector_actions) if isinstance(a.get("id"), str)}
         ctx.append((crit["code"], entry, facts, params, scans, sector_ids))
 
     r8, seen = [], set()
     for crit in schema_criteria:
         for s in _dicts(crit.get("primary_sources")):
             key = s.get("key")
-            if isinstance(key, str) and key not in seen and not _text(s.get("tier")):
-                r8.append(f"Source '{key}' has no tier")
-            seen.add(key)
+            if isinstance(key, str) and key not in seen:
+                seen.add(key)
+                if not _text(s.get("tier")):
+                    r8.append(f"Source '{key}' has no tier")
 
     fingerprint_ok = raw_rule_book.get("fingerprint") == compute_fingerprint(raw_rule_book)
     r9 = [] if fingerprint_ok else [f"Rule book content changed but version is still {raw_rule_book.get('version')}"]
