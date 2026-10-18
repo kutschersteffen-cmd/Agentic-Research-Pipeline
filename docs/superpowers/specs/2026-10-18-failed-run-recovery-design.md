@@ -1,7 +1,7 @@
 # Failed-run recovery: Resume everywhere, and failed runs in "Needs you"
 
 Date: 2026-10-18
-Status: draft, waiting for owner approval (spec-critic rounds 1 and 2 fixed, round 3 fixed, round 4 pending)
+Status: approved by the owner 2026-10-18 (spec-critic rounds 1-3 fixed; no fourth round run)
 Origin: the 2026-10-17 review of the `setup.sh` script (Celery, dead-letter queue, re-drive) against ARP.
 That script's idea worth keeping is "a failed job is visible and one click re-runs it". ARP already has
 the engine (`POST /api/runs/{run_id}/resume`); this spec closes the UI gap. Items 1 and 2 of the
