@@ -38,8 +38,12 @@ def test_ac97_decision_studio_sees_the_confirmation(client):  # noqa: F811
     assert eu_feasibility() == "50.0"  # M, in the same process
 
 
-def test_ac96_export_carries_the_ratified_rating(client, tmp_path):  # noqa: F811
+def test_ac96_export_carries_the_ratified_rating(client, tmp_path, monkeypatch):  # noqa: F811
     decide(client, A_APPROVER, ratify_change(client), KEY)
+    # the report script needs the full 35-criterion book, so export from the bundled data; the ratified M is in the database
+    monkeypatch.delenv("ARP_TRANSITION_BARRIER_DATA_DIR")
+    get_settings.cache_clear()
+    dataset.reset_caches()
     out = tmp_path / "export.json"
     result = CliRunner().invoke(transition_barrier_app, ["export", "--out", str(out)])
     assert result.exit_code == 0, result.output
@@ -61,8 +65,10 @@ def test_ac96_export_carries_the_ratified_rating(client, tmp_path):  # noqa: F81
 
     xml = zipfile.ZipFile(docx).read("word/document.xml").decode("utf-8")
     shown = re.findall(r">([HML])  \((?:high|medium|low)\)<", xml)
-    assert shown == [ratings[(c["code"], r)] for c in export["criteria"] for r in ("European Union", "United States", "China")]
-    assert shown[0] == "M"
+    regions = ("European Union", "United States", "China")
+    assert shown == [ratings[(c["code"], r)] for c in export["criteria"] for r in regions]
+    codes = [c["code"] for c in export["criteria"]]
+    assert shown[codes.index("STL-R1") * len(regions)] == "M"
 
 
 def snapshot(root: Path) -> dict[str, str]:
