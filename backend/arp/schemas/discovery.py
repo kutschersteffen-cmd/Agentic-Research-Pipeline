@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from arp.discovery.site_check import SiteCheck
 from arp.schemas.common import DocType, new_id, now_iso
 from arp.schemas.review import ReasonCode
 
@@ -23,6 +25,12 @@ class DiscoveredDocument(BaseModel):
     http_etag: str | None = None
     capture_id: str | None = None
     discovered_at: str = Field(default_factory=now_iso)
+    # PDF document check (arp/discovery/doc_check.py); None for other files and EDGAR/ESEF documents.
+    company_match: Literal["identifier", "name", "none", "no_text"] | None = None
+    page_count: int | None = None
+    reporting_year: int | None = None
+    # URL already in the manifest with the same sha256 (change_detector alias); no event is raised for it.
+    alias_of: str | None = None
 
 
 class CaptureRecord(BaseModel):
@@ -67,6 +75,7 @@ class DiscoveryCompanyResult(BaseModel):
         ),
     )
     crawl_error: str | None = Field(default=None, description="Why the homepage was unreachable, when homepage_unreachable is True.")
+    homepage_check: SiteCheck | None = Field(default=None, description="Check of a derived homepage; None when supplied or none found.")
     documents_found: list[DiscoveredDocument] = Field(default_factory=list)
     new_events: list[DocumentEvent] = Field(default_factory=list)
     generated_at: str = Field(default_factory=now_iso)
@@ -108,6 +117,14 @@ class EdgarNameMatch(BaseModel):
     title: str
 
 
+class GleifMatch(BaseModel):
+    """One ISSUED GLEIF record returned by a legal-name search."""
+
+    lei: str
+    legal_name: str
+    country: str | None = None
+
+
 class WebSearchHit(BaseModel):
     """A raw web search result, kept as-is (title/url/snippet) rather than
     LLM-summarized, so the adjudicate step reasons over the real signal
@@ -125,6 +142,7 @@ class IdentitySignals(BaseModel):
 
     edgar_matches: list[EdgarNameMatch] = Field(default_factory=list)
     search_results: list[WebSearchHit] = Field(default_factory=list)
+    gleif_matches: list[GleifMatch] = Field(default_factory=list)
 
 
 class IdentityAdjudication(BaseModel):
@@ -137,6 +155,7 @@ class IdentityAdjudication(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     resolved_website: str | None = None
     resolved_cik: str | None = None
+    resolved_lei: str | None = None
     rationale: str
 
 
@@ -151,6 +170,8 @@ class IdentityResolutionResult(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     resolved_website: str | None = None
     resolved_cik: str | None = None
+    resolved_lei: str | None = None
+    derived_lei: str | None = Field(default=None, description="LEI looked up from the ISIN at GLEIF (not supplied).")
     signals: IdentitySignals
     rationale: str
     flagged_for_review: bool = False
