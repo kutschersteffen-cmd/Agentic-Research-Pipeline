@@ -29,6 +29,17 @@ def test_parse_fixture_f(tmp_path):
     assert [(r.supplier_key, r.customer_key, r.revenue_share) for r in rows] == [("s1", "a", 0.4), ("s2", "s1", 0.5)]
     assert rows[0].effective_date == date(2023, 12, 31) and rows[0].published_at == date(2024, 3, 1)
     assert rows[0].supplier_name == "S1" and rows[0].source_passage == "A is our largest customer."
+    assert rows[0].source_doc == "10-K 2023" and rows[1].customer_name == "S1"
+
+
+def test_share_of_exactly_one_is_allowed(tmp_path):
+    assert parse_edge_csv(_csv(tmp_path, S1_A.replace("0.40", "1")))[0].revenue_share == 1.0
+
+
+def test_quoted_passage_keeps_its_line_break(tmp_path):
+    path = tmp_path / "edges.csv"
+    path.write_bytes((HEADER + '\r\ns1,S1,a,A,0.4,doc,"Line one.\r\nLine two.",2023-12-31,2024-03-01\r\n').encode())
+    assert parse_edge_csv(path)[0].source_passage == "Line one.\r\nLine two."
 
 
 def test_parse_utf8_bom(tmp_path):

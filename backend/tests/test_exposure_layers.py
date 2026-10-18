@@ -120,6 +120,12 @@ def test_l1_max_of_include_matches():
     assert round(r.score, 4) == 0.225
 
 
+def test_l1_from_catalogue_alone():
+    refs = [CompanyRef(company_id="a", name="A")]
+    rows = [{"_key": "a", "company_matches": [_match("a", "include", 0.6, "catalogue")]}]
+    assert [l1 for _key, _name, l1 in run_company_l1(refs, rows)] == [0.6]
+
+
 def test_l1_ignores_exclude_qualitative_and_missing():
     refs = [CompanyRef(company_id=c, name=c.upper()) for c in ("a", "c", "n")]
     rows = [
@@ -141,21 +147,22 @@ def test_layer_params_defaults():
 
 
 @pytest.mark.parametrize(
-    ("env", "value"),
+    ("env", "value", "message"),
     [
-        ("ARP_THEME_LAYER_DECAY", "0"),
-        ("ARP_THEME_LAYER_DECAY", "1.5"),
-        ("ARP_THEME_LAYER_MAX_HOPS", "3"),
-        ("ARP_THEME_LAYER_MAX_HOPS", "0"),
-        ("ARP_THEME_LAYER_W1", "-0.1"),
-        ("ARP_THEME_LAYER_W2", "-1"),
-        ("ARP_THEME_LAYER_W3", "-0.01"),
+        ("ARP_THEME_LAYER_DECAY", "0", "ARP_THEME_LAYER_DECAY must be greater than 0 and at most 1"),
+        ("ARP_THEME_LAYER_DECAY", "1.5", "ARP_THEME_LAYER_DECAY must be greater than 0 and at most 1"),
+        ("ARP_THEME_LAYER_MAX_HOPS", "3", "ARP_THEME_LAYER_MAX_HOPS must be 1 or 2"),
+        ("ARP_THEME_LAYER_MAX_HOPS", "0", "ARP_THEME_LAYER_MAX_HOPS must be 1 or 2"),
+        ("ARP_THEME_LAYER_W1", "-0.1", "ARP_THEME_LAYER_W1 must be 0 or more"),
+        ("ARP_THEME_LAYER_W2", "-1", "ARP_THEME_LAYER_W2 must be 0 or more"),
+        ("ARP_THEME_LAYER_W3", "-0.01", "ARP_THEME_LAYER_W3 must be 0 or more"),
     ],
 )
-def test_layer_params_rejects_bad_setting(monkeypatch, env, value):
+def test_layer_params_rejects_bad_setting(monkeypatch, env, value, message):
     monkeypatch.setenv(env, value)
-    with pytest.raises(LayerSettingsError, match=env):
+    with pytest.raises(LayerSettingsError) as exc:
         layer_params(Settings())
+    assert str(exc.value) == message
 
 
 def test_layer_params_accepts_range_edges(monkeypatch):
