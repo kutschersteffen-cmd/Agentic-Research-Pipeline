@@ -34,6 +34,9 @@ _FORM_TO_DOCTYPE = {
     "DEF 14A": DocType.PROXY_DEF14A,
 }
 
+ANNUAL_FORMS = ("10-K", "20-F", "40-F")
+_US_COUNTRIES = {"us", "usa", "united states"}
+
 # Bump whenever ingestion/html_text.py::extract_html_text's logic changes.
 _EDGAR_PARSER_LOGIC_VERSION = 1
 
@@ -103,7 +106,9 @@ class EdgarDocumentSource(DocumentSource):
                 # reach register_document, and don't abort the batch.
                 logger.warning("Rejected unsafe company_id in EDGAR fetch: %r", company.company_id)
                 return []
-        cik = company.cik or await self._resolve_cik(company.ticker)
+        cik = company.cik
+        if not cik and (not company.country or company.country.strip().lower() in _US_COUNTRIES):
+            cik = await self._resolve_cik(company.ticker)
         if not cik:
             logger.info("EDGAR: could not resolve CIK for %s, skipping", company.company_id)
             return []
@@ -116,7 +121,8 @@ class EdgarDocumentSource(DocumentSource):
             forms = recent.get("form", [])
             docs: list[SourceDocument] = []
             for form in wanted_forms:
-                idx = next((i for i, f in enumerate(forms) if f == form), None)
+                match = ANNUAL_FORMS if form == "10-K" else (form,)
+                idx = next((i for i, f in enumerate(forms) if f in match), None)
                 if idx is None:
                     continue
                 accession = recent["accessionNumber"][idx].replace("-", "")
@@ -128,7 +134,7 @@ class EdgarDocumentSource(DocumentSource):
                     continue
 
                 doc_type = _FORM_TO_DOCTYPE[form]
-                title = f"{company.name} {form} ({filing_date})"
+                title = f"{company.name} {forms[idx]} ({filing_date})"
                 kwargs: dict = dict(
                     company_id=company.company_id,
                     doc_type=doc_type,
