@@ -7,7 +7,7 @@ from arp.discovery.change_detector import ChangeDetector, poll_esef_filings
 from arp.discovery.crawler import CrawlConfig, HomepageUnreachableError, crawl_for_documents
 from arp.discovery.downloader import download_documents
 from arp.discovery.refresh import refresh_hook
-from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient, homepage_from_cik, resolve_company_homepage
+from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient, homepage_from_ids, resolve_company_homepage
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.esef import EsefDocumentSource
 from arp.ingestion.indexing_config import IndexingConfig
@@ -32,7 +32,7 @@ async def _discover_for_company(
     edgar: EdgarDocumentSource | None = None,
 ) -> DiscoveryCompanyResult:
     filings = await _edgar_filings(company, edgar, doc_types) if edgar and company.cik else []
-    homepage = company.website or await homepage_from_cik(settings.discovery_user_agent, company.cik)
+    homepage = company.website or await homepage_from_ids(settings.discovery_user_agent, cik=company.cik)
     if not homepage:
         homepage = await resolve_company_homepage(company.name, search_client)
     if not homepage:

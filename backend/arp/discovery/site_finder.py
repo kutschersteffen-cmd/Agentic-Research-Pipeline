@@ -8,6 +8,11 @@ import httpx
 from bs4 import BeautifulSoup
 from pydantic import BaseModel
 
+from arp.discovery.site_check import is_aggregator
+from arp.holdings.validate import isin_is_valid
+from arp.net_safety import ssrf_guard_request_hook
+from arp.schemas.issuer import lei_is_valid, normalise_lei
+
 logger = logging.getLogger(__name__)
 
 
@@ -68,22 +73,45 @@ _IR_HINTS = ("investor", "ir.", "/investors", "shareholder")
 _WIKIDATA_SPARQL = "https://query.wikidata.org/sparql"
 
 
-async def homepage_from_cik(user_agent: str, cik: str | None) -> str | None:
-    """The official website (P856) Wikidata records for an SEC CIK (P5531): keyless and
-    exact, no name matching. Used before web search, which is often bot-blocked."""
-    if not cik or not cik.isdigit():  # digits only: the value goes into the query text
-        return None
-    query = f'SELECT ?w WHERE {{ ?i wdt:P5531 "{cik.zfill(10)}"; wdt:P856 ?w }}'
-    try:
-        async with httpx.AsyncClient(headers={"User-Agent": user_agent}, timeout=15.0) as client:
-            resp = await client.get(_WIKIDATA_SPARQL, params={"query": query, "format": "json"})
-            resp.raise_for_status()
-        urls = [b["w"]["value"] for b in resp.json()["results"]["bindings"]]
-    except (httpx.HTTPError, ValueError, KeyError) as exc:
-        logger.info("Wikidata homepage lookup failed for CIK %s: %s", cik, exc)
-        return None
-    # ponytail: CIK only; add LEI (P1278) / ISIN (P946) when non-US companies need it
-    return min(urls, key=len) if urls else None  # country variants (apple.com/de/) are longer than the root
+async def homepage_from_ids(
+    user_agent: str,
+    *,
+    lei: str | None = None,
+    isin: str | None = None,
+    cik: str | None = None,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> str | None:
+    """The official website (P856) Wikidata records for an LEI (P1278), ISIN (P946) or SEC CIK
+    (P5531), tried in that order, one request each: keyless and exact, no name matching. Returns
+    the first identifier's shortest URL. An invalid identifier is skipped without a request, since
+    the value goes into the query text."""
+    lei = normalise_lei(lei) if lei else ""
+    isin = "".join(isin.split()).upper() if isin else ""
+    candidates = [
+        ("P1278", lei if lei_is_valid(lei) else ""),
+        ("P946", isin if isin_is_valid(isin) else ""),
+        ("P5531", cik.zfill(10) if cik and cik.isdigit() else ""),
+    ]
+    async with httpx.AsyncClient(
+        headers={"User-Agent": user_agent},
+        timeout=15.0,
+        event_hooks={"request": [ssrf_guard_request_hook]},
+        transport=transport,
+    ) as client:
+        for prop, value in candidates:
+            if not value:
+                continue
+            query = f'SELECT ?w WHERE {{ ?i wdt:{prop} "{value}"; wdt:P856 ?w }}'
+            try:
+                resp = await client.get(_WIKIDATA_SPARQL, params={"query": query, "format": "json"})
+                resp.raise_for_status()
+                urls = [b["w"]["value"] for b in resp.json()["results"]["bindings"]]
+            except (httpx.HTTPError, ValueError, KeyError) as exc:
+                logger.info("Wikidata homepage lookup failed for %s %s: %s", prop, value, exc)
+                continue
+            if urls:
+                return min(urls, key=len)  # country variants (apple.com/de/) are longer than the root
+    return None
 
 
 async def resolve_company_homepage(company_name: str, search_client: WebSearchClient) -> str | None:
@@ -97,6 +125,7 @@ async def resolve_company_homepage(company_name: str, search_client: WebSearchCl
         except httpx.HTTPError as exc:
             logger.info("Web search failed for %r: %s", query, exc)
             continue
+        results = [r for r in results if not is_aggregator(r.url)]
         if not results:
             continue
         ir_hit = next((r for r in results if any(h in r.url.lower() for h in _IR_HINTS)), None)

@@ -104,7 +104,7 @@ async def test_discover_for_company_fetches_edgar_filings_by_cik(tmp_path, monke
     async def _no_homepage(*args, **kwargs):
         return None
 
-    monkeypatch.setattr(pipeline_module, "homepage_from_cik", _no_homepage)
+    monkeypatch.setattr(pipeline_module, "homepage_from_ids", _no_homepage)
     settings = Settings(documents_dir=tmp_path / "documents", discovery_state_dir=tmp_path / "state")
     change_detector = ChangeDetector(state_dir=settings.discovery_state_dir, global_events_path=settings.documents_dir / "_events.jsonl")
 
