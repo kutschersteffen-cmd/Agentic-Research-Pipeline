@@ -1,0 +1,1383 @@
+{
+  "version": 0,
+  "fingerprint": "",
+  "history": [],
+  "actions": {
+    "Power & Utilities": [
+      {
+        "id": "pwr.renewables",
+        "label": "Utility-scale solar PV and onshore wind build-out"
+      },
+      {
+        "id": "pwr.storage",
+        "label": "Grid-scale battery and long-duration storage"
+      },
+      {
+        "id": "pwr.grid",
+        "label": "Transmission and grid-connection expansion"
+      },
+      {
+        "id": "pwr.coal_exit",
+        "label": "Retirement of unabated coal and gas generation"
+      }
+    ],
+    "Steel": [
+      {
+        "id": "steel.h2_dri",
+        "label": "Hydrogen-based direct reduced iron with electric arc furnace"
+      },
+      {
+        "id": "steel.scrap_eaf",
+        "label": "Scrap-based electric arc furnace"
+      },
+      {
+        "id": "steel.ccus",
+        "label": "Carbon capture on blast furnace or DRI plants"
+      }
+    ],
+    "Cement": [
+      {
+        "id": "cement.clinker_sub",
+        "label": "Clinker substitution with supplementary cementitious materials"
+      },
+      {
+        "id": "cement.ccus",
+        "label": "Carbon capture and storage on cement kilns"
+      },
+      {
+        "id": "cement.alt_fuels",
+        "label": "Alternative and low-carbon kiln fuels"
+      }
+    ]
+  },
+  "conversions": [
+    {
+      "from": "CNY",
+      "to": "USD",
+      "rate": 0.14122,
+      "year": 2023,
+      "source": {
+        "title": "Federal Reserve Board, Foreign Exchange Rates G.5A Annual (released 2026-01-05)",
+        "url": "https://www.federalreserve.gov/releases/g5a/current/default.htm",
+        "locator": "China yuan annual average 2023: 7.0809 CNY per USD (rate = 1 / 7.0809)"
+      }
+    },
+    {
+      "from": "EUR",
+      "to": "USD",
+      "rate": 1.0817,
+      "year": 2023,
+      "source": {
+        "title": "Federal Reserve Board, Foreign Exchange Rates G.5A Annual (released 2026-01-05)",
+        "url": "https://www.federalreserve.gov/releases/g5a/current/default.htm",
+        "locator": "Euro annual average 2023: 1.0817 USD per EUR"
+      }
+    },
+    {
+      "from": "CNY",
+      "to": "USD",
+      "rate": 0.13897,
+      "year": 2024,
+      "source": {
+        "title": "Federal Reserve Board, Foreign Exchange Rates G.5A Annual (released 2026-01-05)",
+        "url": "https://www.federalreserve.gov/releases/g5a/current/default.htm",
+        "locator": "China yuan annual average 2024: 7.1957 CNY per USD (rate = 1 / 7.1957)"
+      }
+    },
+    {
+      "from": "EUR",
+      "to": "USD",
+      "rate": 1.082,
+      "year": 2024,
+      "source": {
+        "title": "Federal Reserve Board, Foreign Exchange Rates G.5A Annual (released 2026-01-05)",
+        "url": "https://www.federalreserve.gov/releases/g5a/current/default.htm",
+        "locator": "Euro annual average 2024: 1.082 USD per EUR"
+      }
+    },
+    {
+      "from": "CNY",
+      "to": "USD",
+      "rate": 0.13913,
+      "year": 2025,
+      "source": {
+        "title": "Federal Reserve Board, Foreign Exchange Rates G.5A Annual (released 2026-01-05)",
+        "url": "https://www.federalreserve.gov/releases/g5a/current/default.htm",
+        "locator": "China yuan annual average 2025: 7.1875 CNY per USD (rate = 1 / 7.1875)"
+      }
+    },
+    {
+      "from": "EUR",
+      "to": "USD",
+      "rate": 1.1306,
+      "year": 2025,
+      "source": {
+        "title": "Federal Reserve Board, Foreign Exchange Rates G.5A Annual (released 2026-01-05)",
+        "url": "https://www.federalreserve.gov/releases/g5a/current/default.htm",
+        "locator": "Euro annual average 2025: 1.1306 USD per EUR"
+      }
+    }
+  ],
+  "domain_tiers": {
+    "about.bnef.com": "secondary",
+    "afdc.energy.gov": "primary",
+    "afi.dnv.com": "secondary",
+    "arb.ca.gov": "primary",
+    "carbonpricingdashboard.worldbank.org": "primary",
+    "cinea.ec.europa.eu": "primary",
+    "clarksons.net": "secondary",
+    "cneeex.com": "secondary",
+    "co2re.co": "secondary",
+    "congress.gov": "primary",
+    "eex.com": "secondary",
+    "energy-transitions.org": "secondary",
+    "energy.gov": "primary",
+    "epa.gov": "primary",
+    "eur-lex.europa.eu": "primary",
+    "evcipa.org.cn": "secondary",
+    "federalregister.gov": "primary",
+    "gccassociation.org": "secondary",
+    "globalmaritimeforum.org": "secondary",
+    "green-business.ec.europa.eu": "primary",
+    "iata.org": "secondary",
+    "icao.int": "primary",
+    "iccsafe.org": "secondary",
+    "iea.org": "primary",
+    "imo.org": "primary",
+    "irena.org": "primary",
+    "lazard.com": "secondary",
+    "mee.gov.cn": "primary",
+    "miit.gov.cn": "primary",
+    "missionpossiblepartnership.org": "secondary",
+    "mnr.gov.cn": "primary",
+    "nea.gov.cn": "primary",
+    "ngfs.net": "primary",
+    "oecd.org": "primary",
+    "ogmpartnership.com": "primary",
+    "spglobal.com": "secondary",
+    "sustainability.gov": "primary",
+    "theicct.org": "secondary",
+    "there100.org": "secondary",
+    "usgs.gov": "primary",
+    "weforum.org": "secondary",
+    "worldsteel.org": "secondary"
+  },
+  "criteria": {
+    "PWR-T1": {
+      "rationale": "New solar PV and onshore wind (pwr.renewables) win new capacity on their own only where they are the cheapest new-build option without subsidies that can be withdrawn. Where their cost sits well above new-build gas or coal, build-out depends on support schemes, and retiring fossil plants (pwr.coal_exit) lacks a cheaper replacement.",
+      "actions": [
+        "pwr.renewables",
+        "pwr.coal_exit"
+      ],
+      "facts": [
+        {
+          "id": "re_lcoe",
+          "label": "Renewable LCOE",
+          "type": "number",
+          "unit": "USD/MWh",
+          "definition": "Unsubsidised levelised cost of electricity of new utility-scale solar PV or onshore wind in the region, whichever is lower, for projects commissioned in the latest year reported (regional weighted average or central estimate), before tax credits, feed-in premiums or other support.",
+          "max_age_days": 730
+        },
+        {
+          "id": "fossil_lcoe",
+          "label": "New-build fossil LCOE",
+          "type": "number",
+          "unit": "USD/MWh",
+          "definition": "Levelised cost of electricity of a new-build gas combined-cycle or coal plant in the region, whichever is lower, for the same year and preferably from the same source as the renewable figure; includes a carbon price only where that source's estimate does.",
+          "max_age_days": 730
+        },
+        {
+          "id": "re_lcoe_sub",
+          "label": "Subsidised renewable LCOE",
+          "type": "number",
+          "unit": "USD/MWh",
+          "definition": "The renewable LCOE above after the production or investment support available to new projects in the same year (for example US production tax credits or contract-for-difference support).",
+          "max_age_days": 730
+        },
+        {
+          "id": "lcoe_ratio",
+          "label": "Renewable-to-fossil LCOE ratio",
+          "formula": "ratio",
+          "inputs": [
+            "re_lcoe",
+            "fossil_lcoe"
+          ],
+          "definition": "Unsubsidised renewable LCOE divided by new-build fossil LCOE: 1 is parity, 1.3 means renewables cost 30% more."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_within",
+          "label": "Close cost gap",
+          "value": 1.3,
+          "by_region": {},
+          "rationale": "Today's rubric draws the M/L line at renewables costing 30% more than new-build fossil. No external benchmark for that line was found, so the framework value is carried over. M covers the whole range from parity up to 30% above; the rubric's '10-30%' left a gap from 0 to 10% that belonged to no level.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "PWR-T1 rating_rubric.M: 'within 10-30% of new-build fossil LCOE'; L: 'more than 30% above'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "re_lcoe",
+              "op": "<=",
+              "other_fact": "fossil_lcoe"
+            }
+          ]
+        },
+        "M": {
+          "any": [
+            {
+              "fact": "lcoe_ratio",
+              "op": "<=",
+              "param": "p_within"
+            },
+            {
+              "fact": "re_lcoe_sub",
+              "op": "<=",
+              "other_fact": "fossil_lcoe"
+            }
+          ]
+        }
+      }
+    },
+    "PWR-T2": {
+      "rationale": "Solar and wind growth (pwr.renewables) stalls once output is regularly curtailed, because curtailed energy earns nothing and lowers the return on the next project. Grid-scale storage (pwr.storage) and grid reinforcement (pwr.grid) absorb variable output; where storage is negligible next to wind and solar capacity, further build-out runs into curtailment and congestion.",
+      "actions": [
+        "pwr.storage",
+        "pwr.grid",
+        "pwr.renewables"
+      ],
+      "facts": [
+        {
+          "id": "storage_gw",
+          "label": "Grid-scale storage power capacity",
+          "type": "number",
+          "unit": "GW",
+          "definition": "Installed grid-scale battery storage power capacity in operation in the region at the end of the latest year reported (utility-scale; excludes behind-the-meter batteries and pumped hydro).",
+          "max_age_days": 730
+        },
+        {
+          "id": "vre_gw",
+          "label": "Variable renewable capacity",
+          "type": "number",
+          "unit": "GW",
+          "definition": "Installed solar PV plus wind capacity in operation in the region at the end of the same year.",
+          "max_age_days": 730
+        },
+        {
+          "id": "storage_share",
+          "label": "Storage share of variable renewable capacity",
+          "formula": "ratio_pct",
+          "inputs": [
+            "storage_gw",
+            "vre_gw"
+          ],
+          "definition": "Grid-scale storage power capacity as a percentage of solar plus wind capacity. Measured in power (GW over GW) rather than the metric's GWh per GW so both inputs share a unit."
+        },
+        {
+          "id": "curtailment",
+          "label": "Wind and solar curtailment rate",
+          "type": "number",
+          "unit": "%",
+          "definition": "Share of potential wind and solar generation in the region that was curtailed (dispatched down for grid constraints, congestion or oversupply, including redispatch) over the latest full year.",
+          "max_age_days": 730
+        }
+      ],
+      "params": [
+        {
+          "id": "p_curtail",
+          "label": "Material curtailment rate",
+          "value": 5,
+          "unit": "%",
+          "by_region": {},
+          "rationale": "The rubric's H requires flexibility 'sufficient to avoid material curtailment' without a number. China's 2018–2020 action plan set 5% as the ceiling for acceptable wind and solar curtailment (95% utilisation), the only official numeric curtailment benchmark found.",
+          "source": {
+            "title": "NDRC and NEA, Clean Energy Consumption Action Plan (2018–2020) (发改能源规〔2018〕1575号), ESCAP Asia Pacific Energy Portal record",
+            "url": "https://policy.asiapacificenergy.org/node/4123",
+            "locator": "2020 targets: solar utilisation above 95% (curtailment below 5%); wind about 95% (curtailment about 5%)"
+          }
+        },
+        {
+          "id": "p_storage_material",
+          "label": "Non-negligible storage share",
+          "status": "open",
+          "question": "Above what storage share of solar plus wind capacity (%) is grid-scale storage no longer 'negligible'? The rubric points to a region-specific benchmark informed by IEA grid-integration studies, but no such number was found (IEA pages could not be fetched)."
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "curtailment",
+              "op": "<=",
+              "param": "p_curtail"
+            },
+            {
+              "fact": "storage_share",
+              "op": ">=",
+              "param": "p_storage_material"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "storage_share",
+              "op": ">=",
+              "param": "p_storage_material"
+            }
+          ]
+        }
+      }
+    },
+    "PWR-R1": {
+      "rationale": "A carbon price on power emissions, or a binding clean-power mandate with a penalty, makes fossil plants pay for their emissions, which speeds coal and gas retirement (pwr.coal_exit) and raises the value of the renewables (pwr.renewables) and storage (pwr.storage) that replace them. Without either, fossil generation keeps its cost advantage at the margin.",
+      "actions": [
+        "pwr.coal_exit",
+        "pwr.renewables",
+        "pwr.storage"
+      ],
+      "facts": [
+        {
+          "id": "price",
+          "label": "Effective carbon price on power",
+          "type": "number",
+          "unit": "USD/tCO2",
+          "definition": "Average price per tonne CO2 over the latest full calendar year of the explicit carbon price (ETS allowance price or carbon tax rate) that covers the largest share of the region's power-sector emissions; where only state or provincial instruments apply, their average weighted by covered power emissions. Gross of free allocation; implicit prices from mandates are not included. Zero where none applies.",
+          "max_age_days": 365
+        },
+        {
+          "id": "scope",
+          "label": "Carbon price coverage",
+          "type": "enum",
+          "allowed_values": [
+            "region_wide",
+            "sub_regional",
+            "none"
+          ],
+          "definition": "region_wide: the carbon price covers power generation across the whole region (EU-wide, federal or national); sub_regional: only in some states or provinces; none: no explicit carbon price on power."
+        },
+        {
+          "id": "mandate",
+          "label": "Clean generation mandate",
+          "type": "enum",
+          "allowed_values": [
+            "binding_100pct_with_penalty",
+            "other_target",
+            "none"
+          ],
+          "definition": "binding_100pct_with_penalty: a region-wide legal requirement for 100% clean or renewable electricity by a set date, enforced by a financial penalty on non-compliant utilities or generators; other_target: any other clean or renewable generation target (below 100%, without a penalty, or only in some states or provinces); none: no such target."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_high",
+          "label": "High carbon price level",
+          "value": 60,
+          "unit": "USD/tCO2",
+          "by_region": {},
+          "rationale": "Today's rubric sets H at above USD 60/tCO2: the midpoint of the High-Level Commission's USD 40–80 range for 2020, and just under that range's 2030 lower bound in 2024 dollars (USD 63, World Bank State and Trends 2024, executive summary p. 5).",
+          "source": {
+            "title": "Report of the High-Level Commission on Carbon Prices (Carbon Pricing Leadership Coalition / World Bank, 2017)",
+            "url": "https://business.columbia.edu/sites/default/files-efs/imce-uploads/Joseph_Stiglitz/CarbonPricing_FullReport.pdf",
+            "locator": "Executive Summary, PDF p. 10: 'at least US$40–80/tCO2 by 2020 and US$50–100/tCO2 by 2030' (midpoint of 40–80)"
+          }
+        },
+        {
+          "id": "p_material",
+          "label": "Material carbon price level",
+          "value": 15,
+          "unit": "USD/tCO2",
+          "by_region": {},
+          "rationale": "Today's rubric starts M at USD 15/tCO2 and calls anything below 'no material carbon price'. No external benchmark for that line was found, so the framework value is carried over. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "PWR-R1 rating_rubric.M: 'Effective carbon price USD 15-60/tCO2'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "any": [
+            {
+              "all": [
+                {
+                  "fact": "price",
+                  "op": ">",
+                  "param": "p_high"
+                },
+                {
+                  "fact": "scope",
+                  "op": "=",
+                  "value": "region_wide"
+                }
+              ]
+            },
+            {
+              "fact": "mandate",
+              "op": "=",
+              "value": "binding_100pct_with_penalty"
+            }
+          ]
+        },
+        "M": {
+          "any": [
+            {
+              "fact": "price",
+              "op": ">=",
+              "param": "p_material"
+            },
+            {
+              "fact": "mandate",
+              "op": "=",
+              "value": "other_target"
+            }
+          ]
+        }
+      }
+    },
+    "PWR-R2": {
+      "rationale": "Renewable build-out (pwr.renewables) and the grid it needs (pwr.grid) depend on a legally binding target that underpins investment and on projects reaching grid connection in reasonable time. Long connection queues delay and kill projects even where targets exist.",
+      "actions": [
+        "pwr.renewables",
+        "pwr.grid"
+      ],
+      "facts": [
+        {
+          "id": "target",
+          "label": "Renewable target status",
+          "type": "enum",
+          "allowed_values": [
+            "binding",
+            "aspirational_or_sub_regional",
+            "none"
+          ],
+          "definition": "binding: a region-wide, legally binding renewable capacity or generation target for a set year (for example the EU Renewable Energy Directive or a national five-year-plan target); aspirational_or_sub_regional: a non-binding region-wide target, or binding targets only in some states or provinces; none: neither."
+        },
+        {
+          "id": "connect_years",
+          "label": "Grid connection time",
+          "type": "number",
+          "unit": "years",
+          "definition": "Median time from grid-connection request to commercial operation for utility-scale wind and solar projects completed in the latest year with data, region-wide (or across the largest grid areas where no region-wide figure exists).",
+          "max_age_days": 730
+        }
+      ],
+      "params": [
+        {
+          "id": "p_fast",
+          "label": "Fast grid connection",
+          "value": 3,
+          "unit": "years",
+          "by_region": {},
+          "rationale": "Today's rubric treats a queue below 3 years as reformed. 3 years was the typical US time from connection request to operation in 2015, before queue backlogs built up (nearly 5 years for projects built in 2023).",
+          "source": {
+            "title": "Lawrence Berkeley National Laboratory, Queued Up: 2024 Edition",
+            "url": "https://emp.lbl.gov/sites/default/files/2024-04/Queued%20Up%202024%20Edition_R1.pdf",
+            "locator": "p. 3: 'The typical project built in 2023 took nearly 5 years from the interconnection request to commercial operations, compared to 3 years in 2015 and <2 years in 2008'"
+          }
+        },
+        {
+          "id": "p_slow",
+          "label": "Prohibitive grid connection",
+          "value": 7,
+          "unit": "years",
+          "by_region": {},
+          "rationale": "Today's rubric rates a queue above 7 years L. No external benchmark for that line was found, so the framework value is carried over. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "PWR-R2 rating_rubric.L: 'connection queue exceeds 7 years'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "target",
+              "op": "=",
+              "value": "binding"
+            },
+            {
+              "fact": "connect_years",
+              "op": "<",
+              "param": "p_fast"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "target",
+              "op": "in",
+              "value": [
+                "binding",
+                "aspirational_or_sub_regional"
+              ]
+            },
+            {
+              "fact": "connect_years",
+              "op": "<=",
+              "param": "p_slow"
+            }
+          ]
+        }
+      }
+    },
+    "PWR-D1": {
+      "rationale": "Long-term power purchase agreements give new solar and wind (pwr.renewables) and storage (pwr.storage) projects a contracted revenue stream that lenders finance against. Where renewable output sells mainly on spot or merchant terms, projects carry price risk that raises their cost of capital.",
+      "actions": [
+        "pwr.renewables",
+        "pwr.storage"
+      ],
+      "facts": [
+        {
+          "id": "ppa_gw",
+          "label": "PPA volume signed",
+          "type": "number",
+          "unit": "GW",
+          "definition": "Renewable generation capacity contracted under corporate and utility long-term power purchase agreements signed in the region in the latest full calendar year (announced deals).",
+          "max_age_days": 730
+        },
+        {
+          "id": "ppa_gw_prior",
+          "label": "PPA volume signed, prior year",
+          "type": "number",
+          "unit": "GW",
+          "definition": "The same measure for the calendar year before.",
+          "max_age_days": 730
+        },
+        {
+          "id": "re_add_gw",
+          "label": "Solar and wind additions",
+          "type": "number",
+          "unit": "GW",
+          "definition": "Solar PV and wind capacity added in the region in the same calendar year as the PPA volume.",
+          "max_age_days": 730
+        },
+        {
+          "id": "ppa_share",
+          "label": "PPA volume as share of additions",
+          "formula": "ratio_pct",
+          "inputs": [
+            "ppa_gw",
+            "re_add_gw"
+          ],
+          "definition": "PPA volume signed as a percentage of the year's solar and wind additions: how much new renewable capacity is matched by long-term contracts rather than sold on spot or merchant terms."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_established",
+          "label": "PPA share of an established market",
+          "status": "open",
+          "question": "What PPA volume, as a share of the region's annual solar and wind additions, marks an established market where multi-year contracting is standard practice? No citable benchmark was found (the registered BloombergNEF data is subscription-only)."
+        },
+        {
+          "id": "p_negligible",
+          "label": "PPA share above negligible",
+          "status": "open",
+          "question": "Below what PPA share of annual solar and wind additions is the PPA market 'negligible', with renewables sold predominantly on spot or merchant terms? No citable benchmark was found."
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "ppa_share",
+              "op": ">=",
+              "param": "p_established"
+            },
+            {
+              "fact": "ppa_gw",
+              "op": ">=",
+              "other_fact": "ppa_gw_prior"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "ppa_share",
+              "op": ">=",
+              "param": "p_negligible"
+            }
+          ]
+        }
+      }
+    },
+    "STL-T1": {
+      "rationale": "Hydrogen-based DRI (steel.h2_dri) replaces coal with hydrogen as the iron-ore reductant, so hydrogen is its largest variable cost. Unless renewable hydrogen reaches the plant at or below the cost at which H2-DRI matches blast-furnace steel at the prevailing carbon price, H2-DRI projects need lasting subsidy; without any renewable hydrogen supply in the region they cannot start at all.",
+      "actions": [
+        "steel.h2_dri"
+      ],
+      "facts": [
+        {
+          "id": "h2_cost",
+          "label": "Renewable hydrogen cost",
+          "type": "number",
+          "unit": "USD/kg H2",
+          "definition": "Levelised cost of hydrogen from electrolysis powered by renewable electricity, delivered to steel production sites in the region (production plus transport and storage), latest year reported, before production subsidies such as US Section 45V credits; central estimate for the region's typical sites.",
+          "max_age_days": 730
+        },
+        {
+          "id": "h2_breakeven",
+          "label": "DRI-H2 breakeven hydrogen cost",
+          "type": "number",
+          "unit": "USD/kg H2",
+          "definition": "Hydrogen cost at which H2-DRI-EAF steel matches the cost of BF-BOF steel in the region at the region's prevailing carbon price, from the latest published techno-economic analysis for the region.",
+          "max_age_days": 730
+        },
+        {
+          "id": "cost_ratio",
+          "label": "Hydrogen cost to breakeven",
+          "formula": "ratio",
+          "inputs": [
+            "h2_cost",
+            "h2_breakeven"
+          ],
+          "definition": "Renewable hydrogen cost divided by the breakeven hydrogen cost: 1 is at breakeven, 2 is twice breakeven."
+        },
+        {
+          "id": "supply_chain",
+          "label": "Renewable hydrogen supply present",
+          "type": "boolean",
+          "definition": "At least one electrolysis plant powered by renewable electricity is operating or under construction in the region to supply an industrial user (demonstration units below commercial operation do not count)."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_within",
+          "label": "Hydrogen cost gap still counted as close",
+          "value": 2,
+          "by_region": {},
+          "rationale": "Today's rubric rates hydrogen 'within 2x of breakeven' M. No external source was found for where the M/L line should sit, so the framework value is carried over. Owner to confirm or replace with a sourced 2030 cost-decline projection.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "STL-T1 rating_rubric.M: 'Green hydrogen cost within 2x of breakeven'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "supply_chain",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "h2_cost",
+              "op": "<=",
+              "other_fact": "h2_breakeven"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "supply_chain",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "cost_ratio",
+              "op": "<=",
+              "param": "p_within"
+            }
+          ]
+        }
+      }
+    },
+    "STL-T2": {
+      "rationale": "Scrap-based EAF steelmaking (steel.scrap_eaf) is the low-carbon route available today without new technology, but its output is capped by how much scrap the region collects. Where domestic scrap covers only a small share of steelmaking capacity, most output must stay on the iron-ore route until H2-DRI (steel.h2_dri) or carbon capture (steel.ccus) matures.",
+      "actions": [
+        "steel.scrap_eaf"
+      ],
+      "facts": [
+        {
+          "id": "scrap_mt",
+          "label": "Domestic scrap availability",
+          "type": "number",
+          "unit": "Mt",
+          "definition": "Ferrous scrap available from the region's own sources in the latest year reported: scrap consumed by the region's steelmakers plus scrap exports minus scrap imports (Mt per year).",
+          "max_age_days": 730
+        },
+        {
+          "id": "capacity_mt",
+          "label": "Crude steelmaking capacity",
+          "type": "number",
+          "unit": "Mt",
+          "definition": "Nameplate crude steelmaking capacity in the region in the same year (Mt per year).",
+          "max_age_days": 730
+        },
+        {
+          "id": "scrap_share",
+          "label": "Scrap availability as share of capacity",
+          "formula": "ratio_pct",
+          "inputs": [
+            "scrap_mt",
+            "capacity_mt"
+          ],
+          "definition": "Domestic scrap availability as a percentage of crude steelmaking capacity."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_high",
+          "label": "High scrap availability",
+          "value": 50,
+          "unit": "%",
+          "by_region": {},
+          "rationale": "Today's rubric rates scrap above 50% of capacity H. No external benchmark for this line was found, so the framework value is carried over. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "STL-T2 rating_rubric.H: 'Scrap availability exceeds 50% of production capacity'"
+          }
+        },
+        {
+          "id": "p_low",
+          "label": "Low scrap availability",
+          "value": 25,
+          "unit": "%",
+          "by_region": {},
+          "rationale": "Today's rubric rates scrap below 25% of capacity L. No external benchmark for this line was found, so the framework value is carried over. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "STL-T2 rating_rubric.L: 'Scrap availability below 25% of production capacity'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "scrap_share",
+              "op": ">",
+              "param": "p_high"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "scrap_share",
+              "op": ">=",
+              "param": "p_low"
+            }
+          ]
+        }
+      }
+    },
+    "STL-R1": {
+      "rationale": "Every low-carbon steel route, H2-DRI (steel.h2_dri), scrap-EAF (steel.scrap_eaf) and carbon capture (steel.ccus), costs more than BF-BOF steel unless BF-BOF pays for its CO2. A high carbon price closes that gap; a border levy and a legislated end to free allocation stop unpriced imports and free allowances from undoing it.",
+      "actions": [
+        "steel.h2_dri",
+        "steel.scrap_eaf",
+        "steel.ccus"
+      ],
+      "facts": [
+        {
+          "id": "applies",
+          "label": "Carbon price applies to steel",
+          "type": "boolean",
+          "definition": "A compliance carbon price (emissions trading system or carbon tax) covers CO2 from steel production in the region in the latest compliance year, with an obligation to surrender allowances or pay the tax (monitoring and reporting alone does not count)."
+        },
+        {
+          "id": "price",
+          "label": "Carbon price on steel",
+          "type": "number",
+          "unit": "USD/tCO2",
+          "definition": "Average allowance price or tax rate per tonne CO2 applying to steel production in the region over the latest full calendar year, gross of free allocation (the marginal price a producer saves per tonne abated). Zero where no compliance price applies.",
+          "max_age_days": 365
+        },
+        {
+          "id": "levy",
+          "label": "Border carbon levy in force",
+          "type": "boolean",
+          "definition": "A border carbon adjustment requires importers of steel into the region to pay for the embedded emissions (a financial obligation, not only reporting) for imports in the current or latest year."
+        },
+        {
+          "id": "fa_phaseout",
+          "label": "Free allocation phase-out legislated",
+          "type": "boolean",
+          "definition": "Law in force sets an end date for free allocation of allowances to steel producers, with a schedule of reductions that has started to apply (for example the EU CBAM factor in Article 10a(1a) of Directive 2003/87/EC as amended by Directive (EU) 2023/959). Free allocation that is merely planned to be reviewed does not count."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_high",
+          "label": "High carbon price level",
+          "value": 50,
+          "unit": "USD/tCO2",
+          "by_region": {},
+          "rationale": "Today's rubric sets H at above USD 50/tCO2. That is the lower end of the High-Level Commission's 2030 range for a Paris-consistent explicit carbon price (USD 50–100, 2017 dollars), the level at which a carbon price starts to close the cost gap of low-carbon production routes.",
+          "source": {
+            "title": "Report of the High-Level Commission on Carbon Prices (Carbon Pricing Leadership Coalition / World Bank, 2017)",
+            "url": "https://business.columbia.edu/sites/default/files-efs/imce-uploads/Joseph_Stiglitz/CarbonPricing_FullReport.pdf",
+            "locator": "Executive Summary, PDF p. 10: 'at least US$40–80/tCO2 by 2020 and US$50–100/tCO2 by 2030'"
+          }
+        },
+        {
+          "id": "p_material",
+          "label": "Material carbon price level",
+          "value": 15,
+          "unit": "USD/tCO2",
+          "by_region": {},
+          "rationale": "The rubric's L reads 'no material carbon price' without a number. The framework's own line for a material carbon price is in PWR-R1, whose M band starts at USD 15/tCO2 under the same L wording, so the same line applies here. No external benchmark for 'material' was found. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "PWR-R1 rating_rubric.M: 'Effective carbon price USD 15-60/tCO2'; L: 'No material carbon price'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "applies",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "price",
+              "op": ">",
+              "param": "p_high"
+            },
+            {
+              "fact": "levy",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "fa_phaseout",
+              "op": "=",
+              "value": true
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "applies",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "price",
+              "op": ">=",
+              "param": "p_material"
+            }
+          ]
+        }
+      }
+    },
+    "STL-R2": {
+      "rationale": "A binding requirement to buy low-carbon steel in public construction creates assured demand for steel from H2-DRI (steel.h2_dri) and scrap-EAF (steel.scrap_eaf) plants and lets them recover their cost premium. Voluntary criteria leave that demand to each buyer's discretion.",
+      "actions": [
+        "steel.h2_dri",
+        "steel.scrap_eaf"
+      ],
+      "facts": [
+        {
+          "id": "rule",
+          "label": "Low-carbon steel procurement rule",
+          "type": "enum",
+          "allowed_values": [
+            "binding",
+            "voluntary_or_pilot",
+            "none"
+          ],
+          "definition": "binding: a law, regulation or building code in force in the region requires embodied-carbon limits or low-carbon steel in public procurement or construction; voluntary_or_pilot: voluntary criteria or standards, or requirements limited to pilot projects; none: neither exists. National or EU-wide rules count; rules of individual states, provinces or member states count as voluntary_or_pilot for the region."
+        },
+        {
+          "id": "coverage",
+          "label": "Share of steel demand covered",
+          "type": "number",
+          "unit": "%",
+          "definition": "Share of the region's construction demand for steel (by tonnage, latest year with data) that falls under the binding rule.",
+          "max_age_days": 730
+        }
+      ],
+      "params": [
+        {
+          "id": "p_material_share",
+          "label": "Material share of construction demand",
+          "status": "open",
+          "question": "What share of the region's construction demand for steel must a binding rule cover to count as 'a material share'? No sourced benchmark was found; a source for the coverage figure itself (e.g. the public-procurement share of construction steel use) is also needed."
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "rule",
+              "op": "=",
+              "value": "binding"
+            },
+            {
+              "fact": "coverage",
+              "op": ">=",
+              "param": "p_material_share"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "rule",
+              "op": "in",
+              "value": [
+                "binding",
+                "voluntary_or_pilot"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "STL-D1": {
+      "rationale": "Low-carbon steel from H2-DRI (steel.h2_dri), scrap-EAF (steel.scrap_eaf) or carbon capture (steel.ccus) costs more to make than BF-BOF steel. Plants reach financing only when buyers sign offtake contracts that pay a premium on a large part of their output; without them the premium stays unrecovered.",
+      "actions": [
+        "steel.h2_dri",
+        "steel.scrap_eaf",
+        "steel.ccus"
+      ],
+      "facts": [
+        {
+          "id": "premium",
+          "label": "Green steel premium disclosed",
+          "type": "boolean",
+          "definition": "A producer or buyer in the region has disclosed a price premium (per tonne or as a percentage) paid for certified low-carbon steel under contracts signed or in force in the latest year."
+        },
+        {
+          "id": "offtake_signed",
+          "label": "Offtake agreements signed",
+          "type": "boolean",
+          "definition": "At least one signed offtake agreement (binding or conditional, pilots included) exists for low-carbon steel from a producer in the region."
+        },
+        {
+          "id": "offtake_share",
+          "label": "Share of announced capacity under offtake",
+          "type": "number",
+          "unit": "%",
+          "definition": "Annual volume contracted under signed offtake agreements as a percentage of the announced annual output of low-carbon steel capacity in the region (operating, under construction or at final investment decision), from the latest disclosures.",
+          "max_age_days": 365
+        }
+      ],
+      "params": [
+        {
+          "id": "p_material_offtake",
+          "label": "Material offtake share",
+          "status": "open",
+          "question": "What share of announced low-carbon steel capacity must be covered by signed offtake contracts to count as 'a material share'? A benchmark could come from project-finance practice (the share of output lenders require under contract), but no citable source was found."
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "premium",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "offtake_share",
+              "op": ">=",
+              "param": "p_material_offtake"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "premium",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "offtake_signed",
+              "op": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    },
+    "CEM-T1": {
+      "rationale": "Carbon capture (cement.ccus) is the only way to remove the process CO2 released when limestone is calcined, which clinker substitution (cement.clinker_sub) and fuel switching (cement.alt_fuels) cannot reach. Until a full-scale cement capture plant has run in the region, cost, performance and storage-access risk keep investors from committing to further plants.",
+      "actions": [
+        "cement.ccus"
+      ],
+      "facts": [
+        {
+          "id": "op_capacity",
+          "label": "Largest operating cement CCS plant",
+          "type": "number",
+          "unit": "Mtpa CO2",
+          "definition": "Design capture capacity of the largest carbon capture facility at a cement plant in the region that is in commercial operation with CO2 sent to permanent storage or use, at the latest status; 0 if none.",
+          "max_age_days": 365
+        },
+        {
+          "id": "track_record",
+          "label": "Operating track record",
+          "type": "boolean",
+          "definition": "That facility has run in commercial operation for at least twelve consecutive months, with captured volumes reported by the operator, a regulator or the CO2RE database."
+        },
+        {
+          "id": "fid_capacity",
+          "label": "Largest cement CCS plant at FID or in construction",
+          "type": "number",
+          "unit": "Mtpa CO2",
+          "definition": "Design capture capacity of the largest carbon capture facility at a cement plant in the region that has taken a final investment decision or is under construction but not yet operating, at the latest status; 0 if none.",
+          "max_age_days": 365
+        }
+      ],
+      "params": [
+        {
+          "id": "p_full_scale",
+          "label": "Full-scale capture capacity",
+          "value": 0.4,
+          "unit": "Mtpa CO2",
+          "by_region": {},
+          "rationale": "Today's rubric calls a plant above 0.3 Mtpa full-scale but cites no source. The Global CCS Institute's large-scale threshold for industrial facilities other than coal power is 0.4 Mtpa, so that sourced value replaces 0.3. Brevik CCS in Norway, the first full-scale cement plant, captures about 0.4 Mtpa.",
+          "source": {
+            "title": "C. Petit (Imperial College London), Overview of large-scale CO2 capture projects in Europe, Asia and Africa (2014 RCN meeting), stating the Global CCS Institute large-scale definition",
+            "url": "https://www.aiche.org/sites/default/files/docs/events/0_-_petit_rcn2014_petit_2.pdf",
+            "locator": "Slide 2 'What is Large-Scale?': '> 0.4 Mt CO2/yr for other emissions-intensive industrial facilities'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "op_capacity",
+              "op": ">=",
+              "param": "p_full_scale"
+            },
+            {
+              "fact": "track_record",
+              "op": "=",
+              "value": true
+            }
+          ]
+        },
+        "M": {
+          "any": [
+            {
+              "fact": "fid_capacity",
+              "op": ">=",
+              "param": "p_full_scale"
+            },
+            {
+              "fact": "op_capacity",
+              "op": ">=",
+              "param": "p_full_scale"
+            }
+          ]
+        }
+      }
+    },
+    "CEM-T2": {
+      "rationale": "Replacing clinker with supplementary cementitious materials such as slag, fly ash, calcined clay and limestone (cement.clinker_sub) is the cheapest cement abatement lever available now, cutting fuel and process CO2 per tonne of cement. A high regional clinker ratio means the lever is unused or the materials are scarce, leaving more of the abatement to carbon capture (cement.ccus).",
+      "actions": [
+        "cement.clinker_sub"
+      ],
+      "facts": [
+        {
+          "id": "clinker_ratio",
+          "label": "Clinker-to-cement ratio",
+          "type": "number",
+          "unit": "t/t",
+          "definition": "Average tonnes of clinker per tonne of cement produced in the region in the latest year reported (GCCA Getting the Numbers Right or national statistics), all cement types.",
+          "max_age_days": 730
+        },
+        {
+          "id": "scm_programme",
+          "label": "Active SCM substitution programme",
+          "type": "boolean",
+          "definition": "A standard, building-code change or public or industry programme in force in the region promotes blended cements or the supply of supplementary cementitious materials (for example limestone calcined clay cement standards or slag and fly-ash supply schemes)."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_low",
+          "label": "Low clinker ratio",
+          "value": 0.65,
+          "unit": "t/t",
+          "by_region": {},
+          "rationale": "Today's rubric rates a ratio below 0.65 H. 0.65 is the IEA Net Zero 2030 milestone for the global clinker-to-cement ratio (0.71 in 2022), and the lower clinker bound of EN 197-1 CEM II/B cements (65–79% clinker). IEA pages could not be fetched directly; the milestone was read from the search engine's copy of the page.",
+          "source": {
+            "title": "IEA, Net Zero Roadmap (2023 update): Cement",
+            "url": "https://www.iea.org/reports/cement-3",
+            "locator": "Milestones table, clinker-to-cement ratio (tonne per tonne): 0.71 (2022), 0.65 (2030), 0.61 (2035), 0.57 (2050)"
+          }
+        },
+        {
+          "id": "p_high",
+          "label": "High clinker ratio",
+          "value": 0.8,
+          "unit": "t/t",
+          "by_region": {},
+          "rationale": "Today's rubric rates a ratio above 0.80 L. Under EN 197-1 the least-blended Portland-composite cements (CEM II/A) contain at least 80% clinker, so a regional average above 0.80 means typical cement uses less substitution than the lightest blended cement type.",
+          "source": {
+            "title": "Buzzi Unicem, Type II cements (composition under UNI EN 197-1)",
+            "url": "https://www.buzziunicem.it/en/type-ii",
+            "locator": "Type II/A: 'between 80-94% clinker'; Type II/B: 'between 65-79% clinker'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "clinker_ratio",
+              "op": "<",
+              "param": "p_low"
+            },
+            {
+              "fact": "scm_programme",
+              "op": "=",
+              "value": true
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "clinker_ratio",
+              "op": "<=",
+              "param": "p_high"
+            }
+          ]
+        }
+      }
+    },
+    "CEM-R1": {
+      "rationale": "Cement CCS (cement.ccus), deeper clinker substitution (cement.clinker_sub) and low-carbon fuels (cement.alt_fuels) all cost more than conventional clinker unless its CO2 is priced. A high carbon price closes the gap; a border levy and a legislated end to free allocation stop unpriced imports and free allowances from undoing it.",
+      "actions": [
+        "cement.ccus",
+        "cement.clinker_sub",
+        "cement.alt_fuels"
+      ],
+      "facts": [
+        {
+          "id": "applies",
+          "label": "Carbon price applies to cement",
+          "type": "boolean",
+          "definition": "A compliance carbon price (emissions trading system or carbon tax) covers CO2 from cement production in the region in the latest compliance year, with an obligation to surrender allowances or pay the tax (monitoring and reporting alone does not count)."
+        },
+        {
+          "id": "price",
+          "label": "Carbon price on cement",
+          "type": "number",
+          "unit": "USD/tCO2",
+          "definition": "Average allowance price or tax rate per tonne CO2 applying to cement production in the region over the latest full calendar year, gross of free allocation (the marginal price a producer saves per tonne abated). Zero where no compliance price applies.",
+          "max_age_days": 365
+        },
+        {
+          "id": "levy",
+          "label": "Border carbon levy in force",
+          "type": "boolean",
+          "definition": "A border carbon adjustment requires importers of cement into the region to pay for the embedded emissions (a financial obligation, not only reporting) for imports in the current or latest year."
+        },
+        {
+          "id": "fa_phaseout",
+          "label": "Free allocation phase-out legislated",
+          "type": "boolean",
+          "definition": "Law in force sets an end date for free allocation of allowances to cement producers, with a schedule of reductions that has started to apply (for example the EU CBAM factor in Article 10a(1a) of Directive 2003/87/EC as amended by Directive (EU) 2023/959). Free allocation that is merely planned to be reviewed does not count."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_high",
+          "label": "High carbon price level",
+          "value": 50,
+          "unit": "USD/tCO2",
+          "by_region": {},
+          "rationale": "Today's rubric sets H at above USD 50/tCO2. That is the lower end of the High-Level Commission's 2030 range for a Paris-consistent explicit carbon price (USD 50–100, 2017 dollars), the level at which a carbon price starts to close the cost gap of low-carbon production routes.",
+          "source": {
+            "title": "Report of the High-Level Commission on Carbon Prices (Carbon Pricing Leadership Coalition / World Bank, 2017)",
+            "url": "https://business.columbia.edu/sites/default/files-efs/imce-uploads/Joseph_Stiglitz/CarbonPricing_FullReport.pdf",
+            "locator": "Executive Summary, PDF p. 10: 'at least US$40–80/tCO2 by 2020 and US$50–100/tCO2 by 2030'"
+          }
+        },
+        {
+          "id": "p_material",
+          "label": "Material carbon price level",
+          "value": 15,
+          "unit": "USD/tCO2",
+          "by_region": {},
+          "rationale": "The rubric's L reads 'no material carbon price' without a number. The framework's own line for a material carbon price is in PWR-R1, whose M band starts at USD 15/tCO2 under the same L wording, so the same line applies here. No external benchmark for 'material' was found. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "PWR-R1 rating_rubric.M: 'Effective carbon price USD 15-60/tCO2'; L: 'No material carbon price'"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "applies",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "price",
+              "op": ">",
+              "param": "p_high"
+            },
+            {
+              "fact": "levy",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "fa_phaseout",
+              "op": "=",
+              "value": true
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "applies",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "price",
+              "op": ">=",
+              "param": "p_material"
+            }
+          ]
+        }
+      }
+    },
+    "CEM-R2": {
+      "rationale": "Cement CCS (cement.ccus) needs capture, transport and storage infrastructure that a single plant cannot finance alone. Public grants that have actually been paid to cement projects show a working route to finance; a scheme that has paid nothing to cement yet, or is small and competitive, leaves projects exposed.",
+      "actions": [
+        "cement.ccus"
+      ],
+      "facts": [
+        {
+          "id": "scheme",
+          "label": "Public CCS funding scheme",
+          "type": "boolean",
+          "definition": "A public funding mechanism (grant programme, carbon contract for difference, tax credit or state-funded CO2 transport and storage) is open or active in the region and applicable to carbon capture at cement plants."
+        },
+        {
+          "id": "disbursed",
+          "label": "Funds disbursed to cement CCS",
+          "type": "boolean",
+          "definition": "Such a scheme has paid out (not only awarded) funds to at least one cement CCS project in the region."
+        }
+      ],
+      "params": [],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "scheme",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "disbursed",
+              "op": "=",
+              "value": true
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "scheme",
+              "op": "=",
+              "value": true
+            }
+          ]
+        }
+      }
+    },
+    "CEM-D1": {
+      "rationale": "Low-carbon cement, from deep clinker substitution (cement.clinker_sub) and especially from carbon capture (cement.ccus), costs more than conventional cement. Binding green procurement rules or embodied-carbon limits in building codes create demand that pays that premium; voluntary commitments cover only part of it.",
+      "actions": [
+        "cement.ccus",
+        "cement.clinker_sub"
+      ],
+      "facts": [
+        {
+          "id": "rule",
+          "label": "Low-carbon cement procurement rule",
+          "type": "enum",
+          "allowed_values": [
+            "binding",
+            "voluntary_or_pilot",
+            "none"
+          ],
+          "definition": "binding: a law, regulation or building code in force in the region requires embodied-carbon limits or low-carbon cement in public procurement or construction; voluntary_or_pilot: voluntary criteria or standards, or requirements limited to pilot projects; none: neither exists. National or EU-wide rules count; rules of individual states, provinces or member states count as voluntary_or_pilot for the region."
+        },
+        {
+          "id": "coverage",
+          "label": "Share of cement demand covered",
+          "type": "number",
+          "unit": "%",
+          "definition": "Share of the region's construction demand for cement (by tonnage, latest year with data) that falls under the binding rule.",
+          "max_age_days": 730
+        }
+      ],
+      "params": [
+        {
+          "id": "p_material_share",
+          "label": "Material share of construction demand",
+          "status": "open",
+          "question": "What share of the region's construction demand for cement must a binding rule cover to count as 'a material share'? No sourced benchmark was found; a source for the coverage figure itself (e.g. the public-procurement share of construction cement use) is also needed."
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "rule",
+              "op": "=",
+              "value": "binding"
+            },
+            {
+              "fact": "coverage",
+              "op": ">=",
+              "param": "p_material_share"
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "rule",
+              "op": "in",
+              "value": [
+                "binding",
+                "voluntary_or_pilot"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}
