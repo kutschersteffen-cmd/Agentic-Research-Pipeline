@@ -70,7 +70,7 @@ test("hasFailureDetails is true only for failed and partially_completed", () => 
 
 test("resumableFailedRuns keeps failed and partially_completed resumable runs in order", () => {
   const u = ago(MIN);
-  const runs = [run("extraction", "failed", u), run("theme", "partially_completed", u), run("financials", "completed", u), run("holdings", "failed", u)];
+  const runs = [run("extraction", "failed", u), run("theme", "partially_completed", u), run("financials", "completed", u), run("holdings", "failed", u), run("theme", "cancelled", u)];
   assert.deepEqual(ids(resumableFailedRuns(runs)), [runs[0].run_id, runs[1].run_id]);
 });
 
