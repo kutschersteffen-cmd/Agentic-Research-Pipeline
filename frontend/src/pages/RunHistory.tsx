@@ -32,6 +32,9 @@ export function RunHistory({ onOpenReview }: Props = {}) {
     try {
       const res = (await api.listRuns(filterRef.current || undefined)) as { runs: RunManifest[] };
       setRuns(res.runs);
+      // A run that leaves failed/partially_completed starts closed if it fails again.
+      const failed = new Set(res.runs.filter((r) => hasFailureDetails(r.status)).map((r) => r.run_id));
+      setOpen((prev) => new Set([...prev].filter((id) => failed.has(id))));
     } catch (err) {
       setError(`Runs could not be loaded: ${(err as Error).message}.`);
     }
@@ -168,7 +171,7 @@ export function RunHistory({ onOpenReview }: Props = {}) {
                       )}
                     </td>
                   </tr>
-                  {open.has(r.run_id) && (
+                  {open.has(r.run_id) && hasFailureDetails(r.status) && (
                     <tr>
                       <td colSpan={8}>
                         <FailureDetails runId={r.run_id} />
