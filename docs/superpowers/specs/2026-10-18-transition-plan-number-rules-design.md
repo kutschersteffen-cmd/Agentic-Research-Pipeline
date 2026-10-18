@@ -1,7 +1,7 @@
 # Transition-plan number rules (first set)
 
 Date: 2026-10-18
-Status: description approved by the owner in chat 2026-10-18; acceptance table awaiting approval
+Status: approved by the owner 2026-10-18 (description and acceptance table)
 Builds on: `docs/superpowers/specs/2026-10-17-schema-rules-design.md` (merged in #169)
 
 ## Intent
