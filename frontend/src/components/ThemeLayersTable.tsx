@@ -12,7 +12,7 @@ export function ThemeLayersTable({ runId }: { runId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!asOf) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(asOf)) return; // wait for a whole date
     let current = true;
     api
       .getThemeLayers(runId, asOf)
@@ -28,7 +28,8 @@ export function ThemeLayersTable({ runId }: { runId: string }) {
       <h2>Layers</h2>
       <label className="field-label">
         As of
-        <input type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+        {/* Text, not type="date": the spec wants YYYY-MM-DD shown, whatever the browser's locale. */}
+        <input value={asOf} placeholder="YYYY-MM-DD" inputMode="numeric" maxLength={10} onChange={(e) => setAsOf(e.target.value.trim())} />
       </label>
       {error && <p className="error-text" role="alert">{error}</p>}
       {layers && !error && (
