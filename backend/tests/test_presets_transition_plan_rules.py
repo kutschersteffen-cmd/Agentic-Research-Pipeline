@@ -206,7 +206,7 @@ async def test_ambition_42_pct_fails():  # AC-6
 async def test_ambition_42_pct_goes_to_review():  # AC-17
     rows = await _check(_ambition())
     (row,) = [r for r in rows if r.field_id == "tp_a_ambition_5"]
-    spec = _released().fields[[f.field_id for f in _released().fields].index("tp_a_ambition_5")]
+    spec = next(f for f in _released().fields if f.field_id == "tp_a_ambition_5")
     r = route(row, FieldQuality(field_id=spec.field_id, version=spec.version, first_audit_passed=True), spec)
     assert r.kind == "review" and "check:rule.tp_r_ambition_5" in r.reasons
 

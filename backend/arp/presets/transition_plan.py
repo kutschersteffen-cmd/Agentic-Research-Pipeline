@@ -18,7 +18,8 @@ SCHEMA_ID = "transition_plan_indicators"
 _KEYWORDS = Path(__file__).parent / "data" / "transition_plan_keywords.json"
 _VERSIONS = {
     "A_coverage_6": 2,  # v2: guideline said "scope 2" in the scope 1 question
-    **dict.fromkeys(["A_ambition_5", *(f"A_progress_{q}" for q in range(67, 73))], 2),  # v2: number rules added
+    "A_ambition_5": 2,  # v2 here and below: number rules added
+    **{f"A_progress_{q}": 2 for q in range(67, 73)},
 }
 
 _SERIES_INSTRUCTIONS = (
