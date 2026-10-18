@@ -111,6 +111,19 @@ def test_pure_play_threshold():
     assert _by_key(compute_layers(F_RUN, F_EDGES, F_NAMES, params))["B"].pure_play
 
 
+def test_pure_play_at_the_threshold():
+    assert _by_key(compute_layers([("A", "A", 0.5)], [], {}, DEFAULT))["A"].pure_play
+
+
+def test_zero_score_sorts_after_positive_scores():
+    params = LayerParams(0.0, 0.35, 0.2, 0.85, 2, 0.5)  # w1 = 0: run companies score 0, suppliers above 0
+    assert [r.issuer_key for r in compute_layers(F_RUN, F_EDGES, F_NAMES, params)] == ["S1", "S2", "A", "B", "C"]
+
+
+def test_supplier_without_a_name_shows_its_key():
+    assert _by_key(compute_layers([("A", "A", 0.6)], [Edge("S1", "A", 0.4)], {}, DEFAULT))["S1"].name == "S1"
+
+
 def test_supplier_name_from_graph_and_run_name_wins():
     r = _by_key(compute_layers([("A", "Run name", 0.6)], [Edge("S1", "A", 0.4)], {"A": "Graph name", "S1": "Supplier"}, DEFAULT))
     assert r["A"].name == "Run name" and r["S1"].name == "Supplier"
