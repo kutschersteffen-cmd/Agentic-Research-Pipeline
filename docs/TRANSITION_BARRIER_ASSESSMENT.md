@@ -441,7 +441,7 @@ disclosure or a site that blocks automated requests); the reason is its `manual_
 | EU FuelEU Maritime Regulation (2023/1805) | Official Journal of the European Union | `SHP-R1` | quarterly | [link](https://eur-lex.europa.eu/eli/reg/2023/1805/oj/eng) |
 | EU Methane Regulation (2024/1787) | Official Journal of the European Union | `OGU-R1` | quarterly | [link](https://eur-lex.europa.eu/eli/reg/2024/1787/oj/eng) |
 | EU ReFuelEU Aviation Regulation (2023/2405) | Official Journal of the European Union | `AVI-R1` | quarterly | [link](https://eur-lex.europa.eu/eli/reg/2023/2405/oj) |
-| EU REPowerEU / Fit for 55 targets | European Commission | `PWR-R2` | quarterly | [link](https://eur-lex.europa.eu/eli/dir/2023/2413/oj/eng) |
+| EU REPowerEU / Fit for 55 targets | European Commission | `PWR-R2` | quarterly | [link](https://eur-lex.europa.eu/eli/dir/2018/2001/oj/eng) |
 
 #### Structured API or dashboard (6)
 

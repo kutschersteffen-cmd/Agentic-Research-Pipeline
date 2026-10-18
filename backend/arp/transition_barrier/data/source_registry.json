@@ -175,8 +175,8 @@
       ],
       "access_pattern": "legal_regulatory_text",
       "refresh_cadence": "quarterly",
-      "locator": "Directive (EU) 2023/2413 Article 1(2) replaces Article 3(1) of Directive (EU) 2018/2001: binding 2030 EU-wide renewable target of at least 42.5%, endeavour to reach 45%; permitting acceleration in the inserted Articles 15c (renewables acceleration areas), 16a and 16b (permit-granting inside and outside those areas)",
-      "url": "https://eur-lex.europa.eu/eli/dir/2023/2413/oj/eng"
+      "locator": "Article 3(1), as amended by Directive (EU) 2023/2413: binding EU-wide renewable target of at least 42.5% by 2030, endeavour to reach 45%; permitting acceleration in Articles 15c (renewables acceleration areas), 16a and 16b (permit-granting inside and outside those areas), inserted by Directive (EU) 2023/2413",
+      "url": "https://eur-lex.europa.eu/eli/dir/2018/2001/oj/eng"
     },
     "EU_CBAM_scope_review_chemicals_inclusion_status": {
       "source_name": "EU CBAM scope review - chemicals inclusion status",

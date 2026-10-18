@@ -347,4 +347,4 @@ Registry clean-up fixes that touch sources these notes rely on:
 - HDT-R1 US: the EPA Phase 3 source now points at the final rule (89 FR 29440) and its locator records the repeal (91 FR 7686, effective 20 April 2026).
 - HDT-R1 CN: the MIIT source now points at the 2020 amendment of the dual-credit measures, which cover passenger cars (乘用车) only; the evidence's claim that the NEV credit system extends to commercial vehicles is not in that text.
 - STL-R2 US: the Buy Clean source now points at the Biden-era progress report, and its locator records that EO 14057 was rescinded in January 2025.
-- PWR-R2 EU: the renewable-target source now points at Directive (EU) 2023/2413 (42.5% target), not the 2018 text.
+- PWR-R2 EU: the renewable-target source still points at Directive (EU) 2018/2001, whose consolidated versions the EUR-Lex refresh watches; its locator now cites Article 3(1) as amended by Directive (EU) 2023/2413 (42.5% target).
