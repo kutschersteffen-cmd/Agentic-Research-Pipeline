@@ -61,3 +61,7 @@ backend/mutants/
 # Stryker work folder and report (.github/scripts/mutation_frontend.py)
 frontend/.stryker-tmp/
 frontend/reports/
+
+# Graphify / Obsidian output (scripts/build_graph.sh)
+graphify-out/
+.obsidian/
