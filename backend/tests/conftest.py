@@ -47,6 +47,25 @@ def _review_quality_dir_in_tmp(monkeypatch, tmp_path):
     monkeypatch.setenv("ARP_REVIEW_QUALITY_DIR", str(tmp_path / "review_quality"))
 
 
+@pytest.fixture(autouse=True)
+def _identity_lookups_offline(monkeypatch):
+    """execute_identity_run turns on the GLEIF/Wikidata/site lookups; a test that passes no transport
+    gets one that refuses every request, so the lookups degrade to the no-hit path instead of the network."""
+    import httpx
+
+    from arp.discovery import identity_pipeline
+
+    real = identity_pipeline.resolve_company_identity
+
+    def refuse(request):
+        raise httpx.ConnectError("network disabled in tests", request=request)
+
+    async def offline(company, *, transport=None, **kwargs):
+        return await real(company, transport=transport or httpx.MockTransport(refuse), **kwargs)
+
+    monkeypatch.setattr(identity_pipeline, "resolve_company_identity", offline)
+
+
 @pytest.fixture(scope="session")
 def _pg_schema():
     dsn = os.environ.get("ARP_TEST_POSTGRES_DSN")

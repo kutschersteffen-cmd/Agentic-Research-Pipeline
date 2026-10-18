@@ -70,6 +70,8 @@ def needs_recheck(result: IdentityResolutionResult, company: CompanyRef, idmap: 
         return True
     if identifiers_of(company) != result.identifiers:
         return True
+    if not company.lei and result.derived_lei:  # re-derive nothing: judge it with the LEI GLEIF gave last time
+        company = company.model_copy(update={"lei": result.derived_lei})
     outcome = apply_identifier_rules(company, idmap)
     if outcome is None:
         return result.match_rule in (MatchRule.EXACT_LEI, MatchRule.IDENTIFIER_MAP, MatchRule.SUPPLIED)

@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import logging
 
+import httpx
+
 from arp.config import Settings
 from arp.discovery.change_detector import ChangeDetector, poll_esef_filings
 from arp.discovery.crawler import CrawlConfig, HomepageUnreachableError, crawl_for_documents
 from arp.discovery.downloader import download_documents
 from arp.discovery.refresh import refresh_hook
-from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient, homepage_from_cik, resolve_company_homepage
+from arp.discovery.site_check import check_homepage
+from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient, homepage_from_ids, resolve_company_homepage
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.esef import EsefDocumentSource
 from arp.ingestion.indexing_config import IndexingConfig
@@ -30,13 +33,26 @@ async def _discover_for_company(
     change_detector: ChangeDetector,
     doc_types: list[DocType] | None,
     edgar: EdgarDocumentSource | None = None,
+    transport: httpx.AsyncBaseTransport | None = None,
 ) -> DiscoveryCompanyResult:
     filings = await _edgar_filings(company, edgar, doc_types) if edgar and company.cik else []
-    homepage = company.website or await homepage_from_cik(settings.discovery_user_agent, company.cik)
+    homepage, check = company.website, None
+    if not homepage:  # a supplied website is used unchecked; a derived one is checked first
+        homepage = await homepage_from_ids(
+            settings.discovery_user_agent, lei=company.lei, isin=company.isin, cik=company.cik, transport=transport
+        )
+        from_ids = homepage is not None  # search runs only without a Wikidata hit, and never gets the flag
+        homepage = homepage or await resolve_company_homepage(company.name, search_client)
+        if homepage:
+            check = await check_homepage(
+                homepage, company, settings.discovery_user_agent, identifier_source=from_ids, transport=transport
+            )
+            if check.verdict == "rejected":
+                homepage = None
     if not homepage:
-        homepage = await resolve_company_homepage(company.name, search_client)
-    if not homepage:
-        return DiscoveryCompanyResult(company_id=company.company_id, name=company.name, homepage_used=None, documents_found=filings)
+        return DiscoveryCompanyResult(
+            company_id=company.company_id, name=company.name, homepage_used=None, homepage_check=check, documents_found=filings
+        )
 
     crawl_config = CrawlConfig(
         user_agent=settings.discovery_user_agent,
@@ -45,15 +61,16 @@ async def _discover_for_company(
         request_delay_seconds=settings.discovery_request_delay_seconds,
     )
     try:
-        candidates = await crawl_for_documents(homepage, crawl_config)
+        candidates = await crawl_for_documents(homepage, crawl_config, transport=transport)
     except HomepageUnreachableError as exc:
-        return DiscoveryCompanyResult(company_id=company.company_id, name=company.name, homepage_used=homepage, homepage_unreachable=True, crawl_error=str(exc), documents_found=filings)
+        return DiscoveryCompanyResult(company_id=company.company_id, name=company.name, homepage_used=homepage, homepage_check=check, homepage_unreachable=True, crawl_error=str(exc), documents_found=filings)
     if doc_types:
         candidates = [c for c in candidates if c.doc_type in doc_types]
 
     downloaded = await download_documents(
         company, candidates, settings.documents_dir, settings.discovery_user_agent,
-        store=blob_store_for(IndexingConfig.from_settings(settings)), trigger="discovery",
+        store=blob_store_for(IndexingConfig.from_settings(settings)), trigger="discovery", transport=transport,
+        known=change_detector.known_documents(company.company_id),
     )
     events = await change_detector.diff_and_record(company, downloaded)
 
@@ -61,6 +78,7 @@ async def _discover_for_company(
         company_id=company.company_id,
         name=company.name,
         homepage_used=homepage,
+        homepage_check=check,
         documents_found=filings + downloaded,
         new_events=events,
     )
@@ -98,6 +116,7 @@ async def execute_discovery_run(
     search_client: WebSearchClient | None = None,
     esef_source: EsefDocumentSource | None = None,
     edgar_source: EdgarDocumentSource | None = None,
+    transport: httpx.AsyncBaseTransport | None = None,
 ) -> str:
     """Runs the document discovery pipeline over a company universe against
     an already-created run (see create_discovery_run).
@@ -132,7 +151,7 @@ async def execute_discovery_run(
     async def _worker(company: CompanyRef) -> DiscoveryCompanyResult:
         result = await _discover_for_company(
             company, settings=settings, search_client=search_client, change_detector=change_detector, doc_types=doc_types,
-            edgar=edgar_source,
+            edgar=edgar_source, transport=transport,
         )
         if esef_source is not None:
             events = await poll_esef_filings(company, esef_source, change_detector, doc_types)
@@ -140,10 +159,12 @@ async def execute_discovery_run(
         return result
 
     def _on_success(company: CompanyRef, result: DiscoveryCompanyResult) -> None:
+        # no documents, or a PDF that doesn't name the company (doc_check), needs a reviewer
+        flagged = any(d.company_match in ("none", "no_text") for d in result.documents_found)
         job_manager.record_progress(
             run_id,
             completed_delta=1,
-            review_delta=0 if result.documents_found else 1,
+            review_delta=1 if not result.documents_found or flagged else 0,
         )
 
     def _on_error(company: CompanyRef, exc: Exception) -> None:

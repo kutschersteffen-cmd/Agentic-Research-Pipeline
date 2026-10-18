@@ -62,6 +62,11 @@ dependencies = [
     "pgvector>=0.3,<1.0",
     # Company graph (arp/company_graph.py): supply edges for theme exposure layers, in Neo4j.
     "neo4j>=5.28,<6.0",
+    # Company site / report identification (arp/discovery/names.py, site checks):
+    # fuzzy name match, legal-suffix stripping, host -> registrable domain.
+    "rapidfuzz>=3.14,<4.0",
+    "cleanco>=2.3,<3.0",
+    "tldextract>=5.4,<6.0",
 ]
 
 [project.optional-dependencies]

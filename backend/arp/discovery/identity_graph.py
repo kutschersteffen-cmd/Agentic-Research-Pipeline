@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import TypedDict
 
+import httpx
 from langgraph.graph import END, StateGraph
 
+from arp.discovery.gleif import lei_for_isin
 from arp.discovery.identity_agents import adjudicate_identity, gather_signals
 from arp.discovery.match_rules import (
     MatchRule,
@@ -12,9 +14,12 @@ from arp.discovery.match_rules import (
     apply_name_rules,
     identifiers_of,
 )
-from arp.discovery.site_finder import WebSearchClient
+from arp.discovery.site_check import check_homepage
+from arp.discovery.site_finder import WebSearchClient, homepage_from_ids
+from arp.holdings.validate import isin_is_valid
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.llm.base import LLMClient, LLMUsage
+from arp.net_safety import ssrf_guard_request_hook
 from arp.schemas.common import CompanyRef
 from arp.schemas.discovery import (
     IdentityAdjudication,
@@ -39,6 +44,10 @@ class IdentityState(TypedDict):
     outcome: RuleOutcome | None
     id_outcome: RuleOutcome | None
     result: IdentityResolutionResult | None
+    lookup_user_agent: str | None  # None: no GLEIF/Wikidata/site lookups
+    transport: httpx.AsyncBaseTransport | None
+    derived_lei: str | None
+    homepage: tuple[str, str] | None  # (url, site-check verdict) found by identifier, owned or unclear
 
 
 def _route_after_rules(state: IdentityState) -> str:
@@ -50,12 +59,39 @@ def _route_after_name_rules(state: IdentityState) -> str:
     return "finalize_rules" if (state["outcome"] or state["id_outcome"]) else "adjudicate"
 
 
+def _lookup_client(state: IdentityState) -> httpx.AsyncClient:
+    return httpx.AsyncClient(
+        headers={"User-Agent": state["lookup_user_agent"]},
+        timeout=15.0,
+        event_hooks={"request": [ssrf_guard_request_hook]},
+        transport=state["transport"],
+    )
+
+
+async def _checked_homepage(state: IdentityState, company: CompanyRef, **ids: str | None) -> tuple[str, str] | None:
+    """Wikidata homepage by identifier plus site check: (url, verdict) when owned or unclear, else None."""
+    ua, transport = state["lookup_user_agent"], state["transport"]
+    url = await homepage_from_ids(ua, transport=transport, **ids)
+    if url is None:
+        return None
+    check = await check_homepage(url, company, ua, identifier_source=True, transport=transport)
+    return (url, check.verdict) if check.verdict != "rejected" else None
+
+
 async def _check_known(state: IdentityState) -> dict:
-    return {}
+    company = state["company"]
+    isin = (company.isin or "").strip().upper()
+    # A supplied LEI, website or CIK already settles the rules; no new lookup for those.
+    if state["lookup_user_agent"] is None or company.lei or company.website or company.cik or not isin_is_valid(isin):
+        return {}
+    async with _lookup_client(state) as client:
+        return {"derived_lei": await lei_for_isin(client, isin)}
 
 
 async def _apply_rules(state: IdentityState) -> dict:
     company = state["company"]
+    if state["derived_lei"]:
+        company = company.model_copy(update={"lei": state["derived_lei"]})
     outcome = apply_identifier_rules(company, state["identifier_map"])
     # Resolved by identifier but nothing to crawl or look up by: find a CIK by name, then a human confirms.
     lookup = (
@@ -63,7 +99,11 @@ async def _apply_rules(state: IdentityState) -> dict:
         and outcome.rule in (MatchRule.EXACT_LEI, MatchRule.IDENTIFIER_MAP)
         and not (company.website or company.cik)
     )
-    return {"id_outcome": outcome, "outcome": None if lookup else outcome}
+    homepage = None
+    if lookup and state["lookup_user_agent"] is not None:
+        # A checked Wikidata homepage settles it without the EDGAR name lookup.
+        homepage = await _checked_homepage(state, company, lei=company.lei, isin=company.isin)
+    return {"id_outcome": outcome, "outcome": None if lookup and not homepage else outcome, "homepage": homepage}
 
 
 async def _finalize_rules(state: IdentityState) -> dict:
@@ -100,6 +140,21 @@ async def _finalize_rules(state: IdentityState) -> dict:
         "resolved_issuer_key": outcome.issuer_key,
         "identifiers": identifiers_of(company),
     }
+    if state["homepage"] is not None:
+        url, verdict = state["homepage"]
+        owned = verdict == "owned"
+        return {
+            "result": IdentityResolutionResult(
+                **base,
+                verdict=IdentityVerdict.RESOLVED if owned else IdentityVerdict.UNCERTAIN,
+                confidence=1.0 if owned else 0.5,
+                resolved_website=url,
+                signals=IdentitySignals(),
+                rationale=f"Resolved by {outcome.rule.value}; Wikidata homepage {url}, site check {verdict}.",
+                flagged_for_review=not owned,
+                reason_codes=[] if owned else [ReasonCode.MATCH_AMBIGUOUS],
+            )
+        }
     if outcome.resolved:
         result = IdentityResolutionResult(
             **base,
@@ -133,13 +188,11 @@ async def _finalize_rules(state: IdentityState) -> dict:
 
 async def _gather_signals(state: IdentityState) -> dict:
     company = state["company"]
-    signals = await gather_signals(
-        company.name,
-        edgar=state["edgar"],
-        search_client=state["search_client"],
-        max_search_results=state["max_search_results"],
-    )
-    return {"signals": signals}
+    kwargs = dict(edgar=state["edgar"], search_client=state["search_client"], max_search_results=state["max_search_results"])
+    if state["lookup_user_agent"] is None:
+        return {"signals": await gather_signals(company.name, **kwargs)}
+    async with _lookup_client(state) as client:
+        return {"signals": await gather_signals(company.name, **kwargs, gleif_client=client)}
 
 
 async def _apply_name_rules(state: IdentityState) -> dict:
@@ -160,17 +213,20 @@ async def _adjudicate(state: IdentityState) -> dict:
     signals = state["signals"]
     known_ciks = {m.cik for m in signals.edgar_matches}
     known_urls = {r.url for r in signals.search_results}
-    website, cik = adjudication.resolved_website, adjudication.resolved_cik
+    known_leis = {m.lei for m in signals.gleif_matches}
+    website, cik, lei = adjudication.resolved_website, adjudication.resolved_cik, adjudication.resolved_lei
     website_ok = website is None or website in known_urls
     cik_ok = cik is None or cik in known_ciks
-    if not (website_ok and cik_ok):
+    lei_ok = lei is None or lei in known_leis
+    if not (website_ok and cik_ok and lei_ok):
         adjudication = adjudication.model_copy(
             update={
                 "verdict": IdentityVerdict.UNCERTAIN,
                 "resolved_website": website if website_ok else None,
                 "resolved_cik": cik if cik_ok else None,
+                "resolved_lei": lei if lei_ok else None,
                 "rationale": adjudication.rationale
-                + " [downgraded: adjudicator's resolved website/cik was not backed by a verified signal]",
+                + " [downgraded: adjudicator's resolved website/cik/lei was not backed by a verified signal]",
             }
         )
     return {"adjudication": adjudication, "usages": state["usages"] + [usage]}
@@ -179,13 +235,19 @@ async def _adjudicate(state: IdentityState) -> dict:
 async def _finalize(state: IdentityState) -> dict:
     company = state["company"]
     adjudication = state["adjudication"]
+    website = adjudication.resolved_website
+    if adjudication.resolved_lei and not website and state["lookup_user_agent"] is not None:
+        # Fills in the website for the reviewer only; the verdict and flag stay the adjudicator's.
+        homepage = await _checked_homepage(state, company, lei=adjudication.resolved_lei)
+        website = homepage[0] if homepage else None
     result = IdentityResolutionResult(
         company_id=company.company_id,
         input_name=company.name,
         verdict=adjudication.verdict,
         confidence=adjudication.confidence,
-        resolved_website=adjudication.resolved_website,
+        resolved_website=website,
         resolved_cik=adjudication.resolved_cik,
+        resolved_lei=adjudication.resolved_lei,
         signals=state["signals"],
         rationale=adjudication.rationale,
         # The model's answer is a suggestion for the reviewer, never a decision.
@@ -235,11 +297,15 @@ async def resolve_company_identity(
     max_search_results: int = 5,
     confidence_threshold: float = 0.7,  # unused: adjudicated results are always flagged; kept for existing callers
     identifier_map: IdentifierMapStore | None = None,
+    lookup_user_agent: str | None = None,
+    transport: httpx.AsyncBaseTransport | None = None,
 ) -> tuple[IdentityResolutionResult, list[LLMUsage]]:
     """Runs identity resolution for one company: zero LLM calls for
     identifier rules and exact EDGAR name matches (the latter always
     flagged for review), exactly one LLM call (adjudicate, always flagged)
-    otherwise.
+    otherwise. With `lookup_user_agent` set, also looks up a missing LEI from the
+    ISIN and the website by identifier (Wikidata + site check), and adds GLEIF
+    name matches to the adjudicate signals; with None, none of these run.
     """
     initial: IdentityState = {
         "company": company,
@@ -254,6 +320,11 @@ async def resolve_company_identity(
         "outcome": None,
         "id_outcome": None,
         "result": None,
+        "lookup_user_agent": lookup_user_agent,
+        "transport": transport,
+        "derived_lei": None,
+        "homepage": None,
     }
     final_state = await _COMPILED_GRAPH.ainvoke(initial)
-    return final_state["result"], final_state["usages"]
+    result = final_state["result"].model_copy(update={"derived_lei": final_state["derived_lei"]})
+    return result, final_state["usages"]
