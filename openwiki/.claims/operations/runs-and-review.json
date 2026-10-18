@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:3010a1391ec886754a5faf813d988a4d432696ef60860c631cd7f4a599c386c6",
+  "claims": [
+    {
+      "id": "claim_cdcfc19c27104e1790af143f7554b125",
+      "statement": "run_batch checkpoints each result immediately, skips keys already stored on resume, isolates per-item failures as error rows, bounds concurrency with a semaphore, and stops launching new items once cancel_check returns true while letting in-flight items finish.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/orchestration/batch_runner.py#L57-L135",
+          "version": "repo-lines-v1:sha256:1c5dbe38786a7d416c5336d3280df79f0260db21712f0f7dcb7d0aa4ca18c99f:eyJzZWxlY3RlZExpbmVDb3VudCI6NzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhmZTRlZDc4ZjMzZjRhOWFkYjBhY2EwMmI1MjVmYTBmNWM3NmM4M2RjYmFiYmFmZGRiZDUwNWI2ZGZiNGNkYzQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE1OGM5NjJiYzhmMjUxNjUyYmZlZGY3YjM2YjE3ZWNiNGNlN2I2MDEwZjMyZWQxMDgxNjA2MjI2ZGI1ZGVkYTQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhjYzRhN2QxY2M3OTZhYmEzZTQ2NzIzMzI3ZjUxN2U5ZjgxMTk4MmQyNTBmMDcwMjk4NmU0YjU3NjRhZDk1ODkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI4ZjRmZmY1N2VjNGFkNzg5M2ZkMWJmYmM4MjJmNDc2N2RjOWE4OWE0MGQwN2Q4NmU1ODBmMjJjNmU0MDliZTEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6f414fdd091048a0aa964133bdefd89f",
+      "statement": "done_keys includes result _keys plus error rows that a worker stopped for review, so a resume never redoes items awaiting a person.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/storage/run_store.py#L15-L21",
+          "version": "repo-lines-v1:sha256:f1c53e570877c5b9c30c5b5cbd2fc8d4604cfe44504ed343deb175af74f8803f:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMmU1ZTA0YWE5YzcwYmE2YmMwMTg3MDU4NDc5OGUzM2YzYjMxODQ3OGY1NmVmMzdkOWMyYTE3NTg5ZjI0OTdlMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOGE2YTliMWUzOTQ5Y2ExOGYxZTI4ZGVkY2I4MzgyNGVjY2VmMTNiNDQwZjZlMzczN2IwODcwNzU2NTI4NjI1ZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDU2YzUwZjBlZjE5YzdiNzIxY2JiZjRmYzllYmRmNjRlYjNkNDk5NjRmMTNmNjIxMjgxOTdlYWY0MDM0NjFlYiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiY2IyMTg0ZmVlNjQ4MWI3MzM5Yzg2NGExODc2Nzg4NGY5MWJkNTYzM2MzZjMyMmY1NDc1YTYyZTNhMzlmMWI2ZiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_f3fcf8d5a15142f69ced0a7e15a42791",
+      "statement": "run_company_batch commits each company's result, observations, review items and errors through record_company_result with retry, records progress afterwards, and after the batch scores an attached Decision Studio framework without letting a scoring failure stop the run from finishing.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/orchestration/batch_runner.py#L140-L230",
+          "version": "repo-lines-v1:sha256:9b9d141489faca38caaef43a0d7c33b4ca623355da902daf1096ccea41ded393:eyJzZWxlY3RlZExpbmVDb3VudCI6OTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ4NWMwMjMyMGI2MDRhNWRlMjAxZmZiNGRmYTViOWY4NjE5ODEzZGJkMjA3NzM2YWExNmY4MDk1MTA2NTZlOTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiNjVhMjU3NjVlYzcyMzQyZjVjYjRlNjc5YTRjYjNlNjgwMjI1NGUyOGNjMDg3YjRiNGEwMzU0ZmViY2M5YzkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZkODk1NWU1ZTEyOWQwZGZlYWZiYmQ2OTNiZTIwNzAyYmExNmY1ODEyNTNlNDgyN2U2Zjk3NGJkODY1N2FlNDYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_06c9e369b3044141998eb3d87e63963b",
+      "statement": "Cancelling a run sets cancel_requested only for running or pending runs; resuming requires the analyst role, returns 409 when the run lease is held and 400 when the run is not resumable.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/api/routers/runs.py#L90-L131",
+          "version": "repo-lines-v1:sha256:2d3d98f349144062de657614bab96473383f91ea89ce83be18b671d4cc0e8823:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA1YzE3MmEyZDhjMDA3YWJjYzI2ZTVlYTRjYmE5OTMxZGRiMjQ2ZjY3YzZiOWRjMzYxNmM0OGNjYTkxYTNmODEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM3ZjdkYzE2M2Y3Nzc5NGFlNGY3YTc1OGI2NTE0ZWNjZjkxNWRhYWFjMzUxZjcxNWYxZmRhNWFkZDE2MzA2MTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNmNTVjMWYwZTc1MmFlMjViMThhNzg0MjJmOTMyM2IwZWJjNDdlYmZjZDYyNGIyZDliYTNkOGQzMjRkZDhhNTIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6f02e7b183fe43fe96616af5201d671c",
+      "statement": "RunStore keeps manifests, companies, results, errors and review rows in Postgres tables while snapshots, events, restatement candidates and schema.json stay as files under runs_dir/<run_id>/.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/db/runs.py#L1-L3",
+          "version": "repo-lines-v1:sha256:e27c8c9a04352902b2a539751b6fa81f7c717fd3426a2a0b6c6ab77d18a32397:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTc4YzQ5NjYwODE4MzNjODMxZmFjYjY0MDVmYjNjM2Y2ZjQ3ZTRlOGJhNWNkYWVlNjcwMDQ5NjhkNTAyM2Y2NiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNjA4Y2Q5ODgxNTA3M2Q3NGI4NmIyMmI3OTIyNDI2NGQ1MDE0ODIzNzFhMzJjYzgxNWFkZDJkMjdjZGI3Y2ZhZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTViNmU4NzA2YjQzMDQ3ZjJhNmRiNjdmMTMyNjM4NTk1NjA0ZTY3ZjM2OTY2ODc2Y2UwMTU4ZjAwNTNlNmJkMSJ9"
+        },
+        {
+          "resource": "repo://backend/arp/db/runs.py#L317-L333",
+          "version": "repo-lines-v1:sha256:7fa4eddc602ce6f5e9d935d079f33d3f8775882aa113b83992955d60fa051e18:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjOTRiNGJkZjZhMjQ5OWE1ZWQxZmQ5NDgyNTYwMjcyNmMwYWMwZGI0NjA2OTBiYTk4MTAyYTRkZTcwZTEzMzYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyMGY0MzM5YzJlZDUyY2MwNTRmNzkzNDhmMWRiNGY2ZDQ5MWE3MzMwYTA0Nzc3OWNhMjEzOTMwY2VlZWZhN2UiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImZhMTJmMTk0NTBjY2MwZDI2ZTEwNzdlYTNkNjE0ZDAyNzdmNGVlYmRmNTQ4OGY2ZDY1MTViMjBkNWZmNzAyMjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM2MDhhYmVjMTRjNTFkODQ4MTc3MDQ4ZDZkOGQ1MTk3NGQyZjMxZjhiZDUxNTkwNTgzOGViMDAyZjBmNDRhMmIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_363e773d4c0e4852a9671b139617000e",
+      "statement": "append_result is idempotent per _key via ON CONFLICT DO NOTHING on uq_run_results_key.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/db/runs.py#L166-L181",
+          "version": "repo-lines-v1:sha256:afd2abca2973a5757f1244eafc8d650cd8f9a391fff319a5112dfa73992d4fb7:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNhN2FhY2UwYzQ4YzA2MmY0NjgzM2Q0ODhjOTM0YjU1NTk2YWU1NmM1NTcwNjRkYTQ1YmYyMDgxNjI0MDU0NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM1MTY4M2I4NWE0YWQ4ZTE2MGMyODAzNTQzZmI2NDQ0NGJkYTI1NTdhYzIyNGZkOWUwODhkNDVmNTRiYzI2YzgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI0ZTVmN2VmMjQ0YjdmMTUxZjU4NzM0NzlmMDk4MzIyYzExYTU0NTBkODI0YmRhYzQxNTMxMDVkMGNlYTI3NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAxNGRmOGQwODJhMjBmY2MzOGY0OGJiYTBjNTA3MWQwZmFmYjFkZjQxZWU1NTM4ZGNhYWI2N2YyNGRlMWZlNDAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_fa3dc0f42ecf4f5f87de382f068faaf1",
+      "statement": "RunStore.lock holds SELECT ... FOR UPDATE on the runs row, is re-entrant per thread, and makes every store call for that run on the thread reuse the lock's transaction.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/db/runs.py#L126-L145",
+          "version": "repo-lines-v1:sha256:dd6693d7df6a4731d9247e9c47a90d30a597a21b106e931ef2f8f3d76c4a6d73:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFhNTE0OWQxMzUxZDI1M2YwYWEzMzE0MTJhMDA2NTcwZjdlOThiNzg5MDFhYzNhZmMwN2FhYWMwZmUzMjczNTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijc4MjMyYjM3MWE3NWM1Mjc2YzUxZmJjM2Y0NTE5MWVkYTAzMzU5NGQ0NDNkZTUzMjI4NTQ4MDRlNTE4YjdiM2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY0ZDdmZGQzNDIwM2M4MDFkMWZhNzc1ZGIwNWIwZTM5NTA5YmY1OTM4ZTU2NDQ4MTY1YjZmMDQxNjljNDJjZDgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_74a1b4f5fcd94ad8bbbf289b82187a83",
+      "statement": "company_facts is unique per company, field, period_end and basis among rows with valid_to IS NULL, and is only updated to close rows.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/db/models.py#L532-L560",
+          "version": "repo-lines-v1:sha256:947a1b8a956479cacae79ef7293c48fd26fee195805a1c78f93e9e7ff71242b4:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJjZmVlNGY0ZjRiZTNlYTkyMTBlZGIxNmNjOTU5YmRmZmE5MDZkODg5NDdiZjEyNGM3MjljNTJhMTZhNGVhNTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgwNDU1ZmU5MmM0MzAxYjE2MmZkZDU1OTYwNWFkY2FiZjFjZTM4YWU1ZGNhOWVhYWM5MmI3ZjUwODJhZjlkOTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM2Y2JjYTkyYjU1ZGE4ZWMyYjgxODA1NzZkM2EyOWRkNjk3YmUxOTVhNjg0ZmE2NjRiY2M4OTNjN2QwZjFiMGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImNkMzA5YzA2OTliNWMyZDNmNDI4ODA0NjEyNDUxYjk4NTFiNTFhODIwMTgxNzg1YjBlNGRjYjJlMzI1Y2YzODMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8da74a26033a4b50a66a7d6be0eaaa2a",
+      "statement": "The fact ledger records observations insert-only with their citations, drops values that do not fit the field type and citations to unregistered documents into run_errors, and applies facts only when apply_facts is set.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/db/observations.py#L249-L295",
+          "version": "repo-lines-v1:sha256:0420fd072e78f160ed3548f37abdfd63334ccd726f10db98cb8b430018f973b0:eyJzZWxlY3RlZExpbmVDb3VudCI6NDcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQyMWM1ZmUwYzgxZGY5NTk2NzMxMmYyNDBlMWE4ZWE2NDUxMzAwMzdmYTdmNWNlMTAwY2M2N2ZiMWNkMGMyZmMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxZDYzM2MxNTRiYmFmNjQxNDVlY2EyODA3ZjM2Mjc4NTg3ODhmMzBhMDMwYWQ3NWFiZGU0MjhiNTk3ZmE0NWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIzZGYyYWNmMDZlOGMzZjAzYzcxMzVjNmU4YWM1YTljYTU0MzJhYmUwNmE3NGFjYTBmZGQ5YTUzYTAwOGY5ODciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBjY2Y0ZDMyMmU0NTMzYTE5MjNjOGUzNGY5NzA3ZTRjMmUzMDUzNjg4YzFmYzgwMGQ1YmZmOTkxMWI5NWQ3N2UifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0acaa53568594024ac937d18e154b184",
+      "statement": "An observation's fact status is held for hold routes or held rows, pending review for review routes, and auto-accepted otherwise.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/db/observations.py#L126-L131",
+          "version": "repo-lines-v1:sha256:509ac6bd3c98a96663188426a6e999b8111e3940bf496fb71dab243b3e961090:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDZmN2FlZjVkMGNkOTIwZjNlMGZlNmFiNDkyMGNmNGU2NTU0YjE2ZTM5ZTgzZGVmZjY0MDk4NjE1Y2E4NjdhMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFmNjA4ZDBhZDljYTU1ZGQ3M2U0Njg3MjYyYjAzYjA2MmJlMjhlNWRkNDdhZmI4YTNlNDRiZjFiOTA4ZWU1YyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTIzMDg2OTQ0ZTlhOTFkNzJjOTBjOTQ3MGIwZjNhOWNmODZmZjIyYzZjZTM4YzBhNmVhMzJjOGE2ZmQ4NWRlOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTI5YmQ3NTFlNDQ5ZTE0OWJlYTZkYzY1NTg1MjBhMDU5ZTQ3Y2I2Y2VhYTg0MTVlN2M5NGRmOTIxNjVkZTZjMiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_d37586f9d65f41408e7888ec69bc6567",
+      "statement": "Review item state is folded from append-only decision rows into pending, first_done, disagreed, second_done or final, and only second_done and final count as final for effective decisions.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/orchestration/review_queue.py#L155-L207",
+          "version": "repo-lines-v1:sha256:bd2230d3c8ef3731d64c6387bd0e3072fecc11584e4e79b614c9fb79e3749328:eyJzZWxlY3RlZExpbmVDb3VudCI6NTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI3NzAyMWFmMzQ3OTVjMGU4YjU0ZTViZDlkYjM2OGUzOWNkODQ0N2IxZjNiNDA4YTk4ZTQ2NWJmN2UxNWU3ZTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImRiYmYzZGRkM2NiZGEwMmViNTVhZTUzODUxNTNmZDg5MTRmZmI2ZWFjNGFjNmM5ZDdlODIyYWIyNDgxNzBmM2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZmM2FiMDUwYzkyNmUzZmUyMmY5NjEyNGMzZDk5ZTQ2MTlhY2IzYzE4NTk4MTMxZTYwNjIwYTA2ZWQ0MTEyNDAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_fbe87a185bd4436e8d07391245b06b42",
+      "statement": "A first decision requires second review when it is a correction, the field is high-risk, it changes a prior or published value, the field's first audit is pending, or it is a hash-sampled approval.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/review/decide.py#L53-L76",
+          "version": "repo-lines-v1:sha256:5cc2776e742c1e386b6202293187fa69dec4afb7ab51e3bb6394290c4aaa6313:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYyYWRiNTYwMjQ2NDE3ZDgwNmI3YTllMTkwYmViOTlhYTA4MWIyZGE2YTNjNmZmYzgyMTY0ZWExOTc4MGNkYTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdkMTA5MzU1OTE1ZTgwYmIzYzVlYWI0NWUzNWJlN2YzZmE1MmU3NjNmNzg0YWJkMmI3ZDcwMGZiZjBhMzhjNTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjljMzc5ZGYxY2EzMWMzOWVjOGQ0MDhhZmE3Y2M3ZTZkOTBkMDZmY2QyMmZmNTc1MWNjZjllNjkyNGJjZDNiNTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY0NGZhMjRjNDUxZjBjNTY3ODc2ZjcyZjA5MWQzM2M4NjEzODg4NzQwNzcwNWEyZjkwZmQ2N2QxNTBjNWI4NWMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9a3d1447705a4c91890c80de64dc4bb2",
+      "statement": "The second reviewer must differ from the first, and a disagreement can only be resolved by an approver who reviewed neither side.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/review/decide.py#L132-L150",
+          "version": "repo-lines-v1:sha256:e1204559955e1aae09183fd212d913601fc75bdb77bdc6141cb80cd221ca0b1e:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY5ODhhYzVmZWNmYjc3NDc0YmI4OGZkMTk1N2JlMjZhMGNhYTdlNGZhOWUwNDAxYzQ1YTQyN2JiNzJjYzdkMjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMyYzNmOGE3NDYwOGViNTU1NGYwYWNmMDYwMmFhZTMzMmJmMDdmMDg5OTVjYzFiNGZmMDE2ZWY1YTYwYzBiODkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg4NDc1NGNkZTJhMGZiYjFhNjEwODA2ZjJmMjg5Y2JhZGRjZGI1Y2FmODM4NTMzMjk4ZjdkODcxZTFiYWQyNGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjUxZmNiZWYzNjE3YzhkYzE0MDNlODU0ZDgxOWMwMTFkZmE3ODI3NDNjZjFmMWY3YzgyNjM4Nzk0YjFlYmNmNTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a890152cb8c74d03bee82baf67db9516",
+      "statement": "A reviewer's correction citation is grounded server-side against the stored document text, client-sent offsets are discarded, and for numeric fields the corrected number must appear in the cited span.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/review/decide.py#L79-L103",
+          "version": "repo-lines-v1:sha256:4374cd3737614bb1863ba5c53222f6df098675579ce1a5cd8b901fb9e012f2c8:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRmNmRhNzViOGI0ZjkwNjIxYzc0MDU0MmIzYWJiMDllNTVhNTkzNDM3OWE5MTkxZDMyNzJlZTkxZTczNWQxNmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxYjE3NDdiNjZjY2MyMmE2ODgyNWQ4MzZhNWY5YTlhYWUwZTUzYzJjNjNmMWRiYWI0Y2I2NWFmODY0NjczNDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ4ZTAxODgyY2QzZTY1Y2Y3YTkxMWU0ZjY5YTcwMWM1ODFhODU0MjQ4YmM0ZTVmMjM1ZWIyYjFmZDJlMDAzYzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI0ZjI1YjgzMGZmOWIxZjg5N2JhMDI5MGE1NWNhZGZiYWQ5ODU4MDJkZmQ1NzA0Mjk3YTM3NGZmODA0ZmZmNjMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b5051e4482874aa7b85353441ea173cf",
+      "statement": "ADR 0001 keeps a separate copy of the fact rules in the one-time importer until cut-over, after which the importer and RunStore._apply_review are deleted.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/db/runs.py#L309-L315",
+          "version": "repo-lines-v1:sha256:4375a0ef98a2b8cb247c83c2e78dbf4266dfa257a3b818a0e71757f4f713bb11:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDE1ZWQ3M2M2MDAyZTBhMTc3MmExNDNlZjgzNzg1ODdkMDU4MmFmMTBiNWY3MTZjNWY5ZmQ3MmYxZWQwNmUxNyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMWM5NzhmYWE1YTA5Yjc4NDNkOTA0ZDJhNmZmYjhmZGJiZWM3OTBlNWVjMDA4ZjM1OGM4ZDRhOGYyMTI3NjQzZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGViYzIxYzhmZTUzNTQ1MzA3NmFkNzgyYzlhM2ZjZWExNjhmYjRkYzUyNGRhMjA5ZmIzZWYwMGNjNmRhZWRmOSJ9"
+        },
+        {
+          "resource": "repo://docs/adr/0001-importer-keeps-own-rules-until-cutover.md",
+          "version": "repo-file-v1:sha256:b4b946c270bb9b35e2e90cbb56a884ff58c346e8c5178ecb0693acb58b286f92"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-18T15:42:30.245Z"
+  }
+}

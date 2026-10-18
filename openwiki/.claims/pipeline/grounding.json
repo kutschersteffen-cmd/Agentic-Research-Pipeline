@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:62907bd06ba05a0d7abce8d7ff3ff2c62c6ea3cc2646da6e097f4fb591054941",
+  "claims": [
+    {
+      "id": "claim_715090cc3ec24980a21c1d60d4cb5526",
+      "statement": "A citation is grounded only if its quote is found in the cited document's text by code, never by trusting the model's self-report.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/grounding.py#L189-L198",
+          "version": "repo-lines-v1:sha256:26e41677ea3bcad0721667e9e2a2624f8487f9d466907e609acc9f92bee1f173:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY4NWQxMDVmN2VmN2Q5NjlkMTVlNjExZDFiMTkzZTZhZDA1ZTI1OGJlNzc5OGUyYmQyZTYyMmZhODgyOGRhMTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhZTMyZWRjN2JiNWQxN2I3ZmJkODEzMDc4MDI2YzBhZmQ3YjllMWE1NmM5MjVkMzM3YjZmNzYxNTc4NDdlYWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ3MDE0OWUwNjlhZDY3ZWNjZjQ3MzY0NmZmMWM3NTAwNTBkMzI5ZDExMDAxOGRjNTc2Njg3OGVhZmExZDYwN2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNiNzdhMDVkZjVlODE2NTEyY2QzOTczYmQxYTVmZjM3MDRiMzQ0OWMxZmNlMjlhMjAwMGM0OWQ1ZDkyYmYyMTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f846d97dfe004d3e82e30b5424c2cd32",
+      "statement": "Matching tries an exact substring, then a normalised match, then a fuzzy SequenceMatcher match, and all match offsets index the original text.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/grounding.py#L126-L152",
+          "version": "repo-lines-v1:sha256:bb85b4fde54e294fe0f81cdbb0e6183e2eca5f3307a40f2e54ddf18b28e382fe:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZlYzhhOGMxNmZlYTE3YjI0MTBiZmVmMjAyMmZjN2JmMjgzMjdiM2I0YjVjMDc4MTNkOWEzMWRiYzE1ZjgzNjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTYwMGE3M2QyZTAyZjM1MmI5MGZlZjFkOGQ2MzgxMWJhNGE4ZWUwYzFiZWFhN2FlNDY1OGYzNmFhMmUxOTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMxYjMwZjk4ZmU0N2I5MmEwY2RmOGI4M2VjMTJlY2M4OTM0YmY2YzhjODU3MGE4ZTgyYmQ2NjIyMjRjYzk4NGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY3MDBiNTgxYzY2NDY3OWE0N2Y0YzM5Yzg2MDg4YjU2MGM2Y2E3Y2JkYzcyZGJiNjI4ZGUyMzUwNjEyNWY5MjgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3dd4f7231b114976ae3fd0630930feae",
+      "statement": "Normalisation maps dashes, curly quotes and ligatures, drops soft hyphens and zero-width characters, joins PDF line-break hyphenation, collapses whitespace and lowercases while keeping a per-character offset map to the source.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/grounding.py#L29-L111",
+          "version": "repo-lines-v1:sha256:18c33c991cb8b5793017888423d37937fbcfd710b4b477ba7c56d084713516d4:eyJzZWxlY3RlZExpbmVDb3VudCI6ODMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIzZTlmOTA1ZmQ1Y2Q5MWNlNWVkN2FlMWZjMjFjYzI0Y2U1ZGY5ZjczZmJjMjY3YjY2YTk0N2VmZGQyY2QzOTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI4YTZmY2I0M2NhZjAzZWY1MWY1NDMxMDE4NjljOGZlMTU4N2YzYWFhODE0MjIzYjQ1ZjA1NTcyN2YwYjA0MWYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQzNWM1Y2Y1M2EzMzdlYzcwZjZkZDM2YmFkMjQ1NzhjNTExOTQyMTc4ZDU0NTJlMWQyYWM0Y2ZhMWNiMzk2NmEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcwY2UzZjI0YWI0N2MyZjVhOWQzMzdmMzc3ZWQ4NTczZmE1NjU4NDA3NjQwMmYxYWYwNTRhM2RlZDYxOTQ2MmYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_913c471182674418b1d2cc2eb1dcd1a2",
+      "statement": "A fuzzy match grounds only if the longest common block covers at least the fuzzy threshold of the normalised quote and no digit lies outside that block.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/grounding.py#L141-L152",
+          "version": "repo-lines-v1:sha256:cf477ba4c0c59e1b98c94bb8f2ef0d5b3d516a468dfe1c95566f8e6e1903d162:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE3Njg0YThiMTVkODhiOTMzNzVjMDdmOTQ5N2JmYmNkN2UxYjE2NTEyZjQzNjNlYmQ4ZWU1YmUyNDM0YWIxNjMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTYwMGE3M2QyZTAyZjM1MmI5MGZlZjFkOGQ2MzgxMWJhNGE4ZWUwYzFiZWFhN2FlNDY1OGYzNmFhMmUxOTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjlmZjg2ZmRkOTE1NjI0NWVhZWU0YTRkYjFjZDFhZjY4ZDEyNTM1YWI4NTQ3MWNhNjQ1MDYyOWY5ODM4ODIyOGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY3MDBiNTgxYzY2NDY3OWE0N2Y0YzM5Yzg2MDg4YjU2MGM2Y2E3Y2JkYzcyZGJiNjI4ZGUyMzUwNjEyNWY5MjgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4991b3f239ae422fb9468e42bd58fa4b",
+      "statement": "Quotes under 20 normalised characters never take the fuzzy path; a short numeric quote needs a word of three or more letters, and a short non-numeric quote needs a word of two or more letters.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/grounding.py#L168-L178",
+          "version": "repo-lines-v1:sha256:8c33cf23a0c08e34b346ef2644e3ff33aae38a82e68ec4171e5db4ede574c2af:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM0MDEwMDY5Y2IzMTU0N2IwZjk3NWQwYTYzZTNiNmEyMTc5Y2M0NjliMWMxY2I1MmI5MDc4NjljZDJjYTdjYjAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg5ZjYxOGIxMjQxYWQzZGUxZjBkNzYyMjc3M2EzZWM1MDEyNjkwNTI0NjA2ZTAxZTAzYzY3ZWZiNTExOWVmZWQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdmYTg5NmJhOGM2OGQwYjk4ODQ5Yzc0MDc0ZDhlZmM1YTUzMmIxZjllYWFlNTkyZWRkZTJjN2ExOTI3NmRkNzQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgxNzA5MWQ2Y2QxNzhiOWM3MTBlZTgzOWVkMzZkYTMzNjg3ODQ2MzhkM2Y4YmY4ZDQ0MzU5YmI3NjdmNGYyOGUifQ"
+        },
+        {
+          "resource": "repo://backend/arp/grounding.py#L26-L27",
+          "version": "repo-lines-v1:sha256:43198ff0462f64b9afecf47fa8f4e1cb4a97bc9591207205f94692739561ce97:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDIzMDM0ODY4NGE0NmI0OTlkZDQ5YzQzMDZmZGNmYjgyNWZiZWY2ZDU1NjRmYzU3ZTljMWJmYWZhZTJiMDM5ZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjY4NTU1MTg1ZTA3ZjY4ZTdlNmRiNDY0MWQ0OWIwMDY1OTg5NjZmNjM2NzQwMmZiZWU0YjM0MGVkODcwNTEzYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMWM2ZDYyYzgzNmJkMmFlMzFlMTc1ZmY4NDY3MDA3NzA2ZTI2MTJhM2U4OGI5MzM2MTVmNDllNDViZDc0NTAxOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNjc1NTAwMDdiZjZhMjM5YjVkNDQ3M2RmNDQyOWVjZjA4OGFmOTMyYjQ0YjljMTY3ZTlkN2JkODFiY2UwYTMxZSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_075dffd2506548f8a9f170b1fdb3af1d",
+      "statement": "The normalised form of a document is cached in an LRU cache of 16 entries keyed on the source text, while quotes are normalised uncached.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/grounding.py#L16-L40",
+          "version": "repo-lines-v1:sha256:caf900eea68523bbbe1d53ba4473c94096d7a75799df9a6adbd603f2645d7378:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ5YTQwYTQ3ZGY0NDIwNDE4Mzc3ZDViNTc1MzdhNjFiYzFjZTU3OWRhYjQzMDUyYjk0MDRlZmUzYzA2Y2FkYTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFjMGQwZmZiODM5NWMwNTAxNTAyMjI4ZmM3YTY5MWNkMDhiZWVkNWJhNzczNjQyYjJhNTFmOTA4NWIzODA3OWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNhZTU4YmUxNjg0YmE2ZTA3YzBkMjc3N2EzZThhNWIwNjY4MzdkZGUyZWE2NTcxODkxYWNlYzdlOTYwMjBkYTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM2Nzc3YTk3NmI3YWM1YjAyOTBjOThlOTRiZDA2ZWUzMjk1ODNiNzAyZGJkMTQ5YTc3ZmQwZDY0MDI3YmQwYmMifQ"
+        },
+        {
+          "resource": "repo://backend/arp/grounding.py#L57-L76",
+          "version": "repo-lines-v1:sha256:bea23c1cabc4e4b5ef78f40cd9ee3717beaad14bf817552b3b27a692e7e3d429:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEzOGM4ZjdjNjFkYzhlMmQ2NjY2OGMyYjdkMDBmNmEzNDdlYzcwY2RmNjg1ZTVmYTg3OWQ4YTk0Y2ZiMWRhMGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE2YTcxNTI1NzJlZTg0ZjEwOTA2Yzc0YjlmMmE5MjQzNGRkYWIwZTNjNDI4MTNiMDRlNTk3ZWZjZWM5NTFiMjYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ3MDE0OWUwNjlhZDY3ZWNjZjQ3MzY0NmZmMWM3NTAwNTBkMzI5ZDExMDAxOGRjNTc2Njg3OGVhZmExZDYwN2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImIwYmFiZGU5OWYxMDlkZDI0ZjE2YjE4YWZmNGRmN2EzOGJiMmI0OGRlN2ExZmE4OWJlOWYxMmFjMDNmMWIwNWYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e082365df13b46d185a85dd7a9e90add",
+      "statement": "With passages supplied, a quote grounds only inside a shown passage of its own document, the reported passage is searched first, and passage_id is rewritten to the passage containing the match.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/grounding.py#L274-L316",
+          "version": "repo-lines-v1:sha256:34fb18a3514dd105b4dc8603c52162dbc4f189e8317df66bb8f6bd23b094ba09:eyJzZWxlY3RlZExpbmVDb3VudCI6NDMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNhZTI2NTE2ZGIwMDJhNGZlYTYwOWVhMjdjM2JjYzUzZWI3ZTEwYmFiYTgxOWVjODdjMmIzOThlOWY3NzQ0MGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYxYmE0NDJmMjU0YjhiN2Q3NmIxODg1MjFkNTRjNWQ2ZjI4OTUyNGU0ODU5ZTY4MTZjMjY4MzAzNzliZDRjMDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg0MmMyMTQ2NTU5Zjg5ZDY2YzU4NDcxN2RkOWNkMmYxNzM4MTQ5YmMxMjllNWE0NjZmZTczMTUyNThlMTI0MzkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc1OGJkOTI1ODI3ZmFiZTkxODUzZGQzNWY0MjUwOTMyYmIyMDgwM2Q0NmU1YTdmMmIzZTQyOGExYmM1MDNmN2MifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f428a8b45c9d4a25a44f1c86e4154179",
+      "statement": "ground_citations clears all location fields and fills page, sheet, table_ref, span text, offsets, match method and score, content_key and parser_version only from a verified match.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/grounding.py#L295-L317",
+          "version": "repo-lines-v1:sha256:a2b31891cb17d6842e33f342e8e8980cdad3aa2c3b00062c6de5710eda50f2d8:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQwYjA1Yjk0ZjZjNmNjZGZiOWZmMmFlOWJmNWVkMzI0ZjM1YjM1Y2RmODBiY2I4ZDY2MmYxZTMwOGE5ZmQyN2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI5YTA5OTIwODRlNzNiNjM3YmZhZDE3MmEwMjU4NDI3ZDE5NmM3ZTY0MWRmNzgyYWI1NjY0NGJmNWE2ZWNhOGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNmMjVkNTIyY2ZiZTMyNzVhOTgwYmNlZGYyM2I1N2U4OWU3OTZkZGZkZmNhM2E3YzljNmY2NWM1OWE4NTA2MTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQxYjE3NDdiNjZjY2MyMmE2ODgyNWQ4MzZhNWY5YTlhYWUwZTUzYzJjNjNmMWRiYWI0Y2I2NWFmODY0NjczNDgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_50e90cb400dd4865833c6990b9d1f429",
+      "statement": "table_ref names the table the match starts in and the first data cell the match overlaps.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/grounding.py#L216-L228",
+          "version": "repo-lines-v1:sha256:d094515e90f168d7fb0a26544fe23a805d502062550966f0d61968c5dec71632:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVjOGQxZTI2ZjdiYWI3MDgzMGQ3YzY1ODIyYzE2NTc2NTUzNzI0ODM4Mzc4MjE1ZWE4ZmMxYzE1NDE5MDYwMTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4OTYwMGE3M2QyZTAyZjM1MmI5MGZlZjFkOGQ2MzgxMWJhNGE4ZWUwYzFiZWFhN2FlNDY1OGYzNmFhMmUxOTgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY0ZmYxODQ1YmQ2ZmY2MzljMzVmZDNiNTE3N2RkYzNjZWQwY2QyNmRjNjc1OWIwMzlhZjlhN2FjZDE2ZTc1MTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkyNzkwM2YyMjQyNDdjMTJiNjAwZjMyOGIwNmQwMWY5ODFhZDAzZmZkODU3MWQwYWU1ODkyNzk2Y2U3ZjczOWYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_aa625236021d47b6952d4feea2ff724f",
+      "statement": "A claim is grounded when every citation grounds; a claim with no citations is grounded only if the claim itself is empty.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/grounding.py#L231-L257",
+          "version": "repo-lines-v1:sha256:5dbbe545e50cdc8d435740d9f48a2274bf8a51804eb15dbfba5994f01d325d29:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIyYjU0NWEzZmNjMTRjOTE4OGM0ZWFiZThmODJlNzVlODdhOGEwMDY2OWFjZDhhYzVhYzlkNDk1ZjQ1MjZhZDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQyMGUxZTJhOTY4YTg0MzIxZDI1NzhkY2ViOTBmNmJjZTdmNTg3Mjc1YzU0NWMyNjYxZTQ1ZGY5ZDhmYTJlMzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ3MDE0OWUwNjlhZDY3ZWNjZjQ3MzY0NmZmMWM3NTAwNTBkMzI5ZDExMDAxOGRjNTc2Njg3OGVhZmExZDYwN2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImEwMmJhZjFhNTg5OTBkMmZiOGE4MzMxMzlhZDllZWZlNjU1YmFiNTNiNDM0MzI2NzA3NDY1YzcwZDVkNjRhZDEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_68bc59daaa024ae4a39964c03c058c91",
+      "statement": "The default grounding fuzzy threshold is 0.92 and is part of each extraction field's input hash.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/config.py#L168-L170",
+          "version": "repo-lines-v1:sha256:cc50b25c422aa05efcabe3eed9ba5fe8174026cf0f1ec2cdfb82b594fae41c86:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmQ0YWY3MjUyOTQxYzczODliNGYxMjFlZWZjZTYwNWViMTFlYmY4ZWYzMDljYWY5MTY3OGM3NDMzNGVjMTI1NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzBjMWYxODhmMTQyZWQ3YTgyNDY4MGIyMDcxNzJjNTUxOWJjNjE0YTQ4ZmRhN2NmMTY3ZWRiOGRkZjc5OTU2YyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNGIyZDU3MzI1ZDFkNmQ2NzBhYzU5YTdhZTRhZWMzZTNhYWI0NjAwMzFkOWJkMDllZjJkODVkZWNhOWIxMjg3NCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNmU5NGMwYWI0OGNjNjM0ZDMyODEyNWRjYzYwMmI0YmQ5MjkwZTBlMGFkOWFiNmYzMTViM2MxM2NhN2U3ZDJlMyJ9"
+        },
+        {
+          "resource": "repo://backend/arp/extraction/pipeline.py#L104-L110",
+          "version": "repo-lines-v1:sha256:d7e56a95d2a8353a6b639778a0c3c14d26fd10fb5f418ba35747d0b4f8b1ad0c:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTVmMmM1NDRmM2IxODBmMzJlZjVmMzFjYjg0NmMxMzZlN2FkYWY4OGZmMTI4YmE2YzAyMWJjMTRiZTJjZTEzNiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjhkMDI1N2U3NDk2NTc0MzgyMWQyNDliZDk1YjVkZjM1MjY5NzZiZGY4ZDVhZmE3ZTVhNzQzYTFiYjJmOTQyOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNDdlODdhOTBjZjkwMGYwNmZmN2Q4ZjA0YTA5NWU3M2RjMTIzOWRiNWNmNzg2NDYzZDU0ZDk3YTYzNDlhNDg3OCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYmJhZjFlZmEwY2RkZTAwYjY4ZjhjNDQ0NzY0NjY2ZTJlNjkxMjcyZmJkNDhhY2MzNzgwZmQ3MDdiZjg0OWI2NyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_e598a3d2f3854b97ab460b0fd2220916",
+      "statement": "Publish re-grounding matches a stored citation again against the stored text for its parser version, first within 200 characters of the stored span, and reports ok, offset_moved, not_grounded or text_unavailable.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/publish/gate.py#L60-L94",
+          "version": "repo-lines-v1:sha256:27662609f83c656cf1fb6b853d04cc5ef9a15ece2fc0951ef5eaa652671d43e5:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQzYjkyNjA2YTQxOWUyZTA1YTk2MTUxZWUzYTI5MjcyNDNiOGJkOGQwMWE0NmUwZDU2Zjk3ZWJjMzNkZTFkMDIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVhMDBhOWNkNDY0MWVhMWI2NmY2OTgwODg4YTEyMWM1MzdiNDlmZTY2NWE1MGI1NzFjM2IzODU4YzY2MjVhODQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE0YzAyNmMxMDRjYzUyODE5NDYwNzM2NTA3ODBlODE3Yjc4NDI5OTUyNDk3ZDBhZmYzZjI0NWU0OTI3OTFiYzEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ4Zjg0MDU5NTIzZDNiY2Q0MTUwMjQ1YWQ0NzNkYWVjNzBiMTA1YTA2YTQ4N2JiOTk5MzM0NDQ4NzM1OTMxNjgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_c4fba1ff24614fa7b10ab5bd24a4b924",
+      "statement": "After a parser upgrade, stored extraction citations are re-grounded and moved or lost spans go to review, with outcomes written to regrounds.jsonl.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/orchestration/reground.py#L1-L26",
+          "version": "repo-lines-v1:sha256:6f2f703ee6a29c0e78f794264e08c358e1b143b621cc50bb5b1d39c5c6affae2:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBiNzdjN2U0YTlmMDk4Y2RhOWMwYjNlZTQ5MDVjNmM1MmY4Y2M4Mjg0ZDc0MjNjOTBjNzAwNjRiZmM4NjBlNzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhNDY0MTAxNDBlOWRjNDA3M2YyYTkxZWRmNDg3ZjUzZTYzOWE2Y2ZmYTQ4ZDI3YWI2ZWE4MGJlNGY2NDBlYmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZjMWYwMmZkN2VjMWQ0NjJjMGNiODE4Yjk0OGZmZTRmNzE1YjJjMmM0MzI2MzBjMjMyZGZlMzRkNDI3NDNmYTkifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-18T15:42:30.245Z"
+  }
+}

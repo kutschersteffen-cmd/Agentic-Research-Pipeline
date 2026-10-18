@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:90743fbca79b067ef80ac245d10f1b7f4d8ef3fde7705e3b59346a224d5f37d6",
+  "claims": [
+    {
+      "id": "claim_9dfb31597e3c4b3096ccb51505ab058f",
+      "statement": "LLMClient exposes a single complete_structured method returning a validated Pydantic instance plus LLMUsage, and implementations must retry on validation failures and transient errors.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/llm/base.py#L32-L59",
+          "version": "repo-lines-v1:sha256:10f12c6154954acf896222865be052797a9e73164f2bb3e9035794bc2ac0e283:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJhNDkzNzVmMmNjYjA0ODE2Yjc2NzAzNWMwNjQwZWViZDY5ZGVmMmI4YzFjMDZkYWJjZmUzZTgxMzljYjZjZDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU2MjBkODVkZTRlZDdhYjgwMjFiNGE4ZGQ0ZmExNWVjNTE5MjVjZGZjY2RlMTgwNTg5NWE0YzhhM2MzYmE0OGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJmMzZkOTJmZDYyMzg0YzJjNjU5NGM0ZDI2NWI2MjI5ZWFiOTE2Y2FhNTRkOTUwNzZjMDNjZWE2MDUwMjM1MDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_99f9cfe8fdbb4826a076834723349c69",
+      "statement": "LLMUsage records the producing model and a prompt_version hash of the system prompt, and input_tokens includes cache read and cache creation tokens.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/llm/base.py#L10-L29",
+          "version": "repo-lines-v1:sha256:44d09f9852512e81d39f584652d6dd5a165ad52f06f8bc42a9988054e8aae6e1:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY4OTE4ZjVjMTJhNjNhMDc4YjFmNDU4NWVkOTZmNThkOGI1ZjdkOTUxODM3NmE3ODZiZDkwZjE2ZmRiZGFhNGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIyNTY1YmRiZTRlODkzZWMzNDMyMjU2YmU1MGRjOGYwMjU3MTYwODdhM2E0MDkzNmY1NDZkNTg2YTU0NTFkNjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU1Nzk0ZGU1ZjE3YmIyZGQ4OGJiZjBmMWU3YTI2NWM2ODU5NjU5ODIxNTEwOWFhYTRjZmY2MDY1ZWRlYmU4ZTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjlkYmQ5Y2FlYTRmMWQxNTkzMmFjOTliMjhmOTE5YTM2YzM5ODcxMDY2ZmU3NWVmODA5MGY5NTEwYTQzZDkxYWEifQ"
+        },
+        {
+          "resource": "repo://backend/arp/llm/langchain_client.py#L224-L238",
+          "version": "repo-lines-v1:sha256:558099b31c05d77c3e5fda4d4c1a42aa95b40793e897e2661c6aca1d38de64cc:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhNWE4ZmU5MzgwMGUxODVmOGE5YTgyYmI4YzIzYjllNDlmMjUyOWMyZTJmMTFhYjZmODg3YTc0Nzg0NGIzYWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcwNzRlZDM4YjZlMjNkMzY3ZTAzNTFjZTdhOWQzNzc3N2Q2MjVkNTRmNjNiNmZjZDkxMmJiZWY3MGQ1YTFiZjQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkwMmMwZjRmZTFmZjJhYjE0NzRiYmJlZmMzMTFhNmU0NmZmMDhjNWNhMGEyM2QwZTZkOGI4MjI5ZDIzZWE1N2QiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQ2ZDg4OTJhMWRlMmM4OTBiMTU2YTcxYWE3ZjQwYjY5ZGFmZTJhZTZlYTQ4MTQ1ODE2MDkzZDgxZTQ3MzIwNDgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_638e768ca4344355a7c546aab334a807",
+      "statement": "DiskLLMCache keys calls on a sha256 of model, system, prompt, schema name and shape, temperature and image hashes; in refresh mode it never reads but still writes.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/llm/cache.py#L9-L60",
+          "version": "repo-lines-v1:sha256:6df67115eed07dc98c349f142f2a797a021ce12fc2a7965a3f2713b0ea41719c:eyJzZWxlY3RlZExpbmVDb3VudCI6NTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzNTc1ZDFlOWNjMTg0Y2ExOTYwMWU1N2JjNWIzMGZjYzNlOWUzODBmMzM3ODc2MDE3NTc5YTU1N2RjZjQxNzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM1ZWZjNDdmZDZjMDg3MTkxM2Q4NjI2MWNhNTMyYzk4ZjI3MTRiZGZhYTUxNDE1ZDBhZTg1NDU0MjI1ZTMyMjciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjlkMzdhMzNkMDczYWI4ZGEyOWRjNzRjZTZhODkxMzE4MThhNTJhNWMxNjVkMTZmMzFkOTkxOTk3ZjBlNjZjZjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2005f612716244fab3155475dcb18cd0",
+      "statement": "LangChainAnthropicClient uses AsyncAnthropic directly, offers the output schema as one tool with tool_choice auto, does not send temperature, re-prompts when no tool call is returned, and feeds validation errors back as an is_error tool_result for a bounded number of retries.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/llm/langchain_client.py#L165-L215",
+          "version": "repo-lines-v1:sha256:82b736465e42bdb881e89cbea7c06856c2528a14ce6e201f1c43b24a5707a211:eyJzZWxlY3RlZExpbmVDb3VudCI6NTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBiMzFkNmMxZDYzZTJkOGY1NDU5YzY2MzhiOTRmZjg0ZDRiMTU4ZGVjZjc4NjU3ZWQ0NDdkN2U1NDEzNTZlZTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhiMWVhM2ZiNmQ4YTEzYTY4YWVhODBiODk2Y2QwNjU2NTAxNjZjM2ZhY2JjZDBmODBkNWFlMDNhYThlN2Q0NjYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg0MzA4YjYzYzYwNzhhODQxZWEzNTIwY2Q2MzBhYzA0MDJjNThhMDBhNDIzYWE2NTY2MmE0NmVhZTFmYzdkYjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJhNmNjNmZlMjgyOTU0MmRiZDg2N2YzM2ZmNTgzYTUzMWE0ZDYzY2VjMDM1ZjdhMDYwMTZhODRjODRhNDI4OWIifQ"
+        },
+        {
+          "resource": "repo://backend/arp/llm/langchain_client.py#L240-L298",
+          "version": "repo-lines-v1:sha256:bcf840d0f2ec4547605e37d839cba2165f2009a2a774b55e12c0f53d8e6013ca:eyJzZWxlY3RlZExpbmVDb3VudCI6NTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc4OWNlNzM0NTdmOTZkMjNkNjI5MGVmYzFkYjI2ZDZmNDU1ZTNlZjA5NDI2MDk3MWVjZmJmMDUzYzNhZjliOTYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdiOWNlMjc4NWUyNmRkMWY2ODcwZDkyMDhjOTZlMWE2MDRhZjBlZTFmMTAzNTZkMzYyZjgyNWYxN2NlOGJhNTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQzYThjNWQyYzIwZjUyMzc3ZGQwNDgwYzA4NDIwN2QwZmU1Mzg4Njg5ZTY0NzY0NjBlMmFlODNkNzEyY2UwNDQifQ"
+        },
+        {
+          "resource": "repo://backend/arp/llm/langchain_client.py#L97-L130",
+          "version": "repo-lines-v1:sha256:cd7adc9bd4ccd5a666acb7308c6ec8a8ccb143b50f09d71fea98b01826a16996:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY2YmFhMTJkYTEyYjIwYWRkNGYzZDJjMjU5M2NmMzJhMTg3NGE4ZTVlZTcxYjkwZjAwZTYyYjExMWE5YWIxNmMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjMxMWQ3YjQ3ODQ0NjA2YTI0OGYzOWE1Y2EwNzg4YTIzOTcyNmJhMzQ1ZTJlMWE1ZTUxYTBhYjllNWZmYjMyNDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUwNTk2YzgzNmYzZTQxOTRjZTMzMDJkNGQwOTRlYjkwNTAzY2FkYzYxYTUyYmE4M2ZlYmU2OGQ3OWRmM2I5MzUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a24f1ed65d0e431aac3b744a88290a53",
+      "statement": "build_llm_client returns a GeminiClient for gemini-* models, a BatchingLLMClient when llm_batch is set, and otherwise an Anthropic client, raising if the required API key is missing.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/llm/factory.py#L17-L44",
+          "version": "repo-lines-v1:sha256:e122bd9b68d6d8e29cc1b10c0b86af638b14a22c4120bddda742be98ba4c4eb6:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIyMGFmOGFmMTA4OTA3MmFjNjIxZTZlY2QyNTU3YjU5MzJmMDA2NThkOTU0ZDhlOWZhNjBlZTNjZDA1MWE2NDYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcyOTUyYzk4YzhiMTk1ODZkNTBhM2JlZGJjYWViMjA2OWEyYWQwYzIzN2JlNTQ0ZDFlZWMzZmE3MThhNGExZTQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI2MjgyNTdmNjU4YWNlNGFiZmEwOTU0OTUzZjYyMjRkN2IxNTQwZWMyYjAyMjk2Mzk5ZjNkZjBjM2EyZTU5ZGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYxZTYwODZjMTgwNzg5MmY4NmI2ZjUxY2U5MGZiM2QwOWVmYTVkMDhkZTY4MTExM2IxODFiM2VkODU5NDc1NjUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_31500df9d1f1422491e65b3d9c2be5f1",
+      "statement": "The verifier client is built on llm_verifier_model (default claude-opus-5-5) rather than llm_model (default claude-sonnet-5-5) to decorrelate extractor and verifier errors.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/config.py#L19-L26",
+          "version": "repo-lines-v1:sha256:5c9c2e299df98257c4134d8c55c85d3f2c3e7cb6e7567cc815a07108de0b0b35:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiM2I0OGUxZDAxODUxZjAxZWI3NDk2NTQzZTZhODUxNjk3N2ZjZTM2NmNhNmYwYzMzOTY2ZWYwZjRkMWFiNjY2NSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzE3MDExMmNlM2I4ZDI2NWE1NTk5MGM5ODkyNGNiYjgyZjQ3ZWYyYTEwMGZjM2YyODEyZTFlODQ4MmYxY2U3MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYzY5OGYzZDM3ZTFjOGFlMzVmZTEyYmFjMDU4NTU2Mzc1YTU1N2RkZjEzNWM5NTQ5MmM0M2U3MmJmYmNmZjliYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNjA5ZDk0ODkyYWYxM2M0ZmUxMmRhOWE3MTJjZDk4NmU1YjM2NmVhZDdmZjg1YmU0MTdkNzJmMDZmYzFiYzY1ZCJ9"
+        },
+        {
+          "resource": "repo://backend/arp/llm/factory.py#L47-L55",
+          "version": "repo-lines-v1:sha256:2b4ccafa7f7b903a0cef57b41dd28783e77116ba76fa8590862da42bb6ecd9bc:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTY5OGFkMzJiMDJjN2JjYWM5ZDQxMmE1M2Q2NGRhMjg3OTI1OTEzMGE1MGZiZjk2NmEyNGMyOGQwZjQ1ZmJhNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNmM2YWZjODJkNTNiMzU4ZjRlMzlkMDBiMWNiNWQwYjZmYTcwYzczYzdlNjRkYTQyZjQxYzI5OWJiYmUzYWY0ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMzA2ZThiMDVjMWYyMmQ4ZDM5NTcwZjE3NzU2ZjI2YWZkNTQwMDlkNjMwOTQ3NzFmYzk2MzM1NGI3ODA0MmNmZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_bfc89219026243f395e6deb611ef7096",
+      "statement": "llm_batch may only be set per run; a global ARP_LLM_BATCH=true is rejected by a settings validator.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/config.py#L111-L114",
+          "version": "repo-lines-v1:sha256:8d9b2ee96f1034a4ecc9b49d93dd83c6862d219a98e773c3fc6095e7e380e7c1:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTdkYzU4MTMzZGM4YzgyOGRhOTJjNWNkZTRiMzdmMTBmYWQ1NDlkNTQ4MDI5MDE1MjBiMmMxMTA4YzdlOGU2NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzBjMWYxODhmMTQyZWQ3YTgyNDY4MGIyMDcxNzJjNTUxOWJjNjE0YTQ4ZmRhN2NmMTY3ZWRiOGRkZjc5OTU2YyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMzVlYzM3NTMzYTQwOGQ2NWQ0NzNjY2I3OWUwMWRmM2U3MTEzYzJiYzQ4NGZlNjg4YTcwOGI1ZGM1MTgzMzgwMyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDFkNzI1NzQyZjA3OGMzMGNhMWQ0YjUwNmNmZmE2ZWE0ZDZhNTc2YmI5NTUxYzkyYzdkMzAyYjRmMDA4OTUxZSJ9"
+        },
+        {
+          "resource": "repo://backend/arp/config.py#L521-L529",
+          "version": "repo-lines-v1:sha256:92b90fb12889567aa6f3df119e58d31027b7473fb812504bebf34e52f91e4beb:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjQ4ZTMzMTdjZDY1NGZiMGEwNGY3ZGQ2YmUyZTIxZDMzMjVhNzIyYjhhODdhMWNhMTI2NmE5MzJkNTkxN2EwNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMWUzY2ZjZWIzM2UwMTFmOWI2OTUwODhlMGIzYWE4M2IxNjAzZDY5ZGI0ZGM2NTgwM2FhODM2MzUzZTgxYjBkNyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjMyYjBjNjFlYmFmNGE3MmJjZjAxMjkwMGQxZGUwMWI0YWFiZDRmMmNhY2UxODE0MzgzM2I3MTNkNTZmMTM4YSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDQyNGYxYjEwMmFhYWIwOTI0OWI1ZGRiNTU5NmEzMzlhMTliYWVhNmE5MjIwZDkxNzMwZWFkNjcwN2NkM2U0MiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_4d57c63be6ad4ae79fec9f3bdbaea37b",
+      "statement": "BatchingLLMClient queues concurrent calls into Message Batches, matches results by deterministic custom_id, and logs submitted batches so a restarted client reattaches to its own run's batch.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/llm/batching_client.py#L1-L40",
+          "version": "repo-lines-v1:sha256:b0778286791e9e349728642206b0ce11eee4afaebb17485cb86b500d9ea616dd:eyJzZWxlY3RlZExpbmVDb3VudCI6NDAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM2NjFlYTNiZjIyNWYyMDUxNmNjYjM1ZTVmMzhkODkzNjE4ZjFkMWIwZjk3NzQ5ZmVlZGU2MTNkZWRhOWE0YzEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYxMDZiNzAxZDFjN2NhOTkxNjBkN2ViYjM1N2I5NGYzMDdmOTNjMDcxMGQ0N2I3ZmMwNGJmZTY3ODI4MDQwNzkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d1900fa527154d0f93fcf8f802c8fef2",
+      "statement": "estimate_cost_usd returns 0 for disk-cache hits, prices cache reads and writes with their own multipliers, and halves the cost of batch calls.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/orchestration/cost_tracker.py#L33-L46",
+          "version": "repo-lines-v1:sha256:bec9857ebeb112fb94bcbf577935ed6794497ff454910594406d3c99bc8bb7f4:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3ODc4NjE2Yzc2ZDg3ZTg1NjE4YWY4MDkwOGRiNjMyMGFmNjgxMjI3ZjQ3NTIyZDllYjY1MzVlNDZiOWMwMTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVlMjRkYjg0MzczZDVmYjNkMzQyOWQyYjA1NmM2NGNjNjAwNzRiNmYyYzU5YWNkNjJmNjMxZDRjMzRkYWMyMjYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjExYzVlMGM0OTNmMjQ4Nzg2MmI3ZGMzNzVhN2VlNTY2ZWYzZmVmMmZhZGRhYmQ0OWQzMmJiM2FjNDk5M2FhYjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRmMDFlZDE5Mjk3ZDcxMjQwZTc2MzRmYTQ3YWYxNTI0NjBlMmNkMDk4ZGU5MmYyMmU5ZmIwZDgxZWE0YmRjZDcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3bf56de9e1c84a42a35094fe4241cb26",
+      "statement": "chunk_document produces sentence-aware chunks with deterministic chunk ids derived from doc_id and span, caches spans per document, and adds each table as a whole passage.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/ingestion/parsing.py#L97-L140",
+          "version": "repo-lines-v1:sha256:df3f7c51e8193c0bef3ea3ec836a8133135a899259603b540f65fd7f1f5a9e6a:eyJzZWxlY3RlZExpbmVDb3VudCI6NDQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhOTk4NzE1NDE1Mjg2MzVmM2IzMDg2ODdhZmVmYWJhMzk2NzA2MWZlMjMwNWJmYTIwOTE5N2Q4ZmZlOTY0NGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE0NWNkNTgyMTMyMGRmYmNkMzkzMjIzN2RlOWNiNDFiNmE3NzgxNzhiNWEwOGZiZTc0ZDMxZTVjZDlmNDM1OWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI4Y2JiZGI3NTRkNTcwMTFhN2E1OWRlOTBlY2NhNmE0NGIzNDUwZjY5YzI1OTAxNGE2MjI5MTVmOGZlMTU5ZDMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcwODNjYjU3YWI0MTFiMmJmYTAwZmM0MmUzODY0YzlmYmYzNmNjODI4ODBmYTkwMDA2MzIyYzJmZTQ5OTg4MWQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_df99b702cbb6486b8756b654c77c5827",
+      "statement": "select_relevant_chunks ranks chunks by BM25, optionally fuses a local embedding ranking via reciprocal rank fusion, optionally takes BM25 from OpenSearch, optionally reranks with a cross-encoder, and can fall back to unranked chunks.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/retrieval/select_evidence.py#L88-L178",
+          "version": "repo-lines-v1:sha256:4e7e40421190b2052cce326dcb29beda2c470ddc1b2b46d6c130fddbb2a97fd1:eyJzZWxlY3RlZExpbmVDb3VudCI6OTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhlYmQzNjJlYzQ3NDVlOGQwMzkwZjJjYmU1ZDRhMDE1ZGQ4YmQzMTBjYWFlNGU2ZmJkMjg4NTQwZDhhMTQwYTciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU5YzcxNDk3Y2ZjODJlNmZlMGZmZmYwYjA2MjM2NWVmNDk3MTUzODhhNjU0N2I5N2ExMzAwZjdlZWEyOGYwMmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAwYmYxZDlmMTRiY2JiYzkwNWI0N2JlZDgwYmFjY2FlMzg0YWFlODc2ODI1ZTc2YzFlMzc4MTRlNzA4MzZjOWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEyMWM4ODE5YTc5ZTc2M2IzZmUzNWQ5ZGVjYWVhYTc5Mzk2MWI4ODI1ZTJkNzdiM2JmZTBhZDljZWQwNGM5OTQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e06d7790e52f4070b04a18ace7027f3b",
+      "statement": "Hybrid retrieval is on by default, rerank is off by default, and 12 evidence chunks go to the extractor per field by default.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/config.py#L131-L159",
+          "version": "repo-lines-v1:sha256:e0a8249abbb866e987dcf5015cd2947395cfe4efca48860982e449e4006d1499:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMwMzZlZThjNTAwYThlMzFhZTRjYTc4MWJiZGZlZDQ2ZDczYjQyNTZlNzU0ZTMyNzZjZDdjMmU5N2VkMjIzZDYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFhZTliMGVjZjA1NDc0OGJlYzg0MjllMzlkNDI4MmJhNDViMGRkYTU5ZWZlM2UzMTgwY2NjNDI0YTI1YjJjMTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMzMTc3NzI2M2E2N2IwNzYwZTQ4OWEwMGZiNTdkYTQwYjY4MDhjMzM3ZWYzNDQ3ZDkzOWY2YjZmNzhjYWM5MGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY1MGM0NzlkYTFhNWJjMzg5N2QxM2ZkYjg3NWFiOTJlYmRhMGRhOGI2MTVkNmZlMGQxYjMxMWE3ODE1NzkyZDIifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-18T15:42:30.245Z"
+  }
+}

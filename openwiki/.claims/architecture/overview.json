@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:1ff3993251a1c1f27b042af98b27599057b0af6f3da1610c044db46a1bcec30b",
+  "claims": [
+    {
+      "id": "claim_72b4d867e3db452b85810bdf6eb8575d",
+      "statement": "API startup refuses to run without a reachable Postgres or on a database that is not cut over, loads the users file in local auth mode, and starts eight in-process schedulers including the publishing scheduler.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/api/main.py#L69-L103",
+          "version": "repo-lines-v1:sha256:e6444711ef39fe652f821ff1eabd25e13266a0b1d4aaf6d32deb03c2dc5abd9a:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg3Y2ZmM2YxNzg0MmRlYzZlN2U5MWMzZTNiOGZjZTBhODIyZmMzMTEyNzM4MWIwMGY0NGE5ZjEzMzMzMDNhMmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhhZDlmNDQ4NmY1ZjEzOGI5YTI0OTNjNzE4NGVjYWY2OWNiNjk4NzRkYTdhZTA4NWY2ZmUxZGRlYTg3OWU3MDAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgwZmE1MjllNWJlYWJkNzlkZTU2MzA4ZTFlZmVmYTczY2QxODNlNGM5NWRjNzM2MDE2N2ExOGQ0NjA4NzliNmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEzMDcyZTI2MTlmMWRiNDI1ODBmOGY4NzU0MDgyNWI5MDNiMjM2NmJhOWMwMjMzMjg1ZmNkMjY5ZTQ2OGJlY2QifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e9eb6f12dec341f5a551adab27c3ae9a",
+      "statement": "The FastAPI app adds TrustedHostMiddleware to stop DNS rebinding into the loopback dev caller, and CORS restricted to allowed_origins.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/api/main.py#L106-L119",
+          "version": "repo-lines-v1:sha256:00e8325e89c5247043c9ca457774b063946dfd1dbbb78ffc4e75ae63c8f2cb8b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM4ZTdhZGI3YTkxMWVkZTEyYmM2NmM3NWNiZmI0NWRiNDhiMDM2YjFhMmIwMzFlYzAwYjI0ZjE4NjgyMDNjZGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhZmJhMDUyN2MzOTUzYzRiNmUwZTViNTczOWJhODM2MTJmODA1M2JjZGM5NDY2NzMwMTkzY2QxZDU5MGI0MDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYxYzE0YWMzYjUxYzIyZGIyZTM3OGVlYTdkNWIwOTFjZmEyY2NkMzM2NGY5NTc3NGExM2RhNDhiYjQ2YTE0OTQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI1YWZiYWY4YWY3MDg2ZTUzYjZkYzMwMjQ5ZjI1ODUzNGQ2M2Q3MDQ3NzBhY2U3ZGJmODUzM2ZjNDIxNDM3MWYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d63e2fd6f1e64d6487d1327e97eaad78",
+      "statement": "Most routers are mounted with the authorize dependency, under which viewers may use safe HTTP methods and any other method requires the analyst role.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/api/auth.py#L99-L104",
+          "version": "repo-lines-v1:sha256:acfadfbc2daa19ae9b4e2cf0e57168fd2e4578849364b3dd6c99a717b905ff16:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMzY1Y2YwM2U3NDU0MGQ3MDQ2N2E5YjZjNGVhODUzOWFhNjE0OGI0ZjQ2NzQxY2U5YWMxNmY3ODljZWFhOGU0MiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTFhMDU1YTA0ODEwMDQ0MDdlYjQ3NzA0NWM5NTJjODVhYWVjNTEwYmQzM2YwY2VjZTk2MmVmNzUxNGYxMTg3YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODEyYjlhOTM0M2FjZjRlZGZmYzA1ODUxNTAwNWU5YzFmYzM0YTA2MzUyYzE2OWJmZWFmYmNhOGY2MDY5ZGM0OCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        },
+        {
+          "resource": "repo://backend/arp/api/main.py#L121-L163",
+          "version": "repo-lines-v1:sha256:6d22aa1e937572171fe3e3f465a653843ef64d2b1042eeb94b56caad273abaf2:eyJzZWxlY3RlZExpbmVDb3VudCI6NDMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMyYWJjMmY5MjU1ZWVhMmQ2NzMxYTUzMDZjMjYyZDIzOTlhNzdhOTU5Y2ZkODk2Yzk2OWNiMDc3ZGQ2ZmZhNmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVlOWIyYTE3ZWUwNTE3ZWRmMGI1NzI5ZTU3Y2UxOTFjNmVjNzFkODQ0ZWRhMWE1MmMxNGEyMjRiZjU5NGI2MmEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg3Y2U2ZWFiOGM5NzI2ZjRkYWMzZDVmNjdhZjE0NDlkNjVkNTMxZTBiMmE3MmE5YzJkMzA2YWY2N2NlN2IwYzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJkZWMyNWNlYzkzYTA2YTRjNzc4YWExMGRhNzZkMmFlNzhhM2E5NjU4NTc5Njg4ZDllMjY1MjQ4ZDJjNTU5ZTMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_86a6bae7b9534b8282605115340311c4",
+      "statement": "current_user authenticates by bearer token against the users file, except that in dev auth mode same-site requests from loopback or dev_trusted_networks are signed in as dev_user with the approver role.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/api/auth.py#L64-L77",
+          "version": "repo-lines-v1:sha256:6f0f9d2fef9fd081413876f37796aaee59639e9d249ec7a77143cc3c93358e7a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUwYzg4OTE4MzVlNDJmZmJjMWZkOGRkNWU4ZDY4N2FmMWEzZDk3OTZhZTkwY2JlNDMzYjU4NTYyOTRhYThiOTAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYyMGNhMDc5YmRhY2E0ZWQxZDFiNDMxMTI2ZDUzMGQ1MmE1NGMwZTgzMDViODdlMzI2OTVhMDQ5OTkyYzM1YzkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAzZTBiMDczNTVmN2U0OTIyYjg0ODE3MDY5MWIzMDcyOGUwOTQ3YmU1ODgzNjUzZWJkYTU1ZTEyMjgxMTNiNTIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_58af2058f6f5460db1a1bae7b33a3e19",
+      "statement": "The arp CLI is a Typer app whose callback requires a reachable Postgres for every command and a cut-over database for every command except arp db.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/cli/__init__.py#L40-L61",
+          "version": "repo-lines-v1:sha256:ff90675ace3bb7a00f309de5682867c7c9238b4caaad6204e0031ee9614b42e2:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJmY2FmNzJlMTZiMTUwYWMyNWZhZjQ0ZTUxM2U5ZDY2MTc0M2QxYjY4YmJlMjVhOWVjYTM4ZDJiNzJhZDk2MjUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRiMGYyZDM4MzY3MzU3ZjE2OWRmMGIzODFiODliZjE4YzJhMDliZmZhNTIyOGIzZjIxNWU4M2I0YmQzZGMyYzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBmNWQ2MDc2N2FiNjYwZGUyYjk4ZjFhNTdjYTE0MTRlY2E2MjY2ZjBiYzk2MzA2YzNiMGI5Mzc5ZDE5MjRiNzkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI1MmRjYjhlYjBjNDBjNDg1ZmE0NDIwODkwOGQ5YTg3OWFiY2U2OGM1MjczOTViYzE3Y2M4ZGY2YjdlYWZjOTUifQ"
+        },
+        {
+          "resource": "repo://backend/pyproject.toml#L143-L144",
+          "version": "repo-lines-v1:sha256:79d4e6ea2979ff70aee42d6eeb392dbe80a57957f26f9f15f2889194e94b8534:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNGVhYjRlYzYzZGU1MTdkYTRjZDhlNWM4MzA3ZmIyYzc3MzdkMzkxOTBhYjY5ZjMyYTVlOWVmODFlYTQ0MTZkZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNjQ2OGIyNzIwZDFkZWViNzc0Y2QwNDAxMDZhNDhjYzY4NWQ1NjVhZmM5Y2YzZTYyMWUxMWM4Y2Y4MGY1MTgyZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZmVmYjc1MDk0ZjE5NTdjZjJhYThjZGY4ZjU4MWE2NDhjMzM2YTQyYzhhYmVkOTE4ZDUwM2RmMDhiZmM5YTM1YSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDY1MjljZWY0MTJmMzUzNjNiZWVhODIyYTExOWQ4YTc4NGMwNjc2ZGUzNWZmNGYwMDg1MjkzYzA2MzQxZWUwNSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_fded032fb26f408986218b02a121b792",
+      "statement": "Settings are read from ARP_-prefixed environment variables and .env, with a separate llm_verifier_model alongside llm_model.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/config.py#L14-L26",
+          "version": "repo-lines-v1:sha256:1aee9d82d387d7523ba0f619a6ad67c98cbb53e4714b0f3f7fec601bfe0ca394:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjUwYzkyYmU0NTQ4OWM0NzEwMThiZTU0Y2I3YTYwYTI4MTcwMzU0MjQ0OWMyMjNiNDU0ODdiYjBjOTRlNjRjY2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMxNzAxMTJjZTNiOGQyNjVhNTU5OTBjOTg5MjRjYmI4MmY0N2VmMmExMDBmYzNmMjgxMmUxZTg0ODJmMWNlNzEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI4NDVhYTI0ODczYzNlNGI1YWViZmVlNWJlMjk2ZDJhYjBhNmFlMzIxNWJkZjEyNjQ2MmM4NmU2NWI4MjY1NDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjYwOWQ5NDg5MmFmMTNjNGZlMTJkYTlhNzEyY2Q5ODZlNWIzNjZlYWQ3ZmY4NWJlNDE3ZDcyZjA2ZmMxYmM2NWQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6a092a8af1aa4a79822010345e182b37",
+      "statement": "Background runs are launched as asyncio tasks by the LocalJobLauncher inside a run lease (hold_run), so one worker executes a given run.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/orchestration/jobs.py#L103-L141",
+          "version": "repo-lines-v1:sha256:cb8af5176a901cb705bbe6c86ab38c2bc5ae165082e05c7c0b9d71181b6530ba:eyJzZWxlY3RlZExpbmVDb3VudCI6MzksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUwZjUwNWVmYjBjMjg3NzZlMWFhOTFhYWY0NGRmZjk3ZjcxNTcxMTA3ZGQ5MDAwYWIwMGU3ZmJjYzYxYjk0ODAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhmMjQ1MDc0ZmJjZWIyNTVlNWFlZjQ2MDQzOGE2NmNlYjM4NjUzYzNkYWZmN2JmMDM2NDRjZDEwNWQ0MDg2MjMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU4YzlmZDk4NDFmOTAzMDM1YTU4ZjM3OTExNWRiMWM4MDU0MDI1NWVlN2Q1MzkyZjgxNWI0NDMzNGM1NWUwMTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM0YWVkYzkwN2YzYjU1ODg2ZWMwMTkxMGJiMDMyN2FiMmE0N2E5MTc2YjU1NWRkNzMxOGY4ODQwMmVjNTE2ZGYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_52fbce3c3a604cb3b75a8a877a8955af",
+      "statement": "Every agent talks to models through LLMClient.complete_structured, which returns schema-validated output rather than free text.",
+      "evidence": [
+        {
+          "resource": "repo://backend/arp/llm/base.py#L32-L59",
+          "version": "repo-lines-v1:sha256:10f12c6154954acf896222865be052797a9e73164f2bb3e9035794bc2ac0e283:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJhNDkzNzVmMmNjYjA0ODE2Yjc2NzAzNWMwNjQwZWViZDY5ZGVmMmI4YzFjMDZkYWJjZmUzZTgxMzljYjZjZDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU2MjBkODVkZTRlZDdhYjgwMjFiNGE4ZGQ0ZmExNWVjNTE5MjVjZGZjY2RlMTgwNTg5NWE0YzhhM2MzYmE0OGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJmMzZkOTJmZDYyMzg0YzJjNjU5NGM0ZDI2NWI2MjI5ZWFiOTE2Y2FhNTRkOTUwNzZjMDNjZWE2MDUwMjM1MDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-18T15:42:30.245Z"
+  }
+}
