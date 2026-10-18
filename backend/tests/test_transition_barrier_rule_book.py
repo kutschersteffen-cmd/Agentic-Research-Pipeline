@@ -16,6 +16,7 @@ from arp.transition_barrier.rule_book import (
     load_rule_book,
     sign_rule_book,
 )
+from arp.transition_barrier.validation import count_open, validate_rule_book
 
 FIXTURE_SRC = Path(__file__).parent / "fixtures" / "transition_barrier"
 
@@ -90,3 +91,252 @@ def test_fingerprint_ignores_formatting(fixture_dir):
 def test_missing_rule_book(tmp_path):
     with pytest.raises(RuleBookNotFound, match=r"^Rule book not found: "):
         load_rule_book(tmp_path)
+
+
+# --- validator ---------------------------------------------------------------------------
+
+
+def _fx(data_dir):
+    return _raw(data_dir), json.loads((data_dir / "criteria_schema.json").read_text(encoding="utf-8"))
+
+
+def _check(rb, schema, resign=True):
+    """Validate; re-sign first so only the mutation under test can show up."""
+    if resign:
+        rb["fingerprint"] = compute_fingerprint(rb)
+    return validate_rule_book(rb, schema)
+
+
+def _stl(rb):
+    return rb["criteria"]["STL-R1"]
+
+
+def _src(name):
+    return {"title": name, "url": "https://example.org/" + name, "locator": "Table 1"}
+
+
+def _rb2(rb, fos_unit="USD/MWh"):
+    c = _stl(rb)
+    c["facts"] += [
+        {"id": "ren", "label": "Renewable LCOE", "type": "number", "unit": "USD/MWh", "definition": "d"},
+        {"id": "fos", "label": "New-build fossil LCOE", "type": "number", "unit": fos_unit, "definition": "d"},
+        {"id": "ratio", "label": "LCOE ratio", "formula": "ratio", "inputs": ["ren", "fos"], "definition": "d"},
+    ]
+    c["params"].append(
+        {"id": "p_parity", "label": "Parity level", "value": 1, "rationale": "r", "source": _src("p_parity")}
+    )
+    c["levels"]["H"] = {"all": [{"fact": "ratio", "op": "<=", "param": "p_parity"}]}
+    rb["version"] = 8
+    return rb
+
+
+def _rb6(rb):
+    p = _stl(rb)["params"][0]
+    del p["value"]
+    p.update(status="open", question="What price closes the cost gap?")
+    rb["version"] = 8
+    return rb
+
+
+def test_validator_accepts_f(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    assert validate_rule_book(rb, schema) == []
+    assert count_open(rb) == 0
+
+
+def test_validator_accepts_rb2_and_rb6(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    assert _check(_rb2(rb), schema) == []
+    rb, schema = _fx(fixture_dir)
+    rb = _rb6(rb)
+    assert _check(rb, schema) == []
+    assert count_open(rb) == 1
+
+
+def test_ac77_unknown_fact(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    _stl(rb)["levels"]["H"]["all"][0]["fact"] = "prices"
+    assert "STL-R1: condition names unknown fact 'prices'" in _check(rb, schema)
+
+
+def test_unknown_parameter(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    _stl(rb)["levels"]["H"]["all"][0]["param"] = "p_nope"
+    assert "STL-R1: condition names unknown parameter 'p_nope'" in _check(rb, schema)
+
+
+def test_ac78_param_without_source(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    del _stl(rb)["params"][0]["source"]
+    assert "STL-R1: parameter 'p_high' has no source" in _check(rb, schema)
+
+
+def test_param_without_rationale(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    _stl(rb)["params"][0]["rationale"] = ""
+    assert "STL-R1: parameter 'p_high' has no rationale" in _check(rb, schema)
+
+
+def test_ac79_override_without_source(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    _stl(rb)["params"][0]["by_region"] = {"China": {"value": 40}}
+    assert "STL-R1: parameter 'p_high' override for China has no source" in _check(rb, schema)
+
+
+def test_ac80_no_rationale(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    _stl(rb)["rationale"] = ""
+    assert "STL-R1: no rationale" in _check(rb, schema)
+
+
+def test_no_facts(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    _stl(rb)["facts"] = []
+    assert "STL-R1: no facts" in _check(rb, schema)
+
+
+def test_ac81_fact_without_definition(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    del _stl(rb)["facts"][0]["definition"]
+    assert "STL-R1: fact 'price' has no definition" in _check(rb, schema)
+
+
+def test_ac82_no_m_level(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    del _stl(rb)["levels"]["M"]
+    assert "STL-R1: no M level" in _check(rb, schema)
+
+
+def test_no_h_level(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    del _stl(rb)["levels"]["H"]
+    assert "STL-R1: no H level" in _check(rb, schema)
+
+
+def test_ac83_unit_mismatch(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    _stl(rb)["params"][0]["unit"] = "EUR/tCO2"
+    assert "STL-R1: 'price' (USD/tCO2) compared with 'p_high' (EUR/tCO2)" in _check(rb, schema)
+
+
+def test_ac84_inline_number(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    _stl(rb)["levels"]["H"]["all"][0] = {"fact": "price", "op": ">=", "value": 50}
+    assert "STL-R1: condition on 'price' uses an inline number; use a parameter" in _check(rb, schema)
+
+
+def test_unknown_operator(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    _stl(rb)["levels"]["H"]["all"][0]["op"] = "~"
+    assert "STL-R1: unknown operator '~'" in _check(rb, schema)
+
+
+def test_ac85_unknown_action(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    _stl(rb)["actions"].append("steel.foo")
+    assert "STL-R1: unknown action 'steel.foo'" in _check(rb, schema)
+
+
+def test_ac86_computed_input_unit(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    rb = _rb2(rb, fos_unit="USD/kWh")
+    assert "STL-R1: computed fact 'ratio' input 'fos' is in USD/kWh, expected USD/MWh" in _check(rb, schema)
+
+
+def test_computed_unknown_and_non_numeric_input(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    rb = _rb2(rb)
+    _stl(rb)["facts"][5]["inputs"] = ["ren", "nope"]
+    assert "STL-R1: computed fact 'ratio' names unknown input 'nope'" in _check(rb, schema)
+    _stl(rb)["facts"][5]["inputs"] = ["ren", "applies"]
+    assert "STL-R1: computed fact 'ratio' input 'applies' is not numeric" in _check(rb, schema)
+
+
+def test_ac142_nesting_depth(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    _stl(rb)["levels"]["M"] = {
+        "all": [
+            {"fact": "applies", "op": "=", "value": True},
+            {"any": [{"fact": "price", "op": ">=", "param": "p_material"}, {"all": [{"fact": "levy", "op": "=", "value": True}]}]},
+        ]
+    }
+    assert "STL-R1: conditions nested deeper than two levels" in _check(rb, schema)
+    # two levels (RB4) is fine
+    _stl(rb)["levels"]["M"]["all"][1]["any"][1] = {"fact": "levy", "op": "=", "value": True}
+    assert _check(rb, schema) == []
+
+
+def test_ac87_missing_entry(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    schema["criteria"].append({**schema["criteria"][0], "code": "STL-T1"})
+    assert "Missing rule book entry: STL-T1" in _check(rb, schema)
+
+
+def test_ac88_entry_without_criterion(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    rb["criteria"]["XXX-T9"] = json.loads(json.dumps(_stl(rb)))
+    assert "Rule book entry without criterion: XXX-T9" in _check(rb, schema)
+
+
+def test_ac89_source_without_tier(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    del schema["criteria"][0]["primary_sources"][2]["tier"]
+    assert "Source 'steel_policy_tracker' has no tier" in _check(rb, schema)
+
+
+def test_ac90_unsigned_change(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    _stl(rb)["params"][0]["value"] = 60
+    assert validate_rule_book(rb, schema) == ["Rule book content changed but version is still 7"]
+
+
+def test_open_parameter_without_question(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    rb = _rb6(rb)
+    _stl(rb)["params"][0]["question"] = ""
+    assert "STL-R1: open parameter 'p_high' has no question" in _check(rb, schema)
+
+
+def test_open_parameter_skips_unit_check(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    rb = _rb6(rb)
+    _stl(rb)["params"][0]["unit"] = "EUR/tCO2"
+    assert _check(rb, schema) == []
+
+
+def test_in_takes_enum_values(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    c = _stl(rb)
+    c["facts"][1] = {"id": "scheme", "label": "Carbon pricing scheme", "type": "enum",
+                     "allowed_values": ["ETS", "tax", "none"], "definition": "d"}
+    c["levels"]["M"] = {"all": [{"fact": "scheme", "op": "in", "value": ["ETS", "tax"]},
+                                {"fact": "price", "op": ">=", "param": "p_material"}]}
+    assert _check(rb, schema) == []
+    c["levels"]["M"]["all"][0]["value"] = ["ETS", "coal"]
+    assert any(e.startswith("STL-R1: invalid condition on 'scheme'") for e in _check(rb, schema))
+
+
+def test_boolean_and_date_values_inline(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    c = _stl(rb)
+    c["facts"].append({"id": "start", "label": "Levy start date", "type": "date", "definition": "d"})
+    c["levels"]["H"]["all"].append({"fact": "start", "op": "<=", "value": "2026-12-31"})
+    assert _check(rb, schema) == []
+
+
+def test_malformed_input_does_not_raise(fixture_dir):
+    rb, schema = _fx(fixture_dir)
+    _stl(rb)["params"][0]["value"] = "50"
+    errors = _check(rb, schema)
+    assert len(errors) == 1 and errors[0].startswith("STL-R1: invalid")
+    for bad in (None, 5, [], "x"):
+        rb, schema = _fx(fixture_dir)
+        for key in ("facts", "params", "levels", "actions", "rationale"):
+            _stl(rb)[key] = bad
+        rb["actions"], rb["criteria"]["BAD"] = bad, bad
+        assert validate_rule_book(rb, schema)
+        assert validate_rule_book(bad, schema) and validate_rule_book(rb, bad)
+    assert count_open({}) == 0
+    rb, schema = _fx(fixture_dir)
+    _stl(rb)["levels"]["H"]["all"][0].update(param=["x"], fact="price")
+    assert any("invalid condition" in e for e in _check(rb, schema))
