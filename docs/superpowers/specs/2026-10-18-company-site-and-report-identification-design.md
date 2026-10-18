@@ -270,6 +270,8 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
 - **P2** PDF, 30 pages: page 1 text `Testwerke AG Annual Report 2025`, no identifiers.
 - **P3** PDF, 30 pages: page 1 text `Otherco plc Annual Report 2025`, no mention of Testwerke.
 - **P4** PDF, 30 pages, image-only (no text layer).
+- P1–P3 also carry at least 200 characters of neutral filler text (no company name, no identifier, no year)
+  on page 2, so the `no_text` rule (under 200 characters on the pages read) does not apply to them.
 - **Two-run setup** (rows AC-56 to AC-66): W with supplied website `https://www.testwerke.de/`, one
   `ChangeDetector` state dir and one file store shared by both runs. Run 1: the homepage links only to
   `https://www.testwerke.de/gb2025.pdf`, which returns P1 with `ETag: "v1"` and
