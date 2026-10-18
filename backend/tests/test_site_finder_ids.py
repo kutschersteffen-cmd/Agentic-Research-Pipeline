@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ssl
+
 import httpx
 import pytest
 
@@ -77,6 +79,23 @@ async def test_http_error_tries_next_identifier():
 
     assert await homepage_from_ids(UA, lei=LEI, isin=ISIN, transport=httpx.MockTransport(handler)) == H1_URL
     assert len(calls) == 2
+
+
+async def test_wikidata_client_offers_openssl_default_ciphers(monkeypatch):
+    """Wikimedia answers 403 to Python's default TLS cipher list; the client offers OpenSSL's DEFAULT list, as curl does."""
+    seen: dict = {}
+
+    class Recording(httpx.AsyncClient):
+        def __init__(self, **kwargs):
+            seen.update(kwargs)
+            super().__init__(**kwargs)
+
+    monkeypatch.setattr(site_finder.httpx, "AsyncClient", Recording)
+    transport, _ = _wikidata(by_property={"P1278": [H1_URL]})
+    assert await homepage_from_ids(UA, lei=LEI, transport=transport) == H1_URL
+    expected = ssl.create_default_context()
+    expected.set_ciphers("DEFAULT")
+    assert [c["name"] for c in seen["verify"].get_ciphers()] == [c["name"] for c in expected.get_ciphers()]
 
 
 class _FixedSearch(WebSearchClient):

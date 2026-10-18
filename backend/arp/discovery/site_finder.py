@@ -92,9 +92,14 @@ async def homepage_from_ids(
         ("P946", isin if isin_is_valid(isin) else ""),
         ("P5531", cik.zfill(10) if cik and cik.isdigit() else ""),
     ]
+    # Wikimedia answers 403 to Python's default TLS fingerprint (its cipher list plus ALPN, as
+    # httpx always sends); OpenSSL's DEFAULT list, which curl offers, passes.
+    tls = httpx.create_ssl_context()
+    tls.set_ciphers("DEFAULT")
     async with httpx.AsyncClient(
         headers={"User-Agent": user_agent},
         timeout=15.0,
+        verify=tls,
         event_hooks={"request": [ssrf_guard_request_hook]},
         transport=transport,
     ) as client:
