@@ -190,7 +190,8 @@ async def check_homepage(
             return fetch_failed
         if resp is None:
             return blocklisted
-        if resp.is_redirect or resp.status_code >= 400 or "text/html" not in resp.headers.get("content-type", ""):
+        content_type = resp.headers.get("content-type", "").lower()
+        if resp.is_redirect or resp.status_code >= 400 or not ("text/html" in content_type or "application/xhtml+xml" in content_type):
             return fetch_failed
 
         final_url = str(resp.url)

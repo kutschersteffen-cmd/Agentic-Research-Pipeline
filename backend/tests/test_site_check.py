@@ -5,6 +5,7 @@ import socket
 import httpx
 import pytest
 
+from arp import net_safety
 from arp.discovery import site_check
 from arp.discovery.site_check import check_homepage
 from arp.schemas.common import CompanyRef
@@ -248,3 +249,18 @@ async def test_malformed_redirect_location_is_fetch_failed():
     result = await check_homepage(H1_URL, W, UA, transport=transport)
     assert result.verdict == "unclear"
     assert result.evidence == ["fetch_failed"]
+
+
+async def test_real_ssrf_hook_blocks_loopback(monkeypatch):
+    monkeypatch.setattr(site_check, "ssrf_guard_request_hook", net_safety.ssrf_guard_request_hook)  # undo the autouse no-op
+    transport, seen = _transport({"http://127.0.0.1/": _html(H4)})
+    result = await check_homepage("http://127.0.0.1/", W, UA, transport=transport)
+    assert (result.verdict, result.evidence) == ("unclear", ["fetch_failed"])
+    assert seen == []
+
+
+async def test_content_type_is_case_insensitive():
+    page = httpx.Response(200, text=H4, headers={"content-type": "Text/HTML; charset=utf-8"})
+    transport, _ = _transport({H1_URL: page})
+    result = await check_homepage(H1_URL, W, UA, transport=transport)
+    assert result.evidence == ["name_in_title"]

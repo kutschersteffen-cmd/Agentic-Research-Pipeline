@@ -59,3 +59,16 @@ async def test_gleif_error_returns_empty():
     client, _ = _client(status=500)
     assert await name_matches(client, "Testwerke") == []
     assert await lei_for_isin(client, "DE000TST0006") is None
+
+
+async def test_null_legal_address_gives_no_country():
+    record = _record(LEI)
+    record["attributes"]["entity"]["legalAddress"] = None
+    client, _ = _client([record])
+    assert [(m.lei, m.country) for m in await name_matches(client, "Testwerke")] == [(LEI, None)]
+
+
+async def test_null_data_is_no_match():
+    client = httpx.AsyncClient(transport=httpx.MockTransport(lambda request: httpx.Response(200, json={"data": None})))
+    assert await name_matches(client, "Testwerke") == []
+    assert await lei_for_isin(client, "DE000TST0006") is None

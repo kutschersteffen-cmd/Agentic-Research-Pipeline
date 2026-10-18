@@ -7,6 +7,7 @@ from collections import defaultdict
 import httpx
 import pytest
 
+from arp import net_safety
 from arp.config import Settings
 from arp.discovery import identity_graph, site_check, site_finder
 from arp.discovery.identity_graph import resolve_company_identity
@@ -307,3 +308,21 @@ async def test_supplied_website_skips_isin_lookup(fake_llm):
     result, _ = await _run(W_NO_LEI.model_copy(update={"website": H1_URL}), web, fake_llm({}))
     assert result.match_rule == "supplied"
     assert web.requests["api.gleif.org"] == []
+
+
+async def test_gleif_lookup_client_runs_real_ssrf_hook(monkeypatch, fake_llm):
+    hooked: list[httpx.Request] = []
+
+    async def recorder(request):
+        hooked.append(request)
+        await net_safety.ssrf_guard_request_hook(request)
+
+    monkeypatch.setattr(identity_graph, "ssrf_guard_request_hook", recorder)
+    # A public address, so the real hook passes without a DNS lookup.
+    monkeypatch.setattr(net_safety.socket, "getaddrinfo", lambda host, port: [(None, None, None, "", ("93.184.216.34", 0))])
+    web = _Web(gleif_isin=[W_RECORD])
+    result, _ = await _run(W_NO_LEI, web, fake_llm({}))
+    assert result.derived_lei == LEI
+    gleif = web.requests["api.gleif.org"]  # the ISIN lookup, then the name search; both on the lookup client
+    assert [str(r.url) for r in hooked] == [str(r.url) for r in gleif]
+    assert "filter[isin]" in gleif[0].url.params

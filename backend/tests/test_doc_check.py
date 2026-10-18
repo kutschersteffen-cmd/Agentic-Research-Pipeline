@@ -13,7 +13,7 @@ from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
 from arp.discovery.site_finder import WebSearchClient
 from arp.schemas.common import CompanyRef
 from arp.storage.run_store import RunStore
-from tests.pdf_fixtures import p1, p2, p3, p4
+from tests.pdf_fixtures import FILLER, make_pdf, p1, p2, p3, p4
 
 W = CompanyRef(company_id="w", name="Testwerke AG", lei="5299009TESTWERKE0063", isin="DE000TST0006", country="DE")
 W_SITE = W.model_copy(update={"website": "https://www.testwerke.de/"})
@@ -55,6 +55,17 @@ def test_check_non_string_title_still_checks(tmp_path):
     odd = tmp_path / "odd_title.pdf"
     writer.write(odd)
     assert check_document(odd, W) == DocCheck("name", 30, 2025)
+
+
+def test_ac_90_one_word_line_is_not_a_name_match(tmp_path):
+    bank = CompanyRef(company_id="b", name="Bank of Ireland Group plc")
+    pdf = make_pdf(tmp_path / "bank.pdf", ["Bank", FILLER])
+    assert check_document(pdf, bank).company_match == "none"
+
+
+def test_identifier_compared_case_and_space_insensitive(tmp_path):
+    padded = W.model_copy(update={"lei": " 5299009testwerke0063 ", "isin": None})
+    assert check_document(p1(tmp_path / "p1.pdf"), padded).company_match == "identifier"
 
 # --- discovery run ----------------------------------------------------------------------------
 

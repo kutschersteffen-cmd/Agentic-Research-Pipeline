@@ -5,6 +5,7 @@ import ssl
 import httpx
 import pytest
 
+from arp import net_safety
 from arp.discovery import site_finder
 from arp.discovery.site_finder import SearchResult, WebSearchClient, homepage_from_ids, resolve_company_homepage
 
@@ -96,6 +97,22 @@ async def test_wikidata_client_offers_openssl_default_ciphers(monkeypatch):
     expected = ssl.create_default_context()
     expected.set_ciphers("DEFAULT")
     assert [c["name"] for c in seen["verify"].get_ciphers()] == [c["name"] for c in expected.get_ciphers()]
+    assert seen["verify"].verify_mode == ssl.CERT_REQUIRED and seen["verify"].check_hostname
+
+
+async def test_wikidata_client_runs_real_ssrf_hook(monkeypatch):
+    hooked: list[str] = []
+
+    async def recorder(request):
+        hooked.append(request.url.host)
+        await net_safety.ssrf_guard_request_hook(request)
+
+    monkeypatch.setattr(site_finder, "ssrf_guard_request_hook", recorder)
+    # A public address, so the real hook passes without a DNS lookup.
+    monkeypatch.setattr(net_safety.socket, "getaddrinfo", lambda host, port: [(None, None, None, "", ("93.184.216.34", 0))])
+    transport, queries = _wikidata(by_property={"P946": [H1_URL]})
+    assert await homepage_from_ids(UA, lei=LEI, isin=ISIN, transport=transport) == H1_URL
+    assert hooked == ["query.wikidata.org"] * len(queries) == ["query.wikidata.org"] * 2
 
 
 class _FixedSearch(WebSearchClient):

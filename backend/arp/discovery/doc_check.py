@@ -7,7 +7,7 @@ from typing import NamedTuple
 
 from pypdf import PdfReader
 
-from arp.discovery.names import clean_name, names_match
+from arp.discovery.names import clean_name
 from arp.ingestion.doc_identity import reporting_year
 from arp.schemas.common import CompanyRef
 
@@ -35,9 +35,10 @@ def check_document(path: Path, company: CompanyRef) -> DocCheck:
 
     text = "\n".join(texts.values())
     year = reporting_year(title, texts.get(0, ""))
-    if any(ident and ident in text for ident in (company.lei, company.isin)):
+    upper = text.upper()
+    if any(ident and ident.strip().upper() in upper for ident in (company.lei, company.isin)):
         match = "identifier"
-    elif any(names_match(line, company.name) for line in text.splitlines()) or _contains_name(text, company.name):
+    elif _contains_name(text, company.name):
         match = "name"
     elif len("".join(text.split())) < MIN_TEXT_CHARS:
         match = "no_text"
