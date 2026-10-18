@@ -158,6 +158,28 @@
         "url": "https://www.federalreserve.gov/releases/g5a/current/default.htm",
         "locator": "Euro annual average 2025: 1.1306 USD per EUR"
       }
+    },
+    {
+      "from": "gallon",
+      "to": "litre",
+      "rate": 3.785411784,
+      "year": 1959,
+      "source": {
+        "title": "NIST Handbook 44 – 2025 (Appendix B. Units and Systems of Measurement; Appendix C. General Tables of Units of Measurement)",
+        "url": "https://nvlpubs.nist.gov/nistpubs/hb/2025/NIST.HB.44-2025.pdf",
+        "locator": "Appendix C, p. C-17, 'Units of Capacity or Volume – Liquid Volume Measure': '1 gallon (gal) = … 3.785 411 784' liters. Exact since 1959 (Appendix B, p. B-8: 'Since 1959, the U.S. has defined the yard as equal exactly to 0.9144 meter'), so the row carries year 1959 and applies to every later as-of year."
+      }
+    },
+    {
+      "from": "barrel",
+      "to": "litre",
+      "rate": 158.987294928,
+      "year": 1959,
+      "source": {
+        "title": "NIST Handbook 44 – 2025 (Appendix B. Units and Systems of Measurement; Appendix C. General Tables of Units of Measurement)",
+        "url": "https://nvlpubs.nist.gov/nistpubs/hb/2025/NIST.HB.44-2025.pdf",
+        "locator": "Appendix C, p. C-25, note 21: 'by custom, 42 gallons comprise a barrel of crude oil or petroleum products for statistical purposes'; 42 x 3.785411784 = 158.987294928 L (NIST SP 811 Appendix B.9: barrel [for petroleum, 42 gallons (U.S.)] to liter 1.589 873 E+02)."
+      }
     }
   ],
   "domain_tiers": {
@@ -1782,7 +1804,7 @@
       }
     },
     "MIN-T1": {
-      "rationale": "Battery-electric haulage, loading and drilling equipment (min.electric_fleet) replaces diesel-powered mobile machines at mines. Miners commit whole fleets only after the equipment has run in routine production at other operating mines; while it is still on trial, electrification stays a pilot. The metric's share of equipment orders and the readiness of electrified ore processing are not tested, because today's rubric rates on deployment only.",
+      "rationale": "Battery-electric haulage, loading and drilling equipment (min.electric_fleet) replaces diesel-powered mobile machines at mines. Miners commit whole fleets only after the equipment has run in routine production at other operating mines; while it is still on trial, electrification stays a pilot. 'At scale' is tested as the metric's battery-electric share of new equipment orders; the readiness of electrified ore processing is not tested, because today's rubric rates on equipment deployment only.",
       "actions": [
         "min.electric_fleet"
       ],
@@ -1798,9 +1820,25 @@
           "label": "Battery-electric equipment at an operating mine",
           "type": "boolean",
           "definition": "Battery-electric haulage, loading or drilling equipment is in trial, pilot or production use at at least one operating mine in the region, latest status."
+        },
+        {
+          "id": "order_share",
+          "label": "Battery-electric share of equipment orders",
+          "type": "number",
+          "unit": "%",
+          "definition": "Battery-electric units as a share of all haulage, loading and drilling equipment units ordered for mines in the region in the latest full year (orders placed, not deliveries), as reported by equipment makers or industry trackers.",
+          "max_age_days": 365
         }
       ],
-      "params": [],
+      "params": [
+        {
+          "id": "p_at_scale",
+          "label": "At-scale battery-electric order share",
+          "status": "open",
+          "question": "What battery-electric share of new mining equipment orders marks deployment 'at scale' (rubric H, 'commercially deployed at scale (multiple operating mines)')? No sourced line was found; without it any two mines with production units would rate H.",
+          "unit": "%"
+        }
+      ],
       "levels": {
         "H": {
           "all": [
@@ -1808,6 +1846,11 @@
               "fact": "multi_mine",
               "op": "=",
               "value": true
+            },
+            {
+              "fact": "order_share",
+              "op": ">=",
+              "param": "p_at_scale"
             }
           ]
         },
@@ -1823,7 +1866,7 @@
       }
     },
     "MIN-R1": {
-      "rationale": "Long permitting delays new mines and processing plants for transition minerals (min.new_supply). A statutory fast-track with a maximum timeline lets a developer plan financing around a known decision date; a discretionary or open-ended process does not.",
+      "rationale": "Long permitting delays new mines and processing plants for transition minerals (min.new_supply). A statutory fast-track with a maximum timeline lets a developer plan financing around a known decision date; a discretionary or open-ended process does not. Where no fast-track exists, standard permitting of five years or less still keeps a region out of L, as today's rubric reads.",
       "actions": [
         "min.new_supply"
       ],
@@ -1846,6 +1889,14 @@
           "unit": "months",
           "definition": "Maximum duration in months that the statutory fast-track allows for the permit-granting process of a strategic project involving extraction, as written in the law in force: the standard limit, without case-by-case extensions for exceptional cases and without periods the law itself leaves out of the count. Under Regulation (EU) 2024/1252 this is 27 months (Article 11(1)(a)); Article 11(3) leaves the environmental impact assessment report step out of the count and Article 11(4) allows up to six months' extension.",
           "max_age_days": 365
+        },
+        {
+          "id": "standard_months",
+          "label": "Standard permitting time",
+          "type": "number",
+          "unit": "months",
+          "definition": "Typical duration in months of the standard (not fast-track) permitting process for a new mining project in the region, from the first permit application to the last permit needed to start construction, from the latest government or independent review (the median where a distribution is given).",
+          "max_age_days": 730
         }
       ],
       "params": [
@@ -1860,6 +1911,19 @@
             "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
             "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
             "locator": "MIN-R1 rating_rubric.H: 'Statutory fast-track permitting in force with maximum timeline below 30 months'"
+          }
+        },
+        {
+          "id": "p_slow",
+          "label": "Slow standard permitting",
+          "value": 60,
+          "unit": "months",
+          "by_region": {},
+          "rationale": "Today's rubric L reads 'No fast-track permitting regime; standard permitting exceeds 5 years'; 5 years is 60 months. A region with no fast-track whose standard permitting takes 60 months or less is therefore not L and is rated M. No external benchmark for 5 years was found, so the framework value is carried over. Owner to confirm.",
+          "source": {
+            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
+            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
+            "locator": "MIN-R1 rating_rubric.L: 'No fast-track permitting regime; standard permitting exceeds 5 years'"
           }
         }
       ],
@@ -1879,7 +1943,7 @@
           ]
         },
         "M": {
-          "all": [
+          "any": [
             {
               "fact": "regime",
               "op": "in",
@@ -1887,6 +1951,11 @@
                 "statutory",
                 "discretionary"
               ]
+            },
+            {
+              "fact": "standard_months",
+              "op": "<=",
+              "param": "p_slow"
             }
           ]
         }
@@ -2059,7 +2128,7 @@
       }
     },
     "AVI-T1": {
-      "rationale": "HEFA, advanced biofuel and synthetic fuel plants (avi.hefa_saf, avi.advanced_bio_saf, avi.e_saf) cut aviation emissions only in the volumes they can produce. Where regional SAF capacity is a tiny share of jet fuel demand, blending mandates and airline targets cannot be met from regional supply at any price; plants at final investment decision or under construction show the share will keep growing.",
+      "rationale": "HEFA, advanced biofuel and synthetic fuel plants (avi.hefa_saf, avi.advanced_bio_saf, avi.e_saf) cut aviation emissions only in the volumes they can produce. Where regional SAF capacity is a tiny share of jet fuel demand, blending mandates and airline targets cannot be met from regional supply at any price; plants at final investment decision or under construction show the share will keep growing. Volumes are compared in litres: US gallons and petroleum barrels convert by the NIST rows of the conversions table, but a figure in tonnes needs a jet fuel density (ASTM D1655 allows 775–840 kg/m3 at 15 °C), which is left open for the owner, so it does not count yet.",
       "actions": [
         "avi.hefa_saf",
         "avi.advanced_bio_saf",
@@ -2221,7 +2290,7 @@
       }
     },
     "AVI-D1": {
-      "rationale": "SAF (avi.hefa_saf, avi.advanced_bio_saf, avi.e_saf) costs more than fossil jet fuel, and producers finance plants against offtake contracts. Where tax credits, tradable credits or emissions-trading value cover most of the premium and airlines and corporate buyers have signed large offtakes, plants get built; where the airline or passenger bears the full premium with no offset and no contracts, SAF stays a niche.",
+      "rationale": "SAF (avi.hefa_saf, avi.advanced_bio_saf, avi.e_saf) costs more than fossil jet fuel, and producers finance plants against offtake contracts. Where tax credits, tradable credits or emissions-trading value cover most of the premium and airlines and corporate buyers have signed large offtakes, plants get built; where the airline or passenger bears the full premium with no offset and no contracts, SAF stays a niche. Prices per gallon convert by the gallon row applied to the unit's denominator (USD/gallon ÷ 3.785411784 = USD/litre); prices or volumes in tonnes need a jet fuel density, left open for the owner as in AVI-T1.",
       "actions": [
         "avi.hefa_saf",
         "avi.advanced_bio_saf",
@@ -2265,7 +2334,7 @@
           "label": "SAF volume under signed offtakes",
           "type": "number",
           "unit": "million litres/yr",
-          "definition": "Annual SAF volume under signed offtake or purchase agreements, book-and-claim certificate purchases included, of airlines and corporate buyers based in the region, for the current or latest delivery year, in million litres per year.",
+          "definition": "Annual SAF volume under signed offtake or purchase agreements, book-and-claim certificate purchases included, of airlines and corporate buyers based in the region, for the current or latest delivery year, in million litres per year. A multi-year contract counts at its total volume divided by its number of contract years.",
           "max_age_days": 365
         },
         {
