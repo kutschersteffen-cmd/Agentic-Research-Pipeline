@@ -241,7 +241,7 @@ the same prompt. "Session job" = `.claude/hooks/context-stack.sh --foreground`.
 | ID    | Given | When | Then (observable, exact) | Checked by |
 |-------|-------|------|--------------------------|------------|
 | AC-1  | A fresh cloud session on the PR branch, 5 minutes after start | `graphify --version` | Exits 0; stdout contains `0.9.92` | evaluator |
-| AC-2  | Same session | `openwiki --version` | Exits 0; stdout contains `0.7.2` | evaluator |
+| AC-2  | Same session | `npm ls -g openwiki` | stdout contains `openwiki@0.7.2` | evaluator |
 | AC-3  | Tools not installed | `.claude/hooks/context-stack.sh` (no flag) | Exits 0 within 5 s | holdout |
 | AC-4  | `HTTPS_PROXY=HTTP_PROXY=http://127.0.0.1:9`, `NO_PROXY` unset | `.claude/hooks/context-stack.sh` (no flag) | Exits 0 within 5 s | holdout |
 | AC-5  | Same proxy, tools not installed | Session job | `~/.cache/arp-context/session.log` has a line matching `^arp-context: install-graphify failed \(.+\)$` | holdout |
