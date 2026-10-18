@@ -234,6 +234,8 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
   `"alias_of": "<that other URL>"` (the first such URL in manifest order). The comparison is against the
   manifest as it stands at that point in the run, entries written earlier in the same run included, so
   when one run finds the same bytes at two URLs, the first is `new_document` and the second an alias.
+  Documents go to `diff_and_record` in `documents_found` order, which is the order the crawl found their
+  links, whatever order the downloads finish in.
 - `DiscoveredDocument` gets `alias_of: str | None = None`; the alias's entry in `documents_found`
   carries it.
 - Everything else in `diff_and_record` is unchanged, including for ESEF polling.
@@ -347,7 +349,7 @@ with zero documents does today. Nothing is deleted or left out of `documents_fou
 | AC-69 | as AC-56, but the run-1 `local_path` file is deleted before run 2; the URL returns P1 with `200` to a request without conditional headers | run 2 | `gb2025.pdf` receives 2 requests in run 2; the second has neither `If-None-Match` nor `If-Modified-Since` | unit |
 | AC-70 | as AC-69 | run 2 | the run-2 document's `local_path` exists on disk | unit |
 | AC-71 | as AC-65 | run 2 | `documents_found` has one entry for `https://www.testwerke.de/gb2025.pdf?v=2`, with `alias_of` `https://www.testwerke.de/gb2025.pdf` | unit |
-| AC-72 | W with supplied website `https://www.testwerke.de/`, empty state dir; the homepage links only to `/a.pdf` and `/b.pdf`, both returning P1 | discovery run | the global events feed gains exactly 1 line, a `new_document` for `https://www.testwerke.de/a.pdf` | unit |
+| AC-72 | W with supplied website `https://www.testwerke.de/`, empty state dir; the homepage links only to `/a.pdf` and then `/b.pdf`, both returning P1; `/a.pdf`'s response is delayed so that `/b.pdf` finishes downloading first | discovery run | the global events feed gains exactly 1 line, a `new_document` for `https://www.testwerke.de/a.pdf` | unit |
 | AC-73 | as AC-72 | discovery run | the manifest entry for `https://www.testwerke.de/b.pdf` has `alias_of` `https://www.testwerke.de/a.pdf` | unit |
 
 Must not change: a supplied website is never checked (AC-25) and a company with a supplied website or
