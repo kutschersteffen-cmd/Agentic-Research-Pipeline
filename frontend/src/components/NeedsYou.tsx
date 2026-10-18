@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { runTypeLabel } from "../lib/runs";
+import { needsAttentionRuns, runTypeLabel } from "../lib/runs";
+import { useResume } from "../lib/useResume";
 import { STAGE_TABS, openCount } from "../pages/steward/common";
 import type { DataIssue, ReviewItem, RunManifest, StewardshipFlow } from "../types";
 
@@ -10,7 +11,7 @@ const WORKSPACE: Record<string, string> = {
   theme: "R&D Lab", holdings: "Data Hub", proxy_voting: "StewardIQ",
 };
 
-type Row = { key: string; workspace: string; what: string; count: number; since: string | null; href: string };
+type Row = { key: string; workspace: string; what: string; count: number; since: string | null; href: string; resumeRunId?: string };
 
 /** Everything waiting on a person, one row per place it waits (a run's review, a ballot run, a stewardship stage,
  * blocking data issues), oldest first, each linking to where it is decided. Counts come from the same sources the
@@ -19,6 +20,7 @@ export function NeedsYou({ runs, flow }: { runs: RunManifest[] | null; flow: Ste
   const [items, setItems] = useState<ReviewItem[] | null>(null);
   const [issues, setIssues] = useState<DataIssue[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { busyId, error: resumeError, resume } = useResume();
   // Refetch the item list only when the runs' waiting totals change, not on every 3 s runs poll.
   const waitingKey = (runs ?? []).map((r) => `${r.run_id}:${r.review_count}`).join(",");
 
@@ -48,6 +50,14 @@ export function NeedsYou({ runs, flow }: { runs: RunManifest[] | null; flow: Ste
         href: `#/voting/${encodeURIComponent(r.run_id)}`,
       });
     }
+  }
+  for (const r of needsAttentionRuns(runs ?? [], new Date())) {
+    const done = r.company_count > 0 ? ` (${r.completed_count}/${r.company_count} companies done)` : "";
+    rows.push({
+      key: `failed/${r.run_id}`, workspace: WORKSPACE[r.run_type] ?? "Review", count: 1, since: r.updated_at,
+      what: `${runTypeLabel(r.run_type)} run ${r.run_id}: ${r.status === "failed" ? "failed" : "partially completed"}${done}`,
+      href: "#/history", resumeRunId: r.run_id,
+    });
   }
   for (const s of flow?.stages ?? []) {
     const n = openCount(s);
@@ -91,6 +101,19 @@ export function NeedsYou({ runs, flow }: { runs: RunManifest[] | null; flow: Ste
                   {r.since && ` · waiting since ${new Date(r.since).toLocaleDateString()}`}
                 </span>
               </a>
+              {r.resumeRunId && (
+                <button
+                  className="link-button"
+                  aria-label={`Resume run ${r.resumeRunId}`}
+                  disabled={busyId !== null}
+                  onClick={() => resume(r.resumeRunId!)}
+                >
+                  Resume
+                </button>
+              )}
+              {r.resumeRunId && resumeError?.runId === r.resumeRunId && (
+                <p role="alert" className="error-text">{resumeError.message}</p>
+              )}
             </li>
           ))}
         </ul>

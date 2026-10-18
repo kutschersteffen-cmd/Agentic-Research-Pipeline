@@ -6,6 +6,34 @@ export const ACTIVE_STATUSES = new Set(["running", "pending"]);
 // Run types whose flagged items go to the Review Queue.
 export const REVIEWABLE_RUN_TYPES = new Set<string>(["theme", "extraction", "financials", "identity"]);
 
+// Run types the backend can resume, and the statuses a resume applies to.
+export const RESUMABLE_RUN_TYPES: ReadonlySet<string> = new Set([
+  "theme",
+  "extraction",
+  "financials",
+  "tnfd",
+  "transition_plan",
+  "identity",
+  "discovery",
+  "xbrl_fetch",
+]);
+const RESUMABLE_STATUSES = new Set(["failed", "partially_completed", "cancelled"]);
+
+export const NEEDS_ATTENTION_DAYS = 14;
+
+export const canResumeRun = (runType: string, status: string): boolean =>
+  RESUMABLE_RUN_TYPES.has(runType) && RESUMABLE_STATUSES.has(status);
+
+/** Resumable runs that failed or stopped part-way within the last 14 days, in input order. A future updated_at counts as recent. */
+export function needsAttentionRuns(runs: RunManifest[], now: Date): RunManifest[] {
+  const maxAge = NEEDS_ATTENTION_DAYS * 24 * 3600 * 1000;
+  return runs.filter((r) => {
+    if (!RESUMABLE_RUN_TYPES.has(r.run_type) || (r.status !== "failed" && r.status !== "partially_completed")) return false;
+    const age = now.getTime() - Date.parse(r.updated_at);
+    return !Number.isNaN(age) && age <= maxAge;
+  });
+}
+
 export const RUN_TYPE_LABEL: Record<string, string> = {
   theme: "Thematic universe",
   extraction: "Data extraction",

@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { RunManifest } from "../types";
 import { pollAfter } from "../lib/poll";
-import { batchWaitText } from "../lib/runs";
-
-const RESUMABLE_STATUSES = new Set(["failed", "partially_completed", "cancelled"]);
+import { batchWaitText, canResumeRun } from "../lib/runs";
 
 export function RunProgress({
   runId,
@@ -79,7 +77,7 @@ export function RunProgress({
     setActionBusy(true);
     setActionError(null);
     try {
-      await api.resumeThemeRun(runId);
+      await api.resumeRun(runId);
       timerRef.current();
       await poll(); // status is "running" again server-side — re-arms continued polling
     } catch (err) {
@@ -104,7 +102,7 @@ export function RunProgress({
 
   const pct = manifest.company_count > 0 ? Math.round((manifest.completed_count / manifest.company_count) * 100) : 0;
   const canCancel = manifest.status === "running" || manifest.status === "pending";
-  const canResume = runType === "theme" && RESUMABLE_STATUSES.has(manifest.status);
+  const canResume = canResumeRun(runType, manifest.status);
 
   return (
     <div className="run-progress">
