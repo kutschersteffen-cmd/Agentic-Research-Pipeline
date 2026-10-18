@@ -1,7 +1,7 @@
 # Themes exposure layers (direct and value chain)
 
 Date: 2026-10-18
-Status: draft for owner approval
+Status: approved by the owner 2026-10-18
 Parent: `docs/superpowers/plans/2026-10-15-themes-lane-addon-3-layer-exposure.md` (the owner's add-on and its reconciliation). The owner asked for the spec without a question round; every call below marked **my call** is open to change at approval.
 
 ## Intent
