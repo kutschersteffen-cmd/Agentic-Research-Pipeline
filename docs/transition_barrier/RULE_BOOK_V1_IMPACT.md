@@ -1,6 +1,6 @@
 # Rule book v1: impact table
 
-This table compares today's hand ratings with what the draft rule book v1 (35 criteria, signed as version 1 pending owner approval) would give for each of the 105 cells (35 criteria, 3 regions). The v1 column was worked out by hand from the figures in today's evidence text, not by the engine, which arrives in phase 2. Where the evidence has the needed figures the cell shows the rating the rules give. `not rated: missing <fact>` means the evidence text has no figure for that fact, so the rules cannot decide; the reason column gives the reading by hand where one exists. `not rated: open threshold <label>` means the result depends on one of the 17 thresholds that v1 leaves open for the owner (listed below), so the cell is not re-derived. A cell with both problems is shown under the one that blocks it first.
+This table compares today's hand ratings with what rule book v1 (35 criteria; drafted as version 1, approved by the owner on 2026-10-18 and signed as version 2 with PWR-R1's material line changed, see Decisions for the owner) would give for each of the 105 cells (35 criteria, 3 regions). The v1 column was worked out by hand from the figures in today's evidence text, not by the engine, which arrives in phase 2. Where the evidence has the needed figures the cell shows the rating the rules give. `not rated: missing <fact>` means the evidence text has no figure for that fact, so the rules cannot decide; the reason column gives the reading by hand where one exists. `not rated: open threshold <label>` means the result depends on one of the 17 thresholds that v1 leaves open for the owner (listed below), so the cell is not re-derived. A cell with both problems is shown under the one that blocks it first.
 
 ## Summary
 
@@ -26,8 +26,8 @@ Changed cells: MIN-R2 EU (H to M), MIN-R2 CN (M to L), AVI-T1 US (L to M), OGU-R
 | PWR-T2 | Grid-scale storage / firming technology readiness | US | M | not rated: open threshold Non-negligible storage share | Storage and curtailment figures are also missing. |
 | PWR-T2 | Grid-scale storage / firming technology readiness | CN | M | not rated: open threshold Non-negligible storage share | Storage and curtailment figures are also missing. Evidence calls curtailment material, so H is false either way; M needs the open share. |
 | PWR-R1 | Effective carbon price on power generation | EU | H | H | EUR 60-90/t = USD 65-102 at 2024-25 rates, EU-wide, above the 60 line. |
-| PWR-R1 | Effective carbon price on power generation | US | M | not rated: missing Effective carbon price on power and Clean generation mandate | Evidence names state programmes only (scope sub-regional), no figure. By hand, RGGI or California prices or state clean-energy targets would give M. |
-| PWR-R1 | Effective carbon price on power generation | CN | M | not rated: missing Clean generation mandate | Price CNY 69-106 (2024) = USD 9.59-14.73 and CNY 66.9-97 (2025) = USD 9.31-13.50, below 15, so the price branch fails. M holds only if China's five-year-plan renewable targets count as other_target. On price alone: L. |
+| PWR-R1 | Effective carbon price on power generation | US | M | not rated: missing Effective carbon price on power and Clean generation mandate | Evidence names state programmes only (scope sub-regional), no figure. By hand, state clean-energy targets would give M; RGGI or California prices count only at USD 33.92 or more. |
+| PWR-R1 | Effective carbon price on power generation | CN | M | not rated: missing Clean generation mandate | Price CNY 69-106 (2024) = USD 9.59-14.73 and CNY 66.9-97 (2025) = USD 9.31-13.50, below 33.92, so the price branch fails. M holds only if China's five-year-plan renewable targets count as other_target. On price alone: L. |
 | PWR-R2 | Renewable deployment target and permitting regime | EU | H | not rated: missing Grid connection time | Renewable target is binding; connection time is not in the evidence. |
 | PWR-R2 | Renewable deployment target and permitting regime | US | M | not rated: missing Grid connection time | Evidence says connection takes 'exceeding 3 years', so not H. Whether it is 7 years or less is unknown (LBNL's ~5 years, not in the evidence, would give M). |
 | PWR-R2 | Renewable deployment target and permitting regime | CN | H | not rated: missing Grid connection time | Connection time is not in the evidence. |
@@ -167,10 +167,21 @@ Changed cells: MIN-R2 EU (H to M), MIN-R2 CN (M to L), AVI-T1 US (L to M), OGU-R
 
 ## Decisions for the owner
 
+**Decided by the owner, 2026-10-18**
+
+1. OGU-R1 US: reading (a), as written. US M, EU H; no rule change.
+2. 'Material' carbon price: one line everywhere. PWR-R1 `p_material` 15 becomes 33.92 (the OECD line STL-R1, CEM-R1 and CHM-R1 already use). Moves no cell: China's USD 9-14 is below either value, and US and EU are unchanged.
+3. 'Net of free allocation': gross price plus a phase-out written into law, as written; no rule change.
+4. The 16 remaining rubric-sourced thresholds below are confirmed for v1.
+5. The judgement calls in this section are confirmed for v1: source tiers, jet-fuel density left open, the 4 sources not added, domain tiers and the MEE cadence clause.
+6. Out-of-date evidence (end of this section) is a follow-up, not part of this change: updating it changes hand ratings, which need two people.
+
+The change in 2 was signed as version 2 (`approved_by` `kutschersteffen-cmd`); version 1's `pending-owner-approval` entry stays in `history`. The notes below are kept as the record of each decision; any can be reopened in a later version.
+
 **Across criteria**
 
-- Rubric-sourced thresholds: 17 numbers come from today's rubric with no external benchmark (cited to the framework at commit 2e97f40); confirm or replace each: PWR-T1 `p_within` (1.3); PWR-R1 `p_material` (15); PWR-R2 `p_slow` (7); STL-T1 `p_within` (2); STL-T2 `p_high` (50); STL-T2 `p_low` (25); CHM-T1 `p_within` (1.2); CHM-T1 `p_double` (2); CHM-T2 `p_trl_high` (7); CHM-T2 `p_trl_mid` (5); MIN-R1 `p_fast` (30); MIN-R1 `p_slow` (60); AVI-T1 `p_high` (5); AVI-T1 `p_low` (1); SHP-T1 `p_high` (30); SHP-T1 `p_low` (10); HDT-T1 `p_within` (1.2).
-- Version 1 is signed with `approved_by` = `pending-owner-approval`; approving it in this PR needs one re-sign if any value above or any open threshold changes.
+- Rubric-sourced thresholds: 17 numbers came from today's rubric with no external benchmark (cited to the framework at commit 2e97f40). PWR-R1 `p_material` (15) was replaced by 33.92; the other 16 are confirmed: PWR-T1 `p_within` (1.3); PWR-R2 `p_slow` (7); STL-T1 `p_within` (2); STL-T2 `p_high` (50); STL-T2 `p_low` (25); CHM-T1 `p_within` (1.2); CHM-T1 `p_double` (2); CHM-T2 `p_trl_high` (7); CHM-T2 `p_trl_mid` (5); MIN-R1 `p_fast` (30); MIN-R1 `p_slow` (60); AVI-T1 `p_high` (5); AVI-T1 `p_low` (1); SHP-T1 `p_high` (30); SHP-T1 `p_low` (10); HDT-T1 `p_within` (1.2).
+- Version 1 was signed with `approved_by` = `pending-owner-approval`; the owner's approval is the version 2 signature.
 - Exchange rates: CNY and EUR to USD use Federal Reserve G.5A annual averages for 2023-2025. Volume and length rows (gallon, barrel, mile) carry year 1959, the year the units became exact, so they cover every as-of date.
 - Source tiers (from task 6.0): IEA_CCUS_Projects_Database primary (its URL pointed at co2re.co until the registry clean-up and now points at the IEA's own CCUS Projects Database page); OGMP 2.0 reporting primary (UNEP-run, company-reported data); EU and China ETS price feeds secondary (exchange data, not regulator publications). Other judgement calls: ICC code register, First Movers Coalition, EVCIPA charging statistics, RE100, Mission Possible and IATA entries secondary; Congress.gov permitting tracker primary.
 
@@ -184,7 +195,7 @@ Changed cells: MIN-R2 EU (H to M), MIN-R2 CN (M to L), AVI-T1 US (L to M), OGU-R
 
 **PWR-R1**
 
-- `p_material` 15 is PWR-R1's own rubric line; STL-R1, CEM-R1 and CHM-R1 use 33.92 (OECD Effective Carbon Rates 2021, EUR 30 at 1.1306). The two 'material' lines disagree and the OECD benchmark describes the 2010s at 2025 exchange rates: use one value everywhere, or keep both. Moves no cell today (China's price is USD 9-14 against either).
+- `p_material` was 15, PWR-R1's own rubric line, while STL-R1, CEM-R1 and CHM-R1 use 33.92 (OECD Effective Carbon Rates 2021, EUR 30 at 1.1306). Decided: 33.92 everywhere. The OECD benchmark describes the 2010s at 2025 exchange rates. Moves no cell today (China's price is USD 9-14 against either).
 - H requires `scope` = region_wide because the price fact averages over covered emissions only; without it a high state price would rate the whole region H. Alternative: drop the condition. Moves PWR-R1 US if state prices were high.
 
 **PWR-R2**

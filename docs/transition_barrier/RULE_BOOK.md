@@ -1,6 +1,6 @@
 # Transition barrier rule book
 
-Rule book version 1.
+Rule book version 2.
 
 # Power & Utilities
 
@@ -81,7 +81,7 @@ A carbon price on power emissions, or a binding clean-power mandate with a penal
 **Rating**
 
 - H: (Effective carbon price on power > 60 USD/tCO2 and Carbon price coverage = region_wide) or Clean generation mandate = binding_100pct_with_penalty.
-- M: Effective carbon price on power >= 15 USD/tCO2 or Clean generation mandate = other_target.
+- M: Effective carbon price on power >= 33.92 USD/tCO2 or Clean generation mandate = other_target.
 - L: Otherwise (neither H nor M holds).
 
 **Parameters**
@@ -89,7 +89,7 @@ A carbon price on power emissions, or a binding clean-power mandate with a penal
 | Parameter | Value | Unit | Overrides | Source | Rationale |
 |---|---|---|---|---|---|
 | `p_high` High carbon price level | 60 | USD/tCO2 |  | Report of the High-Level Commission on Carbon Prices (Carbon Pricing Leadership Coalition / World Bank, 2017), Executive Summary, PDF p. 10: 'at least US$40–80/tCO2 by 2020 and US$50–100/tCO2 by 2030' (midpoint of 40–80) <https://business.columbia.edu/sites/default/files-efs/imce-uploads/Joseph_Stiglitz/CarbonPricing_FullReport.pdf> | Today's rubric sets H at above USD 60/tCO2: the midpoint of the High-Level Commission's USD 40–80 range for 2020, and just under that range's 2030 lower bound in 2024 dollars (USD 63, World Bank State and Trends 2024, executive summary p. 5). |
-| `p_material` Material carbon price level | 15 | USD/tCO2 |  | Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14), PWR-R1 rating_rubric.M: 'Effective carbon price USD 15-60/tCO2' <https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json> | Today's rubric starts M at USD 15/tCO2 and calls anything below 'no material carbon price'. No external benchmark for that line was found, so the framework value is carried over. Owner to confirm. |
+| `p_material` Material carbon price level | 33.92 | USD/tCO2 |  | OECD, Effective Carbon Rates 2021 (brochure), p. 4, Box 1 'Carbon pricing benchmarks': '1. EUR 30 per tonne of CO2, a historic low-end price benchmark of carbon costs in the early and mid-2010s.' <https://www.oecd.org/tax/tax-policy/effective-carbon-rates-2021-brochure.pdf> | Today's rubric started M at USD 15/tCO2 with no external benchmark; the owner chose one material line for every carbon-price criterion (2026-10-18). The OECD's lowest carbon price benchmark, EUR 30/tCO2 (a historic low-end estimate of carbon costs), is the line: a price below the low end of what emissions cost is not material. Converted at the 2025 Federal Reserve annual average of 1.1306 USD per EUR (this rule book's EUR to USD conversion for 2025): 30 x 1.1306 = USD 33.92/tCO2. Same line as STL-R1, CEM-R1 and CHM-R1. |
 
 ## PWR-R2 Renewable deployment target and permitting regime
 

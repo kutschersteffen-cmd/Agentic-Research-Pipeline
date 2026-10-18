@@ -1,11 +1,17 @@
 {
-  "version": 1,
-  "fingerprint": "e8254bca3354f932a8a18d6733d85311e3f8c4c27001c8f253aafaaf4f692a3d",
+  "version": 2,
+  "fingerprint": "860cd95e14a3db5b843b986e35d80212afe8cdf57cf87505c0b7d4a5b0fda000",
   "history": [
     {
       "version": 1,
       "fingerprint": "e8254bca3354f932a8a18d6733d85311e3f8c4c27001c8f253aafaaf4f692a3d",
       "approved_by": "pending-owner-approval",
+      "approved_at": "2026-10-18"
+    },
+    {
+      "version": 2,
+      "fingerprint": "860cd95e14a3db5b843b986e35d80212afe8cdf57cf87505c0b7d4a5b0fda000",
+      "approved_by": "kutschersteffen-cmd",
       "approved_at": "2026-10-18"
     }
   ],
@@ -519,14 +525,14 @@
         {
           "id": "p_material",
           "label": "Material carbon price level",
-          "value": 15,
+          "value": 33.92,
           "unit": "USD/tCO2",
           "by_region": {},
-          "rationale": "Today's rubric starts M at USD 15/tCO2 and calls anything below 'no material carbon price'. No external benchmark for that line was found, so the framework value is carried over. Owner to confirm.",
+          "rationale": "Today's rubric started M at USD 15/tCO2 with no external benchmark; the owner chose one material line for every carbon-price criterion (2026-10-18). The OECD's lowest carbon price benchmark, EUR 30/tCO2 (a historic low-end estimate of carbon costs), is the line: a price below the low end of what emissions cost is not material. Converted at the 2025 Federal Reserve annual average of 1.1306 USD per EUR (this rule book's EUR to USD conversion for 2025): 30 x 1.1306 = USD 33.92/tCO2. Same line as STL-R1, CEM-R1 and CHM-R1.",
           "source": {
-            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
-            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
-            "locator": "PWR-R1 rating_rubric.M: 'Effective carbon price USD 15-60/tCO2'"
+            "title": "OECD, Effective Carbon Rates 2021 (brochure)",
+            "url": "https://www.oecd.org/tax/tax-policy/effective-carbon-rates-2021-brochure.pdf",
+            "locator": "p. 4, Box 1 'Carbon pricing benchmarks': '1. EUR 30 per tonne of CO2, a historic low-end price benchmark of carbon costs in the early and mid-2010s.'"
           }
         }
       ],
