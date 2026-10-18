@@ -103,6 +103,7 @@ import type {
   TrendPoint,
 } from "../types";
 import type { XbrlRunMarket } from "../types";
+import type { RunFailure } from "../types";
 import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision } from "../types";
 import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
@@ -551,6 +552,7 @@ export const api = {
   getRun: (runId: string) => request(`/api/runs/${runId}`),
   getRunErrors: (runId: string) =>
     request<{ errors: { key: string; error: string }[] }>(`/api/runs/${encodeURIComponent(runId)}/errors`),
+  getRunFailure: (runId: string) => request<RunFailure>(`/api/runs/${encodeURIComponent(runId)}/failure`),
   exportRunCsvUrl: (runId: string) => `${API_BASE}/api/runs/${runId}/export.csv`,
   cancelRun: (runId: string) => request(`/api/runs/${runId}/cancel`, { method: "POST" }),
   resumeRun: (runId: string) => request(`/api/runs/${runId}/resume`, { method: "POST" }),

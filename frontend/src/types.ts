@@ -10,6 +10,14 @@ export type DocType =
 
 export type JobStatus = "pending" | "running" | "completed" | "partially_completed" | "failed" | "cancelled";
 
+export interface RunFailure {
+  run_id: string;
+  status: JobStatus;
+  error: string | null;
+  traceback: string | null;
+  company_errors: { key: string; error: string; traceback: string | null }[];
+}
+
 // The run types the Review Queue endpoints exist for -- a subset of every
 // run_type, since discovery has no review queue of its own.
 export type ReviewableRunKind = "theme" | "extraction" | "financials" | "identity" | "transition_plan" | "tnfd";
