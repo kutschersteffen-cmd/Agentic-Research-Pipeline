@@ -165,6 +165,60 @@ async def test_ac_55_redirect_to_aggregator_not_requested():
     assert [u for u in seen if httpx.URL(u).host == "www.linkedin.com"] == []
 
 
+NAME_ONLY_IMPRINT = "<html><body><p>Testwerke AG, Musterstrasse 1, Teststadt</p></body></html>"
+
+
+async def test_ac_78_identifier_source_name_in_title_owned():
+    transport, _ = _transport({H1_URL: _html(H4)})
+    result = await check_homepage(H1_URL, W, UA, identifier_source=True, transport=transport)
+    assert result.verdict == "owned"
+    assert result.evidence == ["name_in_title", "identifier_source"]
+
+
+async def test_ac_79_identifier_source_aggregator_rejected():
+    transport, _ = _transport({})
+    result = await check_homepage(H2_URL, W, UA, identifier_source=True, transport=transport)
+    assert result.verdict == "rejected"
+    assert result.evidence == ["blocklisted_domain"]
+
+
+async def test_ac_81_identifier_source_other_company_rejected():
+    transport, _ = _transport({H3_URL: _html(H3)})
+    result = await check_homepage(H3_URL, W, UA, identifier_source=True, transport=transport)
+    assert result.verdict == "rejected"
+    assert result.evidence == []
+
+
+async def test_ac_82_name_on_imprint_plus_title_owned_without_flag():
+    page = H4.replace("<p>Welcome</p>", '<a href="/impressum">Impressum</a>')
+    transport, _ = _transport({H1_URL: _html(page), IMPRINT_URL: _html(NAME_ONLY_IMPRINT)})
+    result = await check_homepage(H1_URL, W, UA, transport=transport)
+    assert result.verdict == "owned"
+    assert set(result.evidence) == {"name_in_title", "name_on_imprint"}
+
+
+async def test_ac_83_identifier_source_appended_to_lei_owned():
+    transport, _ = _transport({H1_URL: _html(H1), IMPRINT_URL: _html(IMPRINT)})
+    result = await check_homepage(H1_URL, W, UA, identifier_source=True, transport=transport)
+    assert result.verdict == "owned"
+    assert set(result.evidence) == {"name_in_title", "name_on_imprint", "lei_on_imprint", "identifier_source"}
+
+
+async def test_ac_85_identifier_source_homepage_404():
+    transport, _ = _transport({H1_URL: httpx.Response(404)})
+    result = await check_homepage(H1_URL, W, UA, identifier_source=True, transport=transport)
+    assert result.verdict == "unclear"
+    assert result.evidence == ["fetch_failed"]
+
+
+async def test_ac_86_identifier_source_name_on_imprint_only_owned():
+    page = '<html><head><title>Willkommen</title></head><body><a href="/impressum">Impressum</a></body></html>'
+    transport, _ = _transport({H1_URL: _html(page), IMPRINT_URL: _html(NAME_ONLY_IMPRINT)})
+    result = await check_homepage(H1_URL, W, UA, identifier_source=True, transport=transport)
+    assert result.verdict == "owned"
+    assert result.evidence == ["name_on_imprint", "identifier_source"]
+
+
 async def test_non_html_homepage_is_fetch_failed():
     pdf = httpx.Response(200, content=b"%PDF-1.4", headers={"Content-Type": "application/pdf"})
     transport, _ = _transport({H1_URL: pdf})

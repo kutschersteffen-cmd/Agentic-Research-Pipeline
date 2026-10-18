@@ -155,16 +155,24 @@ def _imprint_evidence(html: str, company: CompanyRef) -> list[str]:
     return evidence + _identifier_evidence(text, company, "on_imprint")
 
 
-def _verdict(evidence: list[str]) -> Literal["owned", "unclear", "rejected"]:
+def _verdict(evidence: list[str], identifier_source: bool) -> Literal["owned", "unclear", "rejected"]:
     if any(code.startswith(("lei_", "isin_")) for code in evidence):
         return "owned"
     if "name_on_imprint" in evidence and any(code in evidence for code in _HOMEPAGE_NAME_EVIDENCE):
+        return "owned"
+    # A URL Wikidata gave by identifier only needs the page to agree on the name.
+    if identifier_source and any(code in evidence for code in (*_HOMEPAGE_NAME_EVIDENCE, "name_on_imprint")):
         return "owned"
     return "unclear" if evidence else "rejected"
 
 
 async def check_homepage(
-    url: str, company: CompanyRef, user_agent: str, *, transport: httpx.AsyncBaseTransport | None = None
+    url: str,
+    company: CompanyRef,
+    user_agent: str,
+    *,
+    identifier_source: bool = False,
+    transport: httpx.AsyncBaseTransport | None = None,
 ) -> SiteCheck:
     fetch_failed = SiteCheck(verdict="unclear", evidence=["fetch_failed"])
     blocklisted = SiteCheck(verdict="rejected", evidence=["blocklisted_domain"])
@@ -199,4 +207,7 @@ async def check_homepage(
                 evidence += _imprint_evidence(imprint.text, company)
 
     evidence = list(dict.fromkeys(evidence))
-    return SiteCheck(verdict=_verdict(evidence), evidence=evidence)
+    verdict = _verdict(evidence, identifier_source)
+    if identifier_source and verdict == "owned":
+        evidence.append("identifier_source")
+    return SiteCheck(verdict=verdict, evidence=evidence)

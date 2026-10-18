@@ -25,6 +25,8 @@ H1_URL = "https://www.testwerke.de/"
 H1 = '<html><head><title>Testwerke – Startseite</title></head><body><a href="/impressum">Impressum</a></body></html>'
 IMPRINT = "<html><body><p>Testwerke AG, Musterstrasse 1, Teststadt</p><p>LEI: 5299009TESTWERKE0063</p></body></html>"
 H4 = "<html><head><title>Testwerke AG</title></head><body><p>Welcome</p></body></html>"
+H3_URL = "https://www.otherco.co.uk/"
+H3 = "<html><head><title>Otherco plc | Home</title></head><body><p>Welcome</p></body></html>"
 W = CompanyRef(company_id="w", name="Testwerke AG", lei=LEI, isin=ISIN, country="DE")
 W_NO_LEI = W.model_copy(update={"lei": None})
 NAME_ONLY = CompanyRef(company_id="w", name="Testwerke AG")
@@ -56,11 +58,12 @@ W_RECORD = _gleif_record(LEI, "Testwerke AG", "DE")
 class _Web:
     """One MockTransport for Wikidata, GLEIF and the testwerke.de site, routed by host; records requests per host."""
 
-    def __init__(self, *, wikidata=None, gleif_isin=None, gleif_name=None, homepage=None):
+    def __init__(self, *, wikidata=None, gleif_isin=None, gleif_name=None, homepage=None, pages=None):
         self.wikidata = wikidata or {}  # Wikidata property -> P856 URLs
         self.gleif_isin = gleif_isin or []  # GLEIF records for the ISIN filter
         self.gleif_name = gleif_name or []  # GLEIF records for the name search
         self.homepage = homepage  # HTML served at H1_URL
+        self.pages = pages or {}  # further HTML by exact URL
         self.requests: dict[str, list[httpx.Request]] = defaultdict(list)
         self.transport = httpx.MockTransport(self._handle)
 
@@ -79,6 +82,8 @@ class _Web:
                 return httpx.Response(200, html=self.homepage)
             if request.url.path == "/impressum":
                 return httpx.Response(200, html=IMPRINT)
+        if str(request.url) in self.pages:
+            return httpx.Response(200, html=self.pages[str(request.url)])
         return httpx.Response(404)
 
 
@@ -123,13 +128,31 @@ async def test_ac_15_wikidata_owned_resolves(fake_llm):
     assert result.confidence == 1.0
 
 
-async def test_ac_16_wikidata_unclear_flags(fake_llm):
+async def test_ac_74_wikidata_name_match_resolves(fake_llm):
     web = _Web(wikidata={"P1278": [H1_URL]}, homepage=H4)
+    result, _ = await _run(W, web, fake_llm({}))
+    assert result.verdict == IdentityVerdict.RESOLVED
+    assert result.flagged_for_review is False
+    assert result.resolved_website == H1_URL
+    assert result.confidence == 1.0
+
+
+async def test_ac_75_wikidata_homepage_404_flags(fake_llm):
+    web = _Web(wikidata={"P1278": [H1_URL]})  # no homepage: H1_URL returns 404
     result, _ = await _run(W, web, fake_llm({}))
     assert result.verdict == IdentityVerdict.UNCERTAIN
     assert result.flagged_for_review is True
     assert result.reason_codes == ["match_ambiguous"]
     assert result.resolved_website == H1_URL
+
+
+async def test_ac_87_wikidata_other_company_rejected(fake_llm):
+    web = _Web(wikidata={"P1278": [H3_URL]}, pages={H3_URL: H3})
+    result, _ = await _run(W, web, fake_llm({}))
+    assert result.verdict == IdentityVerdict.UNCERTAIN
+    assert result.flagged_for_review is True
+    assert result.reason_codes == ["match_ambiguous"]
+    assert result.resolved_website is None
 
 
 async def test_ac_17_no_wikidata_hit_as_main(fake_llm):
@@ -170,6 +193,16 @@ def _ac_20_llm(fake_llm):
 async def test_ac_20_resolved_lei_fills_website(fake_llm):
     result, _ = await _run(NAME_ONLY, _ac_20_web(), _ac_20_llm(fake_llm))
     assert result.resolved_lei == LEI
+    assert result.resolved_website == H1_URL
+    assert result.verdict == IdentityVerdict.RESOLVED
+    assert result.confidence == 0.95
+    assert result.match_rule == "ambiguous"
+    assert result.flagged_for_review is True
+
+
+async def test_ac_88_resolved_lei_fills_website_from_name_match(fake_llm):
+    web = _Web(gleif_name=[W_RECORD], wikidata={"P1278": [H1_URL]}, homepage=H4)
+    result, _ = await _run(NAME_ONLY, web, _ac_20_llm(fake_llm))
     assert result.resolved_website == H1_URL
     assert result.verdict == IdentityVerdict.RESOLVED
     assert result.confidence == 0.95

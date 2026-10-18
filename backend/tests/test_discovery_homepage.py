@@ -1,4 +1,4 @@
-"""Derived homepages are checked before the crawl; supplied ones are not (spec: Discovery pipeline; AC-23..26, AC-46)."""
+"""Derived homepages are checked before the crawl; supplied ones are not (spec: Discovery pipeline; AC-23..25, AC-76, AC-77, AC-80, AC-84, AC-89)."""
 
 from __future__ import annotations
 
@@ -37,8 +37,10 @@ def _no_ssrf(monkeypatch):
 class _Search(WebSearchClient):
     def __init__(self, urls: list[str]) -> None:
         self._results = [SearchResult(title=url, url=url) for url in urls]
+        self.queries: list[str] = []
 
     async def search(self, query: str, max_results: int = 5) -> list[SearchResult]:
+        self.queries.append(query)
         return self._results
 
 
@@ -47,7 +49,10 @@ class _NoEdgar:
         return []
 
 
-async def _discover(tmp_path, pg, company, pages: dict[str, str], *, search=(), wikidata_p1278: str | None = None):
+async def _discover(
+    tmp_path, pg, company, pages: dict[str, str], *, search=(), wikidata_p1278: str | None = None,
+    search_client: _Search | None = None,
+):
     """One discovery run for `company`; `pages` are HTML by URL (anything else 404s, robots.txt included).
     Returns (the company's result row, every requested httpx.URL)."""
     seen: list[httpx.URL] = []
@@ -68,7 +73,7 @@ async def _discover(tmp_path, pg, company, pages: dict[str, str], *, search=(), 
     run_store = RunStore(pg, settings.runs_dir)
     run_id = create_discovery_run([company], None, "manual", run_store)
     await execute_discovery_run(
-        run_id, [company], settings=settings, run_store=run_store, search_client=_Search(list(search)),
+        run_id, [company], settings=settings, run_store=run_store, search_client=search_client or _Search(list(search)),
         edgar_source=_NoEdgar(), transport=httpx.MockTransport(handler),
     )
     [row] = run_store.read_results(run_id)
@@ -101,16 +106,42 @@ async def test_ac_25_supplied_not_checked(tmp_path, pg):
     assert _paths(seen, "www.otherco.co.uk").count("/") == 1
 
 
-async def test_ac_26_unclear_crawled(tmp_path, pg):
+async def test_ac_76_wikidata_name_match_owned_and_crawled(tmp_path, pg):
     row, seen = await _discover(tmp_path, pg, W, {H4_URL: H4}, wikidata_p1278=H4_URL)
     assert row["homepage_used"] == "https://www.testwerke.de/"
+    assert row["homepage_check"]["verdict"] == "owned"
+    assert row["homepage_check"]["evidence"] == ["name_in_title", "identifier_source"]
+    # one fetch of H4 by the check, one by the crawl
+    assert _paths(seen, "www.testwerke.de").count("/") == 2
+
+
+async def test_ac_77_search_name_match_stays_unclear(tmp_path, pg):
+    row, seen = await _discover(tmp_path, pg, NAME_ONLY, {H4_URL: H4}, search=[H4_URL])
+    assert row["homepage_used"] == "https://www.testwerke.de/"
     assert row["homepage_check"]["verdict"] == "unclear"
-    # one fetch of H4 by the check, one by the crawl (which alone asks for robots.txt first)
-    assert _paths(seen, "www.testwerke.de") == ["/", "/robots.txt", "/"]
+    assert row["homepage_check"]["evidence"] == ["name_in_title"]
+    assert _paths(seen, "www.testwerke.de").count("/") == 2
 
 
-async def test_ac_46_supplied_cik_homepage_checked(tmp_path, pg):
+async def test_ac_80_supplied_cik_homepage_owned(tmp_path, pg):
     company = W.model_copy(update={"cik": "123"})
     row, _ = await _discover(tmp_path, pg, company, {H4_URL: H4}, wikidata_p1278=H4_URL)
     assert row["homepage_used"] == "https://www.testwerke.de/"
+    assert row["homepage_check"]["verdict"] == "owned"
+
+
+async def test_ac_84_search_found_with_identifiers_stays_unclear(tmp_path, pg):
+    row, _ = await _discover(tmp_path, pg, W, {H4_URL: H4}, search=[H4_URL])
     assert row["homepage_check"]["verdict"] == "unclear"
+    assert row["homepage_check"]["evidence"] == ["name_in_title"]
+
+
+async def test_ac_89_rejected_wikidata_homepage_not_replaced_by_search(tmp_path, pg):
+    search = _Search([H1_URL])
+    row, _ = await _discover(
+        tmp_path, pg, W, {H3_URL: H3, H1_URL: H1, H1_URL + "impressum": IMPRINT}, wikidata_p1278=H3_URL,
+        search_client=search,
+    )
+    assert row["homepage_used"] is None
+    assert row["homepage_check"]["verdict"] == "rejected"
+    assert search.queries == []

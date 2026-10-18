@@ -74,7 +74,7 @@ async def _checked_homepage(state: IdentityState, company: CompanyRef, **ids: st
     url = await homepage_from_ids(ua, transport=transport, **ids)
     if url is None:
         return None
-    check = await check_homepage(url, company, ua, transport=transport)
+    check = await check_homepage(url, company, ua, identifier_source=True, transport=transport)
     return (url, check.verdict) if check.verdict != "rejected" else None
 
 

@@ -40,9 +40,13 @@ async def _discover_for_company(
     if not homepage:  # a supplied website is used unchecked; a derived one is checked first
         homepage = await homepage_from_ids(
             settings.discovery_user_agent, lei=company.lei, isin=company.isin, cik=company.cik, transport=transport
-        ) or await resolve_company_homepage(company.name, search_client)
+        )
+        from_ids = homepage is not None  # search runs only without a Wikidata hit, and never gets the flag
+        homepage = homepage or await resolve_company_homepage(company.name, search_client)
         if homepage:
-            check = await check_homepage(homepage, company, settings.discovery_user_agent, transport=transport)
+            check = await check_homepage(
+                homepage, company, settings.discovery_user_agent, identifier_source=from_ids, transport=transport
+            )
             if check.verdict == "rejected":
                 homepage = None
     if not homepage:
