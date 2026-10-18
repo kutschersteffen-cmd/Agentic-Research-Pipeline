@@ -1,7 +1,14 @@
 {
-  "version": 0,
-  "fingerprint": "",
-  "history": [],
+  "version": 1,
+  "fingerprint": "e8254bca3354f932a8a18d6733d85311e3f8c4c27001c8f253aafaaf4f692a3d",
+  "history": [
+    {
+      "version": 1,
+      "fingerprint": "e8254bca3354f932a8a18d6733d85311e3f8c4c27001c8f253aafaaf4f692a3d",
+      "approved_by": "pending-owner-approval",
+      "approved_at": "2026-10-18"
+    }
+  ],
   "actions": {
     "Power & Utilities": [
       {
@@ -2605,14 +2612,14 @@
           "id": "committed_any",
           "label": "Corridor with signed cargo commitment",
           "type": "boolean",
-          "definition": "At least one green shipping corridor initiative on the region's main trade routes (at least one end is one of the region's main container or bulk ports by cargo throughput, as named by the source), listed as an active initiative in the Global Maritime Forum's latest Annual Progress Report on Green Shipping Corridors (any stage: Initiation, Exploration, Preparation or Realisation) or announced by its participants since that report, for which one or more cargo owners have signed a commitment to ship a stated cargo volume on zero- or near-zero-emission vessels or fuels on that corridor (memoranda of understanding and letters of intent do not count), as of the latest report or announcement."
+          "definition": "At least one green shipping corridor initiative on the region's main trade routes (at least one end is one of the region's main container or bulk ports by cargo throughput, as named by the source), listed as an active initiative in the Global Maritime Forum's latest Annual Progress Report on Green Shipping Corridors (any stage: Initiation, Exploration, Preparation or Realisation) or announced by its participants since that report, for which one or more cargo owners have signed a commitment to ship a stated cargo volume on zero- or near-zero-emission vessels or fuels on that corridor (memoranda of understanding and letters of intent do not count), as of the latest report or announcement. Must be Yes whenever Corridors with committed cargo and a premium mechanism is at least one."
         },
         {
           "id": "qualifying",
           "label": "Corridors with committed cargo and a premium mechanism",
           "type": "number",
           "unit": "corridors",
-          "definition": "Number of green shipping corridor initiatives on the region's main trade routes (at least one end is one of the region's main container or bulk ports by cargo throughput, as named by the source), active as defined for the corridor with a signed cargo commitment, for which (a) one or more cargo owners have signed a commitment to ship a stated cargo volume on zero- or near-zero-emission vessels or fuels on that corridor (memoranda of understanding and letters of intent do not count), and (b) the participants have disclosed how the fuel cost premium is paid (for example a green freight surcharge, a book-and-claim purchase, a cost-pooling mechanism or a cargo owners' alliance tender such as ZEMBA's), as of the latest report or announcement.",
+          "definition": "Number of green shipping corridor initiatives on the region's main trade routes (at least one end is one of the region's main container or bulk ports by cargo throughput, as named by the source), active, as defined for the fact Corridor with signed cargo commitment, for which (a) one or more cargo owners have signed a commitment to ship a stated cargo volume on zero- or near-zero-emission vessels or fuels on that corridor (memoranda of understanding and letters of intent do not count), and (b) the participants have disclosed how the fuel cost premium is paid (for example a green freight surcharge, a book-and-claim purchase, a cost-pooling mechanism or a cargo owners' alliance tender such as ZEMBA's), as of the latest report or announcement.",
           "max_age_days": 365
         }
       ],
@@ -2954,7 +2961,7 @@
       }
     },
     "OGU-R1": {
-      "rationale": "Without a binding limit or a fee, leak repair (ogu.ldar) and ending routine flaring and venting (ogu.flaring) stay voluntary, and operators that skip them produce more cheaply. A limit or fee in force on existing operations, with penalties, is H; one that covers only new or modified sources, or whose deadlines lie ahead, is phase-in (M). A fee counts only where it can be collected now, so the US Waste Emissions Charge does not count. Three readings are open for the owner: whether performance standards without a price count as limits (yes per the rubric's 'limit and/or fee'; today's US L reads no), whether a limit covering only new or modified sources counts as in force (H) or phase-in (M, as written here), and whether a fee-only reading is wanted, which would also leave the EU's H, resting on limits, to be re-justified.",
+      "rationale": "Without a binding limit or a fee, leak repair (ogu.ldar) and ending routine flaring and venting (ogu.flaring) stay voluntary, and operators that skip them produce more cheaply. A limit or fee in force on existing operations, with penalties, is H; one that covers only new or modified sources, or whose deadlines lie ahead, is phase-in (M). A fee counts only where it can be collected now, so the US Waste Emissions Charge does not count. Three readings are open for the owner, with these US outcomes: (1) limits count and a limit on new or modified sources only is phase-in, as written here: US M. (2) A limit on new or modified sources only counts as in force: US H. (3) Fee-only, where performance standards do not count (today's US L): US L, and the EU's H, which rests on limits, would then need to be re-justified. The rubric's 'limit and/or fee' supports counting limits.",
       "actions": [
         "ogu.ldar",
         "ogu.flaring"
