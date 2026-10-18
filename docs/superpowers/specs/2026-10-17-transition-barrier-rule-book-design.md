@@ -211,7 +211,7 @@ those ratios. So a fact may be computed from other facts of the same criterion: 
 "formula": "ratio" | "ratio_pct" | "difference", "inputs": [a, b]}`.
 
 - `ratio` = a ÷ b and `ratio_pct` = a ÷ b × 100. Both need a and b in the same unit. A `ratio` has no
-  unit and shows as a bare number (`0.75`); a `ratio_pct` is in percent points and shows with `%`
+  unit (`unit` absent) and shows as a bare number (`0.75`); a `ratio_pct` has unit `%` and shows with `%`
   (`75%`).
 - `difference` = a − b, in the inputs' shared unit, and shows with that unit (`-15 USD/MWh`).
 - A computed fact has no quote of its own. It counts when every input counts, and its confidence is
@@ -274,6 +274,8 @@ actions it limits. The next project matches plan actions against these ids.
   `Effective carbon price >= 50 USD/tCO2`; a computed fact without a unit renders as
   `LCOE ratio <= 1`;
 - a boolean renders as `<fact label> is Yes` or `<fact label> is No`;
+- `in` renders its values joined with `, `: `Carbon pricing scheme in ETS, tax`; a date renders as
+  `YYYY-MM-DD`;
 - `{fact, op, other_fact}` renders as `<label> <op> <other label>`, for example
   `Renewable LCOE <= New-build fossil LCOE`;
 - `all` joins with ` and `, `any` with ` or `, and nested groups are bracketed;
@@ -365,7 +367,8 @@ criterion may use in all three regions. Each source gains a `tier`:
 | `news` | news and commentary | no | n/a |
 
 Every source has a stable `key` (the registry's existing keys) and may have a `cadence` (`annual`,
-`quarterly`). The builder assigns the tier for every bundled source in the version 1 pull request, for
+`quarterly`). `tier` and `cadence` live in `criteria_schema.json` `primary_sources`;
+`source_registry.json` stays a derived view and the validator doesn't read it. The builder assigns the tier for every bundled source in the version 1 pull request, for
 the owner to check. A source approved later applies to the criterion and region it was proposed for. It is stored
 with the ratified results, never written into the bundled files. `GET /sources` lists bundled and
 approved sources together, each with its tier and, for approved ones, its region.
@@ -388,14 +391,18 @@ So the engine and analyst facts work without network access. All requests go thr
 a URL the guard refuses is skipped and creates no review item.
 
 **Newer editions.** For each registered source with a `cadence`, a check looks for a newer edition
-(next year's report, an amended act). Legal sources reuse the existing EUR-Lex/ELI version check. A
-newer edition becomes a `new_source` review item that proposes replacing the old entry. Approving it
-replaces that source for its criterion in every region the old one applied to; the old document is no
-longer read. Edition checks run inside `transition_barrier_search` runs.
+(next year's report, an amended act). Legal sources reuse the existing EUR-Lex/ELI version check.
+Other sources search through `WebSearchClient` for the source's title with a later year. A result on
+the source's domain whose title equals the source's title with a later year is a newer edition. It
+becomes a `new_source` review item that proposes replacing the old entry, and it inherits the old
+entry's tier. Approving it replaces that source for its criterion in every region the old one applied
+to: the old document is no longer read, and `GET /sources` no longer lists it. Edition checks run
+inside every `transition_barrier_search` run, for the sources of the cells it covers.
 
 **Policy-change search.** A search runs per cell, monthly and on demand. The monthly search is one
 run of type `transition_barrier_search` covering every cell. A scheduled job, following the interval
-pattern of `portfolio/monitoring/scheduler.py`, starts it when the refresh flag is on and either no scheduled run exists, or the latest scheduled
+pattern of `portfolio/monitoring/scheduler.py`, calls one scheduler tick (also
+`arp transition-barrier search-tick [--now <ISO datetime>]`). A tick starts the monthly run when the refresh flag is on and either no scheduled run exists, or the latest scheduled
 run finished at least `ARP_TRANSITION_BARRIER_SEARCH_INTERVAL_DAYS` (default 30) days ago (30 days
 counts). On-demand searches for single cells don't count towards the interval.
 
@@ -407,8 +414,8 @@ from `domain_tiers`; a domain not in the list is `unclassified`.
   is refused with HTTP 422 `choose a tier`.
 - A `news` result goes to a change check: a model reads its title and snippet with the criterion and
   region, and answers whether it suggests a change. On yes, the cell gets the flag
-  `Possible change: <article title>` (with URL and date), a `possible_change` review item, and a
-  derivation run from its registered sources. The model's answer can only raise a flag and queue a
+  `Possible change: <article title>` (exactly that string), a `possible_change` review item carrying
+  the article's title, URL and date, and a derivation run from its registered sources. The model's answer can only raise a flag and queue a
   re-derivation; it never touches a fact or a rating.
 
 Results are matched by normalised URL. A URL a person rejected is never proposed again for the same
@@ -431,7 +438,7 @@ name.
 1. Retrieve passages relevant to the fact from those documents.
 2. The model returns either `not_found`, or a value in the source's own unit with the exact quote, the
    page or locator, and the as-of date.
-3. Code checks the result. A value counts only if all of these pass:
+3. Code checks the result in this order, and a value counts only if all of these pass:
    - the quote has an exact, normalised or fuzzy (score ≥ 0.92) match in a passage the model was shown
      (`ground_citations` with `passages`); otherwise `Quote not found in source`;
    - for numbers, the number appears in the quote; otherwise `Number not in quote`;
@@ -475,7 +482,8 @@ An upload missing any of its four fields is refused with HTTP 422
 `An uploaded document needs a title, publisher, as-of date and tier.` The checks run in this order:
 required fields, tier, number in quote, quote in the uploaded document. A newer analyst fact for the
 same fact and the same source replaces the earlier one in later derivations; both stay in the
-history. The analyst's
+history. Two uploads are the same source when their title and publisher match; a registered source is
+the same source as itself. The analyst's
 name is recorded on the fact.
 
 **Choosing between conflicting values.** For a conflict, an analyst can choose which value counts with
@@ -637,7 +645,9 @@ New CLI commands under `arp transition-barrier`:
 - `rules render [--out <file>]`: write `docs/transition_barrier/RULE_BOOK.md`, or the given file.
 - `export --out <file>`: current criteria and scores, for the Word report.
 - `derive --code <code> --region <region>`: start a derivation run for one cell and print its run id.
-- `search --code <code> --region <region>`: run the policy-change search for one cell.
+- `search --code <code> --region <region>`: run the policy-change search and edition checks for one
+  cell (an on-demand `transition_barrier_search` run).
+- `search-tick [--now <ISO datetime>]`: one scheduler tick (section 2).
 - `golden --cases <file> --documents-dir <dir> --min-precision <x> --min-coverage <y>`: prints
   `precision <p>, coverage <c>` (numbers as in section 1) and exits 0 only when both meet their minimum.
 
@@ -657,7 +667,28 @@ New and changed API routes under `/api/transition-barrier`:
 - `POST /cells/{code}/{region}/choices`: choose a conflicting value, with a reason.
 
 Review decisions use the existing `POST /api/review/runs/{run_id}/items/{item_key}/decision` and
-`POST /api/extraction/items/bulk-accept`.
+`POST /api/extraction/items/bulk-accept`. Dismissing a `not_rated` or `conflict` item is the decision
+`reject`.
+
+**Response fields** (the names the acceptance rows read):
+
+- `GET /cells/{code}/{region}`: `rating`, `basis`, `ratified_by`, `last_verified`, `confidence`,
+  `flags[]`, `latest_result`, `history[]`.
+  - `latest_result`: `run_id`, `rating` (`H`, `M`, `L`, `not_rated` or `conflict`), `confidence`,
+    `missing_facts[]` (labels), `open_params[]` (labels), `notes[]`, `rule_book_version`, `snapshot`,
+    `levels`, `values[]`.
+  - `levels.H` and `levels.M`: `outcome`, `detail`, and `conditions[]`, each with `text` (the rendered
+    condition), `outcome` (`pass`, `fail`, `unknown` or `mixed`) and `clause`.
+  - `values[]`: `fact`, `value`, `unit`, `shown`, `extracted`, `document`, `page`, `locator`,
+    `confidence`, `machine_checked`, `counted`, `reason`.
+  - `history[]`: `at`, `by`, `kind` (`rating`, `fact`, `choice` or `decision`), plus `rating` and
+    `basis` for ratings, `value` (shown with its document) and `reason` for choices.
+- A barrier review item's payload: `kind`; for `changed` and `unchanged`, `current` and `proposed`; for
+  `conflict`, `values[]` as `<value shown>, <document title>`; for `new_source`, `url`, `code`,
+  `region`, `tier` and `replaces` (a source key or null); for `possible_change`, `title`, `url` and
+  `date`.
+- `GET /sources`: each entry has `key`, `title`, `url`, `code`, `region` (null for all regions),
+  `tier` and `cadence`.
 
 ### 8. Golden set
 
@@ -669,7 +700,9 @@ Each case names the cell, the fact, the document, and the correct value, unit an
   its page equals the label's.
 - **coverage** = cases with a counted value ÷ cases.
 
-The set lives with the holdout tests once the holdout repo is attached to the build. Until then it
+The cases file is JSON, a list of `{code, region, fact, document, value, unit, page}`, where
+`document` is a file name in `--documents-dir`. The set lives with the holdout tests once the holdout
+repo is attached to the build. Until then it
 lives in `backend/tests/golden/transition_barrier/`, listed as owed in the pull request. It uses only
 documents the repo may store (law texts, and agency reports whose terms allow it). The builder drafts
 the labels, and the owner checks them (about 40 values with their pages, roughly two hours) before
@@ -731,6 +764,8 @@ Each section names the phase (section 9) whose pull request must make its rows p
 - `assessment_scores.json` holds the three bundled STL-R1 cells: European Union `H`, United States
   `L`, China `L`, each with `last_verified` 2026-08-14.
 - `rule_book.json` is **RB**, version 7, signed.
+- `source_registry.json` is derived from the schema, as today.
+- D1's URL is `https://climate.ec.europa.eu/eu-ets-market-report-2026.pdf`.
 
 **RB, criterion `STL-R1`:**
 
@@ -759,6 +794,10 @@ source and a rationale.
 - **RB6:** `p_high` is open, with a question.
 - **RB7:** `p_material` is open, with a question.
 - **RB8:** RB2 with `H` = `ren <= fos`.
+- **RB9:** `applies` replaced by an enum fact `scheme` "Carbon pricing scheme" (allowed `ETS`, `tax`,
+  `none`); `M` = `all(scheme in [ETS, tax], price >= p_material)`.
+- **RB10:** adds a date fact `start` "Levy start date"; `H` = `all(price >= p_high, levy = true,
+  start <= 2026-12-31)`.
 
 **Documents and quotes:**
 
@@ -780,6 +819,12 @@ source and a rationale.
 | D1 | 14 | `The effective carbon price was USD 45/tCO2.` |
 | D1 | 15 | `The effective carbon price was USD 72.005/tCO2.` |
 | D1 | 16 | `The effective carbon price fell to USD 9/tCO2.` |
+| D1 | 17 | `The effective carbon price was CNY 66.9/tCO2.` |
+| D1 | 18 | `The effective carbon price was CNY 71.42/tCO2.` |
+| D1 | 19 | `The effective carbon price was KRW 66.9/tCO2.` |
+| D1 | 20 | `Steel is covered by the EU ETS.` |
+| D3 | 14 | `No carbon pricing scheme covers steel.` |
+| D4 | 1 | `The effective carbon price was USD 72/tCO2.` |
 | D2 | 3 | `The border levy applies from 1 January 2026.` |
 | D3 | 7 | `Estimates range from USD 30/tCO2 to USD 65/tCO2.` |
 | D3 | 8 | `The carbon price applies to steel.` |
@@ -790,6 +835,10 @@ source and a rationale.
 | D3 | 13 | `A border levy is in force.` |
 
 **Users:** `a.analyst` and `b.analyst` (role analyst), `a.approver` and `b.approver` (role approver).
+
+**Stubs:** the fetch stub serves D1–D4 with the quotes table's text on the stated pages. The
+extraction stub returns `not_found` for every fact unless a row says a value is extracted. The search
+stub returns nothing unless a row says otherwise.
 
 **Defaults**, unless a row says otherwise:
 
@@ -838,6 +887,12 @@ row) and publisher `Fixture`, unless the row says otherwise.
 | AC-24 | RB8; AC-21's values | the cell is derived | the `H` clause is `Renewable LCOE = 45 USD/MWh (EU ETS Market Report 2026, p. 8) vs New-build fossil LCOE = 60 USD/MWh (EU ETS Market Report 2026, p. 9): pass.` | unit |
 | AC-25 | RB8 | `GET /criteria/STL-R1` | `rating_rubric.H` = `Renewable LCOE <= New-build fossil LCOE` | unit |
 | AC-146 | RB2 with `ratio` = `ratio_pct(ren, fos)` and `p_parity` = 100 (unit `%`); AC-21's values | the cell is derived | the `ratio` clause starts `LCOE ratio = 75% from` | unit |
+| AC-149 | RB9 | `GET /criteria/STL-R1` | `rating_rubric.M` = `Carbon pricing scheme in ETS, tax and Effective carbon price >= 10 USD/tCO2` | unit |
+| AC-150 | RB9; `scheme` = `ETS` (D1, p. 20); `price` = 30 | the cell is derived | result rating `M` | unit |
+| AC-151 | RB9; `scheme` = `none` (D3, p. 14); `price` = 30 | the cell is derived | result rating `L` | unit |
+| AC-152 | RB9; `scheme` has no counted value; `price` = 30 | the cell is derived | result rating `not_rated`; missing facts `["Carbon pricing scheme"]` | unit |
+| AC-153 | RB10 | `GET /criteria/STL-R1` | `rating_rubric.H` = `Effective carbon price >= 50 USD/tCO2 and Border levy in force is Yes and Levy start date <= 2026-12-31` | unit |
+| AC-154 | RB10; `start` = 2026-01-01 (D2, p. 3) | the cell is derived | result rating `H` | unit |
 | AC-147 | RB2 with `ratio` = `difference(ren, fos)`, `p_parity` = 0 USD/MWh; AC-21's values | the cell is derived | the `ratio` clause starts `LCOE ratio = -15 USD/MWh from` | unit |
 
 ### Fact checks and conversions (phase 3, except AC-35 in phase 2)
@@ -846,13 +901,14 @@ row) and publisher `Fixture`, unless the row says otherwise.
 |------|-------|------|--------------------------|------------|
 | AC-26 | the extracted `price` quote has no exact, normalised or fuzzy (≥ 0.92) match in any passage the model was shown | the cell is derived | `price` is not counted, with reason `Quote not found in source` | unit |
 | AC-27 | AC-26's Given | the cell is derived | result rating `not_rated` | unit |
-| AC-28 | `price` extracted as 72 with a quote that contains no `72` | the cell is derived | `price` is not counted, with reason `Number not in quote` | unit |
-| AC-29 | D4 registered for STL-R1; the extraction stub returns `price` 72 from D4 with a matching quote | the cell is derived | that value is not counted, with reason `News cannot ground a fact` | unit |
-| AC-30 | `price` extracted as 66.9 CNY/tCO2 from D1 with no as-of date of its own (D1 is 2026-03-31; there is no 2026 rate, so 2025's applies) | the cell is derived | the `price` clause shows `9.37 USD/tCO2 (66.9 CNY/tCO2)`; result rating `L` | unit |
-| AC-31 | `price` extracted as 71.42 CNY/tCO2 from D1 | the cell is derived | the `price` clause in `M` shows `10 USD/tCO2 (71.42 CNY/tCO2)` with outcome `fail`; result rating `L` | unit |
-| AC-32 | `price` extracted as 66.9 CNY/tCO2 with its own as-of date 2024-06-30 | the cell is derived | the `price` clause shows `9.3 USD/tCO2 (66.9 CNY/tCO2)` | unit |
-| AC-33 | `price` extracted as 66.9 CNY/tCO2 with its own as-of date 2023-06-30 | the cell is derived | `price` is not counted, with reason `No CNY to USD rate for 2023 or earlier` | unit |
-| AC-34 | `price` extracted as 66.9 KRW/tCO2 | the cell is derived | `price` is not counted, with reason `Unit not convertible: KRW/tCO2` | unit |
+| AC-28 | `price` extracted as 72 with quote `The carbon price applies to steel producers.` (D1, p. 4), which matches a passage | the cell is derived | `price` is not counted, with reason `Number not in quote` | unit |
+| AC-29 | D4 registered for STL-R1; the extraction stub returns `price` 72 from D4, p. 1, with its quote | the cell is derived | that value is not counted, with reason `News cannot ground a fact` | unit |
+| AC-30 | `price` extracted as 66.9 CNY/tCO2 from D1, p. 17, with no as-of date of its own (D1 is 2026-03-31; there is no 2026 rate, so 2025's applies) | the cell is derived | the `price` clause shows `9.37 USD/tCO2 (66.9 CNY/tCO2)`; result rating `L` | unit |
+| AC-31 | `price` extracted as 71.42 CNY/tCO2 from D1, p. 18, with no as-of date of its own | the cell is derived | the `price` clause in `M` shows `10 USD/tCO2 (71.42 CNY/tCO2)` with outcome `fail`; result rating `L` | unit |
+| AC-32 | `price` extracted as 66.9 CNY/tCO2 from D1, p. 17, with its own as-of date 2024-06-30 | the cell is derived | the `price` clause shows `9.3 USD/tCO2 (66.9 CNY/tCO2)` | unit |
+| AC-33 | `price` extracted as 66.9 CNY/tCO2 from D1, p. 17, with its own as-of date 2023-06-30 | the cell is derived | `price` is not counted, with reason `No CNY to USD rate for 2023 or earlier` | unit |
+| AC-34 | `price` extracted as 66.9 KRW/tCO2 from D1, p. 19 | the cell is derived | `price` is not counted, with reason `Unit not convertible: KRW/tCO2` | unit |
+| AC-148 | `price` extracted as 72 from D1 with the p. 12 quote, but reported as page 5 | the cell is derived | the `price` value has `page` 12 | unit |
 | AC-35 | `price` = 72.005 (D1, p. 15) | the cell is derived | the `price` clause shows `72.01 USD/tCO2` | unit |
 
 ### Several values and confidence (phase 2)
@@ -903,9 +959,9 @@ row) and publisher `Fixture`, unless the row says otherwise.
 | AC-65 | refresh flag off; `b.analyst` entered the default values for European Union, and for United States and China `price` 9 (D3, p. 9), `applies` Yes (D3, p. 8), `levy` No (D3, p. 10); one `POST /derive` with the three cells; all three items are `unchanged` | `a.analyst` bulk-accepts the three items | each cell shows `basis` `derived` and `ratified_by` `a.analyst` | unit |
 | AC-66 | one `POST /derive` for European Union with `price` 30 (`changed`) and United States with `price` 9, `applies` Yes, `levy` No (`unchanged`) | `a.analyst` bulk-accepts both items | the `changed` item is refused with reason `a rating change is not bulk-accepted`; STL-R1 European Union still shows `H`; STL-R1 United States shows `basis` `derived`, `ratified_by` `a.analyst` | unit |
 | AC-67 | AC-65's Given | `b.analyst` bulk-accepts the three items | each item is refused with reason `you entered a fact this result uses` | unit |
-| AC-68 | AC-57, then `b.approver` enters `price` 9 citing D1, p. 16, which replaces the earlier D1 value; the cell is derived and ratified (`a.analyst` approves, `a.approver` confirms) | `GET /cells/STL-R1/European Union` | the history's ratings are, in order: `H` hand-rated 2026-08-14, `M` ratified by `a.approver`, `L` ratified by `a.approver` | unit |
+| AC-68 | AC-57, then `b.approver` enters `price` 9 citing D1, p. 16, uploading D1 again, which replaces the earlier D1 value; the cell is derived and ratified (`a.analyst` approves, `a.approver` confirms) | `GET /cells/STL-R1/European Union` | the history's ratings are, in order: `H` hand-rated 2026-08-14, `M` ratified by `a.approver`, `L` ratified by `a.approver` | unit |
 | AC-69 | AC-4's result | `GET /cells/STL-R1/European Union` | the cell's current rating (not the latest result's) is `H`; `flags` contains `Not re-derived: missing Effective carbon price` | unit |
-| AC-70 | AC-69 | `a.analyst` dismisses the item; then `GET /cells/STL-R1/European Union` | the cell's current rating is `H`; `flags` still contains `Not re-derived: missing Effective carbon price` | unit |
+| AC-70 | AC-69 | `a.analyst` dismisses the item (decision `reject`); then `GET /cells/STL-R1/European Union` | the cell's current rating is `H`; `flags` still contains `Not re-derived: missing Effective carbon price` | unit |
 | AC-140 | AC-69, then the cell is derived with the defaults and its item not yet decided | `GET /cells/STL-R1/European Union` | `flags` `[]` | unit |
 | AC-71 | each of AC-49, AC-51, AC-57, AC-63 and AC-65, run separately from a fresh copy of F | the action finishes | every file in that copy is byte-identical to before | unit |
 | AC-72 | AC-57, then RB with `p_high` = 60 signed as version 8 and the app restarted | `GET /cells/STL-R1/European Union` | `flags` contains `Rules changed since this rating (v7)` | unit |
@@ -932,7 +988,7 @@ row) and publisher `Fixture`, unless the row says otherwise.
 | AC-142 | F with `M` = `all(applies = true, any(price >= p_material, all(levy = true)))` | `rules validate --data-dir F` | exit 1; output contains `STL-R1: conditions nested deeper than two levels` | unit |
 | AC-87 | F with `STL-T1` added to the criteria schema only | `rules validate --data-dir F` | exit 1; output contains `Missing rule book entry: STL-T1` | unit |
 | AC-88 | F with a rule book entry `XXX-T9` that has no criterion | `rules validate --data-dir F` | exit 1; output contains `Rule book entry without criterion: XXX-T9` | unit |
-| AC-89 | F with D3's `tier` removed | `rules validate --data-dir F` | exit 1; output contains `Source 'steel_policy_tracker' has no tier` | unit |
+| AC-89 | F with `tier` removed from `steel_policy_tracker` in `criteria_schema.json` | `rules validate --data-dir F` | exit 1; output contains `Source 'steel_policy_tracker' has no tier` | unit |
 | AC-90 | F with `p_high` changed to 60 and not signed | `rules validate --data-dir F` | exit 1; output contains `Rule book content changed but version is still 7` | unit |
 | AC-91 | F | `rules sign --approved-by owner --data-dir F` | `version` 8; the last `history` entry has `version` 8, `approved_by` `owner`, and a `fingerprint` equal to the SHA-256 defined in section 1 | unit |
 | AC-92 | AC-77's directory | the API starts | startup fails with an error containing `STL-R1: condition names unknown fact 'prices'` | unit |
@@ -959,24 +1015,24 @@ row) and publisher `Fixture`, unless the row says otherwise.
 | AC-108 | AC-106 | the runs are listed | exactly one derivation run for STL-R1 European Union created after the search run started | unit |
 | AC-109 | AC-107's item | `a.analyst` rejects it | the cell's `flags` is `[]` | unit |
 | AC-110 | AC-106's Given with the change-check stub answering no | the search runs | the cell's `flags` is `[]` | unit |
-| AC-111 | the edition stub reports a 2027 edition of D1 | the edition check runs for STL-R1 | one `new_source` item proposing to replace D1 | unit |
+| AC-111 | the search stub returns `https://climate.ec.europa.eu/eu-ets-market-report-2027.pdf` titled "EU ETS Market Report 2027" | `arp transition-barrier search --code STL-R1 --region European Union` | one `new_source` item with that URL, `replaces` `eu_ets_report` and tier `primary` | unit |
 | AC-112 | AC-111's item | `a.approver` approves it | `GET /sources` lists the 2027 edition for `STL-R1` with no region, and no longer lists D1 | unit |
 | AC-113 | the search stub returns `http://169.254.169.254/latest` | the search runs | no request is made to that URL; no review item is created | unit |
 | AC-114 | the refresh flag is off | `POST /search` for the cell | HTTP 409; no request to any source or search provider | unit |
 | AC-115 | the refresh flag is off; no source document fetched; the default values entered as analyst facts | `POST /derive` for the cell; the run finishes | result rating `H`; the result notes `Sources not fetched: refresh is disabled`; no request to any source or search provider | unit |
 | AC-116 | the companies table has N rows | D1 is fetched and stored for STL-R1 | the companies table still has N rows | unit |
-| AC-117 | the bundled data directory; refresh flag on; the latest scheduled `transition_barrier_search` run finished 31 days ago | the scheduler ticks | one new `transition_barrier_search` run, covering 105 cells | unit |
-| AC-118 | the same with exactly 30 days | the scheduler ticks | one new search run | unit |
-| AC-119 | the same with 29 days | the scheduler ticks | no new search run | unit |
-| AC-120 | the bundled data directory; refresh flag on; no scheduled `transition_barrier_search` run has ever run | the scheduler ticks | one new search run | unit |
-| AC-144 | AC-117's Given, plus an on-demand search for STL-R1 China that finished 1 day ago | the scheduler ticks | one new `transition_barrier_search` run, covering 105 cells | unit |
-| AC-121 | AC-117's Given with the refresh flag off | the scheduler ticks | no new search run; no request to any source or search provider | unit |
+| AC-117 | the bundled data directory; refresh flag on; `search-tick --now T` started a run that finished at T | `search-tick --now` T + 31 days | one new `transition_barrier_search` run, covering 105 cells | unit |
+| AC-118 | the same | `search-tick --now` T + 30 days | one new search run | unit |
+| AC-119 | the same | `search-tick --now` T + 29 days | no new search run | unit |
+| AC-120 | the bundled data directory; refresh flag on; no scheduled `transition_barrier_search` run has ever run | `search-tick` | one new search run | unit |
+| AC-144 | AC-117's Given, plus an on-demand `search` for STL-R1 China that finished at T + 30 days | `search-tick --now` T + 31 days | one new `transition_barrier_search` run, covering 105 cells | unit |
+| AC-121 | AC-117's Given with the refresh flag off | `search-tick --now` T + 31 days | no new search run; no request to any source or search provider | unit |
 
 ### Extraction quality (phase 3)
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-122 | 4 golden cases; the extraction stub returns a counted value for each, 3 of them correct | `arp transition-barrier golden --cases <them> --documents-dir <dir> --min-precision 0.95 --min-coverage 0.5` | prints `precision 0.75, coverage 1`; exits 1 | unit |
+| AC-122 | a cases file with 4 cases (section 8 format); the extraction stub returns a counted value for each, 3 of them correct | `arp transition-barrier golden --cases <them> --documents-dir <dir> --min-precision 0.95 --min-coverage 0.5` | prints `precision 0.75, coverage 1`; exits 1 | unit |
 | AC-123 | golden set G (section 8): at least 40 facts from at least 12 documents, labels checked by the owner | `arp transition-barrier golden --cases G --documents-dir <dir> --min-precision 0.95 --min-coverage 0.5` | exits 0 | golden |
 
 ### In the running app (phase 2)
@@ -1000,7 +1056,7 @@ through the analyst form.
 |------|-------|------|--------------------------|------------|
 | AC-130 | the bundled data directory; a cell never re-derived | `GET /scores` | rating, confidence, evidence, source and `last_verified` equal the bundled values; `basis` `hand_rated`, `ratified_by` null, `flags` `[]` | unit |
 | AC-131 | AC-130's Given | `GET /matrix` | every field present before this change has the same value; the cell has `basis` `hand_rated`, `ratified_by` null, `flags` `[]` | unit |
-| AC-132 | a fixture directory with the pre-change `criteria_schema.json` and `source_registry.json`, with only a `tier` added to each source, plus a signed rule book for its 35 criteria | `GET /refresh/coverage` | equals the response `main` gives for the pre-change files | unit |
+| AC-132 | a fixture directory with the pre-change `criteria_schema.json` (with only a `tier` added to each source) and `source_registry.json`, plus a signed rule book for its 35 criteria | `GET /refresh/coverage` | equals the response `main` gives for the pre-change files | unit |
 | AC-133 | the refresh flag is off | `POST /refresh/runs` | HTTP 409, as before this change | unit |
 | AC-134 | an extraction run item whose approval needs a second review (`published_change`), approved by `a.analyst` | `b.analyst` submits the second review | accepted, as before this change | unit |
 | AC-135 | the bundled data directory; no derivation has run | `arp transition-barrier export --out X`, then the Word report script with X | the script exits 0; the report's 105 ratings equal `assessment_scores.json` | unit |
