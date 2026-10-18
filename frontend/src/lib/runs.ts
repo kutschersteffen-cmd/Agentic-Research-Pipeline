@@ -34,6 +34,10 @@ export function needsAttentionRuns(runs: RunManifest[], now: Date): RunManifest[
   });
 }
 
+/** Oldest first; an undated row goes after every dated one. */
+export const compareSince = (a: string | null, b: string | null): number =>
+  a === null || b === null ? Number(a === null) - Number(b === null) : a.localeCompare(b);
+
 export const RUN_TYPE_LABEL: Record<string, string> = {
   theme: "Thematic universe",
   extraction: "Data extraction",

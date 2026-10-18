@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canResumeRun, needsAttentionRuns } from "../src/lib/runs.ts";
+import { canResumeRun, compareSince, needsAttentionRuns } from "../src/lib/runs.ts";
 import type { RunManifest } from "../src/types.ts";
 
 const RESUMABLE = ["theme", "extraction", "financials", "tnfd", "transition_plan", "identity", "discovery", "xbrl_fetch"];
@@ -56,4 +56,9 @@ test("needsAttentionRuns drops empty and unparseable updated_at", () => {
 test("needsAttentionRuns keeps a run updated 1 minute after now", () => {
   const future = run("theme", "failed", new Date(now.getTime() + MIN).toISOString());
   assert.deepEqual(needsAttentionRuns([future], now), [future]);
+});
+
+test("compareSince puts undated rows after dated ones, oldest dated first", () => {
+  const rows = [null, "2026-10-17T10:00:00Z", null, "2026-10-12T10:00:00Z"];
+  assert.deepEqual([...rows].sort(compareSince), ["2026-10-12T10:00:00Z", "2026-10-17T10:00:00Z", null, null]);
 });
