@@ -80,6 +80,7 @@ function ConflictChoice({ code, region, cell, labels, onChosen }: {
 export function BarrierCellDetail({ code, region }: { code: string; region: string }) {
   const [cell, setCell] = useState<BarrierCell | null>(null);
   const [criterion, setCriterion] = useState<BarrierCriterion | null>(null);
+  const [criterionError, setCriterionError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [derived, setDerived] = useState<string | null>(null);
   const [deriveError, setDeriveError] = useState<string | null>(null);
@@ -87,7 +88,7 @@ export function BarrierCellDetail({ code, region }: { code: string; region: stri
   const load = useCallback(() => api.getBarrierCell(code, region).then(setCell).catch((e: Error) => setError(errorDetail(e))), [code, region]);
   useEffect(() => {
     void load();
-    api.getBarrierCriterionDetail(code).then((d) => setCriterion(d.criterion), () => setCriterion(null));
+    api.getBarrierCriterionDetail(code).then((d) => setCriterion(d.criterion), (e: Error) => setCriterionError(errorDetail(e)));
   }, [code, load]);
 
   async function derive() {
@@ -190,7 +191,13 @@ export function BarrierCellDetail({ code, region }: { code: string; region: stri
       <div className="card">
         <h2>Enter a fact</h2>
         <p className="help-text">For a source the system cannot read. The quote must be word for word, and a number must appear in it.</p>
-        <BarrierFactForm code={code} region={region} facts={criterion?.facts ?? []} sources={criterion?.primary_sources ?? []} onAdded={() => void load()} />
+        {criterion ? (
+          <BarrierFactForm code={code} region={region} facts={criterion.facts} sources={criterion.primary_sources} onAdded={() => void load()} />
+        ) : criterionError ? (
+          <p className="error-text" role="alert">The criterion could not be loaded: {criterionError}</p>
+        ) : (
+          <p className="muted">Loading the criterion…</p>
+        )}
       </div>
 
       <div className="card">

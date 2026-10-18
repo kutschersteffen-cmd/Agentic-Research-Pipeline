@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { api } from "../api/client";
 import { announce } from "../lib/announce";
-import { errorDetail } from "../lib/barrier";
+import { currentFact, errorDetail } from "../lib/barrier";
 import type { BarrierFact, BarrierPrimarySource } from "../types";
 
 /** An analyst enters a fact for a source code cannot read: from a registered source, or with an uploaded PDF. */
@@ -13,7 +13,8 @@ export function BarrierFactForm({ code, region, facts, sources, onAdded }: {
   onAdded: () => void;
 }) {
   const entered = facts.filter((f) => f.type);
-  const [fact, setFact] = useState(entered[0]?.id ?? "");
+  const [picked, setFact] = useState("");
+  const fact = currentFact(picked, facts);
   const [value, setValue] = useState("");
   const [unit, setUnit] = useState("");
   const [quote, setQuote] = useState("");

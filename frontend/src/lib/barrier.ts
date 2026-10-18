@@ -48,3 +48,9 @@ export const historyLine = (e: {
   : e.kind === "fact" ? `Fact ${e.fact}: ${e.value}`
   : e.kind === "choice" ? `Chose ${e.fact}: ${e.value} (${e.reason})`
   : `Decision: ${e.decision}`;
+
+/** The fact the form acts on: the one picked if it can be entered, else the first that can (a computed fact cannot). */
+export const currentFact = (picked: string, facts: { id: string; type: string | null }[]): string => {
+  const entered = facts.filter((f) => f.type);
+  return entered.some((f) => f.id === picked) ? picked : (entered[0]?.id ?? "");
+};

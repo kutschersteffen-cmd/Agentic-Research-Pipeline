@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cellHash, errorDetail, historyLine, outcomeClass, ratifiedLine } from "../src/lib/barrier.ts";
+import { cellHash, currentFact, errorDetail, historyLine, outcomeClass, ratifiedLine } from "../src/lib/barrier.ts";
 import { decisionChoices } from "../src/lib/reviewKeys.ts";
 
 test("ratifiedLine names who ratified a derived rating, or says it is hand-rated", () => {
@@ -35,4 +35,12 @@ test("historyLine reads each kind of entry as one sentence", () => {
 
 test("a barrier review item is decided with approve or reject only", () => {
   assert.deepEqual(decisionChoices("barrier_cell", "transition_barrier_derivation"), ["approve", "reject"]);
+});
+
+test("currentFact falls back to the first fact that can be entered until one is picked", () => {
+  const facts = [{ id: "ratio", type: null }, { id: "price", type: "number" }, { id: "levy", type: "boolean" }];
+  assert.equal(currentFact("", facts), "price");
+  assert.equal(currentFact("levy", facts), "levy");
+  assert.equal(currentFact("ratio", facts), "price");
+  assert.equal(currentFact("", []), "");
 });
