@@ -409,10 +409,10 @@ def from_transition_barrier(region: str | None = None, sectors: list[str] | None
     lower-is-better and would invert the entire ranking while every number
     on screen still looked correct.
     """
-    from arp.transition_barrier.dataset import load_scores
+    from arp.transition_barrier.dataset import current_scores
     from arp.transition_barrier.staleness import staleness_days
 
-    rows_in = [s for s in load_scores() if (region is None or s.region.value == region) and (sectors is None or s.sector in sectors)]
+    rows_in = [s for s in current_scores() if (region is None or s.region.value == region) and (sectors is None or s.sector in sectors)]
     if not rows_in:
         raise ValueError("No barrier scores match that sector/region filter.")
 

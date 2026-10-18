@@ -11,10 +11,10 @@ from arp.cli._shared import _run_store
 from arp.config import get_settings
 from arp.schemas.transition_barrier import Pillar, Region
 from arp.transition_barrier.dataset import (
+    current_scores,
     data_dir,
     filter_scores,
     load_criteria,
-    load_scores,
     load_source_registry,
     rating_distribution,
     sources_for_criterion,
@@ -122,7 +122,7 @@ def transition_barrier_export(
         raise _fail([str(exc)]) from None
     payload = {
         "criteria": [c.model_dump(mode="json") for c in criteria],
-        "scores": [s.model_dump(mode="json") for s in load_scores()],
+        "scores": [s.model_dump(mode="json") for s in current_scores()],
         "sources": {s.key: s.model_dump(mode="json", exclude={"key"}) for s in load_source_registry()},
     }
     out.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
