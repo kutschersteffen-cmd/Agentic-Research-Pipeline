@@ -1,0 +1,45 @@
+{
+  "_meta": {
+    "description": "Fixture F: three cells.",
+    "verified_date": "2026-08-14",
+    "score_count": 3
+  },
+  "scores": [
+    {
+      "sector": "Steel",
+      "category": "Regulation",
+      "code": "STL-R1",
+      "criterion": "Effective carbon price on steel production incl. border adjustment",
+      "region": "European Union",
+      "rating": "H",
+      "confidence": "high",
+      "evidence": "EU ETS price in the effective range plus CBAM definitive-regime entry from 2026, phasing out free allocation for steel in parallel, creates the H-level combination of price and border protection",
+      "source": "EU CBAM Regulation 2023/956; European Commission DG CLIMA free allocation benchmarks",
+      "last_verified": "2026-08-14"
+    },
+    {
+      "sector": "Steel",
+      "category": "Regulation",
+      "code": "STL-R1",
+      "criterion": "Effective carbon price on steel production incl. border adjustment",
+      "region": "United States",
+      "rating": "L",
+      "confidence": "high",
+      "evidence": "No federal carbon price applies to steel production and no equivalent border adjustment mechanism is in force",
+      "source": "World Bank Carbon Pricing Dashboard",
+      "last_verified": "2026-08-14"
+    },
+    {
+      "sector": "Steel",
+      "category": "Regulation",
+      "code": "STL-R1",
+      "criterion": "Effective carbon price on steel production incl. border adjustment",
+      "region": "China",
+      "rating": "L",
+      "confidence": "high",
+      "evidence": "China's national ETS was expanded in 2025 to formally include the steel sector (alongside cement and aluminium smelting), raising national coverage from ~40% to ~60%+ of emissions. However, the post-expansion carbon price (CNY 66.9-97/tonne through late 2024-2025, approx. USD 9-14/tonne) remains far below the level needed to close the green steel cost gap: analysis shows a carbon price of approximately CNY 890/tonne (~USD 124/t) would be needed for DRI-H2 cost parity at current green hydrogen prices \u2014 roughly 9x the current price and 1.6x the EU ETS level. First compliance deadline for the newly covered sectors is end-2025, covering 2024 emissions, with free allocation dominating in the initial 2024-2026 period.",
+      "source": "Ministry of Ecology and Environment (China) allocation plan (Nov 2025); ICAP China National ETS tracker; IEEFA ETS reforms analysis; Transition Asia sector brief (Sept 2025) for the 890 yuan/t breakeven calculation",
+      "last_verified": "2026-08-14"
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import json
 from functools import lru_cache
 from pathlib import Path
 
+from arp.config import get_settings
 from arp.schemas.transition_barrier import (
     BarrierCriterion,
     BarrierScore,
@@ -12,10 +13,9 @@ from arp.schemas.transition_barrier import (
     RegistrySource,
 )
 
-_DATA_DIR = Path(__file__).parent / "data"
-_CRITERIA_PATH = _DATA_DIR / "criteria_schema.json"
-_SCORES_PATH = _DATA_DIR / "assessment_scores.json"
-_REGISTRY_PATH = _DATA_DIR / "source_registry.json"
+
+def data_dir() -> Path:
+    return get_settings().transition_barrier_data_dir
 
 
 @lru_cache
@@ -29,7 +29,7 @@ def load_criteria(path: Path | None = None) -> list[BarrierCriterion]:
     against each primary publisher in August 2026. This file is authoritative:
     source_registry.json is a derived view over its primary_sources[] entries.
     """
-    rows = json.loads((path or _CRITERIA_PATH).read_text())["criteria"]
+    rows = json.loads((path or data_dir() / "criteria_schema.json").read_text())["criteria"]
     return [BarrierCriterion.model_validate(row) for row in rows]
 
 
@@ -39,7 +39,7 @@ def load_scores(path: Path | None = None) -> list[BarrierScore]:
     European Union, United States and China, with evidence and a confidence
     tier. Note the JSON array key is `scores`, not `ratings`.
     """
-    rows = json.loads((path or _SCORES_PATH).read_text())["scores"]
+    rows = json.loads((path or data_dir() / "assessment_scores.json").read_text())["scores"]
     return [BarrierScore.model_validate(row) for row in rows]
 
 
@@ -51,8 +51,14 @@ def load_source_registry(path: Path | None = None) -> list[RegistrySource]:
     internal identifier rather than an array, so the key is folded into each
     record as `key` to keep the returned shape consistent.
     """
-    raw = json.loads((path or _REGISTRY_PATH).read_text())["sources"]
+    raw = json.loads((path or data_dir() / "source_registry.json").read_text())["sources"]
     return [RegistrySource.model_validate({"key": key, **row}) for key, row in raw.items()]
+
+
+def reset_caches() -> None:
+    """Drop the loader caches; needed after the data directory setting changes."""
+    for loader in (load_criteria, load_scores, load_source_registry):
+        loader.cache_clear()
 
 
 def sources_for_criterion(code: str) -> list[RegistrySource]:
