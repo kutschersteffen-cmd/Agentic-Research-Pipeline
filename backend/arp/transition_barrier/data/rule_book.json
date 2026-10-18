@@ -246,7 +246,7 @@
       }
     },
     "PWR-T2": {
-      "rationale": "Solar and wind growth (pwr.renewables) stalls once output is regularly curtailed, because curtailed energy earns nothing and lowers the return on the next project. Grid-scale storage (pwr.storage) and grid reinforcement (pwr.grid) absorb variable output; where storage is negligible next to wind and solar capacity, further build-out runs into curtailment and congestion.",
+      "rationale": "Solar and wind growth (pwr.renewables) stalls once output is regularly curtailed, because curtailed energy earns nothing and lowers the return on the next project. Grid-scale storage (pwr.storage) and grid reinforcement (pwr.grid) absorb variable output; where storage is negligible next to wind and solar capacity, further build-out runs into curtailment and congestion. The rule measures storage in power (GW), so storage duration (GWh) and the readiness of long-duration storage are not captured.",
       "actions": [
         "pwr.storage",
         "pwr.grid",
@@ -295,7 +295,7 @@
           "value": 5,
           "unit": "%",
           "by_region": {},
-          "rationale": "The rubric's H requires flexibility 'sufficient to avoid material curtailment' without a number. China's 2018–2020 action plan set 5% as the ceiling for acceptable wind and solar curtailment (95% utilisation), the only official numeric curtailment benchmark found.",
+          "rationale": "The rubric's H requires flexibility 'sufficient to avoid material curtailment' without a number. China's 2018–2020 action plan set 5% as the ceiling for acceptable wind and solar curtailment (95% utilisation), the only official numeric curtailment benchmark found. It is a Chinese policy target, applied here to the EU and the US as well because no EU or US benchmark was found; owner to confirm or add sourced overrides.",
           "source": {
             "title": "NDRC and NEA, Clean Energy Consumption Action Plan (2018–2020) (发改能源规〔2018〕1575号), ESCAP Asia Pacific Energy Portal record",
             "url": "https://policy.asiapacificenergy.org/node/4123",
@@ -306,7 +306,7 @@
           "id": "p_storage_material",
           "label": "Non-negligible storage share",
           "status": "open",
-          "question": "Above what storage share of solar plus wind capacity (%) is grid-scale storage no longer 'negligible'? The rubric points to a region-specific benchmark informed by IEA grid-integration studies, but no such number was found (IEA pages could not be fetched)."
+          "question": "Above what storage share of solar plus wind capacity (%, measured in power: storage GW over solar plus wind GW) is grid-scale storage no longer 'negligible'? The rubric points to a region-specific benchmark informed by IEA grid-integration studies, but no such number was found (IEA pages could not be fetched)."
         }
       ],
       "levels": {
@@ -336,7 +336,7 @@
       }
     },
     "PWR-R1": {
-      "rationale": "A carbon price on power emissions, or a binding clean-power mandate with a penalty, makes fossil plants pay for their emissions, which speeds coal and gas retirement (pwr.coal_exit) and raises the value of the renewables (pwr.renewables) and storage (pwr.storage) that replace them. Without either, fossil generation keeps its cost advantage at the margin.",
+      "rationale": "A carbon price on power emissions, or a binding clean-power mandate with a penalty, makes fossil plants pay for their emissions, which speeds coal and gas retirement (pwr.coal_exit) and raises the value of the renewables (pwr.renewables) and storage (pwr.storage) that replace them. Without either, fossil generation keeps its cost advantage at the margin. H also requires the price to cover the whole region: where only some states or provinces price carbon, the price fact averages over covered emissions only, so a high state price would otherwise rate the whole region H.",
       "actions": [
         "pwr.coal_exit",
         "pwr.renewables",
@@ -831,14 +831,14 @@
         {
           "id": "p_material",
           "label": "Material carbon price level",
-          "value": 15,
+          "value": 33.92,
           "unit": "USD/tCO2",
           "by_region": {},
-          "rationale": "The rubric's L reads 'no material carbon price' without a number. The framework's own line for a material carbon price is in PWR-R1, whose M band starts at USD 15/tCO2 under the same L wording, so the same line applies here. No external benchmark for 'material' was found. Owner to confirm.",
+          "rationale": "The rubric's L reads 'no material carbon price' without a number. The OECD's lowest carbon price benchmark, EUR 30/tCO2 (a historic low-end estimate of carbon costs), is the line: a price below the low end of what emissions cost is not material. Converted at the 2025 Federal Reserve annual average of 1.1306 USD per EUR (this rule book's EUR to USD conversion for 2025): 30 x 1.1306 = USD 33.92/tCO2.",
           "source": {
-            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
-            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
-            "locator": "PWR-R1 rating_rubric.M: 'Effective carbon price USD 15-60/tCO2'; L: 'No material carbon price'"
+            "title": "OECD, Effective Carbon Rates 2021 (brochure)",
+            "url": "https://www.oecd.org/tax/tax-policy/effective-carbon-rates-2021-brochure.pdf",
+            "locator": "p. 4, Box 1 'Carbon pricing benchmarks': '1. EUR 30 per tonne of CO2, a historic low-end price benchmark of carbon costs in the early and mid-2010s.'"
           }
         }
       ],
@@ -1051,11 +1051,11 @@
           "value": 0.4,
           "unit": "Mtpa CO2",
           "by_region": {},
-          "rationale": "Today's rubric calls a plant above 0.3 Mtpa full-scale but cites no source. The Global CCS Institute's large-scale threshold for industrial facilities other than coal power is 0.4 Mtpa, so that sourced value replaces 0.3. Brevik CCS in Norway, the first full-scale cement plant, captures about 0.4 Mtpa.",
+          "rationale": "Today's rubric calls a plant above 0.3 Mtpa full-scale but cites no source. The Global CCS Institute's large-scale threshold for industrial facilities other than coal power is at least 0.4 Mtpa (also stated as '> 0.4 Mt CO2/yr' in C. Petit, Imperial College, 2014 RCN deck, slide 2), so that sourced value replaces 0.3. Brevik CCS in Norway, the first full-scale cement plant, captures about 0.4 Mtpa.",
           "source": {
-            "title": "C. Petit (Imperial College London), Overview of large-scale CO2 capture projects in Europe, Asia and Africa (2014 RCN meeting), stating the Global CCS Institute large-scale definition",
-            "url": "https://www.aiche.org/sites/default/files/docs/events/0_-_petit_rcn2014_petit_2.pdf",
-            "locator": "Slide 2 'What is Large-Scale?': '> 0.4 Mt CO2/yr for other emissions-intensive industrial facilities'"
+            "title": "POLITICO, 'Large-scale carbon capture sites in the U.S.' (Datawrapper map, source: Global CCS Institute)",
+            "url": "https://datawrapper.dwcdn.net/4Fi0R/2/",
+            "locator": "Chart intro: 'other industrial facilities capturing at least 400,000 metric tons of CO2 annually'"
           }
         }
       ],
@@ -1217,14 +1217,14 @@
         {
           "id": "p_material",
           "label": "Material carbon price level",
-          "value": 15,
+          "value": 33.92,
           "unit": "USD/tCO2",
           "by_region": {},
-          "rationale": "The rubric's L reads 'no material carbon price' without a number. The framework's own line for a material carbon price is in PWR-R1, whose M band starts at USD 15/tCO2 under the same L wording, so the same line applies here. No external benchmark for 'material' was found. Owner to confirm.",
+          "rationale": "The rubric's L reads 'no material carbon price' without a number. The OECD's lowest carbon price benchmark, EUR 30/tCO2 (a historic low-end estimate of carbon costs), is the line: a price below the low end of what emissions cost is not material. Converted at the 2025 Federal Reserve annual average of 1.1306 USD per EUR (this rule book's EUR to USD conversion for 2025): 30 x 1.1306 = USD 33.92/tCO2.",
           "source": {
-            "title": "Transition Barrier Assessment framework, rating rubric before the rule book (verified 2026-08-14)",
-            "url": "https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/2e97f40523d2e6d397e9b9ccf3a37faefe90bddf/backend/arp/transition_barrier/data/criteria_schema.json",
-            "locator": "PWR-R1 rating_rubric.M: 'Effective carbon price USD 15-60/tCO2'; L: 'No material carbon price'"
+            "title": "OECD, Effective Carbon Rates 2021 (brochure)",
+            "url": "https://www.oecd.org/tax/tax-policy/effective-carbon-rates-2021-brochure.pdf",
+            "locator": "p. 4, Box 1 'Carbon pricing benchmarks': '1. EUR 30 per tonne of CO2, a historic low-end price benchmark of carbon costs in the early and mid-2010s.'"
           }
         }
       ],
@@ -1335,19 +1335,19 @@
         },
         {
           "id": "coverage",
-          "label": "Share of cement demand covered",
+          "label": "Binding demand as share of low-carbon capacity",
           "type": "number",
           "unit": "%",
-          "definition": "Share of the region's construction demand for cement (by tonnage, latest year with data) that falls under the binding rule.",
+          "definition": "Annual low-carbon cement volume that binding rules require buyers to use in the region (from the rules' scope and the construction they cover, latest year with data) as a percentage of the announced annual output of low-carbon cement capacity in the region (operating, under construction or at final investment decision).",
           "max_age_days": 730
         }
       ],
       "params": [
         {
           "id": "p_material_share",
-          "label": "Material share of construction demand",
+          "label": "Material share of low-carbon capacity",
           "status": "open",
-          "question": "What share of the region's construction demand for cement must a binding rule cover to count as 'a material share'? No sourced benchmark was found; a source for the coverage figure itself (e.g. the public-procurement share of construction cement use) is also needed."
+          "question": "What share of the region's announced low-carbon cement capacity must demand created by binding procurement rules or embodied-carbon codes cover to count as 'a material share'? No sourced benchmark was found; a source for estimating the binding demand volume (tonnes of low-carbon cement the rules require per year) is also needed."
         }
       ],
       "levels": {
