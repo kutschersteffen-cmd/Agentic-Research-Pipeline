@@ -288,7 +288,7 @@ the same prompt. "Session job" = `.claude/hooks/context-stack.sh --foreground`.
 | AC-46 | *First refresh*; same selection | Read right pane | Shows a wiki excerpt of ≥1 sentence that appears word for word in an `openwiki/` page | evaluator |
 | AC-47 | Same selection | Inspect "Open on GitHub" | href is `https://github.com/kutschersteffen-cmd/Agentic-Research-Pipeline/blob/main/backend/arp/grounding.py` | evaluator |
 | AC-48 | Same selection | Click "2 hops" | Status line `N` equals the undirected 2-hop neighbourhood size of that node in the published graph data (node included) | evaluator |
-| AC-49 | Laptop | "Path A → B" from file node `backend/arp/api/main.py` to file node `backend/arp/grounding.py` | Path shows `app.py` first and `grounding.py` last; status line `H` equals the undirected shortest-path length in the published graph data | evaluator |
+| AC-49 | Laptop | "Path A → B" from file node `backend/arp/api/main.py` to file node `backend/arp/grounding.py` | Path shows `main.py` first and `grounding.py` last; status line `H` equals the undirected shortest-path length in the published graph data | evaluator |
 | AC-50 | Laptop, default filters | Read status line | `K` is `0` | evaluator |
 | AC-51 | Laptop, INFERRED filter on, graph data has ≥1 INFERRED edge in view | Read status line; look at the graph | `K` ≥ 1; at least one dashed edge visible | evaluator |
 | AC-52 | `notes/ctx-probe.md` links `[[backend/arp/grounding.py]]`; Atlas republished | Select `grounding.py` | Right pane lists `ctx-probe` under notes | evaluator |

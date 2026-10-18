@@ -92,4 +92,22 @@ check concurrent '[ "$ra$rb" = 00 ] && [ "$(grep -c "^arp-context: fetch-graph" 
   python3 -c "import json, sys; json.load(open(sys.argv[1]))" "$work/graphify-out/graph.json" &&
   grep -q ctx_probe_node "$work/graphify-out/graph.json"'
 
+# vault.sh in the clone: writes only under graphify-out/, so the tree stays clean and notes/ and .obsidian/
+# keep their exact contents. Without graphify it must say so and still change nothing.
+vault="$repo/scripts/vault.sh"
+mkdir -p "$work/.obsidian" && echo '{"probe":1}' > "$work/.obsidian/app.json"
+snap() { (cd "$work" && find notes .obsidian -type f -print0 2>/dev/null | sort -z | xargs -0 -r sha256sum); }
+before=$(snap)
+rm -rf "$work/graphify-out"
+out=$(cd "$work" && env "${quiet[@]}" HOME="$tmp/home" bash "$vault" 2>&1); rc=$?
+check vault_no_graphify '[ "$rc" != 0 ] && grep -q "graphify not found" <<<"$out" && [ ! -e "$work/graphify-out" ] &&
+  [ -z "$(git -C "$work" status --porcelain)" ] && [ "$(snap)" = "$before" ]'
+if g=$(command -v graphify); then
+  out=$(cd "$work" && env "${blocked[@]}" PATH="${g%/*}:/usr/bin:/bin" HOME="$tmp/home" bash "$vault" 2>&1); rc=$?
+  check vault_clean '[ "$rc" = 0 ] && [ -f "$work/graphify-out/obsidian/ctx_probe_node.md" ] &&
+    [ -z "$(git -C "$work" status --porcelain)" ] && [ "$(snap)" = "$before" ] && [ -n "$before" ]'
+else
+  echo "SKIP vault_clean (graphify not installed)"
+fi
+
 exit $failed

@@ -20,6 +20,7 @@ mkdir -p "${log%/*}" || exit 0
 exec 9>"${log%/*}/job.lock"
 if command -v flock >/dev/null && ! flock -n 9; then exit 0; fi
 : >"$log" || exit 0
+hooks=$(cd "$(dirname "$0")" && pwd)
 cd "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null
 
 # step NAME COMMAND...: runs the command, logs "ok" or "failed (<its error line>)"
@@ -49,21 +50,9 @@ register_openwiki() {
   s=$(openwiki integrations list --project . | grep '^claude')
   [[ $s == claude$'\t'installed* ]] || { echo "openwiki reports: ${s:-no claude status}" | tr '\t' ' '; return 1; }
 }
-fetch_graph() {
-  local f
-  git fetch --quiet origin context-data || return
-  mkdir -p graphify-out || return
-  for f in graph.json GRAPH_REPORT.md meta.json; do
-    git show "FETCH_HEAD:$f" >"graphify-out/.$f.tmp" || return
-  done
-  for f in graph.json GRAPH_REPORT.md meta.json; do
-    mv "graphify-out/.$f.tmp" "graphify-out/$f" || return
-  done
-}
 
 step install-graphify install_graphify
 step install-openwiki install_openwiki
 step register-openwiki register_openwiki
-step fetch-graph fetch_graph
-rm -f graphify-out/.*.tmp
+step fetch-graph bash "$hooks/fetch-graph.sh"
 exit 0
