@@ -24,5 +24,5 @@ export function useResume() {
     }
   }
 
-  return { busyId, error, resume };
+  return { busyId, error, resume, clearError: () => setError(null) };
 }

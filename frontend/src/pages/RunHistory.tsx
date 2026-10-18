@@ -1,6 +1,6 @@
 import { canResumeRun, isTrialRun, RUN_TYPE_LABEL, runTypeLabel, TRIAL_TITLE, when } from "../lib/runs";
 import { FileLink } from "../components/FileLink";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useResume } from "../lib/useResume";
 import type { ReviewableRunKind, RunManifest } from "../types";
@@ -19,12 +19,16 @@ export function RunHistory({ onOpenReview }: Props = {}) {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [filter, setFilter] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
-  const { busyId, error: resumeError, resume } = useResume();
+  const { busyId, error: resumeError, resume, clearError } = useResume();
+  // The reload after a resume must use the filter current when it runs, not the click's render.
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
 
   async function load() {
     setError(null);
+    clearError();
     try {
-      const res = (await api.listRuns(filter || undefined)) as { runs: RunManifest[] };
+      const res = (await api.listRuns(filterRef.current || undefined)) as { runs: RunManifest[] };
       setRuns(res.runs);
     } catch (err) {
       setError(`Runs could not be loaded: ${(err as Error).message}.`);
