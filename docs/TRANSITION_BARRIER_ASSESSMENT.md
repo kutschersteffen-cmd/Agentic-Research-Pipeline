@@ -60,6 +60,33 @@ Sector coverage: Power & Utilities (5), Steel (5), Cement (5), Chemicals (4),
 Critical Minerals & Mining (4), Aviation (3), Shipping (3), Heavy-Duty Road Transport (3),
 Oil & Gas Upstream (3).
 
+## How a rating is derived
+
+A rating comes from four steps:
+
+1. **Rule book.** `backend/arp/transition_barrier/data/rule_book.json` holds, per criterion,
+   the facts the rating needs, the H/M/L conditions over those facts, and each threshold with
+   its source. Thresholds without a defensible source stay open, with the question stated.
+   Read it as [`RULE_BOOK.md`](transition_barrier/RULE_BOOK.md); what version 1 would change
+   against today's ratings is in [`RULE_BOOK_V1_IMPACT.md`](transition_barrier/RULE_BOOK_V1_IMPACT.md).
+   The H/M/L rubrics shown by the API, the CLI and the Word report are rendered from it.
+2. **Facts.** Each fact is a figure or a yes/no for one region, taken from a registry source
+   with a quote and a confidence.
+3. **Engine (phase 2).** Applies the conditions to the facts and proposes a rating. Until it
+   ships, the bundled ratings are hand ratings from 2026-08-14.
+4. **Ratification.** A person accepts or rejects the proposed rating; nothing changes a
+   rating without that step.
+
+```bash
+arp transition-barrier rules validate                      # check the rule book against the criteria schema
+arp transition-barrier rules sign --approved-by "<name>"   # bump the version and re-fingerprint after an edit
+arp transition-barrier rules render --out docs/transition_barrier/RULE_BOOK.md
+arp transition-barrier export --out /tmp/barrier_export.json   # criteria, scores and sources as JSON
+```
+
+The rubric tables in the appendix below are the wording from before the rule book, kept for
+reference; `RULE_BOOK.md` is current.
+
 ## What the matrix currently says
 
 Across all 105 cells: **24 H · 49 M · 32 L**. By region:
@@ -121,8 +148,8 @@ cell was verified on 2026-08-14, so the matrix tips into stale on **2028-02-13**
 The design is a five-stage flow — Source Router → Retriever → Extractor → Rater →
 Reconciler. **What is built today is the first slice: EUR-Lex legal sources only.**
 
-`GET /api/transition-barrier/refresh/coverage` reports this honestly: **15 of 86 sources**
-are automatable, 71 still require manual verification. The router returns a reason for every
+`GET /api/transition-barrier/refresh/coverage` reports this honestly: **15 of 89 sources**
+are automatable, 74 still require manual verification. The router returns a reason for every
 source it cannot handle rather than silently skipping it.
 
 EUR-Lex was chosen first because it is the only category with genuinely stable identifiers:
@@ -146,11 +173,11 @@ Not an oversight — most of them genuinely resist it:
   not documented REST APIs. `backend/scripts/investigate_structured_sources.py` probes each
   one and reports what automated retrieval would actually mean. Run it before writing any
   retriever for them.
-- **`periodic_pdf_report` (27).** Annual PDFs where the `locator` field is the extraction
+- **`periodic_pdf_report` (29).** Annual PDFs where the `locator` field is the extraction
   instruction — the natural place for an LLM extraction step, once the EUR-Lex loop is proven.
 - **`government_agency_publication` (21).** The weakest single-source reliability, especially
   for non-English sources.
-- **`industry_tracker_database` (10).** Mostly subscription or session-gated.
+- **`industry_tracker_database` (11).** Mostly subscription or session-gated.
 - **`company_disclosure` (7).** Deliberately **never** auto-extracted — discovery and triage
   only, surfacing new filings to a human. These are the 7 sources with no fixed URL, because
   which company matters depends on who is being assessed.
@@ -175,9 +202,13 @@ tables, rendered landscape with the H/M/L rubrics colour-coded — lives at
 It is generated from the same JSON, so it cannot drift from the data:
 
 ```bash
-npm install docx adm-zip
-node scripts/build_transition_barrier_report.js docs/transition_barrier/Transition_Barrier_Assessment_Report.docx
+npm install docx adm-zip        # in a scratch directory, not the repo's package.json
+arp transition-barrier export --out /tmp/barrier_export.json
+node scripts/build_transition_barrier_report.js docs/transition_barrier/Transition_Barrier_Assessment_Report.docx /tmp/barrier_export.json
 ```
+
+The script reads only the export, so the rubrics in the report are the ones the rule book
+renders.
 
 Regenerate it whenever the bundled data changes.
 
@@ -191,18 +222,14 @@ derived view.
 
 Recorded rather than silently patched:
 
-- **Two source URLs look copy-pasted from a neighbouring entry** and have been left as-is
-  rather than guessed at: `US_SAF_Grand_Challenge_IRA_40B_tax_credit` points at
-  `sustainability.gov/buyclean` (the Buy Clean entry's URL), and `IEA_CCUS_Projects_Database`
-  points at `co2re.co` (the Global CCS Institute's URL). Both need a human to re-source.
-- **95 criterion-source links dedupe to 86 registry entries.** The registry keeps
+- **102 criterion-source links dedupe to 89 registry entries.** The registry keeps
   per-criterion duplicates for company disclosures rather than sharing one key.
 - **Source count corrected from 7 to 6** for `structured_api_or_dashboard`. The original
   notes claimed 7 and named an `LSE_Grantham_CCLW` entry that does not exist in the registry;
   the corresponding dead entry has been removed from the investigation script.
 - **Criterion codes normalised to hyphens.** Shipping originally used underscores
   (`SHP_T1`); all 35 now match `^[A-Z]{3}-[TRD]\d+$`, pinned by a Pydantic pattern and a test.
-- **7 of 95 source entries carry no URL.** These are the `company_disclosure` entries, which
+- **7 of 102 source entries carry no URL.** These are the `company_disclosure` entries, which
   correctly record a retrieval methodology instead.
 
 ---
@@ -389,7 +416,11 @@ Recorded rather than silently patched:
 
 ---
 
-### The 86 sources
+### The 89 sources
+
+A source marked _manual_ cannot be fetched as a document (subscription, dashboard, company
+disclosure or a site that blocks automated requests); the reason is its `manual_reason` in
+`criteria_schema.json`.
 
 
 #### Legal / regulatory text (15)
@@ -407,103 +438,106 @@ Recorded rather than silently patched:
 | EU ETS free allocation benchmarks - chemicals subsectors | European Commission DG CLIMA | `CHM-R1` | annual (benchmark periods run in multi-year blocks; check for new implementing regulation at each period start) | [link](https://eur-lex.europa.eu/eli/reg_impl/2021/447/2026-03-18/eng) |
 | EU ETS free allocation benchmarks - steel | European Commission DG CLIMA | `STL-R1` | annual (benchmark periods run in multi-year blocks; check for new implementing regulation at each period start) | [link](https://eur-lex.europa.eu/eli/reg_impl/2021/447/2026-03-18/eng) |
 | EU ETS Maritime inclusion (Directive 2023/959) | Official Journal of the European Union | `SHP-R1` | quarterly | [link](https://eur-lex.europa.eu/eli/dir/2023/959/oj) |
-| EU FuelEU Maritime Regulation (2023/1805) | Official Journal of the European Union | `SHP-R1` | quarterly | [link](https://eur-lex.europa.eu/legal-content/en/LSU/?uri=CELEX%3A32023R1805) |
+| EU FuelEU Maritime Regulation (2023/1805) | Official Journal of the European Union | `SHP-R1` | quarterly | [link](https://eur-lex.europa.eu/eli/reg/2023/1805/oj/eng) |
 | EU Methane Regulation (2024/1787) | Official Journal of the European Union | `OGU-R1` | quarterly | [link](https://eur-lex.europa.eu/eli/reg/2024/1787/oj/eng) |
 | EU ReFuelEU Aviation Regulation (2023/2405) | Official Journal of the European Union | `AVI-R1` | quarterly | [link](https://eur-lex.europa.eu/eli/reg/2023/2405/oj) |
-| EU REPowerEU / Fit for 55 targets | European Commission | `PWR-R2` | quarterly | [link](https://eur-lex.europa.eu/eli/dir/2018/2001/oj) |
+| EU REPowerEU / Fit for 55 targets | European Commission | `PWR-R2` | quarterly | [link](https://eur-lex.europa.eu/eli/dir/2023/2413/oj/eng) |
 
 #### Structured API or dashboard (6)
 
 | Source | Publisher | Criteria | Refresh cadence | URL |
 | --- | --- | --- | --- | --- |
-| China national ETS price | Shanghai Environment and Energy Exchange | `PWR-R1` | continuous | [link](https://www.cneeex.com/) |
-| EU ETS carbon price | European Energy Exchange (EEX) / European Commission | `PWR-R1` | continuous / check at each review cycle | [link](https://www.eex.com/en/market-data/environmental-markets/spot-market) |
-| NGFS Climate Scenarios | Network for Greening the Financial System (127 central banks and supervisors), hosted by IIASA | `CEM-R1`, `CHM-R1`, `PWR-R1`, `STL-R1` | new phase roughly every 12-18 months (Phase 5 released Nov 2024; short-term scenarios added May 2025) | [link](https://www.ngfs.net/ngfs-scenarios-portal/data-resources/) |
-| US National Electric Vehicle Infrastructure / DOE Alternative Fuels Data Center | US Department of Energy | `HDT-D1` | continuously updated | [link](https://afdc.energy.gov/) |
-| USGS Mineral Commodity Summaries | United States Geological Survey | `MIN-D1` | annual, published January/February; data-only releases also available via data.usgs.gov by commodity | [link](https://www.usgs.gov/publications/mineral-commodity-summaries-2025) |
-| World Bank Carbon Pricing Dashboard | World Bank Group | `PWR-R1` | continuous; annual report each spring | [link](https://carbonpricingdashboard.worldbank.org/) |
+| China national ETS price | Shanghai Environment and Energy Exchange | `PWR-R1` | continuous | [link](https://www.cneeex.com/), _manual_ |
+| EU ETS carbon price | European Energy Exchange (EEX) / European Commission | `PWR-R1` | continuous / check at each review cycle | [link](https://www.eex.com/en/market-data/environmental-markets/spot-market), _manual_ |
+| NGFS Climate Scenarios | Network for Greening the Financial System (127 central banks and supervisors), hosted by IIASA | `CEM-R1`, `CHM-R1`, `PWR-R1`, `STL-R1` | new phase roughly every 12-18 months (Phase 5 released Nov 2024; short-term scenarios added May 2025) | [link](https://www.ngfs.net/ngfs-scenarios-portal/data-resources/), _manual_ |
+| US National Electric Vehicle Infrastructure / DOE Alternative Fuels Data Center | US Department of Energy | `HDT-D1` | continuously updated | [link](https://afdc.energy.gov/), _manual_ |
+| USGS Mineral Commodity Summaries | United States Geological Survey | `MIN-D1` | annual, published January/February; data-only releases also available via data.usgs.gov by commodity | [link](https://pubs.usgs.gov/periodicals/mcs2025/mcs2025.pdf) |
+| World Bank Carbon Pricing Dashboard | World Bank Group | `PWR-R1` | continuous; annual report each spring | [link](https://carbonpricingdashboard.worldbank.org/), _manual_ |
 
-#### Industry tracker / database (10)
-
-| Source | Publisher | Criteria | Refresh cadence | URL |
-| --- | --- | --- | --- | --- |
-| China charging infrastructure statistics | China Electric Vehicle Charging Infrastructure Promotion Alliance | `HDT-D1` | monthly, publisher updates | [link](http://www.evcipa.org.cn/) |
-| Clarksons Research World Fleet Register | Clarksons Research | `SHP-T1` | continuous (subscription required for full access) | [link](https://www.clarksons.net/wfr/) |
-| DNV Alternative Fuels Insight platform | DNV | `SHP-T1` | continuously updated by publisher | [link](https://afi.dnv.com/) |
-| First Movers Coalition Cement & Concrete commitments | World Economic Forum / US State Department | `CEM-D1` | annual, updated at major COP/WEF events | [link](https://www.weforum.org/communities/first-movers-coalition/) |
-| Getting to Zero Coalition Green Corridors tracker | Global Maritime Forum | `SHP-D1` | check semi-annually | [link](https://www.globalmaritimeforum.org/green-corridors) |
-| Global CCS Institute CO2RE database | Global CCS Institute | `CEM-T1` | continuously updated by publisher; check quarterly | [link](https://co2re.co/FacilityData) |
-| Global Cement and Concrete Association (GCCA) sustainability data | GCCA | `CEM-T2` | annual | [link](https://gccassociation.org/sustainability-innovation/gnr-gcca-in-numbers/) |
-| IEA CCUS Projects Database | International Energy Agency | `CEM-T1` | continuously updated by publisher; check quarterly | [link](https://co2re.co/FacilityData) |
-| Oil and Gas Methane Partnership (OGMP 2.0) reporting | United Nations Environment Programme | `OGU-T1` | annual | [link](https://www.ogmpartnership.com/) |
-| S&P Global Market Intelligence - Metals & Mining | S&P Global | `MIN-T1` | continuous | [link](https://www.spglobal.com/marketintelligence/en/sector/metals-mining) |
-
-#### Periodic PDF report (27)
+#### Industry tracker / database (11)
 
 | Source | Publisher | Criteria | Refresh cadence | URL |
 | --- | --- | --- | --- | --- |
-| BloombergNEF Corporate Energy Market Outlook | BloombergNEF | `PWR-D1` | varies by report series, generally annual | [link](https://about.bnef.com/) |
-| BloombergNEF Energy Storage Outlook | BloombergNEF | `PWR-T2` | varies by report series, generally annual | [link](https://about.bnef.com/) |
-| BloombergNEF Green Steel Tracker / Premium report | BloombergNEF | `STL-D1` | varies by report series, generally annual | [link](https://about.bnef.com/) |
-| BloombergNEF Hydrogen Levelized Cost Report | BloombergNEF | `STL-T1` | varies by report series, generally annual | [link](https://about.bnef.com/) |
-| IATA SAF price tracking | International Air Transport Association | `AVI-D1` | periodic, check quarterly | [link](https://www.iata.org/en/programs/environment/sustainable-aviation-fuels/) |
-| IATA Sustainable Aviation Fuel Fact Sheet / SAF Tracker | International Air Transport Association | `AVI-T1` | annual, with interim updates | [link](https://www.iata.org/en/iata-repository/publications/economic-reports/sustainable-aviation-fuel-fact-sheet/) |
-| ICCT Total Cost of Ownership analyses | International Council on Clean Transportation | `HDT-T1` | annual, check for new regional TCO updates | [link](https://theicct.org/publications/) |
-| IEA Aviation tracking report | International Energy Agency | `AVI-T1` | annual, typically published October | [link](https://www.iea.org/reports/world-energy-outlook-2024) |
-| IEA Cement Technology Roadmap | International Energy Agency | `CEM-T2` | annual | [link](https://www.iea.org/energy-system/industry/cement) |
-| IEA Critical Minerals Outlook | International Energy Agency | `MIN-T1` | annual | [link](https://www.iea.org/reports/global-critical-minerals-outlook-2024) |
-| IEA Critical Minerals Outlook - demand-supply gap tables | International Energy Agency | `MIN-D1` | annual | [link](https://www.iea.org/reports/global-critical-minerals-outlook-2024) |
-| IEA Energy Storage | International Energy Agency | `PWR-T2` | annual | [link](https://www.iea.org/energy-system/electricity/grid-scale-storage) |
-| IEA Global EV Outlook - heavy-duty vehicles chapter | International Energy Agency | `HDT-T1` | annual, typically published October | [link](https://www.iea.org/reports/world-energy-outlook-2024) |
-| IEA Global Hydrogen Review | International Energy Agency | `CHM-T1`, `STL-T1` | annual, typically published October | [link](https://www.iea.org/reports/global-hydrogen-review-2024) |
-| IEA Methane Tracker | International Energy Agency | `OGU-T1` | annual, typically published March | [link](https://www.iea.org/reports/global-methane-tracker-2025) |
-| IEA Renewables market report | International Energy Agency | `PWR-R2` | annual, typically published October | [link](https://www.iea.org/reports/renewables-2024) |
-| IEA The Future of Petrochemicals | International Energy Agency | `CHM-T1`, `CHM-T2` | annual, typically published October | [link](https://www.iea.org/reports/world-energy-outlook-2024) |
-| IEA World Energy Investment | International Energy Agency | `PWR-T1` | annual, typically published June | [link](https://www.iea.org/reports/world-energy-investment-2025) |
-| IEA World Energy Outlook - regional demand scenarios | International Energy Agency | `OGU-D1` | annual, typically published October | [link](https://www.iea.org/reports/world-energy-outlook-2024) |
-| IRENA Renewable Power Generation Costs | International Renewable Energy Agency | `PWR-T1` | annual, typically published September | [link](https://www.irena.org/Publications/2024/Sep/Renewable-Power-Generation-Costs-in-2023) |
-| Lazard Levelized Cost of Energy Analysis | Lazard | `PWR-T1` | annual | [link](https://www.lazard.com/research-insights/levelized-cost-of-energyplus/) |
-| Mission Possible Partnership Steel sector tracker | Mission Possible Partnership | `STL-D1` | annual, but publication timing is less regular than IEA/IRENA | [link](https://missionpossiblepartnership.org/publications/) |
-| Mission Possible Partnership Steel Transition Strategy | Mission Possible Partnership / Energy Transitions Commission | `STL-T1` | annual, but publication timing is less regular than IEA/IRENA | [link](https://missionpossiblepartnership.org/publications/) |
-| Mission Possible: Reaching Net-Zero Carbon Emissions from Harder-to-Abate Sectors | Energy Transitions Commission (ETC) | `AVI-T1`, `CEM-T1`, `CHM-T1`, `SHP-T1`, `STL-T1` | irregular — ETC publishes updates and sector-specific follow-ons rather than a fixed annual cycle; check publications page each review | [link](https://www.energy-transitions.org/publications/mission-possible/) |
-| OECD Steel Market Developments | OECD Steel Committee | `STL-T2` | semi-annual | [link](https://www.oecd.org/en/topics/sub-issues/steel-market-developments.html) |
-| RE100 Annual Report | Climate Group / CDP | `PWR-D1` | annual | [link](https://www.there100.org/re100-progress-and-insights-annual-report) |
-| World Steel Association Steel Statistical Yearbook | World Steel Association (worldsteel) | `STL-T2` | annual | [link](https://worldsteel.org/data/world-steel-in-figures/) |
+| China charging infrastructure statistics | China Electric Vehicle Charging Infrastructure Promotion Alliance | `HDT-D1` | monthly, publisher updates | [link](http://www.evcipa.org.cn/), _manual_ |
+| Clarksons Research World Fleet Register | Clarksons Research | `SHP-T1` | continuous (subscription required for full access) | [link](https://www.clarksons.net/wfr/), _manual_ |
+| DNV Alternative Fuels Insight platform | DNV | `SHP-T1` | continuously updated by publisher | [link](https://afi.dnv.com/), _manual_ |
+| First Movers Coalition Cement & Concrete commitments | World Economic Forum / US State Department | `CEM-D1` | annual, updated at major COP/WEF events | [link](https://initiatives.weforum.org/first-movers-coalition/commitments), _manual_ |
+| Getting to Zero Coalition Green Corridors tracker | Global Maritime Forum | `SHP-D1` | check semi-annually | [link](https://assets.ctfassets.net/gk3lrimlph5v/7zsVf5G9wzNPhEjFPjCrFC/f2918a81c76b734952c6ed4024ef42d9/Annual_progress_report_on_green_shipping_corridors_2025.pdf) |
+| Global CCS Institute CO2RE database | Global CCS Institute | `CEM-T1` | continuously updated by publisher; check quarterly | [link](https://co2re.co/FacilityData), _manual_ |
+| Global Cement and Concrete Association (GCCA) sustainability data | GCCA | `CEM-T2` | annual | [link](https://gccassociation.org/gnr/), _manual_ |
+| ICAP ETS factsheet: China National ETS | International Carbon Action Partnership (ICAP) | `CEM-R1`, `PWR-R1`, `STL-R1` | annual, updated with the ICAP Status Report (spring), with news items between editions | [link](https://icapcarbonaction.com/en/ets/china-national-ets) |
+| IEA CCUS Projects Database | International Energy Agency | `CEM-T1` | continuously updated by publisher; check quarterly | [link](https://www.iea.org/data-and-statistics/data-product/ccus-projects-database), _manual_ |
+| Oil and Gas Methane Partnership (OGMP 2.0) reporting | United Nations Environment Programme | `OGU-T1` | annual | [link](https://www.unep.org/resources/eye-methane-2025), _manual_ |
+| S&P Global Market Intelligence - Metals & Mining | S&P Global | `MIN-T1` | continuous | [link](https://www.spglobal.com/marketintelligence/en/sector/metals-mining), _manual_ |
+
+#### Periodic PDF report (29)
+
+| Source | Publisher | Criteria | Refresh cadence | URL |
+| --- | --- | --- | --- | --- |
+| BloombergNEF Corporate Energy Market Outlook | BloombergNEF | `PWR-D1` | varies by report series, generally annual | [link](https://about.bnef.com/), _manual_ |
+| BloombergNEF Energy Storage Outlook | BloombergNEF | `PWR-T2` | varies by report series, generally annual | [link](https://about.bnef.com/), _manual_ |
+| BloombergNEF Green Steel Tracker / Premium report | BloombergNEF | `STL-D1` | varies by report series, generally annual | [link](https://about.bnef.com/), _manual_ |
+| BloombergNEF Hydrogen Levelized Cost Report | BloombergNEF | `STL-T1` | varies by report series, generally annual | [link](https://about.bnef.com/), _manual_ |
+| IATA SAF price tracking | International Air Transport Association | `AVI-D1` | periodic, check quarterly | [link](https://www.iata.org/en/programs/environment/sustainable-aviation-fuels/), _manual_ |
+| IATA Sustainable Aviation Fuel Fact Sheet / SAF Tracker | International Air Transport Association | `AVI-T1` | annual, with interim updates | [link](https://www.iata.org/en/iata-repository/pressroom/fact-sheets/fact-sheet-sustainable-aviation-fuels/) |
+| ICCT Total Cost of Ownership analyses | International Council on Clean Transportation | `HDT-T1` | annual, check for new regional TCO updates | [link](https://theicct.org/publications/), _manual_ |
+| IEA Aviation tracking report | International Energy Agency | `AVI-T1` | annual | [link](https://www.iea.org/energy-system/transport/aviation), _manual_ |
+| IEA Cement Technology Roadmap | International Energy Agency | `CEM-T2` | annual | [link](https://www.iea.org/energy-system/industry/cement), _manual_ |
+| IEA Critical Minerals Outlook | International Energy Agency | `MIN-T1` | annual | [link](https://www.iea.org/reports/global-critical-minerals-outlook-2024), _manual_ |
+| IEA Critical Minerals Outlook - demand-supply gap tables | International Energy Agency | `MIN-D1` | annual | [link](https://www.iea.org/reports/global-critical-minerals-outlook-2024), _manual_ |
+| IEA Energy Storage | International Energy Agency | `PWR-T2` | annual | [link](https://www.iea.org/energy-system/electricity/grid-scale-storage), _manual_ |
+| IEA Global EV Outlook - heavy-duty vehicles chapter | International Energy Agency | `HDT-T1` | annual, typically published in spring (May in 2025) | [link](https://www.iea.org/reports/global-ev-outlook-2025), _manual_ |
+| IEA Global Hydrogen Review | International Energy Agency | `CHM-T1`, `STL-T1` | annual, typically published October | [link](https://www.iea.org/reports/global-hydrogen-review-2024), _manual_ |
+| IEA Methane Tracker | International Energy Agency | `OGU-T1` | annual, typically published March | [link](https://www.iea.org/reports/global-methane-tracker-2025), _manual_ |
+| IEA Renewables market report | International Energy Agency | `PWR-R2` | annual, typically published October | [link](https://www.iea.org/reports/renewables-2024), _manual_ |
+| IEA The Future of Petrochemicals | International Energy Agency | `CHM-T1`, `CHM-T2` | one-off report (October 2018) | [link](https://www.iea.org/reports/the-future-of-petrochemicals), _manual_ |
+| IEA World Energy Investment | International Energy Agency | `PWR-T1` | annual, typically published June | [link](https://www.iea.org/reports/world-energy-investment-2025), _manual_ |
+| IEA World Energy Outlook - regional demand scenarios | International Energy Agency | `OGU-D1` | annual, typically published October | [link](https://www.iea.org/reports/world-energy-outlook-2024), _manual_ |
+| IEEFA: China's emissions trading system (ETS) reforms: On track, but needs robust enforcement | Institute for Energy Economics and Financial Analysis (IEEFA) | `CEM-R1`, `STL-R1` | one-off report (3 November 2025) | [link](https://ieefa.org/resources/chinas-emissions-trading-system-ets-reforms-track-needs-robust-enforcement), _manual_ |
+| IRENA Renewable Power Generation Costs | International Renewable Energy Agency | `PWR-T1` | annual, typically published September | [link](https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2024/Sep/IRENA_Renewable_power_generation_costs_in_2023.pdf) |
+| Lazard Levelized Cost of Energy Analysis | Lazard | `PWR-T1` | annual | [link](https://www.lazard.com/media/kcfconhf/lazards-lcoeplus_vf.pdf) |
+| Mission Possible Partnership Steel sector tracker | Mission Possible Partnership | `STL-D1` | annual, but publication timing is less regular than IEA/IRENA | [link](https://missionpossiblepartnership.org/tracker), _manual_ |
+| Mission Possible Partnership Steel Transition Strategy | Mission Possible Partnership / Energy Transitions Commission | `STL-T1` | annual, but publication timing is less regular than IEA/IRENA | [link](https://www.energy-transitions.org/wp-content/uploads/2022/09/Making-Net-Zero-Steel-possible.pdf) |
+| Mission Possible: Reaching Net-Zero Carbon Emissions from Harder-to-Abate Sectors | Energy Transitions Commission (ETC) | `AVI-T1`, `CEM-T1`, `CHM-T1`, `SHP-T1`, `STL-T1` | irregular — ETC publishes updates and sector-specific follow-ons rather than a fixed annual cycle; check publications page each review | [link](https://www.energy-transitions.org/wp-content/uploads/2020/08/ETC_MissionPossible_FullReport.pdf) |
+| OECD Steel Market Developments | OECD Steel Committee | `STL-T2` | semi-annual | [link](https://www.oecd.org/en/topics/sub-issues/steel-market-developments.html), _manual_ |
+| RE100 Annual Report | Climate Group / CDP | `PWR-D1` | annual | [link](https://www.theclimategroup.org/hubfs/2024%20RE100%20Annual%20disclosure%20report%20(3)%20(1).pdf) |
+| Transition Asia: Steel Enters China's National Emissions Trading Scheme | Transition Asia | `STL-R1` | one-off brief (March 2025) | [link](https://transitionasia.org/wp-content/uploads/2025/03/EN_Steel-Enters-China-ETS.pdf) |
+| World Steel Association Steel Statistical Yearbook | World Steel Association (worldsteel) | `STL-T2` | annual | [link](https://worldsteel.org/wp-content/uploads/World-Steel-in-Figures-2026.pdf) |
 
 #### Government agency publication (21)
 
 | Source | Publisher | Criteria | Refresh cadence | URL |
 | --- | --- | --- | --- | --- |
 | California Advanced Clean Fleets / Advanced Clean Trucks regulation | California Air Resources Board | `HDT-R1` | monitor closely given ongoing litigation/waiver status | [link](https://ww2.arb.ca.gov/our-work/programs/advanced-clean-fleets) |
-| China industrial decarbonisation funding programmes | National Development and Reform Commission (China) | `CEM-R2` | quarterly given active expansion phase | [link](https://www.mee.gov.cn/) |
-| China methane control action plan | Ministry of Ecology and Environment (China) | `OGU-R1` | annual | [link](https://www.mee.gov.cn/) |
-| China Ministry of Natural Resources mining approval process | Ministry of Natural Resources (China) | `MIN-R1` | annual | [link](https://www.mnr.gov.cn/) |
-| China national ETS sector coverage roadmap | Ministry of Ecology and Environment (China) | `STL-R1` | quarterly given active expansion phase | [link](https://www.mee.gov.cn/) |
-| China NEA renewable targets | National Energy Administration (China) | `PWR-R2` | quarterly | [link](https://www.nea.gov.cn/) |
-| China NEV mandate - commercial vehicles | Ministry of Industry and Information Technology (China) | `HDT-R1` | annual | [link](https://www.miit.gov.cn/) |
-| EU Green Public Procurement - construction criteria | European Commission DG ENV | `CEM-D1` | annual, criteria updated periodically per sector | [link](https://green-business.ec.europa.eu/green-public-procurement_en) |
-| EU Green Public Procurement criteria - construction | European Commission DG ENV | `STL-R2` | annual, criteria updated periodically per sector | [link](https://green-business.ec.europa.eu/green-public-procurement_en) |
-| EU Innovation Fund award decisions | European Climate, Infrastructure and Environment Executive Agency (CINEA) | `CEM-R2` | per call round (roughly annual) | [link](https://cinea.ec.europa.eu/programmes/innovation-fund_en) |
-| ICAO CORSIA scheme status | International Civil Aviation Organization | `AVI-R1` | annual, check ahead of each phase transition | [link](https://www.icao.int/environmental-protection/CORSIA/Pages/state-pairs.aspx) |
+| China industrial decarbonisation funding programmes | National Development and Reform Commission (China) | `CEM-R2` | quarterly given active expansion phase | [link](https://www.ndrc.gov.cn/), _manual_ |
+| China methane control action plan | Ministry of Ecology and Environment (China) | `OGU-R1` | annual | [link](https://www.mee.gov.cn/xxgk2018/xxgk/xxgk03/202311/W020231107750707766959.pdf) |
+| China Ministry of Natural Resources mining approval process | Ministry of Natural Resources (China) | `MIN-R1` | annual | [link](https://www.mnr.gov.cn/), _manual_ |
+| China national ETS sector coverage roadmap | Ministry of Ecology and Environment (China) | `CEM-R1`, `STL-R1` | quarterly given active expansion phase | [link](https://www.mee.gov.cn/xxgk2018/xxgk/xxgk03/202511/W020251118634892868994.pdf) |
+| China NEA renewable targets | National Energy Administration (China) | `PWR-R2` | quarterly | [link](https://www.ndrc.gov.cn/xxgk/zcfb/ghwb/202206/P020220602315308557623.pdf) |
+| China NEV mandate - commercial vehicles | Ministry of Industry and Information Technology (China) | `HDT-R1` | annual | [link](https://www.gov.cn/zhengce/zhengceku/2020-06/22/content_5521144.htm) |
+| EU Green Public Procurement - construction criteria | European Commission DG ENV | `CEM-D1` | annual, criteria updated periodically per sector | [link](https://circabc.europa.eu/rest/download/862af61d-a410-4baa-a7b9-22273623db57) |
+| EU Green Public Procurement criteria - construction | European Commission DG ENV | `STL-R2` | annual, criteria updated periodically per sector | [link](https://circabc.europa.eu/rest/download/862af61d-a410-4baa-a7b9-22273623db57) |
+| EU Innovation Fund award decisions | European Climate, Infrastructure and Environment Executive Agency (CINEA) | `CEM-R2` | per call round (roughly annual) | [link](https://cinea.ec.europa.eu/programmes/innovation-fund/innovation-fund-project-portfolio-dashboard_en), _manual_ |
+| ICAO CORSIA scheme status | International Civil Aviation Organization | `AVI-R1` | annual, check ahead of each phase transition | [link](https://www.icao.int/corsia-state-pairs), _manual_ |
 | IMO GHG Strategy implementation tracker | International Maritime Organization | `CHM-D1` | check ahead of each MEPC session (roughly biannual) for mid-term measures progress | [link](https://www.imo.org/en/OurWork/Environment/Pages/2023-IMO-Strategy-on-Reduction-of-GHG-Emissions-from-Ships.aspx) |
 | IMO Revised GHG Strategy and mid-term measures | International Maritime Organization | `SHP-R1` | check ahead of each MEPC session (roughly biannual) for mid-term measures progress | [link](https://www.imo.org/en/OurWork/Environment/Pages/2023-IMO-Strategy-on-Reduction-of-GHG-Emissions-from-Ships.aspx) |
-| National/state building codes register | Various national standards bodies | `STL-R2` | annual, varies significantly by jurisdiction | [link](https://www.iccsafe.org/) |
+| National/state building codes register | Various national standards bodies | `STL-R2` | annual, varies significantly by jurisdiction | [link](https://www.iccsafe.org/), _manual_ |
 | US DOE Industrial Demonstrations Program awards | US Department of Energy | `CEM-R2` | monitor closely for continuity under current administration | [link](https://www.energy.gov/oced/industrial-demonstrations-program) |
-| US EPA Heavy-Duty Phase 3 GHG standards | US Environmental Protection Agency | `HDT-R1` | monitor closely given litigation risk | [link](https://www.epa.gov/regulations-emissions-vehicles-and-engines/final-rule-greenhouse-gas-emissions-standards-heavy) |
+| US EPA Heavy-Duty Phase 3 GHG standards | US Environmental Protection Agency | `HDT-R1` | monitor closely given litigation risk | [link](https://www.federalregister.gov/documents/2024/04/22/2024-06809/greenhouse-gas-emissions-standards-for-heavy-duty-vehicles-phase-3) |
 | US EPA Methane Emissions Reduction Program / Waste Emissions Charge (IRA) | US Environmental Protection Agency | `OGU-R1` | monitor closely | [link](https://www.federalregister.gov/documents/2025/05/19/2025-08688/congressional-review-act-revocation-of-waste-emissions-charge-for-petroleum-and-natural-gas-systems) |
-| US Federal Buy Clean Initiative | US General Services Administration / EPA | `STL-R2` | annual, monitor for continuity under current administration priorities | [link](https://www.sustainability.gov/buyclean/) |
-| US Fixing America's Surface Transportation Act / permitting reform tracker | US Department of Interior / Congressional Research Service | `MIN-R1` | monitor closely given active legislative attention | [link](https://www.congress.gov/bill/118th-congress/house-bill/1) |
+| US Federal Buy Clean Initiative | US General Services Administration / EPA | `STL-R2` | annual, monitor for continuity under current administration priorities | [link](https://sustainability.gov/pdfs/federal-buy-clean-initiative_progress-and-path-forward.pdf) |
+| US Fixing America's Surface Transportation Act / permitting reform tracker | US Department of Interior / Congressional Research Service | `MIN-R1` | monitor closely given active legislative attention | [link](https://www.congress.gov/bill/118th-congress/house-bill/1), _manual_ |
 | US Inflation Reduction Act Section 30D critical minerals requirements | US Internal Revenue Service / US Treasury | `MIN-R2` | monitor closely — credit status changed materially in 2025 | [link](https://www.energy.gov/mesc/30d-new-clean-vehicle-credit) |
-| US SAF Grand Challenge / IRA 40B tax credit | US Department of Energy / US Treasury | `AVI-R1` | annual, monitor for continuity under current administration priorities | [link](https://www.sustainability.gov/buyclean/) |
+| US SAF Grand Challenge / IRA 40B tax credit | US Department of Energy / US Treasury | `AVI-R1` | annual, monitor for continuity under current administration priorities | [link](https://www.energy.gov/sites/default/files/2022-09/beto-saf-gc-roadmap-report-sept-2022.pdf) |
 
 #### Company disclosure (7)
 
 | Source | Publisher | Criteria | Refresh cadence | URL |
 | --- | --- | --- | --- | --- |
-| Company disclosures | Airlines and SAF producers | `AVI-D1` | per company reporting cycle (typically annual, some quarterly) | _varies by company_ |
-| Company disclosures | e.g. Maersk, cargo owner coalitions (coZEV) | `SHP-D1` | per company reporting cycle (typically annual, some quarterly) | _varies by company_ |
-| Company investor disclosures | Individual cement producers (e.g. Heidelberg Materials, Holcim) | `CEM-D1` | per company reporting cycle (typically annual, some quarterly) | _varies by company_ |
-| Company investor disclosures | Individual miners (e.g. Freeport-McMoRan, Albemarle) | `MIN-D1` | per company reporting cycle (typically annual, some quarterly) | _varies by company_ |
-| Company investor disclosures | Individual steelmakers (annual reports, capital markets days) | `STL-D1` | per company reporting cycle (typically annual, some quarterly) | _varies by company_ |
-| Company investor disclosures | e.g. Maersk, Yara, OCI | `CHM-D1` | per company reporting cycle (typically annual, some quarterly) | _varies by company_ |
-| Company/consortium technical disclosures | e.g. BASF/SABIC/Linde electric cracker pilot | `CHM-T2` | per company reporting cycle (typically annual, some quarterly) | _varies by company_ |
+| Company disclosures | Airlines and SAF producers | `AVI-D1` | per company reporting cycle (typically annual, some quarterly) | _varies by company_, _manual_ |
+| Company disclosures | e.g. Maersk, cargo owner coalitions (coZEV) | `SHP-D1` | per company reporting cycle (typically annual, some quarterly) | _varies by company_, _manual_ |
+| Company investor disclosures | Individual cement producers (e.g. Heidelberg Materials, Holcim) | `CEM-D1` | per company reporting cycle (typically annual, some quarterly) | _varies by company_, _manual_ |
+| Company investor disclosures | Individual miners (e.g. Freeport-McMoRan, Albemarle) | `MIN-D1` | per company reporting cycle (typically annual, some quarterly) | _varies by company_, _manual_ |
+| Company investor disclosures | Individual steelmakers (annual reports, capital markets days) | `STL-D1` | per company reporting cycle (typically annual, some quarterly) | _varies by company_, _manual_ |
+| Company investor disclosures | e.g. Maersk, Yara, OCI | `CHM-D1` | per company reporting cycle (typically annual, some quarterly) | _varies by company_, _manual_ |
+| Company/consortium technical disclosures | e.g. BASF/SABIC/Linde electric cracker pilot | `CHM-T2` | per company reporting cycle (typically annual, some quarterly) | _varies by company_, _manual_ |
