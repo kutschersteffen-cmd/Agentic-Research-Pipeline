@@ -250,6 +250,9 @@ packaged.
 ## Open questions (only the owner can answer)
 
 1. Who maintains the per-model training-cutoff dates, and from which Anthropic source?
+   Owner decision 2026-10-18: the owner records them in the cutoff table
+   (`ARP_TRAINING_CUTOFFS_PATH`, default `data/training_cutoffs.json`), one entry per model name with
+   its date and a source note.
 2. Which vendor supplies analyst revisions and fundamentals, and which supplies transcripts?
 3. Which search tool may supply the hard before-date filter for the issuer-first variant, and
    what is the spend ceiling for a run? (The STOXX paper used Google Search grounding; the repo
