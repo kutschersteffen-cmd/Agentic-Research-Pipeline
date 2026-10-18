@@ -1,0 +1,8 @@
+{
+  "total_sources": 86,
+  "automatable": 15,
+  "manual": 71,
+  "enabled_patterns": [
+    "legal_regulatory_text"
+  ]
+}
