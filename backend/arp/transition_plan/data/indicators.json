@@ -45,7 +45,7 @@
     "category": "target",
     "walk_or_talk": "talk",
     "question": "Does the company report its absolute emission target for the company's scope 1 GHG emissions?",
-    "guideline": "Bear in mind that scope 1 emissions are any direct GHG emissions from a company, for example emitted in its production processes, or via direct heat and energy production on site by the company. State \"YES\" if there are absolute emission reduction targets reported for scope 2 emissions of the company. State \"NO\" otherwise. If there is just a combined scope 1 and scope 2 target reported, state this in your summary, but clarify that it is a combined target, and therefore, no explicit scope 1 absolute emission reduction target could be identified."
+    "guideline": "Bear in mind that scope 1 emissions are any direct GHG emissions from a company, for example emitted in its production processes, or via direct heat and energy production on site by the company. State \"YES\" if there are absolute emission reduction targets reported for scope 1 emissions of the company. State \"NO\" otherwise. If there is just a combined scope 1 and scope 2 target reported, state this in your summary, but clarify that it is a combined target, and therefore, no explicit scope 1 absolute emission reduction target could be identified."
   },
   {
     "number": 7,
