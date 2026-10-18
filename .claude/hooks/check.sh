@@ -48,7 +48,7 @@ ensure() {  # ensure PART: install missing dependencies, record a failure if tha
 
 # Same values as CI (.github/workflows/ci.yml) and ensure-deps.sh.
 export ARP_TEST_POSTGRES_DSN=${ARP_TEST_POSTGRES_DSN:-postgresql+psycopg://arp:arp@localhost:5432/arp_test}
-export ARP_TEST_NEO4J_URI=${ARP_TEST_NEO4J_URI-bolt://localhost:7687} ARP_TEST_NEO4J_PASSWORD=${ARP_TEST_NEO4J_PASSWORD:-arp_neo4j_test}
+export ARP_TEST_NEO4J_URI=${ARP_TEST_NEO4J_URI-bolt://localhost:7688} ARP_TEST_NEO4J_PASSWORD=${ARP_TEST_NEO4J_PASSWORD:-arp_neo4j_test}
 [ -z "$ARP_CHROMIUM_PATH" ] && [ -x /opt/pw-browsers/chromium ] && export ARP_CHROMIUM_PATH=/opt/pw-browsers/chromium
 postgres_up() {  # conftest fails, not skips, without Postgres; only manageable for the default DSN
   [[ "$ARP_TEST_POSTGRES_DSN" != *@localhost:5432/* ]] && return 0
@@ -64,7 +64,7 @@ if { [ ${#py[@]} -gt 0 ] || [ ${#mods[@]} -gt 0 ]; } && ensure backend; then
   if [ ${#tests[@]} -gt 0 ] && postgres_up; then
     mapfile -t tests < <(printf '%s\n' "${tests[@]}" | sort -u)
     # Graph tests fail without Neo4j, like Postgres; start it only for the default URI and only when they are selected.
-    [[ "$ARP_TEST_NEO4J_URI" == bolt://localhost:7687 ]] && (cd backend && grep -lq neo4j_graph "${tests[@]}") && ensure neo4j
+    [[ "$ARP_TEST_NEO4J_URI" == bolt://localhost:7688 ]] && (cd backend && grep -lq neo4j_graph "${tests[@]}") && ensure neo4j
     run backend "$PY" -m pytest -q "${tests[@]}"  # not bare pytest: it may be a uv tool without backend deps
   fi
 fi

@@ -28,7 +28,7 @@ def test_import_bad_row_exits_1(neo4j_graph, tmp_path):
 
 
 def test_import_not_configured_checked_before_the_file(monkeypatch, tmp_path):
-    monkeypatch.delenv("ARP_NEO4J_URI", raising=False)
+    monkeypatch.setenv("ARP_NEO4J_URI", "")  # empty, not unset: a .env file would bring it back
     res = _run("edges", "import", "--csv", str(tmp_path / "does-not-exist.csv"))
     assert res.exit_code == 1 and "company graph not configured: set ARP_NEO4J_URI" in res.stderr
 
@@ -56,7 +56,7 @@ def test_layers_bad_setting(run_store, neo4j_graph, tmp_path, monkeypatch, env, 
 
 def test_layers_not_configured(run_store, tmp_path, monkeypatch):
     fixture_f(run_store, tmp_path)
-    monkeypatch.delenv("ARP_NEO4J_URI", raising=False)
+    monkeypatch.setenv("ARP_NEO4J_URI", "")  # empty, not unset: a .env file would bring it back
     res = _run("layers", "--run", "R", "--as-of", "2024-06-30")
     assert res.exit_code == 1 and "company graph not configured: set ARP_NEO4J_URI" in res.stderr
 
@@ -69,3 +69,14 @@ def test_layers_unknown_run(run_store):
 def test_layers_bad_date(run_store):
     res = _run("layers", "--run", "R", "--as-of", "30.06.2024")
     assert res.exit_code == 1 and "as_of must be a date in YYYY-MM-DD form" in res.stderr
+
+
+def test_import_malformed_csv_exits_1(neo4j_graph, tmp_path):
+    csv = tmp_path / "huge.csv"
+    csv.write_text(
+        "supplier_key,supplier_name,customer_key,customer_name,revenue_share,source_doc,source_passage,effective_date,published_at\n"
+        f's,S,c,C,0.5,doc,"{"x" * 200_000}",2023-12-31,2024-03-01\n'
+    )
+    res = _run("edges", "import", "--csv", str(csv))
+    assert res.exit_code == 1 and isinstance(res.exception, SystemExit)  # a clean exit, not a traceback
+    assert "field larger than field limit" in res.stderr

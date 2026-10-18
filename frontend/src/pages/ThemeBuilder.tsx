@@ -12,6 +12,7 @@ import type { ActivityCatalogueMapping, ActivityDefinition, CompanyMatch, Taxono
 import { activatable } from "../lib/activatable";
 import { ProposedTag } from "../components/ProposedTag";
 import { ThemeLayersTable } from "../components/ThemeLayersTable";
+import { errorDetail } from "../lib/themeLayers";
 
 const EXPOSURE_RANK: Record<string, number> = { pure_play: 3, significant: 2, minor: 1, none: 0 };
 
@@ -175,9 +176,18 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId, initialRun
   }
 
   // A run opened from #/theme/<run id> shows its stored results straight away.
+  // A run started meanwhile changes runId, which drops this response.
   useEffect(() => {
-    if (initialRunId) api.getThemeResults(initialRunId).then((res) => setResults((res as { results: CompanyMatch[] }).results)).catch(() => {});
-  }, [initialRunId]);
+    if (!initialRunId || runId !== initialRunId) return;
+    let current = true;
+    api
+      .getThemeResults(initialRunId)
+      .then((res) => current && setResults((res as { results: CompanyMatch[] }).results))
+      .catch((e) => current && setError(errorDetail(e)));
+    return () => {
+      current = false;
+    };
+  }, [initialRunId, runId]);
 
   async function refreshResults() {
     if (!runId) return;

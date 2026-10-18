@@ -201,3 +201,8 @@ def test_layer_params_accepts_range_edges(monkeypatch):
                        "ARP_THEME_LAYER_DECAY": "1", "ARP_THEME_LAYER_MAX_HOPS": "1"}.items():
         monkeypatch.setenv(env, value)
     assert layer_params(Settings()) == LayerParams(0.0, 0.0, 0.0, 1.0, 1, 0.5)
+
+
+def test_supplier_with_a_null_graph_name_shows_its_key():
+    rows = compute_layers([("A", "A", 0.6)], [Edge("S1", "A", 0.4)], {"S1": None, "A": "A"}, DEFAULT)
+    assert _by_key(rows)["S1"].name == "S1"

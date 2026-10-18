@@ -101,7 +101,7 @@ def test_bad_setting_is_503(client, run_store, neo4j_graph, tmp_path, monkeypatc
 
 def test_graph_not_configured_is_503_and_results_unchanged(client, run_store, tmp_path, monkeypatch):
     fixture_f(run_store, tmp_path)
-    monkeypatch.delenv("ARP_NEO4J_URI", raising=False)
+    monkeypatch.setenv("ARP_NEO4J_URI", "")  # empty, not unset: a .env file would bring it back
     get_settings.cache_clear()
     res = _layers(client)
     assert (res.status_code, res.json()["detail"]) == (503, "company graph not configured: set ARP_NEO4J_URI")
@@ -135,5 +135,5 @@ def test_layer_settings_read_per_request(client, run_store, neo4j_graph, tmp_pat
     assert _layers(client).json()["max_hops"] == 2
     monkeypatch.setenv("ARP_THEME_LAYER_MAX_HOPS", "1")
     assert _layers(client).json()["max_hops"] == 1
-    monkeypatch.delenv("ARP_NEO4J_URI")
+    monkeypatch.setenv("ARP_NEO4J_URI", "")
     assert _layers(client).json()["detail"] == "company graph not configured: set ARP_NEO4J_URI"

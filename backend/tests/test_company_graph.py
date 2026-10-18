@@ -168,3 +168,10 @@ def test_correction_and_later_effective_date(driver, neo4j_graph, tmp_path):
 def test_future_effective_date_ignored(driver, neo4j_graph, tmp_path):
     import_edges(driver, parse_edge_csv(_csv(tmp_path, S1_A.replace("2023-12-31", "2024-08-31"))))
     assert _edges(driver, date(2024, 6, 30)) == []
+
+
+def test_blank_name_keeps_the_stored_name(driver, neo4j_graph, tmp_path):
+    import_edges(driver, parse_edge_csv(_csv(tmp_path, S1_A)))
+    import_edges(driver, parse_edge_csv(_csv(tmp_path, S1_A.replace("s1,S1,a,A,", "s1,,a,,"))))
+    _, names = edges_at(driver, date(2024, 6, 30))
+    assert (names["s1"], names["a"]) == ("S1", "A")

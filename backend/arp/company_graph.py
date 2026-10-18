@@ -132,8 +132,8 @@ RETURN row.n AS n, r.revenue_share AS share, r.source_doc AS doc, r.source_passa
 """
 _WRITE = """
 UNWIND $rows AS row
-MERGE (s:Company {issuer_key: row.s}) SET s.name = row.sn
-MERGE (c:Company {issuer_key: row.c}) SET c.name = row.cn
+MERGE (s:Company {issuer_key: row.s}) SET s.name = coalesce(nullif(row.sn, ''), s.name)
+MERGE (c:Company {issuer_key: row.c}) SET c.name = coalesce(nullif(row.cn, ''), c.name)
 WITH s, c, row WHERE row.new
 CREATE (s)-[:SUPPLIES_TO {revenue_share: row.share, source_doc: row.doc, source_passage: row.passage,
                           effective_date: row.e, published_at: row.p}]->(c)
@@ -151,6 +151,8 @@ def import_edges(driver: Driver, rows: list[EdgeRow]) -> int:
         for n, r in enumerate(rows, start=1)
     ]
 
+    # shortcut: read-then-create without a uniqueness rule on the version, so two imports of the same new
+    # row at the same moment can both create it; fine for one person importing CSVs, add a key if imports go concurrent.
     def work(tx) -> int:
         stored = {rec["n"]: (rec["share"], rec["doc"], rec["passage"]) for rec in tx.run(_EXISTING, rows=params)}
         firsts = set()

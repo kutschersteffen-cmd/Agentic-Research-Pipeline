@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import csv
 import json
 from pathlib import Path
 
@@ -45,7 +46,7 @@ def theme_edges_import(csv_path: Path = typer.Option(..., "--csv", help="Edge CS
         rows = parse_edge_csv(csv_path)
         with open_graph(settings) as driver:
             new = import_edges(driver, rows)
-    except (ValueError, CompanyGraphError, OSError) as exc:
+    except (ValueError, csv.Error, CompanyGraphError, OSError) as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     typer.echo(f"{len(rows)} rows, {new} new")

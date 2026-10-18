@@ -126,7 +126,7 @@ def compute_layers(
         scored = l1 is not None or layer2 is not None
         rows.append(LayerRow(
             issuer_key=key,
-            name=names.get(key) or node_names.get(key, key),
+            name=names.get(key) or node_names.get(key) or key,
             in_run=key in anchors,
             l1=l1,
             l2=layer2,
