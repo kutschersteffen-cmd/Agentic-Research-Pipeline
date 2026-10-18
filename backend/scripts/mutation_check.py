@@ -12,6 +12,7 @@ Usage (from backend/):
 """
 
 import argparse
+import os
 import re
 import shutil
 import subprocess
@@ -56,7 +57,9 @@ def mutate(path: str, tests: list[str]) -> dict[str, list[str]]:
         f"pytest_add_cli_args_test_selection ={selection}\n"
     )
     shutil.rmtree("mutants", ignore_errors=True)
-    run = subprocess.run(["mutmut", "run"], capture_output=True, text=True, timeout=1800)
+    # The same REPO_ROOT shift breaks the API lifespan's rule-book check, so point it at the real data dir.
+    env = {**os.environ, "ARP_TRANSITION_BARRIER_DATA_DIR": str(Path("arp/transition_barrier/data").resolve())}
+    run = subprocess.run(["mutmut", "run"], capture_output=True, text=True, timeout=1800, env=env)
     out = subprocess.run(["mutmut", "results", "--all", "true"], capture_output=True, text=True).stdout
     groups: dict[str, list[str]] = {}
     if run.returncode != 0 and _NOTHING_COVERED in run.stdout:  # e.g. an empty __init__.py: nothing to judge
