@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { needsAttentionRuns, runTypeLabel } from "../lib/runs";
+import { compareSince, needsAttentionRuns, runTypeLabel } from "../lib/runs";
 import { useResume } from "../lib/useResume";
 import { STAGE_TABS, openCount } from "../pages/steward/common";
 import type { DataIssue, ReviewItem, RunManifest, StewardshipFlow } from "../types";
@@ -78,7 +78,7 @@ export function NeedsYou({ runs, flow }: { runs: RunManifest[] | null; flow: Ste
     });
   }
   // Oldest waiting first; places without a date (stages, data issues) after them.
-  rows.sort((a, b) => (a.since ?? "~").localeCompare(b.since ?? "~"));
+  rows.sort((a, b) => compareSince(a.since, b.since));
 
   const loading = items === null && !error;
   return (
