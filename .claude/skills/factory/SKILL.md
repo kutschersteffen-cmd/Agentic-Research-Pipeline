@@ -1,6 +1,6 @@
 ---
 name: factory
-description: Run one feature through the whole software factory end to end - spec, hidden tests, implementation, evaluator, merge gate - by starting and tracking one cloud session per stage and keeping the Factory Board current. Use when the owner types /factory <feature>, or /factory alone to see where every feature stands and start the next step.
+description: Run one feature through the whole software factory end to end - spec, hidden tests, implementation, code review, evaluator, merge gate - by starting and tracking one cloud session per stage and keeping the Factory Board current. Use when the owner types /factory <feature>, or /factory alone to see where every feature stands and start the next step.
 ---
 
 You are the factory's dispatcher. You never write the spec, the tests or the code yourself: each
@@ -23,7 +23,7 @@ All state comes from GitHub, so a fresh session can always pick up:
 | 1. Spec | `docs/superpowers/specs/<date>-<slug>.md` is on `main` (the owner merged the spec PR) |
 | 2. Hidden tests | the holdout PR for `<slug>` is merged (its session reports it), or the spec has no `holdout` rows |
 | 3. Implement | an open PR in this repo has `Spec: <slug>` in its description and green CI |
-| 4. Evaluator | that PR has an `Acceptance matrix (evaluator)` comment, or the spec has no `evaluator` rows |
+| 4. Review + evaluator | that PR has a `Code review (factory)` comment, and an `Acceptance matrix (evaluator)` comment unless the spec has no `evaluator` rows |
 | 5. Merge gate | the owner merged the PR |
 | 6. Regression | the holdout PR moving `specs/<slug>/` into `regression/` is merged |
 
@@ -53,16 +53,22 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
    may attach `holdout`. Tell the owner to merge the holdout PR once its check is green.
 3. **Implement:** *"Implement spec `<slug>` (`docs/superpowers/specs/<file>`). Follow the steward
    skill; put `Spec: <slug>` in the PR description. Never attach the holdout repo."*
-4. **Evaluator** (skip if no `evaluator` rows): *"Run the evaluator skill on PR #<n>."* Start it only
-   once that PR's CI is green.
-5. **Merge gate:** nothing to start. Tell the owner the PR is ready: link, risk label, matrix verdict.
+4. **Review and evaluator**, two sessions started together once that PR's CI is green:
+   - **Review:** *"Review PR #<n> against spec `<slug>`. You did not write it. Run `/code-review` on the
+     PR, then `/ponytail:ponytail-review`. Post one PR comment headed `Code review (factory)` listing
+     each finding with file:line and blocking or optional, or 'No findings'. Don't push or approve."*
+     The implementing session fixes or answers each blocking finding (steward rules); a push that
+     changes code re-runs this review once CI is green again, at most three rounds per PR.
+   - **Evaluator** (skip if no `evaluator` rows): *"Run the evaluator skill on PR #<n>."*
+5. **Merge gate:** nothing to start. Tell the owner the PR is ready: link, risk label, open review
+   findings, matrix verdict.
 6. **Regression:** *"Attach `kutschersteffen-cmd/holdout` with add_repo and do the test-writer skill's
    'After the implementing PR merges' step for `<slug>`."*
 
 ## Waiting
 
 - When a session messages you with a PR url, `subscribe_pr_activity` to it. A merge event moves the
-  feature to the next stage: start it at once. Green CI on the implementing PR starts the evaluator.
+  feature to the next stage: start it at once. Green CI on the implementing PR starts the review and the evaluator.
 - A `blocked:` message, a `factory:blocked` label or a `Blocked: fix limit` comment: put the reason on
   the card and tell the owner in one line what they need to decide. Don't start the next stage.
 - If nothing arrives, keep one `send_later` check-in about 50 minutes out, then every 4 hours: run
