@@ -534,7 +534,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId, initialRun
         </section>
       )}
 
-      {runId && <ThemeLayersTable runId={runId} />}
+      {runId && <ThemeLayersTable runId={runId} results={results} />}
     </div>
   );
 }

@@ -68,7 +68,7 @@ case "$1" in
     locked neo4j & n=$!
     locked frontend & f=$!
     locked backend; b=$?
-    wait $p; pc=$?; wait $n; nc=$?; wait $f; fc=$?
-    exit $(( b || pc || nc || fc )) ;;
+    wait $p; pc=$?; wait $n; wait $f; fc=$?  # Neo4j is optional: graph tests skip without it
+    exit $(( b || pc || fc )) ;;
   *) echo "Usage: $0 backend|frontend|postgres|neo4j|all" >&2; exit 2 ;;
 esac

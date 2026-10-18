@@ -6,7 +6,8 @@ import type { ThemeLayers } from "../types";
 const num = (x: number | null) => (x === null ? "" : x.toFixed(4));
 
 /** Exposure layers of one theme run: direct (L1), value chain (L2), macro (L3, no data yet) and score S. */
-export function ThemeLayersTable({ runId }: { runId: string }) {
+/** `results` is the run's results as last loaded: when they change, the layers are fetched again. */
+export function ThemeLayersTable({ runId, results }: { runId: string; results: unknown }) {
   const [asOf, setAsOf] = useState(todayUtc);
   const [layers, setLayers] = useState<ThemeLayers | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +22,7 @@ export function ThemeLayersTable({ runId }: { runId: string }) {
     return () => {
       current = false;
     };
-  }, [runId, asOf]);
+  }, [runId, asOf, results]);
 
   return (
     <section className="card">
