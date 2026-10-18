@@ -2,10 +2,8 @@
 
 ## Pull requests
 
-**The base branch for every pull request is `main`.** Always target `main`, regardless of
-what GitHub reports as the repository's default branch — that setting currently points at a
-`claude/*` feature branch and is wrong. Do not read the base off `git remote show origin`
-or `refs/remotes/origin/HEAD`.
+**The base branch for every pull request is `main`**, which is also the repository's default
+branch. `main` is protected: a PR merges only once its required CI checks are green.
 
 Agents driving a PR follow `.claude/skills/steward/SKILL.md`: a `risk:` label, a stop after three
 failed fix rounds, `factory:blocked` for spec questions, at most three agent PRs in flight. Once CI is
