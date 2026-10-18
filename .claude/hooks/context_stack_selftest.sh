@@ -92,6 +92,16 @@ check concurrent '[ "$ra$rb" = 00 ] && [ "$(grep -c "^arp-context: fetch-graph" 
   python3 -c "import json, sys; json.load(open(sys.argv[1]))" "$work/graphify-out/graph.json" &&
   grep -q ctx_probe_node "$work/graphify-out/graph.json"'
 
+# fetch-graph.sh runs without the hook's lock (vault.sh, the skill): four at once must all succeed.
+fetch1() { (cd "$work" && env "${quiet[@]}" HOME="$tmp/home" bash "$repo/.claude/hooks/fetch-graph.sh"); }
+rm -rf "$work/graphify-out"
+pids=() rcs=
+for i in 1 2 3 4; do fetch1 & pids+=($!); done
+for p in "${pids[@]}"; do wait "$p"; rcs+=$?; done
+check fetch_parallel '[ "$rcs" = 0000 ] && grep -q ctx_probe_node "$work/graphify-out/graph.json" &&
+  python3 -c "import json, sys; json.load(open(sys.argv[1]))" "$work/graphify-out/graph.json" &&
+  [ -z "$(ls -A "$work/graphify-out" | grep tmp)" ]'
+
 # vault.sh in the clone: writes only under graphify-out/, so the tree stays clean and notes/ and .obsidian/
 # keep their exact contents. Without graphify it must say so and still change nothing.
 vault="$repo/scripts/vault.sh"

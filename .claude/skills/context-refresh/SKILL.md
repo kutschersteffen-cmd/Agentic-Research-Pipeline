@@ -23,11 +23,12 @@ With `--atlas-only`, go to step 5. Otherwise continue with step 1.
 
 ## 1. Quiet week (weekly)
 
-The last refresh is the newest commit on `main` that is a refresh merge: its subject contains
-`Context refresh` (squash merge) or names a `context-refresh/` branch (merge commit).
+The last refresh is the newest commit on `main` that is a refresh merge: a line starting
+`Context refresh` (squash merge) or a `Merge pull request #<n> from <owner>/context-refresh/...` subject.
 
 ```bash
-last=$(git log origin/main -1 --format=%H -E --grep='^Context refresh|/context-refresh/')
+last=$(git log origin/main -1 --format=%H -E \
+  --grep='^Context refresh' --grep='^Merge pull request #[0-9]+ from [^ ]+/context-refresh/')
 [ -n "$last" ] && git log "$last"..origin/main --name-only --format= | grep -v -e '^openwiki/' -e '^$'
 ```
 
@@ -37,49 +38,75 @@ No earlier refresh (first run) is never quiet.
 
 ## 2. Branch (weekly)
 
-With the GitHub tools, look for an open PR in this repo whose title starts with `Context refresh`.
+With the GitHub tools (or `gh` if they are not available), look for an open PR in this repo whose title
+starts with `Context refresh` and whose head branch starts with `context-refresh/`. Ignore any other PR.
 
-- **One is open:** reuse it. Check out its head branch and bring it up to date:
-  `git checkout -B <head> origin/<head> && git merge --no-edit origin/main`.
+- **One is open:** reuse it. Fetch its head branch (the clone may be shallow and single-branch), check it
+  out and bring it up to date:
+
+  ```bash
+  git fetch --quiet origin "+refs/heads/<head>:refs/remotes/origin/<head>"
+  git checkout -B <head> origin/<head> && git merge --no-edit origin/main
+  ```
+
 - **None:** `git checkout -B "context-refresh/$(date -u +%F)" origin/main`.
 
 ## 3. Update the wiki (weekly)
 
 Ask OpenWiki: "Update this repository's OpenWiki for changes since its last successful run". Follow
 the `openwiki` skill's required sequence with mode `update` (mode `init` when `openwiki/quickstart.md`
-does not exist yet). If `openwiki_begin` returns `noop`, there is nothing to commit: go to step 5.
+does not exist yet). If `openwiki_begin` returns `noop`, there is nothing new to commit: go on to step 4.
 
 The `openwiki_*` tools come from the `openwiki` MCP server in `.mcp.json`; if they are listed only as
 deferred names, load them with ToolSearch. If they are missing (OpenWiki was installed after this
-session started), say so, skip to step 5, and tell the owner the setup-script snippet in
-`.claude/CLAUDE.md` fixes it. Never run the `openwiki` CLI's own agent: it calls a non-Claude model.
+session started), say so, go on to step 4 (a reused PR still gets `main` and today's title), and tell
+the owner the setup-script snippet in `.claude/CLAUDE.md` fixes it. Never run the `openwiki` CLI's own agent: it calls a non-Claude model.
 
 ## 4. Commit and PR (weekly)
 
-OpenWiki also writes files outside `openwiki/` (`AGENTS.md`, a workflow on `init`). Commit only
-`openwiki/`, and never `openwiki/INSTRUCTIONS.md`:
+OpenWiki also writes files outside `openwiki/`: it creates or edits root `AGENTS.md` (and `CLAUDE.md` if
+one exists), and on `init` adds `.github/workflows/openwiki-update.yml`. Restore the tracked ones and
+delete the ones it created (never an untracked `CLAUDE.md`, which OpenWiki only edits), then commit only
+`openwiki/`, never `openwiki/INSTRUCTIONS.md`:
 
 ```bash
+for f in AGENTS.md CLAUDE.md .github/workflows/openwiki-update.yml; do
+  if git ls-files --error-unmatch "$f" >/dev/null 2>&1; then git checkout -q HEAD -- "$f"
+  elif [ "$f" != CLAUDE.md ]; then rm -f "$f"; fi
+done
 git add -A openwiki/ && git reset -q -- openwiki/INSTRUCTIONS.md
 git diff --cached --quiet || git commit -m "Context refresh $(date -u +%F)"
 ```
 
-If nothing was staged, open no PR and go to step 5. Otherwise push the branch
-(`git push -u origin HEAD`), then with the GitHub tools:
+Then, with the GitHub tools (or `gh` if they are not available):
 
-- **Reused PR:** retitle it `Context refresh <YYYY-MM-DD>` (today, UTC).
-- **New PR:** base `main`, title `Context refresh <YYYY-MM-DD>` (today, UTC), body: what changed in
-  one or two lines, then `risk:low: only generated openwiki/ pages.`
+- **Reused PR:** always push the branch (`git push origin HEAD`), even if OpenWiki committed nothing new,
+  so it carries the merge of `main`. Retitle it `Context refresh <YYYY-MM-DD>` (today, UTC).
+- **New branch, nothing committed:** open no PR; go to step 5.
+- **New branch with a commit:** `git push -u origin HEAD`, then open a PR with base `main`, title
+  `Context refresh <YYYY-MM-DD>` (today, UTC), body: what changed in one or two lines, then
+  `risk:low: only generated openwiki/ pages.`
 
 Either way the PR carries the label `risk:low`. One open refresh PR at most.
 
 ## 5. Atlas page (both modes)
 
+Fetch last night's graph, then read the page with the `Artifact` tool (a publish to a page this session
+has not read is refused):
+
+```bash
+bash .claude/hooks/fetch-graph.sh   # context-data -> graphify-out/{graph.json,GRAPH_REPORT.md,meta.json}
+```
+
+1. **Read** the page: `action: "read"`, `url: $atlas`.
+2. **`--atlas-only` only:** read the published data with `action: "read"`, `url: $atlas`,
+   `path: "data/meta.json"`. If its `commit` equals the `commit` in `graphify-out/meta.json`, the page is
+   current: say so and stop. Build and publish nothing.
+
 Build the data from `context-data` and `main`'s `openwiki/`, `notes/` and page files, in
 `graphify-out/atlas` (gitignored):
 
 ```bash
-bash .claude/hooks/fetch-graph.sh   # context-data -> graphify-out/{graph.json,GRAPH_REPORT.md,meta.json}
 d=graphify-out/atlas && rm -rf "$d" && mkdir -p "$d/src/openwiki" "$d/src/notes"
 git archive origin/main scripts/atlas $(git ls-tree --name-only origin/main openwiki notes) | tar -x -C "$d/src"
 python3 "$d/src/scripts/atlas/build_data.py" --graph graphify-out/graph.json --meta graphify-out/meta.json \
@@ -87,13 +114,8 @@ python3 "$d/src/scripts/atlas/build_data.py" --graph graphify-out/graph.json --m
 cp "$d"/src/scripts/atlas/{index.html,atlas.js,atlas.css,atlas-core.mjs} "$d/out/"
 ```
 
-Then, with the `Artifact` tool:
+Then publish with the `Artifact` tool:
 
-1. **Read** the page: `action: "read"`, `url: $atlas`. A publish to a page this session has not read
-   is refused.
-2. **`--atlas-only` only:** read the published data with `action: "read"`, `url: $atlas`,
-   `path: "data/meta.json"`. If its `commit` equals the `commit` in `graphify-out/meta.json`, the page is
-   current: say so and stop without publishing.
 3. **Publish** with `url: $atlas`, `file_path: graphify-out/atlas/out/index.html`,
    `root: graphify-out/atlas/out`, and
 
@@ -120,6 +142,8 @@ exactly:
 ```
 Atlas not republished: run /context-refresh
 ```
+
+If `PushNotification` cannot be loaded, say so in your final message, with that same text.
 
 Never publish without `url`: that would create a second page instead of updating the Atlas.
 
