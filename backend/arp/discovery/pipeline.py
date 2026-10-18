@@ -66,6 +66,7 @@ async def _discover_for_company(
     downloaded = await download_documents(
         company, candidates, settings.documents_dir, settings.discovery_user_agent,
         store=blob_store_for(IndexingConfig.from_settings(settings)), trigger="discovery", transport=transport,
+        known=change_detector.known_documents(company.company_id),
     )
     events = await change_detector.diff_and_record(company, downloaded)
 

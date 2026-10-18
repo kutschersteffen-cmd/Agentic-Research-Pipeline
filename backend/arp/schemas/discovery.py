@@ -29,6 +29,8 @@ class DiscoveredDocument(BaseModel):
     company_match: Literal["identifier", "name", "none", "no_text"] | None = None
     page_count: int | None = None
     reporting_year: int | None = None
+    # URL already in the manifest with the same sha256 (change_detector alias); no event is raised for it.
+    alias_of: str | None = None
 
 
 class CaptureRecord(BaseModel):

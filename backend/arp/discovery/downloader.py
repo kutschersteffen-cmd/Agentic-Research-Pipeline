@@ -12,7 +12,7 @@ import httpx
 from arp.discovery.crawler import CandidateDocumentLink
 from arp.discovery.doc_check import check_document
 from arp.net_safety import UnsafeURLError, ssrf_guard_request_hook
-from arp.schemas.common import CompanyRef
+from arp.schemas.common import CompanyRef, now_iso
 from arp.schemas.discovery import CaptureRecord, DiscoveredDocument
 from arp.storage.document_blob_store import CaptureStoreError, upload_or_fail
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
@@ -49,6 +49,15 @@ _EXT_BY_CONTENT_TYPE = {
 }
 
 
+def _still_stored(prior: DiscoveredDocument, store) -> bool:
+    """The known document's blob and working copy both still exist; a store error counts as missing."""
+    try:
+        return bool(prior.sha256 and prior.local_path and store.exists(prior.sha256) and Path(prior.local_path).exists())
+    except Exception as exc:  # noqa: BLE001 - a failed check means a full download, never a failed company
+        logger.warning("Could not check the stored copy of %s: %s", prior.url, exc)
+        return False
+
+
 def _slugify(text: str, max_len: int = 80) -> str:
     slug = re.sub(r"[^a-zA-Z0-9._-]+", "-", text).strip("-")
     return slug[:max_len] or "document"
@@ -65,6 +74,7 @@ async def download_documents(
     trigger: str = "discovery",
     rights_tag: str = "public_disclosure",
     transport: httpx.AsyncBaseTransport | None = None,
+    known: dict[str, DiscoveredDocument] | None = None,
 ) -> list[DiscoveredDocument]:
     """Downloads each candidate link into
     `documents_dir/<company_id>/<doc_type>/<slug>` and returns the resulting
@@ -72,6 +82,10 @@ async def download_documents(
     against previously known state. The bytes go to `store` and are read
     back and hash-checked first; a document whose copy cannot be verified is
     logged as uncollected, gets no working copy and is skipped.
+
+    A URL in `known` (the change detector's manifest) is fetched with its stored
+    ETag / Last-Modified; on `304` the stored entry is reused when its blob and
+    working copy are still there, else the URL is fetched again in full.
     """
     discovered: list[DiscoveredDocument] = []
     try:
@@ -88,8 +102,35 @@ async def download_documents(
         transport=transport,
     ) as client:
         for candidate in candidates:
+            prior = (known or {}).get(candidate.url)
+            conditional = {}
+            if prior and prior.http_etag:
+                conditional["If-None-Match"] = prior.http_etag
+            if prior and prior.http_last_modified:
+                conditional["If-Modified-Since"] = prior.http_last_modified
             try:
-                resp = await client.get(candidate.url)
+                resp = await client.get(candidate.url, headers=conditional)
+                if resp.status_code == 304:
+                    if prior is None:
+                        logger.info("Skipping %s: 304 to a request without conditional headers", candidate.url)
+                        continue
+                    if _still_stored(prior, store):
+                        record = CaptureRecord(
+                            trigger=trigger,
+                            url_chain=[candidate.url],
+                            status=304,
+                            headers={k: v for k, v in resp.headers.items() if k.lower() != "set-cookie"},
+                            content_key=prior.sha256,
+                            storage_uri=store.uri(prior.sha256),
+                            rights_tag=rights_tag,
+                            collected=True,
+                        )
+                        append_capture(documents_dir, record)
+                        discovered.append(
+                            prior.model_copy(update={"capture_id": record.capture_id, "discovered_at": now_iso(), "alias_of": None})
+                        )
+                        continue
+                    resp = await client.get(candidate.url)  # stored copy gone: fetch it in full
                 resp.raise_for_status()
             except (httpx.HTTPError, UnsafeURLError) as exc:
                 logger.info("Failed to download %s: %s", candidate.url, exc)
