@@ -74,6 +74,24 @@ capex-share benchmark only where ACT publishes one. Elsewhere it is an intensity
 - **Licence wording conflicts:** the WBA disclaimer says CC BY 4.0, the fair-use page says
   CC BY-NC-ND 4.0, and the 2020–2021 datasheets are CC BY-NC-ND. All are fine for internal use.
 
+**Round 4 changes (updated round 4).** Details and sources are in section 13.
+
+- **ACT sector scores are now out of 100, not 20.** ACT Framework v2.1 (December 2025) sets the
+  performance score at 0–100. The 0–20 scale in section 12.2.1 is the WBA 2020–2024 editions.
+  Narrative stays A–E, trend stays +/=/−.
+- **ACT has no test of an absolute capex amount and no carbon-intensive capex indicator.** Every
+  ACT capex test is a share. The amount only enters through ACT Core B02.d, which asks for a clear
+  link between each lever and its funding.
+- **Locked-in emissions has an exact, reproducible formula:** cumulative emissions of existing and
+  planned assets to RY+15 divided by the company's carbon budget, scored against a secured-activity
+  ratio. It needs asset-level data (capacity, emission factor, commissioning year, lifetime).
+- **The owner's shared Gemini link is a near-verbatim reconstruction of ACT Core v1.0.** Most of it
+  matches the PDF. Two appendix tables are garbled, one D01.a cell is misplaced, and the D01.a year
+  rule and B02.d's link test are missing. It says nothing about the sector methods.
+- **Owner decision 2026-10-19:** adopt ACT Core B02.d as the test for investment linked to actions,
+  and the D01.a current-plus-planned (RY/RY+1) capex rule. Do not use the undocumented WBA JSON
+  feed. Data Explorer registration is deferred (section 9.3, item 8).
+
 | Methodology | Company metric | Sectors | Pathway source | Reuse in a commercial platform |
 |---|---|---|---|---|
 | CA100+ Indicator 6 (v2.2, 2025) | Absolute value of carbon-intensive capex (6.1.b) and of climate-solutions capex, past (6.2.a) and planned (6.2.b). A share counts only if absolute terms can be derived. Yes/No metrics. | All 164 focus companies | None. Disclosure test only. | Site terms: no commercial reproduction without written permission. [verified](https://www.climateaction100.org/terms-of-use/) |
@@ -627,6 +645,17 @@ and retrieval date.
    the identified action and the financial requirements") as the acceptance test for capex behind
    an extracted plan action. All other datasheets are now checked: 2023–2024 are CC BY 4.0,
    2020–2021 are CC BY-NC-ND 4.0.
+   (updated round 4) **Decided by the owner on 2026-10-19:**
+   - (c) **Adopted.** Combine current and planned capex with ACT Core D01.a's rule: if only RY is
+     known, use RY; if RY+1 is higher, use RY+1; if lower, use the average of RY and RY+1
+     ([ACT Core p.61](https://actinitiative.org/wp-content/uploads/pdf/act-core-methodology.pdf)).
+   - (d) **Adopted.** B02.d is the acceptance test for investment behind an extracted plan action:
+     funding is described, a clear link to the action exists, and needs are split from funds
+     allocated ([ACT Core p.37](https://actinitiative.org/wp-content/uploads/pdf/act-core-methodology.pdf)).
+   - (b) **Rejected.** Do not use the undocumented public WBA D01.a JSON feed.
+   - (a) **Deferred.** No Data Explorer registration for now.
+   Still open: which share thresholds sit on top of the RY/RY+1 value (ACT Core bands, or the sector
+   ratio min(share / benchmark, 1)), and the oil and gas benchmark (item 3). See section 13.4.
 
 ---
 
@@ -1415,3 +1444,353 @@ from transition plans:
 - **Next ACT Core edition date:** not found.
 - **ACT rating to Total ACT formula** is derived from the data (exact on rows checked), not printed
   by WBA.
+
+---
+
+## 13. Round 4: ACT methodology in detail (and the owner's shared summary)
+
+Status: **round 4 research note, 2026-10-19.** All ACT PDFs below were downloaded from
+actinitiative.org and read as text. In every ACT PDF read here the printed page number equals the
+PDF page number, so one number is given. Downloads sit in the session scratchpad, not in the repo.
+
+Short links used below:
+
+- **Framework** = [ACT Framework v2.1, December 2025](https://actinitiative.org/wp-content/uploads/framework-2.1.pdf)
+- **ACT Core** = [ACT Core v1.0, 24 Feb 2025](https://actinitiative.org/wp-content/uploads/pdf/act-core-methodology.pdf)
+- **Generic** = [ACT Generic v2.0](https://actinitiative.org/wp-content/uploads/act-generic-v2.0.pdf)
+- **EU** = [ACT Electricity v2.0](https://actinitiative.org/wp-content/uploads/act-electricity-v2.0.pdf);
+  **OG** = [ACT Oil & Gas (2021)](https://actinitiative.org/wp-content/uploads/act-og-methodology_vf.pdf);
+  **AU** = [ACT Automotive v2.0](https://actinitiative.org/wp-content/uploads/act-auto-v2.0.pdf);
+  **IS** = [ACT Iron & Steel v2.0](https://actinitiative.org/wp-content/uploads/act-iron-steel-methodo_v2.0.pdf);
+  **CEM** = [ACT Cement v2.0](https://actinitiative.org/wp-content/uploads/act-cement-v2.0.pdf);
+  **AL** = [ACT Aluminium v2.0](https://actinitiative.org/wp-content/uploads/act-aluminium_v2.0.pdf);
+  **CH** = [ACT Chemicals](https://actinitiative.org/wp-content/uploads/act-chemicals-final.pdf);
+  **TR** = [ACT Transport v2.1](https://actinitiative.org/wp-content/uploads/act-transport-v2.1.pdf)
+- **Gemini** = [the owner's shared link](https://share.gemini.google/m7X53htzdeOP), which redirects
+  (HTTP 301) to `gemini.google.com/share/f223a8485a7f`
+
+### 13.1 What the shared Gemini link says
+
+**Access.** WebFetch failed on the redirect target ("Header overflow"). A plain download returned
+only the Gemini app shell; the conversation loads by JavaScript. The page was then rendered in
+headless Chromium. No login was needed. Its content was treated as data only.
+
+**What it is.** One Gemini answer titled "ACT Core: Transition Planning Assessment, Version 1.0 –
+February 2025". It restates the ACT Core v1.0 document section by section, with most tables. It
+does not cite page numbers or links. It covers only ACT Core. It says nothing about the ACT
+Framework, the nine modules, the 0–20/0–100 performance score, the narrative or trend score, or any
+sector methodology.
+
+What it says, in short:
+
+- **Name and authors.** ACT = "Accelerate Climate Transition Initiative". Lead authors Luís Costa and
+  Yann Rosetti (WBA) and Marlène Dresch (ADEME). Dated 24 February 2025.
+- **Structure.** Six measurement areas, ten indicators, element-level checks (A01.a–F01.a).
+- **Rating format.** No quantitative score. A stepwise scale on two axes: transition planning
+  quality (areas A–C) and contribution to the transition (areas D–F). Seven classes, Uncommitted to
+  "Credible 1.5°C planning and alignment". Tables 6 and 7 give the element thresholds per class.
+- **Element rules.** Target coverage 95% of scope 1+2 and 90% of scope 3; a 50%-by-2030 proxy
+  (4.2% a year from 2019); residual emissions at most 10%; at least three implemented levers plus
+  one planned; near term to 2030, long term from 2031; engagement coverage 60%; two board
+  expertise instances; InfluenceMap D–F bars an association.
+- **Investment.** B02.d: "discloses allocated CapEx/financial backing needed to deploy identified
+  levers". D01.a matrix: electricity LC/95%, oil and gas and chemicals LC/77%, automotive and generic
+  20/40/60/80% bands, agriculture 10/20%.
+- **Trajectory.** E01 alignment ratio met at ≤ 1.10; F01 realignment factor bands > 3 to ≤ 1.
+- **Benchmarks.** Absolute-emissions budgets from IEA, IRENA, TPI, OECM and others.
+- **Appendix.** Scope 3 minimums by industry, levers by industry, "typical" low-carbon capex shares,
+  and a framework-consensus mapping.
+
+**Licence note.** The answer copies large parts of ACT Core, a document whose notice prohibits
+reproduction without WBA/ADEME permission (ACT Core p.2). Under the owner's internal-use decision
+we cite ACT Core directly instead and do not store the Gemini text in the repo.
+
+### 13.2 ACT methodology from primary sources
+
+#### 13.2.1 Framework, rating and modules
+
+**Name.** "Assessing low-Carbon Transition", founded by ADEME and CDP in 2015, now hosted by WBA.
+"ACT has been renamed Accelerate Climate Transition Initiative in 2024." [verified, ACT Core p.92;
+Generic p.169]
+
+**Rating format (sector methods).** Three parts: [verified, Framework p.13]
+
+- Performance score, **0 to 100** (Framework v2.1). ACT announced the move "from a mark out of 20
+  to a mark out of 100" on 17 December 2025.
+  [verified, [ACT news](https://actinitiative.org/en/act-mitigation-assessment-performance-score-out-of-100/)]
+  The WBA 2020–2024 datasheets use the older 0–20 scale (section 12.2.1).
+- Narrative score, A (best) to E.
+- Trend score, "+", "=" or "−".
+
+**Performance score formula.** Each indicator is scored as a percentage. The performance score is
+the weighted sum of indicator scores, with sector-specific module and indicator weights.
+[verified, Framework p.14] Qualitative indicators use a five-level maturity matrix scored Basic 0,
+Standard 0.25, Advanced 0.5, Next practice 0.75, Low-carbon aligned 1. Multi-question matrices weight
+each question. [verified, Framework p.18, Table 5; Generic p.18, Table 7]
+
+**Narrative score.** Five equally weighted criteria: business model and strategy, consistency and
+credibility, data quality, reputation, risk. Each question scores 0–4 (Basic 0 … Low-carbon aligned
+4). A criterion is the mean of its questions. The narrative points are the sum, 0–20.
+[verified, Framework pp.21–24] Table 8 converts 16–20, 12–<16, 8–<12, 4–<8 and 0–<4 to letters;
+the letters are an image in the PDF, so A…E in that order is our reading. [verified ranges, Framework
+p.25; letters not verified]
+
+**Trend score.** Each forward-looking indicator gets +1 if met, else −1. Met means: target
+alignment ≥ 100%, other quantitative indicators ≥ 50%, qualitative ≥ Advanced. The average gives an
+indicative trend: < −0.5 strong negative; −0.5 to 0 potential negative; 0 to 0.5 potential positive;
+> 0.5 strong positive. The assessor then sets +, = or −. ACT says a new trend set-up is in
+development. [verified, Framework pp.25–27] Generic Table 11 lists the indicators used.
+[verified, Generic p.165]
+
+**The nine modules** [verified, Framework pp.15–17, Tables 3–4; Framework p.20, Table 7]:
+
+| # | Module | Weight range (Framework v2.1) | Generic v2.0 indicators |
+|---|---|---|---|
+| 1 | Targets | 15% fixed | 1.1 S1+2 target alignment; 1.2/1.3 S3 upstream/downstream alignment; 1.4 time horizon; 1.5 achievement of past targets |
+| 2 | Material investment | 0–35% | 2.1 past S1+2 intensity trend; 2.2 future trend; **2.3 share of low-carbon capex**; **2.4 locked-in emissions** |
+| 3 | Intangible investment | 0–10% | **3.1 low-carbon R&D**; 3.2 low-carbon patents |
+| 4 | Sold product performance | 0–35% | 4.1 product interventions; 4.2 past product performance; 4.3 locked-in emissions of sold products; 4.4 sub-contracted transport |
+| 5 | Management | 10% fixed | 5.1 oversight; 5.2 oversight capability; 5.3 transition plan; 5.4 incentives; 5.5 scenario testing |
+| 6 | Supplier engagement | 0–20% | 6.1 strategy; 6.2 activities |
+| 7 | Client engagement | 0–20% | 7.1 strategy; 7.2 activities |
+| 8 | Policy engagement | 5% fixed | 8.1 policy on associations; 8.2 associations not climate-negative; 8.3 climate-policy position; 8.4 local authorities |
+| 9 | Business model | 10% fixed | 9.1 low-carbon revenue; 9.2 business model changes; 9.3 sales used in client low-carbon products |
+
+- Generic v2.0 itself still prints module 3 at 5% and module 9 at 10–15% (Generic pp.3–4). The
+  Framework v2.1 ranges are newer.
+- ACT harmonised weights in all sectors: 1.3 time horizon 3%, 1.4 achievement 2%, module 5 items
+  3/1/3/1/2%. [verified, [ACT updates page](https://actinitiative.org/fr/mise-a-jour-methodologies-act/)]
+- **Generic capex weight depends on the asset profile.** GE 2.3 = 1/3·M2·L + 1/2·M2·(1−L) and GE 2.4
+  = 1/3·M2·L, where M2 is the module 2 weight and L the share of S1+2 emissions from own buildings
+  and fleet. [verified, Generic pp.156–157, Table 9]
+- Weighting principles: future orientation and value of information. Share of low-carbon capex is
+  weighted higher only "in assessment methodologies for which a sectoral benchmark is available".
+  [verified, Framework p.19]
+
+**Module weight ranges by sector method** (module headings, each PDF's table of contents, pp.3–5).
+[verified]
+
+| Method | 1 | 2 Material | 3 Intangible | 4 Sold product | 5 | 6 Supplier | 7 Client | 8 Policy | 9 |
+|---|---|---|---|---|---|---|---|---|---|
+| Electricity v2.0 | 15% | 0–33% | 5–7% | 8–31% | 12% | 4–10% | 6–12% | 5% | 10% |
+| Oil & gas 2021 | 15% | 5–40% | 2–10% | 10–23% | 10% | 0–20% | 0–10% | 5% | 10% |
+| Automotive v2.0 | 15% | 7% | 5% | 33% | 10% | 5% | 10% | 5% | 10% |
+| Iron & steel v2.0 | 15% | 10–32% | 2–10% | 10–32% | 10% | 2–10% | 6% | 5% | 10% |
+| Cement v2.0 | 15% | 0–33% | 10% | 0–33% | 10% | 7% | 10% | 5% | 10% |
+| Aluminium v2.0 | 15% | 12–35% | 10% | 7–30% | 10% | 4% | 4% | 5% | 10% |
+| Chemicals | 15% | 10–32% | 10% | 3–25% | 10% | 10% | 5% | 5% | 10% |
+| Transport v2.1 | 15% | own fleet 30% / subcontracting 0% | 5% | own fleet 0% / subcontracting 30% | 10% | 15% (7% public service) | 10% (15% public service) | 5% (8% public service) | 10% |
+
+There is no separate ACT aviation or shipping method. Airlines and shipping are in ACT Transport.
+Indicator weights per company (for example oil and gas 2.5 capex share 0–6%) are in section 12.2.1;
+OG prints 2.2 lock-in 0–8%, 2.4 unsanctioned projects 2–8%, 2.5 capex 0–6%, 3.1 R&D 2–5%.
+[verified, OG pp.3–4]
+
+**Scenarios and pathways.** ACT methods use only two allocation methods: the Sectoral
+Decarbonisation Approach (SDA, intensity convergence) and the Absolute Contraction Approach (ACA).
+[verified, Framework p.40] Scenarios should be 1.5°C where possible (well-below 2°C minimum), ≥ 50%
+probability, no overshoot, limited negative emissions, and a base year at most two years before the
+reporting year. [verified, Framework p.38] ACT Core uses absolute-emission pathways only
+(section 12.3).
+
+#### 13.2.2 Every investment indicator, with formulas
+
+| Indicator | Formula and horizon | Full score at | Benchmark source | Source |
+|---|---|---|---|---|
+| GE 2.3 low-carbon capex share (generic) | Score = share × 1/80%, capped at 100%; share in RY | 80% | Expert threshold: "no benchmarks are available" | Generic pp.47–48 [verified] |
+| EU 2.4 (electricity) | CAPEX ratio = S_LCT / CB_LCT; score = min(ratio, 1), averaged over each year RY…RY+3 | 95% | IEA NZE electricity investment 2021–30 | EU pp.50–51 [verified]; 95% derivation in section 4 |
+| OG 2.5 (oil and gas) | Score = average(S_LCT(Y)/CB_LCT; S_LCT(Y+5)/CB_LCT); CB_LCT is adapted to the company's split of fuels and power revenues | 49% "Total Energy playfield" (5% fuels, 67% power) | IEA WEO 2019 SDS | OG pp.52–53 [verified]; section 4 |
+| OG 2.6 CCS/CCUS/CDR capex share | Same structure | 5% | McCollum et al. (2018) | Section 4 [verified round 1] |
+| CH 2.4 (chemicals) | min(share/benchmark, 1), RY…RY+3 | 54% (49% + 5%) | O&G benchmarks via SDS; "no sectoral benchmark specific to the chemicals sector" | CH pp.55–56 [verified] |
+| AU 2.2 (automotive) | As GE 2.3, next 3 years | 80% | Expert threshold | Section 4 [verified round 1] |
+| D01.a (ACT Core) | Maturity band of LC share (or LC/benchmark); RY/RY+1 rule; Taxonomy-eligible not accepted | ≥ 95% / ≥ 77% / > 80% | No derivation for 77% | ACT Core pp.58–62 [verified] |
+| Locked-in emissions (EU 2.2, OG 2.2, IS 2.3, CEM 2.2a, AL 2.2, CH 2.3, TR 2.3, GE 2.4) | rLB = L(t)/B(t). L = ∫ activity × intensity of existing and planned assets; B = ∫ projected activity × company benchmark intensity. Secured-activity ratio rSA = secured activity / projected activity, to RY+15. Score 100% if rLB ≤ rSA; (rLB − 1.5)/(rSA − 1.5) if rSA < rLB < 1.5; 0% if rLB ≥ 1.5 | Locked-in within the budget | SDA company pathway from the sector benchmark (e.g. IEA ETP for steel) | IS pp.55–63; Generic pp.48–53 [verified] |
+| Horizons of locked-in | RY+15 for power, steel, cement, aluminium, chemicals, transport fleets; **to 2050** for oil and gas upstream and for buildings | – | – | EU p.39; OG p.42; CEM p.36; AL p.51; CH p.48; TR p.44; Generic p.50 [verified] |
+| OG 2.4 unsanctioned projects within budget | Score = 100% − SUP, the share of STEPS capex outside the SDS budget (Carbon Tracker band) | 0% outside | Carbon Tracker data | OG p.51 [verified] |
+| GE 3.1 / AU 3.1 / EU 3.1 low-carbon R&D | Dim. 1: low-carbon R&D ÷ total R&D (3-year), × 1/80%. Dim. 2 (AU, EU): non-mature (TRL ≤ 8 or < 8) ÷ low-carbon R&D, × 1/65%. 50/50 | 80% and 65% | Expert thresholds | Generic pp.57–58; AU p.44; EU p.57 [verified] |
+| OG 3.1 R&D | D/B_RD capped (dim. 1 worth 50%); non-mature D/B_RD (up to 100%) | B_RD from SDS | IEA WEO SDS | OG pp.62–63 [verified] |
+| CH 3.1 R&D | Low-carbon R&D ÷ R&D (3-year average) vs 54% | 54% | Proxy: same as capex | CH pp.67–68 [verified] |
+| IS 3.1, AL 3.1, CEM 3.1, TR 3.1 R&D | See section 10.6 (80%/65%; cement 5% of capex; transport 80% or 50%) | – | Expert / Ecofys-WWF | Section 10.5 [verified round 2] |
+| B02.d investment per lever (ACT Core) | Met if: funding described; "a clear link between the identified action and the financial requirements"; breakdown of needs vs funds allocated | Met / unmet | Disclosure test | ACT Core p.37 [verified] |
+
+- **No ACT indicator measures carbon-intensive capex as an amount or share.** The nearest are
+  locked-in emissions (assets, not spend) and OG 2.4 (projects outside the budget). A search of all
+  ten PDFs for "carbon-intensive", "high-carbon" and "fossil … capex" found no indicator. [verified]
+- **No ACT indicator tests an absolute capex amount.** All capex tests are M$/M$ shares (GE 2.3 p.47;
+  EU 2.4 p.50; OG 2.5 p.52). [verified]
+- **ACT Core D01.a data list:** total and climate-solutions capex for RY and RY+1; total and
+  climate-solutions R&D for RY and RY−1. [verified, ACT Core p.89, Table 8]
+
+#### 13.2.3 ACT Core (A–G) in one place
+
+Section 12.2.2 has the full rules; checked again here against the PDF.
+
+- **Elements.** A01.a–d, B01.a–c, B02.a–e, B03.a–e, C01.a–d, C02.a–b, D01.a, D02.a, E01.a–d, F01.a.
+  [verified, ACT Core pp.16–17]
+- **No score, two axes.** ACT Core "does not generate a quantitative score" and uses neither trend
+  nor narrative scores. [verified, ACT Core p.10]
+- **Default classes (ACT Core Table 6/7, p.18).** Plan quality: Uncommitted, Non-mature,
+  GHG-committed, Initial planning, Plan developing, Full plan. Contribution: Inconsequential,
+  Consequential, Aligned. [verified] WBA's 2026 grading (G…A, plan quality 0–5, contribution 0–2,
+  contribution counts only from plan quality 4) is in section 12.2.2 and overrides these defaults.
+- **Lever tests.** B02.a: at least three key levers implemented and one more planned (four
+  considered if the plan is new); vague levers are rejected. B02.b: near term RY–2030, long term
+  "beyond 2031"; actions without a timeframe are ignored. B02.c: a quantified saving with a clear
+  link to the action, in tCO2e or %. [verified, ACT Core pp.32–35]
+- **Levers by industry (Appendix 10.2, pp.103–115)** list actions per WBA industry. Cement levers
+  appear only as the B02.a example (p.33). [verified]
+
+#### 13.2.4 Licence
+
+The Framework, ACT Core and every sector method carry "Reproduction of all or part of work without
+licence of use permission … is prohibited" (Framework p.2: © WBA and ADEME 2025; ACT Core p.2: ©
+WBA, ADEME 2025; older methods © CDP and ADEME). [verified] **Owner decision (round 3): the
+platform is non-commercial and internal, so ACT figures may be used with citation.** Store each
+figure with method, version, page and the licence line. Paraphrase rules in code and docs; do not
+copy ACT tables wholesale. Ask WBA/ADEME before sharing outputs outside the organisation.
+
+### 13.3 Gemini summary vs primary sources
+
+All page numbers are ACT Core unless marked.
+
+**Confirmed** [verified]:
+
+| Gemini claim | Source |
+|---|---|
+| Version 1.0, 24 Feb 2025; authors Costa, Rosetti (WBA), Dresch (ADEME) | p.2 |
+| "Accelerate Climate Transition Initiative" | p.92 (renamed 2024). Older methods say "Assessing low-Carbon Transition" (Generic p.169). |
+| Six areas, ten indicators, element names | pp.9, 16–17 |
+| No quantitative score; stepwise; two axes | p.10 |
+| Class descriptions Uncommitted … Consequential planning | pp.10–11 |
+| Table 6 and 7 class rows and thresholds | p.18 |
+| A01.b coverage 95% S1+2, 90% S3 | pp.22–23 |
+| 50% by 2030 proxy, 4.2% × (target year − 2019) | p.25 |
+| Residual emissions max 10% at net zero | p.26 |
+| B02.a three implemented + one planned (four if new) | pp.32–34 |
+| B02.b near term to 2030, long term from 2031 | p.34 |
+| B02.c quantitative GHG savings per lever | p.35 |
+| B03.a/c at least two types (three for financial institutions); B03.b/d 60% (90% banks, 80% investors) | pp.40–47 |
+| C01.c two expertise instances; C01.d LTIP linked to GHG metrics; C02.b InfluenceMap D–F | pp.52, 54, 56 |
+| D01.a bands for electricity (95%), oil and gas and chemicals (77%), automotive and generic | p.62 |
+| E01 met at ratio ≤ 1.10; F01 realignment factor and bands | pp.72–74, 81–82 |
+| Five "aligned state" questions | Framework p.9; Generic p.166 |
+| Electric utilities levers (coal phase-out, renewables, PPAs, smart grid, CCUS) | p.114 |
+| Sources list (ACT Framework 2024, CDP, GFANZ, TPT, HLEG, CSRD, EFRAG, CBI, WBA) | p.91 |
+
+**Wrong or garbled** [verified against the PDF]:
+
+| Gemini claim | Primary source says |
+|---|---|
+| Final class "Credible 1.5°C planning and alignment" | "Credible 1.5°C" (p.11). Minor. |
+| Agriculture D01.a "11–20%" under Standard | 11–20% is the **Advanced** column; Standard and Next practice are blank (p.62; section 12.2.2). |
+| B02.d = "discloses allocated CapEx/financial backing" | Also needs "a clear link between the identified action and the financial requirements" and a needs-vs-allocated breakdown (p.37). The link is the part the owner adopted. |
+| Table 11 "Agriculture / Food < 25%" | Agricultural Products < 15%; Food Production < 25% (p.116). |
+| Table 11 omits heavy industry | Metals & Mining < 25%, Oil & Gas < 25%, Utilities < 50%, Motor Vehicles < 50%, Chemicals < 10% (pp.116–117). |
+| Table 12 maps requirements to ACT Core elements (A01.b, D01.a …) with relabelled items | Table 12 maps to **sectoral** ACT indicator numbers (e.g. 8.3, 6.1, 7.1). The 84% item is "climate commitment wording", not "timebound interim metrics" (p.119). |
+| "Rekker et al. 2022" in the Sources list | Cited in the E01 text (p.71), not in the Sources list (p.91). Minor. |
+
+**Unsupported (not checked or not in ACT Core)** [not verified]: "financial intensity targets
+(CO2/$) are not accepted"; scope 3 proxy 30% by 2030 and "≤ 2040 for power/maritime"; pure-play
+companies automatically Low-carbon aligned in D02.a; "Carbon Action Tracker Paris Aligned
+Benchmarks" in the benchmark list; the full Table 9 rows.
+
+**Missing from Gemini** (all material for this platform): the D01.a year rule (p.61); R&D rows and
+"capex preferred over R&D" (p.61–62); Taxonomy-eligible capex not accepted (p.59); WBA's 2026
+grading (Note 2026); everything in section 13.2.1–13.2.2 (sector methods, 0–100 score, narrative,
+trend, locked-in, R&D, benchmarks).
+
+**Verdict.** Accurate as a summary of ACT Core's structure and element rules. Not usable as a source:
+no page references, two garbled appendix tables, one misplaced cell, and the two investment rules
+the owner adopted are incomplete or absent. Cite ACT Core directly.
+
+### 13.4 Mapping ACT to this platform
+
+**(a) Transition-barrier matrix and rule book.** ACT rates the company. It does not rate external
+barriers by region. The closest ACT parts are the narrative "Risk" criterion (TCFD transition risks:
+policy, legal, market; Framework p.24) and B02.e ("levers account for future risks and
+uncertainties", ACT Core pp.38–39). So the matrix fills a gap ACT leaves; keep it separate from any
+ACT-style score (as in section 12.6).
+
+The rule book's action ids line up with ACT Core levers (Appendix 10.2 and the B02.a examples).
+Matching ACT names in each action's label would let one action id serve both the barrier criteria
+and the B02 checks. Our mapping:
+
+| Rule-book actions (`rule_book.json`, "actions") | ACT Core lever wording | ACT Core page |
+|---|---|---|
+| `pwr.renewables`, `pwr.storage`, `pwr.grid`, `pwr.coal_exit` | Expand renewable capacity; prosumer storage; integrate low-carbon sources into the grid, smart grids; phase out coal, reduce unabated gas | p.114 |
+| `cement.clinker_sub`, `cement.alt_fuels`, `cement.ccus` | Reduce clinker-to-cement ratio; low/near-zero fuels incl. kiln electrification, waste fuels; CCUS | p.33 |
+| `chem.low_carbon_h2`, `chem.e_cracker`, `chem.ccus` | Green hydrogen/methanol feedstock; electrification of processes; permanent CCUS | pp.33, 106 |
+| `steel.scrap_eaf` (`steel.h2_dri`, `steel.ccus` not listed) | Metals & Mining: more scrap, process efficiency, zero-GHG power | p.110 |
+| `min.electric_fleet`, `min.recycling` (`min.new_supply` is not a decarbonisation lever) | Electric vehicles and machinery; scrap | p.110 |
+| `avi.hefa_saf`, `avi.advanced_bio_saf`, `avi.e_saf` | Bio-sourced SAF, waste and residue fuels, power-to-liquids | p.108 |
+| `shp.alt_fuel_vessels`, `shp.green_fuels`, `shp.efficiency` | Low-GHG fuel vessels; near-zero fuels (ammonia, methanol, hydrogen); retrofits, wind | p.109 |
+| `hdt.bev_trucks`, `hdt.fcev_trucks`, `hdt.public_charging`, `hdt.h2_refuelling` | Zero-GHG trucks; depot charging and hydrogen refuelling | p.109 |
+| `ogu.ldar`, `ogu.flaring`, `ogu.electrification` | Methane reduction, end non-emergency flaring/venting, electrify facilities | p.111 |
+
+ACT Core Table 10 has no steel-specific row, so `steel.h2_dri` and `steel.ccus` come from the ACT
+Iron & Steel method or TPT guidance (not checked here). [mapping is ours; ACT wording verified]
+
+**(b) Plan-action extraction matched to barriers.** Each extracted action should carry what the
+B02 elements test. Fields and acceptance rules:
+
+| Field per extracted action | ACT test | Rule |
+|---|---|---|
+| `action_id` (rule-book id) or "other" | B02.a | Sector-specific; vague wording rejected (p.34) |
+| status: implemented / planned | B02.a | ≥ 3 implemented + ≥ 1 planned, or 4 considered for a new plan (pp.32–34) |
+| timeframe (year or range) | B02.b | Near term RY–2030, long term after 2031; no timeframe → ignore (pp.34–35) |
+| GHG saving (tCO2e or %) with link | B02.c | Clear link to the action (p.35) |
+| investment amount, currency, years; funds allocated vs needed; quote | **B02.d (adopted)** | Clear link between the action and the money; needs vs allocated (p.37) |
+
+The barrier rating of the action's sector and region then shows whether that action faces a
+barrier. A planned action with no B02.d link and a high barrier is the weak case.
+
+**(c) Capex credibility check.**
+
+- **Share.** Compute the low-carbon capex share for RY and RY+1 and combine them with the
+  **adopted D01.a rule** (p.61). Taxonomy-eligible-not-aligned capex must not count (p.59).
+- **Threshold on the share (owner decision open).** Either the ACT Core bands (p.62), or the
+  sector-method ratio min(share/benchmark, 1) (EU p.51, OG p.53, CH p.56, Generic p.47). Both use
+  the same benchmarks: 95% power; 77% (ACT Core) or 49%/54% (sector methods) for oil and gas and
+  chemicals; 80% elsewhere. Steel, cement, aluminium, aviation and shipping get only the generic 80%
+  expert threshold.
+- **Absolute amount.** ACT has no amount test. Use B02.d: the sum of linked investments per action
+  must be traceable to a reported amount. CA100+ 6.1.b/6.2 stays the source for amount disclosure
+  (section 2).
+- **Carbon-intensive capex.** ACT has none. Keep CA100+ 6.1.b (section 9.1, item 1).
+
+**Which ACT indicators to reproduce, and what already exists.**
+
+| ACT indicator | Platform status | Recommendation |
+|---|---|---|
+| D01.a low-carbon capex share, RY/RY+1 | `green.py`: `capex_total`, `green_capex_total`, `green_capex_share_pct`, `green_capex_eu_aligned`, `transition_capex_total`; `eu_taxonomy.py`: `eut_capex_aligned_pct`, `eut_capex_total_amount`. Fiscal years as disclosed; no RY+1 (planned) field. | **Reproduce.** Add planned-year capex and apply the rule. |
+| B02.a–d levers, timeframe, savings, investment per lever | 64-indicator set has yes/no checks only: #26–27 (renewables, climate solutions strategy), #29 capex planning, #28 opex planning. No per-action records. | **Reproduce** in the plan-action extraction (b). |
+| GE 3.1 family, low-carbon R&D share | Total R&D: `spend_extractor_agent.py` (SpendTopic.RND) and XBRL financials. No low-carbon R&D amount. #31 asks only about an R&D strategy. | **Reproduce** for steel, cement, aluminium, aviation and shipping, where it is the only numeric investment test. Needs a low-carbon R&D field. |
+| D02.a / 9.1 low-carbon revenue share | `green.py` revenue fields (`green_revenue_*`), `eut_turnover_*`; #30, #61, #62 | **Covered.** Add the D02.a band only if wanted. |
+| Sector capex ratio (EU 2.4, OG 2.5, CH 2.4, AU 2.2, GE 2.3) | Not implemented | Reproduce as the continuous variant of D01.a, if the owner picks it. |
+| Locked-in emissions (2.2/2.3/2.4) | Not implemented; no asset-level data | **Skip for now.** Needs plant capacity, emission factor, commissioning year and lifetime for every asset. Revisit with an asset database. |
+| A01, C01, C02, B03 (targets, governance, policy, engagement) | 64-indicator set: #1–12 targets and offsets, #13–21 governance, #19 incentives, #32–36 and #63 engagement and policy, #46–48 emissions | **Covered as disclosure checks.** ACT thresholds (95%/90% coverage, InfluenceMap) are not applied. Leave as is. |
+| E01, F01 (target and trajectory alignment vs a 1.5°C path) | #10 only asks if targets reference a 1.5°C pathway | **Skip.** Needs pathway data and emission time series; outside the capex check. |
+| OG 2.4 unsanctioned projects; 3.2 patents; narrative and trend scores | Not implemented | **Skip.** Carbon Tracker data, patent databases, and analyst judgement. |
+| Misaligned capex (#60) | 64-indicator set yes/no | No ACT counterpart; keep under CA100+. |
+
+**Remaining owner decisions** (also in section 9.3):
+
+1. Threshold on the share: ACT Core bands or the continuous sector ratio.
+2. Oil and gas and chemicals benchmark: 77% (ACT Core, no derivation) or 49%/54% (sector methods).
+3. Whether to add a low-carbon R&D field and use the R&D tests for heavy industry and transport.
+4. "Green" definition: ACT counts nuclear and CCUS as low-carbon; `green.py` does not (section 9.3,
+   item 4).
+5. Whether to align rule-book action labels with ACT Core lever wording.
+
+**Does `openwiki/` need an update?** No. This round changes a research note, not code behaviour.
+
+### 13.5 Could not access or not verified (round 4)
+
+- **Gemini page:** WebFetch failed ("Header overflow"); read via headless Chromium. It may change
+  or be deleted by its owner.
+- **Framework Table 8 letters** are an image; A…E order is assumed.
+- **ACT Iron & Steel lever list** (for `steel.h2_dri`, `steel.ccus`) not read.
+- **ACT Transport aviation and shipping indicators** beyond TR 2.3 and TR 3.1 not reread.
+- **Sector methods after the 0–100 change:** the PDFs read still state weights in percent; no
+  re-issued sector PDFs were found. Whether ACT rescaled any thresholds is not checked.
+- **ACT Agriculture, Buildings, Pulp & Paper, Glass, Retail, Fashion and Finance methods** not read.
