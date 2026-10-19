@@ -180,10 +180,14 @@ server without search; search is a bonus where it answers.
 - Where the ranking and classification live (crawler, or a small `report_rank.py`).
 - Sitemap XML parsing (stdlib `xml.etree` with the size cap, or `lxml`).
 
-## Owner decision pending
+## Owner decision (2026-10-19)
 
-- `esef_enabled` is `False` by default on `main` (it is a network source). Goal 1 only takes effect
-  where it is set to true (`ARP_ESEF_ENABLED=true`). Whether to flip the default is the owner's call.
+- `esef_enabled` defaults to **true** (it was `False` on `main`). `ARP_ESEF_ENABLED=false` still turns
+  it off. The same setting also adds the ESEF source to the document registry the API and CLI build
+  (`arp/api/deps.py`, `arp/cli/_shared.py`), so those now include ESEF by default too.
+- `tests/test_esef.py` asserts the old default (`assert settings.esef_enabled is False`); that line
+  changes to `True` and is listed in the PR. Any test that relied on ESEF being off by default sets
+  `esef_enabled=False` explicitly.
 
 ## Acceptance
 
@@ -269,6 +273,7 @@ the real SSRF hook is replaced by a no-op except in AC-29):
 | AC-63 | W; ESEF-current; a second run with the same filing | discovery run | the second run's `new_events` for W is empty | unit |
 | AC-64 | W with CIK `123`; ESEF-current; a fake EDGAR source | discovery run | the EDGAR source received one fetch for W | unit |
 
+| AC-65 | — | `Settings()` with no environment override | `esef_enabled` is `True` | unit |
 
 Must not change: other document types are downloaded as today (AC-27); a supplied website is not
 checked (AC-28); every PDF still goes through the PDF check and review routing (AC-13, AC-36, AC-45);
