@@ -3,13 +3,20 @@
 from __future__ import annotations
 
 import io
+import ipaddress
+from datetime import UTC, date, datetime
+from email.utils import format_datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
+import httpx
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
 from arp.api.auth import Principal, current_user
 from arp.api.main import app
+from arp.net_safety import UnsafeURLError
+from arp.transition_barrier import fetching
 
 FIXTURES = Path(__file__).parent / "fixtures" / "transition_barrier"
 CELL = "/api/transition-barrier/cells/STL-R1/European Union"
@@ -103,3 +110,42 @@ def derive(client, cells=(("STL-R1", "European Union"),)):
     r = client.post("/api/transition-barrier/derive", json={"cells": [{"code": c, "region": g} for c, g in cells]})
     assert r.status_code == 200, r.text
     return r.json()["run_id"]
+
+
+D_URLS = {
+    "D1": "https://climate.ec.europa.eu/eu-ets-market-report-2026.pdf",
+    "D2": "https://eur-lex.europa.eu/eli/reg/2023/956/oj",
+    "D3": "https://example.org/steel-policy-tracker",
+}
+
+
+def fetch_stub(monkeypatch, served: dict[str, tuple[bytes, str, str | None]] | None = None) -> list[str]:
+    """Serves URLs to `fetching` from memory: url -> (body, content type, Last-Modified as an ISO date).
+    D1-D3 are served as their fixture PDFs unless `served` replaces them. Returns the list of requested URLs."""
+    pages = {
+        D_URLS[d]: (fixture_pdf(d), "application/pdf", DOCS[d][2]) for d in D_URLS
+    } | (served or {})
+    requested: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested.append(str(request.url))
+        if str(request.url) not in pages:
+            return httpx.Response(404)
+        body, content_type, modified = pages[str(request.url)]
+        headers = {"content-type": content_type}
+        if modified:
+            headers["last-modified"] = format_datetime(datetime.combine(date.fromisoformat(modified), datetime.min.time(), UTC), usegmt=True)
+        return httpx.Response(200, content=body, headers=headers)
+
+    def assert_safe(url) -> None:  # no DNS: only an IP literal can be refused
+        host = urlparse(str(url)).hostname or ""
+        try:
+            ip = ipaddress.ip_address(host)
+        except ValueError:
+            return
+        if ip.is_private or ip.is_loopback or ip.is_link_local:
+            raise UnsafeURLError(f"{host} is a disallowed address")
+
+    monkeypatch.setattr(fetching, "build_client", lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True))
+    monkeypatch.setattr(fetching, "assert_safe", assert_safe)
+    return requested

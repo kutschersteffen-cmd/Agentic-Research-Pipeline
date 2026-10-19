@@ -7,7 +7,7 @@ from datetime import date
 from sqlalchemy import select
 
 from arp.config import get_settings
-from arp.db.models import BarrierChoice, BarrierDocument, BarrierFact
+from arp.db.models import BarrierChoice, BarrierDocument, BarrierFact, BarrierSourceDocument
 from arp.db.session import transaction
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.schemas.transition_barrier import PrimarySource
@@ -33,6 +33,34 @@ def add_document(
         s.add(row)
         s.flush()
         return row.id
+
+
+def save_source_document(
+    *, source_key: str, url: str, title: str, publisher: str, tier: str, as_of: date, content_key: str,
+    content_type: str, page_texts: list[str], html: bool,
+) -> int:
+    """Stores a fetched source; the source's latest row with the same bytes is returned instead of a new one."""
+    with transaction() as s:
+        latest = s.scalar(
+            select(BarrierSourceDocument).where(BarrierSourceDocument.source_key == source_key).order_by(BarrierSourceDocument.id.desc()).limit(1)
+        )
+        if latest is not None and latest.content_key == content_key:
+            return latest.id
+        row = BarrierSourceDocument(
+            source_key=source_key, url=url, title=title, publisher=publisher, tier=tier, as_of=as_of,
+            content_key=content_key, content_type=content_type, page_texts=page_texts, html=html,
+        )
+        s.add(row)
+        s.flush()
+        return row.id
+
+
+def latest_source_documents(source_keys: list[str]) -> list[dict]:
+    """The newest stored document of each key that has one, in the order given."""
+    with transaction() as s:
+        rows = s.scalars(select(BarrierSourceDocument).where(BarrierSourceDocument.source_key.in_(source_keys)).order_by(BarrierSourceDocument.id))
+        newest = {r.source_key: _row(r) for r in rows}
+    return [newest[k] for k in source_keys if k in newest]
 
 
 def add_fact(

@@ -583,6 +583,26 @@ class BarrierDocument(Base):
     uploaded_at: Mapped[datetime] = _ts()
 
 
+class BarrierSourceDocument(Base):
+    """A registered source fetched from its URL; a changed document adds a row."""
+
+    __tablename__ = "barrier_source_documents"
+    __table_args__ = (Index("ix_barrier_source_documents_key", "source_key", "id"),)
+
+    id: Mapped[int] = _id()
+    source_key: Mapped[str] = mapped_column(Text)
+    url: Mapped[str] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text)  # the source's source_name
+    publisher: Mapped[str] = mapped_column(Text)
+    tier: Mapped[str] = mapped_column(Text)
+    as_of: Mapped[date] = mapped_column(Date)
+    content_key: Mapped[str] = mapped_column(Text)  # sha256 of the bytes, the blob store key
+    content_type: Mapped[str] = mapped_column(Text)
+    page_texts: Mapped[list] = mapped_column(JSONB)
+    html: Mapped[bool] = mapped_column(Boolean)
+    fetched_at: Mapped[datetime] = _ts()
+
+
 class BarrierFact(Base):
     __tablename__ = "barrier_facts"
     __table_args__ = (Index("ix_barrier_facts_cell", "code", "region"),)
