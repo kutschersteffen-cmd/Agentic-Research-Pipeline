@@ -67,7 +67,8 @@ async def _compute_indirect(state: MatchState) -> dict:
     indirect = None
     if indirect_model is not None and company_isic and activity.core_isic_codes:
         indirect = compute_indirect_exposure(
-            state["company"].company_id, company_isic, indirect_model, set(activity.core_isic_codes), indirect_model.edition_label
+            state["company"].company_id, company_isic, indirect_model, set(activity.core_isic_codes), indirect_model.edition_label,
+            country=state["company"].country,
         )
     return {"indirect": indirect}
 

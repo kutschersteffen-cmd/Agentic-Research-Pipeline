@@ -1,0 +1,164 @@
+exiobase_sector,icio_code,split_code
+Cultivation of paddy rice,A01,A01
+Cultivation of wheat,A01,A01
+Cultivation of cereal grains nec,A01,A01
+"Cultivation of vegetables, fruit, nuts",A01,A01
+Cultivation of oil seeds,A01,A01
+"Cultivation of sugar cane, sugar beet",A01,A01
+Cultivation of plant-based fibers,A01,A01
+Cultivation of crops nec,A01,A01
+Cattle farming,A01,A01
+Pigs farming,A01,A01
+Poultry farming,A01,A01
+Meat animals nec,A01,A01
+Animal products nec,A01,A01
+Raw milk,A01,A01
+"Wool, silk-worm cocoons",A01,A01
+"Manure treatment (conventional), storage and land application",A01,A01
+"Manure treatment (biogas), storage and land application",A01,A01
+"Forestry, logging and related service activities (02)",A02,A02
+"Fishing, operating of fish hatcheries and fish farms; service activities incidental to fishing (05)",A03,A03
+Mining of coal and lignite; extraction of peat (10),B05,B05
+"Extraction of crude petroleum and services related to crude oil extraction, excluding surveying",B06,B06
+"Extraction of natural gas and services related to natural gas extraction, excluding surveying",B06,B06
+"Extraction, liquefaction, and regasification of other petroleum and gaseous materials",B06,B06
+Mining of uranium and thorium ores (12),B07,B07
+Mining of iron ores,B07,B07
+Mining of copper ores and concentrates,B07,B07
+Mining of nickel ores and concentrates,B07,B07
+Mining of aluminium ores and concentrates,B07,B07
+Mining of precious metal ores and concentrates,B07,B07
+"Mining of lead, zinc and tin ores and concentrates",B07,B07
+Mining of other non-ferrous metal ores and concentrates,B07,B07
+Quarrying of stone,B08,B08
+Quarrying of sand and clay,B08,B08
+"Mining of chemical and fertilizer minerals, production of salt, other mining and quarrying n.e.c.",B08,B08
+Processing of meat cattle,C10T12,C10T12
+Processing of meat pigs,C10T12,C10T12
+Processing of meat poultry,C10T12,C10T12
+Production of meat products nec,C10T12,C10T12
+Processing vegetable oils and fats,C10T12,C10T12
+Processing of dairy products,C10T12,C10T12
+Processed rice,C10T12,C10T12
+Sugar refining,C10T12,C10T12
+Processing of Food products nec,C10T12,C10T12
+Manufacture of beverages,C10T12,C10T12
+Manufacture of fish products,C10T12,C10T12
+Manufacture of tobacco products (16),C10T12,C10T12
+Manufacture of textiles (17),C13T15,C13T15
+Manufacture of wearing apparel; dressing and dyeing of fur (18),C13T15,C13T15
+"Tanning and dressing of leather; manufacture of luggage, handbags, saddlery, harness and footwear (19)",C13T15,C13T15
+"Manufacture of wood and of products of wood and cork, except furniture; manufacture of articles of straw and plaiting materials (20)",C16,C16
+Re-processing of secondary wood material into new wood material,C16,C16
+Pulp,C17_18,C17_18
+Re-processing of secondary paper into new pulp,C17_18,C17_18
+Paper,C17_18,C17_18
+"Publishing, printing and reproduction of recorded media (22)",C17_18,C17_18
+Manufacture of coke oven products,C19,C19
+Petroleum Refinery,C19,C19
+Processing of nuclear fuel,C20,C20
+"Plastics, basic",C20,C20
+Re-processing of secondary plastic into new plastic,C20,C20
+N-fertiliser,C20,C20
+P- and other fertiliser,C20,C20
+Chemicals nec,C20,C20
+Manufacture of rubber and plastic products (25),C22,C22
+Manufacture of glass and glass products,C23,C23
+Re-processing of secondary glass into new glass,C23,C23
+Manufacture of ceramic goods,C23,C23
+"Manufacture of bricks, tiles and construction products, in baked clay",C23,C23
+"Manufacture of cement, lime and plaster",C23,C23
+Re-processing of ash into clinker,C23,C23
+Manufacture of other non-metallic mineral products n.e.c.,C23,C23
+Manufacture of basic iron and steel and of ferro-alloys and first products thereof,C24A,C24A
+Re-processing of secondary steel into new steel,C24A,C24A
+Precious metals production,C24B,C24B
+Re-processing of secondary preciuos metals into new preciuos metals,C24B,C24B
+Aluminium production,C24B,C24B
+Re-processing of secondary aluminium into new aluminium,C24B,C24B
+"Lead, zinc and tin production",C24B,C24B
+"Re-processing of secondary lead into new lead, zinc and tin",C24B,C24B
+Copper production,C24B,C24B
+Re-processing of secondary copper into new copper,C24B,C24B
+Other non-ferrous metal production,C24B,C24B
+Re-processing of secondary other non-ferrous metals into new other non-ferrous metals,C24B,C24B
+Casting of metals,C24A,C24A
+"Manufacture of fabricated metal products, except machinery and equipment (28)",C25,C25
+Manufacture of machinery and equipment n.e.c. (29),C28,C28
+Manufacture of office machinery and computers (30),C26,C26
+Manufacture of electrical machinery and apparatus n.e.c. (31),C27,C27
+"Manufacture of radio, television and communication equipment and apparatus (32)",C26,C26
+"Manufacture of medical, precision and optical instruments, watches and clocks (33)",C26,C26
+"Manufacture of motor vehicles, trailers and semi-trailers (34)",C29,C29
+Manufacture of other transport equipment (35),C302T309,C302T309
+Manufacture of furniture; manufacturing n.e.c. (36),C31T33,C31T33
+Recycling of waste and scrap,E,E
+Recycling of bottles by direct reuse,E,E
+Production of electricity by coal,D,D_GEN_FOS
+Production of electricity by gas,D,D_GEN_FOS
+Production of electricity by nuclear,D,D_GEN_NUC
+Production of electricity by hydro,D,D_GEN_REN
+Production of electricity by wind,D,D_GEN_REN
+Production of electricity by petroleum and other oil derivatives,D,D_GEN_FOS
+Production of electricity by biomass and waste,D,D_GEN_REN
+Production of electricity by solar photovoltaic,D,D_GEN_REN
+Production of electricity by solar thermal,D,D_GEN_REN
+"Production of electricity by tide, wave, ocean",D,D_GEN_REN
+Production of electricity by Geothermal,D,D_GEN_REN
+Production of electricity nec,D,D_GEN_FOS
+Transmission of electricity,D,D_TD
+Distribution and trade of electricity,D,D_TD
+Manufacture of gas; distribution of gaseous fuels through mains,D,D_GAS
+Steam and hot water supply,D,D_GAS
+"Collection, purification and distribution of water (41)",E,E
+Construction (45),F,F
+Re-processing of secondary construction material into aggregates,B08,B08
+"Sale, maintenance, repair of motor vehicles, motor vehicles parts, motorcycles, motor cycles parts and accessoiries",G,G
+Retail sale of automotive fuel,G,G
+"Wholesale trade and commission trade, except of motor vehicles and motorcycles (51)",G,G
+"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",G,G
+Hotels and restaurants (55),I,I
+Transport via railways,H49,H49
+Other land transport,H49,H49
+Transport via pipelines,H49,H49
+Sea and coastal water transport,H50,H50
+Inland water transport,H50,H50
+Air transport (62),H51,H51
+Supporting and auxiliary transport activities; activities of travel agencies (63),H52,H52
+Post and telecommunications (64),J61,J61
+"Financial intermediation, except insurance and pension funding (65)",K,K
+"Insurance and pension funding, except compulsory social security (66)",K,K
+Activities auxiliary to financial intermediation (67),K,K
+Real estate activities (70),L,L
+Renting of machinery and equipment without operator and of personal and household goods (71),N,N
+Computer and related activities (72),J62_63,J62_63
+Research and development (73),M,M
+Other business activities (74),M,M
+Public administration and defence; compulsory social security (75),O,O
+Education (80),P,P
+Health and social work (85),Q,Q
+Incineration of waste: Food,E,E
+Incineration of waste: Paper,E,E
+Incineration of waste: Plastic,E,E
+Incineration of waste: Metals and Inert materials,E,E
+Incineration of waste: Textiles,E,E
+Incineration of waste: Wood,E,E
+Incineration of waste: Oil/Hazardous waste,E,E
+"Biogasification of food waste, incl. land application",E,E
+"Biogasification of paper, incl. land application",E,E
+"Biogasification of sewage slugde, incl. land application",E,E
+"Composting of food waste, incl. land application",E,E
+"Composting of paper and wood, incl. land application",E,E
+"Waste water treatment, food",E,E
+"Waste water treatment, other",E,E
+Landfill of waste: Food,E,E
+Landfill of waste: Paper,E,E
+Landfill of waste: Plastic,E,E
+Landfill of waste: Inert/metal/hazardous,E,E
+Landfill of waste: Textiles,E,E
+Landfill of waste: Wood,E,E
+Activities of membership organisation n.e.c. (91),S,S
+"Recreational, cultural and sporting activities (92)",R,R
+Other service activities (93),S,S
+Private households with employed persons (95),T,T
+Extra-territorial organizations and bodies,O,O

@@ -1,0 +1,24 @@
+stressor,factor
+CO2 - combustion - air,1
+CH4 - combustion - air,29.8
+N2O - combustion - air,273
+CH4 - non combustion - Extraction/production of (natural) gas - air,29.8
+CH4 - non combustion - Extraction/production of crude oil - air,29.8
+CH4 - non combustion - Mining of antracite - air,29.8
+CH4 - non combustion - Mining of bituminous coal - air,29.8
+CH4 - non combustion - Mining of coking coal - air,29.8
+CH4 - non combustion - Mining of lignite (brown coal) - air,29.8
+CH4 - non combustion - Mining of sub-bituminous coal - air,29.8
+CH4 - non combustion - Oil refinery - air,29.8
+CO2 - non combustion - Cement production - air,1
+CO2 - non combustion - Lime production - air,1
+SF6 - air,25200
+HFC - air,1
+PFC - air,1
+CH4 - agriculture - air,27
+CO2 - agriculture - peat decay - air,1
+N2O - agriculture - air,273
+CH4 - waste - air,27
+CO2 - waste - biogenic - air,0
+CO2 - waste - fossil - air,1
+NF3 - air,17400
