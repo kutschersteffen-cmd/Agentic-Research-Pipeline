@@ -44,6 +44,7 @@ class Value:
     reason: str | None = None
     document_id: int | None = None
     quote: str | None = None  # the exact words the figure was taken from; computed facts have none
+    extracted: str | None = None  # the figure as extracted, in its source unit; set only after a conversion
 
 
 class ConditionResult(BaseModel):
@@ -98,7 +99,7 @@ def _entry(v: Value) -> dict:
     entry = asdict(v)
     if isinstance(v.value, date):
         entry["value"] = v.value.isoformat()  # JSON-ready: the entry goes into a JSONB column
-    return {**entry, "shown": shown, "extracted": shown}  # extracted differs from shown only after conversion
+    return {**entry, "shown": shown, "extracted": v.extracted or shown}  # extracted differs from shown only after conversion
 
 
 def _leaf_nodes(node: dict) -> list[dict]:
@@ -136,6 +137,8 @@ class _Combo:
         if v is None:
             return None
         shown = _show(v.value, v.unit)
+        if v.extracted:
+            shown += f" ({v.extracted})"
         if v not in self.inputs:
             return f"{shown} ({_cite(v)})"
         a, b = (f"{self.facts[i.fact].label} = {self.describe(i)}" for i in self.inputs[v])

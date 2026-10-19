@@ -485,3 +485,17 @@ def test_source_follows_fact_order_and_skips_uncounted():
     gone = val("price", 72, counted=False, reason="Quote not found in source")
     r = run(rb_variant(1), defaults(price=gone, applies=val("applies", True, "D3", 8)))
     assert cell_source(r, rb_variant(1)) == f"{D3}; {D2}"
+
+
+def test_converted_value_shows_extracted_in_brackets():
+    def cny(amount, page):
+        return val("price", amount * 0.14, "D1", page, extracted=f"{amount} CNY/tCO2")
+
+    r = run(rb_variant(1), defaults(price=cny(66.9, 17)))
+    assert "Effective carbon price = 9.37 USD/tCO2 (66.9 CNY/tCO2) (" in clause(r)
+    entry = next(v for v in r.values if v["fact"] == "price")
+    assert (entry["shown"], entry["extracted"]) == ("9.37 USD/tCO2", "66.9 CNY/tCO2")
+
+    r = run(rb_variant(1), defaults(price=cny(71.42, 18)))  # 71.42 * 0.14 = 9.9988
+    assert "10 USD/tCO2 (71.42 CNY/tCO2)" in clause(r)
+    assert r.levels["M"].conditions[1].outcome == "fail"  # price >= 10 compares the unrounded figure
