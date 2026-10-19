@@ -286,7 +286,7 @@ wins when both exist. **Builder's call.** For RY+1 the same, from the planned fi
 | none | any | not scored | `not_scored` = `No reporting-year low-carbon capex share` |
 
 **Score** = min(share used ÷ sector benchmark, 1), continuous (owner decision, research 13.4(c);
-ACT Core bands are not used). Display follows the barrier rule book (at most two decimals, rounded
+ACT Core bands are not used). `share_used` and each R&D test's `used` are percents (20 means 20%). Display follows the barrier rule book (at most two decimals, rounded
 half up on the decimal value, trailing zeros dropped: `0.25`, `0.13`, `1`).
 
 **R&D tests.** Each test's ratio = numerator ÷ denominator for a year (the disclosed
@@ -361,8 +361,8 @@ assumption's region if stated, else every region of those actions. Each comparis
 - `gap` = assumption − evidence, with sign and unit (`+25.2 USD/tCO2`, `-3 USD/kg H2`), only when
   there is exactly one evidence value; otherwise null. No judgement word is attached.
 
-An assumption that cannot be converted shows `assumption` null and the conversion reason from the
-rule book (`Unit not convertible: …`).
+An assumption that cannot be converted shows `assumption` and `gap` null and, in `reason`, the
+conversion reason from the rule book (`Unit not convertible: <unit>`).
 
 ### 5. B02 tests (Part A)
 
@@ -372,7 +372,7 @@ research 13.2.3, 13.4(b)):
 | Test | Per action | `met` | `text` |
 |---|---|---|---|
 | B02.b timeframe | status `implemented` | true | `implemented (<year>)`, or `implemented` without a year |
-| | planned, year ≤ 2030 | true | `near term (<year>)` |
+| | planned, year ≤ 2030 (also when the year is before the document date) | true | `near term (<year>)` |
 | | planned, year ≥ 2031 | true | `long term (<year>)` |
 | | planned, no year | false | `No timeframe: ignored` |
 | B02.c saving | saving counted | true | `<value> <unit>`, e.g. `3.5 MtCO2e/yr` |
@@ -436,7 +436,7 @@ API:
     `text`, `status`, `year`, `region`, `citation`, `timeframe`, `b02` (`b`, `c`, `d`, each `met`,
     `text`), `barriers[]` (`code`, `region`, `rating`, `basis`, `evidence`, `values[]`), `note`;
   - `b02a` (`met`, `text`); `assumptions[]`: `kind`, `region`, `year`, `citation`, `comparisons[]`
-    (`code`, `region`, `assumption`, `evidence`, `gap`).
+    (`code`, `region`, `assumption`, `evidence`, `gap`, `reason`).
 - A `citation` for a company fact reads `<document title> p.<page>`, as the Facts table's source
   label does.
 
@@ -538,7 +538,8 @@ null. Assumptions: `carbon_price` (USD/tCO2) → `STL-R1.price`; `h2_cost` (USD/
 **Documents** (PDF): P1 "Fixture Steel Transition Plan 2025" (transition plan, as-of 2026-03-31);
 P2 "Fixture Steel Annual Report 2025" (annual report, as-of 2026-03-31); P3 "Fixture Steel
 Transition Plan 2023" (transition plan, as-of 2024-03-31); P4 "Fixture Power Annual Report 2025"
-(as-of 2026-03-31); P5 "Fixture Foods Report 2025" (as-of 2026-03-31).
+(as-of 2026-03-31); P5 "Fixture Foods Report 2025" (as-of 2026-03-31); P6 "Fixture Steel Transition
+Plan 2025 (revised)" (transition plan, as-of 2026-03-31, uploaded after P1).
 
 | Doc | Page | Quote | Facts |
 |---|---|---|---|
@@ -562,6 +563,7 @@ Transition Plan 2023" (transition plan, as-of 2024-03-31); P4 "Fixture Power Ann
 | P1 | 21 | `We assume renewable hydrogen at USD 3/kg.` | C: `ta_assumed_h2_cost` 3 USD/kg H2, `region:any` |
 | P3 | 5 | `We will build a coke oven gas recovery unit by 2025.` | action A6: `other`, planned, 2025, European Union (published only where a row says so) |
 | P4 | 9 | `We started building a 600 MW unabated coal plant in 2025.` | P: `tc_new_unabated_coal` Yes (published only where a row says so) |
+| P6 | 4 | `We will build a second DRI plant in Sweden by 2030.` | action A7: `steel.h2_dri`, planned, 2030, European Union (published only where a row says so) |
 | P5 | 8 | `Capital expenditure was EUR 200 million.` | Q: `capex_total` 2025 = 200 EUR million |
 
 **Defaults**, unless a row says otherwise: every fact in the table not marked "only where a row
@@ -590,7 +592,7 @@ and `extraction_instructions`.
 | AC-7 | BM with `steel.ccus` removed from `act_levers` | `benchmarks validate --data-dir BM` | exit 1; output contains `No ACT lever entry for action: steel.ccus` | holdout |
 | AC-8 | BM with `h2_cost` listing `STL-R1.price` | `benchmarks validate --data-dir BM` | exit 1; output contains `Assumption 'h2_cost' is in USD/kg H2, 'STL-R1.price' is in USD/tCO2` | holdout |
 | ~~AC-56~~ | | | Retired: the open-redline count is gone; replaced by AC-67. | |
-| AC-67 | AC-6's BM | `benchmarks sign --approved-by owner --data-dir BM`, then `benchmarks validate --data-dir BM` | `version` 4; the last `history` entry has `version` 4 and `approved_by` `owner`; validate exits 0 and prints `Benchmarks v4: OK, 3 sectors, 2 redlines` | holdout |
+| AC-67 | AC-6's BM (2 redlines: `stl_bf`, `pwr_coal`) | `benchmarks sign --approved-by owner --data-dir BM`, then `benchmarks validate --data-dir BM` | `version` 4; the last `history` entry has `version` 4 and `approved_by` `owner`; validate exits 0 and prints `Benchmarks v4: OK, 3 sectors, 2 redlines` | holdout |
 | AC-57 | AC-3's BM | the API starts | startup fails with an error containing `Steel: capex benchmark has no source` | holdout |
 | AC-64 | BM with an `act_levers` entry `pwr.renewables` (not in F-TA's rule book) | `benchmarks validate --data-dir BM` | exit 1; output contains `Unknown action in act_levers: pwr.renewables` | holdout |
 
@@ -601,10 +603,11 @@ and `extraction_instructions`.
 | AC-9 | the defaults | request for C | `in_scope` true; `sector` `Steel`; `capex.reporting_year` 2025; `share_used` 20; `rule` `RY+1 higher: RY+1 used`; `benchmark.value` 80; `ratio_shown` `0.25` | holdout |
 | AC-10 | `tc_lowcarbon_capex_share_pct_planned` 2026 = 8 | request for C | `share_used` 10; `rule` `RY+1 lower: average of RY and RY+1`; `ratio_shown` `0.13` | holdout |
 | AC-11 | no `tc_lowcarbon_capex_share_pct_planned` | request for C | `share_used` 12; `rule` `Only RY known: RY used`; `ratio_shown` `0.15` | holdout |
-| AC-12 | no `tc_lowcarbon_capex_share_pct` (2025) | request for C | `share_ry.value` 12; `share_ry.source` `computed from amounts` | holdout |
+| AC-12 | no `tc_lowcarbon_capex_share_pct` (2025) | request for C | `share_ry.value` 12; `share_ry.source` `computed from amounts`; `share_used` 20 | holdout |
 | AC-13 | no 2025 `tc_lowcarbon_capex_share_pct`, `tc_lowcarbon_capex` or `tc_capex_total` (other 2025 facts kept) | request for C | `ratio` null; `not_scored` `No reporting-year low-carbon capex share` | holdout |
 | AC-14 | P with `tc_lowcarbon_capex_share_pct` 2025 = 97 | request for P | `benchmark.value` 95; `ratio_shown` `1` | holdout |
 | AC-15 | the defaults | request for C | `amounts[]` holds `tc_carbon_intensive_capex` 2025 with `shown` `300 EUR million` and `citation` `Fixture Steel Annual Report 2025 p.46`, and `tc_capex_total_planned` 2026 with `shown` `1100 EUR million` | holdout |
+| AC-70 | no `tc_carbon_intensive_capex` | request for C | `amounts[]` has no entry with `field_id` `tc_carbon_intensive_capex` | holdout |
 | AC-16 | the defaults | request for C | `rnd_tests` `lc_share`: `used` 60, `rule` `RY higher: RY used`, `ratio_shown` `0.75`; `early_stage`: `used` 55, `rule` `RY lower: average of RY-1 and RY`, `ratio_shown` `0.85` | holdout |
 | AC-17 | K with `tc_lowcarbon_rnd` 2025 = 40 EUR million and `tc_capex_total` 2025 = 1000 EUR million | request for K | `rnd_tests` `capex_share`: `used` 4, `rule` `Only RY known: RY used`, `ratio_shown` `0.8` | holdout |
 | AC-61 | C with no 2025 R&D facts (the 2024 R&D facts and the 2025 capex facts kept) | request for C | `capex.reporting_year` 2025; `rnd_tests` `lc_share` and `early_stage` each have `not_scored` `No reporting-year R&D figures` | holdout |
@@ -613,8 +616,8 @@ and `extraction_instructions`.
 | AC-19 | P with `tc_new_unabated_coal` Yes published from P4 p. 9 | request for P | redline `pwr_coal` `status` `breached`, `citation` `Fixture Power Annual Report 2025 p.9` | holdout |
 | AC-20 | P with no `tc_new_unabated_coal` | request for P | redline `pwr_coal` `status` `no disclosure` | holdout |
 | AC-21 | the defaults; the model client raises on any call | request for C | HTTP 200; `ratio_shown` `0.25` | holdout |
-| AC-22 | Q | request for Q | `in_scope` false; `reason` `ISIC 1050 is not in a transition-barrier sector`; `capex` and `actions` absent or empty | holdout |
-| AC-58 | N | request for N | `in_scope` false; `reason` `No ISIC code` | holdout |
+| AC-22 | Q | request for Q | `in_scope` false; `reason` `ISIC 1050 is not in a transition-barrier sector`; `capex` null; `actions` `[]` | holdout |
+| AC-58 | N | request for N | `in_scope` false; `reason` `No ISIC code`; `capex` null; `actions` `[]` | holdout |
 | AC-23 | C with no 2025 capex facts; the extraction stub returns `tc_lowcarbon_capex_share_pct` 12 for 2025 from P2 p. 45 with its quote | an extraction run of `sch_transition_capex` for C, then its review item is approved | `GET /companies/C/facts?field_id=tc_lowcarbon_capex_share_pct` lists one row, `period_end` 2025-12-31, value 12, status `approved`, `source_label` `Fixture Steel Annual Report 2025 p.45` | holdout |
 
 ### Plan actions, barriers and B02 (phase 2)
@@ -626,12 +629,15 @@ and `extraction_instructions`.
 | AC-26 | the defaults | request for C | A2 `barriers` = exactly one: `STL-R1` United States `L` `hand_rated`, `evidence` `No federal carbon price applies to steel.` | holdout |
 | AC-27 | A1 has no `ta_action_region` | request for C | A1 `barriers`, in order: `STL-R1` European Union `H` `derived`; `STL-T1` European Union `M` `derived`; `STL-R1` United States `L` `hand_rated` `No federal carbon price applies to steel.`; `STL-T1` United States `L` `hand_rated` `Hydrogen cost well above breakeven.`; `STL-R1` China `L` `hand_rated` `National ETS price too low to matter.`; `STL-T1` China `L` `hand_rated` `No renewable hydrogen supply at scale.` | holdout |
 | AC-28 | no `ta_operates_*` facts; A1 has no `ta_action_region` | request for C | `regions` `[]`; A1 `barriers` `[]`, `note` `No operating region disclosed` | holdout |
+| AC-69 | A1's `ta_action_region` = `other` | request for C | A1 `barriers` `[]` | holdout |
 | AC-29 | the defaults | request for C | A2 `act_lever.wording` `More scrap, process efficiency, zero-GHG power`; A1 `act_lever` null | holdout |
 | AC-30 | the extraction stub classifies the p. 12 action as `steel.foo` | an extraction run of `sch_transition_plan_actions` for C | the action's review item shows reason `Unknown action id 'steel.foo'`; no `ta_action_id` fact `steel.foo` is published | holdout |
 | AC-62 | A6 published from P3 (an older plan) | request for C | `actions` lists exactly A1, A2, A3; `GET /facts/<A6's ta_action_id fact>/trail` still returns that fact | holdout |
+| AC-71 | P6 stored and A7 published | request for C | `actions` lists exactly A7, citation `Fixture Steel Transition Plan 2025 (revised) p.4` | holdout |
 | AC-31 | the defaults | request for C | the carbon-price assumption has exactly one comparison: `code` `STL-R1`, `region` `European Union`, `assumption` `97.2 USD/tCO2 (90 EUR/tCO2)`, `evidence` `72 USD/tCO2 (EU ETS Market Report 2026, p. 12)`, `gap` `+25.2 USD/tCO2` | holdout |
 | AC-32 | the defaults | request for C | the hydrogen assumption has exactly one comparison: `STL-T1` European Union, `assumption` `3 USD/kg H2`, `gap` `-3 USD/kg H2` | holdout |
 | AC-33 | A1 has no `ta_action_region` | request for C | the hydrogen assumption's comparisons, in order, are for `STL-T1` European Union, United States, China; the United States one has `evidence` `hand-rated, no figure: Hydrogen cost well above breakeven.` and `gap` null | holdout |
+| AC-68 | `ta_assumed_carbon_price` = 90 KRW/tCO2 (`region:European Union`) | request for C | that assumption's one comparison has `assumption` null, `gap` null, `reason` `Unit not convertible: KRW/tCO2` | holdout |
 | AC-34 | the defaults | request for C | A1 `b02`: `b` met `near term (2028)`; `c` met `3.5 MtCO2e/yr`; `d` met `1500 EUR million needed, 600 EUR million allocated` | holdout |
 | AC-35 | the defaults | request for C | A2 `b02`: `b` met `implemented (2022)`; `c` not met `No quantified GHG saving`; `d` not met `No funding stated` | holdout |
 | ~~AC-36~~ | | | Retired: two outcomes in one row; split into AC-49 and AC-50. | |
@@ -672,7 +678,7 @@ BM together pass validation, so the app starts.
 | ID | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
 | AC-45 | the defaults; then an extraction run of `sch_transition_capex` for C whose stub returns `not_found` | `GET /companies/C/facts?field_id=green_capex_share_pct` | exactly one row: `period_end` 2025-12-31, value 15, status `approved`, `source_label` `Fixture Steel Annual Report 2025 p.47` | holdout |
-| AC-46 | F-TA after setup | AC-24 to AC-35 and AC-49 to AC-63 run, then `GET /api/transition-barrier/scores` and `GET /cells/STL-R1/European Union` | equal to the responses before the run; every file in F-TA is byte-identical | holdout |
+| AC-46 | F-TA after setup | AC-24 to AC-35 and AC-49 to AC-71 run, then `GET /api/transition-barrier/scores` and `GET /cells/STL-R1/European Union` | equal to the responses before the run; every file in F-TA is byte-identical | holdout |
 | AC-47 | snapshot S | the four presets in S are built from `PRESETS` | every field's `field_id`, `data_type`, `version`, `high_risk` and `extraction_instructions` equal S; `PRESETS` holds exactly those four keys plus `sch_transition_capex` and `sch_transition_plan_actions` | unit |
 | AC-48 | Q; extraction runs of `sch_transition_capex` and `sch_transition_plan_actions` requested for Q | `GET /companies/Q/facts` | exactly one row: `capex_total`, `period_end` 2025-12-31, value 200, status `approved`, `source_label` `Fixture Foods Report 2025 p.8` | holdout |
 
