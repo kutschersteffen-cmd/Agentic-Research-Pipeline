@@ -10,7 +10,7 @@ from datetime import date
 from uuid import UUID
 
 from arp.db.models import CitationRole, Route, SourceKind, ValueState
-from arp.db.observations import CitationIn, ObservationIn
+from arp.db.observations import RULE_NOT_APPLICABLE, CitationIn, ObservationIn
 from arp.normalise.period import resolve_period
 from arp.schemas.common import Citation
 from arp.schemas.datapoints import ExtractionRecord
@@ -113,7 +113,8 @@ def _extraction(company_id: UUID, run_id: str, result: dict, trial: bool, errors
             period_end=period_end, period_start=period_start, basis=f.basis or "", value=f.value,
             value_state=ValueState(f.value_state.value), unit=f.unit, canonical_value=f.canonical_value,
             canonical_unit=f.canonical_unit, scale_applied=f.scale_applied, fx_rate=f.fx_rate, confidence=f.confidence,
-            checks=[c.model_dump(mode="json") for c in f.checks], route=Route(route) if route else None, method=f.method,
+            checks=[c.model_dump(mode="json") for c in f.checks], route=Route(route) if route else None,
+            method=RULE_NOT_APPLICABLE if RULE_NOT_APPLICABLE in f.route_reasons else f.method,
             run_id=run_id, conflicting_sources=f.conflicting_sources, trial=trial,
             held=all_held or f.route == "hold",
             citations=_cited(f.citations) + [_citation(c, CitationRole.ALTERNATIVE) for a in f.alternatives for c in a.citations],

@@ -39,8 +39,13 @@ def test_not_found_keeps_current():
 
 
 def test_not_applicable_is_observation_only():
-    assert decide(None, None, A, ValueState.NOT_APPLICABLE) == "noop"
-    assert decide(_fact(1000), None, A, ValueState.NOT_APPLICABLE) == "keep"
+    assert decide(None, None, A, ValueState.NOT_APPLICABLE, by_rule=True) == "noop"
+    assert decide(_fact(1000), None, A, ValueState.NOT_APPLICABLE, by_rule=True) == "keep"
+
+
+def test_document_not_applicable_is_a_value():
+    assert decide(None, None, A, ValueState.NOT_APPLICABLE) == "insert"
+    assert decide(_fact(1000), None, A, ValueState.NOT_APPLICABLE) == "supersede"
 
 
 def test_held_does_not_displace_accepted_fact():
