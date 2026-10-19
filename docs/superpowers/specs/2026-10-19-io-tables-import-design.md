@@ -55,6 +55,7 @@ codes to find the right industry in the imported tables.
    `region`, `sector`, then one empty cell per column. Every later line is one row: region, sector
    name, then one value per column. Columns are identified by header lines 1 and 2, never by
    position. `x.txt` has the header `region\tsector\tindout`, then one line per (region, sector).
+   Lines may end in `\r\n` (the real `Y.txt` does); a trailing `\r` is stripped from every line.
    The importer reads `Z.txt` one line at a time. A sector name in the archive that is not in the
    crosswalk is an error; a crosswalk sector absent from the archive is not. "N sectors" in the
    import message is the number of distinct sector names among `Z.txt` data rows.
@@ -117,7 +118,7 @@ Setup notes for the test-writer:
   `AAA_C26`, 50 for `BBB_C26`, 40 for `AAA_C27`, 60 for `BBB_C27`, 30 for `AAA_D` and 1 for every
   other industry row. Every cell of `AAA_HFCE`, `BBB_GFCF` and of the `TLS`, `VA`, `OUT` rows is 7.
 - **Fixture E** (EXIOBASE): file `IOT_fixture_ixi.zip`, holding `Z.txt` and `x.txt` at its root in
-  the layout of call 6, with regions `AT` then `WA` and, within each, the 163 Appendix B names in
+  the layout of call 6, lines ending in `\n`, with regions `AT` then `WA` and, within each, the 163 Appendix B names in
   Appendix B order, for both rows and columns. B#n is Appendix B row n. All `Z` values are 0
   except (AT, B#87)→(WA, B#88) = 10, (WA, B#89)→(AT, B#88) = 5, (AT, B#108)→(AT, B#87) = 2 and
   (AT, B#100)→(AT, B#87) = 3 (row → column). `indout` is 100 for (AT, B#87), 50 for (WA, B#89), 40
@@ -177,6 +178,7 @@ Setup notes for the test-writer:
 | AC-13 | AC-10 | stdout lines 2 to 5 | Exactly `ARP_IO_SOURCE=exiobase`, `ARP_EXIOBASE_FLOWS_PATH=<D>/exiobase_flows.csv`, `ARP_EXIOBASE_INDUSTRIES_PATH=<D>/industries.csv`, `ARP_EXIOBASE_EDITION_LABEL=exiobase-IOT_fixture_ixi`, in that order | holdout |
 | AC-40 | Fixture E | `arp io import-exiobase IOT_fixture_ixi.zip --out <dir> --label X3` | stdout line 5 is `ARP_EXIOBASE_EDITION_LABEL=X3` | holdout |
 | AC-49 | Fixture E with the `Z.txt` columns in reverse order: header lines 1 to 3 and the value cells of every data row are reversed together, so each value stays under its own (region, sector) header; the data rows' order and first two cells are unchanged | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `exiobase_flows.csv` as in AC-12 | holdout |
+| AC-55 | Fixture E with every line of `Z.txt` and `x.txt` ending in `\r\n` | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `exiobase_flows.csv` as in AC-12 | holdout |
 | AC-14 | Fixture E with B#87's name replaced by `Made-up sector` everywhere: `Z.txt` header line 2 (both regions), the sector cell of both its `Z.txt` rows, and both its `x.txt` rows | `arp io import-exiobase <zip> --out <dir>` | Exit 1; stderr contains `EXIOBASE sector not in crosswalk: Made-up sector` | holdout |
 | AC-15 | A zip with fixture E's `x.txt` but no `Z.txt` | `arp io import-exiobase <zip> --out <dir>` | Exit 1; stderr contains `no Z.txt at the archive root` | holdout |
 | AC-51 | `reference/icio2025_industries.csv` | Read the whole file | Header `code,label,isic_divisions`; 50 data rows equal, in order, to Appendix A's (Code, Label, isic_divisions) | holdout |
