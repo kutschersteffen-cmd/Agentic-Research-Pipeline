@@ -3352,3 +3352,28 @@ export interface SignalComparison {
   n_comparisons: number;
   reason: string | null;
 }
+
+/** GET /api/themes/runs/{run_id}/layers: theme exposure layers, computed on read. */
+export interface ThemeLayerRow {
+  issuer_key: string;
+  name: string;
+  in_run: boolean;
+  l1: number | null;
+  l2: number | null;
+  l3: number | null;
+  score: number | null;
+  pure_play: boolean;
+  status: string;
+  rank: number | null;
+  l2_via: string[] | null;
+}
+
+export interface ThemeLayers {
+  run_id: string;
+  as_of: string;
+  weights: { w1: number; w2: number; w3: number };
+  decay: number;
+  max_hops: number;
+  pure_play_threshold: number;
+  rows: ThemeLayerRow[];
+}

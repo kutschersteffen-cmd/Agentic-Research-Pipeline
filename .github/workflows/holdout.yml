@@ -29,8 +29,22 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      neo4j:
+        image: neo4j:5.26-community
+        env:
+          NEO4J_AUTH: neo4j/arp_neo4j_test
+        ports:
+          - 7687:7687
+        options: >-
+          --health-cmd "cypher-shell -u neo4j -p arp_neo4j_test 'RETURN 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
     env:
       ARP_POSTGRES_DSN: postgresql+psycopg://arp:arp@localhost:5432/arp_test
+      ARP_NEO4J_URI: bolt://localhost:7687
+      ARP_NEO4J_USER: neo4j
+      ARP_NEO4J_PASSWORD: arp_neo4j_test
     steps:
       - name: Check for the token
         id: key

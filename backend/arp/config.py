@@ -279,6 +279,14 @@ class Settings(BaseSettings):
     revenue_exposure_significant_threshold: float = Field(default=0.2)
     revenue_exposure_minor_threshold: float = Field(default=0.05)
 
+    # Theme exposure layers (arp/research/exposure_layers.py): S = w1*L1 + w2*L2 + w3*L3.
+    # Checked by layer_params, not here, so a bad value fails only the layers, never app start.
+    theme_layer_w1: float = Field(default=0.45)
+    theme_layer_w2: float = Field(default=0.35)
+    theme_layer_w3: float = Field(default=0.20)
+    theme_layer_decay: float = Field(default=0.85)
+    theme_layer_max_hops: int = Field(default=2)
+
     # Cross-method arbitration (Step 4): a weighted composite ranking score
     # layered on top of exposure_estimate/revenue_exposure/indirect_exposure/
     # rd_exposure, never blending into or overwriting them -- see
@@ -423,6 +431,11 @@ class Settings(BaseSettings):
         "system of record (companies, runs, review, facts, documents, embeddings, holdings), so the app and CLI "
         "refuse to start without it. Create or upgrade the schema with `arp db init-postgres`.",
     )
+    # Neo4j company graph (arp/company_graph.py): supply edges for theme exposure layers.
+    # Optional: unset (or empty), only the layers and `arp theme edges import` report it.
+    neo4j_uri: str | None = Field(default=None, description="Bolt URI, e.g. bolt://localhost:7687.")
+    neo4j_user: str = Field(default="neo4j")
+    neo4j_password: str | None = Field(default=None)
     postgres_pool_size: int = Field(
         default=10,
         description="Connections each process keeps pooled: a batch writes up to max_concurrent_llm_calls (8) "

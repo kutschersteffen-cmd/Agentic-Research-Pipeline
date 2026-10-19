@@ -11,15 +11,19 @@ import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
 import type { ActivityCatalogueMapping, ActivityDefinition, CompanyMatch, Taxonomy, ThemeDefinition } from "../types";
 import { activatable } from "../lib/activatable";
 import { ProposedTag } from "../components/ProposedTag";
+import { ThemeLayersTable } from "../components/ThemeLayersTable";
+import { errorDetail } from "../lib/themeLayers";
 
 const EXPOSURE_RANK: Record<string, number> = { pure_play: 3, significant: 2, minor: 1, none: 0 };
 
 interface Props {
   onSendToExtraction?: (path: string, count: number) => void;
   pendingTaxonomyId?: string | null;
+  /** A stored run to open, from `#/theme/<run id>`. */
+  initialRunId?: string | null;
 }
 
-export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = {}) {
+export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId, initialRunId }: Props = {}) {
   const [name, setName] = useState("Electrification");
   const [description, setDescription] = useState(
     "The shift of energy generation, transport, industry, and buildings from fossil fuels to electricity."
@@ -29,7 +33,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
   const [error, setError] = useState<string | null>(null);
   const [universePath, setUniversePath] = useState<string | null>(null);
   const [companyCount, setCompanyCount] = useState(0);
-  const [runId, setRunId] = useState<string | null>(null);
+  const [runId, setRunId] = useState<string | null>(initialRunId ?? null);
   const [results, setResults] = useState<CompanyMatch[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [batch, setBatch] = useState(false);
@@ -170,6 +174,20 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
   function activityName(activityId: string): string {
     return theme?.activities.find((a) => a.activity_id === activityId)?.name ?? activityId;
   }
+
+  // A run opened from #/theme/<run id> shows its stored results straight away.
+  // A run started meanwhile changes runId, which drops this response.
+  useEffect(() => {
+    if (!initialRunId || runId !== initialRunId) return;
+    let current = true;
+    api
+      .getThemeResults(initialRunId)
+      .then((res) => current && setResults((res as { results: CompanyMatch[] }).results))
+      .catch((e) => current && setError(errorDetail(e)));
+    return () => {
+      current = false;
+    };
+  }, [initialRunId, runId]);
 
   async function refreshResults() {
     if (!runId) return;
@@ -525,6 +543,8 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId }: Props = 
           )}
         </section>
       )}
+
+      {runId && <ThemeLayersTable runId={runId} results={results} />}
     </div>
   );
 }

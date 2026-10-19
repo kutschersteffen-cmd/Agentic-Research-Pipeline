@@ -22,6 +22,7 @@
 #   docker compose up backend frontend --build        # just the app
 #   docker compose up -d postgres                      # required; then: arp db init-postgres
 #   docker compose up -d opensearch minio              # optional; then: arp db init-opensearch && arp db init-object-store
+#   docker compose up -d neo4j                         # optional: company graph for theme exposure layers
 #   docker compose --env-file backend/.env up -d postgres superset   # BI (arp/bi/), then:
 #          arp db init-postgres && arp bi bootstrap
 
@@ -54,6 +55,8 @@ services:
       ARP_DEV_TRUSTED_NETWORKS: '["172.16.0.0/12"]'
       ARP_USERS_FILE: /app/config/users.json
       ARP_POSTGRES_DSN: postgresql+psycopg://arp:arp@postgres:5432/arp  # required; run `arp db init-postgres` once
+      ARP_NEO4J_URI: bolt://neo4j:7687  # optional (`docker compose up -d neo4j`); no depends_on on purpose
+      ARP_NEO4J_PASSWORD: arp_neo4j_test
       # The browser calls the API as localhost:8000 (VITE_API_BASE), which the
       # default ARP_TRUSTED_HOSTS allows; set ARP_TRUSTED_HOSTS (JSON list) if
       # you reach it under another host name. On Docker hosts whose compose
@@ -110,6 +113,17 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  neo4j:
+    # Optional: the company graph behind the theme exposure layers (arp/company_graph.py).
+    # Without it every other screen works; the Layers table says the graph is not configured.
+    image: neo4j:5.26-community
+    environment:
+      NEO4J_AUTH: neo4j/arp_neo4j_test
+    ports:
+      - "127.0.0.1:7687:7687"
+    volumes:
+      - arp_neo4j_data:/data
 
   opensearch:
     image: opensearchproject/opensearch:2.15.0
@@ -205,5 +219,6 @@ volumes:
   arp_discovery_state:
   arp_document_store:
   arp_postgres_data:
+  arp_neo4j_data:
   arp_opensearch_data:
   arp_minio_data:
