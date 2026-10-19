@@ -71,13 +71,18 @@ These rows needed a judgement call, or rely on a conversion or on picking one pa
 
 ## What a perfect model could score
 
-A stand-in model ran through the real `golden.score` with default settings (hybrid retrieval). It
-answers every row with its own label, quoting the page text as extraction gives it. It reached
-precision 1 and coverage 36/43 = 0.84. The 5 absent rows cannot count, and two more rows are never
-shown to the model: 16 (Article 14 of the methane regulation) and 18 (Article 3(1) of RED III).
-Before phase 3 widened retrieval for barrier facts, the same run reached 24/43 = 0.56. The change
-added the definition's words to the search keywords and raised the cap to 45 passages per fact.
-A real model will score at or below 0.84.
+A stand-in model ran through the real `golden.score`. It answers every row with its own label, quoting
+the page text the way extraction gives it. Retrieval is the same as Argus's: the curated keywords in
+`data/fact_keywords.json`, 12 passages per fact, and BM25 with or without the embedding half.
+
+| Retrieval | Curated keywords | Label words only (before) |
+|---|---|---|
+| BM25 only | 31/43 = 0.72 | 21/43 = 0.49 |
+| Hybrid (default) | 26/43 = 0.60 | 22/43 = 0.51 |
+
+Precision was 1 in every run. The 5 absent rows can never count. The other rows that miss are present
+in the document, but retrieval does not show the model the passage. A real model will score at or
+below these numbers.
 
 ## Documents
 

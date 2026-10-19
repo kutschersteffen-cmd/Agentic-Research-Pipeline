@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import math
 from datetime import date
+from pathlib import Path
 
 from pypdf import PageObject
 
@@ -22,6 +24,7 @@ BOOK, _ = load_rule_book(FIXTURES)
 FACTS = {f.id: f for f in BOOK.criteria["STL-R1"].facts}
 SETTINGS = Settings(hybrid_retrieval_enabled=False)
 DOC_IDS = {"D1": 1, "D2": 2, "D3": 3, "D4": 4}
+KEYWORDS = json.loads((Path(extraction.__file__).parent / "data" / "fact_keywords.json").read_text(encoding="utf-8"))
 
 
 def doc(name: str, *, html: bool = False) -> dict:
@@ -133,9 +136,7 @@ def test_source_document_pages():
 def test_field_for_and_fingerprint():
     f = extraction.field_for(FACTS["price"], CELL, BOOK.conversions)
     assert (f.name, f.data_type.value, f.unit) == ("price", "number", None)
-    assert f.seed_keywords == [  # the label's words, then the definition's, each once and without "from"/"with"-type words
-        "effective", "carbon", "price", "tonne", "paid", "steel", "producers", "latest", "full", "year", "free", "allocation",
-    ]
+    assert f.seed_keywords == KEYWORDS["STL-R1"]["price"]  # curated, from the cell's criterion code
     assert f.extraction_instructions.startswith(FACTS["price"].definition)
     assert f.extraction_instructions.endswith("Give the as-of date of the value in period_text when the source states one.")
     assert "(for example CNY/tCO2)" in f.extraction_instructions
@@ -166,13 +167,19 @@ def test_both_sides_named_in_the_unit_sentence():
     ) in text
 
 
-def test_extraction_sees_at_least_the_barrier_evidence_cap(monkeypatch):
-    seen = []
-    real = field_graph.field_evidence
-    monkeypatch.setattr(field_graph, "field_evidence", lambda f, d, settings, *a: seen.append(settings) or real(f, d, settings, *a))
-    out, _ = run("price", doc("D1"), pv(72, QUOTES["D1"][12]))
-    assert out.counted and [s.evidence_max_chunks for s in seen] == [extraction.EVIDENCE_CHUNKS]
-    assert SETTINGS.evidence_max_chunks == 12  # the caller's settings are left alone
+def test_seed_keywords_fall_back_to_the_label_words():
+    f = extraction.field_for(FACTS["price"], "Steel, European Union, XXX-R9", BOOK.conversions)
+    assert f.seed_keywords == ["effective", "carbon", "price"]
+
+
+def test_every_typed_fact_has_three_to_eight_curated_keywords():
+    book = load_rule_book(Path(extraction.__file__).parent / "data")[0]
+    typed = {(code, f.id) for code, c in book.criteria.items() for f in c.facts if f.type}
+    listed = {(code, fact) for code, facts in KEYWORDS.items() for fact in facts}
+    assert listed == typed  # none missing, and no key names an unknown code or fact
+    for code, fact in listed:
+        words = KEYWORDS[code][fact]
+        assert 3 <= len(words) <= 8 and all(w.strip() for w in words) and len({w.lower() for w in words}) == len(words), (code, fact)
 
 
 def test_lone_surrogate_in_pdf_text_is_replaced(monkeypatch):
