@@ -5752,6 +5752,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/themes/runs/{run_id}/layers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Theme Layers
+         * @description Layer 1 (direct revenue share), Layer 2 (value chain, from the company graph's supply edges
+         *     known at `as_of`), Layer 3 (no data yet) and score S per company; computed on read.
+         */
+        get: operations["get_theme_layers_api_themes_runs__run_id__layers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/themes/runs/{run_id}/results": {
         parameters: {
             query?: never;
@@ -10685,6 +10706,15 @@ export interface components {
              */
             when?: boolean | string | number | null;
         };
+        /** LayerWeights */
+        LayerWeights: {
+            /** W1 */
+            w1: number;
+            /** W2 */
+            w2: number;
+            /** W3 */
+            w3: number;
+        };
         /**
          * LayoutInstructions
          * @description User-supplied constraints on shape and structure. Everything here is
@@ -13423,6 +13453,50 @@ export interface components {
             name: string;
             /** Theme Id */
             theme_id?: string;
+        };
+        /** ThemeLayerRow */
+        ThemeLayerRow: {
+            /** In Run */
+            in_run: boolean;
+            /** Issuer Key */
+            issuer_key: string;
+            /** L1 */
+            l1: number | null;
+            /** L2 */
+            l2: number | null;
+            /** L2 Via */
+            l2_via: string[] | null;
+            /** L3 */
+            l3: number | null;
+            /** Name */
+            name: string;
+            /** Pure Play */
+            pure_play: boolean;
+            /** Rank */
+            rank: number | null;
+            /** Score */
+            score: number | null;
+            /** Status */
+            status: string;
+        };
+        /** ThemeLayers */
+        ThemeLayers: {
+            /**
+             * As Of
+             * Format: date
+             */
+            as_of: string;
+            /** Decay */
+            decay: number;
+            /** Max Hops */
+            max_hops: number;
+            /** Pure Play Threshold */
+            pure_play_threshold: number;
+            /** Rows */
+            rows: components["schemas"]["ThemeLayerRow"][];
+            /** Run Id */
+            run_id: string;
+            weights: components["schemas"]["LayerWeights"];
         };
         /** ThresholdRule */
         ThresholdRule: {
@@ -24600,6 +24674,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_theme_layers_api_themes_runs__run_id__layers_get: {
+        parameters: {
+            query?: {
+                as_of?: string | null;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThemeLayers"];
                 };
             };
             /** @description Validation Error */

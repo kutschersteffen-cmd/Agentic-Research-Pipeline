@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,12 +10,14 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_llm_client, get_registry, get_run_store, get_taxonomy_store, get_verifier_llm_client, settings_dep
 from arp.api.review_endpoints import ReviewDecisionRequest, get_review_queue, submit_review
 from arp.api.run_scheduling import schedule_llm_run
+from arp.company_graph import CompanyGraphError
 from arp.config import Settings
 from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.factory import batch_settings
 from arp.orchestration.jobs import NotResumable, RunBusy, check_resumable, get_job_launcher, resume_run, run_lease
 from arp.research.activity_generator import build_theme
+from arp.research.exposure_layers import LayerSettingsError, load_run_layers, parse_as_of
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.pipeline import create_theme_run, execute_theme_run
 from arp.research.rd_exposure.resolver import RDResolverContext
@@ -259,4 +262,62 @@ def submit_theme_review(
     return submit_review(
         run_store, run_id, item_key=req.item_key, decision=req.decision, principal=principal,
         edited_value=req.edited_value, comment=req.comment,
+    )
+
+
+class LayerWeights(BaseModel):
+    w1: float
+    w2: float
+    w3: float
+
+
+class ThemeLayerRow(BaseModel):
+    issuer_key: str
+    name: str
+    in_run: bool
+    l1: float | None
+    l2: float | None
+    l3: float | None
+    score: float | None
+    pure_play: bool
+    status: str
+    rank: int | None
+    l2_via: list[str] | None
+
+
+class ThemeLayers(BaseModel):
+    run_id: str
+    as_of: date
+    weights: LayerWeights
+    decay: float
+    max_hops: int
+    pure_play_threshold: float
+    rows: list[ThemeLayerRow]
+
+
+def _r4(x: float | None) -> float | None:
+    return None if x is None else round(x, 4)
+
+
+@router.get("/runs/{run_id}/layers", response_model=ThemeLayers)
+def get_theme_layers(
+    run_id: str, as_of: str | None = None, run_store: RunStore = Depends(get_run_store),
+) -> ThemeLayers:
+    """Layer 1 (direct revenue share), Layer 2 (value chain, from the company graph's supply edges
+    known at `as_of`), Layer 3 (no data yet) and score S per company; computed on read."""
+    settings = Settings()  # the layer and graph settings as they are now, not as first cached
+    try:
+        day = parse_as_of(as_of)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    try:
+        params, rows = load_run_layers(settings, run_store, run_id, day)
+    except LookupError as exc:
+        raise HTTPException(404, exc.args[0]) from exc
+    except (LayerSettingsError, CompanyGraphError) as exc:
+        raise HTTPException(503, str(exc)) from exc
+    return ThemeLayers(
+        run_id=run_id, as_of=day, weights=LayerWeights(w1=params.w1, w2=params.w2, w3=params.w3),
+        decay=params.decay, max_hops=params.max_hops, pure_play_threshold=params.pure_play_threshold,
+        rows=[ThemeLayerRow(**{**vars(r), "l1": _r4(r.l1), "l2": _r4(r.l2), "score": _r4(r.score)}) for r in rows],
     )

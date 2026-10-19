@@ -78,6 +78,7 @@ python3 -m venv .venv && source .venv/bin/activate   # Python 3.11
 pip install -e ".[dev]"
 cp .env.example .env            # fill in ARP_ANTHROPIC_API_KEY; ARP_POSTGRES_DSN is preset
 docker compose up -d postgres   # required: Postgres + pgvector
+docker compose up -d neo4j      # optional: company graph for the theme exposure layers
 arp db init-postgres            # schema; re-run after every upgrade
 pytest -q                       # needs ARP_TEST_POSTGRES_DSN (a separate, empty database)
 uvicorn arp.api.main:app --reload            # API on :8000

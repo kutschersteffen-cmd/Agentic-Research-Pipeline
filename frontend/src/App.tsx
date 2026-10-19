@@ -391,7 +391,7 @@ function App() {
         {active === "smartSearch" && <SmartSearch />}
         {active === "outputs" && <Outputs />}
         {active === "arcade" && <Arcade selected={route.params[0] ?? null} />}
-        {active === "theme" && <ThemeBuilder onSendToExtraction={(path, count) => sendUniverse("Thematic Universe")("extraction", path, count)} pendingTaxonomyId={pendingTaxonomyId} />}
+        {active === "theme" && <ThemeBuilder key={route.params[0]} initialRunId={route.params[0] ?? null} onSendToExtraction={(path, count) => sendUniverse("Thematic Universe")("extraction", path, count)} pendingTaxonomyId={pendingTaxonomyId} />}
         {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
         {active === "emergingThemes" && <EmergingThemesDetector onNavigate={go} />}
         {active === "backgroundAgents" && <BackgroundAgents />}
