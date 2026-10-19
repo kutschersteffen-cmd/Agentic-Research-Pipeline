@@ -1,0 +1,13 @@
+{
+  "sectors": {
+    "Power & Utilities": {"isic_prefixes": ["351"]},
+    "Oil & Gas Upstream": {"isic_prefixes": ["061", "062"]},
+    "Chemicals": {"isic_prefixes": ["201"]},
+    "Steel": {"isic_prefixes": ["241"]},
+    "Cement": {"isic_prefixes": ["2394"]},
+    "Critical Minerals & Mining": {"isic_prefixes": ["07"]},
+    "Aviation": {"isic_prefixes": ["511"]},
+    "Shipping": {"isic_prefixes": ["501", "502"]},
+    "Heavy-Duty Road Transport": {"isic_prefixes": ["2910", "4923"]}
+  }
+}
