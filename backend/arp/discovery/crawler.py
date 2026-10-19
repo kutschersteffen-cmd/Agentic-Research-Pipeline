@@ -1,16 +1,21 @@
 from __future__ import annotations
 
 import asyncio
+import gzip
+import io
 import logging
 import re
+import zlib
 from dataclasses import dataclass, field
 from urllib.parse import urljoin, urlparse
 from urllib.robotparser import RobotFileParser
 
 import httpx
 from bs4 import BeautifulSoup
+from lxml import etree
 from pydantic import BaseModel
 
+from arp.discovery.site_check import registrable_domain
 from arp.net_safety import UnsafeURLError, ssrf_guard_request_hook
 from arp.schemas.common import DocType
 
@@ -36,6 +41,13 @@ _DEMOTION_WORDS = ("quarter", "quarterly", "q1", "q2", "q3", "q4", "half-year", 
                    "presentation", "transcript", "remuneration", "tax", "summary", "extract")
 
 _DOCUMENT_EXTENSIONS = (".pdf", ".xhtml", ".zip")  # .xhtml/.zip: ESEF reports and report packages
+
+_MAX_SITEMAPS = 3
+_MAX_CHILD_SITEMAPS = 5
+_MAX_SEEDS = 10
+_MAX_SITEMAP_BYTES = 15_000_000
+_SEED_HINTS = ("annual-report", "annual_report", "annualreport", "/reports", "reporting", "/investor", "sustainab",
+               "integrated-report", "geschaeftsbericht", "nachhaltigkeit")
 
 
 class CandidateDocumentLink(BaseModel):
@@ -83,6 +95,11 @@ class _RobotsCache:
                 rp.parse([])
             self.parsers[origin] = rp
         return self.parsers[origin].can_fetch(user_agent, url)
+
+    async def sitemaps(self, client: httpx.AsyncClient, url: str, user_agent: str) -> list[str]:
+        await self.allowed(client, url, user_agent)  # fills the cache
+        parsed = urlparse(url)
+        return self.parsers[f"{parsed.scheme}://{parsed.netloc}"].site_maps() or []
 
 
 def _mentions(haystack: str, kw: str) -> bool:
@@ -137,6 +154,67 @@ def _same_site(url: str, root_netloc: str) -> bool:
     return netloc == root or netloc.endswith("." + root)
 
 
+async def _fetch_sitemap(client: httpx.AsyncClient, url: str, robots: _RobotsCache, config: CrawlConfig, sleep) -> bytes | None:
+    if not await robots.allowed(client, url, config.user_agent):
+        return None
+    await sleep(config.request_delay_seconds)
+    try:
+        async with client.stream("GET", url) as resp:
+            length = resp.headers.get("content-length", "")
+            if resp.status_code != 200 or (length.isdigit() and int(length) > _MAX_SITEMAP_BYTES):
+                return None
+            chunks, size = [], 0
+            async for chunk in resp.aiter_bytes():
+                chunks.append(chunk)
+                size += len(chunk)
+                if size > _MAX_SITEMAP_BYTES:
+                    return None
+        data = b"".join(chunks)
+        if urlparse(url).path.lower().endswith(".gz"):
+            data = gzip.GzipFile(fileobj=io.BytesIO(data)).read(_MAX_SITEMAP_BYTES + 1)
+            if len(data) > _MAX_SITEMAP_BYTES:
+                return None
+        return data
+    except (httpx.HTTPError, UnsafeURLError, OSError, EOFError, zlib.error) as exc:
+        logger.info("Failed to fetch sitemap %s: %s", url, exc)
+        return None
+
+
+def _parse_sitemap(data: bytes | None) -> tuple[bool, list[str]]:
+    """(is_index, <loc> values); matched by local name so a missing namespace or padded text still reads."""
+    if data is None:
+        return False, []
+    try:
+        root = etree.fromstring(data, etree.XMLParser(resolve_entities=False, no_network=True))
+    except etree.XMLSyntaxError:
+        return False, []
+    locs = [e.text.strip() for e in root.iter() if isinstance(e.tag, str) and etree.QName(e).localname == "loc" and e.text]
+    return etree.QName(root).localname == "sitemapindex", [loc for loc in locs if loc]
+
+
+async def _sitemap_seeds(client: httpx.AsyncClient, robots: _RobotsCache, root_url: str, config: CrawlConfig, sleep) -> list[str]:
+    """Report-looking same-site pages listed in the site's sitemaps (robots.txt `Sitemap:` lines, else /sitemap.xml)."""
+    parsed = urlparse(root_url)
+    domain = registrable_domain(root_url)
+    tops = (await robots.sitemaps(client, root_url, config.user_agent))[:_MAX_SITEMAPS] or [f"{parsed.scheme}://{parsed.netloc}/sitemap.xml"]
+    pages: list[str] = []
+    children: list[str] = []
+    for url in (u for u in tops if registrable_domain(u) == domain):
+        is_index, locs = _parse_sitemap(await _fetch_sitemap(client, url, robots, config, sleep))
+        (children if is_index else pages).extend(locs)
+    # stable sort: an `en` path token first, listed order otherwise
+    children = [u for u in children if registrable_domain(u) == domain]
+    children.sort(key=lambda u: "en" not in re.split(r"[^a-z0-9]+", urlparse(u).path.lower()))
+    for url in children[:_MAX_CHILD_SITEMAPS]:
+        is_index, locs = _parse_sitemap(await _fetch_sitemap(client, url, robots, config, sleep))
+        if not is_index:
+            pages.extend(locs)
+    seeds = [u for u in dict.fromkeys(pages)
+             if _same_site(u, parsed.netloc) and not is_pdf(u) and any(h in urlparse(u).path.lower() for h in _SEED_HINTS)]
+    seeds.sort(key=lambda u: len(urlparse(u).path))
+    return seeds[:_MAX_SEEDS]
+
+
 async def crawl_for_documents(
     root_url: str, config: CrawlConfig, *, transport: httpx.AsyncBaseTransport | None = None, sleep=asyncio.sleep
 ) -> list[CandidateDocumentLink]:
@@ -170,6 +248,12 @@ async def crawl_for_documents(
         event_hooks={"request": [ssrf_guard_request_hook]},
         transport=transport,
     ) as client:
+        try:
+            seeds = await _sitemap_seeds(client, robots, root_url, config, sleep)
+        except Exception:  # seeding is best effort: whatever goes wrong in a sitemap, the crawl still runs
+            logger.exception("Sitemap seeding failed for %s", root_url)
+            seeds = []
+        queue += [(seed, 1) for seed in seeds if seed != root_url]
         while queue and len(visited) < config.max_pages:
             url, depth = queue.pop(0)
             if url in visited or depth > config.max_depth:
