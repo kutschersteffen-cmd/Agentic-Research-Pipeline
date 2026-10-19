@@ -115,9 +115,15 @@ sector lists, the Transition section says why (section 6). Both new presets set 
 the union of the listed prefixes, so the existing applicability check keeps them off other
 companies.
 
-Bundled prefixes (ISIC Rev.4; **builder's call**, the owner can narrow): Power & Utilities `351`;
+The sectors are the barrier matrix's nine (owner decision 2026-10-19). Bundled prefixes (ISIC
+Rev.4; **builder's call**, the owner can narrow): Power & Utilities `351`;
 Oil & Gas Upstream `061`, `062`; Chemicals `201`; Steel `241`; Cement `2394`; Critical Minerals &
 Mining `07`; Aviation `511`; Shipping `501`, `502`; Heavy-Duty Road Transport `2910`, `4923`.
+
+**Runs are on demand only** (owner decision 2026-10-19). A person starts a run of one or both
+presets for one company or for one sector through the existing `POST /api/extraction/start` (the
+custom-schema profile, with the preset's schema id); for a sector, the in-scope companies of that
+sector are passed as its `companies`. There is no backfill and no schedule.
 
 ### 2. The benchmarks file
 
@@ -141,7 +147,8 @@ Mining `07`; Aviation `511`; Shipping `501`, `502`; Heavy-Duty Road Transport `2
          "denominator": "tc_lowcarbon_rnd", "value": 65, "unit": "%", "source": {...}}
       ],
       "redlines": [{"id": "stl_bf", "label": "No new blast furnace without CCS or a near-zero route",
-                    "status": "open", "question": "..."}]
+                    "fact": "tc_new_blast_furnace",
+                    "source": {"title": "owner-defined (2026-10-19)", "rationale": "..."}}]
     }
   },
   "act_levers": {"steel.scrap_eaf": {"wording": "...", "source": {...}}, "steel.h2_dri": null},
@@ -154,7 +161,7 @@ Mining `07`; Aviation `511`; Shipping `501`, `502`; Heavy-Duty Road Transport `2
 }
 ```
 
-A redline that is not open names a boolean field (`"fact": "tc_new_unabated_coal"`) and a source.
+Every redline names a boolean field of the capex preset (`fact`) and a source.
 
 **Content of version 1** (the owner's decisions, each figure cited in the file):
 
@@ -164,17 +171,19 @@ A redline that is not open names a boolean field (`"fact": "tc_new_unabated_coal
 | Oil & Gas Upstream | 77% | ACT Core p.62 (12.2.2) | none | `ogu_new_projects` "No new long-lead-time conventional oil and gas projects approved after 2023", IEA NZE 2023 p.76 (5, 8.2) |
 | Chemicals | 77% | ACT Core p.62 | none | none |
 | Heavy-Duty Road Transport | 80% | ACT Core p.62, automotive row; ACT Auto pp.38–41 (10.6) | none | none |
-| Steel | 80% | ACT Core p.62, generic row; ACT Generic p.47 (13.2.2) | low-carbon share of R&D 80%; early-stage share of low-carbon R&D 65% (ACT Iron & Steel pp.75–76; 10.6) | `stl_bf`, open |
+| Steel | 80% | ACT Core p.62, generic row; ACT Generic p.47 (13.2.2) | low-carbon share of R&D 80%; early-stage share of low-carbon R&D 65% (ACT Iron & Steel pp.75–76; 10.6) | `stl_bf` "No new blast furnace without CCS or a near-zero route", owner-defined (2026-10-19) |
 | Cement | 80% | as Steel | low-carbon R&D ÷ total capex 5% (ACT Cement pp.51–53; 10.6) | none |
 | Aviation | 80% | as Steel | low-carbon share of R&D 80% (ACT Transport v2.1 pp.57–58; 10.6) | none |
 | Shipping | 80% | as Steel | as Aviation | none |
 | Critical Minerals & Mining | 80% | as Steel | none | none |
 
+`stl_bf` is an owner-defined redline (owner decision 2026-10-19), evaluated like the others. IEA
+NZE 2023 has no such milestone (research 8.2), so its source reads `owner-defined (2026-10-19)`,
+with the rationale: a new blast furnace locks in coal-based ironmaking for decades. Relining or
+rebuilding an existing furnace at the same capacity is not new build.
+
 Notes on this table, each the **builder's call** for the owner to check:
 
-- The owner asked for the redline "no new blast furnace without CCS or a near-zero route". Research
-  8.2 found no such milestone in IEA NZE 2023, so `stl_bf` ships **open** with that question (like
-  an open rule-book parameter) and is shown as `[open: …]`, never evaluated.
 - The oil and gas redline uses the NZE 2023 wording (p.76), not the 2021 "no new fields" wording
   (research 8.2 notes the cut-off moved).
 - Coal phase-out dates (NZE 2023 p.92) are milestones, not capex redlines, and are not included.
@@ -210,7 +219,7 @@ only Steel criteria works with a benchmarks file holding Steel, Power and Cement
 1. `Sector not in the transition-barrier matrix: <name>` (not on the fixed list);
    `Missing benchmarks entry: <sector>` (a sector of the active criteria);
 2. `<sector>: capex benchmark has no source`; `<sector>: R&D test '<id>' has no source`;
-   `<sector>: redline '<id>' has no source`; `<sector>: open redline '<id>' has no question`;
+   `<sector>: redline '<id>' has no source`;
 3. `<sector>: unknown field '<field id>'` (an R&D test or redline naming a field the capex preset
    lacks);
 4. `ISIC prefix '<p>' is in two sectors` (also when one prefix starts with another);
@@ -219,7 +228,7 @@ only Steel criteria works with a benchmarks file holding Steel, Power and Cement
    `Assumption '<id>' is in <unit>, '<code>.<fact>' is in <unit>`;
 7. `Benchmarks content changed but version is still <n>`.
 
-On success: `Benchmarks v<version>: OK, <n> sectors, <m> open redlines`.
+On success: `Benchmarks v<version>: OK, <n> sectors, <r> redlines`.
 
 ### 3. Capex facts and the D01.a score (Part B)
 
@@ -249,6 +258,7 @@ book's existing `conversions` table, used only to put a plan assumption in a bar
 | `tc_lowcarbon_rnd_share_pct` | percentage | Low-carbon share of R&D as disclosed (new) |
 | `tc_lowcarbon_rnd_early` | currency amount | Low-carbon R&D on early-stage (not yet mature) technology |
 | `tc_new_unabated_coal` | boolean | The company builds, approves or plans a new unabated coal plant |
+| `tc_new_blast_furnace` | boolean | The company builds, approves or plans new blast furnace capacity without CCS or a near-zero route; relining or rebuilding an existing furnace at the same capacity is not new build |
 | `tc_new_oil_gas_project` | boolean | The company approved a new long-lead-time conventional oil or gas project after 2023 |
 
 Planned values are separate fields rather than a new `basis`, so a later report's actual figure for
@@ -287,7 +297,7 @@ same rule shifted back one year (ACT Core p.61): RY is required (`not_scored` =
 `RY equal: RY used`; `RY lower: average of RY-1 and RY`. Score = min(ratio ÷ test value, 1).
 
 **Redlines.** Status per redline: `breached` (its fact counted as Yes), `not breached` (counted
-as No), `no disclosure` (no counted fact), `open` (open redline; text `[open: <label>]`).
+as No), `no disclosure` (no counted fact).
 
 ### 4. Plan actions, regions and assumptions (Part A)
 
@@ -414,7 +424,7 @@ API:
 
 - `GET /api/transition-alignment/benchmarks`: `version`, `licence_note`, and per sector `sector`,
   `isic_prefixes`, `capex` (`value`, `unit`, `method`, `citation`, `licence`), `rnd_tests[]`,
-  `redlines[]` (`id`, `label`, `status` `defined` or `open`, `citation`).
+  `redlines[]` (`id`, `label`, `fact`, `citation`).
 - `GET /api/companies/{ref}/transition`, response fields (the names the acceptance rows read):
   - `in_scope`, `reason` (null when in scope), `sector`, `benchmarks_version`, `rule_book_version`;
   - `capex`: `reporting_year`, `share_ry` and `share_ry1` (each null or `value`, `source`
@@ -514,7 +524,7 @@ row unless a row says "the bundled data directory", including AC-3 to AC-8.
 
 **Benchmarks fixture BM** (`ARP_TRANSITION_ALIGNMENT_DATA_DIR`), version 3, signed, valid against
 F-TA: sectors Steel (prefix `241`, capex 80%, R&D tests `lc_share` 80% and `early_stage` 65%,
-redline `stl_bf` open), Power & Utilities (prefix `351`, 95%, redline `pwr_coal` on
+redline `stl_bf` on `tc_new_blast_furnace`, source `owner-defined (2026-10-19)`), Power & Utilities (prefix `351`, 95%, redline `pwr_coal` on
 `tc_new_unabated_coal`, source "Net Zero Roadmap 2023" p. 81) and Cement (prefix `2394`, 80%, R&D
 test `capex_share` = `tc_lowcarbon_rnd` ÷ `tc_capex_total`, 5%). `act_levers`: `steel.scrap_eaf` →
 `More scrap, process efficiency, zero-GHG power` (ACT Core p.110), `steel.h2_dri` and `steel.ccus` →
@@ -537,6 +547,7 @@ Transition Plan 2023" (transition plan, as-of 2024-03-31); P4 "Fixture Power Ann
 | P2 | 45 | `Low-carbon capital expenditure was EUR 120 million, 12% of total capex.` | C: `tc_lowcarbon_capex` 2025 = 120 EUR million; `tc_lowcarbon_capex_share_pct` 2025 = 12 |
 | P2 | 46 | `Capital expenditure on blast furnace relining was EUR 300 million.` | C: `tc_carbon_intensive_capex` 2025 = 300 EUR million |
 | P2 | 47 | `Green capex was 15% of total capex.` | C: `green_capex_share_pct` 2025 = 15 |
+| P2 | 48 | `We are not building any new blast furnace capacity.` | C: `tc_new_blast_furnace` No (the p. 46 relining is not new build) |
 | P2 | 50 | `R&D spending was EUR 50 million, of which EUR 30 million on low-carbon technologies and EUR 15 million on early-stage low-carbon technologies.` | C, 2025: `tc_rnd_total` 50, `tc_lowcarbon_rnd` 30, `tc_lowcarbon_rnd_early` 15 (EUR million) |
 | P2 | 51 | `In 2024 R&D spending was EUR 40 million, of which EUR 20 million on low-carbon technologies and EUR 12 million on early-stage low-carbon technologies.` | C, 2024: 40, 20, 12 |
 | P1 | 12 | `We will commission a 2 Mt hydrogen-based DRI plant in Sweden by 2028.` | action A1: `steel.h2_dri`, planned, 2028, European Union |
@@ -569,7 +580,8 @@ and `extraction_instructions`.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-1 | the bundled data directory (barrier and benchmarks) | `arp transition-alignment benchmarks validate` | exit 0; prints `Benchmarks v<version in benchmarks.json>: OK, 9 sectors, 1 open redlines` | holdout |
+| ~~AC-1~~ | | | Retired: the open-redline count is gone; replaced by AC-66. | |
+| AC-66 | the bundled data directory (barrier and benchmarks) | `arp transition-alignment benchmarks validate` | exit 0; prints `Benchmarks v<version in benchmarks.json>: OK, 9 sectors, 3 redlines` | holdout |
 | AC-2 | the bundled data directory | `GET /api/transition-alignment/benchmarks` | `capex.value` is 95 for Power & Utilities, 77 for Oil & Gas Upstream and Chemicals, 80 for the other six sectors; each has a `citation` naming its page | holdout |
 | AC-3 | BM with Steel's capex `source` removed | `benchmarks validate --data-dir BM` | exit 1; output contains `Steel: capex benchmark has no source` | holdout |
 | AC-4 | BM with a sector `Aluminium` added | `benchmarks validate --data-dir BM` | exit 1; output contains `Sector not in the transition-barrier matrix: Aluminium` | holdout |
@@ -577,7 +589,8 @@ and `extraction_instructions`.
 | AC-6 | BM with the Steel capex value changed to 75 and not signed | `benchmarks validate --data-dir BM` | exit 1; output contains `Benchmarks content changed but version is still 3` | holdout |
 | AC-7 | BM with `steel.ccus` removed from `act_levers` | `benchmarks validate --data-dir BM` | exit 1; output contains `No ACT lever entry for action: steel.ccus` | holdout |
 | AC-8 | BM with `h2_cost` listing `STL-R1.price` | `benchmarks validate --data-dir BM` | exit 1; output contains `Assumption 'h2_cost' is in USD/kg H2, 'STL-R1.price' is in USD/tCO2` | holdout |
-| AC-56 | AC-6's BM | `benchmarks sign --approved-by owner --data-dir BM`, then `benchmarks validate --data-dir BM` | `version` 4; the last `history` entry has `version` 4 and `approved_by` `owner`; validate exits 0 and prints `Benchmarks v4: OK, 3 sectors, 1 open redlines` | holdout |
+| ~~AC-56~~ | | | Retired: the open-redline count is gone; replaced by AC-67. | |
+| AC-67 | AC-6's BM | `benchmarks sign --approved-by owner --data-dir BM`, then `benchmarks validate --data-dir BM` | `version` 4; the last `history` entry has `version` 4 and `approved_by` `owner`; validate exits 0 and prints `Benchmarks v4: OK, 3 sectors, 2 redlines` | holdout |
 | AC-57 | AC-3's BM | the API starts | startup fails with an error containing `Steel: capex benchmark has no source` | holdout |
 | AC-64 | BM with an `act_levers` entry `pwr.renewables` (not in F-TA's rule book) | `benchmarks validate --data-dir BM` | exit 1; output contains `Unknown action in act_levers: pwr.renewables` | holdout |
 
@@ -595,7 +608,8 @@ and `extraction_instructions`.
 | AC-16 | the defaults | request for C | `rnd_tests` `lc_share`: `used` 60, `rule` `RY higher: RY used`, `ratio_shown` `0.75`; `early_stage`: `used` 55, `rule` `RY lower: average of RY-1 and RY`, `ratio_shown` `0.85` | holdout |
 | AC-17 | K with `tc_lowcarbon_rnd` 2025 = 40 EUR million and `tc_capex_total` 2025 = 1000 EUR million | request for K | `rnd_tests` `capex_share`: `used` 4, `rule` `Only RY known: RY used`, `ratio_shown` `0.8` | holdout |
 | AC-61 | C with no 2025 R&D facts (the 2024 R&D facts and the 2025 capex facts kept) | request for C | `capex.reporting_year` 2025; `rnd_tests` `lc_share` and `early_stage` each have `not_scored` `No reporting-year R&D figures` | holdout |
-| AC-18 | the defaults | request for C | `redlines` = one entry, `id` `stl_bf`, `status` `open`, `text` `[open: No new blast furnace without CCS or a near-zero route]` | holdout |
+| ~~AC-18~~ | | | Retired: `stl_bf` is now a defined redline (owner, 2026-10-19); replaced by AC-65. | |
+| AC-65 | the defaults | request for C | `redlines` = one entry: `id` `stl_bf`, `status` `not breached`, `citation` `Fixture Steel Annual Report 2025 p.48` | holdout |
 | AC-19 | P with `tc_new_unabated_coal` Yes published from P4 p. 9 | request for P | redline `pwr_coal` `status` `breached`, `citation` `Fixture Power Annual Report 2025 p.9` | holdout |
 | AC-20 | P with no `tc_new_unabated_coal` | request for P | redline `pwr_coal` `status` `no disclosure` | holdout |
 | AC-21 | the defaults; the model client raises on any call | request for C | HTTP 200; `ratio_shown` `0.25` | holdout |
@@ -681,7 +695,7 @@ All 2026-10-19, by the owner unless marked.
   disclosed, and a low-carbon R&D share (new field); D01.a RY/RY+1 rule (research 9.3 item 8(c));
   continuous score min(share / benchmark, 1) instead of ACT Core bands.
 - **Benchmarks:** power 95%, oil and gas 77%, chemicals 77%, autos 80% (ACT Core); other sectors
-  ACT's generic 80% and its R&D tests; IEA NZE milestones as redlines; nuclear and CCS/CCUS count as
+  ACT's generic 80% and its R&D tests; IEA NZE milestones as redlines (plus `stl_bf`, below); nuclear and CCS/CCUS count as
   low-carbon; held in a curated, cited, owner-signed file.
 - **Licence:** internal, non-commercial use; benchmark data used with citation (research 9.3 item 1).
 - **Surface:** facts are ordinary company facts through the existing review queue; a Transition
@@ -695,5 +709,8 @@ All 2026-10-19, by the owner unless marked.
   criteria, action ids against the active rule book (section 2); only the most recent transition
   plan counts for actions (section 4); amounts stay in the reporting currency, no FX on amounts
   (section 3).
-- **OPEN: run mode.** Whether the two presets run for every in-scope company (backfill) or only on
-  demand. Awaiting the owner.
+- **Run mode:** on demand only, for one company or one sector, through the existing run start
+  path; no backfill, no schedule (section 1).
+- **Sectors:** the barrier matrix's nine sectors, confirmed by the owner (section 1).
+- **Steel redline `stl_bf`:** kept as an owner-defined redline, evaluated like the others, though
+  IEA NZE 2023 has no such milestone (section 2; research 8.2).
