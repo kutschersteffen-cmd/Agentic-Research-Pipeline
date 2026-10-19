@@ -55,7 +55,9 @@ codes to find the right industry in the imported tables.
    `region`, `sector`, then one empty cell per column. Every later line is one row: region, sector
    name, then one value per column. Columns are identified by header lines 1 and 2, never by
    position. `x.txt` has the header `region\tsector\tindout`, then one line per (region, sector).
-   The importer reads `Z.txt` one line at a time.
+   The importer reads `Z.txt` one line at a time. A sector name in the archive that is not in the
+   crosswalk is an error; a crosswalk sector absent from the archive is not. "N sectors" in the
+   import message is the number of distinct sector names among `Z.txt` data rows.
 7. **Total output** comes from ICIO's `OUT` column and EXIOBASE's `indout`, summed over regions
    and, for EXIOBASE, over the sectors that map to the same industry. An industry no EXIOBASE
    sector maps to (B09, C21, C301, H53, J58T60; see Appendix B) gets total output 0 and no flows.
@@ -165,7 +167,8 @@ Setup notes for the test-writer:
 | AC-36 | Fixture I with cell `AAA_D→AAA_C26` empty | `arp io import-icio <file> --out <dir>` | Exit 0; (D, C26) = 0 | holdout |
 | AC-47 | Fixture I with `AAA_A01`'s `OUT` cell empty | `arp io import-icio <file> --out <dir>` | Exit 0; `A01` total_output 1 | holdout |
 | AC-37 | Fixture I without row `BBB_T` and column `BBB_T` | `arp io import-icio <file> --out <dir>` | Exit 0; stdout line 1 `50 industries, 2 regions -> <D>`; `T` total_output 1 | holdout |
-| AC-9 | Fixture I with region `AAA` renamed `CN1` and `BBB` renamed `CN2` in every label | `arp io import-icio <file> --out <dir>` | Exit 0; `icio_matrix.csv` as in AC-3 | holdout |
+| AC-9 | Fixture I with region `AAA` renamed `CN1` and `BBB` renamed `CN2` in every label | `arp io import-icio <file> --out <dir>` | Exit 0; stdout line 1 `50 industries, 2 regions -> <D>`; `icio_matrix.csv` as in AC-3 | holdout |
+| AC-53 | Fixture I plus one extra column `CCC_A01` (every cell 0) | `arp io import-icio <file> --out <dir>` | Exit 0; stdout line 1 `50 industries, 2 regions -> <D>` | holdout |
 | AC-38 | Fixture I; `<dir>` is `a/b`, which does not exist | `arp io import-icio icio_fixture.csv --out a/b` | Exit 0; `a/b/industries.csv` and `a/b/icio_matrix.csv` exist | holdout |
 | AC-39 | `<dir>/industries.csv` exists with content `old` | `arp io import-icio icio_fixture.csv --out <dir>` | Exit 0; `<D>/industries.csv` as in AC-2 | holdout |
 | AC-10 | Fixture E | `arp io import-exiobase IOT_fixture_ixi.zip --out <dir>` | Exit 0; stdout line 1 is `163 sectors -> 50 industries, 2 regions -> <D>` | holdout |
@@ -173,7 +176,7 @@ Setup notes for the test-writer:
 | AC-12 | AC-10's output | Read `<D>/exiobase_flows.csv` | Exactly two data rows, compared as (supplier, user, float value): (C26, C27, 15) then (D, C26, 5) | holdout |
 | AC-13 | AC-10 | stdout lines 2 to 5 | Exactly `ARP_IO_SOURCE=exiobase`, `ARP_EXIOBASE_FLOWS_PATH=<D>/exiobase_flows.csv`, `ARP_EXIOBASE_INDUSTRIES_PATH=<D>/industries.csv`, `ARP_EXIOBASE_EDITION_LABEL=exiobase-IOT_fixture_ixi`, in that order | holdout |
 | AC-40 | Fixture E | `arp io import-exiobase IOT_fixture_ixi.zip --out <dir> --label X3` | stdout line 5 is `ARP_EXIOBASE_EDITION_LABEL=X3` | holdout |
-| AC-49 | Fixture E with the `Z.txt` columns reordered: all `WA` columns, then all `AT` columns, header lines 1 to 3 reordered with them, data rows unchanged | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `exiobase_flows.csv` as in AC-12 | holdout |
+| AC-49 | Fixture E with the `Z.txt` columns in reverse order: header lines 1 to 3 and the value cells of every data row are reversed together, so each value stays under its own (region, sector) header; the data rows' order and first two cells are unchanged | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `exiobase_flows.csv` as in AC-12 | holdout |
 | AC-14 | Fixture E with B#87's name replaced by `Made-up sector` everywhere: `Z.txt` header line 2 (both regions), the sector cell of both its `Z.txt` rows, and both its `x.txt` rows | `arp io import-exiobase <zip> --out <dir>` | Exit 1; stderr contains `EXIOBASE sector not in crosswalk: Made-up sector` | holdout |
 | AC-15 | A zip with fixture E's `x.txt` but no `Z.txt` | `arp io import-exiobase <zip> --out <dir>` | Exit 1; stderr contains `no Z.txt at the archive root` | holdout |
 | AC-51 | `reference/icio2025_industries.csv` | Read the whole file | Header `code,label,isic_divisions`; 50 data rows equal, in order, to Appendix A's (Code, Label, isic_divisions) | holdout |
@@ -203,6 +206,7 @@ Setup notes for the test-writer:
 | AC-52 | Only `ARP_EXIOBASE_FLOWS_PATH` and `ARP_EXIOBASE_INDUSTRIES_PATH` set (fixture E's import output) | `arp io status` | Exit 0; stdout is exactly `source: exiobase`, `edition: exiobase-sample`, `industries: 50` | holdout |
 | AC-32 | The real `IOT_2022_ixi.zip` from Zenodo record 23039074 | `arp io import-exiobase IOT_2022_ixi.zip --out <dir>`, then `arp io status` with the printed variables set | Import exits 0 within 15 minutes with peak resident memory at most 1 GB, measured with `/usr/bin/time -v`; stdout line 1 `163 sectors -> 50 industries, 49 regions -> <D>`; status prints `industries: 50`; `D`'s total_output in `industries.csv` is greater than 0 | evaluator |
 | AC-33 | AC-32's printed variables set | Division lookup (setup notes) with `isic_code` `27` against the real imported model | Returns `C27`; stub not called | evaluator |
+| AC-54 | The real ICIO 2025 regular file `2022_SML.csv` from the OECD ICIO page (the owner supplies it if the OECD site blocks the download) | `arp io import-icio 2022_SML.csv --out <dir>`, then `arp io status` with the printed variables set | Import exits 0; stdout line 1 `50 industries, 81 regions -> <D>`; status prints `industries: 50`; `D`'s and `C26`'s total_output in `industries.csv` are greater than 0 | evaluator |
 
 Must not change: the bundled samples (AC-28, AC-30, AC-46), the `auto` order (AC-18, AC-29,
 AC-42), hand-prepared files without `isic_divisions` (AC-31), the default edition labels (AC-31, AC-52), and codes already in the model,
