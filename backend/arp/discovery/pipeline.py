@@ -11,6 +11,7 @@ from arp.discovery.change_detector import ChangeDetector
 from arp.discovery.crawler import CrawlConfig, HomepageUnreachableError, crawl_for_documents
 from arp.discovery.downloader import download_documents
 from arp.discovery.refresh import refresh_hook
+from arp.discovery.report_finding import search_candidates, select_candidates
 from arp.discovery.site_check import check_homepage
 from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient, homepage_from_ids, resolve_company_homepage
 from arp.ingestion.edgar import EdgarDocumentSource
@@ -42,7 +43,14 @@ async def _discover_for_company(
 ) -> DiscoveryCompanyResult:
     today = today or date.today()
     filings = await _edgar_filings(company, edgar, doc_types) if edgar and company.cik else []
-    esef_docs, _esef_current = await _esef_documents(company, esef, doc_types, today) if esef else ([], False)
+    esef_docs, esef_current = await _esef_documents(company, esef, doc_types, today) if esef else ([], False)
+    expected_year = today.year - 1
+    types = [t for t in (DocType.ANNUAL_REPORT_10K, DocType.SUSTAINABILITY_REPORT) if not doc_types or t in doc_types]
+    if esef_current:
+        types = [t for t in types if t != DocType.ANNUAL_REPORT_10K]
+    search_cands = await search_candidates(
+        company, search_client, expected_year, types, delay=settings.discovery_request_delay_seconds, sleep=sleep
+    )
     homepage, check = company.website, None
     if not homepage:  # a supplied website is used unchecked; a derived one is checked first
         homepage = await homepage_from_ids(
@@ -57,19 +65,20 @@ async def _discover_for_company(
             if check.verdict == "rejected":
                 homepage = None
 
-    candidates, unreachable, crawl_error = [], False, None
+    crawl_cands, unreachable, crawl_error = [], False, None
     if homepage:
         crawl_config = CrawlConfig(
             user_agent=settings.discovery_user_agent,
             max_depth=settings.discovery_max_crawl_depth,
             max_pages=settings.discovery_max_pages_per_company,
             request_delay_seconds=settings.discovery_request_delay_seconds,
-            expected_year=today.year - 1,
+            expected_year=expected_year,
         )
         try:
-            candidates = await crawl_for_documents(homepage, crawl_config, transport=transport, sleep=sleep)
+            crawl_cands = await crawl_for_documents(homepage, crawl_config, transport=transport, sleep=sleep)
         except HomepageUnreachableError as exc:
             unreachable, crawl_error = True, str(exc)
+    candidates = select_candidates(crawl_cands, search_cands, homepage, expected_year, skip_annual=esef_current)
     if doc_types:
         candidates = [c for c in candidates if c.doc_type in doc_types]
 

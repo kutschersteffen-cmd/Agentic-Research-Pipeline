@@ -9,7 +9,7 @@ from arp.config import Settings, get_settings
 from arp.ingestion.esef import EsefDocumentSource
 from arp.storage.document_store import DocumentContentStore
 from tests.postgres_helpers import pg_dsn
-from tests.report_finding_fixtures import INDEX_URL, SITE, W, discover
+from tests.report_finding_fixtures import ANNUAL_Q, INDEX_URL, SITE, W, discover
 
 pytestmark = pytest.mark.usefixtures("pg")
 
@@ -68,9 +68,11 @@ async def test_ac_64(tmp_path, pg, monkeypatch):
     assert run.edgar.asked == ["w"]
 
 
-async def test_malformed_period_end_is_not_current(tmp_path, pg, monkeypatch):
-    run = await discover(tmp_path, pg, monkeypatch, esef=("2025", "https://filings.xbrl.org/w/x.zip"))
+@pytest.mark.parametrize("period_end", ["2025", None])
+async def test_malformed_period_end_is_not_current(period_end, tmp_path, pg, monkeypatch):
+    run = await discover(tmp_path, pg, monkeypatch, esef=(period_end, "https://filings.xbrl.org/w/x.zip"))
     assert run.manifest.failed_count == 0
+    assert ANNUAL_Q in run.queries
 
 
 def test_ac_65(monkeypatch):

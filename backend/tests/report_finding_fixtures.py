@@ -13,7 +13,7 @@ import httpx
 from arp.config import Settings
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
 from arp.discovery.site_finder import SearchResult, WebSearchClient
-from arp.schemas.common import CompanyRef
+from arp.schemas.common import CompanyRef, DocType
 from arp.storage.run_store import RunStore
 from tests.pdf_fixtures import make_image_pdf, make_pdf
 from tests.postgres_helpers import pg_dsn
@@ -92,7 +92,7 @@ class Run:
         return [e[6:] for e in self.log if e.startswith("query ")]
 
 
-def _esef_response(esef: str | tuple[str, str]) -> httpx.Response:
+def _esef_response(esef: str | tuple[str | None, str]) -> httpx.Response:
     if esef == "error":
         return httpx.Response(500)
     filings = {
@@ -114,9 +114,9 @@ def _resolver(host, *args, **kwargs):
 
 
 async def discover(
-    tmp_path, pg, monkeypatch, *, company: CompanyRef = W, esef: str | tuple[str, str] = "none", routes: dict | None = None,
+    tmp_path, pg, monkeypatch, *, company: CompanyRef = W, esef: str | tuple[str | None, str] = "none", routes: dict | None = None,
     fallback=None, search: dict | Exception | None = None, default_search: bool = False, wikidata: str | None = None,
-    edgar: FakeEdgar | None = None, **settings,
+    edgar: FakeEdgar | None = None, doc_types: list[DocType] | None = None, **settings,
 ) -> Run:
     monkeypatch.setattr("arp.net_safety.socket.getaddrinfo", _resolver)
     log: list[str] = []
@@ -158,9 +158,9 @@ async def discover(
     fake_search = None if default_search else FakeSearch(log, None if isinstance(search, Exception) else search, search if isinstance(search, Exception) else None)
     fake_edgar = edgar or FakeEdgar()
     store = RunStore(pg_dsn(), config.runs_dir)
-    run_id = create_discovery_run([company], None, "test", store)
+    run_id = create_discovery_run([company], doc_types, "test", store)
     await execute_discovery_run(
-        run_id, [company], settings=config, run_store=store, search_client=fake_search, edgar_source=fake_edgar,
+        run_id, [company], settings=config, run_store=store, doc_types=doc_types, search_client=fake_search, edgar_source=fake_edgar,
         transport=httpx.MockTransport(answer), today=TODAY, sleep=sleep,
     )
     [row] = store.read_results(run_id)
