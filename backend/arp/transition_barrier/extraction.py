@@ -38,12 +38,15 @@ class Extraction:
 
 def field_for(fact: FactDef, cell: str, conversions: list[dict]) -> FieldDefinition:
     instructions = [fact.definition]
-    code = re.match(r"[A-Za-z]+", fact.unit or "")
-    if code and code[0] in {r["to"] for r in conversions}:  # R6: a currency code converts; keep the rest of the form
-        example = "CNY" + fact.unit[code.end():]
+    num, slash, per = (fact.unit or "").partition("/")
+    # R6: each side of the fact unit that a conversion row targets may come in that row's `from` unit
+    froms = [r["from"] for r in conversions if r["to"] == num] + [r["from"] for r in conversions if slash and r["to"] == per]
+    examples = [r["from"] + slash + per for r in conversions if r["to"] == num]
+    examples += [num + slash + r["from"] for r in conversions if slash and r["to"] == per]
+    if froms:
         instructions.append(
-            f"Give unit_text in the form {fact.unit}, with only the currency changed to the one the source states "
-            f"(for example {example})."
+            f"Give unit_text in the source's own unit, written like {fact.unit}; code converts "
+            f"{', '.join(dict.fromkeys(froms))} (for example {', '.join(list(dict.fromkeys(examples))[:3])})."
         )
     elif fact.unit:
         instructions.append(f"Give unit_text as {fact.unit} when the source uses that unit.")

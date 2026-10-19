@@ -40,3 +40,21 @@ def test_rate_to_another_currency_does_not_apply():  # Review Focus 5
 
 def test_denominator_must_match():
     assert convert(66.9, "CNY/t", "USD/tCO2", 2026, RATES) == (None, "Unit not convertible: CNY/t")
+
+
+GALLON = {"from": "gallon", "to": "litre", "rate": 3.785411784, "year": 1959, "source": SRC}
+MILE = {"from": "mile", "to": "km", "rate": 1.609344, "year": 1959, "source": SRC}
+
+
+def test_denominator_converts():
+    v, r = convert(3.785411784, "USD/gallon", "USD/litre", 2026, [GALLON])
+    assert r is None and math.isclose(v, 1.0)
+
+
+def test_both_sides_convert():
+    v, r = convert(10.0, "CNY/mile", "USD/km", 2026, [*RATES, MILE])
+    assert r is None and math.isclose(v, 10.0 * 0.14 / 1.609344)
+
+
+def test_denominator_without_a_row_is_refused():
+    assert convert(1.0, "USD/gallon", "USD/km", 2026, [GALLON, MILE]) == (None, "Unit not convertible: USD/gallon")

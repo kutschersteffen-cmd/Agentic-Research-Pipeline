@@ -145,6 +145,17 @@ def test_unit_without_currency_gets_plain_sentence():
     assert "Give unit_text as GW when the source uses that unit." in text and "currency" not in text
 
 
-def test_currency_example_keeps_the_rest_of_the_unit():
+def test_sides_match_exactly():  # "USD million" is not the conversion target "USD"
     spend = FACTS["price"].model_copy(update={"unit": "USD million/yr"})
-    assert "(for example CNY million/yr)" in extraction.field_for(spend, CELL, BOOK.conversions).extraction_instructions
+    text = extraction.field_for(spend, CELL, BOOK.conversions).extraction_instructions
+    assert "Give unit_text as USD million/yr when the source uses that unit." in text
+
+
+def test_both_sides_named_in_the_unit_sentence():
+    gallon = {"from": "gallon", "to": "litre", "rate": 3.785411784, "year": 1959}
+    fuel = FACTS["price"].model_copy(update={"unit": "USD/litre"})
+    text = extraction.field_for(fuel, CELL, [*BOOK.conversions, gallon]).extraction_instructions
+    assert (
+        "Give unit_text in the source's own unit, written like USD/litre; code converts CNY, gallon "
+        "(for example CNY/litre, USD/gallon)."
+    ) in text
