@@ -58,7 +58,7 @@ codes to find the right industry in the imported tables.
    The importer reads `Z.txt` one line at a time.
 7. **Total output** comes from ICIO's `OUT` column and EXIOBASE's `indout`, summed over regions
    and, for EXIOBASE, over the sectors that map to the same industry. An industry no EXIOBASE
-   sector maps to (C21, C301, H53, J58T60; see Appendix B) gets total output 0 and no flows.
+   sector maps to (B09, C21, C301, H53, J58T60; see Appendix B) gets total output 0 and no flows.
 8. **`industries.csv` gains a fourth column, `isic_divisions`**: the ISIC Rev.4 divisions an
    industry covers, two digits each, joined with `;` (`C10T12` → `10;11;12`; `C24A` → `24`). The
    existing loaders ignore extra columns, so hand-prepared files without it keep working.
@@ -69,7 +69,7 @@ codes to find the right industry in the imported tables.
    code fall back to the LLM classification, as an unknown code does today.
 10. **`ARP_IO_SOURCE`**: `auto` keeps today's rule (ICIO if its two paths are set, else EXIOBASE
     if its two are set, else the tier is off). `icio` or `exiobase` uses only that table, and
-    raises a `ValueError` when its paths are not set, which today's CLI commands report on stderr
+    raises a `ValueError` when either of its two paths is unset, which today's CLI commands report on stderr
     with exit 1 and the API returns as 400. The sample flags (`use_sample_icio`,
     `use_sample_exiobase`) still win over the setting. Values are case-sensitive; any other value
     fails the settings load.
@@ -77,7 +77,8 @@ codes to find the right industry in the imported tables.
     `Path(<dir>).resolve()`. Output files that already exist are overwritten on success. On any
     error: exit 1, exactly one line on stderr, and no output file written.
 12. **Default labels**: `icio-<file stem>` and `exiobase-<archive stem>` (`icio-2022_SML`,
-    `exiobase-IOT_2022_ixi`).
+    `exiobase-IOT_2022_ixi`). `arp io status` prints the active source's `ARP_*_EDITION_LABEL`
+    setting; unset, it keeps today's defaults, `sample` (ICIO) and `exiobase-sample` (EXIOBASE).
 
 ## Not in this spec
 
@@ -122,10 +123,17 @@ Setup notes for the test-writer:
 - **"ICIO configured"** means the three variables printed on stdout lines 3 to 5 by importing
   fixture I (AC-4) are set; **"EXIOBASE configured"** means the three from importing fixture E
   (AC-13) are set.
-- **Theme T**: a `ThemeDefinition` JSON with one activity whose `core_isic_codes` is `["C27"]`;
-  **universe U**: a CSV with one company (`company_id` `acme`, `name` `Acme`, `isic_code` `27`).
-  Theme-run rows set `ARP_ANTHROPIC_API_KEY` to a dummy value: the source check fails before any
-  model call. API rows run the app with `ARP_AUTH_MODE=local` as an `analyst` and post
+- **Theme T** (file `theme_t.json`, `arp.schemas.thematic.ThemeDefinition`):
+  `{"name": "Grid equipment", "description": "Makers of electrical equipment for power grids.",
+  "activities": [{"name": "Electrical equipment", "in_scope_description": "Transformers, switchgear
+  and cables for power grids.", "out_of_scope_description": "Consumer electronics.",
+  "seed_keywords": ["transformer", "switchgear"], "core_isic_codes": ["C27"]}]}`.
+  **Universe U** (file `universe_u.csv`): header `company_id,name,isic_code`, one row
+  `acme,Acme,27`. `--theme` and `--universe` take these file paths.
+- Theme-run rows set `ARP_ANTHROPIC_API_KEY` to a dummy value: the source check fails before any
+  model call. API rows run the app with `ARP_AUTH_MODE=local` and `ARP_USERS_FILE` pointing at a
+  file in the format of `config/users.example.json` holding one user with role `analyst`, send
+  `Authorization: Bearer <that token>`, and post
   `{"theme": <T>, "companies": [{"company_id": "acme", "name": "Acme", "isic_code": "27"}]}` to
   `POST /api/themes/runs`.
 - Model rows call `resolve_indirect_exposure_model(Settings(), …)` from
@@ -151,9 +159,11 @@ Setup notes for the test-writer:
 | AC-5 | Fixture I | `arp io import-icio icio_fixture.csv --out <dir> --label ICIO2025-2022` | stdout line 5 is `ARP_ICIO_EDITION_LABEL=ICIO2025-2022` | holdout |
 | AC-6 | Fixture I without its `OUT` column | `arp io import-icio <file> --out <dir>` | Exit 1; stderr contains `no OUT column` | holdout |
 | AC-7 | Fixture I with every `_C24A` and `_C24B` row and column label relabelled `_C24` | `arp io import-icio <file> --out <dir>` | Exit 1; stderr contains `missing ICIO industries: C24A, C24B` | holdout |
+| AC-48 | Fixture I with only the column labels `AAA_C24A` and `BBB_C24A` relabelled `AAA_C24` and `BBB_C24` (row labels unchanged) | `arp io import-icio <file> --out <dir>` | Exit 1; stderr contains `missing ICIO industries: C24A` | holdout |
 | AC-8 | Fixture I with cell `AAA_C26→BBB_C27` = `x` | `arp io import-icio <file> --out <dir>` | Exit 1; stderr contains `row AAA_C26, column BBB_C27: not a number: 'x'` | holdout |
 | AC-35 | Fixture I with cell `TLS→AAA_C26` = `x` and cell `AAA_C26→AAA_HFCE` = `x` | `arp io import-icio <file> --out <dir>` | Exit 0; `icio_matrix.csv` as in AC-3 | holdout |
-| AC-36 | Fixture I with cell `AAA_D→AAA_C26` empty and `AAA_A01`'s `OUT` cell empty | `arp io import-icio <file> --out <dir>` | Exit 0; (D, C26) = 0; `A01` total_output 1 | holdout |
+| AC-36 | Fixture I with cell `AAA_D→AAA_C26` empty | `arp io import-icio <file> --out <dir>` | Exit 0; (D, C26) = 0 | holdout |
+| AC-47 | Fixture I with `AAA_A01`'s `OUT` cell empty | `arp io import-icio <file> --out <dir>` | Exit 0; `A01` total_output 1 | holdout |
 | AC-37 | Fixture I without row `BBB_T` and column `BBB_T` | `arp io import-icio <file> --out <dir>` | Exit 0; stdout line 1 `50 industries, 2 regions -> <D>`; `T` total_output 1 | holdout |
 | AC-9 | Fixture I with region `AAA` renamed `CN1` and `BBB` renamed `CN2` in every label | `arp io import-icio <file> --out <dir>` | Exit 0; `icio_matrix.csv` as in AC-3 | holdout |
 | AC-38 | Fixture I; `<dir>` is `a/b`, which does not exist | `arp io import-icio icio_fixture.csv --out a/b` | Exit 0; `a/b/industries.csv` and `a/b/icio_matrix.csv` exist | holdout |
@@ -163,16 +173,18 @@ Setup notes for the test-writer:
 | AC-12 | AC-10's output | Read `<D>/exiobase_flows.csv` | Exactly two data rows, compared as (supplier, user, float value): (C26, C27, 15) then (D, C26, 5) | holdout |
 | AC-13 | AC-10 | stdout lines 2 to 5 | Exactly `ARP_IO_SOURCE=exiobase`, `ARP_EXIOBASE_FLOWS_PATH=<D>/exiobase_flows.csv`, `ARP_EXIOBASE_INDUSTRIES_PATH=<D>/industries.csv`, `ARP_EXIOBASE_EDITION_LABEL=exiobase-IOT_fixture_ixi`, in that order | holdout |
 | AC-40 | Fixture E | `arp io import-exiobase IOT_fixture_ixi.zip --out <dir> --label X3` | stdout line 5 is `ARP_EXIOBASE_EDITION_LABEL=X3` | holdout |
+| AC-49 | Fixture E with the `Z.txt` columns reordered: all `WA` columns, then all `AT` columns, header lines 1 to 3 reordered with them, data rows unchanged | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `exiobase_flows.csv` as in AC-12 | holdout |
 | AC-14 | Fixture E with B#87's name replaced by `Made-up sector` everywhere: `Z.txt` header line 2 (both regions), the sector cell of both its `Z.txt` rows, and both its `x.txt` rows | `arp io import-exiobase <zip> --out <dir>` | Exit 1; stderr contains `EXIOBASE sector not in crosswalk: Made-up sector` | holdout |
 | AC-15 | A zip with fixture E's `x.txt` but no `Z.txt` | `arp io import-exiobase <zip> --out <dir>` | Exit 1; stderr contains `no Z.txt at the archive root` | holdout |
 | AC-16 | `reference/exiobase_ixi_to_icio2025.csv` | Read the `icio_code` of Appendix B rows 87, 88, 89, 100, 108, 133, 55, 163 | `C26`, `C27`, `C26`, `D`, `D`, `J62_63`, `C17_18`, `O` | holdout |
-| AC-41 | `reference/exiobase_ixi_to_icio2025.csv` | Read the whole file | Header `exiobase_sector,icio_code`; 163 data rows whose `exiobase_sector` values equal Appendix B's names in order; every `icio_code` is an Appendix A code | holdout |
+| AC-41 | `reference/exiobase_ixi_to_icio2025.csv` | Read the whole file | Header `exiobase_sector,icio_code`; 163 data rows equal, in order, to Appendix B's (sector, ICIO) pairs | holdout |
 | AC-17 | ICIO configured, EXIOBASE not, `ARP_IO_SOURCE` unset | `arp io status` | Exit 0; stdout is exactly `source: icio`, `edition: icio-icio_fixture`, `industries: 50`, one per line | holdout |
 | AC-18 | ICIO and EXIOBASE configured, `ARP_IO_SOURCE` unset | `arp io status` | Exit 0; stdout line 1 is `source: icio` | holdout |
 | AC-42 | EXIOBASE configured, ICIO not, `ARP_IO_SOURCE` unset | `arp io status` | Exit 0; stdout line 1 is `source: exiobase` | holdout |
 | AC-19 | ICIO and EXIOBASE configured, `ARP_IO_SOURCE=exiobase` | `arp io status` | Exit 0; stdout is exactly `source: exiobase`, `edition: exiobase-IOT_fixture_ixi`, `industries: 50` | holdout |
 | AC-20 | Neither configured, `ARP_IO_SOURCE` unset | `arp io status` | Exit 0; stdout is exactly `source: none` | holdout |
 | AC-21 | EXIOBASE configured, ICIO not, `ARP_IO_SOURCE=icio` | `arp io status` | Exit 1; stderr contains `io source icio is not configured: set ARP_ICIO_MATRIX_PATH and ARP_ICIO_INDUSTRIES_PATH` | holdout |
+| AC-50 | Only `ARP_ICIO_MATRIX_PATH` set (to fixture I's import output), `ARP_IO_SOURCE=icio` | `arp io status` | Exit 1; stderr contains `io source icio is not configured: set ARP_ICIO_MATRIX_PATH and ARP_ICIO_INDUSTRIES_PATH` | holdout |
 | AC-43 | `ARP_IO_SOURCE=figaro` | `arp io status` | Exit 1; stderr contains `Input should be 'auto', 'icio' or 'exiobase'` | holdout |
 | AC-44 | `ARP_IO_SOURCE=ICIO` | `arp io status` | Exit 1; stderr contains `Input should be 'auto', 'icio' or 'exiobase'` | holdout |
 | AC-22 | ICIO configured, EXIOBASE not, `ARP_IO_SOURCE=exiobase` | `arp theme run --theme <T> --universe <U>` | Exit 1; stderr contains `io source exiobase is not configured: set ARP_EXIOBASE_FLOWS_PATH and ARP_EXIOBASE_INDUSTRIES_PATH` | holdout |
@@ -188,7 +200,7 @@ Setup notes for the test-writer:
 | AC-30 | Model from `resolve_indirect_exposure_model(Settings(), use_sample_icio=True)` | Division lookup, `isic_code` `27` | Returns `27`; stub not called | holdout |
 | AC-31 | `ARP_ICIO_MATRIX_PATH` and `ARP_ICIO_INDUSTRIES_PATH` set to the bundled sample files; nothing else | `arp io status` | Exit 0; stdout is exactly `source: icio`, `edition: sample`, `industries: 10` | holdout |
 | AC-32 | The real `IOT_2022_ixi.zip` from Zenodo record 23039074 | `arp io import-exiobase IOT_2022_ixi.zip --out <dir>`, then `arp io status` with the printed variables set | Import exits 0 within 15 minutes; stdout line 1 `163 sectors -> 50 industries, 49 regions -> <D>`; status prints `industries: 50`; `D`'s total_output in `industries.csv` is greater than 0 | evaluator |
-| AC-33 | AC-32's variables and a real `ARP_ANTHROPIC_API_KEY` | `arp theme run --theme <T> --universe <U>` | Exit 0; stdout contains `Indirect exposure tier enabled (exiobase-IOT_2022_ixi).`; in `GET /api/themes/runs/<run id>/results`, every `company_matches` entry of Acme has a non-null `indirect_exposure` | evaluator |
+| AC-33 | AC-32's variables and a real `ARP_ANTHROPIC_API_KEY` | `arp theme run --theme <T> --universe <U>` | Exit 0; stdout contains `Indirect exposure tier enabled (exiobase-IOT_2022_ixi).`; in `GET /api/themes/runs/<run id>/results`, Acme has at least one `company_matches` entry and every one has a non-null `indirect_exposure` | evaluator |
 
 Must not change: the bundled samples (AC-28, AC-30, AC-46), the `auto` order (AC-18, AC-29,
 AC-42), hand-prepared files without `isic_divisions` (AC-31), and codes already in the model,
@@ -257,9 +269,10 @@ From the OECD note *Development of OECD Inter-Country Input-Output Database, 202
 The 163 sector names exactly as in `unit.txt` of `IOT_2022_ixi.zip` (3.11.2), in file order,
 including EXIOBASE's spelling (`accessoiries`, `preciuos`, `slugde`) and its bracketed ISIC
 Rev.3-style codes, which are part of the name. "Re-processing of secondary X" sectors map to the
-industry that makes primary X. No sector maps to C21 (pharma sits inside "Chemicals nec"), C301
-(ships sit inside "other transport equipment"), H53 (post sits inside "Post and
-telecommunications") or J58T60 (publishing sits inside "Publishing, printing"). Row 163 has no
+industry that makes primary X. No sector maps to B09 (mining support services sit inside the extraction sectors), C21
+(pharma sits inside "Chemicals nec"), C301 (ships sit inside "other transport equipment"), H53
+(post sits inside "Post and telecommunications") or J58T60 (publishing sits inside "Publishing,
+printing"). Row 163 has no
 ICIO counterpart (ISIC U) and goes to O.
 
 | # | EXIOBASE sector (exact `unit.txt` string) | ICIO |
