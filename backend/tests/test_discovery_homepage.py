@@ -144,4 +144,4 @@ async def test_ac_89_rejected_wikidata_homepage_not_replaced_by_search(tmp_path,
     )
     assert row["homepage_used"] is None
     assert row["homepage_check"]["verdict"] == "rejected"
-    assert search.queries == []
+    assert [q for q in search.queries if "filetype:pdf" not in q] == []  # report queries are not homepage searches
