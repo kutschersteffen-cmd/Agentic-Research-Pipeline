@@ -36,7 +36,8 @@ def check_document(path: Path, company: CompanyRef) -> DocCheck:
     text = "\n".join(texts.values())
     year = reporting_year(title, texts.get(0, ""))
     upper = text.upper()
-    if any(ident and ident.strip().upper() in upper for ident in (company.lei, company.isin)):
+    idents = [i.strip().upper() for i in (company.lei, company.isin) if i and i.strip()]
+    if any(i in upper for i in idents):
         match = "identifier"
     elif _contains_name(text, company.name):
         match = "name"

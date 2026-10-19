@@ -67,6 +67,11 @@ def test_identifier_compared_case_and_space_insensitive(tmp_path):
     padded = W.model_copy(update={"lei": " 5299009testwerke0063 ", "isin": None})
     assert check_document(p1(tmp_path / "p1.pdf"), padded).company_match == "identifier"
 
+
+def test_blank_identifier_never_matches(tmp_path):
+    blank = W.model_copy(update={"lei": "   ", "isin": " "})
+    assert check_document(p3(tmp_path / "p3.pdf"), blank).company_match == "none"
+
 # --- discovery run ----------------------------------------------------------------------------
 
 class _NullSearchClient(WebSearchClient):
