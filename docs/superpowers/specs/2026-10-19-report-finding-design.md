@@ -79,7 +79,17 @@ server without search; search is a bonus where it answers.
 - Per-company results are read from `run_store.read_results(run_id)` (one `DiscoveryCompanyResult` JSON
   per company: `documents_found` with `url`, `doc_type`, `company_match`; `homepage_check`); run counts
   from `run_store.load_manifest(run_id)` (`failed_count`, `review_count`).
-- Within `documents_found`, documents of each type appear in rank order (§5).
+- `search_client=None` means the production default, `DuckDuckGoSearchClient` (as on `main`); tests
+  pass a fake. The client's interface is unchanged: `async search(query: str, max_results: int)`.
+- `new_events` (a `DiscoveryCompanyResult` field) lists the change detector's new/updated documents.
+  Two runs share state when they use the same `Settings` directories (`discovery_state_dir`, etc.).
+- Within `documents_found`, documents of each type appear in rank order (§5); an ESEF document comes
+  before the PDFs of its type.
+- Tests keep one ordered event log: the search fake appends `query <text>`, the `sleep` recorder
+  `sleep <seconds>`, and the mock transport `request <url>`.
+- **Same site** = the same registrable domain as the root (tldextract, as in `site_check`). This
+  replaces the crawler's current host-or-subdomain check, so `investor.example.com` is same-site for a
+  root of `www.example.com`.
 
 ## Design
 
@@ -118,15 +128,16 @@ server without search; search is a bonus where it answers.
 - A result is a candidate when its URL path (query string ignored) ends in `.pdf`, case-insensitive,
   and it contains no demotion word. Its type is the query's; its link text is the result title.
 - Any exception or empty list means no candidates (logged at info).
+- A URL found by more than one source is one candidate, kept at its best source rank (§5).
 - Search candidates are downloaded even when the homepage is missing, rejected or unreachable. The
   early returns in `_discover_for_company` keep the ESEF document and the downloaded search candidates.
 
 ### 3. Sitemap seeding
 
-- Before the BFS: read `Sitemap:` lines from the root's robots.txt (via `_RobotsCache`). Only when
-  there is none, try `<root origin>/sitemap.xml`. A sitemap URL whose registrable domain differs from
+- Before the BFS: read all `Sitemap:` lines from the root's robots.txt (via `_RobotsCache`), in order,
+  at most 3. Only when there is none, try `<root origin>/sitemap.xml`. A sitemap URL whose registrable domain differs from
   the root's is ignored.
-- A sitemap index is followed one level: at most 5 child sitemaps; children with an `en` token in their
+- A sitemap index is followed one level: at most 5 child sitemaps in total across all indexes; children with an `en` token in their
   path (tokens split on non-alphanumerics, e.g. `/sitemap-en.xml`, `/en/sitemap.xml`; not
   `/sitemap-energy.xml`) first, the rest in listed order. A child that is itself an index is not
   followed.
@@ -137,8 +148,8 @@ server without search; search is a bonus where it answers.
   sitemaps). Over the cap or unparseable XML: that sitemap is skipped; the company carries on.
 - Seeds: same-site URLs not ending in `.pdf` whose path (lowercased) contains any of `annual-report`,
   `annual_report`, `annualreport`, `/reports`, `reporting`, `/investor`, `sustainab`,
-  `integrated-report`, `geschaeftsbericht`, `nachhaltigkeit`. At most 10: shortest path first, ties in
-  listed order.
+  `integrated-report`, `geschaeftsbericht`, `nachhaltigkeit`. At most 10: shortest path (in characters) first, ties
+  in listed order.
 - Seeds enter the BFS queue at depth 1, after the root. They count toward the page limit, obey
   robots.txt and the request delay.
 
@@ -170,10 +181,10 @@ server without search; search is a bonus where it answers.
 
 - Every new request goes through `ssrf_guard_request_hook`, with the discovery user agent.
 - No new settings; limits above are module constants.
-- The checks in `.claude/CLAUDE.md` pass. No existing test is deleted or weakened; a test whose
-  expectation this spec changes (the poll after the crawl) is listed in the PR.
-- Rows are `unit`. If `HOLDOUT_TOKEN` is set when this is built, the anti-goal rows (AC-13, AC-18,
-  AC-20, AC-29, AC-41, AC-45) are owed as `holdout`.
+- The checks in `.claude/CLAUDE.md` pass. No existing test is deleted or weakened; tests whose
+  expectation this spec changes are listed in the PR: the ESEF poll after the crawl, and the
+  `esef_enabled is False` assertion in `tests/test_esef.py`.
+- All rows are checked by `unit` tests, as in this project's earlier specs; no `holdout` rows.
 
 ## Left to the builder
 
@@ -236,8 +247,8 @@ the real SSRF hook is replaced by a no-op except in AC-29):
 | AC-26 | W; ESEF-current; the homepage links `/sr-2023.pdf`, `/sr-2025.pdf`, `/sr-2024.pdf`, each with text `Sustainability Report <year>` | discovery run | the `sustainability_report` documents are exactly `/sr-2025.pdf` then `/sr-2024.pdf` | unit |
 | AC-27 | W; ESEF-none; the homepage links `/ip-2023.pdf`, `/ip-2024.pdf`, `/ip-2025.pdf`, each with text `Investor Presentation <year>` | discovery run | all 3 are in `documents_found` with `doc_type` `"investor_presentation"` | unit |
 | AC-28 | W; ESEF-none | discovery run | `homepage_check` is `null` | unit |
-| AC-29 | W; ESEF-none; real SSRF hook; search returns `http://169.254.169.254/ar-2025.pdf`; robots.txt's sitemap lists `http://169.254.169.254/investors/`; the homepage links `http://169.254.169.254/sr-2025.pdf` with text `Sustainability Report 2025` | discovery run | `failed_count` is 0 and no URL under `http://169.254.169.254/` is in `documents_found` | unit |
-| AC-30 | W; ESEF-none | discovery run | the `sleep` recorder holds a call of 0.2 between the two search queries | unit |
+| ~~AC-29~~ | — | — | Retired before approval: three behaviours in one row; replaced by AC-66, AC-67, AC-68 | — |
+| AC-30 | W; ESEF-none | discovery run | the event log contains `query <annual query>`, then `sleep 0.2`, then `query <sustainability query>` with nothing else between them | unit |
 | AC-31 | W; ESEF-old | discovery run | the search client received `"Testwerke AG" annual report 2025 filetype:pdf` | unit |
 | AC-32 | W; the ESEF index returns HTTP 500 | discovery run | the search client received the annual-report query | unit |
 | AC-33 | W; ESEF-current; `esef_enabled` false | discovery run | the search client received the annual-report query | unit |
@@ -245,19 +256,19 @@ the real SSRF hook is replaced by a no-op except in AC-29):
 | AC-35 | as AC-11 | discovery run | `failed_count` is 0 | unit |
 | AC-36 | as AC-13 | discovery run | manifest `review_count` is 1 | unit |
 | AC-37 | as AC-14 | discovery run | `/about.html` receives 0 requests | unit |
-| AC-38 | as AC-18 | discovery run | `failed_count` is 0 | unit |
+| AC-38 | as AC-18, and the homepage links `/ar-2025.pdf` with text `Annual Report 2025` | discovery run | `documents_found` contains `https://www.testwerke.de/ar-2025.pdf` | unit |
 | AC-39 | W; ESEF-none | discovery run | the search client received exactly 2 queries, in order `"Testwerke AG" annual report 2025 filetype:pdf`, `"Testwerke AG" sustainability report 2025 filetype:pdf` | unit |
-| AC-40 | W; ESEF-none; for the annual query search returns 7 results, all `.pdf`, the 6th being `https://x.example/f6.pdf` | discovery run | the search client was asked for 5 results per query (`max_results` 5) and `https://x.example/f6.pdf` receives 0 requests | unit |
+| AC-40 | W; ESEF-none; for the annual query search returns 7 PDF URLs in order: `https://x.example/f1.pdf` … `https://x.example/f5.pdf` (no year), then `https://x.example/f6-2025.pdf`, `https://x.example/f7-2025.pdf` | discovery run | `f1.pdf` and `f2.pdf` are requested; `f6-2025.pdf` and `f7-2025.pdf` receive 0 requests | unit |
 | AC-41 | W; ESEF-none; search returns `https://x.example/A.PDF`, `https://x.example/b.pdf?dl=1`, `https://x.example/c.pdf.html` for the annual query | discovery run | `A.PDF` and `b.pdf?dl=1` are requested; `c.pdf.html` receives 0 requests | unit |
-| AC-42 | W; ESEF-none; `search_client` none, pipeline built without search | discovery run | `failed_count` is 0 | unit |
+| ~~AC-42~~ | — | — | Retired before approval: `search_client=None` means DuckDuckGo (Interface); search failure is covered by AC-11, AC-35 | — |
 | AC-43 | W; ESEF-none; the homepage returns HTTP 403; search returns `https://www.testwerke.de/ar-2025.pdf` for the annual query | discovery run | `documents_found` contains `https://www.testwerke.de/ar-2025.pdf` | unit |
 | AC-44 | W; ESEF-current; the homepage returns HTTP 403 | discovery run | `documents_found` contains `https://filings.xbrl.org/w/2025.zip` | unit |
 | AC-45 | W; ESEF-none; search returns `https://www.testwerke.de/scan-2025.pdf`, a PDF with no text layer | discovery run | that document has `company_match` `no_text` and manifest `review_count` is 1 | unit |
-| AC-46 | W; ESEF filing `period_end` `2025-04-19` | discovery run | the search client received only the sustainability query | unit |
-| AC-47 | W; ESEF filing `period_end` `2025-04-18` | discovery run | the search client received the annual-report query | unit |
-| AC-48 | W; ESEF-none; nine separate runs, each with one homepage link `/x.pdf` whose text is one of the 9 names in AC-23 | discovery run | each run's `documents_found` contains `/x.pdf` with `doc_type` `"10-K"` | unit |
+| AC-46 | W; ESEF filing `period_end` `2025-04-19`, package `https://filings.xbrl.org/w/edge-in.zip` | discovery run | the search client received only the sustainability query | unit |
+| AC-47 | W; ESEF filing `period_end` `2025-04-18`, package `https://filings.xbrl.org/w/edge-out.zip` | discovery run | the search client received the annual-report query | unit |
+| AC-48 | W; ESEF-none; nine separate runs (AC-48a–AC-48i), each with one homepage link `/x.pdf` whose text is one phrase plus ` 2025`: a `Integrated Report`, b `Universal Registration Document`, c `Annual Review`, d `Geschäftsbericht`, e `Geschaeftsbericht`, f `Rapport annuel`, g `Informe anual`, h `Jaarverslag`, i `Årsrapport` | discovery run | in each run `documents_found` contains `/x.pdf` with `doc_type` `"10-K"` | unit |
 | AC-49 | W; ESEF-none; the homepage links `/Testwerke_Report_FY2025.pdf` with text `Testwerke Report` | discovery run | it is in `documents_found` with `doc_type` `"10-K"` | unit |
-| AC-50 | W; ESEF-none; the homepage links `/Testwerke_Report_2022.pdf` with text `Testwerke Report` | discovery run | it is in `documents_found` with `doc_type` `"other"` | unit |
+| AC-50 | W; ESEF-none; the homepage links `/Testwerke_Report_2022.pdf` with text `Testwerke Report` (checked: no pattern on `main` matches this link text plus URL) | discovery run | it is in `documents_found` with `doc_type` `"other"` | unit |
 | AC-51 | W; ESEF-none; sixteen separate runs, each with one homepage link `/r.pdf` whose text is `Report 2025 <word>` for one demotion word | discovery run | in each run `/r.pdf` has a `doc_type` other than `"10-K"` | unit |
 | AC-52 | W; ESEF-none; the homepage links `/taxonomy-report-2025.pdf` with text `Taxonomy Report 2025` | discovery run | it has `doc_type` `"10-K"` | unit |
 | AC-53 | W; ESEF-none; search returns `https://www.testwerke.de/ar-2024.pdf` for the annual query; the homepage links `/ar-2025.pdf` with text `Annual Report 2025` | discovery run | the `"10-K"` documents are exactly `/ar-2025.pdf` then `/ar-2024.pdf` | unit |
@@ -266,14 +277,37 @@ the real SSRF hook is replaced by a no-op except in AC-29):
 | AC-56 | W; ESEF-none; robots.txt points to an index whose child `/sm-a.xml` is itself an index listing `/sm-a1.xml` | discovery run | `/sm-a1.xml` receives 0 requests | unit |
 | AC-57 | W; ESEF-none; robots.txt lists `Sitemap: https://other.example.com/sm.xml` | discovery run | `https://other.example.com/sm.xml` receives 0 requests | unit |
 | AC-58 | W; ESEF-none; a sitemap with 10 seed URLs; every page on the site links 5 new same-site pages | discovery run | the site receives exactly 40 page requests (sitemap and robots.txt requests excluded) | unit |
-| AC-59 | W; ESEF-none; robots.txt's sitemap is served without `Content-Length` and its body exceeds 15,000,000 bytes | discovery run | no URL it lists is requested and `failed_count` is 0 | unit |
-| AC-60 | W; ESEF-none; robots.txt's sitemap body is `not xml` | discovery run | `failed_count` is 0 | unit |
+| AC-59 | W; ESEF-none; robots.txt's sitemap is served without `Content-Length`, its body exceeds 15,000,000 bytes and lists `/reports/a.html` | discovery run | `/reports/a.html` receives 0 requests | unit |
+| AC-60 | W; ESEF-none; robots.txt's sitemap body is `not xml`; the homepage links `/ar-2025.pdf` with text `Annual Report 2025` | discovery run | `documents_found` contains `https://www.testwerke.de/ar-2025.pdf` | unit |
 | AC-61 | W; ESEF-none; robots.txt's sitemap is `/sm.xml.gz`, a gzip of a sitemap listing `/investors/annual-report.html` (which links `/ar-2025.pdf`, `Annual Report 2025`) | discovery run | `documents_found` contains `https://www.testwerke.de/ar-2025.pdf` | unit |
-| AC-62 | as AC-14 | discovery run | every sitemap request and every seed request is preceded by a `sleep` call of 0.2 in the recorder | unit |
-| AC-63 | W; ESEF-current; a second run with the same filing | discovery run | the second run's `new_events` for W is empty | unit |
+| AC-62 | as AC-14 | discovery run | in the event log, every `request` for a sitemap or a seed URL is immediately preceded by `sleep 0.2` | unit |
+| AC-63 | W; ESEF-current; two runs sharing the same `Settings` directories | discovery run | the second run's `new_events` for W is empty | unit |
 | AC-64 | W with CIK `123`; ESEF-current; a fake EDGAR source | discovery run | the EDGAR source received one fetch for W | unit |
-
 | AC-65 | — | `Settings()` with no environment override | `esef_enabled` is `True` | unit |
+| AC-66 | W; ESEF-none; real SSRF hook; name resolution faked (every host → `93.184.216.34`); search returns `http://169.254.169.254/ar-2025.pdf` for the annual query | discovery run | the mock transport receives 0 requests to `169.254.169.254` | unit |
+| AC-67 | W; ESEF-none; real SSRF hook; name resolution faked (every host → `93.184.216.34` except `internal.testwerke.de` → `10.0.0.5`); robots.txt's sitemap lists `https://internal.testwerke.de/investors/reports.html` | discovery run | the mock transport receives 0 requests to `internal.testwerke.de` | unit |
+| AC-68 | W; ESEF-none; real SSRF hook; name resolution faked as in AC-66; the homepage links `http://169.254.169.254/sr-2025.pdf` with text `Sustainability Report 2025` | discovery run | the mock transport receives 0 requests to `169.254.169.254` | unit |
+| AC-69 | the Givens of AC-66, AC-67 and AC-68 together, and the homepage links `/ar-2025.pdf` with text `Annual Report 2025` | discovery run | `documents_found` contains `https://www.testwerke.de/ar-2025.pdf` | unit |
+| AC-70 | as AC-40 | discovery run | every `search` call had `max_results` 5 | unit |
+| AC-71 | W; ESEF-none; the homepage links `https://reports.testwerke.de/page.html`, which links `https://reports.testwerke.de/ar-2025.pdf` with text `Annual Report 2025` | discovery run | `documents_found` contains `https://reports.testwerke.de/ar-2025.pdf` | unit |
+| AC-72 | W with no supplied website, no Wikidata hit, and the homepage search finding nothing; ESEF-none; the annual query returns `https://other.example/ar-2025.pdf` (a PDF naming Testwerke AG) | discovery run | `documents_found` contains `https://other.example/ar-2025.pdf` | unit |
+| AC-73 | W with no supplied website; Wikidata gives `https://www.otherco.co.uk/`, a page with title `Otherco plc` (rejected by the homepage check); ESEF-none; the annual query returns `https://www.testwerke.de/ar-2025.pdf` | discovery run | `documents_found` contains `https://www.testwerke.de/ar-2025.pdf` | unit |
+| AC-74 | W; ESEF-old; the homepage links `/ar-2025.pdf` and `/ar-2024.pdf`, each with text `Annual Report <year>` | discovery run | the `"10-K"` documents are exactly `https://filings.xbrl.org/w/2024.zip`, `/ar-2025.pdf`, `/ar-2024.pdf`, in that order | unit |
+| AC-75 | W; ESEF-none; ten separate runs (AC-75a–AC-75j), each with a sitemap listing one URL `/x/<pattern>/p.html` for one seed pattern of §3 (a `annual-report`, b `annual_report`, c `annualreport`, d `reports`, e `reporting`, f `investor`, g `sustainab`, h `integrated-report`, i `geschaeftsbericht`, j `nachhaltigkeit`) | discovery run | in each run that URL is requested | unit |
+| AC-76 | W; ESEF-none; a sitemap listing `/Investors/Annual-Report.html` | discovery run | `/Investors/Annual-Report.html` is requested | unit |
+| AC-77 | W; ESEF-none; robots.txt lists `Sitemap: https://www.testwerke.de/sm-a.xml` then `Sitemap: https://www.testwerke.de/sm-b.xml` | discovery run | both are requested, `/sm-a.xml` first | unit |
+| AC-78 | W; ESEF-none; robots.txt has `Disallow: /sm.xml` and `Sitemap: https://www.testwerke.de/sm.xml` | discovery run | `/sm.xml` receives 0 requests | unit |
+| AC-79 | W; ESEF-none; the homepage links `/ar-2025.pdf` and `https://cdn.example.net/ar-2025-cdn.pdf`, each with text `Annual Report 2025`; search returns `https://search.example/ar-2025-s.pdf` | discovery run | the `"10-K"` documents are exactly `/ar-2025.pdf` then `https://cdn.example.net/ar-2025-cdn.pdf` | unit |
+| AC-80 | W; ESEF-none; the homepage links only `https://cdn.example.net/ar-2025-cdn.pdf` (`Annual Report 2025`); search returns `https://search.example/ar-2025-s.pdf` and `https://search.example/ar-2025-t.pdf` | discovery run | the `"10-K"` documents are exactly `https://cdn.example.net/ar-2025-cdn.pdf` then `https://search.example/ar-2025-s.pdf` | unit |
+| AC-81 | W; ESEF-none; the homepage links `/irs.pdf` with text `Integrated Report 2025 Summary` | discovery run | `/irs.pdf` has a `doc_type` other than `"10-K"` | unit |
+| AC-82 | W; ESEF-none; the annual query returns `https://x.example/ar-2025-summary.pdf` titled `Annual Report 2025 Summary` | discovery run | `https://x.example/ar-2025-summary.pdf` receives 0 requests | unit |
+| AC-83 | W; ESEF-none; the homepage links `/ars.pdf` with text `Annual Report 2025 Summary` | discovery run | it is in `documents_found` with `doc_type` `"10-K"` (a `main` pattern; demotion words don't apply) | unit |
+| AC-84 | W; ESEF-none; the homepage links `https://assets.cdn.example/r/sr.pdf` with text `Sustainability Report 2025` | discovery run | it is in `documents_found` with `doc_type` `"sustainability_report"` | unit |
+| AC-85 | W with CIK `123`; the EDGAR fake returns one 10-K; ESEF-none | discovery run | the search client received the annual-report query | unit |
+| AC-86 | — | `Settings()` with `ARP_ESEF_ENABLED=false` in the environment | `esef_enabled` is `False` | unit |
+| AC-87 | — | `build_registry(Settings(), store)` (the document registry the API and CLI use) | it contains an `EsefDocumentSource` | unit |
+| AC-88 | as AC-79 | discovery run | `https://search.example/ar-2025-s.pdf` receives 0 requests | unit |
+| AC-89 | as AC-71 | discovery run | `https://reports.testwerke.de/page.html` is requested | unit |
 
 Must not change: other document types are downloaded as today (AC-27); a supplied website is not
 checked (AC-28); every PDF still goes through the PDF check and review routing (AC-13, AC-36, AC-45);
