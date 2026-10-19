@@ -29,20 +29,21 @@ class WebSearchClient(ABC):
 
 
 class DuckDuckGoSearchClient(WebSearchClient):
-    """No-API-key fallback search, used only to resolve a company's IR
-    homepage when the user hasn't supplied one directly in the universe
-    file. Supplying `website`/`ir_url` per company is strongly preferred
+    """No-API-key fallback search, used to resolve a company's IR homepage
+    when the user hasn't supplied one directly in the universe file, and to
+    find its annual/sustainability report PDFs. Supplying `website`/`ir_url` per company is strongly preferred
     for precision and reliability at scale; this is a best-effort fallback.
     """
 
     _URL = "https://html.duckduckgo.com/html/"
 
-    def __init__(self, user_agent: str, timeout: float = 15.0) -> None:
+    def __init__(self, user_agent: str, timeout: float = 15.0, *, transport: httpx.AsyncBaseTransport | None = None) -> None:
         self._headers = {"User-Agent": user_agent}
         self._timeout = timeout
+        self._transport = transport
 
     async def search(self, query: str, max_results: int = 5) -> list[SearchResult]:
-        async with httpx.AsyncClient(headers=self._headers, timeout=self._timeout) as client:
+        async with httpx.AsyncClient(headers=self._headers, timeout=self._timeout, transport=self._transport) as client:
             resp = await client.get(self._URL, params={"q": query})
             resp.raise_for_status()
         if resp.status_code == 202:  # DuckDuckGo's bot challenge page, not results

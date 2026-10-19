@@ -169,9 +169,9 @@ def test_source_off_by_default(tmp_path, monkeypatch):
 
     monkeypatch.setattr(httpx.AsyncClient, "send", no_network)
     settings = _settings(tmp_path)
-    assert settings.esef_enabled is False
+    assert settings.esef_enabled is True
     store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
-    assert not any(isinstance(s, EsefDocumentSource) for s in build_registry(settings, store).sources)
+    assert not any(isinstance(s, EsefDocumentSource) for s in build_registry(_settings(tmp_path, esef_enabled=False), store).sources)
     on = build_registry(_settings(tmp_path, esef_enabled=True), store)
     assert any(isinstance(s, EsefDocumentSource) for s in on.sources)
 
