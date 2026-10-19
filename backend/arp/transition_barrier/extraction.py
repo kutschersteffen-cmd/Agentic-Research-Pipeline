@@ -78,8 +78,10 @@ def seed_keywords(fact: FactDef, code: str) -> list[str]:
     return curated or [w.lower() for w in re.findall(r"[A-Za-z]{4,}", fact.label)]
 
 
-def fingerprint(fact: FactDef) -> str:
-    return hashlib.sha256((fact.model_dump_json() + PROMPT_VERSION).encode("utf-8")).hexdigest()
+def fingerprint(fact: FactDef, code: str) -> str:
+    """Changes when the fact, its retrieval keywords or the prompt change, so a stored extraction is redone (R3)."""
+    text = fact.model_dump_json() + json.dumps(seed_keywords(fact, code)) + PROMPT_VERSION
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def source_document(doc: dict) -> SourceDocument:

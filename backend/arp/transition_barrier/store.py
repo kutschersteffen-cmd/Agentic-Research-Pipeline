@@ -218,7 +218,7 @@ def _values(code: str, region: str, rules: CriterionRules, registry: list[Primar
         )))  # fmt: skip
 
     sources = {d["id"]: d for d in latest_source_documents([s.key for s in registry if s.key])}
-    prints = {fid: fingerprint(f) for fid, f in defs.items()}
+    prints = {fid: fingerprint(f, code) for fid, f in defs.items()}
     with transaction() as s:
         rows = [_row(r) for r in s.scalars(select(BarrierExtraction).where(
             BarrierExtraction.code == code, BarrierExtraction.region == region, BarrierExtraction.found,

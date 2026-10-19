@@ -80,7 +80,7 @@ async def _fetch_and_extract(cells: list[tuple[str, str]], run_id: str, settings
         rules, registry = cell_rules(code, region)
         docs = store.latest_source_documents([s.key for s in registry if s.key])
         for fact in (f for f in rules.facts if f.type):
-            fp = fingerprint(fact)
+            fp = fingerprint(fact, code)
             todo += [(code, region, fact, fp, d) for d in docs if store.extraction(code, region, fact.id, d["id"], fp) is None]
     if not todo:
         return notes

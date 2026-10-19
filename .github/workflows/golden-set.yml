@@ -16,6 +16,9 @@ on:
       - "backend/arp/config.py"
       - "backend/arp/transition_barrier/extraction.py"
       - "backend/arp/transition_barrier/golden.py"
+      - "backend/arp/transition_barrier/fetching.py"
+      - "backend/arp/transition_barrier/rule_book.py"
+      - "backend/arp/transition_barrier/data/**"
       - "backend/tests/golden/transition_barrier/**"
   workflow_dispatch:
 
@@ -54,7 +57,7 @@ jobs:
           BASE: ${{ github.base_ref }}
         run: |
           if [ -z "$BASE" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; exit 0; fi
-          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py arp/transition_barrier/extraction.py arp/transition_barrier/golden.py tests/golden/transition_barrier)
+          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py arp/transition_barrier/extraction.py arp/transition_barrier/golden.py arp/transition_barrier/fetching.py arp/transition_barrier/rule_book.py arp/transition_barrier/data tests/golden/transition_barrier)
           model=$(git diff -U0 "origin/$BASE...HEAD" -- arp/config.py | grep -E '^[+-] .*(llm_|_api_key|grounding_|confidence_review)' || true)
           if [ -n "$other$model" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; else echo "run=false" >>"$GITHUB_OUTPUT"; echo "Only unrelated config.py lines changed; golden set not needed."; fi
 

@@ -141,8 +141,17 @@ def test_field_for_and_fingerprint():
     assert f.extraction_instructions.endswith("Give the as-of date of the value in period_text when the source states one.")
     assert "(for example CNY/tCO2)" in f.extraction_instructions
     changed = FACTS["price"].model_copy(update={"definition": "Something else."})
-    assert extraction.fingerprint(FACTS["price"]) != extraction.fingerprint(changed)
-    assert extraction.fingerprint(FACTS["price"]) == extraction.fingerprint(FACTS["price"].model_copy())
+    assert extraction.fingerprint(FACTS["price"], "STL-R1") != extraction.fingerprint(changed, "STL-R1")
+    assert extraction.fingerprint(FACTS["price"], "STL-R1") == extraction.fingerprint(FACTS["price"].model_copy(), "STL-R1")
+
+
+def test_fingerprint_follows_the_fact_keywords(monkeypatch):
+    price, levy = FACTS["price"], FACTS["levy"]
+    before = extraction.fingerprint(price, "STL-R1"), extraction.fingerprint(levy, "STL-R1")
+    edited = {**KEYWORDS, "STL-R1": {**KEYWORDS["STL-R1"], "price": ["carbon price", "allowance price", "EUA"]}}
+    monkeypatch.setattr(extraction, "_fact_keywords", lambda path: edited)
+    assert extraction.fingerprint(price, "STL-R1") != before[0]  # a keyword edit redoes that fact's extractions
+    assert extraction.fingerprint(levy, "STL-R1") == before[1]  # and only that fact's
 
 
 def test_unit_without_currency_gets_plain_sentence():
