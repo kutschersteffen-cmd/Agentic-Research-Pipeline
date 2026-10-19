@@ -13,7 +13,7 @@ def convert(value: float, unit: str, fact_unit: str, year: int, conversions: lis
     pairs = [(a, b, inverse) for a, b, inverse in ((src, dst, False), (src_per, dst_per, True)) if a != b]
     rows = {(a, b): [r for r in conversions if r["from"] == a and r["to"] == b] for a, b, _ in pairs}
     if src_slash != dst_slash or not all(rows.values()):
-        return None, f"Unit not convertible: {unit}"
+        return None, f"Unit not convertible: {unit or '(no unit)'}"
     factor = 1.0
     for a, b, inverse in pairs:
         usable = [r for r in rows[a, b] if r["year"] <= year]

@@ -604,7 +604,8 @@ class BarrierSourceDocument(Base):
 
 
 class BarrierExtraction(Base):
-    """One fact extracted from one stored source document, checked by code; a not-found answer is kept too (found False)."""
+    """The model's answer for one fact in one stored source document, as given (source value and unit) with its
+    quote grounding; the code checks run on it when it is read. A not-found answer is kept too (found False)."""
 
     __tablename__ = "barrier_extractions"
     __table_args__ = (
@@ -618,15 +619,13 @@ class BarrierExtraction(Base):
     source_document_id: Mapped[int] = mapped_column(ForeignKey("barrier_source_documents.id"))
     fingerprint: Mapped[str] = mapped_column(Text)  # the fact definition and prompt version it was extracted with
     found: Mapped[bool] = mapped_column(Boolean)
-    value: Mapped[str | float | bool | None] = mapped_column(JSONB)
-    unit: Mapped[str | None] = mapped_column(Text)
-    extracted: Mapped[str | None] = mapped_column(Text)
+    value: Mapped[str | float | bool | None] = mapped_column(JSONB)  # as the source states it
+    unit: Mapped[str | None] = mapped_column(Text)  # the source's unit text
     quote: Mapped[str | None] = mapped_column(Text)  # "" when the model cited nothing
+    grounded: Mapped[bool | None] = mapped_column(Boolean)  # the quote was found in a passage the model was shown
     page: Mapped[int | None] = mapped_column(Integer)
     locator: Mapped[str | None] = mapped_column(Text)
     as_of: Mapped[date | None] = mapped_column(Date)
-    counted: Mapped[bool] = mapped_column(Boolean)
-    reason: Mapped[str | None] = mapped_column(Text)
     run_id: Mapped[str] = mapped_column(Text)
     extracted_at: Mapped[datetime] = _ts()
 

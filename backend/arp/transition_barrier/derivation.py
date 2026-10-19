@@ -17,7 +17,7 @@ from arp.storage.run_store import RunStore
 from arp.transition_barrier import RUN_TYPE, clock, fetching, store
 from arp.transition_barrier.dataset import data_dir, load_criteria
 from arp.transition_barrier.engine import Result, derive
-from arp.transition_barrier.extraction import extract, fingerprint
+from arp.transition_barrier.extraction import find, fingerprint
 from arp.transition_barrier.ratings import Ratings, item_key
 from arp.transition_barrier.rule_book import CriterionRules, load_rule_book
 
@@ -90,7 +90,7 @@ async def _fetch_and_extract(cells: list[tuple[str, str]], run_id: str, settings
 
     async def one(code, region, fact, fp, doc):
         async with limit:
-            got = await extract(
+            got = await find(
                 fact, f"{sectors[code]}, {region}, {code}", doc, conversions, llm=llm, verifier_llm=verifier, settings=settings
             )
         store.add_extraction(code=code, region=region, fact=fact.id, doc_id=doc["id"], fingerprint=fp, result=got, run_id=run_id)

@@ -15,10 +15,11 @@ from arp.ingestion.indexing_config import IndexingConfig
 from arp.schemas.transition_barrier import PrimarySource
 from arp.storage.document_blob_store import blob_store_for, upload_or_fail
 from arp.transition_barrier import clock
+from arp.transition_barrier.dataset import data_dir
 from arp.transition_barrier.engine import Value, _show, fact_confidence
-from arp.transition_barrier.extraction import Extraction, fingerprint
+from arp.transition_barrier.extraction import Answer, check, fingerprint
 from arp.transition_barrier.facts import FactRefused
-from arp.transition_barrier.rule_book import CriterionRules
+from arp.transition_barrier.rule_book import CriterionRules, load_rule_book
 
 
 def _row(obj) -> dict:
@@ -80,18 +81,18 @@ def extraction(code: str, region: str, fact: str, doc_id: int, fingerprint: str)
 
 
 def add_extraction(
-    *, code: str, region: str, fact: str, doc_id: int, fingerprint: str, result: Extraction | None, run_id: str
+    *, code: str, region: str, fact: str, doc_id: int, fingerprint: str, result: Answer | None, run_id: str
 ) -> int:
-    """Stores one extraction; `result` None is the model's not-found answer, kept so it is never asked again."""
+    """Stores one model answer; `result` None is its not-found answer, kept so it is never asked again."""
     found = {} if result is None else {
-        "value": result.value, "unit": result.unit, "extracted": result.extracted, "quote": result.quote,
-        "page": result.page, "locator": result.locator, "as_of": result.as_of, "reason": result.reason,
+        "value": result.value, "unit": result.unit, "quote": result.quote, "grounded": result.grounded,
+        "page": result.page, "locator": result.locator, "as_of": result.as_of,
     }  # fmt: skip
     key = {"code": code, "region": region, "fact": fact, "source_document_id": doc_id, "fingerprint": fingerprint}
     with transaction() as s:
         new_id = s.scalar(
             insert(BarrierExtraction)
-            .values(**key, **found, found=result is not None, counted=bool(result and result.counted), run_id=run_id)
+            .values(**key, **found, found=result is not None, run_id=run_id)
             .on_conflict_do_nothing()  # another run stored the same key first
             .returning(BarrierExtraction.id)
         )
@@ -137,7 +138,7 @@ def fact_labels(facts: list[dict], registry: list[PrimarySource]) -> dict[str, s
 
 
 def extraction_labels(ids: set[int]) -> dict[str, str]:
-    """`<value shown>, <document title>` for each extraction id, keyed by its value id `x<id>`."""
+    """`<value as the source states it>, <document title>` for each extraction id, keyed by its value id `x<id>`."""
     if not ids:
         return {}
     with transaction() as s:
@@ -198,7 +199,8 @@ def add_choice(
 
 def _values(code: str, region: str, rules: CriterionRules, registry: list[PrimarySource], today: date) -> list[Value]:
     """Every current value of the cell before choices apply: analyst facts, and the extractions from the latest
-    document of each registered source. Registered-source values come first, in registry order then by page."""
+    document of each registered source, checked now with the current conversions and source tiers.
+    Registered-source values come first, in registry order then by page."""
     defs = {f.id: f for f in rules.facts if f.type}
     facts = [f for f in cell_facts(code, region) if f["fact"] in defs]
     docs = _documents({f["document_id"] for f in facts if f["document_id"]})
@@ -228,17 +230,20 @@ def _values(code: str, region: str, rules: CriterionRules, registry: list[Primar
             BarrierExtraction.code == code, BarrierExtraction.region == region, BarrierExtraction.found,
             BarrierExtraction.source_document_id.in_(sources),
         ))] if sources else []  # fmt: skip
+    conversions = load_rule_book(data_dir())[0].conversions if rows else []
+    tiers = {s.key: s.tier.value for s in registry if s.key and s.tier}
     for x in rows:
         if prints.get(x["fact"]) != x["fingerprint"]:
             continue  # extracted under an older fact definition or prompt
         d = sources[x["source_document_id"]]
-        value = date.fromisoformat(x["value"]) if x["counted"] and defs[x["fact"]].type == "date" else x["value"]
+        tier = tiers.get(d["source_key"], d["tier"])  # the stored tier for a source no longer registered
+        answer = Answer(**{k: x[k] for k in ("value", "unit", "quote", "grounded", "page", "locator", "as_of")})
+        e = check(defs[x["fact"]], answer, tier, d["as_of"], conversions)
         keyed.append(((0, order[d["source_key"]][0], x["page"] or 0, 1, x["id"]), Value(
-            id=f"x{x['id']}", fact=x["fact"], value=value, unit=x["unit"], document=d["title"], page=x["page"],
+            id=f"x{x['id']}", fact=x["fact"], value=e.value, unit=e.unit, document=d["title"], page=x["page"],
             locator=x["locator"],
-            confidence=fact_confidence(d["tier"], x["as_of"] or d["as_of"], defs[x["fact"]].max_age_days, today, True),
-            machine_checked=True, counted=x["counted"], reason=x["reason"], quote=x["quote"] or None,
-            extracted=x["extracted"],
+            confidence=fact_confidence(tier, x["as_of"] or d["as_of"], defs[x["fact"]].max_age_days, today, True),
+            machine_checked=True, counted=e.counted, reason=e.reason, quote=x["quote"] or None, extracted=e.extracted,
         )))  # fmt: skip
     return [v for _, v in sorted(keyed, key=lambda kv: kv[0])]
 

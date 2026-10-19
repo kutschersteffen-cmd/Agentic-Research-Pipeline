@@ -327,3 +327,52 @@ def test_not_fetched_note_reaches_the_result(client, monkeypatch):
     extracting(monkeypatch, answers(), {D_URLS["D3"]: (b"{}", "application/json", None)})
     run(client)
     assert latest(client)["notes"] == [f"Not fetched: {D3} (unsupported type application/json)"]
+
+
+def edit_rule_book(env, edit) -> None:
+    path = env / "rule_book.json"
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    edit(raw)
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    sign_rule_book(env, "owner", date(2026, 10, 18))
+    dataset.reset_caches()
+
+
+FX = {"title": "Fixture rate", "url": "https://example.org/fx"}
+
+
+def test_new_conversion_row_counts_a_stored_value(client, env, monkeypatch):  # checks run when values are read
+    stub, _ = extracting(monkeypatch, answers(price=pv(66.9, QUOTES["D1"][19], "KRW/tCO2")))
+    run(client)
+    assert value(latest(client), "price")["reason"] == "Unit not convertible: KRW/tCO2"
+    calls = len(stub.calls)
+    edit_rule_book(env, lambda raw: raw["conversions"].append({"from": "KRW", "to": "USD", "rate": 0.001, "year": 2020, "source": FX}))
+    run(client)
+    v = value(latest(client), "price")
+    assert len(stub.calls) == calls and (v["counted"], v["reason"], v["extracted"]) == (True, None, "66.9 KRW/tCO2")
+
+
+def test_changed_rate_reaches_a_stored_value(client, env, monkeypatch):
+    stub, _ = extracting(monkeypatch, answers(price=pv(66.9, QUOTES["D1"][17], "CNY/tCO2")))
+    run(client)
+    assert latest(client)["rating"] == "L"
+    calls = len(stub.calls)
+    edit_rule_book(env, lambda raw: raw["conversions"].append({"from": "CNY", "to": "USD", "rate": 1.0, "year": 2026, "source": FX}))
+    run(client)
+    result = latest(client)
+    assert len(stub.calls) == calls and "66.9 USD/tCO2 (66.9 CNY/tCO2)" in clause(result, "price")["clause"]
+    assert result["rating"] == "H"
+
+
+def test_retiered_source_reaches_a_stored_value(client, env, monkeypatch):
+    stub, _ = extracting(monkeypatch, answers())
+    run(client)
+    calls = len(stub.calls)
+    path = env / "criteria_schema.json"
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    next(s for s in raw["criteria"][0]["primary_sources"] if s["key"] == "eu_ets_report")["tier"] = "news"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    dataset.reset_caches()
+    run(client)
+    v = value(latest(client), "price")
+    assert len(stub.calls) == calls and (v["counted"], v["reason"]) == (False, "News cannot ground a fact")

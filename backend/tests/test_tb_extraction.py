@@ -8,6 +8,7 @@ import math
 from datetime import date
 from pathlib import Path
 
+import pytest
 from pypdf import PageObject
 
 from arp.config import Settings
@@ -16,7 +17,7 @@ from arp.extraction.extractor_agent import PeriodValue
 from arp.schemas.common import Citation, DocType, DocumentChunk
 from arp.transition_barrier import extraction
 from arp.transition_barrier.facts import pdf_pages
-from arp.transition_barrier.rule_book import load_rule_book
+from arp.transition_barrier.rule_book import FactDef, load_rule_book
 from tests.transition_barrier_helpers import DOCS, FIXTURES, QUOTES, FactStub, fixture_pdf
 
 CELL = "Steel, European Union, STL-R1"
@@ -44,10 +45,11 @@ def pv(value, quote: str, unit: str | None = "USD/tCO2", *, period: str | None =
     return PeriodValue(value=value, raw_value_text=quote, unit_text=unit, period_text=period, citations=[cite])
 
 
-def run(fact: str, d: dict, answer: PeriodValue | None):
-    stub = FactStub({(fact, d["title"]): answer} if answer else {}, {f"tbsrc_{d['id']}": d["title"]}.__getitem__)
+def run(fact: str | FactDef, d: dict, answer: PeriodValue | None):
+    fact = FACTS[fact] if isinstance(fact, str) else fact
+    stub = FactStub({(fact.id, d["title"]): answer} if answer else {}, {f"tbsrc_{d['id']}": d["title"]}.__getitem__)
     out = asyncio.run(extraction.extract(
-        FACTS[fact], CELL, d, BOOK.conversions, llm=stub, verifier_llm=stub, settings=SETTINGS,
+        fact, CELL, d, BOOK.conversions, llm=stub, verifier_llm=stub, settings=SETTINGS,
     ))
     return out, stub
 
@@ -212,3 +214,49 @@ def test_lone_surrogate_in_pdf_text_is_replaced(monkeypatch):
     assert all(t.encode("utf-8") for t in d["page_texts"])
     out, _ = run("price", d, pv(72, QUOTES["D1"][12]))
     assert (out.counted, out.page) == (True, 12)
+
+
+SCHEME = FACTS["levy"].model_copy(
+    update={"id": "scheme", "label": "Trading scheme covering steel", "type": "enum", "allowed_values": ["EU ETS", "None"]}
+)
+START = FACTS["levy"].model_copy(update={"id": "start", "type": "date"})
+
+
+@pytest.mark.parametrize(("given", "typed"), [(True, True), ("Yes", True), ("no", False), ("TRUE", True), ("false", False)])
+def test_boolean_values_are_normalised(given, typed):
+    out, _ = run("applies", doc("D1"), pv(given, QUOTES["D1"][4], None))
+    assert (out.counted, out.value) == (True, typed)
+
+
+@pytest.mark.parametrize(("fact", "d", "given", "quote", "reason"), [
+    ("applies", "D1", "maybe", QUOTES["D1"][4], "Value is not a boolean"),
+    ("price", "D1", "seventy-two", QUOTES["D1"][12], "Value is not a number"),
+    (SCHEME, "D1", "China ETS", QUOTES["D1"][20], "Value not allowed: China ETS"),
+    (START, "D2", "1 January 2026", QUOTES["D2"][3], "Value is not a date"),
+])  # fmt: skip
+def test_value_that_does_not_fit_the_type_is_not_counted(fact, d, given, quote, reason):
+    out, _ = run(fact, doc(d), pv(given, quote, None))
+    assert (out.counted, out.reason, out.value) == (False, reason, given)
+
+
+def test_enum_and_date_values_count():
+    out, _ = run(SCHEME, doc("D1"), pv("EU ETS", QUOTES["D1"][20], None))
+    assert (out.counted, out.value) == (True, "EU ETS")
+    out, _ = run(START, doc("D2"), pv("2026-01-01", QUOTES["D2"][3], None))
+    assert (out.counted, out.value) == (True, date(2026, 1, 1))
+
+
+def test_type_checked_after_grounding():
+    out, _ = run("applies", doc("D1"), pv("maybe", "Not in the document at all."))
+    assert out.reason == "Quote not found in source"
+
+
+def test_missing_unit_is_named():
+    out, _ = run("price", doc("D1"), pv(72, QUOTES["D1"][12], None))
+    assert (out.counted, out.reason) == (False, "Unit not convertible: (no unit)")
+
+
+def test_infinite_number_is_not_a_number():
+    a = extraction.Answer(value=math.inf, unit="USD/tCO2", quote="inf", grounded=True, page=1, locator=None, as_of=None)
+    e = extraction.check(FACTS["price"], a, "primary", date(2026, 1, 1), BOOK.conversions)
+    assert (e.counted, e.reason) == (False, "Value is not a number")
