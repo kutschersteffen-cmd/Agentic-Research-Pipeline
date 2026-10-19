@@ -55,9 +55,13 @@ export const currentFact = (picked: string, facts: { id: string; type: string | 
   return entered.some((f) => f.id === picked) ? picked : (entered[0]?.id ?? "");
 };
 
-/** The figure as the document gave it, with the converted one beside it when the two differ. */
+/** The figure in the rule book's unit, with the document's own figure beside it when it was converted. */
 export const valueText = (v: { shown: string | null; extracted: string | null }): string =>
   v.shown && v.extracted && v.shown !== v.extracted ? `${v.shown} (${v.extracted})` : (v.shown ?? "—");
+
+/** Where an extracted value's fetched source opens: at its page for a PDF; null for a value without one. */
+export const sourceHref = (v: { url: string | null; page: number | null }): string | null =>
+  v.url && v.page != null ? `${v.url}#page=${v.page}` : v.url;
 
 /** Where a counted value came from: the model, a person's upload the system checked, or a person's word. */
 export const sourceText = (v: { machine_checked: boolean; entered_by: string | null }): string =>

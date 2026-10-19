@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cellHash, currentFact, errorDetail, historyLine, outcomeClass, ratifiedLine, sourceText, valueText } from "../src/lib/barrier.ts";
+import { cellHash, currentFact, errorDetail, historyLine, outcomeClass, ratifiedLine, sourceHref, sourceText, valueText } from "../src/lib/barrier.ts";
 import { decisionChoices } from "../src/lib/reviewKeys.ts";
 
 test("ratifiedLine names who ratified a derived rating, or says it is hand-rated", () => {
@@ -56,4 +56,10 @@ test("sourceText says whether the model extracted the value, or a person entered
   assert.equal(sourceText({ machine_checked: true, entered_by: "a.analyst" }), "checked in the document");
   assert.equal(sourceText({ machine_checked: false, entered_by: "a.analyst" }), "entered by a.analyst");
   assert.equal(sourceText({ machine_checked: false, entered_by: null }), "entered by an analyst");
+});
+
+test("sourceHref opens an extracted value's source at its PDF page, an HTML source at its address", () => {
+  assert.equal(sourceHref({ url: "https://example.org/report.pdf", page: 12 }), "https://example.org/report.pdf#page=12");
+  assert.equal(sourceHref({ url: "https://eur-lex.europa.eu/eli/reg/2023/956/oj", page: null }), "https://eur-lex.europa.eu/eli/reg/2023/956/oj");
+  assert.equal(sourceHref({ url: null, page: 3 }), null);
 });

@@ -2,12 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { BarrierFactForm } from "../components/BarrierFactForm";
 import { FileLink } from "../components/FileLink";
-import { RATING_CLASS, RATING_LABEL, errorDetail, historyLine, outcomeClass, ratifiedLine, sourceText, valueText } from "../lib/barrier";
+import { RATING_CLASS, RATING_LABEL, errorDetail, historyLine, outcomeClass, ratifiedLine, sourceHref, sourceText, valueText } from "../lib/barrier";
 import type { BarrierCell, BarrierCriterion, BarrierRating, BarrierValue } from "../types";
 
 const when = (iso: string) => iso.slice(0, 16).replace("T", " ");
 
 function Figure({ v, label }: { v: BarrierValue; label: string }) {
+  const href = sourceHref(v);
   return (
     <tr>
       <td>{label}</td>
@@ -17,6 +18,8 @@ function Figure({ v, label }: { v: BarrierValue; label: string }) {
           <FileLink url={api.barrierDocumentUrl(v.document_id, v.page)} name={`document-${v.document_id}.pdf`} open>
             {v.document}
           </FileLink>
+        ) : href ? (
+          <a href={href} target="_blank" rel="noopener noreferrer">{v.document}</a>
         ) : (
           v.document ?? <span className="muted">computed</span>
         )}

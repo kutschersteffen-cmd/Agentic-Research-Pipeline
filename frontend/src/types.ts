@@ -1790,6 +1790,7 @@ export interface BarrierValue {
   reason: string | null;
   entered_by: string | null;
   quote: string | null;
+  url: string | null;
 }
 
 export interface BarrierResult {

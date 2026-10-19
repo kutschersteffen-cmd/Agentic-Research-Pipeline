@@ -244,6 +244,7 @@ def _values(code: str, region: str, rules: CriterionRules, registry: list[Primar
             locator=x["locator"],
             confidence=fact_confidence(tier, x["as_of"] or d["as_of"], defs[x["fact"]].max_age_days, today, True),
             machine_checked=True, counted=e.counted, reason=e.reason, quote=x["quote"] or None, extracted=e.extracted,
+            url=d["url"],
         )))  # fmt: skip
     return [v for _, v in sorted(keyed, key=lambda kv: kv[0])]
 

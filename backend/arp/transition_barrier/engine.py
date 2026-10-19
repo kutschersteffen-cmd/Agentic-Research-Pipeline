@@ -45,6 +45,7 @@ class Value:
     document_id: int | None = None
     quote: str | None = None  # the exact words the figure was taken from; computed facts have none
     extracted: str | None = None  # the figure as extracted, in its source unit; set only after a conversion
+    url: str | None = None  # the fetched source's address, for an extracted value (an upload opens by document_id)
 
 
 class ConditionResult(BaseModel):

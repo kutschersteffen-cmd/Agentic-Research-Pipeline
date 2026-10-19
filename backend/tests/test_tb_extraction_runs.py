@@ -376,3 +376,11 @@ def test_retiered_source_reaches_a_stored_value(client, env, monkeypatch):
     run(client)
     v = value(latest(client), "price")
     assert len(stub.calls) == calls and (v["counted"], v["reason"]) == (False, "News cannot ground a fact")
+
+
+def test_extracted_value_links_its_source(client, monkeypatch):  # spec §6: every figure opens its source
+    extracting(monkeypatch, answers())
+    assert enter_fact(as_user(client, B_APPROVER), "price", 30, "D1", 13).status_code == 201
+    run(client)
+    prices = [v for v in latest(client)["values"] if v["fact"] == "price"]
+    assert {(v["url"], v["document_id"] is None) for v in prices} == {(D_URLS["D1"], True), (None, False)}
