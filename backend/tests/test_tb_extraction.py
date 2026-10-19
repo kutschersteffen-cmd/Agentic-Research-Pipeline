@@ -191,6 +191,19 @@ def test_every_typed_fact_has_three_to_eight_curated_keywords():
         assert 3 <= len(words) <= 8 and all(w.strip() for w in words) and len({w.lower() for w in words}) == len(words), (code, fact)
 
 
+def test_extraction_ranks_with_keywords_only(monkeypatch):
+    seen = []
+    real = field_graph.field_evidence
+    monkeypatch.setattr(field_graph, "field_evidence", lambda f, d, settings, *a: seen.append(settings) or real(f, d, settings, *a))
+    hybrid = Settings(hybrid_retrieval_enabled=True)
+    d = doc("D1")
+    stub = FactStub({("price", d["title"]): pv(72, QUOTES["D1"][12])}, {f"tbsrc_{d['id']}": d["title"]}.__getitem__)
+    out = asyncio.run(extraction.extract(FACTS["price"], CELL, d, BOOK.conversions, llm=stub, verifier_llm=stub, settings=hybrid))
+    assert out.counted and [s.hybrid_retrieval_enabled for s in seen] == [False]
+    assert seen[0].evidence_max_chunks == hybrid.evidence_max_chunks == 12  # everything else stays Argus's
+    assert hybrid.hybrid_retrieval_enabled  # the caller's settings are left alone
+
+
 def test_lone_surrogate_in_pdf_text_is_replaced(monkeypatch):
     # pypdf returns lone surrogates for some glyphs (math italic); unreplaced, chunking raised UnicodeEncodeError
     real = PageObject.extract_text

@@ -72,17 +72,13 @@ These rows needed a judgement call, or rely on a conversion or on picking one pa
 ## What a perfect model could score
 
 A stand-in model ran through the real `golden.score`. It answers every row with its own label, quoting
-the page text the way extraction gives it. Retrieval is the same as Argus's: the curated keywords in
-`data/fact_keywords.json`, 12 passages per fact, and BM25 with or without the embedding half.
+the page text the way extraction gives it. Barrier extraction ranks passages by keyword only (BM25,
+the owner's decision), using the curated keywords in `data/fact_keywords.json` and 12 passages per
+fact. The stand-in reached precision 1 and coverage 31/43 = 0.72.
 
-| Retrieval | Curated keywords | Label words only (before) |
-|---|---|---|
-| BM25 only | 31/43 = 0.72 | 21/43 = 0.49 |
-| Hybrid (default) | 26/43 = 0.60 | 22/43 = 0.51 |
-
-Precision was 1 in every run. The 5 absent rows can never count. The other rows that miss are present
-in the document, but retrieval does not show the model the passage. A real model will score at or
-below these numbers.
+The 5 absent rows can never count. Rows 8, 9, 14, 27 and 35–37 hold their answer, but retrieval does
+not show the model the passage. A real model will score at or below 0.72. For comparison, the same run
+scored 0.60 with hybrid ranking, and 0.49 with the label's words as the only keywords.
 
 ## Documents
 

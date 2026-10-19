@@ -19,7 +19,7 @@ from arp.transition_barrier.render import _with_unit
 from arp.transition_barrier.rule_book import FactDef
 from arp.transition_barrier.units import convert
 
-PROMPT_VERSION = "tb-extract-2"
+PROMPT_VERSION = "tb-extract-3"
 AS_OF_RULE = "Give the as-of date of the value in period_text when the source states one."
 _TYPES = {
     "number": FieldDataType.NUMBER, "boolean": FieldDataType.BOOLEAN,
@@ -131,7 +131,9 @@ async def extract(
     sd = source_document(doc)
     rows, _, _ = await extract_one_field(
         cell, field_for(fact, cell, conversions), documents=[sd], documents_by_id={sd.doc_id: sd}, llm=llm,
-        verifier_llm=verifier_llm, settings=settings, fuzzy_threshold=settings.grounding_fuzzy_threshold,
+        verifier_llm=verifier_llm, fuzzy_threshold=settings.grounding_fuzzy_threshold,
+        # owner decision: keyword-only BM25, like Transition Plan Assessment (oracle coverage on G: 0.72 vs hybrid 0.60)
+        settings=settings.model_copy(update={"hybrid_retrieval_enabled": False}),
         confidence_review_threshold=settings.confidence_review_threshold,
     )
     return check(fact, rows[0], doc, conversions)
