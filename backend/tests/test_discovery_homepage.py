@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import httpx
 import pytest
 
@@ -144,4 +146,5 @@ async def test_ac_89_rejected_wikidata_homepage_not_replaced_by_search(tmp_path,
     )
     assert row["homepage_used"] is None
     assert row["homepage_check"]["verdict"] == "rejected"
-    assert [q for q in search.queries if "filetype:pdf" not in q] == []  # report queries are not homepage searches
+    year = date.today().year - 1  # the pipeline's expected_year
+    assert search.queries == [f'"Testwerke AG" annual report {year} filetype:pdf', f'"Testwerke AG" sustainability report {year} filetype:pdf']

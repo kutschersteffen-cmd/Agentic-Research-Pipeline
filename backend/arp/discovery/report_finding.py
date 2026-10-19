@@ -5,7 +5,16 @@ from __future__ import annotations
 import logging
 from urllib.parse import urlparse
 
-from arp.discovery.crawler import CandidateDocumentLink, _same_site, is_demoted, is_pdf, report_text, years_in
+from arp.discovery.crawler import (
+    CandidateDocumentLink,
+    _parsable,
+    _same_site,
+    classify_link,
+    is_demoted,
+    is_pdf,
+    report_text,
+    years_in,
+)
 from arp.discovery.site_finder import WebSearchClient
 from arp.schemas.common import CompanyRef, DocType
 
@@ -38,7 +47,7 @@ async def search_candidates(
             continue
         found += [
             CandidateDocumentLink(url=r.url, doc_type=doc_type, link_text=r.title)
-            for r in results if is_pdf(r.url) and not is_demoted(report_text(r.url, r.title))
+            for r in results if _parsable(r.url) and is_pdf(r.url) and not is_demoted(report_text(r.url, r.title))
         ]
     return found
 
@@ -48,7 +57,7 @@ def select_candidates(
     *, skip_annual: bool,
 ) -> list[CandidateDocumentLink]:
     """One candidate per URL at its best source, the top TOP_PER_TYPE annual and sustainability reports ranked by
-    (year, source, discovery order), then every other crawled type as found."""
+    (year, real report name, source, discovery order), then every other crawled type as found."""
     root_netloc = urlparse(root_url).netloc if root_url else ""
     best: dict[str, tuple[int, int, CandidateDocumentLink]] = {}
     for index, (source, cand) in enumerate([(0 if _same_site(c.url, root_netloc) else 1, c) for c in crawl]
@@ -56,10 +65,11 @@ def select_candidates(
         if cand.url not in best or source < best[cand.url][0]:
             best[cand.url] = (source, index, cand)
 
-    def rank(entry: tuple[int, int, CandidateDocumentLink]) -> tuple[int, int, int]:
+    def rank(entry: tuple[int, int, CandidateDocumentLink]) -> tuple[int, int, int, int]:
         source, index, cand = entry
         years = years_in(report_text(cand.url, cand.link_text))
-        return (0 if expected_year in years else 1 if expected_year - 1 in years else 2), source, index
+        named = classify_link(cand.url, cand.link_text) == cand.doc_type  # a real report name, not a year-fallback guess
+        return (0 if expected_year in years else 1 if expected_year - 1 in years else 2), 0 if named else 1, source, index
 
     def top(doc_type: DocType) -> list[CandidateDocumentLink]:
         entries = sorted((e for e in best.values() if e[2].doc_type == doc_type), key=rank)

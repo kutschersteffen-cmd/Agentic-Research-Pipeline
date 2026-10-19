@@ -29,9 +29,9 @@ class WebSearchClient(ABC):
 
 
 class DuckDuckGoSearchClient(WebSearchClient):
-    """No-API-key fallback search, used only to resolve a company's IR
-    homepage when the user hasn't supplied one directly in the universe
-    file. Supplying `website`/`ir_url` per company is strongly preferred
+    """No-API-key fallback search, used to resolve a company's IR homepage
+    when the user hasn't supplied one directly in the universe file, and to
+    find its annual/sustainability report PDFs. Supplying `website`/`ir_url` per company is strongly preferred
     for precision and reliability at scale; this is a best-effort fallback.
     """
 

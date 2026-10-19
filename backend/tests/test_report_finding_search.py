@@ -227,6 +227,19 @@ async def test_ac_96(tmp_path, pg, monkeypatch):
     assert run.doc(SITE + "/sr-2025.pdf")["doc_type"] == "sustainability_report"
 
 
+async def test_unparsable_search_result_does_not_fail_the_company(tmp_path, pg, monkeypatch):
+    search = {ANNUAL_Q: ["https://[bad.example/ar-2025.pdf", "https://good.example/ar-2025.pdf"]}
+    run = await discover(tmp_path, pg, monkeypatch, search=search)
+    assert run.docs("10-K") == ["https://good.example/ar-2025.pdf"] and run.manifest.failed_count == 0
+
+
+async def test_year_fallback_guess_does_not_outrank_a_real_report_name(tmp_path, pg, monkeypatch):
+    routes = home(("/cg-2025.pdf", "Corporate Governance Report 2025"), ("/p3-2025.pdf", "Pillar 3 Report 2025"),
+                  ("/ar-2025.pdf", "Annual Report 2025"))
+    run = await discover(tmp_path, pg, monkeypatch, routes=routes)
+    assert run.docs("10-K")[0] == SITE + "/ar-2025.pdf" and len(run.docs("10-K")) == 2
+
+
 async def test_only_requested_types_are_queried(tmp_path, pg, monkeypatch):
     run = await discover(tmp_path, pg, monkeypatch, doc_types=[DocType.ANNUAL_REPORT_10K])
     assert run.queries == [ANNUAL_Q]

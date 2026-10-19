@@ -170,7 +170,7 @@ async def _fetch_sitemap(client: httpx.AsyncClient, url: str, robots: _RobotsCac
                 if size > _MAX_SITEMAP_BYTES:
                     return None
         data = b"".join(chunks)
-        if urlparse(url).path.lower().endswith(".gz"):
+        if data.startswith(b"\x1f\x8b"):  # by content: a .xml.gz served with Content-Encoding: gzip arrives decoded
             data = gzip.GzipFile(fileobj=io.BytesIO(data)).read(_MAX_SITEMAP_BYTES + 1)
             if len(data) > _MAX_SITEMAP_BYTES:
                 return None
@@ -183,6 +183,7 @@ async def _fetch_sitemap(client: httpx.AsyncClient, url: str, robots: _RobotsCac
 def _parsable(url: str) -> bool:
     """False for a URL like "http://[bad" that urlparse rejects, so one bad entry is skipped on its own."""
     try:
+        urlparse(url).hostname  # noqa: B018 -- raises ValueError for "https://[bad"; tldextract alone does not
         registrable_domain(url)
         return True
     except ValueError:

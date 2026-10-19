@@ -228,7 +228,7 @@ async def test_ac_97_and_98(tmp_path, pg, monkeypatch):
 async def test_corrupt_gzip_sitemap_is_skipped(tmp_path, pg, monkeypatch):
     # the second sitemap's seed must survive the first one being corrupt
     routes = {SITE + "/robots.txt": robots("Sitemap: https://www.testwerke.de/sm.xml.gz", "Sitemap: https://www.testwerke.de/sm2.xml"),
-              SITE + "/sm.xml.gz": httpx.Response(200, content=b"not gzip"),
+              SITE + "/sm.xml.gz": httpx.Response(200, content=gzip.compress(urlset_xml("/investors/annual-report.html").encode())[:20]),
               SITE + "/sm2.xml": urlset("/investors/annual-report.html"), AR_HTML: AR_PAGE}
     run = await discover(tmp_path, pg, monkeypatch, routes=routes)
     assert AR in run.docs()
@@ -246,3 +246,24 @@ async def test_sitemap_without_namespace_and_padded_loc(tmp_path, pg, monkeypatc
     routes = {SITE + "/robots.txt": robots(SM_LINE), SITE + "/sm.xml": httpx.Response(200, text=xml), AR_HTML: AR_PAGE}
     run = await discover(tmp_path, pg, monkeypatch, routes=routes)
     assert AR in run.docs()
+
+
+async def test_gzip_sitemap_is_detected_by_content_not_url(tmp_path, pg, monkeypatch):
+    body = gzip.compress(urlset_xml("/investors/annual-report.html").encode())
+    routes = {SITE + "/robots.txt": robots(SM_LINE), SITE + "/sm.xml": httpx.Response(200, content=body), AR_HTML: AR_PAGE}
+    run = await discover(tmp_path, pg, monkeypatch, routes=routes)
+    assert AR in run.docs()
+
+
+async def test_unbracketed_ipv6_sitemap_loc_does_not_fail_the_company(tmp_path, pg, monkeypatch):
+    bad = "https://[www.testwerke.de/reports/x.html"
+    xml = f"<urlset><url><loc>{bad}</loc></url><url><loc>{AR_HTML}</loc></url></urlset>"
+    routes = {SITE + "/robots.txt": robots(SM_LINE), SITE + "/sm.xml": httpx.Response(200, text=xml), AR_HTML: AR_PAGE}
+    run = await discover(tmp_path, pg, monkeypatch, routes=routes)
+    assert run.count(AR_HTML) == 1 and AR in run.docs() and run.manifest.failed_count == 0
+
+
+async def test_unbracketed_ipv6_robots_sitemap_line_does_not_fail_the_company(tmp_path, pg, monkeypatch):
+    routes = {SITE + "/robots.txt": robots("Sitemap: https://[www.testwerke.de/sm.xml"), SITE + "/": AR_PAGE}
+    run = await discover(tmp_path, pg, monkeypatch, routes=routes)
+    assert AR in run.docs() and run.manifest.failed_count == 0
