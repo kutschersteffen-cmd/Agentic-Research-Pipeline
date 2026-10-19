@@ -97,3 +97,17 @@ class CapexOut(BaseModel):
     rnd_tests: list[RndResultOut]
     redlines: list[RedlineOut]
     licence_note: str
+
+
+class TransitionOut(BaseModel):
+    in_scope: bool
+    reason: str | None
+    sector: str | None
+    benchmarks_version: int
+    rule_book_version: int
+    capex: CapexOut | None
+    # Phase-2 keys, served empty now (R9).
+    regions: list[str] = []
+    actions: list[dict] = []
+    b02a: dict | None = None
+    assumptions: list[dict] = []

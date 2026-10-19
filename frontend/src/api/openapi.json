@@ -704,6 +704,46 @@
     "title": "AlertTransitionRequest",
     "type": "object"
    },
+   "AmountOut": {
+    "properties": {
+     "citation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Citation"
+     },
+     "fact_id": {
+      "title": "Fact Id",
+      "type": "integer"
+     },
+     "field_id": {
+      "title": "Field Id",
+      "type": "string"
+     },
+     "shown": {
+      "title": "Shown",
+      "type": "string"
+     },
+     "year": {
+      "title": "Year",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "field_id",
+     "year",
+     "shown",
+     "fact_id",
+     "citation"
+    ],
+    "title": "AmountOut",
+    "type": "object"
+   },
    "AnalyticRequest": {
     "properties": {
      "as_of": {
@@ -2173,6 +2213,158 @@
     "title": "CalibrationScheduleConfig",
     "type": "object"
    },
+   "CapexOut": {
+    "properties": {
+     "amounts": {
+      "items": {
+       "$ref": "#/components/schemas/AmountOut"
+      },
+      "title": "Amounts",
+      "type": "array"
+     },
+     "benchmark": {
+      "$ref": "#/components/schemas/BenchmarkOut"
+     },
+     "headline": {
+      "title": "Headline",
+      "type": "string"
+     },
+     "licence_note": {
+      "title": "Licence Note",
+      "type": "string"
+     },
+     "not_scored": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Not Scored"
+     },
+     "ratio": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ratio"
+     },
+     "ratio_shown": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ratio Shown"
+     },
+     "redlines": {
+      "items": {
+       "$ref": "#/components/schemas/RedlineOut"
+      },
+      "title": "Redlines",
+      "type": "array"
+     },
+     "reporting_year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reporting Year"
+     },
+     "rnd_tests": {
+      "items": {
+       "$ref": "#/components/schemas/RndResultOut"
+      },
+      "title": "Rnd Tests",
+      "type": "array"
+     },
+     "rule": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rule"
+     },
+     "share_ry": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ShareOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "share_ry1": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ShareOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "share_used": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Share Used"
+     },
+     "share_used_shown": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Share Used Shown"
+     }
+    },
+    "required": [
+     "reporting_year",
+     "share_ry",
+     "share_ry1",
+     "share_used",
+     "share_used_shown",
+     "rule",
+     "benchmark",
+     "ratio",
+     "ratio_shown",
+     "not_scored",
+     "headline",
+     "amounts",
+     "rnd_tests",
+     "redlines",
+     "licence_note"
+    ],
+    "title": "CapexOut",
+    "type": "object"
+   },
    "CategoryScreen": {
     "description": "Allow-list and/or deny-list on a categorical field. The allow-list\nform is the classification sanity overlay that stops an NLP-derived\nthematic score putting an unrelated industry in the index.",
     "properties": {
@@ -3214,6 +3406,17 @@
      "status": {
       "$ref": "#/components/schemas/FactStatus"
      },
+     "unit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit"
+     },
      "valid_from": {
       "format": "date-time",
       "title": "Valid From",
@@ -3244,6 +3447,7 @@
      "value",
      "canonical_value",
      "canonical_unit",
+     "unit",
      "status",
      "source_kind",
      "source_label",
@@ -11083,6 +11287,68 @@
     "title": "RedlineDef",
     "type": "object"
    },
+   "RedlineOut": {
+    "properties": {
+     "citation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Citation"
+     },
+     "fact_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Fact Id"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "breached",
+       "not breached",
+       "no disclosure"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "label",
+     "status",
+     "text",
+     "citation",
+     "fact_id",
+     "source"
+    ],
+    "title": "RedlineOut",
+    "type": "object"
+   },
    "RegimeBucketPerformance": {
     "properties": {
      "long_short": {
@@ -12091,6 +12357,97 @@
     "title": "RiskModelSpec",
     "type": "object"
    },
+   "RndResultOut": {
+    "properties": {
+     "benchmark": {
+      "title": "Benchmark",
+      "type": "number"
+     },
+     "fact_ids": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Fact Ids",
+      "type": "array"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "not_scored": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Not Scored"
+     },
+     "ratio": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ratio"
+     },
+     "ratio_shown": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ratio Shown"
+     },
+     "rule": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rule"
+     },
+     "used": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Used"
+     }
+    },
+    "required": [
+     "id",
+     "label",
+     "used",
+     "rule",
+     "benchmark",
+     "ratio",
+     "ratio_shown",
+     "not_scored",
+     "fact_ids"
+    ],
+    "title": "RndResultOut",
+    "type": "object"
+   },
    "RndTestDef": {
     "properties": {
      "citation": {
@@ -13093,6 +13450,36 @@
      "years"
     ],
     "title": "SeriesRule",
+    "type": "object"
+   },
+   "ShareOut": {
+    "properties": {
+     "fact_ids": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Fact Ids",
+      "type": "array"
+     },
+     "source": {
+      "enum": [
+       "disclosed",
+       "computed from amounts"
+      ],
+      "title": "Source",
+      "type": "string"
+     },
+     "value": {
+      "title": "Value",
+      "type": "number"
+     }
+    },
+    "required": [
+     "value",
+     "source",
+     "fact_ids"
+    ],
+    "title": "ShareOut",
     "type": "object"
    },
    "SignalType": {
@@ -14897,6 +15284,102 @@
      "n"
     ],
     "title": "TopN",
+    "type": "object"
+   },
+   "TransitionOut": {
+    "properties": {
+     "actions": {
+      "default": [],
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Actions",
+      "type": "array"
+     },
+     "assumptions": {
+      "default": [],
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Assumptions",
+      "type": "array"
+     },
+     "b02a": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "B02A"
+     },
+     "benchmarks_version": {
+      "title": "Benchmarks Version",
+      "type": "integer"
+     },
+     "capex": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/CapexOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "in_scope": {
+      "title": "In Scope",
+      "type": "boolean"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "regions": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Regions",
+      "type": "array"
+     },
+     "rule_book_version": {
+      "title": "Rule Book Version",
+      "type": "integer"
+     },
+     "sector": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sector"
+     }
+    },
+    "required": [
+     "in_scope",
+     "reason",
+     "sector",
+     "benchmarks_version",
+     "rule_book_version",
+     "capex"
+    ],
+    "title": "TransitionOut",
     "type": "object"
    },
    "TransitionPlanIndicator": {
@@ -17281,6 +17764,48 @@
     "summary": "Get Company Facts",
     "tags": [
      "companies"
+    ]
+   }
+  },
+  "/api/companies/{ref}/transition": {
+   "get": {
+    "operationId": "get_company_transition_api_companies__ref__transition_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "ref",
+      "required": true,
+      "schema": {
+       "title": "Ref",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TransitionOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Company Transition",
+    "tags": [
+     "transition-alignment"
     ]
    }
   },
@@ -31996,6 +32521,53 @@
      }
     },
     "summary": "Get Benchmarks",
+    "tags": [
+     "transition-alignment"
+    ]
+   }
+  },
+  "/api/transition-alignment/sectors/{sector}/companies": {
+   "get": {
+    "description": "R11: the in-scope portfolio companies of a sector, for a run of the presets via POST /api/extraction/start.",
+    "operationId": "get_sector_companies_api_transition_alignment_sectors__sector__companies_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "sector",
+      "required": true,
+      "schema": {
+       "title": "Sector",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/CompanyRef"
+         },
+         "title": "Response Get Sector Companies Api Transition Alignment Sectors  Sector  Companies Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Sector Companies",
     "tags": [
      "transition-alignment"
     ]

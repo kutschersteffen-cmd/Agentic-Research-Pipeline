@@ -64,6 +64,7 @@ class CompanyFactRow(BaseModel):
     value: Any
     canonical_value: float | None
     canonical_unit: str | None
+    unit: str | None  # the observation's unit text, e.g. "EUR million"
     status: m.FactStatus
     source_kind: m.SourceKind
     source_label: str
@@ -288,7 +289,7 @@ def facts(
         out.append(CompanyFactRow(
             fact_id=fact.id, field_id=fact.field_id, kind=fkind, period_end=fact.period_end, basis=fact.basis,
             value=fact.value, canonical_value=None if fact.canonical_value is None else float(fact.canonical_value),
-            canonical_unit=fact.canonical_unit, status=fact.status, source_kind=obs.source_kind, source_label=label,
+            canonical_unit=fact.canonical_unit, unit=obs.unit, status=fact.status, source_kind=obs.source_kind, source_label=label,
             licence=source.licence if source is not None else None, conflicting_sources=fact.conflicting_sources,
             valid_from=fact.valid_from, valid_to=fact.valid_to,
         ))
