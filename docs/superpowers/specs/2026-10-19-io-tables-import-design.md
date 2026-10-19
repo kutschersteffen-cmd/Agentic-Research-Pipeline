@@ -95,11 +95,11 @@ codes to find the right industry in the imported tables.
 
 Setup notes for the test-writer:
 - Run commands as `arp io …`. Settings are read from the environment when each command starts.
-  Tests set only the variables a row names (plus `ARP_POSTGRES_DSN` and `ARP_RUNS_DIR` as in other
-  holdout tests for theme-run rows); every other `ARP_` variable is unset.
+  Tests set only the variables a row or these notes name; every other `ARP_` variable is unset.
 - `<D>` is `Path(<dir>).resolve()`. Import rows pass `--out` as a relative path.
-- In every error row, `<dir>` starts empty, stderr is exactly one line, and afterwards `<dir>`
-  holds none of `industries.csv`, `icio_matrix.csv`, `exiobase_flows.csv`.
+- In every import error row (AC-6, AC-7, AC-8, AC-14, AC-15, AC-48), `<dir>` starts empty, stderr
+  is exactly one line, and afterwards `<dir>` holds none of `industries.csv`, `icio_matrix.csv`,
+  `exiobase_flows.csv`. Other exit-1 rows check only that stderr contains the given text.
 - `industries.csv` columns: `isic_code,label,total_output,isic_divisions`, one row per Appendix A
   code, in Appendix A order.
 - `icio_matrix.csv`: header `isic_code,<code 1>,…,<code 50>`; then one row per code, first cell the
@@ -130,8 +130,8 @@ Setup notes for the test-writer:
   "seed_keywords": ["transformer", "switchgear"], "core_isic_codes": ["C27"]}]}`.
   **Universe U** (file `universe_u.csv`): header `company_id,name,isic_code`, one row
   `acme,Acme,27`. `--theme` and `--universe` take these file paths.
-- Theme-run rows set `ARP_ANTHROPIC_API_KEY` to a dummy value: the source check fails before any
-  model call. API rows run the app with `ARP_AUTH_MODE=local` and `ARP_USERS_FILE` pointing at a
+- AC-22 and AC-23 set `ARP_ANTHROPIC_API_KEY` to a dummy value and `ARP_POSTGRES_DSN` and
+  `ARP_RUNS_DIR` as in other holdout tests; the source check fails before any model call. API rows run the app with `ARP_AUTH_MODE=local` and `ARP_USERS_FILE` pointing at a
   file in the format of `config/users.example.json` holding one user with role `analyst`, send
   `Authorization: Bearer <that token>`, and post
   `{"theme": <T>, "companies": [{"company_id": "acme", "name": "Acme", "isic_code": "27"}]}` to
@@ -176,6 +176,7 @@ Setup notes for the test-writer:
 | AC-49 | Fixture E with the `Z.txt` columns reordered: all `WA` columns, then all `AT` columns, header lines 1 to 3 reordered with them, data rows unchanged | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `exiobase_flows.csv` as in AC-12 | holdout |
 | AC-14 | Fixture E with B#87's name replaced by `Made-up sector` everywhere: `Z.txt` header line 2 (both regions), the sector cell of both its `Z.txt` rows, and both its `x.txt` rows | `arp io import-exiobase <zip> --out <dir>` | Exit 1; stderr contains `EXIOBASE sector not in crosswalk: Made-up sector` | holdout |
 | AC-15 | A zip with fixture E's `x.txt` but no `Z.txt` | `arp io import-exiobase <zip> --out <dir>` | Exit 1; stderr contains `no Z.txt at the archive root` | holdout |
+| AC-51 | `reference/icio2025_industries.csv` | Read the whole file | Header `code,label,isic_divisions`; 50 data rows equal, in order, to Appendix A's (Code, Label, isic_divisions) | holdout |
 | AC-16 | `reference/exiobase_ixi_to_icio2025.csv` | Read the `icio_code` of Appendix B rows 87, 88, 89, 100, 108, 133, 55, 163 | `C26`, `C27`, `C26`, `D`, `D`, `J62_63`, `C17_18`, `O` | holdout |
 | AC-41 | `reference/exiobase_ixi_to_icio2025.csv` | Read the whole file | Header `exiobase_sector,icio_code`; 163 data rows equal, in order, to Appendix B's (sector, ICIO) pairs | holdout |
 | AC-17 | ICIO configured, EXIOBASE not, `ARP_IO_SOURCE` unset | `arp io status` | Exit 0; stdout is exactly `source: icio`, `edition: icio-icio_fixture`, `industries: 50`, one per line | holdout |
@@ -199,11 +200,12 @@ Setup notes for the test-writer:
 | AC-29 | Nothing configured, `ARP_IO_SOURCE` unset | `resolve_indirect_exposure_model(Settings())` | Returns `None` | holdout |
 | AC-30 | Model from `resolve_indirect_exposure_model(Settings(), use_sample_icio=True)` | Division lookup, `isic_code` `27` | Returns `27`; stub not called | holdout |
 | AC-31 | `ARP_ICIO_MATRIX_PATH` and `ARP_ICIO_INDUSTRIES_PATH` set to the bundled sample files; nothing else | `arp io status` | Exit 0; stdout is exactly `source: icio`, `edition: sample`, `industries: 10` | holdout |
-| AC-32 | The real `IOT_2022_ixi.zip` from Zenodo record 23039074 | `arp io import-exiobase IOT_2022_ixi.zip --out <dir>`, then `arp io status` with the printed variables set | Import exits 0 within 15 minutes; stdout line 1 `163 sectors -> 50 industries, 49 regions -> <D>`; status prints `industries: 50`; `D`'s total_output in `industries.csv` is greater than 0 | evaluator |
-| AC-33 | AC-32's variables and a real `ARP_ANTHROPIC_API_KEY` | `arp theme run --theme <T> --universe <U>` | Exit 0; stdout contains `Indirect exposure tier enabled (exiobase-IOT_2022_ixi).`; in `GET /api/themes/runs/<run id>/results`, Acme has at least one `company_matches` entry and every one has a non-null `indirect_exposure` | evaluator |
+| AC-52 | Only `ARP_EXIOBASE_FLOWS_PATH` and `ARP_EXIOBASE_INDUSTRIES_PATH` set (fixture E's import output) | `arp io status` | Exit 0; stdout is exactly `source: exiobase`, `edition: exiobase-sample`, `industries: 50` | holdout |
+| AC-32 | The real `IOT_2022_ixi.zip` from Zenodo record 23039074 | `arp io import-exiobase IOT_2022_ixi.zip --out <dir>`, then `arp io status` with the printed variables set | Import exits 0 within 15 minutes with peak resident memory at most 1 GB, measured with `/usr/bin/time -v`; stdout line 1 `163 sectors -> 50 industries, 49 regions -> <D>`; status prints `industries: 50`; `D`'s total_output in `industries.csv` is greater than 0 | evaluator |
+| AC-33 | AC-32's printed variables set | Division lookup (setup notes) with `isic_code` `27` against the real imported model | Returns `C27`; stub not called | evaluator |
 
 Must not change: the bundled samples (AC-28, AC-30, AC-46), the `auto` order (AC-18, AC-29,
-AC-42), hand-prepared files without `isic_divisions` (AC-31), and codes already in the model,
+AC-42), hand-prepared files without `isic_divisions` (AC-31), the default edition labels (AC-31, AC-52), and codes already in the model,
 which are used directly (AC-27).
 
 ## Appendix A: ICIO 2025 industries
