@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 import httpx
 import pytest
 
@@ -10,6 +12,9 @@ class _FakeResponse:
         self.status_code = status_code
         self.text = text
         self.headers = {"content-type": content_type}
+
+    async def aiter_bytes(self):
+        yield self.text.encode()
 
 
 class _FakeClient:
@@ -24,6 +29,11 @@ class _FakeClient:
 
     async def get(self, url, *args, **kwargs):
         return await self._get_impl(url)
+
+    @asynccontextmanager
+    async def stream(self, method, url, *args, **kwargs):
+        # these tests script pages, not sitemaps: a sitemap request is simply a 404
+        yield _FakeResponse(status_code=404) if url.endswith("sitemap.xml") else await self._get_impl(url)
 
 
 def _client_factory(get_impl):

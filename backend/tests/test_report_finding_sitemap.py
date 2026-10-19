@@ -132,10 +132,11 @@ async def test_ac_58(tmp_path, pg, monkeypatch):
 
 
 async def test_ac_59(tmp_path, pg, monkeypatch):
-    async def body():
-        yield urlset_xml("/reports/a.html").replace("</urlset>", "").encode().ljust(1_000_000)
-        for _ in range(15):
-            yield b" " * 1_000_000
+    async def body():  # comments, not blanks: libxml2 refuses a single 10 MB text node on its own
+        yield urlset_xml("/reports/a.html").replace("</urlset>", "").encode()
+        for _ in range(16):
+            yield b"<!--" + b"x" * 999_993 + b"-->"
+        yield b"</urlset>"  # a valid document: only the byte cap can reject it
 
     routes = {SITE + "/robots.txt": robots(SM_LINE),
               SITE + "/sm.xml": lambda request: httpx.Response(200, content=body())}
@@ -144,8 +145,10 @@ async def test_ac_59(tmp_path, pg, monkeypatch):
 
 
 async def test_ac_60(tmp_path, pg, monkeypatch):
-    routes = {SITE + "/robots.txt": robots(SM_LINE), SITE + "/sm.xml": httpx.Response(200, text="not xml"),
-              SITE + "/": AR_PAGE}
+    # the second sitemap's seed must survive the first one being junk
+    routes = {SITE + "/robots.txt": robots(SM_LINE, "Sitemap: https://www.testwerke.de/sm2.xml"),
+              SITE + "/sm.xml": httpx.Response(200, text="not xml"),
+              SITE + "/sm2.xml": urlset("/investors/annual-report.html"), AR_HTML: AR_PAGE}
     run = await discover(tmp_path, pg, monkeypatch, routes=routes)
     assert AR in run.docs()
 
@@ -223,8 +226,17 @@ async def test_ac_97_and_98(tmp_path, pg, monkeypatch):
 
 
 async def test_corrupt_gzip_sitemap_is_skipped(tmp_path, pg, monkeypatch):
-    routes = {SITE + "/robots.txt": robots("Sitemap: https://www.testwerke.de/sm.xml.gz"),
-              SITE + "/sm.xml.gz": httpx.Response(200, content=b"not gzip"), SITE + "/": AR_PAGE}
+    # the second sitemap's seed must survive the first one being corrupt
+    routes = {SITE + "/robots.txt": robots("Sitemap: https://www.testwerke.de/sm.xml.gz", "Sitemap: https://www.testwerke.de/sm2.xml"),
+              SITE + "/sm.xml.gz": httpx.Response(200, content=b"not gzip"),
+              SITE + "/sm2.xml": urlset("/investors/annual-report.html"), AR_HTML: AR_PAGE}
+    run = await discover(tmp_path, pg, monkeypatch, routes=routes)
+    assert AR in run.docs()
+
+
+async def test_malformed_loc_is_skipped_on_its_own(tmp_path, pg, monkeypatch):
+    xml = f"<urlset><url><loc>http://[bad</loc></url><url><loc>{AR_HTML}</loc></url></urlset>"
+    routes = {SITE + "/robots.txt": robots(SM_LINE), SITE + "/sm.xml": httpx.Response(200, text=xml), AR_HTML: AR_PAGE}
     run = await discover(tmp_path, pg, monkeypatch, routes=routes)
     assert AR in run.docs()
 

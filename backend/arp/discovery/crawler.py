@@ -180,6 +180,15 @@ async def _fetch_sitemap(client: httpx.AsyncClient, url: str, robots: _RobotsCac
         return None
 
 
+def _parsable(url: str) -> bool:
+    """False for a URL like "http://[bad" that urlparse rejects, so one bad entry is skipped on its own."""
+    try:
+        registrable_domain(url)
+        return True
+    except ValueError:
+        return False
+
+
 def _parse_sitemap(data: bytes | None) -> tuple[bool, list[str]]:
     """(is_index, <loc> values); matched by local name so a missing namespace or padded text still reads."""
     if data is None:
@@ -189,14 +198,15 @@ def _parse_sitemap(data: bytes | None) -> tuple[bool, list[str]]:
     except etree.XMLSyntaxError:
         return False, []
     locs = [e.text.strip() for e in root.iter() if isinstance(e.tag, str) and etree.QName(e).localname == "loc" and e.text]
-    return etree.QName(root).localname == "sitemapindex", [loc for loc in locs if loc]
+    return etree.QName(root).localname == "sitemapindex", [loc for loc in locs if loc and _parsable(loc)]
 
 
 async def _sitemap_seeds(client: httpx.AsyncClient, robots: _RobotsCache, root_url: str, config: CrawlConfig, sleep) -> list[str]:
     """Report-looking same-site pages listed in the site's sitemaps (robots.txt `Sitemap:` lines, else /sitemap.xml)."""
     parsed = urlparse(root_url)
     domain = registrable_domain(root_url)
-    tops = (await robots.sitemaps(client, root_url, config.user_agent))[:_MAX_SITEMAPS] or [f"{parsed.scheme}://{parsed.netloc}/sitemap.xml"]
+    listed = (await robots.sitemaps(client, root_url, config.user_agent))[:_MAX_SITEMAPS]
+    tops = [u for u in listed if _parsable(u)] or [f"{parsed.scheme}://{parsed.netloc}/sitemap.xml"]
     pages: list[str] = []
     children: list[str] = []
     for url in (u for u in tops if registrable_domain(u) == domain):
@@ -248,11 +258,7 @@ async def crawl_for_documents(
         event_hooks={"request": [ssrf_guard_request_hook]},
         transport=transport,
     ) as client:
-        try:
-            seeds = await _sitemap_seeds(client, robots, root_url, config, sleep)
-        except Exception:  # seeding is best effort: whatever goes wrong in a sitemap, the crawl still runs
-            logger.exception("Sitemap seeding failed for %s", root_url)
-            seeds = []
+        seeds = await _sitemap_seeds(client, robots, root_url, config, sleep)
         queue += [(seed, 1) for seed in seeds if seed != root_url]
         while queue and len(visited) < config.max_pages:
             url, depth = queue.pop(0)
