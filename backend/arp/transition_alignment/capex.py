@@ -123,9 +123,9 @@ def _redlines(facts: list[Fact], sector: SectorEntry) -> list[RedlineOut]:
     out = []
     for r in sector.redlines:
         # R5: the latest counted fact across years (undated oldest); lowest fact_id within a year.
-        f = min((f for f in facts if f.field_id == r.fact), default=None, key=lambda f: (-(f.year or 0), f.fact_id))
-        if f is not None and f.value is not True and f.value is not False:
-            f = None  # a value that is neither Yes nor No is no disclosure, never "not breached"
+        # Only a real Yes/No counts, so an unreadable newer value never hides an older one; none is no disclosure.
+        f = min((f for f in facts if f.field_id == r.fact and isinstance(f.value, bool)),
+                default=None, key=lambda f: (-(f.year or 0), f.fact_id))
         status = "no disclosure" if f is None else "breached" if f.value is True else "not breached"
         out.append(RedlineOut(
             id=r.id, label=r.label, status=status, text=r.label, citation=f.citation if f else None,

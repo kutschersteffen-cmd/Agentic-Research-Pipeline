@@ -236,6 +236,13 @@ def test_redline_value_none_is_no_disclosure():
     assert (r.status, r.citation, r.fact_id) == ("no disclosure", None, None)
 
 
+def test_redline_skips_unreadable_newer_value():
+    old = yes_no("tc_new_unabated_coal", True, "old", year=2023)
+    new = yes_no("tc_new_unabated_coal", None, "new", year=2025)
+    r = score_capex([new, old], power(), "x").redlines[0]
+    assert (r.status, r.citation, r.fact_id) == ("breached", "old", old.fact_id)
+
+
 def test_redline_uses_latest_year():
     old = yes_no("tc_new_unabated_coal", False, "old", year=2023)
     new = yes_no("tc_new_unabated_coal", True, "new", year=2025)
