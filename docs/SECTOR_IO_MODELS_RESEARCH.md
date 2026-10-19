@@ -308,6 +308,10 @@ licence matter more than country coverage**.
 
 ## 4. Recommendation
 
+> **Owner decision 2026-10-19:** the tool will not be used by a commercial company, so the
+> EXIOBASE licence is no obstacle. Focus stays on the two tables the repo already supports,
+> OECD ICIO and EXIOBASE. The FIGARO and BEA recommendation below is kept for reference only.
+
 **Add Eurostat FIGARO first, then the US BEA detail (2017 benchmark) tables.**
 
 - **FIGARO** is the only multi-country table here whose licence plainly allows commercial reuse
