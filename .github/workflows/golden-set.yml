@@ -3,7 +3,8 @@ name: Golden set
 # AI output varies from run to run, so unit tests replace the model with a stand-in. This check runs
 # the real extractor -> verifier -> grounding pipeline on the bundled golden set (manually verified
 # extractions) whenever a PR touches extraction prompts, the LLM clients, grounding or the model
-# settings, and fails if any case fails. It calls the real model, so it needs the
+# settings, and fails if any case fails. PRs touching transition-barrier extraction, fetching, the rule book
+# or its data also run the transition-barrier golden set. It calls the real model, so it needs the
 # ARP_ANTHROPIC_API_KEY repository secret; without it the job warns and passes.
 on:
   pull_request:
