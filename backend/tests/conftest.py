@@ -66,6 +66,18 @@ def _identity_lookups_offline(monkeypatch):
     monkeypatch.setattr(identity_pipeline, "resolve_company_identity", offline)
 
 
+@pytest.fixture(autouse=True)
+def _barrier_sources_offline(monkeypatch):
+    """A derivation with the refresh flag on fetches its registered sources; unless a test serves them
+    with `transition_barrier_helpers.fetch_stub`, it fetches nothing, so no request leaves the test."""
+    from arp.transition_barrier import fetching
+
+    async def nothing(sources, today):
+        return []
+
+    monkeypatch.setattr(fetching, "fetch_sources", nothing)
+
+
 @pytest.fixture(scope="session")
 def _pg_schema():
     dsn = os.environ.get("ARP_TEST_POSTGRES_DSN")

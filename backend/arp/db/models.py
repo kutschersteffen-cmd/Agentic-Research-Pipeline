@@ -603,6 +603,34 @@ class BarrierSourceDocument(Base):
     fetched_at: Mapped[datetime] = _ts()
 
 
+class BarrierExtraction(Base):
+    """One fact extracted from one stored source document, checked by code; a not-found answer is kept too (found False)."""
+
+    __tablename__ = "barrier_extractions"
+    __table_args__ = (
+        UniqueConstraint("code", "region", "fact", "source_document_id", "fingerprint", name="uq_barrier_extractions_key"),
+    )
+
+    id: Mapped[int] = _id()
+    code: Mapped[str] = mapped_column(Text)
+    region: Mapped[str] = mapped_column(Text)
+    fact: Mapped[str] = mapped_column(Text)
+    source_document_id: Mapped[int] = mapped_column(ForeignKey("barrier_source_documents.id"))
+    fingerprint: Mapped[str] = mapped_column(Text)  # the fact definition and prompt version it was extracted with
+    found: Mapped[bool] = mapped_column(Boolean)
+    value: Mapped[str | float | bool | None] = mapped_column(JSONB)
+    unit: Mapped[str | None] = mapped_column(Text)
+    extracted: Mapped[str | None] = mapped_column(Text)
+    quote: Mapped[str | None] = mapped_column(Text)  # "" when the model cited nothing
+    page: Mapped[int | None] = mapped_column(Integer)
+    locator: Mapped[str | None] = mapped_column(Text)
+    as_of: Mapped[date | None] = mapped_column(Date)
+    counted: Mapped[bool] = mapped_column(Boolean)
+    reason: Mapped[str | None] = mapped_column(Text)
+    run_id: Mapped[str] = mapped_column(Text)
+    extracted_at: Mapped[datetime] = _ts()
+
+
 class BarrierFact(Base):
     __tablename__ = "barrier_facts"
     __table_args__ = (Index("ix_barrier_facts_cell", "code", "region"),)

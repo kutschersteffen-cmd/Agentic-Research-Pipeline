@@ -6068,7 +6068,8 @@ export interface paths {
         put?: never;
         /**
          * Start Derivation
-         * @description Derive the cells from their stored facts. Phase 2 is code and database only, so the run has finished when this answers.
+         * @description Derive the cells: fetch their sources (refresh on), extract the facts not yet stored, then rate in code.
+         *     The run has finished when this answers.
          */
         post: operations["start_derivation_api_transition_barrier_derive_post"];
         delete?: never;

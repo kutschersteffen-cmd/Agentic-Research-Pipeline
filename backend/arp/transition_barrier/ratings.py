@@ -98,7 +98,9 @@ class Ratings:
         bundled = self._bundled[(code, region)]
         registry = next(c for c in load_criteria() if c.code == code).primary_sources
         facts = store.cell_facts(code, region)
-        labels = store.fact_labels(facts, registry)
+        choices = store.cell_choices(code, region)
+        chosen = {int(c["fact_id"][1:]) for c in choices if c["fact_id"].startswith("x")}  # extracted values
+        labels = store.fact_labels(facts, registry) | store.extraction_labels(chosen)
         out = [{"at": bundled.last_verified, "by": None, "kind": "rating", "rating": bundled.rating.value, "basis": "hand_rated"}]
         out += [
             {"at": _iso(f["entered_at"]), "by": f["entered_by"], "kind": "fact", "fact": f["fact"], "value": labels[str(f["id"])]}
@@ -106,7 +108,7 @@ class Ratings:
         ]
         out += [
             {"at": _iso(c["chosen_at"]), "by": c["chosen_by"], "kind": "choice", "fact": c["fact"], "value": labels[c["fact_id"]], "reason": c["reason"]}
-            for c in store.cell_choices(code, region)
+            for c in choices
         ]
         out += [
             {"at": d["decided_at"], "by": d["user_id"], "kind": "decision", "decision": d["decision"], "run_id": run_id}

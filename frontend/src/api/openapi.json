@@ -31919,7 +31919,7 @@
   },
   "/api/transition-barrier/derive": {
    "post": {
-    "description": "Derive the cells from their stored facts. Phase 2 is code and database only, so the run has finished when this answers.",
+    "description": "Derive the cells: fetch their sources (refresh on), extract the facts not yet stored, then rate in code.\nThe run has finished when this answers.",
     "operationId": "start_derivation_api_transition_barrier_derive_post",
     "requestBody": {
      "content": {
