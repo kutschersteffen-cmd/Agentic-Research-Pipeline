@@ -37,7 +37,12 @@ grid and gas (EXIOBASE), and where in the world the exposure sits (12 region gro
    (`35.12`) resolves to the industry that contains it without an LLM call.
 7. `IndirectExposureResult` gains five optional fields: `end_market`, `theme_demand_share`,
    `ghg_direct_t_per_meur`, `ghg_supply_chain_t_per_meur`, `regional`. Each is null when its
-   extra file is absent, so runs on today's files are unchanged.
+   extra file is absent, so runs on today's files are unchanged. `end_market` is a
+   `dict[str, float]` with keys `households`, `government`, `investment`, `inventories` in that
+   order; the two `ghg_*` fields and `theme_demand_share` are `float`; `regional` is a pydantic
+   model `RegionalExposure` (in `arp.schemas.exposure`) with fields `region: str`,
+   `upstream: float`, `downstream: float`, `upstream_by_region: dict[str, float]` and
+   `downstream_by_region: dict[str, float]`.
 
 ## My calls (owner to confirm with the acceptance table)
 
@@ -103,7 +108,9 @@ grid and gas (EXIOBASE), and where in the world the exposure sits (12 region gro
     `use_sample_exiobase`) still win over the setting. Values are case-sensitive; any other value
     fails the settings load.
 11. **Importer output**: `--out` is created with its parents if missing. Paths printed are
-    `Path(<dir>).resolve()`. Output files that already exist are overwritten on success. On any
+    `Path(<dir>).resolve()`. Output files that already exist are overwritten on success, and any of `final_demand.csv`,
+    `ghg.csv`, `regional_output.csv`, `regional_flows.csv` that this import did not produce is
+    deleted from `<dir>`. On any
     error: exit 1, exactly one line on stderr, and no output file written. The extra files
     (`final_demand.csv`, `ghg.csv`, `regional_output.csv`, `regional_flows.csv`) are found by name
     in the directory of the configured industries file; no new settings.
@@ -143,7 +150,11 @@ grid and gas (EXIOBASE), and where in the world the exposure sits (12 region gro
     column and row, with core industries counted in every group; `*_by_region` splits that share
     by the group of the core industry, with one key per group in the model, in Appendix C order.
 17. **Unchanged results**: `upstream_exposure` and `downstream_exposure` keep being computed from
-    the summed model exactly as today: with `L` the Leontief inverse and j the company's industry,
+    the summed model exactly as today. The Leontief inverse, for both the summed and the
+    region-resolved model, is `L = (I − A)⁻¹` with `A[i,j] = Z[i,j] / x[j]`, `Z` the flows and `x`
+    the `total_output` (`regional_output.csv` for the region-resolved model); column j of `A` is 0
+    when `x[j]` is 0. The region-resolved model keeps every (group, code) industry, including
+    those with zero output. With `L` the Leontief inverse and j the company's industry,
     upstream is `Σ_{k∈core} L[k,j] / Σ_k L[k,j]` (the core share of column j) and downstream is
     `Σ_{k∈core} L[j,k] / Σ_k L[j,k]` (the core share of row j), each 0 when its sum is 0 and
     clamped to [0, 1].
@@ -261,6 +272,7 @@ Setup notes for the test-writer:
 | AC-38 | Fixture I; `<dir>` is `a/b`, which does not exist | `arp io import-icio icio_fixture.csv --out a/b` | Exit 0; `a/b/industries.csv` and `a/b/icio_matrix.csv` exist | holdout |
 | AC-39 | `<dir>/industries.csv` exists with content `old` | `arp io import-icio icio_fixture.csv --out <dir>` | Exit 0; `<D>/industries.csv` as in AC-2 | holdout |
 | AC-56 | AC-1's output | Read `<D>/final_demand.csv` | `C27`: households 30, investment 50, government 0, inventories 0; `D`: households 5, others 0; every other row all 0 | holdout |
+| AC-104 | Fixture I with columns `DEU_NPISH`, `DEU_DPABR`, `DEU_GGFC` and `DEU_INVNT` added before `OUT` (0 in every industry row except as stated) and, for row `DEU_A01`: `DEU_HFCE` 1, `DEU_NPISH` 2, `DEU_DPABR` 4, `DEU_GGFC` 8, `CHN_GFCF` 16, `DEU_INVNT` 32 | `arp io import-icio <file> --out <dir>`, then read `<D>/final_demand.csv` | `A01`: households 7, government 8, investment 16, inventories 32 | holdout |
 | AC-74 | AC-1's output | Read `<D>/regional_output.csv` | 100 rows: group `CN` then `EU`, each with the 50 codes; (EU, C26) 100, (CN, C26) 50, (EU, C27) 40, (CN, C27) 60, (EU, D) 30; every other row 1 | holdout |
 | AC-75 | AC-1's output | Read `<D>/regional_flows.csv` | Exactly three data rows: (CN, C26, EU, C27, 5), (EU, C26, CN, C27, 10), (EU, D, EU, C26, 2), in that order | holdout |
 | AC-10 | Fixture E | `arp io import-exiobase IOT_fixture_ixi.zip --out <dir>` | Exit 0; stdout line 1 is `163 sectors -> 50 industries, 2 regions -> <D>` | holdout |
@@ -280,6 +292,8 @@ Setup notes for the test-writer:
 | AC-101 | Fixture E with category `Exports: Total (fob)` renamed `Exports` in `Y.txt` | `arp io import-exiobase <zip> --out <dir>` | Exit 1; stderr contains `unknown final-demand category: Exports` | holdout |
 | AC-58 | Fixture E without `Y.txt` | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `<D>` holds no `final_demand.csv`; `ghg.csv` as in AC-62 | holdout |
 | AC-100 | Fixture E without `air_emissions/F.txt` | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `<D>` holds no `ghg.csv`; `final_demand.csv` as in AC-57 | holdout |
+| AC-102 | `<dir>` holds AC-10's output | Import Fixture E without `air_emissions/F.txt` with `--out <dir>` | Exit 0; `<D>` holds no `ghg.csv` | holdout |
+| AC-103 | Fixture E with these values in `Y.txt` for row (AT, B#1), columns region AT: households 1, NPISH 2, government 4, gross fixed capital formation 8, changes in inventories 16, changes in valuables 32, `Exports: Total (fob)` 64 | `arp io import-exiobase <zip> --out <dir>`, then read `<D>/final_demand.csv` | `A01`: households 3, government 4, investment 8, inventories 48 | holdout |
 | AC-67 | Fixture E | `arp io import-exiobase IOT_fixture_ixi.zip --out <dir> --split-electricity` | Exit 0; stdout line 1 is `163 sectors -> 54 industries, 2 regions -> <D>` | holdout |
 | AC-68 | AC-67's output | Read `<D>/industries.csv` | 54 rows in Appendix A2 order, no `D` row; total_output `D_TD` 30, `D_GEN_REN` 20, `D_GEN_FOS` 0, `D_GEN_NUC` 0, `D_GAS` 0; `label`, `isic_divisions` and `nace_classes` as in Appendix A2 | holdout |
 | AC-69 | AC-67's output | Read `<D>/exiobase_flows.csv` | Exactly three data rows: (C26, C27, 15), (D_GEN_REN, C26, 3), (D_TD, C26, 2), in that order | holdout |
