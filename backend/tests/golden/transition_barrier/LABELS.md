@@ -25,9 +25,8 @@ arp transition-barrier golden --cases tests/golden/transition_barrier/cases.json
    delete the row from both.
 
 **absent** rows name a fact that the document does not address. The correct result is "not found":
-such a row only counts against coverage, and a counted value for it is wrong. `golden.py` handles
-`value: null` correctly only for boolean and enum facts. For a number or date fact, a counted value
-would raise an error in `_cents` or `date.fromisoformat`. So every absent row is a boolean.
+such a row only counts against coverage, and a counted value for it scores as incorrect, for every
+fact type.
 
 ## Look at these first
 
@@ -60,9 +59,9 @@ These rows needed a judgement call, or rely on a conversion or on picking one pa
   pp. 39–40 lists the goods), 11 and 12 (Article 11, p. 26; recital on p. 7 repeats 27 months),
   16 (Article 14 LDAR, p. 25; Article 15 venting and flaring would also do). If the model cites the
   other page, the row counts as incorrect. Decide whether to keep these rows.
-- **5 and 25 cite the page that retrieval shows.** Both are shipping rows. Row 5 cites the recital
-  on p. 5 instead of Article 3gb on p. 28. Row 25 cites chapter 10 on p. 38 instead of the scope
-  section on p. 4. Both pages support the label, but only p. 5 and p. 38 reach the model (see below).
+- **5 and 25 (shipping carbon price) also have support on other pages.** Row 5 cites Article 3gb
+  on p. 28; a recital on p. 5 says the same. Row 25 cites the scope section on p. 4; chapter 10 on
+  p. 38 says the same.
 - **27–29 and the appendix.** Appendix A of the EIA report (p. 17 onwards) repeats the tables for
   plants entering service in 2024, and retrieval shows them. The rows use the main tables (2027).
 - **Licence of the Chinese document (35–38).** The task's licence list does not name it. It is an
@@ -72,14 +71,13 @@ These rows needed a judgement call, or rely on a conversion or on picking one pa
 
 ## What a perfect model could score
 
-A stand-in model that answers every row with its own label and quote ran through the real pipeline
-(default settings: hybrid retrieval, 12 passages per fact). 21 of the 38 present rows
-counted (coverage 21/43 = 0.49). For the other 17, retrieval never showed the model the passage that
-holds the quote, so the quote did not ground and the row was not counted: rows 1, 14–16, 18, 20,
-22–26, 28 and 34–38. Most are operative articles of long law texts, whose wording does not match
-the fact label's keywords. Coverage therefore tops out just under 0.5 with today's retrieval, below
-AC-123's `--min-coverage 0.5`, and a real model will score lower. This is a retrieval limit;
-the labels are still correct.
+A stand-in model ran through the real `golden.score` with default settings (hybrid retrieval). It
+answers every row with its own label, quoting the page text as extraction gives it. It reached
+precision 1 and coverage 36/43 = 0.84. The 5 absent rows cannot count, and two more rows are never
+shown to the model: 16 (Article 14 of the methane regulation) and 18 (Article 3(1) of RED III).
+Before phase 3 widened retrieval for barrier facts, the same run reached 24/43 = 0.56. The change
+added the definition's words to the search keywords and raised the cap to 45 passages per fact.
+A real model will score at or below 0.84.
 
 ## Documents
 
@@ -125,7 +123,7 @@ national ETS list of key emitting units for 2025 and 2026" (38).
 | 2 | AVI-R1 · European Union | Mandated share rises by law (`escalating`) | true | — | eu-reg-2023-2405-refueleu-aviation.pdf | 29 | (a) From 1 January 2025, each year a minimum share of 2 % of SAF; (b) From 1 January 2030, each year a minimum share of 6 % of SAF |
 | 3 | AVI-R1 · European Union | Penalties for missing the mandate (`penalties`) | true | — | eu-reg-2023-2405-refueleu-aviation.pdf | 21 | any aviation fuel supplier that fails to comply with the obligations laid down in Article 4 relating to the minimum shares of SAF is liable to a fine |
 | 4 | SHP-R1 · European Union | Binding fuel GHG intensity mandate applies (`mandate_applies`) | true | — | eu-reg-2023-1805-fueleu-maritime.pdf | 19 | The yearly average GHG intensity of the energy used on board by a ship during a reporting period shall not exceed the limit set out in paragraph 2. |
-| 5 | SHP-R1 · European Union | Carbon price applies to shipping (`price_applies`) | true | — | eu-dir-2023-959-ets-amendment.pdf | 5 | To ensure a smooth inclusion of the sector in the EU ETS, the surrendering of allowances by shipping companies should be gradually increased with respect to verified emissions reported for the years 2024 and 2025. |
+| 5 | SHP-R1 · European Union | Carbon price applies to shipping (`price_applies`) | true | — | eu-dir-2023-959-ets-amendment.pdf | 28 | Shipping companies shall be liable to surrender allowances according to the following schedule: (a) 40 % of verified emissions reported for 2024 |
 | 6 | STL-R1 · European Union | Free allocation phase-out legislated (`fa_phaseout`) | true | — | eu-dir-2023-959-ets-amendment.pdf | 36 | shall be equal to 97,5 % in 2026, 95 % in 2027, 90 % in 2028, 77,5 % in 2029, 51,5 % in 2030, 39 % in 2031, 26,5 % in 2032 and 14 % in 2033. From 2034, no CBAM factor shall apply. |
 | 7 | CEM-R1 · European Union | Free allocation phase-out legislated (`fa_phaseout`) | true | — | eu-dir-2023-959-ets-amendment.pdf | 36 | shall be equal to 97,5 % in 2026, 95 % in 2027, 90 % in 2028, 77,5 % in 2029, 51,5 % in 2030, 39 % in 2031, 26,5 % in 2032 and 14 % in 2033. From 2034, no CBAM factor shall apply. |
 | 8 | STL-R1 · European Union | Border carbon levy in force (`levy`) | true | — | eu-reg-2023-956-cbam.pdf | 28 | By 31 May of each year, and for the first time in 2027 for the year 2026, the authorised CBAM declarant shall surrender via the CBAM registry a number of CBAM certificates that corresponds to the embedded emissions declared |
@@ -145,7 +143,7 @@ national ETS list of key emitting units for 2025 and 2026" (38).
 | 22 | STL-R1 · European Union | Carbon price applies to steel (`applies`) | true | — | eu-com-2024-538-carbon-market-report.pdf | 13 | In certain EU ETS-covered industry sectors (cement, aluminium, fertilisers, hydrogen, iron and steel), the CBAM will gradually replace free allocation |
 | 23 | CEM-R1 · European Union | Carbon price applies to cement (`applies`) | true | — | eu-com-2024-538-carbon-market-report.pdf | 13 | In certain EU ETS-covered industry sectors (cement, aluminium, fertilisers, hydrogen, iron and steel), the CBAM will gradually replace free allocation |
 | 24 | STL-R1 · European Union | Border carbon levy in force (`levy`) | true | — | eu-com-2024-538-carbon-market-report.pdf | 13 | As of 2026, importers of goods in CBAM sectors to the EU will need to buy and surrender certificates for the embedded emissions. |
-| 25 | SHP-R1 · European Union | Carbon price applies to shipping (`price_applies`) | true | — | eu-com-2024-538-carbon-market-report.pdf | 38 | The 2023 revision of the ETS Directive extended the EU ETS to emissions from maritime transport activities, as from 1 January 2024. |
+| 25 | SHP-R1 · European Union | Carbon price applies to shipping (`price_applies`) | true | — | eu-com-2024-538-carbon-market-report.pdf | 4 | As of 1 January 2024, the EU’s fair share of CO2 (carbon dioxide) emissions from maritime transport has also been included in the EU ETS |
 | 26 | AVI-D1 · European Union | Premium offset mechanism in force (`offset_mech`) | true | — | eu-com-2024-538-carbon-market-report.pdf | 37 | This incentive has been available for eligible fuels uplifted on ETS routes since 1 January 2024. |
 | 27 | PWR-T1 · United States | Renewable LCOE (`re_lcoe`) | 36.09 | USD/MWh | us-eia-lcoe-aeo2022.pdf | 8 | Solar, standaloned 29% $26.35 $6.34 $0.00 $3.41 $36.09 -$2.64 $33.46 |
 | 28 | PWR-T1 · United States | New-build fossil LCOE (`fossil_lcoe`) | 37.05 | USD/MWh | us-eia-lcoe-aeo2022.pdf | 8 | Combined cycle 87% $8.56 $1.68 $25.80 $1.01 $37.05 NA $37.05 |

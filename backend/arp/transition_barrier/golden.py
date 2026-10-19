@@ -42,6 +42,8 @@ def _cents(x) -> Decimal:
 
 
 def _matches(kind: str, got, label) -> bool:
+    if label is None:  # the answer is absent from the document: any counted value is wrong
+        return False
     if kind == "number":
         return _cents(got) == _cents(label)
     if kind == "date":

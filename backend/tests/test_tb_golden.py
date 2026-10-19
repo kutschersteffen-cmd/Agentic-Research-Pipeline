@@ -102,6 +102,12 @@ def test_numbers_compare_at_two_decimals_half_up(run_golden):
     assert out.stdout.strip() == "precision 1, coverage 1" and out.exit_code == 0
 
 
+def test_counted_value_against_absent_label_is_incorrect(run_golden):  # any fact type, never a crash
+    cases = [case("price", "D1.pdf", None, None, "USD/tCO2"), case("applies", "D1.pdf", None, None)]
+    out = run_golden(cases, ANSWERS, "--min-precision", "0.5", "--min-coverage", "0.5")
+    assert out.stdout.strip() == "precision 0, coverage 1" and out.exit_code == 1
+
+
 G = Path(__file__).parent / "golden" / "transition_barrier"
 
 
@@ -125,8 +131,8 @@ def test_golden_set_shape():  # G for AC-123: the drafted labels hold before the
         path = G / "documents" / case.document
         assert path.is_file() and path.stat().st_size < 5 * 1024 * 1024, case
         assert (document, page) == (case.document, str(case.page or "—")), case
-        if case.value is None:  # absent from the document: counts against coverage only
-            assert case.page is None and facts[case.fact].type in ("boolean", "enum"), case
+        if case.value is None:  # absent from the document: a counted value for it is wrong
+            assert case.page is None, case
             continue
         # the text facts.pdf_pages (and so the scorer) gets for that page, without parsing the whole file
         text = PdfReader(path).pages[case.page - 1].extract_text() or ""

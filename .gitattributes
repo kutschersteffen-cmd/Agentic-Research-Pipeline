@@ -2,3 +2,5 @@
 # core.autocrlf=true): bash and Docker line continuations break on CRLF.
 *.sh text eol=lf
 Dockerfile* text eol=lf
+# Binary, so git never diffs or merges PDFs as text (some PDFs have no NUL byte early on).
+*.pdf binary

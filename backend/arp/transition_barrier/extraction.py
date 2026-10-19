@@ -15,8 +15,17 @@ from arp.transition_barrier.render import _with_unit
 from arp.transition_barrier.rule_book import FactDef
 from arp.transition_barrier.units import convert
 
-PROMPT_VERSION = "tb-extract-1"
+PROMPT_VERSION = "tb-extract-2"
+# Passages one fact sees. Barrier sources are long law texts (50-130 pages, up to ~110 chunks) where the operative
+# article often ranks 20th-45th; the default 12 left half of golden set G unreachable even for a perfect model.
+EVIDENCE_CHUNKS = 45
 AS_OF_RULE = "Give the as-of date of the value in period_text when the source states one."
+# function words of 4+ letters that the fact definitions use; they carry no search signal
+_STOPWORDS = {
+    "also", "been", "does", "each", "from", "have", "into", "less", "more", "most", "only", "other", "over", "same",
+    "such", "than", "that", "their", "them", "then", "there", "these", "they", "this", "those", "under", "were",
+    "what", "when", "where", "which", "while", "will", "with", "within", "without",
+}
 _TYPES = {
     "number": FieldDataType.NUMBER, "boolean": FieldDataType.BOOLEAN,
     "enum": FieldDataType.ENUM, "date": FieldDataType.DATE,
@@ -58,8 +67,15 @@ def field_for(fact: FactDef, cell: str, conversions: list[dict]) -> FieldDefinit
         data_type=_TYPES[fact.type],
         extraction_instructions=" ".join(i for i in instructions if i),
         allowed_values=fact.allowed_values,
-        seed_keywords=[w.lower() for w in re.findall(r"[A-Za-z]{4,}", fact.label)],  # R7
+        seed_keywords=seed_keywords(fact),
     )
+
+
+def seed_keywords(fact: FactDef) -> list[str]:
+    """R7: the label's words, then the definition's content words, lower-case and each once. Law texts word a fact
+    the way its definition does ("minimum shares", "surrender allowances"), rarely the way its label does."""
+    words = re.findall(r"[A-Za-z]{4,}", f"{fact.label} {fact.definition}")
+    return list(dict.fromkeys(w.lower() for w in words if w.lower() not in _STOPWORDS))
 
 
 def fingerprint(fact: FactDef) -> str:
@@ -113,7 +129,8 @@ async def extract(
     sd = source_document(doc)
     rows, _, _ = await extract_one_field(
         cell, field_for(fact, cell, conversions), documents=[sd], documents_by_id={sd.doc_id: sd}, llm=llm,
-        verifier_llm=verifier_llm, settings=settings, fuzzy_threshold=settings.grounding_fuzzy_threshold,
+        verifier_llm=verifier_llm, fuzzy_threshold=settings.grounding_fuzzy_threshold,
+        settings=settings.model_copy(update={"evidence_max_chunks": max(settings.evidence_max_chunks, EVIDENCE_CHUNKS)}),
         confidence_review_threshold=settings.confidence_review_threshold,
     )
     return check(fact, rows[0], doc, conversions)

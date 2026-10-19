@@ -6,6 +6,8 @@ import asyncio
 import math
 from datetime import date
 
+from pypdf import PageObject
+
 from arp.config import Settings
 from arp.extraction import field_graph
 from arp.extraction.extractor_agent import PeriodValue
@@ -130,7 +132,10 @@ def test_source_document_pages():
 
 def test_field_for_and_fingerprint():
     f = extraction.field_for(FACTS["price"], CELL, BOOK.conversions)
-    assert (f.name, f.data_type.value, f.unit, f.seed_keywords) == ("price", "number", None, ["effective", "carbon", "price"])
+    assert (f.name, f.data_type.value, f.unit) == ("price", "number", None)
+    assert f.seed_keywords == [  # the label's words, then the definition's, each once and without "from"/"with"-type words
+        "effective", "carbon", "price", "tonne", "paid", "steel", "producers", "latest", "full", "year", "free", "allocation",
+    ]
     assert f.extraction_instructions.startswith(FACTS["price"].definition)
     assert f.extraction_instructions.endswith("Give the as-of date of the value in period_text when the source states one.")
     assert "(for example CNY/tCO2)" in f.extraction_instructions
@@ -159,3 +164,22 @@ def test_both_sides_named_in_the_unit_sentence():
         "Give unit_text in the source's own unit, written like USD/litre; code converts CNY, gallon "
         "(for example CNY/litre, USD/gallon)."
     ) in text
+
+
+def test_extraction_sees_at_least_the_barrier_evidence_cap(monkeypatch):
+    seen = []
+    real = field_graph.field_evidence
+    monkeypatch.setattr(field_graph, "field_evidence", lambda f, d, settings, *a: seen.append(settings) or real(f, d, settings, *a))
+    out, _ = run("price", doc("D1"), pv(72, QUOTES["D1"][12]))
+    assert out.counted and [s.evidence_max_chunks for s in seen] == [extraction.EVIDENCE_CHUNKS]
+    assert SETTINGS.evidence_max_chunks == 12  # the caller's settings are left alone
+
+
+def test_lone_surrogate_in_pdf_text_is_replaced(monkeypatch):
+    # pypdf returns lone surrogates for some glyphs (math italic); unreplaced, chunking raised UnicodeEncodeError
+    real = PageObject.extract_text
+    monkeypatch.setattr(PageObject, "extract_text", lambda self, *a, **k: real(self, *a, **k) + " \ud835 ")
+    d = doc("D1")
+    assert all(t.encode("utf-8") for t in d["page_texts"])
+    out, _ = run("price", d, pv(72, QUOTES["D1"][12]))
+    assert (out.counted, out.page) == (True, 12)
