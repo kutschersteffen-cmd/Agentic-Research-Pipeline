@@ -259,6 +259,11 @@ class Settings(BaseSettings):
         "format as icio_industries_path; total_output must already be aggregated across regions by the caller.",
     )
     exiobase_edition_label: str = Field(default="exiobase-sample")
+    io_source: Literal["auto", "icio", "exiobase"] = Field(
+        default="auto",
+        description="Which input-output table backs a run: 'auto' uses ICIO if its two paths are set, else EXIOBASE; "
+        "'icio'/'exiobase' uses only that table and fails if its paths are unset. `arp io import-*` prints the values.",
+    )
 
     # Standards mapping (NACE/NAICS/SIC/GICS). Each resolves independently
     # to a real, configured file; falls back to the bundled illustrative

@@ -17,6 +17,7 @@ from arp.cli.golden_set import golden_set_app
 from arp.cli.holdings import holdings_app
 from arp.cli.identity import identity_app
 from arp.cli.index import index_app
+from arp.cli.io_tables import io_app
 from arp.cli.portfolio import portfolio_app
 from arp.cli.project import project_app
 from arp.cli.publish import publish_app
@@ -43,13 +44,14 @@ app = typer.Typer(help="Agentic Research Pipeline CLI -- the headless path for 1
 @app.callback()
 def _require_postgres(ctx: typer.Context) -> None:
     """Postgres is the system of record: every command needs ARP_POSTGRES_DSN, reachable, and every
-    command but `arp db ...` (which migrates and imports) a cut-over database. `--help` needs neither."""
+    command but `arp db ...` (which migrates and imports) a cut-over database. `--help` and `arp io ...`
+    (local input-output table files only) need neither."""
     import sys
 
     from arp.config import get_settings
     from arp.db.session import require_cutover, require_postgres
 
-    if "--help" in sys.argv[1:]:
+    if "--help" in sys.argv[1:] or ctx.invoked_subcommand == "io":
         return
     try:
         settings = get_settings()
@@ -95,3 +97,4 @@ app.add_typer(snapshots_app, name="snapshots")
 app.add_typer(holdings_app, name="holdings")
 app.add_typer(retention_app, name="retention")
 app.add_typer(xbrl_app, name="xbrl")
+app.add_typer(io_app, name="io")

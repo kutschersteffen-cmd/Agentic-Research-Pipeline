@@ -30,9 +30,20 @@ async def resolve_company_isic(
     a different classification scheme is treated as absent rather than
     silently mismatched. Otherwise falls back to one LLM classification
     call, which the shared disk cache makes free on any rerun.
+
+    In between, an ISIC Rev.4 division (`26`) or NACE class (`35.12`) found,
+    as an exact string, in exactly one industry's isic_divisions or
+    nace_classes resolves to that industry, also without an LLM call.
     """
     if company.isic_code and company.isic_code in model.codes:
         return company.isic_code, LLMUsage()
+    if company.isic_code:
+        hits = [
+            code for code in model.codes
+            if company.isic_code in model.isic_divisions.get(code, []) or company.isic_code in model.nace_classes.get(code, [])
+        ]
+        if len(hits) == 1:
+            return hits[0], LLMUsage()
 
     prompt = (
         f"Company: {company.name}\n"
