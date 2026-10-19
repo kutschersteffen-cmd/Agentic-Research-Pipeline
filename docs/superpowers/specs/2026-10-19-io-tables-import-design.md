@@ -143,7 +143,9 @@ grid and gas (EXIOBASE), and where in the world the exposure sits (12 region gro
     region-resolved model: one industry per (group, code) for every group that has at least one
     industry row or column label in the file. For a company, its `CompanyRef.country` (ISO
     3166-1 alpha-2 or alpha-3, case-insensitive, matched against Appendix C's country rows)
-    picks the group; `regional` is null when the country is missing, is not in Appendix C, is one
+    picks the group. Theme runs pass the company's `CompanyRef.country` through to the exposure
+    computation; the universe CSV's `country` column and the API company object's `country` key
+    already fill it. `regional` is null when the country is missing, is not in Appendix C, is one
     of the special codes, or names a group that has no industries in the model.
     `regional` is `{"region", "upstream", "downstream", "upstream_by_region",
     "downstream_by_region"}`: the call 17 formulas on the region-resolved inverse, using the company's (group, code)
@@ -327,15 +329,16 @@ Setup notes for the test-writer:
 | AC-27 | As AC-24 | `isic_code` `C27` | Returns `C27`; stub not called | holdout |
 | AC-71 | Split configured, `ARP_IO_SOURCE=exiobase` | Code lookup, `isic_code` `35.12` | Returns `D_TD`; stub not called | holdout |
 | AC-72 | As AC-71 | `isic_code` `35` | Returns `None`; stub called once | holdout |
+| AC-108 | As AC-71 | `isic_code` `35.11` | Returns `None`; stub called once | holdout |
 | AC-28 | `ARP_IO_SOURCE=exiobase`, nothing configured | `resolve_indirect_exposure_model(Settings(), use_sample_icio=True)` | `edition_label` `sample`; `len(codes)` 10; `codes[0]` `07` | holdout |
 | AC-46 | `ARP_IO_SOURCE=icio`, nothing configured | `resolve_indirect_exposure_model(Settings(), use_sample_exiobase=True)` | `edition_label` `exiobase-sample`; `len(codes)` 10; `codes[0]` `07` | holdout |
 | AC-29 | Nothing configured, `ARP_IO_SOURCE` unset | `resolve_indirect_exposure_model(Settings())` | Returns `None` | holdout |
 | AC-30 | Model from `resolve_indirect_exposure_model(Settings(), use_sample_icio=True)` | Code lookup, `isic_code` `27` | Returns `27`; stub not called | holdout |
 | AC-83 | ICIO configured | Exposure for `C27`, core `{"C26"}` | `upstream_exposure` `25/192` | holdout |
 | AC-90 | ICIO configured | Exposure for `C26`, core `{"C27"}` | `downstream_exposure` `3/23` | holdout |
-| AC-59 | ICIO configured | Exposure for `C26`, core `{"C27"}` | `end_market` is `{"households": 0.375, "government": 0, "investment": 0.625, "inventories": 0}` | holdout |
+| AC-59 | ICIO configured | Exposure for `C26`, core `{"C27"}` | `end_market` is `{"households": 0.375, "government": 0, "investment": 0.625, "inventories": 0}` with keys in that order | holdout |
 | AC-60 | ICIO configured | Exposure for `D`, core `{"C27"}` | `theme_demand_share` `4/129` | holdout |
-| AC-61 | EXIOBASE configured | Exposure for `C26`, core `{"C27"}` | `end_market` is `{"households": 0.28125, "government": 0, "investment": 0.46875, "inventories": 0.25}` | holdout |
+| AC-61 | EXIOBASE configured | Exposure for `C26`, core `{"C27"}` | `end_market` is `{"households": 0.28125, "government": 0, "investment": 0.46875, "inventories": 0.25}` with keys in that order | holdout |
 | AC-84 | EXIOBASE configured | Exposure for `C26`, core `{"C27"}` | `theme_demand_share` 0.75 | holdout |
 | AC-97 | ICIO configured | Exposure for `A01`, core `{"C27"}` | `end_market` is null; `theme_demand_share` is null | holdout |
 | AC-99 | Fixture I with `DEU_HFCE` for `DEU_D` set to -0.1, imported, its printed variables set | Exposure for `D`, core `{"C27"}` | `theme_demand_share` 1 | holdout |
@@ -357,6 +360,7 @@ Setup notes for the test-writer:
 | AC-32 | The real `IOT_2022_ixi.zip` from Zenodo record 23039074 | `arp io import-exiobase IOT_2022_ixi.zip --out <dir>`, then `arp io status` with the printed variables set | Import exits 0 within 15 minutes with peak resident memory at most 1 GB, measured with `/usr/bin/time -v`; stdout line 1 `163 sectors -> 50 industries, 49 regions -> <D>`; status prints `industries: 50`, `final demand: yes`, `emissions: yes`, `regions: 11`; `D`'s total_output in `industries.csv` is greater than 0 | evaluator |
 | AC-88 | As AC-32 | Import again with `--split-electricity` into another `<dir>` | Exit 0; stdout line 1 `163 sectors -> 54 industries, 49 regions -> <D>`; `D_TD` and `D_GEN_REN` total_output both greater than 0 | evaluator |
 | AC-89 | AC-32's printed variables set | Exposure for `D` and for `J62_63`, core `{"C27"}` | `D`'s `ghg_direct_t_per_meur` is greater than `J62_63`'s | evaluator |
+| AC-109 | ICIO configured, a working `ARP_ANTHROPIC_API_KEY`; universe CSV `company_id,name,isic_code,country` with one row `acme,Acme,C27,DE` | `arp theme run --theme theme_t.json --universe <csv>` | Exit 0; the indirect-exposure result for `acme` in the run's output has a non-null `end_market`, a null `ghg_direct_t_per_meur` and `regional.region` `EU` | evaluator |
 | AC-33 | AC-32's printed variables set | Code lookup with `isic_code` `27` against the real imported model | Returns `C27`; stub not called | evaluator |
 | AC-54 | The real ICIO 2025 regular file `2022_SML.csv` from the OECD ICIO page (the owner supplies it if the OECD site blocks the download) | `arp io import-icio 2022_SML.csv --out <dir>`, then `arp io status` with the printed variables set | Import exits 0; stdout line 1 `50 industries, 81 regions -> <D>`; status prints `industries: 50`, `final demand: yes`, `regions: 12`; `D`'s and `C26`'s total_output in `industries.csv` are greater than 0 | evaluator |
 
