@@ -29,7 +29,10 @@ grid and gas (EXIOBASE), and where in the world the exposure sits (12 region gro
    sectors map onto it by a bundled crosswalk (Appendix B). With `--split-electricity`, EXIOBASE's
    electricity, gas and steam sectors map to 5 industries in place of `D` (54 industries).
 4. Setting `ARP_IO_SOURCE` = `auto` (default) | `icio` | `exiobase`.
-5. `arp io status` prints which table is active and which extra results it supports.
+5. `arp io status` prints, one per line: `source: icio|exiobase|none`; then, unless `none`,
+   `edition: <label>`, `industries: <n>`, `final demand: yes|no` (`final_demand.csv` present),
+   `emissions: yes|no` (`ghg.csv` present) and `regions: <n>|no` (n = number of groups in
+   `regional_output.csv`; `no` when that file is absent).
 6. A company `isic_code` that is an ISIC Rev.4 division (`26`) or, with the split, a NACE class
    (`35.12`) resolves to the industry that contains it without an LLM call.
 7. `IndirectExposureResult` gains five optional fields: `end_market`, `theme_demand_share`,
@@ -108,10 +111,12 @@ grid and gas (EXIOBASE), and where in the world the exposure sits (12 region gro
     `exiobase-IOT_2022_ixi`). `arp io status` prints the active source's `ARP_*_EDITION_LABEL`
     setting; unset, it keeps today's defaults, `sample` (ICIO) and `exiobase-sample` (EXIOBASE).
 13. **Final demand** is folded into 4 groups. ICIO: `HFCE`, `NPISH`, `DPABR` → households;
-    `GGFC` → government; `GFCF` → investment; `INVNT` → inventories. EXIOBASE: households and
-    NPISH → households; government → government; gross fixed capital formation → investment;
-    changes in inventories and changes in valuables → inventories; `Exports: Total (fob)` is
-    ignored. For industry j, with `L` the summed model's Leontief inverse and `y_c` the
+    `GGFC` → government; `GFCF` → investment; `INVNT` → inventories. EXIOBASE, matched as exact
+    strings: `Final consumption expenditure by households` and `Final consumption expenditure by
+    non-profit organisations serving households (NPISH)` → households; `Final consumption
+    expenditure by government` → government; `Gross fixed capital formation` → investment;
+    `Changes in inventories` and `Changes in valuables` → inventories; `Exports: Total (fob)` is
+    ignored. Any other category is an error: `unknown final-demand category: <name>`. For industry j, with `L` the summed model's Leontief inverse and `y_c` the
     final-demand vector of group c: `end_market[c] = (L·y_c)[j] / (L·y)[j]`, with
     `y = Σ_c y_c`. `theme_demand_share = Σ_{k∈core} L[j,k]·y[k] / (L·y)[j]`, clamped to [0, 1].
     Both are null when `(L·y)[j]` is 0.
@@ -131,14 +136,17 @@ grid and gas (EXIOBASE), and where in the world the exposure sits (12 region gro
     region-resolved model: one industry per (group, code) for every group that has at least one
     industry row or column label in the file. For a company, its `CompanyRef.country` (ISO
     3166-1 alpha-2 or alpha-3, case-insensitive, matched against Appendix C's country rows)
-    picks the group; `regional` is null when the country is missing or not in Appendix C.
+    picks the group; `regional` is null when the country is missing, is not in Appendix C, is one
+    of the special codes, or names a group that has no industries in the model.
     `regional` is `{"region", "upstream", "downstream", "upstream_by_region",
-    "downstream_by_region"}`: the same formulas as today's `upstream_exposure` and
-    `downstream_exposure`, on the region-resolved inverse, using the company's (group, code)
+    "downstream_by_region"}`: the call 17 formulas on the region-resolved inverse, using the company's (group, code)
     column and row, with core industries counted in every group; `*_by_region` splits that share
     by the group of the core industry, with one key per group in the model, in Appendix C order.
 17. **Unchanged results**: `upstream_exposure` and `downstream_exposure` keep being computed from
-    the summed model exactly as today.
+    the summed model exactly as today: with `L` the Leontief inverse and j the company's industry,
+    upstream is `Σ_{k∈core} L[k,j] / Σ_k L[k,j]` (the core share of column j) and downstream is
+    `Σ_{k∈core} L[j,k] / Σ_k L[j,k]` (the core share of row j), each 0 when its sum is 0 and
+    clamped to [0, 1].
 
 ## Not in this spec
 
@@ -158,7 +166,7 @@ Setup notes for the test-writer:
 - Run commands as `arp io …`. Settings are read from the environment when each command starts.
   Tests set only the variables a row or these notes name; every other `ARP_` variable is unset.
 - `<D>` is `Path(<dir>).resolve()`. Import rows pass `--out` as a relative path.
-- In every import error row (AC-6, AC-7, AC-8, AC-14, AC-15, AC-48, AC-81), `<dir>` starts empty,
+- In every import error row (AC-6, AC-7, AC-8, AC-14, AC-15, AC-48, AC-81, AC-94, AC-101), `<dir>` starts empty,
   stderr is exactly one line, and afterwards `<dir>` holds no `.csv` file. Other exit-1 rows check
   only that stderr contains the given text.
 - `industries.csv` columns: `isic_code,label,total_output,isic_divisions,nace_classes`, one row per
@@ -173,7 +181,8 @@ Setup notes for the test-writer:
   in Appendix C order, industries in industry order. `regional_flows.csv`: header
   `supplier_region,supplier_isic_code,user_region,user_isic_code,value`, non-zero values only, ordered
   by supplier group, supplier code, user group, user code.
-- Numbers are compared as floats with a relative tolerance of 1e-6 (absolute 1e-12 near 0).
+- Numbers are compared as floats with a relative tolerance of 1e-6 (absolute 1e-12 near 0). A
+  fraction such as `25/192` stands for its exact value.
 - **Fixture I** (ICIO): file `icio_fixture.csv`. Header: `V1`, then columns for every Appendix A
   code in region `DEU` then region `CHN` (`DEU_A01` … `DEU_T`, `CHN_A01` … `CHN_T`), then
   `DEU_HFCE`, `CHN_GFCF` and `OUT`. Rows: the same 100 industry labels in the same order, then
@@ -190,16 +199,12 @@ Setup notes for the test-writer:
   (AT, B#87), 50 for (WA, B#89), 40 for (AT, B#88), 60 for (WA, B#88), 30 for (AT, B#108), 20 for
   (AT, B#100) and 0 otherwise. `Y.txt` has, for each region, the 7 categories in the order
   households, NPISH, government, gross fixed capital formation, changes in inventories, changes in
-  valuables, `Exports: Total (fob)` (exact names as in the real file: see call 13); values are 0
+  valuables, `Exports: Total (fob)` (exact strings in call 13); values are 0
   except (AT, B#88)×(AT, households) = 30, (AT, B#88)×(WA, gross fixed capital formation) = 50,
   (AT, B#108)×(AT, households) = 5, (WA, B#89)×(AT, changes in valuables) = 4 and
   (AT, B#87)×(AT, Exports) = 999. `air_emissions/F.txt` has 4 stressor lines, values 0 except
   `CO2 - combustion - air` (AT, B#100) = 2000, `CH4 - combustion - air` (AT, B#87) = 10,
   `CO2 - waste - biogenic - air` (AT, B#87) = 500 and `SO2 - combustion - air` (AT, B#87) = 123.
-- The 7 EXIOBASE category names are: `Final consumption expenditure by households`, `Final
-  consumption expenditure by non-profit organisations serving households (NPISH)`, `Final
-  consumption expenditure by government`, `Gross fixed capital formation`, `Changes in
-  inventories`, `Changes in valuables`, `Exports: Total (fob)`.
 - **"ICIO configured"** means the three variables printed on stdout lines 3 to 5 by importing
   fixture I (AC-4) are set; **"EXIOBASE configured"** the three from importing fixture E (AC-13);
   **"split configured"** the three from importing fixture E with `--split-electricity` (AC-67).
@@ -269,7 +274,12 @@ Setup notes for the test-writer:
 | AC-55 | Fixture E with every line of every file ending in `\r\n` | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `exiobase_flows.csv` as in AC-12 | holdout |
 | AC-57 | AC-10's output | Read `<D>/final_demand.csv` | `C27`: households 30, investment 50; `D`: households 5; `C26`: inventories 4; every other value 0 (the Exports 999 is not counted) | holdout |
 | AC-62 | AC-10's output | Read `<D>/ghg.csv` | `D` 2000, `C26` 298, every other row 0 | holdout |
-| AC-58 | Fixture E without `Y.txt` and without `air_emissions/F.txt` | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `<D>` holds no `final_demand.csv` and no `ghg.csv` | holdout |
+| AC-91 | AC-10's output | Read `<D>/regional_output.csv` | 100 rows, the 50 `EU` rows then the 50 `ASIA_OTH` rows; (EU, C26) 100, (ASIA_OTH, C26) 50, (EU, C27) 40, (ASIA_OTH, C27) 60, (EU, D) 50; every other row 0 | holdout |
+| AC-92 | AC-10's output | Read `<D>/regional_flows.csv` | Exactly 3 data rows, in this order: `EU,C26,ASIA_OTH,C27,10`, `EU,D,EU,C26,5`, `ASIA_OTH,C26,EU,C27,5` (numbers compared as floats) | holdout |
+| AC-94 | Fixture E with region `WA` renamed `XX` in every file | `arp io import-exiobase <zip> --out <dir>` | Exit 1; stderr contains `region not in region groups: XX` | holdout |
+| AC-101 | Fixture E with category `Exports: Total (fob)` renamed `Exports` in `Y.txt` | `arp io import-exiobase <zip> --out <dir>` | Exit 1; stderr contains `unknown final-demand category: Exports` | holdout |
+| AC-58 | Fixture E without `Y.txt` | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `<D>` holds no `final_demand.csv`; `ghg.csv` as in AC-62 | holdout |
+| AC-100 | Fixture E without `air_emissions/F.txt` | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `<D>` holds no `ghg.csv`; `final_demand.csv` as in AC-57 | holdout |
 | AC-67 | Fixture E | `arp io import-exiobase IOT_fixture_ixi.zip --out <dir> --split-electricity` | Exit 0; stdout line 1 is `163 sectors -> 54 industries, 2 regions -> <D>` | holdout |
 | AC-68 | AC-67's output | Read `<D>/industries.csv` | 54 rows in Appendix A2 order, no `D` row; total_output `D_TD` 30, `D_GEN_REN` 20, `D_GEN_FOS` 0, `D_GEN_NUC` 0, `D_GAS` 0; `label`, `isic_divisions` and `nace_classes` as in Appendix A2 | holdout |
 | AC-69 | AC-67's output | Read `<D>/exiobase_flows.csv` | Exactly three data rows: (C26, C27, 15), (D_GEN_REN, C26, 3), (D_TD, C26, 2), in that order | holdout |
@@ -302,22 +312,29 @@ Setup notes for the test-writer:
 | AC-46 | `ARP_IO_SOURCE=icio`, nothing configured | `resolve_indirect_exposure_model(Settings(), use_sample_exiobase=True)` | `edition_label` `exiobase-sample`; `len(codes)` 10; `codes[0]` `07` | holdout |
 | AC-29 | Nothing configured, `ARP_IO_SOURCE` unset | `resolve_indirect_exposure_model(Settings())` | Returns `None` | holdout |
 | AC-30 | Model from `resolve_indirect_exposure_model(Settings(), use_sample_icio=True)` | Code lookup, `isic_code` `27` | Returns `27`; stub not called | holdout |
-| AC-83 | ICIO configured | Exposure for `C27`, core `{"C26"}` | `upstream_exposure` 0.130208 (today's formula on the summed model) | holdout |
+| AC-83 | ICIO configured | Exposure for `C27`, core `{"C26"}` | `upstream_exposure` `25/192` | holdout |
+| AC-90 | ICIO configured | Exposure for `C26`, core `{"C27"}` | `downstream_exposure` `3/23` | holdout |
 | AC-59 | ICIO configured | Exposure for `C26`, core `{"C27"}` | `end_market` is `{"households": 0.375, "government": 0, "investment": 0.625, "inventories": 0}` | holdout |
-| AC-60 | ICIO configured | Exposure for `D`, core `{"C27"}` | `theme_demand_share` 0.031008 | holdout |
+| AC-60 | ICIO configured | Exposure for `D`, core `{"C27"}` | `theme_demand_share` `4/129` | holdout |
 | AC-61 | EXIOBASE configured | Exposure for `C26`, core `{"C27"}` | `end_market` is `{"households": 0.28125, "government": 0, "investment": 0.46875, "inventories": 0.25}` | holdout |
 | AC-84 | EXIOBASE configured | Exposure for `C26`, core `{"C27"}` | `theme_demand_share` 0.75 | holdout |
+| AC-97 | ICIO configured | Exposure for `A01`, core `{"C27"}` | `end_market` is null; `theme_demand_share` is null | holdout |
+| AC-99 | Fixture I with `DEU_HFCE` for `DEU_D` set to -0.1, imported, its printed variables set | Exposure for `D`, core `{"C27"}` | `theme_demand_share` 1 | holdout |
 | AC-63 | EXIOBASE configured | Exposure for `C27`, core `{"C26"}` | `ghg_direct_t_per_meur` 0; `ghg_supply_chain_t_per_meur` 0.000498 | holdout |
-| AC-64 | EXIOBASE configured | Exposure for `C26`, core `{"C27"}` | `ghg_direct_t_per_meur` 0.00198667; `ghg_supply_chain_t_per_meur` 0.00332 | holdout |
+| AC-64 | EXIOBASE configured | Exposure for `C26`, core `{"C27"}` | `ghg_direct_t_per_meur` `149/75000`; `ghg_supply_chain_t_per_meur` 0.00332 | holdout |
+| AC-98 | EXIOBASE configured | Exposure for `C21`, core `{"C27"}` | `ghg_direct_t_per_meur` 0; `ghg_supply_chain_t_per_meur` 0 | holdout |
 | AC-65 | ICIO configured | Exposure for `C27`, core `{"C26"}` | `ghg_direct_t_per_meur` and `ghg_supply_chain_t_per_meur` are null | holdout |
 | AC-85 | Model from `use_sample_icio=True` | Exposure for `27`, core `{"20"}`, `country="DE"` | `end_market`, `theme_demand_share`, `ghg_direct_t_per_meur`, `ghg_supply_chain_t_per_meur` and `regional` are all null | holdout |
-| AC-76 | ICIO configured | Exposure for `C27`, core `{"C26"}`, `country="DE"` | `regional.region` `EU`; `regional.upstream` 0.111111; `regional.upstream_by_region` is `{"CN": 0.111111, "EU": 0}` with keys in that order | holdout |
+| AC-76 | ICIO configured | Exposure for `C27`, core `{"C26"}`, `country="DE"` | `regional.region` `EU`; `regional.upstream` `1/9`; `regional.upstream_by_region` is `{"CN": 1/9, "EU": 0}` with keys in that order | holdout |
 | AC-77 | As AC-76 | `country="DEU"` | `regional.region` `EU` | holdout |
 | AC-78 | As AC-76 | `country="de"` | `regional.region` `EU` | holdout |
-| AC-86 | ICIO configured | Exposure for `C27`, core `{"C26"}`, `country="CN"` | `regional.region` `CN`; `regional.upstream` 0.142450; `regional.upstream_by_region` is `{"CN": 0, "EU": 0.142450}` | holdout |
-| AC-79 | ICIO configured | Exposure for `C26`, core `{"C27"}`, `country="DE"` | `regional.downstream` 0.142857; `regional.downstream_by_region` is `{"CN": 0.142857, "EU": 0}` | holdout |
+| AC-86 | ICIO configured | Exposure for `C27`, core `{"C26"}`, `country="CN"` | `regional.region` `CN`; `regional.upstream` `50/351`; `regional.upstream_by_region` is `{"CN": 0, "EU": 50/351}` | holdout |
+| AC-79 | ICIO configured | Exposure for `C26`, core `{"C27"}`, `country="DE"` | `regional.downstream` `1/7`; `regional.downstream_by_region` is `{"CN": 1/7, "EU": 0}` | holdout |
 | AC-80 | ICIO configured | Exposure for `C27`, core `{"C26"}`, `country="XX"` | `regional` is null | holdout |
 | AC-87 | ICIO configured | Exposure for `C27`, core `{"C26"}`, no `country` | `regional` is null | holdout |
+| AC-95 | ICIO configured | Exposure for `C27`, core `{"C26"}`, `country="US"` | `regional` is null | holdout |
+| AC-96 | ICIO configured | Exposure for `C27`, core `{"C26"}`, `country="CN1"` | `regional` is null | holdout |
+| AC-93 | EXIOBASE configured | Exposure for `C27`, core `{"C26"}`, `country="AT"` | `regional.region` `EU`; `regional.upstream` `1/9`; `regional.upstream_by_region` is `{"EU": 0, "ASIA_OTH": 1/9}` with keys in that order | holdout |
 | AC-32 | The real `IOT_2022_ixi.zip` from Zenodo record 23039074 | `arp io import-exiobase IOT_2022_ixi.zip --out <dir>`, then `arp io status` with the printed variables set | Import exits 0 within 15 minutes with peak resident memory at most 1 GB, measured with `/usr/bin/time -v`; stdout line 1 `163 sectors -> 50 industries, 49 regions -> <D>`; status prints `industries: 50`, `final demand: yes`, `emissions: yes`, `regions: 11`; `D`'s total_output in `industries.csv` is greater than 0 | evaluator |
 | AC-88 | As AC-32 | Import again with `--split-electricity` into another `<dir>` | Exit 0; stdout line 1 `163 sectors -> 54 industries, 49 regions -> <D>`; `D_TD` and `D_GEN_REN` total_output both greater than 0 | evaluator |
 | AC-89 | AC-32's printed variables set | Exposure for `D` and for `J62_63`, core `{"C27"}` | `D`'s `ghg_direct_t_per_meur` is greater than `J62_63`'s | evaluator |
@@ -327,7 +344,7 @@ Setup notes for the test-writer:
 Must not change: the bundled samples (AC-28, AC-30, AC-46, AC-85), the `auto` order (AC-18,
 AC-29, AC-42), hand-prepared files without the new columns (AC-31), the default edition labels
 (AC-31, AC-52), codes already in the model, which are used directly (AC-27), and today's upstream
-and downstream shares (AC-83).
+and downstream shares (AC-83, AC-90).
 
 ## Appendix A: ICIO 2025 industries
 
@@ -401,7 +418,7 @@ row keeps its Appendix A code, label and `isic_divisions`, and has an empty `nac
 | 31 | D_TD | Electricity transmission and distribution | 35 | 35.12;35.13;35.14 |
 | 32 | D_GAS | Gas distribution and steam supply | 35 | 35.21;35.22;35.23;35.30 |
 
-Rows 29–54 are Appendix A rows 29–50 in order (E … T).
+Rows 33–54 are Appendix A rows 29–50 in order (E … T).
 
 ## Appendix B: EXIOBASE 3 ixi sectors → ICIO 2025 industries
 
