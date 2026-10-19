@@ -26,7 +26,8 @@ def count(text: str) -> int:
 
 
 def git(*args: str, cwd: str | None = None) -> str:
-    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout
+    # errors="replace": binary fixtures under tests/ (PDFs) have no markers but must not crash the decode
+    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True, errors="replace").stdout
 
 
 def show(rev: str, path: str, cwd: str | None) -> str:
@@ -105,6 +106,11 @@ def selftest() -> None:
         git("mv", "backend/tests/test_a.py", "backend/tests/test_renamed.py", cwd=d)
         git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "rename", cwd=d)
         assert ("backend/tests/test_renamed.py", 3, 2) in weakenings("main", cwd=d)
+        Path(f"{d}/backend/tests/fixtures/doc.pdf").parent.mkdir(parents=True)
+        Path(f"{d}/backend/tests/fixtures/doc.pdf").write_bytes(b"%PDF-1.4\n\x93\xff\x00binary")
+        git("add", "backend/tests/fixtures/doc.pdf", cwd=d)
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "binary fixture", cwd=d)
+        assert ("backend/tests/test_renamed.py", 3, 2) in weakenings("main", cwd=d)  # no decode crash
     print("selftest ok")
 
 

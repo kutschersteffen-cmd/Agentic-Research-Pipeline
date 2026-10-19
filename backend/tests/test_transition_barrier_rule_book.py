@@ -837,7 +837,8 @@ def test_ac130_ac131_existing_cell_fields(bundled):
 
     rows = {(s["code"], s["region"]): s for s in _bundled_scores()}
     for score in list_scores():
-        assert score.model_dump(mode="json") == rows[(score.code, score.region.value)]
+        dumped = score.model_dump(mode="json")
+        assert dumped == {**rows[(score.code, score.region.value)], "basis": "hand_rated", "ratified_by": None, "flags": []}
     matrix = get_matrix(settings=Settings(anthropic_api_key="unused"))
     for (code, region), row in rows.items():
         cell = matrix["cells"][code][region]

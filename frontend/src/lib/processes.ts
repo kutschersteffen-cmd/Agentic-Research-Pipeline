@@ -34,7 +34,7 @@ export type Workspace = {
   screens: [href: string, label: string][];
 };
 
-const REVIEWABLE = ["theme", "extraction", "financials", "identity"];
+const REVIEWABLE = ["theme", "extraction", "financials", "identity", "transition_barrier_derivation"];
 const EXTRACTION_RUNS = ["extraction", "financials", "tnfd", "transition_plan"];
 
 export const WORKSPACES: Workspace[] = [

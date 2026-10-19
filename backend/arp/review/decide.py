@@ -22,6 +22,8 @@ from arp.schemas.issuer import lei_is_valid, normalise_lei
 from arp.schemas.review import BulkAcceptRequest, BulkItem, ItemDecisionRequest, ReviewDecision
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.run_store import RunStore
+from arp.transition_barrier import RUN_TYPE as BARRIER_RUN_TYPE
+from arp.transition_barrier.ratings import current_cell
 
 if TYPE_CHECKING:
     from arp.api.auth import Principal
@@ -33,6 +35,7 @@ ALLOWED = {
     "value": _ALL, "restatement_candidate": _ALL, "identity": _ALL, "sector_code": _ALL, "security": _ALL,
     "quarantined_document": {"approve", "reject", "escalate"},
     "other": {"approve", "reject", "escalate"},  # an extraction PreStepFailed report only
+    "barrier_cell": {"approve", "reject", "escalate"},
 }
 CORRECTED_KEYS = {
     "value": {"value", "unit", "period_end"},
@@ -42,6 +45,11 @@ CORRECTED_KEYS = {
     "security": {"value"},
 }
 _REQUIRED_KEY = {"value": "value", "restatement_candidate": "value", "sector_code": "isic_code", "security": "value"}
+
+
+ENTERED_FACT = "you entered a fact this result uses"
+STALE_RESULT = "the cell's rating changed since this result; derive again"
+FINAL_ITEM = "this item is final; derive the cell again"
 
 
 class DecisionError(Exception):
@@ -129,11 +137,13 @@ def _check_kind(kind: str, req: ItemDecisionRequest, principal: Principal) -> No
         raise DecisionError(422, "a correction needs a comment naming its source")
 
 
-def _step(s, req: ItemDecisionRequest, principal: Principal) -> str:
+def _step(s, req: ItemDecisionRequest, principal: Principal, *, rating_change: bool = False) -> str:
     approver = ROLE_RANK[principal.role] >= ROLE_RANK["approver"]
     if s.state == "first_done":
         if principal.user_id == s.first.get("user_id"):
             raise DecisionError(409, "second review must be a different person")
+        if rating_change and not approver:
+            raise DecisionError(403, "a rating change is confirmed by an approver")
         return "second"
     if s.state == "disagreed":
         if not approver:
@@ -148,6 +158,18 @@ def _step(s, req: ItemDecisionRequest, principal: Principal) -> str:
     if s.state in FINAL_STATES and s.effective.get("step") == "resolution" and not approver:
         raise DecisionError(403, "an item resolved by an approver is decided again by an approver")
     return "first"  # pending, second_done or final: a new round
+
+
+def _barrier_refused(run_store: RunStore, payload: dict, state: str, decision: str) -> str | None:
+    """A final barrier item is never decided again, and an approve only ratifies a result
+    derived from the cell's current rating: otherwise one person could undo a two-person change."""
+    if state in FINAL_STATES:
+        return FINAL_ITEM
+    if decision != "approve" or payload["kind"] not in ("changed", "unchanged"):
+        return None
+    # shortcut: a full Ratings pass per approve (twice per bulk item); share one per bulk call if bulk accept gets slow
+    current = current_cell(payload["code"], payload["region"], run_store).rating.value
+    return STALE_RESULT if payload["current"] != current else None
 
 
 def decide(
@@ -167,11 +189,16 @@ def _decide_locked(
     if item is None:
         raise DecisionError(404, "Review item not found")
     kind = item.kind.value
+    barrier = kind == "barrier_cell"
+    if barrier and principal.user_id in item.payload["entered_by"]:
+        raise DecisionError(409, ENTERED_FACT)
     if kind == "other" and item.run_type != "extraction":
         raise DecisionError(400, "decide this item through its run's review endpoint")
     _check_kind(kind, req, principal)
     s = _state(run_store, run_id, item_key)
-    step = _step(s, req, principal)
+    if barrier and (why := _barrier_refused(run_store, item.payload, s.state, req.decision)):
+        raise DecisionError(409, why)
+    step = _step(s, req, principal, rating_change=barrier and item.payload["kind"] == "changed")
     bundle = build_context(run_store, run_id, item_key, principal, settings=settings, content_store=content_store)
     if bundle["etag"] != req.context_etag:
         raise DecisionError(409, "this item changed since you loaded it; reload")
@@ -198,6 +225,8 @@ def _decide_locked(
             corrected_value=req.corrected_value, prior=prior, sample_rate=settings.second_review_sample_rate,
             changes_final=s.state in FINAL_STATES and not agrees(s.effective, req.model_dump()),
         )
+        if barrier and req.decision == "approve" and item.payload["kind"] == "changed" and "published_change" not in reasons:
+            reasons.insert(0, "published_change")  # a rating change; an unchanged result only follows the sampling
     reasons += [r for r in extra_reasons if r not in reasons]
     corrected = req.corrected_value
     if kind == "security" and req.decision == "correct":
@@ -237,6 +266,51 @@ def _bulk_refusal(run_store: RunStore, run_id: str, it: BulkItem, principal: Pri
     return None
 
 
+def _barrier_refusal(run_store: RunStore, run_id: str, it: BulkItem, principal: Principal, *,
+                     settings: Settings, content_store: DocumentContentStore | None) -> str | None:
+    item = get_item(run_store, run_id, it.item_key, principal)
+    if item is None:
+        return "was not found"
+    if item.state in FINAL_STATES:
+        return FINAL_ITEM
+    if item.payload["kind"] == "changed":
+        return "a rating change is not bulk-accepted"
+    if item.payload["kind"] != "unchanged":
+        return "no rating proposed"
+    if principal.user_id in item.payload["entered_by"]:
+        return ENTERED_FACT
+    if item.state != "pending" or item.escalated:
+        return "is not pending" if item.state != "pending" else "is escalated"
+    if why := _barrier_refused(run_store, item.payload, item.state, "approve"):
+        return why
+    bundle = build_context(run_store, run_id, it.item_key, principal, settings=settings, content_store=content_store)
+    return "changed since you loaded it; reload" if bundle["etag"] != it.context_etag else None
+
+
+def _bulk_accept_barrier(
+    run_store: RunStore, req: BulkAcceptRequest, principal: Principal, *,
+    settings: Settings, content_store: DocumentContentStore | None,
+) -> dict:
+    """Approves what it can and lists the refused items with their reasons. The sample for a second
+    reviewer is `bulk_accept_sample_rate` alone: at 0 no item goes to one."""
+    approve = {"decision": "approve", "reason_code": "confirmed"}
+    accepted, second, refused = 0, [], []
+    for it in req.items:
+        why = _barrier_refusal(run_store, req.run_id, it, principal, settings=settings, content_store=content_store)
+        if why:
+            refused.append({"item_key": it.item_key, "reason": why})
+            continue
+        out = _decide_locked(
+            run_store, req.run_id, it.item_key, ItemDecisionRequest(**approve, context_etag=it.context_etag),
+            principal, settings=settings, content_store=content_store,
+            extra_reasons=("bulk_sample",) if sampled(it.item_key, settings.bulk_accept_sample_rate) else (),
+        )
+        accepted += 1
+        if out["second_reasons"]:
+            second.append(it.item_key)
+    return {"accepted": accepted, "second_review": second, "refused": refused}
+
+
 def bulk_accept(
     run_store: RunStore, req: BulkAcceptRequest, principal: Principal, *,
     settings: Settings, content_store: DocumentContentStore | None,
@@ -247,7 +321,10 @@ def bulk_accept(
     keys = [it.item_key for it in req.items]
     if len(set(keys)) != len(keys):
         raise DecisionError(409, "an item is listed twice; nothing was accepted")
+    manifest = run_store.load_manifest(req.run_id)
     with run_store.lock(req.run_id):
+        if manifest is not None and manifest.run_type == BARRIER_RUN_TYPE:
+            return _bulk_accept_barrier(run_store, req, principal, settings=settings, content_store=content_store)
         # ponytail: each item's context is built twice (check, then decide); share it if 200-item calls get slow
         for it in req.items:
             why = _bulk_refusal(run_store, req.run_id, it, principal, settings=settings, content_store=content_store)

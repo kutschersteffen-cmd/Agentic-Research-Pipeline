@@ -1336,6 +1336,15 @@
    "BarrierScore": {
     "description": "One criterion's rating for one region -- one of the 105 matrix cells.",
     "properties": {
+     "basis": {
+      "default": "hand_rated",
+      "enum": [
+       "hand_rated",
+       "derived"
+      ],
+      "title": "Basis",
+      "type": "string"
+     },
      "category": {
       "$ref": "#/components/schemas/Pillar"
      },
@@ -1356,10 +1365,31 @@
       "title": "Evidence",
       "type": "string"
      },
+     "flags": {
+      "default": [],
+      "description": "Reasons to doubt the rating, e.g. 'Not re-derived: missing ...'.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Flags",
+      "type": "array"
+     },
      "last_verified": {
       "description": "ISO date this cell was last checked against its sources. Drives staleness, not confidence.",
       "title": "Last Verified",
       "type": "string"
+     },
+     "ratified_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "user_id of the person whose decision made the derived rating current; null when hand-rated.",
+      "title": "Ratified By"
      },
      "rating": {
       "$ref": "#/components/schemas/Rating"
@@ -1519,6 +1549,87 @@
      "score_field"
     ],
     "title": "BestInClassCoverage",
+    "type": "object"
+   },
+   "Body_add_fact_api_transition_barrier_cells__code___region__facts_post": {
+    "properties": {
+     "as_of": {
+      "default": "",
+      "title": "As Of",
+      "type": "string"
+     },
+     "fact": {
+      "title": "Fact",
+      "type": "string"
+     },
+     "file": {
+      "anyOf": [
+       {
+        "contentMediaType": "application/octet-stream",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "File"
+     },
+     "locator": {
+      "default": "",
+      "title": "Locator",
+      "type": "string"
+     },
+     "page": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page"
+     },
+     "publisher": {
+      "default": "",
+      "title": "Publisher",
+      "type": "string"
+     },
+     "quote": {
+      "default": "",
+      "title": "Quote",
+      "type": "string"
+     },
+     "source_key": {
+      "default": "",
+      "title": "Source Key",
+      "type": "string"
+     },
+     "tier": {
+      "default": "",
+      "title": "Tier",
+      "type": "string"
+     },
+     "title": {
+      "default": "",
+      "title": "Title",
+      "type": "string"
+     },
+     "unit": {
+      "default": "",
+      "title": "Unit",
+      "type": "string"
+     },
+     "value": {
+      "title": "Value",
+      "type": "string"
+     }
+    },
+    "required": [
+     "fact",
+     "value"
+    ],
+    "title": "Body_add_fact_api_transition_barrier_cells__code___region__facts_post",
     "type": "object"
    },
    "Body_mechanism_from_indicators_api_decision_mechanisms_from_indicators_post": {
@@ -2050,6 +2161,24 @@
     "title": "CategoryScreen",
     "type": "object"
    },
+   "CellRef": {
+    "properties": {
+     "code": {
+      "title": "Code",
+      "type": "string"
+     },
+     "region": {
+      "title": "Region",
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "region"
+    ],
+    "title": "CellRef",
+    "type": "object"
+   },
    "ChartPlan": {
     "properties": {
      "charts": {
@@ -2254,6 +2383,36 @@
      }
     },
     "title": "CheckConfig",
+    "type": "object"
+   },
+   "ChoiceRequest": {
+    "properties": {
+     "fact": {
+      "title": "Fact",
+      "type": "string"
+     },
+     "reason": {
+      "default": "",
+      "title": "Reason",
+      "type": "string"
+     },
+     "value_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "integer"
+       }
+      ],
+      "title": "Value Id"
+     }
+    },
+    "required": [
+     "fact",
+     "value_id"
+    ],
+    "title": "ChoiceRequest",
     "type": "object"
    },
    "Citation": {
@@ -5255,53 +5414,6 @@
     ],
     "title": "DerivationMethod",
     "type": "string"
-   },
-   "DeriveRequest": {
-    "properties": {
-     "cluster_threshold": {
-      "default": 0.72,
-      "title": "Cluster Threshold",
-      "type": "number"
-     },
-     "dataset_id": {
-      "title": "Dataset Id",
-      "type": "string"
-     },
-     "framework_id": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "description": "With `save`: store the derivation as the next version of this framework instead of starting a new one, so deriving again on the same table does not leave a trail of one-version frameworks.",
-      "title": "Framework Id"
-     },
-     "name": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Name"
-     },
-     "save": {
-      "default": false,
-      "description": "Persist the derived framework as v1 straight away.",
-      "title": "Save",
-      "type": "boolean"
-     }
-    },
-    "required": [
-     "dataset_id"
-    ],
-    "title": "DeriveRequest",
-    "type": "object"
    },
    "DerivedRule": {
     "description": "A boolean computed from other boolean fields by three-valued logic; never extracted.",
@@ -15157,6 +15269,53 @@
     "title": "CompareRequest",
     "type": "object"
    },
+   "arp__api__routers__decision__DeriveRequest": {
+    "properties": {
+     "cluster_threshold": {
+      "default": 0.72,
+      "title": "Cluster Threshold",
+      "type": "number"
+     },
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "framework_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "With `save`: store the derivation as the next version of this framework instead of starting a new one, so deriving again on the same table does not leave a trail of one-version frameworks.",
+      "title": "Framework Id"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "save": {
+      "default": false,
+      "description": "Persist the derived framework as v1 straight away.",
+      "title": "Save",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "dataset_id"
+    ],
+    "title": "DeriveRequest",
+    "type": "object"
+   },
    "arp__api__routers__extraction__RunRequest": {
     "properties": {
      "batch": {
@@ -15611,6 +15770,23 @@
      "as_of"
     ],
     "title": "RunRequest",
+    "type": "object"
+   },
+   "arp__api__routers__transition_barrier__DeriveRequest": {
+    "properties": {
+     "cells": {
+      "items": {
+       "$ref": "#/components/schemas/CellRef"
+      },
+      "minItems": 1,
+      "title": "Cells",
+      "type": "array"
+     }
+    },
+    "required": [
+     "cells"
+    ],
+    "title": "DeriveRequest",
     "type": "object"
    },
    "arp__api__routers__transition_plan__RunRequest": {
@@ -17336,7 +17512,7 @@
      "content": {
       "application/json": {
        "schema": {
-        "$ref": "#/components/schemas/DeriveRequest"
+        "$ref": "#/components/schemas/arp__api__routers__decision__DeriveRequest"
        }
       }
      },
@@ -31488,6 +31664,188 @@
     ]
    }
   },
+  "/api/transition-barrier/cells/{code}/{region}": {
+   "get": {
+    "description": "The cell's current rating, and the latest derivation result for it (which may not be ratified).",
+    "operationId": "get_cell_api_transition_barrier_cells__code___region__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "code",
+      "required": true,
+      "schema": {
+       "title": "Code",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "region",
+      "required": true,
+      "schema": {
+       "title": "Region",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Cell Api Transition Barrier Cells  Code   Region  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Cell",
+    "tags": [
+     "transition-barrier"
+    ]
+   }
+  },
+  "/api/transition-barrier/cells/{code}/{region}/choices": {
+   "post": {
+    "description": "For a conflict, the analyst picks which value counts, with a written reason; the cell is derived again with it.",
+    "operationId": "add_choice_api_transition_barrier_cells__code___region__choices_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "code",
+      "required": true,
+      "schema": {
+       "title": "Code",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "region",
+      "required": true,
+      "schema": {
+       "title": "Region",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ChoiceRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Add Choice Api Transition Barrier Cells  Code   Region  Choices Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Add Choice",
+    "tags": [
+     "transition-barrier"
+    ]
+   }
+  },
+  "/api/transition-barrier/cells/{code}/{region}/facts": {
+   "post": {
+    "description": "An analyst enters a fact for sources code cannot read: from a registered source, or with an uploaded PDF.",
+    "operationId": "add_fact_api_transition_barrier_cells__code___region__facts_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "code",
+      "required": true,
+      "schema": {
+       "title": "Code",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "region",
+      "required": true,
+      "schema": {
+       "title": "Region",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_add_fact_api_transition_barrier_cells__code___region__facts_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Add Fact Api Transition Barrier Cells  Code   Region  Facts Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Add Fact",
+    "tags": [
+     "transition-barrier"
+    ]
+   }
+  },
   "/api/transition-barrier/criteria": {
    "get": {
     "description": "The 35 criteria (9 sectors x 3 constraint pillars) with their metrics,\nH/M/L rubrics and primary sources. Static reference data, not per-run state.",
@@ -31554,6 +31912,90 @@
      }
     },
     "summary": "Get Criterion",
+    "tags": [
+     "transition-barrier"
+    ]
+   }
+  },
+  "/api/transition-barrier/derive": {
+   "post": {
+    "description": "Derive the cells from their stored facts. Phase 2 is code and database only, so the run has finished when this answers.",
+    "operationId": "start_derivation_api_transition_barrier_derive_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/arp__api__routers__transition_barrier__DeriveRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Start Derivation Api Transition Barrier Derive Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Start Derivation",
+    "tags": [
+     "transition-barrier"
+    ]
+   }
+  },
+  "/api/transition-barrier/documents/{doc_id}": {
+   "get": {
+    "operationId": "get_document_api_transition_barrier_documents__doc_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "doc_id",
+      "required": true,
+      "schema": {
+       "title": "Doc Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Document",
     "tags": [
      "transition-barrier"
     ]

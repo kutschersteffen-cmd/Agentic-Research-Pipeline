@@ -129,6 +129,9 @@ class BarrierScore(BaseModel):
     evidence: str = Field(description="The prose justification for this rating, with the figures it rests on.")
     source: str = Field(description="Free-text source attribution as recorded by the analyst; not a registry key.")
     last_verified: str = Field(description="ISO date this cell was last checked against its sources. Drives staleness, not confidence.")
+    basis: Literal["hand_rated", "derived"] = "hand_rated"
+    ratified_by: str | None = Field(default=None, description="user_id of the person whose decision made the derived rating current; null when hand-rated.")
+    flags: list[str] = Field(default=[], description="Reasons to doubt the rating, e.g. 'Not re-derived: missing ...'.")
 
 
 class RegistrySource(BaseModel):

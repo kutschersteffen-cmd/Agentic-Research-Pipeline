@@ -12,7 +12,7 @@ export type JobStatus = "pending" | "running" | "completed" | "partially_complet
 
 // The run types the Review Queue endpoints exist for -- a subset of every
 // run_type, since discovery has no review queue of its own.
-export type ReviewableRunKind = "theme" | "extraction" | "financials" | "identity" | "transition_plan" | "tnfd";
+export type ReviewableRunKind = "theme" | "extraction" | "financials" | "identity" | "transition_plan" | "tnfd" | "transition_barrier_derivation";
 
 export interface CompanyRef {
   company_id: string;
@@ -444,7 +444,7 @@ export interface ReviewDecision {
   decided_at: string;
 }
 
-export type ReviewItemKind = "value" | "sector_code" | "identity" | "quarantined_document" | "restatement_candidate" | "security" | "other";
+export type ReviewItemKind = "value" | "sector_code" | "identity" | "quarantined_document" | "restatement_candidate" | "security" | "barrier_cell" | "other";
 export type ItemState = "pending" | "first_done" | "second_done" | "disagreed" | "final";
 
 export interface ReviewItem {
@@ -1672,6 +1672,28 @@ export interface BarrierPrimarySource {
   access_pattern: BarrierAccessPattern;
   refresh_cadence: string;
   locator: string;
+  key: string | null;
+}
+
+export interface BarrierFact {
+  id: string;
+  label: string;
+  definition: string;
+  type: "number" | "boolean" | "enum" | "date" | null; // null: computed, cannot be entered
+  unit: string | null;
+  allowed_values: string[] | null;
+}
+
+export interface BarrierParam {
+  id: string;
+  label: string;
+  value: number | null;
+  unit: string | null;
+  rationale: string;
+  source: { title: string; url: string | null; locator: string | null } | null;
+  by_region: Record<string, { value: number; source: { title: string; url: string | null; locator: string | null } | null }>;
+  status: "set" | "open";
+  question: string;
 }
 
 export interface BarrierCriterion {
@@ -1683,6 +1705,11 @@ export interface BarrierCriterion {
   unit: string;
   rating_rubric: Record<BarrierRating, string>;
   primary_sources: BarrierPrimarySource[];
+  rationale: string;
+  actions: string[];
+  facts: BarrierFact[];
+  params: BarrierParam[];
+  rule_book_version: number | null;
 }
 
 export interface BarrierScore {
@@ -1696,6 +1723,9 @@ export interface BarrierScore {
   evidence: string;
   source: string;
   last_verified: string;
+  basis: "hand_rated" | "derived";
+  ratified_by: string | null;
+  flags: string[];
 }
 
 export interface BarrierMatrixCell extends BarrierScore {
@@ -1727,6 +1757,83 @@ export interface BarrierCriterionDetail {
   criterion: BarrierCriterion;
   scores: BarrierScore[];
   sources: BarrierRegistrySource[];
+}
+
+export type BarrierOutcome = "pass" | "fail" | "unknown" | "mixed";
+
+export interface BarrierCondition {
+  text: string;
+  outcome: BarrierOutcome;
+  clause: string;
+}
+
+export interface BarrierLevel {
+  outcome: BarrierOutcome;
+  detail: string;
+  conditions: BarrierCondition[];
+}
+
+export interface BarrierValue {
+  id: string;
+  fact: string;
+  value: string | number | boolean | null;
+  unit: string | null;
+  shown: string | null;
+  document: string | null;
+  document_id: number | null;
+  page: number | null;
+  locator: string | null;
+  confidence: BarrierConfidence;
+  machine_checked: boolean;
+  counted: boolean;
+  reason: string | null;
+  entered_by: string | null;
+  quote: string | null;
+}
+
+export interface BarrierResult {
+  run_id: string;
+  rating: BarrierRating | "not_rated" | "conflict";
+  confidence: BarrierConfidence;
+  missing_facts: string[];
+  open_params: string[];
+  notes: string[];
+  rule_book_version: number;
+  levels: Partial<Record<"H" | "M", BarrierLevel>>;
+  values: BarrierValue[];
+}
+
+export interface BarrierHistoryEntry {
+  at: string;
+  by: string | null;
+  kind: "rating" | "fact" | "choice" | "decision";
+  rating?: BarrierRating;
+  basis?: "hand_rated" | "derived";
+  fact?: string;
+  value?: string;
+  reason?: string;
+  decision?: string;
+}
+
+/** GET /cells/{code}/{region}: the current rating, the latest derivation (ratified or not), and the history. */
+export interface BarrierCell extends BarrierScore {
+  latest_result: BarrierResult | null;
+  history: BarrierHistoryEntry[];
+}
+
+export interface BarrierFactForm {
+  fact: string;
+  value: string;
+  unit?: string;
+  quote?: string;
+  page?: string;
+  locator?: string;
+  source_key?: string;
+  file?: File | null;
+  title?: string;
+  publisher?: string;
+  as_of?: string;
+  tier?: string;
 }
 
 export interface BarrierStalenessReport {

@@ -5,6 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from arp.config import get_settings
+from arp.db.session import require_dsn
 from arp.schemas.transition_barrier import (
     BarrierCriterion,
     BarrierScore,
@@ -12,6 +13,7 @@ from arp.schemas.transition_barrier import (
     Region,
     RegistrySource,
 )
+from arp.storage.run_store import RunStore
 from arp.transition_barrier.render import rubric
 from arp.transition_barrier.rule_book import RuleBookError, load_rule_book
 from arp.transition_barrier.validation import read_and_validate
@@ -94,6 +96,23 @@ def reset_caches() -> None:
         loader.cache_clear()
 
 
+def current_scores() -> list[BarrierScore]:
+    """The 105 cells as they stand now: the bundled rating, or the ratified result that replaced it, with flags.
+
+    Read on every call so a new approval shows without a restart. Without a database there are no ratified results.
+    """
+    settings = get_settings()
+    if not settings.postgres_dsn:
+        return load_scores()
+    from arp.transition_barrier.ratings import Ratings  # ratings imports this module
+
+    book = Ratings(RunStore(require_dsn(settings), settings.runs_dir))
+    return [
+        BarrierScore.model_validate(book.cell(s.code, s.region.value).model_dump(exclude={"result", "ratified_at"}))
+        for s in load_scores()
+    ]
+
+
 def sources_for_criterion(code: str) -> list[RegistrySource]:
     """Resolve the criterion -> source join. criteria_schema.json is
     authoritative for *which* sources back a criterion; the registry is used
@@ -111,7 +130,7 @@ def filter_scores(
     code: str | None = None,
 ) -> list[BarrierScore]:
     """Filter the 105 cells. Every argument is optional and ANDed together."""
-    rows = load_scores()
+    rows = current_scores()
     if sector:
         rows = [r for r in rows if r.sector == sector]
     if region:
@@ -125,22 +144,22 @@ def filter_scores(
     return rows
 
 
-def build_matrix() -> dict[str, dict[str, BarrierScore]]:
+def build_matrix(scores: list[BarrierScore] | None = None) -> dict[str, dict[str, BarrierScore]]:
     """The 35x3 grid as {criterion_code: {region: score}} -- the shape the
-    frontend heatmap consumes.
+    frontend heatmap consumes. `scores`: current_scores() the caller already read.
     """
     grid: dict[str, dict[str, BarrierScore]] = {}
-    for score in load_scores():
+    for score in current_scores() if scores is None else scores:
         grid.setdefault(score.code, {})[score.region.value] = score
     return grid
 
 
-def rating_distribution(region: Region | None = None) -> dict[str, int]:
+def rating_distribution(region: Region | None = None, scores: list[BarrierScore] | None = None) -> dict[str, int]:
     """H/M/L counts, optionally for one region. Always returns all three keys so
-    a zero count is visible rather than missing.
+    a zero count is visible rather than missing. `scores`: current_scores() the caller already read.
     """
     counts = {"H": 0, "M": 0, "L": 0}
-    for score in load_scores():
+    for score in current_scores() if scores is None else scores:
         if region is None or score.region is region:
             counts[score.rating.value] += 1
     return counts

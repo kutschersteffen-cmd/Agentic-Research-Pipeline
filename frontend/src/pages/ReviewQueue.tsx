@@ -5,6 +5,7 @@ import type { ReviewDecision, ReviewableRunKind } from "../types";
 import { useMe } from "../lib/reviewer";
 import { SignedInAs } from "../components/SignedInAs";
 import { useCardKeys, type CardHandlers } from "../lib/cardKeys";
+import { BarrierBulkAccept, BulkAcceptResult, type BulkResult } from "../components/BarrierReview";
 import { REVIEW_KIND_LABEL, ReviewItems, applyDecision, fromReviewItem, keyOf, type QueueItem } from "../components/RunReviewList";
 
 /** A / C / R open the focused item's approve / correct / reject form and focus it.
@@ -32,6 +33,7 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
   const [filter, setFilter] = useState(pendingReview ? `${pendingReview.kind}/${pendingReview.runId}` : "");
   const [error, setError] = useState<string | null>(null);
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
+  const [bulk, setBulk] = useState<BulkResult | null>(null);
   const reviewer = useMe()?.name ?? "";
   // Decided items stay in place, collapsed: decisions are append-only and the
   // latest wins, so "Change" records a new one and the history keeps both.
@@ -65,6 +67,8 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
   const runs = [...new Set([...(items ?? []).map((q) => `${q.kind}/${q.runId}`), ...(pendingReview ? [`${pendingReview.kind}/${pendingReview.runId}`] : [])])];
   const countFor = (run: string) => (items ?? []).filter((q) => `${q.kind}/${q.runId}` === run && !decided[keyOf(q)]).length;
   const open = shown.filter((q) => !decided[keyOf(q)]).length;
+  // Bulk accept is per run: the open barrier items of each barrier run on screen.
+  const barrierRuns = [...new Set(shown.filter((q) => q.kind === "transition_barrier_derivation").map((q) => q.runId))];
 
   return (
     <div className="page">
@@ -88,6 +92,18 @@ export function ReviewQueue({ pendingReview }: Props = {}) {
         </button>
         {!reviewer.trim() && <SignedInAs compact />}
       </div>
+      {barrierRuns.map((runId) => (
+        <BarrierBulkAccept
+          key={runId}
+          runId={runId}
+          itemKeys={shown.filter((q) => q.runId === runId && !decided[keyOf(q)]).map((q) => q.review.item_key)}
+          onResult={(r) => {
+            setBulk(r);
+            void load();
+          }}
+        />
+      ))}
+      {bulk && <BulkAcceptResult result={bulk} />}
       {error && <p className="error-text" role="alert">{error}</p>}
       {items === null && <p className="status-text">Loading flagged items…</p>}
 

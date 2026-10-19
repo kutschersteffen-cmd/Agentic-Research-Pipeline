@@ -8,8 +8,9 @@ import { ReviewControls, decisionBadgeClass, decisionLabel } from "./ReviewContr
 import { api } from "../api/client";
 import { focusNextCard, useCardKeys } from "../lib/cardKeys";
 import { ITEM_KIND_LABEL, flaggedReasons } from "../lib/reviewKeys";
+import { BarrierItemFields } from "./BarrierReview";
 import { matchesTile, type ReviewTileCounts } from "../lib/stagedFlow";
-import type { Citation, ReviewDecision, ReviewItem, ReviewableRunKind } from "../types";
+import type { Citation, ReviewDecision, ReviewItem, ReviewItemKind, ReviewableRunKind } from "../types";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const REVIEW_KIND_LABEL: Record<ReviewableRunKind, string> = {
@@ -19,6 +20,7 @@ export const REVIEW_KIND_LABEL: Record<ReviewableRunKind, string> = {
   identity: "Identity resolution",
   transition_plan: "Transition plan",
   tnfd: "TNFD",
+  transition_barrier_derivation: "Transition barrier ratings",
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -51,8 +53,9 @@ function isCitationArray(v: unknown): v is Citation[] {
  * everywhere else in the app; anything kind-specific that doesn't map to a
  * known field stays available, just tucked behind "Full record" instead of
  * dominating the card the way a top-level JSON.stringify dump used to. */
-export function ReviewItemFields({ item, onOpenSource }: { item: Record<string, unknown>; onOpenSource: (s: ActiveSource) => void }) {
-  const known = new Set(["item_key", "queued_at", "company_id", "name", "ticker", "confidence", "verdict", "citations", "field", "field_id", "issuer_key", "issuer_scheme", "schema_id", "run_id", "reason_codes", "route_reasons", "adjudicator_rationale", "rationale", "failed_step_label", "error"]);
+export function ReviewItemFields({ item, onOpenSource, reviewKind }: { item: Record<string, unknown>; onOpenSource: (s: ActiveSource) => void; reviewKind?: ReviewItemKind }) {
+  const barrier = reviewKind === "barrier_cell";
+  const known = new Set([...(barrier ? ["code", "region", "kind", "current", "proposed", "values"] : []), "item_key", "queued_at", "company_id", "name", "ticker", "confidence", "verdict", "citations", "field", "field_id", "issuer_key", "issuer_scheme", "schema_id", "run_id", "reason_codes", "route_reasons", "adjudicator_rationale", "rationale", "failed_step_label", "error"]);
   // Per-field extraction rows carry the field itself; old rows keep these at top level.
   const field = (item.field ?? null) as { field_name?: string; value?: unknown; value_state?: ExtractedField["value_state"]; unit?: string | null; period_end?: string | null; citations?: unknown; confidence?: number } | null;
   const citations = item.citations ?? field?.citations;
@@ -73,6 +76,7 @@ export function ReviewItemFields({ item, onOpenSource }: { item: Record<string, 
           {typeof confidence === "number" && <ConfidenceBadge value={confidence} />}
         </span>
       </div>
+      {barrier && <BarrierItemFields item={item} />}
       {field?.field_name && (
         <p>
           {field.field_name}: <strong>{valueLabel(field as ExtractedField)}</strong>
@@ -182,7 +186,7 @@ export function ReviewItems({
             <p className="muted review-item-source">
               {REVIEW_KIND_LABEL[q.kind]} · {ITEM_KIND_LABEL[q.review.kind]} · {q.runId}
             </p>
-            <ReviewItemFields item={q.item} onOpenSource={onOpenSource} />
+            <ReviewItemFields item={q.item} onOpenSource={onOpenSource} reviewKind={q.review.kind} />
             {d && (
               <button className="link-button" onClick={() => setReopened(null)}>
                 Keep the current decision

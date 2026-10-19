@@ -4,7 +4,7 @@ import type { RunManifest } from "../types";
 export const ACTIVE_STATUSES = new Set(["running", "pending"]);
 
 // Run types whose flagged items go to the Review Queue.
-export const REVIEWABLE_RUN_TYPES = new Set<string>(["theme", "extraction", "financials", "identity"]);
+export const REVIEWABLE_RUN_TYPES = new Set<string>(["theme", "extraction", "financials", "identity", "transition_barrier_derivation"]);
 
 // Run types the backend can resume, and the statuses a resume applies to.
 export const RESUMABLE_RUN_TYPES: ReadonlySet<string> = new Set([
@@ -45,6 +45,7 @@ export const RUN_TYPE_LABEL: Record<string, string> = {
   proxy_voting: "Proxy voting",
   transition_plan: "Transition plan assessment",
   transition_barrier_refresh: "Transition barrier source refresh",
+  transition_barrier_derivation: "Transition barrier derivation",
   taxonomy_research: "Taxonomy Researcher",
   calibration: "Calibration Agent",
   financials: "Company financials",

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import { RunProgress } from "../components/RunProgress";
+import { RATING_CLASS, RATING_LABEL, cellHash, errorDetail } from "../lib/barrier";
+import { BarrierCellDetail } from "./BarrierCellDetail";
 import type {
   BarrierCriterionDetail,
   BarrierMatrix,
@@ -12,21 +14,6 @@ import type {
 } from "../types";
 
 const PILLARS: BarrierPillar[] = ["Technology", "Regulation", "Demand & Economics"];
-
-// H means transition is MORE feasible (fewer barriers), so H maps to the
-// positive colour. Reuses the app's existing badge vocabulary rather than
-// introducing a second colour scale.
-const RATING_CLASS: Record<BarrierRating, string> = {
-  H: "badge badge-high",
-  M: "badge badge-mid",
-  L: "badge badge-low",
-};
-
-const RATING_LABEL: Record<BarrierRating, string> = {
-  H: "High feasibility",
-  M: "Moderate",
-  L: "Low feasibility",
-};
 
 function RatingCell({ cell, onClick }: { cell: BarrierMatrixCell | undefined; onClick: () => void }) {
   if (!cell) return <td className="muted">--</td>;
@@ -47,6 +34,15 @@ function RatingCell({ cell, onClick }: { cell: BarrierMatrixCell | undefined; on
 
 function CriterionDetail({ detail, onClose }: { detail: BarrierCriterionDetail; onClose: () => void }) {
   const { criterion, scores, sources } = detail;
+  const [derived, setDerived] = useState<{ runId: string } | { error: string } | null>(null);
+  async function deriveAll() {
+    setDerived(null);
+    try {
+      setDerived({ runId: (await api.deriveBarrierCells(scores.map((s) => ({ code: s.code, region: s.region })))).run_id });
+    } catch (e) {
+      setDerived({ error: errorDetail(e as Error) });
+    }
+  }
   return (
     <div className="card">
       <div className="section-heading">
@@ -59,11 +55,40 @@ function CriterionDetail({ detail, onClose }: { detail: BarrierCriterionDetail; 
       </div>
       <p className="muted">
         {criterion.sector} / {criterion.category}
+        {criterion.rule_book_version != null && <> · <span className="mono">rule book v{criterion.rule_book_version}</span></>}
       </p>
+
+      <h3>Why it matters</h3>
+      <p>{criterion.rationale}</p>
+
+      <h3>Actions it limits</h3>
+      <ul>
+        {criterion.actions.map((a) => (
+          <li key={a} className="mono">
+            {a}
+          </li>
+        ))}
+      </ul>
 
       <h3>What is measured</h3>
       <p>{criterion.metric}</p>
       <p className="muted">Unit: {criterion.unit}</p>
+
+      <h3>Facts</h3>
+      <div className="table-wrap">
+        <table className="data-table">
+          <tbody>
+            {criterion.facts.map((f) => (
+              <tr key={f.id}>
+                <td>
+                  {f.label} <span className="mono muted">{f.id}</span>
+                </td>
+                <td>{f.definition}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <h3>Rating rubric</h3>
       <div className="table-wrap">
@@ -81,7 +106,67 @@ function CriterionDetail({ detail, onClose }: { detail: BarrierCriterionDetail; 
         </table>
       </div>
 
-      <h3>Ratings by region</h3>
+      <h3>Thresholds</h3>
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Threshold</th>
+              <th>Value</th>
+              <th>Source</th>
+              <th>Rationale</th>
+            </tr>
+          </thead>
+          <tbody>
+            {criterion.params.map((p) => (
+              <tr key={p.id}>
+                <td>
+                  {p.label} <span className="mono muted">{p.id}</span>
+                </td>
+                <td className="mono">{p.status === "open" ? "open" : `${p.value}${p.unit ? ` ${p.unit}` : ""}`}</td>
+                <td>
+                  {p.source ? (
+                    <>
+                      {p.source.url ? (
+                        <a href={p.source.url} target="_blank" rel="noreferrer">
+                          {p.source.title}
+                        </a>
+                      ) : (
+                        p.source.title
+                      )}
+                      {p.source.locator && <span className="muted"> · {p.source.locator}</span>}
+                    </>
+                  ) : (
+                    <span className="muted">—</span>
+                  )}
+                </td>
+                <td>
+                  {p.status === "open" ? <>Open question: {p.question}</> : p.rationale}
+                  {Object.entries(p.by_region).map(([region, o]) => (
+                    <div key={region} className="muted">
+                      {region}: <span className="mono">{o.value}</span>
+                      {o.source && <> · {o.source.title}</>}
+                    </div>
+                  ))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="section-heading">
+        <h3>Ratings by region</h3>
+        <button type="button" className="secondary" onClick={() => void deriveAll()}>
+          Derive all regions
+        </button>
+      </div>
+      {derived && "runId" in derived && (
+        <p role="status">
+          Derivation <span className="mono">{derived.runId}</span> finished. <a href={`#/review/transition_barrier_derivation/${encodeURIComponent(derived.runId)}`}>Review the results</a>
+        </p>
+      )}
+      {derived && "error" in derived && <p className="error-text" role="alert">{derived.error}</p>}
       <div className="table-wrap">
         <table className="data-table">
           <thead>
@@ -96,7 +181,9 @@ function CriterionDetail({ detail, onClose }: { detail: BarrierCriterionDetail; 
           <tbody>
             {scores.map((s) => (
               <tr key={s.region}>
-                <td>{s.region}</td>
+                <td>
+                  <a href={cellHash(s.code, s.region)}>{s.region}</a>
+                </td>
                 <td>
                   <span className={RATING_CLASS[s.rating]}>{s.rating}</span>
                 </td>
@@ -146,7 +233,7 @@ function CriterionDetail({ detail, onClose }: { detail: BarrierCriterionDetail; 
   );
 }
 
-export function TransitionBarrierAssessment() {
+function BarrierMatrixPage() {
   const [matrix, setMatrix] = useState<BarrierMatrix | null>(null);
   const [staleness, setStaleness] = useState<BarrierStalenessReport | null>(null);
   const [coverage, setCoverage] = useState<BarrierRefreshCoverage | null>(null);
@@ -293,7 +380,7 @@ export function TransitionBarrierAssessment() {
                   </button>
                 </td>
                 {matrix.regions.map((r) => (
-                  <RatingCell key={r} cell={matrix.cells[c.code]?.[r]} onClick={() => openCriterion(c.code)} />
+                  <RatingCell key={r} cell={matrix.cells[c.code]?.[r]} onClick={() => (window.location.hash = cellHash(c.code, r).slice(1))} />
                 ))}
                 <td>{c.criterion}</td>
                 <td>{c.sector}</td>
@@ -328,4 +415,9 @@ export function TransitionBarrierAssessment() {
       </div>
     </div>
   );
+}
+
+/** `#/transitionBarrier` is the matrix; `#/transitionBarrier/cell/<code>/<region>` is one cell. */
+export function TransitionBarrierAssessment({ params = [] }: { params?: string[] }) {
+  return params[0] === "cell" && params[1] && params[2] ? <BarrierCellDetail key={`${params[1]}/${params[2]}`} code={params[1]} region={params[2]} /> : <BarrierMatrixPage />;
 }

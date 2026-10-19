@@ -5955,6 +5955,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/transition-barrier/cells/{code}/{region}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cell
+         * @description The cell's current rating, and the latest derivation result for it (which may not be ratified).
+         */
+        get: operations["get_cell_api_transition_barrier_cells__code___region__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transition-barrier/cells/{code}/{region}/choices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Choice
+         * @description For a conflict, the analyst picks which value counts, with a written reason; the cell is derived again with it.
+         */
+        post: operations["add_choice_api_transition_barrier_cells__code___region__choices_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transition-barrier/cells/{code}/{region}/facts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Fact
+         * @description An analyst enters a fact for sources code cannot read: from a registered source, or with an uploaded PDF.
+         */
+        post: operations["add_fact_api_transition_barrier_cells__code___region__facts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/transition-barrier/criteria": {
         parameters: {
             query?: never;
@@ -5989,6 +6049,43 @@ export interface paths {
          *     deduplicated source records -- what the UI detail drawer needs in one call.
          */
         get: operations["get_criterion_api_transition_barrier_criteria__code__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transition-barrier/derive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Derivation
+         * @description Derive the cells from their stored facts. Phase 2 is code and database only, so the run has finished when this answers.
+         */
+        post: operations["start_derivation_api_transition_barrier_derive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transition-barrier/documents/{doc_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Document */
+        get: operations["get_document_api_transition_barrier_documents__doc_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7657,6 +7754,12 @@ export interface components {
          * @description One criterion's rating for one region -- one of the 105 matrix cells.
          */
         BarrierScore: {
+            /**
+             * Basis
+             * @default hand_rated
+             * @enum {string}
+             */
+            basis: "hand_rated" | "derived";
             category: components["schemas"]["Pillar"];
             /** Code */
             code: string;
@@ -7669,10 +7772,21 @@ export interface components {
              */
             evidence: string;
             /**
+             * Flags
+             * @description Reasons to doubt the rating, e.g. 'Not re-derived: missing ...'.
+             * @default []
+             */
+            flags: string[];
+            /**
              * Last Verified
              * @description ISO date this cell was last checked against its sources. Drives staleness, not confidence.
              */
             last_verified: string;
+            /**
+             * Ratified By
+             * @description user_id of the person whose decision made the derived rating current; null when hand-rated.
+             */
+            ratified_by?: string | null;
             rating: components["schemas"]["Rating"];
             region: components["schemas"]["Region"];
             /** Sector */
@@ -7778,6 +7892,57 @@ export interface components {
              * @enum {string}
              */
             type: "best_in_class_coverage";
+        };
+        /** Body_add_fact_api_transition_barrier_cells__code___region__facts_post */
+        Body_add_fact_api_transition_barrier_cells__code___region__facts_post: {
+            /**
+             * As Of
+             * @default
+             */
+            as_of: string;
+            /** Fact */
+            fact: string;
+            /** File */
+            file?: string | null;
+            /**
+             * Locator
+             * @default
+             */
+            locator: string;
+            /** Page */
+            page?: number | null;
+            /**
+             * Publisher
+             * @default
+             */
+            publisher: string;
+            /**
+             * Quote
+             * @default
+             */
+            quote: string;
+            /**
+             * Source Key
+             * @default
+             */
+            source_key: string;
+            /**
+             * Tier
+             * @default
+             */
+            tier: string;
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+            /**
+             * Unit
+             * @default
+             */
+            unit: string;
+            /** Value */
+            value: string;
         };
         /** Body_mechanism_from_indicators_api_decision_mechanisms_from_indicators_post */
         Body_mechanism_from_indicators_api_decision_mechanisms_from_indicators_post: {
@@ -8047,6 +8212,13 @@ export interface components {
              */
             type: "category_screen";
         };
+        /** CellRef */
+        CellRef: {
+            /** Code */
+            code: string;
+            /** Region */
+            region: string;
+        };
         /** ChartPlan */
         ChartPlan: {
             /** Charts */
@@ -8146,6 +8318,18 @@ export interface components {
              * @default 0.01
              */
             sum_tolerance: number;
+        };
+        /** ChoiceRequest */
+        ChoiceRequest: {
+            /** Fact */
+            fact: string;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /** Value Id */
+            value_id: string | number;
         };
         /** Citation */
         Citation: {
@@ -9464,29 +9648,6 @@ export interface components {
          * @enum {string}
          */
         DerivationMethod: "llm_draft" | "industry_anchored" | "authority_source" | "etf_index_holdings" | "news_transcript_mining" | "empirical" | "emerging_signal_discovery" | "merged" | "manual";
-        /** DeriveRequest */
-        DeriveRequest: {
-            /**
-             * Cluster Threshold
-             * @default 0.72
-             */
-            cluster_threshold: number;
-            /** Dataset Id */
-            dataset_id: string;
-            /**
-             * Framework Id
-             * @description With `save`: store the derivation as the next version of this framework instead of starting a new one, so deriving again on the same table does not leave a trail of one-version frameworks.
-             */
-            framework_id?: string | null;
-            /** Name */
-            name?: string | null;
-            /**
-             * Save
-             * @description Persist the derived framework as v1 straight away.
-             * @default false
-             */
-            save: boolean;
-        };
         /**
          * DerivedRule
          * @description A boolean computed from other boolean fields by three-valued logic; never extracted.
@@ -13852,6 +14013,29 @@ export interface components {
             /** Version */
             version?: number | null;
         };
+        /** DeriveRequest */
+        arp__api__routers__decision__DeriveRequest: {
+            /**
+             * Cluster Threshold
+             * @default 0.72
+             */
+            cluster_threshold: number;
+            /** Dataset Id */
+            dataset_id: string;
+            /**
+             * Framework Id
+             * @description With `save`: store the derivation as the next version of this framework instead of starting a new one, so deriving again on the same table does not leave a trail of one-version frameworks.
+             */
+            framework_id?: string | null;
+            /** Name */
+            name?: string | null;
+            /**
+             * Save
+             * @description Persist the derived framework as v1 straight away.
+             * @default false
+             */
+            save: boolean;
+        };
         /** RunRequest */
         arp__api__routers__extraction__RunRequest: {
             /**
@@ -14037,6 +14221,11 @@ export interface components {
             decision_framework_version?: number | null;
             /** Universe Path */
             universe_path?: string | null;
+        };
+        /** DeriveRequest */
+        arp__api__routers__transition_barrier__DeriveRequest: {
+            /** Cells */
+            cells: components["schemas"]["CellRef"][];
         };
         /** RunRequest */
         arp__api__routers__transition_plan__RunRequest: {
@@ -15093,7 +15282,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DeriveRequest"];
+                "application/json": components["schemas"]["arp__api__routers__decision__DeriveRequest"];
             };
         };
         responses: {
@@ -25027,6 +25216,116 @@ export interface operations {
             };
         };
     };
+    get_cell_api_transition_barrier_cells__code___region__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+                region: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_choice_api_transition_barrier_cells__code___region__choices_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+                region: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChoiceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_fact_api_transition_barrier_cells__code___region__facts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                code: string;
+                region: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_add_fact_api_transition_barrier_cells__code___region__facts_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_criteria_api_transition_barrier_criteria_get: {
         parameters: {
             query?: never;
@@ -25067,6 +25366,72 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_derivation_api_transition_barrier_derive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["arp__api__routers__transition_barrier__DeriveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_document_api_transition_barrier_documents__doc_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                doc_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

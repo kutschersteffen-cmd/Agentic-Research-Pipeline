@@ -131,7 +131,7 @@ const PALETTE_ITEMS: PaletteItem[] = [
   ...RISK_TABS.map((t) => ({ label: t.label, hint: "Risk Monitoring", href: `#/portfolio-monitoring/${t.id}` })),
 ];
 
-const REVIEWABLE = new Set<string>(["theme", "extraction", "financials", "identity"]);
+const REVIEWABLE = new Set<string>(["theme", "extraction", "financials", "identity", "transition_barrier_derivation"]);
 
 /** A run in the palette opens where its decisions are made, else in Run History. */
 const runItem = (r: RunManifest): PaletteItem => ({
@@ -397,7 +397,7 @@ function App() {
         {active === "backgroundAgents" && <BackgroundAgents />}
         {active === "extraction" && <Extraction key="extraction" initialTab={route.params[0]} initialAuto={route.params[1] === "auto"} pendingUniverse={pendingFor("extraction")} />}
         {active === "transitionPlan" && <Extraction key="transitionPlan" initialProfile="transition_plan" pendingUniverse={pendingFor("transitionPlan")} />}
-        {active === "transitionBarrier" && <TransitionBarrierAssessment />}
+        {active === "transitionBarrier" && <TransitionBarrierAssessment params={route.params} />}
         {active === "identity" && <IdentityResolution onSendToDiscovery={(path, count) => sendUniverse("Identity Resolution")("discovery", path, count)} />}
         {active === "discovery" && <DocumentDiscovery pendingUniverse={pendingFor("discovery")} onSendUniverse={sendUniverse("Document Discovery")} />}
         {active === "portfolio-monitoring" && <PortfolioRiskMonitoringTool key={route.params[0]} initialSub={route.params[0]} onSendUniverse={sendUniverse("Risk Monitoring")} />}

@@ -11,14 +11,15 @@ from arp.cli._shared import _run_store
 from arp.config import get_settings
 from arp.schemas.transition_barrier import Pillar, Region
 from arp.transition_barrier.dataset import (
+    current_scores,
     data_dir,
     filter_scores,
     load_criteria,
-    load_scores,
     load_source_registry,
     rating_distribution,
     sources_for_criterion,
 )
+from arp.transition_barrier.derivation import UnknownCell, create_derivation_run, execute_derivation_run
 from arp.transition_barrier.refresh.pipeline import RefreshDisabledError, run_refresh
 from arp.transition_barrier.refresh.router import coverage_summary, route_sources
 from arp.transition_barrier.render import render_rule_book_md
@@ -121,7 +122,7 @@ def transition_barrier_export(
         raise _fail([str(exc)]) from None
     payload = {
         "criteria": [c.model_dump(mode="json") for c in criteria],
-        "scores": [s.model_dump(mode="json") for s in load_scores()],
+        "scores": [s.model_dump(mode="json") for s in current_scores()],
         "sources": {s.key: s.model_dump(mode="json", exclude={"key"}) for s in load_source_registry()},
     }
     out.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -214,3 +215,23 @@ def transition_barrier_refresh() -> None:
     typer.echo(f"{len(findings)} checks, {len(needs_review)} queued for human review.")
     for finding in needs_review:
         typer.echo(f"  [{finding.outcome.value}] {finding.code} / {finding.region.value}: {finding.detail}")
+
+
+@transition_barrier_app.command("derive")
+def transition_barrier_derive(
+    code: str = typer.Option(..., help="Criterion code, e.g. 'STL-R1'."),
+    region: str = typer.Option(..., help="Region, e.g. 'European Union'."),
+    now: str = typer.Option(None, "--now", help="Run date, YYYY-MM-DD (default: today)."),
+) -> None:
+    """Derive one cell from its stored facts and queue the result for review. Prints the run id."""
+    try:
+        today = date.fromisoformat(now) if now else None
+    except ValueError:
+        raise _fail(["--now must be YYYY-MM-DD."]) from None
+    run_store = _run_store()
+    try:
+        run_id = create_derivation_run(run_store, [(code, region)])
+    except UnknownCell as exc:
+        raise _fail([str(exc)]) from None
+    execute_derivation_run(run_store, run_id, get_settings(), today=today)
+    typer.echo(run_id)

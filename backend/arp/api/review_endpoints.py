@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict
 from arp.api.auth import Principal
 from arp.orchestration.review_queue import decision_history, latest_decisions, record_review_decision
 from arp.storage.run_store import RunStore
+from arp.transition_barrier import RUN_TYPE as BARRIER_RUN_TYPE
 
 # Shared logic behind the near-identical review-queue endpoints in
 # themes.py, extraction.py, financials.py, voting.py, identity.py --
@@ -17,7 +18,7 @@ from arp.storage.run_store import RunStore
 
 VALID_DECISIONS = {"approve", "edit", "reject", "escalate"}
 # Decided only through the review workbench (arp/review/decide.py), which enforces second reviews.
-WORKBENCH_RUN_TYPES = {"extraction", "identity", "holdings"}
+WORKBENCH_RUN_TYPES = {"extraction", "identity", "holdings", BARRIER_RUN_TYPE}
 WORKBENCH_KEY_PREFIXES = ("isic:", "held:", "rst_", "isin:")
 
 

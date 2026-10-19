@@ -561,3 +561,58 @@ class CompanyFact(Base):
     valid_from: Mapped[datetime] = _ts()
     valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     superseded_by: Mapped[int | None] = mapped_column(ForeignKey("company_facts.id"))
+
+
+# --- transition barrier: analyst facts (append-only) -----------------------------------
+
+
+class BarrierDocument(Base):
+    """An uploaded PDF used only to check one analyst fact's quote."""
+
+    __tablename__ = "barrier_documents"
+
+    id: Mapped[int] = _id()
+    title: Mapped[str] = mapped_column(Text)
+    publisher: Mapped[str] = mapped_column(Text)
+    as_of: Mapped[date] = mapped_column(Date)
+    tier: Mapped[str] = mapped_column(Text)
+    filename: Mapped[str | None] = mapped_column(Text)
+    content_key: Mapped[str] = mapped_column(Text)  # sha256 of the bytes, the blob store key
+    page_texts: Mapped[list] = mapped_column(JSONB)
+    uploaded_by: Mapped[str] = mapped_column(Text)
+    uploaded_at: Mapped[datetime] = _ts()
+
+
+class BarrierFact(Base):
+    __tablename__ = "barrier_facts"
+    __table_args__ = (Index("ix_barrier_facts_cell", "code", "region"),)
+
+    id: Mapped[int] = _id()
+    code: Mapped[str] = mapped_column(Text)
+    region: Mapped[str] = mapped_column(Text)
+    fact: Mapped[str] = mapped_column(Text)
+    value: Mapped[dict | list | str | float | int | bool | None] = mapped_column(JSONB)
+    unit: Mapped[str | None] = mapped_column(Text)
+    quote: Mapped[str] = mapped_column(Text)
+    page: Mapped[int | None] = mapped_column(Integer)
+    locator: Mapped[str | None] = mapped_column(Text)
+    source_key: Mapped[str | None] = mapped_column(Text)
+    document_id: Mapped[int | None] = mapped_column(ForeignKey("barrier_documents.id"))
+    entered_by: Mapped[str] = mapped_column(Text)
+    entered_at: Mapped[datetime] = _ts()
+    machine_checked: Mapped[bool] = mapped_column(Boolean)
+
+
+class BarrierChoice(Base):
+    __tablename__ = "barrier_choices"
+    __table_args__ = (Index("ix_barrier_choices_cell", "code", "region"),)
+
+    id: Mapped[int] = _id()
+    code: Mapped[str] = mapped_column(Text)
+    region: Mapped[str] = mapped_column(Text)
+    fact: Mapped[str] = mapped_column(Text)  # the rule book fact id
+    fact_id: Mapped[str] = mapped_column(Text)  # the chosen value's id (a barrier_facts id)
+    reason: Mapped[str] = mapped_column(Text)
+    value_ids: Mapped[list] = mapped_column(JSONB)  # every value id for the fact when the choice was made
+    chosen_by: Mapped[str] = mapped_column(Text)
+    chosen_at: Mapped[datetime] = _ts()
