@@ -42,7 +42,8 @@ class CheckedFact:
 
 
 def pdf_pages(data: bytes) -> list[str]:
-    return [page.extract_text() or "" for page in PdfReader(io.BytesIO(data)).pages]
+    # pypdf can return lone surrogates (e.g. math-italic glyphs), which are not UTF-8 and crash chunking
+    return [(page.extract_text() or "").encode("utf-8", "replace").decode() for page in PdfReader(io.BytesIO(data)).pages]
 
 
 def _parse_value(fact_def: FactDef, raw: str):

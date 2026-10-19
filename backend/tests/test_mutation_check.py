@@ -91,3 +91,16 @@ def test_mutants_copy_finds_the_rule_book(monkeypatch, tmp_path):
     _mutmut(monkeypatch, 0, seen=seen)
     mutation_check.mutate("arp/x.py", ["tests/test_x.py"])
     assert seen["env"]["ARP_TRANSITION_BARRIER_DATA_DIR"] == str(tmp_path / "arp/transition_barrier/data")
+
+
+def test_link_repo_root_links_missing_top_level_entries(tmp_path, monkeypatch):
+    for name in ("backend/tests", "backend/scripts/check.py", "docs", "scripts/report.js", ".git"):
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("") if "." in path.name else path.mkdir()
+    monkeypatch.chdir(tmp_path / "backend")
+    made = mutation_check.link_repo_root()
+    assert sorted(str(p) for p in made) == ["backend", "docs", "scripts/report.js"]
+    assert Path("backend/tests").is_dir() and Path("docs").resolve() == tmp_path / "docs"
+    assert Path("scripts/report.js").resolve() == tmp_path / "scripts" / "report.js"
+    assert not Path(".git").exists()

@@ -3,7 +3,8 @@ name: Golden set
 # AI output varies from run to run, so unit tests replace the model with a stand-in. This check runs
 # the real extractor -> verifier -> grounding pipeline on the bundled golden set (manually verified
 # extractions) whenever a PR touches extraction prompts, the LLM clients, grounding or the model
-# settings, and fails if any case fails. It calls the real model, so it needs the
+# settings, and fails if any case fails. PRs touching transition-barrier extraction, fetching, the rule book
+# or its data also run the transition-barrier golden set. It calls the real model, so it needs the
 # ARP_ANTHROPIC_API_KEY repository secret; without it the job warns and passes.
 on:
   pull_request:
@@ -14,6 +15,12 @@ on:
       - "backend/arp/golden_set/**"
       - "backend/arp/grounding.py"
       - "backend/arp/config.py"
+      - "backend/arp/transition_barrier/extraction.py"
+      - "backend/arp/transition_barrier/golden.py"
+      - "backend/arp/transition_barrier/fetching.py"
+      - "backend/arp/transition_barrier/rule_book.py"
+      - "backend/arp/transition_barrier/data/**"
+      - "backend/tests/golden/transition_barrier/**"
   workflow_dispatch:
 
 jobs:
@@ -51,7 +58,7 @@ jobs:
           BASE: ${{ github.base_ref }}
         run: |
           if [ -z "$BASE" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; exit 0; fi
-          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py)
+          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py arp/transition_barrier/extraction.py arp/transition_barrier/golden.py arp/transition_barrier/fetching.py arp/transition_barrier/rule_book.py arp/transition_barrier/data tests/golden/transition_barrier)
           model=$(git diff -U0 "origin/$BASE...HEAD" -- arp/config.py | grep -E '^[+-] .*(llm_|_api_key|grounding_|confidence_review)' || true)
           if [ -n "$other$model" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; else echo "run=false" >>"$GITHUB_OUTPUT"; echo "Only unrelated config.py lines changed; golden set not needed."; fi
 
@@ -86,3 +93,11 @@ jobs:
           set -o pipefail
           arp db init-postgres
           arp golden-set run | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Run the transition-barrier golden set
+        if: steps.key.outputs.present == 'true'
+        env:
+          ARP_ANTHROPIC_API_KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
+        run: |
+          set -o pipefail
+          arp transition-barrier golden --cases tests/golden/transition_barrier/cases.json --documents-dir tests/golden/transition_barrier/documents --min-precision 0.95 --min-coverage 0.5 | tee -a "$GITHUB_STEP_SUMMARY"

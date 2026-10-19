@@ -1,0 +1,262 @@
+"""Phase 3 extraction: one fact from one stored source document through extract_one_field, then the code checks."""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import math
+from datetime import date
+from pathlib import Path
+
+import pytest
+from pypdf import PageObject
+
+from arp.config import Settings
+from arp.extraction import field_graph
+from arp.extraction.extractor_agent import PeriodValue
+from arp.schemas.common import Citation, DocType, DocumentChunk
+from arp.transition_barrier import extraction
+from arp.transition_barrier.facts import pdf_pages
+from arp.transition_barrier.rule_book import FactDef, load_rule_book
+from tests.transition_barrier_helpers import DOCS, FIXTURES, QUOTES, FactStub, fixture_pdf
+
+CELL = "Steel, European Union, STL-R1"
+BOOK, _ = load_rule_book(FIXTURES)
+FACTS = {f.id: f for f in BOOK.criteria["STL-R1"].facts}
+SETTINGS = Settings(hybrid_retrieval_enabled=False)
+DOC_IDS = {"D1": 1, "D2": 2, "D3": 3, "D4": 4}
+KEYWORDS = json.loads((Path(extraction.__file__).parent / "data" / "fact_keywords.json").read_text(encoding="utf-8"))
+
+
+def doc(name: str, *, html: bool = False) -> dict:
+    """The stored-document dict Task 2 returns, built from the fixture without a database."""
+    title, tier, as_of = DOCS[name]
+    pages = [QUOTES[name][min(QUOTES[name])]] if html else pdf_pages(fixture_pdf(name))
+    return {
+        "id": DOC_IDS[name], "source_key": name.lower(), "url": f"https://example.org/{name}", "title": title,
+        "publisher": "Fixture", "tier": tier, "as_of": date.fromisoformat(as_of), "content_key": f"key-{name}",
+        "content_type": "text/html" if html else "application/pdf", "page_texts": pages, "html": html,
+        "fetched_at": None,
+    }
+
+
+def pv(value, quote: str, unit: str | None = "USD/tCO2", *, period: str | None = None, page=None, location=None):
+    cite = Citation(doc_id="", doc_type=DocType.OTHER, quote=quote, page=page, location=location)
+    return PeriodValue(value=value, raw_value_text=quote, unit_text=unit, period_text=period, citations=[cite])
+
+
+def run(fact: str | FactDef, d: dict, answer: PeriodValue | None):
+    fact = FACTS[fact] if isinstance(fact, str) else fact
+    stub = FactStub({(fact.id, d["title"]): answer} if answer else {}, {f"tbsrc_{d['id']}": d["title"]}.__getitem__)
+    out = asyncio.run(extraction.extract(
+        fact, CELL, d, BOOK.conversions, llm=stub, verifier_llm=stub, settings=SETTINGS,
+    ))
+    return out, stub
+
+
+def test_counted_value():
+    out, _ = run("price", doc("D1"), pv(72, QUOTES["D1"][12]))
+    assert (out.value, out.unit, out.page, out.counted, out.reason) == (72, "USD/tCO2", 12, True, None)
+    assert out.extracted is None and out.quote == QUOTES["D1"][12] and out.as_of is None
+
+
+def test_quote_not_in_any_passage():  # AC-26
+    out, _ = run("price", doc("D1"), pv(99, "The effective carbon price was USD 99/tCO2."))
+    assert (out.counted, out.reason, out.page) == (False, "Quote not found in source", None)
+
+
+def test_number_not_in_quote():  # AC-28
+    out, _ = run("price", doc("D1"), pv(72, QUOTES["D1"][4]))
+    assert (out.counted, out.reason, out.page) == (False, "Number not in quote", 4)
+
+
+def test_news_cannot_ground():  # AC-29
+    out, _ = run("price", doc("D4"), pv(72, QUOTES["D4"][1]))
+    assert (out.counted, out.reason, out.value) == (False, "News cannot ground a fact", 72)
+
+
+def test_page_comes_from_grounding():  # AC-148
+    out, _ = run("price", doc("D1"), pv(72, QUOTES["D1"][12], page=5))
+    assert out.page == 12 and out.counted
+
+
+def test_converted_with_document_year():  # AC-30
+    out, _ = run("price", doc("D1"), pv(66.9, QUOTES["D1"][17], "CNY/tCO2"))
+    assert out.counted and out.reason is None and out.unit == "USD/tCO2"
+    assert math.isclose(out.value, 66.9 * 0.14) and out.extracted == "66.9 CNY/tCO2"
+
+
+def test_converted_with_own_as_of():  # AC-32
+    out, _ = run("price", doc("D1"), pv(66.9, QUOTES["D1"][17], "CNY/tCO2", period="2024-06-30"))
+    assert out.counted and math.isclose(out.value, 66.9 * 0.139) and out.extracted == "66.9 CNY/tCO2"
+    assert out.as_of == date(2024, 6, 30)
+
+
+def test_no_rate_for_own_year():  # AC-33
+    out, _ = run("price", doc("D1"), pv(66.9, QUOTES["D1"][17], "CNY/tCO2", period="2023-06-30"))
+    assert (out.counted, out.reason) == (False, "No CNY to USD rate for 2023 or earlier")
+    assert (out.value, out.unit, out.extracted) == (66.9, "CNY/tCO2", None)
+
+
+def test_unit_not_convertible():  # AC-34
+    out, _ = run("price", doc("D1"), pv(66.9, QUOTES["D1"][19], "KRW/tCO2"))
+    assert (out.counted, out.reason) == (False, "Unit not convertible: KRW/tCO2")
+
+
+def test_html_has_locator_not_page():  # AC-9
+    out, _ = run("levy", doc("D2", html=True), pv(True, QUOTES["D2"][3], None, location="Art. 36"))
+    assert (out.value, out.page, out.locator, out.counted, out.reason) == (True, None, "Art. 36", True, None)
+
+
+def test_passage_not_shown(monkeypatch):  # Review Focus 4: the quote is in the document, not in a shown passage
+    d = doc("D1")
+    sd = extraction.source_document(d)
+    p4_start, p5_start = sd.page_breaks[3], sd.page_breaks[4]
+    shown = DocumentChunk(
+        chunk_id=f"chk_{sd.doc_id}_{p4_start}_{p5_start}", doc_id=sd.doc_id, company_id=sd.company_id,
+        doc_type=sd.doc_type, text=sd.full_text[p4_start:p5_start], char_start=p4_start, char_end=p5_start,
+    )
+    assert QUOTES["D1"][12] in sd.full_text and QUOTES["D1"][12] not in shown.text
+    monkeypatch.setattr(field_graph, "field_evidence", lambda *a, **k: [shown])
+    out, _ = run("price", d, pv(72, QUOTES["D1"][12]))
+    assert (out.counted, out.reason) == (False, "Quote not found in source")
+
+
+def test_not_found():
+    out, stub = run("price", doc("D1"), None)
+    assert out is None and stub.calls.count("ExtractionDraft") == 1
+
+
+def test_source_document_pages():
+    sd = extraction.source_document(doc("D1"))
+    pages = doc("D1")["page_texts"]
+    assert sd.doc_id == "tbsrc_1" and sd.full_text == "\n".join(pages)
+    assert sd.page_breaks[:2] == [0, len(pages[0]) + 1] and len(sd.page_breaks) == len(pages)
+    assert extraction.source_document(doc("D2", html=True)).page_breaks == []
+
+
+def test_field_for_and_fingerprint():
+    f = extraction.field_for(FACTS["price"], CELL, BOOK.conversions)
+    assert (f.name, f.data_type.value, f.unit) == ("price", "number", None)
+    assert f.seed_keywords == KEYWORDS["STL-R1"]["price"]  # curated, from the cell's criterion code
+    assert f.extraction_instructions.startswith(FACTS["price"].definition)
+    assert f.extraction_instructions.endswith("Give the as-of date of the value in period_text when the source states one.")
+    assert "(for example CNY/tCO2)" in f.extraction_instructions
+    changed = FACTS["price"].model_copy(update={"definition": "Something else."})
+    assert extraction.fingerprint(FACTS["price"], "STL-R1") != extraction.fingerprint(changed, "STL-R1")
+    assert extraction.fingerprint(FACTS["price"], "STL-R1") == extraction.fingerprint(FACTS["price"].model_copy(), "STL-R1")
+
+
+def test_fingerprint_follows_the_fact_keywords(monkeypatch):
+    price, levy = FACTS["price"], FACTS["levy"]
+    before = extraction.fingerprint(price, "STL-R1"), extraction.fingerprint(levy, "STL-R1")
+    edited = {**KEYWORDS, "STL-R1": {**KEYWORDS["STL-R1"], "price": ["carbon price", "allowance price", "EUA"]}}
+    monkeypatch.setattr(extraction, "_fact_keywords", lambda path: edited)
+    assert extraction.fingerprint(price, "STL-R1") != before[0]  # a keyword edit redoes that fact's extractions
+    assert extraction.fingerprint(levy, "STL-R1") == before[1]  # and only that fact's
+
+
+def test_unit_without_currency_gets_plain_sentence():
+    gw = FACTS["price"].model_copy(update={"id": "capacity", "unit": "GW"})
+    text = extraction.field_for(gw, CELL, BOOK.conversions).extraction_instructions
+    assert "Give unit_text as GW when the source uses that unit." in text and "currency" not in text
+
+
+def test_sides_match_exactly():  # "USD million" is not the conversion target "USD"
+    spend = FACTS["price"].model_copy(update={"unit": "USD million/yr"})
+    text = extraction.field_for(spend, CELL, BOOK.conversions).extraction_instructions
+    assert "Give unit_text as USD million/yr when the source uses that unit." in text
+
+
+def test_both_sides_named_in_the_unit_sentence():
+    gallon = {"from": "gallon", "to": "litre", "rate": 3.785411784, "year": 1959}
+    fuel = FACTS["price"].model_copy(update={"unit": "USD/litre"})
+    text = extraction.field_for(fuel, CELL, [*BOOK.conversions, gallon]).extraction_instructions
+    assert (
+        "Give unit_text in the source's own unit, written like USD/litre; code converts CNY, gallon "
+        "(for example CNY/litre, USD/gallon)."
+    ) in text
+
+
+def test_seed_keywords_fall_back_to_the_label_words():
+    f = extraction.field_for(FACTS["price"], "Steel, European Union, XXX-R9", BOOK.conversions)
+    assert f.seed_keywords == ["effective", "carbon", "price"]
+
+
+def test_every_typed_fact_has_three_to_eight_curated_keywords():
+    book = load_rule_book(Path(extraction.__file__).parent / "data")[0]
+    typed = {(code, f.id) for code, c in book.criteria.items() for f in c.facts if f.type}
+    listed = {(code, fact) for code, facts in KEYWORDS.items() for fact in facts}
+    assert listed == typed  # none missing, and no key names an unknown code or fact
+    for code, fact in listed:
+        words = KEYWORDS[code][fact]
+        assert 3 <= len(words) <= 8 and all(w.strip() for w in words) and len({w.lower() for w in words}) == len(words), (code, fact)
+
+
+def test_extraction_ranks_with_keywords_only(monkeypatch):
+    seen = []
+    real = field_graph.field_evidence
+    monkeypatch.setattr(field_graph, "field_evidence", lambda f, d, settings, *a: seen.append(settings) or real(f, d, settings, *a))
+    hybrid = Settings(hybrid_retrieval_enabled=True)
+    d = doc("D1")
+    stub = FactStub({("price", d["title"]): pv(72, QUOTES["D1"][12])}, {f"tbsrc_{d['id']}": d["title"]}.__getitem__)
+    out = asyncio.run(extraction.extract(FACTS["price"], CELL, d, BOOK.conversions, llm=stub, verifier_llm=stub, settings=hybrid))
+    assert out.counted and [s.hybrid_retrieval_enabled for s in seen] == [False]
+    assert seen[0].evidence_max_chunks == hybrid.evidence_max_chunks == 12  # everything else stays Argus's
+    assert hybrid.hybrid_retrieval_enabled  # the caller's settings are left alone
+
+
+def test_lone_surrogate_in_pdf_text_is_replaced(monkeypatch):
+    # pypdf returns lone surrogates for some glyphs (math italic); unreplaced, chunking raised UnicodeEncodeError
+    real = PageObject.extract_text
+    monkeypatch.setattr(PageObject, "extract_text", lambda self, *a, **k: real(self, *a, **k) + " \ud835 ")
+    d = doc("D1")
+    assert all(t.encode("utf-8") for t in d["page_texts"])
+    out, _ = run("price", d, pv(72, QUOTES["D1"][12]))
+    assert (out.counted, out.page) == (True, 12)
+
+
+SCHEME = FACTS["levy"].model_copy(
+    update={"id": "scheme", "label": "Trading scheme covering steel", "type": "enum", "allowed_values": ["EU ETS", "None"]}
+)
+START = FACTS["levy"].model_copy(update={"id": "start", "type": "date"})
+
+
+@pytest.mark.parametrize(("given", "typed"), [(True, True), ("Yes", True), ("no", False), ("TRUE", True), ("false", False)])
+def test_boolean_values_are_normalised(given, typed):
+    out, _ = run("applies", doc("D1"), pv(given, QUOTES["D1"][4], None))
+    assert (out.counted, out.value) == (True, typed)
+
+
+@pytest.mark.parametrize(("fact", "d", "given", "quote", "reason"), [
+    ("applies", "D1", "maybe", QUOTES["D1"][4], "Value is not a boolean"),
+    ("price", "D1", "seventy-two", QUOTES["D1"][12], "Value is not a number"),
+    (SCHEME, "D1", "China ETS", QUOTES["D1"][20], "Value not allowed: China ETS"),
+    (START, "D2", "1 January 2026", QUOTES["D2"][3], "Value is not a date"),
+])  # fmt: skip
+def test_value_that_does_not_fit_the_type_is_not_counted(fact, d, given, quote, reason):
+    out, _ = run(fact, doc(d), pv(given, quote, None))
+    assert (out.counted, out.reason, out.value) == (False, reason, given)
+
+
+def test_enum_and_date_values_count():
+    out, _ = run(SCHEME, doc("D1"), pv("EU ETS", QUOTES["D1"][20], None))
+    assert (out.counted, out.value) == (True, "EU ETS")
+    out, _ = run(START, doc("D2"), pv("2026-01-01", QUOTES["D2"][3], None))
+    assert (out.counted, out.value) == (True, date(2026, 1, 1))
+
+
+def test_type_checked_after_grounding():
+    out, _ = run("applies", doc("D1"), pv("maybe", "Not in the document at all."))
+    assert out.reason == "Quote not found in source"
+
+
+def test_missing_unit_is_named():
+    out, _ = run("price", doc("D1"), pv(72, QUOTES["D1"][12], None))
+    assert (out.counted, out.reason) == (False, "Unit not convertible: (no unit)")
+
+
+def test_infinite_number_is_not_a_number():
+    a = extraction.Answer(value=math.inf, unit="USD/tCO2", quote="inf", grounded=True, page=1, locator=None, as_of=None)
+    e = extraction.check(FACTS["price"], a, "primary", date(2026, 1, 1), BOOK.conversions)
+    assert (e.counted, e.reason) == (False, "Value is not a number")

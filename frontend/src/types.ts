@@ -1787,6 +1787,7 @@ export interface BarrierValue {
   value: string | number | boolean | null;
   unit: string | null;
   shown: string | null;
+  extracted: string | null;
   document: string | null;
   document_id: number | null;
   page: number | null;
@@ -1797,6 +1798,7 @@ export interface BarrierValue {
   reason: string | null;
   entered_by: string | null;
   quote: string | null;
+  url: string | null;
 }
 
 export interface BarrierResult {

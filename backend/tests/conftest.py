@@ -5,6 +5,7 @@ import os
 import pytest
 
 from arp.api.auth import Principal
+from arp.transition_barrier.fetching import fetch_sources as _REAL_FETCH_SOURCES  # before any test patches it
 
 PRINCIPAL = Principal(user_id="u_test", name="Test", role="approver")
 
@@ -64,6 +65,28 @@ def _identity_lookups_offline(monkeypatch):
         return await real(company, transport=transport or httpx.MockTransport(refuse), **kwargs)
 
     monkeypatch.setattr(identity_pipeline, "resolve_company_identity", offline)
+
+
+@pytest.fixture(autouse=True)
+def _barrier_sources_offline(monkeypatch):
+    """A derivation with the refresh flag on fetches its registered sources. Unless a test serves them with
+    `transition_barrier_helpers.fetch_stub`, the fetch sends no request and returns no note; a fetch with the
+    flag off fails the run (AC-115). The flag is read where the derivation reads it: the API override, else
+    `get_settings()`."""
+    from arp.transition_barrier import fetching
+
+    async def offline(sources, today):
+        from arp.api.deps import settings_dep
+        from arp.api.main import app
+        from arp.config import get_settings
+
+        override = app.dependency_overrides.get(settings_dep)
+        settings = override() if override else get_settings()
+        assert settings.transition_barrier_refresh_enabled, "a source was fetched with the refresh flag off"
+        return []
+
+    offline.real = _REAL_FETCH_SOURCES  # what fetch_stub puts back
+    monkeypatch.setattr(fetching, "fetch_sources", offline)
 
 
 @pytest.fixture(scope="session")

@@ -583,6 +583,53 @@ class BarrierDocument(Base):
     uploaded_at: Mapped[datetime] = _ts()
 
 
+class BarrierSourceDocument(Base):
+    """A registered source fetched from its URL; a changed document adds a row."""
+
+    __tablename__ = "barrier_source_documents"
+    __table_args__ = (Index("ix_barrier_source_documents_key", "source_key", "id"),)
+
+    id: Mapped[int] = _id()
+    source_key: Mapped[str] = mapped_column(Text)
+    url: Mapped[str] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text)  # the source's source_name
+    publisher: Mapped[str] = mapped_column(Text)
+    tier: Mapped[str] = mapped_column(Text)
+    as_of: Mapped[date] = mapped_column(Date)
+    content_key: Mapped[str] = mapped_column(Text)  # sha256 of the bytes, the blob store key
+    content_type: Mapped[str] = mapped_column(Text)
+    page_texts: Mapped[list] = mapped_column(JSONB)
+    html: Mapped[bool] = mapped_column(Boolean)
+    fetched_at: Mapped[datetime] = _ts()
+
+
+class BarrierExtraction(Base):
+    """The model's answer for one fact in one stored source document, as given (source value and unit) with its
+    quote grounding; the code checks run on it when it is read. A not-found answer is kept too (found False)."""
+
+    __tablename__ = "barrier_extractions"
+    __table_args__ = (
+        UniqueConstraint("code", "region", "fact", "source_document_id", "fingerprint", name="uq_barrier_extractions_key"),
+    )
+
+    id: Mapped[int] = _id()
+    code: Mapped[str] = mapped_column(Text)
+    region: Mapped[str] = mapped_column(Text)
+    fact: Mapped[str] = mapped_column(Text)
+    source_document_id: Mapped[int] = mapped_column(ForeignKey("barrier_source_documents.id"))
+    fingerprint: Mapped[str] = mapped_column(Text)  # the fact definition and prompt version it was extracted with
+    found: Mapped[bool] = mapped_column(Boolean)
+    value: Mapped[str | float | bool | None] = mapped_column(JSONB)  # as the source states it
+    unit: Mapped[str | None] = mapped_column(Text)  # the source's unit text
+    quote: Mapped[str | None] = mapped_column(Text)  # "" when the model cited nothing
+    grounded: Mapped[bool | None] = mapped_column(Boolean)  # the quote was found in a passage the model was shown
+    page: Mapped[int | None] = mapped_column(Integer)
+    locator: Mapped[str | None] = mapped_column(Text)
+    as_of: Mapped[date | None] = mapped_column(Date)
+    run_id: Mapped[str] = mapped_column(Text)
+    extracted_at: Mapped[datetime] = _ts()
+
+
 class BarrierFact(Base):
     __tablename__ = "barrier_facts"
     __table_args__ = (Index("ix_barrier_facts_cell", "code", "region"),)

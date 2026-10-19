@@ -288,12 +288,13 @@ def add_choice(
     settings: Settings = Depends(settings_dep), run_store: RunStore = Depends(get_run_store),
 ) -> dict:
     """For a conflict, the analyst picks which value counts, with a written reason; the cell is derived again with it."""
-    rules, _ = _cell(code, region)
+    rules, registry = _cell(code, region)
     if req.fact not in {f.id for f in rules.facts if f.type}:
         raise HTTPException(422, f"Unknown fact {req.fact}")
     try:
         choice_id = store.add_choice(
-            code=code, region=region, fact=req.fact, value_id=str(req.value_id), reason=req.reason, chosen_by=user.user_id
+            code=code, region=region, fact=req.fact, value_id=str(req.value_id), reason=req.reason, chosen_by=user.user_id,
+            rules=rules, registry=registry,
         )
     except FactRefused as exc:
         raise HTTPException(exc.status, exc.message) from None
@@ -326,7 +327,8 @@ class DeriveRequest(BaseModel):
 def start_derivation(
     req: DeriveRequest, settings: Settings = Depends(settings_dep), run_store: RunStore = Depends(get_run_store)
 ) -> dict:
-    """Derive the cells from their stored facts. Phase 2 is code and database only, so the run has finished when this answers."""
+    """Derive the cells: fetch their sources (refresh on), extract the facts not yet stored, then rate in code.
+    The run has finished when this answers."""
     try:
         run_id = create_derivation_run(run_store, [(c.code, c.region) for c in req.cells])
     except UnknownCell as exc:

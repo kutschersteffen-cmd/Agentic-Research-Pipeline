@@ -1,0 +1,168 @@
+{
+  "PWR-T1": {
+    "re_lcoe": ["levelized cost", "levelised cost", "LCOE", "solar photovoltaic", "onshore wind", "USD/MWh", "unsubsidized"],
+    "fossil_lcoe": ["levelized cost", "levelised cost", "LCOE", "combined cycle", "CCGT", "coal", "natural gas", "USD/MWh"],
+    "re_lcoe_sub": ["LCOE", "tax credit", "production tax credit", "investment tax credit", "contract for difference", "subsidised", "subsidized"]
+  },
+  "PWR-T2": {
+    "storage_gw": ["battery storage", "energy storage", "utility-scale", "grid-scale", "installed capacity", "GW", "megawatts"],
+    "vre_gw": ["solar", "wind", "photovoltaic", "installed capacity", "cumulative capacity", "GW"],
+    "curtailment": ["curtailment", "curtailed", "dispatch-down", "redispatch", "congestion", "utilisation rate", "wind and solar"]
+  },
+  "PWR-R1": {
+    "price": ["carbon price", "allowance price", "EUA", "auction price", "carbon tax", "emissions trading", "per tonne", "tCO2"],
+    "scope": ["emissions trading system", "ETS", "power sector", "electricity generation", "covered installations", "national carbon market", "coverage"],
+    "mandate": ["clean electricity standard", "renewable portfolio standard", "100% clean", "renewable energy target", "zero-carbon electricity", "alternative compliance payment"]
+  },
+  "PWR-R2": {
+    "target": ["renewable energy target", "binding target", "share of renewable energy", "gross final consumption", "five-year plan", "2030 target", "renewable portfolio"],
+    "connect_years": ["interconnection", "grid connection", "queue", "commercial operation", "median duration", "years", "months"]
+  },
+  "PWR-D1": {
+    "ppa_gw": ["power purchase agreement", "PPA", "corporate offtake", "contracted capacity", "GW", "signed"],
+    "ppa_gw_prior": ["power purchase agreement", "PPA", "corporate offtake", "previous year", "GW", "signed"],
+    "re_add_gw": ["capacity additions", "newly installed", "solar", "wind", "added", "GW"]
+  },
+  "STL-T1": {
+    "h2_cost": ["levelised cost of hydrogen", "levelized cost of hydrogen", "LCOH", "electrolysis", "renewable hydrogen", "green hydrogen", "per kg"],
+    "h2_breakeven": ["breakeven", "break-even", "H2-DRI", "direct reduced iron", "hydrogen price", "BF-BOF", "cost parity"],
+    "supply_chain": ["electrolyser", "electrolyzer", "renewable hydrogen", "green hydrogen", "under construction", "operational", "MW"]
+  },
+  "STL-T2": {
+    "scrap_mt": ["ferrous scrap", "iron and steel scrap", "scrap consumption", "scrap exports", "scrap imports", "apparent consumption"],
+    "capacity_mt": ["steelmaking capacity", "crude steel capacity", "raw steel", "production capability", "million tons", "Mt"]
+  },
+  "STL-R1": {
+    "applies": ["emissions trading", "surrender allowances", "compliance obligation", "iron and steel", "covered sectors", "carbon tax"],
+    "price": ["carbon price", "allowance price", "EUA", "auction price", "average price", "per tonne", "tCO2"],
+    "levy": ["carbon border adjustment", "CBAM", "importers", "certificates", "embedded emissions", "iron and steel"],
+    "fa_phaseout": ["free allocation", "phase-out", "CBAM factor", "benchmark", "free allowances", "reduction of free allocation"]
+  },
+  "STL-R2": {
+    "rule": ["public procurement", "green public procurement", "Buy Clean", "embodied carbon", "low-carbon steel", "building code", "environmental product declaration"],
+    "coverage": ["share of steel demand", "construction steel", "public procurement", "embodied carbon", "covered", "percent"]
+  },
+  "STL-D1": {
+    "premium": ["green premium", "price premium", "low-carbon steel", "green steel", "per tonne", "surcharge"],
+    "offtake_signed": ["offtake agreement", "supply agreement", "green steel", "low-carbon steel", "signed", "purchase agreement"],
+    "offtake_share": ["offtake", "contracted volume", "green steel", "announced capacity", "share", "tonnes per year"]
+  },
+  "CEM-T1": {
+    "op_capacity": ["carbon capture", "CCS", "CCUS", "cement plant", "capture capacity", "Mtpa", "in operation"],
+    "track_record": ["carbon capture", "cement plant", "captured", "stored", "commercial operation", "since"],
+    "fid_capacity": ["carbon capture", "CCS", "cement plant", "final investment decision", "FID", "under construction", "Mtpa"]
+  },
+  "CEM-T2": {
+    "clinker_ratio": ["clinker ratio", "clinker-to-cement", "clinker factor", "clinker content", "blended cement", "clinker production"],
+    "scm_programme": ["supplementary cementitious materials", "blended cement", "portland-limestone cement", "calcined clay", "slag", "fly ash", "cement standard"]
+  },
+  "CEM-R1": {
+    "applies": ["emissions trading", "surrender allowances", "compliance obligation", "cement clinker", "covered sectors", "carbon tax"],
+    "price": ["carbon price", "allowance price", "EUA", "auction price", "average price", "per tonne", "tCO2"],
+    "levy": ["carbon border adjustment", "CBAM", "importers", "certificates", "embedded emissions", "cement"],
+    "fa_phaseout": ["free allocation", "phase-out", "CBAM factor", "benchmark", "free allowances", "reduction of free allocation"]
+  },
+  "CEM-R2": {
+    "scheme": ["carbon capture", "CCS funding", "grant", "Innovation Fund", "carbon contract for difference", "45Q", "transport and storage"],
+    "disbursed": ["disbursed", "paid out", "grant agreement", "award", "funding", "carbon capture", "cement"]
+  },
+  "CEM-D1": {
+    "rule": ["public procurement", "green public procurement", "Buy Clean", "embodied carbon", "low-carbon concrete", "low-carbon cement", "building code"],
+    "coverage": ["low-carbon cement", "required volume", "procurement", "capacity", "share", "tonnes per year"]
+  },
+  "CHM-T1": {
+    "lc_cost": ["levelised cost of hydrogen", "levelized cost of hydrogen", "LCOH", "electrolysis", "carbon capture", "blue hydrogen", "per kg"],
+    "grey_cost": ["grey hydrogen", "steam methane reforming", "SMR", "unabated", "natural gas price", "per kg"],
+    "grey_cost_carbon": ["grey hydrogen", "carbon price", "steam methane reforming", "CO2 per kg", "carbon cost", "per kg"],
+    "supply_chain": ["low-carbon hydrogen", "electrolyser", "carbon capture", "ammonia plant", "under construction", "operational"]
+  },
+  "CHM-T2": {
+    "trl": ["electric cracking", "electrically heated", "steam cracker", "e-furnace", "technology readiness level", "TRL", "demonstration"],
+    "commercial": ["electric cracker", "electrically heated furnace", "steam cracker", "commercial scale", "final investment decision", "FID"]
+  },
+  "CHM-R1": {
+    "applies": ["emissions trading", "surrender allowances", "compliance obligation", "ammonia", "steam cracking", "chemicals", "carbon tax"],
+    "price": ["carbon price", "allowance price", "EUA", "auction price", "average price", "per tonne", "tCO2"],
+    "levy": ["carbon border adjustment", "CBAM", "ammonia", "fertilisers", "organic chemicals", "polymers", "scope"],
+    "fa_phaseout": ["free allocation", "phase-out", "CBAM factor", "ammonia", "steam cracking", "benchmark", "high value chemicals"]
+  },
+  "CHM-D1": {
+    "signed": ["offtake agreement", "green ammonia", "e-methanol", "green methanol", "bio-methanol", "binding agreement", "signed"],
+    "volume": ["offtake", "green ammonia", "green methanol", "tonnes per year", "annual volume", "signed"],
+    "premium": ["price premium", "green ammonia", "green methanol", "fossil equivalent", "offtake", "premium"]
+  },
+  "MIN-T1": {
+    "multi_mine": ["battery-electric", "electric haul truck", "battery electric vehicles", "mining fleet", "loader", "drill", "production use"],
+    "deployed": ["battery-electric", "electric haul truck", "mine trial", "pilot", "mining equipment", "loader", "drill"],
+    "order_share": ["battery-electric", "equipment orders", "mining equipment", "order intake", "share", "units"]
+  },
+  "MIN-R1": {
+    "regime": ["strategic project", "permit-granting", "permitting", "expedite", "priority project", "time limit", "critical raw materials"],
+    "max_months": ["permit-granting process", "maximum duration", "months", "strategic project", "extraction", "time limit"],
+    "standard_months": ["permitting time", "mine permitting", "approval process", "years", "months", "plan of operations"]
+  },
+  "MIN-R2": {
+    "rule": ["critical minerals requirement", "domestic content", "free trade agreement", "extracted or processed", "sourcing", "benchmark", "foreign entity of concern"],
+    "min_share": ["applicable percentage", "critical minerals", "value of the critical minerals", "domestic content", "percent", "free trade agreement"],
+    "subsidy": ["tax credit", "clean vehicle credit", "subsidy", "budget", "cost estimate", "per year", "billion"]
+  },
+  "MIN-D1": {
+    "covered": ["lithium", "offtake agreement", "supply agreement", "lithium content", "refining capacity", "2030", "LCE"],
+    "gap": ["lithium demand", "supply gap", "net zero emissions", "refined lithium", "2030", "projected demand"],
+    "no_gap": ["lithium demand", "refined lithium production", "supply gap", "self-sufficient", "2030", "projected demand"]
+  },
+  "AVI-T1": {
+    "saf_cap": ["sustainable aviation fuel", "SAF", "production capacity", "nameplate capacity", "HEFA", "renewable jet", "biorefinery"],
+    "jet_demand": ["jet fuel", "kerosene", "aviation fuel consumption", "jet fuel demand", "uplift", "litres", "gallons"],
+    "pipeline": ["sustainable aviation fuel", "SAF plant", "final investment decision", "FID", "under construction", "expansion"]
+  },
+  "AVI-R1": {
+    "status": ["sustainable aviation fuel", "SAF", "minimum share", "blending mandate", "fuel suppliers", "obligation", "goal"],
+    "escalating": ["minimum share", "SAF", "minimum shares", "2030", "2050", "rising", "synthetic aviation fuels"],
+    "penalties": ["penalty", "penalties", "fine", "fines", "non-compliance", "minimum shares", "fuel supplier"]
+  },
+  "AVI-D1": {
+    "premium": ["SAF price", "price premium", "price difference", "conventional jet fuel", "times the price", "per litre", "per tonne"],
+    "offset": ["tax credit", "45Z", "RIN", "low carbon fuel standard", "allowances", "per gallon", "per litre"],
+    "offset_mech": ["tax credit", "45Z", "RIN", "low carbon fuel standard", "SAF allowances", "eligible aviation fuels", "zero-rating"],
+    "offtake_vol": ["SAF offtake", "purchase agreement", "book and claim", "certificates", "gallons", "litres", "per year"],
+    "jet_demand": ["jet fuel", "kerosene", "aviation fuel consumption", "jet fuel demand", "uplift", "litres", "gallons"],
+    "offtake_signed": ["SAF offtake", "purchase agreement", "supply agreement", "airline", "signed", "sustainable aviation fuel"]
+  },
+  "SHP-T1": {
+    "alt_share": ["orderbook", "newbuild orders", "dual-fuel", "methanol", "ammonia", "LNG", "gross tonnage", "contracted"]
+  },
+  "SHP-R1": {
+    "price_applies": ["maritime transport", "shipping companies", "surrender allowances", "emissions trading", "verified emissions", "carbon levy", "phase-in"],
+    "mandate_applies": ["GHG intensity", "energy used on board", "limit", "well-to-wake", "gCO2e/MJ", "FuelEU", "penalty"]
+  },
+  "SHP-D1": {
+    "committed_any": ["green shipping corridor", "green corridor", "cargo owners", "commitment", "zero-emission vessels", "offtake", "ZEMBA"],
+    "qualifying": ["green shipping corridor", "cargo owners", "premium", "surcharge", "book and claim", "tender", "commitment"]
+  },
+  "HDT-T1": {
+    "ze_tco_reg": ["total cost of ownership", "TCO", "battery electric truck", "fuel cell truck", "regional delivery", "per km", "per mile"],
+    "diesel_tco_reg": ["total cost of ownership", "TCO", "diesel truck", "regional delivery", "per km", "per mile"],
+    "ze_tco_lh": ["total cost of ownership", "TCO", "battery electric truck", "fuel cell truck", "long-haul", "per km", "per mile"],
+    "diesel_tco_lh": ["total cost of ownership", "TCO", "diesel truck", "long-haul", "per km", "per mile"]
+  },
+  "HDT-R1": {
+    "status": ["CO2 emission standards", "emissions reduction targets", "heavy-duty vehicles", "greenhouse gas emissions standards", "zero-emission vehicles", "fuel consumption limits", "reporting period"],
+    "penalties": ["excess emissions premium", "penalty", "fine", "non-compliance", "manufacturer", "per vehicle"],
+    "zev_share": ["zero-emission vehicles", "ZEV share", "sales share", "2030", "heavy-duty", "percent"]
+  },
+  "HDT-D1": {
+    "density": ["recharging points", "charging stations", "hydrogen refuelling", "core network", "every 60 km", "350 kW", "corridor"]
+  },
+  "OGU-T1": {
+    "coverage": ["leak detection and repair", "LDAR", "flaring", "routine flaring", "methane", "production", "share"],
+    "major_ops": ["leak detection and repair", "LDAR", "flaring", "operators", "national oil company", "methane"]
+  },
+  "OGU-R1": {
+    "status": ["methane", "leak detection and repair", "venting", "flaring", "existing sources", "compliance deadline", "waste emissions charge"],
+    "enforcement": ["penalties", "fines", "periodic penalty payments", "inspections", "competent authorities", "enforcement"]
+  },
+  "OGU-D1": {
+    "demand_change": ["oil demand", "natural gas demand", "Stated Policies Scenario", "STEPS", "2035", "World Energy Outlook", "change"]
+  }
+}

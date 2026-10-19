@@ -10,6 +10,7 @@ import typer
 from arp.cli._shared import _run_store
 from arp.config import get_settings
 from arp.schemas.transition_barrier import Pillar, Region
+from arp.transition_barrier import golden
 from arp.transition_barrier.dataset import (
     current_scores,
     data_dir,
@@ -20,6 +21,7 @@ from arp.transition_barrier.dataset import (
     sources_for_criterion,
 )
 from arp.transition_barrier.derivation import UnknownCell, create_derivation_run, execute_derivation_run
+from arp.transition_barrier.engine import _show
 from arp.transition_barrier.refresh.pipeline import RefreshDisabledError, run_refresh
 from arp.transition_barrier.refresh.router import coverage_summary, route_sources
 from arp.transition_barrier.render import render_rule_book_md
@@ -235,3 +237,26 @@ def transition_barrier_derive(
         raise _fail([str(exc)]) from None
     execute_derivation_run(run_store, run_id, get_settings(), today=today)
     typer.echo(run_id)
+
+
+@transition_barrier_app.command("golden")
+def transition_barrier_golden(
+    cases: Path = typer.Option(..., help="Labelled cases (JSON)."),
+    documents_dir: Path = typer.Option(..., "--documents-dir", help="Directory with the case documents."),
+    min_precision: float = typer.Option(..., "--min-precision", help="Exit 1 below this precision."),
+    min_coverage: float = typer.Option(..., "--min-coverage", help="Exit 1 below this coverage."),
+    now: str = typer.Option(None, "--now", help="Run date, YYYY-MM-DD (default: today)."),
+) -> None:
+    """Run the real extraction on the labelled cases; print precision and coverage."""
+    try:
+        today = date.fromisoformat(now) if now else date.today()
+    except ValueError:
+        raise _fail(["--now must be YYYY-MM-DD."]) from None
+    settings = get_settings()
+    llm, verifier = golden._llms(settings)
+    precision, coverage = asyncio.run(
+        golden.score(golden.load_cases(cases), documents_dir, llm=llm, verifier_llm=verifier, settings=settings, today=today)
+    )
+    typer.echo(f"precision {_show(precision, None)}, coverage {_show(coverage, None)}")
+    if precision < min_precision or coverage < min_coverage:
+        raise typer.Exit(code=1)

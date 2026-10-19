@@ -3,13 +3,27 @@
 from __future__ import annotations
 
 import io
+import ipaddress
+import re
+from collections.abc import Callable
+from datetime import UTC, date, datetime
+from email.utils import format_datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
+import httpx
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
 from arp.api.auth import Principal, current_user
 from arp.api.main import app
+from arp.db.models import BarrierSourceDocument
+from arp.db.session import transaction
+from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
+from arp.extraction.verifier_agent import VerifierOutput
+from arp.llm.base import LLMUsage
+from arp.net_safety import UnsafeURLError
+from arp.transition_barrier import fetching
 
 FIXTURES = Path(__file__).parent / "fixtures" / "transition_barrier"
 CELL = "/api/transition-barrier/cells/STL-R1/European Union"
@@ -103,3 +117,77 @@ def derive(client, cells=(("STL-R1", "European Union"),)):
     r = client.post("/api/transition-barrier/derive", json={"cells": [{"code": c, "region": g} for c, g in cells]})
     assert r.status_code == 200, r.text
     return r.json()["run_id"]
+
+
+D_URLS = {
+    "D1": "https://climate.ec.europa.eu/eu-ets-market-report-2026.pdf",
+    "D2": "https://eur-lex.europa.eu/eli/reg/2023/956/oj",
+    "D3": "https://example.org/steel-policy-tracker",
+}
+
+
+def fetch_stub(monkeypatch, served: dict[str, tuple[bytes, str, str | None]] | None = None) -> list[str]:
+    """Serves URLs to `fetching` from memory: url -> (body, content type, Last-Modified as an ISO date).
+    D1-D3 are served as their fixture PDFs unless `served` replaces them. Returns the list of requested URLs."""
+    pages = {
+        D_URLS[d]: (fixture_pdf(d), "application/pdf", DOCS[d][2]) for d in D_URLS
+    } | (served or {})
+    requested: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested.append(str(request.url))
+        if str(request.url) not in pages:
+            return httpx.Response(404)
+        body, content_type, modified = pages[str(request.url)]
+        headers = {"content-type": content_type}
+        if modified:
+            headers["last-modified"] = format_datetime(datetime.combine(date.fromisoformat(modified), datetime.min.time(), UTC), usegmt=True)
+        return httpx.Response(200, content=body, headers=headers)
+
+    def assert_safe(url) -> None:  # no DNS: only an IP literal can be refused
+        host = urlparse(str(url)).hostname or ""
+        try:
+            ip = ipaddress.ip_address(host)
+        except ValueError:
+            return
+        if ip.is_private or ip.is_loopback or ip.is_link_local:
+            raise UnsafeURLError(f"{host} is a disallowed address")
+
+    monkeypatch.setattr(fetching, "build_client", lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True))
+    monkeypatch.setattr(fetching, "assert_safe", assert_safe)
+    monkeypatch.setattr(fetching, "fetch_sources", getattr(fetching.fetch_sources, "real", fetching.fetch_sources))  # conftest's stand-in
+    return requested
+
+
+_BLOCK = re.compile(r"^\[doc_id=(\S+) \| passage_id=(\S+)[^\]\n]*\]\n(.*?)(?=\n\n---\n\n|\Z)", re.S | re.M)
+
+
+def _stored_title(doc_id: str) -> str:
+    with transaction() as s:
+        return s.get(BarrierSourceDocument, int(doc_id.removeprefix("tbsrc_"))).title
+
+
+class FactStub:
+    """The extraction stub: answers keyed by (fact id, document title), a missing key meaning not found.
+    The prompt shows only `doc_id`, so `title_of` resolves it (default: the stored barrier source document)."""
+
+    def __init__(self, answers: dict[tuple[str, str], PeriodValue | None], title_of: Callable[[str], str] = _stored_title):
+        self.answers, self.title_of = answers, title_of
+        self.calls: list[str] = []
+
+    async def complete_structured(self, *, system, prompt, output_model, images=None, **_):
+        self.calls.append(output_model.__name__)
+        usage = LLMUsage(provider="fake")
+        if output_model is VerifierOutput:
+            return VerifierOutput(agrees=True, confidence=1.0, notes=""), usage
+        assert output_model is ExtractionDraft, output_model
+        fact = re.search(r"^Field: (.+)$", prompt, re.M)[1]
+        blocks = _BLOCK.findall(prompt)
+        answer = self.answers.get((fact, self.title_of(blocks[0][0]))) if blocks else None
+        if answer is None:
+            return ExtractionDraft(confidence=1.0), usage
+        cites = []
+        for c in answer.citations:  # the passage that holds the quote, else the first shown
+            doc_id, passage_id, _ = next((b for b in blocks if c.quote in b[2]), blocks[0])
+            cites.append(c.model_copy(update={"doc_id": doc_id, "passage_id": passage_id}))
+        return ExtractionDraft(values=[answer.model_copy(update={"citations": cites})], confidence=1.0), usage

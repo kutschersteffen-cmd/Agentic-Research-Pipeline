@@ -2,21 +2,24 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { BarrierFactForm } from "../components/BarrierFactForm";
 import { FileLink } from "../components/FileLink";
-import { RATING_CLASS, RATING_LABEL, errorDetail, historyLine, outcomeClass, ratifiedLine } from "../lib/barrier";
+import { RATING_CLASS, RATING_LABEL, errorDetail, historyLine, outcomeClass, ratifiedLine, sourceHref, sourceText, valueText } from "../lib/barrier";
 import type { BarrierCell, BarrierCriterion, BarrierRating, BarrierValue } from "../types";
 
 const when = (iso: string) => iso.slice(0, 16).replace("T", " ");
 
 function Figure({ v, label }: { v: BarrierValue; label: string }) {
+  const href = sourceHref(v);
   return (
     <tr>
       <td>{label}</td>
-      <td className="mono">{v.shown ?? "—"}</td>
+      <td className="mono">{valueText(v)}</td>
       <td>
         {v.document_id != null ? (
           <FileLink url={api.barrierDocumentUrl(v.document_id, v.page)} name={`document-${v.document_id}.pdf`} open>
             {v.document}
           </FileLink>
+        ) : href ? (
+          <a href={href} target="_blank" rel="noopener noreferrer">{v.document}</a>
         ) : (
           v.document ?? <span className="muted">computed</span>
         )}
@@ -25,7 +28,7 @@ function Figure({ v, label }: { v: BarrierValue; label: string }) {
       </td>
       <td>{v.quote ? `“${v.quote}”` : <span className="muted">—</span>}</td>
       <td className="mono">{v.confidence}</td>
-      <td>{v.counted ? (v.machine_checked ? "checked in the document" : `entered by ${v.entered_by ?? "an analyst"}`) : <span className="error-text">not counted: {v.reason}</span>}</td>
+      <td>{v.counted ? sourceText(v) : <span className="error-text">not counted: {v.reason}</span>}</td>
     </tr>
   );
 }

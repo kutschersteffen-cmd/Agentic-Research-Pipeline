@@ -24,7 +24,10 @@ SHOW_SURVIVORS = 5
 _NOTHING_COVERED = "could not find any test case for any mutant"  # mutmut 3.8 stops with exit 1
 # Inside mutmut's backend/mutants/ copy, config.py's REPO_ROOT resolves to backend/, so every
 # selected test that reads repo files (docs/, schemas/, ...) fails before a mutant runs.
-SKIP = {"arp/config.py": "skipped: in mutmut's copy REPO_ROOT points at backend/"}
+SKIP = {
+    "arp/config.py": "skipped: in mutmut's copy REPO_ROOT points at backend/",
+    "arp/db/models.py": "skipped: models only; mutmut can't force a failure",
+}
 
 
 def git(*args: str) -> str:
@@ -73,6 +76,22 @@ def mutate(path: str, tests: list[str]) -> dict[str, list[str]]:
     return groups
 
 
+def link_repo_root(src: Path = Path(".."), dst: Path = Path(".")) -> list[Path]:
+    """In mutmut's backend/mutants/ copy, code and tests resolve the repo root to backend/. Link each repo entry
+    missing from backend/ (backend itself included, folders present in both merged entry by entry) so that
+    REPO_ROOT / "docs" or REPO / "scripts" / "x.js" resolve. Returns the links made, for removal."""
+    made = []
+    for entry in sorted(src.iterdir()):
+        target = dst / entry.name
+        if entry.name == ".git" or target.is_symlink():
+            continue
+        if not target.exists():
+            target.symlink_to(os.path.relpath(entry, dst))
+            made.append(target)
+        elif entry.is_dir() and target.is_dir() and entry.resolve() != target.resolve():
+            made += link_repo_root(entry, target)
+    return made
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     src = ap.add_mutually_exclusive_group(required=True)
@@ -91,6 +110,7 @@ def main() -> int:
     total_killed = total_survived = 0
     failed = False
     details: list[str] = []
+    links = link_repo_root()
     try:
         for f in files:
             if f in SKIP:
@@ -117,6 +137,8 @@ def main() -> int:
                 diff = subprocess.run(["mutmut", "show", name], capture_output=True, text=True).stdout.strip()
                 details += [f"<details><summary>{name}</summary>", "", "```diff", diff, "```", "</details>", ""]
     finally:
+        for link in links:
+            link.unlink()
         CFG.unlink(missing_ok=True)
         shutil.rmtree("mutants", ignore_errors=True)
 
