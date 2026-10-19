@@ -304,6 +304,11 @@ Setup notes for the test-writer:
 | AC-67 | Fixture E | `arp io import-exiobase IOT_fixture_ixi.zip --out <dir> --split-electricity` | Exit 0; stdout line 1 is `163 sectors -> 54 industries, 2 regions -> <D>` | holdout |
 | AC-68 | AC-67's output | Read `<D>/industries.csv` | 54 rows in Appendix A2 order, no `D` row; total_output `D_TD` 30, `D_GEN_REN` 20, `D_GEN_FOS` 0, `D_GEN_NUC` 0, `D_GAS` 0; `label`, `isic_divisions` and `nace_classes` as in Appendix A2 | holdout |
 | AC-69 | AC-67's output | Read `<D>/exiobase_flows.csv` | Exactly three data rows: (C26, C27, 15), (D_GEN_REN, C26, 3), (D_TD, C26, 2), in that order | holdout |
+| AC-114 | AC-67's output | Read `<D>/ghg.csv` | 54 rows in Appendix A2 order, no `D` row; `D_GEN_REN` 2000, `C26` 298, every other row 0 | holdout |
+| AC-115 | AC-67's output | Read `<D>/final_demand.csv` | 54 rows in Appendix A2 order, no `D` row; `D_TD`: households 5, others 0; every other `D_*` row all 0; `C27` and `C26` as in AC-57 | holdout |
+| AC-116 | AC-67's output | Read `<D>/regional_output.csv` | 108 rows, the 54 `EU` rows then the 54 `ASIA_OTH` rows, no `D` code; (EU, D_TD) 30, (EU, D_GEN_REN) 20; every other `D_*` row 0 | holdout |
+| AC-117 | AC-67's output | Read `<D>/regional_flows.csv` | Exactly 4 data rows, in this order: `EU,C26,ASIA_OTH,C27,10`, `EU,D_GEN_REN,EU,C26,3`, `EU,D_TD,EU,C26,2`, `ASIA_OTH,C26,EU,C27,5` | holdout |
+| AC-118 | Split configured | Exposure for `D_GEN_REN`, core `{"C27"}` | `ghg_direct_t_per_meur` 0.1 | holdout |
 | AC-16 | `reference/exiobase_ixi_to_icio2025.csv` | Read the `icio_code` of Appendix B rows 87, 88, 89, 100, 108, 133, 55, 163 | `C26`, `C27`, `C26`, `D`, `D`, `J62_63`, `C17_18`, `O` | holdout |
 | AC-41 | `reference/exiobase_ixi_to_icio2025.csv` | Read the whole file | Header `exiobase_sector,icio_code,split_code`; 163 data rows equal, in order, to Appendix B's (sector, ICIO, Split) triples | holdout |
 | AC-51 | `reference/icio2025_industries.csv` | Read the whole file | Header `code,label,isic_divisions`; 50 data rows equal, in order, to Appendix A's (Code, Label, isic_divisions) | holdout |
