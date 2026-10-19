@@ -3,15 +3,19 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
+from pypdf import PdfReader
 from typer.testing import CliRunner
 
+from arp.checks.numeric import candidates
 from arp.cli.transition_barrier import transition_barrier_app
 from arp.config import Settings, get_settings
 from arp.extraction.extractor_agent import PeriodValue
 from arp.schemas.common import Citation, DocType
 from arp.transition_barrier import dataset, golden
+from arp.transition_barrier.rule_book import load_rule_book
 from tests.transition_barrier_helpers import FIXTURES, QUOTES, FactStub, fixture_pdf
 
 # D1-floor.pdf is D1 again: the stub answers one value per (fact, document), and price is asked twice
@@ -96,3 +100,36 @@ def test_numbers_compare_at_two_decimals_half_up(run_golden):
     cases[0]["page"] = 15
     out = run_golden(cases, answers, "--min-precision", "1", "--min-coverage", "1")
     assert out.stdout.strip() == "precision 1, coverage 1" and out.exit_code == 0
+
+
+G = Path(__file__).parent / "golden" / "transition_barrier"
+
+
+def _squash(text: str) -> str:
+    return "".join(text.split())
+
+
+def test_golden_set_shape():  # G for AC-123: the drafted labels hold before the owner's check
+    cases = golden.load_cases(G / "cases.json")
+    book = load_rule_book(Path(golden.__file__).parent / "data")[0]
+    rates = [1.0] + [r["rate"] for r in book.conversions]
+    rows = [
+        [cell.strip() for cell in line.strip().strip("|").split("|")]
+        for line in (G / "LABELS.md").read_text(encoding="utf-8").splitlines()
+        if line.startswith("| ") and line.split("|")[1].strip().isdigit()
+    ]  # LABELS.md case table: #, cell, fact, value, unit, document, page, quote
+    assert len(cases) >= 40 and len({c.document for c in cases}) >= 12
+    for case, (_, _, _, _, _, document, page, quote) in zip(cases, rows, strict=True):
+        facts = {f.id: f for f in book.criteria[case.code].facts}
+        assert case.fact in facts and facts[case.fact].type, case  # a measured fact, not a computed one
+        path = G / "documents" / case.document
+        assert path.is_file() and path.stat().st_size < 5 * 1024 * 1024, case
+        assert (document, page) == (case.document, str(case.page or "—")), case
+        if case.value is None:  # absent from the document: counts against coverage only
+            assert case.page is None and facts[case.fact].type in ("boolean", "enum"), case
+            continue
+        # the text facts.pdf_pages (and so the scorer) gets for that page, without parsing the whole file
+        text = PdfReader(path).pages[case.page - 1].extract_text() or ""
+        assert _squash(quote) in _squash(text), case
+        if facts[case.fact].type == "number":  # the label is a figure in the quote, converted at most once
+            assert any(round(n * r, 2) == case.value for n in candidates(quote) for r in rates), case
