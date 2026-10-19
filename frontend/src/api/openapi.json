@@ -1459,6 +1459,51 @@
     "title": "BaseWeighting",
     "type": "object"
    },
+   "BenchmarkOut": {
+    "properties": {
+     "citation": {
+      "title": "Citation",
+      "type": "string"
+     },
+     "licence": {
+      "title": "Licence",
+      "type": "string"
+     },
+     "method": {
+      "title": "Method",
+      "type": "string"
+     },
+     "unit": {
+      "title": "Unit",
+      "type": "string"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Url"
+     },
+     "value": {
+      "title": "Value",
+      "type": "number"
+     }
+    },
+    "required": [
+     "value",
+     "unit",
+     "method",
+     "citation",
+     "url",
+     "licence"
+    ],
+    "title": "BenchmarkOut",
+    "type": "object"
+   },
    "BenchmarkUpload": {
     "properties": {
      "text": {
@@ -1470,6 +1515,32 @@
      "text"
     ],
     "title": "BenchmarkUpload",
+    "type": "object"
+   },
+   "BenchmarksOut": {
+    "properties": {
+     "licence_note": {
+      "title": "Licence Note",
+      "type": "string"
+     },
+     "sectors": {
+      "items": {
+       "$ref": "#/components/schemas/SectorBenchmarksOut"
+      },
+      "title": "Sectors",
+      "type": "array"
+     },
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "version",
+     "licence_note",
+     "sectors"
+    ],
+    "title": "BenchmarksOut",
     "type": "object"
    },
    "BestInClassCoverage": {
@@ -10984,6 +11055,34 @@
     "title": "Recipe",
     "type": "object"
    },
+   "RedlineDef": {
+    "properties": {
+     "citation": {
+      "title": "Citation",
+      "type": "string"
+     },
+     "fact": {
+      "title": "Fact",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "label",
+     "fact",
+     "citation"
+    ],
+    "title": "RedlineDef",
+    "type": "object"
+   },
    "RegimeBucketPerformance": {
     "properties": {
      "long_short": {
@@ -11992,6 +12091,49 @@
     "title": "RiskModelSpec",
     "type": "object"
    },
+   "RndTestDef": {
+    "properties": {
+     "citation": {
+      "title": "Citation",
+      "type": "string"
+     },
+     "denominator": {
+      "title": "Denominator",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "numerator": {
+      "title": "Numerator",
+      "type": "string"
+     },
+     "unit": {
+      "title": "Unit",
+      "type": "string"
+     },
+     "value": {
+      "title": "Value",
+      "type": "number"
+     }
+    },
+    "required": [
+     "id",
+     "label",
+     "numerator",
+     "denominator",
+     "value",
+     "unit",
+     "citation"
+    ],
+    "title": "RndTestDef",
+    "type": "object"
+   },
    "RoleProposal": {
     "description": "A proposed job and direction for one column, with the reason and --\nthe field that matters -- whether the proposal is a guess worth\nchecking. A wrong direction silently inverts a ranking, so an\nunconfident direction is surfaced rather than quietly applied.",
     "properties": {
@@ -12739,6 +12881,47 @@
     ],
     "title": "SectionLayoutHint",
     "type": "string"
+   },
+   "SectorBenchmarksOut": {
+    "properties": {
+     "capex": {
+      "$ref": "#/components/schemas/BenchmarkOut"
+     },
+     "isic_prefixes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Isic Prefixes",
+      "type": "array"
+     },
+     "redlines": {
+      "items": {
+       "$ref": "#/components/schemas/RedlineDef"
+      },
+      "title": "Redlines",
+      "type": "array"
+     },
+     "rnd_tests": {
+      "items": {
+       "$ref": "#/components/schemas/RndTestDef"
+      },
+      "title": "Rnd Tests",
+      "type": "array"
+     },
+     "sector": {
+      "title": "Sector",
+      "type": "string"
+     }
+    },
+    "required": [
+     "sector",
+     "isic_prefixes",
+     "capex",
+     "rnd_tests",
+     "redlines"
+    ],
+    "title": "SectorBenchmarksOut",
+    "type": "object"
    },
    "SelectAll": {
     "description": "No selection step: everything that survives the screens is in. This\nis what an exclusion-only index (MSCI ESG Screened, STOXX ESG-X) uses.",
@@ -31794,6 +31977,27 @@
     "summary": "Get Tnfd Review Queue",
     "tags": [
      "tnfd"
+    ]
+   }
+  },
+  "/api/transition-alignment/benchmarks": {
+   "get": {
+    "operationId": "get_benchmarks_api_transition_alignment_benchmarks_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BenchmarksOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Get Benchmarks",
+    "tags": [
+     "transition-alignment"
     ]
    }
   },

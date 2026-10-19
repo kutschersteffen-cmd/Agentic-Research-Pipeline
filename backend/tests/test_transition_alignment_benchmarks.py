@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import re
 from datetime import date
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
+from typer.testing import CliRunner
 
+from arp.cli.transition_alignment import transition_alignment_app
 from arp.transition_alignment import benchmarks
 from arp.transition_alignment.benchmarks import (
     MATRIX_SECTORS,
@@ -14,7 +19,7 @@ from arp.transition_alignment.benchmarks import (
     read_and_validate,
     sign_benchmarks,
 )
-from tests.transition_alignment_helpers import edit_bm, ta_dirs  # noqa: F401 - the fixture
+from tests.transition_alignment_helpers import _reset, edit_bm, ta_dirs  # noqa: F401 - the fixture
 
 BUNDLED_SCHEMA = Path(benchmarks.__file__).parents[1] / "transition_barrier" / "data" / "criteria_schema.json"
 
@@ -179,3 +184,107 @@ def test_invalid_json(tmp_path):
     (tmp_path / "benchmarks.json").write_text("{", encoding="utf-8")
     with pytest.raises(BenchmarksError, match="^benchmarks.json is not valid JSON: "):
         read_and_validate(tmp_path, tmp_path)
+
+
+# --- CLI, app startup and GET /api/transition-alignment/benchmarks (task 3) ---
+
+_runner = CliRunner()
+
+
+def _cli(*args: str):
+    return _runner.invoke(transition_alignment_app, ["benchmarks", *args])
+
+
+@pytest.fixture
+def bundled_dirs(monkeypatch):
+    """Both data-dir settings unset, so the bundled barrier and benchmarks directories are used."""
+    monkeypatch.delenv("ARP_TRANSITION_BARRIER_DATA_DIR", raising=False)
+    monkeypatch.delenv("ARP_TRANSITION_ALIGNMENT_DATA_DIR", raising=False)
+    _reset()
+    yield
+    _reset()
+
+
+def test_ac66_bundled_validates(bundled_dirs):
+    raw = json.loads((benchmarks.data_dir() / benchmarks.BENCHMARKS_FILE).read_text(encoding="utf-8"))
+    result = _cli("validate")
+    assert result.exit_code == 0, result.output
+    assert result.output == f"Benchmarks v{raw['version']}: OK, 9 sectors, 3 redlines\n"
+
+
+@pytest.mark.parametrize(
+    ("fn", "expected"),
+    [
+        (lambda r: r["sectors"]["Steel"]["capex"].pop("source"), "Steel: capex benchmark has no source"),  # AC-3
+        (
+            lambda r: r["sectors"].update(Aluminium={**r["sectors"]["Cement"], "isic_prefixes": ["242"]}),
+            "Sector not in the transition-barrier matrix: Aluminium",
+        ),  # AC-4
+        (lambda r: r["sectors"]["Cement"].update(isic_prefixes=["24"]), "ISIC prefix '24' is in two sectors"),  # AC-5
+        (
+            lambda r: r["sectors"]["Steel"]["capex"].update(value=75),
+            "Benchmarks content changed but version is still 3",
+        ),  # AC-6
+        (lambda r: r["act_levers"].pop("steel.ccus"), "No ACT lever entry for action: steel.ccus"),  # AC-7
+        (
+            lambda r: r["assumptions"]["h2_cost"].update(barrier_facts=["STL-R1.price"]),
+            "Assumption 'h2_cost' is in USD/kg H2, 'STL-R1.price' is in USD/tCO2",
+        ),  # AC-8
+        (lambda r: r["act_levers"].update({"pwr.renewables": None}), "Unknown action in act_levers: pwr.renewables"),  # AC-64
+    ],
+)
+def test_ac3_cli(ta_dirs, fn, expected):  # noqa: F811
+    edit_bm(ta_dirs[1], fn)
+    result = _cli("validate", "--data-dir", str(ta_dirs[1]))
+    assert result.exit_code == 1
+    assert expected in result.output.splitlines()
+
+
+def test_ac67_cli(ta_dirs):  # noqa: F811
+    bm = ta_dirs[1]
+    edit_bm(bm, lambda r: r["sectors"]["Steel"]["capex"].update(value=75))
+    signed = _cli("sign", "--approved-by", "owner", "--data-dir", str(bm))
+    assert signed.exit_code == 0, signed.output
+    assert signed.output == "Signed benchmarks v4\n"
+    raw = json.loads((bm / benchmarks.BENCHMARKS_FILE).read_text(encoding="utf-8"))
+    assert raw["version"] == 4
+    assert (raw["history"][-1]["version"], raw["history"][-1]["approved_by"]) == (4, "owner")
+    result = _cli("validate", "--data-dir", str(bm))
+    assert result.exit_code == 0, result.output
+    assert result.output == "Benchmarks v4: OK, 3 sectors, 2 redlines\n"
+
+
+def test_sign_refuses_other_errors(ta_dirs):  # noqa: F811
+    bm = ta_dirs[1]
+    edit_bm(bm, lambda r: r["sectors"]["Steel"]["capex"].pop("source"))
+    result = _cli("sign", "--approved-by", "owner", "--data-dir", str(bm))
+    assert result.exit_code == 1
+    assert "Steel: capex benchmark has no source" in result.output.splitlines()
+    assert json.loads((bm / benchmarks.BENCHMARKS_FILE).read_text(encoding="utf-8"))["version"] == 3
+
+
+def test_ac57_startup_refused(ta_dirs, monkeypatch):  # noqa: F811
+    from arp.api import main
+
+    monkeypatch.setattr(main, "require_postgres", lambda settings: None)
+    edit_bm(ta_dirs[1], lambda r: r["sectors"]["Steel"]["capex"].pop("source"))
+
+    async def start():
+        async with main.lifespan(main.app):
+            pass
+
+    with pytest.raises(BenchmarksError, match=re.escape("Steel: capex benchmark has no source")):
+        asyncio.run(start())
+
+
+def test_ac2_benchmarks_api(bundled_dirs):
+    from arp.api.main import app
+
+    response = TestClient(app).get("/api/transition-alignment/benchmarks")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    capex = {s["sector"]: s["capex"] for s in body["sectors"]}
+    assert len(capex) == 9
+    special = {"Power & Utilities": 95, "Oil & Gas Upstream": 77, "Chemicals": 77}
+    assert {name: c["value"] for name, c in capex.items()} == {name: special.get(name, 80) for name in capex}
+    assert all("p." in c["citation"] for c in capex.values())

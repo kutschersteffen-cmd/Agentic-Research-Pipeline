@@ -5972,6 +5972,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/transition-alignment/benchmarks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Benchmarks */
+        get: operations["get_benchmarks_api_transition_alignment_benchmarks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/transition-barrier/cells/{code}/{region}": {
         parameters: {
             query?: never;
@@ -7838,10 +7855,34 @@ export interface components {
              */
             scheme: "free_float_mcap" | "equal" | "metric" | "inverse_metric";
         };
+        /** BenchmarkOut */
+        BenchmarkOut: {
+            /** Citation */
+            citation: string;
+            /** Licence */
+            licence: string;
+            /** Method */
+            method: string;
+            /** Unit */
+            unit: string;
+            /** Url */
+            url: string | null;
+            /** Value */
+            value: number;
+        };
         /** BenchmarkUpload */
         BenchmarkUpload: {
             /** Text */
             text: string;
+        };
+        /** BenchmarksOut */
+        BenchmarksOut: {
+            /** Licence Note */
+            licence_note: string;
+            /** Sectors */
+            sectors: components["schemas"]["SectorBenchmarksOut"][];
+            /** Version */
+            version: number;
         };
         /**
          * BestInClassCoverage
@@ -12118,6 +12159,17 @@ export interface components {
             /** Window Start */
             window_start: string;
         };
+        /** RedlineDef */
+        RedlineDef: {
+            /** Citation */
+            citation: string;
+            /** Fact */
+            fact: string;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+        };
         /** RegimeBucketPerformance */
         RegimeBucketPerformance: {
             long_short?: components["schemas"]["LegPerformance"];
@@ -12586,6 +12638,23 @@ export interface components {
              */
             source: "ledoit_wolf" | "sample" | "factor" | "supplied";
         };
+        /** RndTestDef */
+        RndTestDef: {
+            /** Citation */
+            citation: string;
+            /** Denominator */
+            denominator: string;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Numerator */
+            numerator: string;
+            /** Unit */
+            unit: string;
+            /** Value */
+            value: number;
+        };
         /**
          * RoleProposal
          * @description A proposed job and direction for one column, with the reason and --
@@ -12911,6 +12980,18 @@ export interface components {
          * @enum {string}
          */
         SectionLayoutHint: "standard" | "chart_focus" | "text_only" | "section_header";
+        /** SectorBenchmarksOut */
+        SectorBenchmarksOut: {
+            capex: components["schemas"]["BenchmarkOut"];
+            /** Isic Prefixes */
+            isic_prefixes: string[];
+            /** Redlines */
+            redlines: components["schemas"]["RedlineDef"][];
+            /** Rnd Tests */
+            rnd_tests: components["schemas"]["RndTestDef"][];
+            /** Sector */
+            sector: string;
+        };
         /**
          * SelectAll
          * @description No selection step: everything that survives the screens is in. This
@@ -25287,6 +25368,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_benchmarks_api_transition_alignment_benchmarks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenchmarksOut"];
                 };
             };
         };

@@ -91,6 +91,7 @@ def test_mutants_copy_finds_the_rule_book(monkeypatch, tmp_path):
     _mutmut(monkeypatch, 0, seen=seen)
     mutation_check.mutate("arp/x.py", ["tests/test_x.py"])
     assert seen["env"]["ARP_TRANSITION_BARRIER_DATA_DIR"] == str(tmp_path / "arp/transition_barrier/data")
+    assert seen["env"]["ARP_TRANSITION_ALIGNMENT_DATA_DIR"] == str(tmp_path / "arp/transition_alignment/data")
 
 
 def test_link_repo_root_links_missing_top_level_entries(tmp_path, monkeypatch):
