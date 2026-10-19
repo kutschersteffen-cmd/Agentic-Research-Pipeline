@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import traceback
 from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
+from datetime import UTC, datetime
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
@@ -83,12 +85,23 @@ def hold_run(run_store: RunStore, run_id: str) -> Iterator[None]:
             _held.reset(token)
 
 
+def traceback_tail(exc: BaseException, limit: int = 8000) -> str:
+    """The end of the formatted traceback, where the failing frame and message are."""
+    return "".join(traceback.format_exception(exc))[-limit:]
+
+
 def _mark_failed(run_store: RunStore, run_id: str, exc: Exception) -> None:
     """A crash before the run finished would leave it "running" forever."""
     try:
         JobManager(run_store).finish_run(run_id, error=f"{type(exc).__name__}: {exc}")
     except Exception:  # noqa: BLE001 - the run's own error is the one to raise
         logger.exception("could not mark run %s failed", run_id)
+    try:
+        run_store.append_event(
+            run_id, {"type": "run_failed", "at": datetime.now(UTC).isoformat(), "traceback": traceback_tail(exc)}
+        )
+    except Exception:  # noqa: BLE001 - the run's own error is the one to raise
+        logger.exception("could not record run_failed event for run %s", run_id)
 
 
 class LocalJobLauncher:

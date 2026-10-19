@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canResumeRun, compareSince, needsAttentionRuns } from "../src/lib/runs.ts";
+import { canResumeRun, compareSince, hasFailureDetails, needsAttentionRuns, resumableFailedRuns, resumeSummary } from "../src/lib/runs.ts";
 import type { RunManifest } from "../src/types.ts";
 
 const RESUMABLE = ["theme", "extraction", "financials", "tnfd", "transition_plan", "identity", "discovery", "xbrl_fetch"];
@@ -61,4 +61,33 @@ test("needsAttentionRuns keeps a run updated 1 minute after now", () => {
 test("compareSince puts undated rows after dated ones, oldest dated first", () => {
   const rows = [null, "2026-10-17T10:00:00Z", null, "2026-10-12T10:00:00Z"];
   assert.deepEqual([...rows].sort(compareSince), ["2026-10-12T10:00:00Z", "2026-10-17T10:00:00Z", null, null]);
+});
+
+test("hasFailureDetails is true only for failed and partially_completed", () => {
+  for (const s of ["failed", "partially_completed"]) assert.equal(hasFailureDetails(s), true, s);
+  for (const s of ["completed", "running", "pending", "cancelled", ""]) assert.equal(hasFailureDetails(s), false, s);
+});
+
+test("resumableFailedRuns keeps failed and partially_completed resumable runs in order", () => {
+  const u = ago(MIN);
+  const runs = [run("extraction", "failed", u), run("theme", "partially_completed", u), run("financials", "completed", u), run("holdings", "failed", u), run("theme", "cancelled", u)];
+  assert.deepEqual(ids(resumableFailedRuns(runs)), [runs[0].run_id, runs[1].run_id]);
+});
+
+test("resumeSummary all resumed", () => {
+  assert.equal(resumeSummary(2, []), "Resumed 2 of 2.");
+});
+
+test("resumeSummary lists refusals in order", () => {
+  assert.equal(
+    resumeSummary(2, [
+      { runId: "A", message: "409: busy" },
+      { runId: "B", message: "500: down" },
+    ]),
+    "Resumed 0 of 2. Refused: A: 409: busy; B: 500: down",
+  );
+});
+
+test("resumeSummary with one refusal", () => {
+  assert.equal(resumeSummary(2, [{ runId: "B", message: "409: busy" }]), "Resumed 1 of 2. Refused: B: 409: busy");
 });

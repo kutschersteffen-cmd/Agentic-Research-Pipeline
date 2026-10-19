@@ -1,6 +1,7 @@
-import { canResumeRun, isTrialRun, RUN_TYPE_LABEL, runTypeLabel, TRIAL_TITLE, when } from "../lib/runs";
+import { canResumeRun, hasFailureDetails, isTrialRun, resumableFailedRuns, RUN_TYPE_LABEL, runTypeLabel, TRIAL_TITLE, when } from "../lib/runs";
+import { FailureDetails } from "../components/FailureDetails";
 import { FileLink } from "../components/FileLink";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useResume } from "../lib/useResume";
 import type { ReviewableRunKind, RunManifest } from "../types";
@@ -19,7 +20,8 @@ export function RunHistory({ onOpenReview }: Props = {}) {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [filter, setFilter] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
-  const { busyId, error: resumeError, resume, clearError } = useResume();
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const { busyId, error: resumeError, summary, resume, resumeAll, clearError } = useResume();
   // The reload after a resume must use the filter current when it runs, not the click's render.
   const filterRef = useRef(filter);
   filterRef.current = filter;
@@ -30,6 +32,9 @@ export function RunHistory({ onOpenReview }: Props = {}) {
     try {
       const res = (await api.listRuns(filterRef.current || undefined)) as { runs: RunManifest[] };
       setRuns(res.runs);
+      // A run that leaves failed/partially_completed starts closed if it fails again.
+      const failed = new Set(res.runs.filter((r) => hasFailureDetails(r.status)).map((r) => r.run_id));
+      setOpen((prev) => new Set([...prev].filter((id) => failed.has(id))));
     } catch (err) {
       setError(`Runs could not be loaded: ${(err as Error).message}.`);
     }
@@ -41,6 +46,13 @@ export function RunHistory({ onOpenReview }: Props = {}) {
   }, [filter]);
 
   const shownError = error ?? resumeError?.message;
+  const resumable = resumableFailedRuns(runs);
+  const toggle = (id: string) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   const totalCost = runs.reduce((sum, r) => sum + r.estimated_cost_usd, 0);
 
   return (
@@ -61,11 +73,21 @@ export function RunHistory({ onOpenReview }: Props = {}) {
         <button className="secondary" onClick={load}>
           Refresh
         </button>
+        {resumable.length > 0 && (
+          <button
+            className="secondary"
+            disabled={busyId !== null}
+            onClick={() => resumeAll(resumable.map((r) => r.run_id), load)}
+          >
+            Resume all failed ({resumable.length})
+          </button>
+        )}
         <span className="muted">
           {runs.length} {runs.length === 1 ? "run" : "runs"} · estimated spend <span className="mono">${totalCost.toFixed(2)}</span>
         </span>
       </div>
       {shownError && <p className="error-text" role="alert">{shownError}</p>}
+      {summary && <p role="alert">{summary}</p>}
 
       <section className="card">
         <div className="table-wrap">
@@ -86,7 +108,8 @@ export function RunHistory({ onOpenReview }: Props = {}) {
               {runs.map((r) => {
                 const runType = r.run_type;
                 return (
-                  <tr key={r.run_id}>
+                  <Fragment key={r.run_id}>
+                  <tr>
                     <td className="mono">{r.run_id}</td>
                     <td>{runTypeLabel(runType)}</td>
                     <td>
@@ -120,6 +143,19 @@ export function RunHistory({ onOpenReview }: Props = {}) {
                           </button>
                         </>
                       )}
+                      {hasFailureDetails(r.status) && (
+                        <>
+                          {" "}
+                          <button
+                            className="link-button"
+                            aria-label={`Details for ${r.run_id}`}
+                            aria-expanded={open.has(r.run_id)}
+                            onClick={() => toggle(r.run_id)}
+                          >
+                            Details
+                          </button>
+                        </>
+                      )}
                       {canResumeRun(r.run_type, r.status) && (
                         <>
                           {" "}
@@ -135,6 +171,14 @@ export function RunHistory({ onOpenReview }: Props = {}) {
                       )}
                     </td>
                   </tr>
+                  {open.has(r.run_id) && hasFailureDetails(r.status) && (
+                    <tr>
+                      <td colSpan={8}>
+                        <FailureDetails runId={r.run_id} />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 );
               })}
             </tbody>

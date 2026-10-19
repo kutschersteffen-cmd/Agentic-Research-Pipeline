@@ -6,6 +6,7 @@ import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from arp.api.auth import require_role
 from arp.api.deps import get_registry, get_run_store, settings_dep
@@ -17,6 +18,7 @@ from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import NotResumable, RunBusy, check_resumable, get_job_launcher, resume_run, run_lease
 from arp.research.pipeline import load_theme_run_matches, rank_theme_matches
 from arp.research.results_diff import diff_theme_results
+from arp.schemas.common import JobStatus
 from arp.schemas.thematic import CompanyMatch
 from arp.schemas.transition_barrier import BarrierRefreshFinding
 from arp.storage.run_store import RunStore
@@ -132,7 +134,47 @@ async def resume_run_endpoint(
 
 @router.get("/{run_id}/errors")
 def get_run_errors(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
-    return {"errors": run_store.read_errors(run_id)}
+    return {"errors": [{k: v for k, v in row.items() if k != "traceback"} for row in run_store.read_errors(run_id)]}
+
+
+class CompanyError(BaseModel):
+    key: str
+    error: str
+    traceback: str | None
+
+
+class RunFailure(BaseModel):
+    run_id: str
+    status: JobStatus
+    error: str | None
+    traceback: str | None
+    company_errors: list[CompanyError]
+
+
+@router.get("/{run_id}/failure", response_model=RunFailure, dependencies=[Depends(require_role("analyst"))])
+def get_run_failure(run_id: str, run_store: RunStore = Depends(get_run_store)) -> RunFailure:
+    manifest = run_store.load_manifest(run_id)
+    if manifest is None:
+        raise HTTPException(404, "Run not found")
+    # Review rows are not failures; a dict keeps the first-seen position of a key and the last row's value.
+    latest = {}
+    for row in run_store.read_errors(run_id):
+        # Derived rows (invalid_value, unregistered_citation, identity_conflict) carry no key.
+        if "key" in row and not row.get("review"):
+            latest[row["key"]] = row
+    traceback = None
+    for event in run_store.read_events(run_id):
+        if event.get("type") == "run_failed":
+            traceback = event.get("traceback")
+    return RunFailure(
+        run_id=run_id,
+        status=manifest.status,
+        error=manifest.error,
+        traceback=traceback,
+        company_errors=[
+            CompanyError(key=r["key"], error=r["error"], traceback=r.get("traceback")) for r in latest.values()
+        ],
+    )
 
 
 @router.get("/{run_id}/results")

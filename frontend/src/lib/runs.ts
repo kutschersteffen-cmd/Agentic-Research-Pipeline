@@ -34,6 +34,21 @@ export function needsAttentionRuns(runs: RunManifest[], now: Date): RunManifest[
   });
 }
 
+/** Statuses whose Run History row opens a failure-details panel. */
+export const hasFailureDetails = (status: string): boolean => status === "failed" || status === "partially_completed";
+
+/** Failed or partially completed runs the backend can resume, in input order. */
+export const resumableFailedRuns = (runs: RunManifest[]): RunManifest[] =>
+  runs.filter((r) => hasFailureDetails(r.status) && canResumeRun(r.run_type, r.status));
+
+/** The line shown after a "Resume all failed" pass. */
+export const resumeSummary = (total: number, refused: { runId: string; message: string }[]): string =>
+  `Resumed ${total - refused.length} of ${total}.` +
+  (refused.length ? ` Refused: ${refused.map((f) => `${f.runId}: ${f.message}`).join("; ")}` : "");
+
+/** Company errors a failure-details panel lists before it says "and N more". */
+export const COMPANY_ERRORS_SHOWN = 50;
+
 /** Oldest first; an undated row goes after every dated one. */
 export const compareSince = (a: string | null, b: string | null): number =>
   a === null || b === null ? Number(a === null) - Number(b === null) : a.localeCompare(b);

@@ -4271,6 +4271,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/{run_id}/failure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run Failure */
+        get: operations["get_run_failure_api_runs__run_id__failure_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/{run_id}/results": {
         parameters: {
             query?: never;
@@ -8556,6 +8573,15 @@ export interface components {
              */
             status: "verified" | "missed";
         };
+        /** CompanyError */
+        CompanyError: {
+            /** Error */
+            error: string;
+            /** Key */
+            key: string;
+            /** Traceback */
+            traceback: string | null;
+        };
         /** CompanyFactRow */
         CompanyFactRow: {
             /** Basis */
@@ -10817,6 +10843,11 @@ export interface components {
             decision: "approve" | "correct" | "reject" | "escalate";
             reason_code: components["schemas"]["DecisionReason"];
         };
+        /**
+         * JobStatus
+         * @enum {string}
+         */
+        JobStatus: "pending" | "running" | "completed" | "partially_completed" | "failed" | "cancelled";
         /** LabelRule */
         LabelRule: {
             /** Field */
@@ -12658,6 +12689,18 @@ export interface components {
              * @description When the rules step stored this result; None while the run is still going.
              */
             scored_at?: string | null;
+        };
+        /** RunFailure */
+        RunFailure: {
+            /** Company Errors */
+            company_errors: components["schemas"]["CompanyError"][];
+            /** Error */
+            error: string | null;
+            /** Run Id */
+            run_id: string;
+            status: components["schemas"]["JobStatus"];
+            /** Traceback */
+            traceback: string | null;
         };
         /** RunPublishRequest */
         RunPublishRequest: {
@@ -22123,6 +22166,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_failure_api_runs__run_id__failure_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunFailure"];
                 };
             };
             /** @description Validation Error */
