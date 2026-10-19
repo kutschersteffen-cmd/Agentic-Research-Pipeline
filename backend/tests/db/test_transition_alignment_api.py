@@ -185,9 +185,6 @@ def test_ac45_green_fact_unchanged(client, run_store, ids):
         ("2025-12-31", 15, "approved", AR + "47")]
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    "Open question for the controller: recording a not_applicable_by_rule row (value None, route auto_accept) makes an "
-    "auto_accepted fact with value None (observations.decide treats only not_found as a miss), so Q gets 15 extra rows."))
 def test_ac48_api(client, run_store, ids):
     q = ids["Q"]
     ref = CompanyRef(company_id="q", name="Fixture Foods SA", entity_id=q, isic_code="1050")

@@ -38,6 +38,11 @@ def test_not_found_keeps_current():
     assert decide(None, None, A, MISS) == "noop"
 
 
+def test_not_applicable_is_observation_only():
+    assert decide(None, None, A, ValueState.NOT_APPLICABLE) == "noop"
+    assert decide(_fact(1000), None, A, ValueState.NOT_APPLICABLE) == "keep"
+
+
 def test_held_does_not_displace_accepted_fact():
     for status in (A, FactStatus.APPROVED, FactStatus.EDITED):
         assert decide(_fact(1000, status), 1200, H, FOUND) == "keep"

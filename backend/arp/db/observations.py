@@ -108,9 +108,9 @@ _ACCEPTED = {FactStatus.AUTO_ACCEPTED, FactStatus.APPROVED, FactStatus.EDITED}
 
 
 def decide(current: CompanyFact | None, value, status: FactStatus, value_state: ValueState) -> FactAction:
-    """Spec §2.7: a miss never removes a fact, a pending value never displaces one, a held value
-    displaces only a pending or held one, an accepted different value or status supersedes it."""
-    if value_state == ValueState.NOT_FOUND:
+    """Spec §2.7: a miss or a rule-based not-applicable never removes or adds a fact, a pending value never
+    displaces one, a held value displaces only a pending or held one, an accepted different value or status supersedes it."""
+    if value_state in (ValueState.NOT_FOUND, ValueState.NOT_APPLICABLE):
         return "noop" if current is None else "keep"
     if current is None:
         return "insert"
