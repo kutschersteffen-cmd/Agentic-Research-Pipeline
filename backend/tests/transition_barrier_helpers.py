@@ -126,9 +126,6 @@ D_URLS = {
 }
 
 
-_FETCH_SOURCES = fetching.fetch_sources  # the real one, which conftest replaces with a no-op in every test
-
-
 def fetch_stub(monkeypatch, served: dict[str, tuple[bytes, str, str | None]] | None = None) -> list[str]:
     """Serves URLs to `fetching` from memory: url -> (body, content type, Last-Modified as an ISO date).
     D1-D3 are served as their fixture PDFs unless `served` replaces them. Returns the list of requested URLs."""
@@ -158,7 +155,7 @@ def fetch_stub(monkeypatch, served: dict[str, tuple[bytes, str, str | None]] | N
 
     monkeypatch.setattr(fetching, "build_client", lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True))
     monkeypatch.setattr(fetching, "assert_safe", assert_safe)
-    monkeypatch.setattr(fetching, "fetch_sources", _FETCH_SOURCES)
+    monkeypatch.setattr(fetching, "fetch_sources", getattr(fetching.fetch_sources, "real", fetching.fetch_sources))  # conftest's stand-in
     return requested
 
 
