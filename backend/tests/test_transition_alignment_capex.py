@@ -231,6 +231,11 @@ def test_ac19_ac20():
     assert (r.status, r.citation, r.fact_id) == ("no disclosure", None, None)
 
 
+def test_redline_value_none_is_no_disclosure():
+    r = score_capex([yes_no("tc_new_unabated_coal", None, "p.9")], power(), "x").redlines[0]
+    assert (r.status, r.citation, r.fact_id) == ("no disclosure", None, None)
+
+
 def test_redline_uses_latest_year():
     old = yes_no("tc_new_unabated_coal", False, "old", year=2023)
     new = yes_no("tc_new_unabated_coal", True, "new", year=2025)

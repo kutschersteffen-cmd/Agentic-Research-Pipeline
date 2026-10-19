@@ -9,8 +9,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
-from arp.presets.transition_capex import _FIELDS
-from arp.schemas.datapoints import FieldDataType
+from arp.presets.transition_capex import AMOUNT_FIELDS
 from arp.schemas.transition_alignment import (
     AmountOut,
     BenchmarkOut,
@@ -25,7 +24,6 @@ from arp.transition_barrier.render import fmt_number
 NO_CAPEX_SHARE = "No reporting-year low-carbon capex share"
 NO_RND = "No reporting-year R&D figures"
 _RY_FIELDS = ("tc_capex_total", "tc_lowcarbon_capex", "tc_lowcarbon_capex_share_pct")
-_AMOUNT_FIELDS = tuple(f[0] for f in _FIELDS if f[2] == FieldDataType.CURRENCY_AMOUNT)  # preset field order
 # Rule texts: only RY known, then the later year higher / equal / lower. D01.a pairs RY with RY+1; R&D, RY-1 with RY.
 _D01A_RULES = ("Only RY known: RY used", "RY+1 higher: RY+1 used", "RY+1 equal: RY used", "RY+1 lower: average of RY and RY+1")
 _RND_RULES = ("Only RY known: RY used", "RY higher: RY used", "RY equal: RY used", "RY lower: average of RY-1 and RY")
@@ -126,6 +124,8 @@ def _redlines(facts: list[Fact], sector: SectorEntry) -> list[RedlineOut]:
     for r in sector.redlines:
         # R5: the latest counted fact across years (undated oldest); lowest fact_id within a year.
         f = min((f for f in facts if f.field_id == r.fact), default=None, key=lambda f: (-(f.year or 0), f.fact_id))
+        if f is not None and f.value is not True and f.value is not False:
+            f = None  # a value that is neither Yes nor No is no disclosure, never "not breached"
         status = "no disclosure" if f is None else "breached" if f.value is True else "not breached"
         out.append(RedlineOut(
             id=r.id, label=r.label, status=status, text=r.label, citation=f.citation if f else None,
@@ -159,7 +159,7 @@ def score_capex(facts: list[Fact], sector: SectorEntry, licence_note: str) -> Ca
     years = () if ry is None else (ry - 1, ry, ry + 1)
     amounts = [
         AmountOut(field_id=fid, year=y, shown=f.shown, fact_id=f.fact_id, citation=f.citation)
-        for fid in _AMOUNT_FIELDS
+        for fid in AMOUNT_FIELDS
         for y in years
         if (f := idx.get((fid, y))) is not None
     ]

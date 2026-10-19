@@ -63,6 +63,7 @@ _FIELDS = [
      "The company approved a new long-lead-time conventional oil or gas project after 2023 (Yes or No).", "", None, ["new oil and gas project", "final investment decision", "sanctioned", "long-lead-time project", "FID"]),
 ]
 FIELD_IDS = tuple(f[0] for f in _FIELDS)
+AMOUNT_FIELDS = tuple(f[0] for f in _FIELDS if f[2] == T.CURRENCY_AMOUNT)  # preset field order
 
 
 def bundled_prefixes() -> list[str]:
