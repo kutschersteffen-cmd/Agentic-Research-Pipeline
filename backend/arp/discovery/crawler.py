@@ -106,7 +106,7 @@ def _same_site(url: str, root_netloc: str) -> bool:
 
 
 async def crawl_for_documents(
-    root_url: str, config: CrawlConfig, *, transport: httpx.AsyncBaseTransport | None = None
+    root_url: str, config: CrawlConfig, *, transport: httpx.AsyncBaseTransport | None = None, sleep=asyncio.sleep
 ) -> list[CandidateDocumentLink]:
     """Bounded, same-site, robots.txt-respecting crawl for investor
     disclosure documents.
@@ -147,7 +147,7 @@ async def crawl_for_documents(
                 logger.info("robots.txt disallows %s, skipping", url)
                 continue
 
-            await asyncio.sleep(config.request_delay_seconds)
+            await sleep(config.request_delay_seconds)
             is_root = url == root_url
             try:
                 resp = await client.get(url)
