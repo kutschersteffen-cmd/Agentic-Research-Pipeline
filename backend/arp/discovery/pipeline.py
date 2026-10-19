@@ -64,6 +64,7 @@ async def _discover_for_company(
             max_depth=settings.discovery_max_crawl_depth,
             max_pages=settings.discovery_max_pages_per_company,
             request_delay_seconds=settings.discovery_request_delay_seconds,
+            expected_year=today.year - 1,
         )
         try:
             candidates = await crawl_for_documents(homepage, crawl_config, transport=transport, sleep=sleep)

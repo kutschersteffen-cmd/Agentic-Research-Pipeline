@@ -29,6 +29,12 @@ _DOC_TYPE_PATTERNS: list[tuple[DocType, tuple[str, ...]]] = [
     (DocType.INVESTOR_PRESENTATION, ("investor presentation", "investor deck", "investor day")),
 ]
 
+# Other names for an annual report; demotion words keep interim/summary material out of the 10-K bucket.
+_ANNUAL_EXTRA = ("integrated report", "universal registration document", "annual review", "geschäftsbericht",
+                 "geschaeftsbericht", "rapport annuel", "informe anual", "jaarverslag", "årsrapport")
+_DEMOTION_WORDS = ("quarter", "quarterly", "q1", "q2", "q3", "q4", "half-year", "interim", "factsheet", "fact sheet",
+                   "presentation", "transcript", "remuneration", "tax", "summary", "extract")
+
 _DOCUMENT_EXTENSIONS = (".pdf", ".xhtml", ".zip")  # .xhtml/.zip: ESEF reports and report packages
 
 
@@ -55,6 +61,7 @@ class CrawlConfig:
     max_pages: int = 40
     request_delay_seconds: float = 1.0
     timeout_seconds: float = 20.0
+    expected_year: int | None = None
 
 
 @dataclass
@@ -86,11 +93,36 @@ def _mentions(haystack: str, kw: str) -> bool:
     return re.search(rf"(?<![a-z0-9]){re.escape(kw)}(?![a-z0-9])", haystack) is not None
 
 
-def classify_link(url: str, link_text: str) -> DocType | None:
+def report_text(url: str, link_text: str) -> str:
+    """Link text plus the URL's filename, lowercased."""
+    return f"{link_text} {urlparse(url).path.rsplit('/', 1)[-1]}".lower()
+
+
+def years_in(text: str) -> set[int]:
+    return {int(y) for y in re.findall(r"(?<!\d)20\d{2}(?!\d)", text)}
+
+
+def is_demoted(text: str) -> bool:
+    tokens = re.findall(r"[^\W_]+", text.lower())
+    padded = " " + " ".join(tokens) + " "
+    return any(f" {w.replace('-', ' ')} " in padded for w in _DEMOTION_WORDS)
+
+
+def is_pdf(url: str) -> bool:
+    return urlparse(url).path.lower().endswith(".pdf")
+
+
+def classify_link(url: str, link_text: str, expected_year: int | None = None) -> DocType | None:
     haystack = f"{link_text} {url}".lower()
+    text = report_text(url, link_text)
     for doc_type, keywords in _DOC_TYPE_PATTERNS:
         if any(_mentions(haystack, kw) for kw in keywords):
             return doc_type
+        if doc_type == DocType.ANNUAL_REPORT_10K and any(p in haystack for p in _ANNUAL_EXTRA) and not is_demoted(text):
+            return doc_type
+    if (expected_year and is_pdf(url) and "report" in text and not is_demoted(text)
+            and years_in(text) & {expected_year - 1, expected_year}):
+        return DocType.ANNUAL_REPORT_10K
     if url.lower().endswith(_DOCUMENT_EXTENSIONS):
         return DocType.OTHER
     return None
@@ -113,7 +145,8 @@ async def crawl_for_documents(
 
     This intentionally only follows links on the company's own domain (or
     subdomains) starting from a known homepage/IR URL — it is not a general
-    web crawler and never leaves the site it was pointed at.
+    web crawler. Only its pages stay on the site; an off-site annual or
+    sustainability report PDF is recorded as a candidate but never crawled.
     """
     root_netloc = urlparse(root_url).netloc
     found: dict[str, CandidateDocumentLink] = {}
@@ -166,9 +199,11 @@ async def crawl_for_documents(
             for a in soup.find_all("a", href=True):
                 href = urljoin(url, a["href"]).split("#")[0]
                 link_text = a.get_text(strip=True)
+                doc_type = classify_link(href, link_text, config.expected_year)
                 if not _same_site(href, root_netloc):
+                    if is_pdf(href) and doc_type in (DocType.ANNUAL_REPORT_10K, DocType.SUSTAINABILITY_REPORT):
+                        found.setdefault(href, CandidateDocumentLink(url=href, doc_type=doc_type, link_text=link_text))
                     continue
-                doc_type = classify_link(href, link_text)
                 if doc_type is not None:
                     found.setdefault(href, CandidateDocumentLink(url=href, doc_type=doc_type, link_text=link_text))
                 elif depth < config.max_depth and href not in visited:

@@ -83,7 +83,9 @@ class Run:
         return [d["url"] for d in self.row["documents_found"] if doc_type is None or d["doc_type"] == doc_type]
 
     def doc(self, url: str) -> dict:
-        return next(d for d in self.row["documents_found"] if d["url"] == url)
+        found = next((d for d in self.row["documents_found"] if d["url"] == url), None)
+        assert found is not None, f"{url} not in documents_found: {self.docs()}"
+        return found
 
     @property
     def queries(self) -> list[str]:
