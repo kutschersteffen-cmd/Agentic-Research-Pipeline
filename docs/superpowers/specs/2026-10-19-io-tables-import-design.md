@@ -326,6 +326,8 @@ Setup notes for the test-writer:
 | AC-25 | As AC-24 | `isic_code` `62` | Returns `J62_63`; stub not called | holdout |
 | AC-26 | As AC-24 | `isic_code` `24` | Returns `None`; stub called once | holdout |
 | AC-45 | As AC-24 | `isic_code` `2610` | Returns `None`; stub called once | holdout |
+| AC-112 | As AC-24 | `isic_code` `6` | Returns `None`; stub called once | holdout |
+| AC-113 | As AC-24 | `isic_code` `26.1` | Returns `None`; stub called once | holdout |
 | AC-27 | As AC-24 | `isic_code` `C27` | Returns `C27`; stub not called | holdout |
 | AC-71 | Split configured, `ARP_IO_SOURCE=exiobase` | Code lookup, `isic_code` `35.12` | Returns `D_TD`; stub not called | holdout |
 | AC-72 | As AC-71 | `isic_code` `35` | Returns `None`; stub called once | holdout |
@@ -347,6 +349,8 @@ Setup notes for the test-writer:
 | AC-98 | EXIOBASE configured | Exposure for `C21`, core `{"C27"}` | `ghg_direct_t_per_meur` 0; `ghg_supply_chain_t_per_meur` 0 | holdout |
 | AC-65 | ICIO configured | Exposure for `C27`, core `{"C26"}` | `ghg_direct_t_per_meur` and `ghg_supply_chain_t_per_meur` are null | holdout |
 | AC-85 | Model from `use_sample_icio=True` | Exposure for `27`, core `{"20"}`, `country="DE"` | `end_market`, `theme_demand_share`, `ghg_direct_t_per_meur`, `ghg_supply_chain_t_per_meur` and `regional` are all null | holdout |
+| AC-110 | Model from `use_sample_icio=True` | Exposure for `27`, core `{"20"}` | `upstream_exposure` 0.11052858; `downstream_exposure` 0.01855963 (today's values on `main`) | holdout |
+| AC-111 | Model from `use_sample_exiobase=True` | Exposure for `27`, core `{"20"}` | `upstream_exposure` 0.11052858; `downstream_exposure` 0.01855963 (today's values on `main`) | holdout |
 | AC-76 | ICIO configured | Exposure for `C27`, core `{"C26"}`, `country="DE"` | `regional.region` `EU`; `regional.upstream` `1/9`; `regional.upstream_by_region` is `{"CN": 1/9, "EU": 0}` with keys in that order | holdout |
 | AC-77 | As AC-76 | `country="DEU"` | `regional.region` `EU` | holdout |
 | AC-78 | As AC-76 | `country="de"` | `regional.region` `EU` | holdout |
@@ -367,7 +371,7 @@ Setup notes for the test-writer:
 Must not change: the bundled samples (AC-28, AC-30, AC-46, AC-85), the `auto` order (AC-18,
 AC-29, AC-42), hand-prepared files without the new columns (AC-31), the default edition labels
 (AC-31, AC-52), codes already in the model, which are used directly (AC-27), and today's upstream
-and downstream shares (AC-83, AC-90).
+and downstream shares (AC-83, AC-90, and on the bundled samples AC-110, AC-111).
 
 ## Appendix A: ICIO 2025 industries
 
