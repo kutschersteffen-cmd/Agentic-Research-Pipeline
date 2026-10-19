@@ -55,7 +55,7 @@ function isCitationArray(v: unknown): v is Citation[] {
  * dominating the card the way a top-level JSON.stringify dump used to. */
 export function ReviewItemFields({ item, onOpenSource, reviewKind }: { item: Record<string, unknown>; onOpenSource: (s: ActiveSource) => void; reviewKind?: ReviewItemKind }) {
   const barrier = reviewKind === "barrier_cell";
-  const known = new Set([...(barrier ? ["code", "region", "kind", "current", "proposed", "values"] : []), "item_key", "queued_at", "company_id", "name", "ticker", "confidence", "verdict", "citations", "field", "field_id", "issuer_key", "issuer_scheme", "schema_id", "run_id", "reason_codes", "route_reasons", "adjudicator_rationale", "rationale", "failed_step_label", "error"]);
+  const known = new Set([...(barrier ? ["code", "region", "kind", "current", "proposed", "values", "not_counted"] : []), "item_key", "queued_at", "company_id", "name", "ticker", "confidence", "verdict", "citations", "field", "field_id", "issuer_key", "issuer_scheme", "schema_id", "run_id", "reason_codes", "route_reasons", "adjudicator_rationale", "rationale", "failed_step_label", "error"]);
   // Per-field extraction rows carry the field itself; old rows keep these at top level.
   const field = (item.field ?? null) as { field_name?: string; value?: unknown; value_state?: ExtractedField["value_state"]; unit?: string | null; period_end?: string | null; citations?: unknown; confidence?: number } | null;
   const citations = item.citations ?? field?.citations;

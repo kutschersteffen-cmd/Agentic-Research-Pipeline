@@ -54,3 +54,11 @@ export const currentFact = (picked: string, facts: { id: string; type: string | 
   const entered = facts.filter((f) => f.type);
   return entered.some((f) => f.id === picked) ? picked : (entered[0]?.id ?? "");
 };
+
+/** The figure as the document gave it, with the converted one beside it when the two differ. */
+export const valueText = (v: { shown: string | null; extracted: string | null }): string =>
+  v.shown && v.extracted && v.shown !== v.extracted ? `${v.shown} (${v.extracted})` : (v.shown ?? "—");
+
+/** Where a counted value came from: the model, a person's upload the system checked, or a person's word. */
+export const sourceText = (v: { machine_checked: boolean; entered_by: string | null }): string =>
+  v.machine_checked ? (v.entered_by === null ? "extracted from the document" : "checked in the document") : `entered by ${v.entered_by ?? "an analyst"}`;

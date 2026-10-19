@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cellHash, currentFact, errorDetail, historyLine, outcomeClass, ratifiedLine } from "../src/lib/barrier.ts";
+import { cellHash, currentFact, errorDetail, historyLine, outcomeClass, ratifiedLine, sourceText, valueText } from "../src/lib/barrier.ts";
 import { decisionChoices } from "../src/lib/reviewKeys.ts";
 
 test("ratifiedLine names who ratified a derived rating, or says it is hand-rated", () => {
@@ -43,4 +43,17 @@ test("currentFact falls back to the first fact that can be entered until one is 
   assert.equal(currentFact("levy", facts), "levy");
   assert.equal(currentFact("ratio", facts), "price");
   assert.equal(currentFact("", []), "");
+});
+
+test("valueText shows the figure as the document gave it, and the converted one beside it", () => {
+  assert.equal(valueText({ shown: "9.37 USD/tCO2", extracted: "66.9 CNY/tCO2" }), "9.37 USD/tCO2 (66.9 CNY/tCO2)");
+  assert.equal(valueText({ shown: "72 USD/tCO2", extracted: "72 USD/tCO2" }), "72 USD/tCO2");
+  assert.equal(valueText({ shown: null, extracted: null }), "—");
+});
+
+test("sourceText says whether the model extracted the value, or a person entered it", () => {
+  assert.equal(sourceText({ machine_checked: true, entered_by: null }), "extracted from the document");
+  assert.equal(sourceText({ machine_checked: true, entered_by: "a.analyst" }), "checked in the document");
+  assert.equal(sourceText({ machine_checked: false, entered_by: "a.analyst" }), "entered by a.analyst");
+  assert.equal(sourceText({ machine_checked: false, entered_by: null }), "entered by an analyst");
 });

@@ -1779,6 +1779,7 @@ export interface BarrierValue {
   value: string | number | boolean | null;
   unit: string | null;
   shown: string | null;
+  extracted: string | null;
   document: string | null;
   document_id: number | null;
   page: number | null;

@@ -11,6 +11,7 @@ const rating = (r: unknown) => (r === "H" || r === "M" || r === "L" ? <span clas
 export function BarrierItemFields({ item }: { item: Record<string, unknown> }) {
   const kind = String(item.kind ?? "");
   const values = Array.isArray(item.values) ? (item.values as string[]) : [];
+  const notCounted = Array.isArray(item.not_counted) ? (item.not_counted as string[]) : [];
   return (
     <>
       <p>
@@ -22,6 +23,13 @@ export function BarrierItemFields({ item }: { item: Record<string, unknown> }) {
           </>
         )}
       </p>
+      {notCounted.length > 0 && (
+        <ul>
+          {notCounted.map((line) => (
+            <li key={line} className="error-text">{line}</li>
+          ))}
+        </ul>
+      )}
       {values.length > 0 && (
         <ul>
           {values.map((v) => (
