@@ -272,6 +272,7 @@ Setup notes for the test-writer:
 | AC-37 | Fixture I without row `CHN_T` and column `CHN_T` | `arp io import-icio <file> --out <dir>` | Exit 0; stdout line 1 `50 industries, 2 regions -> <D>`; `T` total_output 1 | holdout |
 | AC-9 | Fixture I with region `DEU` renamed `CN1` and `CHN` renamed `CN2` in every label | `arp io import-icio <file> --out <dir>` | Exit 0; stdout line 1 `50 industries, 2 regions -> <D>`; `icio_matrix.csv` as in AC-3 | holdout |
 | AC-53 | Fixture I plus one extra column `USA_A01` (every cell 0) | `arp io import-icio <file> --out <dir>` | Exit 0; stdout line 1 `50 industries, 2 regions -> <D>` | holdout |
+| AC-119 | AC-53's output | Read `<D>/regional_output.csv` | 150 rows: the 50 `CN` rows, then the 50 `US` rows, then the 50 `EU` rows; every `US` row 0 | holdout |
 | AC-81 | Fixture I with region `DEU` renamed `QQQ` in every label | `arp io import-icio <file> --out <dir>` | Exit 1; stderr contains `region not in region groups: QQQ` | holdout |
 | AC-38 | Fixture I; `<dir>` is `a/b`, which does not exist | `arp io import-icio icio_fixture.csv --out a/b` | Exit 0; `a/b/industries.csv` and `a/b/icio_matrix.csv` exist | holdout |
 | AC-39 | `<dir>/industries.csv` exists with content `old` | `arp io import-icio icio_fixture.csv --out <dir>` | Exit 0; `<D>/industries.csv` as in AC-2 | holdout |
@@ -300,6 +301,7 @@ Setup notes for the test-writer:
 | AC-58 | Fixture E without `Y.txt` | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `<D>` holds no `final_demand.csv`; `ghg.csv` as in AC-62 | holdout |
 | AC-100 | Fixture E without `air_emissions/F.txt` | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `<D>` holds no `ghg.csv`; `final_demand.csv` as in AC-57 | holdout |
 | AC-102 | `<dir>` holds AC-10's output | Import Fixture E without `air_emissions/F.txt` with `--out <dir>` | Exit 0; `<D>` holds no `ghg.csv` | holdout |
+| AC-121 | `<dir>` holds AC-10's output | `arp io import-icio icio_fixture.csv --out <dir>` | Exit 0; `<D>` holds no `ghg.csv` | holdout |
 | AC-103 | Fixture E with these values in `Y.txt` for row (AT, B#1), columns region AT: households 1, NPISH 2, government 4, gross fixed capital formation 8, changes in inventories 16, changes in valuables 32, `Exports: Total (fob)` 64 | `arp io import-exiobase <zip> --out <dir>`, then read `<D>/final_demand.csv` | `A01`: households 3, government 4, investment 8, inventories 48 | holdout |
 | AC-67 | Fixture E | `arp io import-exiobase IOT_fixture_ixi.zip --out <dir> --split-electricity` | Exit 0; stdout line 1 is `163 sectors -> 54 industries, 2 regions -> <D>` | holdout |
 | AC-68 | AC-67's output | Read `<D>/industries.csv` | 54 rows in Appendix A2 order, no `D` row; total_output `D_TD` 30, `D_GEN_REN` 20, `D_GEN_FOS` 0, `D_GEN_NUC` 0, `D_GAS` 0; `label`, `isic_divisions` and `nace_classes` as in Appendix A2 | holdout |
@@ -365,6 +367,7 @@ Setup notes for the test-writer:
 | AC-87 | ICIO configured | Exposure for `C27`, core `{"C26"}`, no `country` | `regional` is null | holdout |
 | AC-95 | ICIO configured | Exposure for `C27`, core `{"C26"}`, `country="US"` | `regional` is null | holdout |
 | AC-96 | ICIO configured | Exposure for `C27`, core `{"C26"}`, `country="CN1"` | `regional` is null | holdout |
+| AC-120 | EXIOBASE configured | Exposure for `C27`, core `{"C26"}`, `country="WA"` | `regional` is null | holdout |
 | AC-93 | EXIOBASE configured | Exposure for `C27`, core `{"C26"}`, `country="AT"` | `regional.region` `EU`; `regional.upstream` `1/9`; `regional.upstream_by_region` is `{"EU": 0, "ASIA_OTH": 1/9}` with keys in that order | holdout |
 | AC-32 | The real `IOT_2022_ixi.zip` from Zenodo record 23039074 | `arp io import-exiobase IOT_2022_ixi.zip --out <dir>`, then `arp io status` with the printed variables set | Import exits 0 within 15 minutes with peak resident memory at most 1 GB, measured with `/usr/bin/time -v`; stdout line 1 `163 sectors -> 50 industries, 49 regions -> <D>`; status prints `industries: 50`, `final demand: yes`, `emissions: yes`, `regions: 11`; `D`'s total_output in `industries.csv` is greater than 0 | evaluator |
 | AC-88 | As AC-32 | Import again with `--split-electricity` into another `<dir>` | Exit 0; stdout line 1 `163 sectors -> 54 industries, 49 regions -> <D>`; `D_TD` and `D_GEN_REN` total_output both greater than 0 | evaluator |
