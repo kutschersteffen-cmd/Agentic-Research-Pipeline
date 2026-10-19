@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import io
 import ipaddress
+import re
+from collections.abc import Callable
 from datetime import UTC, date, datetime
 from email.utils import format_datetime
 from pathlib import Path
@@ -15,6 +17,11 @@ from reportlab.pdfgen import canvas
 
 from arp.api.auth import Principal, current_user
 from arp.api.main import app
+from arp.db.models import BarrierSourceDocument
+from arp.db.session import transaction
+from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
+from arp.extraction.verifier_agent import VerifierOutput
+from arp.llm.base import LLMUsage
 from arp.net_safety import UnsafeURLError
 from arp.transition_barrier import fetching
 
@@ -149,3 +156,37 @@ def fetch_stub(monkeypatch, served: dict[str, tuple[bytes, str, str | None]] | N
     monkeypatch.setattr(fetching, "build_client", lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True))
     monkeypatch.setattr(fetching, "assert_safe", assert_safe)
     return requested
+
+
+_BLOCK = re.compile(r"^\[doc_id=(\S+) \| passage_id=(\S+)[^\]\n]*\]\n(.*?)(?=\n\n---\n\n|\Z)", re.S | re.M)
+
+
+def _stored_title(doc_id: str) -> str:
+    with transaction() as s:
+        return s.get(BarrierSourceDocument, int(doc_id.removeprefix("tbsrc_"))).title
+
+
+class FactStub:
+    """The extraction stub: answers keyed by (fact id, document title), a missing key meaning not found.
+    The prompt shows only `doc_id`, so `title_of` resolves it (default: the stored barrier source document)."""
+
+    def __init__(self, answers: dict[tuple[str, str], PeriodValue | None], title_of: Callable[[str], str] = _stored_title):
+        self.answers, self.title_of = answers, title_of
+        self.calls: list[str] = []
+
+    async def complete_structured(self, *, system, prompt, output_model, images=None, **_):
+        self.calls.append(output_model.__name__)
+        usage = LLMUsage(provider="fake")
+        if output_model is VerifierOutput:
+            return VerifierOutput(agrees=True, confidence=1.0, notes=""), usage
+        assert output_model is ExtractionDraft, output_model
+        fact = re.search(r"^Field: (.+)$", prompt, re.M)[1]
+        blocks = _BLOCK.findall(prompt)
+        answer = self.answers.get((fact, self.title_of(blocks[0][0]))) if blocks else None
+        if answer is None:
+            return ExtractionDraft(confidence=1.0), usage
+        cites = []
+        for c in answer.citations:  # the passage that holds the quote, else the first shown
+            doc_id, passage_id, _ = next((b for b in blocks if c.quote in b[2]), blocks[0])
+            cites.append(c.model_copy(update={"doc_id": doc_id, "passage_id": passage_id}))
+        return ExtractionDraft(values=[answer.model_copy(update={"citations": cites})], confidence=1.0), usage
