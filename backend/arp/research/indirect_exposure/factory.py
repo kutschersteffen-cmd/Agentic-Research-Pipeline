@@ -83,6 +83,13 @@ def _leontief_from_flows(z: np.ndarray, x: np.ndarray) -> np.ndarray:
 
 
 def attach_extras(model: LeontiefModel, industries_path: Path) -> LeontiefModel:
+    try:
+        return _attach_extras(model, industries_path)
+    except KeyError as exc:
+        raise ValueError(f"{industries_path.parent}: side file does not match industries.csv: unknown {exc}") from exc
+
+
+def _attach_extras(model: LeontiefModel, industries_path: Path) -> LeontiefModel:
     """Adds the optional parts of an imported table (see io_import.py) found
     next to `industries_path`: ISIC divisions/NACE classes, final demand,
     GHG and the region-resolved model. Absent columns or files leave the

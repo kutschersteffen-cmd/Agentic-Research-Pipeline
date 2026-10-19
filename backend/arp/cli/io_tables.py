@@ -67,11 +67,16 @@ def io_status() -> None:
     folder = industries.parent
     regional = folder / "regional_output.csv"
     regions = "no"
-    if regional.exists():
-        with regional.open() as f:
-            regions = str(len({line.split(",", 1)[0] for line in list(f)[1:] if line.strip()}))
+    try:
+        n_industries = len(read_industries(industries)[0])
+        if regional.exists():
+            with regional.open() as f:
+                regions = str(len({line.split(",", 1)[0] for line in list(f)[1:] if line.strip()}))
+    except (OSError, ValueError, KeyError) as exc:
+        typer.echo(f"cannot read {industries}: {exc}", err=True)
+        raise typer.Exit(1) from exc
     typer.echo(f"edition: {label}")
-    typer.echo(f"industries: {len(read_industries(industries)[0])}")
+    typer.echo(f"industries: {n_industries}")
     typer.echo(f"final demand: {'yes' if (folder / 'final_demand.csv').exists() else 'no'}")
     typer.echo(f"emissions: {'yes' if (folder / 'ghg.csv').exists() else 'no'}")
     typer.echo(f"regions: {regions}")

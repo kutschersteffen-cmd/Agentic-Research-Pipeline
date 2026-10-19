@@ -210,6 +210,11 @@ def import_icio(csv_path: Path, out: Path, label: str | None = None) -> list[str
         fd_targets_arr = np.array(fd_targets, dtype=np.intp)
 
         def numbers(row: list[str], cols: list[int]) -> np.ndarray:
+            cells = [row[c] if c < len(row) else "" for c in cols]
+            try:
+                return np.array(cells, dtype=float)
+            except ValueError:
+                pass  # empty or bad cells: the loop below counts '' as 0 and names a bad cell
             values = np.zeros(len(cols))
             for k, c in enumerate(cols):
                 cell = row[c] if c < len(row) else ""
