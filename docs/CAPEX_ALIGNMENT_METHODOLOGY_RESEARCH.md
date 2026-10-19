@@ -57,6 +57,23 @@ capex-share benchmark only where ACT publishes one. Elsewhere it is an intensity
   methodology PDFs, ACT Core included, are not: reproduction needs WBA/ADEME permission. TPI
   methodology notes are CC BY-NC 4.0; TPI data still needs a licence. CTI stays non-commercial.
 
+**Round 3 changes (updated round 3).** Details and sources are in section 12.
+
+- **Use is internal and non-commercial (owner decision).** Benchmark figures and WBA data may be
+  used with citation. The "commercial" licence column below is kept for the record only.
+- **ACT Core 2026 gives a letter grade, not a score.** A–G from transition plan quality (0–5) and
+  contribution to the transition (0–2). No weights, no "4B+" rating. Capex enters through one
+  element, D01.a, as a maturity band (Unmet…Low-carbon aligned).
+- **D01.a is public for all 2,000 companies** (maturity level only). 76% are Unmet. The underlying
+  capex amounts sit in WBA's Data Explorer (free login, API on approval, CSV/JSON, ISIN/LEI).
+- **In the 2020–2024 sector benchmarks a capex-share indicator weighed only 3–8%** of the ACT
+  performance score. Heavy industry relied on locked-in emissions (8–13%) instead.
+- **WBA scores can be a cross-check, not our primary capex input:** bands not amounts, generic
+  thresholds for steel/cement/aluminium/aviation/shipping, one 2026 edition, English-only
+  disclosure (several Chinese steel mills unscored).
+- **Licence wording conflicts:** the WBA disclaimer says CC BY 4.0, the fair-use page says
+  CC BY-NC-ND 4.0, and the 2020–2021 datasheets are CC BY-NC-ND. All are fine for internal use.
+
 | Methodology | Company metric | Sectors | Pathway source | Reuse in a commercial platform |
 |---|---|---|---|---|
 | CA100+ Indicator 6 (v2.2, 2025) | Absolute value of carbon-intensive capex (6.1.b) and of climate-solutions capex, past (6.2.a) and planned (6.2.b). A share counts only if absolute terms can be derived. Yes/No metrics. | All 164 focus companies | None. Disclosure test only. | Site terms: no commercial reproduction without written permission. [verified](https://www.climateaction100.org/terms-of-use/) |
@@ -568,7 +585,12 @@ and retrieval date.
 
 ### 9.3 Owner decisions needed
 
-1. **Licences:** request permission from ADEME/CDP (ACT) to store and display the 95%, 49%, 54%
+1. **Licences:** (updated round 3) **Decided by the owner: the platform is non-commercial and for
+   internal use, so benchmark data (ACT figures, WBA scores and datasets, TPI, CTI, CA100+) may be
+   used with citation.** Store each figure with its source, page and licence line (section 9.2,
+   Storage). Ask WBA/ADEME (and CDP for older ACT sector methods) only if outputs will be shared
+   outside the organisation; WBA's own wording ranges from CC BY 4.0 to CC BY-NC-ND 4.0 (section
+   12.5). Original text: request permission from ADEME/CDP (ACT) to store and display the 95%, 49%, 54%
    and 80% benchmarks commercially, or derive the platform's own figures from IEA CC BY 4.0 report
    content. CTI, CA100+ and TPI are non-commercial or licence-only (TPI MQ via LSEG).
    (updated round 2) WBA now co-owns ACT (ACT Core is "© World Benchmarking Alliance, ADEME 2025"),
@@ -597,6 +619,14 @@ and retrieval date.
    publishes datasheets for oil and gas, utilities, transport and transport makers (not opened, so
    their licence lines are unchecked). They are 2021–2024 snapshots, and WBA "reserves the right to
    review and amend" its licence terms.
+   (updated round 3) Recommended: yes, as a cross-check and fallback, not as the primary capex
+   input (section 12.6). Decide (a) whether to register for WBA's Data Explorer and request API
+   access, to get the D01.a capex amounts behind the public maturity levels; (b) whether to use the
+   undocumented public D01.a JSON meanwhile; (c) whether to adopt ACT Core's RY/RY+1 rule for
+   combining current and planned capex; (d) whether to use ACT Core B02.d ("a clear link between
+   the identified action and the financial requirements") as the acceptance test for capex behind
+   an extracted plan action. All other datasheets are now checked: 2023–2024 are CC BY 4.0,
+   2020–2021 are CC BY-NC-ND 4.0.
 
 ---
 
@@ -913,3 +943,475 @@ WBA ran no separate chemicals benchmark in that period.
 - **ACT O&G:** the methodology read is the 2021 "vf" edition. A newer O&G edition may exist.
 - **PSF:** a second monitoring edition (FY2023–2025 data) was announced for a 20 October 2026
   webinar. It is not yet published, so not read.
+
+---
+
+## 12. Round 3: WBA methodology and scoreboard in detail
+
+Status: **round 3 research note, 2026-10-19.** Sources are WBA's own pages, the ACT Core PDF, the
+2026 methodological note, the nine 2020–2024 datasheets (downloaded and read with openpyxl) and the
+public data behind WBA's 2026 company pages. Downloads sit in the session scratchpad, not in the
+repo. ACT Core page numbers are the printed page numbers. The 2026 note prints "1" on every page,
+so it is cited by PDF page.
+
+Short links used below:
+
+- **ACT Core** = [ACT Core v1.0, 24 Feb 2025](https://actinitiative.org/wp-content/uploads/pdf/act-core-methodology.pdf)
+- **Note 2026** = [Methodological note on the 2026 ACT Core assessments (v2)](https://www.worldbenchmarkingalliance.org/sites/default/files/2026-01/Methodological%20note%20on%20the%202026%20ACT%20Core%20assessments_v2.pdf)
+- **ACT Core page** = [WBA benchmark page "ACT Core"](https://www.worldbenchmarkingalliance.org/benchmark/act-core)
+- **Datasets page** = [Data sets from the Climate and Energy Benchmarks (2020–2024)](https://www.worldbenchmarkingalliance.org/data-sets-climate-and-energy-benchmarks-2020-2024)
+
+### 12.1 Which WBA climate benchmarks exist
+
+There are two generations. From 2020 to 2024 WBA ran one benchmark per sector, scored with the ACT
+sector methods. In 2026 it replaced them with one cross-sector **ACT Core** assessment of its
+2,000-company list (the "SDG2000").
+
+| Edition | Published (datasheet version) | Companies | ACT method | Source |
+|---|---|---|---|---|
+| Automotive 2020 | 2020 | 30 carmakers | ACT Auto | [datasheet](https://www.worldbenchmarkingalliance.org/sites/default/files/2026-06/WBA-Climate-and-Energy-2020-Automotive-Results-Data.xlsx) [verified] |
+| Electric Utilities 2021 | 30 Nov 2021 | 51 | ACT Electricity | [datasheet](https://www.worldbenchmarkingalliance.org/sites/default/files/2026-06/Electric-utilities-Data-scores-and-additional-commentary-2021-final.xlsx) [verified] |
+| Oil and Gas 2021 | 6 Dec 2021 | 100 | ACT O&G (2021) | [datasheet](https://www.worldbenchmarkingalliance.org/sites/default/files/2026-06/Datasheet_2021-Oil-and-Gas-Benchmark_updated-in-November-2021.xlsx) [verified] |
+| Transport 2022 | 18 Oct 2022 | 90: air 25, shipping 17, rail 9, road 6, multi-modal 33 | ACT Transport v2.1 | [datasheet](https://www.worldbenchmarkingalliance.org/sites/default/files/2026-06/Datasheet_2022-Transport-Benchmark-5.xlsx) [verified] |
+| Oil and Gas 2023 | 29 Jun 2023 | 99: integrated 64, semi-integrated 19, upstream 12, midstream 4 | ACT O&G (2021) | [datasheet](https://www.worldbenchmarkingalliance.org/sites/default/files/2026-06/Datasheet_2023-Oil-and-Gas-Benchmark-17-July.xlsx) [verified] |
+| Buildings 2023 | 2023 (intro tab says "Version 18 October 2022") | 50 | ACT Construction, Real Estate, Property Developer | [datasheet](https://www.worldbenchmarkingalliance.org/sites/default/files/2026-06/Datasheet-2023-Buildings-Benchmark-v1.xlsx) [verified] |
+| Electric Utilities 2023 | 15 Nov 2023 | 68 | ACT Electricity v2.0 | [datasheet](https://www.worldbenchmarkingalliance.org/sites/default/files/2026-06/Datasheet_2023-Electric-Utilities-EU-Benchmark-16-Nov.xlsx) [verified] |
+| Heavy Industries 2024 | 20 May 2024 | 91: steel 45, cement 34, aluminium 12 | ACT Iron & Steel, Cement, Aluminium v2.0 | [datasheet](https://www.worldbenchmarkingalliance.org/sites/default/files/2026-06/Datasheet_2024-Heavy-Industries-HI-Benchmark-20-May.xlsx) [verified] |
+| Automotive and Transportation Manufacturers 2024 | 3 Dec 2024 | 44: 30 carmakers, 14 aircraft/rail/truck/ship makers | ACT Auto, ACT Generic | [datasheet](https://www.worldbenchmarkingalliance.org/sites/default/files/2026-06/Datasheet_2024-ATM-Benchmark-04-Dec.xlsx) [verified] |
+| **ACT Core 2026 ("Climate Benchmark")** | 13 Jan 2026 | 2,000 listed; 1,955 graded; 45 "Not Scored" (non-English disclosure) | ACT Core v1.0 | [ACT Core page](https://www.worldbenchmarkingalliance.org/benchmark/act-core), [press release](https://www.worldbenchmarkingalliance.org/latest/over-1-trillion-climate-investment-could-be-unlocked-according-new-analysis-2000-companies) [verified] |
+
+- The datasets page says WBA assessed "450 companies from the highest-emitting sectors" in
+  2020–2024. [verified, Datasets page]
+- **No separate WBA steel, cement, chemicals, aviation or shipping benchmark exists.** Steel,
+  cement and aluminium were in Heavy Industries 2024. Airlines and shipping were in Transport 2022.
+  Chemicals were first covered in ACT Core 2026 (71 graded). [verified, datasheets and 2026 listing]
+- **Food and agriculture:** WBA runs a separate Food and Agriculture Benchmark, not climate-scored
+  with ACT. ACT Core covers agri-food companies with its own capex and R&D bands (12.2). Not studied
+  further. [verified, [company scoreboard](https://www.worldbenchmarkingalliance.org/company-scoreboard) benchmark list]
+- **Just Transition 2026** is a separate assessment of the same 2,000 companies, scored 0–100 on
+  three indicators (social dialogue, just transition planning, decent work and skills). It does not
+  feed the ACT Core grade. [verified, [Just Transition page](https://www.worldbenchmarkingalliance.org/benchmark/just-transition)]
+- **TransitionArc** (Arc, with WBA, CTI, TPI, InfluenceMap, SBTi and others) will publish a subset
+  of ACT Core data free of charge, "on a rolling basis … throughout 2026 and 2027". The subset
+  includes "CAPEX and low-carbon CAPEX values" (D01.a). The FAQ says it considers disclosures
+  "publicly available by 31 December 2026". It "will not lead to a score or a revision of the
+  current ACT Core scores". [verified, [TransitionArc FAQ, 7 Sep 2026](https://www.worldbenchmarkingalliance.org/latest/transitionarc-2026-data-update-faq)]
+- No date for a second ACT Core edition was found. [not verified]
+
+### 12.2 Methodology in detail
+
+#### 12.2.1 ACT sector methods as used by WBA (2020–2024)
+
+**Rating.** Each company gets a three-part ACT rating such as "12.7 B +": [verified, O&G 2023
+datasheet, tab 3.1 "ACT rating guidance"]
+
+- **Performance score**, 0–20: the weighted sum of the indicator scores in nine modules.
+- **Narrative score**, A (best) to E: the analyst's holistic view of Paris alignment.
+- **Trend score**, "+", "=" or "−": the expected near-term direction.
+
+**How the 0–100 WBA total is built.** The datasheets only state "Total ACT score has been
+normalised out of 60" and that social adds 40 (just transition 20 + core social 20). [verified, tab 2]
+Recomputing from the data gives an exact fit on every row checked:
+
+- Total ACT (0–60) = (Performance + Narrative points + Trend points) / 42 × 60.
+- Narrative points: A 20, B 15, C 10, D 5, E 0. Trend points: + 2, = 1, − 0.
+- WBA total (0–100) = Total ACT + Total social.
+- Example: Ampol (O&G 2023) has performance 2.1, narrative D (5), trend − (0). (2.1 + 5 + 0) / 42 ×
+  60 = 10.1, which is its published Total ACT. Plus social 9.4 gives the published total 19.5.
+
+[derived from O&G 2023 and HI 2024 datasheets, tabs 2 and 3.1; the formula itself is not printed]
+
+**Module weights.** Tab 4 "Max ACT Performance Scores" gives each company's maximum points per
+module, out of 20 performance points. Weights vary by company (for example by business mix), so
+the table shows the typical (modal) values. [verified, tab 4 of each datasheet]
+
+| Sector (edition) | 1 Targets | 2 Material investment | 3 Intangible investment | 4 Sold product | 5 Management | 6 Supplier eng. | 7 Client eng. | 8 Policy eng. | 9 Business model |
+|---|---|---|---|---|---|---|---|---|---|
+| Oil & gas, integrated (2023) | 3 | 3 | 1.6 | 4.6 | 2 | 0.8 | 2 | 1 | 2 |
+| Oil & gas, upstream (2023) | 3 | 8 | 2 | 2 | 2 | 0 | 0 | 1 | 2 |
+| Electric utilities (2023), e.g. Enel | 3 | 4.7 | 1.3 | 2.9 | 2.4 | 1.2 | 1.6 | 1 | 2 |
+| Electric utilities (2023), e.g. AES | 3 | 5.6 | 1.3 | 2.3 | 2.4 | 1.0 | 1.4 | 1 | 2 |
+| Steel (2024) | 3 | 6 | 2 | 2.4 | 2 | 0.4 | 1.2 | 1 | 2 |
+| Cement (2024) | 3 | 6.6 | 2 | 0 | 2 | 1.2 | 2 | 1.2 | 2 |
+| Aluminium (2024) | 3 | 6.2 | 2 | 2.1 | 2 | 0.8 | 0.8 | 1 | 2 |
+| Carmakers (2024), e.g. BMW | 3 | 1.4 | 1 | 6.6 | 2 | 1 | 2 | 1 | 2 |
+| Aircraft / transport makers (2024), e.g. Airbus | 3 | 3 | 1 | 3.9 | 2 | 1.6 | 2.4 | 1 | 2 |
+| Airlines, shipping, rail, road (2022) | 3 | 6 | 1 | 0 | 2 | 3 | 2 | 1 | 2 |
+
+Divide by 20 for the percentage weight (for example steel material investment 6/20 = 30%).
+
+**Material investment (module 2) indicators and their own weights** (max points of 20, tab 4):
+
+| Sector | Capex or asset indicator in module 2 | Max points | Benchmark (from sections 4 and 10) |
+|---|---|---|---|
+| Oil & gas | 2.5 low-carbon and mitigation capex share; 2.6 CCS/CDR capex share; 2.4 share of unsanctioned projects within carbon budget; 2.2 emissions lock-in | Integrated: 0.6 / 0.4 / 0.4 / 0.6. Upstream: 1.2 / 1.2 / 1.6 / 1.4 | 49% and 5% (ACT O&G 2021) |
+| Electric utilities | 2.4 share of low-carbon capex; 2.2 locked-in emissions | Enel: 1.42 / 1.28 | 95% (ACT Electricity) |
+| Carmakers | AU 2.2 share of low-carbon capex | 1.0 | 80% threshold |
+| Aircraft / ship / rail makers | GE 2.3 share of low-carbon capex; GE 2.4 locked-in emissions | 1.5 / 0 (Airbus) | 80% threshold |
+| Steel | IS 2.3 locked-in emissions of crude steel assets | 2.2 | Carbon budget (SDA) |
+| Cement | CE 2.2 locked-in emissions | 1.6 (Holcim) | Carbon budget (SDA) |
+| Aluminium | AL 2.2 locked-in emissions | 2.66 (Norsk Hydro) | Carbon budget (SDA) |
+| Airlines, shipping | TR 2.3 fleet locked-in emissions; TR 2.4 share of low-carbon vehicles | (not split in round 3) | Carbon budget |
+
+So a **capex-share indicator carries only 3–8% of the ACT performance score** (0.6–1.5 of 20), and
+none exists for steel, cement, aluminium, airlines or shipping. Locked-in emissions carry 8–13% in
+heavy industry. [verified, tab 4 values; benchmarks per sections 4 and 10.5]
+
+**Intangible investment (module 3)** is low-carbon R&D share and low-carbon patents (for example
+EU 3.1 and 3.2, O&G 3.1 and 3.2, HI 3.1 and 3.2). The R&D benchmarks are in section 10.6
+(steel and aluminium 80% / 65%; cement 5% of capex; transport 80%). [verified, tab 3.1 headers]
+
+**ACT updates since the WBA editions.** ACT harmonised some weights after these benchmarks:
+"time horizon of targets" 3% and "achievement of previous targets" 2% in all sectors; module 5
+items 3/1/3/1/2%. No capex indicator or capex benchmark was changed.
+[verified, [ACT methodology updates page](https://actinitiative.org/fr/mise-a-jour-methodologies-act/)]
+
+#### 12.2.2 ACT Core (2026)
+
+**Structure.** Six measurement areas, ten indicators, 30 elements. [verified, ACT Core pp.9, 16–17]
+
+| Area | Indicators | Elements | Axis |
+|---|---|---|---|
+| A. GHG reporting and targets | A01 | A01.a reporting; A01.b targets; A01.c 1.5°C pathway used; A01.d no offsets/avoided emissions | Transition plan quality (TPQ) |
+| B. Planning | B01, B02, B03 | B01.a–c plan, coverage, review; B02.a–e levers, near/long term, GHG savings, **B02.d investments per lever**, risks; B03.a–e supplier and client engagement | TPQ |
+| C. Governance and policy | C01, C02 | C01.a–d board responsibility, teams, expertise, pay; C02.a–b policy support, associations | TPQ |
+| D. Low-carbon investments | D01, D02 | **D01.a investing in climate solutions** (capex or R&D share); **D02.a business model** (low-carbon revenue share and plans) | Contribution to the transition (CTT) |
+| E. Target alignment | E01 | E01.a–d near/long-term, S1+2 and S3 targets vs a company-specific 1.5°C path | CTT |
+| F. Performance | F01 | F01.a realignment needed for the past trajectory | CTT |
+
+**No weights and no 0–20 score.** "ACT Core does not generate a quantitative score (e.g., the ACT
+performance score)". It places companies on a stepwise scale using element thresholds, and "does
+not make use of the ACT trend nor narrative scores". [verified, ACT Core p.10] So there is no
+"4B+"-style rating in 2026.
+
+**Element scoring.** Elements are either met/unmet, or placed on a maturity matrix: Basic,
+Standard, Advanced, Next practice, Low-carbon aligned. [verified, ACT Core pp.17–18]
+
+**How the 2026 grade was actually set (Note 2026, which overrides Tables 6/7 of ACT Core).**
+
+- WBA dropped A01.d, B02.e and C01.b–C02.b from scoring, and treated A01.c as context only.
+  [verified, Note 2026 PDF pp.1–2]
+- TPQ runs 0–5 and CTT runs 0–2. The letter grade combines them. [verified, ACT Core page]
+
+| Grade | Class | TPQ | CTT | Key conditions (Note 2026) |
+|---|---|---|---|---|
+| G | Uncommitted | 0 | any | A01.b unmet: no valid target (baseline, ≤2034, ≥95% S1+2 or ≥40% S3) |
+| F | Non-mature | 1 | any | A01.b at least Basic |
+| E | Committed but not planning | 2 | any | A01.b at least Standard, no plan |
+| D | Unstructured plan execution | 3 | any | B01.a, B01.b and C01.a met |
+| C | Inconsequential planning | 4–5 | 0 | A01.a ≥ Basic, but **D01.a unmet** and F01.a below Basic |
+| B | Consequential planning | 4–5 | 1 | **D01.a ≥ Basic** ("no more than 10–20% of total investment"), F01.a ≥ Standard, ≥1 of E01.a–d met |
+| A | 1.5°C aligned and planning | 4–5 | 2 | **D01.a ≥ Standard** ("typically … 40% or more"), F01.a ≥ Next practice, ≥2 of E01.a–d met, ≥5 of B02/B03 elements met |
+
+[verified, Note 2026 PDF pp.2–3; ACT Core page "How are companies scored?"] The ACT Core page also
+says CTT "only contributes to the total score when TPQ is above 4", while its table uses "4 or 5".
+Read it as TPQ ≥ 4.
+
+**D01.a, the capex element (exact rules).** [verified, ACT Core pp.58–62]
+
+- Data: total capex and climate-solutions capex for RY and RY+1 (amount and %); total and
+  climate-solutions R&D for RY and RY−1. Currency as ISO 4217.
+- Taxonomy-aligned spending counts. "'Taxonomy eligible' investments/expenditures cannot be used".
+  A company's own definition counts only if it details what is low-carbon.
+- Year rule: if only RY exists, score RY. If RY+1 is higher, score RY+1. If RY+1 is lower, score
+  the average. R&D compares RY−1 with RY the same way.
+- Capex is preferred over R&D where a sector has both. Sectors without an ACT matrix use the
+  generic row.
+- Matrix (LC = low-carbon capex share):
+
+| Row | Basic | Standard | Advanced | Next practice | Low-carbon aligned |
+|---|---|---|---|---|---|
+| Electricity | LC/95% < 0.20 | 0.21–0.40 | 0.41–0.60 | 0.61–<1 | ≥ 1 (LC ≥ 95%) |
+| Oil and gas | LC/77% < 0.20 | 0.21–0.40 | 0.41–0.60 | 0.61–<1 | ≥ 1 (LC ≥ 77%) |
+| Chemicals | LC/77% < 0.20 | 0.21–0.40 | 0.41–0.60 | 0.61–<1 | ≥ 1 (LC ≥ 77%) |
+| Automotive | < 20% | 21–40% | 41–60% | 61–80% | > 80% |
+| Generic (steel, cement, aluminium, airlines, shipping, others) | < 20% | 21–40% | 41–60% | 61–80% | > 80% |
+| Agriculture (capex) | < 10% | – | 11–20% | – | > 20% |
+| Agriculture (R&D) | < 10% | 10–15% | 15–25% | 25–40% | > 40% |
+| Generic (R&D) | < 20% | 21–40% | 41–60% | 61–80% | > 80% |
+
+- In absolute terms the oil and gas and chemicals bands are: Standard from about 16%, Advanced from
+  about 32%, Next practice from about 47%. Electricity: about 20%, 39%, 58%. (Our arithmetic.)
+- "Unmet" (shown in the 2026 data) means "no evidence that the company is mobilizing low-carbon
+  investments through capital expenditure (CapEx) or R&D" (Note 2026 PDF p.2).
+- The 77% still has no stated derivation (section 10.5).
+
+**D02.a, business model.** A matrix of low-carbon revenue share (< industry average, < 50%,
+51–70%, 71–90%, > 90%) against plans to create or grow low-carbon business models over five years.
+A committed, planned phase-out of the main high-emitting business "over a timeline relevant to the
+sector (e.g. 2035 for automotive sector; 2030/40 for electricity, 2040 for shipping)" scores
+Low-carbon aligned. [verified, ACT Core pp.63–66]
+
+**B02.d, investments per lever.** Met if the company "provides financial elements detailing how it
+will fund its decarbonisation levers/actions", with "a clear link between the identified action and
+the financial requirements" and a breakdown of needs vs funds allocated. This is a disclosure test,
+not a level test. [verified, ACT Core pp.36–37] Appendix 10.2 lists decarbonisation levers by WBA
+industry. [verified, ACT Core table of contents, p.4; appendix not read in full]
+
+**E01 and F01, the trajectory tests.** [verified, ACT Core pp.70–82]
+
+- E01: build a sector 1.5°C path in absolute emissions from 2019 (s1.5C). Then make it
+  company-specific (c1.5C): any excess emitted above s1.5C since 2019 must be recovered by a
+  steeper path, so the company stays inside its 2050 carbon budget (after Rekker et al. 2022).
+- Alignment = company target / 1.5°C-compatible target (EQ3). Met if ≤ 1.10. Intensity targets are
+  converted with activity data; if activity is expected to grow and no forecast exists, WBA
+  assumes 1.5% a year growth. [ACT Core pp.72–74]
+- F01.a: realignment factor = (required S1+2 trend / observed trend) × S1+2 share + (required S3
+  trend / observed trend) × S3 share, between 2019–RY and RY+5 (EQ4). Bands: > 3 Basic;
+  1.5–3 Standard; 1.2–1.5 Advanced; 1–1.2 Next practice; ≤ 1 Low-carbon aligned. [ACT Core pp.81–82]
+- Climate-solution providers are scored instead on deployment (e.g. GW, TW) vs 1.5°C technology
+  pathways: < 50%, 50–70%, 70–80%, 80–95%, ≥ 95% of required. [ACT Core p.82]
+
+**What ACT Core does not use.** No locked-in emissions, no intensity pathways ("ACT Core only
+considers global and sectoral pathways based on absolute emissions"), no sold-product module, no
+trend or narrative score. [verified, ACT Core pp.10, 87]
+
+### 12.3 Pathways per sector
+
+**ACT Core 2026: absolute-emissions pathways only.** Fallback is SBTi cross-sector. [verified,
+Note 2026 PDF pp.3–4]
+
+| Our sector | Pathway(s) used by WBA 2026 | Scope |
+|---|---|---|
+| Steel | ISF-OECM; SBTi-NZE (iron and steel) | S1+2 |
+| Cement | ISF-OECM | S1+2 |
+| Aluminium | ISF-OECM | S1+2 |
+| Chemicals | ISF-OECM | S1+2 |
+| Power | Climate Analytics (SR1.5/SSP1); ISF-OECM; power purchase ISF-OECM | S1+2; S3 |
+| Oil and gas | Oil production IEA-NZE (S1+2); oil consumption ISF-OECM (S3) | S1+2; S3 |
+| Autos | LDV manufacture ISF-OECM (S1+2); LDV use IEA-NZE (S3); heavy trucks ISF-OECM / IEA-NZE | S1+2; S3 |
+| Aviation | Plane use IEA-NZE; plane manufacture ISF-OECM | S1+2 or S3 |
+| Shipping | Shipping use ISF-OECM; ship manufacture ISF-OECM | S1+2 or S3 |
+| Mining | Diversified mining TPI (NZE/IPCC) | S1+2 |
+
+- Allowed pathway sources must be 1.5°C with ≥ 50% probability, little or no overshoot before 2050,
+  and ≤ 10% reliance on negative emissions. [verified, ACT Core p.87]
+- **Capex is not compared with a pathway in ACT Core.** D01.a uses fixed thresholds (95%, 77%,
+  80% bands). Only E01 and F01 use pathways.
+
+**2020–2024 sector benchmarks: intensity pathways via SDA.** Heavy Industries used IAI
+(aluminium), IEA NZE 2023 (cement) and SBTi (steel). Capex shares there were checked against the
+fixed ACT benchmarks (95%, 49%, 80%). [verified, section 10.5]
+
+**How company trajectories are compared:** ACT sector methods compare intensity trends and
+locked-in emissions of assets with an SDA carbon budget. ACT Core compares absolute emissions
+targets and the 2019–RY trend with a company-specific absolute 1.5°C path.
+
+### 12.4 Scoreboard and data
+
+**What is public per company on the website (no login).** [verified, [ArcelorMittal scorecard](https://www.worldbenchmarkingalliance.org/company/arcelormittal) and ACT Core page]
+
+- Grade A–G and class name, TPQ (0–5) and CTT (0–2), with an explanatory paragraph.
+- Region, WBA industry, HQ country, ownership, and a footprint panel (revenue, production, S1+2
+  emissions, employees).
+- A chart of D01.a ("Investment in climate solutions") against all companies, and a TPQ × F01.a
+  chart.
+- Scores from the other 2026 benchmarks (Just Transition, Nature, Social, Gender).
+
+**The charts carry element-level data for all 2,000 companies.** The page loads it as JSON from two
+endpoints, readable without login:
+
+- `/company_benchmarks/elements-beeswarm/GEC_01207.1/<WBA ID>`: D01.a maturity for every company,
+  as `{"value": 0–5, "maturity": "Unmet"…"Low-Carbon Aligned", "name": "Company PT_xxxxx"}`.
+- `/performance_planning_comparison/data/<WBA ID>`: that company's TPQ (x) and F01.a maturity (y),
+  plus the distribution.
+
+These are undocumented website endpoints, not an API contract. They give the maturity level, not
+the underlying capex amounts or percentages. [verified, fetched 2026-10-19]
+
+**Data Explorer and API (registration).** [verified, [User Guide](https://www.worldbenchmarkingalliance.org/documentation/user-guide),
+[API Specification](https://www.worldbenchmarkingalliance.org/documentation/api-specification),
+[Data Dictionary](https://www.worldbenchmarkingalliance.org/documentation/data-dictionary)]
+
+- Free registration is required. The API needs a separate approval ("may take several days"),
+  then a Bearer key. Without it every dataset call returns HTTP 401 "Not authenticated" (tested).
+- Hierarchy: company → benchmark score → measurement area → indicator → element → attribute
+  values. "Attributes … individual data points or metrics" are where the reported capex figures
+  should sit, with "evidence sources". The D01.a data requirements in 12.2.2 list what those
+  attributes cover. Not inspected (no account). [not verified for content]
+- Datasets: companies, footprintattributes, climateprofiles, emissions, targets, sources;
+  methodologies…; benchmarks, measurementareas, indicators, elements, attributevalues.
+- Company identifiers: "Core company information including identifiers (ISIN, LEI), industry
+  classification, geographic location". The WBA ID has the form `PT_00001`.
+- Formats: on-screen tables; download as a ZIP of CSV files (full tables only, no filtered
+  download); REST JSON, at most 1,000 rows per page and 1 request per second.
+- The data dictionary has 357 fields (134 company, 68 methodology, 155 benchmark).
+- Cadence: "annual assessment cycle". "Once published, benchmark data is not modified unless
+  exceptional circumstances." The Data Explorer is in beta.
+- The OpenAPI spec is public at `https://data.worldbenchmarkingalliance.org/api/data/v1/openapi.json`;
+  it lists the endpoints but not the columns. [verified]
+
+**2020–2024 datasheets (Excel, no login).** Each has 8–9 tabs: overall scores (ISIN, country,
+region, sub-sector, total /100, Total ACT /60, performance, narrative, trend, social); ACT
+normalised and raw scores per module and indicator (0–100, with ranks); maximum points per
+indicator (the weights); module summaries (analyst text per module); data availability; just
+transition and core social element scores; disclaimer. [verified, all nine files]
+
+- Identifiers: ISIN in 2021–2023 files (NULL for state-owned companies such as ADNOC or Basra Oil);
+  WBA ID (`PT_…`) in 2023–2024 files; HI 2024 and ATM 2024 have no ISIN. Names are not normalised
+  (for example "United States of America of America" in HI 2024).
+- **Data defect:** in HI 2024 tab 2 the WBA ID column does not follow the sorted rows. ArcelorMittal
+  shows PT_02125 there but PT_00130 in tab 4 and in 2026; PT_00130 in tab 2 is Norsk Hydro. Join on
+  the other tabs or on 2026 IDs, not on HI tab 2. [verified]
+- The underlying company capex figures are not in the datasheets, only the indicator scores.
+
+**2026 coverage of our sectors (graded companies, from the public listing on 2026-10-19).**
+Sub-sector counts are by company name and approximate.
+
+| Sector | Graded | Grade mix (A…G) | D01.a met (≥ Basic) | Europe & C. Asia / China / US |
+|---|---|---|---|---|
+| Utilities (power, plus water and grids) | 116 (+6 not scored) | A 6, B 2, C 10, D 30, E 17, F 14, G 37 | 41 | 27 / 9 / 19 |
+| Oil & gas | 93 (+1) | D 7, E 51, F 13, G 22 | 33 | 26 / 5 / 18 |
+| Metals & mining | 88 (+6) | C 9, D 36, E 18, F 8, G 17 | 25 | 22 / 25 / 9 |
+| ↳ steel (approx.) | ~39 (+5 Chinese mills not scored) | C 1, D 16, E 5, F 4, G 13 | 10 | |
+| ↳ aluminium (approx.) | ~9 | D 3, E 3, F 2, G 1 | 3 | |
+| Construction materials | 41 | B 2, C 4, D 14, E 8, F 5, G 8 | 17 | 8 / 7 / 5 |
+| ↳ cement (approx.) | ~30 (+Cemros not scored) | B 2, C 4, D 9, E 7, F 2, G 6 | 15 | |
+| Chemicals | 71 | C 11, D 23, E 27, F 5, G 5 | 31 | 23 / 4 / 18 |
+| Motor vehicles & parts | 44 | B 2, C 10, D 18, E 7, F 2, G 5 | 20 | 11 / 12 / 6 |
+| Passenger transport | 89 (+9) | C 6, D 29, E 14, F 7, G 33 | 19 | 27 / 9 / 12 |
+| ↳ airlines (approx.) | ~26 | C 2, D 15, E 5, F 2, G 2 | 7 | |
+| Freight & logistics | 34 | C 5, D 6, E 12, F 6, G 5 | 9 | 7 / 2 / 4 |
+| ↳ shipping lines (approx.) | ~22 | C 5, D 6, E 6, F 3, G 2 | 8 | |
+| All 2,000 | 1,955 (+45) | A 7, B 16, C 128, D 668, E 383, F 269, G 484 | 467 | 525 / 191 / 458 |
+
+[verified: grades from the public listing behind the ACT Core page; D01.a from the beeswarm JSON;
+regions from the listing's region/country filters. "Europe & Central Asia" is WBA's region and
+includes the UK, Switzerland, Norway, Russia and Türkiye, so it is wider than the EU.]
+
+- Across all companies, D01.a is Unmet 1,488, Basic 266, Standard 100, Advanced 44, Next practice
+  30, Low-carbon aligned 27. **76% are Unmet: WBA found no evidence of low-carbon capex or R&D.**
+- WBA's own summary: "25% of companies … are now reporting low-carbon investments", median "7%
+  share of total capital expenditure"; leaders in 19 industries at "30%". [verified, press release]
+
+**Example rows, 2026 (ACT Core) and the last sector edition.**
+
+| Company | 2026 grade | TPQ | D01.a (2026) | F01.a (2026) | Last sector edition: rating; Total ACT /60; MI module /100 |
+|---|---|---|---|---|---|
+| Enel | A | 5 | Next practice | Low-carbon aligned | EU 2023: 12.7 B +; 42.4; MI 72, capex-share indicator 84.7 |
+| Holcim | B | 5 | Basic | Low-carbon aligned | HI 2024: 8.9 C +; 29.9; MI 26, CE 2.2 locked-in 39.8 |
+| BASF | C | 5 | Basic | Unmet | (no WBA chemicals edition) |
+| ArcelorMittal | D | 3 | Basic | Low-carbon aligned | HI 2024: 6.4 C −; 23.5; MI 47.8, IS 2.3 locked-in 80.1 |
+| SSAB | D | 3 | Basic | Unmet | HI 2024: 8.1 B −; 33.0; MI 79.9, IS 2.3 100 |
+| Norsk Hydro | D | 3 | Standard | Next practice | HI 2024: 7.6 C =; 26.5; MI 25.2, AL 2.2 0 |
+| Heidelberg Materials | D | 3 | Basic | Next practice | (in HI 2024, not extracted) |
+| TotalEnergies | D | 3 | Standard | Low-carbon aligned | O&G 2023: 7.6 D =; 19.4; MI 13.3, 2.5 capex share 0 |
+| Shell | E | 2 | Basic | Low-carbon aligned | O&G 2023: 5.0 D −; 14.3; MI 15.4, 2.5 capex share 0 |
+| Saudi Aramco | E | 2 | Advanced | Unmet | O&G 2023: 2.2 E −; 3.1; MI 0, 2.5 capex share 0 |
+| Volkswagen | D | 3 | Standard | Basic | (in ATM 2024, not extracted) |
+| A.P. Moller - Maersk | D | 3 | Basic | Basic | (Transport 2022, not extracted) |
+| Delta Air Lines | D | 3 | Unmet | Basic | (Transport 2022, not extracted) |
+| NTPC | F | 1 | Basic | Basic | EU 2023: 2.9 E −; 4.1; MI 7.7, capex-share indicator 2.8 |
+
+[verified: 2026 columns from the scorecard JSON; sector columns from the datasheets' tabs 2 and 3.1.
+"MI" and indicator values are WBA's normalised 0–100 scores.]
+
+Two things stand out. Saudi Aramco is "Advanced" on D01.a in 2026 but scored 0 on the 2023
+low-carbon capex indicator. TotalEnergies and Shell also scored 0 there in 2023. The editions use
+different definitions and thresholds (77% vs 49%, RY/RY+1 vs 5-year plans), so the two cannot be
+read as a trend. Check the 2026 attribute values before using any single D01.a level.
+
+### 12.5 Licence (verified 2026-10-19)
+
+The wording conflicts between WBA pages.
+
+| Item | Wording found | Source |
+|---|---|---|
+| WBA website, site-wide | "Our work is licensed under the Creative Commons Attribution 4.0 International License … World Benchmarking Alliance reserves the right to review and amend these license terms at any time." | [Disclaimer](https://www.worldbenchmarkingalliance.org/disclaimer) [verified] |
+| WBA "Fair use donation" page | "all our methodologies and benchmarks are free, publicly available on our website, and licensed under Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International". Entities that benefit financially are asked for a donation. | [Fair use donation](https://www.worldbenchmarkingalliance.org/fair-use-donation) [verified] |
+| Datasheets 2023–2024 (O&G 2023, EU 2023, Buildings 2023, HI 2024, ATM 2024) and Transport 2022 datasheet | CC BY 4.0 | Disclaimer tab of each file [verified] |
+| Datasheets 2020–2021 (Automotive 2020, Electric Utilities 2021, O&G 2021) | CC BY-NC-ND 4.0 | Disclaimer tab of each file [verified] |
+| Transport 2022 methodology report | CC BY-NC-ND 4.0 | section 10.5 [verified round 2] |
+| ACT Core and ACT sector methodology PDFs | "© World Benchmarking Alliance, ADEME 2025. Reproduction of all or part of work without licence of use permission of World Benchmarking Alliance & ADEME is prohibited." (Sector PDFs: CDP Worldwide & ADEME, same wording.) | ACT Core p.2 [verified] |
+| 2026 methodological note | No licence line; site-wide terms would apply | Note 2026 [verified] |
+| Data Explorer / API | Registration "confirms your acceptance of the Terms of Use". The OpenAPI file points `termsOfService` to the disclaimer page. No separate terms page found (three guessed URLs 404). | User Guide; openapi.json [verified]; terms text [not verified] |
+
+**What this means for internal, non-commercial use (owner decision).** Every Creative Commons
+licence above allows internal non-commercial use with attribution. The ACT notice bars
+reproduction without permission; citing single benchmark figures for internal use is the owner's
+recorded position (section 9.3). CC BY-NC-ND only bars sharing *adapted* material, so
+an internal derived score is fine. If outputs are ever shared outside the organisation, the
+stricter reading (BY-NC-ND) and the ACT reproduction notice would apply to anything built on the
+2020–2021 data, on WBA methods, or on the ACT tables. Attribution: "World Benchmarking Alliance,
+<benchmark> <year>, CC BY 4.0" (or BY-NC-ND), with the URL.
+
+### 12.6 Fit for this platform
+
+**Can WBA material-investment scores be the "capex credibility" input?** Partly.
+
+| Option | What it gives | Fit |
+|---|---|---|
+| A. 2026 D01.a maturity (public JSON) | One level, Unmet…Low-carbon aligned, for 2,000 companies, all our sectors | Usable as a coarse, current flag. It is a share band, not an amount. For steel, cement, aluminium, airlines and shipping it uses the generic 20/40/60/80% expert bands, not a pathway. 76% are Unmet. |
+| B. 2026 D01.a attribute values (Data Explorer, login) | Reported capex total and low-carbon capex, RY and RY+1, plus R&D, with evidence sources (expected from the D01.a data list) | Best fit: it is what our own extraction tries to produce. Needs an account and API approval; content not yet checked. |
+| C. 2020–2024 ACT module 2 scores (datasheets) | Module and indicator scores 0–100, including locked-in emissions for steel, cement, aluminium, fleets | Rich, but 2–6 years old, fixed company lists, older benchmarks (O&G 49%). Locked-in emissions is the only asset-based test for heavy industry. |
+| D. TransitionArc (from 2026–2027) | Same D01.a capex values, free | Watch; not yet published. |
+
+**Recommendation:** use B (or A until B is available) as a **cross-check and fallback**, not as the
+primary capex input. Keep our own extracted share and amount as primary (section 9.1). Reasons:
+
+1. **Not an amount.** A maturity band cannot answer CA100+-style absolute questions.
+2. **Thresholds, not pathways.** For our five hardest sectors the D01.a bands are ACT Generic's
+   expert thresholds. They add no sector evidence beyond section 10.6.
+3. **Freshness.** One edition so far, published January 2026 on disclosures up to roughly FY2024
+   (emissions series 2019–2024, Note 2026 PDF p.2). The next date is unknown. "Once published …
+   not modified".
+4. **Coverage gaps.** English-language disclosure only: 45 companies "Not Scored", including several
+   Chinese steel mills (Baotou, Hunan Valin, Liuzhou, Xinyu, Guangxi Shenglong), Cemros and China
+   Southern Power Grid. China coverage is thin outside metals (5 oil and gas, 4 chemicals,
+   9 utilities). Only the SDG2000 list, so mid-caps are missing.
+5. **Definition drift.** D01.a accepts Taxonomy-aligned capex or a company's own detailed definition
+   and counts nuclear and CCUS where the ACT sector method does (section 4). Our `green.py` keeps
+   nuclear and gas out (section 9.3 item 4). Compare like with like.
+
+**Company matching.** Use ISIN or LEI from the Data Explorer companies table as the join key, and
+keep the WBA ID (`PT_xxxxx`) as a stable secondary key (stable across 2023, 2024 and 2026 files,
+except the HI 2024 tab 2 defect). The public website gives only name and WBA ID. State-owned
+companies often have no ISIN (NULL in the datasheets).
+
+**Combining with the barrier matrix (EU / US / China).** The matrix
+(`backend/arp/transition_barrier/data/assessment_scores.json`) rates external barriers per sector
+and region. WBA rates the company. They answer different questions and should stay separate:
+
+- Read a WBA D01.a level *with* the barrier rating of the company's main operating region. Example:
+  a Chinese steel mill with D01.a Unmet faces different technology and policy barriers than an EU
+  mill with the same level. The barrier matrix explains context; it should not change the WBA level.
+- WBA uses HQ country. Our matrix is by operating region. Map by HQ first and flag multi-region
+  companies (for example ArcelorMittal, Holcim) for manual region weighting.
+- Sector mapping: WBA industries are broader than the matrix sectors. Steel and aluminium sit in
+  "Metals & Mining", cement in "Construction Materials & Supplies", airlines in "Passenger
+  Transport", shipping in "Freight & Logistics". Map at company level. The matrix has no autos or
+  aluminium row; WBA has no "heavy-duty road transport" industry (truck makers are in Motor
+  Vehicles / Capital Goods).
+
+**Plan-action extraction.** ACT Core's planning elements line up with what our extraction reads
+from transition plans:
+
+- B02.a (sector levers), B02.c (GHG savings per lever) and **B02.d (investment per lever)** are the
+  checks for each extracted plan action. B02.d's test ("a clear link between the identified action
+  and the financial requirements", plus a needs-vs-allocated breakdown) is a usable acceptance rule
+  for "credible capex behind an action".
+- Appendix 10.2 (levers by WBA industry, pp.103–115) could seed the lever vocabulary per sector.
+  Reproducing it needs WBA/ADEME permission if it leaves internal use.
+- D01.a's RY/RY+1 rule (score RY+1 if higher, else the average) is a simple, published way to
+  combine current and planned capex. We could adopt it for our own share.
+
+**Gaps that remain after round 3.**
+
+- No scenario-derived capex share for steel, cement, aluminium, aviation or shipping, in WBA either.
+- Data Explorer attribute content (whether raw capex numbers and units are there) is unverified.
+- Mid-cap and non-English companies are outside WBA's universe.
+- WBA licence wording conflicts (CC BY vs CC BY-NC-ND). Fine for internal use; ask WBA before any
+  external sharing.
+
+### 12.7 Could not access or not verified (round 3)
+
+- **Data Explorer content:** needs an account and API approval. Not registered (that would use the
+  owner's identity). Column names come from the user guide and data dictionary page, not the data.
+- **Data dictionary:** an Airtable embed; the field list was not extracted.
+- **Data Explorer terms of use:** no page found.
+- **Steel / cement / airline / shipping counts** are by company name within WBA industries, so
+  approximate.
+- **ACT Core Appendix 10.2** was not read in full.
+- **Next ACT Core edition date:** not found.
+- **ACT rating to Total ACT formula** is derived from the data (exact on rows checked), not printed
+  by WBA.
