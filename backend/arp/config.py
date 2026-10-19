@@ -222,9 +222,9 @@ class Settings(BaseSettings):
     )
     xbrl_facts_ttl_hours: float = Field(default=24.0 * 7, description="companyfacts cache TTL -- lower churn than the filings-list cache.")
     esef_enabled: bool = Field(
-        default=False,
+        default=True,
         description="Fetch the latest ESEF (European iXBRL) annual report of each company with an LEI from esef_index_url. "
-        "Off by default: a network source. ESEF files already on disk (.xhtml, .zip) are read either way.",
+        "On by default; ARP_ESEF_ENABLED=false turns it off. ESEF files already on disk (.xhtml, .zip) are read either way.",
     )
     esef_index_url: str = Field(default="https://filings.xbrl.org", description="filings.xbrl.org-style ESEF filing index.")
 

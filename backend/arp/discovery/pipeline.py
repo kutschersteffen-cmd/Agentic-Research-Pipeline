@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+import asyncio
 import logging
+from datetime import date, timedelta
 
 import httpx
 
 from arp.config import Settings
-from arp.discovery.change_detector import ChangeDetector, poll_esef_filings
+from arp.discovery.change_detector import ChangeDetector
 from arp.discovery.crawler import CrawlConfig, HomepageUnreachableError, crawl_for_documents
 from arp.discovery.downloader import download_documents
 from arp.discovery.refresh import refresh_hook
+from arp.discovery.report_finding import search_candidates, select_candidates
 from arp.discovery.site_check import check_homepage
 from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient, homepage_from_ids, resolve_company_homepage
 from arp.ingestion.edgar import EdgarDocumentSource
@@ -33,9 +36,21 @@ async def _discover_for_company(
     change_detector: ChangeDetector,
     doc_types: list[DocType] | None,
     edgar: EdgarDocumentSource | None = None,
+    esef: EsefDocumentSource | None = None,
     transport: httpx.AsyncBaseTransport | None = None,
+    today: date | None = None,
+    sleep=asyncio.sleep,
 ) -> DiscoveryCompanyResult:
+    today = today or date.today()
     filings = await _edgar_filings(company, edgar, doc_types) if edgar and company.cik else []
+    esef_docs, esef_current = await _esef_documents(company, esef, doc_types, today) if esef else ([], False)
+    expected_year = today.year - 1
+    types = [t for t in (DocType.ANNUAL_REPORT_10K, DocType.SUSTAINABILITY_REPORT) if not doc_types or t in doc_types]
+    if esef_current:
+        types = [t for t in types if t != DocType.ANNUAL_REPORT_10K]
+    search_cands = await search_candidates(
+        company, search_client, expected_year, types, delay=settings.discovery_request_delay_seconds, sleep=sleep
+    )
     homepage, check = company.website, None
     if not homepage:  # a supplied website is used unchecked; a derived one is checked first
         homepage = await homepage_from_ids(
@@ -49,21 +64,21 @@ async def _discover_for_company(
             )
             if check.verdict == "rejected":
                 homepage = None
-    if not homepage:
-        return DiscoveryCompanyResult(
-            company_id=company.company_id, name=company.name, homepage_used=None, homepage_check=check, documents_found=filings
-        )
 
-    crawl_config = CrawlConfig(
-        user_agent=settings.discovery_user_agent,
-        max_depth=settings.discovery_max_crawl_depth,
-        max_pages=settings.discovery_max_pages_per_company,
-        request_delay_seconds=settings.discovery_request_delay_seconds,
-    )
-    try:
-        candidates = await crawl_for_documents(homepage, crawl_config, transport=transport)
-    except HomepageUnreachableError as exc:
-        return DiscoveryCompanyResult(company_id=company.company_id, name=company.name, homepage_used=homepage, homepage_check=check, homepage_unreachable=True, crawl_error=str(exc), documents_found=filings)
+    crawl_cands, unreachable, crawl_error = [], False, None
+    if homepage:
+        crawl_config = CrawlConfig(
+            user_agent=settings.discovery_user_agent,
+            max_depth=settings.discovery_max_crawl_depth,
+            max_pages=settings.discovery_max_pages_per_company,
+            request_delay_seconds=settings.discovery_request_delay_seconds,
+            expected_year=expected_year,
+        )
+        try:
+            crawl_cands = await crawl_for_documents(homepage, crawl_config, transport=transport, sleep=sleep)
+        except HomepageUnreachableError as exc:
+            unreachable, crawl_error = True, str(exc)
+    candidates = select_candidates(crawl_cands, search_cands, homepage, expected_year, skip_annual=esef_current)
     if doc_types:
         candidates = [c for c in candidates if c.doc_type in doc_types]
 
@@ -71,17 +86,45 @@ async def _discover_for_company(
         company, candidates, settings.documents_dir, settings.discovery_user_agent,
         store=blob_store_for(IndexingConfig.from_settings(settings)), trigger="discovery", transport=transport,
         known=change_detector.known_documents(company.company_id),
-    )
-    events = await change_detector.diff_and_record(company, downloaded)
+    ) if candidates else []
+    events = await change_detector.diff_and_record(company, esef_docs + downloaded)
 
     return DiscoveryCompanyResult(
         company_id=company.company_id,
         name=company.name,
         homepage_used=homepage,
         homepage_check=check,
-        documents_found=filings + downloaded,
+        homepage_unreachable=unreachable,
+        crawl_error=crawl_error,
+        documents_found=filings + esef_docs + downloaded,
         new_events=events,
     )
+
+
+# An ESEF filing whose period ended within this many days (18 months) counts as the current annual report.
+_ESEF_CURRENT_DAYS = 548
+
+
+async def _esef_documents(
+    company: CompanyRef, source: EsefDocumentSource, doc_types: list[DocType] | None, today: date
+) -> tuple[list[DiscoveredDocument], bool]:
+    """The company's latest ESEF filing, registered like any ingested document, and whether it is current.
+    Best-effort: an index outage or a bad package leaves the homepage crawl to find what it can."""
+    try:
+        docs = await source.fetch(company, doc_types)
+    except Exception as exc:  # noqa: BLE001 -- a failed ESEF call must not fail the company
+        logger.warning("ESEF fetch failed for %s: %s", company.company_id, exc)
+        return [], False
+    found = [
+        DiscoveredDocument(company_id=company.company_id, doc_type=d.doc_type, url=d.source_url,
+                           local_path=d.local_path, sha256=d.content_key or d.sha256)
+        for d in docs if d.source_url
+    ]
+    try:
+        current = any(date.fromisoformat(d.fiscal_period[:10]) >= today - timedelta(days=_ESEF_CURRENT_DAYS) for d in docs)
+    except (ValueError, TypeError):  # a missing or malformed period_end is not current
+        current = False
+    return found, current
 
 
 async def _edgar_filings(company: CompanyRef, edgar: EdgarDocumentSource, doc_types: list[DocType] | None) -> list[DiscoveredDocument]:
@@ -117,6 +160,8 @@ async def execute_discovery_run(
     esef_source: EsefDocumentSource | None = None,
     edgar_source: EdgarDocumentSource | None = None,
     transport: httpx.AsyncBaseTransport | None = None,
+    today: date | None = None,
+    sleep=None,
 ) -> str:
     """Runs the document discovery pipeline over a company universe against
     an already-created run (see create_discovery_run).
@@ -125,11 +170,12 @@ async def execute_discovery_run(
     paths behave identically. Resumable and checkpointed via run_batch;
     every new/updated document raises a DocumentEvent through
     ChangeDetector (internal feed + optional webhook + event-driven
-    refresh). With `esef_enabled`, each company with an LEI is also polled
-    for its latest ESEF filing (`esef_source`, else one from settings).
+    refresh). With `esef_enabled`, each company with an LEI first gets its
+    latest ESEF filing (`esef_source`, else one from settings), recorded
+    like any discovered document.
     """
     job_manager = JobManager(run_store)
-    search_client = search_client or DuckDuckGoSearchClient(settings.discovery_user_agent)
+    search_client = search_client or DuckDuckGoSearchClient(settings.discovery_user_agent, transport=transport)
     change_detector = ChangeDetector(
         state_dir=settings.discovery_state_dir,
         global_events_path=settings.documents_dir / "_events.jsonl",
@@ -144,19 +190,15 @@ async def execute_discovery_run(
             submissions_ttl_hours=settings.edgar_submissions_ttl_hours, indexing_config=IndexingConfig.from_settings(settings),
         )
     if settings.esef_enabled:
-        esef_source = esef_source or EsefDocumentSource(settings.esef_index_url, settings.cache_dir)
+        esef_source = esef_source or EsefDocumentSource(settings.esef_index_url, settings.cache_dir, transport=transport)
     else:
         esef_source = None
 
     async def _worker(company: CompanyRef) -> DiscoveryCompanyResult:
-        result = await _discover_for_company(
+        return await _discover_for_company(
             company, settings=settings, search_client=search_client, change_detector=change_detector, doc_types=doc_types,
-            edgar=edgar_source, transport=transport,
+            edgar=edgar_source, esef=esef_source, transport=transport, today=today, sleep=sleep or asyncio.sleep,
         )
-        if esef_source is not None:
-            events = await poll_esef_filings(company, esef_source, change_detector, doc_types)
-            result.new_events += events
-        return result
 
     def _on_success(company: CompanyRef, result: DiscoveryCompanyResult) -> None:
         # no documents, or a PDF that doesn't name the company (doc_check), needs a reviewer

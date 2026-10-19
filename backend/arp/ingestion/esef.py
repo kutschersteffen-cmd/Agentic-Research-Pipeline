@@ -344,11 +344,13 @@ class EsefDocumentSource(DocumentSource):
         cache_dir: Path,
         *,
         client: httpx.AsyncClient | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
         content_store: DocumentContentStore | None = None,
         indexing_config: IndexingConfig | None = None,
         max_package_bytes: int = MAX_PACKAGE_BYTES,
     ) -> None:
         self._index_url = index_url.rstrip("/")
+        self._transport = transport
         self._max_bytes = max_package_bytes
         self._dir = cache_dir / "esef"
         self._client = client
@@ -366,7 +368,7 @@ class EsefDocumentSource(DocumentSource):
         if self._client is not None:
             return await self._fetch(self._client, company)
         async with httpx.AsyncClient(
-            timeout=60.0, follow_redirects=True, event_hooks={"request": [ssrf_guard_request_hook]}
+            timeout=60.0, follow_redirects=True, event_hooks={"request": [ssrf_guard_request_hook]}, transport=self._transport
         ) as client:
             return await self._fetch(client, company)
 

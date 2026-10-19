@@ -228,7 +228,7 @@ async def test_esef_poll_raises_document_events_that_reach_refresh(tmp_path, mon
 
 
 async def test_esef_poll_off_by_default(tmp_path):
-    settings = _settings(tmp_path)
+    settings = _settings(tmp_path, esef_enabled=False)
     calls = []
 
     row = await _discover(settings, _esef_source(tmp_path, calls))
