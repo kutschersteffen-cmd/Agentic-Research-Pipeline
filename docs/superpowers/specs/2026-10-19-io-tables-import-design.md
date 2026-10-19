@@ -216,6 +216,8 @@ Setup notes for the test-writer:
   (AT, B#87)×(AT, Exports) = 999. `air_emissions/F.txt` has 4 stressor lines, values 0 except
   `CO2 - combustion - air` (AT, B#100) = 2000, `CH4 - combustion - air` (AT, B#87) = 10,
   `CO2 - waste - biogenic - air` (AT, B#87) = 500 and `SO2 - combustion - air` (AT, B#87) = 123.
+- Each configured setup (ICIO, EXIOBASE, split) and each other import row writes into its own
+  fresh, empty `<dir>`; no two imports share a directory unless a row says so (AC-102).
 - **"ICIO configured"** means the three variables printed on stdout lines 3 to 5 by importing
   fixture I (AC-4) are set; **"EXIOBASE configured"** the three from importing fixture E (AC-13);
   **"split configured"** the three from importing fixture E with `--split-electricity` (AC-67).
@@ -282,7 +284,10 @@ Setup notes for the test-writer:
 | AC-40 | Fixture E | `arp io import-exiobase IOT_fixture_ixi.zip --out <dir> --label X3` | stdout line 5 is `ARP_EXIOBASE_EDITION_LABEL=X3` | holdout |
 | AC-14 | Fixture E with B#87's name replaced by `Made-up sector` everywhere: `Z.txt` header line 2 (both regions), the sector cell of both its `Z.txt` rows, and both its `x.txt` rows | `arp io import-exiobase <zip> --out <dir>` | Exit 1; stderr contains `EXIOBASE sector not in crosswalk: Made-up sector` | holdout |
 | AC-15 | A zip with fixture E's `x.txt` but no `Z.txt` | `arp io import-exiobase <zip> --out <dir>` | Exit 1; stderr contains `no Z.txt at the archive root` | holdout |
-| AC-49 | Fixture E with the `Z.txt` columns in reverse order: header lines 1 to 3 and the value cells of every data row are reversed together, so each value stays under its own (region, sector) header; the data rows' order and first two cells are unchanged | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `exiobase_flows.csv` as in AC-12 | holdout |
+| AC-49 | Fixture E with the `Z.txt` columns in reverse order: on header lines 1 to 3 and on every data row, the cells after the first two are reversed, so each value stays under its own (region, sector) header; the first two cells of every line and the data rows' order are unchanged | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `exiobase_flows.csv` as in AC-12 | holdout |
+| AC-105 | Fixture E with the `Y.txt` columns in reverse order: on header lines 1 to 3 and on every data row, the cells after the first two are reversed; the first two cells of every line and the row order are unchanged | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `final_demand.csv` as in AC-57 | holdout |
+| AC-106 | Fixture E with the `air_emissions/F.txt` columns in reverse order: on header lines 1 and 2 and on every stressor line, the cells after the first are reversed; the first cell of every line and the line order are unchanged | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `ghg.csv` as in AC-62 | holdout |
+| AC-107 | Fixture E without sector B#1 (`Cultivation of paddy rice`): its rows and columns removed from `Z.txt` and `Y.txt` rows, its lines from `x.txt`, its columns from `air_emissions/F.txt`, in both regions | `arp io import-exiobase <zip> --out <dir>` | Exit 0; stdout line 1 is `162 sectors -> 50 industries, 2 regions -> <D>`; `A01` total_output 0 in `industries.csv` | holdout |
 | AC-55 | Fixture E with every line of every file ending in `\r\n` | `arp io import-exiobase <zip> --out <dir>` | Exit 0; `exiobase_flows.csv` as in AC-12 | holdout |
 | AC-57 | AC-10's output | Read `<D>/final_demand.csv` | `C27`: households 30, investment 50; `D`: households 5; `C26`: inventories 4; every other value 0 (the Exports 999 is not counted) | holdout |
 | AC-62 | AC-10's output | Read `<D>/ghg.csv` | `D` 2000, `C26` 298, every other row 0 | holdout |
