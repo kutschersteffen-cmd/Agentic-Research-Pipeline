@@ -48,3 +48,16 @@ def test_ac48_out_of_scope_company_extracts_nothing():
 def test_lowcarbon_instructions_exclude_eligible_not_aligned():
     f = {f.field_id: f for f in build_transition_capex_schema().fields}["tc_lowcarbon_capex"]
     assert "eligible" in f.extraction_instructions and "nuclear" in f.extraction_instructions
+
+
+def test_every_field_has_3_to_8_unique_keywords():
+    for f in build_transition_capex_schema().fields:
+        kws = f.seed_keywords
+        assert 3 <= len(kws) <= 8 and all(k.strip() for k in kws) and len(set(kws)) == len(kws), f.field_id
+
+
+def test_planned_and_blast_furnace_sentences():
+    by = {f.field_id: f for f in build_transition_capex_schema().fields}
+    for fid in ("tc_capex_total_planned", "tc_lowcarbon_capex_planned", "tc_lowcarbon_capex_share_pct_planned"):
+        assert "period_end of the planned fiscal year" in by[fid].extraction_instructions
+    assert "same capacity is not new build" in by["tc_new_blast_furnace"].extraction_instructions
