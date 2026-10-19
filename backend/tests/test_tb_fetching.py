@@ -5,9 +5,11 @@ import hashlib
 import shutil
 from datetime import date
 
+import httpx
 import pytest
 from sqlalchemy import text
 
+from arp import net_safety
 from arp.config import get_settings
 from arp.db.session import transaction
 from arp.ingestion.indexing_config import IndexingConfig
@@ -130,3 +132,33 @@ def test_fetch_leaves_data_dir_untouched(tmp_path, monkeypatch):
     get_settings.cache_clear()
     dataset.reset_caches()
 
+
+
+def test_same_text_new_bytes_keeps_the_row(monkeypatch):  # HTML pages and generated PDFs change bytes on every fetch
+    quote = QUOTES["D2"][3]
+    fetch_stub(monkeypatch, {D_URLS["D2"]: (f"<html><body><p>{quote}</p><!-- 1 --></body></html>".encode(), "text/html", None)})
+    run(D2)
+    fetch_stub(monkeypatch, {D_URLS["D2"]: (f"<html><body><p>{quote}</p><!-- 2 --></body></html>".encode(), "text/html", None)})
+    run(D2)
+    (row,) = rows("cbam_regulation")
+    assert blob_store_for(IndexingConfig.from_settings(get_settings())).exists(row["content_key"])
+
+
+def test_only_http_200_is_fetched(monkeypatch):  # EUR-Lex /eli/ answers 202 with an empty body
+    fetch_stub(monkeypatch)
+    monkeypatch.setattr(fetching, "build_client", lambda: httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(202))))
+    assert run(D2) == [f"Not fetched: {D2.source_name} (HTTP 202)"]
+    assert rows("cbam_regulation") == []
+
+
+def test_fetch_client_has_the_ssrf_guard():
+    client = fetching.build_client()
+    assert net_safety.ssrf_guard_request_hook in client.event_hooks["request"]
+    asyncio.run(client.aclose())
+
+
+def test_one_bad_source_is_a_note(monkeypatch):
+    fetch_stub(monkeypatch)
+    notes = run(D2.model_copy(update={"url": "https://[bad/x"}), D1)
+    assert notes == [f"Not fetched: {D2.source_name} (Invalid IPv6 URL)"]
+    assert len(rows("eu_ets_report")) == 1

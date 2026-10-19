@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from datetime import date
 
 from sqlalchemy import select
@@ -12,7 +13,7 @@ from arp.db.models import BarrierChoice, BarrierDocument, BarrierExtraction, Bar
 from arp.db.session import transaction
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.schemas.transition_barrier import PrimarySource
-from arp.storage.document_blob_store import blob_store_for
+from arp.storage.document_blob_store import blob_store_for, upload_or_fail
 from arp.transition_barrier import clock
 from arp.transition_barrier.engine import Value, _show, fact_confidence
 from arp.transition_barrier.extraction import Extraction, fingerprint
@@ -39,16 +40,19 @@ def add_document(
 
 
 def save_source_document(
-    *, source_key: str, url: str, title: str, publisher: str, tier: str, as_of: date, content_key: str,
+    *, source_key: str, url: str, title: str, publisher: str, tier: str, as_of: date, content: bytes,
     content_type: str, page_texts: list[str], html: bool,
 ) -> int:
-    """Stores a fetched source; the source's latest row with the same bytes is returned instead of a new one."""
+    """Stores a fetched source and its bytes; the source's latest row with the same text is returned instead of a
+    new one (HTML pages and generated PDFs change bytes on every fetch)."""
     with transaction() as s:
         latest = s.scalar(
             select(BarrierSourceDocument).where(BarrierSourceDocument.source_key == source_key).order_by(BarrierSourceDocument.id.desc()).limit(1)
         )
-        if latest is not None and latest.content_key == content_key:
+        if latest is not None and latest.page_texts == page_texts:
             return latest.id
+        content_key = hashlib.sha256(content).hexdigest()
+        upload_or_fail(blob_store_for(IndexingConfig.from_settings(get_settings())), content_key, content)
         row = BarrierSourceDocument(
             source_key=source_key, url=url, title=title, publisher=publisher, tier=tier, as_of=as_of,
             content_key=content_key, content_type=content_type, page_texts=page_texts, html=html,

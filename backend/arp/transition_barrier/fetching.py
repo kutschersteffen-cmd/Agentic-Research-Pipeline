@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import io
 import logging
 from dataclasses import dataclass
@@ -13,11 +12,8 @@ import httpx
 from pypdf import PdfReader
 
 from arp import net_safety
-from arp.config import get_settings
 from arp.ingestion.html_text import extract_html_text
-from arp.ingestion.indexing_config import IndexingConfig
 from arp.schemas.transition_barrier import PrimarySource
-from arp.storage.document_blob_store import blob_store_for, upload_or_fail
 from arp.transition_barrier import store
 from arp.transition_barrier.facts import pdf_pages
 
@@ -77,7 +73,7 @@ async def fetch(url: str, *, client: httpx.AsyncClient) -> Fetched:
     try:
         assert_safe(url)
         async with client.stream("GET", url) as response:
-            if response.status_code >= 400:
+            if response.status_code != 200:  # a 202 or 204 has no document (EUR-Lex /eli/ answers 202, empty)
                 raise FetchSkipped(f"HTTP {response.status_code}")
             content_type = response.headers.get("content-type", "").split(";")[0].strip().lower()
             if content_type not in (PDF, HTML):
@@ -105,23 +101,21 @@ async def fetch(url: str, *, client: httpx.AsyncClient) -> Fetched:
 async def fetch_sources(sources: list[PrimarySource], today: date) -> list[str]:
     """Fetches and stores each fetchable source; returns a `Not fetched: ...` note for each one skipped."""
     notes: list[str] = []
-    blobs = None
     async with build_client() as client:
         for source in sources:
             if not source.url or source.manual or not source.key or not source.tier:
                 continue
             try:
                 fetched = await fetch(source.url, client=client)
+                page_texts, html = parse(fetched)
+                store.save_source_document(
+                    source_key=source.key, url=source.url, title=source.source_name, publisher=source.publisher,
+                    tier=source.tier.value, as_of=doc_as_of(fetched, today), content=fetched.content,
+                    content_type=fetched.content_type, page_texts=page_texts, html=html,
+                )
             except FetchSkipped as exc:
                 notes.append(f"Not fetched: {source.source_name} ({exc})")
-                continue
-            blobs = blobs or blob_store_for(IndexingConfig.from_settings(get_settings()))
-            content_key = hashlib.sha256(fetched.content).hexdigest()
-            upload_or_fail(blobs, content_key, fetched.content)
-            page_texts, html = parse(fetched)
-            store.save_source_document(
-                source_key=source.key, url=source.url, title=source.source_name, publisher=source.publisher,
-                tier=source.tier.value, as_of=doc_as_of(fetched, today), content_key=content_key,
-                content_type=fetched.content_type, page_texts=page_texts, html=html,
-            )
+            except Exception as exc:  # one bad source (a malformed URL, a store error) never fails the run
+                logger.warning("fetching %s failed", source.key, exc_info=True)
+                notes.append(f"Not fetched: {source.source_name} ({str(exc) or type(exc).__name__})")
     return notes

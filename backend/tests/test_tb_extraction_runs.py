@@ -308,3 +308,22 @@ def test_payload_lists_not_counted(client, monkeypatch):
     run_id = run(client)
     [item] = as_user(client, A_ANALYST).get(f"/api/review/items?run_id={run_id}").json()["items"]
     assert item["payload"]["not_counted"] == [f"Effective carbon price = 72 USD/tCO2 ({D1}): Number not in quote"]
+
+
+def test_same_text_new_bytes_no_model_call_and_choice_holds(client, monkeypatch):  # HTML and generated PDFs
+    stub, _ = extracting(monkeypatch, answers() | {("price", D3): pv(9, QUOTES["D3"][9])})
+    run(client)
+    chosen = value(latest(client), "price")["id"]
+    r = as_user(client, A_ANALYST).post(f"{CELL}/choices", json={"fact": "price", "value_id": chosen, "reason": "newer data"})
+    assert r.status_code == 201, r.text
+    calls = len(stub.calls)
+    fetch_stub(monkeypatch, {D_URLS[d]: (fixture_pdf(d) + b"\n", "application/pdf", DOCS[d][2]) for d in D_URLS})
+    run(client)
+    result = latest(client)
+    assert len(stub.calls) == calls and value(result, "price")["id"] == chosen and result["rating"] == "H"
+
+
+def test_not_fetched_note_reaches_the_result(client, monkeypatch):
+    extracting(monkeypatch, answers(), {D_URLS["D3"]: (b"{}", "application/json", None)})
+    run(client)
+    assert latest(client)["notes"] == [f"Not fetched: {D3} (unsupported type application/json)"]
