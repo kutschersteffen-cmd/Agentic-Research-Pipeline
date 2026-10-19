@@ -202,6 +202,9 @@ server without search; search is a bonus where it answers.
 - `tests/test_esef.py` asserts the old default (`assert settings.esef_enabled is False`); that line
   changes to `True` and is listed in the PR. Any test that relied on ESEF being off by default sets
   `esef_enabled=False` explicitly.
+- Ranking (§5) gets a key between year bucket and source: a candidate whose link matches a report name
+  or phrase ranks before one typed only by the year fallback or by the search query, so "Annual Report
+  2025" is not pushed out by "Pillar 3 Report 2025". The ranking rows in the table keep their results.
 
 ## Acceptance
 
