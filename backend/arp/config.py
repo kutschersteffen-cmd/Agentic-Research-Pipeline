@@ -423,6 +423,10 @@ class Settings(BaseSettings):
         default=REPO_ROOT / "backend" / "arp" / "transition_barrier" / "data",
         description="Directory holding criteria_schema.json, assessment_scores.json and source_registry.json.",
     )
+    transition_alignment_data_dir: Path = Field(
+        default=REPO_ROOT / "backend" / "arp" / "transition_alignment" / "data",
+        description="Directory holding benchmarks.json (capex benchmarks, R&D tests, redlines, ACT levers, assumptions).",
+    )
 
     skip_cutover_check: bool = Field(
         default=False,
