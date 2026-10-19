@@ -129,11 +129,22 @@ def test_source_document_pages():
 
 
 def test_field_for_and_fingerprint():
-    f = extraction.field_for(FACTS["price"], CELL)
+    f = extraction.field_for(FACTS["price"], CELL, BOOK.conversions)
     assert (f.name, f.data_type.value, f.unit, f.seed_keywords) == ("price", "number", None, ["effective", "carbon", "price"])
     assert f.extraction_instructions.startswith(FACTS["price"].definition)
     assert f.extraction_instructions.endswith("Give the as-of date of the value in period_text when the source states one.")
-    assert "CNY/tCO2" in f.extraction_instructions
+    assert "(for example CNY/tCO2)" in f.extraction_instructions
     changed = FACTS["price"].model_copy(update={"definition": "Something else."})
     assert extraction.fingerprint(FACTS["price"]) != extraction.fingerprint(changed)
     assert extraction.fingerprint(FACTS["price"]) == extraction.fingerprint(FACTS["price"].model_copy())
+
+
+def test_unit_without_currency_gets_plain_sentence():
+    gw = FACTS["price"].model_copy(update={"id": "capacity", "unit": "GW"})
+    text = extraction.field_for(gw, CELL, BOOK.conversions).extraction_instructions
+    assert "Give unit_text as GW when the source uses that unit." in text and "currency" not in text
+
+
+def test_currency_example_keeps_the_rest_of_the_unit():
+    spend = FACTS["price"].model_copy(update={"unit": "USD million/yr"})
+    assert "(for example CNY million/yr)" in extraction.field_for(spend, CELL, BOOK.conversions).extraction_instructions

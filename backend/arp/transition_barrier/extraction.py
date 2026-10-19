@@ -36,12 +36,17 @@ class Extraction:
     reason: str | None
 
 
-def field_for(fact: FactDef, cell: str) -> FieldDefinition:
+def field_for(fact: FactDef, cell: str, conversions: list[dict]) -> FieldDefinition:
     instructions = [fact.definition]
-    if fact.unit:  # R6: the model keeps the fact's unit form; code converts the currency
-        per = fact.unit.partition("/")[2]
-        example = f" (for example CNY/{per})" if per else ""
-        instructions.append(f"Give unit_text in the form {fact.unit}, with only the currency changed to the one the source states{example}.")
+    code = re.match(r"[A-Za-z]+", fact.unit or "")
+    if code and code[0] in {r["to"] for r in conversions}:  # R6: a currency code converts; keep the rest of the form
+        example = "CNY" + fact.unit[code.end():]
+        instructions.append(
+            f"Give unit_text in the form {fact.unit}, with only the currency changed to the one the source states "
+            f"(for example {example})."
+        )
+    elif fact.unit:
+        instructions.append(f"Give unit_text as {fact.unit} when the source uses that unit.")
     instructions.append(AS_OF_RULE)
     return FieldDefinition(
         field_id=fact.id,
@@ -104,7 +109,7 @@ async def extract(
 ) -> Extraction | None:
     sd = source_document(doc)
     rows, _, _ = await extract_one_field(
-        cell, field_for(fact, cell), documents=[sd], documents_by_id={sd.doc_id: sd}, llm=llm,
+        cell, field_for(fact, cell, conversions), documents=[sd], documents_by_id={sd.doc_id: sd}, llm=llm,
         verifier_llm=verifier_llm, settings=settings, fuzzy_threshold=settings.grounding_fuzzy_threshold,
         confidence_review_threshold=settings.confidence_review_threshold,
     )
