@@ -7743,6 +7743,11 @@ export interface components {
         };
         /** B02Out */
         B02Out: {
+            /**
+             * Fact Ids
+             * @default []
+             */
+            fact_ids: number[];
             /** Met */
             met: boolean;
             /** Text */

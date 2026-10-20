@@ -38,15 +38,19 @@ function BarrierFigure({ v }: { v: BarrierValue }) {
 }
 
 function Action({ a, onOpenFact }: { a: TransitionAction; onOpenFact: OpenFact }) {
-  const items: [string, string | undefined][] = [
+  const b02 = (k: string) => {
+    const r = a.b02[k];
+    return r?.fact_ids.length ? <FactButton factId={r.fact_ids[0]} onOpenFact={onOpenFact} mono={false}>{r.text}</FactButton> : r?.text;
+  };
+  const items: [string, ReactNode][] = [
     ["Action id", a.action_id ?? "—"],
     ["ACT lever", a.act_lever ? `${a.act_lever.wording} (${a.act_lever.citation})` : "No ACT Core lever wording"],
     ["Status", a.status ?? "—"],
     ["Timeframe", a.timeframe ?? "—"],
     ["Region", a.region ?? "—"],
-    ["B02.b", a.b02.b?.text],
-    ["B02.c", a.b02.c?.text],
-    ["B02.d", a.b02.d?.text],
+    ["B02.b", b02("b")],
+    ["B02.c", b02("c")],
+    ["B02.d", b02("d")],
   ];
   return (
     <article aria-label={a.text}>

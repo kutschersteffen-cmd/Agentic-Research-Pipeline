@@ -102,6 +102,7 @@ class CapexOut(BaseModel):
 class B02Out(BaseModel):
     met: bool
     text: str
+    fact_ids: list[int] = []  # the facts this result used (b: status, year; c: saving; d: needed, allocated)
 
 
 class BarrierOut(BaseModel):

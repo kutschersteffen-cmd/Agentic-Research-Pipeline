@@ -53,6 +53,10 @@ def operating_regions(facts: list[Fact]) -> list[str]:
     return [r for fid, r in _OPERATES.items() if (f := _first(facts, fid)) is not None and f.value is True]
 
 
+def _ids(*facts: Fact | None) -> list[int]:
+    return [f.fact_id for f in facts if f is not None]
+
+
 def _b02b(status: str | None, year: int | None) -> B02Out:
     if status == "implemented":
         return B02Out(met=True, text=f"implemented ({year})" if year is not None else "implemented")
@@ -62,12 +66,13 @@ def _b02b(status: str | None, year: int | None) -> B02Out:
 
 
 def _b02d(needed: Fact | None, allocated: Fact | None) -> B02Out:
+    ids = _ids(needed, allocated)
     if needed and allocated:
         if needed.unit != allocated.unit:
-            return B02Out(met=False, text="Needed and allocated in different currencies")
-        return B02Out(met=True, text=f"{needed.shown} needed, {allocated.shown} allocated")
+            return B02Out(met=False, text="Needed and allocated in different currencies", fact_ids=ids)
+        return B02Out(met=True, text=f"{needed.shown} needed, {allocated.shown} allocated", fact_ids=ids)
     if needed or allocated:
-        return B02Out(met=False, text="No split of funds needed and allocated")
+        return B02Out(met=False, text="No split of funds needed and allocated", fact_ids=ids)
     return B02Out(met=False, text="No funding stated")
 
 
@@ -95,7 +100,7 @@ def _action(group: list[Fact], text: Fact, ops: list[str], criteria: Criteria, c
                                               values=c.values))
     lever = act_levers.get(action_id) if action_id else None
     saving = get("ta_action_ghg_saving")
-    b = _b02b(status, year)
+    b = _b02b(status, year).model_copy(update={"fact_ids": _ids(get("ta_action_status"), get("ta_action_year"))})
     out = ActionOut(
         key=text.basis, action_id=action_id or None,
         act_lever=lever and ActLeverOut(wording=lever["wording"], citation=citation(Source(**lever["source"]))),
@@ -103,7 +108,8 @@ def _action(group: list[Fact], text: Fact, ops: list[str], criteria: Criteria, c
         timeframe=b.text if b.met else None,
         b02={
             "b": b,
-            "c": B02Out(met=True, text=saving.shown) if saving else B02Out(met=False, text="No quantified GHG saving"),
+            "c": B02Out(met=True, text=saving.shown, fact_ids=[saving.fact_id]) if saving
+            else B02Out(met=False, text="No quantified GHG saving"),
             "d": _b02d(get("ta_action_capex_needed"), get("ta_action_capex_allocated")),
         },
         barriers=_sorted_by_region(entries), note=note, fact_ids=sorted(f.fact_id for f in group),

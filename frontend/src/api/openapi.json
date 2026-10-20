@@ -1315,6 +1315,14 @@
    },
    "B02Out": {
     "properties": {
+     "fact_ids": {
+      "default": [],
+      "items": {
+       "type": "integer"
+      },
+      "title": "Fact Ids",
+      "type": "array"
+     },
      "met": {
       "title": "Met",
       "type": "boolean"

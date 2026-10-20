@@ -234,6 +234,12 @@ def test_ac34():
         "d": (True, "1500 EUR million needed, 600 EUR million allocated"),
     }
     assert a.timeframe == "near term (2028)"
+    g = a1()
+    by_field = {f.field_id: f.fact_id for f in g}
+    a = run(groups=[g, a2(), a3()]).actions[0]
+    assert a.b02["d"].fact_ids == [by_field["ta_action_capex_needed"], by_field["ta_action_capex_allocated"]]
+    assert a.b02["b"].fact_ids == [by_field["ta_action_status"], by_field["ta_action_year"]]
+    assert a.b02["c"].fact_ids == [by_field["ta_action_ghg_saving"]]
 
 
 def test_ac35():
@@ -252,7 +258,7 @@ def test_ac49():
 
 def test_ac50():
     assert run().b02a.model_dump() == {
-        "met": False, "text": "not met: 1 implemented, 1 planned with a timeframe (needs 3 and 1)"
+        "met": False, "text": "not met: 1 implemented, 1 planned with a timeframe (needs 3 and 1)", "fact_ids": []
     }
 
 
@@ -260,7 +266,8 @@ def test_ac59():
     a4 = action(4, "Since 2023 we recover waste heat at our Duisburg plant.", 17, "other", "implemented", 2023, EU)
     a5 = action(5, "Our Ohio plant has used renewable electricity since 2024.", 19, "other", "implemented", 2024, US)
     plan = run(groups=[a1(), a2(), a3(), a4, a5])
-    assert plan.b02a.model_dump() == {"met": True, "text": "met: 3 implemented, 1 planned with a timeframe"}
+    assert plan.b02a.model_dump() == {"met": True, "text": "met: 3 implemented, 1 planned with a timeframe",
+                                     "fact_ids": []}
     assert plan.actions[3].barriers == [] and plan.actions[3].act_lever is None
 
 

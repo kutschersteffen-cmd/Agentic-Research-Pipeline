@@ -50,22 +50,22 @@ def bvalue(vid, fact, value, unit, shown, document, document_id, page, quote):
 
 
 def b02(b, c, d):
-    return {k: {"met": met, "text": text} for k, (met, text) in zip("bcd", (b, c, d), strict=True)}
+    return {k: {"met": met, "text": text, "fact_ids": ids} for k, (met, text, ids) in zip("bcd", (b, c, d), strict=True)}
 
 
 def hand_rated(region, evidence):
     return {"code": "STL-R1", "region": region, "rating": "L", "basis": "hand_rated", "evidence": evidence, "values": []}
 
 
-NO_FUNDS, NO_SAVING = (False, "No funding stated"), (False, "No quantified GHG saving")
+NO_FUNDS, NO_SAVING = (False, "No funding stated", []), (False, "No quantified GHG saving", [])
 C_PHASE2 = {  # C's phase 2 keys as tests/db/test_transition_alignment_api.py serves them with F-TA ratified
     "regions": [EU, US, CN],
     "actions": [
         {"key": "action:P1:12:1", "action_id": "steel.h2_dri", "act_lever": None,
          "text": "We will commission a 2 Mt hydrogen-based DRI plant in Sweden by 2028.", "status": "planned", "year": 2028,
          "region": EU, "citation": TP + "12", "timeframe": "near term (2028)",
-         "b02": b02((True, "near term (2028)"), (True, "3.5 MtCO2e/yr"),
-                    (True, "1500 EUR million needed, 600 EUR million allocated")),
+         "b02": b02((True, "near term (2028)", [51, 52]), (True, "3.5 MtCO2e/yr", [56]),
+                    (True, "1500 EUR million needed, 600 EUR million allocated", [54, 55])),
          "barriers": [
              {"code": "STL-R1", "region": EU, "rating": "H", "basis": "derived",
               "evidence": "H: Effective carbon price >= 50 USD/tCO2 and Border levy in force is Yes. Effective carbon price = "
@@ -91,15 +91,15 @@ C_PHASE2 = {  # C's phase 2 keys as tests/db/test_transition_alignment_api.py se
          "act_lever": {"wording": "More scrap, process efficiency, zero-GHG power", "citation": "ACT Core methodology p.110"},
          "text": "Our electric arc furnace in Ohio has run on scrap since 2022.", "status": "implemented", "year": 2022,
          "region": US, "citation": TP + "15", "timeframe": "implemented (2022)",
-         "b02": b02((True, "implemented (2022)"), NO_SAVING, NO_FUNDS),
+         "b02": b02((True, "implemented (2022)", [64, 65]), NO_SAVING, NO_FUNDS),
          "barriers": [hand_rated(US, "No federal carbon price applies to steel.")], "note": None,
          "fact_ids": [62, 63, 64, 65, 66]},
         {"key": "action:P1:16:1", "action_id": "steel.ccus", "act_lever": None,
          "text": "We are studying carbon capture at our Tianjin plant.", "status": "planned", "year": None, "region": CN,
-         "citation": TP + "16", "timeframe": None, "b02": b02((False, "No timeframe: ignored"), NO_SAVING, NO_FUNDS),
+         "citation": TP + "16", "timeframe": None, "b02": b02((False, "No timeframe: ignored", [73]), NO_SAVING, NO_FUNDS),
          "barriers": [hand_rated(CN, "National ETS price too low to matter.")], "note": None, "fact_ids": [71, 72, 73, 74]},
     ],
-    "b02a": {"met": False, "text": "not met: 1 implemented, 1 planned with a timeframe (needs 3 and 1)"},
+    "b02a": {"met": False, "text": "not met: 1 implemented, 1 planned with a timeframe (needs 3 and 1)", "fact_ids": []},
     "assumptions": [
         {"kind": "carbon_price", "region": EU, "year": 2030, "citation": TP + "20", "fact_id": 38, "comparisons": [
             {"code": "STL-R1", "region": EU, "assumption": "97.2 USD/tCO2 (90 EUR/tCO2)",
@@ -187,7 +187,7 @@ def test_ac53_ac55_c_shows_plan_actions_and_assumptions(page):
     dri.wait_for()
     rows = dri.get_by_role("row")
     assert [r.inner_text().split("\t")[:3] for r in rows.all()[1:]] == [[EU, "STL-R1", "H"], [EU, "STL-T1", "M"]]  # AC-53
-    assert dri.get_by_text("1500 EUR million needed, 600 EUR million allocated", exact=True).is_visible()  # AC-54
+    assert dri.get_by_role("button", name="1500 EUR million needed, 600 EUR million allocated").is_visible()  # AC-54
     carbon = section.get_by_role("row").filter(has_text="97.2 USD/tCO2 (90 EUR/tCO2)")
     assert carbon.get_by_role("cell").last.inner_text() == "+25.2 USD/tCO2"  # AC-55
     assert dri.get_by_role("link", name="72 USD/tCO2 (EU ETS Market Report 2026, p. 12)").get_attribute("href").endswith(

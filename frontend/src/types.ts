@@ -3506,6 +3506,7 @@ export interface CompanyTransition {
 export interface TransitionB02 {
   met: boolean;
   text: string;
+  fact_ids: number[];
 }
 
 export interface TransitionBarrier {
