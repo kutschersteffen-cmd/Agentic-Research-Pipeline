@@ -60,3 +60,7 @@ export function primaryCitation(trail: FactTrail): FactCitation | null {
 /** At most two decimals, rounded half up, trailing zeros dropped (backend `fmt_number`); shifting
  * by exponent strings avoids binary-float ties such as 1.005 * 100 = 100.49999. */
 export const fmtNumber = (v: number): string => String(Number(Math.round(Number(v + "e2")) + "e-2"));
+
+/** A barrier evidence value as the spec reads it: `<value shown> (<document title>, p. <page>)`. */
+export const barrierFigure = (v: { shown: string | null; document: string | null; page: number | null }): string =>
+  `${v.shown ?? "—"}${v.document ? ` (${v.document}${v.page != null ? `, p. ${v.page}` : ""})` : ""}`;

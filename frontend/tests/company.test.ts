@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { companyHref, encodeRef, factsUrl, fmtNumber, primaryCitation, sourceLabel } from "../src/pages/company/companyQuery.ts";
+import { barrierFigure, companyHref, encodeRef, factsUrl, fmtNumber, primaryCitation, sourceLabel } from "../src/pages/company/companyQuery.ts";
 import type { FactTrail, FactVersion } from "../src/types.ts";
 
 test("encodeRef URL-encodes the scheme colon", () => {
@@ -79,4 +79,10 @@ test("fmtNumber rounds half up to two decimals and drops trailing zeros", () => 
   assert.equal(fmtNumber(0.285), "0.29");
   assert.equal(fmtNumber(12), "12");
   assert.equal(fmtNumber(0.8461538461538461), "0.85");
+});
+
+test("barrierFigure reads value shown, then document and page", () => {
+  assert.equal(barrierFigure({ shown: "72 USD/tCO2", document: "EU ETS Market Report 2026", page: 12 }), "72 USD/tCO2 (EU ETS Market Report 2026, p. 12)");
+  assert.equal(barrierFigure({ shown: "Yes", document: "CBAM Regulation 2023/956", page: null }), "Yes (CBAM Regulation 2023/956)");
+  assert.equal(barrierFigure({ shown: "Yes", document: null, page: null }), "Yes");
 });
