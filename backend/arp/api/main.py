@@ -54,6 +54,7 @@ from arp.api.routers import (
     taxonomy_researcher,
     themes,
     tnfd,
+    transition_alignment,
     transition_barrier,
     transition_plan,
     universe,
@@ -62,6 +63,7 @@ from arp.api.routers import (
     xbrl,
 )
 from arp.db.session import require_cutover, require_postgres
+from arp.transition_alignment.benchmarks import check_benchmarks
 from arp.transition_barrier.dataset import check_rule_book
 
 logging.basicConfig(level=logging.INFO)
@@ -71,6 +73,7 @@ logging.basicConfig(level=logging.INFO)
 async def lifespan(app: FastAPI):
     settings = settings_dep()
     check_rule_book()  # an invalid rule book stops startup, naming its first error
+    check_benchmarks()  # so does an invalid benchmarks file
     require_postgres(settings)  # Postgres is the system of record: no DSN or no answer, no app
     require_cutover(settings)  # nor on an un-migrated or un-imported database
     settings.ensure_dirs()
@@ -140,6 +143,7 @@ app.include_router(financials.router, dependencies=[Depends(authorize)])
 app.include_router(tnfd.router, dependencies=[Depends(authorize)])
 app.include_router(transition_plan.router, dependencies=[Depends(authorize)])
 app.include_router(transition_barrier.router, dependencies=[Depends(authorize)])
+app.include_router(transition_alignment.router, dependencies=[Depends(authorize)])
 app.include_router(portfolio.router, dependencies=[Depends(authorize)])
 app.include_router(climate.router, dependencies=[Depends(authorize)])
 app.include_router(decision.router, dependencies=[Depends(authorize)])

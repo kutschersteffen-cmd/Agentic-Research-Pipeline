@@ -1,0 +1,210 @@
+{
+  "version": 7,
+  "fingerprint": "42348360ece61edeaa4304fd5d8bfadb0a2c39695bec206c1d9da41d107b2675",
+  "history": [
+    {
+      "version": 7,
+      "fingerprint": "42348360ece61edeaa4304fd5d8bfadb0a2c39695bec206c1d9da41d107b2675",
+      "approved_by": "fixture",
+      "approved_at": "2026-10-01"
+    }
+  ],
+  "actions": {
+    "Steel": [
+      {
+        "id": "steel.h2_dri",
+        "label": "Hydrogen-based direct reduced iron"
+      },
+      {
+        "id": "steel.scrap_eaf",
+        "label": "Scrap-based electric arc furnace"
+      },
+      {
+        "id": "steel.ccus",
+        "label": "Carbon capture on steelmaking"
+      }
+    ]
+  },
+  "conversions": [
+    {
+      "from": "CNY",
+      "to": "USD",
+      "rate": 0.139,
+      "year": 2024,
+      "source": {
+        "title": "Fixture rate",
+        "url": "https://example.org/fx"
+      }
+    },
+    {
+      "from": "CNY",
+      "to": "USD",
+      "rate": 0.14,
+      "year": 2025,
+      "source": {
+        "title": "Fixture rate",
+        "url": "https://example.org/fx"
+      }
+    },
+    {
+      "from": "EUR",
+      "to": "USD",
+      "rate": 1.08,
+      "year": 2025,
+      "source": {
+        "title": "Fixture rate",
+        "url": "https://example.org/fx"
+      }
+    }
+  ],
+  "domain_tiers": {
+    "eur-lex.europa.eu": "primary",
+    "reuters.com": "news"
+  },
+  "criteria": {
+    "STL-T1": {
+      "rationale": "Hydrogen-based DRI only pays when renewable hydrogen is cheap enough.",
+      "actions": [
+        "steel.h2_dri"
+      ],
+      "facts": [
+        {
+          "id": "h2_cost",
+          "label": "Renewable hydrogen cost",
+          "type": "number",
+          "unit": "USD/kg H2",
+          "definition": "Levelised cost of renewable hydrogen delivered to steel sites in the region, latest year.",
+          "max_age_days": 730
+        }
+      ],
+      "params": [
+        {
+          "id": "p_high",
+          "label": "Hydrogen cost for H",
+          "value": 2,
+          "unit": "USD/kg H2",
+          "by_region": {},
+          "rationale": "Fixture rationale for the H hydrogen cost.",
+          "source": {
+            "title": "Fixture source",
+            "url": "https://example.org/h2_high",
+            "locator": "Table 2"
+          }
+        },
+        {
+          "id": "p_material",
+          "label": "Hydrogen cost for M",
+          "value": 7,
+          "unit": "USD/kg H2",
+          "by_region": {},
+          "rationale": "Fixture rationale for the M hydrogen cost.",
+          "source": {
+            "title": "Fixture source",
+            "url": "https://example.org/h2_material",
+            "locator": "Table 2"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "fact": "h2_cost",
+          "op": "<=",
+          "param": "p_high"
+        },
+        "M": {
+          "fact": "h2_cost",
+          "op": "<=",
+          "param": "p_material"
+        }
+      }
+    },
+    "STL-R1": {
+      "rationale": "Without a carbon price that closes the cost gap, no low-carbon steel route pays for itself.",
+      "actions": [
+        "steel.h2_dri",
+        "steel.scrap_eaf",
+        "steel.ccus"
+      ],
+      "facts": [
+        {
+          "id": "price",
+          "label": "Effective carbon price",
+          "type": "number",
+          "unit": "USD/tCO2",
+          "definition": "Price per tonne CO2 paid by steel producers in the latest full year, net of free allocation.",
+          "max_age_days": 365
+        },
+        {
+          "id": "applies",
+          "label": "Carbon price applies to steel",
+          "type": "boolean",
+          "definition": "Whether a carbon price applies to steel production in the region."
+        },
+        {
+          "id": "levy",
+          "label": "Border levy in force",
+          "type": "boolean",
+          "definition": "Whether a carbon border levy on steel imports is in force."
+        }
+      ],
+      "params": [
+        {
+          "id": "p_high",
+          "label": "High price level",
+          "value": 50,
+          "unit": "USD/tCO2",
+          "by_region": {},
+          "rationale": "Fixture rationale for the high price level.",
+          "source": {
+            "title": "Fixture source",
+            "url": "https://example.org/p_high",
+            "locator": "Table 1"
+          }
+        },
+        {
+          "id": "p_material",
+          "label": "Material price level",
+          "value": 10,
+          "unit": "USD/tCO2",
+          "by_region": {},
+          "rationale": "Fixture rationale for the material price level.",
+          "source": {
+            "title": "Fixture source",
+            "url": "https://example.org/p_material",
+            "locator": "Table 1"
+          }
+        }
+      ],
+      "levels": {
+        "H": {
+          "all": [
+            {
+              "fact": "price",
+              "op": ">=",
+              "param": "p_high"
+            },
+            {
+              "fact": "levy",
+              "op": "=",
+              "value": true
+            }
+          ]
+        },
+        "M": {
+          "all": [
+            {
+              "fact": "applies",
+              "op": "=",
+              "value": true
+            },
+            {
+              "fact": "price",
+              "op": ">=",
+              "param": "p_material"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

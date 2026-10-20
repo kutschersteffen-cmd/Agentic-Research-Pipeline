@@ -1,4 +1,4 @@
-import type { CompanyFactStatus, FactVersion } from "../../types";
+import type { CompanyFactStatus, FactCitation, FactTrail, FactVersion } from "../../types";
 
 export const STATUS_TEXT: Record<CompanyFactStatus, string> = {
   auto_accepted: "auto-accepted",
@@ -51,3 +51,12 @@ export function sourceLabel(v: FactVersion): string {
   if (v.load) return `${v.load.source_name} · ${v.load.fetched_at.slice(0, 10)}`;
   return v.observation.run_id ?? v.observation.source_kind;
 }
+
+/** The primary citation of a fact's current version, or null when it has none. */
+export function primaryCitation(trail: FactTrail): FactCitation | null {
+  return trail.versions.find((v) => v.valid_to === null)?.citations.find((c) => c.role === "primary") ?? null;
+}
+
+/** At most two decimals, rounded half up, trailing zeros dropped (backend `fmt_number`); shifting
+ * by exponent strings avoids binary-float ties such as 1.005 * 100 = 100.49999. */
+export const fmtNumber = (v: number): string => String(Number(Math.round(Number(v + "e2")) + "e-2"));

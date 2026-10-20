@@ -49,7 +49,7 @@ from arp.db import models as m
 from arp.db import observations as observations_db
 from arp.db.companies import lookup, resolve, resolve_company
 from arp.db.fields import SchemaRegistry
-from arp.db.observations import _DECIDED, _SKIP, _edited, _fits, _same, _status, decide
+from arp.db.observations import _DECIDED, _SKIP, RULE_NOT_APPLICABLE, _edited, _fits, _same, _status, decide
 from arp.db.runs import RunStore, _decision_kind, _iso, _jsonb_safe, _ts
 from arp.db.session import engine
 from arp.db.to_observations import review_target, to_observations, unqueued_item
@@ -624,6 +624,7 @@ class _Obs:
     value: Any
     value_state: m.ValueState
     route: m.Route | None
+    method: str | None = None
 
 
 @dataclass
@@ -685,7 +686,7 @@ class _Replay:
         self.facts: dict[tuple, _Fact] = {}
 
     def _set(self, o: _Obs, value, status: m.FactStatus, state: m.ValueState) -> None:
-        if decide(self.facts.get(o.key), value, status, state) in ("insert", "supersede"):
+        if decide(self.facts.get(o.key), value, status, state, by_rule=o.method == RULE_NOT_APPLICABLE) in ("insert", "supersede"):
             self.facts[o.key] = _Fact(value, status, o)
 
     def replay(self, runs: list[_RunFiles]) -> None:
@@ -745,7 +746,8 @@ class _Replay:
                 if not _fits(self.types.get((o.field_id, o.field_version), ""), o.value):
                     continue
                 period = o.period_end.isoformat() if o.period_end else None
-                obs = _Obs((entity, o.field_id, period, o.basis), o.field_id, _jsonb_safe(o.value), o.value_state, o.route)
+                obs = _Obs((entity, o.field_id, period, o.basis), o.field_id, _jsonb_safe(o.value), o.value_state, o.route,
+                           o.method)
                 by_company[entity].append(obs)
                 links[obs.key] = obs
                 if not trial:

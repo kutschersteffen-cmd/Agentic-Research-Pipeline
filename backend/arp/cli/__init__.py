@@ -32,6 +32,7 @@ from arp.cli.snapshots import snapshots_app
 from arp.cli.taxonomy import taxonomy_app
 from arp.cli.taxonomy_researcher import taxonomy_researcher_app
 from arp.cli.theme import theme_app
+from arp.cli.transition_alignment import transition_alignment_app
 from arp.cli.transition_barrier import transition_barrier_app
 from arp.cli.transition_plan import transition_plan_app
 from arp.cli.universe import universe_app
@@ -68,6 +69,7 @@ app.add_typer(taxonomy_app, name="taxonomy")
 app.add_typer(extract_app, name="extract")
 app.add_typer(transition_plan_app, name="transition-plan")
 app.add_typer(transition_barrier_app, name="transition-barrier")
+app.add_typer(transition_alignment_app, name="transition-alignment")
 app.add_typer(replicate_app, name="replicate")
 app.add_typer(signals_app, name="signals")
 app.add_typer(discover_app, name="discover")

@@ -1,0 +1,81 @@
+{
+  "_meta": {
+    "description": "Fixture F-TA: six cells, all L.",
+    "verified_date": "2026-08-14",
+    "score_count": 6
+  },
+  "scores": [
+    {
+      "sector": "Steel",
+      "category": "Technology",
+      "code": "STL-T1",
+      "criterion": "Green hydrogen cost vs. DRI-H2 breakeven",
+      "region": "European Union",
+      "rating": "L",
+      "confidence": "high",
+      "evidence": "Hydrogen cost above breakeven.",
+      "source": "Fixture",
+      "last_verified": "2026-08-14"
+    },
+    {
+      "sector": "Steel",
+      "category": "Technology",
+      "code": "STL-T1",
+      "criterion": "Green hydrogen cost vs. DRI-H2 breakeven",
+      "region": "United States",
+      "rating": "L",
+      "confidence": "high",
+      "evidence": "Hydrogen cost well above breakeven.",
+      "source": "Fixture",
+      "last_verified": "2026-08-14"
+    },
+    {
+      "sector": "Steel",
+      "category": "Technology",
+      "code": "STL-T1",
+      "criterion": "Green hydrogen cost vs. DRI-H2 breakeven",
+      "region": "China",
+      "rating": "L",
+      "confidence": "high",
+      "evidence": "No renewable hydrogen supply at scale.",
+      "source": "Fixture",
+      "last_verified": "2026-08-14"
+    },
+    {
+      "sector": "Steel",
+      "category": "Regulation",
+      "code": "STL-R1",
+      "criterion": "Effective carbon price on steel production incl. border adjustment",
+      "region": "European Union",
+      "rating": "L",
+      "confidence": "high",
+      "evidence": "EU ETS price below the cost gap.",
+      "source": "Fixture",
+      "last_verified": "2026-08-14"
+    },
+    {
+      "sector": "Steel",
+      "category": "Regulation",
+      "code": "STL-R1",
+      "criterion": "Effective carbon price on steel production incl. border adjustment",
+      "region": "United States",
+      "rating": "L",
+      "confidence": "high",
+      "evidence": "No federal carbon price applies to steel.",
+      "source": "Fixture",
+      "last_verified": "2026-08-14"
+    },
+    {
+      "sector": "Steel",
+      "category": "Regulation",
+      "code": "STL-R1",
+      "criterion": "Effective carbon price on steel production incl. border adjustment",
+      "region": "China",
+      "rating": "L",
+      "confidence": "high",
+      "evidence": "National ETS price too low to matter.",
+      "source": "Fixture",
+      "last_verified": "2026-08-14"
+    }
+  ]
+}

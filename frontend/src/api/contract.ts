@@ -3,7 +3,7 @@
 // Add a line when you type a new request<...>() against an endpoint with a response model.
 import type { components } from "./schema.gen";
 import type { Me } from "../lib/reviewKeys";
-import type { AlertRule, BIDesignResult, BIEmbedToken, BarrierStalenessReport, DataPointSchema, DatasetSummary, DecisionComparison, DecisionResult, EmergingThemesScheduleConfig, IndexCalibration, IndexReviewResult, MechanismEnvelope, PivotResult, PublishedDecision, QAAnswer, RuleGraph, RuleSuggestions, RunFailure, SearchResponse, SignalComparison, SignalExperimentDetail, SignalExperimentSummary, SignalMethod, SmartSearchAnswer, ThemeLayers } from "../types";
+import type { AlertRule, BIDesignResult, BIEmbedToken, BarrierStalenessReport, CompanyTransition, DataPointSchema, DatasetSummary, DecisionComparison, DecisionResult, EmergingThemesScheduleConfig, IndexCalibration, IndexReviewResult, MechanismEnvelope, PivotResult, PublishedDecision, QAAnswer, RuleGraph, RuleSuggestions, RunFailure, SearchResponse, SignalComparison, SignalExperimentDetail, SignalExperimentSummary, SignalMethod, SmartSearchAnswer, ThemeLayers } from "../types";
 
 type S = components["schemas"];
 // FastAPI marks fields with defaults optional in the schema, but responses always carry every
@@ -41,4 +41,5 @@ export type ApiContract = [
   Satisfies<Served<S["SearchResponse"]>, SearchResponse>,
   Satisfies<Served<S["ThemeLayers"]>, ThemeLayers>,
   Satisfies<Served<S["StalenessReport"]>, BarrierStalenessReport>,
+  Satisfies<Served<S["TransitionOut"]>, CompanyTransition>,
 ];

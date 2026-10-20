@@ -313,6 +313,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/companies/{ref}/transition": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Company Transition */
+        get: operations["get_company_transition_api_companies__ref__transition_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/decision/compare": {
         parameters: {
             query?: never;
@@ -5972,6 +5989,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/transition-alignment/benchmarks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Benchmarks */
+        get: operations["get_benchmarks_api_transition_alignment_benchmarks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/transition-alignment/sectors/{sector}/companies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Sector Companies
+         * @description R11: the in-scope portfolio companies of a sector, for a run of the presets via POST /api/extraction/start.
+         */
+        get: operations["get_sector_companies_api_transition_alignment_sectors__sector__companies_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/transition-barrier/cells/{code}/{region}": {
         parameters: {
             query?: never;
@@ -7439,6 +7493,19 @@ export interface components {
             reason: string;
             status: components["schemas"]["AlertStatus"];
         };
+        /** AmountOut */
+        AmountOut: {
+            /** Citation */
+            citation: string | null;
+            /** Fact Id */
+            fact_id: number;
+            /** Field Id */
+            field_id: string;
+            /** Shown */
+            shown: string;
+            /** Year */
+            year: number;
+        };
         /** AnalyticRequest */
         AnalyticRequest: {
             /** As Of */
@@ -7838,10 +7905,34 @@ export interface components {
              */
             scheme: "free_float_mcap" | "equal" | "metric" | "inverse_metric";
         };
+        /** BenchmarkOut */
+        BenchmarkOut: {
+            /** Citation */
+            citation: string;
+            /** Licence */
+            licence: string;
+            /** Method */
+            method: string;
+            /** Unit */
+            unit: string;
+            /** Url */
+            url: string | null;
+            /** Value */
+            value: number;
+        };
         /** BenchmarkUpload */
         BenchmarkUpload: {
             /** Text */
             text: string;
+        };
+        /** BenchmarksOut */
+        BenchmarksOut: {
+            /** Licence Note */
+            licence_note: string;
+            /** Sectors */
+            sectors: components["schemas"]["SectorBenchmarksOut"][];
+            /** Version */
+            version: number;
         };
         /**
          * BestInClassCoverage
@@ -8191,6 +8282,36 @@ export interface components {
             interval_hours: number;
             /** Last Run Id */
             last_run_id?: string | null;
+        };
+        /** CapexOut */
+        CapexOut: {
+            /** Amounts */
+            amounts: components["schemas"]["AmountOut"][];
+            benchmark: components["schemas"]["BenchmarkOut"];
+            /** Headline */
+            headline: string;
+            /** Licence Note */
+            licence_note: string;
+            /** Not Scored */
+            not_scored: string | null;
+            /** Ratio */
+            ratio: number | null;
+            /** Ratio Shown */
+            ratio_shown: string | null;
+            /** Redlines */
+            redlines: components["schemas"]["RedlineOut"][];
+            /** Reporting Year */
+            reporting_year: number | null;
+            /** Rnd Tests */
+            rnd_tests: components["schemas"]["RndResultOut"][];
+            /** Rule */
+            rule: string | null;
+            share_ry: components["schemas"]["ShareOut"] | null;
+            share_ry1: components["schemas"]["ShareOut"] | null;
+            /** Share Used */
+            share_used: number | null;
+            /** Share Used Shown */
+            share_used_shown: string | null;
         };
         /**
          * CategoryScreen
@@ -8605,6 +8726,8 @@ export interface components {
             /** Source Label */
             source_label: string;
             status: components["schemas"]["FactStatus"];
+            /** Unit */
+            unit: string | null;
             /**
              * Valid From
              * Format: date-time
@@ -12118,6 +12241,37 @@ export interface components {
             /** Window Start */
             window_start: string;
         };
+        /** RedlineDef */
+        RedlineDef: {
+            /** Citation */
+            citation: string;
+            /** Fact */
+            fact: string;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+        };
+        /** RedlineOut */
+        RedlineOut: {
+            /** Citation */
+            citation: string | null;
+            /** Fact Id */
+            fact_id: number | null;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Source */
+            source: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "breached" | "not breached" | "no disclosure";
+            /** Text */
+            text: string;
+        };
         /** RegimeBucketPerformance */
         RegimeBucketPerformance: {
             long_short?: components["schemas"]["LegPerformance"];
@@ -12586,6 +12740,44 @@ export interface components {
              */
             source: "ledoit_wolf" | "sample" | "factor" | "supplied";
         };
+        /** RndResultOut */
+        RndResultOut: {
+            /** Benchmark */
+            benchmark: number;
+            /** Fact Ids */
+            fact_ids: number[];
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Not Scored */
+            not_scored: string | null;
+            /** Ratio */
+            ratio: number | null;
+            /** Ratio Shown */
+            ratio_shown: string | null;
+            /** Rule */
+            rule: string | null;
+            /** Used */
+            used: number | null;
+        };
+        /** RndTestDef */
+        RndTestDef: {
+            /** Citation */
+            citation: string;
+            /** Denominator */
+            denominator: string;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Numerator */
+            numerator: string;
+            /** Unit */
+            unit: string;
+            /** Value */
+            value: number;
+        };
         /**
          * RoleProposal
          * @description A proposed job and direction for one column, with the reason and --
@@ -12911,6 +13103,18 @@ export interface components {
          * @enum {string}
          */
         SectionLayoutHint: "standard" | "chart_focus" | "text_only" | "section_header";
+        /** SectorBenchmarksOut */
+        SectorBenchmarksOut: {
+            capex: components["schemas"]["BenchmarkOut"];
+            /** Isic Prefixes */
+            isic_prefixes: string[];
+            /** Redlines */
+            redlines: components["schemas"]["RedlineDef"][];
+            /** Rnd Tests */
+            rnd_tests: components["schemas"]["RndTestDef"][];
+            /** Sector */
+            sector: string;
+        };
         /**
          * SelectAll
          * @description No selection step: everything that survives the screens is in. This
@@ -12984,6 +13188,18 @@ export interface components {
             when?: boolean | string | number | null;
             /** Years */
             years: number;
+        };
+        /** ShareOut */
+        ShareOut: {
+            /** Fact Ids */
+            fact_ids: number[];
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "disclosed" | "computed from amounts";
+            /** Value */
+            value: number;
         };
         /**
          * SignalType
@@ -13792,6 +14008,43 @@ export interface components {
              * @enum {string}
              */
             type: "top_n";
+        };
+        /** TransitionOut */
+        TransitionOut: {
+            /**
+             * Actions
+             * @default []
+             */
+            actions: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Assumptions
+             * @default []
+             */
+            assumptions: {
+                [key: string]: unknown;
+            }[];
+            /** B02A */
+            b02a?: {
+                [key: string]: unknown;
+            } | null;
+            /** Benchmarks Version */
+            benchmarks_version: number;
+            capex: components["schemas"]["CapexOut"] | null;
+            /** In Scope */
+            in_scope: boolean;
+            /** Reason */
+            reason: string | null;
+            /**
+             * Regions
+             * @default []
+             */
+            regions: string[];
+            /** Rule Book Version */
+            rule_book_version: number;
+            /** Sector */
+            sector: string | null;
         };
         /**
          * TransitionPlanIndicator
@@ -14932,6 +15185,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CompanyFactRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_company_transition_api_companies__ref__transition_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransitionOut"];
                 };
             };
             /** @description Validation Error */
@@ -25278,6 +25562,57 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_benchmarks_api_transition_alignment_benchmarks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BenchmarksOut"];
+                };
+            };
+        };
+    };
+    get_sector_companies_api_transition_alignment_sectors__sector__companies_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sector: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyRef"][];
                 };
             };
             /** @description Validation Error */

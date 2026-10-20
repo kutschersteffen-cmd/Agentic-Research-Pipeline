@@ -105,12 +105,16 @@ def _same(a, b) -> bool:
 
 
 _ACCEPTED = {FactStatus.AUTO_ACCEPTED, FactStatus.APPROVED, FactStatus.EDITED}
+RULE_NOT_APPLICABLE = "not_applicable_by_rule"  # observation method of a row the applicability rules skipped
 
 
-def decide(current: CompanyFact | None, value, status: FactStatus, value_state: ValueState) -> FactAction:
-    """Spec §2.7: a miss never removes a fact, a pending value never displaces one, a held value
-    displaces only a pending or held one, an accepted different value or status supersedes it."""
-    if value_state == ValueState.NOT_FOUND:
+def decide(
+    current: CompanyFact | None, value, status: FactStatus, value_state: ValueState, *, by_rule: bool = False,
+) -> FactAction:
+    """Spec §2.7: a miss, or a not-applicable set by the applicability rules (`by_rule`), never removes or adds a
+    fact (a not-applicable read from a document is a value like any other); a pending value never displaces one,
+    a held value displaces only a pending or held one, an accepted different value or status supersedes it."""
+    if value_state == ValueState.NOT_FOUND or (by_rule and value_state == ValueState.NOT_APPLICABLE):
         return "noop" if current is None else "keep"
     if current is None:
         return "insert"
@@ -163,7 +167,7 @@ def _write_fact(
         try:
             with session.begin_nested():
                 current = _current(session, obs)
-                if decide(current, value, status, value_state) in ("noop", "keep"):
+                if decide(current, value, status, value_state, by_rule=obs.method == RULE_NOT_APPLICABLE) in ("noop", "keep"):
                     return
                 ts = _at(session, at, current)
                 if current is not None:  # closed first: the partial unique index allows one open row
