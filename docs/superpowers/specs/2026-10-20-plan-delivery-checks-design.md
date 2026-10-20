@@ -292,9 +292,9 @@ AC-3 to AC-8 and AC-67 behave as before. Rows AC-84 to AC-87 and AC-95 to AC-97 
 | AC-97 | BM-S, the defaults | request for C | the hydrogen assumption's `scenario` `[]` | holdout |
 | AC-87 | BM-S with the advanced-economies source removed | `arp transition-alignment benchmarks validate` | exit 1; output contains `Scenario prices: advanced economies has no source` | holdout |
 | AC-113 | the bundled data directories | `GET /api/transition-alignment/benchmarks` | `scenario_prices` has `advanced economies` 2030/2035/2040/2050 = 140/180/205/250 and `selected EMDE` = 90/125/160/200, each `citation` containing `p.329` | holdout |
-| AC-88 | the defaults minus T1; an extraction run of `sch_transition_plan_actions` for C whose stub returns T1 from P1 p.22 | `GET /api/companies/C/facts?field_id=ta_target_pct` | one row, value 30, status `pending_review` | holdout |
+| AC-88 | the defaults minus T1 and T0 (owner, 2026-10-20); an extraction run of `sch_transition_plan_actions` for C whose stub returns T1 from P1 p.22 | `GET /api/companies/C/facts?field_id=ta_target_pct` | one row, value 30, status `pending_review` | holdout |
 | AC-125 | same as AC-88 | `GET /api/companies/C/facts` for the six `ta_target_*` fields | all six rows have the same `basis` | holdout |
-| AC-114 | same as AC-88 | request for C | `targets` lists T0 only | holdout |
+| AC-114 | the defaults minus T1 (T0 kept); the extraction run of AC-88 | request for C | `targets` lists T0 only | holdout |
 | AC-115 | the defaults minus O1; a run whose stub returns O1 from P1 p.24 | `GET /api/companies/C/facts?field_id=ta_phaseout_year` | one row, value 2035, status `pending_review` | holdout |
 | AC-116 | P6 stored (AC-71's world) | request for C | `targets` `[]` and `phaseouts` `[]` | holdout |
 | AC-117 | the defaults; the model client raises on any call | request for C | HTTP 200, `target_progress.text` `Target progress 68.75% (ACT GE 1.4)` | holdout |
