@@ -16,7 +16,7 @@ from urllib.parse import urljoin
 
 import httpx
 
-from arp.ingestion.esef import MAX_PACKAGE_BYTES, download_capped, list_esef_filings
+from arp.ingestion.esef import MAX_PACKAGE_BYTES, download_capped, latest_package_filing, list_esef_filings
 from arp.net_safety import ssrf_guard_request_hook
 from arp.schemas.common import CompanyRef
 from arp.xbrl_pipeline.esef_json import catalog_from_rows, flatten_xbrl_json
@@ -48,14 +48,8 @@ def normalise_lei(value: str | None) -> str | None:
 
 
 def pick_latest(filings: list[dict], *, this_year: int) -> dict | None:
-    """Latest by period_end among records with both downloads; implausible years (the index has some) are ignored.
-    Re-submissions for one period: the latest date_added wins, then fxo_id."""
-    def plausible(f: dict) -> bool:
-        year = (f.get("period_end") or "")[:4]
-        return year.isdigit() and 2015 <= int(year) <= this_year + 1
-
-    ok = [f for f in filings if f.get("json_url") and f.get("package_url") and plausible(f)]
-    return max(ok, key=lambda f: (f["period_end"], f.get("date_added") or "", f.get("fxo_id") or ""), default=None)
+    """The document source's pick (latest_package_filing) among records that also have the xBRL-JSON download."""
+    return latest_package_filing([f for f in filings if f.get("json_url")], this_year=this_year)
 
 
 class IndexEsefSource:

@@ -12,6 +12,7 @@ import logging
 import re
 import zipfile
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
@@ -303,6 +304,17 @@ def esef_fact_sources(docs: list[SourceDocument]) -> list[EsefFactSource]:
     return out
 
 
+def latest_package_filing(filings: list[dict], *, this_year: int) -> dict | None:
+    """Latest by period_end among records with a package; implausible years (the index has some) are ignored.
+    Re-submissions for one period: the latest date_added wins, then fxo_id."""
+    def plausible(f: dict) -> bool:
+        year = (f.get("period_end") or "")[:4]
+        return year.isdigit() and 2015 <= int(year) <= this_year + 1
+
+    ok = [f for f in filings if f.get("package_url") and plausible(f)]
+    return max(ok, key=lambda f: (f["period_end"], f.get("date_added") or "", f.get("fxo_id") or ""), default=None)
+
+
 async def list_esef_filings(client: httpx.AsyncClient, index_url: str, lei: str) -> list[dict]:
     """The index's filings for `lei`: each record's attributes plus its `id`; [] for an unknown LEI."""
     resp = await client.get(f"{index_url.rstrip('/')}/api/entities/{lei}/filings")
@@ -373,10 +385,9 @@ class EsefDocumentSource(DocumentSource):
             return await self._fetch(client, company)
 
     async def _fetch(self, client: httpx.AsyncClient, company: CompanyRef) -> list[SourceDocument]:
-        filings = [f for f in await list_esef_filings(client, self._index_url, company.lei) if f.get("package_url")]
-        if not filings:
+        latest = latest_package_filing(await list_esef_filings(client, self._index_url, company.lei), this_year=date.today().year)
+        if latest is None:
             return []
-        latest = max(filings, key=lambda f: f.get("period_end") or "")
         url = urljoin(self._index_url + "/", latest["package_url"])
         try:
             raw = self._cached(url) or await self._download(client, url)
