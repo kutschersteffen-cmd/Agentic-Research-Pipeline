@@ -68,7 +68,8 @@ Rules:
 - ghg_saving unit: "tCO2e/yr", "MtCO2e/yr" or "%". Capex: the number as printed with its unit, e.g. 1500 and
   "EUR million"; never convert.
 - assumptions: an assumed carbon price (kind carbon_price, unit "<currency>/tCO2") or hydrogen cost (kind h2_cost,
-  unit "<currency>/kg H2"), with the region and year it applies to if stated."""
+  unit "<currency>/kg H2"), with the year it applies to if stated. region: "European Union", "United States", "China"
+  or "any" when the plan names no region or a region not listed."""
 
 
 def plan_evidence(fields: list[FieldDefinition], document: SourceDocument, settings: Settings) -> list[DocumentChunk]:

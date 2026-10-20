@@ -148,7 +148,8 @@ def _assumption(f: Fact, matched: dict[str, set[str]], criteria: Criteria, cell:
         code, _, bfact = ref.partition(".")
         regions = set().union(*(matched.get(a, set()) for a in by_code.get(code, [])))
         crit_regions = next((r for c, _, r in criteria if c == code), [])
-        for r in regions & set(crit_regions) & ({region} if region else set(REGIONS)):
+        # a stated region outside REGIONS (e.g. "other") is compared nowhere, not everywhere
+        for r in regions & set(crit_regions) & ({region} if region else set(REGIONS) if stated == "any" else set()):
             evidence, values = _evidence(cell(code, r), bfact)
             gap = None
             if converted is not None and len(values) == 1:

@@ -251,3 +251,18 @@ async def test_a3_planned_without_year(tmp_path, fake_llm):
     assert got == [("ta_action_text", "Carbon capture study at the Tianjin plant"), ("ta_action_id", "steel.ccus"),
                    ("ta_action_status", "planned"), ("ta_action_region", "China")]
     assert not _by(rows, "ta_action_year")
+
+
+async def test_repeated_assumption_newest_plan_wins(tmp_path, fake_llm):
+    quote = "Our plan assumes a carbon price of EUR 95/tCO2 in the EU by 2030."
+    p1 = P1.model_copy(update={"published_at": "2026-03-31"})
+    p6 = _doc("P6", DocType.TRANSITION_PLAN, "Fixture Steel Transition Plan 2025 (revised)", {4: quote})
+    p6 = p6.model_copy(update={"published_at": "2026-03-31", "fetched_at": "2099-01-01T00:00:00+00:00"})  # uploaded after P1
+    revised = PlanDraft(assumptions=[AssumptionDraft(kind="carbon_price", value=95, unit="EUR/tCO2",
+                                                     region="European Union", year=2030, quote=quote, page=4)],
+                        confidence=0.9)
+    rows, llm = await _extract(tmp_path, fake_llm, _script(revised, _plan()), docs=(p1, p6))  # P6 is read first
+    assert llm.calls.count("PlanDraft") == 2
+    (carbon,) = _by(rows, "ta_assumed_carbon_price")
+    assert (carbon.value, carbon.citations[0].doc_id, carbon.period_end) == (95, "P6", "2030-12-31")
+    assert len(_by(rows, "ta_assumed_h2_cost")) == 1  # P1's other assumption is kept

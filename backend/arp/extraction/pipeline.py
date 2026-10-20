@@ -252,10 +252,15 @@ async def _extract_company(
         return [*([usage] if usage else []), *(u for us in await asyncio.gather(*calls) for u in us)]
 
     async def _extract_plans(defs: list[FieldDefinition]) -> list[LLMUsage]:
-        """P6: the plan's list fields, one call per transition plan document; no reuse or history."""
+        """P6: the plan's list fields, one call per transition plan document; no reuse or history. Plans run
+        newest first (P1's order) and a later assumption with the same (field, period_end, basis) is dropped:
+        it would share the newer one's item key."""
         sector = sector_for_isic(load_benchmarks(), company.isic_code)
-        out = []
-        for d in (d for d in kept if d.doc_type == DocType.TRANSITION_PLAN):
+        out, seen = [], set()
+        # shortcut: fetched_at stands in for first_seen_at (SourceDocument has no upload time); add it if ties matter
+        plans = sorted((d for d in kept if d.doc_type == DocType.TRANSITION_PLAN),
+                       key=lambda d: (d.published_at or "", d.fetched_at), reverse=True)
+        for d in plans:
             if not (chunks := await asyncio.to_thread(plan_evidence, defs, d, settings)):
                 continue
             async with limit:
@@ -265,6 +270,10 @@ async def _extract_company(
                 )
             out.append(usage)
             for r in rows:
+                if r.field_id in plan_preset.ASSUMPTION_FIELDS:
+                    if (key := (r.field_id, r.period_end, r.basis)) in seen:
+                        continue
+                    seen.add(key)
                 plan_slots[r.field_id].append(r)
         return out
 

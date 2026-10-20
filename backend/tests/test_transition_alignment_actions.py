@@ -329,3 +329,9 @@ def test_action_without_status_not_planned():
     assert b02(plan.actions[0])["b"] == (False, "No timeframe: ignored")
     assert plan.actions[0].timeframe is None
     assert plan.b02a.text == "not met: 1 implemented, 0 planned with a timeframe (needs 3 and 1)"
+
+
+def test_unknown_assumption_region_compared_nowhere():
+    other = fact("ta_assumed_carbon_price", Decimal(90), 20, "region:other", unit="EUR/tCO2", amount=Decimal(90),
+                 shown="90 EUR/tCO2")
+    assert by_kind(run(assumptions=[other]), "carbon_price").comparisons == []
