@@ -8714,12 +8714,16 @@ export interface components {
             canonical_value: number | null;
             /** Conflicting Sources */
             conflicting_sources: boolean;
+            /** Doc Id */
+            doc_id: string | null;
             /** Fact Id */
             fact_id: number;
             /** Field Id */
             field_id: string;
             kind: components["schemas"]["FieldKind"];
             licence: components["schemas"]["Licence"] | null;
+            /** Page */
+            page: number | null;
             /** Period End */
             period_end: string | null;
             source_kind: components["schemas"]["SourceKind"];
@@ -9925,7 +9929,7 @@ export interface components {
          * DocType
          * @enum {string}
          */
-        DocType: "10-K" | "DEF-14A" | "sustainability_report" | "earnings_transcript" | "investor_presentation" | "product_page" | "research_paper" | "other";
+        DocType: "10-K" | "DEF-14A" | "sustainability_report" | "earnings_transcript" | "investor_presentation" | "product_page" | "research_paper" | "transition_plan" | "other";
         /** DocumentRouting */
         DocumentRouting: {
             /**

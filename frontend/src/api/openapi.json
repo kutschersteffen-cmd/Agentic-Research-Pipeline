@@ -3363,6 +3363,17 @@
       "title": "Conflicting Sources",
       "type": "boolean"
      },
+     "doc_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Doc Id"
+     },
      "fact_id": {
       "title": "Fact Id",
       "type": "integer"
@@ -3383,6 +3394,17 @@
         "type": "null"
        }
       ]
+     },
+     "page": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page"
      },
      "period_end": {
       "anyOf": [
@@ -3451,6 +3473,8 @@
      "status",
      "source_kind",
      "source_label",
+     "doc_id",
+     "page",
      "licence",
      "conflicting_sources",
      "valid_from",
@@ -6049,6 +6073,7 @@
      "investor_presentation",
      "product_page",
      "research_paper",
+     "transition_plan",
      "other"
     ],
     "title": "DocType",

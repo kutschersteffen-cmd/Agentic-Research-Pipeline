@@ -6,6 +6,7 @@ export type DocType =
   | "investor_presentation"
   | "product_page"
   | "research_paper"
+  | "transition_plan"
   | "other";
 
 export type JobStatus = "pending" | "running" | "completed" | "partially_completed" | "failed" | "cancelled";
