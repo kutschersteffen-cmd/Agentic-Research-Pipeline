@@ -36,11 +36,13 @@ class Fact:
     fact_id: int
     field_id: str
     year: int | None
-    value: Any
+    value: Any  # plan text and enum fields keep the raw string
     amount: Decimal | None  # canonical value if set, else the numeric value; None for booleans
     unit: str | None  # canonical unit if set, else the observation unit
     shown: str  # "<fmt_number(value)> <observation unit>", or Yes / No
     citation: str | None
+    basis: str = ""  # plan list items: `action:...` groups one action's facts; `region:<Region>` / `region:any`
+    page: int | None = None  # the primary citation's page
 
 
 def combine_years(earlier: Decimal | None, later: Decimal | None) -> Decimal | None:
