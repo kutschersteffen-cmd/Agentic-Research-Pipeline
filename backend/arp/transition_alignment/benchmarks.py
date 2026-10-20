@@ -7,6 +7,7 @@ line instead of a traceback; the pydantic models only load a file that passed.
 from __future__ import annotations
 
 import json
+import math
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
@@ -104,6 +105,10 @@ def _sourced(item: dict) -> bool:
     return isinstance(s, dict) and _text(s.get("title"))
 
 
+def _positive(x) -> bool:  # benchmarks divide the company's share; 0, NaN or Inf would break scoring
+    return _num(x) and math.isfinite(x) and x > 0
+
+
 def _items(name: str, kind: str, value) -> tuple[list[dict], list[str]]:
     """The entries of an R&D test or redline list that have an id, plus a line for each that doesn't."""
     if value is None:
@@ -123,15 +128,15 @@ def _rule2(name: str, entry: dict) -> list[str]:
     else:
         if not _sourced(capex):
             out.append(f"{name}: capex benchmark has no source")
-        if not _num(capex.get("value")):
-            out.append(f"{name}: invalid capex value: expected a number")
+        if not _positive(capex.get("value")):
+            out.append(f"{name}: invalid capex value: expected a number above 0")
     tests, bad = _items(name, "R&D test", entry.get("rnd_tests"))
     out += bad
     for t in tests:
         if not _sourced(t):
             out.append(f"{name}: R&D test '{t['id']}' has no source")
-        if not _num(t.get("value")):
-            out.append(f"{name}: invalid R&D test '{t['id']}' value: expected a number")
+        if not _positive(t.get("value")):
+            out.append(f"{name}: invalid R&D test '{t['id']}' value: expected a number above 0")
     redlines, bad = _items(name, "redline", entry.get("redlines"))
     out += bad
     out += [f"{name}: redline '{r['id']}' has no source" for r in redlines if not _sourced(r)]

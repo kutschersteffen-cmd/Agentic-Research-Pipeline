@@ -133,9 +133,21 @@ def test_ac67_sign(ta_dirs):  # noqa: F811
     assert count_redlines(raw) == 2
 
 
+def test_benchmark_values_must_be_above_zero(ta_dirs):  # noqa: F811
+    for bad in (0, -5, float("nan"), float("inf")):
+        out = errors_after(ta_dirs, lambda r, v=bad: r["sectors"]["Steel"]["capex"].update(value=v), resign=True)
+        assert out == ["Steel: invalid capex value: expected a number above 0"], bad
+    def rnd_zero(r):
+        r["sectors"]["Steel"]["capex"].update(value=80)  # edits accumulate in the same dir
+        r["sectors"]["Steel"]["rnd_tests"][0].update(value=0)
+
+    out = errors_after(ta_dirs, rnd_zero, resign=True)
+    assert out == ["Steel: invalid R&D test 'lc_share' value: expected a number above 0"]
+
+
 def test_bad_types_give_lines_not_tracebacks(ta_dirs):  # noqa: F811
     out = errors_after(ta_dirs, lambda r: r["sectors"]["Steel"]["capex"].update(value="80"), resign=True)
-    assert out == ["Steel: invalid capex value: expected a number"]
+    assert out == ["Steel: invalid capex value: expected a number above 0"]
     good = (ta_dirs[1] / "benchmarks.json").read_text(encoding="utf-8")
     for fn in (
         lambda r: r.update(sectors=[]),
