@@ -88,7 +88,7 @@ def _row(field: FieldDefinition, c: Cited, document: SourceDocument, passages: d
     cites = ground_citations(pv.citations, {document.doc_id: document}, fuzzy, passages=passages)
     grounded = all(x.grounded for x in cites)
     # the same reason and note the aggregator gives an ungrounded value
-    reasons = ([] if grounded else [ReasonCode.NOT_GROUNDED]) + tv.reasons
+    reasons = ([] if grounded else [ReasonCode.NOT_GROUNDED]) + tv.reasons + [ReasonCode.UNVERIFIED_LIST_ITEM]
     notes = ([] if grounded else ["One or more citations failed the programmatic grounding check."]) + tv.notes
     return ExtractedField(
         field_id=field.field_id, field_name=field.name, value=tv.value, citations=cites, confidence=confidence,

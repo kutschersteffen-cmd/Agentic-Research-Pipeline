@@ -13,16 +13,17 @@ from arp.config import Settings
 from arp.db.fields import SchemaRegistry
 from arp.extraction.extractor_agent import ExtractionDraft
 from arp.extraction.pipeline import _extract_company, create_extraction_run, execute_extraction_run
+from arp.extraction.routing import route
 from arp.extraction.verifier_agent import VerifierOutput
 from arp.ingestion.base import DocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.presets.transition_plan_actions import OPERATES_FIELDS, build_transition_plan_actions_schema
-from arp.review.context import build_context
+from arp.review.context import build_context, similar_decisions
 from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.schemas.datapoints import FieldQuality, FieldStatus
 from arp.schemas.review import field_item_key, period_key
 from arp.storage.run_store import RunStore
-from arp.transition_alignment.plan_extraction import ActionDraft, AssumptionDraft, Cited, PlanDraft
+from arp.transition_alignment.plan_extraction import ActionDraft, AssumptionDraft, Cited, PlanDraft, extract_plan, plan_evidence
 from tests.conftest import PRINCIPAL
 from tests.transition_alignment_helpers import ta_dirs  # noqa: F401 - fixture
 
@@ -33,6 +34,7 @@ P1_QUOTES = {
     13: "The DRI project needs EUR 1,500 million, of which EUR 600 million is approved.",
     14: "The DRI plant will cut emissions by 3.5 MtCO2e a year.",
     15: "Our electric arc furnace in Ohio has run on scrap since 2022.",
+    16: "We are studying carbon capture at our Tianjin plant.",
     20: "Our plan assumes a carbon price of EUR 90/tCO2 in the EU by 2030.",
     21: "We assume renewable hydrogen at USD 3/kg.",
 }
@@ -182,9 +184,9 @@ async def test_other_sector_id_refused(tmp_path, fake_llm):  # Review Focus 2
 async def test_two_actions_two_review_items(tmp_path, fake_llm):
     rows, _ = await _extract(tmp_path, fake_llm, _script(_plan()))
     keys = {field_item_key("ISS", r.field_id, period_key(r)) for r in _by(rows, "ta_action_status")}
-    assert keys == {"ISS:ta_action_status:unspecified|action:P1:12:1", "ISS:ta_action_status:unspecified|action:P1:15:1"}
+    assert keys == {"ISS:ta_action_status:unspecified|action|P1|12|1", "ISS:ta_action_status:unspecified|action|P1|15|1"}
     (carbon,) = _by(rows, "ta_assumed_carbon_price")
-    assert period_key(carbon) == "2030-12-31|region:European Union"
+    assert period_key(carbon) == "2030-12-31|region|European Union"
     canonical = next(csv.DictReader(_basis_table().open(encoding="utf8")))["canonical"]
     assert period_key({"period_end": "2025-12-31", "basis": canonical}) == "2025-12-31"
     assert field_item_key("ISS", "f", period_key({"period_end": None, "basis": canonical})) == "ISS:f:unspecified"
@@ -220,3 +222,32 @@ async def test_only_transition_plans_read(tmp_path, fake_llm):
     rows, llm = await _extract(tmp_path, fake_llm, _script(), docs=(P2,))
     assert "PlanDraft" not in llm.calls
     assert {r.field_id for r in rows} == set(OPERATES_FIELDS)
+
+
+async def test_list_item_key_resolves_similar_decisions(tmp_path, fake_llm):
+    run_store, run_id, _, _ = await _record(tmp_path, fake_llm, _script(_plan()))
+    (q,) = [q for q in run_store.read_review_queue(run_id)
+            if q["field_id"] == "ta_action_status" and q["field"]["basis"] == "action:P1:12:1"]
+    assert q["item_key"].endswith(":ta_action_status:unspecified|action|P1|12|1")
+    assert similar_decisions(run_store, run_id=run_id, item_key=q["item_key"]) == []  # found, no other runs: not None
+
+
+async def test_plan_rows_never_auto_accept(tmp_path, fake_llm):
+    schema, qualities = _released()
+    defs = [f for f in schema.fields if f.field_id == "ta_action_status"]
+    llm = fake_llm({"PlanDraft": [PlanDraft(actions=[A2], confidence=0.99)]})
+    (row,) = (await extract_plan(C, "Steel", P1, plan_evidence(defs, P1, _settings(tmp_path)), llm, fields=defs,
+                                 fuzzy_threshold=0.92))[0]
+    assert row.grounded and row.confidence == 0.99 and row.checks == []
+    r = route(row, qualities[(defs[0].field_id, defs[0].version)], defs[0])
+    assert (r.kind, r.reasons) == ("review", ["unverified_list_item"])
+
+
+async def test_a3_planned_without_year(tmp_path, fake_llm):
+    a3 = ActionDraft(text=_c("Carbon capture study at the Tianjin plant", 16), action_id=_c("steel.ccus", 16),
+                     status=_c("planned", 16), region=_c("China", 16))
+    rows, _ = await _extract(tmp_path, fake_llm, _script(_plan(a3)))
+    got = [(r.field_id, r.value) for r in rows if r.basis == "action:P1:16:1"]
+    assert got == [("ta_action_text", "Carbon capture study at the Tianjin plant"), ("ta_action_id", "steel.ccus"),
+                   ("ta_action_status", "planned"), ("ta_action_region", "China")]
+    assert not _by(rows, "ta_action_year")
