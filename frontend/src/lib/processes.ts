@@ -5,6 +5,7 @@
 // hands to the next step; `carried: false` marks a handoff re-entered by hand.
 // Live state comes from the run store (`runTypes`) or the house stewardship
 // flow (`stage`). See docs/PROCESS_VIEW.md.
+import { REVIEWABLE_RUN_TYPES } from "./runs.ts";
 
 export type Step = {
   tab: string;
@@ -34,7 +35,7 @@ export type Workspace = {
   screens: [href: string, label: string][];
 };
 
-const REVIEWABLE = ["theme", "extraction", "financials", "identity", "transition_barrier_derivation"];
+const REVIEWABLE = [...REVIEWABLE_RUN_TYPES];
 const EXTRACTION_RUNS = ["extraction", "financials", "tnfd", "transition_plan"];
 
 export const WORKSPACES: Workspace[] = [
