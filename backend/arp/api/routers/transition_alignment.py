@@ -1,16 +1,21 @@
 from __future__ import annotations
 
+from dataclasses import replace
+from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 
-from arp.api.deps import get_portfolio_store
+from arp.api.deps import get_portfolio_store, get_run_store
 from arp.api.routers.companies import _resolve
 from arp.db import company_view as view
 from arp.db import models as m
+from arp.db.documents import get_document
 from arp.db.session import transaction
+from arp.presets import transition_plan_actions as plan
 from arp.presets.transition_capex import BOOLEAN_FIELDS, FIELD_IDS
-from arp.schemas.common import CompanyRef
+from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.transition_alignment import (
     BenchmarkOut,
     BenchmarksOut,
@@ -19,9 +24,11 @@ from arp.schemas.transition_alignment import (
     SectorBenchmarksOut,
     TransitionOut,
 )
+from arp.transition_alignment.actions import Cell, CellLookup, score_plan
 from arp.transition_alignment.benchmarks import citation, load_benchmarks, sector_for_isic
 from arp.transition_alignment.capex import Fact, score_capex
 from arp.transition_barrier import dataset
+from arp.transition_barrier.ratings import Ratings
 from arp.transition_barrier.render import fmt_number
 from arp.transition_barrier.rule_book import load_rule_book
 
@@ -73,9 +80,9 @@ def _decimal(v) -> Decimal | None:
     return d if d.is_finite() else None
 
 
-def _fact(r: view.CompanyFactRow) -> Fact:
+def _fact(r: view.CompanyFactRow, booleans=BOOLEAN_FIELDS) -> Fact:
     year = r.period_end.year if r.period_end else None  # R4: fiscal year = period_end.year
-    if r.field_id in BOOLEAN_FIELDS:
+    if r.field_id in booleans:
         value = r.value if isinstance(r.value, bool) else _BOOLS.get(str(r.value).strip().casefold())
         shown = {True: "Yes", False: "No"}.get(value, "")
         return Fact(r.fact_id, r.field_id, year, value, None, None, shown, r.source_label)
@@ -97,10 +104,67 @@ def _company_facts(s, cid) -> list[Fact]:
     return [_fact(r) for r in picked.values()]
 
 
+_RAW = {"ta_action_text", "ta_action_id", "ta_action_status", "ta_action_region"}  # text and enum: the raw string
+
+
+def _plan_fact(r: view.CompanyFactRow) -> Fact:
+    if r.field_id in _RAW:
+        f = Fact(r.fact_id, r.field_id, None, r.value, None, None, str(r.value), r.source_label)
+    else:
+        f = _fact(r, booleans=plan.OPERATES_FIELDS)
+    unit = r.unit if r.field_id in plan.ASSUMPTION_FIELDS else f.unit  # an assumption converts from its stated unit
+    return replace(f, unit=unit, basis=r.basis, page=r.page)
+
+
+def latest_plan(s, cid) -> m.Document | None:
+    """P1: the company's transition plan with the latest as-of date; on a tie, the one uploaded last."""
+    d = m.Document
+    return s.scalars(
+        select(d).where(d.company_id == cid, d.doc_type == DocType.TRANSITION_PLAN.value)
+        .order_by(d.published_at.desc().nulls_last(), d.first_seen_at.desc()).limit(1)
+    ).first()
+
+
+def _plan_inputs(s, cid) -> tuple[list[list[Fact]], list[Fact], list[Fact], dict[int, int]]:
+    """(action groups from the latest plan, assumptions, operating facts, fact_id -> its document's as-of year)."""
+    rows = [r for fid in plan.FIELD_IDS for r in view.facts(s, cid, field_id=fid, limit=500) if r.status in _COUNTED]
+    latest = latest_plan(s, cid)
+    groups: dict[str, list[view.CompanyFactRow]] = {}
+    for r in rows:
+        if r.field_id in plan.ACTION_FIELDS:
+            groups.setdefault(r.basis, []).append(r)
+    # P2: an action counts when its text's primary citation is the latest plan
+    kept = [g for g in groups.values() if latest and any(
+        r.field_id == "ta_action_text" and r.doc_id == latest.doc_id for r in g)]
+    assumptions = [r for r in rows if r.field_id in plan.ASSUMPTION_FIELDS]
+    years = {}
+    for r in assumptions:  # shortcut: an uncited assumption converts at this year's rate; cite it to fix the year
+        doc = get_document(s, r.doc_id) if r.doc_id else None
+        years[r.fact_id] = (doc.published_at or doc.first_seen_at).year if doc else date.today().year
+    return (
+        [[_plan_fact(r) for r in g] for g in kept],
+        [_plan_fact(r) for r in assumptions],
+        [_plan_fact(r) for r in rows if r.field_id in plan.OPERATES_FIELDS],
+        years,
+    )
+
+
+def _cell_lookup(run_store) -> CellLookup:
+    book = Ratings(run_store)
+
+    def cell(code: str, region: str) -> Cell:
+        c = book.cell(code, region)
+        values = [v for v in c.result.values if v["counted"]] if c.result else []
+        return Cell(getattr(c.rating, "value", c.rating), c.basis, c.evidence, values)
+
+    return cell
+
+
 @router.get("/companies/{ref}/transition", response_model=TransitionOut)
-def get_company_transition(ref: str) -> TransitionOut:
+def get_company_transition(ref: str, run_store=Depends(get_run_store)) -> TransitionOut:
     b = load_benchmarks()
-    versions = dict(benchmarks_version=b.version, rule_book_version=load_rule_book(dataset.data_dir())[0].version)
+    rule_book, raw = load_rule_book(dataset.data_dir())
+    versions = dict(benchmarks_version=b.version, rule_book_version=rule_book.version)
     with transaction() as s:
         cid = _resolve(s, ref)
         isic = s.get(m.Company, cid).isic_code
@@ -109,8 +173,17 @@ def get_company_transition(ref: str) -> TransitionOut:
             reason = f"ISIC {isic} is not in a transition-barrier sector" if isic else "No ISIC code"
             return TransitionOut(in_scope=False, reason=reason, sector=None, capex=None, **versions)
         facts = _company_facts(s, cid)
+        groups, assumptions, operates, years = _plan_inputs(s, cid)
     capex = score_capex(facts, b.sectors[sector], b.licence_note)
-    return TransitionOut(in_scope=True, reason=None, sector=sector, capex=capex, **versions)
+    regions: dict[str, list[str]] = {}
+    for score in dataset.load_scores():  # a criterion's regions: the cells the matrix has for it
+        regions.setdefault(score.code, []).append(score.region.value)
+    criteria = [(code, c.actions, regions.get(code, [])) for code, c in rule_book.criteria.items()]
+    scored = score_plan(
+        groups, assumptions, operates, criteria=criteria, cell=_cell_lookup(run_store), act_levers=b.act_levers,
+        assumption_map=b.assumptions, conversions=raw["conversions"], doc_year=years.__getitem__,
+    )
+    return TransitionOut(in_scope=True, reason=None, sector=sector, capex=capex, **versions, **dict(scored))
 
 
 @router.get("/transition-alignment/sectors/{sector}/companies", response_model=list[CompanyRef])
