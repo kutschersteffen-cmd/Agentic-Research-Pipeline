@@ -432,6 +432,19 @@ def test_ac94_no_pct(client, pg, ids):  # the target stays listed: its anchor is
     assert (t1["key"], t1["score"], t1["reason"]) == ("target:P1:22:1", None, "Incomplete target")
 
 
+def test_target_without_year_still_listed(client, pg, ids):
+    retire_item(pg, ids["C"], "T1", "ta_target_year")
+    t1 = transition(client, ids["C"])["targets"][0]
+    assert (t1["key"], t1["score"], t1["reason"]) == ("target:P1:22:1", None, "Incomplete target")
+
+
+def test_phaseout_without_activity_still_scored(client, pg, ids):
+    retire_item(pg, ids["C"], "O1", "ta_phaseout_activity")
+    (o1,) = transition(client, ids["C"])["phaseouts"]
+    assert (o1["key"], o1["activity"], o1["share_points"], o1["date_points"], o1["score"]) == (
+        "phaseout:P1:24:1", None, 25, 75, 40)
+
+
 def test_ac77_api(client, ids):
     cov = transition(client, ids["C"])["coverage"]
     assert cov["text"] == "Listed actions cover 58.33% of the 2030 target gap (3.5 of 6 MtCO2e/yr)"

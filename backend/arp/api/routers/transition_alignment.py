@@ -134,14 +134,15 @@ def latest_plan(s, cid) -> m.Document | None:
     ).first()
 
 
-def _latest_groups(rows, fields, anchor: str, latest: m.Document | None) -> list[list[Fact]]:
-    """P2: list items grouped by basis; a group counts when its `anchor` fact's primary citation is the latest plan."""
+def _latest_groups(rows, fields, latest: m.Document | None, anchor: str | None = None) -> list[list[Fact]]:
+    """P2: list items grouped by basis; a group counts when its `anchor` fact's (any fact's, without one) primary
+    citation is the latest plan."""
     groups: dict[str, list[view.CompanyFactRow]] = {}
     for r in rows:
         if r.field_id in fields:
             groups.setdefault(r.basis, []).append(r)
     return [[_plan_fact(r) for r in g] for g in groups.values()
-            if latest and any(r.field_id == anchor and r.doc_id == latest.doc_id for r in g)]
+            if latest and any(anchor in (None, r.field_id) and r.doc_id == latest.doc_id for r in g)]
 
 
 def _plan_inputs(s, cid):
@@ -155,9 +156,9 @@ def _plan_inputs(s, cid):
         doc = get_document(s, r.doc_id) if r.doc_id else None
         years[r.fact_id] = (doc.published_at or doc.first_seen_at).year if doc else date.today().year
     return (
-        _latest_groups(rows, plan.ACTION_FIELDS, "ta_action_text", latest),
-        _latest_groups(rows, plan.TARGET_FIELDS, "ta_target_year", latest),
-        _latest_groups(rows, plan.PHASEOUT_FIELDS, "ta_phaseout_activity", latest),
+        _latest_groups(rows, plan.ACTION_FIELDS, latest, "ta_action_text"),
+        _latest_groups(rows, plan.TARGET_FIELDS, latest),  # a target missing one field still shows (Incomplete target)
+        _latest_groups(rows, plan.PHASEOUT_FIELDS, latest),
         [_plan_fact(r) for r in assumptions],
         [_plan_fact(r) for r in rows if r.field_id in plan.OPERATES_FIELDS],
         years,
