@@ -212,6 +212,18 @@ def test_resolve_document_round_trip(tmp_path):
     assert store.resolve_document("doc_nonexistent") is None
 
 
+def test_disabled_cache_still_registers_documents(tmp_path):
+    # A restart turns the cache off; citations to documents it fetches must still resolve.
+    store = DocumentContentStore(tmp_path / "store", enabled=False, dsn=pg_dsn())
+    doc_id = derive_doc_id("acme", "10-K", "abc")
+    store.register_document(
+        doc_id=doc_id, company_id="acme", doc_type="10-K", content_key="abc",
+        title="Annual Report", local_path="/x/y.pdf", source_url=None,
+    )
+
+    assert store.resolve_document(doc_id).company_id == "acme"
+
+
 def test_set_storage_uri_round_trips(tmp_path):
     store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
     doc_id = derive_doc_id("acme", "10-K", "abc")

@@ -87,9 +87,8 @@ def _date(value: str | None) -> date | None:
 class DocumentRegistry:
     """One of DocumentContentStore's collaborators (see arp/storage/document_store.py)."""
 
-    def __init__(self, dsn: str, enabled: bool = True) -> None:
+    def __init__(self, dsn: str) -> None:
         self._dsn = dsn
-        self.enabled = enabled
 
     def register_document(
         self,
@@ -105,8 +104,6 @@ class DocumentRegistry:
         """Records doc_id -> (company, doc_type, content_key). Returns the doc_id stored under: the one passed
         in, unless it already maps to a different (company, content_key) -- a collision, logged and answered
         with a fresh random id rather than overwriting the existing mapping."""
-        if not self.enabled:
-            return doc_id
         safe_id(company_id, label="company_id")
         with transaction(self._dsn) as session:
             uuid = ensure_universe_company(session, company_id)
@@ -132,16 +129,12 @@ class DocumentRegistry:
             return doc_id
 
     def resolve_document(self, doc_id: str) -> StoredDocumentRef | None:
-        if not self.enabled:
-            return None
         with transaction(self._dsn) as session:
             d = get_document(session, doc_id)
             return _ref(d) if d else None
 
     def set_storage_uri(self, doc_id: str, storage_uri: str) -> None:
         """Records where the document's original bytes landed in object storage, after the fact."""
-        if not self.enabled:
-            return
         with transaction(self._dsn) as session:
             session.execute(update(Document).where(Document.doc_id == doc_id).values(storage_uri=storage_uri))
 
@@ -156,8 +149,6 @@ class DocumentRegistry:
         confidence: float,
         needs_review: bool,
     ) -> None:
-        if not self.enabled:
-            return
         with transaction(self._dsn) as session:
             session.execute(
                 update(Document)
@@ -169,8 +160,6 @@ class DocumentRegistry:
             )
 
     def list_family(self, family_id: str) -> list[StoredDocumentRef]:
-        if not self.enabled:
-            return []
         with transaction(self._dsn) as session:
             rows = session.scalars(
                 select(Document)
@@ -182,7 +171,7 @@ class DocumentRegistry:
     def list_by_content_keys(self, content_keys: list[str]) -> dict[str, StoredDocumentRef]:
         """Batch lookup for display enrichment. Content-addressed: if several documents share a content_key
         the last row read wins."""
-        if not self.enabled or not content_keys:
+        if not content_keys:
             return {}
         with transaction(self._dsn) as session:
             rows = session.scalars(select(Document).where(Document.content_key.in_(content_keys)).order_by(Document.doc_id))
@@ -190,8 +179,6 @@ class DocumentRegistry:
 
     def list_all(self) -> list[StoredDocumentRef]:
         """Every registered document, for backfill/reindex; no pagination."""
-        if not self.enabled:
-            return []
         with transaction(self._dsn) as session:
             return [_ref(d) for d in session.scalars(select(Document).order_by(Document.doc_id))]
 
@@ -201,7 +188,7 @@ class DocumentRegistry:
         """Per universe company: registered documents, how many have parsed text (`parsed_keys` says which
         content keys do -- parsed text is in the SQLite cache), doc types and latest last_seen_at.
         Companies with no rows are absent."""
-        if not self.enabled or not company_ids:
+        if not company_ids:
             return {}
         with transaction(self._dsn) as session:
             # filter by company uuid (not the display-only universe_id) so a merged company's documents follow it
@@ -232,7 +219,5 @@ class DocumentRegistry:
         return out
 
     def stats(self) -> dict:
-        if not self.enabled:
-            return {"registered_documents": 0}
         with transaction(self._dsn) as session:
             return {"registered_documents": session.scalar(select(func.count()).select_from(Document))}
