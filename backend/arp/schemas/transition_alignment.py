@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, PrivateAttr
 
 
 class BenchmarkOut(BaseModel):
@@ -151,6 +152,15 @@ class ComparisonOut(BaseModel):
     reason: str | None
 
 
+class ScenarioOut(BaseModel):
+    region: str
+    year: int | None
+    scenario: str | None
+    assumption: str | None
+    gap: str | None
+    reason: str | None
+
+
 class AssumptionOut(BaseModel):
     kind: str
     region: str | None
@@ -158,6 +168,59 @@ class AssumptionOut(BaseModel):
     citation: str | None
     fact_id: int
     comparisons: list[ComparisonOut]
+    scenario: list[ScenarioOut] = []
+
+
+class TargetOut(BaseModel):
+    key: str
+    scope: str | None
+    pct: float | None
+    year: int | None
+    base_year: int | None
+    base_emissions_shown: str | None
+    kind: Literal["past", "running"] | None
+    ratio: str | None
+    score: float | None
+    reason: str | None
+    citation: str | None
+    fact_ids: list[int]
+    _gap: Decimal | None = PrivateAttr(default=None)  # E_base x pct / 100 in tCO2e, for coverage; not served
+
+
+class TargetProgressOut(BaseModel):
+    score: float
+    text: str
+
+
+class CoverageActionOut(BaseModel):
+    key: str
+    saving_shown: str | None
+    summed: bool
+    reason: str | None
+
+
+class CoverageOut(BaseModel):
+    target_key: str | None
+    percent: float | None
+    text: str | None
+    actions: list[CoverageActionOut]
+    reason: str | None
+
+
+class PhaseoutOut(BaseModel):
+    key: str
+    activity: str | None
+    share: float | None
+    year: int | None
+    method: str | None
+    share_points: int | None
+    date_points: int | None
+    score: float | None
+    reason: str | None
+    timeline_text: str
+    note: str | None
+    citation: str | None
+    fact_ids: list[int]
 
 
 class PlanOut(BaseModel):
@@ -178,3 +241,7 @@ class TransitionOut(BaseModel):
     actions: list[ActionOut] = []
     b02a: B02Out | None = None
     assumptions: list[AssumptionOut] = []
+    targets: list[TargetOut] = []
+    target_progress: TargetProgressOut | None = None
+    coverage: CoverageOut | None = None
+    phaseouts: list[PhaseoutOut] = []
