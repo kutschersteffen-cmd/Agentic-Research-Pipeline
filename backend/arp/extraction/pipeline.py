@@ -30,7 +30,8 @@ from arp.planning.applicability import plan_fields
 from arp.planning.doc_routing import input_hash, route_documents
 from arp.planning.entity_check import confirm_entity
 from arp.planning.periods import plan_periods, union_planned
-from arp.schemas.common import CompanyRef, MatchStatus, SourceDocument
+from arp.presets import transition_plan_actions as plan_preset
+from arp.schemas.common import CompanyRef, DocType, MatchStatus, SourceDocument
 from arp.schemas.datapoints import (
     CheckResult,
     DataPointSchema,
@@ -45,6 +46,8 @@ from arp.schemas.issuer import issuer_key
 from arp.schemas.review import field_item_key, period_key
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
+from arp.transition_alignment.benchmarks import load_benchmarks, sector_for_isic
+from arp.transition_alignment.plan_extraction import extract_plan, plan_evidence
 
 logger = logging.getLogger(__name__)
 
@@ -248,10 +251,40 @@ async def _extract_company(
                  for f, h, slot in items]
         return [*([usage] if usage else []), *(u for us in await asyncio.gather(*calls) for u in us)]
 
+    async def _extract_plans(defs: list[FieldDefinition]) -> list[LLMUsage]:
+        """P6: the plan's list fields, one call per transition plan document; no reuse or history. Plans run
+        newest first (P1's order) and a later assumption with the same (field, period_end, basis) is dropped:
+        it would share the newer one's item key."""
+        sector = sector_for_isic(load_benchmarks(), company.isic_code)
+        out, seen = [], set()
+        # shortcut: fetched_at stands in for first_seen_at (SourceDocument has no upload time); add it if ties matter
+        plans = sorted((d for d in kept if d.doc_type == DocType.TRANSITION_PLAN),
+                       key=lambda d: (d.published_at or "", d.fetched_at), reverse=True)
+        for d in plans:
+            if not (chunks := await asyncio.to_thread(plan_evidence, defs, d, settings)):
+                continue
+            async with limit:
+                rows, usage = await extract_plan(
+                    company, sector, d, chunks, llm, fields=defs, fuzzy_threshold=settings.grounding_fuzzy_threshold,
+                    schema_version=f"{schema.schema_id}:v{schema.version}",
+                )
+            out.append(usage)
+            for r in rows:
+                if r.field_id in plan_preset.ASSUMPTION_FIELDS:
+                    if (key := (r.field_id, r.period_end, r.basis)) in seen:
+                        continue
+                    seen.add(key)
+                plan_slots[r.field_id].append(r)
+        return out
+
     # One slot per field, filled in place, so the record keeps the schema's field order.
     slots: list[list[ExtractedField]] = []
+    plan_slots: dict[str, list[ExtractedField]] = {}
     todo: list[tuple[FieldDefinition, str | None, list[ExtractedField]]] = []
     for field in to_extract:
+        if schema.schema_id == plan_preset.SCHEMA_ID and field.field_id not in plan_preset.OPERATES_FIELDS:
+            slots.append(plan_slots.setdefault(field.field_id, []))
+            continue
         h = input_hash(field, route_documents(field, kept), planned_periods, run_settings)
         prior = history.last_rows(company.company_id, field.field_id) if reuse and h else []
         if prior and history.last_rejected(company.company_id, field.field_id):
@@ -280,6 +313,8 @@ async def _extract_company(
     groupable = [t for t, g in zip(todo, grouping, strict=True) if g]
     pending = [_extract(*t) for t, g in zip(todo, grouping, strict=True) if not g]
     pending += [_extract_group(groupable[i:i + size]) for i in range(0, len(groupable), size or 1)]  # schema order
+    if plan_slots:
+        pending.append(_extract_plans([f for f in to_extract if f.field_id in plan_slots]))
     for field_usages in await asyncio.gather(*pending):
         usages.extend(field_usages)
     fields.extend(f for slot in slots for f in slot)

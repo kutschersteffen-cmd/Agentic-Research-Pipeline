@@ -99,6 +99,67 @@ class CapexOut(BaseModel):
     licence_note: str
 
 
+class B02Out(BaseModel):
+    met: bool
+    text: str
+    fact_ids: list[int] = []  # the facts this result used (b: status, year; c: saving; d: needed, allocated)
+
+
+class BarrierOut(BaseModel):
+    code: str
+    region: str
+    rating: str | None
+    basis: str | None
+    evidence: str
+    values: list[dict]  # the cell's counted values, as the barrier API serves them
+
+
+class ActLeverOut(BaseModel):
+    wording: str
+    citation: str
+
+
+class ActionOut(BaseModel):
+    key: str
+    action_id: str | None
+    act_lever: ActLeverOut | None
+    text: str
+    status: str | None
+    year: int | None
+    region: str | None
+    citation: str | None
+    timeframe: str | None
+    b02: dict[str, B02Out]  # "b", "c", "d"
+    barriers: list[BarrierOut]
+    note: str | None
+    fact_ids: list[int]
+
+
+class ComparisonOut(BaseModel):
+    code: str
+    region: str
+    assumption: str | None
+    evidence: str
+    gap: str | None
+    reason: str | None
+
+
+class AssumptionOut(BaseModel):
+    kind: str
+    region: str | None
+    year: int | None
+    citation: str | None
+    fact_id: int
+    comparisons: list[ComparisonOut]
+
+
+class PlanOut(BaseModel):
+    regions: list[str]
+    actions: list[ActionOut]
+    b02a: B02Out | None
+    assumptions: list[AssumptionOut]
+
+
 class TransitionOut(BaseModel):
     in_scope: bool
     reason: str | None
@@ -106,8 +167,7 @@ class TransitionOut(BaseModel):
     benchmarks_version: int
     rule_book_version: int
     capex: CapexOut | None
-    # Phase-2 keys, served empty now (R9).
     regions: list[str] = []
-    actions: list[dict] = []
-    b02a: dict | None = None
-    assumptions: list[dict] = []
+    actions: list[ActionOut] = []
+    b02a: B02Out | None = None
+    assumptions: list[AssumptionOut] = []

@@ -8,6 +8,7 @@ const TYPES: [DocType, string][] = [
   ["DEF-14A", "Proxy statement"],
   ["earnings_transcript", "Earnings transcript"],
   ["investor_presentation", "Investor presentation"],
+  ["transition_plan", "Transition plan"],
   ["other", "Other"],
 ];
 

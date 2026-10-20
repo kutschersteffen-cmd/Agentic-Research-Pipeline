@@ -100,6 +100,161 @@
     "title": "AccessPattern",
     "type": "string"
    },
+   "ActLeverOut": {
+    "properties": {
+     "citation": {
+      "title": "Citation",
+      "type": "string"
+     },
+     "wording": {
+      "title": "Wording",
+      "type": "string"
+     }
+    },
+    "required": [
+     "wording",
+     "citation"
+    ],
+    "title": "ActLeverOut",
+    "type": "object"
+   },
+   "ActionOut": {
+    "properties": {
+     "act_lever": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ActLeverOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "action_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Action Id"
+     },
+     "b02": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/B02Out"
+      },
+      "title": "B02",
+      "type": "object"
+     },
+     "barriers": {
+      "items": {
+       "$ref": "#/components/schemas/BarrierOut"
+      },
+      "title": "Barriers",
+      "type": "array"
+     },
+     "citation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Citation"
+     },
+     "fact_ids": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Fact Ids",
+      "type": "array"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "region": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Region"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     },
+     "timeframe": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Timeframe"
+     },
+     "year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Year"
+     }
+    },
+    "required": [
+     "key",
+     "action_id",
+     "act_lever",
+     "text",
+     "status",
+     "year",
+     "region",
+     "citation",
+     "timeframe",
+     "b02",
+     "barriers",
+     "note",
+     "fact_ids"
+    ],
+    "title": "ActionOut",
+    "type": "object"
+   },
    "ActivateRequest": {
     "properties": {
      "version": {
@@ -976,6 +1131,68 @@
     "title": "ApproveSpecRequest",
     "type": "object"
    },
+   "AssumptionOut": {
+    "properties": {
+     "citation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Citation"
+     },
+     "comparisons": {
+      "items": {
+       "$ref": "#/components/schemas/ComparisonOut"
+      },
+      "title": "Comparisons",
+      "type": "array"
+     },
+     "fact_id": {
+      "title": "Fact Id",
+      "type": "integer"
+     },
+     "kind": {
+      "title": "Kind",
+      "type": "string"
+     },
+     "region": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Region"
+     },
+     "year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Year"
+     }
+    },
+    "required": [
+     "kind",
+     "region",
+     "year",
+     "citation",
+     "fact_id",
+     "comparisons"
+    ],
+    "title": "AssumptionOut",
+    "type": "object"
+   },
    "AttachRequest": {
     "properties": {
      "framework_id": {
@@ -1094,6 +1311,32 @@
      "why"
     ],
     "title": "AuditEntry",
+    "type": "object"
+   },
+   "B02Out": {
+    "properties": {
+     "fact_ids": {
+      "default": [],
+      "items": {
+       "type": "integer"
+      },
+      "title": "Fact Ids",
+      "type": "array"
+     },
+     "met": {
+      "title": "Met",
+      "type": "boolean"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "met",
+     "text"
+    ],
+    "title": "B02Out",
     "type": "object"
    },
    "BacktestRequest": {
@@ -1371,6 +1614,62 @@
      "primary_sources"
     ],
     "title": "BarrierCriterion",
+    "type": "object"
+   },
+   "BarrierOut": {
+    "properties": {
+     "basis": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Basis"
+     },
+     "code": {
+      "title": "Code",
+      "type": "string"
+     },
+     "evidence": {
+      "title": "Evidence",
+      "type": "string"
+     },
+     "rating": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rating"
+     },
+     "region": {
+      "title": "Region",
+      "type": "string"
+     },
+     "values": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Values",
+      "type": "array"
+     }
+    },
+    "required": [
+     "code",
+     "region",
+     "rating",
+     "basis",
+     "evidence",
+     "values"
+    ],
+    "title": "BarrierOut",
     "type": "object"
    },
    "BarrierScore": {
@@ -3363,6 +3662,17 @@
       "title": "Conflicting Sources",
       "type": "boolean"
      },
+     "doc_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Doc Id"
+     },
      "fact_id": {
       "title": "Fact Id",
       "type": "integer"
@@ -3383,6 +3693,17 @@
         "type": "null"
        }
       ]
+     },
+     "page": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page"
      },
      "period_end": {
       "anyOf": [
@@ -3451,6 +3772,8 @@
      "status",
      "source_kind",
      "source_label",
+     "doc_id",
+     "page",
      "licence",
      "conflicting_sources",
      "valid_from",
@@ -3821,6 +4144,65 @@
      "n_comparisons"
     ],
     "title": "Comparison",
+    "type": "object"
+   },
+   "ComparisonOut": {
+    "properties": {
+     "assumption": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assumption"
+     },
+     "code": {
+      "title": "Code",
+      "type": "string"
+     },
+     "evidence": {
+      "title": "Evidence",
+      "type": "string"
+     },
+     "gap": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Gap"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "region": {
+      "title": "Region",
+      "type": "string"
+     }
+    },
+    "required": [
+     "code",
+     "region",
+     "assumption",
+     "evidence",
+     "gap",
+     "reason"
+    ],
+    "title": "ComparisonOut",
     "type": "object"
    },
    "CompositeSignalComponent": {
@@ -6049,6 +6431,7 @@
      "investor_presentation",
      "product_page",
      "research_paper",
+     "transition_plan",
      "other"
     ],
     "title": "DocType",
@@ -15291,8 +15674,7 @@
      "actions": {
       "default": [],
       "items": {
-       "additionalProperties": true,
-       "type": "object"
+       "$ref": "#/components/schemas/ActionOut"
       },
       "title": "Actions",
       "type": "array"
@@ -15300,8 +15682,7 @@
      "assumptions": {
       "default": [],
       "items": {
-       "additionalProperties": true,
-       "type": "object"
+       "$ref": "#/components/schemas/AssumptionOut"
       },
       "title": "Assumptions",
       "type": "array"
@@ -15309,14 +15690,12 @@
      "b02a": {
       "anyOf": [
        {
-        "additionalProperties": true,
-        "type": "object"
+        "$ref": "#/components/schemas/B02Out"
        },
        {
         "type": "null"
        }
-      ],
-      "title": "B02A"
+      ]
      },
      "benchmarks_version": {
       "title": "Benchmarks Version",

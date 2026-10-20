@@ -7198,6 +7198,43 @@ export interface components {
          * @enum {string}
          */
         AccessPattern: "periodic_pdf_report" | "government_agency_publication" | "legal_regulatory_text" | "industry_tracker_database" | "company_disclosure" | "structured_api_or_dashboard";
+        /** ActLeverOut */
+        ActLeverOut: {
+            /** Citation */
+            citation: string;
+            /** Wording */
+            wording: string;
+        };
+        /** ActionOut */
+        ActionOut: {
+            act_lever: components["schemas"]["ActLeverOut"] | null;
+            /** Action Id */
+            action_id: string | null;
+            /** B02 */
+            b02: {
+                [key: string]: components["schemas"]["B02Out"];
+            };
+            /** Barriers */
+            barriers: components["schemas"]["BarrierOut"][];
+            /** Citation */
+            citation: string | null;
+            /** Fact Ids */
+            fact_ids: number[];
+            /** Key */
+            key: string;
+            /** Note */
+            note: string | null;
+            /** Region */
+            region: string | null;
+            /** Status */
+            status: string | null;
+            /** Text */
+            text: string;
+            /** Timeframe */
+            timeframe: string | null;
+            /** Year */
+            year: number | null;
+        };
         /** ActivateRequest */
         ActivateRequest: {
             /** Version */
@@ -7624,6 +7661,21 @@ export interface components {
         };
         /** ApproveSpecRequest */
         ApproveSpecRequest: Record<string, never>;
+        /** AssumptionOut */
+        AssumptionOut: {
+            /** Citation */
+            citation: string | null;
+            /** Comparisons */
+            comparisons: components["schemas"]["ComparisonOut"][];
+            /** Fact Id */
+            fact_id: number;
+            /** Kind */
+            kind: string;
+            /** Region */
+            region: string | null;
+            /** Year */
+            year: number | null;
+        };
         /** AttachRequest */
         AttachRequest: {
             /** Framework Id */
@@ -7688,6 +7740,18 @@ export interface components {
             stage: string;
             /** Why */
             why: string;
+        };
+        /** B02Out */
+        B02Out: {
+            /**
+             * Fact Ids
+             * @default []
+             */
+            fact_ids: number[];
+            /** Met */
+            met: boolean;
+            /** Text */
+            text: string;
         };
         /** BacktestRequest */
         BacktestRequest: {
@@ -7833,6 +7897,23 @@ export interface components {
             sector: string;
             /** Unit */
             unit: string;
+        };
+        /** BarrierOut */
+        BarrierOut: {
+            /** Basis */
+            basis: string | null;
+            /** Code */
+            code: string;
+            /** Evidence */
+            evidence: string;
+            /** Rating */
+            rating: string | null;
+            /** Region */
+            region: string;
+            /** Values */
+            values: {
+                [key: string]: unknown;
+            }[];
         };
         /**
          * BarrierScore
@@ -8714,12 +8795,16 @@ export interface components {
             canonical_value: number | null;
             /** Conflicting Sources */
             conflicting_sources: boolean;
+            /** Doc Id */
+            doc_id: string | null;
             /** Fact Id */
             fact_id: number;
             /** Field Id */
             field_id: string;
             kind: components["schemas"]["FieldKind"];
             licence: components["schemas"]["Licence"] | null;
+            /** Page */
+            page: number | null;
             /** Period End */
             period_end: string | null;
             source_kind: components["schemas"]["SourceKind"];
@@ -8860,6 +8945,21 @@ export interface components {
              * @enum {string}
              */
             verdict: "a_higher" | "b_higher" | "insufficient_data";
+        };
+        /** ComparisonOut */
+        ComparisonOut: {
+            /** Assumption */
+            assumption: string | null;
+            /** Code */
+            code: string;
+            /** Evidence */
+            evidence: string;
+            /** Gap */
+            gap: string | null;
+            /** Reason */
+            reason: string | null;
+            /** Region */
+            region: string;
         };
         /**
          * CompositeSignalComponent
@@ -9925,7 +10025,7 @@ export interface components {
          * DocType
          * @enum {string}
          */
-        DocType: "10-K" | "DEF-14A" | "sustainability_report" | "earnings_transcript" | "investor_presentation" | "product_page" | "research_paper" | "other";
+        DocType: "10-K" | "DEF-14A" | "sustainability_report" | "earnings_transcript" | "investor_presentation" | "product_page" | "research_paper" | "transition_plan" | "other";
         /** DocumentRouting */
         DocumentRouting: {
             /**
@@ -14015,20 +14115,13 @@ export interface components {
              * Actions
              * @default []
              */
-            actions: {
-                [key: string]: unknown;
-            }[];
+            actions: components["schemas"]["ActionOut"][];
             /**
              * Assumptions
              * @default []
              */
-            assumptions: {
-                [key: string]: unknown;
-            }[];
-            /** B02A */
-            b02a?: {
-                [key: string]: unknown;
-            } | null;
+            assumptions: components["schemas"]["AssumptionOut"][];
+            b02a?: components["schemas"]["B02Out"] | null;
             /** Benchmarks Version */
             benchmarks_version: number;
             capex: components["schemas"]["CapexOut"] | null;

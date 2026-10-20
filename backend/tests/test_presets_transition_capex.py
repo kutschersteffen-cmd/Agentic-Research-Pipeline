@@ -24,7 +24,7 @@ def test_ac47_existing_presets_unchanged():
     snap = json.loads(SNAPSHOT.read_text())
     for pid, fields in snap.items():
         assert [_shape(f) for f in PRESETS[pid]().fields] == fields
-    assert set(PRESETS) == set(snap) | {"sch_transition_capex"}  # phase 2 adds sch_transition_plan_actions
+    assert set(PRESETS) == set(snap) | {"sch_transition_capex", "sch_transition_plan_actions"}
 
 
 def test_capex_fields_and_types():

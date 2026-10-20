@@ -12,6 +12,8 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy import func, select, update
 
+from arp.api.auth import current_user
+from arp.api.main import app
 from arp.config import get_settings
 from arp.db import models as m
 from arp.db.companies import resolve
@@ -24,6 +26,7 @@ from arp.presets.registry import install_preset
 from arp.schemas.common import JobStatus, RunManifest
 from arp.transition_alignment import benchmarks
 from arp.transition_barrier import dataset
+from tests.transition_barrier_helpers import A_ANALYST, A_APPROVER, derive, enter_fact, pdf_with
 
 FIXTURES = Path(__file__).parent / "fixtures" / "transition_alignment"
 
@@ -65,12 +68,16 @@ COMPANIES = {  # key: (name, ISIC code, fiscal year end)
     "Q": ("Fixture Foods SA", "1050", None),
     "N": ("Fixture Holdings Ltd", None, None),
 }
-DOCUMENTS = {  # doc_id: (company key, doc type, title)
-    "P1": ("C", "transition_plan", "Fixture Steel Transition Plan 2025"),
-    "P2": ("C", "annual_report", "Fixture Steel Annual Report 2025"),
-    "P4": ("P", "annual_report", "Fixture Power Annual Report 2025"),
-    "P5": ("Q", "annual_report", "Fixture Foods Report 2025"),
+AS_OF = date(2026, 3, 31)
+DOCUMENTS = {  # doc_id: (company key, doc type, title, as-of)
+    "P1": ("C", "transition_plan", "Fixture Steel Transition Plan 2025", AS_OF),
+    "P2": ("C", "annual_report", "Fixture Steel Annual Report 2025", AS_OF),
+    "P3": ("C", "transition_plan", "Fixture Steel Transition Plan 2023", date(2024, 3, 31)),
+    "P4": ("P", "annual_report", "Fixture Power Annual Report 2025", AS_OF),
+    "P5": ("Q", "annual_report", "Fixture Foods Report 2025", AS_OF),
+    "P6": ("C", "transition_plan", "Fixture Steel Transition Plan 2025 (revised)", AS_OF),
 }
+ON_REQUEST = ("P3", "P6")  # registered only when a test asks (register_documents)
 M = "EUR million"
 DEFAULT_FACTS = [  # (company, field_id, period_end, value, unit, doc_id, page)
     ("C", "tc_capex_total", FY25, 1000, M, "P2", 44),
@@ -89,6 +96,60 @@ DEFAULT_FACTS = [  # (company, field_id, period_end, value, unit, doc_id, page)
     ("C", "tc_lowcarbon_capex_share_pct_planned", FY26, 20, "%", "P1", 18),
     ("Q", "capex_total", FY25, 200, M, "P5", 8),
 ]
+
+
+EU, US, CN = "European Union", "United States", "China"
+# action: (doc_id, text page, [(field_id, value, unit, page)]); facts share basis `action:<doc>:<page>:1` (P3)
+ACTIONS = {
+    "A1": ("P1", 12, [
+        ("ta_action_text", "We will commission a 2 Mt hydrogen-based DRI plant in Sweden by 2028.", None, 12),
+        ("ta_action_id", "steel.h2_dri", None, 12), ("ta_action_status", "planned", None, 12),
+        ("ta_action_year", 2028, None, 12), ("ta_action_region", EU, None, 12),
+        ("ta_action_capex_needed", 1500, M, 13), ("ta_action_capex_allocated", 600, M, 13),
+        ("ta_action_ghg_saving", 3.5, "MtCO2e/yr", 14),
+    ]),
+    "A2": ("P1", 15, [
+        ("ta_action_text", "Our electric arc furnace in Ohio has run on scrap since 2022.", None, 15),
+        ("ta_action_id", "steel.scrap_eaf", None, 15), ("ta_action_status", "implemented", None, 15),
+        ("ta_action_year", 2022, None, 15), ("ta_action_region", US, None, 15),
+    ]),
+    "A3": ("P1", 16, [
+        ("ta_action_text", "We are studying carbon capture at our Tianjin plant.", None, 16),
+        ("ta_action_id", "steel.ccus", None, 16), ("ta_action_status", "planned", None, 16),
+        ("ta_action_region", CN, None, 16),
+    ]),
+    "A6": ("P3", 5, [
+        ("ta_action_text", "We will build a coke oven gas recovery unit by 2025.", None, 5),
+        ("ta_action_id", "other", None, 5), ("ta_action_status", "planned", None, 5),
+        ("ta_action_year", 2025, None, 5), ("ta_action_region", EU, None, 5),
+    ]),
+    "A7": ("P6", 4, [
+        ("ta_action_text", "We will build a second DRI plant in Sweden by 2030.", None, 4),
+        ("ta_action_id", "steel.h2_dri", None, 4), ("ta_action_status", "planned", None, 4),
+        ("ta_action_year", 2030, None, 4), ("ta_action_region", EU, None, 4),
+    ]),
+}
+
+
+def action_basis(name: str) -> str:
+    doc_id, page, _ = ACTIONS[name]
+    return f"action:{doc_id}:{page}:1"
+
+
+def publish_action(pg: str, run_store, cid: UUID, name: str) -> None:
+    doc_id, _, rows = ACTIONS[name]
+    publish(pg, run_store, [(cid, fid, None, v, unit, doc_id, page) for fid, v, unit, page in rows], basis=action_basis(name))
+
+
+def register_documents(pg: str, *doc_ids: str) -> None:
+    """Registers the documents (in order, so a later one is uploaded later) with their as-of dates."""
+    docs = DocumentRegistry(pg)
+    for doc_id in doc_ids:
+        key, doc_type, title, as_of = DOCUMENTS[doc_id]
+        docs.register_document(doc_id=doc_id, company_id=key.lower(), doc_type=doc_type, content_key=f"ck_{doc_id}",
+                               title=title, local_path=None, source_url=None)
+        with transaction(pg) as s:
+            s.execute(update(m.Document).where(m.Document.doc_id == doc_id).values(published_at=as_of))
 
 
 def field_version(s, field_id: str) -> int:
@@ -132,18 +193,56 @@ def retire(pg: str, cid: UUID, *keys: tuple[str, date]) -> None:
 
 @pytest.fixture
 def seed_defaults(pg, run_store) -> dict[str, UUID]:
-    """Companies C, P, K, Q, N, documents P1, P2, P4, P5 and the default facts, approved. Returns key -> company id."""
+    """Companies C, P, K, Q, N, documents P1, P2, P4, P5 and the default facts, approved: capex, A1-A3, operating
+    regions and both assumptions. Returns key -> company id."""
     registry = SchemaRegistry(pg)
     install_preset("sch_transition_capex", registry)
     install_preset("sch_green_lowcarbon", registry)
+    install_preset("sch_transition_plan_actions", registry)
     ids = {}
     with transaction(pg) as s:
         for key, (name, isic, fye) in COMPANIES.items():
             attrs = {k: v for k, v in {"isic_code": isic, "fiscal_year_end": fye}.items() if v}
             ids[key] = resolve(s, [(m.IdScheme.UNIVERSE, key.lower())], name=name, allow_create=True, attrs=attrs).company_id
-    docs = DocumentRegistry(pg)
-    for doc_id, (key, doc_type, title) in DOCUMENTS.items():
-        docs.register_document(doc_id=doc_id, company_id=key.lower(), doc_type=doc_type, content_key=f"ck_{doc_id}",
-                               title=title, local_path=None, source_url=None)
+    register_documents(pg, *(d for d in DOCUMENTS if d not in ON_REQUEST))
     publish(pg, run_store, [(ids[k], *rest) for k, *rest in DEFAULT_FACTS])
+    c = ids["C"]
+    publish(pg, run_store, [(c, f"ta_operates_{r}", None, True, None, "P2", 3) for r in ("eu", "us", "cn")])
+    publish(pg, run_store, [(c, "ta_assumed_carbon_price", date(2030, 12, 31), 90, "EUR/tCO2", "P1", 20)],
+            basis=f"region:{EU}")
+    publish(pg, run_store, [(c, "ta_assumed_h2_cost", None, 3, "USD/kg H2", "P1", 21)], basis="region:any")
+    for name in ("A1", "A2", "A3"):
+        publish_action(pg, run_store, c, name)
     return ids
+
+
+# --- F-TA ratification through the barrier API (spec "Fixtures": STL-R1 EU H, STL-T1 EU M) ---
+
+H2_QUOTE = "Renewable hydrogen cost was USD 6/kg H2."
+
+
+def _decide(client, who, run_id: str, key: str) -> None:
+    app.dependency_overrides[current_user] = lambda: who
+    etag = client.get(f"/api/review/runs/{run_id}/items/{key}/context").json()["etag"]
+    r = client.post(f"/api/review/runs/{run_id}/items/{key}/decision",
+                    json={"decision": "approve", "reason_code": "confirmed", "context_etag": etag})
+    assert r.status_code == 200, r.text
+
+
+def ratify_fta(client) -> None:
+    """Enters D1 price 72 (p. 12), applies and levy Yes for STL-R1 EU and D5 h2_cost 6 (p. 7) for STL-T1 EU, derives
+    both cells, then an analyst and an approver approve each (as test_tb_ratings.ratify_change)."""
+    r1, t1 = (f"/api/transition-barrier/cells/{code}/{EU}" for code in ("STL-R1", "STL-T1"))
+    entries = [
+        enter_fact(client, "price", 72, "D1", 12, cell=r1),
+        enter_fact(client, "applies", True, "D1", 4, cell=r1),
+        enter_fact(client, "levy", True, "D2", 3, cell=r1),
+        enter_fact(client, "h2_cost", 6, "D1", 7, cell=t1, title="Hydrogen Cost Review 2026", quote=H2_QUOTE,
+                   pdf=pdf_with([None] * 6 + [H2_QUOTE]), as_of="2026-06-30", filename="D5.pdf"),
+    ]
+    assert [e.status_code for e in entries] == [201] * 4, [e.text for e in entries]
+    app.dependency_overrides[current_user] = lambda: A_ANALYST
+    run_id = derive(client, [("STL-R1", EU), ("STL-T1", EU)])
+    for who in (A_ANALYST, A_APPROVER):
+        for code in ("STL-R1", "STL-T1"):
+            _decide(client, who, run_id, f"{code}:{EU}")

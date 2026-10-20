@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
+from datetime import date
+
 import pytest
 from fastapi.testclient import TestClient
 
 from arp.api import deps
 from arp.api.main import app
+from arp.config import get_settings
 from arp.db import models as m
 from arp.db.observations import record
 from arp.db.session import transaction
@@ -15,12 +19,22 @@ from arp.orchestration.review_queue import record_review_decision
 from arp.planning.applicability import plan_fields
 from arp.presets.transition_capex import FIELD_IDS, build_transition_capex_schema
 from arp.schemas.common import CompanyRef, JobStatus, RunManifest
+from arp.storage.document_store import DocumentContentStore
 from arp.storage.portfolio_store import PortfolioStore
+from arp.transition_barrier import clock
+from tests.postgres_helpers import pg_dsn
 from tests.transition_alignment_helpers import (  # noqa: F401 - fixtures
+    CN,
+    EU,
     FY25,
     FY26,
+    US,
+    action_basis,
     observation,
     publish,
+    publish_action,
+    ratify_fta,
+    register_documents,
     retire,
     seed_defaults,
     ta_dirs,
@@ -31,8 +45,16 @@ QUOTE = "Low-carbon capital expenditure was EUR 120 million, 12% of total capex.
 
 
 @pytest.fixture
-def client(pg, ta_dirs):  # noqa: F811
-    return TestClient(app)
+def client(pg, ta_dirs, tmp_path, monkeypatch):  # noqa: F811
+    """The barrier API reads and writes the test's runs (the `run_store` fixture's directory) and documents."""
+    for name, value in {"RUNS_DIR": str(tmp_path / "runs"), "SECOND_REVIEW_SAMPLE_RATE": "0",
+                        "BULK_ACCEPT_SAMPLE_RATE": "0", "TRANSITION_BARRIER_REFRESH_ENABLED": "false"}.items():
+        monkeypatch.setenv(f"ARP_{name}", value)
+    get_settings.cache_clear()
+    monkeypatch.setattr(clock, "today", lambda: date(2026, 10, 20))
+    app.dependency_overrides[deps.get_document_content_store] = lambda: DocumentContentStore(tmp_path / "docs", dsn=pg_dsn())
+    yield TestClient(app)
+    app.dependency_overrides.pop(deps.get_document_content_store, None)
 
 
 @pytest.fixture
@@ -58,7 +80,7 @@ def test_ac9_api(client, ids):
     assert (c["reporting_year"], c["share_used"], c["rule"]) == (2025, 20, "RY+1 higher: RY+1 used")
     assert (c["benchmark"]["value"], c["ratio_shown"]) == (80, "0.25")
     assert (body["benchmarks_version"], body["rule_book_version"]) == (3, 7)
-    assert (body["regions"], body["actions"], body["b02a"], body["assumptions"]) == ([], [], None, [])
+    assert (body["regions"], len(body["actions"]), len(body["assumptions"])) == ([EU, US, CN], 3, 2)  # phase 2: AC-24
 
 
 def test_ac15_ac65_api(client, ids):
@@ -223,3 +245,117 @@ def test_fact_row_carries_unit(client, ids):  # R8
     (row,) = client.get(f"/api/companies/{ids['C']}/facts", params={"field_id": "tc_carbon_intensive_capex"}).json()
     assert row["unit"] == "EUR million"
     assert m.FactStatus(row["status"]) == m.FactStatus.APPROVED
+
+
+# --- Plan actions and assumptions (phase 2: AC-24..AC-35, AC-46, AC-62, AC-71) ---
+
+TP = "Fixture Steel Transition Plan 2025 p."
+
+
+@pytest.fixture
+def ratified(client, ids):
+    ratify_fta(client)
+    return ids
+
+
+def actions(client, cid):
+    return transition(client, cid)["actions"]
+
+
+def test_ac24_api(client, ratified):
+    body = transition(client, ratified["C"])
+    assert body["regions"] == [EU, US, CN]
+    assert [(a["action_id"], a["citation"]) for a in body["actions"]] == [
+        ("steel.h2_dri", TP + "12"), ("steel.scrap_eaf", TP + "15"), ("steel.ccus", TP + "16")]
+    assert [a["key"] for a in body["actions"]] == [action_basis(n) for n in ("A1", "A2", "A3")]
+
+
+def test_ac25_api(client, ratified):
+    a1 = actions(client, ratified["C"])[0]
+    assert [(b["code"], b["region"], b["rating"], b["basis"]) for b in a1["barriers"]] == [
+        ("STL-R1", EU, "H", "derived"), ("STL-T1", EU, "M", "derived")]
+    price = [(v["value"], v["unit"], v["document"], v["page"]) for v in a1["barriers"][0]["values"] if v["fact"] == "price"]
+    assert price == [(72, "USD/tCO2", "EU ETS Market Report 2026", 12)]
+
+
+def test_ac26_ac29_api(client, ratified):
+    a1, a2, _ = actions(client, ratified["C"])
+    assert [(b["code"], b["region"], b["rating"], b["basis"], b["evidence"]) for b in a2["barriers"]] == [
+        ("STL-R1", US, "L", "hand_rated", "No federal carbon price applies to steel.")]
+    assert (a2["act_lever"]["wording"], a1["act_lever"]) == ("More scrap, process efficiency, zero-GHG power", None)
+
+
+def test_ac31_api(client, ratified):
+    carbon, h2 = transition(client, ratified["C"])["assumptions"]
+    assert (carbon["kind"], carbon["region"], carbon["year"], carbon["citation"]) == ("carbon_price", EU, 2030, TP + "20")
+    assert [(c["code"], c["region"], c["assumption"], c["evidence"], c["gap"], c["reason"]) for c in carbon["comparisons"]] == [
+        ("STL-R1", EU, "97.2 USD/tCO2 (90 EUR/tCO2)", "72 USD/tCO2 (EU ETS Market Report 2026, p. 12)", "+25.2 USD/tCO2", None)]
+    assert [(c["code"], c["region"], c["assumption"], c["gap"]) for c in h2["comparisons"]] == [  # AC-32
+        ("STL-T1", EU, "3 USD/kg H2", "-3 USD/kg H2")]
+
+
+def test_ac34_api(client, ratified):
+    a1, a2, a3 = actions(client, ratified["C"])
+    assert {k: (v["met"], v["text"]) for k, v in a1["b02"].items()} == {
+        "b": (True, "near term (2028)"), "c": (True, "3.5 MtCO2e/yr"),
+        "d": (True, "1500 EUR million needed, 600 EUR million allocated")}
+    assert {k: (v["met"], v["text"]) for k, v in a2["b02"].items()} == {  # AC-35
+        "b": (True, "implemented (2022)"), "c": (False, "No quantified GHG saving"), "d": (False, "No funding stated")}
+    assert (a3["b02"]["b"]["met"], a3["b02"]["b"]["text"]) == (False, "No timeframe: ignored")  # AC-49
+    b02a = transition(client, ratified["C"])["b02a"]
+    assert (b02a["met"], b02a["text"]) == (False, "not met: 1 implemented, 1 planned with a timeframe (needs 3 and 1)")
+
+
+def test_ac63_api(client, pg, run_store, ratified):  # money units are the canonical currency (B02.d compares them)
+    c = ratified["C"]
+    publish(pg, run_store, [(c, "ta_action_capex_allocated", None, 650, "USD million", "P1", 13)], basis=action_basis("A1"))
+    d = actions(client, c)[0]["b02"]["d"]
+    assert (d["met"], d["text"]) == (False, "Needed and allocated in different currencies")
+
+
+def test_ac62_older_plan(client, pg, run_store, ratified):
+    c = ratified["C"]
+    register_documents(pg, "P3")
+    publish_action(pg, run_store, c, "A6")
+    assert [a["action_id"] for a in actions(client, c)] == ["steel.h2_dri", "steel.scrap_eaf", "steel.ccus"]
+    (a6,) = [r for r in client.get(f"/api/companies/{c}/facts", params={"field_id": "ta_action_id"}).json()
+             if r["basis"] == action_basis("A6")]
+    r = client.get(f"/api/facts/{a6['fact_id']}/trail")
+    assert r.status_code == 200, r.text
+    assert r.json()["fact_id"] == a6["fact_id"]
+
+
+def test_ac71_revised_plan(client, pg, run_store, ratified):
+    c = ratified["C"]
+    register_documents(pg, "P6")
+    publish_action(pg, run_store, c, "A7")
+    assert [(a["text"], a["citation"]) for a in actions(client, c)] == [
+        ("We will build a second DRI plant in Sweden by 2030.", "Fixture Steel Transition Plan 2025 (revised) p.4")]
+
+
+def test_same_date_later_upload_wins(client, pg, run_store, ids):  # Review Focus 4: P1 has three actions, P6 one
+    c = ids["C"]
+    register_documents(pg, "P6")
+    publish_action(pg, run_store, c, "A7")
+    assert [a["key"] for a in actions(client, c)] == [action_basis("A7")]
+
+
+def _files(d):
+    return {p.relative_to(d): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(d.rglob("*")) if p.is_file()}
+
+
+def test_ac46_barrier_untouched(client, ratified, ta_dirs):  # noqa: F811
+    f_ta, _ = ta_dirs
+    api = "/api/transition-barrier"
+
+    def barrier():
+        scores, cell = client.get(f"{api}/scores"), client.get(f"{api}/cells/STL-R1/{EU}")
+        assert scores.status_code == cell.status_code == 200, (scores.text, cell.text)
+        return scores.json(), cell.json()
+
+    before, files = barrier(), _files(f_ta)
+    assert before[1]["rating"] == "H"
+    for _ in range(2):
+        transition(client, ratified["C"])
+    assert barrier() == before
+    assert _files(f_ta) == files

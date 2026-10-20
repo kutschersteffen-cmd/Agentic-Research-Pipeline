@@ -212,3 +212,12 @@ def test_trail_citation_carries_document_route_in_original_case(client, pg, cid)
     (c,) = client.get(f"/api/facts/{fact['fact_id']}/trail").json()["versions"][0]["citations"]
     assert (c["company_id"], c["doc_type"], c["source_filename"], c["source_url"]) == (
         "acme", "annual_report", "ar-2024.pdf", "https://example.com/ar.pdf")
+
+
+def test_fact_row_has_doc_and_page(client, pg, cid):
+    DocumentRegistry(pg).register_document(doc_id="doc_p2", company_id="acme", doc_type="transition_plan", content_key="ckp2",
+                                           title="P2", local_path=None, source_url=None)
+    _record(pg, _obs(cid, 100, citations=[CitationIn(doc_id="doc_p2", page=45)]))
+    (row,) = client.get(f"/api/companies/{cid}/facts").json()
+    assert row["doc_id"] == "doc_p2" and row["page"] == 45
+    assert row["source_label"] == "P2 p.45"

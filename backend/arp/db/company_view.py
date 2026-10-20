@@ -68,6 +68,8 @@ class CompanyFactRow(BaseModel):
     status: m.FactStatus
     source_kind: m.SourceKind
     source_label: str
+    doc_id: str | None  # the primary citation's document and page, when the fact has one
+    page: int | None
     licence: m.Licence | None
     conflicting_sources: bool
     valid_from: datetime
@@ -279,17 +281,19 @@ def facts(
     cites = _primary_citations(session, [r[2].id for r in rows])
     out = []
     for fact, fkind, obs, source, fetched_at in rows:
+        doc_id = page = None
         if obs.source_kind == m.SourceKind.PROVIDER and source is not None:
             label = f"{source.name} · {fetched_at.date().isoformat()}" if fetched_at else source.name
         elif obs.id in cites:
             c, title = cites[obs.id]
+            doc_id, page = c.doc_id, c.page
             label = f"{title} p.{c.page}" if c.page is not None else title
         else:
             label = obs.run_id or obs.source_kind.value
         out.append(CompanyFactRow(
             fact_id=fact.id, field_id=fact.field_id, kind=fkind, period_end=fact.period_end, basis=fact.basis,
             value=fact.value, canonical_value=None if fact.canonical_value is None else float(fact.canonical_value),
-            canonical_unit=fact.canonical_unit, unit=obs.unit, status=fact.status, source_kind=obs.source_kind, source_label=label,
+            canonical_unit=fact.canonical_unit, unit=obs.unit, status=fact.status, source_kind=obs.source_kind, source_label=label, doc_id=doc_id, page=page,
             licence=source.licence if source is not None else None, conflicting_sources=fact.conflicting_sources,
             valid_from=fact.valid_from, valid_to=fact.valid_to,
         ))

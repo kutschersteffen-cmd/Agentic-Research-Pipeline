@@ -6,6 +6,7 @@ export type DocType =
   | "investor_presentation"
   | "product_page"
   | "research_paper"
+  | "transition_plan"
   | "other";
 
 export type JobStatus = "pending" | "running" | "completed" | "partially_completed" | "failed" | "cancelled";
@@ -3496,11 +3497,59 @@ export interface CompanyTransition {
   benchmarks_version: number;
   rule_book_version: number;
   capex: TransitionCapex | null;
-  // Phase-2 keys, served empty for now.
   regions: string[];
-  actions: Record<string, unknown>[];
-  b02a: Record<string, unknown> | null;
-  assumptions: Record<string, unknown>[];
+  actions: TransitionAction[];
+  b02a: TransitionB02 | null;
+  assumptions: TransitionAssumption[];
+}
+
+export interface TransitionB02 {
+  met: boolean;
+  text: string;
+  fact_ids: number[];
+}
+
+export interface TransitionBarrier {
+  code: string;
+  region: string;
+  rating: string | null;
+  basis: string | null;
+  evidence: string;
+  values: BarrierValue[];
+}
+
+export interface TransitionAction {
+  key: string;
+  action_id: string | null;
+  act_lever: { wording: string; citation: string } | null;
+  text: string;
+  status: string | null;
+  year: number | null;
+  region: string | null;
+  citation: string | null;
+  timeframe: string | null;
+  b02: Record<string, TransitionB02>;
+  barriers: TransitionBarrier[];
+  note: string | null;
+  fact_ids: number[];
+}
+
+export interface TransitionComparison {
+  code: string;
+  region: string;
+  assumption: string | null;
+  evidence: string;
+  gap: string | null;
+  reason: string | null;
+}
+
+export interface TransitionAssumption {
+  kind: string;
+  region: string | null;
+  year: number | null;
+  citation: string | null;
+  fact_id: number;
+  comparisons: TransitionComparison[];
 }
 
 export type CutoffStatus = "none" | "recorded" | "unknown";

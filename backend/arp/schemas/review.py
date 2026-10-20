@@ -20,6 +20,7 @@ class ReasonCode(StrEnum):
     VERIFIER_CORRECTION_UNCITED = "verifier_correction_uncited"
     ADJUDICATOR_UNRESOLVED = "adjudicator_unresolved"
     HIGH_RISK_NOT_FOUND_UNRANKED = "high_risk_not_found_unranked"
+    UNVERIFIED_LIST_ITEM = "unverified_list_item"  # a plan list row: no verifier pass, so never auto-accepted
 
 
 class DecisionKind(StrEnum):
@@ -66,9 +67,12 @@ def field_item_key(issuer_key: str, field_id: str, period: str = "unspecified") 
 
 
 def period_key(f) -> str:
-    """`period_end` of an ExtractedField (model or dict), else "unspecified"."""
-    end = f.get("period_end") if isinstance(f, dict) else f.period_end
-    return end or "unspecified"
+    """`period_end` of an ExtractedField (model or dict), else "unspecified"; a list-item basis
+    (`action:`, `region:`) is appended as `|<basis>`, its ':' as '|', so each item gets its own review item (P4)."""
+    end, basis = (f.get("period_end"), f.get("basis")) if isinstance(f, dict) else (f.period_end, f.basis)
+    key = end or "unspecified"
+    # no ':' (item keys split on it from the right) and no '/' (item keys are path params)
+    return f"{key}|{basis.replace(':', '|')}" if basis and basis.startswith(("action:", "region:")) else key
 
 
 def held_item_key(company_id: str, doc_id: str) -> str:
