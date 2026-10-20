@@ -128,7 +128,9 @@ def _coverage_action(a: ActionOut, saving: Fact | None, target_year: int) -> tup
     shown = saving.shown if saving is not None else None
     factor = _SAVING_TONNES.get(saving.unit or "") if saving is not None else None
     tonnes = saving.amount * factor if saving is not None and saving.amount is not None and factor else None
-    if saving is not None and saving.unit == "%":
+    if saving is None or saving.amount is None:
+        reason = "No quantified saving"
+    elif saving.unit == "%":
         reason = "Saving in % not summed"
     elif tonnes is None:
         reason = "No quantified saving"

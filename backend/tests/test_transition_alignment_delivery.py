@@ -206,6 +206,11 @@ def test_ac102_pct_saving():
     assert coverage(saves=savings("10", "%")).actions[0].reason == "Saving in % not summed"
 
 
+def test_pct_saving_without_value_is_no_saving():  # spec §4: "no saving" is checked before "% saving"
+    assert coverage(saves={"action:p1:12:1": fact("ta_action_ghg_saving", None, 14, unit="%")}).actions[0].reason == (
+        "No quantified saving")
+
+
 def test_ac79_no_running_target():
     c = coverage(groups=[])
     assert (c.percent, c.reason) == (None, "No running target")

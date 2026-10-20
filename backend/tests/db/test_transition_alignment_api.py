@@ -35,11 +35,14 @@ from tests.transition_alignment_helpers import (  # noqa: F401 - fixtures
     observation,
     publish,
     publish_action,
+    publish_item,
     ratify_fta,
     register_documents,
     retire,
+    retire_item,
     seed_defaults,
     ta_dirs,
+    use_bm_s,
 )
 
 AR = "Fixture Steel Annual Report 2025 p."
@@ -372,21 +375,136 @@ async def _plan_run(tmp_path, fake_llm, **plan):
     return entity
 
 
-async def test_ac88_target_pending(client, ids, tmp_path, fake_llm):
+async def test_ac88_target_pending(client, pg, ids, tmp_path, fake_llm):
+    retire_item(pg, ids["C"], "T1")  # the defaults minus T1
+    retire_item(pg, ids["C"], "T0")  # and T0, whose ta_target_pct would be a second row
     c = await _plan_run(tmp_path, fake_llm, targets=[T1])
     assert c == ids["C"]
     rows = client.get(f"/api/companies/{c}/facts", params={"field_id": "ta_target_pct"}).json()
     assert [(r["value"], r["status"]) for r in rows] == [(30, "pending_review")]
 
 
-async def test_ac125_same_basis(client, ids, tmp_path, fake_llm):
+async def test_ac125_same_basis(client, pg, ids, tmp_path, fake_llm):
+    retire_item(pg, ids["C"], "T1")
+    retire_item(pg, ids["C"], "T0")  # so the six target rows are the run's T1 only
     c = await _plan_run(tmp_path, fake_llm, targets=[T1])
     rows = [r for r in client.get(f"/api/companies/{c}/facts").json() if r["field_id"] in TARGET_FIELDS]
     assert sorted(r["field_id"] for r in rows) == sorted(TARGET_FIELDS)
     assert len({r["basis"] for r in rows}) == 1
 
 
-async def test_ac115_phaseout_pending(client, ids, tmp_path, fake_llm):
+async def test_ac115_phaseout_pending(client, pg, ids, tmp_path, fake_llm):
+    retire_item(pg, ids["C"], "O1")  # the defaults minus O1
     c = await _plan_run(tmp_path, fake_llm, phaseouts=[O1])
     rows = client.get(f"/api/companies/{c}/facts", params={"field_id": "ta_phaseout_year"}).json()
     assert [(r["value"], r["status"]) for r in rows] == [(2035, "pending_review")]
+
+
+async def test_ac114(client, pg, ids, tmp_path, fake_llm):
+    retire_item(pg, ids["C"], "T1")
+    await _plan_run(tmp_path, fake_llm, targets=[T1])
+    assert [t["key"] for t in transition(client, ids["C"])["targets"]] == ["target:P1:23:1"]
+
+
+# --- Plan delivery checks (spec 2026-10-20: AC-72..AC-117) ---
+
+
+def test_ac72_api(client, ids):
+    ts = transition(client, ids["C"])["targets"]
+    assert [(t["key"], t["citation"]) for t in ts] == [("target:P1:22:1", TP + "22"), ("target:P1:23:1", TP + "23")]
+    assert [(t["kind"], t["ratio"], t["score"]) for t in ts] == [("running", "0.75", 75), ("past", "0.75", 50)]  # AC-90/91
+
+
+def test_ac73_api(client, ids):
+    assert transition(client, ids["C"])["target_progress"]["text"] == "Target progress 68.75% (ACT GE 1.4)"
+
+
+def test_ac74_no_2023_scope2(client, pg, ids):  # the emissions series reads counted facts by fiscal year
+    retire(pg, ids["C"], ("tp_h_scope2_emissions", date(2023, 12, 31)))
+    body = transition(client, ids["C"])
+    assert [(t["score"], t["reason"]) for t in body["targets"]][1] == (None, "No emissions for 2023")
+    assert body["target_progress"]["text"] == "Target progress 75% (ACT GE 1.4)"  # AC-122
+
+
+def test_ac94_no_pct(client, pg, ids):  # the target stays listed: its anchor is the year
+    retire_item(pg, ids["C"], "T1", "ta_target_pct")
+    t1 = transition(client, ids["C"])["targets"][0]
+    assert (t1["key"], t1["score"], t1["reason"]) == ("target:P1:22:1", None, "Incomplete target")
+
+
+def test_ac77_api(client, ids):
+    cov = transition(client, ids["C"])["coverage"]
+    assert cov["text"] == "Listed actions cover 58.33% of the 2030 target gap (3.5 of 6 MtCO2e/yr)"
+    assert [(a["key"], a["summed"], a["reason"]) for a in cov["actions"]] == [  # AC-101
+        (action_basis("A1"), True, None), (action_basis("A2"), False, "No quantified saving"),
+        (action_basis("A3"), False, "No quantified saving")]
+
+
+def test_ac79_ac103_no_target(client, pg, ids):
+    retire_item(pg, ids["C"], "T1")
+    retire_item(pg, ids["C"], "T0")
+    body = transition(client, ids["C"])
+    assert (body["targets"], body["target_progress"], body["coverage"]["reason"]) == ([], None, "No running target")
+
+
+def test_ac80_api(client, ids):
+    (o1,) = transition(client, ids["C"])["phaseouts"]
+    assert (o1["key"], o1["activity"], o1["method"], o1["citation"]) == (
+        "phaseout:P1:24:1", "blast furnace steelmaking", "closure", TP + "24")
+    assert (o1["share_points"], o1["date_points"], o1["score"]) == (25, 75, 40)
+    assert o1["timeline_text"] == "No ACT Core sector timeline"  # AC-104
+
+
+def test_ac81_api(client, pg, run_store, ids):
+    register_documents(pg, "P7")
+    publish_item(pg, run_store, ids, "O2")
+    (o2,) = transition(client, ids["P"])["phaseouts"]
+    assert (o2["share_points"], o2["date_points"], o2["score"]) == (100, 50, 85)
+    assert (o2["timeline_text"], o2["citation"]) == ("Meets the ACT Core timeline (2040)", "Fixture Power Transition Plan 2025 p.4")
+
+
+def test_ac83_api(client, pg, ids):
+    retire_item(pg, ids["C"], "O1")
+    assert transition(client, ids["C"])["phaseouts"] == []
+
+
+def test_ac84_api(client, ids, ta_dirs):  # noqa: F811
+    use_bm_s(ta_dirs[1])
+    carbon, h2 = transition(client, ids["C"])["assumptions"]
+    assert carbon["scenario"] == [{
+        "region": EU, "year": 2030, "scenario": "140 USD/tCO2 (IEA NZE 2030, advanced economies)",
+        "assumption": "97.2 USD/tCO2 (90 EUR/tCO2)", "gap": "-42.8 USD/tCO2", "reason": None}]
+    assert h2["scenario"] == []  # AC-97
+
+
+def test_no_scenario_without_bm_s(client, ids):  # BM has no scenario_prices: no entry
+    assert [a["scenario"] for a in transition(client, ids["C"])["assumptions"]] == [[], []]
+
+
+def test_ac116_latest_plan(client, pg, run_store, ids):
+    register_documents(pg, "P6")
+    body = transition(client, ids["C"])
+    assert (body["targets"], body["phaseouts"], body["target_progress"]) == ([], [], None)
+
+
+def test_no_plan_no_delivery(client, ids):  # P has no transition plan stored
+    body = transition(client, ids["P"])
+    assert (body["targets"], body["phaseouts"], body["coverage"]) == ([], [], None)
+
+
+def test_ac117_no_model_call(client, ids, monkeypatch):
+    class Raising:
+        def __getattr__(self, name):
+            raise AssertionError(f"model client called: {name}")
+
+    def refuse(*a, **k):
+        raise AssertionError("model client built")
+
+    monkeypatch.setattr("arp.llm.factory.build_llm_client", refuse)
+    monkeypatch.setattr(deps, "build_llm_client", refuse)
+    app.dependency_overrides[deps.get_llm_client] = Raising
+    try:
+        r = client.get(f"/api/companies/{ids['C']}/transition")
+    finally:
+        app.dependency_overrides.pop(deps.get_llm_client, None)
+    assert r.status_code == 200 and r.json()["target_progress"]["text"] == "Target progress 68.75% (ACT GE 1.4)"
