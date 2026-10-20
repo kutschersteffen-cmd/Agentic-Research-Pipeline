@@ -1,4 +1,4 @@
-import type { CompanyFactStatus, FactVersion } from "../../types";
+import type { CompanyFactStatus, FactCitation, FactTrail, FactVersion } from "../../types";
 
 export const STATUS_TEXT: Record<CompanyFactStatus, string> = {
   auto_accepted: "auto-accepted",
@@ -50,4 +50,9 @@ export function sourceLabel(v: FactVersion): string {
   if (c) return c.page != null ? `${c.title} p.${c.page}` : c.title;
   if (v.load) return `${v.load.source_name} · ${v.load.fetched_at.slice(0, 10)}`;
   return v.observation.run_id ?? v.observation.source_kind;
+}
+
+/** The primary citation of a fact's current version, or null when it has none. */
+export function primaryCitation(trail: FactTrail): FactCitation | null {
+  return trail.versions.find((v) => v.valid_to === null)?.citations.find((c) => c.role === "primary") ?? null;
 }

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { companyHref, encodeRef, factsUrl, sourceLabel } from "../src/pages/company/companyQuery.ts";
-import type { FactVersion } from "../src/types.ts";
+import { companyHref, encodeRef, factsUrl, primaryCitation, sourceLabel } from "../src/pages/company/companyQuery.ts";
+import type { FactTrail, FactVersion } from "../src/types.ts";
 
 test("encodeRef URL-encodes the scheme colon", () => {
   assert.equal(encodeRef("LEI:7LTWFZYICNSX8D621K86"), "LEI%3A7LTWFZYICNSX8D621K86");
@@ -58,4 +58,18 @@ test("sourceLabel falls back to the run", () => {
 test("companyHref links a universe company to its page", () => {
   assert.equal(companyHref("SIE"), "#/companies/UNIVERSE%3ASIE");
   assert.equal(companyHref("A/B"), "#/companies/UNIVERSE%3AA%2FB");
+});
+
+const trail = (versions: FactVersion[]): FactTrail => ({ fact_id: 2, company_id: "acme", field_id: "f", period_end: null, basis: "", versions });
+
+test("primaryCitation is the current version's primary citation", () => {
+  const old = version({ fact_id: 1, valid_to: "2026-02-01T00:00:00Z", citations: [cite("Old report", 3)] });
+  const current = version({ fact_id: 2, citations: [cite("Other", 9, "corroborating"), cite("Annual Report 2025", 45)] });
+  assert.deepEqual(primaryCitation(trail([old, current])), cite("Annual Report 2025", 45));
+});
+
+test("primaryCitation is null when the current version has no primary", () => {
+  const old = version({ fact_id: 1, valid_to: "2026-02-01T00:00:00Z", citations: [cite("Old report", 3)] });
+  const current = version({ fact_id: 2, citations: [cite("Other", 9, "corroborating")] });
+  assert.equal(primaryCitation(trail([old, current])), null);
 });

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { InspectorModal } from "../components/InspectorModal";
-import type { CompanyFactRow, CompanySearchHit, CompanySummary, FactCitation, FactTrail } from "../types";
+import type { CompanyFactRow, CompanySearchHit, CompanySummary, CompanyTransition, FactCitation, FactTrail } from "../types";
 import { FactsTable } from "./company/FactsTable";
 import { FactTrailPanel } from "./company/FactTrailPanel";
-import { STATUS_TEXT, encodeRef, type FactFilters } from "./company/companyQuery";
+import { STATUS_TEXT, encodeRef, primaryCitation, type FactFilters } from "./company/companyQuery";
+import { TransitionSection } from "./company/TransitionSection";
 
 // ponytail: one page of 500 facts (the API maximum); add paging when a company carries more.
 const LIMIT = 500;
@@ -64,6 +65,8 @@ function CompanyView({ companyRef }: { companyRef: string }) {
   const [trail, setTrail] = useState<FactTrail | null>(null);
   const [trailError, setTrailError] = useState("");
   const [viewer, setViewer] = useState<{ title: string; src: string } | null>(null);
+  const [transition, setTransition] = useState<CompanyTransition | null>(null);
+  const [transitionError, setTransitionError] = useState("");
   const opener = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -74,6 +77,10 @@ function CompanyView({ companyRef }: { companyRef: string }) {
       },
       (err: Error) => setError(err.message.startsWith("404") ? "notfound" : err.message),
     );
+  }, [companyRef]);
+
+  useEffect(() => {
+    api.getCompanyTransition(companyRef).then(setTransition, (err: Error) => setTransitionError(err.message));
   }, [companyRef]);
 
   useEffect(() => {
@@ -126,6 +133,19 @@ function CompanyView({ companyRef }: { companyRef: string }) {
     } else {
       setTrailError(`“${c.title}” has no stored file to open.`);
     }
+  }
+
+  /** A transition figure opens its fact's current primary citation; without one, the fact's trail. */
+  function openFact(factId: number, el: HTMLElement) {
+    opener.current = el;
+    api.getFactTrail(factId).then(
+      (t) => {
+        const c = primaryCitation(t);
+        if (c && (c.source_filename || c.source_url)) openCitation(c);
+        else setSelected(factId);
+      },
+      () => setSelected(factId), // the trail drawer shows the error
+    );
   }
 
   const set = (patch: FactFilters) => setFilters((f) => ({ ...f, ...patch }));
@@ -191,6 +211,8 @@ function CompanyView({ companyRef }: { companyRef: string }) {
           )}
         </>
       )}
+
+      {company && <TransitionSection data={transition} error={transitionError} onOpenFact={openFact} />}
 
       <div className={selected != null ? "split-review" : undefined}>
         <section className="split-review-main" aria-labelledby="facts-heading">

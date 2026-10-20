@@ -3425,6 +3425,84 @@ export interface FactTrail {
   versions: FactVersion[];
 }
 
+/** GET /api/companies/{ref}/transition (backend arp/schemas/transition_alignment.py). */
+export interface TransitionBenchmark {
+  value: number;
+  unit: string;
+  method: string;
+  citation: string;
+  url: string | null;
+  licence: string;
+}
+
+export interface TransitionShare {
+  value: number;
+  source: "disclosed" | "computed from amounts";
+  fact_ids: number[];
+}
+
+export interface TransitionAmount {
+  field_id: string;
+  year: number;
+  shown: string;
+  fact_id: number;
+  citation: string | null;
+}
+
+export interface TransitionRndResult {
+  id: string;
+  label: string;
+  used: number | null;
+  rule: string | null;
+  benchmark: number;
+  ratio: number | null;
+  ratio_shown: string | null;
+  not_scored: string | null;
+  fact_ids: number[];
+}
+
+export interface TransitionRedline {
+  id: string;
+  label: string;
+  status: "breached" | "not breached" | "no disclosure";
+  text: string;
+  citation: string | null;
+  fact_id: number | null;
+  source: string;
+}
+
+export interface TransitionCapex {
+  reporting_year: number | null;
+  share_ry: TransitionShare | null;
+  share_ry1: TransitionShare | null;
+  share_used: number | null;
+  share_used_shown: string | null;
+  rule: string | null;
+  benchmark: TransitionBenchmark;
+  ratio: number | null;
+  ratio_shown: string | null;
+  not_scored: string | null;
+  headline: string;
+  amounts: TransitionAmount[];
+  rnd_tests: TransitionRndResult[];
+  redlines: TransitionRedline[];
+  licence_note: string;
+}
+
+export interface CompanyTransition {
+  in_scope: boolean;
+  reason: string | null;
+  sector: string | null;
+  benchmarks_version: number;
+  rule_book_version: number;
+  capex: TransitionCapex | null;
+  // Phase-2 keys, served empty for now.
+  regions: string[];
+  actions: Record<string, unknown>[];
+  b02a: Record<string, unknown> | null;
+  assumptions: Record<string, unknown>[];
+}
+
 export type CutoffStatus = "none" | "recorded" | "unknown";
 export interface SignalWindow {
   window: "in_window" | "post_cutoff";
