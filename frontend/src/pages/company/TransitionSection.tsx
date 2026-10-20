@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
 import type { CompanyTransition, TransitionShare } from "../../types";
+import { fmtNumber as num } from "./companyQuery";
 
 type OpenFact = (factId: number, el: HTMLElement) => void;
 
-// The API serves shares as floats computed exactly; at most two decimals, trailing zeros dropped.
-const num = (v: number) => String(Math.round(v * 100) / 100);
 
 function FactButton({ factId, onOpenFact, mono = true, children }: { factId: number; onOpenFact: OpenFact; mono?: boolean; children: ReactNode }) {
   return (
@@ -125,7 +124,7 @@ export function TransitionSection({ data, error, onOpenFact }: { data: CompanyTr
                       <td data-label="Redline">{r.text}</td>
                       <td data-label="Status" className="mono">{r.status}</td>
                       <td data-label="Source">
-                        {r.fact_id != null ? <FactButton factId={r.fact_id} onOpenFact={onOpenFact} mono={false}>{r.citation ?? "fact"}</FactButton> : "—"}
+                        {r.fact_id != null ? <FactButton factId={r.fact_id} onOpenFact={onOpenFact} mono={false}>{r.citation ?? "open fact"}</FactButton> : "—"}
                       </td>
                     </tr>
                   ))}

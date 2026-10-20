@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from arp.config import Settings
+from arp.schemas.transition_alignment import TransitionOut
 
 URL = os.environ.get("ARP_E2E_URL")
 pytestmark = [
@@ -77,6 +78,8 @@ C_TRANSITION = {
 }
 Q_TRANSITION = {"in_scope": False, "reason": "ISIC 1050 is not in a transition-barrier sector", "sector": None,
                 "benchmarks_version": 3, "rule_book_version": 7, "capex": None, **PHASE2}
+for _fixture in (C_TRANSITION, Q_TRANSITION):  # the stubs cannot drift from the served model
+    TransitionOut.model_validate(_fixture)
 
 
 @pytest.fixture

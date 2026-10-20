@@ -56,3 +56,7 @@ export function sourceLabel(v: FactVersion): string {
 export function primaryCitation(trail: FactTrail): FactCitation | null {
   return trail.versions.find((v) => v.valid_to === null)?.citations.find((c) => c.role === "primary") ?? null;
 }
+
+/** At most two decimals, rounded half up, trailing zeros dropped (backend `fmt_number`); shifting
+ * by exponent strings avoids binary-float ties such as 1.005 * 100 = 100.49999. */
+export const fmtNumber = (v: number): string => String(Number(Math.round(Number(v + "e2")) + "e-2"));

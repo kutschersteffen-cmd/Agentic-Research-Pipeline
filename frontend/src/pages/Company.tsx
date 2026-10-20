@@ -141,7 +141,7 @@ function CompanyView({ companyRef }: { companyRef: string }) {
     api.getFactTrail(factId).then(
       (t) => {
         const c = primaryCitation(t);
-        if (c && (c.source_filename || c.source_url)) openCitation(c);
+        if (c && (c.source_filename || /^https?:\/\//i.test(c.source_url ?? ""))) openCitation(c);
         else setSelected(factId);
       },
       () => setSelected(factId), // the trail drawer shows the error

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { companyHref, encodeRef, factsUrl, primaryCitation, sourceLabel } from "../src/pages/company/companyQuery.ts";
+import { companyHref, encodeRef, factsUrl, fmtNumber, primaryCitation, sourceLabel } from "../src/pages/company/companyQuery.ts";
 import type { FactTrail, FactVersion } from "../src/types.ts";
 
 test("encodeRef URL-encodes the scheme colon", () => {
@@ -72,4 +72,11 @@ test("primaryCitation is null when the current version has no primary", () => {
   const old = version({ fact_id: 1, valid_to: "2026-02-01T00:00:00Z", citations: [cite("Old report", 3)] });
   const current = version({ fact_id: 2, citations: [cite("Other", 9, "corroborating")] });
   assert.equal(primaryCitation(trail([old, current])), null);
+});
+
+test("fmtNumber rounds half up to two decimals and drops trailing zeros", () => {
+  assert.equal(fmtNumber(1.005), "1.01");
+  assert.equal(fmtNumber(0.285), "0.29");
+  assert.equal(fmtNumber(12), "12");
+  assert.equal(fmtNumber(0.8461538461538461), "0.85");
 });
