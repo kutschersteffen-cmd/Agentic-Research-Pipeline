@@ -1862,6 +1862,13 @@
       "title": "Licence Note",
       "type": "string"
      },
+     "scenario_prices": {
+      "items": {
+       "$ref": "#/components/schemas/ScenarioGroupOut"
+      },
+      "title": "Scenario Prices",
+      "type": "array"
+     },
      "sectors": {
       "items": {
        "$ref": "#/components/schemas/SectorBenchmarksOut"
@@ -1877,7 +1884,8 @@
     "required": [
      "version",
      "licence_note",
-     "sectors"
+     "sectors",
+     "scenario_prices"
     ],
     "title": "BenchmarksOut",
     "type": "object"
@@ -13282,6 +13290,32 @@
      "config"
     ],
     "title": "SaveRequest",
+    "type": "object"
+   },
+   "ScenarioGroupOut": {
+    "properties": {
+     "citation": {
+      "title": "Citation",
+      "type": "string"
+     },
+     "group": {
+      "title": "Group",
+      "type": "string"
+     },
+     "prices": {
+      "additionalProperties": {
+       "type": "number"
+      },
+      "title": "Prices",
+      "type": "object"
+     }
+    },
+    "required": [
+     "group",
+     "citation",
+     "prices"
+    ],
+    "title": "ScenarioGroupOut",
     "type": "object"
    },
    "ScoreRequest": {

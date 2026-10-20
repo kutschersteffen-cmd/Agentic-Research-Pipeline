@@ -1,11 +1,17 @@
 {
-  "version": 1,
-  "fingerprint": "2ba656daa5ef04d4091379b08c2a5aa234ddf108c26a80dc7fa5ae8a637726f3",
+  "version": 2,
+  "fingerprint": "52a008a5d32dc67a03285a6eb1e93d9f98eff0f6ce06a104ee283c0a6f2b1795",
   "history": [
     {
       "version": 1,
       "fingerprint": "2ba656daa5ef04d4091379b08c2a5aa234ddf108c26a80dc7fa5ae8a637726f3",
       "approved_by": "kutschersteffen-cmd",
+      "approved_at": "2026-10-20"
+    },
+    {
+      "version": 2,
+      "fingerprint": "52a008a5d32dc67a03285a6eb1e93d9f98eff0f6ce06a104ee283c0a6f2b1795",
+      "approved_by": "<owner, pending approval in this PR>",
       "approved_at": "2026-10-20"
     }
   ],
@@ -548,5 +554,37 @@
         "CHM-T1.lc_cost"
       ]
     }
-  }
+  },
+  "scenario_prices": [
+    {
+      "group": "advanced economies",
+      "source": {
+        "title": "IEA World Energy Outlook 2024, Annex B, Table B.2",
+        "url": "https://iea.blob.core.windows.net/assets/140a0470-5b90-4922-a0e9-838b3ac6918c/WorldEnergyOutlook2024.pdf",
+        "page": "329",
+        "licence": "CC BY 4.0"
+      },
+      "prices": {
+        "2030": 140,
+        "2035": 180,
+        "2040": 205,
+        "2050": 250
+      }
+    },
+    {
+      "group": "selected EMDE",
+      "source": {
+        "title": "IEA World Energy Outlook 2024, Annex B, Table B.2",
+        "url": "https://iea.blob.core.windows.net/assets/140a0470-5b90-4922-a0e9-838b3ac6918c/WorldEnergyOutlook2024.pdf",
+        "page": "329",
+        "licence": "CC BY 4.0"
+      },
+      "prices": {
+        "2030": 90,
+        "2035": 125,
+        "2040": 160,
+        "2050": 200
+      }
+    }
+  ]
 }

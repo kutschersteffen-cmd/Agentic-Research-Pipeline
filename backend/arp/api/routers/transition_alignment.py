@@ -21,6 +21,7 @@ from arp.schemas.transition_alignment import (
     BenchmarksOut,
     RedlineDef,
     RndTestDef,
+    ScenarioGroupOut,
     SectorBenchmarksOut,
     TransitionOut,
 )
@@ -66,6 +67,9 @@ def get_benchmarks() -> BenchmarksOut:
                 redlines=[RedlineDef(id=r.id, label=r.label, fact=r.fact, citation=citation(r.source)) for r in s.redlines],
             )
             for name, s in b.sectors.items()
+        ],
+        scenario_prices=[
+            ScenarioGroupOut(group=g.group, citation=citation(g.source), prices=g.prices) for g in b.scenario_prices
         ],
     )
 

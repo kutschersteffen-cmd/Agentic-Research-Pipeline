@@ -8010,6 +8010,8 @@ export interface components {
         BenchmarksOut: {
             /** Licence Note */
             licence_note: string;
+            /** Scenario Prices */
+            scenario_prices: components["schemas"]["ScenarioGroupOut"][];
             /** Sectors */
             sectors: components["schemas"]["SectorBenchmarksOut"][];
             /** Version */
@@ -13073,6 +13075,17 @@ export interface components {
              */
             base_version?: number | null;
             config: components["schemas"]["MechanismConfig"];
+        };
+        /** ScenarioGroupOut */
+        ScenarioGroupOut: {
+            /** Citation */
+            citation: string;
+            /** Group */
+            group: string;
+            /** Prices */
+            prices: {
+                [key: string]: number;
+            };
         };
         /** ScoreRequest */
         ScoreRequest: {

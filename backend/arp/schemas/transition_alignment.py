@@ -39,10 +39,17 @@ class SectorBenchmarksOut(BaseModel):
     redlines: list[RedlineDef]
 
 
+class ScenarioGroupOut(BaseModel):
+    group: str
+    citation: str
+    prices: dict[int, float]
+
+
 class BenchmarksOut(BaseModel):
     version: int
     licence_note: str
     sectors: list[SectorBenchmarksOut]  # in file order
+    scenario_prices: list[ScenarioGroupOut]
 
 
 class ShareOut(BaseModel):
