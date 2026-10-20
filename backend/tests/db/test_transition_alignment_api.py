@@ -18,11 +18,13 @@ from arp.db.to_observations import to_observations
 from arp.orchestration.review_queue import record_review_decision
 from arp.planning.applicability import plan_fields
 from arp.presets.transition_capex import FIELD_IDS, build_transition_capex_schema
+from arp.presets.transition_plan_actions import TARGET_FIELDS
 from arp.schemas.common import CompanyRef, JobStatus, RunManifest
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.portfolio_store import PortfolioStore
 from arp.transition_barrier import clock
 from tests.postgres_helpers import pg_dsn
+from tests.test_transition_alignment_plan_extraction import O1, P1, T1, _plan, _record, _script
 from tests.transition_alignment_helpers import (  # noqa: F401 - fixtures
     CN,
     EU,
@@ -359,3 +361,32 @@ def test_ac46_barrier_untouched(client, ratified, ta_dirs):  # noqa: F811
         transition(client, ratified["C"])
     assert barrier() == before
     assert _files(f_ta) == files
+
+
+# --- Targets and phase-outs (plan delivery checks: AC-88, AC-115, AC-125) ---
+
+
+async def _plan_run(tmp_path, fake_llm, **plan):
+    """A stub-driven extraction run of sch_transition_plan_actions for C over P1; returns C's entity id."""
+    _, _, entity, _ = await _record(tmp_path, fake_llm, _script(_plan(**plan)), docs=(P1,))
+    return entity
+
+
+async def test_ac88_target_pending(client, ids, tmp_path, fake_llm):
+    c = await _plan_run(tmp_path, fake_llm, targets=[T1])
+    assert c == ids["C"]
+    rows = client.get(f"/api/companies/{c}/facts", params={"field_id": "ta_target_pct"}).json()
+    assert [(r["value"], r["status"]) for r in rows] == [(30, "pending_review")]
+
+
+async def test_ac125_same_basis(client, ids, tmp_path, fake_llm):
+    c = await _plan_run(tmp_path, fake_llm, targets=[T1])
+    rows = [r for r in client.get(f"/api/companies/{c}/facts").json() if r["field_id"] in TARGET_FIELDS]
+    assert sorted(r["field_id"] for r in rows) == sorted(TARGET_FIELDS)
+    assert len({r["basis"] for r in rows}) == 1
+
+
+async def test_ac115_phaseout_pending(client, ids, tmp_path, fake_llm):
+    c = await _plan_run(tmp_path, fake_llm, phaseouts=[O1])
+    rows = client.get(f"/api/companies/{c}/facts", params={"field_id": "ta_phaseout_year"}).json()
+    assert [(r["value"], r["status"]) for r in rows] == [(2035, "pending_review")]
