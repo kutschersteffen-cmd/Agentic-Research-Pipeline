@@ -65,6 +65,7 @@ async def test_picks_the_years_full_fiscal_year_not_latest_filed_quarter(tmp_pat
     monkeypatch.setattr("arp.ingestion.xbrl.httpx.AsyncClient", _FailingClient)
 
     facts = await source.fetch_company_facts("320193")
+    assert facts is not None  # served from the fresh cache, no network
 
     capex = XbrlFactSource.fact_for_tags(facts, CAPEX_TAGS, fiscal_year=2025)
     assert capex is not None
