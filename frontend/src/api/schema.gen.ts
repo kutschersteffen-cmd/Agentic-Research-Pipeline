@@ -5807,30 +5807,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/themes/runs/{run_id}/resume": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Resume Theme Run Endpoint
-         * @description Re-invokes execute_theme_run for a run that was interrupted, failed,
-         *     partially completed, or cancelled -- reconstructed from what
-         *     create_theme_run persisted (see arp.orchestration.jobs.resume_run).
-         *     Already-completed companies are skipped automatically (run_batch's own
-         *     resumability); nothing is redone.
-         */
-        post: operations["resume_theme_run_endpoint_api_themes_runs__run_id__resume_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/themes/runs/{run_id}/review": {
         parameters: {
             query?: never;
@@ -25293,39 +25269,6 @@ export interface operations {
                 offset?: number;
                 limit?: number;
             };
-            header?: never;
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    resume_theme_run_endpoint_api_themes_runs__run_id__resume_post: {
-        parameters: {
-            query?: never;
             header?: never;
             path: {
                 run_id: string;

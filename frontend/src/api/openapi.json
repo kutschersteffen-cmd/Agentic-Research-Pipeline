@@ -32394,51 +32394,6 @@
     ]
    }
   },
-  "/api/themes/runs/{run_id}/resume": {
-   "post": {
-    "description": "Re-invokes execute_theme_run for a run that was interrupted, failed,\npartially completed, or cancelled -- reconstructed from what\ncreate_theme_run persisted (see arp.orchestration.jobs.resume_run).\nAlready-completed companies are skipped automatically (run_batch's own\nresumability); nothing is redone.",
-    "operationId": "resume_theme_run_endpoint_api_themes_runs__run_id__resume_post",
-    "parameters": [
-     {
-      "in": "path",
-      "name": "run_id",
-      "required": true,
-      "schema": {
-       "title": "Run Id",
-       "type": "string"
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "additionalProperties": true,
-         "title": "Response Resume Theme Run Endpoint Api Themes Runs  Run Id  Resume Post",
-         "type": "object"
-        }
-       }
-      },
-      "description": "Successful Response"
-     },
-     "422": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/HTTPValidationError"
-        }
-       }
-      },
-      "description": "Validation Error"
-     }
-    },
-    "summary": "Resume Theme Run Endpoint",
-    "tags": [
-     "themes"
-    ]
-   }
-  },
   "/api/themes/runs/{run_id}/review": {
    "post": {
     "operationId": "submit_theme_review_api_themes_runs__run_id__review_post",
