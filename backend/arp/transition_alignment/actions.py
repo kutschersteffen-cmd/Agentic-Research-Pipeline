@@ -56,7 +56,7 @@ def operating_regions(facts: list[Fact]) -> list[str]:
 def _b02b(status: str | None, year: int | None) -> B02Out:
     if status == "implemented":
         return B02Out(met=True, text=f"implemented ({year})" if year is not None else "implemented")
-    if year is None:  # shortcut: a missing status reads as planned (the enum's other value)
+    if status != "planned" or year is None:  # no counted status: neither implemented nor planned
         return B02Out(met=False, text="No timeframe: ignored")
     return B02Out(met=True, text=f"near term ({year})" if year <= 2030 else f"long term ({year})")
 
@@ -172,7 +172,7 @@ def score_plan(
         if a.action_id:
             matched.setdefault(a.action_id, set()).update(regions)
     implemented = sum(a.status == "implemented" for a in actions)
-    planned = sum(a.status != "implemented" and a.b02["b"].met for a in actions)
+    planned = sum(a.status == "planned" and a.b02["b"].met for a in actions)
     counts = f"{implemented} implemented, {planned} planned with a timeframe"
     b02a = None
     if actions:

@@ -314,3 +314,11 @@ def test_no_actions():
 def test_operating_regions_order_and_no():
     ops = [fact("ta_operates_cn", True, 3), fact("ta_operates_us", False, 3), fact("ta_operates_eu", True, 3)]
     assert operating_regions(ops) == [EU, CN]
+
+
+def test_action_without_status_not_planned():
+    g = [f for f in a1() if f.field_id != "ta_action_status"]
+    plan = run(groups=[g, a2(), a3()])
+    assert b02(plan.actions[0])["b"] == (False, "No timeframe: ignored")
+    assert plan.actions[0].timeframe is None
+    assert plan.b02a.text == "not met: 1 implemented, 0 planned with a timeframe (needs 3 and 1)"
