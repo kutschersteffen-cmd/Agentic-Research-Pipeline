@@ -9,6 +9,7 @@ from arp.presets.transition_capex import (
     build_transition_capex_schema,
     bundled_prefixes,
 )
+from arp.presets.transition_plan import REQUIRES_YES
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import FieldDataType, ValueState
 
@@ -23,6 +24,8 @@ def _shape(f):
 def test_ac47_existing_presets_unchanged():
     snap = json.loads(SNAPSHOT.read_text())
     for pid, fields in snap.items():
+        if pid == "transition_plan_indicators":  # the 10 contradiction-rule children moved up one version (spec 2026-10-21)
+            fields = [{**f, "version": f["version"] + (f["field_id"] in REQUIRES_YES)} for f in fields]
         assert [_shape(f) for f in PRESETS[pid]().fields] == fields
     assert set(PRESETS) == set(snap) | {"sch_transition_capex", "sch_transition_plan_actions"}
 
