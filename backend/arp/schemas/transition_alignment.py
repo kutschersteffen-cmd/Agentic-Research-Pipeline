@@ -205,6 +205,7 @@ class CoverageOut(BaseModel):
     text: str | None
     actions: list[CoverageActionOut]
     reason: str | None
+    _covered: Decimal | None = PrivateAttr(default=None)  # summed savings in tCO2e/yr, for the flags; not served
 
 
 class PhaseoutOut(BaseModel):
@@ -220,6 +221,15 @@ class PhaseoutOut(BaseModel):
     timeline_text: str
     note: str | None
     citation: str | None
+    fact_ids: list[int]
+
+
+class FlagOut(BaseModel):
+    id: str
+    title: str
+    state: Literal["raised", "clear", "not checked"]
+    text: str
+    cite: str
     fact_ids: list[int]
 
 
@@ -245,3 +255,5 @@ class TransitionOut(BaseModel):
     target_progress: TargetProgressOut | None = None
     coverage: CoverageOut | None = None
     phaseouts: list[PhaseoutOut] = []
+    flags: list[FlagOut] = []
+    flags_header: str | None = None

@@ -10562,6 +10562,24 @@ export interface components {
              */
             type: "flag_exclusion";
         };
+        /** FlagOut */
+        FlagOut: {
+            /** Cite */
+            cite: string;
+            /** Fact Ids */
+            fact_ids: number[];
+            /** Id */
+            id: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "raised" | "clear" | "not checked";
+            /** Text */
+            text: string;
+            /** Title */
+            title: string;
+        };
         /** FromCompaniesRequest */
         FromCompaniesRequest: {
             /** Companies */
@@ -14222,6 +14240,13 @@ export interface components {
             benchmarks_version: number;
             capex: components["schemas"]["CapexOut"] | null;
             coverage?: components["schemas"]["CoverageOut"] | null;
+            /**
+             * Flags
+             * @default []
+             */
+            flags: components["schemas"]["FlagOut"][];
+            /** Flags Header */
+            flags_header?: string | null;
             /** In Scope */
             in_scope: boolean;
             /**
