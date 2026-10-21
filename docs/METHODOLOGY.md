@@ -106,8 +106,8 @@ paper's tool asked. Each indicator's question and expert-centric guideline
 become one boolean field of the preset (`description` and
 `extraction_instructions`).
 
-Deliberate deviations from the paper, all existing precision controls this
-codebase already applies everywhere else:
+Deliberate deviations from the paper. The first three are precision controls
+this codebase already applies everywhere else; the last is a design decision:
 
 - **Programmatic citation grounding, not an LLM-self-reported source
   list.** The paper's tool asks the model to report which numbered source
