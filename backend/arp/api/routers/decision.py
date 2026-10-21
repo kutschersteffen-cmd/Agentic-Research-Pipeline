@@ -524,7 +524,7 @@ def attach_framework(
     if manifest.run_type == "extraction":
         schema = run_store.run_dir(run_id) / "schema.json"
         field_names = [f["name"] for f in json.loads(schema.read_text()).get("fields", [])] if schema.exists() else []
-    config = template_for_run(store, manifest.run_type, req.framework_id, req.version, field_names)
+    config = template_for_run(store, templates.decision_kind(manifest), req.framework_id, req.version, field_names)
     templates.attach_to_run(run_store, run_id, config, store.get_audit(config.framework_id, config.version))
     # A finished run gets no more pipeline steps, so the rules step runs now.
     if manifest.status.value in _FINISHED:

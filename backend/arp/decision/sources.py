@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from arp.decision.dataset import Dataset, build_dataset
+from arp.presets.transition_plan import SCHEMA_ID as TRANSITION_PLAN_SCHEMA_ID
+from arp.schemas.common import RunManifest
 from arp.storage.run_store import RunStore
 
 # Column names deliberately follow the conventions the role/direction
@@ -64,6 +66,9 @@ def from_transition_plan_run(run_store: RunStore, run_id: str, *, include_indica
     board-level owner"). Off by default: 64 more criteria is a different
     derivation, not a bigger table.
     """
+    manifest = run_store.load_manifest(run_id)
+    if manifest is not None and is_transition_plan_preset_run(manifest):
+        return _from_transition_plan_preset_run(run_store, run_id, include_indicators)
     records = run_store.read_results(run_id)
     if not records:
         raise ValueError(f"Transition plan run {run_id} has no results.")
@@ -117,6 +122,67 @@ def from_transition_plan_run(run_store: RunStore, run_id: str, *, include_indica
     for column in ("Indicators_Disclosed_Count", "Walk_Disclosed_Count", "Talk_Disclosed_Count", "Walk_Share_pct"):
         dataset.confidence[column] = list(confidence)
     dataset.confidence.update(indicator_confidence)
+    return dataset
+
+
+def is_transition_plan_preset_run(manifest: RunManifest) -> bool:
+    """An extraction run on the transition-plan preset: scored with the transition-plan columns."""
+    return manifest.run_type == "extraction" and manifest.params.get("schema_id") == TRANSITION_PLAN_SCHEMA_ID
+
+
+def _from_transition_plan_preset_run(run_store: RunStore, run_id: str, include_indicators: bool) -> Dataset:
+    """A preset run -> the columns an old transition-plan run gives, worked out from its field rows
+    (spec 2026-10-21-retire-transition-plan-pipeline §3), then every generic extraction column not
+    among them, so frameworks written for either kind of table score it."""
+    from arp.transition_plan.indicators import load_indicators
+
+    generic = from_extraction_run(run_store, run_id)
+    records = run_store.read_results(run_id)
+    indicators = load_indicators()
+    categories = sorted({i.category.value for i in indicators})
+    per_category = Counter(i.category.value for i in indicators)
+    walk_total = sum(i.walk_or_talk.value == "walk" for i in indicators)
+    stored = {c.company_id: c for c in run_store.load_companies(run_id) or []}
+    columns = transition_plan_columns(categories, [i.identifier for i in indicators] if include_indicators else [])
+    extra = [c for c in generic.columns if c not in columns]
+    rows: list[list[str]] = []
+    confidence: dict[str, list[float | None]] = defaultdict(list)
+    for record, generic_row in zip(records, generic.rows, strict=True):
+        by_name: dict[str, dict] = {}
+        for f in record.get("fields", []):  # latest period first: keep the first row per name, as from_extraction_run does
+            by_name.setdefault(str(f.get("field_name") or f.get("field_id")), f)
+        found = {i.identifier: by_name[i.identifier] for i in indicators if (by_name.get(i.identifier) or {}).get("value") is not None}
+        cell_confidence = {k: float(f["confidence"]) if f.get("confidence") is not None and f.get("grounded") else 0.0 for k, f in found.items()}
+        disclosed = [i for i in indicators if i.identifier in found and found[i.identifier]["value"] is True]
+        walk = sum(i.walk_or_talk.value == "walk" for i in disclosed)
+        assessment = f"{sum(cell_confidence.values()) / len(cell_confidence) * 100:.1f}" if cell_confidence else "0.0"
+        company = stored.get(str(record.get("company_id") or ""))
+        row = [
+            str(record.get("name") or record.get("company_id") or ""),
+            str(record.get("company_id") or ""),
+            str((company and company.sector) or ""),
+            str((company and company.country) or ""),
+            str(len(disclosed)),
+            str(walk),
+            str(sum(i.walk_or_talk.value == "talk" for i in disclosed)),
+            f"{walk / walk_total * 100:.1f}",
+            assessment,
+            *[f"{sum(i.category.value == c for i in disclosed) / per_category[c] * 100:.1f}" for c in categories],
+            "Yes" if record.get("needs_review") else "No",
+        ]
+        for column in ("Indicators_Disclosed_Count", "Walk_Disclosed_Count", "Talk_Disclosed_Count", "Walk_Share_pct"):
+            confidence[column].append(float(assessment) / 100)
+        if include_indicators:
+            for indicator in indicators:
+                value = (found.get(indicator.identifier) or {}).get("value")
+                row.append("Yes" if value is True else "No" if value is False else "")
+                confidence[indicator_column(indicator.identifier)].append(cell_confidence.get(indicator.identifier))
+        rows.append(row + [generic_row[c] for c in extra])
+
+    dataset = build_dataset(
+        f"Transition plan run {run_id}", _matrix(columns + extra, rows), source="transition_plan_run", source_ref=run_id
+    )
+    dataset.confidence = {**confidence, **{c: generic.confidence[c] for c in extra if c in generic.confidence}}
     return dataset
 
 
@@ -672,6 +738,8 @@ def from_joined_runs(run_store: RunStore, run_ids: list[str], *, include_indicat
     A column two runs both have (confidence, review flag, sector) takes each
     run's prefix -- TP_, Extraction_, Financials_, TNFD_ -- so neither is lost.
     """
+    from arp.decision.templates import decision_kind
+
     if len(run_ids) < 2:
         raise ValueError("Pick at least two runs to join.")
     parts: list[tuple[str, Dataset]] = []
@@ -680,10 +748,11 @@ def from_joined_runs(run_store: RunStore, run_ids: list[str], *, include_indicat
         manifest = run_store.load_manifest(run_id)
         if manifest is None:
             raise ValueError(f"Run {run_id} not found.")
-        if manifest.run_type not in _JOINABLE:
-            raise ValueError(f"Run {run_id} is a {manifest.run_type} run; only {', '.join(_JOINABLE)} runs can be joined.")
-        dataset = from_source(f"{manifest.run_type}_run", run_store, run_id=run_id, include_indicators=include_indicators)
-        prefix = _JOINABLE[manifest.run_type]
+        kind = decision_kind(manifest)
+        if kind not in _JOINABLE:
+            raise ValueError(f"Run {run_id} is a {kind} run; only {', '.join(_JOINABLE)} runs can be joined.")
+        dataset = from_source(f"{kind}_run", run_store, run_id=run_id, include_indicators=include_indicators)
+        prefix = _JOINABLE[kind]
         seen[prefix] = seen.get(prefix, 0) + 1
         parts.append((prefix if seen[prefix] == 1 else f"{prefix}{seen[prefix]}", dataset))
 

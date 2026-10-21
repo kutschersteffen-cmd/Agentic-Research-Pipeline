@@ -39,6 +39,13 @@ TEMPLATE_FORMAT_VERSION = 1
 PINNED_FILE = "decision_framework.json"
 RESULT_FILE = "decision.json"
 
+
+def _transition_plan_run_columns(field_names: list[str] | None) -> list[str]:
+    """An old run has no field names; a preset run adds the generic extraction columns it lacks."""
+    columns = sources.expected_transition_plan_columns()
+    return columns if field_names is None else [*columns, *[c for c in sources.extraction_columns(field_names) if c not in columns]]
+
+
 # Every extraction pipeline a framework can be attached to: how its results
 # become a table, and which columns it will produce before it has any
 # (extraction takes the schema's field names; the others are fixed).
@@ -46,7 +53,7 @@ RUN_ADAPTERS: dict[str, tuple[Callable[[RunStore, str], Dataset], Callable[[list
     "extraction": (sources.from_extraction_run, lambda fields: sources.extraction_columns(fields or [])),
     "transition_plan": (
         lambda run_store, run_id: sources.from_transition_plan_run(run_store, run_id, include_indicators=True),
-        lambda _fields: sources.expected_transition_plan_columns(),
+        _transition_plan_run_columns,
     ),
     "financials": (sources.from_financials_run, lambda _fields: list(sources.FINANCIALS_COLUMNS)),
     "tnfd": (sources.from_tnfd_run, lambda _fields: sources.tnfd_columns()),
@@ -56,6 +63,11 @@ RUN_ADAPTERS: dict[str, tuple[Callable[[RunStore, str], Dataset], Callable[[list
 def decision_kind_for_schema(schema_id: str) -> str:
     """The `RUN_ADAPTERS` kind for an extraction run on this schema."""
     return "transition_plan" if schema_id == TRANSITION_PLAN_SCHEMA_ID else "extraction"
+
+
+def decision_kind(manifest: RunManifest) -> str:
+    """The `RUN_ADAPTERS` kind for a stored run: a preset run is scored as a transition-plan run."""
+    return "transition_plan" if sources.is_transition_plan_preset_run(manifest) else manifest.run_type
 
 
 def _adapter(run_type: str):
@@ -191,7 +203,7 @@ def pinned_framework(run_store: RunStore, run_id: str) -> tuple[MechanismConfig,
 
 
 def run_dataset(run_store: RunStore, manifest: RunManifest) -> Dataset:
-    return _adapter(manifest.run_type)[0](run_store, manifest.run_id)
+    return _adapter(decision_kind(manifest))[0](run_store, manifest.run_id)
 
 
 def stored_decision(run_store: RunStore, run_id: str) -> dict[str, Any] | None:

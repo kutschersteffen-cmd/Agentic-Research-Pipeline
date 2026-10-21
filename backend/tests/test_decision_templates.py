@@ -349,3 +349,82 @@ def test_financials_and_tnfd_runs_become_tables_with_their_expected_columns(tmp_
     assert (row["Governance_A_Disclosed"], row["Strategy_B_Disclosed"], row["Metrics_C_Disclosed"]) == ("Yes", "No", "")
     assert row["Recommendations_Disclosed_Count"] == "1"
     assert row["Pollution_Metrics_Count"] == "1", "only grounded metrics count"
+
+
+# --- transition-plan preset runs (spec 2026-10-21-retire-transition-plan-pipeline §3) ---
+
+
+def _framework_needing(client, column: str, values: list[str]) -> str:
+    """A ratified framework derived on a table whose only criterion is `column`."""
+    from arp.decision.dataset import build_dataset
+
+    dataset = build_dataset("t", [["Company", "Company_Id", column]] + [[f"C{i}", f"c{i}", v] for i, v in enumerate(values)])
+    config, audit = derive_mechanism(dataset, name=f"Needs {column}")
+    assert column in templates.required_columns(config)
+    client.store.save(config, audit)
+    client.store.ratify(config.framework_id, ratified_by="IC")
+    return config.framework_id
+
+
+def _attach_finished(client, run_id: str, framework_id: str):
+    JobManager(client.run_store).finish_run(run_id)
+    return client.put(f"/api/decision/runs/{run_id}/framework", json={"framework_id": framework_id})
+
+
+def test_a_transition_plan_framework_scores_a_preset_run(client):
+    from tests.test_decision_sources import preset_run_r
+
+    run_id = preset_run_r(client.run_store)
+    response = _attach_finished(client, run_id, _framework_needing(client, "Indicators_Disclosed_Count", [str(i * 5) for i in range(8)]))
+    assert response.status_code == 200, response.text
+    stored = templates.stored_decision(client.run_store, run_id)
+    assert stored["error"] is None and stored["missing_columns"] == []
+    scored = templates.run_dataset(client.run_store, client.run_store.load_manifest(run_id))
+    assert scored.source == "transition_plan_run"
+    assert next(r for r in scored.rows if r["Company_Id"] == "x")["Indicators_Disclosed_Count"] == "12"
+
+
+def test_a_generic_framework_scores_a_preset_run(client):
+    from tests.test_decision_sources import preset_run_r
+
+    run_id = preset_run_r(client.run_store)
+    response = _attach_finished(client, run_id, _framework_needing(client, "A_headline_1", ["True", "False"] * 4))
+    assert response.status_code == 200, response.text
+    assert templates.stored_decision(client.run_store, run_id)["missing_columns"] == []
+    scored = templates.run_dataset(client.run_store, client.run_store.load_manifest(run_id))
+    generic = sources.from_source("extraction_run", client.run_store, run_id=run_id)
+
+    def x(d):
+        return next(r for r in d.rows if r["Company_Id"] == "x")
+
+    assert x(scored)["A_headline_1"] == x(generic)["A_headline_1"]
+
+
+def test_a_framework_on_another_schema_keeps_the_generic_columns(client):
+    from tests.test_decision_sources import extraction_run_e
+
+    run_id = extraction_run_e(client.run_store)
+    response = _attach_finished(client, run_id, _framework_needing(client, "Green capex", [str(i * 10) for i in range(8)]))
+    assert response.status_code == 200, response.text
+    scored = templates.run_dataset(client.run_store, client.run_store.load_manifest(run_id))
+    assert scored.columns == sources.from_source("extraction_run", client.run_store, run_id=run_id).columns
+
+
+def test_a_transition_plan_framework_still_scores_an_old_run(client):
+    from tests.test_decision_sources import OLD_RUN_MAIN, old_run_o
+
+    run_id = old_run_o(client.run_store)
+    response = _attach_finished(client, run_id, _framework_needing(client, "Indicators_Disclosed_Count", [str(i * 5) for i in range(8)]))
+    assert response.status_code == 200, response.text
+    scored = templates.run_dataset(client.run_store, client.run_store.load_manifest(run_id))
+    main_rows = json.loads(OLD_RUN_MAIN.read_text())["rows"]
+    assert [r["Indicators_Disclosed_Count"] for r in scored.rows] == [r["Indicators_Disclosed_Count"] for r in main_rows]
+
+
+def test_expected_transition_plan_columns_for_a_preset_schema():
+    from arp.presets.transition_plan import build_transition_plan_schema
+
+    names = [f.name for f in build_transition_plan_schema().fields]
+    group_1 = sources.expected_transition_plan_columns()
+    assert templates.expected_run_columns("transition_plan") == group_1, "an old run has no field names"
+    assert templates.expected_run_columns("transition_plan", names) == [*group_1, "Extraction_Confidence_pct", *names]
