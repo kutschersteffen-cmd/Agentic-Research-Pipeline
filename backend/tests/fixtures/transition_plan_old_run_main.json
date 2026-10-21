@@ -1,0 +1,1624 @@
+{
+ "_comment": "Captured from origin/main's from_transition_plan_run(include_indicators=True); records are a stored old transition_plan run.",
+ "records": [
+  {
+   "company_id": "c1",
+   "name": "Acme",
+   "run_id": "tp_old",
+   "company_sector": "Utilities",
+   "company_location": "DE",
+   "report_year": "2024",
+   "indicators": [
+    {
+     "number": 1,
+     "identifier": "A_headline_1",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.5
+    },
+    {
+     "number": 2,
+     "identifier": "A_headline_2",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.6
+    },
+    {
+     "number": 3,
+     "identifier": "A_ambition_3",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.7
+    },
+    {
+     "number": 4,
+     "identifier": "A_ambition_4",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.8
+    },
+    {
+     "number": 5,
+     "identifier": "A_ambition_5",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.9
+    },
+    {
+     "number": 6,
+     "identifier": "A_coverage_6",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.5
+    },
+    {
+     "number": 7,
+     "identifier": "A_coverage_7",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.6
+    },
+    {
+     "number": 8,
+     "identifier": "A_coverage_8",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.7
+    },
+    {
+     "number": 9,
+     "identifier": "A_pathway_11",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.8
+    },
+    {
+     "number": 10,
+     "identifier": "A_pathway_12",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.9
+    },
+    {
+     "number": 11,
+     "identifier": "A_offsetting_13",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.5
+    },
+    {
+     "number": 12,
+     "identifier": "A_offsetting_14",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.6
+    },
+    {
+     "number": 13,
+     "identifier": "A_structure_15",
+     "category": "governance",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.7
+    },
+    {
+     "number": 14,
+     "identifier": "A_skills_17",
+     "category": "governance",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.8
+    },
+    {
+     "number": 15,
+     "identifier": "A_skills_18",
+     "category": "governance",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.9
+    },
+    {
+     "number": 16,
+     "identifier": "A_skills_19",
+     "category": "governance",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.5
+    },
+    {
+     "number": 17,
+     "identifier": "A_accountability_21",
+     "category": "governance",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.6
+    },
+    {
+     "number": 18,
+     "identifier": "A_accountability_22",
+     "category": "governance",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.7
+    },
+    {
+     "number": 19,
+     "identifier": "A_incentives_26",
+     "category": "governance",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.8
+    },
+    {
+     "number": 20,
+     "identifier": "A_transparency_29",
+     "category": "governance",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.9
+    },
+    {
+     "number": 21,
+     "identifier": "A_transparency_30",
+     "category": "governance",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.5
+    },
+    {
+     "number": 22,
+     "identifier": "A_management_32",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.6
+    },
+    {
+     "number": 23,
+     "identifier": "A_management_33",
+     "category": "strategy",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.7
+    },
+    {
+     "number": 24,
+     "identifier": "A_management_34",
+     "category": "strategy",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.8
+    },
+    {
+     "number": 25,
+     "identifier": "A_management_35",
+     "category": "strategy",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.9
+    },
+    {
+     "number": 26,
+     "identifier": "A_production_39",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.5
+    },
+    {
+     "number": 27,
+     "identifier": "A_production_40",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.6
+    },
+    {
+     "number": 28,
+     "identifier": "A_planning_41",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.7
+    },
+    {
+     "number": 29,
+     "identifier": "A_planning_42",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.8
+    },
+    {
+     "number": 30,
+     "identifier": "A_planning_43",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.9
+    },
+    {
+     "number": 31,
+     "identifier": "A_planning_44",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.5
+    },
+    {
+     "number": 32,
+     "identifier": "A_engagement_45",
+     "category": "strategy",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.6
+    },
+    {
+     "number": 33,
+     "identifier": "A_engagement_46",
+     "category": "strategy",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.7
+    },
+    {
+     "number": 34,
+     "identifier": "A_engagement_47",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.8
+    },
+    {
+     "number": 35,
+     "identifier": "A_engagement_48",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.9
+    },
+    {
+     "number": 36,
+     "identifier": "A_engagement_49",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.5
+    },
+    {
+     "number": 37,
+     "identifier": "A_fossil fuels_50",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.6
+    },
+    {
+     "number": 38,
+     "identifier": "A_fossil fuels_51",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.7
+    },
+    {
+     "number": 39,
+     "identifier": "A_fossil fuels_52",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.8
+    },
+    {
+     "number": 40,
+     "identifier": "A_just transition_53",
+     "category": "strategy",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.9
+    },
+    {
+     "number": 41,
+     "identifier": "A_just transition_54",
+     "category": "strategy",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.5
+    },
+    {
+     "number": 42,
+     "identifier": "A_biosphere_55",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.6
+    },
+    {
+     "number": 43,
+     "identifier": "A_biosphere_56",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.7
+    },
+    {
+     "number": 44,
+     "identifier": "A_biosphere_57",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.8
+    },
+    {
+     "number": 45,
+     "identifier": "A_biosphere_58",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.9
+    },
+    {
+     "number": 46,
+     "identifier": "A_emissions_59",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.5
+    },
+    {
+     "number": 47,
+     "identifier": "A_emissions_60",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.6
+    },
+    {
+     "number": 48,
+     "identifier": "A_emissions_61",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.7
+    },
+    {
+     "number": 49,
+     "identifier": "A_emissions_62",
+     "category": "tracking",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.8
+    },
+    {
+     "number": 50,
+     "identifier": "A_progress_66",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.9
+    },
+    {
+     "number": 51,
+     "identifier": "A_progress_67",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.5
+    },
+    {
+     "number": 52,
+     "identifier": "A_progress_68",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.6
+    },
+    {
+     "number": 53,
+     "identifier": "A_progress_69",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.7
+    },
+    {
+     "number": 54,
+     "identifier": "A_progress_70",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.8
+    },
+    {
+     "number": 55,
+     "identifier": "A_progress_71",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.9
+    },
+    {
+     "number": 56,
+     "identifier": "A_progress_72",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.5
+    },
+    {
+     "number": 57,
+     "identifier": "A_progress_73",
+     "category": "tracking",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.6
+    },
+    {
+     "number": 58,
+     "identifier": "A_progress_74",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.7
+    },
+    {
+     "number": 59,
+     "identifier": "A_capex_75",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.8
+    },
+    {
+     "number": 60,
+     "identifier": "A_capex_77",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.9
+    },
+    {
+     "number": 61,
+     "identifier": "A_revenues_81",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.5
+    },
+    {
+     "number": 62,
+     "identifier": "A_revenues_83",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.6
+    },
+    {
+     "number": 63,
+     "identifier": "A_engagement_86",
+     "category": "tracking",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.7
+    },
+    {
+     "number": 64,
+     "identifier": "A_engagement_87",
+     "category": "tracking",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.8
+    }
+   ],
+   "disclosed_count": 22,
+   "walk_disclosed_count": 12,
+   "walk_total_count": 34,
+   "talk_disclosed_count": 10,
+   "talk_total_count": 30,
+   "by_category": [
+    {
+     "category": "target",
+     "disclosed_count": 4,
+     "total_count": 12
+    },
+    {
+     "category": "governance",
+     "disclosed_count": 3,
+     "total_count": 9
+    },
+    {
+     "category": "strategy",
+     "disclosed_count": 8,
+     "total_count": 24
+    },
+    {
+     "category": "tracking",
+     "disclosed_count": 7,
+     "total_count": 19
+    }
+   ],
+   "overall_confidence": 0.73,
+   "needs_review": false
+  },
+  {
+   "company_id": "c2",
+   "name": "",
+   "run_id": "tp_old",
+   "company_sector": null,
+   "company_location": null,
+   "report_year": "2024",
+   "indicators": [
+    {
+     "number": 1,
+     "identifier": "A_headline_1",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.5
+    },
+    {
+     "number": 2,
+     "identifier": "A_headline_2",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.6
+    },
+    {
+     "number": 3,
+     "identifier": "A_ambition_3",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.7
+    },
+    {
+     "number": 4,
+     "identifier": "A_ambition_4",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.8
+    },
+    {
+     "number": 5,
+     "identifier": "A_ambition_5",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.9
+    },
+    {
+     "number": 6,
+     "identifier": "A_coverage_6",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.5
+    },
+    {
+     "number": 7,
+     "identifier": "A_coverage_7",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.6
+    },
+    {
+     "number": 8,
+     "identifier": "A_coverage_8",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.7
+    },
+    {
+     "number": 9,
+     "identifier": "A_pathway_11",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.8
+    },
+    {
+     "number": 10,
+     "identifier": "A_pathway_12",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.9
+    },
+    {
+     "number": 11,
+     "identifier": "A_offsetting_13",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.5
+    },
+    {
+     "number": 12,
+     "identifier": "A_offsetting_14",
+     "category": "target",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.6
+    },
+    {
+     "number": 13,
+     "identifier": "A_structure_15",
+     "category": "governance",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.7
+    },
+    {
+     "number": 14,
+     "identifier": "A_skills_17",
+     "category": "governance",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.8
+    },
+    {
+     "number": 15,
+     "identifier": "A_skills_18",
+     "category": "governance",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.9
+    },
+    {
+     "number": 16,
+     "identifier": "A_skills_19",
+     "category": "governance",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.5
+    },
+    {
+     "number": 17,
+     "identifier": "A_accountability_21",
+     "category": "governance",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.6
+    },
+    {
+     "number": 18,
+     "identifier": "A_accountability_22",
+     "category": "governance",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.7
+    },
+    {
+     "number": 19,
+     "identifier": "A_incentives_26",
+     "category": "governance",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.8
+    },
+    {
+     "number": 20,
+     "identifier": "A_transparency_29",
+     "category": "governance",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.9
+    },
+    {
+     "number": 21,
+     "identifier": "A_transparency_30",
+     "category": "governance",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.5
+    },
+    {
+     "number": 22,
+     "identifier": "A_management_32",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.6
+    },
+    {
+     "number": 23,
+     "identifier": "A_management_33",
+     "category": "strategy",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.7
+    },
+    {
+     "number": 24,
+     "identifier": "A_management_34",
+     "category": "strategy",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.8
+    },
+    {
+     "number": 25,
+     "identifier": "A_management_35",
+     "category": "strategy",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.9
+    },
+    {
+     "number": 26,
+     "identifier": "A_production_39",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.5
+    },
+    {
+     "number": 27,
+     "identifier": "A_production_40",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.6
+    },
+    {
+     "number": 28,
+     "identifier": "A_planning_41",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.7
+    },
+    {
+     "number": 29,
+     "identifier": "A_planning_42",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.8
+    },
+    {
+     "number": 30,
+     "identifier": "A_planning_43",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.9
+    },
+    {
+     "number": 31,
+     "identifier": "A_planning_44",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.5
+    },
+    {
+     "number": 32,
+     "identifier": "A_engagement_45",
+     "category": "strategy",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.6
+    },
+    {
+     "number": 33,
+     "identifier": "A_engagement_46",
+     "category": "strategy",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.7
+    },
+    {
+     "number": 34,
+     "identifier": "A_engagement_47",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.8
+    },
+    {
+     "number": 35,
+     "identifier": "A_engagement_48",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.9
+    },
+    {
+     "number": 36,
+     "identifier": "A_engagement_49",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.5
+    },
+    {
+     "number": 37,
+     "identifier": "A_fossil fuels_50",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.6
+    },
+    {
+     "number": 38,
+     "identifier": "A_fossil fuels_51",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.7
+    },
+    {
+     "number": 39,
+     "identifier": "A_fossil fuels_52",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.8
+    },
+    {
+     "number": 40,
+     "identifier": "A_just transition_53",
+     "category": "strategy",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.9
+    },
+    {
+     "number": 41,
+     "identifier": "A_just transition_54",
+     "category": "strategy",
+     "walk_or_talk": "talk",
+     "verdict": "NA",
+     "confidence": 0.5
+    },
+    {
+     "number": 42,
+     "identifier": "A_biosphere_55",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.6
+    },
+    {
+     "number": 43,
+     "identifier": "A_biosphere_56",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.7
+    },
+    {
+     "number": 44,
+     "identifier": "A_biosphere_57",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.8
+    },
+    {
+     "number": 45,
+     "identifier": "A_biosphere_58",
+     "category": "strategy",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.9
+    },
+    {
+     "number": 46,
+     "identifier": "A_emissions_59",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.5
+    },
+    {
+     "number": 47,
+     "identifier": "A_emissions_60",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.6
+    },
+    {
+     "number": 48,
+     "identifier": "A_emissions_61",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.7
+    },
+    {
+     "number": 49,
+     "identifier": "A_emissions_62",
+     "category": "tracking",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.8
+    },
+    {
+     "number": 50,
+     "identifier": "A_progress_66",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.9
+    },
+    {
+     "number": 51,
+     "identifier": "A_progress_67",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.5
+    },
+    {
+     "number": 52,
+     "identifier": "A_progress_68",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.6
+    },
+    {
+     "number": 53,
+     "identifier": "A_progress_69",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.7
+    },
+    {
+     "number": 54,
+     "identifier": "A_progress_70",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.8
+    },
+    {
+     "number": 55,
+     "identifier": "A_progress_71",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.9
+    },
+    {
+     "number": 56,
+     "identifier": "A_progress_72",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.5
+    },
+    {
+     "number": 57,
+     "identifier": "A_progress_73",
+     "category": "tracking",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.6
+    },
+    {
+     "number": 58,
+     "identifier": "A_progress_74",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.7
+    },
+    {
+     "number": 59,
+     "identifier": "A_capex_75",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.8
+    },
+    {
+     "number": 60,
+     "identifier": "A_capex_77",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "YES",
+     "confidence": 0.9
+    },
+    {
+     "number": 61,
+     "identifier": "A_revenues_81",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NO",
+     "confidence": 0.5
+    },
+    {
+     "number": 62,
+     "identifier": "A_revenues_83",
+     "category": "tracking",
+     "walk_or_talk": "walk",
+     "verdict": "NA",
+     "confidence": 0.6
+    },
+    {
+     "number": 63,
+     "identifier": "A_engagement_86",
+     "category": "tracking",
+     "walk_or_talk": "talk",
+     "verdict": "YES",
+     "confidence": 0.7
+    },
+    {
+     "number": 64,
+     "identifier": "A_engagement_87",
+     "category": "tracking",
+     "walk_or_talk": "talk",
+     "verdict": "NO",
+     "confidence": 0.8
+    }
+   ],
+   "disclosed_count": 21,
+   "walk_disclosed_count": 11,
+   "walk_total_count": 0,
+   "talk_disclosed_count": 10,
+   "talk_total_count": 30,
+   "by_category": [
+    {
+     "category": "target",
+     "disclosed_count": 4,
+     "total_count": 12
+    },
+    {
+     "category": "governance",
+     "disclosed_count": 3,
+     "total_count": 9
+    },
+    {
+     "category": "strategy",
+     "disclosed_count": 8,
+     "total_count": 24
+    },
+    {
+     "category": "tracking",
+     "disclosed_count": 6,
+     "total_count": 19
+    }
+   ],
+   "overall_confidence": 0.41,
+   "needs_review": true
+  }
+ ],
+ "columns": [
+  "Company",
+  "Company_Id",
+  "Sector",
+  "Region",
+  "Indicators_Disclosed_Count",
+  "Walk_Disclosed_Count",
+  "Talk_Disclosed_Count",
+  "Walk_Share_pct",
+  "Assessment_Confidence_pct",
+  "Governance_Disclosure_pct",
+  "Strategy_Disclosure_pct",
+  "Target_Disclosure_pct",
+  "Tracking_Disclosure_pct",
+  "Needs_Review_Flag",
+  "Ind_A_headline_1_Disclosed",
+  "Ind_A_headline_2_Disclosed",
+  "Ind_A_ambition_3_Disclosed",
+  "Ind_A_ambition_4_Disclosed",
+  "Ind_A_ambition_5_Disclosed",
+  "Ind_A_coverage_6_Disclosed",
+  "Ind_A_coverage_7_Disclosed",
+  "Ind_A_coverage_8_Disclosed",
+  "Ind_A_pathway_11_Disclosed",
+  "Ind_A_pathway_12_Disclosed",
+  "Ind_A_offsetting_13_Disclosed",
+  "Ind_A_offsetting_14_Disclosed",
+  "Ind_A_structure_15_Disclosed",
+  "Ind_A_skills_17_Disclosed",
+  "Ind_A_skills_18_Disclosed",
+  "Ind_A_skills_19_Disclosed",
+  "Ind_A_accountability_21_Disclosed",
+  "Ind_A_accountability_22_Disclosed",
+  "Ind_A_incentives_26_Disclosed",
+  "Ind_A_transparency_29_Disclosed",
+  "Ind_A_transparency_30_Disclosed",
+  "Ind_A_management_32_Disclosed",
+  "Ind_A_management_33_Disclosed",
+  "Ind_A_management_34_Disclosed",
+  "Ind_A_management_35_Disclosed",
+  "Ind_A_production_39_Disclosed",
+  "Ind_A_production_40_Disclosed",
+  "Ind_A_planning_41_Disclosed",
+  "Ind_A_planning_42_Disclosed",
+  "Ind_A_planning_43_Disclosed",
+  "Ind_A_planning_44_Disclosed",
+  "Ind_A_engagement_45_Disclosed",
+  "Ind_A_engagement_46_Disclosed",
+  "Ind_A_engagement_47_Disclosed",
+  "Ind_A_engagement_48_Disclosed",
+  "Ind_A_engagement_49_Disclosed",
+  "Ind_A_fossil fuels_50_Disclosed",
+  "Ind_A_fossil fuels_51_Disclosed",
+  "Ind_A_fossil fuels_52_Disclosed",
+  "Ind_A_just transition_53_Disclosed",
+  "Ind_A_just transition_54_Disclosed",
+  "Ind_A_biosphere_55_Disclosed",
+  "Ind_A_biosphere_56_Disclosed",
+  "Ind_A_biosphere_57_Disclosed",
+  "Ind_A_biosphere_58_Disclosed",
+  "Ind_A_emissions_59_Disclosed",
+  "Ind_A_emissions_60_Disclosed",
+  "Ind_A_emissions_61_Disclosed",
+  "Ind_A_emissions_62_Disclosed",
+  "Ind_A_progress_66_Disclosed",
+  "Ind_A_progress_67_Disclosed",
+  "Ind_A_progress_68_Disclosed",
+  "Ind_A_progress_69_Disclosed",
+  "Ind_A_progress_70_Disclosed",
+  "Ind_A_progress_71_Disclosed",
+  "Ind_A_progress_72_Disclosed",
+  "Ind_A_progress_73_Disclosed",
+  "Ind_A_progress_74_Disclosed",
+  "Ind_A_capex_75_Disclosed",
+  "Ind_A_capex_77_Disclosed",
+  "Ind_A_revenues_81_Disclosed",
+  "Ind_A_revenues_83_Disclosed",
+  "Ind_A_engagement_86_Disclosed",
+  "Ind_A_engagement_87_Disclosed"
+ ],
+ "rows": [
+  {
+   "Company": "Acme",
+   "Company_Id": "c1",
+   "Sector": "Utilities",
+   "Region": "DE",
+   "Indicators_Disclosed_Count": "22",
+   "Walk_Disclosed_Count": "12",
+   "Talk_Disclosed_Count": "10",
+   "Walk_Share_pct": "35.3",
+   "Assessment_Confidence_pct": "73.0",
+   "Governance_Disclosure_pct": "33.3",
+   "Strategy_Disclosure_pct": "33.3",
+   "Target_Disclosure_pct": "33.3",
+   "Tracking_Disclosure_pct": "36.8",
+   "Needs_Review_Flag": "No",
+   "Ind_A_headline_1_Disclosed": "Yes",
+   "Ind_A_headline_2_Disclosed": "No",
+   "Ind_A_ambition_3_Disclosed": "",
+   "Ind_A_ambition_4_Disclosed": "Yes",
+   "Ind_A_ambition_5_Disclosed": "No",
+   "Ind_A_coverage_6_Disclosed": "",
+   "Ind_A_coverage_7_Disclosed": "Yes",
+   "Ind_A_coverage_8_Disclosed": "No",
+   "Ind_A_pathway_11_Disclosed": "",
+   "Ind_A_pathway_12_Disclosed": "Yes",
+   "Ind_A_offsetting_13_Disclosed": "No",
+   "Ind_A_offsetting_14_Disclosed": "",
+   "Ind_A_structure_15_Disclosed": "Yes",
+   "Ind_A_skills_17_Disclosed": "No",
+   "Ind_A_skills_18_Disclosed": "",
+   "Ind_A_skills_19_Disclosed": "Yes",
+   "Ind_A_accountability_21_Disclosed": "No",
+   "Ind_A_accountability_22_Disclosed": "",
+   "Ind_A_incentives_26_Disclosed": "Yes",
+   "Ind_A_transparency_29_Disclosed": "No",
+   "Ind_A_transparency_30_Disclosed": "",
+   "Ind_A_management_32_Disclosed": "Yes",
+   "Ind_A_management_33_Disclosed": "No",
+   "Ind_A_management_34_Disclosed": "",
+   "Ind_A_management_35_Disclosed": "Yes",
+   "Ind_A_production_39_Disclosed": "No",
+   "Ind_A_production_40_Disclosed": "",
+   "Ind_A_planning_41_Disclosed": "Yes",
+   "Ind_A_planning_42_Disclosed": "No",
+   "Ind_A_planning_43_Disclosed": "",
+   "Ind_A_planning_44_Disclosed": "Yes",
+   "Ind_A_engagement_45_Disclosed": "No",
+   "Ind_A_engagement_46_Disclosed": "",
+   "Ind_A_engagement_47_Disclosed": "Yes",
+   "Ind_A_engagement_48_Disclosed": "No",
+   "Ind_A_engagement_49_Disclosed": "",
+   "Ind_A_fossil fuels_50_Disclosed": "Yes",
+   "Ind_A_fossil fuels_51_Disclosed": "No",
+   "Ind_A_fossil fuels_52_Disclosed": "",
+   "Ind_A_just transition_53_Disclosed": "Yes",
+   "Ind_A_just transition_54_Disclosed": "No",
+   "Ind_A_biosphere_55_Disclosed": "",
+   "Ind_A_biosphere_56_Disclosed": "Yes",
+   "Ind_A_biosphere_57_Disclosed": "No",
+   "Ind_A_biosphere_58_Disclosed": "",
+   "Ind_A_emissions_59_Disclosed": "Yes",
+   "Ind_A_emissions_60_Disclosed": "No",
+   "Ind_A_emissions_61_Disclosed": "",
+   "Ind_A_emissions_62_Disclosed": "Yes",
+   "Ind_A_progress_66_Disclosed": "No",
+   "Ind_A_progress_67_Disclosed": "",
+   "Ind_A_progress_68_Disclosed": "Yes",
+   "Ind_A_progress_69_Disclosed": "No",
+   "Ind_A_progress_70_Disclosed": "",
+   "Ind_A_progress_71_Disclosed": "Yes",
+   "Ind_A_progress_72_Disclosed": "No",
+   "Ind_A_progress_73_Disclosed": "",
+   "Ind_A_progress_74_Disclosed": "Yes",
+   "Ind_A_capex_75_Disclosed": "No",
+   "Ind_A_capex_77_Disclosed": "",
+   "Ind_A_revenues_81_Disclosed": "Yes",
+   "Ind_A_revenues_83_Disclosed": "No",
+   "Ind_A_engagement_86_Disclosed": "",
+   "Ind_A_engagement_87_Disclosed": "Yes"
+  },
+  {
+   "Company": "c2",
+   "Company_Id": "c2",
+   "Sector": "",
+   "Region": "",
+   "Indicators_Disclosed_Count": "21",
+   "Walk_Disclosed_Count": "11",
+   "Talk_Disclosed_Count": "10",
+   "Walk_Share_pct": "",
+   "Assessment_Confidence_pct": "41.0",
+   "Governance_Disclosure_pct": "33.3",
+   "Strategy_Disclosure_pct": "33.3",
+   "Target_Disclosure_pct": "33.3",
+   "Tracking_Disclosure_pct": "31.6",
+   "Needs_Review_Flag": "Yes",
+   "Ind_A_headline_1_Disclosed": "No",
+   "Ind_A_headline_2_Disclosed": "",
+   "Ind_A_ambition_3_Disclosed": "Yes",
+   "Ind_A_ambition_4_Disclosed": "No",
+   "Ind_A_ambition_5_Disclosed": "",
+   "Ind_A_coverage_6_Disclosed": "Yes",
+   "Ind_A_coverage_7_Disclosed": "No",
+   "Ind_A_coverage_8_Disclosed": "",
+   "Ind_A_pathway_11_Disclosed": "Yes",
+   "Ind_A_pathway_12_Disclosed": "No",
+   "Ind_A_offsetting_13_Disclosed": "",
+   "Ind_A_offsetting_14_Disclosed": "Yes",
+   "Ind_A_structure_15_Disclosed": "No",
+   "Ind_A_skills_17_Disclosed": "",
+   "Ind_A_skills_18_Disclosed": "Yes",
+   "Ind_A_skills_19_Disclosed": "No",
+   "Ind_A_accountability_21_Disclosed": "",
+   "Ind_A_accountability_22_Disclosed": "Yes",
+   "Ind_A_incentives_26_Disclosed": "No",
+   "Ind_A_transparency_29_Disclosed": "",
+   "Ind_A_transparency_30_Disclosed": "Yes",
+   "Ind_A_management_32_Disclosed": "No",
+   "Ind_A_management_33_Disclosed": "",
+   "Ind_A_management_34_Disclosed": "Yes",
+   "Ind_A_management_35_Disclosed": "No",
+   "Ind_A_production_39_Disclosed": "",
+   "Ind_A_production_40_Disclosed": "Yes",
+   "Ind_A_planning_41_Disclosed": "No",
+   "Ind_A_planning_42_Disclosed": "",
+   "Ind_A_planning_43_Disclosed": "Yes",
+   "Ind_A_planning_44_Disclosed": "No",
+   "Ind_A_engagement_45_Disclosed": "",
+   "Ind_A_engagement_46_Disclosed": "Yes",
+   "Ind_A_engagement_47_Disclosed": "No",
+   "Ind_A_engagement_48_Disclosed": "",
+   "Ind_A_engagement_49_Disclosed": "Yes",
+   "Ind_A_fossil fuels_50_Disclosed": "No",
+   "Ind_A_fossil fuels_51_Disclosed": "",
+   "Ind_A_fossil fuels_52_Disclosed": "Yes",
+   "Ind_A_just transition_53_Disclosed": "No",
+   "Ind_A_just transition_54_Disclosed": "",
+   "Ind_A_biosphere_55_Disclosed": "Yes",
+   "Ind_A_biosphere_56_Disclosed": "No",
+   "Ind_A_biosphere_57_Disclosed": "",
+   "Ind_A_biosphere_58_Disclosed": "Yes",
+   "Ind_A_emissions_59_Disclosed": "No",
+   "Ind_A_emissions_60_Disclosed": "",
+   "Ind_A_emissions_61_Disclosed": "Yes",
+   "Ind_A_emissions_62_Disclosed": "No",
+   "Ind_A_progress_66_Disclosed": "",
+   "Ind_A_progress_67_Disclosed": "Yes",
+   "Ind_A_progress_68_Disclosed": "No",
+   "Ind_A_progress_69_Disclosed": "",
+   "Ind_A_progress_70_Disclosed": "Yes",
+   "Ind_A_progress_71_Disclosed": "No",
+   "Ind_A_progress_72_Disclosed": "",
+   "Ind_A_progress_73_Disclosed": "Yes",
+   "Ind_A_progress_74_Disclosed": "No",
+   "Ind_A_capex_75_Disclosed": "",
+   "Ind_A_capex_77_Disclosed": "Yes",
+   "Ind_A_revenues_81_Disclosed": "No",
+   "Ind_A_revenues_83_Disclosed": "",
+   "Ind_A_engagement_86_Disclosed": "Yes",
+   "Ind_A_engagement_87_Disclosed": "No"
+  }
+ ],
+ "confidence": {
+  "Indicators_Disclosed_Count": [
+   0.73,
+   0.41
+  ],
+  "Walk_Disclosed_Count": [
+   0.73,
+   0.41
+  ],
+  "Talk_Disclosed_Count": [
+   0.73,
+   0.41
+  ],
+  "Walk_Share_pct": [
+   0.73,
+   0.41
+  ],
+  "Ind_A_headline_1_Disclosed": [
+   0.5,
+   0.5
+  ],
+  "Ind_A_headline_2_Disclosed": [
+   0.6,
+   null
+  ],
+  "Ind_A_ambition_3_Disclosed": [
+   null,
+   0.7
+  ],
+  "Ind_A_ambition_4_Disclosed": [
+   0.8,
+   0.8
+  ],
+  "Ind_A_ambition_5_Disclosed": [
+   0.9,
+   null
+  ],
+  "Ind_A_coverage_6_Disclosed": [
+   null,
+   0.5
+  ],
+  "Ind_A_coverage_7_Disclosed": [
+   0.6,
+   0.6
+  ],
+  "Ind_A_coverage_8_Disclosed": [
+   0.7,
+   null
+  ],
+  "Ind_A_pathway_11_Disclosed": [
+   null,
+   0.8
+  ],
+  "Ind_A_pathway_12_Disclosed": [
+   0.9,
+   0.9
+  ],
+  "Ind_A_offsetting_13_Disclosed": [
+   0.5,
+   null
+  ],
+  "Ind_A_offsetting_14_Disclosed": [
+   null,
+   0.6
+  ],
+  "Ind_A_structure_15_Disclosed": [
+   0.7,
+   0.7
+  ],
+  "Ind_A_skills_17_Disclosed": [
+   0.8,
+   null
+  ],
+  "Ind_A_skills_18_Disclosed": [
+   null,
+   0.9
+  ],
+  "Ind_A_skills_19_Disclosed": [
+   0.5,
+   0.5
+  ],
+  "Ind_A_accountability_21_Disclosed": [
+   0.6,
+   null
+  ],
+  "Ind_A_accountability_22_Disclosed": [
+   null,
+   0.7
+  ],
+  "Ind_A_incentives_26_Disclosed": [
+   0.8,
+   0.8
+  ],
+  "Ind_A_transparency_29_Disclosed": [
+   0.9,
+   null
+  ],
+  "Ind_A_transparency_30_Disclosed": [
+   null,
+   0.5
+  ],
+  "Ind_A_management_32_Disclosed": [
+   0.6,
+   0.6
+  ],
+  "Ind_A_management_33_Disclosed": [
+   0.7,
+   null
+  ],
+  "Ind_A_management_34_Disclosed": [
+   null,
+   0.8
+  ],
+  "Ind_A_management_35_Disclosed": [
+   0.9,
+   0.9
+  ],
+  "Ind_A_production_39_Disclosed": [
+   0.5,
+   null
+  ],
+  "Ind_A_production_40_Disclosed": [
+   null,
+   0.6
+  ],
+  "Ind_A_planning_41_Disclosed": [
+   0.7,
+   0.7
+  ],
+  "Ind_A_planning_42_Disclosed": [
+   0.8,
+   null
+  ],
+  "Ind_A_planning_43_Disclosed": [
+   null,
+   0.9
+  ],
+  "Ind_A_planning_44_Disclosed": [
+   0.5,
+   0.5
+  ],
+  "Ind_A_engagement_45_Disclosed": [
+   0.6,
+   null
+  ],
+  "Ind_A_engagement_46_Disclosed": [
+   null,
+   0.7
+  ],
+  "Ind_A_engagement_47_Disclosed": [
+   0.8,
+   0.8
+  ],
+  "Ind_A_engagement_48_Disclosed": [
+   0.9,
+   null
+  ],
+  "Ind_A_engagement_49_Disclosed": [
+   null,
+   0.5
+  ],
+  "Ind_A_fossil fuels_50_Disclosed": [
+   0.6,
+   0.6
+  ],
+  "Ind_A_fossil fuels_51_Disclosed": [
+   0.7,
+   null
+  ],
+  "Ind_A_fossil fuels_52_Disclosed": [
+   null,
+   0.8
+  ],
+  "Ind_A_just transition_53_Disclosed": [
+   0.9,
+   0.9
+  ],
+  "Ind_A_just transition_54_Disclosed": [
+   0.5,
+   null
+  ],
+  "Ind_A_biosphere_55_Disclosed": [
+   null,
+   0.6
+  ],
+  "Ind_A_biosphere_56_Disclosed": [
+   0.7,
+   0.7
+  ],
+  "Ind_A_biosphere_57_Disclosed": [
+   0.8,
+   null
+  ],
+  "Ind_A_biosphere_58_Disclosed": [
+   null,
+   0.9
+  ],
+  "Ind_A_emissions_59_Disclosed": [
+   0.5,
+   0.5
+  ],
+  "Ind_A_emissions_60_Disclosed": [
+   0.6,
+   null
+  ],
+  "Ind_A_emissions_61_Disclosed": [
+   null,
+   0.7
+  ],
+  "Ind_A_emissions_62_Disclosed": [
+   0.8,
+   0.8
+  ],
+  "Ind_A_progress_66_Disclosed": [
+   0.9,
+   null
+  ],
+  "Ind_A_progress_67_Disclosed": [
+   null,
+   0.5
+  ],
+  "Ind_A_progress_68_Disclosed": [
+   0.6,
+   0.6
+  ],
+  "Ind_A_progress_69_Disclosed": [
+   0.7,
+   null
+  ],
+  "Ind_A_progress_70_Disclosed": [
+   null,
+   0.8
+  ],
+  "Ind_A_progress_71_Disclosed": [
+   0.9,
+   0.9
+  ],
+  "Ind_A_progress_72_Disclosed": [
+   0.5,
+   null
+  ],
+  "Ind_A_progress_73_Disclosed": [
+   null,
+   0.6
+  ],
+  "Ind_A_progress_74_Disclosed": [
+   0.7,
+   0.7
+  ],
+  "Ind_A_capex_75_Disclosed": [
+   0.8,
+   null
+  ],
+  "Ind_A_capex_77_Disclosed": [
+   null,
+   0.9
+  ],
+  "Ind_A_revenues_81_Disclosed": [
+   0.5,
+   0.5
+  ],
+  "Ind_A_revenues_83_Disclosed": [
+   0.6,
+   null
+  ],
+  "Ind_A_engagement_86_Disclosed": [
+   null,
+   0.7
+  ],
+  "Ind_A_engagement_87_Disclosed": [
+   0.8,
+   0.8
+  ]
+ },
+ "source": "transition_plan_run"
+}
