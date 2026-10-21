@@ -73,6 +73,9 @@ jobs:
       - name: Install backend package (dev extras)
         run: pip install -e ".[dev,postgres,opensearch,emerging_themes,object_storage]"
 
+      - name: Private NLTK data (nltk >= 3.10.4 refuses shared dirs)
+        run: . "$GITHUB_WORKSPACE/.github/scripts/private_nltk_data.sh"
+
       - name: Install Chromium (HTML deck fit checks)
         run: python -m playwright install --with-deps chromium
 
@@ -195,6 +198,7 @@ jobs:
       - name: Install backend, frontend and Chromium
         run: |
           (cd backend && pip install -e ".[dev,postgres,opensearch,emerging_themes,object_storage]")
+          . .github/scripts/private_nltk_data.sh
           (cd frontend && npm ci)
           python -m playwright install --with-deps chromium
 
