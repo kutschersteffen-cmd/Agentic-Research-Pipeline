@@ -97,15 +97,6 @@ class PostgresPortfolioStore:
     def analytics_path(self):
         return self._files.analytics_path()
 
-    def save_analytic(self, spec_json: dict) -> None:
-        self._files.save_analytic(spec_json)
-
-    def list_analytics(self) -> list[dict]:
-        return self._files.list_analytics()
-
-    def get_analytic(self, analytic_id: str) -> dict | None:
-        return self._files.get_analytic(analytic_id)
-
     def groups_path(self):
         return self._files.groups_path()
 

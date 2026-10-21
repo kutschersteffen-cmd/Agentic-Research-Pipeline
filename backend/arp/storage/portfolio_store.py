@@ -328,15 +328,6 @@ class PortfolioStore:
     def analytics_path(self) -> Path:
         return self.portfolios_dir / "analytics.json"
 
-    def save_analytic(self, spec_json: dict) -> None:
-        self._put_json_entry(self.analytics_path(), spec_json["analytic_id"], spec_json)
-
-    def list_analytics(self) -> list[dict]:
-        return list(self._read_json(self.analytics_path()).values())
-
-    def get_analytic(self, analytic_id: str) -> dict | None:
-        return self._read_json(self.analytics_path()).get(analytic_id)
-
     # --- saved portfolio groups (versioned: latest save of an id wins) ---
 
     def groups_path(self) -> Path:

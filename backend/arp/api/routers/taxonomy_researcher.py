@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from arp.agents.taxonomy_researcher import (
@@ -63,14 +63,6 @@ async def start_taxonomy_research_run(
         run=_run,
     )
     return {"run_id": run_id}
-
-
-@router.get("/runs/{run_id}")
-def get_taxonomy_research_run(run_id: str, run_store: RunStore = Depends(_run_store)) -> dict:
-    manifest = run_store.load_manifest(run_id)
-    if manifest is None:
-        raise HTTPException(404, "Run not found")
-    return manifest.model_dump(mode="json")
 
 
 @router.get("/runs/{run_id}/results")

@@ -3,7 +3,7 @@
 // Add a line when you type a new request<...>() against an endpoint with a response model.
 import type { components } from "./schema.gen";
 import type { Me } from "../lib/reviewKeys";
-import type { AlertRule, BIDesignResult, BIEmbedToken, BarrierStalenessReport, BarrierValue, CompanyTransition, DataPointSchema, DatasetSummary, DecisionComparison, DecisionResult, EmergingThemesScheduleConfig, IndexCalibration, IndexReviewResult, MechanismEnvelope, PivotResult, PublishedDecision, QAAnswer, RuleGraph, RuleSuggestions, RunFailure, SearchResponse, SignalComparison, SignalExperimentDetail, SignalExperimentSummary, SignalMethod, SmartSearchAnswer, ThemeLayers } from "../types";
+import type { AlertRule, BIDesignResult, BIEmbedToken, BarrierStalenessReport, BarrierValue, CompanyTransition, DataPointSchema, DatasetSummary, DecisionComparison, DecisionResult, EmergingThemesScheduleConfig, IndexCalibration, IndexReviewResult, MechanismEnvelope, PublishedDecision, QAAnswer, RuleGraph, RuleSuggestions, RunFailure, SearchResponse, SignalComparison, SignalExperimentDetail, SignalExperimentSummary, SignalMethod, SmartSearchAnswer, ThemeLayers } from "../types";
 
 type S = components["schemas"];
 // FastAPI marks fields with defaults optional in the schema, but responses always carry every
@@ -34,7 +34,6 @@ export type ApiContract = [
   Satisfies<Served<S["IndexCalibration"]>, IndexCalibration>,
   Satisfies<Served<S["MethodInfo"]>, SignalMethod>,
   Satisfies<MechanismEnvelopeServed, MechanismEnvelope>,
-  Satisfies<Served<S["PivotResult"]>, PivotResult>,
   Satisfies<Served<S["Principal"]>, Me>,
   Satisfies<Served<S["PublishedDecision"]>, PublishedDecision>,
   Satisfies<QAAnswerServed, QAAnswer>,

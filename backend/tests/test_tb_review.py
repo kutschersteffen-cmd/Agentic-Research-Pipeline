@@ -199,7 +199,8 @@ def test_bulk_samples_barrier_items_by_rate_alone(env):
 def test_legacy_review_route_cannot_decide_a_barrier_item(env):
     queue(env, 0, "changed")
     c = client(A_APPROVER)
-    r = c.post(f"/api/transition-barrier/refresh/runs/{env[2]}/review", json={"item_key": CHANGED, "decision": "approve"})
+    # Every legacy review route shares submit_review's guard; financials stands in for the removed refresh route.
+    r = c.post(f"/api/financials/runs/{env[2]}/review", json={"item_key": CHANGED, "decision": "approve"})
     assert r.status_code == 400 and "review workbench" in r.text
     assert state(env) == "pending"
 
