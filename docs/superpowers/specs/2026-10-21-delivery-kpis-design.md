@@ -89,11 +89,11 @@ Where the numbers come from:
 Approving this spec approves these values. The builder signs v3 with
 `benchmarks sign --approved-by kutschersteffen-cmd`.
 
-`benchmarks validate` adds three checks, each failing with one error line:
+`benchmarks validate` adds four checks, each failing with one error line:
 - a KPI field is in the delivery-KPI preset (§2) and its applicability covers the KPI's ISIC prefixes;
 - a KPI's `isic_prefixes` are a subset of its sector's;
 - `points` is non-empty, values are in (0, 100] and rise, and years rise;
-- `cite` is non-empty and contains a page (`p.` or `pp.`).
+- `cite` contains a page reference matching the regular expression `\bpp?\.\s?\d`.
 
 ### 2. Extraction
 
@@ -222,14 +222,18 @@ The `bm` and `bm_s` fixture benchmark files gain the same `delivery_kpis` blocks
 | AC-193 | a benchmarks file with Cement's KPI `points` `[{"value": 120}]` | `benchmarks validate --data-dir <dir>` | exit code ≠ 0; one output line contains `alt_fuel_share` | holdout |
 | AC-194 | a benchmarks file with Aviation's KPI `points` years 2035 then 2030 | `benchmarks validate --data-dir <dir>` | exit code ≠ 0; one output line contains `saf_share` | holdout |
 | AC-195 | a benchmarks file with Cement's KPI `cite` `ACT Cement v2.0` (no page) | `benchmarks validate --data-dir <dir>` | exit code ≠ 0; one output line contains `alt_fuel_share` | holdout |
+| AC-204 | a benchmarks file with Cement's KPI `isic_prefixes` `["2395"]` added to the sector's prefixes, while the field applies only to `["2394"]` | `benchmarks validate --data-dir <dir>` | exit code ≠ 0; one output line contains `alt_fuel_share` | holdout |
+| AC-205 | a benchmarks file with Cement's KPI `cite` `ACT Cement Corp. v2.0` | `benchmarks validate --data-dir <dir>` | exit code ≠ 0; one output line contains `alt_fuel_share` | holdout |
+| AC-206 | two published FY2025 alt-fuel facts for K: 14 (lower fact id), then 16 | request for K | `alt_fuel_share.value` 14, `fact_ids` only the lower id | holdout |
 | AC-196 | K's alt-fuel fact for FY2025 (14) plus one for FY2024 (10, P8 p.13) | request for K | `alt_fuel_share.value` 14, `year` 2025, `fact_ids` only the FY2025 fact's id | holdout |
 | AC-197 | K's alt-fuel fact left pending review (not published) | request for K | `alt_fuel_share.value` null, `fact_ids` `[]` | holdout |
 | AC-198 | K's alt-fuel fact | request for K | each `delivery_kpis` entry has exactly the keys `id`, `label`, `field_id`, `cite`, `value`, `year`, `fact_ids`, `range_text`, `position_pct`, `action_keys` | holdout |
 | AC-199 | the bundled file | `GET /api/transition-alignment/benchmarks` | every sector's `isic_prefixes`, `capex`, `rnd_tests` and `redlines` equal those of v2 (as on `main` before this change) | holdout |
 | AC-186 | the preset installed | read schema `sch_transition_delivery_kpis` | nine fields, each `high_risk` true, unit `%`, min 0, max 100; `tc_alt_fuel_share_pct` applies to `["2394"]` only and `tc_fleet_lc_share_pct` to `["4923"]` only | holdout |
-| AC-187 | K's alt-fuel fact and K1 | open K's company page | a "Delivery KPIs" part sits after the redline part and before "Plan actions", with one row: `Alternative-fuel share of kiln heat`, `14%`, `2025`, `0% → 30%`, `cement.alt_fuels` | evaluator |
-| AC-200 | K's alt-fuel fact and K1 | open K's company page | the Action · barrier cell lists `cement.alt_fuels` followed by the same region and rating pairs that K1's barrier table under Plan actions shows (or only `cement.alt_fuels` when that table has no rows) | evaluator |
-| AC-201 | K's alt-fuel fact | open K's company page | the Range cell shows `ACT Cement v2.0, CEM 2.4a, p.50` under the bar, and the marker sits a little short of the middle of the bar (46.7%) | evaluator |
+| AC-187 | K's alt-fuel fact and K1 | open K's company page | a "Delivery KPIs" part sits directly before "Plan actions", with one row: `Alternative-fuel share of kiln heat`, `14%`, `2025`, `0% → 30%`, `cement.alt_fuels` | evaluator |
+| AC-200 | K's alt-fuel fact and K1 | open K's company page and request `/transition` for K | the Action · barrier cell shows `cement.alt_fuels`, then one `<region> <rating>` pair per entry of K1's `barriers` in the response, in that order | evaluator |
+| AC-201 | K's alt-fuel fact | open K's company page | the Range cell shows `ACT Cement v2.0, CEM 2.4a, p.50` under the bar | evaluator |
+| AC-203 | K's alt-fuel fact | open K's company page | the marker's left offset in the DOM is 46.7% of the bar's width (±1 percentage point) | evaluator |
 | AC-188 | K's alt-fuel fact | on K's page, click `14%` | the viewer opens Fixture Cement Report 2025 at page 12 | evaluator |
 | AC-189 | X's facts | open X's company page | the methanol row reads `not disclosed` in the Actual column and `—` in the Year column | evaluator |
 | AC-202 | X's facts | open X's company page | the methanol row's bar shows no marker | evaluator |
