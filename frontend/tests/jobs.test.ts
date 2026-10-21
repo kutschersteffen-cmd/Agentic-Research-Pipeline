@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { jobLabel, jobsToStart, removeJob, startJobs, startsText, toggleProfile, worstStatus } from "../src/lib/jobs.ts";
+import { jobLabel, jobsToStart, removeJob, reviewMode, startJobs, startsText, toggleProfile, worstStatus } from "../src/lib/jobs.ts";
 import type { BuiltInJob, CustomJob, Job } from "../src/lib/jobs.ts";
 import type { DataPointSchema } from "../src/types.ts";
 
@@ -84,4 +84,12 @@ test("stale retry skips jobs already re-run on the new inputs", () => {
   const jobs = [b("financials"), b("tnfd"), cu("custom:2", schema("X"))];
   const runs = { financials: "r3", tnfd: "r2", "custom:2": "r4" };
   assert.deepEqual(ids(jobsToStart(jobs, runs, true, ["financials", "custom:2"])), ["tnfd"]);
+});
+
+test("reviewMode: an old transition-plan run keeps its view, a preset run reads as extraction, no run yet has none", () => {
+  assert.equal(reviewMode(b("transition_plan"), null), null);
+  assert.equal(reviewMode(b("transition_plan"), { run_type: "transition_plan" }), "transition_plan");
+  assert.equal(reviewMode(b("transition_plan"), { run_type: "extraction" }), "custom");
+  assert.equal(reviewMode(b("tnfd"), null), "tnfd");
+  assert.equal(reviewMode(cu("custom:1"), null), "custom");
 });

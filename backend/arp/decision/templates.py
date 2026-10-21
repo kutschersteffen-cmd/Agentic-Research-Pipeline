@@ -43,7 +43,7 @@ RESULT_FILE = "decision.json"
 def _transition_plan_run_columns(field_names: list[str] | None) -> list[str]:
     """An old run has no field names; a preset run adds the generic extraction columns it lacks."""
     columns = sources.expected_transition_plan_columns()
-    return columns if field_names is None else [*columns, *[c for c in sources.extraction_columns(field_names) if c not in columns]]
+    return columns if not field_names else [*columns, *[c for c in sources.extraction_columns(field_names) if c not in columns]]
 
 
 # Every extraction pipeline a framework can be attached to: how its results

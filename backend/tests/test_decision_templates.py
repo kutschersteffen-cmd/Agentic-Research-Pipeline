@@ -428,3 +428,12 @@ def test_expected_transition_plan_columns_for_a_preset_schema():
     group_1 = sources.expected_transition_plan_columns()
     assert templates.expected_run_columns("transition_plan") == group_1, "an old run has no field names"
     assert templates.expected_run_columns("transition_plan", names) == [*group_1, "Extraction_Confidence_pct", *names]
+
+
+def test_matching_the_transition_plan_kind_with_no_field_names_offers_only_the_old_run_columns(client):
+    group_1 = sources.expected_transition_plan_columns()
+    assert templates.expected_run_columns("transition_plan", []) == group_1
+    framework_id = _framework_needing(client, "Extraction_Confidence_pct", [str(i * 5) for i in range(8)])
+    matches = client.post("/api/decision/templates/match", json={"run_type": "transition_plan", "field_names": []}).json()
+    match = next(m for m in matches if m["config"]["framework_id"] == framework_id)
+    assert match["missing_columns"] == ["Extraction_Confidence_pct"]

@@ -53,6 +53,13 @@ export const jobRunType = (j: Job): RunScoringKind => PROFILE_META[j.profile].ru
 /** The run types a job's runs are stored under: a transition-plan run is an extraction run on the preset schema, but a run from before that is still a transition_plan run. */
 export const jobRunTypes = (j: Job): RunScoringKind[] => (j.profile === "transition_plan" ? ["extraction", "transition_plan"] : [jobRunType(j)]);
 
+/** How a job's results are read and fetched. A transition-plan job is an extraction run on the preset schema, except a run from before the preset (`run_type` "transition_plan") keeps its own view; until the run is loaded there is no mode, so nothing is fetched against the wrong endpoint. */
+export function reviewMode(job: Job, run: { run_type: string } | null): ExtractionProfile | null {
+  if (job.profile !== "transition_plan") return job.profile;
+  if (!run) return null;
+  return run.run_type === "transition_plan" ? "transition_plan" : "custom";
+}
+
 function nonEmpty(before: Job[], after: Job[]): { jobs: Job[]; error: string | null } {
   return after.length ? { jobs: after, error: null } : { jobs: before, error: LAST };
 }

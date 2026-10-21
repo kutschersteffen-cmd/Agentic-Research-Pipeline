@@ -38,7 +38,8 @@ export function JobRun(p: { job: Job; runId: string; onRestarted: (runId: string
     <section className="card">
       <h2>{jobLabel(job)}: run progress</h2>
       <RunProgress runId={runId} runType={run?.run_type ?? jobRunType(job)} />
-      <PipelineEditor key={runId} profile={job.profile} runId={runId} onRestarted={onRestarted} />
+      {/* A run from before the preset has no pipeline to restart from. */}
+      {run?.run_type !== "transition_plan" && <PipelineEditor key={runId} profile={job.profile} runId={runId} onRestarted={onRestarted} />}
       <div className="toolbar">
         <FileLink url={api.exportRunCsvUrl(runId)} name={`${runId}.csv`}>
           Export CSV

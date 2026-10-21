@@ -26,13 +26,18 @@ export function ScoringTemplatePicker({ runType, fieldNames, presetFields, value
   const studioHref = runId ? `#/decision/${runType}_run/${encodeURIComponent(runId)}` : "#/decision";
   const [matches, setMatches] = useState<TemplateMatch[] | null>(null);
   const [error, setError] = useState("");
+  const [namesFailed, setNamesFailed] = useState(false);
   const fieldKey = (fieldNames ?? []).join("\u0000");
 
   useEffect(() => {
     let live = true;
+    setNamesFailed(false);
     const names = presetFields
-      ? api.getTransitionPlanFieldNames().catch(() => [])
-        : Promise.resolve(fieldKey ? fieldKey.split("\u0000") : []);
+      ? api.getTransitionPlanFieldNames().catch(() => {
+          if (live) setNamesFailed(true);
+          return [];
+        })
+      : Promise.resolve(fieldKey ? fieldKey.split("\u0000") : []);
     names
       .then((field_names) => api.matchTemplates({ run_type: runType, field_names, ratified_only: true }))
       .then((m) => live && setMatches(m))
@@ -79,6 +84,7 @@ export function ScoringTemplatePicker({ runType, fieldNames, presetFields, value
           template do not change how this run is scored.
         </p>
       )}
+      {namesFailed && <p className="help-text">Couldn&apos;t load the transition-plan fields; matching may miss templates.</p>}
       <p className="help-text">
         Templates are built and ratified in <a href={studioHref}>Decision Studio</a>; drafts stay there until ratified.
       </p>
