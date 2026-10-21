@@ -366,9 +366,9 @@ def _render_waterfall(ax, spec: ChartSpec, ds: QuantitativeDataset, theme: Desig
 
 
 def render_table_image(columns: list[str], rows: list[dict], out_path: Path, *, width_in: float = 9.0) -> Path:
-    """Not used by DeckBuilder (which renders tables as native pptx table
-    shapes, see deck_builder.py), only kept here for symmetry/tests. The
-    docx/pdf report builders render tables with their own native table
+    """Not used by the house pptx renderer (which renders tables as native
+    pptx table shapes), only kept here for symmetry/tests. The docx report
+    builder and the house HTML/pdf deck render tables with their own native table
     primitives too -- this function exists purely as a fallback for a
     caller that wants a table as a flat image."""
     height_in = 0.35 * (len(rows) + 1) + 0.3

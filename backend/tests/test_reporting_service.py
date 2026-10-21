@@ -86,7 +86,7 @@ async def test_run_end_to_end_renders_docx_with_dataset_chart(tmp_path, fake_llm
     assert manifest.output_filename == "output.docx"
 
 
-def test_render_from_plan_raises_when_no_plan_exists(tmp_path):
+async def test_render_from_plan_raises_when_no_plan_exists(tmp_path):
     store = _store(tmp_path)
     service = ReportingService(store)
     request = ReportRequest(title="T", qualitative_notes="notes")
@@ -97,10 +97,10 @@ def test_render_from_plan_raises_when_no_plan_exists(tmp_path):
     store.save_manifest(manifest)
 
     with pytest.raises(ValueError, match="No plan drafted"):
-        service.render_from_plan(manifest.report_id)
+        await service.render_from_plan(manifest.report_id)
 
 
-def test_render_from_plan_renders_human_edited_plan(tmp_path):
+async def test_render_from_plan_renders_human_edited_plan(tmp_path):
     """A plan overwritten via ReportingStore.save_plan (simulating a human
     edit through PUT /api/reports/{id}/plan) is what gets rendered, not
     whatever the model originally drafted."""
@@ -115,12 +115,13 @@ def test_render_from_plan_renders_human_edited_plan(tmp_path):
     edited_plan = ReportPlan(title="Edited Title", sections=[ReportSection(heading="Edited Section")])
     store.save_plan(manifest.report_id, edited_plan)
 
-    result = service.render_from_plan(manifest.report_id)
+    result = await service.render_from_plan(manifest.report_id)
 
     assert result.status == ReportStatus.COMPLETED
     from pptx import Presentation
 
     prs = Presentation(str(store.output_path(manifest.report_id, "output.pptx")))
-    titles = [s.shapes.title.text for s in prs.slides if s.shapes.title]
-    assert "Edited Title" in titles
-    assert "Edited Section" in titles
+    # The house deck draws headings as text boxes, not title placeholders.
+    texts = [shape.text_frame.text for s in prs.slides for shape in s.shapes if shape.has_text_frame]
+    assert "Edited Title" in texts
+    assert "Edited Section" in texts

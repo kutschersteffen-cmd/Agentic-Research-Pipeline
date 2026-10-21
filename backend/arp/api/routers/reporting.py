@@ -97,7 +97,7 @@ async def create_report(
     service = ReportingService(store)
     manifest = await service.create_and_plan(request, llm)
     if render and manifest.status == ReportStatus.PLAN_READY:  # a house deck waits for storyline approval instead
-        manifest = service.render_from_plan(manifest.report_id)
+        manifest = await service.render_from_plan(manifest.report_id)
     return manifest.model_dump(mode="json")
 
 
@@ -187,10 +187,10 @@ def get_findings(report_id: str, store: ReportingStore = Depends(get_reporting_s
 
 
 @router.post("/{report_id}/render")
-def render_report(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> dict:
+async def render_report(report_id: str, store: ReportingStore = Depends(get_reporting_store)) -> dict:
     service = ReportingService(store)
     try:
-        manifest = service.render_from_plan(report_id)
+        manifest = await service.render_from_plan(report_id)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     return manifest.model_dump(mode="json")

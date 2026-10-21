@@ -27,8 +27,8 @@ _ACCENT_KEYS = ("accent1", "accent2", "accent3", "accent4", "accent5", "accent6"
 
 @dataclass
 class DesignTheme:
-    """The small set of design parameters every renderer (deck_builder,
-    chart_builder, report_builder, pdf_builder) draws from -- one place
+    """The small set of design parameters chart_builder, report_builder
+    and the house deck renderers draw from -- one place
     to keep title/chart/table styling consistent, and the seam a
     template's own colors/fonts are threaded through when one is
     ingested. See theme_from_template for how it's derived.

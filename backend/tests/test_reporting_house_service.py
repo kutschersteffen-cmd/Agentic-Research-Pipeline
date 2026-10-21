@@ -1,4 +1,3 @@
-import asyncio
 
 import pytest
 from fastapi import FastAPI
@@ -99,14 +98,14 @@ async def test_applied_qa_edit_replaces_stale_fit_and_lint_findings(tmp_path, fa
     assert [f.rule for f in findings] == ["slot_dropped", "applied"]  # stale overflow + lint gone; QA's real re-fit finds nothing
 
 
-def test_render_from_plan_rerenders_house_deck_without_llm(tmp_path, fake_llm):
+async def test_render_from_plan_rerenders_house_deck_without_llm(tmp_path, fake_llm):
     store = _store(tmp_path)
     service = ReportingService(store)
-    manifest = asyncio.run(service.create_and_plan(_REQ, fake_llm({"Storyline": [_storyline(1)]})))
-    asyncio.run(service.approve_storyline(manifest.report_id, fake_llm({"SlideContent": [_bullets()]})))
+    manifest = await service.create_and_plan(_REQ, fake_llm({"Storyline": [_storyline(1)]}))
+    await service.approve_storyline(manifest.report_id, fake_llm({"SlideContent": [_bullets()]}))
     store.output_path(manifest.report_id, "output.pdf").unlink()
 
-    manifest = service.render_from_plan(manifest.report_id)
+    manifest = await service.render_from_plan(manifest.report_id)
 
     assert manifest.status == ReportStatus.COMPLETED and store.output_path(manifest.report_id, "output.pdf").exists()
 

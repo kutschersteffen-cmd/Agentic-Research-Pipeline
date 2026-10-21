@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 
 from arp.config import Settings
 from arp.llm.base import LLMClient, LLMUsage
 from arp.reporting.adapters import with_run_datasets
+from arp.reporting.browser import write_pdf
 from arp.reporting.content_planner import draft_report_plan
-from arp.reporting.deck_builder import build_deck
+from arp.reporting.deck_compat import deck_from_plan
 from arp.reporting.design import theme_from_template
 from arp.reporting.house_pipeline import build_house_deck, render_house_outputs
+from arp.reporting.house_pptx import build_house_pptx
+from arp.reporting.html_render import render_deck_html
 from arp.reporting.lint import lint_deck
-from arp.reporting.pdf_builder import build_pdf
 from arp.reporting.report_builder import build_docx
 from arp.reporting.storyline import draft_storyline
 from arp.schemas.reporting import Deck, OutputFormat, ReportManifest, ReportPlan, ReportRequest, ReportStatus, SlideContent
@@ -23,8 +24,8 @@ _EXTENSION = {OutputFormat.PPTX: "pptx", OutputFormat.DOCX: "docx", OutputFormat
 class ReportingService:
     """Orchestrates the two-step pipeline every report goes through:
     Content Planner (the one LLM call, arp.reporting.content_planner) then
-    a deterministic renderer (deck_builder/report_builder/pdf_builder,
-    chosen by output_format). Split into `create_and_plan` /
+    a deterministic renderer (the house deck for pptx/pdf, report_builder
+    for docx, chosen by output_format). Split into `create_and_plan` /
     `render_from_plan` rather than one `run` call so a human can review or
     hand-edit the persisted plan (ReportingStore.save_plan) before the
     final render -- exactly the same LLM-plans/code-executes shape as
@@ -151,7 +152,7 @@ class ReportingService:
         self.store.save_manifest(manifest)
         return manifest
 
-    def render_from_plan(self, report_id: str) -> ReportManifest:
+    async def render_from_plan(self, report_id: str) -> ReportManifest:
         """Renders whatever plan is currently persisted for this report --
         the LLM-drafted one, or a human-edited version saved over it via
         ReportingStore.save_plan. Never calls the model. A house deck
@@ -160,7 +161,7 @@ class ReportingService:
         if manifest is None:
             raise ValueError(f"Unknown report_id {report_id!r}")
         if manifest.output_format == OutputFormat.HOUSE_DECK:
-            return self._rerender_house_deck(manifest)
+            return await self._rerender(manifest)
         plan = self.store.load_plan(report_id)
         if plan is None:
             raise ValueError(f"No plan drafted yet for report {report_id!r} -- call create_and_plan first")
@@ -175,7 +176,7 @@ class ReportingService:
             filename = f"output.{_EXTENSION[request.layout.output_format]}"
             out_path = self.store.output_path(report_id, filename)
             template_style = self.store.load_template_style(request.template_id) if request.template_id else None
-            self._render(request.layout.output_format, plan, request.datasets, request.layout, template_style, out_path)
+            await self._render(request.layout.output_format, plan, request.datasets, request.layout, template_style, out_path)
         except Exception as exc:  # noqa: BLE001
             manifest.status = ReportStatus.FAILED
             manifest.error = str(exc)
@@ -183,10 +184,6 @@ class ReportingService:
             raise
 
         return self._completed(manifest, filename)
-
-    def _rerender_house_deck(self, manifest: ReportManifest) -> ReportManifest:
-        # ponytail: asyncio.run, so this sync path can't be called from inside a running loop; make it async if that's needed.
-        return asyncio.run(self._rerender(manifest))
 
     async def _rerender(self, manifest: ReportManifest) -> ReportManifest:
         report_id = manifest.report_id
@@ -205,18 +202,15 @@ class ReportingService:
         return self._completed(manifest, "output.pdf", ["output.pdf", "output.pptx"])
 
     @staticmethod
-    def _render(output_format: OutputFormat, plan: ReportPlan, datasets, layout, template_style, out_path: Path) -> Path:
-        if output_format == OutputFormat.PPTX:
-            return build_deck(plan, datasets, layout, template_style, out_path)
-        # docx/pdf have no template-file concept of their own, but an
-        # ingested pptx template's colors/fonts still carry over -- so a
-        # Word/PDF report generated alongside a pptx deck reads as the
-        # same branded system rather than a generic default.
-        theme = theme_from_template(template_style)
+    async def _render(output_format: OutputFormat, plan: ReportPlan, datasets, layout, template_style, out_path: Path) -> Path:
         if output_format == OutputFormat.DOCX:
-            return build_docx(plan, datasets, layout, out_path, theme=theme)
+            # An ingested pptx template's colors/fonts carry over, so the Word report reads as the same branded system.
+            return build_docx(plan, datasets, layout, out_path, theme=theme_from_template(template_style))
+        deck = deck_from_plan(plan)
+        if output_format == OutputFormat.PPTX:
+            return build_house_pptx(deck, datasets, out_path)
         if output_format == OutputFormat.PDF:
-            return build_pdf(plan, datasets, layout, out_path, theme=theme)
+            return await write_pdf(render_deck_html(deck, datasets), out_path)
         raise ValueError(f"Unsupported output_format: {output_format}")
 
     async def run(self, request: ReportRequest, llm: LLMClient) -> ReportManifest:
@@ -226,4 +220,4 @@ class ReportingService:
         if request.layout.output_format == OutputFormat.HOUSE_DECK:  # checked before the storyline call is spent
             raise ValueError("A house deck needs its storyline approved: use `arp report plan --format house_deck`, then `arp report approve`.")
         manifest = await self.create_and_plan(request, llm)
-        return self.render_from_plan(manifest.report_id)
+        return await self.render_from_plan(manifest.report_id)
