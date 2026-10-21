@@ -300,7 +300,7 @@ def test_transition_plan_pipeline_shape_equals_custom(api):  # AC-33
     tp = api.get("/api/extraction/pipeline", params={"profile": "transition_plan"})
     custom = api.get("/api/extraction/pipeline", params={"profile": "custom"})
     assert tp.status_code == 200
-    assert {**tp.json(), "profile": None} == {**custom.json(), "profile": None}
+    assert tp.json() == custom.json()
 
 
 def test_custom_profile_still_starts_on_its_own_schema(api):  # AC-47
