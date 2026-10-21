@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 from arp.config import Settings
@@ -203,14 +204,15 @@ class ReportingService:
 
     @staticmethod
     async def _render(output_format: OutputFormat, plan: ReportPlan, datasets, layout, template_style, out_path: Path) -> Path:
+        # The builders are sync and chart-heavy: run them in a thread so a render doesn't block the API's event loop.
         if output_format == OutputFormat.DOCX:
             # An ingested pptx template's colors/fonts carry over, so the Word report reads as the same branded system.
-            return build_docx(plan, datasets, layout, out_path, theme=theme_from_template(template_style))
+            return await asyncio.to_thread(build_docx, plan, datasets, layout, out_path, theme=theme_from_template(template_style))
         deck = deck_from_plan(plan)
         if output_format == OutputFormat.PPTX:
-            return build_house_pptx(deck, datasets, out_path)
+            return await asyncio.to_thread(build_house_pptx, deck, datasets, out_path)
         if output_format == OutputFormat.PDF:
-            return await write_pdf(render_deck_html(deck, datasets), out_path)
+            return await write_pdf(await asyncio.to_thread(render_deck_html, deck, datasets), out_path)
         raise ValueError(f"Unsupported output_format: {output_format}")
 
     async def run(self, request: ReportRequest, llm: LLMClient) -> ReportManifest:

@@ -1,3 +1,6 @@
+import asyncio
+import time
+
 import pytest
 
 from arp.reporting.service import ReportingService
@@ -125,3 +128,32 @@ async def test_render_from_plan_renders_human_edited_plan(tmp_path):
     texts = [shape.text_frame.text for s in prs.slides for shape in s.shapes if shape.has_text_frame]
     assert "Edited Title" in texts
     assert "Edited Section" in texts
+
+
+async def test_render_from_plan_builds_off_the_event_loop(tmp_path, monkeypatch):
+    """The routes that call render_from_plan are async: a slow build must not stall other requests."""
+    def slow_build(deck, datasets, out):
+        time.sleep(0.5)
+        out.write_bytes(b"")
+        return out
+
+    monkeypatch.setattr("arp.reporting.service.build_house_pptx", slow_build)
+    store = _store(tmp_path)
+    service = ReportingService(store)
+    from arp.schemas.reporting import ReportManifest
+
+    manifest = ReportManifest(title="T", output_format=OutputFormat.PPTX)
+    store.save_request(manifest.report_id, ReportRequest(title="T", qualitative_notes="n", layout=LayoutInstructions(output_format=OutputFormat.PPTX)))
+    store.save_manifest(manifest)
+    store.save_plan(manifest.report_id, _plan())
+    ticked = []
+
+    async def tick():
+        await asyncio.sleep(0.05)
+        ticked.append(time.monotonic())
+
+    started = time.monotonic()
+    result, _ = await asyncio.gather(service.render_from_plan(manifest.report_id), tick())
+
+    assert result.status == ReportStatus.COMPLETED
+    assert ticked[0] - started < 0.4  # the loop ran tick() while the pptx was being built
