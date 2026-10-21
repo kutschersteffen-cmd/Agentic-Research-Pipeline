@@ -1,3 +1,10 @@
+import type { components } from "./api/schema.gen";
+
+export type S = components["schemas"];
+// FastAPI marks fields with defaults optional in the schema, but responses always carry every
+// declared field (no route uses response_model_exclude_*), so this is what is actually served.
+export type Served<T> = T extends (infer U)[] ? Served<U>[] : T extends object ? { [K in keyof T]-?: Served<Exclude<T[K], undefined>> } : T;
+
 export type DocType =
   | "10-K"
   | "DEF-14A"
@@ -11,13 +18,7 @@ export type DocType =
 
 export type JobStatus = "pending" | "running" | "completed" | "partially_completed" | "failed" | "cancelled";
 
-export interface RunFailure {
-  run_id: string;
-  status: JobStatus;
-  error: string | null;
-  traceback: string | null;
-  company_errors: { key: string; error: string; traceback: string | null }[];
-}
+export type RunFailure = Served<S["RunFailure"]>;
 
 // The run types the Review Queue endpoints exist for -- a subset of every
 // run_type, since discovery has no review queue of its own.
@@ -87,24 +88,11 @@ export interface ActivityDefinition {
   standards_mapping?: ActivityStandardsMapping | null;
 }
 
-export interface StandardCodeMatch {
-  code: string;
-  label: string;
-}
+export type StandardCodeMatch = Served<S["StandardCodeMatch"]>;
 
-export interface GicsMatch {
-  code: string;
-  label: string;
-  rationale: string;
-}
+export type GicsMatch = Served<S["GicsMatch"]>;
 
-export interface ActivityStandardsMapping {
-  nace_codes: StandardCodeMatch[];
-  naics_codes: StandardCodeMatch[];
-  sic_codes: StandardCodeMatch[];
-  gics: GicsMatch[];
-  unmapped_isic_codes: string[];
-}
+export type ActivityStandardsMapping = Served<S["ActivityStandardsMapping"]>;
 
 export interface ThemeDefinition {
   theme_id: string;
@@ -175,12 +163,7 @@ export interface CompanyMatch {
 export type RevenueCapexMetric = "revenue" | "capex";
 export type ExposureDataSource = "catalogue" | "extracted" | "qualitative" | "unresolved";
 
-export interface ActivityCatalogueMapping {
-  activity_id: string;
-  metric: RevenueCapexMetric;
-  matched_labels: string[];
-  rationale: string;
-}
+export type ActivityCatalogueMapping = Served<S["ActivityCatalogueMapping"]>;
 
 export interface MetricExposure {
   value_pct?: number | null;
@@ -211,10 +194,7 @@ export type FieldRule =
   | (FieldRuleBase & { kind: "label"; field: string; not_in: string[] })
   | (FieldRuleBase & { kind: "computed"; formula: "ratio_pct" | "sum"; inputs: string[]; tolerance?: number });
 
-export interface RuleSuggestions {
-  rules?: { field_id: string; rule: FieldRule }[];
-  helper_fields?: FieldDefinition[];
-}
+export type RuleSuggestions = Served<S["RuleSuggestions"]>;
 
 /** One suggested rule on the Schema screen, with the helper fields it would add (UI only, not served). */
 export interface RuleSuggestion { field_id: string; rule: FieldRule; helper_fields: FieldDefinition[] }
@@ -382,14 +362,7 @@ export type IndicatorCategory = "target" | "governance" | "strategy" | "tracking
 export type WalkOrTalk = "walk" | "talk";
 export type Verdict = "YES" | "NO" | "NA";
 
-export interface TransitionPlanIndicatorDef {
-  number: number;
-  identifier: string;
-  category: IndicatorCategory;
-  walk_or_talk: WalkOrTalk;
-  question: string;
-  guideline: string;
-}
+export type TransitionPlanIndicatorDef = Served<S["TransitionPlanIndicator"]>;
 
 export interface IndicatorAssessment {
   number: number;
@@ -609,27 +582,11 @@ export interface IdentityResolutionResult {
   generated_at: string;
 }
 
-export interface DiscoveryScheduleConfig {
-  enabled: boolean;
-  interval_hours: number;
-  universe_path?: string | null;
-  doc_types: DocType[];
-  last_run_id?: string | null;
-  next_run_at?: string | null;
-}
+export type DiscoveryScheduleConfig = Served<S["DiscoveryScheduleConfig"]>;
 
-export interface TaxonomyResearcherScheduleConfig {
-  enabled: boolean;
-  interval_hours: number;
-  taxonomy_ids?: string[] | null;
-  last_run_id?: string | null;
-}
+export type TaxonomyResearcherScheduleConfig = Served<S["TaxonomyResearcherScheduleConfig"]>;
 
-export interface CalibrationScheduleConfig {
-  enabled: boolean;
-  interval_hours: number;
-  last_run_id?: string | null;
-}
+export type CalibrationScheduleConfig = Served<S["CalibrationScheduleConfig"]>;
 
 export interface TaxonomyResearchFinding {
   taxonomy_id: string;
@@ -666,57 +623,19 @@ export type DerivationMethod =
 
 export type TaxonomyStatus = "draft" | "ratified";
 
-export interface Taxonomy {
-  taxonomy_id: string;
-  name: string;
-  version: number;
-  theme: ThemeDefinition;
-  derivation_method: DerivationMethod;
-  source_notes: string;
-  status: TaxonomyStatus;
-  ratified_by?: string | null;
-  ratified_at?: string | null;
-  based_on_version?: number | null;
-  created_at: string;
-}
+export type Taxonomy = Served<S["Taxonomy"]>;
 
-export interface TaxonomyRef {
-  taxonomy_id: string;
-  version?: number | null;
-}
+export type TaxonomyRef = Served<S["TaxonomyRef"]>;
 
-export interface ActivityDuplicateCandidate {
-  activity_a_id: string;
-  activity_b_id: string;
-  similarity_note: string;
-}
+export type ActivityDuplicateCandidate = Served<S["ActivityDuplicateCandidate"]>;
 
-export interface TaxonomyComparison {
-  unique_to_a: string[];
-  unique_to_b: string[];
-  likely_duplicates: ActivityDuplicateCandidate[];
-}
+export type TaxonomyComparison = Served<S["TaxonomyComparison"]>;
 
 export type SourceCandidateType = "authority" | "thematic_fund";
 
-export interface SourceCandidate {
-  candidate_id: string;
-  source_type: SourceCandidateType;
-  name: string;
-  url: string;
-  snippet: string;
-  authority_score?: number | null;
-  authority_reasoning?: string | null;
-  discovered_at: string;
-}
+export type SourceCandidate = Served<S["SourceCandidate"]>;
 
-export interface HoldingsOverlapResult {
-  fund_names: string[];
-  core_tickers: string[];
-  union_tickers: string[];
-  ticker_presence: Record<string, string[]>;
-  pairwise_overlap_pct: Record<string, number>;
-}
+export type HoldingsOverlapResult = Served<S["HoldingsOverlapResult"]>;
 
 // --- Emerging Themes Scanner ("Tool 0") ---
 
@@ -821,14 +740,7 @@ export type TriggerSource = "controversy_screen" | "analyst_raised" | "sla_stall
 export type CorrespondenceType = "letter" | "call" | "meeting" | "email" | "other";
 export type CommitmentStatus = "open" | "verified" | "missed";
 
-export interface Contact {
-  contact_id: string;
-  name: string;
-  role: string;
-  email?: string | null;
-  phone?: string | null;
-  last_contacted_at?: string | null;
-}
+export type Contact = Served<S["Contact"]>;
 
 export interface CorrespondenceEntry {
   entry_id: string;
@@ -1032,34 +944,13 @@ export interface VoteReviewDecision {
 
 export type AggregationMetric = "market_value_sum" | "weighted_avg_datapoint" | "count";
 
-export interface PortfolioSummary {
-  portfolio_id: string;
-  name: string;
-  tags: string[];
-}
+export type PortfolioSummary = Served<S["Portfolio"]>;
 
-export interface AggregationRow {
-  group_value: string;
-  market_value_eur?: number | null;
-  weighted_avg_value?: number | null;
-  coverage_pct?: number | null;
-  holding_count: number;
-}
+export type AggregationRow = Served<S["AggregationRow"]>;
 
-export interface AggregationResult {
-  spec_name: string;
-  as_of: string;
-  metric: AggregationMetric;
-  group_by: string;
-  rows: AggregationRow[];
-  total_market_value_eur: number;
-  unresolved_market_value_eur: number;
-}
+export type AggregationResult = Served<S["AggregationResult"]>;
 
-export interface TrendPoint {
-  as_of: string;
-  result: AggregationResult;
-}
+export type TrendPoint = Served<S["TrendPoint"]>;
 
 export interface AnalyticRequest {
   name?: string;
@@ -1108,38 +999,9 @@ export type AlertComparator = "gt" | "gte" | "lt" | "lte";
 export type AlertStatus = "open" | "acknowledged" | "escalated" | "resolved" | "false_positive";
 export type BreachType = "holdings_caused" | "data_caused" | "mixed" | "unknown";
 
-export interface AlertRule {
-  rule_id: string;
-  name: string;
-  rule_type: AlertRuleType;
-  field_id?: string | null;
-  company_ids: string[];
-  portfolio_ids: string[];
-  comparator: AlertComparator;
-  threshold_value: number;
-  severity: "low" | "medium" | "high";
-  enabled: boolean;
-  created_at: string;
-}
+export type AlertRule = Served<S["AlertRule"]>;
 
-export interface Alert {
-  alert_id: string;
-  rule_id?: string | null;
-  category: "threshold_breach" | "news_controversy";
-  scope_id: string;
-  company_id?: string | null;
-  portfolio_id?: string | null;
-  triggered_at: string;
-  observed_value?: number | null;
-  threshold_value?: number | null;
-  breach_type: BreachType;
-  snapshot_date?: string | null;
-  data_point_values?: Record<string, number> | null;
-  source_flag_id?: string | null;
-  rationale: string;
-  status: AlertStatus;
-  owner?: string | null;
-}
+export type Alert = Served<S["Alert"]>;
 
 export interface SecurityMasterStatus {
   issuers: number;
@@ -1160,14 +1022,7 @@ export interface OutputItem {
   count?: number;
   used_by: { kind: string; id: string; label: string; version?: number | null }[];
 }
-export interface SmartSearchAnswer {
-  question: string;
-  resolvable: boolean;
-  clarification_needed: string;
-  filter: { target: "issues" | "outputs" | "feeds" } & Record<string, unknown> | null;
-  rows: Record<string, unknown>[];
-  answer_text: string;
-}
+export type SmartSearchAnswer = Served<S["SearchAnswer"]>;
 export interface FeedRow {
   feed: "security_master" | "holdings" | "index" | "esg" | "news";
   source_id: string;
@@ -1209,25 +1064,9 @@ export interface DemoSeedSummary {
   unresolved_security_ids: string[];
 }
 
-export interface PivotRequest {
-  name?: string;
-  portfolio_filter?: string[];
-  security_filter?: Record<string, string>;
-  row_dim: string;
-  col_dim: string;
-  metric: AggregationMetric;
-  data_point_field_id?: string | null;
-  as_of?: string | null;
-}
+export type PivotRequest = Served<S["PivotRequest"]>;
 
-export interface PivotCell {
-  row_value: string;
-  col_value: string;
-  market_value_eur?: number | null;
-  weighted_avg_value?: number | null;
-  coverage_pct?: number | null;
-  holding_count: number;
-}
+export type PivotCell = Served<S["PivotCell"]>;
 
 // --- Data library ---
 
@@ -1278,77 +1117,30 @@ export interface CachedDocumentDetail {
   filename?: string | null;
 }
 
-export interface PivotResult {
-  spec_name: string;
-  as_of: string;
-  metric: AggregationMetric;
-  row_dim: string;
-  col_dim: string;
-  row_values: string[];
-  col_values: string[];
-  cells: PivotCell[];
-  total_market_value_eur: number;
-  unresolved_market_value_eur: number;
-}
+export type PivotResult = Served<S["PivotResult"]>;
 
 export type SearchResultType = "company" | "document" | "taxonomy";
 
-export interface SearchHit {
-  type: SearchResultType;
-  id: string;
-  title: string;
-  snippet: string;
-  score: number;
-  company_id?: string | null;
-  link?: string | null;
-}
+export type SearchHit = Served<S["SearchHit"]>;
 
-export interface SearchResponse {
-  query: string;
-  total: number;
-  hits: SearchHit[];
-}
+export type SearchResponse = Served<S["SearchResponse"]>;
 
 // ---- Presentation & Reporting Tool -----------------------------------------
 
 export type AudienceLevel = "executive" | "technical" | "general";
 export type Tone = "formal" | "conversational" | "persuasive" | "neutral_analytical";
 
-export interface AudienceProfile {
-  level: AudienceLevel;
-  tone: Tone;
-  description: string;
-  focus_areas: string[];
-}
+export type AudienceProfile = Served<S["AudienceProfile"]>;
 
 export type OutputFormat = "pptx" | "docx" | "pdf" | "house_deck";
 
-export interface LayoutInstructions {
-  output_format: OutputFormat;
-  theme?: "light" | "dark";
-  target_length?: number | null;
-  max_bullets_per_slide: number;
-  include_title_slide: boolean;
-  include_agenda_slide: boolean;
-  include_appendix: boolean;
-  section_order_hint: string[];
-  free_instructions: string;
-}
+export type LayoutInstructions = Served<S["LayoutInstructions"]>;
 
 export type ColumnKind = "category" | "number" | "date" | "percent";
 
-export interface DatasetColumn {
-  name: string;
-  kind: ColumnKind;
-}
+export type DatasetColumn = Served<S["DatasetColumn"]>;
 
-export interface QuantitativeDataset {
-  dataset_id: string;
-  name: string;
-  description: string;
-  columns: DatasetColumn[];
-  rows: Record<string, unknown>[];
-}
+export type QuantitativeDataset = Served<S["QuantitativeDataset"]>;
 
 export interface TemplateLayoutInfo {
   index: number;
@@ -1376,17 +1168,7 @@ export const CHART_TYPES: ChartType[] = [
   "bar", "column", "stacked_column", "line", "area", "pie", "doughnut", "scatter", "radar", "waterfall", "heatmap", "table",
 ];
 
-export interface ChartSpec {
-  dataset_id: string;
-  chart_type: ChartType;
-  title: string;
-  category_column?: string | null;
-  value_columns: string[];
-  x_column?: string | null;
-  y_column?: string | null;
-  value_column?: string | null;
-  notes: string;
-}
+export type ChartSpec = Served<S["arp__schemas__reporting__ChartSpec"]>;
 
 export interface TableSpec {
   dataset_id: string;
@@ -1394,22 +1176,11 @@ export interface TableSpec {
   max_rows: number;
 }
 
-export interface ContentItem {
-  text: string;
-  bullet: boolean;
-}
+export type ContentItem = Served<S["ContentItem"]>;
 
 export type SectionLayoutHint = "standard" | "chart_focus" | "text_only" | "section_header";
 
-export interface ReportSection {
-  heading: string;
-  layout_hint: SectionLayoutHint;
-  narrative: ContentItem[];
-  chart?: ChartSpec | null;
-  table?: TableSpec | null;
-  speaker_notes: string;
-  appendix: boolean;
-}
+export type ReportSection = Served<S["ReportSection"]>;
 
 export interface ReportPlan {
   title: string;
@@ -1445,18 +1216,9 @@ export interface ReportManifest {
   output_files: string[];
 }
 
-export interface StorylineSlide {
-  headline: string;
-  purpose: string;
-  source_refs: string[];
-}
+export type StorylineSlide = Served<S["StorylineSlide"]>;
 
-export interface Storyline {
-  title: string;
-  subtitle: string;
-  slides: StorylineSlide[];
-  approved: boolean;
-}
+export type Storyline = Served<S["Storyline"]>;
 
 export interface Finding {
   slide: number;
@@ -1482,33 +1244,11 @@ export type SignalType = "momentum" | "value" | "text_sentiment" | "composite";
 export type WeightingScheme = "equal" | "value";
 export type RebalanceFrequency = "monthly" | "quarterly" | "annual" | "custom";
 
-export interface CompositeSignalComponent {
-  signal_type: SignalType;
-  weight: number;
-  formation_period_months: number;
-  skip_month: boolean;
-  characteristic_name?: string | null;
-  characteristic_lag_months: number;
-}
+export type CompositeSignalComponent = Served<S["CompositeSignalComponent"]>;
 
-export interface LegPerformance {
-  annualized_return_pct?: number | null;
-  monthly_mean_return_pct?: number | null;
-  annualized_volatility_pct?: number | null;
-  sharpe_ratio?: number | null;
-  t_stat?: number | null;
-  max_drawdown_pct?: number | null;
-  alpha_annualized_pct?: number | null;
-  beta?: number | null;
-}
+export type LegPerformance = Served<S["LegPerformance"]>;
 
-export interface ReportedPerformance {
-  long_leg: LegPerformance;
-  short_leg: LegPerformance;
-  long_short: LegPerformance;
-  benchmark_name?: string | null;
-  notes: string;
-}
+export type ReportedPerformance = Served<S["ReportedPerformance"]>;
 
 export interface ProvenanceInfo {
   extractor_model?: string | null;
@@ -1517,39 +1257,7 @@ export interface ProvenanceInfo {
   verifier_prompt_version?: string | null;
 }
 
-export interface StrategySpec {
-  spec_id: string;
-  paper_citation: string;
-  paper_title: string;
-  strategy_name: string;
-  signal_type: SignalType;
-  universe_description: string;
-  formation_period_months: number;
-  skip_month: boolean;
-  holding_period_months: number;
-  rebalance_frequency: RebalanceFrequency;
-  rebalance_interval_months?: number | null;
-  rebalance_anchor_month?: number | null;
-  characteristic_name?: string | null;
-  characteristic_lag_months: number;
-  composite_components: CompositeSignalComponent[];
-  num_portfolios: number;
-  long_leg_portfolio: number;
-  short_leg_portfolio: number;
-  weighting: WeightingScheme;
-  sample_period_start: string;
-  sample_period_end: string;
-  reported_performance: ReportedPerformance;
-  citations: Citation[];
-  grounded: boolean;
-  confidence: number;
-  needs_review: boolean;
-  verifier_notes?: string | null;
-  provenance: ProvenanceInfo;
-  num_trials_attempted: number;
-  extraction_notes: string;
-  created_at: string;
-}
+export type StrategySpec = Served<S["StrategySpec"]>;
 
 export interface SpecReviewDecision {
   item_key: string;
@@ -1598,64 +1306,19 @@ export interface BacktestResult {
 
 export type ReplicationVerdict = "replicated" | "partially_replicated" | "not_replicated" | "decayed_out_of_sample" | "insufficient_data";
 
-export interface DeflatedSharpeAssessment {
-  n_obs: number;
-  n_trials: number;
-  sharpe_ratio_period?: number | null;
-  skewness?: number | null;
-  kurtosis?: number | null;
-  expected_max_sharpe_under_null_period?: number | null;
-  probabilistic_sharpe_ratio?: number | null;
-  deflated_sharpe_ratio?: number | null;
-  notes: string;
-}
+export type DeflatedSharpeAssessment = Served<S["DeflatedSharpeAssessment"]>;
 
-export interface ReplicationComparisonReport {
-  report_id: string;
-  spec_id: string;
-  in_sample: BacktestResult;
-  out_of_sample?: BacktestResult | null;
-  reported_performance: ReportedPerformance;
-  in_sample_return_gap_pp?: number | null;
-  out_of_sample_return_gap_pp?: number | null;
-  deflated_sharpe?: DeflatedSharpeAssessment | null;
-  verdict: ReplicationVerdict;
-  verdict_notes: string;
-  generated_at: string;
-}
+export type ReplicationComparisonReport = Served<S["ReplicationComparisonReport"]>;
 
-export interface SanityCheckFinding {
-  concern: string;
-  explanation: string;
-}
+export type SanityCheckFinding = Served<S["SanityCheckFinding"]>;
 
-export interface SanityCheckAssessment {
-  plausible: boolean;
-  findings: SanityCheckFinding[];
-  summary: string;
-}
+export type SanityCheckAssessment = Served<S["SanityCheckAssessment"]>;
 
-export interface RegimeBucketPerformance {
-  regime: "low_volatility" | "mid_volatility" | "high_volatility";
-  num_periods: number;
-  long_short: LegPerformance;
-}
+export type RegimeBucketPerformance = Served<S["RegimeBucketPerformance"]>;
 
-export interface RegimeStratifiedReport {
-  trailing_window_months: number;
-  buckets: RegimeBucketPerformance[];
-  notes: string;
-}
+export type RegimeStratifiedReport = Served<S["RegimeStratifiedReport"]>;
 
-export interface ReplicationRunDetail {
-  run_id: string;
-  spec: StrategySpec;
-  in_sample: BacktestResult;
-  out_of_sample?: BacktestResult | null;
-  comparison: ReplicationComparisonReport;
-  sanity_check?: SanityCheckAssessment | null;
-  regime_report?: RegimeStratifiedReport | null;
-}
+export type ReplicationRunDetail = Served<S["ReplicationRunDetail"]>;
 
 // --- Transition Barrier Assessment (105-cell sector x region
 // transition-feasibility matrix: 35 criteria x EU/US/China) ---
@@ -1721,21 +1384,7 @@ export interface BarrierCriterion {
   rule_book_version: number | null;
 }
 
-export interface BarrierScore {
-  code: string;
-  sector: string;
-  category: BarrierPillar;
-  criterion: string;
-  region: BarrierRegion;
-  rating: BarrierRating;
-  confidence: BarrierConfidence;
-  evidence: string;
-  source: string;
-  last_verified: string;
-  basis: "hand_rated" | "derived";
-  ratified_by: string | null;
-  flags: string[];
-}
+export type BarrierScore = Served<S["BarrierScore"]>;
 
 export interface BarrierMatrixCell extends BarrierScore {
   stale: boolean;
@@ -1847,14 +1496,7 @@ export interface BarrierFactForm {
   tier?: string;
 }
 
-export interface BarrierStalenessReport {
-  threshold_days: number;
-  as_of: string;
-  total: number;
-  stale: number;
-  fresh: number;
-  stale_codes: string[];
-}
+export type BarrierStalenessReport = Served<S["StalenessReport"]>;
 
 export interface BarrierRefreshCoverage {
   total_sources: number;
@@ -1878,92 +1520,24 @@ export type EntityStatus = "scored" | "excluded" | "insufficient";
 
 export const COLUMN_ROLES: ColumnRole[] = ["label", "reference", "size", "gate", "criterion", "segment", "excluded"];
 
-export interface ColumnStats {
-  count: number;
-  min?: number | null;
-  p5?: number | null;
-  q1?: number | null;
-  median?: number | null;
-  q3?: number | null;
-  p95?: number | null;
-  max?: number | null;
-  mean?: number | null;
-  sd?: number | null;
-  true_share?: number | null;
-}
+export type ColumnStats = Served<S["ColumnStats"]>;
 
-export interface ColumnProfile {
-  name: string;
-  type: ColumnType;
-  coverage: number;
-  unique: number;
-  spread: boolean;
-  decimal_comma: boolean;
-  stats?: ColumnStats | null;
-  levels: string[];
-}
+export type ColumnProfile = Served<S["ColumnProfile"]>;
 
-export interface RoleProposal {
-  column: string;
-  role: ColumnRole;
-  role_reason: string;
-  direction: Direction;
-  direction_reason: string;
-  needs_check: boolean;
-}
+export type RoleProposal = Served<S["RoleProposal"]>;
 
-export interface DatasetSummary {
-  dataset_id: string;
-  name: string;
-  source: string;
-  source_ref?: string | null;
-  as_of?: string | null;
-  row_count: number;
-  columns: string[];
-  preview: Record<string, string>[];
-  profiles: ColumnProfile[];
-  proposals: RoleProposal[];
-  has_confidence: boolean;
-  /** Preview rows typed exactly as the rule engine sees them. */
-  rule_inputs: Record<string, unknown>[];
-  calculated_columns: string[];
-  rule_audit: AuditEntry[];
-}
+// `rule_inputs`: Preview rows typed exactly as the rule engine sees them.
+export type DatasetSummary = Served<S["DatasetSummary"]>;
 
-export interface Dimension {
-  id: string;
-  name: string;
-  weight: number;
-  derived_from: string[];
-}
+export type Dimension = Served<S["Dimension"]>;
 
-export interface Criterion {
-  column: string;
-  dimension_id: string;
-  weight: number;
-  enabled: boolean;
-  direction: Direction;
-}
+export type Criterion = Served<S["Criterion"]>;
 
-export interface GateRule {
-  id: string;
-  column: string;
-  op: GateOp;
-  value: string;
-  outcome: GateOutcome;
-}
+export type GateRule = Served<S["GateRule"]>;
 
-export interface VetoRule {
-  enabled: boolean;
-  min_score: number;
-  min_criteria: number;
-}
+export type VetoRule = Served<S["VetoRule"]>;
 
-export interface TierDefinition {
-  rank: number;
-  name: string;
-  action: string;
-}
+export type TierDefinition = Served<S["TierDefinition"]>;
 
 export interface MechanismConfig {
   framework_id: string;
@@ -2011,11 +1585,7 @@ export interface MechanismConfig {
 export type ScoringMode = "relative" | "levels";
 
 /** One cell of a level grid: the level an entity gets when `when` (a ZEN expression over its columns) holds. */
-export interface LevelRule {
-  level: number;
-  when: string;
-  note?: string;
-}
+export type LevelRule = Served<S["LevelRule"]>;
 
 /** A criterion scored on the fixed scale; rules are tried in order, first match wins, else `otherwise`. */
 export interface LevelCriterion {
@@ -2036,16 +1606,7 @@ export interface RuleGraph {
   edges: { id: string; sourceId: string; targetId: string; sourceHandle?: string | null; type?: string }[];
 }
 
-export interface AuditEntry {
-  stage: string;
-  item: string;
-  decision: string;
-  why: string;
-  needs_check: boolean;
-  origin: "derived" | "human";
-  at: string;
-  by?: string | null;
-}
+export type AuditEntry = Served<S["AuditEntry"]>;
 
 export interface MechanismEnvelope {
   config: MechanismConfig;
@@ -2056,11 +1617,7 @@ export interface MechanismEnvelope {
 export type RunScoringKind = "extraction" | "transition_plan" | "financials" | "tnfd";
 
 /** A saved framework and the columns it needs that a table or schema would not supply. */
-export interface TemplateMatch {
-  config: MechanismConfig;
-  required_columns: string[];
-  missing_columns: string[];
-}
+export type TemplateMatch = Served<S["TemplateMatch"]>;
 
 /** A run's results scored with the template version pinned on it. */
 export interface RunDecision {
@@ -2086,137 +1643,28 @@ export interface LevelOverride {
   at?: string;
 }
 
-export interface CriterionContribution {
-  column: string;
-  normalised?: number | null;
-  weight: number;
-  contribution: number;
-  imputed: boolean;
-  low_confidence: boolean;
-  /** Levels mode: the criterion, and when overridden, the rules' level and the override. */
-  criterion_id?: string | null;
-  overridden_from?: number | null;
-  override?: LevelOverride | null;
-}
+// `criterion_id`: Levels mode: the criterion, and when overridden, the rules' level and the override.
+export type CriterionContribution = Served<S["CriterionContribution"]>;
 
-export interface OverridesView {
-  overrides: LevelOverride[];
-  history: (Partial<LevelOverride> & { action: "set" | "removed"; at: string })[];
-}
+export type OverridesView = Served<S["OverridesView"]>;
 
-export interface EntityDecision {
-  entity_key: string;
-  name: string;
-  segment?: string | null;
-  cohort?: string | null;
-  score?: number | null;
-  coverage: number;
-  grounded_coverage?: number | null;
-  status: EntityStatus;
-  tier?: number | null;
-  tier_name?: string | null;
-  tier_action?: string | null;
-  notes: string[];
-  rank?: number | null;
-  rank_min?: number | null;
-  rank_max?: number | null;
-  size?: number | null;
-  leverage?: number | null;
-  leverage_rank?: number | null;
-  dimension_scores: Record<string, number | null>;
-  contributions: CriterionContribution[];
-}
+export type EntityDecision = Served<S["EntityDecision"]>;
 
-export interface TierSummary {
-  rank: number;
-  name: string;
-  action: string;
-  count: number;
-  size_total?: number | null;
-}
+export type TierSummary = Served<S["TierSummary"]>;
 
-export interface HistogramBin {
-  lower: number;
-  upper: number;
-  count: number;
-}
+export type HistogramBin = Served<S["HistogramBin"]>;
 
-export interface DecisionResult {
-  framework_id: string;
-  framework_version: number;
-  dataset_id?: string | null;
-  computed_at: string;
-  norm: NormMethod;
-  effective_cuts: number[];
-  cuts_origin: CutMode;
-  effective_weights: Record<string, number>;
-  /** Columns the framework uses that this table lacks; such a result cannot be published. */
-  missing_columns?: string[];
-  entities: EntityDecision[];
-  tier_summary: TierSummary[];
-  histogram: HistogramBin[];
-  scored_count: number;
-  excluded_count: number;
-  insufficient_count: number;
-  audit: AuditEntry[];
-  /** What a tier graph sees for the first rows (band, score, rank, columns…). */
-  tier_inputs: Record<string, unknown>[];
-}
+// `missing_columns`: Columns the framework uses that this table lacks; such a result cannot be published.
+// `tier_inputs`: What a tier graph sees for the first rows (band, score, rank, columns…).
+export type DecisionResult = Served<S["DecisionResult"]>;
 
-export interface TippingPoint {
-  dimension_id: string;
-  dimension_name: string;
-  current_weight_pct: number;
-  flip_weight_pct?: number | null;
-  delta_pct?: number | null;
-  new_tier?: number | null;
-  robust: boolean;
-}
+export type TippingPoint = Served<S["TippingPoint"]>;
 
-export interface EntitySensitivity {
-  entity_key: string;
-  name: string;
-  tier?: number | null;
-  score?: number | null;
-  tipping_points: TippingPoint[];
-  min_delta_pct?: number | null;
-}
+export type EntitySensitivity = Served<S["EntitySensitivity"]>;
 
-export interface EntityMovement {
-  entity_key: string;
-  name: string;
-  tier_before?: number | null;
-  tier_after?: number | null;
-  tier_delta?: number | null;
-  score_before?: number | null;
-  score_after?: number | null;
-  score_delta?: number | null;
-  rank_before?: number | null;
-  rank_after?: number | null;
-  rank_delta?: number | null;
-  status_before?: EntityStatus | null;
-  status_after?: EntityStatus | null;
-  drivers: string[];
-}
+export type EntityMovement = Served<S["EntityMovement"]>;
 
-export interface DecisionComparison {
-  framework_id: string;
-  framework_version: number;
-  label_before: string;
-  label_after: string;
-  improved: number;
-  worsened: number;
-  unchanged: number;
-  entered: number;
-  left: number;
-  movements: EntityMovement[];
-  comparable: boolean;
-  incomparable_reason?: string | null;
-  caveat?: string | null;
-  cut_points?: number[];
-  cuts_moved?: string | null;
-  missing_columns?: string[];
-}
+export type DecisionComparison = Served<S["DecisionComparison"]>;
 
 // ---------------------------------------------------------------- index
 
@@ -2292,29 +1740,9 @@ export interface GroupCap {
   label?: string;
 }
 
-export interface RiskModelSpec {
-  source: "ledoit_wolf" | "sample" | "factor" | "supplied";
-  lookback_periods: number;
-  min_observations: number;
-  periods_per_year: number;
-  factor_fields: string[];
-}
+export type RiskModelSpec = Served<S["RiskModelSpec"]>;
 
-export interface ConstraintSolver {
-  method: "waterfall" | "least_squares" | "min_tracking_error" | "max_score";
-  solver: "CLARABEL" | "OSQP" | "SCS";
-  verify_tolerance: number;
-  fallback_to_waterfall: boolean;
-  tracking_error_budget?: number | null;
-  score_field?: string | null;
-  min_risk_coverage: number;
-  risk_model: RiskModelSpec;
-  enforce_semicontinuous: boolean;
-  mip_solver: "SCIP" | "HIGHS" | "GUROBI" | "MOSEK" | "CPLEX";
-  mip_gap: number;
-  mip_time_limit_seconds?: number | null;
-  tie_break_epsilon: number;
-}
+export type ConstraintSolver = Served<S["ConstraintSolver"]>;
 
 export interface ConstraintSet {
   single_name_cap?: number | null;
@@ -2351,44 +1779,11 @@ export interface ConstructionSpec {
   rounding: { weight_decimals: number; shares_decimals: number; level_decimals: number };
 }
 
-export interface IndexCalibration {
-  calibration_id: string;
-  name: string;
-  version: number;
-  based_on_version?: number | null;
-  effective_from: string;
-  effective_to?: string | null;
-  approved_by: string[];
-  created_by?: string | null;
-  notes: string;
-  created_at: string;
-  spec: ConstructionSpec;
-}
+export type IndexCalibration = Served<S["IndexCalibration"]>;
 
-export interface StageTrace {
-  stage: string;
-  rule_type: string;
-  label: string;
-  candidates_in: number;
-  candidates_out: number;
-  dropped_sample: string[];
-  detail: Record<string, string | number>;
-}
+export type StageTrace = Served<S["StageTrace"]>;
 
-export interface IndexConstituent {
-  company_id: string;
-  name: string;
-  sector?: string | null;
-  country?: string | null;
-  weight: number;
-  base_weight: number;
-  tilt_multiplier: number;
-  capping_factor: number;
-  price: number;
-  fx_rate: number;
-  index_shares: number;
-  metrics: Record<string, number>;
-}
+export type IndexConstituent = Served<S["Constituent"]>;
 
 export interface IndexState {
   index_id: string;
@@ -2404,37 +1799,9 @@ export interface IndexState {
   index_level?: number | null;
 }
 
-export interface ReviewDiagnostics {
-  universe_size: number;
-  eligible_size: number;
-  selected_size: number;
-  final_size: number;
-  weighted_metrics: Record<string, number>;
-  universe_weighted_metrics: Record<string, number>;
-  effective_n: number;
-  max_weight: number;
-  one_way_turnover?: number | null;
-  capping_iterations: number;
-  trajectory_iterations: number;
-  tracking_error?: number | null;
-  integer_constraints?: boolean;
-}
+export type ReviewDiagnostics = Served<S["ReviewDiagnostics"]>;
 
-export interface IndexReviewResult {
-  index_id: string;
-  review_date: string;
-  calibration_id?: string | null;
-  calibration_version?: number | null;
-  config_hash: string;
-  constituents: IndexConstituent[];
-  diagnostics: ReviewDiagnostics;
-  trace: StageTrace[];
-  state: IndexState;
-  exceptions: string[];
-  decision_snapshot_ids?: string[];
-  input_notes?: string[];
-  created_at: string;
-}
+export type IndexReviewResult = Served<S["ReviewResult"]>;
 
 export interface IndexFieldInventory {
   metrics: string[];
@@ -2811,20 +2178,7 @@ export interface ClientReport {
   notes: string[];
 }
 
-export interface ProgramParams {
-  objective: string;
-  benchmark: string;
-  normalisation: "rank_percentile" | "zscore" | "max";
-  tilt_floor: number;
-  tilt_ceiling: number;
-  leader_clti: number;
-  laggard_clti: number;
-  include_triggers: boolean;
-  max_targets: number;
-  min_weight_ratio: number;
-  effort_days: number;
-  free_capacity_days: number;
-}
+export type ProgramParams = Served<S["ProgramParams"]>;
 
 export interface ProgramTarget {
   issuer_id: string;
@@ -2912,23 +2266,8 @@ export interface VotingPreview {
 }
 
 /** A ratified Decision Studio result, frozen for Steward Workflow and Index Construction. */
-export interface PublishedDecision {
-  snapshot_id: string;
-  framework_id: string;
-  framework_version: number;
-  framework_name: string;
-  dataset_id: string;
-  dataset_name: string;
-  as_of?: string | null;
-  id_column: string;
-  published_by: string;
-  published_at: string;
-  note: string;
-  cut_points?: number[];
-  /** The first publication of this framework version, whose cut-points were reused. */
-  cuts_held_from?: string | null;
-  rows: { entity_id: string; name: string; score: number | null; tier: number | null; tier_name: string | null; rank: number | null; status: string }[];
-}
+// `cuts_held_from`: The first publication of this framework version, whose cut-points were reused.
+export type PublishedDecision = Served<S["PublishedDecision"]>;
 
 export interface DecisionInput {
   snapshot_id: string;
@@ -3051,74 +2390,25 @@ export interface RunCompany {
 }
 
 /** Superset BI designer (/api/bi). A refused plan is a 200 with `rejected` reasons and no dashboard. */
-export interface BIChartSpec {
-  title: string;
-  question: string;
-  viz_type: string;
-  dataset: string;
-  metrics: string[];
-  groupby: string[];
-  filters: Record<string, string>;
-}
+export type BIChartSpec = Served<S["ChartSpec-Output"]>;
 
-export interface BIChartPlan {
-  title: string;
-  goal: string;
-  charts: BIChartSpec[];
-}
+export type BIChartPlan = Served<S["ChartPlan"]>;
 
-export interface BIDesignResult {
-  dashboard_id: number | null;
-  slug: string | null;
-  url: string | null;
-  plan: BIChartPlan | null;
-  rejected: string[];
-  clarification_needed: string | null;
-}
+export type BIDesignResult = Served<S["DesignResult"]>;
 
-export interface BIEmbedToken {
-  token: string;
-  embedded_id: string;
-}
+export type BIEmbedToken = Served<S["EmbedToken"]>;
 
 /** An embeddable Superset dashboard (slug starts with `arp-`), from GET /api/bi/dashboards. */
-export interface DashboardItem {
-  id: number;
-  slug: string;
-  title: string;
-  published: boolean;
-}
+export type DashboardItem = Served<S["DashboardItem"]>;
 
 /** Projects (/api/projects): a named data set plus its dashboards. */
-export interface ProjectSummary {
-  id: string;
-  name: string;
-  description: string;
-  created_at: string;
-  data_files: number;
-  dashboards: number;
-}
+export type ProjectSummary = Served<S["ProjectSummary"]>;
 
-export interface OpenedDashboard {
-  id: number | null;
-  slug: string;
-  title: string;
-  published: boolean;
-  status: string; // created | rebuilt | unchanged | skipped
-}
+export type OpenedDashboard = Served<S["OpenedDashboard"]>;
 
-export interface OpenResult {
-  data: Record<string, unknown>[];
-  dashboards: OpenedDashboard[];
-}
+export type OpenResult = Served<S["OpenResult"]>;
 
-export interface ExportedDashboard {
-  slug: string;
-  title: string;
-  source: string;
-  file: string;
-  scoped: boolean;
-}
+export type ExportedDashboard = Served<S["ExportedDashboard"]>;
 
 export interface HolderStatus {
   holder_id: string;
@@ -3236,21 +2526,7 @@ export interface XbrlPivot {
   total: number;
 }
 
-export interface XbrlRequiredRow {
-  market: XbrlMarket;
-  company_id: string;
-  cik: string;
-  metric: "revenue" | "capex";
-  fiscal_year: number | null;
-  status: "found" | "not_found";
-  concept: string | null;
-  value: number | null;
-  unit: string | null;
-  period_start: string | null;
-  period_end: string | null;
-  form: string | null;
-  filed: string | null;
-}
+export type XbrlRequiredRow = Served<S["RequiredRow"]>;
 
 export interface XbrlVerifyRow {
   company_id: string;
@@ -3305,44 +2581,13 @@ export interface WorkbenchResponse {
 // One-company view (backend arp/db/company_view.py)
 export type CompanyFactStatus = "auto_accepted" | "approved" | "edited" | "pending_review" | "held";
 
-export interface CompanyIdentifier {
-  scheme: string;
-  value: string;
-  valid_from: string;
-  valid_to: string | null;
-}
+export type CompanyIdentifier = Served<S["IdentifierOut"]>;
 
-export interface CompanySearchHit {
-  id: string;
-  name: string;
-  country: string | null;
-  sector: string | null;
-  identifiers: CompanyIdentifier[];
-}
+export type CompanySearchHit = Served<S["CompanySearchHit"]>;
 
-export interface CompanyHolder {
-  holder_id: string;
-  kind: "index" | "portfolio";
-  as_of_date: string;
-  weight_pct: number | null;
-}
+export type CompanyHolder = Served<S["HolderOut"]>;
 
-export interface CompanySummary {
-  id: string;
-  name: string;
-  country: string | null;
-  sector: string | null;
-  isic_code: string | null;
-  fiscal_year_end: string | null;
-  regimes: string[];
-  identifiers: CompanyIdentifier[];
-  fact_counts: Partial<Record<CompanyFactStatus, number>>;
-  open_review_items: number;
-  documents: number;
-  runs: number;
-  holders: CompanyHolder[];
-  holders_available: boolean;
-}
+export type CompanySummary = Served<S["CompanySummary"]>;
 
 export interface CompanyFactRow {
   fact_id: number;
@@ -3362,133 +2607,31 @@ export interface CompanyFactRow {
   valid_to: string | null;
 }
 
-export interface FactCitation {
-  doc_id: string;
-  title: string;
-  page: number | null;
-  quote: string | null;
-  char_start: number | null;
-  char_end: number | null;
-  passage_id: string | null;
-  role: "primary" | "corroborating" | "alternative";
-  grounded: boolean;
-  /** For the raw-file route, in the document registry's original case. */
-  company_id: string;
-  doc_type: string;
-  source_filename: string | null;
-  source_url: string | null;
-}
+// `company_id`: For the raw-file route, in the document registry's original case.
+export type FactCitation = Served<S["CitationOut"]>;
 
-export interface FactLoad {
-  source_name: string;
-  fetched_at: string;
-  payload_uri: string | null;
-}
+export type FactLoad = Served<S["LoadOut"]>;
 
-export interface FactDecision {
-  decision: "approve" | "edit" | "correct" | "reject" | "escalate" | "hold" | null;
-  reviewer: string | null;
-  decided_at: string;
-  comment: string | null;
-}
+export type FactDecision = Served<S["DecisionOut"]>;
 
-export interface FactObservation {
-  id: number;
-  source_kind: CompanyFactRow["source_kind"];
-  run_id: string | null;
-  value: unknown;
-  value_state: "found" | "zero" | "not_found" | "not_applicable";
-  unit: string | null;
-  confidence: number | null;
-  route: "auto_accept" | "review" | "hold" | null;
-  created_at: string;
-}
+export type FactObservation = Served<S["ObservationOut"]>;
 
-export interface FactVersion {
-  fact_id: number;
-  status: CompanyFactStatus;
-  value: unknown;
-  valid_from: string;
-  valid_to: string | null;
-  superseded_by: number | null;
-  observation: FactObservation;
-  citations: FactCitation[];
-  load: FactLoad | null;
-  decisions: FactDecision[];
-}
+export type FactVersion = Served<S["FactVersion"]>;
 
-export interface FactTrail {
-  fact_id: number;
-  company_id: string;
-  field_id: string;
-  period_end: string | null;
-  basis: string;
-  versions: FactVersion[];
-}
+export type FactTrail = Served<S["FactTrail"]>;
 
 /** GET /api/companies/{ref}/transition (backend arp/schemas/transition_alignment.py). */
-export interface TransitionBenchmark {
-  value: number;
-  unit: string;
-  method: string;
-  citation: string;
-  url: string | null;
-  licence: string;
-}
+export type TransitionBenchmark = Served<S["BenchmarkOut"]>;
 
-export interface TransitionShare {
-  value: number;
-  source: "disclosed" | "computed from amounts";
-  fact_ids: number[];
-}
+export type TransitionShare = Served<S["ShareOut"]>;
 
-export interface TransitionAmount {
-  field_id: string;
-  year: number;
-  shown: string;
-  fact_id: number;
-  citation: string | null;
-}
+export type TransitionAmount = Served<S["AmountOut"]>;
 
-export interface TransitionRndResult {
-  id: string;
-  label: string;
-  used: number | null;
-  rule: string | null;
-  benchmark: number;
-  ratio: number | null;
-  ratio_shown: string | null;
-  not_scored: string | null;
-  fact_ids: number[];
-}
+export type TransitionRndResult = Served<S["RndResultOut"]>;
 
-export interface TransitionRedline {
-  id: string;
-  label: string;
-  status: "breached" | "not breached" | "no disclosure";
-  text: string;
-  citation: string | null;
-  fact_id: number | null;
-  source: string;
-}
+export type TransitionRedline = Served<S["RedlineOut"]>;
 
-export interface TransitionCapex {
-  reporting_year: number | null;
-  share_ry: TransitionShare | null;
-  share_ry1: TransitionShare | null;
-  share_used: number | null;
-  share_used_shown: string | null;
-  rule: string | null;
-  benchmark: TransitionBenchmark;
-  ratio: number | null;
-  ratio_shown: string | null;
-  not_scored: string | null;
-  headline: string;
-  amounts: TransitionAmount[];
-  rnd_tests: TransitionRndResult[];
-  redlines: TransitionRedline[];
-  licence_note: string;
-}
+export type TransitionCapex = Served<S["CapexOut"]>;
 
 export interface CompanyTransition {
   in_scope: boolean;
@@ -3503,11 +2646,7 @@ export interface CompanyTransition {
   assumptions: TransitionAssumption[];
 }
 
-export interface TransitionB02 {
-  met: boolean;
-  text: string;
-  fact_ids: number[];
-}
+export type TransitionB02 = Served<S["B02Out"]>;
 
 export interface TransitionBarrier {
   code: string;
@@ -3534,23 +2673,9 @@ export interface TransitionAction {
   fact_ids: number[];
 }
 
-export interface TransitionComparison {
-  code: string;
-  region: string;
-  assumption: string | null;
-  evidence: string;
-  gap: string | null;
-  reason: string | null;
-}
+export type TransitionComparison = Served<S["ComparisonOut"]>;
 
-export interface TransitionAssumption {
-  kind: string;
-  region: string | null;
-  year: number | null;
-  citation: string | null;
-  fact_id: number;
-  comparisons: TransitionComparison[];
-}
+export type TransitionAssumption = Served<S["AssumptionOut"]>;
 
 export type CutoffStatus = "none" | "recorded" | "unknown";
 export interface SignalWindow {
@@ -3584,40 +2709,10 @@ export interface SignalExperimentDetail {
   recipe: { method: string; category: string; universe: string; window_start: string; window_end: string; cost_bps: number };
   evidence: { n_trials: number; contamination_gap_ic: number | null; windows: SignalWindow[] };
 }
-export interface SignalMethod {
-  name: string;
-  runnable_in_app: boolean;
-}
-export interface SignalComparison {
-  a: string;
-  b: string;
-  verdict: "a_higher" | "b_higher" | "insufficient_data";
-  months: number;
-  n_comparisons: number;
-  reason: string | null;
-}
+export type SignalMethod = Served<S["MethodInfo"]>;
+export type SignalComparison = Served<S["Comparison"]>;
 
 /** GET /api/themes/runs/{run_id}/layers: theme exposure layers, computed on read. */
-export interface ThemeLayerRow {
-  issuer_key: string;
-  name: string;
-  in_run: boolean;
-  l1: number | null;
-  l2: number | null;
-  l3: number | null;
-  score: number | null;
-  pure_play: boolean;
-  status: string;
-  rank: number | null;
-  l2_via: string[] | null;
-}
+export type ThemeLayerRow = Served<S["ThemeLayerRow"]>;
 
-export interface ThemeLayers {
-  run_id: string;
-  as_of: string;
-  weights: { w1: number; w2: number; w3: number };
-  decay: number;
-  max_hops: number;
-  pure_play_threshold: number;
-  rows: ThemeLayerRow[];
-}
+export type ThemeLayers = Served<S["ThemeLayers"]>;
