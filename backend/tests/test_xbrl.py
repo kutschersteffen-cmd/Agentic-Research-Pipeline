@@ -6,7 +6,7 @@ import time
 import httpx
 
 from arp.ingestion.edgar import EdgarDocumentSource
-from arp.ingestion.xbrl import XbrlFactSource
+from arp.ingestion.xbrl import CAPEX_TAGS, REVENUE_TAGS, RND_TAGS, XbrlFactSource
 
 
 class _FailingClient:
@@ -59,21 +59,23 @@ def _source(tmp_path) -> XbrlFactSource:
     return XbrlFactSource(edgar, tmp_path / "cache")
 
 
-async def test_picks_most_recent_full_fiscal_year_not_latest_filed_quarter(tmp_path, monkeypatch):
+async def test_picks_the_years_full_fiscal_year_not_latest_filed_quarter(tmp_path, monkeypatch):
     source = _source(tmp_path)
     _write_cache(tmp_path / "cache", "0000320193", _COMPANY_FACTS)
     monkeypatch.setattr("arp.ingestion.xbrl.httpx.AsyncClient", _FailingClient)
 
-    facts = await source.fetch_capex_rnd_revenue("apple", "320193")
+    facts = await source.fetch_company_facts("320193")
+    assert facts is not None  # served from the fresh cache, no network
 
-    assert facts is not None
-    assert facts.capex is not None
-    assert facts.capex.value == 340000000
-    assert facts.capex.fiscal_year == 2025
-    assert facts.capex.tag == "PaymentsToAcquirePropertyPlantAndEquipment"
-    assert facts.rnd is not None
-    assert facts.rnd.value == 120000000
-    assert facts.revenue is None  # not present in the fixture -- must not be invented
+    capex = XbrlFactSource.fact_for_tags(facts, CAPEX_TAGS, fiscal_year=2025)
+    assert capex is not None
+    assert capex.value == 340000000
+    assert capex.fiscal_year == 2025
+    assert capex.tag == "PaymentsToAcquirePropertyPlantAndEquipment"
+    assert XbrlFactSource.fact_for_tags(facts, CAPEX_TAGS, fiscal_year=2024).value == 300000000
+    assert XbrlFactSource.fact_for_tags(facts, CAPEX_TAGS, fiscal_year=2026) is None  # only a 10-Q that year
+    assert XbrlFactSource.fact_for_tags(facts, RND_TAGS, fiscal_year=2025).value == 120000000
+    assert XbrlFactSource.fact_for_tags(facts, REVENUE_TAGS, fiscal_year=2025) is None  # not in the fixture -- must not be invented
 
 
 async def test_falls_back_through_tag_priority_list(tmp_path, monkeypatch):
@@ -90,11 +92,11 @@ async def test_falls_back_through_tag_priority_list(tmp_path, monkeypatch):
     _write_cache(tmp_path / "cache", "0000320193", facts_json)
     monkeypatch.setattr("arp.ingestion.xbrl.httpx.AsyncClient", _FailingClient)
 
-    facts = await source.fetch_capex_rnd_revenue("apple", "320193")
+    facts = await source.fetch_company_facts("320193")
 
-    assert facts is not None
-    assert facts.capex is not None
-    assert facts.capex.tag == "CapitalExpenditures"  # not the higher-priority (absent) tag
+    capex = XbrlFactSource.fact_for_tags(facts, CAPEX_TAGS, fiscal_year=2025)
+    assert capex is not None
+    assert capex.tag == "CapitalExpenditures"  # not the higher-priority (absent) tag
 
 
 async def test_no_matching_tags_returns_none_fields_not_zero(tmp_path, monkeypatch):
@@ -102,11 +104,11 @@ async def test_no_matching_tags_returns_none_fields_not_zero(tmp_path, monkeypat
     _write_cache(tmp_path / "cache", "0000320193", {"facts": {"us-gaap": {}}})
     monkeypatch.setattr("arp.ingestion.xbrl.httpx.AsyncClient", _FailingClient)
 
-    facts = await source.fetch_capex_rnd_revenue("apple", "320193")
+    facts = await source.fetch_company_facts("320193")
 
     assert facts is not None
-    assert facts.capex is None
-    assert facts.rnd is None
+    assert XbrlFactSource.fact_for_tags(facts, CAPEX_TAGS, fiscal_year=2025) is None
+    assert XbrlFactSource.fact_for_tags(facts, RND_TAGS, fiscal_year=2025) is None
 
 
 async def test_stale_cache_is_refetched(tmp_path, monkeypatch):
@@ -115,7 +117,7 @@ async def test_stale_cache_is_refetched(tmp_path, monkeypatch):
     monkeypatch.setattr("arp.ingestion.xbrl.httpx.AsyncClient", _FailingClient)
 
     try:
-        await source.fetch_capex_rnd_revenue("apple", "320193")
+        await source.fetch_company_facts("320193")
         raised = False
     except httpx.ConnectError:
         raised = True

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import logging
+import re
 
 from arp.config import Settings
 from arp.extraction.financials_graph import extract_company_financials
 from arp.extraction.pre_steps import prepare_company
 from arp.ingestion.registry import DocumentSourceRegistry
-from arp.ingestion.xbrl import XbrlFactSource
+from arp.ingestion.xbrl import CAPEX_TAGS, RND_TAGS, XbrlFactSource
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
@@ -26,6 +27,15 @@ class FinancialsExtractionResult:
         self.cost_usd = cost_usd
 
 
+_YEAR = re.compile(r"(?<!\d)(?:19|20)\d{2}(?!\d)")
+
+
+def _fiscal_year(fiscal_period: str | None) -> int | None:
+    """The last four-digit year in the LLM's free-text period ("FY2024", "year ended 31 Dec 2024")."""
+    years = _YEAR.findall(fiscal_period or "")
+    return int(years[-1]) if years else None
+
+
 async def _overlay_xbrl_facts(
     record: CompanyFinancialsRecord, company: CompanyRef, xbrl_source: XbrlFactSource
 ) -> CompanyFinancialsRecord:
@@ -38,35 +48,29 @@ async def _overlay_xbrl_facts(
     scalar `total` is replaced; `description`/`categories` (XBRL has no
     plain-language breakdown) and everything else the LLM pass produced
     (segments, needs_review from other reasons) are left untouched.
+    Only the record's own fiscal year is used: with no year, nothing is replaced.
     """
+    fiscal_year = _fiscal_year(record.fiscal_period)
+    if fiscal_year is None:
+        return record
     cik = await xbrl_source.resolve_cik(company.cik, company.ticker)
     if not cik:
         return record
-    facts = await xbrl_source.fetch_capex_rnd_revenue(company.company_id, cik)
-    if facts is None:
+    facts_json = await xbrl_source.fetch_company_facts(cik)
+    if facts_json is None:
         return record
 
     updates: dict = {}
-    if facts.capex is not None:
-        updates["capex"] = record.capex.model_copy(
+    for field, tags in (("capex", CAPEX_TAGS), ("rnd", RND_TAGS)):
+        fact = XbrlFactSource.fact_for_tags(facts_json, tags, fiscal_year=fiscal_year)
+        if fact is None:
+            continue
+        updates[field] = getattr(record, field).model_copy(
             update={
                 "total": AmountMetric(
-                    value=facts.capex.value,
-                    raw_value_text=f"{facts.capex.value:,.0f} {facts.capex.unit} (SEC XBRL, us-gaap:{facts.capex.tag})",
-                    citations=[facts.capex.as_citation(cik)],
-                    grounded=True,
-                ),
-                "confidence": 1.0,
-                "grounded": True,
-            }
-        )
-    if facts.rnd is not None:
-        updates["rnd"] = record.rnd.model_copy(
-            update={
-                "total": AmountMetric(
-                    value=facts.rnd.value,
-                    raw_value_text=f"{facts.rnd.value:,.0f} {facts.rnd.unit} (SEC XBRL, us-gaap:{facts.rnd.tag})",
-                    citations=[facts.rnd.as_citation(cik)],
+                    value=fact.value,
+                    raw_value_text=f"{fact.value:,.0f} {fact.unit} (SEC XBRL, us-gaap:{fact.tag})",
+                    citations=[fact.as_citation(cik)],
                     grounded=True,
                 ),
                 "confidence": 1.0,

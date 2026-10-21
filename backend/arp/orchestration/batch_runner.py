@@ -98,9 +98,10 @@ async def run_batch(
         key = item_key(item)
         if key in already_done:
             return
-        if cancel_check and cancel_check():
-            return
         async with sem:
+            # Checked once the slot is ours: every item reaches here at gather time, so an earlier check sees no cancel.
+            if cancel_check and cancel_check():
+                return
             try:
                 result = await worker(item)
             except Exception as exc:  # noqa: BLE001 - isolate failures per item

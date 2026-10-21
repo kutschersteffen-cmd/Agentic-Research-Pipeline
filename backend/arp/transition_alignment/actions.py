@@ -130,6 +130,16 @@ def _with_unit(x: float, unit: str | None) -> str:
     return f"{fmt_number(x)} {unit}" if unit else fmt_number(x)
 
 
+def converted_assumption(f: Fact, target: str, year: int, conversions: list[dict]):
+    """(value in `target`, shown as `97.2 USD/tCO2 (90 EUR/tCO2)`, reason): the value and text are None with a reason."""
+    if f.value is None:
+        converted, reason = None, "No value"
+    else:
+        converted, reason = convert(float(f.value), f.unit or "", target, year, conversions)
+    shown = None if converted is None else _with_unit(converted, target) + ("" if f.unit == target else f" ({f.shown})")
+    return converted, shown, reason
+
+
 def _assumption(f: Fact, matched: dict[str, set[str]], criteria: Criteria, cell: CellLookup, assumption_map: dict,
                 conversions: list[dict], doc_year: Callable[[int], int]) -> AssumptionOut:
     kind = f.field_id.removeprefix("ta_assumed_")
@@ -137,11 +147,7 @@ def _assumption(f: Fact, matched: dict[str, set[str]], criteria: Criteria, cell:
     region = stated if stated in REGIONS else None
     spec = assumption_map.get(kind)
     target = spec.unit if spec else f.unit
-    if f.value is None:
-        converted, reason = None, "No value"
-    else:
-        converted, reason = convert(float(f.value), f.unit or "", target, doc_year(f.fact_id), conversions)
-    shown = None if converted is None else _with_unit(converted, target) + ("" if f.unit == target else f" ({f.shown})")
+    converted, shown, reason = converted_assumption(f, target, doc_year(f.fact_id), conversions)
     by_code = {code: ids for code, ids, _ in criteria}
     out = []
     for ref in spec.barrier_facts if spec else []:

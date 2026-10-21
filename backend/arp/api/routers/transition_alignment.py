@@ -21,12 +21,14 @@ from arp.schemas.transition_alignment import (
     BenchmarksOut,
     RedlineDef,
     RndTestDef,
+    ScenarioGroupOut,
     SectorBenchmarksOut,
     TransitionOut,
 )
-from arp.transition_alignment.actions import Cell, CellLookup, score_plan
+from arp.transition_alignment.actions import Cell, CellLookup, _first, score_plan
 from arp.transition_alignment.benchmarks import citation, load_benchmarks, sector_for_isic
 from arp.transition_alignment.capex import Fact, score_capex
+from arp.transition_alignment.delivery import scenario_entries, score_coverage, score_phaseouts, score_targets
 from arp.transition_barrier import dataset
 from arp.transition_barrier.ratings import Ratings
 from arp.transition_barrier.render import fmt_number
@@ -67,6 +69,9 @@ def get_benchmarks() -> BenchmarksOut:
             )
             for name, s in b.sectors.items()
         ],
+        scenario_prices=[
+            ScenarioGroupOut(group=g.group, citation=citation(g.source), prices=g.prices) for g in b.scenario_prices
+        ],
     )
 
 
@@ -95,16 +100,20 @@ def _fact(r: view.CompanyFactRow, booleans=BOOLEAN_FIELDS) -> Fact:
     return Fact(r.fact_id, r.field_id, year, value, amount, unit, shown, r.source_label)
 
 
-def _company_facts(s, cid) -> list[Fact]:
-    """The counted current `tc_*` facts, one per (field, year): basis "" first, else the lowest fact_id (R4)."""
-    rows = [r for fid in FIELD_IDS for r in view.facts(s, cid, field_id=fid, limit=500) if r.status in _COUNTED]
+_EMISSIONS = ("tp_h_scope1_emissions", "tp_h_scope2_emissions")
+
+
+def _company_facts(s, cid, field_ids=FIELD_IDS) -> list[Fact]:
+    """The counted current facts of `field_ids`, one per (field, year): basis "" first, else the lowest fact_id (R4)."""
+    rows = [r for fid in field_ids for r in view.facts(s, cid, field_id=fid, limit=500) if r.status in _COUNTED]
     picked: dict[tuple, view.CompanyFactRow] = {}
     for r in sorted(rows, key=lambda r: (r.basis != "", r.fact_id)):
         picked.setdefault((r.field_id, r.period_end.year if r.period_end else None), r)
     return [_fact(r) for r in picked.values()]
 
 
-_RAW = {"ta_action_text", "ta_action_id", "ta_action_status", "ta_action_region"}  # text and enum: the raw string
+_RAW = {"ta_action_text", "ta_action_id", "ta_action_status", "ta_action_region", "ta_target_scope",
+        "ta_phaseout_activity", "ta_phaseout_method"}  # text and enum: the raw string
 
 
 def _plan_fact(r: view.CompanyFactRow) -> Fact:
@@ -125,27 +134,35 @@ def latest_plan(s, cid) -> m.Document | None:
     ).first()
 
 
-def _plan_inputs(s, cid) -> tuple[list[list[Fact]], list[Fact], list[Fact], dict[int, int]]:
-    """(action groups from the latest plan, assumptions, operating facts, fact_id -> its document's as-of year)."""
-    rows = [r for fid in plan.FIELD_IDS for r in view.facts(s, cid, field_id=fid, limit=500) if r.status in _COUNTED]
-    latest = latest_plan(s, cid)
+def _latest_groups(rows, fields, latest: m.Document | None, anchor: str | None = None) -> list[list[Fact]]:
+    """P2: list items grouped by basis; a group counts when its `anchor` fact's (any fact's, without one) primary
+    citation is the latest plan."""
     groups: dict[str, list[view.CompanyFactRow]] = {}
     for r in rows:
-        if r.field_id in plan.ACTION_FIELDS:
+        if r.field_id in fields:
             groups.setdefault(r.basis, []).append(r)
-    # P2: an action counts when its text's primary citation is the latest plan
-    kept = [g for g in groups.values() if latest and any(
-        r.field_id == "ta_action_text" and r.doc_id == latest.doc_id for r in g)]
+    return [[_plan_fact(r) for r in g] for g in groups.values()
+            if latest and any(anchor in (None, r.field_id) and r.doc_id == latest.doc_id for r in g)]
+
+
+def _plan_inputs(s, cid):
+    """(action groups, target groups, phase-out groups from the latest plan, assumptions, operating facts,
+    fact_id -> its document's as-of year, the latest plan's as-of year)."""
+    rows = [r for fid in plan.FIELD_IDS for r in view.facts(s, cid, field_id=fid, limit=500) if r.status in _COUNTED]
+    latest = latest_plan(s, cid)
     assumptions = [r for r in rows if r.field_id in plan.ASSUMPTION_FIELDS]
     years = {}
     for r in assumptions:  # shortcut: an uncited assumption converts at this year's rate; cite it to fix the year
         doc = get_document(s, r.doc_id) if r.doc_id else None
         years[r.fact_id] = (doc.published_at or doc.first_seen_at).year if doc else date.today().year
     return (
-        [[_plan_fact(r) for r in g] for g in kept],
+        _latest_groups(rows, plan.ACTION_FIELDS, latest, "ta_action_text"),
+        _latest_groups(rows, plan.TARGET_FIELDS, latest),  # a target missing one field still shows (Incomplete target)
+        _latest_groups(rows, plan.PHASEOUT_FIELDS, latest),
         [_plan_fact(r) for r in assumptions],
         [_plan_fact(r) for r in rows if r.field_id in plan.OPERATES_FIELDS],
         years,
+        (latest.published_at or latest.first_seen_at).year if latest else None,
     )
 
 
@@ -173,7 +190,8 @@ def get_company_transition(ref: str, run_store=Depends(get_run_store)) -> Transi
             reason = f"ISIC {isic} is not in a transition-barrier sector" if isic else "No ISIC code"
             return TransitionOut(in_scope=False, reason=reason, sector=None, capex=None, **versions)
         facts = _company_facts(s, cid)
-        groups, assumptions, operates, years = _plan_inputs(s, cid)
+        emissions = _company_facts(s, cid, _EMISSIONS)
+        groups, target_groups, phaseout_groups, assumptions, operates, years, plan_year = _plan_inputs(s, cid)
     capex = score_capex(facts, b.sectors[sector], b.licence_note)
     regions: dict[str, list[str]] = {}
     for score in dataset.load_scores():  # a criterion's regions: the cells the matrix has for it
@@ -183,7 +201,18 @@ def get_company_transition(ref: str, run_store=Depends(get_run_store)) -> Transi
         groups, assumptions, operates, criteria=criteria, cell=_cell_lookup(run_store), act_levers=b.act_levers,
         assumption_map=b.assumptions, conversions=raw["conversions"], doc_year=years.__getitem__,
     )
-    return TransitionOut(in_scope=True, reason=None, sector=sector, capex=capex, **versions, **dict(scored))
+    delivery = {}
+    if plan_year is not None:  # no latest plan: no target or phase-out counts
+        targets, progress = score_targets(target_groups, emissions, plan_year)
+        savings = {t.basis: f for g in groups
+                   if (t := _first(g, "ta_action_text")) and (f := _first(g, "ta_action_ghg_saving"))}
+        delivery = dict(targets=targets, target_progress=progress, coverage=score_coverage(targets, scored.actions, savings),
+                        phaseouts=score_phaseouts(phaseout_groups, sector, plan_year))
+    by_id = {f.fact_id: f for f in assumptions}
+    for a in scored.assumptions:
+        a.scenario = scenario_entries(a, by_id[a.fact_id], scored.regions, b.scenario_prices, raw["conversions"],
+                                      years[a.fact_id])
+    return TransitionOut(in_scope=True, reason=None, sector=sector, capex=capex, **versions, **dict(scored), **delivery)
 
 
 @router.get("/transition-alignment/sectors/{sector}/companies", response_model=list[CompanyRef])
