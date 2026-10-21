@@ -11,7 +11,7 @@ Example files: [`example-framework/credibility/indicators.csv`](example-framewor
 [`companies.csv`](example-framework/credibility/companies.csv) (Shell, RWE, Enel).
 
 [`example-framework/transition-plan/indicators.csv`](example-framework/transition-plan/indicators.csv)
-lists the pipeline's 64 transition-plan indicators (`backend/arp/transition_plan/data/indicators.json`)
+lists the 64 transition-plan indicators (`backend/arp/transition_plan/data/indicators.json`)
 on a `0-1` scale, grouped by category, with *walk* indicators weighted 2 and *talk* indicators 1.
 The ids match the `Ind_<identifier>_Disclosed` columns that a transition-plan run export produces
 (**One Yes/No column per indicator**), so the framework applies to a real run as is. `Yes` reads
@@ -19,13 +19,11 @@ as 1 and `No` or a blank as 0. [`companies.csv`](example-framework/transition-pl
 has five synthetic companies. With the placeholder tiers, Leader AG lands in Tier 1, Mid Corp and
 Talker SA (talk-heavy) in Tier 2, and Laggard plc and Blank Co in Tier 4.
 
-To test against a real run instead, make a synthetic one: **Data → Or build it from a finished run →
-Create a sample run** (or `arp transition-plan seed-demo`, or `POST /api/transition-plan/demo/seed`).
-It writes a finished transition-plan run over 8 fictional companies with made-up verdicts, no
-documents and no LLM calls (`params.synthetic` is true). Build the table with **One Yes/No column per
-indicator** ticked, then apply the framework above (or import the same framework, already built, from
-[`framework.json`](example-framework/transition-plan/framework.json) under **From a framework file**): Northwind Utilities lands in Tier 1, Quiet Shell
-Ltd in Tier 4.
+To test against a real run instead, finish a transition-plan assessment (it runs the
+`transition_plan_indicators` preset), then build the table with **Data → Or build it from a finished
+run** and **One Yes/No column per indicator** ticked, and apply the framework above (or import the same
+framework, already built, from
+[`framework.json`](example-framework/transition-plan/framework.json) under **From a framework file**).
 
 ## The list
 

@@ -136,9 +136,7 @@ class Settings(BaseSettings):
         "disclosure (e.g. 'e-mobility transition' vs. seed keyword 'electrification'), and the embedding model is "
         "multilingual (see arp/retrieval/embeddings.py) so this also covers DE-language disclosures the old "
         "English-only default couldn't meaningfully rank. Set false to fall back to pure BM25 (the old default), "
-        "e.g. to reproduce prior runs exactly. Transition Plan Assessment intentionally stays BM25-only regardless "
-        "of this flag -- see arp/transition_plan/indicator_graph.py -- to keep its replication of the source "
-        "paper's retrieval behavior exact.",
+        "e.g. to reproduce prior runs exactly.",
     )
     rerank_enabled: bool = Field(
         default=False,

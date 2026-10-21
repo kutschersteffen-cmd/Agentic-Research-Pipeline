@@ -26,7 +26,8 @@ numbers into a decision. Thresholds were hard-coded per module: the
 engagement severity ladder (`arp/engagement/triggers.py`), extraction's
 0.3/1.0 confidence convention (`arp/extraction/aggregator.py`), the
 transition-plan completeness metric
-(`arp/transition_plan/company_assessment.py`). Each is defensible in
+(formerly `arp/transition_plan/company_assessment.py`, now
+`from_transition_plan_run` in `arp/decision/sources.py`). Each is defensible in
 isolation; none is inspectable, versionable, or comparable against the
 others, and none can be re-tuned by an analyst without a code change.
 
@@ -426,7 +427,7 @@ of these seven sources prove it.
 
 | Source | Entity | Produces |
 | --- | --- | --- |
-| `transition_plan_run` | company | disclosed count, walk/talk split, per-category disclosure %, assessment confidence — carried per cell |
+| `transition_plan_run` | company | disclosed count, walk/talk split, per-category disclosure %, assessment confidence — carried per cell. Reads a transition-plan preset run (extraction run on `transition_plan_indicators`) or an old, read-only `transition_plan` run, with the same columns |
 | `extraction_run` | company | one column per schema field, each cell's confidence carried, and **zero** where the citation did not ground |
 | `financials_run` | company | CapEx and R&D totals, segment count and summed segment revenue, as reported (currencies not converted) |
 | `tnfd_run` | company | one Yes/No per TNFD recommendation, recommendations disclosed, grounded core global metrics per category |
@@ -446,11 +447,14 @@ to a perfect score, over actual holdings, is a portfolio-weighted
 engagement priority list.
 
 `transition_plan_run` can also emit one Yes/No column per indicator
-(`Ind_<identifier>_Disclosed`, blank for NA) with `include_indicators`, so a
+(`Ind_<identifier>_Disclosed`, blank when not found) with `include_indicators`, so a
 rule can combine individual answers ("a 2030 target AND a board-level
 owner"). It is off by default when building a table by hand, because 64 more
 criteria is a different derivation; a run scored through a template (§7a)
-always has them.
+always has them. For a preset run the adapter then appends the generic
+extraction columns (`Extraction_Confidence_pct` and one per field) that the
+`Ind_*` and count columns do not already cover, so a framework written for
+either column set works.
 
 `joined_runs` combines two or more Transition Plan, Extraction, Financials or
 TNFD runs into one table, one row per company, so a criterion can combine what
