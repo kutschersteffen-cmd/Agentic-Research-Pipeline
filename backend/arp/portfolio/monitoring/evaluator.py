@@ -88,7 +88,7 @@ def transition_alert(store: PortfolioStore, scope_id: str, alert_id: str, transi
 
 
 def _resolve_holdings_as_of(store: PortfolioStore, as_of: str | None) -> str | None:
-    """This never raises --
+    """Unlike api/routers/climate.py's _resolve_as_of, this never raises --
     a scheduled evaluation pass with no holdings ingested yet should skip
     holdings-dependent rule types silently rather than fail the whole run
     (see monitoring/scheduler.py's bare except Exception around this)."""

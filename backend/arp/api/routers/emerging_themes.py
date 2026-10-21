@@ -70,6 +70,14 @@ async def start_emerging_themes_run(
     return {"run_id": run_id, "company_count": len(companies)}
 
 
+@router.get("/runs/{run_id}")
+def get_emerging_themes_run(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+    manifest = run_store.load_manifest(run_id)
+    if manifest is None:
+        raise HTTPException(404, "Run not found")
+    return manifest.model_dump(mode="json")
+
+
 @router.get("/runs/{run_id}/candidates")
 def list_candidates(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
     candidates = load_candidates_with_status(run_store, run_id)

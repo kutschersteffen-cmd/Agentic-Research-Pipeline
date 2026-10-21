@@ -52,6 +52,7 @@ import { tagQuery } from "../lib/xbrlTags";
 import { encodeRef, factsUrl, type FactFilters } from "../pages/company/companyQuery";
 import type { CompanyFactRow, CompanySearchHit, CompanySummary, CompanyTransition, FactTrail, ThemeLayers } from "../types";
 import type {
+  AggregationResult,
   DatasetSummary,
   DecisionComparison,
   DecisionResult,
@@ -78,12 +79,17 @@ import type {
   IndexCalibration,
   IndexCatalogue,
   IndexReviewResult,
+  AnalyticRequest,
   CompanyRef,
   DataPointSchema,
   RuleSuggestions,
   DemoSeedSummary,
   EmergingThemeCandidate,
   EmergingThemesScheduleConfig,
+  NewsItem,
+  NewsRiskFlag,
+  PivotRequest,
+  PivotResult,
   PortfolioSummary,
   QAAnswer,
   SearchResponse,
@@ -94,6 +100,7 @@ import type {
   RunSteps,
   TnfdRecord,
   TransitionPlanIndicatorDef,
+  TrendPoint,
 } from "../types";
 import type { XbrlRunMarket } from "../types";
 import type { RunFailure } from "../types";
@@ -240,6 +247,8 @@ export const api = {
     request<{ items: SimilarDecision[] }>(
       `/api/extraction/items/${encodeURIComponent(itemKey)}/similar?run_id=${encodeURIComponent(runId)}`,
     ),
+  getSnapshot: (runId: string, snapshotId: string) =>
+    request<Record<string, unknown>>(`/api/review/runs/${encodeURIComponent(runId)}/snapshots/${encodeURIComponent(snapshotId)}`),
 
   base: API_BASE,
 
@@ -251,6 +260,8 @@ export const api = {
     for (const k of ["holder_id", "kind", "as_of", "provider", "override_reason"] as const) if (f[k]) form.append(k, f[k]!);
     return request<IntakeResult>("/api/holdings/upload", { method: "POST", body: form });
   },
+  saveHolder: (kind: string, holderId: string, body: { name: string; source: "api" | "file" }) =>
+    request<HolderStatus>(`/api/holdings/holders/${kind}/${encodeURIComponent(holderId)}`, { method: "PUT", body: JSON.stringify(body) }),
   pullHolder: (kind: string, holderId: string) =>
     request<IntakeResult>(`/api/holdings/holders/${kind}/${encodeURIComponent(holderId)}/pull`, { method: "POST" }),
   // Signals workbench
@@ -475,6 +486,10 @@ export const api = {
       body: JSON.stringify({ tags }),
     }),
   listXbrlSelections: () => request<Record<string, unknown>[]>("/api/xbrl/selections"),
+  getXbrlSelectionFacts: (name: string, offset = 0, limit = 100) =>
+    request<{ items: XbrlFact[]; total: number }>(
+      `/api/xbrl/selections/${encodeURIComponent(name)}/facts${buildQuery({ offset: String(offset), limit: String(limit) })}`,
+    ),
   listXbrlCompanies: (offset = 0, limit = 50) =>
     request<{ items: XbrlCompanyFiles[]; total: number }>(
       `/api/xbrl/companies${buildQuery({ offset: String(offset), limit: String(limit) })}`,
@@ -812,7 +827,12 @@ export const api = {
       body: JSON.stringify(body),
     }),
   listPortfolioCompanies: () => request<CompanyRef[]>("/api/portfolio/companies"),
+  runPortfolioAggregate: (body: AnalyticRequest) =>
+    request<AggregationResult | TrendPoint[]>("/api/portfolio/aggregate", { method: "POST", body: JSON.stringify(body) }),
+  runPortfolioPivot: (body: PivotRequest) => request<PivotResult>("/api/portfolio/pivot", { method: "POST", body: JSON.stringify(body) }),
   askPortfolio: (question: string) => request<QAAnswer>("/api/portfolio/ask", { method: "POST", body: JSON.stringify({ question }) }),
+  listPortfolioNews: (companyId?: string) => request<NewsItem[]>(`/api/portfolio/news${buildQuery({ company_id: companyId })}`),
+  listNewsFlags: (companyId?: string) => request<NewsRiskFlag[]>(`/api/portfolio/news/flags${buildQuery({ company_id: companyId })}`),
   listMonitoringRules: () => request<AlertRule[]>("/api/portfolio/monitoring/rules"),
   createMonitoringRule: (rule: Omit<AlertRule, "rule_id" | "created_at">) =>
     request<AlertRule>("/api/portfolio/monitoring/rules", { method: "POST", body: JSON.stringify(rule) }),
@@ -1004,6 +1024,7 @@ export const api = {
     request<RunDecision>(`/api/decision/runs/${runId}/overrides`, { method: "POST", body: JSON.stringify(body) }),
   removeRunOverride: (runId: string, body: { entity_key: string; criterion_id: string; reason: string }) =>
     request<RunDecision>(`/api/decision/runs/${runId}/overrides/remove`, { method: "POST", body: JSON.stringify(body) }),
+  getDatasetOverrides: (datasetId: string) => request<OverridesView>(`/api/decision/datasets/${datasetId}/overrides`),
   setDatasetOverride: (datasetId: string, body: LevelOverride) =>
     request<OverridesView>(`/api/decision/datasets/${datasetId}/overrides`, { method: "POST", body: JSON.stringify(body) }),
   removeDatasetOverride: (datasetId: string, body: { entity_key: string; criterion_id: string; reason: string }) =>

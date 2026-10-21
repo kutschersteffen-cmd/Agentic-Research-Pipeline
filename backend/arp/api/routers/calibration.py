@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from arp.agents.calibration_agent import CalibrationAgentScheduler, create_calibration_run, execute_calibration_run
 from arp.api.deps import get_calibration_scheduler, get_registry, settings_dep
@@ -34,6 +34,14 @@ async def start_calibration_run(
 
     asyncio.create_task(_background())
     return {"run_id": run_id}
+
+
+@router.get("/runs/{run_id}")
+def get_calibration_run(run_id: str, run_store: RunStore = Depends(_run_store)) -> dict:
+    manifest = run_store.load_manifest(run_id)
+    if manifest is None:
+        raise HTTPException(404, "Run not found")
+    return manifest.model_dump(mode="json")
 
 
 @router.get("/runs/{run_id}/results")

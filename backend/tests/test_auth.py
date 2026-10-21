@@ -104,7 +104,7 @@ def real_client(users_file, tmp_path, pg):
 def test_voting_router_unchanged(real_client):
     # voting is frozen: still mounted without the authorize dependency
     assert real_client.get("/api/voting/runs/r1/review-queue").status_code != 401
-    assert real_client.get("/api/themes/runs/r1/results").status_code == 401
+    assert real_client.get("/api/themes/runs/r1").status_code == 401
 
 
 def test_health_open_and_me_returns_principal(real_client):

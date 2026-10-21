@@ -57,6 +57,11 @@ def get_record(company_id: str, store: EngagementStore = Depends(get_engagement_
     return _get_record_or_404(store, company_id).model_dump(mode="json")
 
 
+@router.get("/records/{company_id}/events")
+def get_record_events(company_id: str, store: EngagementStore = Depends(get_engagement_store)) -> dict:
+    return {"events": store.events(company_id)}
+
+
 @router.post("/records/{company_id}/contacts")
 def add_contact(company_id: str, contact: Contact, store: EngagementStore = Depends(get_engagement_store)) -> dict:
     return store.add_contact(company_id, contact).model_dump(mode="json")

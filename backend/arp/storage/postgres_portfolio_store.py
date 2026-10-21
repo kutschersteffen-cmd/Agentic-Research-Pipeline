@@ -82,6 +82,14 @@ class PostgresPortfolioStore:
     def list_flags(self, company_id: str | None = None) -> list[NewsRiskFlag]:
         return self._files.list_flags(company_id)
 
+    def save_analytic(self, spec_json: dict) -> None:
+        self._files.save_analytic(spec_json)
+
+    def list_analytics(self) -> list[dict]:
+        return self._files.list_analytics()
+
+    def get_analytic(self, analytic_id: str) -> dict | None:
+        return self._files.get_analytic(analytic_id)
 
     def save_group(self, group: PortfolioGroup) -> None:
         self._files.save_group(group)

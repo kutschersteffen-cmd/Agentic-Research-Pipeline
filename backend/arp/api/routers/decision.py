@@ -809,3 +809,11 @@ def post_publish(
 @router.get("/published", response_model=list[PublishedDecision])
 def list_published(store: DecisionStore = Depends(get_decision_store)) -> list[PublishedDecision]:
     return store.list_published()
+
+
+@router.get("/published/{snapshot_id}", response_model=PublishedDecision)
+def get_published(snapshot_id: str, store: DecisionStore = Depends(get_decision_store)) -> PublishedDecision:
+    snapshot = store.get_published(snapshot_id)
+    if snapshot is None:
+        raise HTTPException(404, f"Unknown published decision: {snapshot_id}")
+    return snapshot

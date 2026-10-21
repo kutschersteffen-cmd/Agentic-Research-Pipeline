@@ -389,6 +389,14 @@ async def restart_run(
     return started
 
 
+@router.get("/runs/{run_id}")
+def get_extraction_run(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
+    manifest = run_store.load_manifest(run_id)
+    if manifest is None:
+        raise HTTPException(404, "Run not found")
+    return manifest.model_dump(mode="json")
+
+
 @router.get("/runs/{run_id}/results")
 def get_extraction_results(
     run_id: str, offset: int = 0, limit: int = 200, run_store: RunStore = Depends(get_run_store)

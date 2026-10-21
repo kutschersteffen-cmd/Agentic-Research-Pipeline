@@ -3,7 +3,7 @@ from __future__ import annotations
 from arp.portfolio import aggregation, datapoint_mapping
 from arp.portfolio.climate.schemas import FIELD_CARBON_INTENSITY, FIELD_EVIC, FIELD_SCOPE1, FIELD_SCOPE2
 from arp.schemas.common import CompanyRef
-from arp.schemas.portfolio import AggregationResult, Holding, SecurityRef
+from arp.schemas.portfolio import AggregationResult, Holding, SecurityRef, TrendPoint
 from arp.storage.portfolio_store import PortfolioStore
 
 
@@ -37,6 +37,32 @@ def compute_waci(
         portfolio_filter=portfolio_filter,
         data_point_values=values,
         spec_name="Weighted-Average Carbon Intensity",
+    )
+
+
+def compute_waci_trend(
+    store: PortfolioStore,
+    holdings_by_date: dict[str, list[Holding]],
+    securities: dict[str, SecurityRef],
+    companies: dict[str, CompanyRef],
+    *,
+    group_by: str = "portfolio_id",
+    portfolio_filter: list[str] | None = None,
+) -> list[TrendPoint]:
+    company_ids = _company_ids(securities)
+    values_by_date = {
+        as_of: datapoint_mapping.resolve_field_values_for_universe(store, company_ids, FIELD_CARBON_INTENSITY, as_of)
+        for as_of in holdings_by_date
+    }
+    return aggregation.aggregate_trend(
+        holdings_by_date,
+        securities,
+        companies,
+        group_by=group_by,
+        metric="weighted_avg_datapoint",
+        portfolio_filter=portfolio_filter,
+        data_point_values_by_date=values_by_date,
+        spec_name="WACI trend",
     )
 
 

@@ -899,6 +899,91 @@
     "title": "AmountOut",
     "type": "object"
    },
+   "AnalyticRequest": {
+    "properties": {
+     "as_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of"
+     },
+     "data_point_field_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Data Point Field Id"
+     },
+     "date_range": {
+      "anyOf": [
+       {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+         {
+          "type": "string"
+         },
+         {
+          "type": "string"
+         }
+        ],
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Date Range"
+     },
+     "group_by": {
+      "title": "Group By",
+      "type": "string"
+     },
+     "metric": {
+      "title": "Metric",
+      "type": "string"
+     },
+     "name": {
+      "default": "ad hoc query",
+      "title": "Name",
+      "type": "string"
+     },
+     "portfolio_filter": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Portfolio Filter",
+      "type": "array"
+     },
+     "save": {
+      "default": false,
+      "title": "Save",
+      "type": "boolean"
+     },
+     "security_filter": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "title": "Security Filter",
+      "type": "object"
+     }
+    },
+    "required": [
+     "group_by",
+     "metric"
+    ],
+    "title": "AnalyticRequest",
+    "type": "object"
+   },
    "AnalyticSpec": {
     "description": "A saved, reusable analytic: filter -> group-by -> aggregation mode.\nExecuted entirely by the deterministic engine in `aggregation.py` --\nan LLM may draft one (see `qa_agent.py`) but never computes the number\nitself.",
     "properties": {
@@ -10612,6 +10697,198 @@
     "title": "Pillar",
     "type": "string"
    },
+   "PivotCell": {
+    "properties": {
+     "col_value": {
+      "title": "Col Value",
+      "type": "string"
+     },
+     "coverage_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Coverage Pct"
+     },
+     "holding_count": {
+      "default": 0,
+      "title": "Holding Count",
+      "type": "integer"
+     },
+     "market_value_eur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Market Value Eur"
+     },
+     "row_value": {
+      "title": "Row Value",
+      "type": "string"
+     },
+     "weighted_avg_value": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Weighted Avg Value"
+     }
+    },
+    "required": [
+     "row_value",
+     "col_value"
+    ],
+    "title": "PivotCell",
+    "type": "object"
+   },
+   "PivotRequest": {
+    "properties": {
+     "as_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of"
+     },
+     "col_dim": {
+      "title": "Col Dim",
+      "type": "string"
+     },
+     "data_point_field_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Data Point Field Id"
+     },
+     "metric": {
+      "title": "Metric",
+      "type": "string"
+     },
+     "name": {
+      "default": "ad hoc pivot",
+      "title": "Name",
+      "type": "string"
+     },
+     "portfolio_filter": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Portfolio Filter",
+      "type": "array"
+     },
+     "row_dim": {
+      "title": "Row Dim",
+      "type": "string"
+     },
+     "security_filter": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "title": "Security Filter",
+      "type": "object"
+     }
+    },
+    "required": [
+     "row_dim",
+     "col_dim",
+     "metric"
+    ],
+    "title": "PivotRequest",
+    "type": "object"
+   },
+   "PivotResult": {
+    "properties": {
+     "as_of": {
+      "title": "As Of",
+      "type": "string"
+     },
+     "cells": {
+      "items": {
+       "$ref": "#/components/schemas/PivotCell"
+      },
+      "title": "Cells",
+      "type": "array"
+     },
+     "col_dim": {
+      "title": "Col Dim",
+      "type": "string"
+     },
+     "col_values": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Col Values",
+      "type": "array"
+     },
+     "metric": {
+      "enum": [
+       "market_value_sum",
+       "weighted_avg_datapoint",
+       "count"
+      ],
+      "title": "Metric",
+      "type": "string"
+     },
+     "row_dim": {
+      "title": "Row Dim",
+      "type": "string"
+     },
+     "row_values": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Row Values",
+      "type": "array"
+     },
+     "spec_name": {
+      "title": "Spec Name",
+      "type": "string"
+     },
+     "total_market_value_eur": {
+      "title": "Total Market Value Eur",
+      "type": "number"
+     },
+     "unresolved_market_value_eur": {
+      "default": 0.0,
+      "title": "Unresolved Market Value Eur",
+      "type": "number"
+     }
+    },
+    "required": [
+     "spec_name",
+     "as_of",
+     "metric",
+     "row_dim",
+     "col_dim",
+     "row_values",
+     "col_values",
+     "cells",
+     "total_market_value_eur"
+    ],
+    "title": "PivotResult",
+    "type": "object"
+   },
    "PolicyDecisionRequest": {
     "properties": {
      "decision": {
@@ -16155,6 +16432,23 @@
     "title": "TransitionPlanIndicator",
     "type": "object"
    },
+   "TrendPoint": {
+    "properties": {
+     "as_of": {
+      "title": "As Of",
+      "type": "string"
+     },
+     "result": {
+      "$ref": "#/components/schemas/AggregationResult"
+     }
+    },
+    "required": [
+     "as_of",
+     "result"
+    ],
+    "title": "TrendPoint",
+    "type": "object"
+   },
    "TriggerScanRequest": {
     "properties": {
      "companies": {
@@ -17684,6 +17978,50 @@
     ]
    }
   },
+  "/api/calibration/runs/{run_id}": {
+   "get": {
+    "operationId": "get_calibration_run_api_calibration_runs__run_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Calibration Run Api Calibration Runs  Run Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Calibration Run",
+    "tags": [
+     "calibration"
+    ]
+   }
+  },
   "/api/calibration/runs/{run_id}/results": {
    "get": {
     "operationId": "get_calibration_results_api_calibration_runs__run_id__results_get",
@@ -17809,6 +18147,234 @@
     ]
    }
   },
+  "/api/climate/coverage/{field_id}": {
+   "get": {
+    "operationId": "coverage_api_climate_coverage__field_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "field_id",
+      "required": true,
+      "schema": {
+       "title": "Field Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "As Of"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Coverage Api Climate Coverage  Field Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Coverage",
+    "tags": [
+     "climate"
+    ]
+   }
+  },
+  "/api/climate/financed-emissions": {
+   "get": {
+    "operationId": "financed_emissions_api_climate_financed_emissions_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "As Of"
+      }
+     },
+     {
+      "in": "query",
+      "name": "portfolio_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Portfolio Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Financed Emissions Api Climate Financed Emissions Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Financed Emissions",
+    "tags": [
+     "climate"
+    ]
+   }
+  },
+  "/api/climate/pivot/{field_id}": {
+   "get": {
+    "description": "A climate field broken out across two dimensions at once, e.g.\nweighted-average carbon intensity by sector x portfolio -- reuses the\nsame pivot executor as /api/portfolio/pivot, just pre-set to\nweighted_avg_datapoint against a climate field.",
+    "operationId": "climate_pivot_api_climate_pivot__field_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "field_id",
+      "required": true,
+      "schema": {
+       "title": "Field Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "row_dim",
+      "required": false,
+      "schema": {
+       "default": "sector",
+       "title": "Row Dim",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "col_dim",
+      "required": false,
+      "schema": {
+       "default": "portfolio_id",
+       "title": "Col Dim",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "As Of"
+      }
+     },
+     {
+      "in": "query",
+      "name": "portfolio_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Portfolio Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PivotResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Climate Pivot",
+    "tags": [
+     "climate"
+    ]
+   }
+  },
   "/api/climate/schema": {
    "get": {
     "operationId": "climate_schema_api_climate_schema_get",
@@ -17825,6 +18391,150 @@
      }
     },
     "summary": "Climate Schema",
+    "tags": [
+     "climate"
+    ]
+   }
+  },
+  "/api/climate/waci": {
+   "get": {
+    "operationId": "waci_api_climate_waci_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "As Of"
+      }
+     },
+     {
+      "in": "query",
+      "name": "group_by",
+      "required": false,
+      "schema": {
+       "default": "portfolio_id",
+       "title": "Group By",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "portfolio_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Portfolio Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AggregationResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Waci",
+    "tags": [
+     "climate"
+    ]
+   }
+  },
+  "/api/climate/waci/trend": {
+   "get": {
+    "operationId": "waci_trend_api_climate_waci_trend_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "group_by",
+      "required": false,
+      "schema": {
+       "default": "portfolio_id",
+       "title": "Group By",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "portfolio_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Portfolio Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/TrendPoint"
+         },
+         "title": "Response Waci Trend Api Climate Waci Trend Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Waci Trend",
     "tags": [
      "climate"
     ]
@@ -19015,6 +19725,48 @@
     ]
    }
   },
+  "/api/decision/published/{snapshot_id}": {
+   "get": {
+    "operationId": "get_published_api_decision_published__snapshot_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "snapshot_id",
+      "required": true,
+      "schema": {
+       "title": "Snapshot Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PublishedDecision"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Published",
+    "tags": [
+     "decision"
+    ]
+   }
+  },
   "/api/decision/runs/{run_id}/decision": {
    "get": {
     "description": "The run's results scored with its pinned template.\n\nA finished run returns what its rules step stored. A run still going is\nscored on the companies finished so far, on request, and nothing is\nstored until the last step runs.",
@@ -19589,6 +20341,50 @@
      }
     },
     "summary": "Start Discovery Run",
+    "tags": [
+     "discovery"
+    ]
+   }
+  },
+  "/api/discovery/runs/{run_id}": {
+   "get": {
+    "operationId": "get_discovery_run_api_discovery_runs__run_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Discovery Run Api Discovery Runs  Run Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Discovery Run",
     "tags": [
      "discovery"
     ]
@@ -20203,6 +20999,50 @@
     ]
    }
   },
+  "/api/emerging-themes/runs/{run_id}": {
+   "get": {
+    "operationId": "get_emerging_themes_run_api_emerging_themes_runs__run_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Emerging Themes Run Api Emerging Themes Runs  Run Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Emerging Themes Run",
+    "tags": [
+     "emerging-themes"
+    ]
+   }
+  },
   "/api/emerging-themes/runs/{run_id}/candidates": {
    "get": {
     "operationId": "list_candidates_api_emerging_themes_runs__run_id__candidates_get",
@@ -20656,6 +21496,50 @@
      }
     },
     "summary": "Add Contact",
+    "tags": [
+     "engagement"
+    ]
+   }
+  },
+  "/api/engagement/records/{company_id}/events": {
+   "get": {
+    "operationId": "get_record_events_api_engagement_records__company_id__events_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Record Events Api Engagement Records  Company Id  Events Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Record Events",
     "tags": [
      "engagement"
     ]
@@ -21785,6 +22669,50 @@
     ]
    }
   },
+  "/api/extraction/runs/{run_id}": {
+   "get": {
+    "operationId": "get_extraction_run_api_extraction_runs__run_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Extraction Run Api Extraction Runs  Run Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Extraction Run",
+    "tags": [
+     "extraction"
+    ]
+   }
+  },
   "/api/extraction/runs/{run_id}/companies": {
    "get": {
     "description": "Every company in the run with where it stands: done, failed, in\nreview (a step before extraction stopped it, with an error report in\nthe review queue), or still waiting (queued or in flight).",
@@ -22838,6 +23766,50 @@
     ]
    }
   },
+  "/api/financials/runs/{run_id}": {
+   "get": {
+    "operationId": "get_financials_extraction_run_api_financials_runs__run_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Financials Extraction Run Api Financials Runs  Run Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Financials Extraction Run",
+    "tags": [
+     "financials"
+    ]
+   }
+  },
   "/api/financials/runs/{run_id}/results": {
    "get": {
     "operationId": "get_financials_extraction_results_api_financials_runs__run_id__results_get",
@@ -23425,6 +24397,50 @@
     ]
    }
   },
+  "/api/identity/runs/{run_id}": {
+   "get": {
+    "operationId": "get_identity_run_api_identity_runs__run_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Identity Run Api Identity Runs  Run Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Identity Run",
+    "tags": [
+     "identity"
+    ]
+   }
+  },
   "/api/identity/runs/{run_id}/enriched-universe": {
    "get": {
     "description": "The point of this run type: a normal company universe (website/cik\nfilled in), merging resolved-and-clean companies with anything a human\napproved/edited in the review queue. Feed straight into\nPOST /api/discovery/runs as `companies`.",
@@ -23862,6 +24878,32 @@
     ]
    }
   },
+  "/api/index/presets": {
+   "get": {
+    "operationId": "list_presets_api_index_presets_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response List Presets Api Index Presets Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Presets",
+    "tags": [
+     "index"
+    ]
+   }
+  },
   "/api/index/presets/{name}": {
    "get": {
     "operationId": "get_preset_api_index_presets__name__get",
@@ -23985,6 +25027,52 @@
      }
     },
     "summary": "Get Screen Bundle",
+    "tags": [
+     "index"
+    ]
+   }
+  },
+  "/api/index/universe": {
+   "get": {
+    "description": "The demo universe, with the field inventory the rule pickers need.",
+    "operationId": "get_universe_api_index_universe_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 500,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Universe Api Index Universe Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Universe",
     "tags": [
      "index"
     ]
@@ -24241,6 +25329,137 @@
     "summary": "List Outputs",
     "tags": [
      "outputs"
+    ]
+   }
+  },
+  "/api/portfolio/aggregate": {
+   "post": {
+    "description": "Executes an ad hoc (or Analytics-Builder-drafted) query against the\ndeterministic aggregation engine -- the same executor `qa_agent.py`\nuses for natural-language questions, so a saved analytic and a typed\nquery always compute a number the same way.",
+    "operationId": "run_aggregation_api_portfolio_aggregate_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AnalyticRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "anyOf": [
+          {
+           "$ref": "#/components/schemas/AggregationResult"
+          },
+          {
+           "items": {
+            "$ref": "#/components/schemas/TrendPoint"
+           },
+           "type": "array"
+          }
+         ],
+         "title": "Response Run Aggregation Api Portfolio Aggregate Post"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Run Aggregation",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
+  "/api/portfolio/analytics": {
+   "get": {
+    "operationId": "list_saved_analytics_api_portfolio_analytics_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AnalyticSpec"
+         },
+         "title": "Response List Saved Analytics Api Portfolio Analytics Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Saved Analytics",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
+  "/api/portfolio/analytics/{analytic_id}/run": {
+   "get": {
+    "operationId": "run_saved_analytic_api_portfolio_analytics__analytic_id__run_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "analytic_id",
+      "required": true,
+      "schema": {
+       "title": "Analytic Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "anyOf": [
+          {
+           "$ref": "#/components/schemas/AggregationResult"
+          },
+          {
+           "items": {
+            "$ref": "#/components/schemas/TrendPoint"
+           },
+           "type": "array"
+          }
+         ],
+         "title": "Response Run Saved Analytic Api Portfolio Analytics  Analytic Id  Run Get"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Run Saved Analytic",
+    "tags": [
+     "portfolio"
     ]
    }
   },
@@ -24847,6 +26066,180 @@
     ]
    }
   },
+  "/api/portfolio/news": {
+   "get": {
+    "operationId": "list_news_api_portfolio_news_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "company_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Company Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response List News Api Portfolio News Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List News",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
+  "/api/portfolio/news/classify": {
+   "post": {
+    "description": "Runs the LLM risk classifier (news/classifier.py) over every\ningested, not-yet-classified news item and persists any resulting,\ngrounded risk flags. A deliberate, inspectable batch pass rather than\nsomething that happens silently on ingestion -- `POST /demo/seed`\nseeds news items but never classifies them itself.",
+    "operationId": "classify_news_api_portfolio_news_classify_post",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Classify News Api Portfolio News Classify Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Classify News",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
+  "/api/portfolio/news/flags": {
+   "get": {
+    "operationId": "list_flags_api_portfolio_news_flags_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "company_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Company Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response List Flags Api Portfolio News Flags Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Flags",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
+  "/api/portfolio/pivot": {
+   "post": {
+    "description": "A two-dimension permutation of /aggregate -- e.g. sector x asset\nclass, or issuer x portfolio to see one exposure figure broken out\nacross every portfolio at once in a single query.",
+    "operationId": "run_pivot_api_portfolio_pivot_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PivotRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PivotResult"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Run Pivot",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
   "/api/portfolio/portfolios": {
    "get": {
     "operationId": "list_portfolios_api_portfolio_portfolios_get",
@@ -24917,6 +26310,33 @@
      }
     },
     "summary": "Qa Audit Log",
+    "tags": [
+     "portfolio"
+    ]
+   }
+  },
+  "/api/portfolio/securities-needing-review": {
+   "get": {
+    "description": "Securities the security master does not map to an issuer (exact match only), e.g. `POST /demo/seed`'s\ndeliberately unresolved demo instrument. Fixed in the master (Data Hub), never by hand here.",
+    "operationId": "securities_needing_review_api_portfolio_securities_needing_review_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response Securities Needing Review Api Portfolio Securities Needing Review Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Securities Needing Review",
     "tags": [
      "portfolio"
     ]
@@ -25615,6 +27035,78 @@
      }
     },
     "summary": "Publish",
+    "tags": [
+     "publish"
+    ]
+   }
+  },
+  "/api/publish/versions": {
+   "get": {
+    "operationId": "versions_api_publish_versions_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "issuer_key",
+      "required": true,
+      "schema": {
+       "title": "Issuer Key",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "field_id",
+      "required": true,
+      "schema": {
+       "title": "Field Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "period_end",
+      "required": true,
+      "schema": {
+       "title": "Period End",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "basis",
+      "required": false,
+      "schema": {
+       "default": "",
+       "title": "Basis",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Versions Api Publish Versions Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Versions",
     "tags": [
      "publish"
     ]
@@ -26426,6 +27918,50 @@
      }
     },
     "summary": "Upload Template",
+    "tags": [
+     "reporting"
+    ]
+   }
+  },
+  "/api/reports/templates/{template_id}": {
+   "get": {
+    "operationId": "get_template_api_reports_templates__template_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "template_id",
+      "required": true,
+      "schema": {
+       "title": "Template Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Template Api Reports Templates  Template Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Template",
     "tags": [
      "reporting"
     ]
@@ -30491,6 +32027,60 @@
     ]
    }
   },
+  "/api/taxonomies/bundled-sources": {
+   "get": {
+    "description": "A small, hand-curated set of stable, canonical authority-source URLs\n(EU Taxonomy, NACE, IEA, IPCC) offered as one-click alternatives to\nlive-searching via POST /discover-sources -- useful when the theme maps\ncleanly onto one of these well-known bodies and a live web search would\njust rediscover the same document less reliably. Selecting one (or\nseveral) still goes through the normal derivation_method=authority_source\nflow below: nothing here is pre-parsed or trusted without the usual\nfetch + grounded extraction.",
+    "operationId": "bundled_sources_api_taxonomies_bundled_sources_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "category",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Category"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/SourceCandidate"
+         },
+         "title": "Response Bundled Sources Api Taxonomies Bundled Sources Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Bundled Sources",
+    "tags": [
+     "taxonomies"
+    ]
+   }
+  },
   "/api/taxonomies/compare": {
    "post": {
     "operationId": "compare_taxonomies_endpoint_api_taxonomies_compare_post",
@@ -31014,6 +32604,50 @@
     ]
    }
   },
+  "/api/taxonomy-researcher/runs/{run_id}": {
+   "get": {
+    "operationId": "get_taxonomy_research_run_api_taxonomy_researcher_runs__run_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Taxonomy Research Run Api Taxonomy Researcher Runs  Run Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Taxonomy Research Run",
+    "tags": [
+     "taxonomy-researcher"
+    ]
+   }
+  },
   "/api/taxonomy-researcher/runs/{run_id}/results": {
    "get": {
     "operationId": "get_taxonomy_research_results_api_taxonomy_researcher_runs__run_id__results_get",
@@ -31219,6 +32853,50 @@
      }
     },
     "summary": "Start Theme Run",
+    "tags": [
+     "themes"
+    ]
+   }
+  },
+  "/api/themes/runs/{run_id}": {
+   "get": {
+    "operationId": "get_theme_run_api_themes_runs__run_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Theme Run Api Themes Runs  Run Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Theme Run",
     "tags": [
      "themes"
     ]
@@ -31483,6 +33161,50 @@
      }
     },
     "summary": "Start Tnfd Extraction Run",
+    "tags": [
+     "tnfd"
+    ]
+   }
+  },
+  "/api/tnfd/runs/{run_id}": {
+   "get": {
+    "operationId": "get_tnfd_extraction_run_api_tnfd_runs__run_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Tnfd Extraction Run Api Tnfd Runs  Run Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Tnfd Extraction Run",
     "tags": [
      "tnfd"
     ]
@@ -32225,6 +33947,309 @@
     ]
    }
   },
+  "/api/transition-barrier/refresh/runs/{run_id}": {
+   "get": {
+    "operationId": "get_refresh_run_api_transition_barrier_refresh_runs__run_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Refresh Run Api Transition Barrier Refresh Runs  Run Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Refresh Run",
+    "tags": [
+     "transition-barrier"
+    ]
+   }
+  },
+  "/api/transition-barrier/refresh/runs/{run_id}/results": {
+   "get": {
+    "operationId": "get_refresh_results_api_transition_barrier_refresh_runs__run_id__results_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 500,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Refresh Results Api Transition Barrier Refresh Runs  Run Id  Results Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Refresh Results",
+    "tags": [
+     "transition-barrier"
+    ]
+   }
+  },
+  "/api/transition-barrier/refresh/runs/{run_id}/review": {
+   "post": {
+    "operationId": "submit_refresh_review_api_transition_barrier_refresh_runs__run_id__review_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ReviewDecisionRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Submit Refresh Review Api Transition Barrier Refresh Runs  Run Id  Review Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Submit Refresh Review",
+    "tags": [
+     "transition-barrier"
+    ]
+   }
+  },
+  "/api/transition-barrier/refresh/runs/{run_id}/review-decisions": {
+   "get": {
+    "operationId": "get_refresh_review_decisions_api_transition_barrier_refresh_runs__run_id__review_decisions_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Refresh Review Decisions Api Transition Barrier Refresh Runs  Run Id  Review Decisions Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Refresh Review Decisions",
+    "tags": [
+     "transition-barrier"
+    ]
+   }
+  },
+  "/api/transition-barrier/refresh/runs/{run_id}/review-history": {
+   "get": {
+    "operationId": "get_refresh_review_history_api_transition_barrier_refresh_runs__run_id__review_history_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "item_key",
+      "required": true,
+      "schema": {
+       "title": "Item Key",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Refresh Review History Api Transition Barrier Refresh Runs  Run Id  Review History Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Refresh Review History",
+    "tags": [
+     "transition-barrier"
+    ]
+   }
+  },
+  "/api/transition-barrier/refresh/runs/{run_id}/review-queue": {
+   "get": {
+    "operationId": "get_refresh_review_queue_api_transition_barrier_refresh_runs__run_id__review_queue_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Refresh Review Queue Api Transition Barrier Refresh Runs  Run Id  Review Queue Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Refresh Review Queue",
+    "tags": [
+     "transition-barrier"
+    ]
+   }
+  },
   "/api/transition-barrier/scores": {
    "get": {
     "description": "The 105 matrix cells, optionally filtered. All filters are ANDed.",
@@ -32463,6 +34488,50 @@
      }
     },
     "summary": "Start Transition Plan Run",
+    "tags": [
+     "transition-plan"
+    ]
+   }
+  },
+  "/api/transition-plan/runs/{run_id}": {
+   "get": {
+    "operationId": "get_transition_plan_run_api_transition_plan_runs__run_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Transition Plan Run Api Transition Plan Runs  Run Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Transition Plan Run",
     "tags": [
      "transition-plan"
     ]
@@ -33183,6 +35252,50 @@
      }
     },
     "summary": "Start Voting Run",
+    "tags": [
+     "voting"
+    ]
+   }
+  },
+  "/api/voting/runs/{run_id}": {
+   "get": {
+    "operationId": "get_voting_run_api_voting_runs__run_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Voting Run Api Voting Runs  Run Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Voting Run",
     "tags": [
      "voting"
     ]

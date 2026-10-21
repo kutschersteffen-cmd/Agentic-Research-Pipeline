@@ -950,6 +950,8 @@ export type AggregationRow = Served<S["AggregationRow"]>;
 
 export type AggregationResult = Served<S["AggregationResult"]>;
 
+export type TrendPoint = Served<S["TrendPoint"]>;
+
 export interface AnalyticRequest {
   name?: string;
   portfolio_filter?: string[];
@@ -969,6 +971,27 @@ export interface QAAnswer {
   spec?: (AnalyticRequest & { analytic_id: string; created_at: string }) | null;
   result?: AggregationResult | null;
   answer_text: string;
+}
+
+export interface NewsItem {
+  news_id: string;
+  company_id?: string | null;
+  headline: string;
+  excerpt: string;
+  source_url?: string | null;
+  published_at: string;
+}
+
+export interface NewsRiskFlag {
+  flag_id: string;
+  news_id: string;
+  company_id: string;
+  category: "climate_controversy" | "regulatory" | "litigation" | "other";
+  severity: "low" | "medium" | "high";
+  rationale: string;
+  quote: string;
+  grounded: boolean;
+  generated_at: string;
 }
 
 export type AlertRuleType = "field_threshold" | "concentration_threshold" | "portfolio_aggregate_threshold";
@@ -1041,6 +1064,10 @@ export interface DemoSeedSummary {
   unresolved_security_ids: string[];
 }
 
+export type PivotRequest = Served<S["PivotRequest"]>;
+
+export type PivotCell = Served<S["PivotCell"]>;
+
 // --- Data library ---
 
 // From /api/runs/known-companies -- every company_id seen across a run
@@ -1089,6 +1116,8 @@ export interface CachedDocumentDetail {
   title?: string | null;
   filename?: string | null;
 }
+
+export type PivotResult = Served<S["PivotResult"]>;
 
 export type SearchResultType = "company" | "document" | "taxonomy";
 

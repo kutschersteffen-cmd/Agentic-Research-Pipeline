@@ -94,7 +94,7 @@ exact ISIN match only, against the security master loaded in Data Hub;
 unmatched securities are listed for a fix in the master, never matched by
 name or assigned by hand
 (`storage/portfolio_store.py::list_resolutions_needing_review`,
-`arp portfolio review-queue`) — precisely the validation
+`GET /api/portfolio/securities-needing-review`) — precisely the validation
 behavior §2 asks for. Point-in-time versioning is real and append-only on
 both sides of the join: holdings snapshots
 (`storage/portfolio_store.py::save_snapshot`/`load_holdings_as_of`, one
@@ -156,9 +156,9 @@ metric by any one of seven dimensions (`DIMENSIONS`: `portfolio_id`,
 cross-tab; `aggregate_trend()` runs either across every snapshot date for a
 time series — all without a rebuild, exactly the "pivot an Excel table"
 interaction model §4 specifies. `AnalyticSpec`/`PivotSpec`
-(`schemas/portfolio.py`) already carry a `name`. The saved-analytics
-plumbing (`save_analytic`/`list_analytics`, `GET /api/portfolio/analytics`)
-never got a UI and was removed.
+(`schemas/portfolio.py`) already carry a `name` and are designed to be
+persisted (`analytics.py::save_analytic`/`list_analytics`,
+`GET /api/portfolio/analytics`).
 
 **Gaps:** the save/list plumbing above has no UI — the former
 `PivotExplorer.tsx` (since removed; ad-hoc slicing now lives in the
@@ -210,8 +210,9 @@ regression introduced here.
 
 ## §6 Company-Level Risk & Intelligence Profiles — Built (as an assembly of existing endpoints)
 
-`CompanyProfiles.tsx` combines `GET /api/portfolio/companies` and
-per-company climate figures (the existing
+`CompanyProfiles.tsx` combines `GET /api/portfolio/companies`,
+`GET /api/portfolio/news` (`?company_id=`), `GET /api/portfolio/news/flags`
+(`?company_id=`), and per-company climate figures (the existing
 aggregation engine filtered to one `company_id`) into a single issuer
 view — an assembly exercise against endpoints that already existed and
 already accepted a company scope server-side, not new backend work.
