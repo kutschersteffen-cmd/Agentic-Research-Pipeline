@@ -1,4 +1,5 @@
 
+import asyncio
 import traceback
 
 from arp.orchestration.batch_runner import ReviewRequired, run_batch, run_sinks
@@ -105,6 +106,7 @@ async def test_run_batch_cancel_check_stops_new_items(tmp_path, pg):
 
     async def worker(item: str) -> str:
         calls.append(item)
+        await asyncio.sleep(0)  # a real worker yields; the queued items must still see the cancel
         return item
 
     await run_batch(
