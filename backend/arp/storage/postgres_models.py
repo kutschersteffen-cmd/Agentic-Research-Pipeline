@@ -1,6 +1,6 @@
 """SQLAlchemy ORM models for the Postgres tables outside the company foundation (that one is
 arp/db/models.py, on the same `Base`): portfolios, securities, holdings and security resolutions
-(arp/storage/postgres_portfolio_store.py), chunk embeddings (pgvector), engagement mirrors,
+(arp/storage/postgres_portfolio_store.py), chunk embeddings (pgvector),
 published facts/releases/events (arp/publish/facts.py) and the BI-published rows.
 
 `legacy_companies` is the portfolio store's company table, keyed by universe id; it is not the
@@ -10,7 +10,8 @@ issuer_scheme, universe id) and carry the registry company in `company_id` (`com
 `phase1_rekey` (arp/storage/postgres_schema.py).
 
 Tables earlier versions wrote and no model defines any more (`company_records`,
-`legacy_company_facts`, `document_registry`, `index_checkpoints`) are never dropped by this code:
+`legacy_company_facts`, `document_registry`, `index_checkpoints`, `engagement_issues`,
+`engagement_commitments`) are never dropped by this code:
 `arp db import` reads `document_registry`. docs/INSTALLATION.md gives the manual DROP once
 `arp db verify` is clean.
 """
@@ -140,63 +141,6 @@ class ChunkEmbeddingModel(Base):
     chunk_id: Mapped[str] = mapped_column(String, primary_key=True)
     embed_model: Mapped[str] = mapped_column(String, primary_key=True)
     embedding = mapped_column(Vector(EMBED_DIM))
-
-
-class EngagementIssueModel(Base):
-    """Read-model projection of one EngagementIssue inside a company's
-    EngagementRecord (arp/storage/engagement_store.py, `record.json` --
-    always authoritative; `events.jsonl` remains the separate, untouched
-    audit trail). Engagement state is a continuously-mutated live document, not a run
-    output, so this table is a full replace-by-company_id snapshot on
-    every EngagementStore._save -- not an append-only history.
-
-    Makes "every open/stalled high-severity issue across the portfolio"
-    a single indexed query instead of scanning every company's
-    record.json. Correspondence entries and milestone/escalation history
-    stay inside `payload` (JSONB) -- they're an append-only trail read as
-    a whole for one issue, not filtered independently across companies,
-    so a dedicated table would add join cost with no query it actually
-    serves.
-
-    `company_id` is the universe id, a plain String with no FK. (`EngagementCommitmentModel.issue_id` below does
-    keep its FK: sync_record writes both rows in one transaction, so that
-    one can always be satisfied.)
-    """
-
-    __tablename__ = "engagement_issues"
-    __table_args__ = (Index("ix_engagement_issues_company_status", "company_id", "status"),)
-
-    issue_id: Mapped[str] = mapped_column(String, primary_key=True)
-    company_id: Mapped[str] = mapped_column(String)
-    theme: Mapped[str] = mapped_column(String)
-    severity: Mapped[str] = mapped_column(String)
-    status: Mapped[str] = mapped_column(String)
-    source: Mapped[str] = mapped_column(String)
-    milestone_stage: Mapped[str] = mapped_column(String)
-    escalation_stage: Mapped[str] = mapped_column(String)
-    opened_at: Mapped[str] = mapped_column(String)
-    payload: Mapped[dict] = mapped_column(JSONB)
-
-
-class EngagementCommitmentModel(Base):
-    """Read-model projection of one Commitment nested inside an
-    EngagementIssue -- broken out into its own table (rather than left
-    inside EngagementIssueModel.payload) because "every overdue
-    commitment across the portfolio" is a real cross-company query this
-    table serves directly, unlike correspondence/milestone/escalation
-    history."""
-
-    __tablename__ = "engagement_commitments"
-    __table_args__ = (Index("ix_engagement_commitments_company_status", "company_id", "status"),)
-
-    commitment_id: Mapped[str] = mapped_column(String, primary_key=True)
-    issue_id: Mapped[str] = mapped_column(ForeignKey("engagement_issues.issue_id"))
-    company_id: Mapped[str] = mapped_column(String)
-    text: Mapped[str] = mapped_column(String)
-    status: Mapped[str] = mapped_column(String)
-    target_date: Mapped[str | None] = mapped_column(String, nullable=True)
-    validated_by: Mapped[str | None] = mapped_column(String, nullable=True)
-    validated_at: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class ReleaseModel(Base):

@@ -109,8 +109,8 @@ def db_init_object_store() -> None:
 
 
 reindex_app = typer.Typer(
-    help="Backfill/resync OpenSearch, the object store and the Postgres engagement tables for documents and "
-    "records that predate them (or whose live hook failed). Runs regardless of the *_enabled flags -- those only "
+    help="Backfill/resync OpenSearch and the object store for documents "
+    "that predate them (or whose live hook failed). Runs regardless of the *_enabled flags -- those only "
     "gate the live hook, not this one-off backfill."
 )
 db_app.add_typer(reindex_app, name="reindex")
@@ -218,21 +218,6 @@ def reindex_object_store() -> None:
             failed += 1
             typer.echo(f"Failed to archive {doc_ref.doc_id}: {exc}", err=True)
     typer.echo(f"Object-store backfill complete: uploaded={uploaded} skipped={skipped} failed={failed}.")
-
-
-@reindex_app.command("engagement")
-def reindex_engagement() -> None:
-    """Mirrors every company's engagement record (record.json --
-    issues + commitments) into EngagementIssueModel/
-    EngagementCommitmentModel (Postgres). Safe to re-run -- each
-    company's rows are fully replaced from its current record.json."""
-    settings = get_settings()
-    from arp.storage.engagement_store import EngagementStore
-    from arp.storage.postgres_engagement_projection import sync_all
-
-    engagement_store = EngagementStore(settings.engagements_dir)
-    count = sync_all(settings.postgres_dsn, engagement_store)
-    typer.echo(f"Engagement backfill complete: companies_synced={count}.")
 
 
 companies_app = typer.Typer(help="Company registry maintenance.")

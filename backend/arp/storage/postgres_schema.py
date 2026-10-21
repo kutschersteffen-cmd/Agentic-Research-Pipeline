@@ -14,8 +14,8 @@ the system of record), deliberately without Alembic. `ensure_schema` (what
 
 Nothing here drops a table or a column, or changes a column's type or
 nullability. Tables earlier versions wrote (`company_records`,
-`legacy_company_facts`, `document_registry`, `index_checkpoints`) stay in
-place: `arp db import` reads `document_registry` after `ensure_schema` ran.
+`legacy_company_facts`, `document_registry`, `index_checkpoints`,
+`engagement_issues`, `engagement_commitments`) stay in place: `arp db import` reads `document_registry` after `ensure_schema` ran.
 `schema_report` (what `arp db check-postgres` prints) reports drift, and
 counts legacy-keyed rows no registry company matched yet
 (`unmatched_company_rows`).
