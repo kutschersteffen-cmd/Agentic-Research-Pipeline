@@ -1198,7 +1198,7 @@ sub-agents → stages 2, 3, 6 and 8, Record Store → Part 1, Human Checkpoints 
 | Item | Lands in | Adjustment to the spec |
 |---|---|---|
 | **E1** Tiered coverage — **built** | Tier Assignment + `coverage_tier` graph (stage 2); quarterly re-evaluation; tier report (`GET /api/stewardship/tiers`) | The tier sits on the **issuer**, not only on engagement records, because every holding needs one. It replaces the 0–4 engagement-level ladder of the previous revision. Escalation stays a separate ladder, capped by tier. |
-| **E2** Public vote disclosure | Disclosure Record (stage 4 drafts, stage 5 finalises, stage 8 exports) | The rationale gate blocks the **disclosure record**, not the vote. Votes are ingested facts and cannot be blocked. JSON + HTML/PDF export reuses `arp/reporting/` (`pdf_builder.py`). |
+| **E2** Public vote disclosure | Disclosure Record (stage 4 drafts, stage 5 finalises, stage 8 exports) | The rationale gate blocks the **disclosure record**, not the vote. Votes are ingested facts and cannot be blocked. JSON + HTML/PDF export reuses `arp/reporting/` (the house PDF renderer, `browser.py`). |
 | **E3** Pre-meeting intentions | `meeting_profile` graph + Voting Intention (stage 4 → stage 5) | Needs the **agenda part of the voting feed before the meeting**. This relaxes design constraint 1 for meeting data only; votes are still consumed after the event. |
 | **E4** Voting-policy menu | House `vote_expectation` policies with `menu_name`; Portfolio `voting_policy_id` + effective date | The menu is the standard offer. **Clients can also have a custom policy**, designed with the house from a menu base (Part 5.2), back-tested and co-approved. "Vote-instruction generation" becomes the expected vote per mandate, published to whoever votes. Immutable policy versions, effective dates and frozen disclosure records make it non-retroactive. |
 | **E5** Audit trail | Provenance on every AI output; `fired_rules` on every Policy Evaluation; checkpoint gate | Reuses the existing citation grounding and the ZEN trace. Build first, as the spec says. |
@@ -1461,7 +1461,7 @@ its own versioned `escalation_rules` (`PolicyStore(..., client=True)`, stored un
   decided, the voting-policy decisions, and the data sources.
 - `GET /api/stewardship/streams/{id}/report` returns it as data (the Reporting
   studio shows it); `.../report.pptx` renders the same content as a deck through
-  the existing deterministic deck builder (`arp/reporting/deck_builder.py`), so it
+  the house deck renderer (`arp/reporting/house_pptx.py`), so it
   uses the house deck design and no text is model-written. The deck is rendered
   on request and not stored.
 - Not built: a report period (everything is "as of today"), template choice, and

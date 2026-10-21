@@ -197,7 +197,7 @@ def reporting_render(report_id: str, out: Path = typer.Option(..., help="Where t
     store = _reporting_store()
     service = ReportingService(store)
     try:
-        manifest = service.render_from_plan(report_id)
+        manifest = asyncio.run(service.render_from_plan(report_id))
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc

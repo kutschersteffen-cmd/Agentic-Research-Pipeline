@@ -38,10 +38,9 @@ dependencies = [
     "google-auth>=2.40,<3.0",  # ID tokens for the Cloud Run compute services
     # Presentation & Reporting Tool (arp/reporting/): deterministic pptx/
     # docx/pdf rendering of an LLM-drafted ReportPlan. matplotlib backs
-    # chart types with no native pptx/docx/pdf chart object (waterfall,
-    # heatmap) and every chart in the docx/pdf paths (neither format has a
-    # live chart object at all); reportlab is the pdf path, pure-Python
-    # with no LibreOffice/Word dependency.
+    # chart types with no native pptx chart object (waterfall, heatmap)
+    # and every chart in the docx path (it has no live chart object at
+    # all); reportlab draws the PDFs of `arp compute` and the test fixtures.
     "python-pptx>=1.0,<2.0",
     "python-docx>=1.1,<2.0",
     "matplotlib>=3.8,<4.0",
