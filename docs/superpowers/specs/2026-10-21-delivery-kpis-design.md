@@ -1,6 +1,6 @@
 # Sector delivery KPIs
 
-Status: draft for owner approval, 2026-10-21.
+Status: approved by the owner, 2026-10-21 (approval covers the §1 values for benchmarks v3).
 
 ## Intent
 
