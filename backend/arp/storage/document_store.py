@@ -79,7 +79,7 @@ class DocumentContentStore:
                 conn.close()
 
         self._parsed_content = ParsedContentCache(self._connect, enabled)
-        self._registry = DocumentRegistry(dsn, enabled)
+        self._registry = DocumentRegistry(dsn)  # the system of record: never switched off with the cache
         self._embeddings = PgVectorEmbeddingsStore(dsn)
 
     def _connect(self) -> sqlite3.Connection:

@@ -76,8 +76,9 @@ DOCUMENTS = {  # doc_id: (company key, doc type, title, as-of)
     "P4": ("P", "annual_report", "Fixture Power Annual Report 2025", AS_OF),
     "P5": ("Q", "annual_report", "Fixture Foods Report 2025", AS_OF),
     "P6": ("C", "transition_plan", "Fixture Steel Transition Plan 2025 (revised)", AS_OF),
+    "P7": ("P", "transition_plan", "Fixture Power Transition Plan 2025", AS_OF),
 }
-ON_REQUEST = ("P3", "P6")  # registered only when a test asks (register_documents)
+ON_REQUEST = ("P3", "P6", "P7")  # registered only when a test asks (register_documents)
 M = "EUR million"
 DEFAULT_FACTS = [  # (company, field_id, period_end, value, unit, doc_id, page)
     ("C", "tc_capex_total", FY25, 1000, M, "P2", 44),
@@ -95,6 +96,10 @@ DEFAULT_FACTS = [  # (company, field_id, period_end, value, unit, doc_id, page)
     ("C", "tc_capex_total_planned", FY26, 1100, M, "P1", 18),
     ("C", "tc_lowcarbon_capex_share_pct_planned", FY26, 20, "%", "P1", 18),
     ("Q", "capex_total", FY25, 200, M, "P5", 8),
+    ("C", "tp_h_scope1_emissions", FY25, 17_500_000, "tCO2e", "P2", 52),
+    ("C", "tp_h_scope2_emissions", FY25, 500_000, "tCO2e", "P2", 52),
+    ("C", "tp_h_scope1_emissions", date(2023, 12, 31), 18_000_000, "tCO2e", "P2", 53),
+    ("C", "tp_h_scope2_emissions", date(2023, 12, 31), 500_000, "tCO2e", "P2", 53),
 ]
 
 
@@ -129,6 +134,49 @@ ACTIONS = {
         ("ta_action_year", 2030, None, 4), ("ta_action_region", EU, None, 4),
     ]),
 }
+
+
+def _target(page, pct, year, set_year):
+    return [("ta_target_scope", "S1+2", None, page), ("ta_target_pct", pct, "%", page), ("ta_target_year", year, None, page),
+            ("ta_target_base_year", 2019, None, page), ("ta_target_base_emissions", 20, "MtCO2e", page),
+            ("ta_target_set_year", set_year, None, page)]
+
+
+def _phaseout(page, activity, share, year):
+    return [("ta_phaseout_activity", activity, None, page), ("ta_phaseout_share_pct", share, "%", page),
+            ("ta_phaseout_year", year, None, page), ("ta_phaseout_method", "closure", None, page)]
+
+
+# target / phase-out: (company, doc_id, basis, [(field_id, value, unit, page)]); O2 is published only on request
+ITEMS = {
+    "T1": ("C", "P1", "target:P1:22:1", _target(22, 30, 2030, 2021)),
+    "T0": ("C", "P1", "target:P1:23:1", _target(23, 10, 2023, 2020)),
+    "O1": ("C", "P1", "phaseout:P1:24:1", _phaseout(24, "blast furnace steelmaking", 50, 2035)),
+    "O2": ("P", "P7", "phaseout:P7:4:1", _phaseout(4, "coal power", 100, 2038)),
+}
+
+
+def publish_item(pg: str, run_store, ids: dict[str, UUID], name: str, **values) -> None:
+    """Publishes a target or phase-out; `values` replace field values by field_id."""
+    key, doc_id, basis, rows = ITEMS[name]
+    publish(pg, run_store, [(ids[key], fid, None, values.get(fid, v), unit, doc_id, page) for fid, v, unit, page in rows],
+            basis=basis)
+
+
+def retire_item(pg: str, cid: UUID, name: str, *field_ids: str) -> None:
+    """Closes the current facts of a target or phase-out (only `field_ids`, if given)."""
+    _, _, basis, rows = ITEMS[name]
+    with transaction(pg) as s:
+        s.execute(update(m.CompanyFact).where(
+            m.CompanyFact.company_id == cid, m.CompanyFact.basis == basis, m.CompanyFact.valid_to.is_(None),
+            m.CompanyFact.field_id.in_(field_ids or [r[0] for r in rows]),
+        ).values(valid_to=func.clock_timestamp()))
+
+
+def use_bm_s(bm: Path) -> None:
+    """BM-S: BM plus the scenario prices, in place of BM in the `ta_dirs` benchmarks directory."""
+    shutil.copy(FIXTURES / "bm_s" / benchmarks.BENCHMARKS_FILE, bm / benchmarks.BENCHMARKS_FILE)
+    benchmarks.reset_cache()
 
 
 def action_basis(name: str) -> str:
@@ -193,12 +241,13 @@ def retire(pg: str, cid: UUID, *keys: tuple[str, date]) -> None:
 
 @pytest.fixture
 def seed_defaults(pg, run_store) -> dict[str, UUID]:
-    """Companies C, P, K, Q, N, documents P1, P2, P4, P5 and the default facts, approved: capex, A1-A3, operating
-    regions and both assumptions. Returns key -> company id."""
+    """Companies C, P, K, Q, N, documents P1, P2, P4, P5 and the default facts, approved: capex, emissions, A1-A3,
+    operating regions, both assumptions, T1, T0 and O1. Returns key -> company id."""
     registry = SchemaRegistry(pg)
     install_preset("sch_transition_capex", registry)
     install_preset("sch_green_lowcarbon", registry)
     install_preset("sch_transition_plan_actions", registry)
+    install_preset("transition_plan_indicators", registry)
     ids = {}
     with transaction(pg) as s:
         for key, (name, isic, fye) in COMPANIES.items():
@@ -213,6 +262,8 @@ def seed_defaults(pg, run_store) -> dict[str, UUID]:
     publish(pg, run_store, [(c, "ta_assumed_h2_cost", None, 3, "USD/kg H2", "P1", 21)], basis="region:any")
     for name in ("A1", "A2", "A3"):
         publish_action(pg, run_store, c, name)
+    for name in ("T1", "T0", "O1"):
+        publish_item(pg, run_store, ids, name)
     return ids
 
 

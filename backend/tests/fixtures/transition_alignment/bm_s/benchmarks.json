@@ -1,0 +1,187 @@
+{
+  "version": 4,
+  "fingerprint": "0bfd5019cf8629205101f52bc88065860a3e58ba822865a15a8ba485ed67e08a",
+  "history": [
+    {
+      "version": 3,
+      "fingerprint": "9c333274708dc60ac0628108c516d62ea8313a0447c76fba947a4ea1488e47a5",
+      "approved_by": "fixture",
+      "approved_at": "2026-10-19"
+    },
+    {
+      "version": 4,
+      "fingerprint": "0bfd5019cf8629205101f52bc88065860a3e58ba822865a15a8ba485ed67e08a",
+      "approved_by": "fixture",
+      "approved_at": "2026-10-20"
+    }
+  ],
+  "licence_note": "Internal, non-commercial use, with citation (owner decision 2026-10-19).",
+  "sectors": {
+    "Steel": {
+      "isic_prefixes": [
+        "241"
+      ],
+      "capex": {
+        "value": 80,
+        "unit": "%",
+        "method": "ACT Core D01.a, generic row",
+        "source": {
+          "title": "ACT Core methodology",
+          "page": "62"
+        },
+        "licence": "ACT methodology, internal non-commercial use with citation."
+      },
+      "rnd_tests": [
+        {
+          "id": "lc_share",
+          "label": "Low-carbon share of R&D",
+          "numerator": "tc_lowcarbon_rnd",
+          "denominator": "tc_rnd_total",
+          "value": 80,
+          "unit": "%",
+          "source": {
+            "title": "ACT Iron & Steel methodology",
+            "page": "75-76"
+          }
+        },
+        {
+          "id": "early_stage",
+          "label": "Early-stage share of low-carbon R&D",
+          "numerator": "tc_lowcarbon_rnd_early",
+          "denominator": "tc_lowcarbon_rnd",
+          "value": 65,
+          "unit": "%",
+          "source": {
+            "title": "ACT Iron & Steel methodology",
+            "page": "75-76"
+          }
+        }
+      ],
+      "redlines": [
+        {
+          "id": "stl_bf",
+          "label": "No new blast furnace without CCS or a near-zero route",
+          "fact": "tc_new_blast_furnace",
+          "source": {
+            "title": "owner-defined (2026-10-19)",
+            "rationale": "A new blast furnace locks in coal-based ironmaking for decades."
+          }
+        }
+      ]
+    },
+    "Power & Utilities": {
+      "isic_prefixes": [
+        "351"
+      ],
+      "capex": {
+        "value": 95,
+        "unit": "%",
+        "method": "ACT Core D01.a, electricity row",
+        "source": {
+          "title": "ACT Core methodology",
+          "page": "62"
+        },
+        "licence": "ACT methodology, internal non-commercial use with citation."
+      },
+      "redlines": [
+        {
+          "id": "pwr_coal",
+          "label": "No new unabated coal plants",
+          "fact": "tc_new_unabated_coal",
+          "source": {
+            "title": "Net Zero Roadmap 2023",
+            "page": "81"
+          }
+        }
+      ]
+    },
+    "Cement": {
+      "isic_prefixes": [
+        "2394"
+      ],
+      "capex": {
+        "value": 80,
+        "unit": "%",
+        "method": "ACT Core D01.a, generic row",
+        "source": {
+          "title": "ACT Core methodology",
+          "page": "62"
+        },
+        "licence": "ACT methodology, internal non-commercial use with citation."
+      },
+      "rnd_tests": [
+        {
+          "id": "capex_share",
+          "label": "Low-carbon R&D as a share of total capex",
+          "numerator": "tc_lowcarbon_rnd",
+          "denominator": "tc_capex_total",
+          "value": 5,
+          "unit": "%",
+          "source": {
+            "title": "ACT Cement methodology",
+            "page": "51-53"
+          }
+        }
+      ]
+    }
+  },
+  "act_levers": {
+    "steel.h2_dri": null,
+    "steel.scrap_eaf": {
+      "wording": "More scrap, process efficiency, zero-GHG power",
+      "source": {
+        "title": "ACT Core methodology",
+        "page": "110"
+      }
+    },
+    "steel.ccus": null
+  },
+  "assumptions": {
+    "carbon_price": {
+      "label": "Assumed carbon price",
+      "unit": "USD/tCO2",
+      "barrier_facts": [
+        "STL-R1.price"
+      ]
+    },
+    "h2_cost": {
+      "label": "Assumed hydrogen cost",
+      "unit": "USD/kg H2",
+      "barrier_facts": [
+        "STL-T1.h2_cost"
+      ]
+    }
+  },
+  "scenario_prices": [
+    {
+      "group": "advanced economies",
+      "source": {
+        "title": "IEA World Energy Outlook 2024, Annex B, Table B.2",
+        "url": "https://iea.blob.core.windows.net/assets/140a0470-5b90-4922-a0e9-838b3ac6918c/WorldEnergyOutlook2024.pdf",
+        "page": "329",
+        "licence": "CC BY 4.0"
+      },
+      "prices": {
+        "2030": 140,
+        "2035": 180,
+        "2040": 205,
+        "2050": 250
+      }
+    },
+    {
+      "group": "selected EMDE",
+      "source": {
+        "title": "IEA World Energy Outlook 2024, Annex B, Table B.2",
+        "url": "https://iea.blob.core.windows.net/assets/140a0470-5b90-4922-a0e9-838b3ac6918c/WorldEnergyOutlook2024.pdf",
+        "page": "329",
+        "licence": "CC BY 4.0"
+      },
+      "prices": {
+        "2030": 90,
+        "2035": 125,
+        "2040": 160,
+        "2050": 200
+      }
+    }
+  ]
+}

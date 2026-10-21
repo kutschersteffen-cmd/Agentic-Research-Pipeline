@@ -1,5 +1,5 @@
-"""Part A list extraction: one model call per transition plan document returns its actions and assumed prices;
-each stated value becomes one row, grounded and typed as any other field's (rulings P3, P5, P6)."""
+"""Part A list extraction: one model call per transition plan document returns its actions, assumed prices, targets
+and phase-outs; each stated value becomes one row, grounded and typed as any other field's (rulings P3, P5, P6, D1)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from arp.extraction.field_graph import field_evidence, merge_evidence
 from arp.grounding import ground_citations
 from arp.llm.base import LLMClient, LLMUsage
 from arp.normalise.value import typed_value
-from arp.presets.transition_plan_actions import ACTION_FIELDS
+from arp.presets.transition_plan_actions import ACTION_FIELDS, PHASEOUT_FIELDS, TARGET_FIELDS
 from arp.schemas.common import Citation, CompanyRef, DocumentChunk, ProvenanceInfo, SourceDocument
 from arp.schemas.datapoints import ExtractedField, FieldDefinition
 from arp.schemas.review import ReasonCode
@@ -50,14 +50,33 @@ class AssumptionDraft(BaseModel):
     page: int | None = None
 
 
+class TargetDraft(BaseModel):
+    scope: Cited
+    pct: Cited | None = None
+    year: Cited | None = None
+    base_year: Cited | None = None
+    base_emissions: Cited | None = None
+    set_year: Cited | None = None
+
+
+class PhaseoutDraft(BaseModel):
+    activity: Cited
+    share_pct: Cited | None = None
+    year: Cited | None = None
+    method: Cited | None = None
+
+
 class PlanDraft(BaseModel):
     actions: list[ActionDraft] = Field(default_factory=list)
     assumptions: list[AssumptionDraft] = Field(default_factory=list)
+    targets: list[TargetDraft] = Field(default_factory=list)
+    phaseouts: list[PhaseoutDraft] = Field(default_factory=list)
     confidence: float = Field(ge=0.0, le=1.0)
 
 
 _SYSTEM = """\
-You read a company's transition plan and list its decarbonisation actions and the prices it assumes.
+You read a company's transition plan and list its decarbonisation actions, the prices it assumes, its emission
+reduction targets and its phase-out commitments.
 Rules:
 - An action is one specific measure, technology or asset. Vague intentions ("we will reduce emissions") are not actions.
 - List actions in the order the plan states them. For each value give the value as printed, its unit where it
@@ -69,7 +88,15 @@ Rules:
   "EUR million"; never convert.
 - assumptions: an assumed carbon price (kind carbon_price, unit "<currency>/tCO2") or hydrogen cost (kind h2_cost,
   unit "<currency>/kg H2"), with the year it applies to if stated. region: "European Union", "United States", "China"
-  or "any" when the plan names no region or a region not listed."""
+  or "any" when the plan names no region or a region not listed.
+- targets: absolute emission reduction targets only; never list an intensity target (per tonne, per unit, per
+  revenue). scope: "S1+2" (scope 1 and 2) or "S1+2+3" (also scope 3). pct: the reduction from the base year in
+  percent. year: the year the target is to be met. base_year. base_emissions: the base-year emissions for the
+  target's scopes, unit "tCO2e" or "MtCO2e". set_year: the year the target was set or published, if stated.
+- phaseouts: a high-carbon activity the plan commits to phase out. activity: what is phased out, e.g. "coal power"
+  or "blast furnace steelmaking". share_pct: the share of that activity committed, in percent (capacity, production
+  or revenue, as stated; "two of our four" is 50). year: the year the phase-out completes. method: "closure",
+  "conversion" or "sale"."""
 
 
 def plan_evidence(fields: list[FieldDefinition], document: SourceDocument, settings: Settings) -> list[DocumentChunk]:
@@ -105,7 +132,8 @@ async def extract_plan(
     *, fields: list[FieldDefinition], fuzzy_threshold: float, schema_version: str = "",
 ) -> tuple[list[ExtractedField], LLMUsage]:
     """One row per stated value of `fields` (the list fields still to extract). An action's rows share basis
-    `action:<doc_id>:<page>:<n>`; an assumption has `region:<Region>` or `region:any`, period_end 31 Dec of its year."""
+    `action:<doc_id>:<page>:<n>`, a target's `target:...` and a phase-out's `phaseout:...` alike (D1); an assumption
+    has `region:<Region>` or `region:any`, period_end 31 Dec of its year."""
     ids = [*(f"{a['id']} ({a['label']})" for a in sector_actions(sector)), "other"]
     prompt = (f"Company: {company.name}\nAllowed action ids: {', '.join(ids)}\n\n"
               f"Evidence:\n{format_evidence(chunks)}")
@@ -121,15 +149,19 @@ async def extract_plan(
                     basis=basis, period_end=period_end, provenance=provenance[fid])
 
     out: list[ExtractedField] = []
-    on_page: dict[int | None, int] = {}
-    for a in draft.actions:
-        cites = ground_citations([_cite(a.text, document)], {document.doc_id: document}, fuzzy_threshold, passages=passages)
-        page = next((c.page for c in cites if c.grounded), None) or a.text.page
-        on_page[page] = on_page.get(page, 0) + 1
-        basis = f"action:{document.doc_id}:{page}:{on_page[page]}"
-        values = zip(ACTION_FIELDS, (a.text, a.action_id, a.status, a.year, a.region, a.ghg_saving, a.capex_needed,
-                                     a.capex_allocated), strict=True)
-        out += [row(fid, c, basis) for fid, c in values if fid in by_id and c is not None and c.value is not None]
+    # an item's first value (action text, target scope, phase-out activity) places its basis
+    for prefix, field_ids, items in (("action", ACTION_FIELDS, draft.actions), ("target", TARGET_FIELDS, draft.targets),
+                                     ("phaseout", PHASEOUT_FIELDS, draft.phaseouts)):
+        on_page: dict[int | None, int] = {}
+        for item in items:
+            cs = [getattr(item, name) for name in type(item).model_fields]
+            cites = ground_citations([_cite(cs[0], document)], {document.doc_id: document}, fuzzy_threshold,
+                                     passages=passages)
+            page = next((c.page for c in cites if c.grounded), None) or cs[0].page
+            on_page[page] = on_page.get(page, 0) + 1
+            basis = f"{prefix}:{document.doc_id}:{page}:{on_page[page]}"
+            out += [row(fid, c, basis) for fid, c in zip(field_ids, cs, strict=True)
+                    if fid in by_id and c is not None and c.value is not None]
     for s in draft.assumptions:
         fid = ASSUMPTION_FIELD[s.kind]
         if fid in by_id:

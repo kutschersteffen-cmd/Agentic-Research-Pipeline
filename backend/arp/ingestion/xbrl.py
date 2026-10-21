@@ -46,6 +46,7 @@ _REVENUE_TAGS = [
 # Public aliases for the XBRL fact pipeline (arp.xbrl_pipeline).
 REVENUE_TAGS = _REVENUE_TAGS
 CAPEX_TAGS = _CAPEX_TAGS
+RND_TAGS = _RND_TAGS
 
 _ANNUAL_FORMS = {"10-K", "10-K/A"}
 XBRL_PARSER_VERSION = "xbrl_companyfacts_v1"  # the rendered text below; bump when its line format changes
@@ -197,21 +198,12 @@ class ChainedFactSource:
         return next((f for s in self.sources if (f := s.fact_for_tags(tags, fiscal_year=fiscal_year))), None)
 
 
-class CompanyXbrlFacts(BaseModel):
-    company_id: str
-    cik: str
-    capex: XbrlFact | None = None
-    rnd: XbrlFact | None = None
-    revenue: XbrlFact | None = None
-    fetched_at: str = Field(default_factory=now_iso)
-
-
 class XbrlFactTrend(BaseModel):
     """Two consecutive annual figures for one tag and the resulting
     year-over-year change -- additive to `XbrlFact` (roadmap P3's
     structured-financials cross-check for the Emerging Themes Scanner),
-    not a replacement: `fetch_capex_rnd_revenue` above still answers "what
-    is this company's latest figure", this answers "did it move".
+    not a replacement: `fact_for_tags` above answers "what was the figure
+    for this year", this answers "did it move".
     """
 
     tag: str
@@ -341,31 +333,13 @@ class XbrlFactSource:
     def _annual_candidates(entry: dict) -> tuple[str | None, list[dict]]:
         """The unit name and every row worth considering for one tag's
         entry -- annual (10-K, full fiscal year) rows if any exist,
-        otherwise every valued row -- shared by both `_best_annual_fact`
-        (one row) and `_best_two_annual_facts` (roadmap P3, two rows)."""
+        otherwise every valued row -- for `_best_two_annual_facts` (roadmap P3)."""
         units = entry.get("units", {})
         unit_name, rows = next(iter(units.items()), (None, []))
         if not rows:
             return unit_name, []
         annual_rows = [r for r in rows if r.get("form") in _ANNUAL_FORMS and r.get("fp") == "FY" and r.get("val") is not None]
         return unit_name, annual_rows or [r for r in rows if r.get("val") is not None]
-
-    def _best_annual_fact(self, facts_json: dict, tags: list[str]) -> XbrlFact | None:
-        us_gaap = facts_json.get("facts", {}).get("us-gaap", {})
-        for tag in tags:
-            entry = us_gaap.get(tag)
-            if not entry:
-                continue
-            unit_name, candidates = self._annual_candidates(entry)
-            if not candidates:
-                continue
-            # Most recent annual (10-K, full fiscal year) figure by period
-            # end date -- a company's own latest audited annual figure,
-            # not a duplicate seen across multiple quarterly filings that
-            # happen to also report the trailing annual number.
-            best = max(candidates, key=lambda r: (r.get("end") or "", r.get("filed") or ""))
-            return self._fact_from_row(tag, unit_name, best)
-        return None
 
     @staticmethod
     def fact_for_tags(facts_json: dict, tags: list[str], *, fiscal_year: int) -> XbrlFact | None:
@@ -427,18 +401,6 @@ class XbrlFactSource:
         pct_change = (latest.value - prior.value) / abs(prior.value) if prior.value != 0 else None
         return XbrlFactTrend(tag=latest.tag, latest=latest, prior=prior, pct_change=pct_change)
 
-    async def fetch_capex_rnd_revenue(self, company_id: str, cik: str) -> CompanyXbrlFacts | None:
-        facts_json = await self.fetch_company_facts(cik)
-        if facts_json is None:
-            return None
-        return CompanyXbrlFacts(
-            company_id=company_id,
-            cik=cik,
-            capex=self._best_annual_fact(facts_json, _CAPEX_TAGS),
-            rnd=self._best_annual_fact(facts_json, _RND_TAGS),
-            revenue=self._best_annual_fact(facts_json, _REVENUE_TAGS),
-        )
-
     async def fetch_capex_rnd_trend(self, company_id: str, cik: str) -> CompanyXbrlTrend | None:
         """Roadmap P3's structured-financials cross-check: year-over-year
         CapEx/R&D movement, for an "action evidence" signal that doesn't
@@ -446,7 +408,7 @@ class XbrlFactSource:
         XBRL facts at all (a non-filer); a company with only one annual
         data point for a tag (too new a filer, or a tag it just started
         reporting) simply gets `None` for that specific metric, same
-        graceful-degradation discipline as `fetch_capex_rnd_revenue`.
+        graceful degradation.
         """
         facts_json = await self.fetch_company_facts(cik)
         if facts_json is None:

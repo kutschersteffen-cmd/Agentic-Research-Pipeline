@@ -1,4 +1,5 @@
-"""Company page Transition section (transition-plan-alignment spec AC-51, AC-44, AC-53..AC-55) against the running app.
+"""Company page Transition section (transition-plan-alignment spec AC-51, AC-44, AC-53..AC-55; plan-delivery-checks
+spec AC-89, AC-112, AC-119, AC-121, AC-126..AC-128) against the running app.
 
 The company, its facts and its transition check are stubbed with Playwright routing: C's and Q's
 responses as tests/db/test_transition_alignment_api.py serves them over the seeded fixtures.
@@ -20,6 +21,7 @@ pytestmark = [
 
 SCREENSHOT = Path(__file__).resolve().parents[2] / "test-results" / "transition-section.png"
 SCREENSHOT_P2 = SCREENSHOT.with_name("transition-section-p2.png")
+SCREENSHOT_DC = SCREENSHOT.with_name("transition-section-dc.png")
 AR = "Fixture Steel Annual Report 2025 p."
 
 
@@ -103,14 +105,36 @@ C_PHASE2 = {  # C's phase 2 keys as tests/db/test_transition_alignment_api.py se
     "assumptions": [
         {"kind": "carbon_price", "region": EU, "year": 2030, "citation": TP + "20", "fact_id": 38, "comparisons": [
             {"code": "STL-R1", "region": EU, "assumption": "97.2 USD/tCO2 (90 EUR/tCO2)",
-             "evidence": "72 USD/tCO2 (EU ETS Market Report 2026, p. 12)", "gap": "+25.2 USD/tCO2", "reason": None}]},
+             "evidence": "72 USD/tCO2 (EU ETS Market Report 2026, p. 12)", "gap": "+25.2 USD/tCO2", "reason": None}],
+         "scenario": [{"region": EU, "year": 2030, "scenario": "140 USD/tCO2 (IEA NZE 2030, advanced economies)",  # BM-S
+                       "assumption": "97.2 USD/tCO2 (90 EUR/tCO2)", "gap": "-42.8 USD/tCO2", "reason": None}]},
         {"kind": "h2_cost", "region": None, "year": None, "citation": TP + "21", "fact_id": 40, "comparisons": [
             {"code": "STL-T1", "region": EU, "assumption": "3 USD/kg H2",
-             "evidence": "6 USD/kg H2 (Hydrogen Cost Review 2026, p. 7)", "gap": "-3 USD/kg H2", "reason": None}]},
+             "evidence": "6 USD/kg H2 (Hydrogen Cost Review 2026, p. 7)", "gap": "-3 USD/kg H2", "reason": None}],
+         "scenario": []},
     ],
 }
+def target(key, pct, year, kind, score, page, fact_ids):
+    return {"key": key, "scope": "S1+2", "pct": pct, "year": year, "base_year": 2019, "base_emissions_shown": "20 MtCO2e",
+            "kind": kind, "ratio": "0.75", "score": score, "reason": None, "citation": TP + page, "fact_ids": fact_ids}
+
+
+COVERAGE_TEXT = "Listed actions cover 58.33% of the 2030 target gap (3.5 of 6 MtCO2e/yr)"
+C_DELIVERY = {  # C's delivery-check keys as tests/db/test_transition_alignment_api.py serves them with BM-S
+    "targets": [target("target:P1:22:1", 30.0, 2030, "running", 75.0, "22", [89, 90, 91, 92, 93, 94]),
+                target("target:P1:23:1", 10.0, 2023, "past", 50.0, "23", [101, 102, 103, 104, 105, 106])],
+    "target_progress": {"score": 68.75, "text": "Target progress 68.75% (ACT GE 1.4)"},
+    "coverage": {"target_key": "target:P1:22:1", "percent": 58.33, "text": COVERAGE_TEXT, "reason": None, "actions": [
+        {"key": "action:P1:12:1", "saving_shown": "3.5 MtCO2e/yr", "summed": True, "reason": None},
+        {"key": "action:P1:15:1", "saving_shown": None, "summed": False, "reason": "No quantified saving"},
+        {"key": "action:P1:16:1", "saving_shown": None, "summed": False, "reason": "No quantified saving"}]},
+    "phaseouts": [{"key": "phaseout:P1:24:1", "activity": "blast furnace steelmaking", "share": 50.0, "year": 2035,
+                   "method": "closure", "share_points": 25, "date_points": 75, "score": 40.0, "reason": None,
+                   "timeline_text": "No ACT Core sector timeline", "note": None, "citation": TP + "24",
+                   "fact_ids": [111, 112, 113, 114]}],
+}
 C_TRANSITION = {
-    "in_scope": True, "reason": None, "sector": "Steel", "benchmarks_version": 3, "rule_book_version": 7, **C_PHASE2,
+    "in_scope": True, "reason": None, "sector": "Steel", "benchmarks_version": 4, "rule_book_version": 7, **C_PHASE2, **C_DELIVERY,
     "capex": {
         "reporting_year": 2025,
         "share_ry": {"value": 12.0, "source": "disclosed", "fact_ids": [18]},
@@ -149,7 +173,8 @@ C_TRANSITION = {
 }
 Q_TRANSITION = {"in_scope": False, "reason": "ISIC 1050 is not in a transition-barrier sector", "sector": None,
                 "benchmarks_version": 3, "rule_book_version": 7, "capex": None, **PHASE2}
-for _fixture in (C_TRANSITION, Q_TRANSITION):  # the stubs cannot drift from the served model
+C_NO_PHASEOUT = {**C_TRANSITION, "phaseouts": []}
+for _fixture in (C_TRANSITION, Q_TRANSITION, C_NO_PHASEOUT):  # the stubs cannot drift from the served model
     TransitionOut.model_validate(_fixture)
 
 
@@ -189,11 +214,36 @@ def test_ac53_ac55_c_shows_plan_actions_and_assumptions(page):
     assert [r.inner_text().split("\t")[:3] for r in rows.all()[1:]] == [[EU, "STL-R1", "H"], [EU, "STL-T1", "M"]]  # AC-53
     assert dri.get_by_role("button", name="1500 EUR million needed, 600 EUR million allocated").is_visible()  # AC-54
     carbon = section.get_by_role("row").filter(has_text="97.2 USD/tCO2 (90 EUR/tCO2)")
-    assert carbon.get_by_role("cell").last.inner_text() == "+25.2 USD/tCO2"  # AC-55
+    assert carbon.get_by_role("cell").nth(4).inner_text() == "+25.2 USD/tCO2"  # AC-55
     assert dri.get_by_role("link", name="72 USD/tCO2 (EU ETS Market Report 2026, p. 12)").get_attribute("href").endswith(
         "/api/transition-barrier/documents/1#page=12")  # AC-43: the figure opens its barrier citation
     SCREENSHOT_P2.parent.mkdir(exist_ok=True)
     page.screenshot(path=str(SCREENSHOT_P2), full_page=True)
+
+
+def test_ac89_ac119_delivery_checks(page):
+    section = open_company(page, "C", company("C", "Fixture Steel AG", "2410"), [FACT], C_TRANSITION)
+    section.get_by_text("Target progress 68.75% (ACT GE 1.4)", exact=True).wait_for()  # AC-89
+    assert section.get_by_text(COVERAGE_TEXT, exact=True).is_visible()  # AC-119
+    for cite in ("ACT GE 1.4, GE pp.31–34",
+                 "Band points are ours, not ACT's (ACT GE pp.139–140)",  # AC-121
+                 "ACT Core B02.c, Core p.37",  # AC-126
+                 "ACT GE 9.2, GE pp.139–140; ACT Core D02.a, Core p.66",  # AC-127
+                 "ACT GE 5.3, GE pp.89–90; IEA WEO 2024 Table B.2, p.329"):  # AC-128
+        assert section.get_by_text(cite, exact=True).is_visible(), cite
+    assert section.get_by_role("button", name="30%").is_visible()  # AC-120: T1's 30% opens its fact
+    assert section.get_by_role("button", name="2035").is_visible()  # AC-129: O1's 2035 opens its fact
+    carbon = section.get_by_role("row").filter(has_text="97.2 USD/tCO2 (90 EUR/tCO2)")
+    assert [c.inner_text() for c in carbon.get_by_role("cell").all()[5:]] == [
+        "140 USD/tCO2 (IEA NZE 2030, advanced economies)", "-42.8 USD/tCO2"]
+    SCREENSHOT_DC.parent.mkdir(exist_ok=True)
+    page.screenshot(path=str(SCREENSHOT_DC), full_page=True)
+
+
+def test_ac112_no_phaseout(page):
+    section = open_company(page, "C", company("C", "Fixture Steel AG", "2410"), [FACT], C_NO_PHASEOUT)
+    section.get_by_text("No phase-out commitment disclosed", exact=True).wait_for()
+    assert section.get_by_text("Band points are ours, not ACT's (ACT GE pp.139–140)", exact=True).count() == 0
 
 
 def test_ac44_q_is_not_in_scope(page):

@@ -198,7 +198,7 @@ separately in
    `arp runs cancel` requests a cooperative stop (`RunManifest
    .cancel_requested`, polled by `run_batch` before each new item --
    in-flight items still finish and checkpoint, nothing is left half-
-   written), and `POST /api/themes/runs/{id}/resume` / `arp theme resume`
+   written), and `POST /api/runs/{id}/resume` / `arp theme resume`
    picks a stopped, failed, or interrupted run back up from exactly where
    it left off, reconstructed from what `create_theme_run` persisted
    (`theme.json`, the universe path, and any revenue-catalogue mapping) --

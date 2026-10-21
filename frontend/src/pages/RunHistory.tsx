@@ -1,4 +1,4 @@
-import { canResumeRun, hasFailureDetails, isTrialRun, resumableFailedRuns, RUN_TYPE_LABEL, runTypeLabel, TRIAL_TITLE, when } from "../lib/runs";
+import { canResumeRun, hasFailureDetails, isTrialRun, resumableFailedRuns, REVIEWABLE_RUN_TYPES, RUN_TYPE_LABEL, runTypeLabel, TRIAL_TITLE, when } from "../lib/runs";
 import { FailureDetails } from "../components/FailureDetails";
 import { FileLink } from "../components/FileLink";
 import { Fragment, useEffect, useRef, useState } from "react";
@@ -6,10 +6,8 @@ import { api } from "../api/client";
 import { useResume } from "../lib/useResume";
 import type { ReviewableRunKind, RunManifest } from "../types";
 
-const REVIEWABLE_KINDS = new Set<ReviewableRunKind>(["theme", "extraction", "financials", "identity", "transition_plan", "tnfd", "transition_barrier_derivation"]);
-
 function isReviewable(runType: string): runType is ReviewableRunKind {
-  return REVIEWABLE_KINDS.has(runType as ReviewableRunKind);
+  return REVIEWABLE_RUN_TYPES.has(runType);
 }
 
 interface Props {

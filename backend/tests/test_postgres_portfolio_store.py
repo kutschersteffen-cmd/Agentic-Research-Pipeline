@@ -130,7 +130,7 @@ def test_load_holdings_as_of_filters_by_portfolio(store):
     assert sorted(h.portfolio_id for h in both) == ["p1", "p2"]
 
 
-def test_aggregate_market_value_eur_by_sector_uses_the_company_join(store):
+def test_aggregate_holdings_by_sector_uses_the_company_join(store):
     """The concrete payoff of the relational store over the file-based
     one: one SQL query joins holdings -> securities -> companies and
     sums by sector, instead of loading every JSONL row into Python."""
@@ -147,8 +147,8 @@ def test_aggregate_market_value_eur_by_sector_uses_the_company_join(store):
         ],
     )
 
-    rows = store.aggregate_market_value_eur("2026-01-01", group_by="sector")
-    by_sector = dict(rows)
+    rows, _total = store.aggregate_holdings_by("2026-01-01", group_by="sector")
+    by_sector = {key: total for key, total, _count in rows}
     assert by_sector["Automobiles"] == 1000.0
     assert by_sector["Software"] == 2000.0
 

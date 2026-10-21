@@ -5807,30 +5807,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/themes/runs/{run_id}/resume": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Resume Theme Run Endpoint
-         * @description Re-invokes execute_theme_run for a run that was interrupted, failed,
-         *     partially completed, or cancelled -- reconstructed from what
-         *     create_theme_run persisted (see arp.orchestration.jobs.resume_run).
-         *     Already-completed companies are skipped automatically (run_batch's own
-         *     resumability); nothing is redone.
-         */
-        post: operations["resume_theme_run_endpoint_api_themes_runs__run_id__resume_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/themes/runs/{run_id}/review": {
         parameters: {
             query?: never;
@@ -7673,6 +7649,11 @@ export interface components {
             kind: string;
             /** Region */
             region: string | null;
+            /**
+             * Scenario
+             * @default []
+             */
+            scenario: components["schemas"]["ScenarioOut"][];
             /** Year */
             year: number | null;
         };
@@ -8010,6 +7991,8 @@ export interface components {
         BenchmarksOut: {
             /** Licence Note */
             licence_note: string;
+            /** Scenario Prices */
+            scenario_prices: components["schemas"]["ScenarioGroupOut"][];
             /** Sectors */
             sectors: components["schemas"]["SectorBenchmarksOut"][];
             /** Version */
@@ -9314,6 +9297,30 @@ export interface components {
         CosignRequest: {
             /** Item Key */
             item_key: string;
+        };
+        /** CoverageActionOut */
+        CoverageActionOut: {
+            /** Key */
+            key: string;
+            /** Reason */
+            reason: string | null;
+            /** Saving Shown */
+            saving_shown: string | null;
+            /** Summed */
+            summed: boolean;
+        };
+        /** CoverageOut */
+        CoverageOut: {
+            /** Actions */
+            actions: components["schemas"]["CoverageActionOut"][];
+            /** Percent */
+            percent: number | null;
+            /** Reason */
+            reason: string | null;
+            /** Target Key */
+            target_key: string | null;
+            /** Text */
+            text: string | null;
         };
         /** CoveragePreviewRequest */
         CoveragePreviewRequest: {
@@ -11784,6 +11791,35 @@ export interface components {
             /** Overrides */
             overrides: components["schemas"]["LevelOverride"][];
         };
+        /** PhaseoutOut */
+        PhaseoutOut: {
+            /** Activity */
+            activity: string | null;
+            /** Citation */
+            citation: string | null;
+            /** Date Points */
+            date_points: number | null;
+            /** Fact Ids */
+            fact_ids: number[];
+            /** Key */
+            key: string;
+            /** Method */
+            method: string | null;
+            /** Note */
+            note: string | null;
+            /** Reason */
+            reason: string | null;
+            /** Score */
+            score: number | null;
+            /** Share */
+            share: number | null;
+            /** Share Points */
+            share_points: number | null;
+            /** Timeline Text */
+            timeline_text: string;
+            /** Year */
+            year: number | null;
+        };
         /**
          * Pillar
          * @description The three constraint categories assessed per sector. Values match the
@@ -13074,6 +13110,32 @@ export interface components {
             base_version?: number | null;
             config: components["schemas"]["MechanismConfig"];
         };
+        /** ScenarioGroupOut */
+        ScenarioGroupOut: {
+            /** Citation */
+            citation: string;
+            /** Group */
+            group: string;
+            /** Prices */
+            prices: {
+                [key: string]: number;
+            };
+        };
+        /** ScenarioOut */
+        ScenarioOut: {
+            /** Assumption */
+            assumption: string | null;
+            /** Gap */
+            gap: string | null;
+            /** Reason */
+            reason: string | null;
+            /** Region */
+            region: string;
+            /** Scenario */
+            scenario: string | null;
+            /** Year */
+            year: number | null;
+        };
         /** ScoreRequest */
         ScoreRequest: {
             config?: components["schemas"]["MechanismConfig"] | null;
@@ -13777,6 +13839,40 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** TargetOut */
+        TargetOut: {
+            /** Base Emissions Shown */
+            base_emissions_shown: string | null;
+            /** Base Year */
+            base_year: number | null;
+            /** Citation */
+            citation: string | null;
+            /** Fact Ids */
+            fact_ids: number[];
+            /** Key */
+            key: string;
+            /** Kind */
+            kind: ("past" | "running") | null;
+            /** Pct */
+            pct: number | null;
+            /** Ratio */
+            ratio: string | null;
+            /** Reason */
+            reason: string | null;
+            /** Scope */
+            scope: string | null;
+            /** Score */
+            score: number | null;
+            /** Year */
+            year: number | null;
+        };
+        /** TargetProgressOut */
+        TargetProgressOut: {
+            /** Score */
+            score: number;
+            /** Text */
+            text: string;
+        };
         /**
          * Taxonomy
          * @description A named, versioned thematic taxonomy.
@@ -14125,8 +14221,14 @@ export interface components {
             /** Benchmarks Version */
             benchmarks_version: number;
             capex: components["schemas"]["CapexOut"] | null;
+            coverage?: components["schemas"]["CoverageOut"] | null;
             /** In Scope */
             in_scope: boolean;
+            /**
+             * Phaseouts
+             * @default []
+             */
+            phaseouts: components["schemas"]["PhaseoutOut"][];
             /** Reason */
             reason: string | null;
             /**
@@ -14138,6 +14240,12 @@ export interface components {
             rule_book_version: number;
             /** Sector */
             sector: string | null;
+            target_progress?: components["schemas"]["TargetProgressOut"] | null;
+            /**
+             * Targets
+             * @default []
+             */
+            targets: components["schemas"]["TargetOut"][];
         };
         /**
          * TransitionPlanIndicator
@@ -25293,39 +25401,6 @@ export interface operations {
                 offset?: number;
                 limit?: number;
             };
-            header?: never;
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    resume_theme_run_endpoint_api_themes_runs__run_id__resume_post: {
-        parameters: {
-            query?: never;
             header?: never;
             path: {
                 run_id: string;
