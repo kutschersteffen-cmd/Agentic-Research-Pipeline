@@ -22,6 +22,7 @@ pytestmark = [
 SCREENSHOT = Path(__file__).resolve().parents[2] / "test-results" / "transition-section.png"
 SCREENSHOT_P2 = SCREENSHOT.with_name("transition-section-p2.png")
 SCREENSHOT_DC = SCREENSHOT.with_name("transition-section-dc.png")
+SCREENSHOT_FLAGS = SCREENSHOT.with_name("transition-section-flags.png")
 AR = "Fixture Steel Annual Report 2025 p."
 
 
@@ -133,8 +134,25 @@ C_DELIVERY = {  # C's delivery-check keys as tests/db/test_transition_alignment_
                    "timeline_text": "No ACT Core sector timeline", "note": None, "citation": TP + "24",
                    "fact_ids": [111, 112, 113, 114]}],
 }
+def flag(fid, title, state, text, cite, fact_ids=()):
+    return {"id": fid, "title": title, "state": state, "text": text, "cite": cite, "fact_ids": list(fact_ids)}
+
+
+OFFSETS_FACT = 61  # P1 p.26
+FLAG_TITLES = ("Falling emissions claimed, no low-carbon capex", "Net zero without phase-out", "Expansion against net zero",
+               "Regions left out", "Offsets emphasised")
+C_FLAGS = [  # C's flags with the defaults (titles, texts and cites as the spec; fact ids are stub values)
+    flag("no_lowcarbon_capex", FLAG_TITLES[0], "clear", "No flag.", "ACT Framework p.64", [89, 90, 91, 92, 93, 94]),
+    flag("net_zero_no_phaseout", FLAG_TITLES[1], "clear", "No flag.", "ACT Framework pp.61–62", [60]),
+    flag("expansion_vs_net_zero", FLAG_TITLES[2], "clear", "No flag.", "ACT Framework p.62", [60]),
+    flag("regions_left_out", FLAG_TITLES[3], "clear", "No flag.", "ACT Framework p.61", [3, 4, 5]),
+    flag("offsets_emphasised", FLAG_TITLES[4], "raised", "Does not state that credits are used only for residual emissions.",
+         "ACT Framework p.62; ACT Core p.26", [OFFSETS_FACT]),
+]
+C_HEADER = "Consistency: 1 of 5 checks raise a flag"
 C_TRANSITION = {
     "in_scope": True, "reason": None, "sector": "Steel", "benchmarks_version": 4, "rule_book_version": 7, **C_PHASE2, **C_DELIVERY,
+    "flags": C_FLAGS, "flags_header": C_HEADER,
     "capex": {
         "reporting_year": 2025,
         "share_ry": {"value": 12.0, "source": "disclosed", "fact_ids": [18]},
@@ -174,7 +192,13 @@ C_TRANSITION = {
 Q_TRANSITION = {"in_scope": False, "reason": "ISIC 1050 is not in a transition-barrier sector", "sector": None,
                 "benchmarks_version": 3, "rule_book_version": 7, "capex": None, **PHASE2}
 C_NO_PHASEOUT = {**C_TRANSITION, "phaseouts": []}
-for _fixture in (C_TRANSITION, Q_TRANSITION, C_NO_PHASEOUT):  # the stubs cannot drift from the served model
+C_NO_NET_ZERO = {**C_TRANSITION, "flags": [
+    flag("net_zero_no_phaseout", FLAG_TITLES[1], "not checked", "No net-zero answer", "ACT Framework pp.61–62") if f["id"] == "net_zero_no_phaseout"
+    else flag("expansion_vs_net_zero", FLAG_TITLES[2], "not checked", "No net-zero answer", "ACT Framework p.62") if f["id"] == "expansion_vs_net_zero"
+    else f for f in C_FLAGS]}
+C_OFFSETS_CLEAR = {**C_TRANSITION, "flags_header": "Consistency: no check raises a flag", "flags": [
+    {**f, "state": "clear", "text": "No flag."} if f["id"] == "offsets_emphasised" else f for f in C_FLAGS]}
+for _fixture in (C_TRANSITION, Q_TRANSITION, C_NO_PHASEOUT, C_NO_NET_ZERO, C_OFFSETS_CLEAR):  # the stubs cannot drift from the served model
     TransitionOut.model_validate(_fixture)
 
 
@@ -244,6 +268,35 @@ def test_ac112_no_phaseout(page):
     section = open_company(page, "C", company("C", "Fixture Steel AG", "2410"), [FACT], C_NO_PHASEOUT)
     section.get_by_text("No phase-out commitment disclosed", exact=True).wait_for()
     assert section.get_by_text("Band points are ours, not ACT's (ACT GE pp.139–140)", exact=True).count() == 0
+
+
+def test_consistency_box(page):  # AC-146, AC-156, AC-147, AC-148
+    section = open_company(page, "C", company("C", "Fixture Steel AG", "2410"), [FACT], C_TRANSITION)
+    box = section.get_by_role("group", name="Consistency")
+    box.wait_for()
+    assert box.get_by_text(C_HEADER, exact=True).is_visible()  # AC-156
+    assert "Offsets emphasised Does not state that credits are used only for residual emissions." in box.inner_text().replace("\n", " ")
+    assert box.get_by_text("ACT Framework p.62; ACT Core p.26", exact=True).is_visible()  # AC-147
+    assert box.get_by_role("button", name="facts").count() == 1
+    assert box.get_by_text("No flag: " + "; ".join(FLAG_TITLES[:4]), exact=True).is_visible()  # AC-148
+    assert box.get_by_text("Not checked", exact=False).count() == 0
+    headline = section.get_by_text("Low-carbon capex 20% vs benchmark 80%: 0.25", exact=True)
+    assert box.evaluate("(b, h) => !!(b.compareDocumentPosition(h) & Node.DOCUMENT_POSITION_FOLLOWING)", headline.element_handle())  # AC-146
+    SCREENSHOT_FLAGS.parent.mkdir(exist_ok=True)
+    page.screenshot(path=str(SCREENSHOT_FLAGS), full_page=True)
+
+
+def test_ac157_not_checked_line(page):
+    section = open_company(page, "C", company("C", "Fixture Steel AG", "2410"), [FACT], C_NO_NET_ZERO)
+    box = section.get_by_role("group", name="Consistency")
+    box.get_by_text("Not checked: Net zero without phase-out (No net-zero answer)", exact=True).wait_for()
+
+
+def test_ac163_no_not_checked_line(page):
+    section = open_company(page, "C", company("C", "Fixture Steel AG", "2410"), [FACT], C_OFFSETS_CLEAR)
+    box = section.get_by_role("group", name="Consistency")
+    box.get_by_text("Consistency: no check raises a flag", exact=True).wait_for()
+    assert box.get_by_text("Not checked", exact=False).count() == 0
 
 
 def test_ac44_q_is_not_in_scope(page):

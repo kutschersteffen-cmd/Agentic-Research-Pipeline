@@ -3505,6 +3505,17 @@ export interface CompanyTransition {
   target_progress: { score: number; text: string } | null;
   coverage: TransitionCoverage | null;
   phaseouts: TransitionPhaseout[];
+  flags: TransitionFlag[];
+  flags_header: string | null;
+}
+
+export interface TransitionFlag {
+  id: string;
+  title: string;
+  state: "raised" | "clear" | "not checked";
+  text: string;
+  cite: string;
+  fact_ids: number[];
 }
 
 export interface TransitionTarget {
