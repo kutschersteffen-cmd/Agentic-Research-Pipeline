@@ -25,6 +25,7 @@ from typing import Any
 from arp.decision import sources
 from arp.decision.dataset import Dataset
 from arp.decision.roles import slug
+from arp.presets.transition_plan import SCHEMA_ID as TRANSITION_PLAN_SCHEMA_ID
 from arp.schemas.common import RunManifest, new_id, now_iso
 from arp.schemas.decision import AuditEntry, MechanismConfig
 from arp.storage.atomic_io import atomic_write_text
@@ -50,6 +51,11 @@ RUN_ADAPTERS: dict[str, tuple[Callable[[RunStore, str], Dataset], Callable[[list
     "financials": (sources.from_financials_run, lambda _fields: list(sources.FINANCIALS_COLUMNS)),
     "tnfd": (sources.from_tnfd_run, lambda _fields: sources.tnfd_columns()),
 }
+
+
+def decision_kind_for_schema(schema_id: str) -> str:
+    """The `RUN_ADAPTERS` kind for an extraction run on this schema."""
+    return "transition_plan" if schema_id == TRANSITION_PLAN_SCHEMA_ID else "extraction"
 
 
 def _adapter(run_type: str):
