@@ -85,6 +85,10 @@ jobs:
         if: steps.key.outputs.present == 'true'
         run: pip install -e ".[postgres]"
 
+      - name: Private NLTK data (nltk >= 3.10.4 refuses shared dirs)
+        if: steps.key.outputs.present == 'true'
+        run: . "$GITHUB_WORKSPACE/.github/scripts/private_nltk_data.sh"
+
       - name: Run the golden set
         if: steps.key.outputs.present == 'true'
         env:

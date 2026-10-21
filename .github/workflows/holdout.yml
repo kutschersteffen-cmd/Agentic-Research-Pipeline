@@ -77,6 +77,7 @@ jobs:
         if: steps.key.outputs.present == 'true'
         run: |
           (cd backend && pip install -e ".[dev,postgres,opensearch,emerging_themes,object_storage]")
+          . .github/scripts/private_nltk_data.sh
           (cd frontend && npm ci)
           python -m playwright install --with-deps chromium
           bash backend/scripts/e2e_stack.sh up
