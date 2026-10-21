@@ -348,15 +348,9 @@ export const api = {
     request("/api/extraction/schemas/draft", { method: "POST", body: JSON.stringify({ criteria_text: criteriaText }) }),
   suggestRules: (schema: DataPointSchema) =>
     request<RuleSuggestions>("/api/extraction/schemas/suggest-rules", { method: "POST", body: JSON.stringify(schema) }),
-  /** The transition-plan preset's field names; a preset not yet saved is installed first (the same no-op `start` does). */
-  getTransitionPlanFieldNames: async (): Promise<string[]> => {
-    const url = "/api/extraction/schemas/transition_plan_indicators";
-    const schema = await request<DataPointSchema>(url).catch(async () => {
-      await request("/api/extraction/presets/transition_plan_indicators/install", { method: "POST" });
-      return request<DataPointSchema>(url);
-    });
-    return schema.fields.map((f) => f.name);
-  },
+  /** The transition-plan preset's field names as the code builds them now; reads only, saves nothing. */
+  getTransitionPlanFieldNames: async (): Promise<string[]> =>
+    (await request<DataPointSchema>("/api/extraction/presets/transition_plan_indicators")).fields.map((f) => f.name),
   getExtractionResults: (runId: string, offset = 0, limit = 500) =>
     request(`/api/extraction/runs/${runId}/results?offset=${offset}&limit=${limit}`),
   getExtractionReviewDecisions: (runId: string) => request(`/api/extraction/runs/${runId}/review-decisions`),

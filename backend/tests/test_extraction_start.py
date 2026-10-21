@@ -324,3 +324,13 @@ def test_a_framework_needing_the_indicator_count_is_accepted_at_start(api):  # A
     _release_preset(api.pg)
     r = _tp_start(api, decision_framework_id=config.framework_id)
     assert r.status_code == 200, r.text
+
+
+def test_a_preset_is_readable_without_saving_it(api):
+    from arp.db.fields import SchemaRegistry
+
+    r = api.get("/api/extraction/presets/transition_plan_indicators")
+    assert r.status_code == 200, r.text
+    assert len(r.json()["fields"]) == 72  # 64 questions + 8 helpers
+    assert api.get("/api/extraction/presets/no_such_preset").status_code == 404
+    assert SchemaRegistry(api.pg).list_index() == []

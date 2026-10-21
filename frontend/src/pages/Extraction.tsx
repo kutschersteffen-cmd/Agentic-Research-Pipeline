@@ -522,6 +522,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom", initial
               key={activeJob.id}
               runType={jobRunType(activeJob)}
               fieldNames={activeJob.profile === "custom" ? activeJob.schema?.fields.map((f) => f.name) ?? [] : undefined}
+              presetFields={activeJob.profile === "transition_plan"}
               value={s.templateId}
               onChange={(v) => patchSettings(activeJob.id, { templateId: v })}
             />

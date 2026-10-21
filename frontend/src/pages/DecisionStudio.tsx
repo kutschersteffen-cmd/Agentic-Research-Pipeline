@@ -768,7 +768,7 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
                   <input aria-label="Run id" placeholder="Pick or paste a run id" list="ds-runs" value={runId} onChange={(e) => setRunId(e.target.value)} />
                   <datalist id="ds-runs">
                     {(finished ?? [])
-                      .filter((r) => decisionRunType(r) === source.replace(/_run$/, ""))
+                      .filter((r) => [r.run_type, decisionRunType(r)].includes(source.replace(/_run$/, "")))
                       .map((r) => (
                         <option key={r.run_id} value={r.run_id}>
                           {`${r.completed_count} companies · ${new Date(r.updated_at).toLocaleDateString()}`}

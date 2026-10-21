@@ -119,7 +119,16 @@ export function JobReview(p: {
       <div className="toolbar">
         <button onClick={() => refresh().catch(() => {})}>Refresh results</button>
       </div>
-      <RunScoringPanel key={runId} runId={runId} runType={jobRunType(job)} fieldNames={job.profile === "custom" ? job.schema?.fields.map((f) => f.name) : undefined} />
+      {/* A transition-plan job waits for its manifest: only a preset (extraction) run has the preset's columns. */}
+      {(job.profile !== "transition_plan" || run) && (
+        <RunScoringPanel
+          key={runId}
+          runId={runId}
+          runType={jobRunType(job)}
+          fieldNames={job.profile === "custom" ? job.schema?.fields.map((f) => f.name) : undefined}
+          presetFields={job.profile === "transition_plan" && run?.run_type === "extraction"}
+        />
+      )}
     </>
   );
 }

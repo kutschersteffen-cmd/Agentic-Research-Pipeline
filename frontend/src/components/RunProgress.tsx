@@ -11,19 +11,8 @@ export function RunProgress({
 }: {
   runId: string;
   pollMs?: number;
-  runType?:
-    | "theme"
-    | "extraction"
-    | "discovery"
-    | "proxy_voting"
-    | "financials"
-    | "tnfd"
-    | "identity"
-    | "transition_plan"
-    | "transition_barrier_refresh"
-    | "taxonomy_research"
-    | "calibration"
-    | "emerging_themes";
+  /** The run's type, for what it offers (Resume); the manifest's `run_type` is the accurate one. */
+  runType?: string;
 }) {
   const [manifest, setManifest] = useState<RunManifest | null>(null);
   const [actionBusy, setActionBusy] = useState(false);

@@ -9,6 +9,8 @@ interface PickerProps {
   runType: RunScoringKind;
   /** Extraction only: the schema's field names, which become the table's columns. */
   fieldNames?: string[];
+  /** The run is a transition-plan preset run: its columns include the preset schema's fields. */
+  presetFields?: boolean;
   value: string | null;
   onChange: (frameworkId: string | null) => void;
   /** A finished run to offer as Decision Studio's starting table. */
@@ -19,20 +21,17 @@ interface PickerProps {
  * ratified versions are listed (the server refuses drafts too), fitting ones
  * first; one that needs columns this run will not produce is shown with the
  * gap and cannot be picked. */
-export function ScoringTemplatePicker({ runType, fieldNames, value, onChange, runId }: PickerProps) {
+export function ScoringTemplatePicker({ runType, fieldNames, presetFields, value, onChange, runId }: PickerProps) {
   // With a run, Decision Studio opens with it loaded as the table to build a template from.
   const studioHref = runId ? `#/decision/${runType}_run/${encodeURIComponent(runId)}` : "#/decision";
   const [matches, setMatches] = useState<TemplateMatch[] | null>(null);
   const [error, setError] = useState("");
   const fieldKey = (fieldNames ?? []).join("\u0000");
-  const unnamed = fieldNames === undefined;
 
   useEffect(() => {
     let live = true;
-    // A transition-plan run is an extraction run on the preset schema, so its columns include that schema's fields.
-    const names =
-      runType === "transition_plan" && unnamed
-        ? api.getTransitionPlanFieldNames().catch(() => [])
+    const names = presetFields
+      ? api.getTransitionPlanFieldNames().catch(() => [])
         : Promise.resolve(fieldKey ? fieldKey.split("\u0000") : []);
     names
       .then((field_names) => api.matchTemplates({ run_type: runType, field_names, ratified_only: true }))
@@ -41,7 +40,7 @@ export function ScoringTemplatePicker({ runType, fieldNames, value, onChange, ru
     return () => {
       live = false;
     };
-  }, [runType, fieldKey, unnamed]);
+  }, [runType, fieldKey, presetFields]);
 
   const selected = matches?.find((m) => m.config.framework_id === value);
   // A schema edit can turn a picked template into a misfit; drop it rather than send a run the server will refuse.
@@ -91,6 +90,7 @@ interface PanelProps {
   runId: string;
   runType: RunScoringKind;
   fieldNames?: string[];
+  presetFields?: boolean;
 }
 
 // A run in these states gains no more results, so its tiers are final.
@@ -105,7 +105,7 @@ function publishBlocker(decision: RunDecision): string | null {
 }
 
 /** The run's results scored with its pinned template, or a picker to attach one. */
-export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
+export function RunScoringPanel({ runId, runType, fieldNames, presetFields }: PanelProps) {
   const [decision, setDecision] = useState<RunDecision | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [unattached, setUnattached] = useState(false);
@@ -200,7 +200,7 @@ export function RunScoringPanel({ runId, runType, fieldNames }: PanelProps) {
 
       {unattached && (
         <>
-          <ScoringTemplatePicker runType={runType} fieldNames={fieldNames} value={choice} onChange={setChoice} runId={runId} />
+          <ScoringTemplatePicker runType={runType} fieldNames={fieldNames} presetFields={presetFields} value={choice} onChange={setChoice} runId={runId} />
           <button onClick={attach} disabled={!choice}>
             Score this run
           </button>

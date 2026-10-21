@@ -102,6 +102,14 @@ def list_presets() -> list[dict]:
     return [{"preset_id": pid, "name": (s := build()).name, "field_count": len(s.fields)} for pid, build in PRESETS.items()]
 
 
+@router.get("/presets/{preset_id}", response_model=DataPointSchema)
+def get_preset(preset_id: str) -> DataPointSchema:
+    """The preset's schema as the code builds it now; nothing is saved."""
+    if preset_id not in PRESETS:
+        raise HTTPException(404, "Preset not found")
+    return PRESETS[preset_id]()
+
+
 @router.post("/presets/{preset_id}/install")
 def install_preset_endpoint(
     preset_id: str, registry: SchemaRegistry = Depends(_registry_for),

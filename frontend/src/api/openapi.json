@@ -22457,6 +22457,49 @@
     ]
    }
   },
+  "/api/extraction/presets/{preset_id}": {
+   "get": {
+    "description": "The preset's schema as the code builds it now; nothing is saved.",
+    "operationId": "get_preset_api_extraction_presets__preset_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "preset_id",
+      "required": true,
+      "schema": {
+       "title": "Preset Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DataPointSchema"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Preset",
+    "tags": [
+     "extraction"
+    ]
+   }
+  },
   "/api/extraction/presets/{preset_id}/install": {
    "post": {
     "operationId": "install_preset_endpoint_api_extraction_presets__preset_id__install_post",
