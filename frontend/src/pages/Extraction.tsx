@@ -17,6 +17,7 @@ import {
   jobLabel,
   jobReady,
   jobRunType,
+  jobRunTypes,
   jobsToStart,
   startJobs,
   startsText,
@@ -304,7 +305,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom", initial
     { id: "run", label: "Run", disabled: !hasRuns },
     { id: "review", label: "Review", disabled: !hasRuns, badge: totalPending, mark: runJobs.some((j) => extract.jobs.find((l) => l.id === j.id)?.status === "review") ? "waiting" : null },
   ];
-  const runTypes = ["identity", "discovery", ...new Set(jobs.map(jobRunType))];
+  const runTypes = ["identity", "discovery", ...new Set(jobs.flatMap(jobRunTypes))];
   const overviewSelected = (overviewRun && Object.values(flow.extractRuns).includes(overviewRun) ? overviewRun : null) ?? latestExtractRun(flow);
   const jobOfRun = (id: string) => jobs.find((j) => extractRuns[j.id] === id);
   const openRun = (id: string, s: Sub = "run") => {
@@ -521,6 +522,7 @@ export function Extraction({ pendingUniverse, initialProfile = "custom", initial
               key={activeJob.id}
               runType={jobRunType(activeJob)}
               fieldNames={activeJob.profile === "custom" ? activeJob.schema?.fields.map((f) => f.name) ?? [] : undefined}
+              presetFields={activeJob.profile === "transition_plan"}
               value={s.templateId}
               onChange={(v) => patchSettings(activeJob.id, { templateId: v })}
             />

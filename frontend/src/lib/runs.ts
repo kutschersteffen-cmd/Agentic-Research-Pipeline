@@ -12,11 +12,14 @@ export const RESUMABLE_RUN_TYPES: ReadonlySet<string> = new Set([
   "extraction",
   "financials",
   "tnfd",
-  "transition_plan",
   "identity",
   "discovery",
   "xbrl_fetch",
 ]);
+/** The kind Decision Studio and the process map file a run under: a transition-plan preset run is an extraction run on the preset schema. */
+export const decisionRunType = (r: RunManifest): string =>
+  r.run_type === "extraction" && r.params?.schema_id === "transition_plan_indicators" ? "transition_plan" : r.run_type;
+
 const RESUMABLE_STATUSES = new Set(["failed", "partially_completed", "cancelled"]);
 
 export const NEEDS_ATTENTION_DAYS = 14;

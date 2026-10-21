@@ -22,7 +22,7 @@ Postgres + pgvector as the system of record (required).
 | 5 | **Company Identity Resolution** | Agentic resolution of messy company identifiers to a single canonical entity. |
 | 6 | **Document Discovery** | Finds each company's IR site, crawls it (bounded, same-domain, robots.txt-respecting), downloads new/changed disclosures. Manual or scheduled. |
 | 7 | **Indirect Exposure Tier** *(opt-in)* | Structural supply-chain exposure via OECD ICIO input-output propagation. Purely quantitative, zero LLM calls. |
-| 8 | **Transition Plan Assessment** | Replication of Colesanti Senni et al. (2024): 64 fixed indicators scored "walk" vs. "talk", each with a grounded RAG verdict. |
+| 8 | **Transition Plan Assessment** | Replication of Colesanti Senni et al. (2024): 64 fixed indicators scored "walk" vs. "talk", each with a grounded RAG verdict. Runs as the `transition_plan_indicators` preset on the generic extraction pipeline. |
 | 9 | **Transition Barrier Assessment** | Sector-level counterpart: a 105-cell matrix (35 criteria × 9 hard-to-abate sectors × EU/US/China) backed by 86 verified sources, with staleness tracking and a propose-never-apply EUR-Lex refresh pipeline. |
 | 10 | **Portfolio Risk & Exposure Monitoring** | Deterministic holdings aggregation, an NL Q&A agent (LLM drafts the query, the engine computes the number), a **Dashboards (Superset)** tab that embeds every `arp-` dashboard (a provisioned exposure dashboard with Fund/Sector/Country filters, hand-built ones, and drafts from the Superset designer), and **Climate Analytics** (WACI, PCAF-style financed emissions, coverage). |
 | 11 | **Investment Strategy Replication** | Reduces a strategy paper to an executable spec, then backtests it deterministically in- and out-of-sample, with deflated Sharpe, PBO via purged/embargoed CSCV, and regime stratification. |
@@ -294,7 +294,6 @@ arp theme run --theme theme.json --universe companies.csv
 arp taxonomy create "Electrification" --method industry_anchored
 arp extract run --schema schema.json --universe companies.csv
 arp extract financials-run --universe companies.csv
-arp transition-plan run --universe companies.csv
 arp transition-barrier scores --region China --pillar Regulation
 arp emerging-themes run --universe companies.csv
 arp replicate backtest --spec spec.json --prices prices.csv --tickers universe.csv

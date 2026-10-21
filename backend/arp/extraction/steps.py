@@ -110,20 +110,17 @@ PROFILES: dict[str, dict] = {
         "gather_evidence": ["hybrid_retrieval_enabled", "xbrl_facts_enabled"], "extract": ["llm_model"], "verify": ["llm_verifier_model"], "aggregate": _REVIEW}},
     "tnfd": {"item": "each company", "settings": {
         "gather_evidence": ["hybrid_retrieval_enabled"], "extract": ["llm_model"], "verify": ["llm_verifier_model"], "aggregate": _REVIEW}},
-    "transition_plan": {"item": "each indicator of each company", "settings": {
-        "gather_evidence": ["hybrid_retrieval_enabled"], "answer": ["llm_model"], "verify": ["llm_verifier_model"], "aggregate": ["grounding_fuzzy_threshold"]}},
 }
+PROFILES["transition_plan"] = PROFILES["custom"]  # the preset runs the field pipeline
 
 
 def _graph(profile: str):
-    if profile == "custom":
+    if profile in ("custom", "transition_plan"):
         from arp.extraction.field_graph import _COMPILED_GRAPH
     elif profile == "financials":
         from arp.extraction.financials_graph import _COMPILED_GRAPH
-    elif profile == "tnfd":
-        from arp.extraction.tnfd_graph import _COMPILED_GRAPH
     else:
-        from arp.transition_plan.indicator_graph import _COMPILED_GRAPH
+        from arp.extraction.tnfd_graph import _COMPILED_GRAPH
     return _COMPILED_GRAPH.get_graph()
 
 
@@ -157,7 +154,7 @@ def pipeline_shape(profile: str, settings: Settings) -> dict:
     edges += [{"source": rename.get(e.source, e.source), "target": rename.get(e.target, e.target), "conditional": e.conditional} for e in graph.edges]
     edges.append({"source": "company", "target": "rules", "conditional": False})
     return {
-        "profile": profile,
+        "profile": "custom" if profile == "transition_plan" else profile,  # the same body as custom's
         "nodes": nodes,
         "edges": edges,
         "setting_info": SETTING_INFO,

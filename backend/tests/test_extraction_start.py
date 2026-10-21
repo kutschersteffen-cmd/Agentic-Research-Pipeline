@@ -6,7 +6,7 @@ import json
 import pytest
 from fastapi import HTTPException
 
-from arp.api.routers import extraction, financials, tnfd, transition_plan
+from arp.api.routers import extraction, financials, tnfd
 from arp.config import Settings
 from arp.extraction.steps import StepSettings
 from arp.schemas.common import CompanyRef
@@ -29,7 +29,6 @@ def calls(monkeypatch):
     monkeypatch.setattr(extraction, "start_extraction_run", _fake("custom", calls))
     monkeypatch.setattr(financials, "start_financials_extraction_run", _fake("financials", calls))
     monkeypatch.setattr(tnfd, "start_tnfd_extraction_run", _fake("tnfd", calls))
-    monkeypatch.setattr(transition_plan, "start_transition_plan_run", _fake("transition_plan", calls))
     return calls
 
 
@@ -52,19 +51,19 @@ class _Store:
         return Path(tempfile.mkdtemp())
 
 
-def test_each_profile_reaches_its_pipeline(calls):
+def test_each_profile_reaches_its_pipeline(calls, pg):
     schema = DataPointSchema.model_validate({"schema_id": "s", "name": "s", "fields": []})
     assert _start(profile="custom", datapoint_schema=schema)["run_type"] == "extraction"
     assert _start(profile="financials")["run_type"] == "financials"
     assert _start(profile="tnfd", as_of="FY2025")["run_type"] == "tnfd"
     started = _start(profile="transition_plan")
-    assert started == {"run_id": "transition_plan-1", "company_count": 1, "run_type": "transition_plan"}
+    assert started == {"run_id": "custom-1", "company_count": 1, "run_type": "extraction"}
 
-    assert [c[0] for c in calls] == ["custom", "financials", "tnfd", "transition_plan"]
+    assert [c[0] for c in calls] == ["custom", "financials", "tnfd", "custom"]
     assert calls[0][1].datapoint_schema == schema
     assert calls[1][2]["xbrl_source"] == "xbrl"
     assert calls[2][1].as_of == "FY2025"
-    assert "xbrl_source" not in calls[3][2]
+    assert calls[3][1].datapoint_schema.schema_id == "transition_plan_indicators" and calls[3][1].trial is False
     assert all([x.company_id for x in c[1].companies] == ["c1"] and c[1].decision_framework_id == "fw" for c in calls)
 
 
@@ -194,3 +193,144 @@ def test_restart_of_a_pre_gate_custom_run_runs_as_trial(calls, tmp_path, monkeyp
     _restart(store, run_id, from_step="extract")
     (_, req, _), = calls
     assert req.trial is False
+
+
+# --- transition_plan runs on the installed preset (spec 2026-10-21-retire-transition-plan-pipeline-design, section 1) ---
+
+ACME = {"company_id": "c1", "name": "Acme"}
+
+
+@pytest.fixture
+def api(monkeypatch, tmp_path, pg):
+    """The real /start route over the real registry; the background run is never launched."""
+    from fastapi import FastAPI
+    from fastapi.responses import JSONResponse
+    from fastapi.testclient import TestClient
+
+    from arp.api import run_scheduling
+    from arp.api.auth import Principal, current_user
+    from arp.api.deps import get_decision_store, get_registry, get_run_store, get_xbrl_source, settings_dep
+    from arp.storage.decision_store import DecisionStore
+
+    class _NoLaunch:
+        def launch(self, run_id, job):
+            pass
+
+    monkeypatch.setattr(run_scheduling, "get_job_launcher", _NoLaunch)
+    monkeypatch.setattr(run_scheduling, "build_llm_client", lambda s: object())
+    monkeypatch.setattr(run_scheduling, "build_verifier_llm_client", lambda s: object())
+    settings = Settings(anthropic_api_key="x", runs_dir=tmp_path / "runs")
+    store, decisions = RunStore(pg, settings.runs_dir), DecisionStore(tmp_path / "frameworks")
+    app = FastAPI()
+    app.include_router(extraction.router)
+
+    @app.exception_handler(ValueError)  # as arp.api.main maps the release gate's refusal
+    async def _ve(request, exc):
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+    app.dependency_overrides[settings_dep] = lambda: settings
+    app.dependency_overrides[get_run_store] = lambda: store
+    app.dependency_overrides[get_decision_store] = lambda: decisions
+    app.dependency_overrides[get_registry] = lambda: None
+    app.dependency_overrides[get_xbrl_source] = lambda: None
+    app.dependency_overrides[current_user] = lambda: Principal(user_id="u", name="U", role="approver")
+    client = TestClient(app)
+    client.store, client.decisions, client.pg = store, decisions, pg
+    return client
+
+
+def _tp_start(api, **body):
+    return api.post("/api/extraction/start", json={"profile": "transition_plan", "companies": [ACME], **body})
+
+
+def _release_preset(pg, preset=None):
+    from arp.db.fields import SchemaRegistry
+    from arp.presets.transition_plan import build_transition_plan_schema
+
+    reg = SchemaRegistry(pg)
+    saved = reg.save(preset or build_transition_plan_schema())
+    return reg.release(saved.schema_id, saved.version)
+
+
+def test_transition_plan_starts_a_generic_extraction_run_on_the_preset(api):  # AC-1, AC-2, AC-30
+    _release_preset(api.pg)
+    r = _tp_start(api)
+    assert r.status_code == 200, r.text
+    assert r.json()["run_type"] == "extraction"
+    params = api.store.load_manifest(r.json()["run_id"]).params
+    assert params["schema_id"] == "transition_plan_indicators" and params["trial"] is False
+
+
+def _main_preset():
+    """The preset as `main` shipped it: before the contradiction rules."""
+    import json
+    from pathlib import Path
+
+    from arp.schemas.datapoints import DataPointSchema, FieldDefinition
+
+    fields = json.loads((Path(__file__).parent / "fixtures" / "transition_plan_preset_main.json").read_text())
+    from arp.presets.transition_plan import build_transition_plan_schema
+
+    built = build_transition_plan_schema()
+    return DataPointSchema(schema_id=built.schema_id, name=built.name, fields=[FieldDefinition.model_validate(f) for f in fields])
+
+
+def test_unreleased_preset_version_is_refused_unless_trial_then_released_starts(api):  # AC-3, AC-4, AC-31, AC-32
+    _release_preset(api.pg, _main_preset())
+    refused = _tp_start(api)
+    assert refused.status_code == 400 and "is not released" in refused.text
+    trial = _tp_start(api, trial=True)
+    assert trial.status_code == 200
+    assert api.store.load_manifest(trial.json()["run_id"]).params["trial"] is True
+
+    from arp.db.fields import SchemaRegistry
+
+    reg = SchemaRegistry(api.pg)
+    reg.release("transition_plan_indicators", reg.get("transition_plan_indicators").version)
+    ok = _tp_start(api)
+    assert ok.status_code == 200, ok.text
+    params = api.store.load_manifest(ok.json()["run_id"]).params
+    schema_id, version = params["schema_version"].split(":v")
+    field = {f.field_id: f for f in reg.get(schema_id, int(version)).fields}["tp_a_headline_2"]
+    assert field.version == 2 and "tp_r_req_headline_2" in [r.rule_id for r in field.rules]
+
+
+def test_transition_plan_pipeline_shape_equals_custom(api):  # AC-33
+    tp = api.get("/api/extraction/pipeline", params={"profile": "transition_plan"})
+    custom = api.get("/api/extraction/pipeline", params={"profile": "custom"})
+    assert tp.status_code == 200
+    assert tp.json() == custom.json()
+
+
+def test_custom_profile_still_starts_on_its_own_schema(api):  # AC-47
+    from arp.db.fields import SchemaRegistry
+    from arp.schemas.datapoints import FieldDataType, FieldDefinition
+
+    field = FieldDefinition(name="capex", description="Capex.", data_type=FieldDataType.NUMBER, extraction_instructions="Find it.", seed_keywords=["capex"])
+    reg = SchemaRegistry(api.pg)
+    saved = reg.save(DataPointSchema(name="S", fields=[field]))
+    released = reg.release(saved.schema_id, saved.version)
+    r = api.post("/api/extraction/start", json={"profile": "custom", "datapoint_schema": released.model_dump(mode="json"), "companies": [ACME]})
+    assert r.status_code == 200, r.text
+    assert r.json()["run_type"] == "extraction"
+    assert api.store.load_manifest(r.json()["run_id"]).params["schema_id"] == released.schema_id
+
+
+def test_a_framework_needing_the_indicator_count_is_accepted_at_start(api):  # AC-20 at start
+    from arp.schemas.decision import MechanismConfig
+
+    config = api.decisions.save(MechanismConfig(name="TP", criteria=[], gates=[], label_column="Indicators_Disclosed_Count"))
+    api.decisions.ratify(config.framework_id, config.version)
+    _release_preset(api.pg)
+    r = _tp_start(api, decision_framework_id=config.framework_id)
+    assert r.status_code == 200, r.text
+
+
+def test_a_preset_is_readable_without_saving_it(api):
+    from arp.db.fields import SchemaRegistry
+
+    r = api.get("/api/extraction/presets/transition_plan_indicators")
+    assert r.status_code == 200, r.text
+    assert len(r.json()["fields"]) == 72  # 64 questions + 8 helpers
+    assert api.get("/api/extraction/presets/no_such_preset").status_code == 404
+    assert SchemaRegistry(api.pg).list_index() == []

@@ -17262,66 +17262,6 @@
     "title": "DeriveRequest",
     "type": "object"
    },
-   "arp__api__routers__transition_plan__RunRequest": {
-    "properties": {
-     "batch": {
-      "default": false,
-      "description": "Run through the Message Batches API: 50% cheaper, slower.",
-      "title": "Batch",
-      "type": "boolean"
-     },
-     "companies": {
-      "anyOf": [
-       {
-        "items": {
-         "$ref": "#/components/schemas/CompanyRef"
-        },
-        "type": "array"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Companies"
-     },
-     "decision_framework_id": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "description": "Scoring template to score the results with.",
-      "title": "Decision Framework Id"
-     },
-     "decision_framework_version": {
-      "anyOf": [
-       {
-        "type": "integer"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Decision Framework Version"
-     },
-     "universe_path": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Universe Path"
-     }
-    },
-    "title": "RunRequest",
-    "type": "object"
-   },
    "arp__api__routers__voting__RunRequest": {
     "properties": {
      "batch": {
@@ -21693,6 +21633,49 @@
      }
     },
     "summary": "List Presets",
+    "tags": [
+     "extraction"
+    ]
+   }
+  },
+  "/api/extraction/presets/{preset_id}": {
+   "get": {
+    "description": "The preset's schema as the code builds it now; nothing is saved.",
+    "operationId": "get_preset_api_extraction_presets__preset_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "preset_id",
+      "required": true,
+      "schema": {
+       "title": "Preset Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DataPointSchema"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Preset",
     "tags": [
      "extraction"
     ]
@@ -32375,30 +32358,6 @@
     ]
    }
   },
-  "/api/transition-plan/demo/seed": {
-   "post": {
-    "description": "Writes a finished, synthetic transition plan run (see\n`arp.transition_plan.demo`): made-up verdicts, no documents, no LLM, no\ncost. Each call makes a new run with the same verdicts.",
-    "operationId": "seed_demo_api_transition_plan_demo_seed_post",
-    "responses": {
-     "200": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "additionalProperties": true,
-         "title": "Response Seed Demo Api Transition Plan Demo Seed Post",
-         "type": "object"
-        }
-       }
-      },
-      "description": "Successful Response"
-     }
-    },
-    "summary": "Seed Demo",
-    "tags": [
-     "transition-plan"
-    ]
-   }
-  },
   "/api/transition-plan/indicators": {
    "get": {
     "description": "The 64 fixed assessment indicators (Colesanti Senni et al. 2024) --\nreference data for the UI to render definitions/help text, not\nper-run state.",
@@ -32420,49 +32379,6 @@
      }
     },
     "summary": "List Indicators",
-    "tags": [
-     "transition-plan"
-    ]
-   }
-  },
-  "/api/transition-plan/runs": {
-   "post": {
-    "operationId": "start_transition_plan_run_api_transition_plan_runs_post",
-    "requestBody": {
-     "content": {
-      "application/json": {
-       "schema": {
-        "$ref": "#/components/schemas/arp__api__routers__transition_plan__RunRequest"
-       }
-      }
-     },
-     "required": true
-    },
-    "responses": {
-     "200": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "additionalProperties": true,
-         "title": "Response Start Transition Plan Run Api Transition Plan Runs Post",
-         "type": "object"
-        }
-       }
-      },
-      "description": "Successful Response"
-     },
-     "422": {
-      "content": {
-       "application/json": {
-        "schema": {
-         "$ref": "#/components/schemas/HTTPValidationError"
-        }
-       }
-      },
-      "description": "Validation Error"
-     }
-    },
-    "summary": "Start Transition Plan Run",
     "tags": [
      "transition-plan"
     ]

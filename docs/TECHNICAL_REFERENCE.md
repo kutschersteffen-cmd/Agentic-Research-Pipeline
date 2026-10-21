@@ -63,7 +63,7 @@ The backend and frontend are fully decoupled: the CLI and the API call the exact
 | `snapshots/` | Frozen monthly snapshots (E77): dataset schemas and majors (`schema.py`), the write-once build and correction revisions (`build.py`), and the hash-verifying pull client (`client.py`). |
 | `storage/` | Stores for portfolios (Postgres with file-backed parts), engagements, taxonomies, the file-era run reader (`LegacyRunStore`), plus `DocumentContentStore` (Postgres registry and embeddings, SQLite parsed-content cache, itself split into three focused collaborators — parsed-content cache, document registry, chunk-embeddings cache — behind a thin facade) and `KeyedLock` (per-key reentrant locking against read-modify-write races between concurrent request handlers and background batch threads). |
 | `transition_barrier/` | Transition Barrier Assessment: the bundled 105-cell sector x region feasibility matrix (`data/*.json` + `dataset.py` loaders), staleness tracking independent of confidence (`staleness.py`), and the EUR-Lex source-refresh slice (`refresh/`) whose reconciler may propose an H/M/L change but never apply one. |
-| `transition_plan/` | Transition Plan Assessment: the paper's 64 fixed indicators (`indicators.py`), the per-indicator RAG agent + independent verifier wired through `indicator_graph.py`, and per-company walk/talk aggregation. |
+| `transition_plan/` | Transition Plan Assessment: the paper's 64 fixed indicators (`indicators.py`, `data/indicators.json`), which the preset `presets/transition_plan.py` turns into boolean fields. The dedicated per-indicator pipeline is gone; only the indicator list remains. |
 | `xbrl_pipeline/` | XBRL Facts (§3.19): `fetch.py` (the `xbrl_fetch` run, per-company fetch, retry and pacing), `flatten.py` (every fact to a flat row, plus the catalogue), `required.py` (revenue and capex), `store.py` (the `data/xbrl/` files), `registry.py` (official taxonomy snapshots and tag search), `selection.py` (named selections), `views.py` (files list, facts table, by-year table, download path), `verify.py` (circular-run guard and comparison). Zero LLM calls. |
 | `universe_workbench/` | Argus Universe (§3.20), read-only and shared: `mapping.py` (`MasterIndex`, `map_company`, `enrich`), `routing.py` (`route_company`, `route_universe`: SEC, ESEF, `no_source` or `unrouted`), `availability.py` (what the stores hold per company). Used by `api/routers/universe_workbench.py`, `xbrl_pipeline/fetch.py` and `arp xbrl screen`. Zero LLM calls. |
 | `voting/` | Proxy-ballot pipeline: proposal extraction from proxy statements, policy-rule + LLM-judgment vote recommendations, human review, ballot casting. |
@@ -175,7 +175,7 @@ Aggregates holdings across every portfolio via a deterministic (zero-LLM) engine
 A sub-module of Portfolio Risk: weighted-average carbon intensity (WACI), PCAF-style financed emissions, and data-coverage reporting, sourced from a mock internal ESG API and cross-validated against the Extraction Engine's independent read of the same companies' disclosures — a mismatch between the two sources is surfaced, not silently resolved.
 
 ### 3.12 Transition Plan Assessment
-A direct replication of Colesanti Senni, Schimanski, Bingler, Ni & Leippold (2024): scores a company's climate disclosures against the paper's 64 fixed indicators (Target/Governance/Strategy/Tracking), each classified "talk" (future target) or "walk" (concrete, verifiable activity), one grounded RAG verdict (YES/NO/NA) per indicator. Unlike the paper's tool, every citation is independently re-verified against the source document by the same programmatic grounding check used everywhere else here, rather than trusted from the model's self-report.
+A direct replication of Colesanti Senni, Schimanski, Bingler, Ni & Leippold (2024): scores a company's climate disclosures against the paper's 64 fixed indicators (Target/Governance/Strategy/Tracking), each classified "talk" (future target) or "walk" (concrete, verifiable activity), one grounded RAG verdict per indicator. It runs as the preset `transition_plan_indicators` through the generic field pipeline: `POST /api/extraction/start` with `profile: "transition_plan"` installs the preset and starts an ordinary extraction run (`run_type: "extraction"`), under the same release gate as a custom schema, so a new preset version needs one approver release before a non-trial start. Ten child indicators carry a `requires` rule on their parent: a YES whose parent is not YES is flagged for review, never changed. Unlike the paper's tool, every citation is independently re-verified against the source document by the same programmatic grounding check used everywhere else here, rather than trusted from the model's self-report. Runs stored with `run_type` `transition_plan` are read-only: results, review queue and Decision Studio input stay available; they cannot be started, resumed or restarted (400). The old start route, the demo seed and their two CLI commands no longer exist; `arp transition-plan indicators` stays and prints each identifier.
 
 ### 3.13 Transition Barrier Assessment
 The sector-level counterpart to 3.12: where that asks whether a company is credible about transitioning, this asks whether transition is feasible in that sector and region at all. A curated 105-cell matrix — 35 criteria across 9 hard-to-abate sectors x Technology/Regulation/Demand & Economics, each rated H/M/L for the EU, US and China — with per-cell evidence, a confidence tier, a last-verified date and 86 verified sources behind it. Note H means transition is *more* feasible (fewer barriers). Staleness is tracked separately from confidence, since a high-confidence rating can simply be old. The refresh pipeline currently covers only the 15 EUR-Lex `legal_regulatory_text` sources (stable ELI/CELEX identifiers); `GET /api/transition-barrier/refresh/coverage` reports the other 71 as manual rather than silently skipping them. A refresh may propose a rating change but never applies one — candidates go to the run's review queue. See `docs/TRANSITION_BARRIER_ASSESSMENT.md` for the full criteria and source lists.
@@ -305,7 +305,7 @@ A run can send its LLM calls through Anthropic's Message Batches API at 50% of t
 | Where | How |
 |---|---|
 | UI | The "Batch (50% cheaper, slower)" switch on the Extraction start screen and in Theme Builder. |
-| API | `batch: true` in the body of `POST /api/extraction/start`, `POST /api/{extraction,financials,tnfd,transition-plan,themes,voting,identity}/runs`. |
+| API | `batch: true` in the body of `POST /api/extraction/start`, `POST /api/{extraction,financials,tnfd,themes,voting,identity}/runs`. |
 | CLI | `--batch` on `arp extract run`, `arp extract financials-run`, `arp extract tnfd-run`, `arp theme run` and `arp voting run`. |
 
 Settings (env prefix `ARP_`):
@@ -452,7 +452,7 @@ arp voting run | ballots | review | cast
 arp portfolio seed-demo | list | review-queue | aggregate | ask | classify-news
 arp climate waci | financed-emissions | coverage
 arp emerging-themes run | candidates | show | promote | reject | disconfirm | schedule
-arp transition-plan indicators | run
+arp transition-plan indicators
 arp transition-barrier criteria | scores | sources | staleness | coverage | refresh
 arp report draft | plan | render | templates
 arp replicate extract | backtest | compare | discover-papers | score-sentiment | pbo | regime-report | sanity-check | golden-set
@@ -499,7 +499,7 @@ Notebook library: `arp.signal_lab.lab.Lab` is the same pipeline as the CLI for n
 
 ### Durable jobs
 
-`arp extract run --run-id R` (or `POST /api/runs/{run_id}/resume`, analyst or higher) continues a killed, failed, partly failed or cancelled run of any batch type: `theme`, `extraction`, `financials`, `tnfd`, `transition_plan`, `identity`, `discovery`.
+`arp extract run --run-id R` (or `POST /api/runs/{run_id}/resume`, analyst or higher) continues a killed, failed, partly failed or cancelled run of any batch type: `theme`, `extraction`, `financials`, `tnfd`, `identity`, `discovery`. Old `transition_plan` runs are refused (400).
 
 - Inputs come from what the run stored at creation: `runs/<id>/companies.json` (an older theme run without one falls back to its `universe_path`), the manifest params, and the manifest's models.
 - Items already in `results.jsonl`, and items stopped for review, are not run again. Plain failures are retried; their old `errors.jsonl` rows stay as history.

@@ -22,7 +22,7 @@ from arp.config import Settings
 from arp.db.company_view import results_by_company
 from arp.db.fields import SchemaRegistry
 from arp.db.session import transaction
-from arp.decision.templates import attach_to_run
+from arp.decision.templates import attach_to_run, decision_kind_for_schema
 from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
 from arp.extraction.schema_builder import RuleSuggestions, draft_schema, suggest_rules
 from arp.extraction.steps import MODES, ExtractionProfile, StepSettings, pipeline_shape, restart_overrides
@@ -33,6 +33,7 @@ from arp.orchestration.step_tally import step_counts
 from arp.presets.green import green_summary
 from arp.presets.registry import PRESETS, install_preset
 from arp.presets.remuneration import remuneration_summary
+from arp.presets.transition_plan import SCHEMA_ID as TRANSITION_PLAN_SCHEMA_ID
 from arp.review.context import similar_decisions, visible_history
 from arp.review.decide import DecisionError, bulk_accept
 from arp.review.items import get_item
@@ -101,6 +102,14 @@ def list_presets() -> list[dict]:
     return [{"preset_id": pid, "name": (s := build()).name, "field_count": len(s.fields)} for pid, build in PRESETS.items()]
 
 
+@router.get("/presets/{preset_id}", response_model=DataPointSchema)
+def get_preset(preset_id: str) -> DataPointSchema:
+    """The preset's schema as the code builds it now; nothing is saved."""
+    if preset_id not in PRESETS:
+        raise HTTPException(404, "Preset not found")
+    return PRESETS[preset_id]()
+
+
 @router.post("/presets/{preset_id}/install")
 def install_preset_endpoint(
     preset_id: str, registry: SchemaRegistry = Depends(_registry_for),
@@ -163,7 +172,8 @@ async def start_extraction_run(
     template = None
     if req.decision_framework_id:
         template = template_for_run(
-            decision_store, "extraction", req.decision_framework_id, req.decision_framework_version, [f.name for f in schema.fields]
+            decision_store, decision_kind_for_schema(schema.schema_id), req.decision_framework_id, req.decision_framework_version,
+            [f.name for f in schema.fields],
         )
 
     def _create() -> str:
@@ -230,7 +240,7 @@ async def start_extraction(
 
 
 async def _dispatch(req: StartRequest, settings: Settings, run_store: RunStore, registry, decision_store, xbrl_source) -> dict:
-    from arp.api.routers import financials, tnfd, transition_plan
+    from arp.api.routers import financials, tnfd
 
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
     if not companies:
@@ -242,20 +252,21 @@ async def _dispatch(req: StartRequest, settings: Settings, run_store: RunStore, 
         "batch": req.batch,
     }
     stores = {"settings": settings, "run_store": run_store, "registry": registry, "decision_store": decision_store}
-    if req.profile == "custom":
-        if req.datapoint_schema is None:
+    if req.profile in ("custom", "transition_plan"):
+        if req.profile == "transition_plan":  # the preset, installed (a no-op when saved) and run like a custom schema
+            schema = install_preset(TRANSITION_PLAN_SCHEMA_ID, _registry_for(settings))
+        elif req.datapoint_schema is None:
             raise HTTPException(400, "The custom profile needs `datapoint_schema`.")
-        started, run_type = await start_extraction_run(RunRequest(datapoint_schema=req.datapoint_schema, trial=req.trial, **common), **stores, xbrl_source=xbrl_source), "extraction"
+        else:
+            schema = req.datapoint_schema
+        started, run_type = await start_extraction_run(RunRequest(datapoint_schema=schema, trial=req.trial, **common), **stores, xbrl_source=xbrl_source), "extraction"
     elif req.profile == "financials":
         started = await financials.start_financials_extraction_run(financials.RunRequest(**common), **stores, xbrl_source=xbrl_source)
         run_type = "financials"
-    elif req.profile == "tnfd":
+    else:
         if not req.as_of:
             raise HTTPException(400, "The TNFD profile needs `as_of`, the reporting period the run covers.")
         started, run_type = await tnfd.start_tnfd_extraction_run(tnfd.RunRequest(as_of=req.as_of, **common), **stores), "tnfd"
-    else:
-        started = await transition_plan.start_transition_plan_run(transition_plan.RunRequest(**common), **stores)
-        run_type = "transition_plan"
     run_dir = run_store.run_dir(started["run_id"])
     # What the run used, overrides or not, for its step view; and what it
     # was started with, companies resolved, so it can be restarted.
@@ -348,6 +359,8 @@ async def restart_run(
     afresh (see arp.extraction.steps.restart_overrides). From the rules
     step, the run itself is scored again instead -- nothing is extracted."""
     manifest = _manifest_or_404(run_store, run_id)
+    if manifest.run_type == "transition_plan":  # its pipeline is gone; preset runs are "extraction" runs
+        raise HTTPException(400, "Transition-plan runs can no longer be restarted: start a new transition-plan assessment.")
     if manifest.status in ("running", "pending"):
         raise HTTPException(409, "Stop the run first, or wait for it to finish.")
     if req.from_step == "rules":

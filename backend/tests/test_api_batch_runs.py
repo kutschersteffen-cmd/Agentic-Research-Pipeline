@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from arp.api import deps, run_scheduling
-from arp.api.routers import extraction, financials, identity, themes, tnfd, transition_plan, voting
+from arp.api.routers import extraction, financials, identity, themes, tnfd, voting
 from arp.config import Settings
 from arp.llm.batching_client import BatchingLLMClient
 from arp.orchestration.job_manager import JobManager
@@ -21,7 +21,6 @@ ROUTES = {
     "extraction": (extraction, "/api/extraction/runs", "create_extraction_run", "execute_extraction_run", {"datapoint_schema": SCHEMA}),
     "financials": (financials, "/api/financials/runs", "create_financials_extraction_run", "execute_financials_extraction_run", {}),
     "tnfd": (tnfd, "/api/tnfd/runs", "create_tnfd_extraction_run", "execute_tnfd_extraction_run", {"as_of": "FY2025"}),
-    "transition_plan": (transition_plan, "/api/transition-plan/runs", "create_transition_plan_run", "execute_transition_plan_run", {}),
     "themes": (themes, "/api/themes/runs", "create_theme_run", "execute_theme_run", {"theme": THEME}),
     "voting": (voting, "/api/voting/runs", "create_voting_run", "execute_voting_run", {}),
     "identity": (identity, "/api/identity/runs", "create_identity_run", "execute_identity_run", {}),

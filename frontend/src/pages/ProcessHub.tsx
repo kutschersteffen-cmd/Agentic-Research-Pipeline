@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useState, type ReactElement } from "react";
 import { api } from "../api/client";
 import type { RunManifest, StewardshipFlow } from "../types";
-import { ACTIVE_STATUSES, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
+import { ACTIVE_STATUSES, decisionRunType, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
 import { listAllRuns, usePoll } from "../lib/poll";
 import { DECISION_STAGES, PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { openCount } from "./steward/common";
@@ -97,7 +97,7 @@ const DONE = new Set(["completed", "partially_completed"]);
 
 function stepState(step: Step, runs: RunManifest[] | null, flow: StewardshipFlow | null): StepState {
   if (step.runTypes && runs) {
-    const mine = runs.filter((r) => step.runTypes!.includes(r.run_type));
+    const mine = runs.filter((r) => step.runTypes!.includes(decisionRunType(r)));
     // Waiting on a person outranks running: that is what the signal colour is for.
     if (!step.reviewedElsewhere && mine.some((r) => waitingCount(r) > 0)) return "wait";
     if (mine.some((r) => ACTIVE_STATUSES.has(r.status))) return "now";
@@ -394,7 +394,7 @@ function RunProcess({ p }: { p: Process }) {
 
 function StepCard({ s, i, p, runs, flow }: { s: Step; i: number; p: Process; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
   const state = stepState(s, runs, flow);
-  const mine = s.runTypes && runs ? runs.filter((r) => s.runTypes!.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)) : null;
+  const mine = s.runTypes && runs ? runs.filter((r) => s.runTypes!.includes(decisionRunType(r))).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)) : null;
   const last = mine?.[0];
   const waiting = mine && !s.reviewedElsewhere ? mine.reduce((n, r) => n + waitingCount(r), 0) : 0;
   const stage = s.stage ? flow?.stages.find((x) => x.id === s.stage) : undefined;

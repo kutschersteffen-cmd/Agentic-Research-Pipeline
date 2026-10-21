@@ -1550,6 +1550,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/extraction/presets/{preset_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Preset
+         * @description The preset's schema as the code builds it now; nothing is saved.
+         */
+        get: operations["get_preset_api_extraction_presets__preset_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/extraction/presets/{preset_id}/install": {
         parameters: {
             query?: never;
@@ -5732,28 +5752,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/transition-plan/demo/seed": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Seed Demo
-         * @description Writes a finished, synthetic transition plan run (see
-         *     `arp.transition_plan.demo`): made-up verdicts, no documents, no LLM, no
-         *     cost. Each call makes a new run with the same verdicts.
-         */
-        post: operations["seed_demo_api_transition_plan_demo_seed_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/transition-plan/indicators": {
         parameters: {
             query?: never;
@@ -5770,23 +5768,6 @@ export interface paths {
         get: operations["list_indicators_api_transition_plan_indicators_get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/transition-plan/runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Start Transition Plan Run */
-        post: operations["start_transition_plan_run_api_transition_plan_runs_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -13972,26 +13953,6 @@ export interface components {
             cells: components["schemas"]["CellRef"][];
         };
         /** RunRequest */
-        arp__api__routers__transition_plan__RunRequest: {
-            /**
-             * Batch
-             * @description Run through the Message Batches API: 50% cheaper, slower.
-             * @default false
-             */
-            batch: boolean;
-            /** Companies */
-            companies?: components["schemas"]["CompanyRef"][] | null;
-            /**
-             * Decision Framework Id
-             * @description Scoring template to score the results with.
-             */
-            decision_framework_id?: string | null;
-            /** Decision Framework Version */
-            decision_framework_version?: number | null;
-            /** Universe Path */
-            universe_path?: string | null;
-        };
-        /** RunRequest */
         arp__api__routers__voting__RunRequest: {
             /**
              * Batch
@@ -16921,6 +16882,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+        };
+    };
+    get_preset_api_extraction_presets__preset_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                preset_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataPointSchema"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -24496,28 +24488,6 @@ export interface operations {
             };
         };
     };
-    seed_demo_api_transition_plan_demo_seed_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-        };
-    };
     list_indicators_api_transition_plan_indicators_get: {
         parameters: {
             query?: never;
@@ -24534,41 +24504,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TransitionPlanIndicator"][];
-                };
-            };
-        };
-    };
-    start_transition_plan_run_api_transition_plan_runs_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["arp__api__routers__transition_plan__RunRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

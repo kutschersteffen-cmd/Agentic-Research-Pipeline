@@ -1,9 +1,11 @@
-"""The 64 transition-plan indicators (Colesanti Senni et al. 2024) as a boolean criteria schema.
+"""The transition-plan assessment: 64 indicators (Colesanti Senni et al. 2024) as a boolean criteria schema.
 
 Each indicator is one high-risk boolean field running through the generic field pipeline. No derived
 rule ships: the owner defines the aggregation later. Seven questions carry number rules that read eight
-helper fields appended after the questions (spec 2026-10-18-transition-plan-number-rules-design). Field
-versions stay at the default unless a field changed after the preset shipped (_VERSIONS)."""
+helper fields appended after the questions (spec 2026-10-18-transition-plan-number-rules-design). Ten
+child questions also carry a `requires` rule that flags a YES whose parent question is not YES
+(REQUIRES_YES; spec 2026-10-21-retire-transition-plan-pipeline-design). Field versions stay at the
+default unless a field changed after the preset shipped (_VERSIONS)."""
 
 from __future__ import annotations
 
@@ -11,15 +13,24 @@ import json
 from pathlib import Path
 
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
-from arp.schemas.rules import Condition, SeriesRule, ThresholdRule
+from arp.schemas.rules import Condition, RequiresRule, SeriesRule, ThresholdRule
 from arp.transition_plan.indicators import load_indicators
 
 SCHEMA_ID = "transition_plan_indicators"
 _KEYWORDS = Path(__file__).parent / "data" / "transition_plan_keywords.json"
+REQUIRES_YES = {  # child field -> parent field that must also be YES
+    "tp_a_headline_2": "tp_a_headline_1", "tp_a_ambition_4": "tp_a_ambition_3",
+    "tp_a_ambition_5": "tp_a_headline_1", "tp_a_coverage_6": "tp_a_headline_1",
+    "tp_a_coverage_7": "tp_a_headline_1", "tp_a_coverage_8": "tp_a_headline_1",
+    "tp_a_pathway_12": "tp_a_pathway_11", "tp_a_progress_67": "tp_a_emissions_59",
+    "tp_a_progress_68": "tp_a_emissions_60", "tp_a_progress_69": "tp_a_emissions_61",
+}
 _VERSIONS = {
-    "A_coverage_6": 2,  # v2: guideline said "scope 2" in the scope 1 question
-    "A_ambition_5": 2,  # v2 here and below: number rules added
-    **{f"A_progress_{q}": 2 for q in range(67, 73)},
+    "A_coverage_6": 3,  # v2: guideline said "scope 2" in the scope 1 question; v3: requires rule
+    "A_ambition_5": 3,  # v2: number rules added; v3: requires rule
+    **{f"A_progress_{q}": 3 for q in range(67, 70)},
+    **{f"A_progress_{q}": 2 for q in range(70, 73)},
+    **{f"A_{n}": 2 for n in ("headline_2", "ambition_4", "coverage_7", "coverage_8", "pathway_12")},  # requires rule
 }
 
 _SERIES_INSTRUCTIONS = (
@@ -83,6 +94,10 @@ def _rules() -> dict[str, list]:
         rules[f"A_progress_{intensity}"] = [SeriesRule(
             kind="series", rule_id=f"tp_r_progress_{intensity}", when=True,
             field=f"tp_h_scope{scope}_intensity", years=5, trend="down")]
+    for child, parent in REQUIRES_YES.items():  # after any number rule
+        identifier = "A_" + child.removeprefix("tp_a_")
+        rules.setdefault(identifier, []).append(RequiresRule(
+            kind="requires", rule_id="tp_r_req_" + child.removeprefix("tp_a_"), field=parent, equals=True, when=True))
     return rules
 
 

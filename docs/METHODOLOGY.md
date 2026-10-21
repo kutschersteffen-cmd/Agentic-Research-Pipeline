@@ -76,9 +76,13 @@ blended into the qualitative `exposure_estimate` the debate produces — see
 corporate climate transition
 disclosures"](https://iopscience.iop.org/article/10.1088/2515-7620/ad9e88)**
 (Environmental Research Communications, 2024; working paper:
-[SSRN 4826207](https://ssrn.com/abstract=4826207)). This is a direct
-replication of the paper's tool, as `backend/arp/transition_plan/`
-(`arp transition-plan run` / `POST /api/transition-plan/runs`).
+[SSRN 4826207](https://ssrn.com/abstract=4826207)). The assessment is the
+preset `transition_plan_indicators` (`backend/arp/presets/transition_plan.py`),
+run through the generic field pipeline (`POST /api/extraction/start` with
+profile `transition_plan`; run type `extraction`). Runs stored by the earlier
+dedicated pipeline (run type `transition_plan`) stay readable -- results,
+review queue, Decision Studio input -- but cannot be started, resumed or
+restarted.
 
 The paper defines 64 fixed yes/no indicators across four categories
 (Target, Governance, Strategy, Tracking), each classified as **"talk"**
@@ -98,12 +102,12 @@ guideline, walk/talk classification) are bundled verbatim in
 paper's own reference implementation
 ([github.com/tobischimanski/transition_NLP](https://github.com/tobischimanski/transition_NLP))
 rather than retyped from the PDF, so wording exactly matches what the
-paper's tool asked. The persona, greenwashing-skepticism, and precision
-guidelines in `backend/arp/transition_plan/indicator_agent.py`'s system
-prompt are likewise verbatim from the paper's Figure S.2 prompt template.
+paper's tool asked. Each indicator's question and expert-centric guideline
+become one boolean field of the preset (`description` and
+`extraction_instructions`).
 
-Two deliberate deviations from the paper, both existing precision controls
-this codebase already applies everywhere else:
+Deliberate deviations from the paper. The first three are precision controls
+this codebase already applies everywhere else; the last is a design decision:
 
 - **Programmatic citation grounding, not an LLM-self-reported source
   list.** The paper's tool asks the model to report which numbered source
@@ -114,21 +118,27 @@ this codebase already applies everywhere else:
   precision controls, concretely" below). A YES/NO verdict with no
   independently-grounded citation is routed to the review queue instead
   of accepted at face value.
-- **BM25 evidence selection, not OpenAI embeddings.** The paper's RAG
-  pipeline (LlamaIndex + `text-embedding-ada-002`, top-8) is replicated
-  behaviorally -- always retrieve the top-8 chunks regardless of keyword
-  overlap, so a genuinely silent report answers "NA" rather than being
-  skipped -- using this codebase's deterministic, embedding-free BM25
-  retriever (`arp/retrieval/select_evidence.py`) instead, matching every
-  other pipeline here and adding no extra API cost.
+- **The generic retrieval, not OpenAI embeddings.** The paper's RAG
+  pipeline (LlamaIndex + `text-embedding-ada-002`, top-8) is not replicated
+  exactly: the preset uses the generic evidence selection
+  (`arp/retrieval/select_evidence.py`; BM25, plus the local embedding
+  ranking when `Settings.hybrid_retrieval_enabled` is on), like every other
+  preset.
+- **An independent verifier on a different model.** Every indicator is a
+  high-risk boolean field, so a second model re-checks each answer, unlike
+  the paper's single-pass tool.
+- **Contradictions are flagged, not forced.** The earlier pipeline turned a
+  child YES into NO when its parent indicator was NO. The preset keeps the
+  AI's YES and sends it to review: 10 child indicators carry a `requires`
+  rule on their parent (`tp_r_req_*`), and a failed rule flags the value
+  without changing it.
 
-Everything else matches the paper's design: one indicator, one evidence
-retrieval, one LLM call (no independent-verifier second pass, unlike the
-extraction/financials pipelines -- the paper's tool is a single-pass RAG
-system and this replication keeps that shape); a 200-word answer-length
-cap; and per-company output of a walk/talk-annotated verdict grid plus the
-disclosed-count-out-of-64 metric the paper uses as its core
-disclosure-completeness score.
+A new preset version must be released once by an approver before a
+non-trial start; until then the start is refused with the existing "not
+released" error. The per-company output is the generic extraction results
+view; Decision Studio gets the walk/talk disclosed counts and the
+`Ind_<identifier>_Disclosed` columns from the same run
+(`docs/DECISION_MECHANISM.md`).
 
 ### The sector-level counterpart
 
@@ -940,9 +950,6 @@ seed keywords don't cover (e.g. "e-mobility transition" vs. seed keyword
 "electrification"), and a fixed English-only embedding model couldn't rank
 DE-language disclosures meaningfully at all. Set the flag `false` to fall
 back to the old pure-BM25 behavior (e.g. to reproduce a prior run exactly).
-Transition Plan Assessment stays BM25-only regardless of this flag --
-`backend/arp/transition_plan/indicator_graph.py` -- to keep its
-replication of the source paper's retrieval behavior exact (see above).
 
 ## Storage: Postgres and the company registry
 

@@ -12,7 +12,7 @@ Strategy, Governance, Peer comparison, Net Zero pathway).
 
 The closest things here are the **Data-Point Extraction Engine**
 (`backend/arp/extraction/`) and the **Transition Plan Assessment**
-(`backend/arp/transition_plan/`). Transition Plan Assessment is the closest
+(the `transition_plan_indicators` preset, `backend/arp/presets/transition_plan.py`). Transition Plan Assessment is the closest
 analogue to the maturity score: fixed indicators, per-indicator RAG verdicts, citations.
 
 Verdicts use the same three levels as
@@ -45,8 +45,8 @@ The gaps are in the stages around extraction:
 | – | Malware scan | — | **Not built** | `api/routers/documents.py::upload_document` writes the uploaded bytes straight to disk. There is no AV scan, no size cap and no MIME/extension check before `write_bytes`. |
 | 5 | `EMBED_CHUNK_INDEX` (PDF, DOCX → text) | `ingestion/local_files.py` (docling for PDF and DOCX), `ingestion/parsing.py` chunking, BM25 plus local multilingual embeddings | Built | Handles PDF, DOCX, HTML, text and XLSX. A DOCX has no fixed pages, so its citations carry no page number. The embedding model is local fastembed `paraphrase-multilingual-MiniLM-L12-v2`, not a hosted embedding service. |
 | 6 | `INITIALIZE_OUTPUT` | Empty result and review-queue files per run (`RunStore`) | Built | |
-| 7 | `EXTRACTION` (AI; metric: combinations extracted, duration) | `extraction/field_graph.py` (gather → extract → verify → aggregate); `transition_plan/indicator_graph.py` | Built (metrics partial) | Extraction logic is stronger than the reference (see below). The manifest tracks completed companies, tokens and cost, but not **combinations extracted per stage** or **stage duration**. |
-| 8 | `SCORING` (AI alignment, then rules engine) | — | **Not built** for the maturity score | Transition Plan Assessment stops at counts (`disclosed_count`, walk/talk, `by_category`). Nothing maps verdicts to 1–7 criterion scores or cluster scores. Decision Studio (`arp/decision/`) is a deterministic scoring engine, but it scores tables across entities and has no maturity-score criteria grid. |
+| 7 | `EXTRACTION` (AI; metric: combinations extracted, duration) | `extraction/field_graph.py` (gather → extract → verify → aggregate) | Built (metrics partial) | Extraction logic is stronger than the reference (see below). The manifest tracks completed companies, tokens and cost, but not **combinations extracted per stage** or **stage duration**. |
+| 8 | `SCORING` (AI alignment, then rules engine) | — | **Not built** for the maturity score | Transition Plan Assessment stops at per-indicator answers; Decision Studio derives counts (disclosed, walk/talk, per category) from them. Nothing maps verdicts to 1–7 criterion scores or cluster scores. Decision Studio (`arp/decision/`) is a deterministic scoring engine, but it scores tables across entities and has no maturity-score criteria grid. |
 | 9 | `FINAL_SCORE` (score, override status, controversy check, priority flags) | — | **Not built** | No maturity score, no priority flags, no controversy check on this path. Controversy logic exists only in stewardship (`stewardship/monitoring.py`). |
 | 10 | `END_PROCESS` | `run_company_batch` finalisation | Built | |
 
@@ -57,18 +57,11 @@ The gaps are in the stages around extraction:
 | Verification | A single LLM pass, with humans as the only check | A separate verifier agent on a **different model** (`llm_verifier_model`). It disagrees by returning a corrected value, which drops trust and routes the field to review (`extraction/aggregator.py`). |
 | Citation trust | "Traceback links" to source pages | `arp/grounding.py` re-finds every quote in the source text (exact match, then fuzzy) and computes the page itself. The model's self-reported location is not trusted. |
 | Review routing | Everything goes to a first-line review team | Only fields that are ungrounded, disputed by the verifier, low-confidence or conflicting go to the review queue. Fields with no evidence are reported as plain "not disclosed" so they don't flood the queue at 4,000-company scale. |
-| Failure isolation | Not specified | A schema-invalid answer on one indicator is recorded as `assessment_error`. The other 63 indicators still complete (`transition_plan/indicator_graph.py`). |
+| Failure isolation | Not specified | A company that fails is recorded in `errors.jsonl`; the other companies in the run still complete, and plain failures can be resumed. |
 | Resumability | Not specified | Results are checkpointed per company to `results.jsonl`, and runs can be cancelled and resumed. |
 | Provenance | Not specified | Every field stores the model and prompt version for both extractor and verifier (`ProvenanceInfo`). |
 
-**Inconsistency found while comparing.** Transition Plan Assessment does not use
-the extraction engine's decorrelated verifier:
-
-- `indicator_graph.py::_verify` passes `state["llm"]`, the same model as the
-  answerer, and `create_transition_plan_run` records no `verifier_model`.
-- It also ignores `settings.hybrid_retrieval_enabled` and always uses BM25.
-
-**Fixed:** the verify step now runs on the verifier model, the run records both models, and evidence search follows `hybrid_retrieval_enabled` as in extraction.
+**Inconsistency found while comparing (retired).** The dedicated transition-plan pipeline no longer exists: the preset runs through the generic field pipeline, which uses the decorrelated verifier and the generic retrieval.
 
 ## Data model
 
@@ -103,9 +96,9 @@ the extraction engine's decorrelated verifier:
 1. **Upload hardening.** Add a malware scan (e.g. ClamAV), a size cap and an
    extension allowlist to `upload_document`. This is a security gap, not a
    feature gap.
-2. ~~**Align Transition Plan with extraction.**~~ **Done.** The verify step gets
-   `verifier_llm`, the run records `verifier_model`, and search honours
-   `hybrid_retrieval_enabled`.
+2. ~~**Align Transition Plan with extraction.**~~ **Done.** The dedicated pipeline is
+   retired; the preset runs through the generic pipeline, with its verifier
+   model and `hybrid_retrieval_enabled`.
 3. ~~**DOCX parsing**~~ **Done.** `local_files.py` reads `.docx` through the same
    docling converter as PDFs.
 4. **Maturity-score rules engine.** Add a static criteria grid (criterion → 1–7 level
