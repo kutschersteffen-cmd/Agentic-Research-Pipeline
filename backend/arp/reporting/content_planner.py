@@ -66,8 +66,8 @@ async def draft_report_plan(
 ) -> tuple[ReportPlan, LLMUsage]:
     """The single LLM call in this pipeline: turns free-text qualitative
     input + dataset descriptions + audience/layout instructions into a
-    structured ReportPlan. Nothing downstream (chart_builder, deck_builder,
-    report_builder, pdf_builder) calls the model again -- every subsequent
+    structured ReportPlan. Nothing downstream (chart_builder, the house
+    deck renderers, report_builder) calls the model again -- every subsequent
     step is deterministic rendering of this plan, so a human can review or
     hand-edit the plan (ReportingStore.save_plan) before the final render
     without risking a different or inconsistent result on re-render.

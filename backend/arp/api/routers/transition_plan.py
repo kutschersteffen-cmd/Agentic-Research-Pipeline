@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store
@@ -24,14 +24,6 @@ def list_indicators() -> list[TransitionPlanIndicator]:
     reference data for the UI to render definitions/help text, not
     per-run state."""
     return load_indicators()
-
-
-@router.get("/runs/{run_id}")
-def get_transition_plan_run(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
-    manifest = run_store.load_manifest(run_id)
-    if manifest is None:
-        raise HTTPException(404, "Run not found")
-    return manifest.model_dump(mode="json")
 
 
 @router.get("/runs/{run_id}/results")

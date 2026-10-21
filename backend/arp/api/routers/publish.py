@@ -96,13 +96,6 @@ def lineage(fact_id: str, store: PublishStore = Depends(publish_store_dep)) -> d
     return found
 
 
-@router.get("/versions")
-def versions(
-    issuer_key: str, field_id: str, period_end: str, basis: str = "", store: PublishStore = Depends(publish_store_dep)
-) -> dict:
-    return {"versions": [f.model_dump(mode="json") for f in store.versions((issuer_key, field_id, period_end, basis))]}
-
-
 @router.get("/events")
 def events(
     after_id: int = Query(0, ge=0),

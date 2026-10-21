@@ -250,7 +250,7 @@ def get_report_scheduler() -> ReportScheduler:
 @lru_cache
 def get_engagement_store() -> EngagementStore:
     settings = get_settings()
-    return EngagementStore(settings.engagements_dir, dsn=settings.postgres_dsn)
+    return EngagementStore(settings.engagements_dir)
 
 
 @lru_cache

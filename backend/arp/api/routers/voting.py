@@ -54,14 +54,6 @@ async def start_voting_run(
     return {"run_id": run_id, "company_count": len(companies)}
 
 
-@router.get("/runs/{run_id}")
-def get_voting_run(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
-    manifest = run_store.load_manifest(run_id)
-    if manifest is None:
-        raise HTTPException(404, "Run not found")
-    return manifest.model_dump(mode="json")
-
-
 @router.get("/runs/{run_id}/ballots")
 def get_voting_ballots(run_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
     return {"ballots": [b.model_dump(mode="json") for b in get_ballots(run_store, run_id)]}

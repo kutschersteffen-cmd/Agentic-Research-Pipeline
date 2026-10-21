@@ -1,4 +1,3 @@
-import asyncio
 
 import pytest
 from fastapi import FastAPI
@@ -16,7 +15,9 @@ from arp.schemas.reporting import (
     LayoutInstructions,
     OutputFormat,
     ReportManifest,
+    ReportPlan,
     ReportRequest,
+    ReportSection,
     ReportStatus,
     SlideContent,
     Storyline,
@@ -99,14 +100,14 @@ async def test_applied_qa_edit_replaces_stale_fit_and_lint_findings(tmp_path, fa
     assert [f.rule for f in findings] == ["slot_dropped", "applied"]  # stale overflow + lint gone; QA's real re-fit finds nothing
 
 
-def test_render_from_plan_rerenders_house_deck_without_llm(tmp_path, fake_llm):
+async def test_render_from_plan_rerenders_house_deck_without_llm(tmp_path, fake_llm):
     store = _store(tmp_path)
     service = ReportingService(store)
-    manifest = asyncio.run(service.create_and_plan(_REQ, fake_llm({"Storyline": [_storyline(1)]})))
-    asyncio.run(service.approve_storyline(manifest.report_id, fake_llm({"SlideContent": [_bullets()]})))
+    manifest = await service.create_and_plan(_REQ, fake_llm({"Storyline": [_storyline(1)]}))
+    await service.approve_storyline(manifest.report_id, fake_llm({"SlideContent": [_bullets()]}))
     store.output_path(manifest.report_id, "output.pdf").unlink()
 
-    manifest = service.render_from_plan(manifest.report_id)
+    manifest = await service.render_from_plan(manifest.report_id)
 
     assert manifest.status == ReportStatus.COMPLETED and store.output_path(manifest.report_id, "output.pdf").exists()
 
@@ -196,6 +197,19 @@ def test_download_rejects_file_not_in_output_files(client, store):
     assert client.get(f"/api/reports/{rid}/download?file=output.pptx").status_code == 404
     assert client.get(f"/api/reports/{rid}/download?file=manifest.json").status_code == 404
     assert client.get(f"/api/reports/{rid}/download?file=output.pdf").status_code == 200
+
+
+def test_render_route_builds_the_saved_plan_and_400s_without_one(client, store):
+    m = ReportManifest(title="T", output_format=OutputFormat.PPTX)
+    store.save_request(m.report_id, ReportRequest(title="T", qualitative_notes="n", layout=LayoutInstructions(output_format=OutputFormat.PPTX)))
+    store.save_manifest(m)
+    assert client.post(f"/api/reports/{m.report_id}/render").status_code == 400  # no plan drafted yet
+
+    store.save_plan(m.report_id, ReportPlan(title="T", sections=[ReportSection(heading="S")]))
+    got = client.post(f"/api/reports/{m.report_id}/render")
+
+    assert got.status_code == 200 and got.json()["status"] == ReportStatus.COMPLETED.value
+    assert store.output_path(m.report_id, "output.pptx").exists()
 
 
 async def test_findings_follow_a_fit_split_and_lint_matches_final_deck(tmp_path, fake_llm):

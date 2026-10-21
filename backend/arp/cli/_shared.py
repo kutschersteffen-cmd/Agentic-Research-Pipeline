@@ -40,7 +40,7 @@ async def _and_drain(coro):
 
 def _engagement_store() -> EngagementStore:
     settings = get_settings()
-    return EngagementStore(settings.engagements_dir, dsn=settings.postgres_dsn)
+    return EngagementStore(settings.engagements_dir)
 
 
 

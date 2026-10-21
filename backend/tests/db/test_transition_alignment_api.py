@@ -30,12 +30,14 @@ from tests.transition_alignment_helpers import (  # noqa: F401 - fixtures
     EU,
     FY25,
     FY26,
+    OFFSETS,
     US,
     action_basis,
     observation,
     publish,
     publish_action,
     publish_item,
+    publish_k_net_zero,
     ratify_fta,
     register_documents,
     retire,
@@ -521,3 +523,82 @@ def test_ac117_no_model_call(client, ids, monkeypatch):
     finally:
         app.dependency_overrides.pop(deps.get_llm_client, None)
     assert r.status_code == 200 and r.json()["target_progress"]["text"] == "Target progress 68.75% (ACT GE 1.4)"
+
+
+# --- consistency flags (spec 2026-10-21) ---------------------------------------------------------------------------
+
+def _flags(client, cid):
+    return {f["id"]: f for f in transition(client, cid)["flags"]}
+
+
+def _fact_ids(client, cid, field_id):
+    return [r["fact_id"] for r in client.get(f"/api/companies/{cid}/facts", params={"field_id": field_id}).json()]
+
+
+def test_ac130_api(client, ids):
+    assert [(f["id"], f["title"]) for f in transition(client, ids["C"])["flags"]] == [
+        ("no_lowcarbon_capex", "Falling emissions claimed, no low-carbon capex"),
+        ("net_zero_no_phaseout", "Net zero without phase-out"),
+        ("expansion_vs_net_zero", "Expansion against net zero"),
+        ("regions_left_out", "Regions left out"),
+        ("offsets_emphasised", "Offsets emphasised"),
+    ]
+
+
+def test_ac133_api(client, ids):
+    out = transition(client, ids["C"])
+    assert out["flags_header"] == "Consistency: 1 of 5 checks raise a flag"
+    assert [f["state"] for f in out["flags"]] == ["clear"] * 4 + ["raised"]
+
+
+def test_ac143_q(client, ids):
+    out = transition(client, ids["Q"])
+    assert (out["flags"], out["flags_header"]) == ([], None)
+
+
+def test_ac144_no_model_call(client, ids, monkeypatch):
+    class Raising:
+        def __getattr__(self, name):
+            raise AssertionError(f"model client called: {name}")
+
+    def refuse(*a, **k):
+        raise AssertionError("model client built")
+
+    monkeypatch.setattr("arp.llm.factory.build_llm_client", refuse)
+    monkeypatch.setattr(deps, "build_llm_client", refuse)
+    app.dependency_overrides[deps.get_llm_client] = Raising
+    try:
+        r = client.get(f"/api/companies/{ids['C']}/transition")
+    finally:
+        app.dependency_overrides.pop(deps.get_llm_client, None)
+    assert r.status_code == 200 and r.json()["flags_header"] == "Consistency: 1 of 5 checks raise a flag"
+
+
+def test_ac145_trail(client, ids):
+    (fact_id,) = _flags(client, ids["C"])["offsets_emphasised"]["fact_ids"]
+    r = client.get(f"/api/facts/{fact_id}/trail")
+    assert r.status_code == 200 and r.json()["field_id"] == OFFSETS
+    (citation,) = r.json()["versions"][-1]["citations"]
+    assert (citation["doc_id"], citation["page"]) == ("P1", 26)
+
+
+def test_ac158_api(client, pg, run_store, ids):
+    c = ids["C"]
+    retire(pg, c, ("tc_new_blast_furnace", FY25))
+    publish(pg, run_store, [(c, "tc_new_blast_furnace", FY25, True, None, "P2", 48)])
+    f = _flags(client, c)["expansion_vs_net_zero"]
+    assert f["state"] == "raised"
+    assert f["fact_ids"] == _fact_ids(client, c, "tp_a_ambition_3") + _fact_ids(client, c, "tc_new_blast_furnace")
+
+
+def test_ac160_k(client, pg, run_store, ids):
+    publish_k_net_zero(pg, run_store, ids)
+    f = _flags(client, ids["K"])["expansion_vs_net_zero"]
+    assert (f["state"], f["text"]) == ("not checked", "No redline for this sector")
+
+
+def test_ac166_api(client, ids):
+    c = ids["C"]
+    t1 = sorted(r["fact_id"] for r in client.get(f"/api/companies/{c}/facts").json()
+                if r["field_id"] in TARGET_FIELDS and r["basis"] == "target:P1:22:1")
+    assert len(t1) == 6 and _flags(client, c)["no_lowcarbon_capex"]["fact_ids"] == t1

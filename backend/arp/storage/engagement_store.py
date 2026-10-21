@@ -35,11 +35,9 @@ class EngagementStore:
     current snapshot.
     """
 
-    def __init__(self, engagements_dir: Path, dsn: str | None = None) -> None:
-        """`dsn`: mirror every save into Postgres (postgres_engagement_projection.py), best-effort."""
+    def __init__(self, engagements_dir: Path) -> None:
         self.engagements_dir = engagements_dir
         self._locks = KeyedLock(lock_path=lambda company_id: self._dir(company_id) / ".lock")
-        self._dsn = dsn
 
     @contextmanager
     def lock(self, company_id: str) -> Iterator[None]:
@@ -69,11 +67,6 @@ class EngagementStore:
         # Write-then-rename (see arp/storage/atomic_io.py) -- a concurrent
         # reader never sees a half-written record.json.
         atomic_write_text(self._record_path(record.company_id), record.model_dump_json(indent=2), prefix=".record_")
-
-        if self._dsn:
-            from arp.storage.postgres_engagement_projection import sync_record_if_enabled
-
-            sync_record_if_enabled(self._dsn, record)
         return record
 
     def _log_event(self, company_id: str, event_type: str, detail: dict) -> None:

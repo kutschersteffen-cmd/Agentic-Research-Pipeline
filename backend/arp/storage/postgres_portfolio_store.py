@@ -36,15 +36,12 @@ class PostgresPortfolioStore:
     "Drop-in" is enforced by tests/test_portfolio_store_parity.py, which
     runs one set of assertions against both stores and compares their
     public surfaces. The one deliberate difference it encodes: the
-    `*_path()` accessors for data this backend relationalizes
-    (`registry_path`, `securities_path`, `companies_path`,
-    `resolutions_path`, `snapshot_path`) are absent here, because there is
-    no file behind them -- returning the wrapped file store's path would
-    hand a caller an empty or nonexistent file and call it the data. The
-    `*_path()` accessors for concerns that stay file-backed
-    (`observations_path`, `news_path`, `flags_path`, `analytics_path`,
-    `rules_path`, `alert_events_path`, `governance_events_path`) are
-    delegated, because there the file really is where the data lives.
+    `*_path()` accessors are absent here. For data this backend
+    relationalizes (`registry_path`, `securities_path`, `companies_path`,
+    `resolutions_path`, `snapshot_path`) there is no file behind them --
+    returning the wrapped file store's path would hand a caller an empty or
+    nonexistent file and call it the data. For concerns that stay
+    file-backed, only the file store itself reads its paths.
     """
 
     def __init__(self, dsn: str, file_store: PortfolioStore) -> None:
@@ -60,9 +57,6 @@ class PostgresPortfolioStore:
 
     # --- delegated to the file store: no relational join access pattern ---
 
-    def observations_path(self, company_id: str, field_id: str):
-        return self._files.observations_path(company_id, field_id)
-
     def append_observation(self, obs: DataPointObservation) -> None:
         self._files.append_observation(obs)
 
@@ -76,17 +70,11 @@ class PostgresPortfolioStore:
         """Every (company_id, field_id) with a recorded observation."""
         return self._files.list_observation_keys()
 
-    def news_path(self):
-        return self._files.news_path()
-
     def append_news(self, item: NewsItem) -> None:
         self._files.append_news(item)
 
     def list_news(self, company_id: str | None = None) -> list[NewsItem]:
         return self._files.list_news(company_id)
-
-    def flags_path(self):
-        return self._files.flags_path()
 
     def append_flag(self, flag: NewsRiskFlag) -> None:
         self._files.append_flag(flag)
@@ -94,20 +82,6 @@ class PostgresPortfolioStore:
     def list_flags(self, company_id: str | None = None) -> list[NewsRiskFlag]:
         return self._files.list_flags(company_id)
 
-    def analytics_path(self):
-        return self._files.analytics_path()
-
-    def save_analytic(self, spec_json: dict) -> None:
-        self._files.save_analytic(spec_json)
-
-    def list_analytics(self) -> list[dict]:
-        return self._files.list_analytics()
-
-    def get_analytic(self, analytic_id: str) -> dict | None:
-        return self._files.get_analytic(analytic_id)
-
-    def groups_path(self):
-        return self._files.groups_path()
 
     def save_group(self, group: PortfolioGroup) -> None:
         self._files.save_group(group)
@@ -118,9 +92,6 @@ class PostgresPortfolioStore:
     def get_group(self, group_id: str) -> PortfolioGroup | None:
         return self._files.get_group(group_id)
 
-    def rules_path(self):
-        return self._files.rules_path()
-
     def save_rule(self, rule: AlertRule) -> None:
         self._files.save_rule(rule)
 
@@ -129,9 +100,6 @@ class PostgresPortfolioStore:
 
     def list_rules(self, enabled_only: bool = False) -> list[AlertRule]:
         return self._files.list_rules(enabled_only)
-
-    def alert_events_path(self, scope_id: str):
-        return self._files.alert_events_path(scope_id)
 
     def append_alert_event(self, scope_id: str, event_type: str, payload: dict) -> None:
         self._files.append_alert_event(scope_id, event_type, payload)
@@ -142,17 +110,11 @@ class PostgresPortfolioStore:
     def list_all_alert_scope_ids(self) -> list[str]:
         return self._files.list_all_alert_scope_ids()
 
-    def governance_events_path(self):
-        return self._files.governance_events_path()
-
     def append_governance_event(self, event_type: str, payload: dict) -> None:
         self._files.append_governance_event(event_type, payload)
 
     def list_governance_events(self) -> list[dict]:
         return self._files.list_governance_events()
-
-    def revision_path(self, kind: HoldingKind, holder_id: str, as_of_date: str, revision: int):
-        return self._files.revision_path(kind, holder_id, as_of_date, revision)
 
     def save_revision(self, kind: HoldingKind, holder_id: str, as_of_date: str, revision: int, holdings: list[Holding]) -> None:
         self._files.save_revision(kind, holder_id, as_of_date, revision, holdings)
@@ -163,9 +125,6 @@ class PostgresPortfolioStore:
     def list_revisions(self, kind: HoldingKind, holder_id: str, as_of_date: str) -> list[int]:
         return self._files.list_revisions(kind, holder_id, as_of_date)
 
-    def holders_path(self):
-        return self._files.holders_path()
-
     def save_holder(self, cfg: HolderConfig) -> None:
         self._files.save_holder(cfg)
 
@@ -174,9 +133,6 @@ class PostgresPortfolioStore:
 
     def list_holders(self) -> list[HolderConfig]:
         return self._files.list_holders()
-
-    def holdings_audit_path(self):
-        return self._files.holdings_audit_path()
 
     def append_holdings_audit(self, row: dict) -> None:
         self._files.append_holdings_audit(row)
@@ -504,12 +460,9 @@ class PostgresPortfolioStore:
         holdings x securities x companies join instead of loading every
         JSONL snapshot into Python.
 
-        This is what makes the relational backend worth configuring, and
-        until now nothing called it: `aggregate_market_value_eur` (kept
-        below, it returns the bare pairs) had no call sites outside its own
-        tests, so opting into Postgres bought no faster aggregation.
-        `arp/portfolio/analytics.py::execute` now routes through here when
-        the configured store offers it.
+        This is what makes the relational backend worth configuring:
+        `arp/portfolio/analytics.py::execute` routes through here when the
+        configured store offers it.
 
         Returns rows ordered by group value, with NULL group values left as
         None for the caller to label -- `aggregation.aggregate` renders
@@ -542,65 +495,6 @@ class PostgresPortfolioStore:
                 (key, round(float(total), 2), int(count)) for key, total, count in session.execute(stmt).all()
             ]
         return rows, round(sum(total for _key, total, _count in rows), 2)
-
-    def aggregate_market_value_eur(
-        self, as_of_date: str, group_by: str, portfolio_ids: list[str] | None = None
-    ) -> list[tuple[str | None, float]]:
-        """Sums market_value_eur across holdings, grouped by a Holding/
-        Security/Company field -- a three-way join (holdings x securities
-        x companies) done in one SQL query instead of loading every JSONL
-        snapshot into Python and grouping by hand, which is what the
-        equivalent file-based aggregation.py necessarily does today. This
-        is the concrete case docs/METHODOLOGY.md's architecture-review
-        gap analysis names as where a relational store actually earns its
-        cost at this system's scale (many portfolios x many dates).
-
-        `group_by` must be one of: portfolio_id, security_id, asset_class,
-        currency, company_id, sector, country -- the first four resolve
-        straight off `holdings`/`securities`, the last three require the
-        join into `companies`.
-
-        `as_of_date` is resolved per portfolio exactly as
-        load_holdings_as_of resolves it (latest snapshot on or before),
-        so this aggregation and a Python-side sum over
-        load_holdings_as_of's rows always agree -- which is what
-        tests/test_portfolio_store_parity.py asserts.
-        """
-        from sqlalchemy import func, select
-
-        from arp.storage.postgres_models import CompanyModel, HoldingModel, SecurityModel
-
-        holding_cols = {"portfolio_id", "security_id"}
-        security_cols = {"asset_class", "currency"}
-        company_cols = {"sector", "country", "company_id"}
-        if group_by not in holding_cols | security_cols | company_cols:
-            raise ValueError(f"Unsupported group_by: {group_by!r}")
-
-        latest, on_clause = self._holdings_as_of_join(as_of_date, portfolio_ids)
-
-        if group_by in holding_cols:
-            group_col = getattr(HoldingModel, group_by)
-            stmt = select(group_col, func.sum(HoldingModel.market_value_eur)).join(latest, on_clause)
-        elif group_by in security_cols:
-            group_col = getattr(SecurityModel, group_by)
-            stmt = (
-                select(group_col, func.sum(HoldingModel.market_value_eur))
-                .join(latest, on_clause)
-                .join(SecurityModel, SecurityModel.security_id == HoldingModel.security_id)
-            )
-        else:
-            group_col = SecurityModel.company_id if group_by == "company_id" else getattr(CompanyModel, group_by)
-            stmt = (
-                select(group_col, func.sum(HoldingModel.market_value_eur))
-                .join(latest, on_clause)
-                .join(SecurityModel, SecurityModel.security_id == HoldingModel.security_id)
-                .outerjoin(CompanyModel, CompanyModel.company_id == SecurityModel.company_id)
-            )
-
-        stmt = stmt.group_by(group_col).order_by(func.sum(HoldingModel.market_value_eur).desc())
-
-        with self._session() as session:
-            return [(key, float(total)) for key, total in session.execute(stmt).all()]
 
 
 def _holding_from_row(row) -> Holding:

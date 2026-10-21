@@ -65,6 +65,13 @@ jobs:
       - name: Install backend package and mutmut
         run: pip install -e ".[dev,postgres,opensearch,emerging_themes,object_storage]" "mutmut==3.8.0"
 
+      - name: Private NLTK data (nltk >= 3.10.4 refuses shared dirs)
+        run: . "$GITHUB_WORKSPACE/.github/scripts/private_nltk_data.sh"
+
+      # Tests that render PDFs (reporting, stewardship) need it, as in ci.yml; without it they fail inside mutmut.
+      - name: Install Chromium for Playwright
+        run: python -m playwright install --with-deps chromium
+
       - name: Mutation check
         env:
           SCOPE: ${{ github.event_name == 'pull_request' && format('--base=origin/{0}', github.base_ref) || '--since=26 hours' }}

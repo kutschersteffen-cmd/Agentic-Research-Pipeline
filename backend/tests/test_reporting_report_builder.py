@@ -1,6 +1,10 @@
+import asyncio
+
 from docx import Document
 
-from arp.reporting.pdf_builder import build_pdf
+from arp.reporting.browser import write_pdf
+from arp.reporting.deck_compat import deck_from_plan
+from arp.reporting.html_render import render_deck_html
 from arp.reporting.report_builder import build_docx
 from arp.schemas.reporting import (
     ChartSpec,
@@ -57,11 +61,11 @@ def test_build_docx_has_title_headings_table_and_image(tmp_path):
     assert len(doc.inline_shapes) == 1
 
 
-def test_build_pdf_writes_a_nonempty_pdf_file(tmp_path):
+def test_plan_pdf_is_a_nonempty_pdf_file(tmp_path):
     ds = _dataset()
     out = tmp_path / "report.pdf"
 
-    build_pdf(_plan(ds), [ds], LayoutInstructions(include_appendix=True), out)
+    asyncio.run(write_pdf(render_deck_html(deck_from_plan(_plan(ds)), [ds]), out))  # the path ReportingService takes for pdf
 
     assert out.exists()
     assert out.read_bytes().startswith(b"%PDF")
