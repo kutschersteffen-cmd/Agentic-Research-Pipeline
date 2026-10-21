@@ -1,6 +1,6 @@
 # RFP agent, part 1: answering the written RFP
 
-Status: draft, 2026-10-21. Part 2 (the pitch deck) gets its own spec after this one is built; it
+Status: approved by the owner, 2026-10-21. Part 2 (the pitch deck) gets its own spec after this one is built; it
 reads this part's approved answers. Owner decisions on 2026-10-21: the agent does all five jobs of a
 tool like Loopio or Responsive; answers come from past RFP responses and a shared answer library,
 all Word and Excel; colleagues may write answers by hand; approval is four-eyes; any digit in an
