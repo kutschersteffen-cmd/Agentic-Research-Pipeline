@@ -3,6 +3,7 @@ reviewable, but nothing starts, resumes or restarts them (spec
 2026-10-21-retire-transition-plan-pipeline-design, sections 4 and 5)."""
 
 import json
+from pathlib import Path
 
 import pytest
 import typer
@@ -15,7 +16,11 @@ from arp.api.main import app
 from arp.api.routers import extraction, runs
 from arp.cli import app as cli
 from arp.config import Settings
-from arp.decision.templates import attach_to_run
+from arp.decision import sources
+from arp.decision.indicator_list import build_framework, parse_indicator_list
+from arp.decision.mechanism import apply_mechanism
+from arp.decision.parsing import load_table
+from arp.decision.templates import attach_to_run, import_template
 from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef
 from arp.schemas.decision import MechanismConfig
@@ -155,3 +160,48 @@ def test_preset_run_restarts_from_start_and_rescores_from_rules(api):  # AC-63, 
     rescored = api.post(f"/api/extraction/runs/{run_id}/restart", json={"from_step": "rules"})
     assert rescored.status_code == 200, rescored.text
     assert rescored.json()["rescored"] is True
+
+
+def test_completed_old_run_cannot_be_resumed(api, old_run):
+    # Both companies have results: any other run type would say "already completed".
+    assert JobManager(api.store).finish_run(old_run).status == "completed"
+    res = api.post(f"/api/runs/{old_run}/resume")
+    assert res.status_code == 400
+    assert RESUME in res.text
+
+
+# --- the shipped example framework still scores transition-plan runs (ported from the deleted
+# test_transition_plan_demo.py, which ran them on the synthetic demo run) ---
+
+TP_LIST = Path(__file__).resolve().parents[2] / "docs/decision-studio/example-framework/transition-plan/indicators.csv"
+
+
+def _datasets(tmp_path, pg):
+    """An old transition_plan run (main's stored records) and a preset run, as Decision Studio reads them."""
+    from tests.test_decision_sources import old_run_o, preset_run_r
+
+    store = RunStore(pg, tmp_path)
+    return {kind: sources.from_transition_plan_run(store, make(store), include_indicators=True)
+            for kind, make in (("old", old_run_o), ("preset", preset_run_r))}
+
+
+def test_the_transition_plan_indicator_list_scores_the_run(tmp_path, pg):
+    config, _ = build_framework(parse_indicator_list(load_table(TP_LIST)), name="TP")
+    expected = {
+        "old": {"Acme": "Tier 3", "c2": "Tier 3"},  # 22 and 21 of 64 disclosed: between the 0.25 and 0.5 cuts
+        "preset": {"X": "Tier 3", "Y": "Tier 4"},  # X: the whole Targets group (1 of 4 balanced groups); Y: one target
+    }
+    for kind, dataset in _datasets(tmp_path, pg).items():
+        result = apply_mechanism(dataset, config)
+        assert not result.missing_columns
+        tiers = {e.name: e.tier_name for e in result.entities}
+        assert tiers == expected[kind], kind
+
+
+def test_the_exported_framework_file_scores_the_run_the_same(tmp_path, pg):
+    built, _ = build_framework(parse_indicator_list(load_table(TP_LIST)), name="TP")
+    imported, _ = import_template(json.loads((TP_LIST.parent / "framework.json").read_text()))
+    for kind, dataset in _datasets(tmp_path, pg).items():
+        assert not apply_mechanism(dataset, imported).missing_columns, kind
+        tiers = lambda config, dataset=dataset: {e.name: e.tier_name for e in apply_mechanism(dataset, config).entities}  # noqa: E731
+        assert tiers(imported) == tiers(built)

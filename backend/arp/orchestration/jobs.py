@@ -173,10 +173,10 @@ def check_resumable(run_store: RunStore, run_id: str) -> RunManifest:
     manifest = run_store.load_manifest(run_id)
     if manifest is None:
         raise NotResumable("Unknown run_id")
-    if manifest.status == JobStatus.COMPLETED and _reached_every_company(run_store, manifest):
-        raise NotResumable("already completed")  # a completed run that missed companies resumes for them
     if manifest.run_type == "transition_plan":  # its pipeline is gone; the preset runs as an extraction run
         raise NotResumable("Transition-plan runs can no longer be resumed: start a new transition-plan assessment.")
+    if manifest.status == JobStatus.COMPLETED and _reached_every_company(run_store, manifest):
+        raise NotResumable("already completed")  # a completed run that missed companies resumes for them
     if manifest.run_type not in RESUMABLE:
         raise NotResumable(f"{manifest.run_type} runs are not resumable; start a new run")
     # A theme run may instead have a universe file (runs from before companies.json).
