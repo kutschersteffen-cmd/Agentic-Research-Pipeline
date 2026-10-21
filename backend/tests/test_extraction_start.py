@@ -6,7 +6,7 @@ import json
 import pytest
 from fastapi import HTTPException
 
-from arp.api.routers import extraction, financials, tnfd, transition_plan
+from arp.api.routers import extraction, financials, tnfd
 from arp.config import Settings
 from arp.extraction.steps import StepSettings
 from arp.schemas.common import CompanyRef
@@ -29,7 +29,6 @@ def calls(monkeypatch):
     monkeypatch.setattr(extraction, "start_extraction_run", _fake("custom", calls))
     monkeypatch.setattr(financials, "start_financials_extraction_run", _fake("financials", calls))
     monkeypatch.setattr(tnfd, "start_tnfd_extraction_run", _fake("tnfd", calls))
-    monkeypatch.setattr(transition_plan, "start_transition_plan_run", _fake("transition_plan", calls))
     return calls
 
 

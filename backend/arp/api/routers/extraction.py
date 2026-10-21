@@ -351,6 +351,8 @@ async def restart_run(
     afresh (see arp.extraction.steps.restart_overrides). From the rules
     step, the run itself is scored again instead -- nothing is extracted."""
     manifest = _manifest_or_404(run_store, run_id)
+    if manifest.run_type == "transition_plan":  # its pipeline is gone; preset runs are "extraction" runs
+        raise HTTPException(400, "Transition-plan runs can no longer be restarted: start a new transition-plan assessment.")
     if manifest.status in ("running", "pending"):
         raise HTTPException(409, "Stop the run first, or wait for it to finish.")
     if req.from_step == "rules":

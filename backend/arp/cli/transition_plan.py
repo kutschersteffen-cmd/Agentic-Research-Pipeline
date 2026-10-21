@@ -1,20 +1,13 @@
 from __future__ import annotations
 
-import asyncio
 import json
 from pathlib import Path
 
 import typer
 
-from arp.cli._shared import _registry, _run_store
-from arp.config import get_settings
-from arp.llm.factory import build_llm_client, build_verifier_llm_client
-from arp.transition_plan.demo import DEMO_COMPANIES, seed_demo_run
 from arp.transition_plan.indicators import load_indicators
-from arp.transition_plan.pipeline import run_transition_plan_assessment
-from arp.universe import load_company_universe
 
-transition_plan_app = typer.Typer(help="Transition Plan Assessment: the 64-indicator RAG walk/talk disclosure assessment (Colesanti Senni et al. 2024).")
+transition_plan_app = typer.Typer(help="Transition Plan Assessment: the 64 walk/talk disclosure indicators (Colesanti Senni et al. 2024).")
 
 
 @transition_plan_app.command("indicators")
@@ -25,36 +18,4 @@ def transition_plan_indicators(out: Path = typer.Option(None, help="Write the 64
         typer.echo(f"Wrote {len(indicators)} indicators to {out}")
         return
     for i in indicators:
-        typer.echo(f"{i.number:>2}. [{i.category.value}/{i.walk_or_talk.value}] {i.question}")
-
-
-
-@transition_plan_app.command("seed-demo")
-def transition_plan_seed_demo() -> None:
-    """Writes a finished, synthetic transition plan run over 8 fictional
-    companies (see arp/transition_plan/demo.py): made-up verdicts, no
-    documents, no LLM. For trying Decision Studio and the results screens."""
-    run_id = asyncio.run(seed_demo_run(_run_store()))
-    typer.echo(f"Synthetic run {run_id}: {len(DEMO_COMPANIES)} companies (see runs/{run_id}/)")
-
-
-@transition_plan_app.command("run")
-def transition_plan_run(
-    universe: Path = typer.Option(...),
-) -> None:
-    """Assesses each company's climate transition disclosures against the
-    64 indicators from Colesanti Senni et al. (2024) -- target-setting
-    ("talk") vs. concrete implementation ("walk") -- via one grounded RAG
-    verdict per indicator, with the same programmatic citation-grounding
-    check as `extract run`."""
-    settings = get_settings()
-    llm = build_llm_client(settings)
-    verifier_llm = build_verifier_llm_client(settings)
-    companies = load_company_universe(universe)
-    typer.echo(f"Assessing transition plans across {len(companies)} companies against 64 indicators...")
-    run_id = asyncio.run(
-        run_transition_plan_assessment(
-            companies, llm=llm, verifier_llm=verifier_llm, registry=_registry(), settings=settings, run_store=_run_store()
-        )
-    )
-    typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")
+        typer.echo(f"{i.number:>2}. {i.identifier} [{i.category.value}/{i.walk_or_talk.value}] {i.question}")

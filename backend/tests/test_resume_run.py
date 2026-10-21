@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 import arp.research.pipeline as research_pipeline
-import arp.transition_plan.pipeline as tp_pipeline
 from arp.api.auth import current_user
 from arp.api.deps import get_run_store, settings_dep
 from arp.api.main import app
@@ -18,26 +17,29 @@ from arp.llm.base import LLMUsage
 from arp.llm.batching_client import BatchingLLMClient
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import NotResumable, RunBusy, resume_run, run_lease
-from arp.research.pipeline import create_theme_run
+from arp.research.pipeline import CompanyMatchesResult, create_theme_run
 from arp.schemas.common import CompanyRef, JobStatus
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
-from arp.schemas.transition_plan import TransitionPlanAssessmentRecord
 from arp.storage.run_store import RunStore
-from arp.transition_plan.pipeline import TransitionPlanAssessmentResult, create_transition_plan_run
 from arp.voting.pipeline import create_voting_run
 from tests.postgres_helpers import forget_companies, pg_dsn
 
 COMPANIES = [CompanyRef(company_id=f"c{i}", name=f"Co {i}") for i in range(1, 7)]
 LLM = object()  # never called: the fake assessor stands in for every LLM step
+THEME = ThemeDefinition(name="T", description="")
 
 
 def _settings(tmp_path) -> Settings:
     return Settings(anthropic_api_key="unused", runs_dir=tmp_path / "runs", cache_dir=tmp_path / "cache")
 
 
+def _theme_run(companies, settings, store) -> str:
+    return create_theme_run(THEME, companies, settings, store)
+
+
 class FakeAssessor:
-    """Stands in for _assess_company: records each call; once `block_after`
-    companies have returned, every further call waits on `release`."""
+    """Stands in for the theme pipeline's _match_company: records each call; once
+    `block_after` companies have returned, every further call waits on `release`."""
 
     def __init__(self, block_after: int | None = None) -> None:
         self.calls: list[str] = []
@@ -45,23 +47,19 @@ class FakeAssessor:
         self.block_after = block_after
         self.release = asyncio.Event()
 
-    async def __call__(self, company, *, registry, llm, verifier_llm=None, settings):
+    async def __call__(self, company, theme, *, registry, llm, verifier_llm=None, settings, **_kwargs):
         self.calls.append(company.company_id)
         if self.block_after is not None and self.returned >= self.block_after:
             await self.release.wait()
         self.returned += 1
-        record = TransitionPlanAssessmentRecord(company_id=company.company_id, name=company.name, run_id="", needs_review=True)
-        return TransitionPlanAssessmentResult(record, LLMUsage(), 0.0)
+        # A model-chosen sector code: one review item per company.
+        return CompanyMatchesResult([], LLMUsage(), 0.0, isic_code="X", isic_from_model=True)
 
 
 @pytest.fixture
 def fake(monkeypatch):
-    async def _prepare(company, **_kwargs):
-        return company
-
     assessor = FakeAssessor()
-    monkeypatch.setattr(tp_pipeline, "_assess_company", assessor)
-    monkeypatch.setattr(tp_pipeline, "prepare_company", _prepare)
+    monkeypatch.setattr(research_pipeline, "_match_company", assessor)
     return assessor
 
 
@@ -74,12 +72,12 @@ def _resume(run_id, settings, store, **kwargs):
 async def test_killed_worker_resumes_without_repeats(tmp_path, fake, pg):
     settings = _settings(tmp_path)
     store = RunStore(pg, settings.runs_dir)
-    run_id = create_transition_plan_run(COMPANIES, settings, store)
+    run_id = _theme_run(COMPANIES, settings, store)
     fake.block_after = 3
 
     task = asyncio.create_task(
-        tp_pipeline.execute_transition_plan_run(
-            run_id, COMPANIES, llm=LLM, verifier_llm=LLM, registry=DocumentSourceRegistry([]), settings=settings, run_store=store
+        research_pipeline.execute_theme_run(
+            run_id, THEME, COMPANIES, llm=LLM, verifier_llm=LLM, registry=DocumentSourceRegistry([]), settings=settings, run_store=store
         )
     )
     while len(store.read_results(run_id)) < 3:
@@ -87,12 +85,12 @@ async def test_killed_worker_resumes_without_repeats(tmp_path, fake, pg):
     task.cancel()  # the kill
     with pytest.raises(asyncio.CancelledError):
         await task
-    done_before = {r["company_id"] for r in store.read_results(run_id)}
+    done_before = {r["_key"] for r in store.read_results(run_id)}
     fake.release.set()
 
     assert await _resume(run_id, settings, store) == run_id
 
-    ids = [r["company_id"] for r in store.read_results(run_id)]
+    ids = [r["_key"] for r in store.read_results(run_id)]
     assert sorted(ids) == sorted(c.company_id for c in COMPANIES)
     assert all(fake.calls.count(cid) == 1 for cid in done_before)
     manifest = store.load_manifest(run_id)
@@ -105,7 +103,7 @@ async def test_killed_worker_resumes_without_repeats(tmp_path, fake, pg):
 async def test_resume_refuses_completed_run(tmp_path, fake, pg):
     settings = _settings(tmp_path)
     store = RunStore(pg, settings.runs_dir)
-    run_id = create_transition_plan_run(COMPANIES[:1], settings, store)
+    run_id = _theme_run(COMPANIES[:1], settings, store)
     store.append_result(run_id, {"_key": "c1"})  # every company reached
     JobManager(store).finish_run(run_id)
     before = store.load_manifest(run_id)
@@ -189,7 +187,7 @@ async def test_resume_theme_run_busy_keeps_cancel_request(tmp_path, pg):
 async def test_resume_resets_failed_and_retries(tmp_path, fake, pg):
     settings = _settings(tmp_path)
     store = RunStore(pg, settings.runs_dir)
-    run_id = create_transition_plan_run(COMPANIES[:2], settings, store)
+    run_id = _theme_run(COMPANIES[:2], settings, store)
     store.append_error(run_id, {"key": "c1", "error": "boom"})
     # review_delta with no review_queue row, as discovery records it: resume keeps it.
     JobManager(store).record_progress(run_id, failed_delta=1, review_delta=1, usage=LLMUsage(input_tokens=7), cost_delta_usd=0.5)
@@ -205,8 +203,8 @@ async def test_resume_resets_failed_and_retries(tmp_path, fake, pg):
 
 
 def _execute(run_id, settings, store):
-    return tp_pipeline.execute_transition_plan_run(
-        run_id, COMPANIES, llm=LLM, verifier_llm=LLM, registry=DocumentSourceRegistry([]), settings=settings, run_store=store
+    return research_pipeline.execute_theme_run(
+        run_id, THEME, COMPANIES, llm=LLM, verifier_llm=LLM, registry=DocumentSourceRegistry([]), settings=settings, run_store=store
     )
 
 
@@ -215,7 +213,7 @@ async def test_plain_execute_holds_the_run(tmp_path, fake, pg):
     still holds the lease: a second execute or a resume is refused."""
     settings = _settings(tmp_path)
     store = RunStore(pg, settings.runs_dir)
-    run_id = create_transition_plan_run(COMPANIES, settings, store)
+    run_id = _theme_run(COMPANIES, settings, store)
     fake.block_after = 1
     task = asyncio.create_task(_execute(run_id, settings, store))
     while not fake.calls:
@@ -243,7 +241,7 @@ def api(tmp_path, pg):
 
 async def test_resume_busy_run_refused(tmp_path, fake, api):
     settings, store = api
-    run_id = create_transition_plan_run(COMPANIES[:1], settings, store)
+    run_id = _theme_run(COMPANIES[:1], settings, store)
     with run_lease(store, run_id):
         with pytest.raises(RunBusy):
             await _resume(run_id, settings, store)
@@ -263,7 +261,7 @@ def test_resume_endpoint_requires_analyst(tmp_path, api):
     # Real sign-in; the router-level authorize stays overridden, so the 403
     # can only come from the endpoint's own require_role("analyst").
     app.dependency_overrides.pop(current_user, None)
-    run_id = create_transition_plan_run(COMPANIES[:1], settings, store)
+    run_id = _theme_run(COMPANIES[:1], settings, store)
     res = TestClient(app).post(f"/api/runs/{run_id}/resume", headers={"Authorization": "Bearer tv"})
     assert res.status_code == 403
 
@@ -274,7 +272,7 @@ def test_cli_extract_run_resumes(tmp_path, fake, monkeypatch, pg):
 
     settings = _settings(tmp_path)
     store = RunStore(pg, settings.runs_dir)
-    run_id = create_transition_plan_run(COMPANIES[:2], settings, store)
+    run_id = _theme_run(COMPANIES[:2], settings, store)
     monkeypatch.setattr(cli, "get_settings", lambda: settings)
     monkeypatch.setattr(cli, "_run_store", lambda: store)
     monkeypatch.setattr(cli, "_registry", lambda: DocumentSourceRegistry([]))
@@ -293,7 +291,7 @@ def test_resume_endpoint_launches_and_finishes(tmp_path, fake, api):
     import time
 
     settings, store = api
-    run_id = create_transition_plan_run(COMPANIES[:2], settings, store)
+    run_id = _theme_run(COMPANIES[:2], settings, store)
     with TestClient(app) as client:  # keeps the app's loop alive for the launched job
         res = client.post(f"/api/runs/{run_id}/resume")
         assert res.json() == {"run_id": run_id, "status": "resumed"}
@@ -309,15 +307,15 @@ async def test_resume_keeps_batch_mode(tmp_path, monkeypatch, pg):
 
     settings = _settings(tmp_path)
     store = RunStore(pg, settings.runs_dir)
-    run_id = create_transition_plan_run(COMPANIES[:1], settings, store)
+    run_id = _theme_run(COMPANIES[:1], settings, store)
     JobManager(store)._update(run_id, lambda m: m.params.__setitem__("batch", True))
     seen = {}
 
-    async def _execute(run_id, companies, *, llm, verifier_llm, settings, **_kwargs):
+    async def _execute(run_id, theme, companies, *, llm, verifier_llm, settings, **_kwargs):
         seen.update(llm=llm, verifier_llm=verifier_llm, settings=settings)
         return run_id
 
-    monkeypatch.setattr(tp_pipeline, "execute_transition_plan_run", _execute)
+    monkeypatch.setattr(research_pipeline, "execute_theme_run", _execute)
     await resume_run(run_id, settings=settings, run_store=store, registry=DocumentSourceRegistry([]))
     assert isinstance(seen["llm"], BatchingLLMClient) and isinstance(seen["verifier_llm"], BatchingLLMClient)
     assert seen["settings"].llm_batch is True
@@ -396,7 +394,7 @@ def test_voting_cli_batch_flag(tmp_path, monkeypatch, pg):
 def _run(tmp_path, pg, n=1):
     settings = _settings(tmp_path)
     store = RunStore(pg, settings.runs_dir)
-    return store, create_transition_plan_run(COMPANIES[:n], settings, store)
+    return store, _theme_run(COMPANIES[:n], settings, store)
 
 
 def test_crash_inside_the_lease_marks_the_run_failed(tmp_path, pg):

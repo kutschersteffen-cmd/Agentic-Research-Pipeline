@@ -175,6 +175,8 @@ def check_resumable(run_store: RunStore, run_id: str) -> RunManifest:
         raise NotResumable("Unknown run_id")
     if manifest.status == JobStatus.COMPLETED and _reached_every_company(run_store, manifest):
         raise NotResumable("already completed")  # a completed run that missed companies resumes for them
+    if manifest.run_type == "transition_plan":  # its pipeline is gone; the preset runs as an extraction run
+        raise NotResumable("Transition-plan runs can no longer be resumed: start a new transition-plan assessment.")
     if manifest.run_type not in RESUMABLE:
         raise NotResumable(f"{manifest.run_type} runs are not resumable; start a new run")
     # A theme run may instead have a universe file (runs from before companies.json).
@@ -289,13 +291,6 @@ async def _resume_tnfd(run_id, manifest, companies, *, settings, run_store, llm,
                                              registry=registry, settings=settings, run_store=run_store)
 
 
-async def _resume_transition_plan(run_id, manifest, companies, *, settings, run_store, llm, verifier_llm, registry) -> str:
-    from arp.transition_plan.pipeline import execute_transition_plan_run
-
-    return await execute_transition_plan_run(run_id, companies, llm=llm, verifier_llm=verifier_llm, registry=registry,
-                                             settings=settings, run_store=run_store)
-
-
 async def _resume_identity(run_id, manifest, companies, *, settings, run_store, llm, verifier_llm, registry) -> str:
     from arp.discovery.identity_pipeline import execute_identity_run
 
@@ -326,7 +321,6 @@ _RESUME: dict[str, Callable[..., Awaitable[str]]] = {
     "extraction": _resume_extraction,
     "financials": _resume_financials,
     "tnfd": _resume_tnfd,
-    "transition_plan": _resume_transition_plan,
     "identity": _resume_identity,
     "discovery": _resume_discovery,
     "xbrl_fetch": _resume_xbrl_fetch,
