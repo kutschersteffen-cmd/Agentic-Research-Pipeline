@@ -15,7 +15,9 @@ from arp.schemas.reporting import (
     LayoutInstructions,
     OutputFormat,
     ReportManifest,
+    ReportPlan,
     ReportRequest,
+    ReportSection,
     ReportStatus,
     SlideContent,
     Storyline,
@@ -195,6 +197,19 @@ def test_download_rejects_file_not_in_output_files(client, store):
     assert client.get(f"/api/reports/{rid}/download?file=output.pptx").status_code == 404
     assert client.get(f"/api/reports/{rid}/download?file=manifest.json").status_code == 404
     assert client.get(f"/api/reports/{rid}/download?file=output.pdf").status_code == 200
+
+
+def test_render_route_builds_the_saved_plan_and_400s_without_one(client, store):
+    m = ReportManifest(title="T", output_format=OutputFormat.PPTX)
+    store.save_request(m.report_id, ReportRequest(title="T", qualitative_notes="n", layout=LayoutInstructions(output_format=OutputFormat.PPTX)))
+    store.save_manifest(m)
+    assert client.post(f"/api/reports/{m.report_id}/render").status_code == 400  # no plan drafted yet
+
+    store.save_plan(m.report_id, ReportPlan(title="T", sections=[ReportSection(heading="S")]))
+    got = client.post(f"/api/reports/{m.report_id}/render")
+
+    assert got.status_code == 200 and got.json()["status"] == ReportStatus.COMPLETED.value
+    assert store.output_path(m.report_id, "output.pptx").exists()
 
 
 async def test_findings_follow_a_fit_split_and_lint_matches_final_deck(tmp_path, fake_llm):
