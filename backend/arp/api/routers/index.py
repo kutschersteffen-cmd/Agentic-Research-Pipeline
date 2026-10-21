@@ -12,7 +12,7 @@ from arp.index.calc import level_series
 from arp.index.fields import DataQualityBlock, available_fields
 from arp.index.mock_data import demo_price_panel, demo_risk_model, demo_universe
 from arp.index.pipeline import run_review
-from arp.index.presets import PRESETS, SCREEN_BUNDLES, build_preset, rule_catalogue
+from arp.index.presets import SCREEN_BUNDLES, build_preset, rule_catalogue
 from arp.schemas.index import (
     ConstructionSpec,
     IndexCalibration,
@@ -40,17 +40,6 @@ def get_catalogue() -> dict:
     catalogue = rule_catalogue()
     catalogue["fields"] = available_fields(demo_universe())
     return catalogue
-
-
-@router.get("/universe")
-def get_universe(limit: int = 500) -> dict:
-    """The demo universe, with the field inventory the rule pickers need."""
-    universe = demo_universe()
-    return {
-        "count": len(universe),
-        "fields": available_fields(universe),
-        "candidates": [c.model_dump() for c in universe[:limit]],
-    }
 
 
 # ------------------------------------------------------------ calibrations
@@ -145,11 +134,6 @@ def delete_calibration(calibration_id: str, store: IndexStore = Depends(get_inde
 
 
 # ------------------------------------------------------------------ presets
-
-
-@router.get("/presets")
-def list_presets() -> list[dict]:
-    return [{"name": name, "label": preset["label"], "description": preset["description"]} for name, preset in sorted(PRESETS.items())]
 
 
 @router.get("/presets/{name}", response_model=ConstructionSpec)
