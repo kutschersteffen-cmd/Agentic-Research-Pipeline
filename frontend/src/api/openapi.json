@@ -8011,6 +8011,52 @@
     "title": "FlagExclusionScreen",
     "type": "object"
    },
+   "FlagOut": {
+    "properties": {
+     "cite": {
+      "title": "Cite",
+      "type": "string"
+     },
+     "fact_ids": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Fact Ids",
+      "type": "array"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "state": {
+      "enum": [
+       "raised",
+       "clear",
+       "not checked"
+      ],
+      "title": "State",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "title",
+     "state",
+     "text",
+     "cite",
+     "fact_ids"
+    ],
+    "title": "FlagOut",
+    "type": "object"
+   },
    "FromCompaniesRequest": {
     "properties": {
      "companies": {
@@ -16250,6 +16296,25 @@
         "type": "null"
        }
       ]
+     },
+     "flags": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/FlagOut"
+      },
+      "title": "Flags",
+      "type": "array"
+     },
+     "flags_header": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Flags Header"
      },
      "in_scope": {
       "title": "In Scope",

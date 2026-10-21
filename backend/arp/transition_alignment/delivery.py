@@ -163,7 +163,9 @@ def score_coverage(targets: list[TargetOut], actions: list[ActionOut], saving_fa
     pct = fmt_number(float(total / t._gap * 100))
     text = (f"Listed actions cover {pct}% of the {t.year} target gap "
             f"({fmt_number(float(total / _MT))} of {fmt_number(float(t._gap / _MT))} MtCO2e/yr)")
-    return CoverageOut(target_key=t.key, percent=float(_r2(total / t._gap * 100)), text=text, actions=rows, reason=None)
+    out = CoverageOut(target_key=t.key, percent=float(_r2(total / t._gap * 100)), text=text, actions=rows, reason=None)
+    out._covered = total
+    return out
 
 
 def _share_points(share: Decimal) -> int:
