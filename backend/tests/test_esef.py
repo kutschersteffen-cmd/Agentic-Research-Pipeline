@@ -195,6 +195,7 @@ async def test_esef_document_source_fetches_by_lei(tmp_path, no_ssrf):
             return httpx.Response(200, json={"data": [
                 {"attributes": {"period_end": "2023-12-31", "package_url": "/old.zip"}},
                 {"attributes": {"period_end": "2024-12-31", "package_url": f"/{LEI}/2024-12-31/ESEF/DE/0/beispiel-2024.zip"}},
+                {"attributes": {"period_end": "4172-12-31", "package_url": "/bogus.zip"}},  # the index has implausible years
             ]})
         if request.url.path.endswith("beispiel-2024.zip"):
             return httpx.Response(200, content=PACKAGE)
@@ -207,7 +208,7 @@ async def test_esef_document_source_fetches_by_lei(tmp_path, no_ssrf):
         indexing_config=IndexingConfig(blob_store_dir=tmp_path / "blobs"),
     )
     [doc] = await source.fetch(COMPANY)
-    assert "/old.zip" not in seen  # the latest filing only
+    assert "/old.zip" not in seen and "/bogus.zip" not in seen  # the latest plausible filing only
     key = hashlib.sha256(PACKAGE).hexdigest()
     assert doc.content_key == key and doc.doc_type == DocType.ANNUAL_REPORT_10K and doc.decimal == "point"
     assert LocalBlobStore(tmp_path / "blobs").exists(key)  # store-or-fail original

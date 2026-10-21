@@ -30,16 +30,17 @@ from tests.postgres_helpers import reset_postgres_tables
 DSN = os.environ.get("ARP_TEST_POSTGRES_DSN")
 
 # Public methods the Postgres backend deliberately does not have: the
-# filesystem-location accessors for the four concerns it relationalizes.
-# There is no file behind them there, and handing back the wrapped file
-# store's (empty, nonexistent) path would be worse than not offering the
-# method. Every OTHER public method must exist on both stores -- including
-# the *_path() accessors for concerns that stay file-backed, which the
-# Postgres store delegates. Adding a method to PortfolioStore without
-# either implementing or classifying it here fails
+# filesystem-location accessors. For the concerns it relationalizes there is
+# no file behind them, and handing back the wrapped file store's (empty,
+# nonexistent) path would be worse than not offering the method; for the
+# concerns that stay file-backed only the file store itself reads them.
+# Every OTHER public method must exist on both stores. Adding a method to
+# PortfolioStore without either implementing or classifying it here fails
 # test_public_surfaces_match.
 FILE_ONLY_METHODS = frozenset(
-    {"registry_path", "securities_path", "companies_path", "resolutions_path", "snapshot_path"}
+    {"registry_path", "securities_path", "companies_path", "resolutions_path", "snapshot_path",
+     "observations_path", "news_path", "flags_path", "analytics_path", "groups_path", "rules_path",
+     "alert_events_path", "governance_events_path", "revision_path", "holders_path", "holdings_audit_path"}
 )
 
 
@@ -270,16 +271,21 @@ def test_public_surfaces_match():
 
 @pytest.mark.skipif(not DSN, reason="ARP_TEST_POSTGRES_DSN not set -- opt-in Postgres backend")
 def test_sql_aggregation_agrees_with_a_python_sum_over_the_same_as_of(tmp_path):
-    """`aggregate_market_value_eur` is the reason this backend exists, so
+    """`aggregate_holdings_by` is the reason this backend exists, so
     its as-of resolution must match load_holdings_as_of's exactly -- two
     ways of asking one question that used to disagree with the file store
     in the same way."""
     pg = _postgres_store(tmp_path)
+
+    def sums(as_of: str, group_by: str) -> dict:
+        rows, _total = pg.aggregate_holdings_by(as_of, group_by)
+        return {key: total for key, total, _count in rows}
+
     try:
         _seed_staggered_pulls(pg)
 
-        by_portfolio = dict(pg.aggregate_market_value_eur("2026-02-28", "portfolio_id"))
-        by_sector = dict(pg.aggregate_market_value_eur("2026-02-28", "sector"))
+        by_portfolio = sums("2026-02-28", "portfolio_id")
+        by_sector = sums("2026-02-28", "sector")
         holdings = pg.load_holdings_as_of("2026-02-28")
 
         assert by_portfolio == {"p1": 110.0, "p2": 500.0}
@@ -287,7 +293,7 @@ def test_sql_aggregation_agrees_with_a_python_sum_over_the_same_as_of(tmp_path):
         assert sum(by_portfolio.values()) == sum(h.market_value_eur for h in holdings)
 
         # And a date between pulls resolves backwards here too.
-        assert dict(pg.aggregate_market_value_eur("2026-02-15", "portfolio_id")) == {"p1": 100.0, "p2": 500.0}
+        assert sums("2026-02-15", "portfolio_id") == {"p1": 100.0, "p2": 500.0}
     finally:
         reset_postgres_tables(DSN)
 

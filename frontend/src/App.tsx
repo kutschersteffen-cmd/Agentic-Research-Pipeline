@@ -11,7 +11,7 @@ import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
 import { ThemeSwitch } from "./components/ThemeSwitch";
 import { NAV_ICONS } from "./components/NavIcons";
 import type { ReviewableRunKind, RunManifest, UniverseHandoff } from "./types";
-import { runTypeLabel } from "./lib/runs";
+import { REVIEWABLE_RUN_TYPES, runTypeLabel } from "./lib/runs";
 import { listAllRuns } from "./lib/poll";
 
 // Pages load on demand so the first screen does not ship every page and its editors.
@@ -131,13 +131,11 @@ const PALETTE_ITEMS: PaletteItem[] = [
   ...RISK_TABS.map((t) => ({ label: t.label, hint: "Risk Monitoring", href: `#/portfolio-monitoring/${t.id}` })),
 ];
 
-const REVIEWABLE = new Set<string>(["theme", "extraction", "financials", "identity", "transition_barrier_derivation"]);
-
 /** A run in the palette opens where its decisions are made, else in Run History. */
 const runItem = (r: RunManifest): PaletteItem => ({
   label: `${runTypeLabel(r.run_type)} ${r.run_id}`,
   hint: "Run",
-  href: r.run_type === "proxy_voting" ? `#/voting/${r.run_id}` : REVIEWABLE.has(r.run_type) ? `#/review/${r.run_type}/${r.run_id}` : "#/history",
+  href: r.run_type === "proxy_voting" ? `#/voting/${r.run_id}` : REVIEWABLE_RUN_TYPES.has(r.run_type) ? `#/review/${r.run_type}/${r.run_id}` : "#/history",
 });
 
 /** The URL is the source of truth for where you are: `#/<tab>/<param>...`,
@@ -210,7 +208,7 @@ function App() {
     listAllRuns()
       .then((runs) => {
         const sum = (keep: (r: RunManifest) => boolean) => runs.filter(keep).reduce((n, r) => n + r.review_count, 0);
-        setWaiting({ review: sum((r) => REVIEWABLE.has(r.run_type)), voting: sum((r) => r.run_type === "proxy_voting") });
+        setWaiting({ review: sum((r) => REVIEWABLE_RUN_TYPES.has(r.run_type)), voting: sum((r) => r.run_type === "proxy_voting") });
         setRecentRuns([...runs].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 50));
       })
       .catch(() => setWaiting(null));
@@ -227,7 +225,7 @@ function App() {
   }, [active, hub]);
 
   const pendingReview =
-    active === "review" && route.params.length === 2 && REVIEWABLE.has(route.params[0])
+    active === "review" && route.params.length === 2 && REVIEWABLE_RUN_TYPES.has(route.params[0])
       ? { kind: route.params[0] as ReviewableRunKind, runId: route.params[1] }
       : null;
 

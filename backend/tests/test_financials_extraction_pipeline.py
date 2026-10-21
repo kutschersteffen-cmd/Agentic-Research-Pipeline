@@ -6,7 +6,6 @@ from arp.extraction.segment_extractor_agent import SegmentDraft, SegmentMetricDr
 from arp.extraction.spend_extractor_agent import AmountMetricDraft
 from arp.ingestion.base import DocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
-from arp.ingestion.xbrl import CompanyXbrlFacts, XbrlFact
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
 
 
@@ -180,11 +179,11 @@ async def test_extract_company_financials_no_evidence_skips_llm(tmp_path, fake_l
 
 
 class _FakeXbrlSource:
-    """Stands in for XbrlFactSource: returns a fixed CompanyXbrlFacts
+    """Stands in for XbrlFactSource: returns a fixed companyfacts JSON
     without any network access, mirroring how EdgarDocumentSource itself
     is faked in test_edgar_cache.py."""
 
-    def __init__(self, facts: CompanyXbrlFacts | None):
+    def __init__(self, facts: dict | None):
         self._facts = facts
         self.resolve_calls: list[tuple] = []
 
@@ -192,8 +191,13 @@ class _FakeXbrlSource:
         self.resolve_calls.append((cik, ticker))
         return cik or "320193"
 
-    async def fetch_capex_rnd_revenue(self, company_id, cik):
+    async def fetch_company_facts(self, cik):
         return self._facts
+
+
+def _capex_facts(end: str) -> dict:
+    row = {"end": end, "val": 340000000, "fy": int(end[:4]), "fp": "FY", "form": "10-K", "filed": "2026-02-01", "accn": "0001-25-000001"}
+    return {"facts": {"us-gaap": {"PaymentsToAcquirePropertyPlantAndEquipment": {"units": {"USD": [row]}}}}}
 
 
 async def test_xbrl_overlay_replaces_capex_total_but_not_llm_description(tmp_path, fake_llm):
@@ -213,6 +217,7 @@ async def test_xbrl_overlay_replaces_capex_total_but_not_llm_description(tmp_pat
             description="Primarily funding capacity expansion.",
             description_citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote="primarily funding capacity expansion")],
         ),
+        fiscal_period="FY2025",
         rnd=SpendSectionDraft(
             total=AmountMetricDraft(
                 value=120.0,
@@ -228,16 +233,7 @@ async def test_xbrl_overlay_replaces_capex_total_but_not_llm_description(tmp_pat
     # XBRL disagrees slightly with the LLM's read (340.0 vs 450.0) -- the
     # structured fact must win. Only capex is present in XBRL; R&D falls
     # through untouched to the LLM-extracted value.
-    xbrl_facts = CompanyXbrlFacts(
-        company_id="c1",
-        cik="320193",
-        capex=XbrlFact(
-            tag="PaymentsToAcquirePropertyPlantAndEquipment", value=340000000, unit="USD",
-            fiscal_year=2025, fiscal_period="FY", form="10-K", filed="2026-02-01", accession="0001-25-000001",
-        ),
-        rnd=None,
-    )
-    xbrl_source = _FakeXbrlSource(xbrl_facts)
+    xbrl_source = _FakeXbrlSource(_capex_facts("2025-12-31"))
 
     result = await _extract_company_financials(
         company, registry=registry, llm=llm, settings=_settings(tmp_path), xbrl_source=xbrl_source
@@ -274,6 +270,30 @@ async def test_xbrl_overlay_is_noop_when_no_facts_found(tmp_path, fake_llm):
         company, registry=registry, llm=llm, settings=_settings(tmp_path), xbrl_source=xbrl_source
     )
     assert result.record.capex.total.value == 450.0  # LLM value stands, untouched
+
+
+async def test_xbrl_overlay_ignores_another_years_figure(tmp_path, fake_llm):
+    """A FY2023 record must not take SEC's FY2025 capex."""
+    doc = _doc()
+    company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME", cik="320193")
+    draft = FinancialsExtractionDraft(
+        capex=SpendSectionDraft(
+            total=AmountMetricDraft(
+                value=450.0,
+                citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote="Capital expenditures for fiscal 2025 were $450 million")],
+            ),
+        ),
+        fiscal_period="FY2023",
+        confidence=0.9,
+    )
+    verifier = FinancialsVerifierOutput(segments_agree=True, capex_agree=True, rnd_agree=True, confidence=0.9)
+    llm = fake_llm({"FinancialsExtractionDraft": [draft], "FinancialsVerifierOutput": [verifier]})
+    registry = DocumentSourceRegistry([_FixedDocSource([doc])])
+
+    result = await _extract_company_financials(
+        company, registry=registry, llm=llm, settings=_settings(tmp_path), xbrl_source=_FakeXbrlSource(_capex_facts("2025-12-31"))
+    )
+    assert result.record.capex.total.value == 450.0
 
 
 async def test_financials_batch_matches_realtime(tmp_path, pg):

@@ -2644,6 +2644,49 @@ export interface CompanyTransition {
   actions: TransitionAction[];
   b02a: TransitionB02 | null;
   assumptions: TransitionAssumption[];
+  targets: TransitionTarget[];
+  target_progress: { score: number; text: string } | null;
+  coverage: TransitionCoverage | null;
+  phaseouts: TransitionPhaseout[];
+}
+
+export interface TransitionTarget {
+  key: string;
+  scope: string | null;
+  pct: number | null;
+  year: number | null;
+  base_year: number | null;
+  base_emissions_shown: string | null;
+  kind: "past" | "running" | null;
+  ratio: string | null;
+  score: number | null;
+  reason: string | null;
+  citation: string | null;
+  fact_ids: number[];
+}
+
+export interface TransitionCoverage {
+  target_key: string | null;
+  percent: number | null;
+  text: string | null;
+  actions: { key: string; saving_shown: string | null; summed: boolean; reason: string | null }[];
+  reason: string | null;
+}
+
+export interface TransitionPhaseout {
+  key: string;
+  activity: string | null;
+  share: number | null;
+  year: number | null;
+  method: string | null;
+  share_points: number | null;
+  date_points: number | null;
+  score: number | null;
+  reason: string | null;
+  timeline_text: string;
+  note: string | null;
+  citation: string | null;
+  fact_ids: number[];
 }
 
 export type TransitionB02 = Served<S["B02Out"]>;
@@ -2676,6 +2719,7 @@ export interface TransitionAction {
 export type TransitionComparison = Served<S["ComparisonOut"]>;
 
 export type TransitionAssumption = Served<S["AssumptionOut"]>;
+export type TransitionScenario = Served<S["ScenarioOut"]>;
 
 export type CutoffStatus = "none" | "recorded" | "unknown";
 export interface SignalWindow {

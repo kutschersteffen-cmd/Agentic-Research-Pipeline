@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal, current_user
-from arp.api.deps import get_llm_client, get_registry, get_run_store, get_taxonomy_store, get_verifier_llm_client, settings_dep
+from arp.api.deps import get_llm_client, get_registry, get_run_store, get_taxonomy_store, settings_dep
 from arp.api.review_endpoints import ReviewDecisionRequest, get_review_queue, submit_review
 from arp.api.run_scheduling import schedule_llm_run
 from arp.company_graph import CompanyGraphError
@@ -15,7 +15,6 @@ from arp.config import Settings
 from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.factory import batch_settings
-from arp.orchestration.jobs import NotResumable, RunBusy, check_resumable, get_job_launcher, resume_run, run_lease
 from arp.research.activity_generator import build_theme
 from arp.research.exposure_layers import LayerSettingsError, load_run_layers, parse_as_of
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
@@ -195,43 +194,6 @@ def get_theme_run(run_id: str, run_store: RunStore = Depends(get_run_store)) -> 
     if manifest is None:
         raise HTTPException(404, "Run not found")
     return manifest.model_dump(mode="json")
-
-
-@router.post("/runs/{run_id}/resume")
-async def resume_theme_run_endpoint(
-    run_id: str,
-    settings: Settings = Depends(settings_dep),
-    run_store: RunStore = Depends(get_run_store),
-    registry: DocumentSourceRegistry = Depends(get_registry),
-) -> dict:
-    """Re-invokes execute_theme_run for a run that was interrupted, failed,
-    partially completed, or cancelled -- reconstructed from what
-    create_theme_run persisted (see arp.orchestration.jobs.resume_run).
-    Already-completed companies are skipped automatically (run_batch's own
-    resumability); nothing is redone.
-    """
-    manifest = run_store.load_manifest(run_id)
-    if manifest is None:
-        raise HTTPException(404, "Run not found")
-    if manifest.run_type != "theme":
-        raise HTTPException(400, f"Run {run_id} is a {manifest.run_type} run, not a theme run.")
-    try:
-        check_resumable(run_store, run_id)
-    except NotResumable as exc:
-        raise HTTPException(400, str(exc)) from exc
-
-    llm = get_llm_client()  # surfaces a clean 503 before we schedule anything if unconfigured
-    verifier_llm = get_verifier_llm_client()
-
-    try:
-        with run_lease(run_store, run_id):  # busy now -> 409 here, not a log line later
-            pass
-    except RunBusy as exc:
-        raise HTTPException(409, str(exc)) from exc
-    get_job_launcher().launch(run_id, lambda: resume_run(
-        run_id, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store, lease=False,
-    ), run_store=run_store)
-    return {"run_id": run_id, "status": "resumed"}
 
 
 @router.get("/runs/{run_id}/results")

@@ -23,7 +23,16 @@ from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.schemas.datapoints import FieldQuality, FieldStatus
 from arp.schemas.review import field_item_key, period_key
 from arp.storage.run_store import RunStore
-from arp.transition_alignment.plan_extraction import ActionDraft, AssumptionDraft, Cited, PlanDraft, extract_plan, plan_evidence
+from arp.transition_alignment.plan_extraction import (
+    ActionDraft,
+    AssumptionDraft,
+    Cited,
+    PhaseoutDraft,
+    PlanDraft,
+    TargetDraft,
+    extract_plan,
+    plan_evidence,
+)
 from tests.conftest import PRINCIPAL
 from tests.transition_alignment_helpers import ta_dirs  # noqa: F401 - fixture
 
@@ -37,6 +46,8 @@ P1_QUOTES = {
     16: "We are studying carbon capture at our Tianjin plant.",
     20: "Our plan assumes a carbon price of EUR 90/tCO2 in the EU by 2030.",
     21: "We assume renewable hydrogen at USD 3/kg.",
+    22: "We will cut scope 1 and 2 emissions by 30% by 2030 from 20 MtCO2e in 2019; we set this target in 2021.",
+    24: "We will close two of our four blast furnaces by 2035.",
 }
 C = CompanyRef(company_id="c", name="Fixture Steel AG", isic_code="2410", fiscal_year_end="12-31")
 Q = CompanyRef(company_id="q", name="Fixture Foods SA", isic_code="1050")
@@ -76,8 +87,15 @@ ASSUMPTIONS = [
 ]
 
 
-def _plan(*actions) -> PlanDraft:
-    return PlanDraft(actions=list(actions) or [_a1(), A2], assumptions=ASSUMPTIONS, confidence=0.9)
+T1 = TargetDraft(scope=_c("S1+2", 22), pct=_c(30, 22), year=_c(2030, 22), base_year=_c(2019, 22),
+                 base_emissions=_c(20, 22, unit="MtCO2e"), set_year=_c(2021, 22))
+O1 = PhaseoutDraft(activity=_c("blast furnace steelmaking", 24), share_pct=_c(50, 24), year=_c(2035, 24),
+                   method=_c("closure", 24))
+
+
+def _plan(*actions, targets=(), phaseouts=()) -> PlanDraft:
+    return PlanDraft(actions=list(actions) or [_a1(), A2], assumptions=ASSUMPTIONS, targets=list(targets),
+                     phaseouts=list(phaseouts), confidence=0.9)
 
 
 def _script(*plans: PlanDraft) -> dict:
@@ -198,7 +216,40 @@ def _basis_table() -> Path:
 
 def test_basis_table_has_no_list_prefix():
     with _basis_table().open(encoding="utf8") as f:
-        assert not [r["canonical"] for r in csv.DictReader(f) if r["canonical"].startswith(("action:", "region:"))]
+        assert not [r["canonical"] for r in csv.DictReader(f)
+                    if r["canonical"].startswith(("action:", "region:", "target:", "phaseout:"))]
+
+
+def test_list_prefixes_cover_target_phaseout():
+    assert period_key({"period_end": None, "basis": "target:P1:22:1"}) == "unspecified|target|P1|22|1"
+    assert period_key({"period_end": None, "basis": "phaseout:P1:24:1"}) == "unspecified|phaseout|P1|24|1"
+
+
+async def test_target_rows_share_basis(tmp_path, fake_llm):
+    rows, _ = await _extract(tmp_path, fake_llm, _script(_plan(targets=[T1])))
+    t1 = [r for r in rows if r.field_id.startswith("ta_target_")]
+    assert [(r.field_id, r.value) for r in t1] == [
+        ("ta_target_scope", "S1+2"), ("ta_target_pct", 30), ("ta_target_year", 2030), ("ta_target_base_year", 2019),
+        ("ta_target_base_emissions", 20), ("ta_target_set_year", 2021)]
+    assert {r.basis for r in t1} == {"target:P1:22:1"} and t1[4].unit == "MtCO2e"
+    assert all(r.grounded and r.period_end is None and "unverified_list_item" in r.review_reasons for r in t1)
+    assert {r.citations[0].page for r in t1} == {22}
+
+
+async def test_phaseout_rows(tmp_path, fake_llm):
+    rows, _ = await _extract(tmp_path, fake_llm, _script(_plan(phaseouts=[O1])))
+    o1 = [r for r in rows if r.field_id.startswith("ta_phaseout_")]
+    assert [(r.field_id, r.value, r.basis) for r in o1] == [
+        ("ta_phaseout_activity", "blast furnace steelmaking", "phaseout:P1:24:1"),
+        ("ta_phaseout_share_pct", 50, "phaseout:P1:24:1"), ("ta_phaseout_year", 2035, "phaseout:P1:24:1"),
+        ("ta_phaseout_method", "closure", "phaseout:P1:24:1")]
+    assert all(r.grounded and r.route == "review" for r in o1)
+
+
+def test_prompt_absolute_targets_and_enums():
+    from arp.transition_alignment.plan_extraction import _SYSTEM
+    assert "intensity" in _SYSTEM and all(e in _SYSTEM for e in ('"S1+2"', '"S1+2+3"', '"closure"', '"conversion"',
+                                                                  '"sale"', '"tCO2e"', '"MtCO2e"'))
 
 
 async def test_ungrounded_quote_goes_to_review(tmp_path, fake_llm):

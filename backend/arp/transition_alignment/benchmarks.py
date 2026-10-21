@@ -22,6 +22,9 @@ from arp.transition_barrier.rule_book import compute_fingerprint
 from arp.transition_barrier.validation import _by_id, _dicts, _num, _text, _unit
 
 BENCHMARKS_FILE = "benchmarks.json"
+BUNDLED_DIR = Path(__file__).parent / "data"
+# Scenario-price region group of each company region (spec section 6).
+REGION_GROUP = {"European Union": "advanced economies", "United States": "advanced economies", "China": "selected EMDE"}
 STALE = "Benchmarks content changed but version is still"
 # The sectors of the bundled barrier criteria_schema.json, in its order (a unit test pins this).
 MATRIX_SECTORS: tuple[str, ...] = (
@@ -46,6 +49,7 @@ class Source(BaseModel):
     url: str | None = None
     page: str | None = None
     rationale: str | None = None
+    licence: str | None = None
 
 
 class CapexBenchmark(BaseModel):
@@ -86,6 +90,12 @@ class Assumption(BaseModel):
     barrier_facts: list[str]
 
 
+class ScenarioGroup(BaseModel):
+    group: str
+    source: Source
+    prices: dict[int, float]
+
+
 class Benchmarks(BaseModel):
     version: int = Field(strict=True)
     fingerprint: str
@@ -94,6 +104,7 @@ class Benchmarks(BaseModel):
     sectors: dict[str, SectorEntry]
     act_levers: dict[str, dict | None]
     assumptions: dict[str, Assumption]
+    scenario_prices: list[ScenarioGroup] = []
 
 
 def data_dir() -> Path:
@@ -207,7 +218,25 @@ def _rule6(raw: dict, raw_rule_book: dict) -> list[str]:
     return out
 
 
-def validate_benchmarks(raw: dict, raw_rule_book: dict, raw_schema: dict) -> list[str]:
+def _scenario_lines(raw: dict, required: bool) -> list[str]:
+    """Scenario prices: optional in a file (older signed files stay valid), required in the bundled one."""
+    if "scenario_prices" not in raw:
+        return ["Scenario prices: missing"] if required else []
+    groups = raw["scenario_prices"]
+    if not isinstance(groups, list) or not all(isinstance(g, dict) for g in groups):
+        return ["Scenario prices: invalid scenario_prices: expected a list of objects"]
+    known = set(REGION_GROUP.values())
+    out = []
+    for g in groups:
+        name = g.get("group")
+        if name not in known:
+            out.append(f"Scenario prices: unknown region group '{name}'")
+        if not _sourced(g):
+            out.append(f"Scenario prices: {name} has no source")
+    return out
+
+
+def validate_benchmarks(raw: dict, raw_rule_book: dict, raw_schema: dict, require_scenarios: bool = False) -> list[str]:
     """Every benchmarks error, one line each, in spec rule order (1-7); within a rule, file order."""
     if not all(isinstance(x, dict) for x in (raw, raw_rule_book, raw_schema)):
         return ["Benchmarks: invalid benchmarks, rule book or criteria schema: expected an object"]
@@ -228,6 +257,7 @@ def validate_benchmarks(raw: dict, raw_rule_book: dict, raw_schema: dict) -> lis
         + _rule4(entries)
         + _rule5(raw, raw_rule_book)
         + _rule6(raw, raw_rule_book)
+        + _scenario_lines(raw, require_scenarios)
         + ([f"{STALE} {raw.get('version')}"] if stale else [])
     )
 
@@ -260,7 +290,7 @@ def read_and_validate(directory: Path, barrier_dir: Path) -> tuple[dict, list[st
     """
     raw = _read(directory)
     raw_rule_book, raw_schema, _ = barrier_validation.read_and_validate(barrier_dir)
-    errors = validate_benchmarks(raw, raw_rule_book, raw_schema)
+    errors = validate_benchmarks(raw, raw_rule_book, raw_schema, Path(directory).resolve() == BUNDLED_DIR.resolve())
     if isinstance(raw, dict) and all(e.startswith(STALE) for e in errors):
         errors = _model_errors(raw) + errors
     return raw, errors
