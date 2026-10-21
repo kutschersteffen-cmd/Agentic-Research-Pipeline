@@ -92,7 +92,8 @@ Approving this spec approves these values. The builder signs v3 with
 `benchmarks validate` adds three checks, each failing with one error line:
 - a KPI field is in the delivery-KPI preset (§2) and its applicability covers the KPI's ISIC prefixes;
 - a KPI's `isic_prefixes` are a subset of its sector's;
-- `points` is non-empty, values are in (0, 100] and rise, and years rise.
+- `points` is non-empty, values are in (0, 100] and rise, and years rise;
+- `cite` is non-empty and contains a page (`p.` or `pp.`).
 
 ### 2. Extraction
 
@@ -127,7 +128,7 @@ ISIC code. Each entry has:
 | key | content |
 |---|---|
 | `id`, `label`, `field_id`, `cite` | from §1 |
-| `value` | the latest counted fact of `field_id` by `period_end` (number); null when there is none |
+| `value` | the counted fact (status approved, auto-accepted or edited, as elsewhere in `/transition`) of `field_id` with the latest `period_end`; ties go to the lowest fact id, as in capex; null when there is none |
 | `year` | that fact's `period_end` year; otherwise null |
 | `fact_ids` | that fact's id; otherwise `[]` |
 | `range_text` | `0% → ` then each point as `<v>%`, with ` (<year>)` when it has a year, joined with ` → ` |
@@ -143,7 +144,7 @@ is null.
 
 ### 4. Page (option A)
 
-A **Delivery KPIs** part sits after the redline part and before **Plan actions**. It is a table with the
+A **Delivery KPIs** part sits after the last of the capex, R&D and redline parts the company shows, and before **Plan actions**. It is a table with the
 columns `KPI | Actual | Year | Range | Action · barrier`:
 - **Actual:** the value as `<n>%` in a fact button that opens the fact's trail, or a muted
   `not disclosed`.
@@ -173,7 +174,10 @@ Module layout, the shape of the validator's messages beyond "one line per error"
 
 ### Fixtures (added)
 
-Each is seeded only when a row asks, so earlier fixtures and results stay the same.
+Each is seeded only when a row asks, so earlier fixtures and results stay the same. Every fixture fact is
+published (approved). "FY2025" means `period_end` 2025-12-31. C (Fixture Steel AG, ISIC 2410, in scope) and
+Q (Fixture Foods SA, ISIC 1050, out of scope) are the existing fixtures of the earlier specs; K is Fixture
+Cement SA (ISIC 2394) and P8 is its document `Fixture Cement Report 2025`.
 
 - **K** (cement, existing):
   - `tc_alt_fuel_share_pct` 14 % for FY2025, from P8 p.12 (quote
@@ -197,7 +201,7 @@ The `bm` and `bm_s` fixture benchmark files gain the same `delivery_kpis` blocks
 |------|-------|------|--------------------------|------------|
 | AC-167 | K's alt-fuel fact | request for K | `delivery_kpis` has one entry: `id` `alt_fuel_share`, `label` `Alternative-fuel share of kiln heat`, `value` 14, `year` 2025, `range_text` `0% → 30%`, `position_pct` 46.7, `cite` `ACT Cement v2.0, CEM 2.4a, p.50`; `delivery_kpis_note` null | holdout |
 | AC-168 | K's alt-fuel fact | `GET /api/facts/<id>/trail` for the one id in `alt_fuel_share.fact_ids` | 200; the field id is `tc_alt_fuel_share_pct`, document P8, page 12 | holdout |
-| AC-169 | K's alt-fuel fact and K1 | request for K | `alt_fuel_share.action_keys` equals `[<key of the one entry in actions>]`, and that entry's `action_id` is `cement.alt_fuels` | holdout |
+| AC-169 | K's alt-fuel fact and K1 (K's only action) | request for K | `alt_fuel_share.action_keys` equals `[<key of the entry in actions whose action_id is cement.alt_fuels>]` | holdout |
 | AC-170 | the defaults (no K delivery fact) | request for K | `alt_fuel_share` has `value` null, `year` null, `fact_ids` `[]`, `position_pct` null, `range_text` `0% → 30%`, `action_keys` `[]` | holdout |
 | AC-171 | K's alt-fuel fact changed to 35 | request for K | `alt_fuel_share.value` 35, `position_pct` 100.0 | holdout |
 | AC-172 | H's fact | request for H | one entry: `id` `zev_sales_share`, `value` 4, `year` 2025, `range_text` `0% → 37% (2030) → 65% (2035) → 100% (2050)`, `position_pct` 4.0, `cite` `IEA Net Zero Roadmap 2023, p.93` | holdout |
@@ -205,19 +209,30 @@ The `bm` and `bm_s` fixture benchmark files gain the same `delivery_kpis` blocks
 | AC-174 | F seeded | request for F | one entry: `id` `fleet_lc_share`, `value` null, `range_text` `0% → 95% (2040)`, `cite` `Mission Possible Partnership, Making Zero-Emissions Trucking Possible (2022), p.42` | holdout |
 | AC-175 | the defaults | request for C | `delivery_kpis` `[]`, `delivery_kpis_note` `No delivery KPI for this sector.` | holdout |
 | AC-176 | the defaults | request for Q | `delivery_kpis` `[]`, `delivery_kpis_note` null | holdout |
-| AC-177 | K's alt-fuel fact; the model client raises | request for K | HTTP 200, `alt_fuel_share.value` 14 | holdout |
+| AC-177 | K's alt-fuel fact; the model client raises on any call | request for K | HTTP 200, `alt_fuel_share.value` 14, `position_pct` 46.7 | holdout |
 | AC-178 | the bundled file | `GET /api/transition-alignment/benchmarks` | `version` 3; the Aviation sector's `delivery_kpis` is one entry `saf_share` with `range_text` `0% → 11% (2030) → 26% (2035) → 70% (2050)` and `cite` `IEA Net Zero Roadmap 2023, p.94` | holdout |
 | AC-179 | the bundled file | same request | Shipping: one entry `ship_lc_fuel_share`, `range_text` `0% → 19% (2030) → 36% (2035) → 85% (2050)`, `cite` `IEA Net Zero Roadmap 2023, p.94` | holdout |
 | AC-180 | the bundled file | same request | Oil & Gas Upstream: one entry `ccs_capex_share`, `range_text` `0% → 5%`, `levers` `[]`, `cite` `ACT Oil & Gas, OG 2.6, pp.57–58; benchmark p.126` | holdout |
 | AC-181 | the bundled file | same request | Heavy-Duty Road Transport: `zev_sales_share` with `isic_prefixes` `["2910"]`, then `fleet_lc_share` with `isic_prefixes` `["4923"]` | holdout |
 | AC-182 | the bundled file | same request | Steel, Power & Utilities and Critical Minerals & Mining each have `delivery_kpis` `[]` | holdout |
-| AC-183 | the bundled file | `arp transition-alignment benchmarks validate` | exit 0; prints `Benchmarks v3: OK, 9 sectors, ` then the redline count | holdout |
-| AC-184 | a benchmarks file with Cement's KPI `points` `[{"value": 30}, {"value": 20}]` | `benchmarks validate --data-dir <dir>` | exit code ≠ 0, and the output names `Cement` and `alt_fuel_share` | holdout |
+| AC-183 | the bundled file | `arp transition-alignment benchmarks validate` | exit 0; prints `Benchmarks v3: OK, 9 sectors, 3 redlines` | holdout |
+| AC-184 | a benchmarks file with Cement's KPI `points` `[{"value": 30}, {"value": 20}]` | `benchmarks validate --data-dir <dir>` | exit code ≠ 0; one output line contains both `Cement` and `alt_fuel_share` | holdout |
 | AC-185 | a benchmarks file with Cement's KPI field `tc_unknown_pct` | `benchmarks validate --data-dir <dir>` | exit code ≠ 0, and the output names `tc_unknown_pct` | holdout |
+| AC-192 | a benchmarks file with Cement's KPI `isic_prefixes` `["9999"]` | `benchmarks validate --data-dir <dir>` | exit code ≠ 0; one output line contains `alt_fuel_share` | holdout |
+| AC-193 | a benchmarks file with Cement's KPI `points` `[{"value": 120}]` | `benchmarks validate --data-dir <dir>` | exit code ≠ 0; one output line contains `alt_fuel_share` | holdout |
+| AC-194 | a benchmarks file with Aviation's KPI `points` years 2035 then 2030 | `benchmarks validate --data-dir <dir>` | exit code ≠ 0; one output line contains `saf_share` | holdout |
+| AC-195 | a benchmarks file with Cement's KPI `cite` `ACT Cement v2.0` (no page) | `benchmarks validate --data-dir <dir>` | exit code ≠ 0; one output line contains `alt_fuel_share` | holdout |
+| AC-196 | K's alt-fuel fact for FY2025 (14) plus one for FY2024 (10, P8 p.13) | request for K | `alt_fuel_share.value` 14, `year` 2025, `fact_ids` only the FY2025 fact's id | holdout |
+| AC-197 | K's alt-fuel fact left pending review (not published) | request for K | `alt_fuel_share.value` null, `fact_ids` `[]` | holdout |
+| AC-198 | K's alt-fuel fact | request for K | each `delivery_kpis` entry has exactly the keys `id`, `label`, `field_id`, `cite`, `value`, `year`, `fact_ids`, `range_text`, `position_pct`, `action_keys` | holdout |
+| AC-199 | the bundled file | `GET /api/transition-alignment/benchmarks` | every sector's `isic_prefixes`, `capex`, `rnd_tests` and `redlines` equal those of v2 (as on `main` before this change) | holdout |
 | AC-186 | the preset installed | read schema `sch_transition_delivery_kpis` | nine fields, each `high_risk` true, unit `%`, min 0, max 100; `tc_alt_fuel_share_pct` applies to `["2394"]` only and `tc_fleet_lc_share_pct` to `["4923"]` only | holdout |
 | AC-187 | K's alt-fuel fact and K1 | open K's company page | a "Delivery KPIs" part sits after the redline part and before "Plan actions", with one row: `Alternative-fuel share of kiln heat`, `14%`, `2025`, `0% → 30%`, `cement.alt_fuels` | evaluator |
+| AC-200 | K's alt-fuel fact and K1 | open K's company page | the Action · barrier cell lists `cement.alt_fuels` followed by the same region and rating pairs that K1's barrier table under Plan actions shows (or only `cement.alt_fuels` when that table has no rows) | evaluator |
+| AC-201 | K's alt-fuel fact | open K's company page | the Range cell shows `ACT Cement v2.0, CEM 2.4a, p.50` under the bar, and the marker sits a little short of the middle of the bar (46.7%) | evaluator |
 | AC-188 | K's alt-fuel fact | on K's page, click `14%` | the viewer opens Fixture Cement Report 2025 at page 12 | evaluator |
 | AC-189 | X's facts | open X's company page | the methanol row reads `not disclosed` in the Actual column and `—` in the Year column | evaluator |
+| AC-202 | X's facts | open X's company page | the methanol row's bar shows no marker | evaluator |
 | AC-190 | the defaults | open C's company page | the Transition section shows a "Delivery KPIs" heading followed by `No delivery KPI for this sector.` | evaluator |
 | AC-191 | H's fact | open H's company page in a 390 px wide window | no horizontal page scroll; the Delivery KPIs table scrolls inside its box | evaluator |
 
@@ -233,6 +248,9 @@ consistency flags AC-130 to AC-166).
   - `not disclosed` for missing figures;
   - option A.
 - Controller's calls, for the owner to check:
+  - **No golden-set row.** Extraction quality is guarded by review: every delivery fact is high-risk and
+    reviewed before it counts. Golden cases need the `ARP_ANTHROPIC_API_KEY` secret, which is parked with
+    phase 3.
   - **Truck operators** use MPP's single 2040 fleet value (95%). This replaces the derived fleet curve
     discussed earlier: it is printed, it is a fleet share, and it needs no model of our own.
   - **Aviation and shipping** use only the IEA series, with no 2040 point, so series are never mixed.
