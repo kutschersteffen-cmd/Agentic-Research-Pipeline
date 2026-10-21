@@ -24,7 +24,10 @@ export function JobReview(p: {
   onPending?: (n: number) => void;
 }) {
   const { job, runId, reviewer, onSourceOpen, onPending } = p;
-  const mode = job.profile;
+  const refreshRef = useRef<() => void>(() => {});
+  const run = useRunManifest(runId, () => refreshRef.current());
+  // A new transition-plan run is an extraction run on the preset schema and reads like one; only a run from before the preset keeps the transition-plan view.
+  const mode = job.profile === "transition_plan" && run?.run_type !== "transition_plan" ? "custom" : job.profile;
   const [tileFilter, setTileFilter] = useState<keyof ReviewTileCounts | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [activeSource, setActiveSource] = useState<ActiveSource | null>(null);
@@ -53,6 +56,7 @@ export function JobReview(p: {
       setTransitionDecisions(((await api.getTransitionPlanReviewDecisions(runId)) as { decisions: Decisions }).decisions);
     }
   }, [mode, runId]);
+  refreshRef.current = () => refresh().catch(() => {});
 
   // A new run starts empty; the poll loads the results once the run ends.
   useEffect(() => {
@@ -68,7 +72,6 @@ export function JobReview(p: {
     setActiveSource(null);
     refresh().catch(() => {});
   }, [refresh]);
-  const run = useRunManifest(runId, () => refresh().catch(() => {}));
 
   const results = { custom: extractionResults, financials: financialsResults, tnfd: tnfdResults, transition_plan: transitionResults };
   const decisionMaps = { custom: extractionDecisions, financials: financialsDecisions, transition_plan: transitionDecisions };

@@ -35,7 +35,7 @@ export const PROFILE_META: Record<ExtractionProfile, { label: string; runType: R
     label: "Transition Plan",
     runType: "transition_plan",
     about:
-      "Scores each company’s climate transition disclosures against the 64 indicators of Colesanti Senni et al. (2024), separating “talk” (targets) from “walk” (verifiable activity). Rules can read each indicator as a Yes/No column (Ind_<identifier>_Disclosed).",
+      "Runs the 64-indicator transition-plan preset of Colesanti Senni et al. (2024) as an ordinary extraction: 64 grounded question fields plus 8 helper fields per company, separating “talk” (targets) from “walk” (verifiable activity), reviewed field by field. Rules can read each indicator as a Yes/No column (Ind_<identifier>_Disclosed).",
   },
 };
 
@@ -49,6 +49,9 @@ export function jobLabel(j: Job): string {
 export const jobReady = (j: Job): boolean => j.profile !== "custom" || (j.schema != null && j.confirmed !== false);
 
 export const jobRunType = (j: Job): RunScoringKind => PROFILE_META[j.profile].runType;
+
+/** The run types a job's runs are stored under: a transition-plan run is an extraction run on the preset schema, but a run from before that is still a transition_plan run. */
+export const jobRunTypes = (j: Job): RunScoringKind[] => (j.profile === "transition_plan" ? ["extraction", "transition_plan"] : [jobRunType(j)]);
 
 function nonEmpty(before: Job[], after: Job[]): { jobs: Job[]; error: string | null } {
   return after.length ? { jobs: after, error: null } : { jobs: before, error: LAST };

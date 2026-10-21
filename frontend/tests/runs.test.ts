@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canResumeRun, compareSince, hasFailureDetails, needsAttentionRuns, resumableFailedRuns, resumeSummary } from "../src/lib/runs.ts";
+import { RESUMABLE_RUN_TYPES, canResumeRun, compareSince, decisionRunType, hasFailureDetails, needsAttentionRuns, resumableFailedRuns, resumeSummary } from "../src/lib/runs.ts";
 import type { RunManifest } from "../src/types.ts";
 
-const RESUMABLE = ["theme", "extraction", "financials", "tnfd", "transition_plan", "identity", "discovery", "xbrl_fetch"];
-const NOT_RESUMABLE = ["proxy_voting", "holdings", "emerging_themes", "taxonomy_research", "calibration", "transition_barrier_refresh"];
+const RESUMABLE = ["theme", "extraction", "financials", "tnfd", "identity", "discovery", "xbrl_fetch"];
+const NOT_RESUMABLE = ["transition_plan", "proxy_voting", "holdings", "emerging_themes", "taxonomy_research", "calibration", "transition_barrier_refresh"];
 const now = new Date("2026-10-18T12:00:00Z");
 const ago = (ms: number) => new Date(now.getTime() - ms).toISOString();
 const MIN = 60 * 1000;
@@ -13,7 +13,7 @@ const run = (runType: string, status: string, updatedAt: string) =>
   ({ run_id: `${runType}-${status}-${updatedAt}`, run_type: runType, status, updated_at: updatedAt }) as unknown as RunManifest;
 const ids = (runs: RunManifest[]) => runs.map((r) => r.run_id);
 
-test("canResumeRun is true for all 8 resumable types x failed, partially_completed, cancelled", () => {
+test("canResumeRun is true for all 7 resumable types x failed, partially_completed, cancelled", () => {
   for (const t of RESUMABLE) for (const s of ["failed", "partially_completed", "cancelled"]) assert.equal(canResumeRun(t, s), true, `${t} ${s}`);
 });
 
@@ -90,4 +90,24 @@ test("resumeSummary lists refusals in order", () => {
 
 test("resumeSummary with one refusal", () => {
   assert.equal(resumeSummary(2, [{ runId: "B", message: "409: busy" }]), "Resumed 1 of 2. Refused: B: 409: busy");
+});
+
+test("RESUMABLE_RUN_TYPES does not contain transition_plan", () => {
+  assert.equal(RESUMABLE_RUN_TYPES.has("transition_plan"), false);
+});
+
+const extraction = (params?: Record<string, unknown>) => ({ run_type: "extraction", params }) as unknown as RunManifest;
+
+test("decisionRunType maps a transition-plan preset run to transition_plan", () => {
+  assert.equal(decisionRunType(extraction({ schema_id: "transition_plan_indicators" })), "transition_plan");
+});
+
+test("decisionRunType keeps extraction for another schema or none", () => {
+  assert.equal(decisionRunType(extraction({ schema_id: "other" })), "extraction");
+  assert.equal(decisionRunType(extraction({})), "extraction");
+  assert.equal(decisionRunType(extraction()), "extraction");
+});
+
+test("decisionRunType keeps the run type of an old transition_plan run", () => {
+  assert.equal(decisionRunType({ run_type: "transition_plan", params: {} } as unknown as RunManifest), "transition_plan");
 });

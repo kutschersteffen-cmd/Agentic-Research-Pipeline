@@ -25,17 +25,23 @@ export function ScoringTemplatePicker({ runType, fieldNames, value, onChange, ru
   const [matches, setMatches] = useState<TemplateMatch[] | null>(null);
   const [error, setError] = useState("");
   const fieldKey = (fieldNames ?? []).join("\u0000");
+  const unnamed = fieldNames === undefined;
 
   useEffect(() => {
     let live = true;
-    api
-      .matchTemplates({ run_type: runType, field_names: fieldKey ? fieldKey.split("\u0000") : [], ratified_only: true })
+    // A transition-plan run is an extraction run on the preset schema, so its columns include that schema's fields.
+    const names =
+      runType === "transition_plan" && unnamed
+        ? api.getTransitionPlanFieldNames().catch(() => [])
+        : Promise.resolve(fieldKey ? fieldKey.split("\u0000") : []);
+    names
+      .then((field_names) => api.matchTemplates({ run_type: runType, field_names, ratified_only: true }))
       .then((m) => live && setMatches(m))
       .catch((e: Error) => live && setError(e.message));
     return () => {
       live = false;
     };
-  }, [runType, fieldKey]);
+  }, [runType, fieldKey, unnamed]);
 
   const selected = matches?.find((m) => m.config.framework_id === value);
   // A schema edit can turn a picked template into a misfit; drop it rather than send a run the server will refuse.

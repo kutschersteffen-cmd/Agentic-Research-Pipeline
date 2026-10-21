@@ -29,6 +29,7 @@ import { setLeaveGuard } from "../lib/leaveGuard";
 import { ConfirmSignedIn } from "../components/ConfirmSignedIn";
 import { newDimension } from "../lib/dimensions";
 import { TIER_STARTER } from "../lib/ruleGraphs";
+import { decisionRunType } from "../lib/runs";
 
 // The canvas pulls in the JDM editor and, on first use, the 14 MB engine:
 // loaded only when the Rules tab opens.
@@ -247,16 +248,6 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
     if (summary) {
       selectDataset(summary);
       refreshDatasets();
-    }
-  }
-
-  async function onSeedDemoRun() {
-    const seeded = await guard("Creating a sample run…", () => api.seedTransitionPlanDemo());
-    if (seeded) {
-      setRunId(seeded.run_id);
-      setIncludeIndicators(true);
-      setFinished(null); // reload the run picker
-      setStatus(`Created sample run ${seeded.run_id}: ${seeded.company_count} fictional companies, made-up verdicts. Build the table to use it.`);
     }
   }
 
@@ -777,7 +768,7 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
                   <input aria-label="Run id" placeholder="Pick or paste a run id" list="ds-runs" value={runId} onChange={(e) => setRunId(e.target.value)} />
                   <datalist id="ds-runs">
                     {(finished ?? [])
-                      .filter((r) => r.run_type === source.replace(/_run$/, ""))
+                      .filter((r) => decisionRunType(r) === source.replace(/_run$/, ""))
                       .map((r) => (
                         <option key={r.run_id} value={r.run_id}>
                           {`${r.completed_count} companies · ${new Date(r.updated_at).toLocaleDateString()}`}
@@ -809,15 +800,6 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
                 Build the table
               </button>
             </div>
-            {source === "transition_plan_run" && (
-              <p className="help-text">
-                Nothing to test with yet?{" "}
-                <button className="link-button" onClick={onSeedDemoRun}>
-                  Create a sample run
-                </button>{" "}
-                with made-up verdicts for 8 fictional companies. No documents or LLM calls.
-              </p>
-            )}
             {source === "joined_runs" && (
               <div className="join-picker">
                 <p className="help-text">
