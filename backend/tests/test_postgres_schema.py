@@ -62,13 +62,13 @@ def test_a_missing_table_is_reported_then_created(current_schema):
     because the report has to agree with it."""
     from arp.storage.postgres_schema import ensure_schema, schema_report
 
-    _execute("DROP TABLE IF EXISTS engagement_commitments")
+    _execute("DROP TABLE IF EXISTS security_resolutions")
 
     report = schema_report(DSN)
-    assert "engagement_commitments" in report["missing_tables"]
+    assert "security_resolutions" in report["missing_tables"]
     assert report["current"] is False
 
-    assert "engagement_commitments" in ensure_schema(DSN)["tables_created"]
+    assert "security_resolutions" in ensure_schema(DSN)["tables_created"]
     assert schema_report(DSN)["current"] is True
 
 
@@ -77,13 +77,13 @@ def test_a_missing_column_is_reported_then_added(current_schema):
     to discover as an UndefinedColumn error at query time."""
     from arp.storage.postgres_schema import ensure_schema, schema_report
 
-    _execute("ALTER TABLE engagement_issues DROP COLUMN source")
+    _execute("ALTER TABLE security_resolutions DROP COLUMN method")
 
     report = schema_report(DSN)
-    assert "engagement_issues.source" in report["missing_columns"]
+    assert "security_resolutions.method" in report["missing_columns"]
     assert report["current"] is False
 
-    assert "engagement_issues.source" in ensure_schema(DSN)["columns_added"]
+    assert "security_resolutions.method" in ensure_schema(DSN)["columns_added"]
     report = schema_report(DSN)
     assert report["missing_columns"] == []
     assert report["current"] is True
@@ -136,9 +136,11 @@ def test_a_recorded_step_is_applied_once_and_only_once(current_schema):
 def test_the_projection_fk_step_is_idempotent_against_a_legacy_database(current_schema):
     """The step that exists today: a database created before the foreign
     keys were removed carries them, and re-adding them here is the only
-    honest way to test their removal."""
+    honest way to test their removal. No model creates engagement_issues any
+    more, so the test makes the old table itself."""
     from arp.storage.postgres_schema import ensure_schema
 
+    _execute("CREATE TABLE IF NOT EXISTS engagement_issues (issue_id TEXT PRIMARY KEY, company_id TEXT)")
     _execute(
         "ALTER TABLE engagement_issues ADD CONSTRAINT engagement_issues_company_id_fkey "
         "FOREIGN KEY (company_id) REFERENCES legacy_companies(company_id)"

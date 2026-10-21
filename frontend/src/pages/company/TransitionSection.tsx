@@ -2,15 +2,15 @@ import type { ReactNode } from "react";
 import { api } from "../../api/client";
 import { FileLink } from "../../components/FileLink";
 import { RATING_CLASS, sourceHref } from "../../lib/barrier";
-import type { BarrierRating, BarrierValue, CompanyTransition, TransitionAction, TransitionAssumption, TransitionComparison, TransitionScenario, TransitionShare } from "../../types";
+import type { BarrierRating, BarrierValue, CompanyTransition, TransitionFlag, TransitionAction, TransitionAssumption, TransitionComparison, TransitionScenario, TransitionShare } from "../../types";
 import { barrierFigure, fmtNumber as num } from "./companyQuery";
 
 type OpenFact = (factId: number, el: HTMLElement) => void;
 
 
-function FactButton({ factId, onOpenFact, mono = true, children }: { factId: number; onOpenFact: OpenFact; mono?: boolean; children: ReactNode }) {
+function FactButton({ factId, onOpenFact, mono = true, label, children }: { factId: number; onOpenFact: OpenFact; mono?: boolean; label?: string; children: ReactNode }) {
   return (
-    <button type="button" className={mono ? "link-button mono" : "link-button"} onClick={(e) => onOpenFact(factId, e.currentTarget)}>
+    <button type="button" className={mono ? "link-button mono" : "link-button"} aria-label={label} onClick={(e) => onOpenFact(factId, e.currentTarget)}>
       {children}
     </button>
   );
@@ -107,6 +107,27 @@ function assumptionRows(x: TransitionAssumption): { key: string; cmp?: Transitio
   return rows;
 }
 
+/** The consistency flags (spec section 4): raised flags in full, then one line of clear titles and one per unchecked flag. */
+function ConsistencyBox({ header, flags, onOpenFact }: { header: string; flags: TransitionFlag[]; onOpenFact: OpenFact }) {
+  const clear = flags.filter((f) => f.state === "clear");
+  return (
+    <div className="banner banner-warning" role="group" aria-label="Consistency">
+      <p><strong>{header}</strong></p>
+      {flags.filter((f) => f.state === "raised").map((f) => (
+        <p key={f.id}>
+          <strong>{f.title}</strong> {f.text}{" "}
+          {f.fact_ids.map((id, i) => (
+            <span key={id}><FactButton factId={id} onOpenFact={onOpenFact} mono={false} label={`${f.title}: ${f.fact_ids.length > 1 ? `facts ${i + 1}` : "facts"}`}>{f.fact_ids.length > 1 ? `facts ${i + 1}` : "facts"}</FactButton>{" "}</span>
+          ))}
+          <span className="muted">{f.cite}</span>
+        </p>
+      ))}
+      {clear.length > 0 && <p className="muted">No flag: {clear.map((f) => f.title).join("; ")}</p>}
+      {flags.filter((f) => f.state === "not checked").map((f) => <p key={f.id} className="muted">Not checked: {f.title} ({f.text})</p>)}
+    </div>
+  );
+}
+
 /** The company's transition check against its sector benchmarks (spec section 6); each company figure opens its fact. */
 export function TransitionSection({ data, error, onOpenFact }: { data: CompanyTransition | null; error: string; onOpenFact: OpenFact }) {
   const c = data?.capex;
@@ -122,6 +143,7 @@ export function TransitionSection({ data, error, onOpenFact }: { data: CompanyTr
           <p className="muted company-meta">
             {[data.sector, ry != null && `reporting year ${ry}`, `benchmarks v${data.benchmarks_version}`].filter(Boolean).join(" · ")}
           </p>
+          {data.flags_header && <ConsistencyBox header={data.flags_header} flags={data.flags} onOpenFact={onOpenFact} />}
           <p><strong>{c.headline}</strong></p>
           <div className="table-wrap">
             <table className="data-table stack-on-phone">

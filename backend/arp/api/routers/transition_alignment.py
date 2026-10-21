@@ -29,6 +29,7 @@ from arp.transition_alignment.actions import Cell, CellLookup, _first, score_pla
 from arp.transition_alignment.benchmarks import citation, load_benchmarks, sector_for_isic
 from arp.transition_alignment.capex import Fact, score_capex
 from arp.transition_alignment.delivery import scenario_entries, score_coverage, score_phaseouts, score_targets
+from arp.transition_alignment.flags import score_flags
 from arp.transition_barrier import dataset
 from arp.transition_barrier.ratings import Ratings
 from arp.transition_barrier.render import fmt_number
@@ -103,13 +104,22 @@ def _fact(r: view.CompanyFactRow, booleans=BOOLEAN_FIELDS) -> Fact:
 _EMISSIONS = ("tp_h_scope1_emissions", "tp_h_scope2_emissions")
 
 
-def _company_facts(s, cid, field_ids=FIELD_IDS) -> list[Fact]:
+def _company_facts(s, cid, field_ids=FIELD_IDS, booleans=BOOLEAN_FIELDS) -> list[Fact]:
     """The counted current facts of `field_ids`, one per (field, year): basis "" first, else the lowest fact_id (R4)."""
     rows = [r for fid in field_ids for r in view.facts(s, cid, field_id=fid, limit=500) if r.status in _COUNTED]
     picked: dict[tuple, view.CompanyFactRow] = {}
     for r in sorted(rows, key=lambda r: (r.basis != "", r.fact_id)):
         picked.setdefault((r.field_id, r.period_end.year if r.period_end else None), r)
-    return [_fact(r) for r in picked.values()]
+    return [_fact(r, booleans) for r in picked.values()]
+
+
+_INDICATORS = ("tp_a_ambition_3", "tp_a_offsetting_13")  # A_ambition_3, A_offsetting_13 (transition_plan_indicators)
+
+
+def _indicator(facts: list[Fact], field_id: str) -> Fact | None:
+    """F1: read as a redline reads its fact (R5): the latest counted real Yes/No, the lowest fact_id within a year."""
+    return min((f for f in facts if f.field_id == field_id and isinstance(f.value, bool)),
+               default=None, key=lambda f: (-(f.year or 0), f.fact_id))
 
 
 _RAW = {"ta_action_text", "ta_action_id", "ta_action_status", "ta_action_region", "ta_target_scope",
@@ -191,6 +201,7 @@ def get_company_transition(ref: str, run_store=Depends(get_run_store)) -> Transi
             return TransitionOut(in_scope=False, reason=reason, sector=None, capex=None, **versions)
         facts = _company_facts(s, cid)
         emissions = _company_facts(s, cid, _EMISSIONS)
+        indicators = _company_facts(s, cid, _INDICATORS, _INDICATORS)
         groups, target_groups, phaseout_groups, assumptions, operates, years, plan_year = _plan_inputs(s, cid)
     capex = score_capex(facts, b.sectors[sector], b.licence_note)
     regions: dict[str, list[str]] = {}
@@ -212,7 +223,14 @@ def get_company_transition(ref: str, run_store=Depends(get_run_store)) -> Transi
     for a in scored.assumptions:
         a.scenario = scenario_entries(a, by_id[a.fact_id], scored.regions, b.scenario_prices, raw["conversions"],
                                       years[a.fact_id])
-    return TransitionOut(in_scope=True, reason=None, sector=sector, capex=capex, **versions, **dict(scored), **delivery)
+    flags, flags_header = score_flags(
+        reporting_year=capex.reporting_year, capex_facts=facts, redlines=capex.redlines,
+        targets=delivery.get("targets", []), coverage=delivery.get("coverage"), phaseouts=delivery.get("phaseouts", []),
+        actions=scored.actions, regions=scored.regions, operates=operates,
+        net_zero=_indicator(indicators, _INDICATORS[0]), offsets=_indicator(indicators, _INDICATORS[1]),
+    )
+    return TransitionOut(in_scope=True, reason=None, sector=sector, capex=capex, **versions, **dict(scored), **delivery,
+                         flags=flags, flags_header=flags_header)
 
 
 @router.get("/transition-alignment/sectors/{sector}/companies", response_model=list[CompanyRef])

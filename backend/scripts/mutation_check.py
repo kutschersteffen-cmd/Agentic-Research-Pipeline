@@ -27,6 +27,7 @@ _NOTHING_COVERED = "could not find any test case for any mutant"  # mutmut 3.8 s
 SKIP = {
     "arp/config.py": "skipped: in mutmut's copy REPO_ROOT points at backend/",
     "arp/db/models.py": "skipped: models only; mutmut can't force a failure",
+    "arp/storage/postgres_models.py": "skipped: models only; mutmut can't force a failure",
     "arp/schemas/common.py": "skipped: shared enums; its 180+ importing tests include browser-only ones",
 }
 

@@ -77,8 +77,9 @@ DOCUMENTS = {  # doc_id: (company key, doc type, title, as-of)
     "P5": ("Q", "annual_report", "Fixture Foods Report 2025", AS_OF),
     "P6": ("C", "transition_plan", "Fixture Steel Transition Plan 2025 (revised)", AS_OF),
     "P7": ("P", "transition_plan", "Fixture Power Transition Plan 2025", AS_OF),
+    "P8": ("K", "annual_report", "Fixture Cement Report 2025", AS_OF),
 }
-ON_REQUEST = ("P3", "P6", "P7")  # registered only when a test asks (register_documents)
+ON_REQUEST = ("P3", "P6", "P7", "P8")  # registered only when a test asks (register_documents)
 M = "EUR million"
 DEFAULT_FACTS = [  # (company, field_id, period_end, value, unit, doc_id, page)
     ("C", "tc_capex_total", FY25, 1000, M, "P2", 44),
@@ -101,6 +102,17 @@ DEFAULT_FACTS = [  # (company, field_id, period_end, value, unit, doc_id, page)
     ("C", "tp_h_scope1_emissions", date(2023, 12, 31), 18_000_000, "tCO2e", "P2", 53),
     ("C", "tp_h_scope2_emissions", date(2023, 12, 31), 500_000, "tCO2e", "P2", 53),
 ]
+NET_ZERO, OFFSETS = "tp_a_ambition_3", "tp_a_offsetting_13"  # A_ambition_3, A_offsetting_13 (transition_plan_indicators)
+INDICATOR_FACTS = [  # (company, field_id, period_end, value, unit, doc_id, page, quote); K's only on request
+    ("C", NET_ZERO, None, True, None, "P1", 25, "We aim to reach net zero across our operations by 2050."),
+    ("C", OFFSETS, None, False, None, "P1", 26, "We will use carbon credits to help meet our 2030 target."),
+]
+
+
+def publish_k_net_zero(pg: str, run_store, ids: dict[str, UUID]) -> None:
+    """K's A_ambition_3 Yes, on its report P8."""
+    register_documents(pg, "P8")
+    publish(pg, run_store, [(ids["K"], NET_ZERO, None, True, None, "P8", 2)])
 
 
 EU, US, CN = "European Union", "United States", "China"
@@ -205,16 +217,16 @@ def field_version(s, field_id: str) -> int:
 
 
 def observation(s, cid: UUID, field_id: str, period_end: date | None, value, unit: str | None, doc_id: str, page: int,
-                **kw) -> ObservationIn:
+                quote: str | None = None, **kw) -> ObservationIn:
     return ObservationIn(
         company_id=cid, field_id=field_id, field_version=field_version(s, field_id), source_kind=m.SourceKind.EXTRACTION,
         period_end=period_end, value=value, value_state=m.ValueState.FOUND, unit=unit,
-        citations=[CitationIn(doc_id=doc_id, page=page)], **{"route": m.Route.REVIEW, **kw},
+        citations=[CitationIn(doc_id=doc_id, page=page, quote=quote)], **{"route": m.Route.REVIEW, **kw},
     )
 
 
 def publish(pg: str, run_store, rows: list[tuple], **kw) -> None:
-    """Records each (company id, field_id, period_end, value, unit, doc_id, page) for review, then approves it.
+    """Records each (company id, field_id, period_end, value, unit, doc_id, page[, quote]) for review, then approves it.
     `kw` goes to every ObservationIn (e.g. `basis`)."""
     run_id = f"seed-{uuid4().hex[:8]}"
     run_store.save_manifest(RunManifest(run_id=run_id, run_type="extraction", status=JobStatus.COMPLETED))
@@ -242,7 +254,7 @@ def retire(pg: str, cid: UUID, *keys: tuple[str, date]) -> None:
 @pytest.fixture
 def seed_defaults(pg, run_store) -> dict[str, UUID]:
     """Companies C, P, K, Q, N, documents P1, P2, P4, P5 and the default facts, approved: capex, emissions, A1-A3,
-    operating regions, both assumptions, T1, T0 and O1. Returns key -> company id."""
+    operating regions, both assumptions, T1, T0, O1 and C's two indicator facts. Returns key -> company id."""
     registry = SchemaRegistry(pg)
     install_preset("sch_transition_capex", registry)
     install_preset("sch_green_lowcarbon", registry)
@@ -264,6 +276,7 @@ def seed_defaults(pg, run_store) -> dict[str, UUID]:
         publish_action(pg, run_store, c, name)
     for name in ("T1", "T0", "O1"):
         publish_item(pg, run_store, ids, name)
+    publish(pg, run_store, [(ids[k], *rest) for k, *rest in INDICATOR_FACTS])
     return ids
 
 

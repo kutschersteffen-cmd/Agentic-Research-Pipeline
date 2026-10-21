@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 from arp.portfolio import aggregation, datapoint_mapping
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import (
@@ -14,19 +12,6 @@ from arp.schemas.portfolio import (
     TrendPoint,
 )
 from arp.storage.portfolio_store import PortfolioStore
-
-
-def save_analytic(store: PortfolioStore, spec: AnalyticSpec) -> None:
-    store.save_analytic(json.loads(spec.model_dump_json()))
-
-
-def list_analytics(store: PortfolioStore) -> list[AnalyticSpec]:
-    return [AnalyticSpec.model_validate(row) for row in store.list_analytics()]
-
-
-def get_analytic(store: PortfolioStore, analytic_id: str) -> AnalyticSpec | None:
-    row = store.get_analytic(analytic_id)
-    return AnalyticSpec.model_validate(row) if row else None
 
 
 def _resolve_point_in_time(

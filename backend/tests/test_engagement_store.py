@@ -99,3 +99,16 @@ def test_mutating_unknown_company_raises(tmp_path):
     store = EngagementStore(tmp_path)
     with pytest.raises(ValueError):
         store.set_issue_status("nope", "iss_nope", IssueStatus.CLOSED)
+
+
+def test_api_and_cli_build_the_store_on_the_engagements_dir(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    from arp.api import deps
+    from arp.cli import _shared
+
+    settings = SimpleNamespace(engagements_dir=tmp_path / "engagements")
+    monkeypatch.setattr(deps, "get_settings", lambda: settings)
+    monkeypatch.setattr(_shared, "get_settings", lambda: settings)
+    assert deps.get_engagement_store.__wrapped__().engagements_dir == settings.engagements_dir
+    assert _shared._engagement_store().engagements_dir == settings.engagements_dir

@@ -53,14 +53,6 @@ def list_templates(store: ReportingStore = Depends(get_reporting_store)) -> dict
     return {"templates": [t.model_dump(mode="json") for t in store.list_template_styles()]}
 
 
-@router.get("/templates/{template_id}")
-def get_template(template_id: str, store: ReportingStore = Depends(get_reporting_store)) -> dict:
-    style = store.load_template_style(template_id)
-    if style is None:
-        raise HTTPException(404, "Template not found")
-    return style.model_dump(mode="json")
-
-
 # ---- Dataset upload helper ---------------------------------------------------
 
 
