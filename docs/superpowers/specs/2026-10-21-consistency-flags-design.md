@@ -32,6 +32,12 @@ Owner decisions (2026-10-21): flags 2, 3, 4, 5 and 7 of research §13.3; layout 
   "doesn't have any plan to … phase out") treat a missing fact as part of the condition.
 - The model deciding a flag.
 
+## Field ids
+
+The indicators `A_ambition_3` and `A_offsetting_13` are stored as facts with field ids
+`tp_a_ambition_3` and `tp_a_offsetting_13` (preset `transition_plan_indicators`); rows naming the
+indicator mean that field (clarified 2026-10-21, no behaviour change).
+
 ## Current state
 
 - `transition_plan_indicators` preset: boolean questions, including `A_ambition_3` ("Does the
@@ -140,7 +146,7 @@ fixtures (phase 1–2, delivery checks) stay.
 | AC-155 | no `A_offsetting_13` fact | request for C | `offsets_emphasised` `state` `not checked`, `text` `No offsets answer` | holdout |
 | AC-143 | the defaults | request for Q | `flags` `[]`, `flags_header` null | holdout |
 | AC-144 | the defaults; the model client raises | request for C | HTTP 200, `flags_header` `Consistency: 1 of 5 checks raise a flag` | holdout |
-| AC-145 | the defaults | `GET /api/facts/<id>/trail` for the one id in `offsets_emphasised.fact_ids` | `fact_ids` has exactly one id; the trail returns 200 and its field is `A_offsetting_13` | holdout |
+| AC-145 | the defaults | `GET /api/facts/<id>/trail` for the one id in `offsets_emphasised.fact_ids` | `fact_ids` has exactly one id; the trail returns 200 and its field id is `tp_a_offsetting_13` | holdout |
 | AC-146 | none | open C's company page | the Consistency box is the first part of the Transition section, before the capex headline | evaluator |
 | AC-156 | none | open C's company page | the box header reads `Consistency: 1 of 5 checks raise a flag` | evaluator |
 | AC-147 | none | open C's company page | the box shows `Offsets emphasised`, `Does not state that credits are used only for residual emissions.` and `ACT Framework p.62; ACT Core p.26` | evaluator |
