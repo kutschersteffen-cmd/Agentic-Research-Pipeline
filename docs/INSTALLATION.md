@@ -343,7 +343,8 @@ The legacy tables earlier versions wrote are kept so `arp db import` can read
 them. Once `arp db verify` is clean you may drop them by hand:
 
 ```sql
-DROP TABLE IF EXISTS company_records, legacy_company_facts, document_registry, index_checkpoints;
+DROP TABLE IF EXISTS company_records, legacy_company_facts, document_registry, index_checkpoints,
+  engagement_commitments, engagement_issues;
 ```
 
 Keep `legacy_companies`: the portfolio store still reads company names,

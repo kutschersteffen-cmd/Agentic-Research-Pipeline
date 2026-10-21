@@ -202,6 +202,7 @@ def test_escalate_keeps_pending_and_needs_approver(env):
     ("approve", {"kind": "restatement_candidate"}, ["published_change"]),
 ])
 def test_second_required_reasons(decision, kw, want):
+    kw = dict(kw)  # the parametrize dict is shared: popping it breaks a second run in the same process
     prior = kw.pop("prior", None)
     args = {"kind": "value", "item_key": KEY, "high_risk": False, "first_audit_passed": True, "current_value": 1234,
             "corrected_value": {"value": 1100} if decision == "correct" else None, "sample_rate": 0.0,

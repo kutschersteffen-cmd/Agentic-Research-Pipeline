@@ -997,8 +997,7 @@ Portfolio holdings aggregation (`PostgresPortfolioStore`) runs as one SQL
 join across holdings, securities and companies, and
 `backend/tests/test_portfolio_store_parity.py` holds it to the file store's
 answers. Observations, news, flags and monitoring rules of the portfolio
-store, and engagement records, are still files; engagement state is mirrored
-into `engagement_issues`/`engagement_commitments` on every save.
+store, and engagement records, are still files.
 
 `arp db init-postgres` creates the `vector` extension and every table, adds
 any column an older database lacks and applies recorded schema steps,
