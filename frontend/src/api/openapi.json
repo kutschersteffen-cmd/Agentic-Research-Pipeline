@@ -1170,6 +1170,14 @@
       ],
       "title": "Region"
      },
+     "scenario": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/ScenarioOut"
+      },
+      "title": "Scenario",
+      "type": "array"
+     },
      "year": {
       "anyOf": [
        {
@@ -1862,6 +1870,13 @@
       "title": "Licence Note",
       "type": "string"
      },
+     "scenario_prices": {
+      "items": {
+       "$ref": "#/components/schemas/ScenarioGroupOut"
+      },
+      "title": "Scenario Prices",
+      "type": "array"
+     },
      "sectors": {
       "items": {
        "$ref": "#/components/schemas/SectorBenchmarksOut"
@@ -1877,7 +1892,8 @@
     "required": [
      "version",
      "licence_note",
-     "sectors"
+     "sectors",
+     "scenario_prices"
     ],
     "title": "BenchmarksOut",
     "type": "object"
@@ -4890,6 +4906,112 @@
      "item_key"
     ],
     "title": "CosignRequest",
+    "type": "object"
+   },
+   "CoverageActionOut": {
+    "properties": {
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "saving_shown": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Saving Shown"
+     },
+     "summed": {
+      "title": "Summed",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "key",
+     "saving_shown",
+     "summed",
+     "reason"
+    ],
+    "title": "CoverageActionOut",
+    "type": "object"
+   },
+   "CoverageOut": {
+    "properties": {
+     "actions": {
+      "items": {
+       "$ref": "#/components/schemas/CoverageActionOut"
+      },
+      "title": "Actions",
+      "type": "array"
+     },
+     "percent": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Percent"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "target_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Target Key"
+     },
+     "text": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Text"
+     }
+    },
+    "required": [
+     "target_key",
+     "percent",
+     "text",
+     "actions",
+     "reason"
+    ],
+    "title": "CoverageOut",
     "type": "object"
    },
    "CoveragePreviewRequest": {
@@ -10373,6 +10495,152 @@
     "title": "OverridesView",
     "type": "object"
    },
+   "PhaseoutOut": {
+    "properties": {
+     "activity": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Activity"
+     },
+     "citation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Citation"
+     },
+     "date_points": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Date Points"
+     },
+     "fact_ids": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Fact Ids",
+      "type": "array"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "method": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Method"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "score": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Score"
+     },
+     "share": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Share"
+     },
+     "share_points": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Share Points"
+     },
+     "timeline_text": {
+      "title": "Timeline Text",
+      "type": "string"
+     },
+     "year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Year"
+     }
+    },
+    "required": [
+     "key",
+     "activity",
+     "share",
+     "year",
+     "method",
+     "share_points",
+     "date_points",
+     "score",
+     "reason",
+     "timeline_text",
+     "note",
+     "citation",
+     "fact_ids"
+    ],
+    "title": "PhaseoutOut",
+    "type": "object"
+   },
    "Pillar": {
     "description": "The three constraint categories assessed per sector. Values match the\n`category` field in criteria_schema.json.",
     "enum": [
@@ -13284,6 +13552,105 @@
     "title": "SaveRequest",
     "type": "object"
    },
+   "ScenarioGroupOut": {
+    "properties": {
+     "citation": {
+      "title": "Citation",
+      "type": "string"
+     },
+     "group": {
+      "title": "Group",
+      "type": "string"
+     },
+     "prices": {
+      "additionalProperties": {
+       "type": "number"
+      },
+      "title": "Prices",
+      "type": "object"
+     }
+    },
+    "required": [
+     "group",
+     "citation",
+     "prices"
+    ],
+    "title": "ScenarioGroupOut",
+    "type": "object"
+   },
+   "ScenarioOut": {
+    "properties": {
+     "assumption": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assumption"
+     },
+     "gap": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Gap"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "region": {
+      "title": "Region",
+      "type": "string"
+     },
+     "scenario": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Scenario"
+     },
+     "year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Year"
+     }
+    },
+    "required": [
+     "region",
+     "year",
+     "scenario",
+     "assumption",
+     "gap",
+     "reason"
+    ],
+    "title": "ScenarioOut",
+    "type": "object"
+   },
    "ScoreRequest": {
     "properties": {
      "config": {
@@ -14943,6 +15310,169 @@
     "title": "TalkingPointsRequest",
     "type": "object"
    },
+   "TargetOut": {
+    "properties": {
+     "base_emissions_shown": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Base Emissions Shown"
+     },
+     "base_year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Base Year"
+     },
+     "citation": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Citation"
+     },
+     "fact_ids": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Fact Ids",
+      "type": "array"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "kind": {
+      "anyOf": [
+       {
+        "enum": [
+         "past",
+         "running"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kind"
+     },
+     "pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pct"
+     },
+     "ratio": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ratio"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "scope": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Scope"
+     },
+     "score": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Score"
+     },
+     "year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Year"
+     }
+    },
+    "required": [
+     "key",
+     "scope",
+     "pct",
+     "year",
+     "base_year",
+     "base_emissions_shown",
+     "kind",
+     "ratio",
+     "score",
+     "reason",
+     "citation",
+     "fact_ids"
+    ],
+    "title": "TargetOut",
+    "type": "object"
+   },
+   "TargetProgressOut": {
+    "properties": {
+     "score": {
+      "title": "Score",
+      "type": "number"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "score",
+     "text"
+    ],
+    "title": "TargetProgressOut",
+    "type": "object"
+   },
    "Taxonomy": {
     "description": "A named, versioned thematic taxonomy.\n\nA ThemeDefinition on its own is a one-off run parameter -- drafted,\nedited, used, forgotten. A Taxonomy is what that definition becomes\nonce it's worth reusing across many runs: it carries a stable\n`taxonomy_id` across versions, records how each version was derived\n(`derivation_method`, `source_notes`) so the boundary decisions are\nauditable later, and supports an explicit ratification step so a\ndomain expert's sign-off (the MSCI/GARI pattern) is a recorded fact,\nnot an implicit assumption.",
     "properties": {
@@ -15711,9 +16241,27 @@
        }
       ]
      },
+     "coverage": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/CoverageOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
      "in_scope": {
       "title": "In Scope",
       "type": "boolean"
+     },
+     "phaseouts": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/PhaseoutOut"
+      },
+      "title": "Phaseouts",
+      "type": "array"
      },
      "reason": {
       "anyOf": [
@@ -15748,6 +16296,24 @@
        }
       ],
       "title": "Sector"
+     },
+     "target_progress": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TargetProgressOut"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "targets": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/TargetOut"
+      },
+      "title": "Targets",
+      "type": "array"
      }
     },
     "required": [

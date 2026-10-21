@@ -1,0 +1,93 @@
+[
+  {
+    "data_type": "string",
+    "extraction_instructions": "The action as the transition plan states it: one specific measure, technology or asset. Vague intentions (for example 'we will reduce emissions') are not actions.",
+    "field_id": "ta_action_text",
+    "high_risk": true,
+    "version": 1
+  },
+  {
+    "data_type": "enum",
+    "extraction_instructions": "Classify the action with exactly one id from the allowed list, or 'other' if none fits.",
+    "field_id": "ta_action_id",
+    "high_risk": true,
+    "version": 1
+  },
+  {
+    "data_type": "enum",
+    "extraction_instructions": "Whether the action is already implemented (in operation) or planned.",
+    "field_id": "ta_action_status",
+    "high_risk": true,
+    "version": 1
+  },
+  {
+    "data_type": "number",
+    "extraction_instructions": "The calendar year the action is (or was) in operation. Leave empty if the plan states no year.",
+    "field_id": "ta_action_year",
+    "high_risk": true,
+    "version": 1
+  },
+  {
+    "data_type": "enum",
+    "extraction_instructions": "Where the action takes place, if the plan states it.",
+    "field_id": "ta_action_region",
+    "high_risk": true,
+    "version": 1
+  },
+  {
+    "data_type": "number",
+    "extraction_instructions": "The quantified greenhouse gas saving the plan links to this action. Give the unit exactly as stated: 'tCO2e/yr', 'MtCO2e/yr' or '%'.",
+    "field_id": "ta_action_ghg_saving",
+    "high_risk": true,
+    "version": 1
+  },
+  {
+    "data_type": "currency_amount",
+    "extraction_instructions": "The investment this action needs. Report it in the reporting currency (never convert): give the unit as the ISO 4217 code with the scale word separate, for example 'EUR million'.",
+    "field_id": "ta_action_capex_needed",
+    "high_risk": true,
+    "version": 1
+  },
+  {
+    "data_type": "currency_amount",
+    "extraction_instructions": "The funds allocated or approved for this action. Report it in the reporting currency (never convert): give the unit as the ISO 4217 code with the scale word separate, for example 'EUR million'.",
+    "field_id": "ta_action_capex_allocated",
+    "high_risk": true,
+    "version": 1
+  },
+  {
+    "data_type": "boolean",
+    "extraction_instructions": "The company owns or operates production sites, plants, fleets or fields in the European Union (Yes or No).",
+    "field_id": "ta_operates_eu",
+    "high_risk": true,
+    "version": 1
+  },
+  {
+    "data_type": "boolean",
+    "extraction_instructions": "The company owns or operates production sites, plants, fleets or fields in the United States (Yes or No).",
+    "field_id": "ta_operates_us",
+    "high_risk": true,
+    "version": 1
+  },
+  {
+    "data_type": "boolean",
+    "extraction_instructions": "The company owns or operates production sites, plants, fleets or fields in China (Yes or No).",
+    "field_id": "ta_operates_cn",
+    "high_risk": true,
+    "version": 1
+  },
+  {
+    "data_type": "number",
+    "extraction_instructions": "A carbon price the plan assumes. Give the unit as '<currency>/tCO2', for example 'EUR/tCO2'. Use basis 'region:<Region>' for the region it applies to, or 'region:any'; report the year it applies to as period_end (31 December), if stated.",
+    "field_id": "ta_assumed_carbon_price",
+    "high_risk": true,
+    "version": 1
+  },
+  {
+    "data_type": "number",
+    "extraction_instructions": "A hydrogen cost the plan assumes. Give the unit as '<currency>/kg H2', for example 'EUR/kg H2'. Use basis 'region:<Region>' or 'region:any'; report the year it applies to as period_end (31 December), if stated.",
+    "field_id": "ta_assumed_h2_cost",
+    "high_risk": true,
+    "version": 1
+  }
+]

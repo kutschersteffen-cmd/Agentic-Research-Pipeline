@@ -68,11 +68,11 @@ def field_item_key(issuer_key: str, field_id: str, period: str = "unspecified") 
 
 def period_key(f) -> str:
     """`period_end` of an ExtractedField (model or dict), else "unspecified"; a list-item basis
-    (`action:`, `region:`) is appended as `|<basis>`, its ':' as '|', so each item gets its own review item (P4)."""
+    (`action:`, `region:`, `target:`, `phaseout:`) is appended as `|<basis>`, its ':' as '|', so each item gets its own review item (P4)."""
     end, basis = (f.get("period_end"), f.get("basis")) if isinstance(f, dict) else (f.period_end, f.basis)
     key = end or "unspecified"
     # no ':' (item keys split on it from the right) and no '/' (item keys are path params)
-    return f"{key}|{basis.replace(':', '|')}" if basis and basis.startswith(("action:", "region:")) else key
+    return f"{key}|{basis.replace(':', '|')}" if basis and basis.startswith(("action:", "region:", "target:", "phaseout:")) else key
 
 
 def held_item_key(company_id: str, doc_id: str) -> str:

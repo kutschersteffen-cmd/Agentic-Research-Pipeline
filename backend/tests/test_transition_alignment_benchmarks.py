@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import shutil
 from datetime import date
 from pathlib import Path
 
@@ -19,7 +20,7 @@ from arp.transition_alignment.benchmarks import (
     read_and_validate,
     sign_benchmarks,
 )
-from tests.transition_alignment_helpers import _reset, edit_bm, ta_dirs  # noqa: F401 - the fixture
+from tests.transition_alignment_helpers import FIXTURES, _reset, edit_bm, ta_dirs  # noqa: F401 - the fixture
 
 BUNDLED_SCHEMA = Path(benchmarks.__file__).parents[1] / "transition_barrier" / "data" / "criteria_schema.json"
 
@@ -300,3 +301,56 @@ def test_ac2_benchmarks_api(bundled_dirs):
     special = {"Power & Utilities": 95, "Oil & Gas Upstream": 77, "Chemicals": 77}
     assert {name: c["value"] for name, c in capex.items()} == {name: special.get(name, 80) for name in capex}
     assert all("p." in c["citation"] for c in capex.values())
+
+
+# --- Scenario prices (benchmarks v2) ---
+
+
+def _use_bm_s(dirs) -> None:
+    shutil.copy(FIXTURES / "bm_s" / benchmarks.BENCHMARKS_FILE, dirs[1] / benchmarks.BENCHMARKS_FILE)
+
+
+def test_bm_s_fixture_is_valid(ta_dirs):  # noqa: F811
+    _use_bm_s(ta_dirs)
+    assert errors(ta_dirs) == []
+    assert [g.group for g in benchmarks.load_benchmarks().scenario_prices] == ["advanced economies", "selected EMDE"]
+
+
+def test_bm_without_key_still_valid(ta_dirs):  # noqa: F811
+    assert "scenario_prices" not in json.loads((ta_dirs[1] / benchmarks.BENCHMARKS_FILE).read_text(encoding="utf-8"))
+    assert errors(ta_dirs) == []
+    assert benchmarks.load_benchmarks().scenario_prices == []
+
+
+def test_ac87_scenario_no_source(ta_dirs):  # noqa: F811
+    _use_bm_s(ta_dirs)
+    edit_bm(ta_dirs[1], lambda r: r["scenario_prices"][0].pop("source"))
+    result = _cli("validate", "--data-dir", str(ta_dirs[1]))
+    assert result.exit_code == 1
+    assert "Scenario prices: advanced economies has no source" in result.output.splitlines()
+
+
+def test_scenario_unknown_group(ta_dirs):  # noqa: F811
+    _use_bm_s(ta_dirs)
+    got = errors_after(ta_dirs, lambda r: r["scenario_prices"][1].update(group="Mars"))
+    assert "Scenario prices: unknown region group 'Mars'" in got
+
+
+def test_scenario_missing_in_bundled_refused(tmp_path, bundled_dirs, monkeypatch):
+    bundled = tmp_path / "bundled"
+    shutil.copytree(benchmarks.BUNDLED_DIR, bundled)
+    monkeypatch.setattr(benchmarks, "BUNDLED_DIR", bundled)
+    edit_bm(bundled, lambda r: r.pop("scenario_prices"))
+    result = _cli("validate", "--data-dir", str(bundled))
+    assert result.exit_code == 1
+    assert "Scenario prices: missing" in result.output.splitlines()
+
+
+def test_ac113_api(bundled_dirs):
+    from arp.api.main import app
+
+    body = TestClient(app).get("/api/transition-alignment/benchmarks").json()
+    groups = {g["group"]: g for g in body["scenario_prices"]}
+    assert groups["advanced economies"]["prices"] == {"2030": 140, "2035": 180, "2040": 205, "2050": 250}
+    assert groups["selected EMDE"]["prices"] == {"2030": 90, "2035": 125, "2040": 160, "2050": 200}
+    assert all("p.329" in g["citation"] for g in groups.values())
