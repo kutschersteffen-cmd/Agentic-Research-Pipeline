@@ -8,9 +8,9 @@ import { barrierFigure, fmtNumber as num } from "./companyQuery";
 type OpenFact = (factId: number, el: HTMLElement) => void;
 
 
-function FactButton({ factId, onOpenFact, mono = true, children }: { factId: number; onOpenFact: OpenFact; mono?: boolean; children: ReactNode }) {
+function FactButton({ factId, onOpenFact, mono = true, label, children }: { factId: number; onOpenFact: OpenFact; mono?: boolean; label?: string; children: ReactNode }) {
   return (
-    <button type="button" className={mono ? "link-button mono" : "link-button"} onClick={(e) => onOpenFact(factId, e.currentTarget)}>
+    <button type="button" className={mono ? "link-button mono" : "link-button"} aria-label={label} onClick={(e) => onOpenFact(factId, e.currentTarget)}>
       {children}
     </button>
   );
@@ -117,7 +117,7 @@ function ConsistencyBox({ header, flags, onOpenFact }: { header: string; flags: 
         <p key={f.id}>
           <strong>{f.title}</strong> {f.text}{" "}
           {f.fact_ids.map((id, i) => (
-            <span key={id}><FactButton factId={id} onOpenFact={onOpenFact} mono={false}>{f.fact_ids.length > 1 ? `facts ${i + 1}` : "facts"}</FactButton>{" "}</span>
+            <span key={id}><FactButton factId={id} onOpenFact={onOpenFact} mono={false} label={`${f.title}: ${f.fact_ids.length > 1 ? `facts ${i + 1}` : "facts"}`}>{f.fact_ids.length > 1 ? `facts ${i + 1}` : "facts"}</FactButton>{" "}</span>
           ))}
           <span className="muted">{f.cite}</span>
         </p>
