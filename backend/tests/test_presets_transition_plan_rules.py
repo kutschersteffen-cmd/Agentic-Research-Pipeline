@@ -16,7 +16,7 @@ from arp.checks.runner import CheckContext, check_record
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
 from arp.extraction.routing import route
-from arp.presets.transition_plan import SCHEMA_ID, build_transition_plan_schema
+from arp.presets.transition_plan import REQUIRES_YES, SCHEMA_ID, build_transition_plan_schema
 from arp.schemas.common import Citation, CompanyRef, DocType, PeriodPlan, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, ExtractedField, FieldDefinition, FieldQuality
 
@@ -73,20 +73,21 @@ def test_helpers_are_optional_and_not_high_risk():  # AC-2
 def test_seven_questions_carry_their_rule():  # AC-3
     fields = _fields()
     for fid, (rule_id, kind, params) in _RULES.items():
-        (rule,) = fields[fid].rules
-        dumped = rule.model_dump(mode="json")
+        rules = fields[fid].rules
+        assert len(rules) == (2 if fid in REQUIRES_YES else 1), fid  # the requires rule comes after (contradiction rules)
+        dumped = rules[0].model_dump(mode="json")
         assert (dumped["rule_id"], dumped["kind"], dumped["when"]) == (rule_id, kind, True), fid
         assert {k: dumped[k] for k in params} == params, fid
 
 
 def test_no_other_field_has_rules():  # AC-16
-    assert all(not f.rules for fid, f in _fields().items() if fid not in _RULES)
+    assert all(not f.rules for fid, f in _fields().items() if fid not in _RULES and fid not in REQUIRES_YES)
 
 
 def test_versions():  # AC-4
     fields = _fields()
     for s in _SNAPSHOT:
-        want = 2 if s["field_id"] in _RULES else s["version"]
+        want = (2 if s["field_id"] in _RULES else s["version"]) + (s["field_id"] in REQUIRES_YES)  # +1 for the requires rule
         assert fields[s["field_id"]].version == want, s["field_id"]
     assert all(fields[h[0]].version == 1 for h in _HELPERS)
 
@@ -247,3 +248,14 @@ async def test_rising_intensity_fails():  # AC-12
 async def test_no_answer_is_not_checked():  # AC-13
     rows = [_row("tp_a_progress_70", False), *_series("tp_h_scope1_intensity", _FIVE, "tCO2e/EURm")]
     assert _outcome(await _check(rows), "tp_a_progress_70", "tp_r_progress_70") == "not_applicable"
+
+
+def test_branch_preset_saves_over_main_release(client, pg):
+    """This branch's preset (with the requires rules) saves over main's released 72-field preset."""
+    main = json.loads((Path(__file__).parent / "fixtures" / "transition_plan_preset_main.json").read_text())
+    reg = SchemaRegistry(pg)
+    saved = reg.save(DataPointSchema(schema_id=SCHEMA_ID, name="Transition plan indicators",
+                                     fields=[FieldDefinition(**f) for f in main]))
+    reg.release(saved.schema_id, saved.version)
+    r = _post(client, build_transition_plan_schema())
+    assert r.status_code == 200, r.text
