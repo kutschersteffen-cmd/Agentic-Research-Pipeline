@@ -25,6 +25,7 @@ from arp.cli.replication import replicate_app
 from arp.cli.reporting import reporting_app
 from arp.cli.retention import retention_app
 from arp.cli.revenue_catalogue import revenue_catalogue_app
+from arp.cli.rfp import rfp_app
 from arp.cli.runs import runs_app
 from arp.cli.scale import scale_app
 from arp.cli.signal_lab import signals_app
@@ -100,3 +101,4 @@ app.add_typer(holdings_app, name="holdings")
 app.add_typer(retention_app, name="retention")
 app.add_typer(xbrl_app, name="xbrl")
 app.add_typer(io_app, name="io")
+app.add_typer(rfp_app, name="rfp")
