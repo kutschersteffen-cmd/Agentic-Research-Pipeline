@@ -1,0 +1,306 @@
+{
+  "Power & Utilities": {
+    "isic_prefixes": [
+      "351"
+    ],
+    "capex": {
+      "value": 95,
+      "unit": "%",
+      "method": "ACT Core D01.a, electricity row",
+      "source": {
+        "title": "ACT Core methodology",
+        "url": "https://actinitiative.org/wp-content/uploads/pdf/act-core-methodology.pdf",
+        "page": "62"
+      },
+      "licence": "ACT methodology, internal non-commercial use with citation.",
+      "see_also": [
+        {
+          "title": "ACT Electricity methodology v2.0",
+          "url": "https://actinitiative.org/wp-content/uploads/act-electricity-v2.0.pdf",
+          "page": "50-51"
+        }
+      ]
+    },
+    "redlines": [
+      {
+        "id": "pwr_coal",
+        "label": "No new unabated coal plants",
+        "fact": "tc_new_unabated_coal",
+        "source": {
+          "title": "Net Zero Roadmap 2023",
+          "url": "https://iea.blob.core.windows.net/assets/9a698da4-4002-4e53-8ef3-631d8971bf84/NetZeroRoadmap_AGlobalPathwaytoKeepthe1.5CGoalinReach-2023Update.pdf",
+          "page": "81"
+        }
+      }
+    ]
+  },
+  "Oil & Gas Upstream": {
+    "isic_prefixes": [
+      "061",
+      "062"
+    ],
+    "capex": {
+      "value": 77,
+      "unit": "%",
+      "method": "ACT Core D01.a, oil and gas and chemicals row",
+      "source": {
+        "title": "ACT Core methodology",
+        "url": "https://actinitiative.org/wp-content/uploads/pdf/act-core-methodology.pdf",
+        "page": "62"
+      },
+      "licence": "ACT methodology, internal non-commercial use with citation."
+    },
+    "redlines": [
+      {
+        "id": "ogu_new_projects",
+        "label": "No new long-lead-time conventional oil and gas projects approved after 2023",
+        "fact": "tc_new_oil_gas_project",
+        "source": {
+          "title": "Net Zero Roadmap 2023",
+          "url": "https://iea.blob.core.windows.net/assets/9a698da4-4002-4e53-8ef3-631d8971bf84/NetZeroRoadmap_AGlobalPathwaytoKeepthe1.5CGoalinReach-2023Update.pdf",
+          "page": "76"
+        }
+      }
+    ]
+  },
+  "Chemicals": {
+    "isic_prefixes": [
+      "201"
+    ],
+    "capex": {
+      "value": 77,
+      "unit": "%",
+      "method": "ACT Core D01.a, oil and gas and chemicals row",
+      "source": {
+        "title": "ACT Core methodology",
+        "url": "https://actinitiative.org/wp-content/uploads/pdf/act-core-methodology.pdf",
+        "page": "62"
+      },
+      "licence": "ACT methodology, internal non-commercial use with citation."
+    }
+  },
+  "Steel": {
+    "isic_prefixes": [
+      "241"
+    ],
+    "capex": {
+      "value": 80,
+      "unit": "%",
+      "method": "ACT Core D01.a, generic row",
+      "source": {
+        "title": "ACT Core methodology",
+        "url": "https://actinitiative.org/wp-content/uploads/pdf/act-core-methodology.pdf",
+        "page": "62"
+      },
+      "licence": "ACT methodology, internal non-commercial use with citation.",
+      "see_also": [
+        {
+          "title": "ACT Generic methodology v2.0",
+          "url": "https://actinitiative.org/wp-content/uploads/act-generic-v2.0.pdf",
+          "page": "47"
+        }
+      ]
+    },
+    "rnd_tests": [
+      {
+        "id": "lc_share",
+        "label": "Low-carbon share of R&D",
+        "numerator": "tc_lowcarbon_rnd",
+        "denominator": "tc_rnd_total",
+        "value": 80,
+        "unit": "%",
+        "source": {
+          "title": "ACT Iron & Steel methodology v2.0",
+          "url": "https://actinitiative.org/wp-content/uploads/act-iron-steel-methodo_v2.0.pdf",
+          "page": "75-76"
+        }
+      },
+      {
+        "id": "early_stage",
+        "label": "Early-stage share of low-carbon R&D",
+        "numerator": "tc_lowcarbon_rnd_early",
+        "denominator": "tc_lowcarbon_rnd",
+        "value": 65,
+        "unit": "%",
+        "source": {
+          "title": "ACT Iron & Steel methodology v2.0",
+          "url": "https://actinitiative.org/wp-content/uploads/act-iron-steel-methodo_v2.0.pdf",
+          "page": "75-76"
+        }
+      }
+    ],
+    "redlines": [
+      {
+        "id": "stl_bf",
+        "label": "No new blast furnace without CCS or a near-zero route",
+        "fact": "tc_new_blast_furnace",
+        "source": {
+          "title": "owner-defined (2026-10-19)",
+          "rationale": "A new blast furnace locks in coal-based ironmaking for decades. Relining or rebuilding an existing furnace at the same capacity is not new build."
+        }
+      }
+    ]
+  },
+  "Cement": {
+    "isic_prefixes": [
+      "2394"
+    ],
+    "capex": {
+      "value": 80,
+      "unit": "%",
+      "method": "ACT Core D01.a, generic row",
+      "source": {
+        "title": "ACT Core methodology",
+        "url": "https://actinitiative.org/wp-content/uploads/pdf/act-core-methodology.pdf",
+        "page": "62"
+      },
+      "licence": "ACT methodology, internal non-commercial use with citation.",
+      "see_also": [
+        {
+          "title": "ACT Generic methodology v2.0",
+          "url": "https://actinitiative.org/wp-content/uploads/act-generic-v2.0.pdf",
+          "page": "47"
+        }
+      ]
+    },
+    "rnd_tests": [
+      {
+        "id": "capex_share",
+        "label": "Low-carbon R&D as a share of total capex",
+        "numerator": "tc_lowcarbon_rnd",
+        "denominator": "tc_capex_total",
+        "value": 5,
+        "unit": "%",
+        "source": {
+          "title": "ACT Cement methodology v2.0",
+          "url": "https://actinitiative.org/wp-content/uploads/act-cement-v2.0.pdf",
+          "page": "51-53"
+        }
+      }
+    ]
+  },
+  "Critical Minerals & Mining": {
+    "isic_prefixes": [
+      "07"
+    ],
+    "capex": {
+      "value": 80,
+      "unit": "%",
+      "method": "ACT Core D01.a, generic row",
+      "source": {
+        "title": "ACT Core methodology",
+        "url": "https://actinitiative.org/wp-content/uploads/pdf/act-core-methodology.pdf",
+        "page": "62"
+      },
+      "licence": "ACT methodology, internal non-commercial use with citation.",
+      "see_also": [
+        {
+          "title": "ACT Generic methodology v2.0",
+          "url": "https://actinitiative.org/wp-content/uploads/act-generic-v2.0.pdf",
+          "page": "47"
+        }
+      ]
+    }
+  },
+  "Aviation": {
+    "isic_prefixes": [
+      "511"
+    ],
+    "capex": {
+      "value": 80,
+      "unit": "%",
+      "method": "ACT Core D01.a, generic row",
+      "source": {
+        "title": "ACT Core methodology",
+        "url": "https://actinitiative.org/wp-content/uploads/pdf/act-core-methodology.pdf",
+        "page": "62"
+      },
+      "licence": "ACT methodology, internal non-commercial use with citation.",
+      "see_also": [
+        {
+          "title": "ACT Generic methodology v2.0",
+          "url": "https://actinitiative.org/wp-content/uploads/act-generic-v2.0.pdf",
+          "page": "47"
+        }
+      ]
+    },
+    "rnd_tests": [
+      {
+        "id": "lc_share",
+        "label": "Low-carbon share of R&D",
+        "numerator": "tc_lowcarbon_rnd",
+        "denominator": "tc_rnd_total",
+        "value": 80,
+        "unit": "%",
+        "source": {
+          "title": "ACT Transport methodology v2.1",
+          "url": "https://actinitiative.org/wp-content/uploads/act-transport-v2.1.pdf",
+          "page": "57-58"
+        }
+      }
+    ]
+  },
+  "Shipping": {
+    "isic_prefixes": [
+      "501",
+      "502"
+    ],
+    "capex": {
+      "value": 80,
+      "unit": "%",
+      "method": "ACT Core D01.a, generic row",
+      "source": {
+        "title": "ACT Core methodology",
+        "url": "https://actinitiative.org/wp-content/uploads/pdf/act-core-methodology.pdf",
+        "page": "62"
+      },
+      "licence": "ACT methodology, internal non-commercial use with citation.",
+      "see_also": [
+        {
+          "title": "ACT Generic methodology v2.0",
+          "url": "https://actinitiative.org/wp-content/uploads/act-generic-v2.0.pdf",
+          "page": "47"
+        }
+      ]
+    },
+    "rnd_tests": [
+      {
+        "id": "lc_share",
+        "label": "Low-carbon share of R&D",
+        "numerator": "tc_lowcarbon_rnd",
+        "denominator": "tc_rnd_total",
+        "value": 80,
+        "unit": "%",
+        "source": {
+          "title": "ACT Transport methodology v2.1",
+          "url": "https://actinitiative.org/wp-content/uploads/act-transport-v2.1.pdf",
+          "page": "57-58"
+        }
+      }
+    ]
+  },
+  "Heavy-Duty Road Transport": {
+    "isic_prefixes": [
+      "2910",
+      "4923"
+    ],
+    "capex": {
+      "value": 80,
+      "unit": "%",
+      "method": "ACT Core D01.a, automotive row",
+      "source": {
+        "title": "ACT Core methodology",
+        "url": "https://actinitiative.org/wp-content/uploads/pdf/act-core-methodology.pdf",
+        "page": "62"
+      },
+      "licence": "ACT methodology, internal non-commercial use with citation.",
+      "see_also": [
+        {
+          "title": "ACT Automotive methodology v2.0",
+          "url": "https://actinitiative.org/wp-content/uploads/act-auto-v2.0.pdf",
+          "page": "38-41"
+        }
+      ]
+    }
+  }
+}

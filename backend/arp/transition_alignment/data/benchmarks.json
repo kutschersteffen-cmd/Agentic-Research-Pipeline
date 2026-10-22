@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "fingerprint": "52a008a5d32dc67a03285a6eb1e93d9f98eff0f6ce06a104ee283c0a6f2b1795",
+  "version": 3,
+  "fingerprint": "d1ec5d7981966024dac63ef51035725303a34de64b07fe5a944769dda30d376b",
   "history": [
     {
       "version": 1,
@@ -13,6 +13,12 @@
       "fingerprint": "52a008a5d32dc67a03285a6eb1e93d9f98eff0f6ce06a104ee283c0a6f2b1795",
       "approved_by": "kutschersteffen-cmd",
       "approved_at": "2026-10-20"
+    },
+    {
+      "version": 3,
+      "fingerprint": "d1ec5d7981966024dac63ef51035725303a34de64b07fe5a944769dda30d376b",
+      "approved_by": "kutschersteffen-cmd",
+      "approved_at": "2026-10-22"
     }
   ],
   "licence_note": "Internal, non-commercial use, with citation (owner decision 2026-10-19).",
@@ -79,6 +85,21 @@
             "page": "76"
           }
         }
+      ],
+      "delivery_kpis": [
+        {
+          "id": "ccs_capex_share",
+          "label": "CCS, CCUS and CDR share of capex",
+          "field_id": "tc_ccs_capex_share_pct",
+          "levers": [],
+          "points": [
+            {
+              "value": 5
+            }
+          ],
+          "cite": "ACT Oil & Gas, OG 2.6, pp.57–58; benchmark p.126",
+          "url": "https://actinitiative.org/wp-content/uploads/act-og-methodology_vf.pdf"
+        }
       ]
     },
     "Chemicals": {
@@ -95,7 +116,54 @@
           "page": "62"
         },
         "licence": "ACT methodology, internal non-commercial use with citation."
-      }
+      },
+      "delivery_kpis": [
+        {
+          "id": "nh3_electrolytic",
+          "label": "Electrolytic share of ammonia",
+          "field_id": "tc_nh3_electrolytic_pct",
+          "levers": [
+            "chem.low_carbon_h2"
+          ],
+          "points": [
+            {
+              "value": 50
+            }
+          ],
+          "cite": "ACT Chemicals, CH 4.3, p.77",
+          "url": "https://actinitiative.org/wp-content/uploads/act-chemicals-final.pdf"
+        },
+        {
+          "id": "meoh_electrolytic",
+          "label": "Electrolytic share of methanol",
+          "field_id": "tc_meoh_electrolytic_pct",
+          "levers": [
+            "chem.low_carbon_h2"
+          ],
+          "points": [
+            {
+              "value": 75
+            }
+          ],
+          "cite": "ACT Chemicals, CH 4.3, p.77",
+          "url": "https://actinitiative.org/wp-content/uploads/act-chemicals-final.pdf"
+        },
+        {
+          "id": "electrolysis_lc_power",
+          "label": "Low-carbon power share of electrolysis",
+          "field_id": "tc_electrolysis_lc_power_pct",
+          "levers": [
+            "chem.low_carbon_h2"
+          ],
+          "points": [
+            {
+              "value": 90
+            }
+          ],
+          "cite": "ACT Chemicals, CH 4.3, p.77",
+          "url": "https://actinitiative.org/wp-content/uploads/act-chemicals-final.pdf"
+        }
+      ]
     },
     "Steel": {
       "isic_prefixes": [
@@ -195,6 +263,23 @@
             "page": "51-53"
           }
         }
+      ],
+      "delivery_kpis": [
+        {
+          "id": "alt_fuel_share",
+          "label": "Alternative-fuel share of kiln heat",
+          "field_id": "tc_alt_fuel_share_pct",
+          "levers": [
+            "cement.alt_fuels"
+          ],
+          "points": [
+            {
+              "value": 30
+            }
+          ],
+          "cite": "ACT Cement v2.0, CEM 2.4a, p.50",
+          "url": "https://actinitiative.org/wp-content/uploads/act-cement-v2.0.pdf"
+        }
       ]
     },
     "Critical Minerals & Mining": {
@@ -256,6 +341,35 @@
             "page": "57-58"
           }
         }
+      ],
+      "delivery_kpis": [
+        {
+          "id": "saf_share",
+          "label": "Sustainable aviation fuel share of jet fuel",
+          "field_id": "tc_saf_share_pct",
+          "levers": [
+            "avi.hefa_saf",
+            "avi.e_saf",
+            "avi.advanced_bio_saf"
+          ],
+          "points": [
+            {
+              "value": 11,
+              "year": 2030
+            },
+            {
+              "value": 26,
+              "year": 2035
+            },
+            {
+              "value": 70,
+              "year": 2050
+            }
+          ],
+          "cite": "IEA Net Zero Roadmap 2023, p.94",
+          "url": "https://iea.blob.core.windows.net/assets/9a698da4-4002-4e53-8ef3-631d8971bf84/NetZeroRoadmap_AGlobalPathwaytoKeepthe1.5CGoalinReach-2023Update.pdf",
+          "note": "Sum of the fuel rows on p.94 (ours); the IEA prints no total."
+        }
       ]
     },
     "Shipping": {
@@ -295,6 +409,34 @@
             "page": "57-58"
           }
         }
+      ],
+      "delivery_kpis": [
+        {
+          "id": "ship_lc_fuel_share",
+          "label": "Low-emission fuel share of ship energy",
+          "field_id": "tc_ship_lc_fuel_share_pct",
+          "levers": [
+            "shp.green_fuels",
+            "shp.alt_fuel_vessels"
+          ],
+          "points": [
+            {
+              "value": 19,
+              "year": 2030
+            },
+            {
+              "value": 36,
+              "year": 2035
+            },
+            {
+              "value": 85,
+              "year": 2050
+            }
+          ],
+          "cite": "IEA Net Zero Roadmap 2023, p.94",
+          "url": "https://iea.blob.core.windows.net/assets/9a698da4-4002-4e53-8ef3-631d8971bf84/NetZeroRoadmap_AGlobalPathwaytoKeepthe1.5CGoalinReach-2023Update.pdf",
+          "note": "Sum of the fuel rows on p.94 (ours); the IEA prints no total."
+        }
       ]
     },
     "Heavy-Duty Road Transport": {
@@ -319,7 +461,57 @@
             "page": "38-41"
           }
         ]
-      }
+      },
+      "delivery_kpis": [
+        {
+          "id": "zev_sales_share",
+          "label": "Zero-emission share of truck sales",
+          "field_id": "tc_zev_sales_share_pct",
+          "isic_prefixes": [
+            "2910"
+          ],
+          "levers": [
+            "hdt.bev_trucks",
+            "hdt.fcev_trucks"
+          ],
+          "points": [
+            {
+              "value": 37,
+              "year": 2030
+            },
+            {
+              "value": 65,
+              "year": 2035
+            },
+            {
+              "value": 100,
+              "year": 2050
+            }
+          ],
+          "cite": "IEA Net Zero Roadmap 2023, p.93",
+          "url": "https://iea.blob.core.windows.net/assets/9a698da4-4002-4e53-8ef3-631d8971bf84/NetZeroRoadmap_AGlobalPathwaytoKeepthe1.5CGoalinReach-2023Update.pdf"
+        },
+        {
+          "id": "fleet_lc_share",
+          "label": "Low-carbon share of truck fleet",
+          "field_id": "tc_fleet_lc_share_pct",
+          "isic_prefixes": [
+            "4923"
+          ],
+          "levers": [
+            "hdt.bev_trucks",
+            "hdt.fcev_trucks"
+          ],
+          "points": [
+            {
+              "value": 95,
+              "year": 2040
+            }
+          ],
+          "cite": "Mission Possible Partnership, Making Zero-Emissions Trucking Possible (2022), p.42",
+          "url": "https://static.energy-transitions.org/uploads/resources/Making-Zero-Emissions-Trucking-Possible.pdf"
+        }
+      ]
     }
   },
   "act_levers": {

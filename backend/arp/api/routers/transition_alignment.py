@@ -19,6 +19,7 @@ from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.transition_alignment import (
     BenchmarkOut,
     BenchmarksOut,
+    KpiDefOut,
     RedlineDef,
     RndTestDef,
     ScenarioGroupOut,
@@ -26,9 +27,10 @@ from arp.schemas.transition_alignment import (
     TransitionOut,
 )
 from arp.transition_alignment.actions import Cell, CellLookup, _first, score_plan
-from arp.transition_alignment.benchmarks import citation, load_benchmarks, sector_for_isic
+from arp.transition_alignment.benchmarks import citation, kpi_prefixes, load_benchmarks, range_text, sector_for_isic
 from arp.transition_alignment.capex import Fact, score_capex
 from arp.transition_alignment.delivery import scenario_entries, score_coverage, score_phaseouts, score_targets
+from arp.transition_alignment.delivery_kpis import score_delivery_kpis
 from arp.transition_alignment.flags import score_flags
 from arp.transition_barrier import dataset
 from arp.transition_barrier.ratings import Ratings
@@ -67,6 +69,18 @@ def get_benchmarks() -> BenchmarksOut:
                     for t in s.rnd_tests
                 ],
                 redlines=[RedlineDef(id=r.id, label=r.label, fact=r.fact, citation=citation(r.source)) for r in s.redlines],
+                delivery_kpis=[
+                    KpiDefOut(
+                        id=k.id,
+                        label=k.label,
+                        field_id=k.field_id,
+                        isic_prefixes=kpi_prefixes(s, k),
+                        range_text=range_text(k.points),
+                        levers=k.levers,
+                        cite=k.cite,
+                    )
+                    for k in s.delivery_kpis
+                ],
             )
             for name, s in b.sectors.items()
         ],
@@ -202,6 +216,7 @@ def get_company_transition(ref: str, run_store=Depends(get_run_store)) -> Transi
         facts = _company_facts(s, cid)
         emissions = _company_facts(s, cid, _EMISSIONS)
         indicators = _company_facts(s, cid, _INDICATORS, _INDICATORS)
+        kpi_facts = _company_facts(s, cid, [k.field_id for k in b.sectors[sector].delivery_kpis])
         groups, target_groups, phaseout_groups, assumptions, operates, years, plan_year = _plan_inputs(s, cid)
     capex = score_capex(facts, b.sectors[sector], b.licence_note)
     regions: dict[str, list[str]] = {}
@@ -229,8 +244,9 @@ def get_company_transition(ref: str, run_store=Depends(get_run_store)) -> Transi
         actions=scored.actions, regions=scored.regions, operates=operates,
         net_zero=_indicator(indicators, _INDICATORS[0]), offsets=_indicator(indicators, _INDICATORS[1]),
     )
+    kpis, kpis_note = score_delivery_kpis(b.sectors[sector], isic, kpi_facts, scored.actions)
     return TransitionOut(in_scope=True, reason=None, sector=sector, capex=capex, **versions, **dict(scored), **delivery,
-                         flags=flags, flags_header=flags_header)
+                         flags=flags, flags_header=flags_header, delivery_kpis=kpis, delivery_kpis_note=kpis_note)
 
 
 @router.get("/transition-alignment/sectors/{sector}/companies", response_model=list[CompanyRef])

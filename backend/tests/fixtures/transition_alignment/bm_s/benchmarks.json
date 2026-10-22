@@ -1,6 +1,6 @@
 {
   "version": 4,
-  "fingerprint": "0bfd5019cf8629205101f52bc88065860a3e58ba822865a15a8ba485ed67e08a",
+  "fingerprint": "b654d6459002a5bb78d663b85b02e5d0efe902b429248973a9d04d65125235b4",
   "history": [
     {
       "version": 3,
@@ -121,6 +121,23 @@
             "title": "ACT Cement methodology",
             "page": "51-53"
           }
+        }
+      ],
+      "delivery_kpis": [
+        {
+          "id": "alt_fuel_share",
+          "label": "Alternative-fuel share of kiln heat",
+          "field_id": "tc_alt_fuel_share_pct",
+          "levers": [
+            "cement.alt_fuels"
+          ],
+          "points": [
+            {
+              "value": 30
+            }
+          ],
+          "cite": "ACT Cement v2.0, CEM 2.4a, p.50",
+          "url": "https://actinitiative.org/wp-content/uploads/act-cement-v2.0.pdf"
         }
       ]
     }

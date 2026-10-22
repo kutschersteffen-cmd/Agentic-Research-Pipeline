@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { api } from "../../api/client";
 import { FileLink } from "../../components/FileLink";
 import { RATING_CLASS, sourceHref } from "../../lib/barrier";
-import type { BarrierRating, BarrierValue, CompanyTransition, TransitionFlag, TransitionAction, TransitionAssumption, TransitionComparison, TransitionScenario, TransitionShare } from "../../types";
+import type { BarrierRating, BarrierValue, CompanyTransition, TransitionFlag, TransitionAction, TransitionKpi, TransitionAssumption, TransitionComparison, TransitionScenario, TransitionShare } from "../../types";
 import { barrierFigure, fmtNumber as num } from "./companyQuery";
 
 type OpenFact = (factId: number, el: HTMLElement) => void;
@@ -35,6 +35,11 @@ function BarrierFigure({ v }: { v: BarrierValue }) {
   if (v.document_id != null) return <FileLink url={api.barrierDocumentUrl(v.document_id, v.page)} name={`document-${v.document_id}.pdf`} open>{text}</FileLink>;
   const href = sourceHref(v);
   return href ? <a href={href} target="_blank" rel="noopener noreferrer">{text}</a> : <>{text}</>;
+}
+
+/** A barrier rating chip, as Plan actions shows it. */
+function Rating({ rating }: { rating: string | null }) {
+  return rating ? <span className={RATING_CLASS[rating as BarrierRating] ?? "badge badge-neutral"}>{rating}</span> : <>not rated</>;
 }
 
 function Action({ a, onOpenFact }: { a: TransitionAction; onOpenFact: OpenFact }) {
@@ -76,7 +81,7 @@ function Action({ a, onOpenFact }: { a: TransitionAction; onOpenFact: OpenFact }
                 <tr key={`${b.region}:${b.code}`}>
                   <td data-label="Region">{b.region}</td>
                   <td data-label="Criterion" className="mono">{b.code}</td>
-                  <td data-label="Rating">{b.rating ? <span className={RATING_CLASS[b.rating as BarrierRating] ?? "badge badge-neutral"}>{b.rating}</span> : "not rated"}</td>
+                  <td data-label="Rating"><Rating rating={b.rating} /></td>
                   <td data-label="Basis">{b.basis ?? "—"}</td>
                   <td data-label="Evidence">{b.evidence || "—"}</td>
                   <td data-label="Figures">
@@ -105,6 +110,39 @@ function assumptionRows(x: TransitionAssumption): { key: string; cmp?: Transitio
   }));
   for (const s of x.scenario) if (!x.comparisons.some((cmp) => cmp.region === s.region)) rows.push({ key: `${s.region}:scenario`, s });
   return rows;
+}
+
+/** One delivery KPI (spec section 4): actual, year, range bar with its marker, and the matching plan actions' barriers. */
+function Kpi({ k, actions, onOpenFact }: { k: TransitionKpi; actions: TransitionAction[]; onOpenFact: OpenFact }) {
+  const matched = k.action_keys.flatMap((key) => actions.filter((a) => a.key === key));
+  return (
+    <tr>
+      <td>{k.label}</td>
+      <td>
+        {k.value != null && k.fact_ids.length ? (
+          <FactButton factId={k.fact_ids[0]} onOpenFact={onOpenFact} label={`${k.label}: ${num(k.value)}%`}>{num(k.value)}%</FactButton>
+        ) : <span className="muted">not disclosed</span>}
+      </td>
+      <td className="mono">{k.year ?? "—"}</td>
+      <td style={{ minWidth: "12rem" }}>
+        {k.range_text}
+        <div className="progress-bar" aria-hidden="true" style={{ position: "relative", overflow: "visible" }}>
+          {k.position_pct != null && (
+            <div style={{ position: "absolute", left: `${k.position_pct}%`, top: -2, bottom: -2, width: 2, transform: "translateX(-50%)", background: "var(--text)" }} />
+          )}
+        </div>
+        <div className="muted">{k.cite}</div>
+      </td>
+      <td>
+        {matched.length === 0 ? "—" : matched.map((a) => (
+          <div key={a.key}>
+            <div className="mono">{a.action_id ?? "—"}</div>
+            {a.barriers.map((b) => <div key={`${b.region}:${b.code}`}>{b.region} <Rating rating={b.rating} /></div>)}
+          </div>
+        ))}
+      </td>
+    </tr>
+  );
 }
 
 /** The consistency flags (spec section 4): raised flags in full, then one line of clear titles and one per unchecked flag. */
@@ -241,6 +279,26 @@ export function TransitionSection({ data, error, onOpenFact }: { data: CompanyTr
       )}
       {data?.in_scope && (
         <>
+          {(data.delivery_kpis.length > 0 || data.delivery_kpis_note) && (
+            <>
+              <h3>Delivery KPIs</h3>
+              {data.delivery_kpis_note && <p className="muted">{data.delivery_kpis_note}</p>}
+              {data.delivery_kpis.length > 0 && (
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <caption className="visually-hidden">Delivery KPIs; choose a figure to open its source</caption>
+                    <thead>
+                      <tr><th scope="col">KPI</th><th scope="col">Actual</th><th scope="col">Year</th><th scope="col">Range</th><th scope="col" style={{ whiteSpace: "nowrap" }}>Action · barrier</th></tr>
+                    </thead>
+                    <tbody>
+                      {data.delivery_kpis.map((k) => <Kpi key={k.id} k={k} actions={data.actions} onOpenFact={onOpenFact} />)}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
+
           <h3>Plan actions</h3>
           {data.actions.length === 0 && <p className="muted">No plan actions disclosed</p>}
           {data.actions.map((a) => <Action key={a.key} a={a} onOpenFact={onOpenFact} />)}

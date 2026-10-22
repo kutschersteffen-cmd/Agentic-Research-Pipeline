@@ -9113,6 +9113,140 @@
     "title": "JobStatus",
     "type": "string"
    },
+   "KpiDefOut": {
+    "properties": {
+     "cite": {
+      "title": "Cite",
+      "type": "string"
+     },
+     "field_id": {
+      "title": "Field Id",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "isic_prefixes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Isic Prefixes",
+      "type": "array"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "levers": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Levers",
+      "type": "array"
+     },
+     "range_text": {
+      "title": "Range Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "label",
+     "field_id",
+     "isic_prefixes",
+     "range_text",
+     "levers",
+     "cite"
+    ],
+    "title": "KpiDefOut",
+    "type": "object"
+   },
+   "KpiOut": {
+    "properties": {
+     "action_keys": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Action Keys",
+      "type": "array"
+     },
+     "cite": {
+      "title": "Cite",
+      "type": "string"
+     },
+     "fact_ids": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Fact Ids",
+      "type": "array"
+     },
+     "field_id": {
+      "title": "Field Id",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "position_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Position Pct"
+     },
+     "range_text": {
+      "title": "Range Text",
+      "type": "string"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value"
+     },
+     "year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Year"
+     }
+    },
+    "required": [
+     "id",
+     "label",
+     "field_id",
+     "cite",
+     "value",
+     "year",
+     "fact_ids",
+     "range_text",
+     "position_pct",
+     "action_keys"
+    ],
+    "title": "KpiOut",
+    "type": "object"
+   },
    "LabelRule": {
     "properties": {
      "field": {
@@ -14314,6 +14448,13 @@
      "capex": {
       "$ref": "#/components/schemas/BenchmarkOut"
      },
+     "delivery_kpis": {
+      "items": {
+       "$ref": "#/components/schemas/KpiDefOut"
+      },
+      "title": "Delivery Kpis",
+      "type": "array"
+     },
      "isic_prefixes": {
       "items": {
        "type": "string"
@@ -14345,7 +14486,8 @@
      "isic_prefixes",
      "capex",
      "rnd_tests",
-     "redlines"
+     "redlines",
+     "delivery_kpis"
     ],
     "title": "SectorBenchmarksOut",
     "type": "object"
@@ -16570,6 +16712,25 @@
         "type": "null"
        }
       ]
+     },
+     "delivery_kpis": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/KpiOut"
+      },
+      "title": "Delivery Kpis",
+      "type": "array"
+     },
+     "delivery_kpis_note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Delivery Kpis Note"
      },
      "flags": {
       "default": [],

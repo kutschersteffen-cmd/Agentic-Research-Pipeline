@@ -32,12 +32,23 @@ class RedlineDef(BaseModel):
     citation: str
 
 
+class KpiDefOut(BaseModel):
+    id: str
+    label: str
+    field_id: str
+    isic_prefixes: list[str]  # resolved: the KPI's own, else the sector's
+    range_text: str
+    levers: list[str]
+    cite: str
+
+
 class SectorBenchmarksOut(BaseModel):
     sector: str
     isic_prefixes: list[str]
     capex: BenchmarkOut
     rnd_tests: list[RndTestDef]
     redlines: list[RedlineDef]
+    delivery_kpis: list[KpiDefOut]
 
 
 class ScenarioGroupOut(BaseModel):
@@ -233,6 +244,19 @@ class FlagOut(BaseModel):
     fact_ids: list[int]
 
 
+class KpiOut(BaseModel):
+    id: str
+    label: str
+    field_id: str
+    cite: str
+    value: float | None
+    year: int | None
+    fact_ids: list[int]
+    range_text: str
+    position_pct: float | None
+    action_keys: list[str]
+
+
 class PlanOut(BaseModel):
     regions: list[str]
     actions: list[ActionOut]
@@ -257,3 +281,5 @@ class TransitionOut(BaseModel):
     phaseouts: list[PhaseoutOut] = []
     flags: list[FlagOut] = []
     flags_header: str | None = None
+    delivery_kpis: list[KpiOut] = []
+    delivery_kpis_note: str | None = None  # in scope with no KPI for the company's ISIC code

@@ -354,3 +354,141 @@ def test_ac113_api(bundled_dirs):
     assert groups["advanced economies"]["prices"] == {"2030": 140, "2035": 180, "2040": 205, "2050": 250}
     assert groups["selected EMDE"]["prices"] == {"2030": 90, "2035": 125, "2040": 160, "2050": 200}
     assert all("p.329" in g["citation"] for g in groups.values())
+
+
+# --- Delivery KPIs (benchmarks v3) ---
+
+
+def _sectors_api() -> dict[str, dict]:
+    from arp.api.main import app
+
+    body = TestClient(app).get("/api/transition-alignment/benchmarks").json()
+    return {s["sector"]: s for s in body["sectors"]} | {"_version": body["version"]}
+
+
+def test_ac178_to_182_delivery_kpis_api(bundled_dirs):
+    s = _sectors_api()
+    assert s["_version"] == 3
+    kpis = {name: e["delivery_kpis"] for name, e in s.items() if name != "_version"}
+    assert [(k["id"], k["range_text"], k["cite"]) for k in kpis["Aviation"]] == [
+        ("saf_share", "0% → 11% (2030) → 26% (2035) → 70% (2050)", "IEA Net Zero Roadmap 2023, p.94")
+    ]  # AC-178
+    assert [(k["id"], k["range_text"], k["cite"]) for k in kpis["Shipping"]] == [
+        ("ship_lc_fuel_share", "0% → 19% (2030) → 36% (2035) → 85% (2050)", "IEA Net Zero Roadmap 2023, p.94")
+    ]  # AC-179
+    assert [(k["id"], k["range_text"], k["levers"], k["cite"]) for k in kpis["Oil & Gas Upstream"]] == [
+        ("ccs_capex_share", "0% → 5%", [], "ACT Oil & Gas, OG 2.6, pp.57–58; benchmark p.126")
+    ]  # AC-180
+    assert [(k["id"], k["isic_prefixes"]) for k in kpis["Heavy-Duty Road Transport"]] == [
+        ("zev_sales_share", ["2910"]),
+        ("fleet_lc_share", ["4923"]),
+    ]  # AC-181
+    assert [kpis[n] for n in ("Steel", "Power & Utilities", "Critical Minerals & Mining")] == [[], [], []]  # AC-182
+    assert sum(len(v) for v in kpis.values()) == 9
+    cement = kpis["Cement"][0]
+    assert cement == {
+        "id": "alt_fuel_share",
+        "label": "Alternative-fuel share of kiln heat",
+        "field_id": "tc_alt_fuel_share_pct",
+        "isic_prefixes": ["2394"],
+        "range_text": "0% → 30%",
+        "levers": ["cement.alt_fuels"],
+        "cite": "ACT Cement v2.0, CEM 2.4a, p.50",
+    }
+
+
+def test_ac183_bundled_v3_validates(bundled_dirs):
+    result = _cli("validate")
+    assert result.exit_code == 0, result.output
+    assert result.output == "Benchmarks v3: OK, 9 sectors, 3 redlines\n"
+
+
+def test_ac199_v2_blocks_unchanged(bundled_dirs):
+    v2 = json.loads((FIXTURES / "bm_v2_sectors.json").read_text(encoding="utf-8"))
+    v3 = json.loads((benchmarks.BUNDLED_DIR / benchmarks.BENCHMARKS_FILE).read_text(encoding="utf-8"))["sectors"]
+    keys = ("isic_prefixes", "capex", "rnd_tests", "redlines")
+    assert {s: {k: e.get(k) for k in keys} for s, e in v3.items()} == {s: {k: e.get(k) for k in keys} for s, e in v2.items()}
+
+
+def _cement_kpi(fn):
+    return lambda r: fn(r["sectors"]["Cement"]["delivery_kpis"][0])
+
+
+@pytest.mark.parametrize(
+    ("fn", "needles"),
+    [
+        (_cement_kpi(lambda k: k.update(points=[{"value": 30}, {"value": 20}])), ("Cement", "alt_fuel_share")),  # AC-184
+        (_cement_kpi(lambda k: k.update(field_id="tc_unknown_pct")), ("tc_unknown_pct",)),  # AC-185
+        (_cement_kpi(lambda k: k.update(isic_prefixes=["9999"])), ("alt_fuel_share",)),  # AC-192
+        (_cement_kpi(lambda k: k.update(points=[{"value": 120}])), ("alt_fuel_share",)),  # AC-193
+        (_cement_kpi(lambda k: k.update(cite="ACT Cement v2.0")), ("alt_fuel_share",)),  # AC-195
+        (
+            lambda r: (
+                r["sectors"]["Cement"].update(isic_prefixes=["2394", "2395"]),
+                r["sectors"]["Cement"]["delivery_kpis"][0].update(isic_prefixes=["2395"]),
+            ),
+            ("alt_fuel_share",),
+        ),  # AC-204
+        (_cement_kpi(lambda k: k.update(cite="ACT Cement Corp. v2.0")), ("alt_fuel_share",)),  # AC-205
+    ],
+)
+def test_delivery_kpi_cli(ta_dirs, fn, needles):  # noqa: F811
+    edit_bm(ta_dirs[1], fn)
+    result = _cli("validate", "--data-dir", str(ta_dirs[1]))
+    assert result.exit_code != 0
+    assert any(all(n in line for n in needles) for line in result.output.splitlines()), result.output
+
+
+def test_ac194_years_must_rise(tmp_path, bundled_dirs):
+    copy = tmp_path / "bundled"
+    shutil.copytree(benchmarks.BUNDLED_DIR, copy)
+    backwards = [{"value": 11, "year": 2035}, {"value": 26, "year": 2030}]
+    edit_bm(copy, lambda r: r["sectors"]["Aviation"]["delivery_kpis"][0].update(points=backwards))
+    result = _cli("validate", "--data-dir", str(copy))
+    assert result.exit_code != 0
+    assert any("saf_share" in line for line in result.output.splitlines()), result.output
+
+
+def test_delivery_kpi_lines(ta_dirs):  # noqa: F811
+    head = "Cement: delivery KPI 'alt_fuel_share'"
+    assert errors_after(ta_dirs, _cement_kpi(lambda k: k.update(field_id="tc_unknown_pct")), resign=True) == [
+        f"{head}: unknown field 'tc_unknown_pct'"
+    ]
+    assert errors_after(ta_dirs, _cement_kpi(lambda k: k.update(field_id="tc_saf_share_pct")), resign=True) == [
+        f"{head}: field 'tc_saf_share_pct' does not apply to ISIC prefix '2394'"
+    ]
+
+
+def test_delivery_kpi_bad_shapes_give_one_line(ta_dirs):  # noqa: F811  Review Focus 4
+    good = (ta_dirs[1] / "benchmarks.json").read_text(encoding="utf-8")
+    for fn, n in (
+        (lambda r: r["sectors"]["Cement"].update(delivery_kpis="x"), 1),
+        (_cement_kpi(lambda k: k.update(points=[{"value": "a"}])), 1),
+        (lambda r: r["sectors"]["Cement"].update(delivery_kpis=[None]), 1),
+        (_cement_kpi(lambda k: k.update(points="x")), 1),
+        (_cement_kpi(lambda k: k.update(field_id=["x"], isic_prefixes="x", cite=None)), 3),
+        (lambda r: r["sectors"]["Cement"].update(isic_prefixes=[["2394"]]), 1),
+    ):
+        (ta_dirs[1] / "benchmarks.json").write_text(good, encoding="utf-8")
+        edit_bm(ta_dirs[1], fn)
+        sign_benchmarks(ta_dirs[1], "test", date(2026, 10, 19))
+        result = _cli("validate", "--data-dir", str(ta_dirs[1]))
+        assert result.exit_code != 0
+        assert len(result.output.strip().splitlines()) == n, result.output
+
+
+def test_range_text():
+    from arp.transition_alignment.benchmarks import KpiPoint, range_text
+
+    assert range_text([KpiPoint(value=30)]) == "0% → 30%"
+    assert range_text([KpiPoint(value=95, year=2040)]) == "0% → 95% (2040)"
+    pts = [KpiPoint(value=37, year=2030), KpiPoint(value=65, year=2035), KpiPoint(value=100, year=2050)]
+    assert range_text(pts) == "0% → 37% (2030) → 65% (2035) → 100% (2050)"
+
+
+def test_kpi_prefixes_fall_back_to_sector(bundled_dirs):
+    b = benchmarks.load_benchmarks()
+    hdt, cement = b.sectors["Heavy-Duty Road Transport"], b.sectors["Cement"]
+    assert benchmarks.kpi_prefixes(hdt, hdt.delivery_kpis[1]) == ["4923"]
+    assert benchmarks.kpi_prefixes(cement, cement.delivery_kpis[0]) == ["2394"]
+    assert cement.delivery_kpis[0].isic_prefixes == []

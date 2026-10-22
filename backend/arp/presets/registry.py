@@ -13,6 +13,8 @@ from arp.presets.remuneration import SCHEMA_ID as REMUNERATION_SCHEMA_ID
 from arp.presets.remuneration import build_remuneration_schema
 from arp.presets.transition_capex import SCHEMA_ID as TRANSITION_CAPEX_SCHEMA_ID
 from arp.presets.transition_capex import build_transition_capex_schema
+from arp.presets.transition_delivery_kpis import SCHEMA_ID as TRANSITION_DELIVERY_KPIS_SCHEMA_ID
+from arp.presets.transition_delivery_kpis import build_transition_delivery_kpis_schema
 from arp.presets.transition_plan import SCHEMA_ID as TRANSITION_PLAN_SCHEMA_ID
 from arp.presets.transition_plan import build_transition_plan_schema
 from arp.presets.transition_plan_actions import SCHEMA_ID as TRANSITION_PLAN_ACTIONS_SCHEMA_ID
@@ -26,6 +28,7 @@ PRESETS: dict[str, Callable[[], DataPointSchema]] = {
     TRANSITION_PLAN_SCHEMA_ID: build_transition_plan_schema,
     TRANSITION_CAPEX_SCHEMA_ID: build_transition_capex_schema,
     TRANSITION_PLAN_ACTIONS_SCHEMA_ID: build_transition_plan_actions_schema,
+    TRANSITION_DELIVERY_KPIS_SCHEMA_ID: build_transition_delivery_kpis_schema,
 }
 
 

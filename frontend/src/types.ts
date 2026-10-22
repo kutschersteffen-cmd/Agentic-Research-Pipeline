@@ -2626,6 +2626,21 @@ export interface CompanyTransition {
   phaseouts: TransitionPhaseout[];
   flags: TransitionFlag[];
   flags_header: string | null;
+  delivery_kpis: TransitionKpi[];
+  delivery_kpis_note: string | null;
+}
+
+export interface TransitionKpi {
+  id: string;
+  label: string;
+  field_id: string;
+  cite: string;
+  value: number | null;
+  year: number | null;
+  fact_ids: number[];
+  range_text: string;
+  position_pct: number | null;
+  action_keys: string[];
 }
 
 export interface TransitionFlag {
