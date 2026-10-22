@@ -10393,6 +10393,29 @@ export interface components {
             /** Range Text */
             range_text: string;
         };
+        /** KpiOut */
+        KpiOut: {
+            /** Action Keys */
+            action_keys: string[];
+            /** Cite */
+            cite: string;
+            /** Fact Ids */
+            fact_ids: number[];
+            /** Field Id */
+            field_id: string;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Position Pct */
+            position_pct: number | null;
+            /** Range Text */
+            range_text: string;
+            /** Value */
+            value: number | null;
+            /** Year */
+            year: number | null;
+        };
         /** LabelRule */
         LabelRule: {
             /** Field */
@@ -13467,6 +13490,13 @@ export interface components {
             benchmarks_version: number;
             capex: components["schemas"]["CapexOut"] | null;
             coverage?: components["schemas"]["CoverageOut"] | null;
+            /**
+             * Delivery Kpis
+             * @default []
+             */
+            delivery_kpis: components["schemas"]["KpiOut"][];
+            /** Delivery Kpis Note */
+            delivery_kpis_note?: string | null;
             /**
              * Flags
              * @default []

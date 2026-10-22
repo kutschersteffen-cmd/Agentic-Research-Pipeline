@@ -77,9 +77,11 @@ DOCUMENTS = {  # doc_id: (company key, doc type, title, as-of)
     "P5": ("Q", "annual_report", "Fixture Foods Report 2025", AS_OF),
     "P6": ("C", "transition_plan", "Fixture Steel Transition Plan 2025 (revised)", AS_OF),
     "P7": ("P", "transition_plan", "Fixture Power Transition Plan 2025", AS_OF),
-    "P8": ("K", "annual_report", "Fixture Cement Report 2025", AS_OF),
+    "P8": ("K", "transition_plan", "Fixture Cement Report 2025", AS_OF),  # a plan, so K1 counts (P2)
+    "P9": ("H", "annual_report", "Fixture Trucks AB Annual Report 2025", AS_OF),
+    "P10": ("X", "annual_report", "Fixture Chemicals NV Annual Report 2025", AS_OF),
 }
-ON_REQUEST = ("P3", "P6", "P7", "P8")  # registered only when a test asks (register_documents)
+ON_REQUEST = ("P3", "P6", "P7", "P8", "P9", "P10")  # registered only when a test asks (register_documents)
 M = "EUR million"
 DEFAULT_FACTS = [  # (company, field_id, period_end, value, unit, doc_id, page)
     ("C", "tc_capex_total", FY25, 1000, M, "P2", 44),
@@ -115,6 +117,38 @@ def publish_k_net_zero(pg: str, run_store, ids: dict[str, UUID]) -> None:
     publish(pg, run_store, [(ids["K"], NET_ZERO, None, True, None, "P8", 2)])
 
 
+KPI_COMPANIES = {  # seeded only by seed_kpi_companies (ruling D4), so COMPANIES and sector listings stay as they were
+    "H": ("Fixture Trucks AB", "2910"),
+    "X": ("Fixture Chemicals NV", "2011"),
+    "F": ("Fixture Freight GmbH", "4923"),
+}
+K_ALT_FUEL_QUOTE = "Alternative fuels supplied 14% of kiln heat in 2025."
+KPI_FACTS = {  # name: [(company, field_id, period_end, value, unit, doc_id, page[, quote])]; each only on request
+    "K": [("K", "tc_alt_fuel_share_pct", FY25, 14, "%", "P8", 12, K_ALT_FUEL_QUOTE)],
+    "K24": [("K", "tc_alt_fuel_share_pct", FY24, 10, "%", "P8", 13)],  # AC-196 only
+    "H": [("H", "tc_zev_sales_share_pct", FY25, 4, "%", "P9", 7)],
+    "X": [("X", "tc_nh3_electrolytic_pct", FY25, 3, "%", "P10", 20),
+          ("X", "tc_electrolysis_lc_power_pct", FY25, 80, "%", "P10", 21)],
+}
+
+
+def seed_kpi_companies(pg: str) -> dict[str, UUID]:
+    """Companies H, X and F, and documents P9 and P10. Returns key -> company id."""
+    with transaction(pg) as s:
+        ids = {key: resolve(s, [(m.IdScheme.UNIVERSE, key.lower())], name=name, allow_create=True,
+                            attrs={"isic_code": isic}).company_id for key, (name, isic) in KPI_COMPANIES.items()}
+    register_documents(pg, "P9", "P10")
+    return ids
+
+
+def publish_kpi(pg: str, run_store, ids: dict[str, UUID], name: str, **kw) -> None:
+    """Publishes the delivery-KPI facts `name` of KPI_FACTS (registering K's P8); `kw` goes to every observation."""
+    rows = KPI_FACTS[name]
+    if rows[0][0] == "K":
+        register_documents(pg, "P8")
+    publish(pg, run_store, [(ids[k], *rest) for k, *rest in rows], **kw)
+
+
 EU, US, CN = "European Union", "United States", "China"
 # action: (doc_id, text page, [(field_id, value, unit, page)]); facts share basis `action:<doc>:<page>:1` (P3)
 ACTIONS = {
@@ -134,6 +168,11 @@ ACTIONS = {
         ("ta_action_text", "We are studying carbon capture at our Tianjin plant.", None, 16),
         ("ta_action_id", "steel.ccus", None, 16), ("ta_action_status", "planned", None, 16),
         ("ta_action_region", CN, None, 16),
+    ]),
+    "K1": ("P8", 9, [
+        ("ta_action_text", "We will raise alternative fuels to 30% of kiln heat by 2030.", None, 9),
+        ("ta_action_id", "cement.alt_fuels", None, 9), ("ta_action_status", "planned", None, 9),
+        ("ta_action_year", 2030, None, 9), ("ta_action_region", EU, None, 9),
     ]),
     "A6": ("P3", 5, [
         ("ta_action_text", "We will build a coke oven gas recovery unit by 2025.", None, 5),

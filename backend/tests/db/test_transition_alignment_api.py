@@ -22,12 +22,14 @@ from arp.presets.transition_plan_actions import TARGET_FIELDS
 from arp.schemas.common import CompanyRef, JobStatus, RunManifest
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.portfolio_store import PortfolioStore
-from arp.transition_barrier import clock
+from arp.transition_alignment import benchmarks
+from arp.transition_barrier import clock, dataset
 from tests.postgres_helpers import pg_dsn
 from tests.test_transition_alignment_plan_extraction import O1, P1, T1, _plan, _record, _script
 from tests.transition_alignment_helpers import (  # noqa: F401 - fixtures
     CN,
     EU,
+    FY24,
     FY25,
     FY26,
     OFFSETS,
@@ -38,11 +40,13 @@ from tests.transition_alignment_helpers import (  # noqa: F401 - fixtures
     publish_action,
     publish_item,
     publish_k_net_zero,
+    publish_kpi,
     ratify_fta,
     register_documents,
     retire,
     retire_item,
     seed_defaults,
+    seed_kpi_companies,
     ta_dirs,
     use_bm_s,
 )
@@ -602,3 +606,148 @@ def test_ac166_api(client, ids):
     t1 = sorted(r["fact_id"] for r in client.get(f"/api/companies/{c}/facts").json()
                 if r["field_id"] in TARGET_FIELDS and r["basis"] == "target:P1:22:1")
     assert len(t1) == 6 and _flags(client, c)["no_lowcarbon_capex"]["fact_ids"] == t1
+
+
+# --- delivery KPIs (spec 2026-10-21 delivery KPIs) ------------------------------------------------------------------
+
+KPI_KEYS = {"id", "label", "field_id", "cite", "value", "year", "fact_ids", "range_text", "position_pct", "action_keys"}
+
+
+def _kpis(client, cid):
+    return {k["id"]: k for k in transition(client, cid)["delivery_kpis"]}
+
+
+@pytest.fixture
+def k_fact(pg, run_store, ids):
+    publish_kpi(pg, run_store, ids, "K")
+    return ids
+
+
+@pytest.fixture
+def kpi_ids(pg, ids, monkeypatch):
+    """H, X and F, over the bundled benchmarks and barrier data (BM has no Chemicals or Heavy-Duty Road Transport)."""
+    monkeypatch.delenv("ARP_TRANSITION_ALIGNMENT_DATA_DIR")
+    monkeypatch.delenv("ARP_TRANSITION_BARRIER_DATA_DIR")
+    get_settings.cache_clear()
+    dataset.reset_caches()
+    benchmarks.reset_cache()
+    return {**ids, **seed_kpi_companies(pg)}
+
+
+def test_ac167_ac198_api(client, k_fact):
+    body = transition(client, k_fact["K"])
+    (kpi,) = body["delivery_kpis"]
+    assert set(kpi) == KPI_KEYS
+    assert (kpi["id"], kpi["label"], kpi["value"], kpi["year"], kpi["range_text"], kpi["position_pct"], kpi["cite"]) == (
+        "alt_fuel_share", "Alternative-fuel share of kiln heat", 14, 2025, "0% → 30%", 46.7, "ACT Cement v2.0, CEM 2.4a, p.50")
+    assert body["delivery_kpis_note"] is None
+
+
+def test_ac168_trail(client, k_fact):
+    (fact_id,) = _kpis(client, k_fact["K"])["alt_fuel_share"]["fact_ids"]
+    r = client.get(f"/api/facts/{fact_id}/trail")
+    assert r.status_code == 200 and r.json()["field_id"] == "tc_alt_fuel_share_pct"
+    (citation,) = r.json()["versions"][-1]["citations"]
+    assert (citation["doc_id"], citation["page"]) == ("P8", 12)
+
+
+def test_ac169_action_keys(client, pg, run_store, k_fact):
+    publish_action(pg, run_store, k_fact["K"], "K1")
+    body = transition(client, k_fact["K"])
+    (key,) = [a["key"] for a in body["actions"] if a["action_id"] == "cement.alt_fuels"]
+    assert len(body["actions"]) == 1 and _kpis(client, k_fact["K"])["alt_fuel_share"]["action_keys"] == [key]
+
+
+def test_ac170_no_fact(client, ids):
+    kpi = _kpis(client, ids["K"])["alt_fuel_share"]
+    assert (kpi["value"], kpi["year"], kpi["fact_ids"], kpi["position_pct"], kpi["range_text"], kpi["action_keys"]) == (
+        None, None, [], None, "0% → 30%", [])
+
+
+def test_ac171_changed(client, pg, run_store, k_fact):
+    publish(pg, run_store, [(k_fact["K"], "tc_alt_fuel_share_pct", FY25, 35, "%", "P8", 12)])
+    kpi = _kpis(client, k_fact["K"])["alt_fuel_share"]
+    assert (kpi["value"], kpi["position_pct"]) == (35, 100.0)
+
+
+def test_ac172_h(client, pg, run_store, kpi_ids):
+    publish_kpi(pg, run_store, kpi_ids, "H")
+    (kpi,) = transition(client, kpi_ids["H"])["delivery_kpis"]
+    assert (kpi["id"], kpi["value"], kpi["year"], kpi["range_text"], kpi["position_pct"], kpi["cite"]) == (
+        "zev_sales_share", 4, 2025, "0% → 37% (2030) → 65% (2035) → 100% (2050)", 4.0, "IEA Net Zero Roadmap 2023, p.93")
+
+
+def test_ac173_x(client, pg, run_store, kpi_ids):
+    publish_kpi(pg, run_store, kpi_ids, "X")
+    kpis = transition(client, kpi_ids["X"])["delivery_kpis"]
+    assert [(k["id"], k["value"], k["position_pct"], k["range_text"]) for k in kpis] == [
+        ("nh3_electrolytic", 3, 6.0, "0% → 50%"),
+        ("meoh_electrolytic", None, None, "0% → 75%"),
+        ("electrolysis_lc_power", 80, 88.9, "0% → 90%"),
+    ]
+
+
+def test_ac174_f(client, kpi_ids):
+    kpis = transition(client, kpi_ids["F"])["delivery_kpis"]
+    assert [(k["id"], k["value"], k["range_text"], k["cite"]) for k in kpis] == [(
+        "fleet_lc_share", None, "0% → 95% (2040)",
+        "Mission Possible Partnership, Making Zero-Emissions Trucking Possible (2022), p.42")]
+    assert "zev_sales_share" not in {k["id"] for k in kpis}  # Review Focus 3
+
+
+def test_ac175_c(client, ids):
+    body = transition(client, ids["C"])
+    assert (body["delivery_kpis"], body["delivery_kpis_note"]) == ([], "No delivery KPI for this sector.")
+
+
+def test_ac176_q(client, ids):
+    body = transition(client, ids["Q"])
+    assert (body["delivery_kpis"], body["delivery_kpis_note"]) == ([], None)
+
+
+def test_ac177_no_model_call(client, k_fact, monkeypatch):
+    class Raising:
+        def __getattr__(self, name):
+            raise AssertionError(f"model client called: {name}")
+
+    def refuse(*a, **k):
+        raise AssertionError("model client built")
+
+    monkeypatch.setattr("arp.llm.factory.build_llm_client", refuse)
+    monkeypatch.setattr(deps, "build_llm_client", refuse)
+    app.dependency_overrides[deps.get_llm_client] = Raising
+    try:
+        r = client.get(f"/api/companies/{k_fact['K']}/transition")
+    finally:
+        app.dependency_overrides.pop(deps.get_llm_client, None)
+    (kpi,) = r.json()["delivery_kpis"]
+    assert (r.status_code, kpi["value"], kpi["position_pct"]) == (200, 14, 46.7)
+
+
+def test_ac206_lowest_fact_id(client, pg, run_store, ids):
+    publish_kpi(pg, run_store, ids, "K", basis="first")
+    publish(pg, run_store, [(ids["K"], "tc_alt_fuel_share_pct", FY25, 16, "%", "P8", 12)], basis="second")
+    first, second = _fact_ids(client, ids["K"], "tc_alt_fuel_share_pct")
+    kpi = _kpis(client, ids["K"])["alt_fuel_share"]
+    assert first < second and (kpi["value"], kpi["fact_ids"]) == (14, [first])
+
+
+def test_ac196_latest_year(client, pg, run_store, ids):
+    publish_kpi(pg, run_store, ids, "K24")
+    publish_kpi(pg, run_store, ids, "K")
+    fy25 = [r["fact_id"] for r in client.get(f"/api/companies/{ids['K']}/facts",
+                                              params={"field_id": "tc_alt_fuel_share_pct"}).json()
+            if r["period_end"] == FY25.isoformat()]
+    kpi = _kpis(client, ids["K"])["alt_fuel_share"]
+    assert (kpi["value"], kpi["year"], kpi["fact_ids"]) == (14, 2025, fy25)
+    assert FY24.isoformat() in {r["period_end"] for r in client.get(f"/api/companies/{ids['K']}/facts").json()}
+
+
+def test_ac197_pending(client, pg, ids):
+    register_documents(pg, "P8")
+    with transaction(pg) as s:
+        record(s, [observation(s, ids["K"], "tc_alt_fuel_share_pct", FY25, 14, "%", "P8", 12)])
+    assert ("tc_alt_fuel_share_pct", "pending_review") in {
+        (r["field_id"], r["status"]) for r in client.get(f"/api/companies/{ids['K']}/facts").json()}
+    kpi = _kpis(client, ids["K"])["alt_fuel_share"]
+    assert (kpi["value"], kpi["fact_ids"]) == (None, [])

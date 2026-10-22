@@ -9113,6 +9113,91 @@
     "title": "KpiDefOut",
     "type": "object"
    },
+   "KpiOut": {
+    "properties": {
+     "action_keys": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Action Keys",
+      "type": "array"
+     },
+     "cite": {
+      "title": "Cite",
+      "type": "string"
+     },
+     "fact_ids": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Fact Ids",
+      "type": "array"
+     },
+     "field_id": {
+      "title": "Field Id",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "position_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Position Pct"
+     },
+     "range_text": {
+      "title": "Range Text",
+      "type": "string"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value"
+     },
+     "year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Year"
+     }
+    },
+    "required": [
+     "id",
+     "label",
+     "field_id",
+     "cite",
+     "value",
+     "year",
+     "fact_ids",
+     "range_text",
+     "position_pct",
+     "action_keys"
+    ],
+    "title": "KpiOut",
+    "type": "object"
+   },
    "LabelRule": {
     "properties": {
      "field": {
@@ -16076,6 +16161,25 @@
         "type": "null"
        }
       ]
+     },
+     "delivery_kpis": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/KpiOut"
+      },
+      "title": "Delivery Kpis",
+      "type": "array"
+     },
+     "delivery_kpis_note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Delivery Kpis Note"
      },
      "flags": {
       "default": [],
