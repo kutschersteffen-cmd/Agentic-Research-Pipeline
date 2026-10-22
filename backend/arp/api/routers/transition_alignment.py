@@ -244,7 +244,7 @@ def get_company_transition(ref: str, run_store=Depends(get_run_store)) -> Transi
         actions=scored.actions, regions=scored.regions, operates=operates,
         net_zero=_indicator(indicators, _INDICATORS[0]), offsets=_indicator(indicators, _INDICATORS[1]),
     )
-    kpis, kpis_note = score_delivery_kpis(b.sectors[sector], isic, kpi_facts, scored.actions)
+    kpis, kpis_note = score_delivery_kpis(b.sectors[sector], isic, kpi_facts, scored.actions, date.today().year)
     return TransitionOut(in_scope=True, reason=None, sector=sector, capex=capex, **versions, **dict(scored), **delivery,
                          flags=flags, flags_header=flags_header, delivery_kpis=kpis, delivery_kpis_note=kpis_note)
 
