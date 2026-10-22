@@ -16,7 +16,10 @@ from arp.schemas.datapoints import (
 
 SCHEMA_ID = "sch_transition_delivery_kpis"
 
-_COMMON = "Report each fiscal year disclosed under that year's period_end."
+_COMMON = (
+    "Report each fiscal year disclosed under that year's period_end. Report only figures the company states as "
+    "achieved; never a target, plan or forecast."
+)
 
 # (field_id, name, ISIC prefixes, extraction instruction, seed keywords)
 _FIELDS = [

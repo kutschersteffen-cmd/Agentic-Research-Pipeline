@@ -23,9 +23,13 @@ def _number(v) -> float | None:
     return x if math.isfinite(x) else None
 
 
-def score_delivery_kpis(sector: SectorEntry, isic: str, facts: list[Fact],
-                        actions: list[ActionOut]) -> tuple[list[KpiOut], str | None]:
-    """The sector's KPIs whose ISIC prefixes match `isic`, in file order, plus the note when none matches."""
+def score_delivery_kpis(sector: SectorEntry, isic: str, facts: list[Fact], actions: list[ActionOut],
+                        this_year: int | None = None) -> tuple[list[KpiOut], str | None]:
+    """The sector's KPIs whose ISIC prefixes match `isic`, in file order, plus the note when none matches.
+
+    A fact dated after `this_year` is a target, not an actual, and never counts."""
+    if this_year is not None:
+        facts = [f for f in facts if f.year is None or f.year <= this_year]
     out = []
     for k in sector.delivery_kpis:
         if not any(isic.startswith(p) for p in kpi_prefixes(sector, k)):

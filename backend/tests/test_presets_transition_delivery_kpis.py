@@ -20,3 +20,8 @@ def test_ac186_delivery_kpi_preset():
         assert (f.high_risk, f.unit, f.check_config.min_value, f.check_config.max_value) == (True, "%", 0, 100)
         assert f.applicability_rules.sector_codes == codes == list(FIELD_PREFIXES[f.field_id])
     assert PRESETS[SCHEMA_ID]().fields == s.fields
+
+
+def test_instructions_exclude_targets():
+    for f in build_transition_delivery_kpis_schema().fields:
+        assert "never a target, plan or forecast" in f.extraction_instructions

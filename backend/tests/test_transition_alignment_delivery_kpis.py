@@ -82,3 +82,14 @@ def test_position_against_last_point(sectors):
 def test_no_kpi_note(sectors):
     assert score_delivery_kpis(sectors["Steel"], "2410", [], []) == ([], NO_KPI)
     assert NO_KPI == "No delivery KPI for this sector."
+
+
+def test_future_dated_fact_is_a_target_and_never_counts(sectors):
+    (kpi,), _ = score_delivery_kpis(sectors["Cement"], "2394", [fact(1, Decimal(14), 2025), fact(2, Decimal(30), 2030)],
+                                    [], this_year=2026)
+    assert (kpi.value, kpi.year, kpi.fact_ids) == (14, 2025, [1])
+
+
+def test_only_a_target_shows_not_disclosed(sectors):
+    (kpi,), _ = score_delivery_kpis(sectors["Cement"], "2394", [fact(2, Decimal(30), 2030)], [], this_year=2026)
+    assert (kpi.value, kpi.fact_ids, kpi.position_pct) == (None, [], None)
