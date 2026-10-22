@@ -44,6 +44,7 @@ from arp.api.routers import (
     reporting,
     revenue_catalogue,
     review,
+    rfp,
     runs,
     search,
     security_master,
@@ -120,7 +121,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Content-Disposition"],
+    expose_headers=["Content-Disposition", "X-RFP-Unapproved"],
 )
 
 app.include_router(themes.router, dependencies=[Depends(authorize)])
@@ -144,6 +145,7 @@ app.include_router(tnfd.router, dependencies=[Depends(authorize)])
 app.include_router(transition_plan.router, dependencies=[Depends(authorize)])
 app.include_router(transition_barrier.router, dependencies=[Depends(authorize)])
 app.include_router(transition_alignment.router, dependencies=[Depends(authorize)])
+app.include_router(rfp.router, dependencies=[Depends(authorize)])
 app.include_router(portfolio.router, dependencies=[Depends(authorize)])
 app.include_router(climate.router, dependencies=[Depends(authorize)])
 app.include_router(decision.router, dependencies=[Depends(authorize)])

@@ -3687,6 +3687,227 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/rfp/library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Library */
+        get: operations["list_library_api_rfp_library_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/library/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Library */
+        post: operations["import_library_api_rfp_library_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/library/{entry_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Edit Library Entry */
+        put: operations["edit_library_entry_api_rfp_library__entry_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/library/{entry_id}/retire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retire Library Entry */
+        post: operations["retire_library_entry_api_rfp_library__entry_id__retire_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Projects */
+        get: operations["list_projects_api_rfp_projects_get"];
+        put?: never;
+        /**
+         * Create Project
+         * @description Stores the investor's file unchanged and starts finding and auto-filling its questions in the background.
+         */
+        post: operations["create_project_api_rfp_projects_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/projects/{project_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Project */
+        get: operations["get_project_api_rfp_projects__project_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/projects/{project_id}/autofill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Autofill Project
+         * @description Drafts every `no source` question again, e.g. after the library has grown.
+         */
+        post: operations["autofill_project_api_rfp_projects__project_id__autofill_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/projects/{project_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export
+         * @description The investor's original file with every approved answer written in. `X-RFP-Unapproved`: questions not approved.
+         */
+        get: operations["export_api_rfp_projects__project_id__export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/projects/{project_id}/questions/{qid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edit Answer
+         * @description Edits a draft or writes an answer by hand, on any status; the sources stay as they are.
+         */
+        put: operations["edit_answer_api_rfp_projects__project_id__questions__qid__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/projects/{project_id}/questions/{qid}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve
+         * @description Four-eyes: the approver confirms every flag and may not be the answer's last editor. The answer becomes a new
+         *     library entry.
+         */
+        post: operations["approve_api_rfp_projects__project_id__questions__qid__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/projects/{project_id}/questions/{qid}/assignee": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Assign */
+        put: operations["assign_api_rfp_projects__project_id__questions__qid__assignee_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rfp/projects/{project_id}/questions/{qid}/leave-blank": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Leave Blank */
+        post: operations["leave_blank_api_rfp_projects__project_id__questions__qid__leave_blank_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs": {
         parameters: {
             query?: never;
@@ -7395,6 +7616,20 @@ export interface components {
             unit: string;
             /** Value */
             value: string;
+        };
+        /** Body_create_project_api_rfp_projects_post */
+        Body_create_project_api_rfp_projects_post: {
+            /** Due Date */
+            due_date?: string | null;
+            /** File */
+            file: string;
+            /** Investor */
+            investor: string;
+        };
+        /** Body_import_library_api_rfp_library_import_post */
+        Body_import_library_api_rfp_library_import_post: {
+            /** Files */
+            files: string[];
         };
         /** Body_mechanism_from_indicators_api_decision_mechanisms_from_indicators_post */
         Body_mechanism_from_indicators_api_decision_mechanisms_from_indicators_post: {
@@ -12101,6 +12336,156 @@ export interface components {
         ReviseSpecRequest: {
             /** Instruction */
             instruction: string;
+        };
+        /** RfpAnswerIn */
+        RfpAnswerIn: {
+            /** Answer */
+            answer: string;
+        };
+        /** RfpApproveIn */
+        RfpApproveIn: {
+            /** Confirmed Flags */
+            confirmed_flags?: string[];
+        };
+        /** RfpAssigneeIn */
+        RfpAssigneeIn: {
+            /** User Id */
+            user_id: string | null;
+        };
+        /** RfpLibraryEntryEdit */
+        RfpLibraryEntryEdit: {
+            /** Answer */
+            answer?: string | null;
+            /** Owner */
+            owner?: string | null;
+            /** Review By */
+            review_by?: string | null;
+            /** Tags */
+            tags?: string[] | null;
+        };
+        /** RfpLibraryEntryOut */
+        RfpLibraryEntryOut: {
+            /** Answer */
+            answer: string;
+            /**
+             * Approved On
+             * Format: date
+             */
+            approved_on: string;
+            /** Has Figures */
+            has_figures: boolean;
+            /** Id */
+            id: number;
+            /** Owner */
+            owner: string | null;
+            /** Question */
+            question: string;
+            /**
+             * Review By
+             * Format: date
+             */
+            review_by: string;
+            /** Source */
+            source: string;
+            /** Source File */
+            source_file: string | null;
+            /** Source Location */
+            source_location: string | null;
+            /** Source Project Id */
+            source_project_id: number | null;
+            /** Status */
+            status: string;
+            /** Tags */
+            tags: string[];
+            /** Written By */
+            written_by: string | null;
+        };
+        /** RfpLibraryImportOut */
+        RfpLibraryImportOut: {
+            /** Dropped */
+            dropped: string[];
+            /** Imported */
+            imported: number;
+        };
+        /** RfpProjectOut */
+        RfpProjectOut: {
+            /** Approved Count */
+            approved_count: number;
+            /** Due Date */
+            due_date: string | null;
+            /** Filename */
+            filename: string;
+            /** Id */
+            id: number;
+            /** Investor */
+            investor: string;
+            /** Not Located */
+            not_located: number;
+            /** Question Count */
+            question_count: number;
+            /** Questions */
+            questions: components["schemas"]["RfpQuestionOut"][];
+            /** Run Status */
+            run_status: string;
+        };
+        /** RfpProjectSummary */
+        RfpProjectSummary: {
+            /** Approved Count */
+            approved_count: number;
+            /** Due Date */
+            due_date: string | null;
+            /** Filename */
+            filename: string;
+            /** Id */
+            id: number;
+            /** Investor */
+            investor: string;
+            /** Not Located */
+            not_located: number;
+            /** Question Count */
+            question_count: number;
+            /** Run Status */
+            run_status: string;
+        };
+        /** RfpQuestionOut */
+        RfpQuestionOut: {
+            /** Answer */
+            answer: string;
+            /** Answer Location */
+            answer_location: string;
+            /** Assignee */
+            assignee: string | null;
+            /** Flags */
+            flags: string[];
+            /** Id */
+            id: number;
+            /** Last Editor */
+            last_editor: string | null;
+            /** Location */
+            location: string;
+            /** Question */
+            question: string;
+            /** Sources */
+            sources: components["schemas"]["RfpSourceOut"][];
+            /** Status */
+            status: string;
+        };
+        /** RfpSourceOut */
+        RfpSourceOut: {
+            /** Entry Id */
+            entry_id: number;
+            /** Entry Question */
+            entry_question: string;
+            /** File */
+            file: string | null;
+            /** Location */
+            location: string | null;
+            /** Quote */
+            quote: string;
+            /** Source */
+            source: string;
+            /** Written By */
+            written_by: string | null;
         };
         /**
          * RiskModelSpec
@@ -20895,6 +21280,411 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_library_api_rfp_library_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpLibraryEntryOut"][];
+                };
+            };
+        };
+    };
+    import_library_api_rfp_library_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_library_api_rfp_library_import_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpLibraryImportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_library_entry_api_rfp_library__entry_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RfpLibraryEntryEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpLibraryEntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retire_library_entry_api_rfp_library__entry_id__retire_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                entry_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpLibraryEntryOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_projects_api_rfp_projects_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpProjectSummary"][];
+                };
+            };
+        };
+    };
+    create_project_api_rfp_projects_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_create_project_api_rfp_projects_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_api_rfp_projects__project_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    autofill_project_api_rfp_projects__project_id__autofill_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_api_rfp_projects__project_id__export_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_answer_api_rfp_projects__project_id__questions__qid__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+                qid: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RfpAnswerIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_api_rfp_projects__project_id__questions__qid__approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+                qid: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RfpApproveIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assign_api_rfp_projects__project_id__questions__qid__assignee_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+                qid: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RfpAssigneeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    leave_blank_api_rfp_projects__project_id__questions__qid__leave_blank_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: number;
+                qid: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RfpProjectOut"];
                 };
             };
             /** @description Validation Error */

@@ -47,6 +47,7 @@ const IndexBuilder = lazy(() => import("./pages/IndexBuilder").then((x) => ({ de
 const ArgusUniverse = lazy(() => import("./pages/ArgusUniverse").then((x) => ({ default: x.ArgusUniverse })));
 const Company = lazy(() => import("./pages/Company").then((x) => ({ default: x.Company })));
 const XbrlFacts = lazy(() => import("./pages/XbrlFacts").then((x) => ({ default: x.XbrlFacts })));
+const RfpAnswers = lazy(() => import("./pages/RfpAnswers").then((x) => ({ default: x.RfpAnswers })));
 
 const TABS = [
   { id: "home", label: "Start" },
@@ -85,6 +86,7 @@ const TABS = [
   { id: "decision", label: "Decision Studio" },
   { id: "index", label: "Index Construction" },
   { id: "xbrl", label: "XBRL Facts" },
+  { id: "rfp", label: "RFP Answers" },
   { id: "library", label: "Data Library" },
   { id: "arcade", label: "Arcade" },
   // Reached from company names elsewhere (#/companies/<ref>) and the palette; not in the sidebar.
@@ -118,7 +120,7 @@ const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boo
   { label: "Output", ids: ["reporting", "library", "history"] },
   {
     label: "All screens",
-    ids: ["feeds", "issues", "smartSearch", "outputs", "securityMaster", "stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "emergingThemes", "taxonomy", "theme", "strategyReplication", "signals", "decision", "index", "xbrl", "identity", "arcade"],
+    ids: ["feeds", "issues", "smartSearch", "outputs", "securityMaster", "stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "emergingThemes", "taxonomy", "theme", "strategyReplication", "signals", "decision", "index", "xbrl", "identity", "rfp", "arcade"],
     collapsed: true,
   },
 ];
@@ -416,6 +418,7 @@ function App() {
         {active === "decision" && <DecisionStudio key={route.params.join("/")} initialSource={route.params[0]} initialRunId={route.params[1]} />}
         {active === "index" && <IndexBuilder />}
         {active === "argusUniverse" && <ArgusUniverse onSendUniverse={sendUniverse("Argus Universe")} />}
+        {active === "rfp" && <RfpAnswers projectId={route.params[0] ? Number(route.params[0]) : null} onOpen={(id) => (id === null ? navigate("rfp") : navigate("rfp", String(id)))} />}
         {active === "xbrl" && <XbrlFacts pendingUniverse={pendingFor("xbrl")} selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("xbrl", id)} />}
         {active === "library" && <DataLibrary />}
         {active === "companies" && <Company companyRef={route.params[0]} />}

@@ -663,3 +663,61 @@ class BarrierChoice(Base):
     value_ids: Mapped[list] = mapped_column(JSONB)  # every value id for the fact when the choice was made
     chosen_by: Mapped[str] = mapped_column(Text)
     chosen_at: Mapped[datetime] = _ts()
+
+
+# --- RFP answers ------------------------------------------------------------------------
+
+
+class RfpLibraryEntry(Base):
+    """One approved question-and-answer pair. Its source: a file and location, a project, or `written_by`."""
+
+    __tablename__ = "rfp_library_entries"
+
+    id: Mapped[int] = _id()
+    question: Mapped[str] = mapped_column(Text)
+    answer: Mapped[str] = mapped_column(Text)
+    tags: Mapped[list] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))
+    source_file: Mapped[str | None] = mapped_column(Text)
+    source_location: Mapped[str | None] = mapped_column(Text)
+    source_project_id: Mapped[int | None] = mapped_column(BigInteger)
+    written_by: Mapped[str | None] = mapped_column(Text)
+    approved_on: Mapped[date] = mapped_column(Date)
+    review_by: Mapped[date] = mapped_column(Date)
+    owner: Mapped[str | None] = mapped_column(Text)
+    has_figures: Mapped[bool] = mapped_column(Boolean)
+    status: Mapped[str] = mapped_column(Text, default="active", server_default="active")  # active | retired
+
+
+class RfpProject(Base):
+    """An incoming RFP: the investor's original file (blob store key) and its detect-and-fill run."""
+
+    __tablename__ = "rfp_projects"
+
+    id: Mapped[int] = _id()
+    investor: Mapped[str] = mapped_column(Text)
+    due_date: Mapped[date | None] = mapped_column(Date)
+    filename: Mapped[str] = mapped_column(Text)
+    content_key: Mapped[str] = mapped_column(Text)
+    run_id: Mapped[str | None] = mapped_column(Text)
+    run_status: Mapped[str] = mapped_column(Text)  # detecting | drafting | done | failed
+    not_located: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    created_by: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = _ts()
+
+
+class RfpQuestion(Base):
+    __tablename__ = "rfp_questions"
+    __table_args__ = (UniqueConstraint("project_id", "location", name="uq_rfp_questions_location"),)
+
+    id: Mapped[int] = _id()
+    project_id: Mapped[int] = mapped_column(ForeignKey("rfp_projects.id"), index=True)
+    position: Mapped[int] = mapped_column(Integer)  # file order
+    location: Mapped[str] = mapped_column(Text)
+    answer_location: Mapped[str] = mapped_column(Text)
+    question: Mapped[str] = mapped_column(Text)
+    answer: Mapped[str] = mapped_column(Text, default="", server_default="")
+    status: Mapped[str] = mapped_column(Text)  # no source | drafted | edited | approved | left blank
+    flags: Mapped[list] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))
+    sources: Mapped[list] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))  # {entry_id, quote}
+    assignee: Mapped[str | None] = mapped_column(Text)
+    last_editor: Mapped[str | None] = mapped_column(Text)
