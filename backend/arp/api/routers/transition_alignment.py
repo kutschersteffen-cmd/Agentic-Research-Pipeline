@@ -73,7 +73,7 @@ def get_benchmarks() -> BenchmarksOut:
                     KpiDefOut(
                         id=k.id,
                         label=k.label,
-                        field_id=k.field,
+                        field_id=k.field_id,
                         isic_prefixes=kpi_prefixes(s, k),
                         range_text=range_text(k.points),
                         levers=k.levers,
@@ -216,7 +216,7 @@ def get_company_transition(ref: str, run_store=Depends(get_run_store)) -> Transi
         facts = _company_facts(s, cid)
         emissions = _company_facts(s, cid, _EMISSIONS)
         indicators = _company_facts(s, cid, _INDICATORS, _INDICATORS)
-        kpi_facts = _company_facts(s, cid, [k.field for k in b.sectors[sector].delivery_kpis])
+        kpi_facts = _company_facts(s, cid, [k.field_id for k in b.sectors[sector].delivery_kpis])
         groups, target_groups, phaseout_groups, assumptions, operates, years, plan_year = _plan_inputs(s, cid)
     capex = score_capex(facts, b.sectors[sector], b.licence_note)
     regions: dict[str, list[str]] = {}

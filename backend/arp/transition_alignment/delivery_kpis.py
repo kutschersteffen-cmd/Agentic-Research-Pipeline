@@ -31,11 +31,11 @@ def score_delivery_kpis(sector: SectorEntry, isic: str, facts: list[Fact],
         if not any(isic.startswith(p) for p in kpi_prefixes(sector, k)):
             continue
         # the latest period_end wins; ties go to the lowest fact id
-        f = min((f for f in facts if f.field_id == k.field), default=None, key=lambda f: (-(f.year or 0), f.fact_id))
+        f = min((f for f in facts if f.field_id == k.field_id), default=None, key=lambda f: (-(f.year or 0), f.fact_id))
         value = _number(f.value) if f else None
         position = None if value is None else round(min(max(value, 0) / k.points[-1].value, 1) * 100, 1)
         out.append(KpiOut(
-            id=k.id, label=k.label, field_id=k.field, cite=k.cite, value=value, year=f.year if f else None,
+            id=k.id, label=k.label, field_id=k.field_id, cite=k.cite, value=value, year=f.year if f else None,
             fact_ids=[f.fact_id] if f else [], range_text=range_text(k.points), position_pct=position,
             action_keys=[a.key for a in actions if a.action_id in k.levers],
         ))

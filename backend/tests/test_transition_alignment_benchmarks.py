@@ -418,7 +418,7 @@ def _cement_kpi(fn):
     ("fn", "needles"),
     [
         (_cement_kpi(lambda k: k.update(points=[{"value": 30}, {"value": 20}])), ("Cement", "alt_fuel_share")),  # AC-184
-        (_cement_kpi(lambda k: k.update(field="tc_unknown_pct")), ("tc_unknown_pct",)),  # AC-185
+        (_cement_kpi(lambda k: k.update(field_id="tc_unknown_pct")), ("tc_unknown_pct",)),  # AC-185
         (_cement_kpi(lambda k: k.update(isic_prefixes=["9999"])), ("alt_fuel_share",)),  # AC-192
         (_cement_kpi(lambda k: k.update(points=[{"value": 120}])), ("alt_fuel_share",)),  # AC-193
         (_cement_kpi(lambda k: k.update(cite="ACT Cement v2.0")), ("alt_fuel_share",)),  # AC-195
@@ -451,10 +451,10 @@ def test_ac194_years_must_rise(tmp_path, bundled_dirs):
 
 def test_delivery_kpi_lines(ta_dirs):  # noqa: F811
     head = "Cement: delivery KPI 'alt_fuel_share'"
-    assert errors_after(ta_dirs, _cement_kpi(lambda k: k.update(field="tc_unknown_pct")), resign=True) == [
+    assert errors_after(ta_dirs, _cement_kpi(lambda k: k.update(field_id="tc_unknown_pct")), resign=True) == [
         f"{head}: unknown field 'tc_unknown_pct'"
     ]
-    assert errors_after(ta_dirs, _cement_kpi(lambda k: k.update(field="tc_saf_share_pct")), resign=True) == [
+    assert errors_after(ta_dirs, _cement_kpi(lambda k: k.update(field_id="tc_saf_share_pct")), resign=True) == [
         f"{head}: field 'tc_saf_share_pct' does not apply to ISIC prefix '2394'"
     ]
 
@@ -466,7 +466,7 @@ def test_delivery_kpi_bad_shapes_give_one_line(ta_dirs):  # noqa: F811  Review F
         (_cement_kpi(lambda k: k.update(points=[{"value": "a"}])), 1),
         (lambda r: r["sectors"]["Cement"].update(delivery_kpis=[None]), 1),
         (_cement_kpi(lambda k: k.update(points="x")), 1),
-        (_cement_kpi(lambda k: k.update(field=["x"], isic_prefixes="x", cite=None)), 3),
+        (_cement_kpi(lambda k: k.update(field_id=["x"], isic_prefixes="x", cite=None)), 3),
         (lambda r: r["sectors"]["Cement"].update(isic_prefixes=[["2394"]]), 1),
     ):
         (ta_dirs[1] / "benchmarks.json").write_text(good, encoding="utf-8")

@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "fingerprint": "bd1d722024a05e1357ac9c292c48063a6c6d73ee828b21eac0a910017342f227",
+  "fingerprint": "d1ec5d7981966024dac63ef51035725303a34de64b07fe5a944769dda30d376b",
   "history": [
     {
       "version": 1,
@@ -16,7 +16,7 @@
     },
     {
       "version": 3,
-      "fingerprint": "bd1d722024a05e1357ac9c292c48063a6c6d73ee828b21eac0a910017342f227",
+      "fingerprint": "d1ec5d7981966024dac63ef51035725303a34de64b07fe5a944769dda30d376b",
       "approved_by": "kutschersteffen-cmd",
       "approved_at": "2026-10-22"
     }
@@ -90,7 +90,7 @@
         {
           "id": "ccs_capex_share",
           "label": "CCS, CCUS and CDR share of capex",
-          "field": "tc_ccs_capex_share_pct",
+          "field_id": "tc_ccs_capex_share_pct",
           "levers": [],
           "points": [
             {
@@ -121,7 +121,7 @@
         {
           "id": "nh3_electrolytic",
           "label": "Electrolytic share of ammonia",
-          "field": "tc_nh3_electrolytic_pct",
+          "field_id": "tc_nh3_electrolytic_pct",
           "levers": [
             "chem.low_carbon_h2"
           ],
@@ -136,7 +136,7 @@
         {
           "id": "meoh_electrolytic",
           "label": "Electrolytic share of methanol",
-          "field": "tc_meoh_electrolytic_pct",
+          "field_id": "tc_meoh_electrolytic_pct",
           "levers": [
             "chem.low_carbon_h2"
           ],
@@ -151,7 +151,7 @@
         {
           "id": "electrolysis_lc_power",
           "label": "Low-carbon power share of electrolysis",
-          "field": "tc_electrolysis_lc_power_pct",
+          "field_id": "tc_electrolysis_lc_power_pct",
           "levers": [
             "chem.low_carbon_h2"
           ],
@@ -268,7 +268,7 @@
         {
           "id": "alt_fuel_share",
           "label": "Alternative-fuel share of kiln heat",
-          "field": "tc_alt_fuel_share_pct",
+          "field_id": "tc_alt_fuel_share_pct",
           "levers": [
             "cement.alt_fuels"
           ],
@@ -346,7 +346,7 @@
         {
           "id": "saf_share",
           "label": "Sustainable aviation fuel share of jet fuel",
-          "field": "tc_saf_share_pct",
+          "field_id": "tc_saf_share_pct",
           "levers": [
             "avi.hefa_saf",
             "avi.e_saf",
@@ -414,7 +414,7 @@
         {
           "id": "ship_lc_fuel_share",
           "label": "Low-emission fuel share of ship energy",
-          "field": "tc_ship_lc_fuel_share_pct",
+          "field_id": "tc_ship_lc_fuel_share_pct",
           "levers": [
             "shp.green_fuels",
             "shp.alt_fuel_vessels"
@@ -466,7 +466,7 @@
         {
           "id": "zev_sales_share",
           "label": "Zero-emission share of truck sales",
-          "field": "tc_zev_sales_share_pct",
+          "field_id": "tc_zev_sales_share_pct",
           "isic_prefixes": [
             "2910"
           ],
@@ -494,7 +494,7 @@
         {
           "id": "fleet_lc_share",
           "label": "Low-carbon share of truck fleet",
-          "field": "tc_fleet_lc_share_pct",
+          "field_id": "tc_fleet_lc_share_pct",
           "isic_prefixes": [
             "4923"
           ],

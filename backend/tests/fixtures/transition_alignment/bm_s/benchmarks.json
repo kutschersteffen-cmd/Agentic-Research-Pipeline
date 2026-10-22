@@ -1,6 +1,6 @@
 {
   "version": 4,
-  "fingerprint": "66196b3ac613c7815f83f1661691462950e84075ebc7e18e40d61a8ceb39bdd6",
+  "fingerprint": "b654d6459002a5bb78d663b85b02e5d0efe902b429248973a9d04d65125235b4",
   "history": [
     {
       "version": 3,
@@ -127,7 +127,7 @@
         {
           "id": "alt_fuel_share",
           "label": "Alternative-fuel share of kiln heat",
-          "field": "tc_alt_fuel_share_pct",
+          "field_id": "tc_alt_fuel_share_pct",
           "levers": [
             "cement.alt_fuels"
           ],

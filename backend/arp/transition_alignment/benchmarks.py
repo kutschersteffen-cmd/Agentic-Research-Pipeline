@@ -90,7 +90,7 @@ class KpiPoint(BaseModel):
 class DeliveryKpi(BaseModel):
     id: str
     label: str
-    field: str
+    field_id: str
     isic_prefixes: list[str] = []  # empty: the sector's
     levers: list[str] = []
     points: list[KpiPoint]
@@ -268,7 +268,7 @@ def _delivery_kpi_lines(name: str, entry: dict) -> list[str]:
             own = []
         elif not set(own) <= set(sector):
             out.append(f"{head}: isic_prefixes are not a subset of the sector's")
-        field = k.get("field")
+        field = k.get("field_id")
         if not (isinstance(field, str) and field in FIELD_PREFIXES):
             out.append(f"{head}: unknown field '{field}'")
         else:
