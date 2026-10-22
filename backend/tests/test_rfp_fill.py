@@ -137,3 +137,21 @@ def test_fill_formula_like_answer_stays_text():
 def test_fill_refusal_is_one_exception():
     with pytest.raises(FillRefused):
         fill(fx.rfp_in_xlsx(), ".xlsx", [("RFP!B2", "ok"), ("RFP!A6", "bad")])
+
+
+def test_fill_after_paragraph_never_crosses_a_table():  # PR #214 review item 7
+    def build(doc):
+        doc.add_paragraph("Describe your firm.", style="Normal")
+        doc.add_table(rows=1, cols=1).cell(0, 0).text = "Investor note"
+        doc.add_paragraph("", style="Body Text")
+
+    original = fx._docx(build)
+    out = Document(io.BytesIO(fill(original, ".docx", [("P0", "Example AM is independent.")])))
+    body = [child.tag.rsplit("}", 1)[1] for child in out.element.body.iterchildren()]
+    assert body[:4] == ["p", "p", "tbl", "p"]
+    assert _paras(out) == [("Describe your firm.", "Normal"), ("Example AM is independent.", "Body Text"), ("", "Body Text")]
+
+
+def test_fill_refuses_the_same_location_twice():  # PR #214 review item 8
+    with pytest.raises(FillRefused, match="RFP!B2"):
+        fill(fx.rfp_in_xlsx(), ".xlsx", [("RFP!B2", "first"), ("RFP!B2", "second")])

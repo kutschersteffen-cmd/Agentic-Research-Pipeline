@@ -147,19 +147,16 @@ function ProjectView({ id, onBack }: { id: number; onBack: () => void }) {
   const [mine, setMine] = useState(false);
   const [confirmExport, setConfirmExport] = useState(false);
 
+  const running = project !== null && RUNNING.has(project.run_status);
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    const load = () =>
-      api.getRfpProject(id).then(
-        (p) => {
-          setProject(p);
-          if (RUNNING.has(p.run_status)) timer = setTimeout(load, 3000);
-        },
-        (e: Error) => setError(e.message),
-      );
-    void load();
-    return () => clearTimeout(timer);
+    api.getRfpProject(id).then(setProject, (e: Error) => setError(e.message));
   }, [id]);
+  // Keyed on `running`, so a run started from this page ("Auto-fill again") is polled too.
+  useEffect(() => {
+    if (!running) return;
+    const timer = setInterval(() => api.getRfpProject(id).then(setProject, (e: Error) => setError(e.message)), 3000);
+    return () => clearInterval(timer);
+  }, [id, running]);
 
   async function act(fn: () => Promise<RfpProject>) {
     setError(null);
@@ -192,7 +189,7 @@ function ProjectView({ id, onBack }: { id: number; onBack: () => void }) {
           <input id="rfp-mine" type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} /> Assigned to me
         </label>
         {me && rank[me.role] >= rank.analyst && (
-          <button className="secondary" disabled={RUNNING.has(project.run_status)} onClick={() => void act(() => api.autofillRfp(id))}>
+          <button className="secondary" disabled={running} onClick={() => void act(() => api.autofillRfp(id))}>
             Auto-fill again
           </button>
         )}

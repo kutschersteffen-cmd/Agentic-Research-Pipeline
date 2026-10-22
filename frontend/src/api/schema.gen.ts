@@ -3804,7 +3804,8 @@ export interface paths {
         put?: never;
         /**
          * Autofill Project
-         * @description Drafts every `no source` question again, e.g. after the library has grown.
+         * @description Drafts every `no source` question again, e.g. after the library has grown. A project with no questions yet
+         *     (its detection failed) finds them first.
          */
         post: operations["autofill_project_api_rfp_projects__project_id__autofill_post"];
         delete?: never;

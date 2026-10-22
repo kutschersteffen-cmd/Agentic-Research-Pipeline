@@ -45,7 +45,7 @@ def _located(layout: Layout, q: ReportedQuestion) -> bool:
     if text is None or not normalise(q.question) or normalise(text) != normalise(q.question) or answer is None:
         return False
     if paragraph_index(q.answer_location) is not None:
-        return True  # "after this paragraph": the question's own P<n> included
+        return q.answer_location == q.location  # "after this paragraph": only the question's own P<n>
     return q.answer_location != q.location and is_placeholder(answer)
 
 
@@ -64,7 +64,8 @@ async def detect_questions(layout: Layout, llm: LLMClient) -> tuple[list[Detecte
     for q in out.questions:
         if q.location in kept:
             continue
-        if _located(layout, q):
+        # a second question for an answer location already taken would overwrite the first answer on export
+        if _located(layout, q) and all(d.answer_location != q.answer_location for d in kept.values()):
             kept[q.location] = Detected(location=q.location, answer_location=q.answer_location, question=layout.text(q.location))
         else:
             not_located += 1
