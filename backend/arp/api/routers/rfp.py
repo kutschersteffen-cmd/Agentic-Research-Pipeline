@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from pathlib import PurePath
 from urllib.parse import quote
 
@@ -157,11 +157,17 @@ def get_project(project_id: int) -> RfpProjectOut:
         return store.project_out(s, _project(s, project_id))
 
 
+_LEASE_GRACE = timedelta(seconds=60)  # a run is launched just after its request returns; its lease comes a moment later
+
+
 def _run_alive(run_store, run_id: str | None) -> bool:
-    """A worker holds the run's lease. A process restart frees it, so a run left `detecting` or `drafting` by a
-    restart can be started again."""
+    """A worker holds the run's lease, or the run is too new to have taken it yet. A process restart frees the lease,
+    so a run left `detecting` or `drafting` by a restart can be started again."""
     if not run_id:
         return False
+    manifest = run_store.load_manifest(run_id)
+    if manifest and datetime.now(UTC) - datetime.fromisoformat(manifest.created_at) < _LEASE_GRACE:
+        return True
     try:
         with run_lease(run_store, run_id):
             return False
@@ -175,32 +181,35 @@ async def autofill_project(
 ) -> RfpProjectOut:
     """Drafts every `no source` question again, e.g. after the library has grown. A project with no questions yet
     (its detection failed) finds them first."""
+    # One transaction with the project row locked from the check to the new run_id, so two quick clicks start one run.
     with transaction() as s:
-        p = _project(s, project_id)
+        p = s.get(m.RfpProject, project_id, with_for_update=True)
+        if p is None:
+            raise HTTPException(404, "RFP project not found")
         if p.run_status in ("detecting", "drafting") and _run_alive(run_store, p.run_id):
             raise HTTPException(409, "This RFP is still being processed.")
         redetect = not store.questions_of(s, project_id)
-        filename, key = p.filename, p.content_key
-    data = blobs.get(key) if redetect else b""
+        filename = p.filename
+        data = blobs.get(p.content_key) if redetect else b""
 
-    def create() -> str:
-        run_id = JobManager(run_store).create_run("rfp", {"project_id": project_id}, 0).run_id
-        store.set_run_status(project_id, "detecting" if redetect else "drafting", run_id=run_id)
-        return run_id
+        def create() -> str:
+            run_id = JobManager(run_store).create_run("rfp", {"project_id": project_id}, 0).run_id
+            p.run_status, p.run_id = ("detecting" if redetect else "drafting"), run_id
+            return run_id
 
-    async def run(run_id, llm, _verifier) -> None:
-        if redetect:
-            await store.detect_and_fill(project_id, data, _suffix(filename), llm, settings)
-        else:
-            try:
-                await store.autofill(project_id, llm, settings)
-                store.set_run_status(project_id, "done")
-            except Exception:
-                store.set_run_status(project_id, "failed")
-                raise
-        JobManager(run_store).finish_run(run_id)
+        async def run(run_id, llm, _verifier) -> None:
+            if redetect:
+                await store.detect_and_fill(project_id, data, _suffix(filename), llm, settings)
+            else:
+                try:
+                    await store.autofill(project_id, llm, settings)
+                    store.set_run_status(project_id, "done")
+                except Exception:
+                    store.set_run_status(project_id, "failed")
+                    raise
+            JobManager(run_store).finish_run(run_id)
 
-    schedule_llm_run(create_fn=create, run=run)
+        schedule_llm_run(create_fn=create, run=run)
     return get_project(project_id)
 
 

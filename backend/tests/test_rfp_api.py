@@ -448,3 +448,22 @@ def test_export_non_latin1_filename(env):
     assert r.status_code == 200
     assert r.headers["Content-Disposition"] == (
         "attachment; filename=\"RFP _ Q3 _.xlsx\"; filename*=UTF-8''RFP%20%E2%80%93%20Q3%20%E2%82%AC.xlsx")
+
+
+def test_two_quick_autofills_start_one_run(env):  # PR #215 review item B2
+    env.llm = Standin()
+
+    async def fail(*_a, **_k):
+        raise RuntimeError("model down")
+
+    env.llm.complete_structured = fail
+    pid = env.as_("alice").post("/api/rfp/projects", data={"investor": "Pension Fund"},
+                                files={"file": ("rfp_in.xlsx", fx.rfp_in_xlsx())}).json()["id"]
+    with pytest.raises(RuntimeError):
+        env.run_jobs()
+    env.llm = Standin()
+    assert env.as_("alice").post(f"/api/rfp/projects/{pid}/autofill").status_code == 200
+    # the first run is launched but has not taken its lease yet
+    assert env.as_("alice").post(f"/api/rfp/projects/{pid}/autofill").status_code == 409
+    env.run_jobs()
+    assert len(env.as_("alice").get(f"/api/rfp/projects/{pid}").json()["questions"]) == 3

@@ -53,3 +53,26 @@ def test_auto_fill_again_is_polled_until_done(page):
     page.get_by_text("· drafting").wait_for()
     page.get_by_text("· done").wait_for()  # without a reload
     assert page.get_by_role("button", name="Auto-fill again").is_enabled()
+
+
+def test_a_run_stuck_by_a_restart_can_be_started_again(page):  # PR #215 review item B1
+    """A project left `drafting` (no worker since a restart): the button stays enabled and the server decides."""
+    state = {"status": "drafting", "posted": False}
+
+    def get(route):
+        if route.request.method == "GET":
+            route.fulfill(json=project(state["status"]))
+        else:
+            route.fallback()
+
+    def autofill(route):
+        state["posted"], state["status"] = True, "done"
+        route.fulfill(json=project("done"))
+
+    page.route("**/api/rfp/projects/1", get)
+    page.route("**/api/rfp/projects/1/autofill", autofill)
+    page.goto(f"{URL}/#/rfp/1")
+    page.get_by_text("· drafting").wait_for()
+    page.get_by_role("button", name="Auto-fill again").click()
+    page.get_by_text("· done").wait_for()
+    assert state["posted"]

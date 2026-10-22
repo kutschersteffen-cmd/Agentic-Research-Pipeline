@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, downloadFile } from "../api/client";
 import { announce } from "../lib/announce";
 import { useMe } from "../lib/reviewer";
@@ -151,15 +151,21 @@ function ProjectView({ id, onBack }: { id: number; onBack: () => void }) {
   useEffect(() => {
     api.getRfpProject(id).then(setProject, (e: Error) => setError(e.message));
   }, [id]);
+  // Bumped by every action, so a poll that started before it never overwrites its newer result.
+  const actions = useRef(0);
   // Keyed on `running`, so a run started from this page ("Auto-fill again") is polled too.
   useEffect(() => {
     if (!running) return;
-    const timer = setInterval(() => api.getRfpProject(id).then(setProject, (e: Error) => setError(e.message)), 3000);
+    const timer = setInterval(() => {
+      const seen = actions.current;
+      api.getRfpProject(id).then((p) => seen === actions.current && setProject(p), (e: Error) => setError(e.message));
+    }, 3000);
     return () => clearInterval(timer);
   }, [id, running]);
 
   async function act(fn: () => Promise<RfpProject>) {
     setError(null);
+    actions.current += 1;
     try {
       setProject(await fn());
     } catch (e) {
@@ -189,7 +195,7 @@ function ProjectView({ id, onBack }: { id: number; onBack: () => void }) {
           <input id="rfp-mine" type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} /> Assigned to me
         </label>
         {me && rank[me.role] >= rank.analyst && (
-          <button className="secondary" disabled={running} onClick={() => void act(() => api.autofillRfp(id))}>
+          <button className="secondary" onClick={() => void act(() => api.autofillRfp(id))}>
             Auto-fill again
           </button>
         )}
