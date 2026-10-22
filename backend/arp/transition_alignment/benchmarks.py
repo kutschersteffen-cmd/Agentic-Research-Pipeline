@@ -1,4 +1,4 @@
-"""Benchmarks file: capex benchmarks, R&D tests and redlines per matrix sector, ACT lever wording, assumptions.
+"""Benchmarks file: capex benchmarks, R&D tests, redlines and delivery KPIs per matrix sector, ACT lever wording, assumptions.
 
 Validated on the raw JSON first (as the barrier rule book validator does), so a bad shape reads as an error
 line instead of a traceback; the pydantic models only load a file that passed.
@@ -8,16 +8,20 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from datetime import date
 from functools import lru_cache
+from itertools import pairwise
 from pathlib import Path
 
 from pydantic import BaseModel, Field, ValidationError
 
 from arp.config import get_settings
 from arp.presets.transition_capex import BOOLEAN_FIELDS, FIELD_IDS
+from arp.presets.transition_delivery_kpis import FIELD_PREFIXES
 from arp.transition_barrier import dataset as barrier_dataset
 from arp.transition_barrier import validation as barrier_validation
+from arp.transition_barrier.render import fmt_number
 from arp.transition_barrier.rule_book import compute_fingerprint
 from arp.transition_barrier.validation import _by_id, _dicts, _num, _text, _unit
 
@@ -26,6 +30,7 @@ BUNDLED_DIR = Path(__file__).parent / "data"
 # Scenario-price region group of each company region (spec section 6).
 REGION_GROUP = {"European Union": "advanced economies", "United States": "advanced economies", "China": "selected EMDE"}
 STALE = "Benchmarks content changed but version is still"
+PAGE_REF = re.compile(r"\bpp?\.\s?\d")  # a KPI cite must name its page (spec section 1)
 # The sectors of the bundled barrier criteria_schema.json, in its order (a unit test pins this).
 MATRIX_SECTORS: tuple[str, ...] = (
     "Power & Utilities",
@@ -77,11 +82,29 @@ class Redline(BaseModel):
     source: Source
 
 
+class KpiPoint(BaseModel):
+    value: float
+    year: int | None = None
+
+
+class DeliveryKpi(BaseModel):
+    id: str
+    label: str
+    field: str
+    isic_prefixes: list[str] = []  # empty: the sector's
+    levers: list[str] = []
+    points: list[KpiPoint]
+    cite: str
+    url: str | None = None
+    note: str | None = None
+
+
 class SectorEntry(BaseModel):
     isic_prefixes: list[str]
     capex: CapexBenchmark
     rnd_tests: list[RndTest] = []
     redlines: list[Redline] = []
+    delivery_kpis: list[DeliveryKpi] = []
 
 
 class Assumption(BaseModel):
@@ -218,6 +241,48 @@ def _rule6(raw: dict, raw_rule_book: dict) -> list[str]:
     return out
 
 
+def _points_ok(points) -> bool:
+    """Non-empty, values in (0, 100] and strictly rising, years (where given) whole and strictly rising."""
+    if not (isinstance(points, list) and points and all(isinstance(p, dict) for p in points)):
+        return False
+    values = [p.get("value") for p in points]
+    years = [p["year"] for p in points if p.get("year") is not None]
+    return (
+        all(_num(v) and 0 < v <= 100 for v in values)
+        and all(isinstance(y, int) and not isinstance(y, bool) for y in years)
+        and all(a < b for a, b in pairwise(values))
+        and all(a < b for a, b in pairwise(years))
+    )
+
+
+def _delivery_kpi_lines(name: str, entry: dict) -> list[str]:
+    """Delivery KPIs: known field covering the KPI's prefixes, prefixes within the sector's, points, a cited page."""
+    kpis, out = _items(name, "delivery KPI", entry.get("delivery_kpis"))
+    prefixes = entry.get("isic_prefixes")
+    sector = [p for p in prefixes if isinstance(p, str)] if isinstance(prefixes, list) else []  # rule 4 reports bad ones
+    for k in kpis:
+        head = f"{name}: delivery KPI '{k['id']}'"
+        own = k.get("isic_prefixes", [])
+        if not (isinstance(own, list) and all(_text(p) for p in own)):
+            out.append(f"{head}: invalid isic_prefixes: expected a list of prefixes")
+            own = []
+        elif not set(own) <= set(sector):
+            out.append(f"{head}: isic_prefixes are not a subset of the sector's")
+        field = k.get("field")
+        if not (isinstance(field, str) and field in FIELD_PREFIXES):
+            out.append(f"{head}: unknown field '{field}'")
+        else:
+            applies = FIELD_PREFIXES[field]
+            for p in own or sector:
+                if not p.startswith(applies):
+                    out.append(f"{head}: field '{field}' does not apply to ISIC prefix '{p}'")
+        if not _points_ok(k.get("points")):
+            out.append(f"{head}: invalid points: expected values in (0, 100], rising, with rising years")
+        if not (isinstance(k.get("cite"), str) and PAGE_REF.search(k["cite"])):
+            out.append(f"{head}: cite has no page reference")
+    return out
+
+
 def _scenario_lines(raw: dict, required: bool) -> list[str]:
     """Scenario prices: optional in a file (older signed files stay valid), required in the bundled one."""
     if "scenario_prices" not in raw:
@@ -257,6 +322,7 @@ def validate_benchmarks(raw: dict, raw_rule_book: dict, raw_schema: dict, requir
         + _rule4(entries)
         + _rule5(raw, raw_rule_book)
         + _rule6(raw, raw_rule_book)
+        + [e for s, entry in entries.items() if s in MATRIX_SECTORS for e in _delivery_kpi_lines(s, entry)]  # else rule 1
         + _scenario_lines(raw, require_scenarios)
         + ([f"{STALE} {raw.get('version')}"] if stale else [])
     )
@@ -346,6 +412,15 @@ def sector_for_isic(b: Benchmarks, isic: str | None) -> str | None:
     if not isic:
         return None
     return next((name for name, s in b.sectors.items() if any(isic.startswith(p) for p in s.isic_prefixes)), None)
+
+
+def kpi_prefixes(sector: SectorEntry, kpi: DeliveryKpi) -> list[str]:
+    return kpi.isic_prefixes or sector.isic_prefixes
+
+
+def range_text(points: list[KpiPoint]) -> str:
+    """`0% → 37% (2030) → 65% (2035)`: the range after 0%, each point with its year when it has one."""
+    return " → ".join(["0%"] + [f"{fmt_number(p.value)}%" + (f" ({p.year})" if p.year is not None else "") for p in points])
 
 
 def citation(s: Source) -> str:

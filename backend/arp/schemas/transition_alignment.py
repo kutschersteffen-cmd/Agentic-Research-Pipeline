@@ -32,12 +32,23 @@ class RedlineDef(BaseModel):
     citation: str
 
 
+class KpiDefOut(BaseModel):
+    id: str
+    label: str
+    field_id: str
+    isic_prefixes: list[str]  # resolved: the KPI's own, else the sector's
+    range_text: str
+    levers: list[str]
+    cite: str
+
+
 class SectorBenchmarksOut(BaseModel):
     sector: str
     isic_prefixes: list[str]
     capex: BenchmarkOut
     rnd_tests: list[RndTestDef]
     redlines: list[RedlineDef]
+    delivery_kpis: list[KpiDefOut]
 
 
 class ScenarioGroupOut(BaseModel):

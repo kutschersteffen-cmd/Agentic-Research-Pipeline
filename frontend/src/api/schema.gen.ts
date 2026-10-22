@@ -10376,6 +10376,23 @@ export interface components {
          * @enum {string}
          */
         JobStatus: "pending" | "running" | "completed" | "partially_completed" | "failed" | "cancelled";
+        /** KpiDefOut */
+        KpiDefOut: {
+            /** Cite */
+            cite: string;
+            /** Field Id */
+            field_id: string;
+            /** Id */
+            id: string;
+            /** Isic Prefixes */
+            isic_prefixes: string[];
+            /** Label */
+            label: string;
+            /** Levers */
+            levers: string[];
+            /** Range Text */
+            range_text: string;
+        };
         /** LabelRule */
         LabelRule: {
             /** Field */
@@ -12494,6 +12511,8 @@ export interface components {
         /** SectorBenchmarksOut */
         SectorBenchmarksOut: {
             capex: components["schemas"]["BenchmarkOut"];
+            /** Delivery Kpis */
+            delivery_kpis: components["schemas"]["KpiDefOut"][];
             /** Isic Prefixes */
             isic_prefixes: string[];
             /** Redlines */

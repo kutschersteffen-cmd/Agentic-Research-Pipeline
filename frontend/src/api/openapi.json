@@ -9064,6 +9064,55 @@
     "title": "JobStatus",
     "type": "string"
    },
+   "KpiDefOut": {
+    "properties": {
+     "cite": {
+      "title": "Cite",
+      "type": "string"
+     },
+     "field_id": {
+      "title": "Field Id",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "isic_prefixes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Isic Prefixes",
+      "type": "array"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "levers": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Levers",
+      "type": "array"
+     },
+     "range_text": {
+      "title": "Range Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "label",
+     "field_id",
+     "isic_prefixes",
+     "range_text",
+     "levers",
+     "cite"
+    ],
+    "title": "KpiDefOut",
+    "type": "object"
+   },
    "LabelRule": {
     "properties": {
      "field": {
@@ -13763,6 +13812,13 @@
      "capex": {
       "$ref": "#/components/schemas/BenchmarkOut"
      },
+     "delivery_kpis": {
+      "items": {
+       "$ref": "#/components/schemas/KpiDefOut"
+      },
+      "title": "Delivery Kpis",
+      "type": "array"
+     },
      "isic_prefixes": {
       "items": {
        "type": "string"
@@ -13794,7 +13850,8 @@
      "isic_prefixes",
      "capex",
      "rnd_tests",
-     "redlines"
+     "redlines",
+     "delivery_kpis"
     ],
     "title": "SectorBenchmarksOut",
     "type": "object"

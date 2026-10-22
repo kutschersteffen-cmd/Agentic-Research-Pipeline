@@ -19,6 +19,7 @@ from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.transition_alignment import (
     BenchmarkOut,
     BenchmarksOut,
+    KpiDefOut,
     RedlineDef,
     RndTestDef,
     ScenarioGroupOut,
@@ -26,7 +27,7 @@ from arp.schemas.transition_alignment import (
     TransitionOut,
 )
 from arp.transition_alignment.actions import Cell, CellLookup, _first, score_plan
-from arp.transition_alignment.benchmarks import citation, load_benchmarks, sector_for_isic
+from arp.transition_alignment.benchmarks import citation, kpi_prefixes, load_benchmarks, range_text, sector_for_isic
 from arp.transition_alignment.capex import Fact, score_capex
 from arp.transition_alignment.delivery import scenario_entries, score_coverage, score_phaseouts, score_targets
 from arp.transition_alignment.flags import score_flags
@@ -67,6 +68,18 @@ def get_benchmarks() -> BenchmarksOut:
                     for t in s.rnd_tests
                 ],
                 redlines=[RedlineDef(id=r.id, label=r.label, fact=r.fact, citation=citation(r.source)) for r in s.redlines],
+                delivery_kpis=[
+                    KpiDefOut(
+                        id=k.id,
+                        label=k.label,
+                        field_id=k.field,
+                        isic_prefixes=kpi_prefixes(s, k),
+                        range_text=range_text(k.points),
+                        levers=k.levers,
+                        cite=k.cite,
+                    )
+                    for k in s.delivery_kpis
+                ],
             )
             for name, s in b.sectors.items()
         ],
