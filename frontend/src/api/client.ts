@@ -43,6 +43,9 @@ import type {
   XbrlRequiredRow,
   XbrlTag,
   XbrlVerifyRow,
+  RfpLibraryEntry,
+  RfpProject,
+  RfpProjectSummary,
   SignalComparison,
   SignalExperimentDetail,
   SignalExperimentSummary,
@@ -217,7 +220,34 @@ export async function openFile(url: string, fallbackName: string): Promise<void>
   }
 }
 
+const rfpQuestion = (projectId: number, qid: number, action = "") => `/api/rfp/projects/${projectId}/questions/${qid}${action}`;
+const jsonBody = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
+
 export const api = {
+  listRfpLibrary: () => request<RfpLibraryEntry[]>("/api/rfp/library"),
+  importRfpLibrary: (files: File[]) => {
+    const form = new FormData();
+    files.forEach((f) => form.append("files", f));
+    return request<{ imported: number; dropped: string[] }>("/api/rfp/library/import", { method: "POST", body: form });
+  },
+  retireRfpEntry: (id: number) => request<RfpLibraryEntry>(`/api/rfp/library/${id}/retire`, { method: "POST" }),
+  listRfpProjects: () => request<RfpProjectSummary[]>("/api/rfp/projects"),
+  createRfpProject: (file: File, investor: string, dueDate: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("investor", investor);
+    if (dueDate) form.append("due_date", dueDate);
+    return request<RfpProject>("/api/rfp/projects", { method: "POST", body: form });
+  },
+  getRfpProject: (id: number) => request<RfpProject>(`/api/rfp/projects/${id}`),
+  autofillRfp: (id: number) => request<RfpProject>(`/api/rfp/projects/${id}/autofill`, { method: "POST" }),
+  editRfpAnswer: (id: number, qid: number, answer: string) => request<RfpProject>(rfpQuestion(id, qid), jsonBody("PUT", { answer })),
+  assignRfp: (id: number, qid: number, userId: string | null) =>
+    request<RfpProject>(rfpQuestion(id, qid, "/assignee"), jsonBody("PUT", { user_id: userId })),
+  leaveRfpBlank: (id: number, qid: number) => request<RfpProject>(rfpQuestion(id, qid, "/leave-blank"), { method: "POST" }),
+  approveRfp: (id: number, qid: number, confirmedFlags: string[]) =>
+    request<RfpProject>(rfpQuestion(id, qid, "/approve"), jsonBody("POST", { confirmed_flags: confirmedFlags })),
+  rfpExportUrl: (id: number) => `${API_BASE}/api/rfp/projects/${id}/export`,
   listReviewItems: (runId?: string) =>
     request<{ items: ReviewItem[] }>(`/api/review/items${runId ? `?run_id=${encodeURIComponent(runId)}` : ""}`),
   getItemContext: (runId: string, itemKey: string) =>

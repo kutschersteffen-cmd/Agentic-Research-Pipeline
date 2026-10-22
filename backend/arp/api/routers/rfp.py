@@ -20,14 +20,14 @@ from arp.rfp.fill import FillRefused, fill
 from arp.rfp.locations import SUFFIXES
 from arp.rfp.text import has_figures, plus_12_months
 from arp.schemas.rfp import (
-    AnswerIn,
-    ApproveIn,
-    AssigneeIn,
-    LibraryEntryEdit,
-    LibraryEntryOut,
-    LibraryImportOut,
-    ProjectOut,
-    ProjectSummary,
+    RfpAnswerIn,
+    RfpApproveIn,
+    RfpAssigneeIn,
+    RfpLibraryEntryEdit,
+    RfpLibraryEntryOut,
+    RfpLibraryImportOut,
+    RfpProjectOut,
+    RfpProjectSummary,
 )
 from arp.storage.document_blob_store import upload_or_fail
 
@@ -70,24 +70,24 @@ def _question(s, project_id: int, qid: int) -> m.RfpQuestion:
 # --- library -----------------------------------------------------------------------------------
 
 
-@router.get("/library", response_model=list[LibraryEntryOut])
-def list_library() -> list[LibraryEntryOut]:
+@router.get("/library", response_model=list[RfpLibraryEntryOut])
+def list_library() -> list[RfpLibraryEntryOut]:
     with transaction() as s:
         return [store.entry_out(e) for e in s.scalars(select(m.RfpLibraryEntry).order_by(m.RfpLibraryEntry.id))]
 
 
-@router.post("/library/import", response_model=LibraryImportOut, dependencies=[Depends(_approver)])
-async def import_library(files: list[UploadFile] = File(...), llm=Depends(get_llm_client)) -> LibraryImportOut:
+@router.post("/library/import", response_model=RfpLibraryImportOut, dependencies=[Depends(_approver)])
+async def import_library(files: list[UploadFile] = File(...), llm=Depends(get_llm_client)) -> RfpLibraryImportOut:
     loaded = []
     for f in files:
         _suffix(f.filename)
         loaded.append((PurePath(f.filename).name, await f.read()))
     imported, dropped = await store.import_library(loaded, llm)
-    return LibraryImportOut(imported=imported, dropped=dropped)
+    return RfpLibraryImportOut(imported=imported, dropped=dropped)
 
 
-@router.put("/library/{entry_id}", response_model=LibraryEntryOut, dependencies=[Depends(_approver)])
-def edit_library_entry(entry_id: int, body: LibraryEntryEdit) -> LibraryEntryOut:
+@router.put("/library/{entry_id}", response_model=RfpLibraryEntryOut, dependencies=[Depends(_approver)])
+def edit_library_entry(entry_id: int, body: RfpLibraryEntryEdit) -> RfpLibraryEntryOut:
     with transaction() as s:
         e = _entry(s, entry_id)
         for name, value in body.model_dump(exclude_unset=True).items():
@@ -97,8 +97,8 @@ def edit_library_entry(entry_id: int, body: LibraryEntryEdit) -> LibraryEntryOut
         return store.entry_out(e)
 
 
-@router.post("/library/{entry_id}/retire", response_model=LibraryEntryOut, dependencies=[Depends(_approver)])
-def retire_library_entry(entry_id: int) -> LibraryEntryOut:
+@router.post("/library/{entry_id}/retire", response_model=RfpLibraryEntryOut, dependencies=[Depends(_approver)])
+def retire_library_entry(entry_id: int) -> RfpLibraryEntryOut:
     with transaction() as s:
         e = _entry(s, entry_id)
         e.status = "retired"
@@ -108,13 +108,13 @@ def retire_library_entry(entry_id: int) -> LibraryEntryOut:
 # --- projects ----------------------------------------------------------------------------------
 
 
-@router.get("/projects", response_model=list[ProjectSummary])
-def list_projects() -> list[ProjectSummary]:
+@router.get("/projects", response_model=list[RfpProjectSummary])
+def list_projects() -> list[RfpProjectSummary]:
     with transaction() as s:
         return store.project_summaries(s)
 
 
-@router.post("/projects", response_model=ProjectOut)
+@router.post("/projects", response_model=RfpProjectOut)
 async def create_project(
     file: UploadFile = File(...),
     investor: str = Form(..., min_length=1),
@@ -123,62 +123,64 @@ async def create_project(
     blobs=Depends(blob_store_dep),
     settings=Depends(settings_dep),
     run_store=Depends(get_run_store),
-) -> ProjectOut:
+) -> RfpProjectOut:
     """Stores the investor's file unchanged and starts finding and auto-filling its questions in the background."""
     suffix = _suffix(file.filename)
     data = await file.read()
     key = hashlib.sha256(data).hexdigest()
     upload_or_fail(blobs, key, data)
-    with transaction() as s:
-        p = m.RfpProject(investor=investor, due_date=due_date, filename=PurePath(file.filename).name, content_key=key,
-                         run_status="detecting", created_by=user.user_id)
-        s.add(p)
-        s.flush()
-        project_id = p.id
+    created: dict[str, int] = {}
+
+    def create() -> str:  # called once both model clients resolved, so a missing key leaves no project behind
+        run_id = JobManager(run_store).create_run("rfp", {}, 0).run_id
+        with transaction() as s:
+            p = m.RfpProject(investor=investor, due_date=due_date, filename=PurePath(file.filename).name, content_key=key,
+                             run_id=run_id, run_status="detecting", created_by=user.user_id)
+            s.add(p)
+            s.flush()
+            created["id"] = p.id
+        return run_id
 
     async def run(run_id, llm, _verifier) -> None:
-        await store.detect_and_fill(project_id, data, suffix, llm, settings)
+        await store.detect_and_fill(created["id"], data, suffix, llm, settings)
         JobManager(run_store).finish_run(run_id)
 
-    run_id = schedule_llm_run(
-        create_fn=lambda: JobManager(run_store).create_run("rfp", {"project_id": project_id}, 0).run_id, run=run
-    )
-    with transaction() as s:
-        p = _project(s, project_id)
-        p.run_id = run_id
-        return store.project_out(s, p)
+    schedule_llm_run(create_fn=create, run=run)
+    return get_project(created["id"])
 
 
-@router.get("/projects/{project_id}", response_model=ProjectOut)
-def get_project(project_id: int) -> ProjectOut:
+@router.get("/projects/{project_id}", response_model=RfpProjectOut)
+def get_project(project_id: int) -> RfpProjectOut:
     with transaction() as s:
         return store.project_out(s, _project(s, project_id))
 
 
-@router.post("/projects/{project_id}/autofill", response_model=ProjectOut)
-async def autofill_project(project_id: int, settings=Depends(settings_dep), run_store=Depends(get_run_store)) -> ProjectOut:
+@router.post("/projects/{project_id}/autofill", response_model=RfpProjectOut)
+async def autofill_project(project_id: int, settings=Depends(settings_dep), run_store=Depends(get_run_store)) -> RfpProjectOut:
     """Drafts every `no source` question again, e.g. after the library has grown."""
     with transaction() as s:
-        p = _project(s, project_id)
-        if p.run_status in ("detecting", "drafting"):
+        if _project(s, project_id).run_status in ("detecting", "drafting"):
             raise HTTPException(409, "This RFP is still being processed.")
-        p.run_status = "drafting"
+
+    def create() -> str:
+        store.set_run_status(project_id, "drafting")
+        return JobManager(run_store).create_run("rfp", {"project_id": project_id}, 0).run_id
 
     async def run(run_id, llm, _verifier) -> None:
         try:
             await store.autofill(project_id, llm, settings)
-            store._set_status(project_id, "done")
+            store.set_run_status(project_id, "done")
         except Exception:
-            store._set_status(project_id, "failed")
+            store.set_run_status(project_id, "failed")
             raise
         JobManager(run_store).finish_run(run_id)
 
-    schedule_llm_run(create_fn=lambda: JobManager(run_store).create_run("rfp", {"project_id": project_id}, 0).run_id, run=run)
+    schedule_llm_run(create_fn=create, run=run)
     return get_project(project_id)
 
 
-@router.put("/projects/{project_id}/questions/{qid}", response_model=ProjectOut)
-def edit_answer(project_id: int, qid: int, body: AnswerIn, user: Principal = Depends(current_user)) -> ProjectOut:
+@router.put("/projects/{project_id}/questions/{qid}", response_model=RfpProjectOut)
+def edit_answer(project_id: int, qid: int, body: RfpAnswerIn, user: Principal = Depends(current_user)) -> RfpProjectOut:
     """Edits a draft or writes an answer by hand, on any status; the sources stay as they are."""
     with transaction() as s:
         q = _question(s, project_id, qid)
@@ -189,22 +191,22 @@ def edit_answer(project_id: int, qid: int, body: AnswerIn, user: Principal = Dep
         return store.project_out(s, _project(s, project_id))
 
 
-@router.put("/projects/{project_id}/questions/{qid}/assignee", response_model=ProjectOut)
-def assign(project_id: int, qid: int, body: AssigneeIn) -> ProjectOut:
+@router.put("/projects/{project_id}/questions/{qid}/assignee", response_model=RfpProjectOut)
+def assign(project_id: int, qid: int, body: RfpAssigneeIn) -> RfpProjectOut:
     with transaction() as s:
         _question(s, project_id, qid).assignee = body.user_id or None
         return store.project_out(s, _project(s, project_id))
 
 
-@router.post("/projects/{project_id}/questions/{qid}/leave-blank", response_model=ProjectOut)
-def leave_blank(project_id: int, qid: int) -> ProjectOut:
+@router.post("/projects/{project_id}/questions/{qid}/leave-blank", response_model=RfpProjectOut)
+def leave_blank(project_id: int, qid: int) -> RfpProjectOut:
     with transaction() as s:
         _question(s, project_id, qid).status = LEFT_BLANK
         return store.project_out(s, _project(s, project_id))
 
 
-@router.post("/projects/{project_id}/questions/{qid}/approve", response_model=ProjectOut)
-def approve(project_id: int, qid: int, body: ApproveIn, user: Principal = Depends(_approver)) -> ProjectOut:
+@router.post("/projects/{project_id}/questions/{qid}/approve", response_model=RfpProjectOut)
+def approve(project_id: int, qid: int, body: RfpApproveIn, user: Principal = Depends(_approver)) -> RfpProjectOut:
     """Four-eyes: the approver confirms every flag and may not be the answer's last editor. The answer becomes a new
     library entry."""
     with transaction() as s:

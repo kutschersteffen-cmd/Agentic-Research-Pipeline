@@ -5,7 +5,7 @@ from datetime import date
 from pydantic import BaseModel, Field
 
 
-class LibraryEntryOut(BaseModel):
+class RfpLibraryEntryOut(BaseModel):
     id: int
     question: str
     answer: str
@@ -22,19 +22,19 @@ class LibraryEntryOut(BaseModel):
     status: str
 
 
-class LibraryEntryEdit(BaseModel):
+class RfpLibraryEntryEdit(BaseModel):
     answer: str | None = Field(default=None, min_length=1)
     tags: list[str] | None = None
     owner: str | None = None
     review_by: date | None = None
 
 
-class LibraryImportOut(BaseModel):
+class RfpLibraryImportOut(BaseModel):
     imported: int
     dropped: list[str]
 
 
-class SourceOut(BaseModel):
+class RfpSourceOut(BaseModel):
     entry_id: int
     entry_question: str
     quote: str
@@ -44,7 +44,7 @@ class SourceOut(BaseModel):
     written_by: str | None
 
 
-class QuestionOut(BaseModel):
+class RfpQuestionOut(BaseModel):
     id: int
     location: str
     answer_location: str
@@ -54,10 +54,10 @@ class QuestionOut(BaseModel):
     flags: list[str]
     assignee: str | None
     last_editor: str | None
-    sources: list[SourceOut]
+    sources: list[RfpSourceOut]
 
 
-class ProjectSummary(BaseModel):
+class RfpProjectSummary(BaseModel):
     id: int
     investor: str
     due_date: date | None
@@ -68,17 +68,17 @@ class ProjectSummary(BaseModel):
     approved_count: int
 
 
-class ProjectOut(ProjectSummary):
-    questions: list[QuestionOut]
+class RfpProjectOut(RfpProjectSummary):
+    questions: list[RfpQuestionOut]
 
 
-class AnswerIn(BaseModel):
+class RfpAnswerIn(BaseModel):
     answer: str
 
 
-class AssigneeIn(BaseModel):
+class RfpAssigneeIn(BaseModel):
     user_id: str | None
 
 
-class ApproveIn(BaseModel):
+class RfpApproveIn(BaseModel):
     confirmed_flags: list[str] = Field(default_factory=list)
