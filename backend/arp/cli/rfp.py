@@ -56,3 +56,49 @@ def rfp_fill(
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from None
     out.write_bytes(data)
+
+
+golden_app = typer.Typer(help="Golden checks with the real model.")
+rfp_app.add_typer(golden_app, name="golden")
+
+
+@golden_app.command("questions")
+def golden_questions(
+    cases: Path = typer.Option(..., exists=True, dir_okay=False, help="Labelled RFP cases (JSON)."),
+    min_recall: float = typer.Option(..., "--min-recall", help="Exit 1 below this recall."),
+) -> None:
+    """Share of labelled questions kept with their labelled location and answer location."""
+    from arp.rfp import golden
+
+    hit, total, misses = asyncio.run(golden.score_questions(golden.load(cases)["cases"], _llm()))
+    for miss in misses:
+        typer.echo(f"missed: {miss}")
+    recall = hit / total if total else 0.0
+    typer.echo(f"recall {recall:.3f} ({hit}/{total})")
+    if recall < min_recall:
+        raise typer.Exit(1)
+
+
+@golden_app.command("drafts")
+def golden_drafts(
+    cases: Path = typer.Option(..., exists=True, dir_okay=False, help="Library and labelled questions (JSON)."),
+    min_drafted: float = typer.Option(..., "--min-drafted", help="Exit 1 below this share of answerable drafted."),
+    min_blank: float = typer.Option(..., "--min-blank", help="Exit 1 below this share of unanswerable left no source."),
+) -> None:
+    """Drafted and blank shares; also exits 1 when the verifier model finds any draft stating an uncited fact."""
+    from datetime import date
+
+    from arp.llm.factory import build_verifier_llm_client
+    from arp.rfp import golden
+
+    settings = get_settings()
+    c = asyncio.run(golden.score_drafts(golden.load(cases), _llm(), build_verifier_llm_client(settings),
+                                        today=date.today(), settings=settings))
+    for note in c["notes"]:
+        typer.echo(note)
+    drafted = c["drafted"] / c["answerable"] if c["answerable"] else 0.0
+    blank = c["blank"] / c["unanswerable"] if c["unanswerable"] else 0.0
+    typer.echo(f"drafted {drafted:.3f} ({c['drafted']}/{c['answerable']}), no source {blank:.3f} "
+               f"({c['blank']}/{c['unanswerable']}), drafts with unsupported facts {c['unsupported']}")
+    if drafted < min_drafted or blank < min_blank or c["unsupported"]:
+        raise typer.Exit(1)

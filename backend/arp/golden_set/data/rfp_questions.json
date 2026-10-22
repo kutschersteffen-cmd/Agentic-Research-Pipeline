@@ -1,0 +1,295 @@
+{
+ "_comment": "Fictitious RFPs for `arp rfp golden questions` (AC-42). Excel cases list sheets as rows (null = empty cell); Word cases list paragraphs and tables in body order. A labelled question counts when it is kept with exactly this location and answer location.",
+ "cases": [
+  {
+   "name": "excel-two-column",
+   "sheets": {
+    "RFP": [
+     [
+      "Section 1: Organisation",
+      null
+     ],
+     [
+      "Question",
+      "Response"
+     ],
+     [
+      "Please provide the full legal name of your firm.",
+      null
+     ],
+     [
+      "In which year was the firm founded?",
+      null
+     ],
+     [
+      "Describe the ownership structure of the firm.",
+      null
+     ],
+     [
+      "What are your total assets under management?",
+      null
+     ],
+     [
+      "How many investment professionals do you employ?",
+      null
+     ],
+     [
+      "Are you a signatory to the UN Principles for Responsible Investment?",
+      null
+     ],
+     [
+      "Describe your approach to ESG integration.",
+      null
+     ],
+     [
+      "Do you use derivatives, and if so, for what purpose?",
+      null
+     ],
+     [
+      null,
+      null
+     ],
+     [
+      "Please return this questionnaire to consultants@pensionfund.example by 30 November.",
+      null
+     ]
+    ]
+   },
+   "labels": [
+    {
+     "location": "RFP!A3",
+     "answer_location": "RFP!B3"
+    },
+    {
+     "location": "RFP!A4",
+     "answer_location": "RFP!B4"
+    },
+    {
+     "location": "RFP!A5",
+     "answer_location": "RFP!B5"
+    },
+    {
+     "location": "RFP!A6",
+     "answer_location": "RFP!B6"
+    },
+    {
+     "location": "RFP!A7",
+     "answer_location": "RFP!B7"
+    },
+    {
+     "location": "RFP!A8",
+     "answer_location": "RFP!B8"
+    },
+    {
+     "location": "RFP!A9",
+     "answer_location": "RFP!B9"
+    },
+    {
+     "location": "RFP!A10",
+     "answer_location": "RFP!B10"
+    }
+   ]
+  },
+  {
+   "name": "excel-placeholder-column",
+   "sheets": {
+    "Strategy": [
+     [
+      "ID",
+      "Question",
+      "Answer",
+      "Comments"
+     ],
+     [
+      "2.1",
+      "What is the strategy's benchmark?",
+      "[Please answer here]",
+      null
+     ],
+     [
+      "2.2",
+      "State the annualised tracking error target.",
+      "[Please answer here]",
+      null
+     ],
+     [
+      "2.3",
+      "What is the minimum investment size?",
+      "[Please answer here]",
+      null
+     ],
+     [
+      "2.4",
+      "Describe your fee structure for a segregated mandate.",
+      "[Please answer here]",
+      null
+     ],
+     [
+      "2.5",
+      "How often do you report to clients?",
+      "[Please answer here]",
+      null
+     ],
+     [
+      "2.6",
+      "Who is your custodian?",
+      "[Please answer here]",
+      null
+     ]
+    ]
+   },
+   "labels": [
+    {
+     "location": "Strategy!B2",
+     "answer_location": "Strategy!C2"
+    },
+    {
+     "location": "Strategy!B3",
+     "answer_location": "Strategy!C3"
+    },
+    {
+     "location": "Strategy!B4",
+     "answer_location": "Strategy!C4"
+    },
+    {
+     "location": "Strategy!B5",
+     "answer_location": "Strategy!C5"
+    },
+    {
+     "location": "Strategy!B6",
+     "answer_location": "Strategy!C6"
+    },
+    {
+     "location": "Strategy!B7",
+     "answer_location": "Strategy!C7"
+    }
+   ]
+  },
+  {
+   "name": "word-table",
+   "blocks": [
+    {
+     "p": "Request for Proposal: Global Equity Mandate",
+     "style": "Title"
+    },
+    {
+     "p": "Please complete the table below. Do not change the wording of the questions.",
+     "style": "Normal"
+    },
+    {
+     "table": [
+      [
+       "Question",
+       "Response"
+      ],
+      [
+       "Describe your investment philosophy.",
+       ""
+      ],
+      [
+       "How is portfolio risk monitored?",
+       ""
+      ],
+      [
+       "Describe your voting policy.",
+       ""
+      ],
+      [
+       "Have there been any regulatory sanctions against the firm in the last five years?",
+       ""
+      ],
+      [
+       "Describe your business continuity plan.",
+       ""
+      ]
+     ]
+    },
+    {
+     "p": "Thank you for your submission.",
+     "style": "Normal"
+    }
+   ],
+   "labels": [
+    {
+     "location": "T0R1C0",
+     "answer_location": "T0R1C1"
+    },
+    {
+     "location": "T0R2C0",
+     "answer_location": "T0R2C1"
+    },
+    {
+     "location": "T0R3C0",
+     "answer_location": "T0R3C1"
+    },
+    {
+     "location": "T0R4C0",
+     "answer_location": "T0R4C1"
+    },
+    {
+     "location": "T0R5C0",
+     "answer_location": "T0R5C1"
+    }
+   ]
+  },
+  {
+   "name": "word-paragraphs",
+   "blocks": [
+    {
+     "p": "Section A: Responsible investment",
+     "style": "Heading 1"
+    },
+    {
+     "p": "A.1 Describe how climate risk is considered in your investment process.",
+     "style": "Normal"
+    },
+    {
+     "p": "[Response]",
+     "style": "Normal"
+    },
+    {
+     "p": "A.2 Do you publish a TCFD-aligned report?",
+     "style": "Normal"
+    },
+    {
+     "p": "[Response]",
+     "style": "Normal"
+    },
+    {
+     "p": "Section B: Operations",
+     "style": "Heading 1"
+    },
+    {
+     "p": "B.1 How many clients does the firm serve?",
+     "style": "Normal"
+    },
+    {
+     "p": "B.2 Describe your cyber security controls.",
+     "style": "Normal"
+    },
+    {
+     "p": "Please attach your latest audited accounts.",
+     "style": "Normal"
+    }
+   ],
+   "labels": [
+    {
+     "location": "P1",
+     "answer_location": "P1"
+    },
+    {
+     "location": "P3",
+     "answer_location": "P3"
+    },
+    {
+     "location": "P6",
+     "answer_location": "P6"
+    },
+    {
+     "location": "P7",
+     "answer_location": "P7"
+    }
+   ]
+  }
+ ]
+}

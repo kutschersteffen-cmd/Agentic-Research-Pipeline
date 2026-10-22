@@ -15,9 +15,11 @@ The file is given as one line per location: `[location] text`. Locations are `<s
 For every question, return:
 - location: the location of the question text, exactly as listed;
 - question: the text at that location, copied exactly;
-- answer_location: where the answer is to be written. Usually the empty or placeholder cell next to or below the
-  question (it may be an unlisted, empty Excel cell). When a Word question is a paragraph and the answer belongs
-  after it, use the question's own `P<n>`.
+- answer_location: where the answer is to be written.
+  - A question in a cell: the empty or placeholder cell (such as `[Response]`) where the investor expects the answer,
+    usually next to or below it. In Excel it may be an empty cell that is not listed.
+  - A question in a Word paragraph: always the question's own `P<n>`, meaning "after this paragraph", even when an
+    empty or placeholder paragraph follows it (that paragraph then receives the answer).
 
 Instructions, headings, section titles and contact details are not questions."""
 

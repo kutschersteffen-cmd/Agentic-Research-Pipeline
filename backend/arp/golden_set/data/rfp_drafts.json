@@ -1,0 +1,143 @@
+{
+ "_comment": "Fictitious answer library and RFP questions for `arp rfp golden drafts` (AC-43, AC-44). An answerable question is fully answered by the library; an unanswerable one is not answered by it at all.",
+ "library": [
+  {
+   "question": "Describe your firm.",
+   "answer": "Northwind Capital Partners is an independent, employee-owned asset manager founded in 2009 and based in Edinburgh."
+  },
+  {
+   "question": "What is your total AUM?",
+   "answer": "Northwind manages GBP 8.2bn as of 30 June 2026."
+  },
+  {
+   "question": "How many investment professionals do you employ?",
+   "answer": "We employ 34 investment professionals out of 61 staff."
+  },
+  {
+   "question": "Are you a PRI signatory?",
+   "answer": "Yes. Northwind has been a signatory to the UN Principles for Responsible Investment since 2011."
+  },
+  {
+   "question": "Describe your ESG integration.",
+   "answer": "ESG factors are scored for every holding by the analyst who covers it, and the scores feed the position sizing of each portfolio."
+  },
+  {
+   "question": "Do you use derivatives?",
+   "answer": "We use currency forwards for hedging only. We do not use derivatives for leverage."
+  },
+  {
+   "question": "Describe your voting policy.",
+   "answer": "We vote at every meeting of every holding, following our published voting policy, and publish our votes quarterly."
+  },
+  {
+   "question": "Who is your custodian?",
+   "answer": "Our custodian for segregated mandates is Harbour Trust Bank."
+  },
+  {
+   "question": "How often do you report to clients?",
+   "answer": "Clients receive monthly performance reports and a quarterly investment and stewardship report."
+  },
+  {
+   "question": "What is your fee for segregated mandates?",
+   "answer": "The fee for a segregated global equity mandate is 0.45% per year on the first GBP 100m and 0.35% above that."
+  },
+  {
+   "question": "Describe your business continuity plan.",
+   "answer": "Our business continuity plan is tested twice a year, and all staff can work fully remotely from a secondary site."
+  },
+  {
+   "question": "Who owns the firm?",
+   "answer": "The firm is wholly owned by its employees; no single employee holds more than 15% of the shares."
+  }
+ ],
+ "questions": [
+  {
+   "question": "Please describe your organisation.",
+   "answerable": true
+  },
+  {
+   "question": "What are your assets under management?",
+   "answerable": true
+  },
+  {
+   "question": "How many investment staff does the firm have?",
+   "answerable": true
+  },
+  {
+   "question": "Have you signed the UN PRI?",
+   "answerable": true
+  },
+  {
+   "question": "How do you integrate ESG factors into investment decisions?",
+   "answerable": true
+  },
+  {
+   "question": "Do you use derivatives for leverage?",
+   "answerable": true
+  },
+  {
+   "question": "Please describe your proxy voting approach.",
+   "answerable": true
+  },
+  {
+   "question": "Which bank acts as custodian?",
+   "answerable": true
+  },
+  {
+   "question": "How frequently do clients receive reports?",
+   "answerable": true
+  },
+  {
+   "question": "What fees do you charge for a segregated mandate?",
+   "answerable": true
+  },
+  {
+   "question": "Do you have a business continuity plan, and how often is it tested?",
+   "answerable": true
+  },
+  {
+   "question": "Describe the ownership of the firm.",
+   "answerable": true
+  },
+  {
+   "question": "When was the firm founded?",
+   "answerable": true
+  },
+  {
+   "question": "Where is the firm headquartered?",
+   "answerable": true
+  },
+  {
+   "question": "What is the strategy's five-year annualised return?",
+   "answerable": false
+  },
+  {
+   "question": "Who are your three largest clients?",
+   "answerable": false
+  },
+  {
+   "question": "What is your staff turnover over the last three years?",
+   "answerable": false
+  },
+  {
+   "question": "Describe your private credit capabilities.",
+   "answerable": false
+  },
+  {
+   "question": "What is your policy on securities lending?",
+   "answerable": false
+  },
+  {
+   "question": "Has the firm been subject to any regulatory sanctions?",
+   "answerable": false
+  },
+  {
+   "question": "What is the minimum investment size for the pooled fund?",
+   "answerable": false
+  },
+  {
+   "question": "Which external auditor do you use?",
+   "answerable": false
+  }
+ ]
+}
