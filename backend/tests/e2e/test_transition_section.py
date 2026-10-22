@@ -1,17 +1,24 @@
 """Company page Transition section (transition-plan-alignment spec AC-51, AC-44, AC-53..AC-55; plan-delivery-checks
-spec AC-89, AC-112, AC-119, AC-121, AC-126..AC-128) against the running app.
+spec AC-89, AC-112, AC-119, AC-121, AC-126..AC-128; delivery-KPIs spec AC-187..AC-191, AC-200..AC-203) against the running app.
 
 The company, its facts and its transition check are stubbed with Playwright routing: C's and Q's
 responses as tests/db/test_transition_alignment_api.py serves them over the seeded fixtures.
 """
 
+import json
 import os
+import shutil
 from pathlib import Path
 
 import pytest
 
-from arp.config import Settings
+from arp.config import Settings, get_settings
+from arp.db.company_view import FactTrail
 from arp.schemas.transition_alignment import TransitionOut
+from arp.transition_barrier import dataset
+from arp.transition_barrier.rule_book import compute_fingerprint, load_rule_book
+from arp.transition_barrier.validation import read_and_validate
+from tests.transition_alignment_helpers import FIXTURES
 
 URL = os.environ.get("ARP_E2E_URL")
 pytestmark = [
@@ -23,6 +30,7 @@ SCREENSHOT = Path(__file__).resolve().parents[2] / "test-results" / "transition-
 SCREENSHOT_P2 = SCREENSHOT.with_name("transition-section-p2.png")
 SCREENSHOT_DC = SCREENSHOT.with_name("transition-section-dc.png")
 SCREENSHOT_FLAGS = SCREENSHOT.with_name("transition-section-flags.png")
+SCREENSHOTS = {v: SCREENSHOT.with_name(f"delivery-kpis-{v}.png") for v in ("k", "x", "c", "h-390")}
 AR = "Fixture Steel Annual Report 2025 p."
 
 
@@ -188,6 +196,7 @@ C_TRANSITION = {
         ],
         "licence_note": "Internal, non-commercial use, with citation (owner decision 2026-10-19).",
     },
+    "delivery_kpis": [], "delivery_kpis_note": "No delivery KPI for this sector.",  # AC-175
 }
 Q_TRANSITION = {"in_scope": False, "reason": "ISIC 1050 is not in a transition-barrier sector", "sector": None,
                 "benchmarks_version": 3, "rule_book_version": 7, "capex": None, **PHASE2}
@@ -198,7 +207,88 @@ C_NO_NET_ZERO = {**C_TRANSITION, "flags": [
     else f for f in C_FLAGS]}
 C_OFFSETS_CLEAR = {**C_TRANSITION, "flags_header": "Consistency: no check raises a flag", "flags": [
     {**f, "state": "clear", "text": "No flag."} if f["id"] == "offsets_emphasised" else f for f in C_FLAGS]}
-for _fixture in (C_TRANSITION, Q_TRANSITION, C_NO_PHASEOUT, C_NO_NET_ZERO, C_OFFSETS_CLEAR):  # the stubs cannot drift from the served model
+
+
+# --- delivery KPIs: K, X and H as tests/db/test_transition_alignment_api.py serves them (K, X, H facts; K1) ---------
+
+def kpi(kid, label, field, cite, value, fact_id, range_text, position, action_keys=()):
+    return {"id": kid, "label": label, "field_id": field, "cite": cite, "value": value, "year": 2025 if value is not None else None,
+            "fact_ids": [fact_id] if fact_id else [], "range_text": range_text, "position_pct": position, "action_keys": list(action_keys)}
+
+
+def no_capex(benchmark, method, rnd_tests=()):
+    return {"reporting_year": None, "share_ry": None, "share_ry1": None, "share_used": None, "share_used_shown": None, "rule": None,
+            "benchmark": {"value": benchmark, "unit": "%", "method": method, "citation": "ACT Core methodology p.62", "url": None,
+                          "licence": "ACT methodology, internal non-commercial use with citation."},
+            "ratio": None, "ratio_shown": None, "not_scored": "No reporting-year low-carbon capex share",
+            "headline": "Capex not scored: No reporting-year low-carbon capex share", "amounts": [], "rnd_tests": list(rnd_tests),
+            "redlines": [], "licence_note": "Internal, non-commercial use, with citation (owner decision 2026-10-19)."}
+
+
+def in_scope(sector, capex, kpis, **extra):
+    """An in-scope response with the served defaults filled in (no targets, phase-outs or flags)."""
+    return TransitionOut.model_validate({
+        "in_scope": True, "reason": None, "sector": sector, "benchmarks_version": 3, "rule_book_version": 7, **PHASE2,
+        "capex": capex, "delivery_kpis": kpis, **extra}).model_dump(mode="json")
+
+
+K_FACT, K1_KEY, K_DOC = 120, "action:P8:9:1", "Fixture Cement Report 2025"
+K_KPI = kpi("alt_fuel_share", "Alternative-fuel share of kiln heat", "tc_alt_fuel_share_pct", "ACT Cement v2.0, CEM 2.4a, p.50",
+            14.0, K_FACT, "0% → 30%", 46.7, [K1_KEY])
+CH = "ACT Chemicals, CH 4.3, p.77"
+X_TRANSITION = in_scope("Chemicals", no_capex(77.0, "ACT Core D01.a, oil and gas and chemicals row"), [
+    kpi("nh3_electrolytic", "Electrolytic share of ammonia", "tc_nh3_electrolytic_pct", CH, 3.0, 121, "0% → 50%", 6.0),
+    kpi("meoh_electrolytic", "Electrolytic share of methanol", "tc_meoh_electrolytic_pct", CH, None, None, "0% → 75%", None),
+    kpi("electrolysis_lc_power", "Low-carbon power share of electrolysis", "tc_electrolysis_lc_power_pct", CH, 80.0, 122,
+        "0% → 90%", 88.9)])
+H_TRANSITION = in_scope("Heavy-Duty Road Transport", no_capex(80.0, "ACT Core D01.a, automotive row"), [
+    kpi("zev_sales_share", "Zero-emission share of truck sales", "tc_zev_sales_share_pct", "IEA Net Zero Roadmap 2023, p.93", 4.0,
+        124, "0% → 37% (2030) → 65% (2035) → 100% (2050)", 4.0)])
+K_TRAIL = {"fact_id": K_FACT, "company_id": "573359bf-ad4f-459c-b47b-b6850829cbfc", "field_id": "tc_alt_fuel_share_pct",
+           "period_end": "2025-12-31", "basis": "", "versions": [{
+               "fact_id": K_FACT, "status": "approved", "value": 14, "valid_from": "2026-10-22T07:09:20Z", "valid_to": None,
+               "superseded_by": None, "load": None, "decisions": [],
+               "observation": {"id": 60, "source_kind": "extraction", "run_id": "seed", "value": 14, "value_state": "found",
+                               "unit": "%", "confidence": None, "route": "review", "created_at": "2026-10-22T07:09:19Z"},
+               "citations": [{"doc_id": "P8", "title": K_DOC, "page": 12, "role": "primary", "grounded": False,
+                              "quote": "Alternative fuels supplied 14% of kiln heat in 2025.", "char_start": None, "char_end": None,
+                              "passage_id": None, "company_id": "k", "doc_type": "transition_plan",
+                              "source_filename": "fixture-cement-report-2025.pdf", "source_url": None}]}]}
+FactTrail.model_validate(K_TRAIL)
+
+
+@pytest.fixture
+def k_transition(tmp_path, monkeypatch):
+    """K with its alt-fuel fact and K1, K1's barriers read from an F-TA copy whose STL-R1 (EU-scored) names
+    cement.alt_fuels (ruling D3; F-TA itself unchanged). Unratified, so each cell is its bundled score."""
+    f_ta = tmp_path / "f_ta"
+    shutil.copytree(FIXTURES / "f_ta", f_ta)
+    raw = json.loads((f_ta / "rule_book.json").read_text(encoding="utf-8"))
+    raw["actions"]["Steel"].append({"id": "cement.alt_fuels", "label": "Alternative and low-carbon kiln fuels"})
+    raw["criteria"]["STL-R1"]["actions"].append("cement.alt_fuels")
+    raw["fingerprint"] = compute_fingerprint(raw)
+    (f_ta / "rule_book.json").write_text(json.dumps(raw, indent=2, ensure_ascii=False), encoding="utf-8")
+    assert read_and_validate(f_ta)[2] == []
+    monkeypatch.setenv("ARP_TRANSITION_BARRIER_DATA_DIR", str(f_ta))
+    get_settings.cache_clear()
+    dataset.reset_caches()
+    scores = {(s.code, s.region.value): s for s in dataset.load_scores()}
+    barriers = [{"code": code, "region": EU, "rating": s.rating.value, "basis": s.basis, "evidence": s.evidence, "values": []}
+                for code, c in load_rule_book(f_ta)[0].criteria.items() if "cement.alt_fuels" in c.actions and (s := scores.get((code, EU)))]
+    yield in_scope("Cement", no_capex(80.0, "ACT Core D01.a, generic row", [
+        {"id": "capex_share", "label": "Low-carbon R&D as a share of total capex", "used": None, "rule": None, "benchmark": 5.0,
+         "ratio": None, "ratio_shown": None, "not_scored": "No reporting-year R&D figures", "fact_ids": []}]), [K_KPI], actions=[{
+        "key": K1_KEY, "action_id": "cement.alt_fuels",
+        "act_lever": {"wording": "Low/near-zero fuels incl. kiln electrification, waste fuels", "citation": "ACT Core methodology p.33"},
+        "text": "We will raise alternative fuels to 30% of kiln heat by 2030.", "status": "planned", "year": 2030, "region": EU,
+        "citation": "Fixture Cement Report 2025 p.9", "timeframe": "near term (2030)",
+        "b02": b02((True, "near term (2030)", [128, 129]), NO_SAVING, NO_FUNDS), "barriers": barriers, "note": None,
+        "fact_ids": [126, 127, 128, 129, 130]}])
+    get_settings.cache_clear()
+    dataset.reset_caches()
+
+
+for _fixture in (C_TRANSITION, Q_TRANSITION, C_NO_PHASEOUT, C_NO_NET_ZERO, C_OFFSETS_CLEAR, X_TRANSITION, H_TRANSITION):  # the stubs cannot drift from the served model
     TransitionOut.model_validate(_fixture)
 
 
@@ -303,3 +393,89 @@ def test_ac44_q_is_not_in_scope(page):
     section = open_company(page, "Q", company("Q", "Fixture Foods SA", "1050"), [], Q_TRANSITION)
     section.get_by_text("Not in scope: ISIC 1050 is not in a transition-barrier sector", exact=True).wait_for()
     assert section.get_by_role("button").count() == 0
+
+
+def kpi_table(section):
+    return section.get_by_role("table", name="Delivery KPIs; choose a figure to open its source")
+
+
+def cells(row):
+    return [c.inner_text().strip() for c in row.get_by_role("cell").all()]
+
+
+def marker_left(row):
+    """The marker's inline `left` and its offset as a share of the bar's width, in percent (None without a marker)."""
+    return row.get_by_role("cell").nth(3).evaluate("""td => {
+        const bar = td.querySelector('[aria-hidden="true"]'), m = bar.firstElementChild;
+        return m && [m.style.left, Math.round((m.offsetLeft / bar.clientWidth) * 1000) / 10];
+    }""")
+
+
+def shoot(page, section, variant):
+    """The Delivery KPIs part, from its heading down to the Plan actions heading."""
+    box = section.evaluate("""s => {
+        const [kpis, plan] = ["Delivery KPIs", "Plan actions"].map((t) => [...s.querySelectorAll("h3")].find((h) => h.textContent === t).getBoundingClientRect());
+        const r = s.getBoundingClientRect();
+        return {x: r.left, y: kpis.top + scrollY - 8, width: r.width, height: plan.bottom - kpis.top + 16};
+    }""")
+    path = SCREENSHOTS[variant]
+    path.parent.mkdir(exist_ok=True)
+    page.screenshot(path=str(path), full_page=True, clip=box)
+
+
+def test_ac187_ac200_ac201_ac203_k(page, k_transition):
+    section = open_company(page, "K", company("K", "Fixture Cement SA", "2394"), [], k_transition)
+    table = kpi_table(section)
+    table.wait_for()
+    headings = [h.inner_text() for h in section.get_by_role("heading", level=3).all()]
+    assert headings[headings.index("Delivery KPIs") + 1] == "Plan actions"  # AC-187: directly before Plan actions
+    assert [h.text_content() for h in table.get_by_role("columnheader").all()] == ["KPI", "Actual", "Year", "Range", "Action · barrier"]
+    (row,) = table.get_by_role("row").all()[1:]
+    label, actual, year, rng, action = cells(row)
+    assert (label, actual, year, rng.split("\n")[0], action.split("\n")[0]) == (
+        "Alternative-fuel share of kiln heat", "14%", "2025", "0% → 30%", "cement.alt_fuels")  # AC-187
+    pairs = [f"{b['region']} {b['rating']}" for b in k_transition["actions"][0]["barriers"]]
+    assert pairs and action.split("\n") == ["cement.alt_fuels", *pairs]  # AC-200
+    assert rng.split("\n")[-1] == "ACT Cement v2.0, CEM 2.4a, p.50"  # AC-201: under the bar
+    left, offset = marker_left(row)
+    assert left == "46.7%" and abs(offset - 46.7) <= 1  # AC-203
+    shoot(page, section, "k")
+
+
+def test_ac188_k_fact_opens_its_page(page, k_transition):
+    page.route(f"**/api/facts/{K_FACT}/trail", lambda r: r.fulfill(json=K_TRAIL))
+    section = open_company(page, "K", company("K", "Fixture Cement SA", "2394"), [], k_transition)
+    kpi_table(section).get_by_role("button", name="Alternative-fuel share of kiln heat: 14%").click()
+    page.get_by_role("dialog", name=f"{K_DOC} — p. 12").wait_for()
+
+
+def test_ac189_ac202_x_not_disclosed(page):
+    section = open_company(page, "X", company("X", "Fixture Chemicals NV", "2011"), [], X_TRANSITION)
+    table = kpi_table(section)
+    table.wait_for()
+    row = table.get_by_role("row").filter(has_text="Electrolytic share of methanol")
+    assert cells(row)[1:3] == ["not disclosed", "—"]  # AC-189
+    assert marker_left(row) is None  # AC-202
+    assert marker_left(table.get_by_role("row").filter(has_text="Electrolytic share of ammonia"))[0] == "6%"
+    shoot(page, section, "x")
+
+
+def test_ac190_c_no_kpi(page):
+    section = open_company(page, "C", company("C", "Fixture Steel AG", "2410"), [FACT], C_TRANSITION)
+    heading = section.get_by_role("heading", name="Delivery KPIs", exact=True)
+    heading.wait_for()
+    assert heading.evaluate("h => h.nextElementSibling.textContent") == "No delivery KPI for this sector."
+    assert kpi_table(section).count() == 0
+    shoot(page, section, "c")
+
+
+def test_ac191_h_at_390px(page):
+    page.set_viewport_size({"width": 390, "height": 844})
+    section = open_company(page, "H", company("H", "Fixture Trucks AB", "2910"), [], H_TRANSITION)
+    table = kpi_table(section)
+    table.wait_for()
+    assert page.evaluate("document.documentElement.scrollWidth") <= 390  # no horizontal page scroll
+    wrap = table.locator("xpath=..")
+    assert wrap.evaluate("w => w.scrollWidth > w.clientWidth && getComputedStyle(w).overflowX === 'auto'")  # scrolls in its box
+    wrap.evaluate("w => { w.scrollLeft = w.querySelectorAll('th')[3].offsetLeft - 8; }")  # the shot shows the wrapped range
+    shoot(page, section, "h-390")
