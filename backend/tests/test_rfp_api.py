@@ -355,3 +355,12 @@ def test_export(env, tmp_path):  # AC-38, AC-51
             if c.coordinate not in ("B2", "B3"):
                 new = ws[c.coordinate]
                 assert (new.value, new.font.b, new.fill.fgColor.rgb) == (c.value, c.font.b, c.fill.fgColor.rgb)
+
+
+def test_missing_api_key_leaves_no_project(env, monkeypatch):
+    def no_key():
+        raise RuntimeError("ARP_ANTHROPIC_API_KEY is not set.")
+
+    monkeypatch.setattr(run_scheduling, "get_llm_client", no_key)
+    r = env.as_("alice").post("/api/rfp/projects", data={"investor": "Pension Fund"}, files={"file": ("rfp_in.xlsx", fx.rfp_in_xlsx())})
+    assert r.status_code >= 400 and env.as_("alice").get("/api/rfp/projects").json() == []
