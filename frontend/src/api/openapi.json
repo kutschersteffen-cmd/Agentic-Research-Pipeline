@@ -1973,6 +1973,55 @@
     "title": "Body_add_fact_api_transition_barrier_cells__code___region__facts_post",
     "type": "object"
    },
+   "Body_create_project_api_rfp_projects_post": {
+    "properties": {
+     "due_date": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Due Date"
+     },
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     },
+     "investor": {
+      "minLength": 1,
+      "title": "Investor",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file",
+     "investor"
+    ],
+    "title": "Body_create_project_api_rfp_projects_post",
+    "type": "object"
+   },
+   "Body_import_library_api_rfp_library_import_post": {
+    "properties": {
+     "files": {
+      "items": {
+       "contentMediaType": "application/octet-stream",
+       "type": "string"
+      },
+      "title": "Files",
+      "type": "array"
+     }
+    },
+    "required": [
+     "files"
+    ],
+    "title": "Body_import_library_api_rfp_library_import_post",
+    "type": "object"
+   },
    "Body_mechanism_from_indicators_api_decision_mechanisms_from_indicators_post": {
     "properties": {
      "file": {
@@ -12728,6 +12777,508 @@
      "instruction"
     ],
     "title": "ReviseSpecRequest",
+    "type": "object"
+   },
+   "RfpAnswerIn": {
+    "properties": {
+     "answer": {
+      "title": "Answer",
+      "type": "string"
+     }
+    },
+    "required": [
+     "answer"
+    ],
+    "title": "RfpAnswerIn",
+    "type": "object"
+   },
+   "RfpApproveIn": {
+    "properties": {
+     "confirmed_flags": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Confirmed Flags",
+      "type": "array"
+     }
+    },
+    "title": "RfpApproveIn",
+    "type": "object"
+   },
+   "RfpAssigneeIn": {
+    "properties": {
+     "user_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "User Id"
+     }
+    },
+    "required": [
+     "user_id"
+    ],
+    "title": "RfpAssigneeIn",
+    "type": "object"
+   },
+   "RfpLibraryEntryEdit": {
+    "properties": {
+     "answer": {
+      "anyOf": [
+       {
+        "minLength": 1,
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Answer"
+     },
+     "owner": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Owner"
+     },
+     "review_by": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Review By"
+     },
+     "tags": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tags"
+     }
+    },
+    "title": "RfpLibraryEntryEdit",
+    "type": "object"
+   },
+   "RfpLibraryEntryOut": {
+    "properties": {
+     "answer": {
+      "title": "Answer",
+      "type": "string"
+     },
+     "approved_on": {
+      "format": "date",
+      "title": "Approved On",
+      "type": "string"
+     },
+     "has_figures": {
+      "title": "Has Figures",
+      "type": "boolean"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "owner": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Owner"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "review_by": {
+      "format": "date",
+      "title": "Review By",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "source_file": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source File"
+     },
+     "source_location": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Location"
+     },
+     "source_project_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Project Id"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "tags": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Tags",
+      "type": "array"
+     },
+     "written_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Written By"
+     }
+    },
+    "required": [
+     "id",
+     "question",
+     "answer",
+     "tags",
+     "source",
+     "source_file",
+     "source_location",
+     "source_project_id",
+     "written_by",
+     "approved_on",
+     "review_by",
+     "owner",
+     "has_figures",
+     "status"
+    ],
+    "title": "RfpLibraryEntryOut",
+    "type": "object"
+   },
+   "RfpLibraryImportOut": {
+    "properties": {
+     "dropped": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Dropped",
+      "type": "array"
+     },
+     "imported": {
+      "title": "Imported",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "imported",
+     "dropped"
+    ],
+    "title": "RfpLibraryImportOut",
+    "type": "object"
+   },
+   "RfpProjectOut": {
+    "properties": {
+     "approved_count": {
+      "title": "Approved Count",
+      "type": "integer"
+     },
+     "due_date": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Due Date"
+     },
+     "filename": {
+      "title": "Filename",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "investor": {
+      "title": "Investor",
+      "type": "string"
+     },
+     "not_located": {
+      "title": "Not Located",
+      "type": "integer"
+     },
+     "question_count": {
+      "title": "Question Count",
+      "type": "integer"
+     },
+     "questions": {
+      "items": {
+       "$ref": "#/components/schemas/RfpQuestionOut"
+      },
+      "title": "Questions",
+      "type": "array"
+     },
+     "run_status": {
+      "title": "Run Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "investor",
+     "due_date",
+     "filename",
+     "run_status",
+     "not_located",
+     "question_count",
+     "approved_count",
+     "questions"
+    ],
+    "title": "RfpProjectOut",
+    "type": "object"
+   },
+   "RfpProjectSummary": {
+    "properties": {
+     "approved_count": {
+      "title": "Approved Count",
+      "type": "integer"
+     },
+     "due_date": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Due Date"
+     },
+     "filename": {
+      "title": "Filename",
+      "type": "string"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "investor": {
+      "title": "Investor",
+      "type": "string"
+     },
+     "not_located": {
+      "title": "Not Located",
+      "type": "integer"
+     },
+     "question_count": {
+      "title": "Question Count",
+      "type": "integer"
+     },
+     "run_status": {
+      "title": "Run Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "investor",
+     "due_date",
+     "filename",
+     "run_status",
+     "not_located",
+     "question_count",
+     "approved_count"
+    ],
+    "title": "RfpProjectSummary",
+    "type": "object"
+   },
+   "RfpQuestionOut": {
+    "properties": {
+     "answer": {
+      "title": "Answer",
+      "type": "string"
+     },
+     "answer_location": {
+      "title": "Answer Location",
+      "type": "string"
+     },
+     "assignee": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assignee"
+     },
+     "flags": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Flags",
+      "type": "array"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "last_editor": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Editor"
+     },
+     "location": {
+      "title": "Location",
+      "type": "string"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "sources": {
+      "items": {
+       "$ref": "#/components/schemas/RfpSourceOut"
+      },
+      "title": "Sources",
+      "type": "array"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "location",
+     "answer_location",
+     "question",
+     "answer",
+     "status",
+     "flags",
+     "assignee",
+     "last_editor",
+     "sources"
+    ],
+    "title": "RfpQuestionOut",
+    "type": "object"
+   },
+   "RfpSourceOut": {
+    "properties": {
+     "entry_id": {
+      "title": "Entry Id",
+      "type": "integer"
+     },
+     "entry_question": {
+      "title": "Entry Question",
+      "type": "string"
+     },
+     "file": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "File"
+     },
+     "location": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Location"
+     },
+     "quote": {
+      "title": "Quote",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "written_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Written By"
+     }
+    },
+    "required": [
+     "entry_id",
+     "entry_question",
+     "quote",
+     "source",
+     "file",
+     "location",
+     "written_by"
+    ],
+    "title": "RfpSourceOut",
     "type": "object"
    },
    "RiskModelSpec": {
@@ -27353,6 +27904,593 @@
     "summary": "Get Snapshot",
     "tags": [
      "review"
+    ]
+   }
+  },
+  "/api/rfp/library": {
+   "get": {
+    "operationId": "list_library_api_rfp_library_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RfpLibraryEntryOut"
+         },
+         "title": "Response List Library Api Rfp Library Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Library",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/library/import": {
+   "post": {
+    "operationId": "import_library_api_rfp_library_import_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_import_library_api_rfp_library_import_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpLibraryImportOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Import Library",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/library/{entry_id}": {
+   "put": {
+    "operationId": "edit_library_entry_api_rfp_library__entry_id__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "entry_id",
+      "required": true,
+      "schema": {
+       "title": "Entry Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RfpLibraryEntryEdit"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpLibraryEntryOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Edit Library Entry",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/library/{entry_id}/retire": {
+   "post": {
+    "operationId": "retire_library_entry_api_rfp_library__entry_id__retire_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "entry_id",
+      "required": true,
+      "schema": {
+       "title": "Entry Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpLibraryEntryOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Retire Library Entry",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/projects": {
+   "get": {
+    "operationId": "list_projects_api_rfp_projects_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/RfpProjectSummary"
+         },
+         "title": "Response List Projects Api Rfp Projects Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Projects",
+    "tags": [
+     "rfp"
+    ]
+   },
+   "post": {
+    "description": "Stores the investor's file unchanged and starts finding and auto-filling its questions in the background.",
+    "operationId": "create_project_api_rfp_projects_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_create_project_api_rfp_projects_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpProjectOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Project",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/projects/{project_id}": {
+   "get": {
+    "operationId": "get_project_api_rfp_projects__project_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "title": "Project Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpProjectOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Project",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/projects/{project_id}/autofill": {
+   "post": {
+    "description": "Drafts every `no source` question again, e.g. after the library has grown.",
+    "operationId": "autofill_project_api_rfp_projects__project_id__autofill_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "title": "Project Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpProjectOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Autofill Project",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/projects/{project_id}/export": {
+   "get": {
+    "description": "The investor's original file with every approved answer written in. `X-RFP-Unapproved`: questions not approved.",
+    "operationId": "export_api_rfp_projects__project_id__export_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "title": "Project Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Export",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/projects/{project_id}/questions/{qid}": {
+   "put": {
+    "description": "Edits a draft or writes an answer by hand, on any status; the sources stay as they are.",
+    "operationId": "edit_answer_api_rfp_projects__project_id__questions__qid__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "title": "Project Id",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "path",
+      "name": "qid",
+      "required": true,
+      "schema": {
+       "title": "Qid",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RfpAnswerIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpProjectOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Edit Answer",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/projects/{project_id}/questions/{qid}/approve": {
+   "post": {
+    "description": "Four-eyes: the approver confirms every flag and may not be the answer's last editor. The answer becomes a new\nlibrary entry.",
+    "operationId": "approve_api_rfp_projects__project_id__questions__qid__approve_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "title": "Project Id",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "path",
+      "name": "qid",
+      "required": true,
+      "schema": {
+       "title": "Qid",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RfpApproveIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpProjectOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Approve",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/projects/{project_id}/questions/{qid}/assignee": {
+   "put": {
+    "operationId": "assign_api_rfp_projects__project_id__questions__qid__assignee_put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "title": "Project Id",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "path",
+      "name": "qid",
+      "required": true,
+      "schema": {
+       "title": "Qid",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RfpAssigneeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpProjectOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Assign",
+    "tags": [
+     "rfp"
+    ]
+   }
+  },
+  "/api/rfp/projects/{project_id}/questions/{qid}/leave-blank": {
+   "post": {
+    "operationId": "leave_blank_api_rfp_projects__project_id__questions__qid__leave_blank_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "project_id",
+      "required": true,
+      "schema": {
+       "title": "Project Id",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "path",
+      "name": "qid",
+      "required": true,
+      "schema": {
+       "title": "Qid",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RfpProjectOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Leave Blank",
+    "tags": [
+     "rfp"
     ]
    }
   },

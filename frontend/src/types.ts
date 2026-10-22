@@ -20,6 +20,11 @@ export type JobStatus = "pending" | "running" | "completed" | "partially_complet
 
 export type RunFailure = Served<S["RunFailure"]>;
 
+export type RfpLibraryEntry = Served<S["RfpLibraryEntryOut"]>;
+export type RfpProjectSummary = Served<S["RfpProjectSummary"]>;
+export type RfpProject = Served<S["RfpProjectOut"]>;
+export type RfpQuestion = Served<S["RfpQuestionOut"]>;
+
 // The run types the Review Queue endpoints exist for -- a subset of every
 // run_type, since discovery has no review queue of its own.
 export type ReviewableRunKind = "theme" | "extraction" | "financials" | "identity" | "transition_plan" | "tnfd" | "transition_barrier_derivation";
