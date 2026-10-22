@@ -257,6 +257,7 @@ def seed_defaults(pg, run_store) -> dict[str, UUID]:
     operating regions, both assumptions, T1, T0, O1 and C's two indicator facts. Returns key -> company id."""
     registry = SchemaRegistry(pg)
     install_preset("sch_transition_capex", registry)
+    install_preset("sch_transition_delivery_kpis", registry)
     install_preset("sch_green_lowcarbon", registry)
     install_preset("sch_transition_plan_actions", registry)
     install_preset("transition_plan_indicators", registry)

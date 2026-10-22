@@ -27,7 +27,7 @@ def test_ac47_existing_presets_unchanged():
         if pid == "transition_plan_indicators":  # the 10 contradiction-rule children moved up one version (spec 2026-10-21)
             fields = [{**f, "version": f["version"] + (f["field_id"] in REQUIRES_YES)} for f in fields]
         assert [_shape(f) for f in PRESETS[pid]().fields] == fields
-    assert set(PRESETS) == set(snap) | {"sch_transition_capex", "sch_transition_plan_actions"}
+    assert set(PRESETS) == set(snap) | {"sch_transition_capex", "sch_transition_plan_actions", "sch_transition_delivery_kpis"}
 
 
 def test_capex_fields_and_types():
