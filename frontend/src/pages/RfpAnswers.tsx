@@ -167,7 +167,9 @@ function ProjectView({ id, onBack }: { id: number; onBack: () => void }) {
     setError(null);
     actions.current += 1;
     try {
-      setProject(await fn());
+      const result = await fn();
+      actions.current += 1; // also drops a poll that started while this request was in flight
+      setProject(result);
     } catch (e) {
       setError((e as Error).message);
     }

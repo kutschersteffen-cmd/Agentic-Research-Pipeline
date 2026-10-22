@@ -189,8 +189,7 @@ async def autofill_project(
         if p.run_status in ("detecting", "drafting") and _run_alive(run_store, p.run_id):
             raise HTTPException(409, "This RFP is still being processed.")
         redetect = not store.questions_of(s, project_id)
-        filename = p.filename
-        data = blobs.get(p.content_key) if redetect else b""
+        filename, key = p.filename, p.content_key
 
         def create() -> str:
             run_id = JobManager(run_store).create_run("rfp", {"project_id": project_id}, 0).run_id
@@ -198,7 +197,12 @@ async def autofill_project(
             return run_id
 
         async def run(run_id, llm, _verifier) -> None:
-            if redetect:
+            if redetect:  # the original is fetched here, after the project row lock is released
+                try:
+                    data = blobs.get(key)
+                except Exception:
+                    store.set_run_status(project_id, "failed")
+                    raise
                 await store.detect_and_fill(project_id, data, _suffix(filename), llm, settings)
             else:
                 try:
