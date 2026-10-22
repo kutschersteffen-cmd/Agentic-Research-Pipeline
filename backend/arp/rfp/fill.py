@@ -27,6 +27,11 @@ class FillRefused(ValueError):
 def fill(data: bytes, suffix: str, answers: list[tuple[str, str]]) -> bytes:
     """A copy of `data` with each (answer_location, answer) written in."""
     suffix = suffix.lower()
+    seen = set()
+    for location, _ in answers:
+        if location in seen:  # every check runs before any write, so a second answer would silently replace the first
+            raise FillRefused(f"Answer location {location} is given more than once.")
+        seen.add(location)
     if suffix == ".xlsx":
         return _fill_xlsx(data, answers)
     if suffix == ".docx":
@@ -129,7 +134,8 @@ def _fill_docx(data: bytes, answers: list[tuple[str, str]]) -> bytes:
             _set_text(first, answer)
             continue
         after = paras[n + 1] if n + 1 < len(paras) else None
-        if after is not None and is_placeholder(after.text):
+        # P<n+1> only receives the answer when it directly follows P<n>, never across a table
+        if after is not None and paras[n]._p.getnext() is after._p and is_placeholder(after.text):
             _set_text(after, answer)
             continue
         new = OxmlElement("w:p")

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from pathlib import PurePath
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
@@ -14,8 +15,9 @@ from arp.api.run_scheduling import schedule_llm_run
 from arp.db import models as m
 from arp.db.session import transaction
 from arp.orchestration.job_manager import JobManager
+from arp.orchestration.jobs import RunBusy, run_lease
 from arp.rfp import store
-from arp.rfp.draft import APPROVED, EDITED, LEFT_BLANK, flags_for
+from arp.rfp.draft import APPROVED, DRAFTED, EDITED, LEFT_BLANK, flags_for
 from arp.rfp.fill import FillRefused, fill
 from arp.rfp.locations import SUFFIXES
 from arp.rfp.text import has_figures, plus_12_months
@@ -60,8 +62,8 @@ def _project(s, project_id: int) -> m.RfpProject:
     return p
 
 
-def _question(s, project_id: int, qid: int) -> m.RfpQuestion:
-    q = s.get(m.RfpQuestion, qid)
+def _question(s, project_id: int, qid: int, lock: bool = False) -> m.RfpQuestion:
+    q = s.get(m.RfpQuestion, qid, with_for_update=lock)
     if q is None or q.project_id != project_id:
         raise HTTPException(404, "Question not found")
     return q
@@ -155,27 +157,63 @@ def get_project(project_id: int) -> RfpProjectOut:
         return store.project_out(s, _project(s, project_id))
 
 
+_LEASE_GRACE = timedelta(seconds=60)  # a run is launched just after its request returns; its lease comes a moment later
+
+
+def _run_alive(run_store, run_id: str | None) -> bool:
+    """A worker holds the run's lease, or the run is too new to have taken it yet. A process restart frees the lease,
+    so a run left `detecting` or `drafting` by a restart can be started again."""
+    if not run_id:
+        return False
+    manifest = run_store.load_manifest(run_id)
+    if manifest and datetime.now(UTC) - datetime.fromisoformat(manifest.created_at) < _LEASE_GRACE:
+        return True
+    try:
+        with run_lease(run_store, run_id):
+            return False
+    except RunBusy:
+        return True
+
+
 @router.post("/projects/{project_id}/autofill", response_model=RfpProjectOut)
-async def autofill_project(project_id: int, settings=Depends(settings_dep), run_store=Depends(get_run_store)) -> RfpProjectOut:
-    """Drafts every `no source` question again, e.g. after the library has grown."""
+async def autofill_project(
+    project_id: int, settings=Depends(settings_dep), run_store=Depends(get_run_store), blobs=Depends(blob_store_dep)
+) -> RfpProjectOut:
+    """Drafts every `no source` question again, e.g. after the library has grown. A project with no questions yet
+    (its detection failed) finds them first."""
+    # One transaction with the project row locked from the check to the new run_id, so two quick clicks start one run.
     with transaction() as s:
-        if _project(s, project_id).run_status in ("detecting", "drafting"):
+        p = s.get(m.RfpProject, project_id, with_for_update=True)
+        if p is None:
+            raise HTTPException(404, "RFP project not found")
+        if p.run_status in ("detecting", "drafting") and _run_alive(run_store, p.run_id):
             raise HTTPException(409, "This RFP is still being processed.")
+        redetect = not store.questions_of(s, project_id)
+        filename, key = p.filename, p.content_key
 
-    def create() -> str:
-        store.set_run_status(project_id, "drafting")
-        return JobManager(run_store).create_run("rfp", {"project_id": project_id}, 0).run_id
+        def create() -> str:
+            run_id = JobManager(run_store).create_run("rfp", {"project_id": project_id}, 0).run_id
+            p.run_status, p.run_id = ("detecting" if redetect else "drafting"), run_id
+            return run_id
 
-    async def run(run_id, llm, _verifier) -> None:
-        try:
-            await store.autofill(project_id, llm, settings)
-            store.set_run_status(project_id, "done")
-        except Exception:
-            store.set_run_status(project_id, "failed")
-            raise
-        JobManager(run_store).finish_run(run_id)
+        async def run(run_id, llm, _verifier) -> None:
+            if redetect:  # the original is fetched here, after the project row lock is released
+                try:
+                    data = blobs.get(key)
+                except Exception:
+                    store.set_run_status(project_id, "failed")
+                    raise
+                await store.detect_and_fill(project_id, data, _suffix(filename), llm, settings)
+            else:
+                try:
+                    await store.autofill(project_id, llm, settings)
+                    store.set_run_status(project_id, "done")
+                except Exception:
+                    store.set_run_status(project_id, "failed")
+                    raise
+            JobManager(run_store).finish_run(run_id)
 
-    schedule_llm_run(create_fn=create, run=run)
+        schedule_llm_run(create_fn=create, run=run)
     return get_project(project_id)
 
 
@@ -210,7 +248,9 @@ def approve(project_id: int, qid: int, body: RfpApproveIn, user: Principal = Dep
     """Four-eyes: the approver confirms every flag and may not be the answer's last editor. The answer becomes a new
     library entry."""
     with transaction() as s:
-        q = _question(s, project_id, qid)
+        q = _question(s, project_id, qid, lock=True)  # two approvers at once: the second waits, then sees `approved`
+        if q.status not in (DRAFTED, EDITED):
+            raise HTTPException(409, f"Only a drafted or edited answer can be approved; this one is {q.status}.")
         if not q.answer.strip():
             raise HTTPException(409, "An empty answer cannot be approved.")
         missing = [f for f in q.flags if f not in body.confirmed_flags]
@@ -242,6 +282,8 @@ def export(project_id: int, blobs=Depends(blob_store_dep)) -> Response:
         data = fill(blobs.get(key), suffix, answers)
     except FillRefused as exc:
         raise HTTPException(409, str(exc)) from None
+    fallback = filename.encode("ascii", "replace").decode().replace("?", "_").replace('"', "")  # headers are latin-1
     return Response(data, media_type=_MEDIA[suffix], headers={
-        "Content-Disposition": f'attachment; filename="{filename.replace(chr(34), "")}"', "X-RFP-Unapproved": str(unapproved),
+        "Content-Disposition": f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename)}",
+        "X-RFP-Unapproved": str(unapproved),
     })

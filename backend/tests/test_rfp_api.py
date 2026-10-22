@@ -364,3 +364,106 @@ def test_missing_api_key_leaves_no_project(env, monkeypatch):
     monkeypatch.setattr(run_scheduling, "get_llm_client", no_key)
     r = env.as_("alice").post("/api/rfp/projects", data={"investor": "Pension Fund"}, files={"file": ("rfp_in.xlsx", fx.rfp_in_xlsx())})
     assert r.status_code >= 400 and env.as_("alice").get("/api/rfp/projects").json() == []
+
+
+# --- review fixes (PR #214 review items 1, 2, 4, 5, 6, 8) -------------------------------------------
+
+
+@pytest.mark.parametrize(("make", "reported"), [
+    (fx.rfp_para_docx, ("P1", "Describe your firm.", "P2")),  # a paragraph question's answer goes after itself only
+    (fx.rfp_table_docx, ("T0R1C0", "What is your total AUM?", "P1")),  # a cell question never answers after a paragraph
+])
+def test_detection_paragraph_answer_must_be_own_paragraph(make, reported):
+    from arp.rfp.detect import detect_questions
+    from arp.rfp.locations import Layout
+
+    found, not_located = asyncio.run(detect_questions(Layout(make(), ".docx"), Standin(questions=[reported])))
+    assert found == [] and not_located == 1
+
+
+def test_detection_one_question_per_answer_location(env):
+    project = _project(env, questions=[*QUESTIONS, ("RFP!A6", "Contact: rfp@investor.example", "RFP!B2")])
+    assert [q["location"] for q in project["questions"]] == ["RFP!A2", "RFP!A3", "RFP!A4"] and project["not_located"] == 1
+
+
+def test_approve_twice_adds_one_entry(env):
+    project, a4 = _a4_written_by(env, "alice")
+    assert env.as_("bob").post(_url(project, a4, "/approve"), json={"confirmed_flags": []}).status_code == 200
+    assert env.as_("carol").post(_url(project, a4, "/approve"), json={"confirmed_flags": []}).status_code == 409
+    assert len(_entries()) == 1
+
+
+def test_left_blank_with_text_cannot_be_approved(env):
+    project, a4 = _a4_written_by(env, "alice")
+    env.as_("alice").post(_url(project, a4, "/leave-blank"))
+    assert env.as_("bob").post(_url(project, a4, "/approve"), json={"confirmed_flags": []}).status_code == 409
+    assert _entries() == []
+
+
+def _set_project(project_id, **values):
+    from sqlalchemy import update
+
+    with transaction() as s:
+        s.execute(update(m.RfpProject).where(m.RfpProject.id == project_id).values(**values))
+
+
+def test_autofill_after_a_restart_left_the_run_drafting(env, pg, tmp_path):
+    from arp.db.runs import RunStore
+    from arp.orchestration.jobs import run_lease
+
+    project = _project(env)
+    _set_project(project["id"], run_status="drafting", run_id="rfp_stale")
+    with run_lease(RunStore(pg, tmp_path / "runs"), "rfp_stale"):  # a live worker: still busy
+        assert env.as_("alice").post(f"/api/rfp/projects/{project['id']}/autofill").status_code == 409
+    assert env.as_("alice").post(f"/api/rfp/projects/{project['id']}/autofill").status_code == 200  # no worker: retried
+    env.run_jobs()
+    assert env.as_("alice").get(f"/api/rfp/projects/{project['id']}").json()["run_status"] == "done"
+
+
+def test_autofill_retries_failed_detection(env):
+    env.llm = Standin(questions=[("RFP!A2", A2, "RFP!B2")])
+
+    async def fail(*_a, **_k):
+        raise RuntimeError("model down")
+
+    env.llm.complete_structured = fail
+    r = env.as_("alice").post("/api/rfp/projects", data={"investor": "Pension Fund"}, files={"file": ("rfp_in.xlsx", fx.rfp_in_xlsx())})
+    pid = r.json()["id"]
+    with pytest.raises(RuntimeError):
+        env.run_jobs()
+    assert env.as_("alice").get(f"/api/rfp/projects/{pid}").json()["run_status"] == "failed"
+    env.llm = Standin()
+    assert env.as_("alice").post(f"/api/rfp/projects/{pid}/autofill").status_code == 200
+    env.run_jobs()
+    got = env.as_("alice").get(f"/api/rfp/projects/{pid}").json()
+    assert got["run_status"] == "done" and [q["location"] for q in got["questions"]] == ["RFP!A2", "RFP!A3", "RFP!A4"]
+
+
+def test_export_non_latin1_filename(env):
+    env.llm = Standin()
+    r = env.as_("alice").post("/api/rfp/projects", data={"investor": "Pension Fund"},
+                              files={"file": ("RFP – Q3 €.xlsx", fx.rfp_in_xlsx())})
+    env.run_jobs()
+    r = env.as_("vic").get(f"/api/rfp/projects/{r.json()['id']}/export")
+    assert r.status_code == 200
+    assert r.headers["Content-Disposition"] == (
+        "attachment; filename=\"RFP _ Q3 _.xlsx\"; filename*=UTF-8''RFP%20%E2%80%93%20Q3%20%E2%82%AC.xlsx")
+
+
+def test_two_quick_autofills_start_one_run(env):  # PR #215 review item B2
+    env.llm = Standin()
+
+    async def fail(*_a, **_k):
+        raise RuntimeError("model down")
+
+    env.llm.complete_structured = fail
+    pid = env.as_("alice").post("/api/rfp/projects", data={"investor": "Pension Fund"},
+                                files={"file": ("rfp_in.xlsx", fx.rfp_in_xlsx())}).json()["id"]
+    with pytest.raises(RuntimeError):
+        env.run_jobs()
+    env.llm = Standin()
+    assert env.as_("alice").post(f"/api/rfp/projects/{pid}/autofill").status_code == 200
+    # the first run is launched but has not taken its lease yet
+    assert env.as_("alice").post(f"/api/rfp/projects/{pid}/autofill").status_code == 409
+    env.run_jobs()
+    assert len(env.as_("alice").get(f"/api/rfp/projects/{pid}").json()["questions"]) == 3

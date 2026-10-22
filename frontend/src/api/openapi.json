@@ -28176,7 +28176,7 @@
   },
   "/api/rfp/projects/{project_id}/autofill": {
    "post": {
-    "description": "Drafts every `no source` question again, e.g. after the library has grown.",
+    "description": "Drafts every `no source` question again, e.g. after the library has grown. A project with no questions yet\n(its detection failed) finds them first.",
     "operationId": "autofill_project_api_rfp_projects__project_id__autofill_post",
     "parameters": [
      {
