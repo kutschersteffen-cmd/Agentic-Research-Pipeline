@@ -3,6 +3,7 @@ so a refusal never leaves a half-filled file."""
 
 from __future__ import annotations
 
+import contextlib
 import io
 import posixpath
 import re
@@ -137,10 +138,8 @@ def _fill_docx(data: bytes, answers: list[tuple[str, str]]) -> bytes:
         if after is not None:
             para.style = after.style
         else:
-            try:
+            with contextlib.suppress(KeyError):  # no style called Normal: the default paragraph style applies
                 para.style = doc.styles["Normal"]
-            except KeyError:
-                pass  # no style called Normal: the document's default paragraph style applies
         para.add_run(answer)
     out = io.BytesIO()
     doc.save(out)

@@ -1,13 +1,40 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from pathlib import Path
 
 import typer
 
+from arp.config import get_settings
+from arp.llm.factory import build_llm_client
 from arp.rfp.fill import FillRefused, fill
+from arp.rfp.locations import SUFFIXES
 
 rfp_app = typer.Typer(help="RFP answers: the answer library, filling an investor's file, golden checks.")
+library_app = typer.Typer(help="The answer library of approved question-and-answer pairs.")
+rfp_app.add_typer(library_app, name="library")
+
+
+def _llm():
+    return build_llm_client(get_settings())
+
+
+@library_app.command("import")
+def library_import(
+    files: list[Path] = typer.Argument(..., exists=True, dir_okay=False, help="Past RFP responses (.docx, .xlsx)."),
+) -> None:
+    """Load the question-and-answer pairs of past RFP responses into the library, answers verbatim."""
+    from arp.rfp.store import import_library
+
+    bad = [f for f in files if f.suffix.lower() not in SUFFIXES]
+    if bad:
+        typer.echo(f"{bad[0]} is not a .docx or .xlsx file.", err=True)
+        raise typer.Exit(1)
+    imported, dropped = asyncio.run(import_library([(f.name, f.read_bytes()) for f in files], _llm()))
+    typer.echo(f"imported {imported} entries, dropped {len(dropped)}")
+    for question in dropped:
+        typer.echo(f"dropped: {question}")
 
 
 @rfp_app.command("fill")
