@@ -1046,6 +1046,86 @@
     "title": "ApproveSpecRequest",
     "type": "object"
    },
+   "AskResponse": {
+    "properties": {
+     "answer_text": {
+      "title": "Answer Text",
+      "type": "string"
+     },
+     "answered_at": {
+      "title": "Answered At",
+      "type": "string"
+     },
+     "benchmark_sectors": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BenchmarkCard"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "portfolio": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/QAAnswer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "smart_search": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SearchAnswer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "standalone_question": {
+      "title": "Standalone Question",
+      "type": "string"
+     },
+     "tool": {
+      "enum": [
+       "portfolio",
+       "smart_search",
+       "transition_plan",
+       "benchmark_sectors",
+       "none"
+      ],
+      "title": "Tool",
+      "type": "string"
+     },
+     "transition_plan": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TransitionPlanCard"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "tool",
+     "question",
+     "standalone_question",
+     "answer_text",
+     "answered_at"
+    ],
+    "title": "AskResponse",
+    "type": "object"
+   },
    "AssumptionOut": {
     "properties": {
      "citation": {
@@ -1719,6 +1799,93 @@
      }
     },
     "title": "BaseWeighting",
+    "type": "object"
+   },
+   "BenchmarkCard": {
+    "properties": {
+     "benchmark_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Benchmark Id"
+     },
+     "check": {
+      "$ref": "#/components/schemas/BenchmarkCheck"
+     },
+     "is_sample": {
+      "title": "Is Sample",
+      "type": "boolean"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "sectors": {
+      "items": {
+       "$ref": "#/components/schemas/SectorWeight"
+      },
+      "title": "Sectors",
+      "type": "array"
+     }
+    },
+    "required": [
+     "benchmark_id",
+     "name",
+     "is_sample",
+     "check",
+     "sectors"
+    ],
+    "title": "BenchmarkCard",
+    "type": "object"
+   },
+   "BenchmarkCheck": {
+    "properties": {
+     "as_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of"
+     },
+     "constituents": {
+      "title": "Constituents",
+      "type": "integer"
+     },
+     "dropped": {
+      "title": "Dropped",
+      "type": "integer"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "total_pct": {
+      "title": "Total Pct",
+      "type": "number"
+     },
+     "unclassified_pct": {
+      "title": "Unclassified Pct",
+      "type": "number"
+     }
+    },
+    "required": [
+     "source",
+     "as_of",
+     "constituents",
+     "dropped",
+     "unclassified_pct",
+     "total_pct"
+    ],
+    "title": "BenchmarkCheck",
     "type": "object"
    },
    "BenchmarkOut": {
@@ -8312,6 +8479,39 @@
     "title": "HistogramBin",
     "type": "object"
    },
+   "HistoryTurn": {
+    "additionalProperties": false,
+    "properties": {
+     "question": {
+      "maxLength": 1000,
+      "title": "Question",
+      "type": "string"
+     },
+     "standalone_question": {
+      "maxLength": 1000,
+      "title": "Standalone Question",
+      "type": "string"
+     },
+     "tool": {
+      "enum": [
+       "portfolio",
+       "smart_search",
+       "transition_plan",
+       "benchmark_sectors",
+       "none"
+      ],
+      "title": "Tool",
+      "type": "string"
+     }
+    },
+    "required": [
+     "question",
+     "tool",
+     "standalone_question"
+    ],
+    "title": "HistoryTurn",
+    "type": "object"
+   },
    "HolderConfig": {
     "description": "One index or portfolio whose holdings are taken in.",
     "properties": {
@@ -10440,6 +10640,33 @@
      "created_at"
     ],
     "title": "ObservationOut",
+    "type": "object"
+   },
+   "OlderRun": {
+    "properties": {
+     "run_date": {
+      "title": "Run Date",
+      "type": "string"
+     },
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     },
+     "run_type": {
+      "enum": [
+       "transition_plan",
+       "extraction"
+      ],
+      "title": "Run Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "run_id",
+     "run_type",
+     "run_date"
+    ],
+    "title": "OlderRun",
     "type": "object"
    },
    "OpenFromTriggerRequest": {
@@ -14492,6 +14719,24 @@
     "title": "SectorBenchmarksOut",
     "type": "object"
    },
+   "SectorWeight": {
+    "properties": {
+     "sector": {
+      "title": "Sector",
+      "type": "string"
+     },
+     "weight_pct": {
+      "title": "Weight Pct",
+      "type": "number"
+     }
+    },
+    "required": [
+     "sector",
+     "weight_pct"
+    ],
+    "title": "SectorWeight",
+    "type": "object"
+   },
    "SelectAll": {
     "description": "No selection step: everything that survives the screens is in. This\nis what an exclusion-only index (MSCI ESG Screened, STOXX ESG-X) uses.",
     "properties": {
@@ -16827,6 +17072,129 @@
     "title": "TransitionOut",
     "type": "object"
    },
+   "TransitionPlanCard": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "figures": {
+      "$ref": "#/components/schemas/TransitionPlanFigures"
+     },
+     "older_runs": {
+      "items": {
+       "$ref": "#/components/schemas/OlderRun"
+      },
+      "title": "Older Runs",
+      "type": "array"
+     },
+     "open_review_items": {
+      "title": "Open Review Items",
+      "type": "integer"
+     },
+     "run_date": {
+      "title": "Run Date",
+      "type": "string"
+     },
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     },
+     "run_type": {
+      "enum": [
+       "transition_plan",
+       "extraction"
+      ],
+      "title": "Run Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company",
+     "company_id",
+     "run_id",
+     "run_type",
+     "run_date",
+     "figures",
+     "open_review_items",
+     "older_runs"
+    ],
+    "title": "TransitionPlanCard",
+    "type": "object"
+   },
+   "TransitionPlanFigures": {
+    "description": "The run row's figures as extracted; None where the row has none (a run with no walk indicators has no walk share).",
+    "properties": {
+     "assessment_confidence_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assessment Confidence Pct"
+     },
+     "indicators_disclosed_count": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Indicators Disclosed Count"
+     },
+     "talk_disclosed_count": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Talk Disclosed Count"
+     },
+     "walk_disclosed_count": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Walk Disclosed Count"
+     },
+     "walk_share_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Walk Share Pct"
+     }
+    },
+    "required": [
+     "indicators_disclosed_count",
+     "walk_disclosed_count",
+     "talk_disclosed_count",
+     "walk_share_pct",
+     "assessment_confidence_pct"
+    ],
+    "title": "TransitionPlanFigures",
+    "type": "object"
+   },
    "TransitionPlanIndicator": {
     "description": "One of the 64 assessment indicators from Colesanti Senni, Schimanski,\nBingler, Ni & Leippold (2024), 'Using AI to assess corporate climate\ntransition disclosures' -- static reference data, not a per-run record.\nSee arp/transition_plan/indicators.py for the loader.",
     "properties": {
@@ -18019,6 +18387,29 @@
     "title": "RunRequest",
     "type": "object"
    },
+   "arp__ask__AskRequest": {
+    "properties": {
+     "history": {
+      "items": {
+       "$ref": "#/components/schemas/HistoryTurn"
+      },
+      "maxItems": 5,
+      "title": "History",
+      "type": "array"
+     },
+     "question": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Question",
+      "type": "string"
+     }
+    },
+    "required": [
+     "question"
+    ],
+    "title": "AskRequest",
+    "type": "object"
+   },
    "arp__bi__plan__ChartSpec": {
     "properties": {
      "dataset": {
@@ -18163,6 +18554,47 @@
  },
  "openapi": "3.1.0",
  "paths": {
+  "/api/ask": {
+   "post": {
+    "operationId": "post_ask_api_ask_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/arp__ask__AskRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AskResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Ask",
+    "tags": [
+     "ask"
+    ]
+   }
+  },
   "/api/bi/ask": {
    "post": {
     "operationId": "ask_api_bi_ask_post",

@@ -9,6 +9,9 @@ import { WORKSPACES, workspaceOfProcess, type WorkspaceId } from "./lib/processe
 import { STAGE_TABS } from "./pages/steward/common";
 import { SUB_TABS as RISK_TABS } from "./lib/subTabs";
 import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
+import { AskPanel } from "./components/AskPanel";
+import { clearTurns, loadTurns, saveTurns, type AskTurn } from "./lib/askHistory";
+import { useMe } from "./lib/reviewer";
 import { ThemeSwitch } from "./components/ThemeSwitch";
 import { NAV_ICONS } from "./components/NavIcons";
 import type { ReviewableRunKind, RunManifest, UniverseHandoff } from "./types";
@@ -233,16 +236,33 @@ function App() {
       : null;
 
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const me = useMe();
+  const canAsk = me != null && me.role !== "viewer";
+  const [askOpen, setAskOpen] = useState(false);
+  const [askTurns, setAskTurns] = useState<AskTurn[]>(() => loadTurns());
+  const askSideRef = useRef<HTMLButtonElement>(null);
+  const askTopRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => saveTurns(askTurns), [askTurns]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen(true);
       }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j" && canAsk) {
+        e.preventDefault();
+        setAskOpen(true);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [canAsk]);
+  function closeAsk() {
+    setAskOpen(false);
+    // The sidebar is a closed drawer at 1024px and below, so focus goes to the top-bar button there.
+    const narrow = window.matchMedia("(max-width: 1024px)").matches;
+    (narrow ? askTopRef : askSideRef).current?.focus();
+  }
 
   // Below 1024px the sidebar is an off-canvas drawer; on desktop navOpen is
   // ignored by the CSS.
@@ -311,6 +331,11 @@ function App() {
         </button>
         <ArpMark />
         <span className="app-topbar-title">{TABS.find((t) => t.id === active)!.label}</span>
+        {canAsk && (
+          <button ref={askTopRef} className="app-topbar-ask" aria-expanded={askOpen} onClick={() => setAskOpen(true)}>
+            Ask
+          </button>
+        )}
       </header>
       <div className="nav-scrim" onClick={() => setNavOpen(false)} />
       <aside className="app-sidebar" id="app-sidebar" ref={navRef}>
@@ -326,6 +351,12 @@ function App() {
           Jump to…
           <kbd>{/Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘K" : "Ctrl K"}</kbd>
         </button>
+        {canAsk && (
+          <button ref={askSideRef} className="palette-trigger" aria-expanded={askOpen} onClick={() => { setNavOpen(false); setAskOpen(true); }}>
+            Ask ARP
+            <kbd>{/Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘J" : "Ctrl J"}</kbd>
+          </button>
+        )}
         <ThemeSwitch />
         <nav className="app-nav">
           {NAV_GROUPS.map((group, i) => {
@@ -369,6 +400,9 @@ function App() {
           })}
         </nav>
       </aside>
+      {askOpen && canAsk && (
+        <AskPanel turns={askTurns} setTurns={setAskTurns} onClose={closeAsk} onClear={() => { clearTurns(); setAskTurns([]); }} />
+      )}
       {paletteOpen && <CommandPalette items={[...PALETTE_ITEMS, ...recentRuns.map(runItem)]} onClose={() => setPaletteOpen(false)} />}
       <main className="app-main" id="main" tabIndex={-1}>
         <ProcessBar tab={active} sub={route.params[0]} />
