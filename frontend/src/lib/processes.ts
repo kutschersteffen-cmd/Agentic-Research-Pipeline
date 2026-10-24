@@ -189,6 +189,7 @@ export const WORKSPACES: Workspace[] = [
       ["#/theme", "Thematic Universe"],
       ["#/strategyReplication", "Strategy Replication"],
       ["#/signals", "Signals workbench"],
+      ["#/valueChain", "Value Chain Explorer"],
       ["#/decision", "Decision Studio"],
       ["#/index", "Index Construction"],
     ],

@@ -34,6 +34,7 @@ const PortfolioRiskMonitoringTool = lazy(() => import("./pages/PortfolioRiskMoni
 const ReportBuilder = lazy(() => import("./pages/ReportBuilder").then((x) => ({ default: x.ReportBuilder })));
 const StrategyReplication = lazy(() => import("./pages/StrategyReplication").then((x) => ({ default: x.StrategyReplication })));
 const SignalsWorkbench = lazy(() => import("./pages/SignalsWorkbench").then((x) => ({ default: x.SignalsWorkbench })));
+const ValueChainExplorer = lazy(() => import("./pages/value-chain/ValueChainExplorer").then((x) => ({ default: x.ValueChainExplorer })));
 const Search = lazy(() => import("./pages/Search").then((x) => ({ default: x.Search })));
 const SecurityMaster = lazy(() => import("./pages/SecurityMaster").then((x) => ({ default: x.SecurityMaster })));
 const Feeds = lazy(() => import("./pages/Feeds").then((x) => ({ default: x.Feeds })));
@@ -83,6 +84,7 @@ const TABS = [
   { id: "reporting", label: "Presentations & Reports" },
   { id: "strategyReplication", label: "Strategy Replication" },
   { id: "signals", label: "Signals workbench" },
+  { id: "valueChain", label: "Value Chain Explorer" },
   { id: "decision", label: "Decision Studio" },
   { id: "index", label: "Index Construction" },
   { id: "xbrl", label: "XBRL Facts" },
@@ -120,7 +122,7 @@ const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boo
   { label: "Output", ids: ["reporting", "library", "history"] },
   {
     label: "All screens",
-    ids: ["feeds", "issues", "smartSearch", "outputs", "securityMaster", "stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "emergingThemes", "taxonomy", "theme", "strategyReplication", "signals", "decision", "index", "xbrl", "identity", "rfp", "arcade"],
+    ids: ["feeds", "issues", "smartSearch", "outputs", "securityMaster", "stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "emergingThemes", "taxonomy", "theme", "strategyReplication", "signals", "valueChain", "decision", "index", "xbrl", "identity", "rfp", "arcade"],
     collapsed: true,
   },
 ];
@@ -415,6 +417,7 @@ function App() {
         {active === "reporting" && <ReportBuilder />}
         {active === "strategyReplication" && <StrategyReplication />}
         {active === "signals" && <SignalsWorkbench />}
+        {active === "valueChain" && <ValueChainExplorer key={route.params.join("/")} params={route.params} />}
         {active === "decision" && <DecisionStudio key={route.params.join("/")} initialSource={route.params[0]} initialRunId={route.params[1]} />}
         {active === "index" && <IndexBuilder />}
         {active === "argusUniverse" && <ArgusUniverse onSendUniverse={sendUniverse("Argus Universe")} />}
