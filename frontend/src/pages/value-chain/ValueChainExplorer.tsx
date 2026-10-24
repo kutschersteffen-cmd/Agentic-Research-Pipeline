@@ -22,6 +22,7 @@ function Picker({ onError }: { onError: (message: string | null) => void }) {
   useEffect(() => {
     if (!searchable(q)) {
       setHits(null);
+      onError(null);
       return;
     }
     let live = true;
