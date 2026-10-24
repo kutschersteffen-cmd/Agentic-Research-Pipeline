@@ -6,21 +6,38 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from datetime import date
 from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 
 from fastapi import Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal
 from arp.api.deps import settings_dep
 from arp.config import Settings
-from arp.schemas.common import CompanyRef, now_iso
+from arp.schemas.common import CompanyRef, DocType, now_iso
 from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.locks import KeyedLock
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 
 logger = logging.getLogger(__name__)
+
+
+class FlowFile(BaseModel):
+    """A file gathered in step 2. Only uploads are stored on the flow; filings and web files are read from its discovery run."""
+
+    key: str  # <company_id>/<doc_type>/<file name> for a file under documents_dir, else the source URL
+    company_id: str
+    doc_type: DocType
+    file_name: str
+    source: Literal["upload", "filing", "web"]
+    on_disk: bool
+    url: str | None = None
+    year: int | None = None
+    company_match: str | None = None  # doc_check's value; None = an official filing, fetched by the company's own id
+    duplicate_of: str | None = None
 
 
 class ArgusFlow(BaseModel):
@@ -32,6 +49,11 @@ class ArgusFlow(BaseModel):
     step: int = 1  # the furthest step reached, 1..5
     companies: list[CompanyRef] = []
     identity_run_id: str | None = None
+    reporting_year: int = Field(default_factory=lambda: date.today().year - 1)
+    doc_source: Literal["upload", "import", "filings", "web"] | None = None
+    uploads: list[FlowFile] = []
+    discovery_run_id: str | None = None
+    decisions: dict[str, Literal["kept", "removed"]] = {}
 
 
 class FlowStore:

@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal, current_user, require_role
 from arp.api.deps import get_document_content_store, get_identifier_map, get_run_store, settings_dep
 from arp.api.routers.universe_workbench import MAX_COMPANIES
 from arp.argus.companies import add_companies, parse_rows, register
+from arp.argus.documents import FlowFileView, file_views
 from arp.argus.flows import ArgusFlow, FlowStore, get_flow_store
 from arp.argus.rows import FlowRow, flow_rows
 from arp.config import Settings
@@ -23,6 +25,7 @@ router = APIRouter(prefix="/api/argus", tags=["argus"])
 
 class ArgusFlowView(ArgusFlow):
     rows: list[FlowRow] = []
+    files: list[FlowFileView] = []
 
 
 class FlowList(BaseModel):
@@ -31,6 +34,10 @@ class FlowList(BaseModel):
 
 class FlowPatch(BaseModel):
     identity_run_id: str | None = None
+    step: int | None = Field(None, ge=1, le=5)
+    reporting_year: int | None = Field(None, ge=1990, le=2100)
+    doc_source: Literal["upload", "import", "filings", "web"] | None = None
+    decisions: dict[str, Literal["kept", "removed"]] | None = None
 
 
 class CompanyInput(BaseModel):
@@ -56,6 +63,9 @@ class Viewer:
     ) -> None:
         self.settings, self.run_store, self.content_store, self.idmap, self.principal = settings, run_store, content_store, idmap, principal
 
+    def files(self, flow: ArgusFlow) -> list[FlowFileView]:
+        return file_views(flow, [])
+
     def __call__(self, flow: ArgusFlow | None) -> ArgusFlowView:
         if flow is None:
             raise HTTPException(404, "Extraction not found")
@@ -63,7 +73,7 @@ class Viewer:
             rows = flow_rows(flow, session=session, run_store=self.run_store, content_store=self.content_store,
                              xbrl_store=XbrlStore(self.settings.xbrl_dir), idmap=self.idmap, principal=self.principal,
                              documents_dir=self.settings.documents_dir)
-        return ArgusFlowView(**flow.model_dump(), rows=rows)
+        return ArgusFlowView(**flow.model_dump(), rows=rows, files=self.files(flow))
 
 
 @router.post("/flows")
@@ -86,7 +96,19 @@ def get_flow(flow_id: str, store: FlowStore = Depends(get_flow_store), view: Vie
 @router.patch("/flows/{flow_id}", dependencies=[Depends(require_role("analyst"))])
 def patch_flow(flow_id: str, req: FlowPatch, store: FlowStore = Depends(get_flow_store), view: Viewer = Depends()) -> ArgusFlowView:
     changes = req.model_dump(exclude_unset=True)
-    return view(store.update(flow_id, lambda f: [setattr(f, k, v) for k, v in changes.items()]))
+
+    def apply(f: ArgusFlow) -> None:
+        if (decisions := changes.pop("decisions", None)) is not None:
+            keys = {x.key for x in view.files(f) if not x.duplicate_of}
+            if not set(decisions) <= keys:
+                raise HTTPException(400, "Unknown file")
+            f.decisions.update(decisions)
+        if (step := changes.pop("step", None)) is not None:
+            f.step = max(f.step, step)
+        for k, v in changes.items():
+            setattr(f, k, v)
+
+    return view(store.update(flow_id, apply))
 
 
 def _add(flow_id: str, rows: list[dict], store: FlowStore, settings: Settings, view: Viewer) -> ArgusFlowView:
