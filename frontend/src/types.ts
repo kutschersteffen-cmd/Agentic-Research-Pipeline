@@ -23,6 +23,7 @@ export type ArgusFlow = Served<S["ArgusFlowView"]>;
 export type ArgusDraft = Served<S["ArgusFlow"]>; // as GET /api/argus/flows lists it, without rows
 export type FlowRow = Served<S["FlowRow"]>;
 export type PriorRun = Served<S["PriorRun"]>;
+export type FlowFile = Served<S["FlowFileView"]>;
 
 export type RfpLibraryEntry = Served<S["RfpLibraryEntryOut"]>;
 export type RfpProjectSummary = Served<S["RfpProjectSummary"]>;

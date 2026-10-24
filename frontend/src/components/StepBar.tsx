@@ -1,8 +1,8 @@
 import { flowHref } from "../lib/argusFlow";
 import { STEPS } from "../lib/argusStart";
 
-// shortcut: steps 2 to 5 are not built yet (slices 3 to 5), so they are never links.
-const BUILT = 1;
+// shortcut: steps 3 to 5 are not built yet (slices 4 and 5), so they are never links.
+const BUILT = 2;
 
 /** The one step bar of an Argus flow: finished steps show ✓ and go back with their data unchanged. */
 export function StepBar({ flowId, current, reached }: { flowId: string; current: number; reached: number }) {

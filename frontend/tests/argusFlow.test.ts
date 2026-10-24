@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { continueLabel, documentsText, extractedBeforeText, flowHref, identifierList } from "../src/lib/argusFlow.ts";
+import { continueLabel, documentsText, extractedBeforeText, filePath, filesLabel, flowHref, identifierList, keepPassing, removeAll } from "../src/lib/argusFlow.ts";
 import { argusRows } from "../src/lib/argusStart.ts";
-import type { ArgusFlow, FlowRow, RunManifest } from "../src/types.ts";
+import type { ArgusFlow, FlowFile, FlowRow, RunManifest } from "../src/types.ts";
 
 const flow = (f: Partial<ArgusFlow>): ArgusFlow =>
   ({ flow_id: "f", created_at: "2026-10-05", updated_at: "2026-10-05", started_by: "alice", started_by_name: "Alice", step: 1, companies: [],
@@ -36,4 +36,30 @@ test("a draft lists as Draft at its step, newest first, opening the flow", () =>
     ["f1", "New extraction", 2, "Draft", 1, "Alice", "#/argus/f1/1"],
     ["r1", "Extraction", 3, "Running", 4, "bob", "#/extraction/extract"],
   ]);
+});
+
+const file = (key: string, company_id: string, state: FlowFile["state"], f: Partial<FlowFile> = {}): FlowFile =>
+  ({ key, company_id, doc_type: "10-K", file_name: key, source: "upload", on_disk: true, url: null, year: 2025, company_match: "name",
+    duplicate_of: null, check: "✓ name, year", passed: true, state, ...f }) as FlowFile;
+const fail = (key: string) => file(key, "c", null, { passed: false, check: "Year unclear" });
+const dup = (key: string) => file(key, "c", null, { passed: false, duplicate_of: "a.pdf", check: "Duplicate of a.pdf, skipped" });
+
+test("continue counts kept files and their companies", () => {
+  const fs = [file("a", "apple", "kept"), file("b", "apple", "kept"), file("c", "msft", null), file("d", "sap", "removed")];
+  assert.equal(filesLabel(fs), "Continue with 2 files for 1 company");
+  assert.equal(filesLabel([file("a", "apple", "kept"), file("b", "msft", "kept"), file("c", "sap", "kept")]), "Continue with 3 files for 3 companies");
+  assert.equal(filesLabel([file("a", "apple", "kept")]), "Continue with 1 file for 1 company");
+});
+
+test("keep all that pass leaves failing and duplicate files alone", () => {
+  assert.deepEqual(keepPassing([file("a", "c", "removed"), fail("b"), dup("c")]), { a: "kept" });
+});
+
+test("remove all covers everything but duplicates", () => {
+  assert.deepEqual(removeAll([file("a", "c", "kept"), fail("b"), dup("c")]), { a: "removed", b: "removed" });
+});
+
+test("only files in the app's folder have a path to open", () => {
+  assert.deepEqual(filePath(file("apple/10-K/a b.pdf", "apple", "kept")), ["apple", "10-K", "a b.pdf"]);
+  assert.equal(filePath(file("https://sec.gov/x.htm", "apple", "kept", { on_disk: false })), null);
 });
