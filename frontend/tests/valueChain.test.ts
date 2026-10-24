@@ -9,11 +9,12 @@ test("flows in cents", () => {
 });
 test("tiles, percents, totals", () => {
   assert.equal(tile(14.3462), "14.3"); assert.equal(tile(null), "—");
-  assert.equal(percent(0.8452), "85%"); assert.equal(percent(0.845), "85%"); assert.equal(percent(null), "—");
+  assert.equal(percent(0.8452), "85%"); assert.equal(percent(0.845), "85%"); assert.equal(percent(0.285), "29%"); assert.equal(percent(null), "—");
   assert.equal(footprintTotal(973.926, "t CO₂e"), "973.9 t CO₂e");
   assert.equal(homeShare(0.8452, "CN"), "85% in CN"); assert.equal(homeShare(null, "CN"), "");
 });
 test("search only with a non-space character; hashes encode ids", () => {
   assert.equal(searchable(" "), false); assert.equal(searchable("wa"), true);
   assert.equal(nodeHash("CN.95"), "#/valueChain/CN.95"); assert.equal(nodeHash("CN.95", "tree"), "#/valueChain/CN.95/tree");
+  assert.equal(nodeHash("a/b c", "footprint"), "#/valueChain/a%2Fb%20c/footprint");
 });

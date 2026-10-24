@@ -8,7 +8,7 @@ export const linkText = (l: { direct: number; total: number }, mode: "total" | "
 
 export const tile = (v: number | null): string => (v === null ? "—" : v.toFixed(1));
 
-// toFixed(9) first: 0.845 * 100 is 84.49999..., and a half must round up.
+// toFixed(9) first: 0.285 * 100 is 28.499999999999996, and a half must round up.
 export const percent = (v: number | null): string => (v === null ? "—" : `${Math.round(Number((v * 100).toFixed(9)))}%`);
 
 export const footprintTotal = (total: number, unit: string): string => `${total.toFixed(1)} ${unit}`;
