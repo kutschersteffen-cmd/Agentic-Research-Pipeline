@@ -11,6 +11,7 @@ from arp.config import Settings
 from arp.research.indirect_exposure.factory import active_io_source
 from arp.research.indirect_exposure.icio_loader import read_industries
 from arp.research.indirect_exposure.io_import import import_exiobase, import_icio
+from arp.research.value_chain.build import build_full
 
 io_app = typer.Typer(help="Import OECD ICIO / EXIOBASE input-output tables and show which one is active.")
 
@@ -46,6 +47,16 @@ def io_import_exiobase(
 ) -> None:
     """Writes industries.csv, exiobase_flows.csv, final_demand.csv, ghg.csv and the regional files, then prints the settings to use them."""
     _run_import(import_exiobase, zip_file, out, label, split_electricity)
+
+
+@io_app.command("build-full")
+def io_build_full(
+    zip_file: Path = typer.Argument(..., help="One EXIOBASE 3 ixi archive, e.g. IOT_2022_ixi.zip."),
+    out: Path = typer.Option(..., "--out", help="Output directory (replaced if it exists)."),
+    label: str = typer.Option(None, "--label", help="Edition label; defaults to exiobase-<archive stem>."),
+) -> None:
+    """Writes nodes.csv, manifest.json and the A, L, G matrices of the full EXIOBASE table, then prints the setting to use them."""
+    _run_import(build_full, zip_file, out, label)
 
 
 @io_app.command("status")
