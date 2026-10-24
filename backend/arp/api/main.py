@@ -21,6 +21,7 @@ from arp.api.deps import (
     settings_dep,
 )
 from arp.api.routers import (
+    ask,
     bi,
     calibration,
     climate,
@@ -169,6 +170,7 @@ app.include_router(outputs.router, dependencies=[Depends(authorize)])
 app.include_router(security_master.feeds_router, dependencies=[Depends(authorize)])
 app.include_router(security_master.issues_router, dependencies=[Depends(authorize)])
 app.include_router(security_master.search_router, dependencies=[Depends(authorize)])
+app.include_router(ask.router, dependencies=[Depends(authorize)])
 
 
 @app.exception_handler(RuntimeError)

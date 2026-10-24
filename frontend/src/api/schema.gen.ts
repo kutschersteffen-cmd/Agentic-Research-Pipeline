@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/ask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Ask */
+        post: operations["post_ask_api_ask_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bi/ask": {
         parameters: {
             query?: never;
@@ -7138,6 +7155,26 @@ export interface components {
         };
         /** ApproveSpecRequest */
         ApproveSpecRequest: Record<string, never>;
+        /** AskResponse */
+        AskResponse: {
+            /** Answer Text */
+            answer_text: string;
+            /** Answered At */
+            answered_at: string;
+            benchmark_sectors?: components["schemas"]["BenchmarkCard"] | null;
+            portfolio?: components["schemas"]["QAAnswer"] | null;
+            /** Question */
+            question: string;
+            smart_search?: components["schemas"]["SearchAnswer"] | null;
+            /** Standalone Question */
+            standalone_question: string;
+            /**
+             * Tool
+             * @enum {string}
+             */
+            tool: "portfolio" | "smart_search" | "transition_plan" | "benchmark_sectors" | "none";
+            transition_plan?: components["schemas"]["TransitionPlanCard"] | null;
+        };
         /** AssumptionOut */
         AssumptionOut: {
             /** Citation */
@@ -7467,6 +7504,33 @@ export interface components {
              * @enum {string}
              */
             scheme: "free_float_mcap" | "equal" | "metric" | "inverse_metric";
+        };
+        /** BenchmarkCard */
+        BenchmarkCard: {
+            /** Benchmark Id */
+            benchmark_id: string | null;
+            check: components["schemas"]["BenchmarkCheck"];
+            /** Is Sample */
+            is_sample: boolean;
+            /** Name */
+            name: string;
+            /** Sectors */
+            sectors: components["schemas"]["SectorWeight"][];
+        };
+        /** BenchmarkCheck */
+        BenchmarkCheck: {
+            /** As Of */
+            as_of: string | null;
+            /** Constituents */
+            constituents: number;
+            /** Dropped */
+            dropped: number;
+            /** Source */
+            source: string;
+            /** Total Pct */
+            total_pct: number;
+            /** Unclassified Pct */
+            unclassified_pct: number;
         };
         /** BenchmarkOut */
         BenchmarkOut: {
@@ -10234,6 +10298,18 @@ export interface components {
             /** Upper */
             upper: number;
         };
+        /** HistoryTurn */
+        HistoryTurn: {
+            /** Question */
+            question: string;
+            /** Standalone Question */
+            standalone_question: string;
+            /**
+             * Tool
+             * @enum {string}
+             */
+            tool: "portfolio" | "smart_search" | "transition_plan" | "benchmark_sectors" | "none";
+        };
         /**
          * HolderConfig
          * @description One index or portfolio whose holdings are taken in.
@@ -11280,6 +11356,13 @@ export interface components {
             /** Value */
             value: unknown;
             value_state: components["schemas"]["ValueState"];
+        };
+        /** OlderRun */
+        OlderRun: {
+            /** Run Date */
+            run_date: string;
+            /** Run Id */
+            run_id: string;
         };
         /** OpenFromTriggerRequest */
         OpenFromTriggerRequest: {
@@ -12931,6 +13014,13 @@ export interface components {
             /** Sector */
             sector: string;
         };
+        /** SectorWeight */
+        SectorWeight: {
+            /** Sector */
+            sector: string;
+            /** Weight Pct */
+            weight_pct: number;
+        };
         /**
          * SelectAll
          * @description No selection step: everything that survives the screens is in. This
@@ -13915,6 +14005,43 @@ export interface components {
              */
             targets: components["schemas"]["TargetOut"][];
         };
+        /** TransitionPlanCard */
+        TransitionPlanCard: {
+            /** Company */
+            company: string;
+            /** Company Id */
+            company_id: string;
+            figures: components["schemas"]["TransitionPlanFigures"];
+            /** Older Runs */
+            older_runs: components["schemas"]["OlderRun"][];
+            /** Open Review Items */
+            open_review_items: number;
+            /** Run Date */
+            run_date: string;
+            /** Run Id */
+            run_id: string;
+            /**
+             * Run Type
+             * @enum {string}
+             */
+            run_type: "transition_plan" | "extraction";
+        };
+        /**
+         * TransitionPlanFigures
+         * @description The run row's figures as extracted; None where the row has none (a run with no walk indicators has no walk share).
+         */
+        TransitionPlanFigures: {
+            /** Assessment Confidence Pct */
+            assessment_confidence_pct: number | null;
+            /** Indicators Disclosed Count */
+            indicators_disclosed_count: number | null;
+            /** Talk Disclosed Count */
+            talk_disclosed_count: number | null;
+            /** Walk Disclosed Count */
+            walk_disclosed_count: number | null;
+            /** Walk Share Pct */
+            walk_share_pct: number | null;
+        };
         /**
          * TransitionPlanIndicator
          * @description One of the 64 assessment indicators from Colesanti Senni, Schimanski,
@@ -14407,6 +14534,13 @@ export interface components {
             /** Universe Path */
             universe_path?: string | null;
         };
+        /** AskRequest */
+        arp__ask__AskRequest: {
+            /** History */
+            history?: components["schemas"]["HistoryTurn"][];
+            /** Question */
+            question: string;
+        };
         /** ChartSpec */
         arp__bi__plan__ChartSpec: {
             /** Dataset */
@@ -14487,6 +14621,39 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    post_ask_api_ask_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["arp__ask__AskRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AskResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     ask_api_bi_ask_post: {
         parameters: {
             query?: never;
