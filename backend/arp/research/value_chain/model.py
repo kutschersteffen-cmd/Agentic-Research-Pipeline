@@ -4,6 +4,7 @@ import csv
 import functools
 import json
 import re
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -199,6 +200,9 @@ class ValueChain:
         )
 
 
+_load_lock = threading.Lock()  # lru_cache lets concurrent misses each load the 1.5 GB matrices
+
+
 @functools.lru_cache(maxsize=1)
 def _load(directory: str, manifest_text: str) -> ValueChain:
     return ValueChain(Path(directory), json.loads(manifest_text))
@@ -209,4 +213,5 @@ def load_value_chain(directory: Path | None) -> ValueChain:
     manifest = Path(directory) / "manifest.json" if directory else None
     if manifest is None or not manifest.is_file():
         raise NotBuilt
-    return _load(str(directory), manifest.read_text())
+    with _load_lock:
+        return _load(str(directory), manifest.read_text())

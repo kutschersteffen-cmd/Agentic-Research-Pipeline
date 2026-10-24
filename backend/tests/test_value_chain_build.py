@@ -94,6 +94,25 @@ def test_rebuild_replaces_directory(tmp_path):  # Review Focus 3 (disk side)
     assert not (d / "stale.txt").exists() and json.loads((d / "manifest.json").read_text())["edition"] == "second"
 
 
+def test_foreign_directory_is_refused_and_left_intact(tmp_path):
+    d = tmp_path / "vc"
+    d.mkdir()
+    (d / "precious.txt").write_text("x")
+    res = runner.invoke(app, ["io", "build-full", str(write_fixture_f(tmp_path)), "--out", str(d)])
+    assert res.exit_code == 1 and len(res.stderr.strip().splitlines()) == 1 and "not a build-full output" in res.stderr
+    assert (d / "precious.txt").read_text() == "x" and not list(tmp_path.glob(".vc.*"))
+
+
+@pytest.mark.parametrize("out", [".", ".."])
+def test_out_naming_cwd_or_its_parent_is_refused(tmp_path, monkeypatch, out):
+    zip_path = write_fixture_f(tmp_path)
+    cwd = tmp_path / "work"
+    cwd.mkdir()
+    monkeypatch.chdir(cwd)
+    res = runner.invoke(app, ["io", "build-full", str(zip_path), "--out", out])
+    assert res.exit_code == 1 and len(res.stderr.strip().splitlines()) == 1 and zip_path.exists()
+
+
 def test_failed_rebuild_keeps_previous_build(tmp_path):
     d = build(tmp_path)
     res = runner.invoke(app, ["io", "build-full", str(broken_fixture(tmp_path, "bad_cell")), "--out", str(d)])

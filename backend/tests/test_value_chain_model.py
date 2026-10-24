@@ -1,7 +1,9 @@
+import threading
+
 import pytest
 
 from arp.research.value_chain.build import build_full
-from arp.research.value_chain.model import NotBuilt, UnknownNode, load_value_chain
+from arp.research.value_chain.model import NotBuilt, UnknownNode, _load, load_value_chain
 from tests.value_chain_fixture import write_fixture_f
 
 NOT_BUILT = "value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR"
@@ -147,6 +149,23 @@ def test_reload_after_rebuild(tmp_path):
     assert load_value_chain(tmp_path / "out").manifest["edition"] == "exiobase-IOT_2022_ixi"
     build_full(src, tmp_path / "out", label="second")
     assert load_value_chain(tmp_path / "out").manifest["edition"] == "second"
+
+
+def test_concurrent_cold_loads_share_one_object(tmp_path):
+    build_full(write_fixture_f(tmp_path), tmp_path / "out")
+    _load.cache_clear()
+    found, barrier = [], threading.Barrier(2)
+
+    def call():
+        barrier.wait()
+        found.append(load_value_chain(tmp_path / "out"))
+
+    threads = [threading.Thread(target=call) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert len(found) == 2 and found[0] is found[1]
 
 
 def test_rowl_labels(vc):

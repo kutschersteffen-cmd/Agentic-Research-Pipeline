@@ -111,7 +111,7 @@ def tree(
 def footprint(
     node_id: str,
     indicator: Literal["ghg", "energy", "jobs"] = "ghg",
-    amount_meur: Annotated[float, Query(gt=0)] = 1.0,
+    amount_meur: Annotated[float, Query(gt=0, allow_inf_nan=False)] = 1.0,
     top: Annotated[int, Query(ge=1, le=20)] = 6,
     vc: ValueChain = Depends(_chain),
 ) -> ValueChainFootprint:

@@ -177,6 +177,8 @@ def test_search(client):  # AC-21, AC-22, AC-22b, AC-22e
         "/nodes/DE.3/tree?cutoff=1.5",
         "/nodes/DE.3/tree?cutoff=-0.1",
         "/nodes/DE.3/footprint?amount_meur=0",
+        "/nodes/DE.3/footprint?amount_meur=inf",
+        "/nodes/DE.3/footprint?amount_meur=nan",
         "/nodes/DE.3/footprint?indicator=water",
         "/nodes/DE.3/footprint?top=21",
         "/nodes/DE.3/footprint?top=0",

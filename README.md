@@ -355,8 +355,9 @@ arp io build-full $HOME/IOT_2022_ixi.zip --out $HOME/value-chain-data
 export ARP_VALUE_CHAIN_DIR=$HOME/value-chain-data   # the build prints this line as its second line
 ```
 
-The build prints `7987 nodes (163 sectors × 49 regions) -> <dir>` and then `ARP_VALUE_CHAIN_DIR=<dir>`. An existing `--out`
-directory is replaced once the build succeeds. The backend reads `ARP_VALUE_CHAIN_DIR` per request; unset, the screen says
+The build prints `7987 nodes (163 sectors × 49 regions) -> <dir>` and then `ARP_VALUE_CHAIN_DIR=<dir>`. `--out` must be
+missing, empty or an earlier `build-full` output; the build replaces an earlier output once it succeeds
+and refuses any other non-empty directory. The backend reads `ARP_VALUE_CHAIN_DIR` per request; unset, the screen says
 "value chain not built". The output is about 1.5 GB of derived data: keep it outside the repo (as above) and out of git.
 
 ## Precision controls

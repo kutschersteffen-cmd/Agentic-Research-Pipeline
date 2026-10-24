@@ -118,13 +118,20 @@ def _write(tmp: Path, **arrays: np.ndarray) -> None:
 def build_full(zip_path: Path, out: Path, label: str | None = None) -> list[str]:
     """Reads one EXIOBASE 3 ixi archive and writes manifest.json, nodes.csv and the
     A, L, G matrices to `out`. Returns the stdout lines. Raises ValueError with a
-    one-line message; an existing `out` is replaced only once the build succeeded."""
+    one-line message; `out` must be missing, empty or an earlier build-full output, and
+    is replaced only once the build succeeded."""
+    out = Path(out)
+    here = Path.cwd().resolve()
+    if out.resolve() in (here, *here.parents):
+        raise ValueError(f"{out} is the current directory or a parent of it")
+    if out.exists() and not (out.is_dir() and (not any(out.iterdir()) or (out / "manifest.json").is_file())):
+        raise ValueError(f"{out} is not empty and is not a build-full output")
     crosswalk = {r["exiobase_sector"]: r["icio_code"] for r in _read_reference("exiobase_ixi_to_icio2025.csv")}
     gwp = {r["stressor"]: float(r["factor"]) for r in _read_reference("ghg_gwp100.csv")}
     with zipfile.ZipFile(zip_path) as zf:
         try:
             meta = json.loads(zf.read(_need(zf, "metadata.json")))
-            year = int(re.search(r"\d+", meta["name"]).group())
+            year = int(re.search(r"IOT_(\d{4})", meta["name"]).group(1))
             version = str(meta["version"])
         except (ValueError, KeyError, AttributeError, TypeError):
             raise ValueError("metadata.json: needs name EXIO_IOT_<year>_ixi and version") from None
@@ -139,7 +146,6 @@ def build_full(zip_path: Path, out: Path, label: str | None = None) -> list[str]
         ]
 
     n = len(keys)
-    out = Path(out)
     tmp = out.parent / f".{out.name}.building"
     shutil.rmtree(tmp, ignore_errors=True)
     live = x > 0
@@ -182,8 +188,17 @@ def build_full(zip_path: Path, out: Path, label: str | None = None) -> list[str]
             "built_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
         (tmp / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-        shutil.rmtree(out, ignore_errors=True)
-        tmp.rename(out)
+        old = out.parent / f".{out.name}.old"
+        shutil.rmtree(old, ignore_errors=True)
+        if out.exists():
+            out.rename(old)
+        try:
+            tmp.rename(out)
+        except OSError:
+            if old.exists():
+                old.rename(out)
+            raise
+        shutil.rmtree(old, ignore_errors=True)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return [f"{n} nodes ({n_sectors} sectors × {n_regions} regions) -> {out}", f"ARP_VALUE_CHAIN_DIR={out}"]
