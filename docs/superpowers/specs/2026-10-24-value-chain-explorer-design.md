@@ -19,10 +19,11 @@ same archive and an explorer screen on top of it.
 
 ## Goals
 
-- Every one of EXIOBASE's 7,987 sector-region nodes can be opened and read.
+- Every one of EXIOBASE's 7,987 sector-region nodes with output can be found and opened.
 - For a node: direct and total suppliers, direct and total customers, its own intensities.
-- An upstream tree for any node, filterable.
-- A footprint for any amount of final demand for a node, split by region and by sector.
+- An upstream tree for any node, filterable by depth, width, cut-off and goods only.
+- A footprint for any amount of final demand for a node, split by region and by sector, for CO₂e,
+  energy and jobs.
 - Numbers are exact input-output results, never sampled or estimated by a model.
 
 ## Non-goals (this spec)
@@ -36,8 +37,8 @@ same archive and an explorer screen on top of it.
 ## Anti-goals
 
 - An LLM anywhere in this feature. Everything is arithmetic on the published table.
-- A number on screen without its basis: every view states edition, year, units and the caveats below.
-- Ranking or presenting nodes with zero output as if they had data.
+- A number on screen without its basis: every view states version, year, units and the caveats below.
+- Listing or ranking nodes with zero output as if they had data.
 
 ## Approaches
 
@@ -51,8 +52,9 @@ same archive and an explorer screen on top of it.
 
 1. **Build command.** `arp io build-full <zip> --out <dir> [--label <label>]` reads one EXIOBASE 3
    ixi archive (`IOT_<year>_ixi.zip`, release 3.11.2 layout) and writes the files in Appendix A.
-   It prints, line 1, `<n_nodes> nodes (<n_sectors> sectors × <n_regions> regions) -> <dir>`, then
-   one line `ARP_VALUE_CHAIN_DIR=<dir>`. It does not touch `arp io import-exiobase` or its outputs.
+   It prints, line 1, `<n_nodes> nodes (<n_sectors> sectors × <n_regions> regions) -> <dir>`, where
+   `n_nodes` counts every node including zero-output ones, then line 2 `ARP_VALUE_CHAIN_DIR=<dir>`.
+   It does not touch `arp io import-exiobase` or its outputs.
 2. **Setting.** `ARP_VALUE_CHAIN_DIR` (default unset). Unset, or the directory lacks
    `manifest.json`: the explorer is "not configured".
 3. **API**, router prefix `/api/value-chain`, viewer role, read-only (Appendix B).
@@ -61,7 +63,8 @@ same archive and an explorer screen on top of it.
 
 ## Definitions
 
-Indices `i, j, k` run over nodes in archive order. `Z` is `Z.txt` (M EUR), `x` is `x.txt`.
+Indices `i, j, k` run over nodes in archive order. `Z` is `Z.txt` (M EUR), `x` is `x.txt`. All
+arithmetic, stored matrices and cut-off comparisons are float64.
 
 - `A = Z · diag(x)⁻¹`, with column `j` all zero where `x_j = 0`. `L = (I − A)⁻¹` (Leontief).
 - `B = diag(x)⁻¹ · Z`, with row `i` all zero where `x_i = 0`. `G = (I − B)⁻¹` (Ghosh).
@@ -75,11 +78,14 @@ Indices `i, j, k` run over nodes in archive order. `Z` is `Z.txt` (M EUR), `x` i
   - `jobs_per_meur`: Σ `employment` rows starting `Employment people` (1000 p) × 1000 ÷ `x`.
   - `va_share`: Σ `factor_inputs` rows except `Taxes less subsidies on products purchased: Total`, ÷ `x`.
 - **Footprint** of `y` M EUR of final demand for `k`, indicator `s`: contribution of node `i` is
-  `s_i · L[i,k] · y`; total is the sum; "by region" and "by sector" group those contributions.
+  `s_i · L[i,k] · y`; total is the sum; "by region" and "by sector" sum those contributions per
+  region and per sector name; groups whose sum is 0 are left out.
 - **Goods node**: a node whose sector maps, in the bundled `exiobase_ixi_to_icio2025.csv`, to an ICIO
   code starting `A`, `B`, `C`, `D` or `E`. Every other node is a services node.
 - **Node id**: `<region code>.<sector number>`, sector number 1–163 in the order sectors appear for
   that region in `x.txt` (`CN.95`). Stable within an edition only.
+- **Version and year** come from the archive's `metadata.json`: `version`, and the year in `name`
+  (`EXIO_IOT_<year>_ixi`).
 - **Ties** in any ranked list break by node id ascending (string order).
 - Nodes with `x = 0` never appear in lists, trees or search results; opening one returns 404.
 
@@ -87,22 +93,25 @@ Indices `i, j, k` run over nodes in archive order. `Z` is `Z.txt` (M EUR), `x` i
 
 1. **No Neo4j in this slice.** All three views are served from the matrices. The summary graph comes
    with the path finder and the activity/company links, where it earns its place.
-2. **Precompute `L` and `G` at build time** and store them, so every request is a column or row read.
-   The builder picks the on-disk layout (for example float32, `L` stored transposed so a column is
-   contiguous) within the performance rows below.
+2. **Precompute `L` and `G` at build time** and store them (float64), so every request is a column
+   or row read. The builder picks the on-disk layout (for example `L` stored transposed so a column
+   is contiguous) within the performance rows below.
 3. **Labels**: EXIOBASE sector names with a trailing ` (NN)` code removed; region codes as in the
    archive, the five rest-of-world codes shown as `RoW Asia-Pacific` (WA), `RoW Europe` (WE),
    `RoW Africa` (WF), `RoW Americas` (WL), `RoW Middle East` (WM).
-4. **Display unit**: cents per euro (`7.4¢`), one decimal; a tree's `chain` two decimals (`0.80¢`);
-   the API returns fractions.
-5. **Derived files are not committed** (size and the EXIOBASE 3.9+ licence); building them belongs
+4. **Display**: flows in cents per euro with one decimal (`7.4¢`); a tree's `chain` with two
+   decimals (`0.80¢`); intensity tiles with one decimal, value added as a whole percent; the API
+   returns unrounded fractions.
+5. **"Hide this node"** on the node page drops the node itself from its suppliers and customers
+   (purchases from and sales to its own sector in its own region), nothing else.
+6. **Derived files are not committed** (size and the EXIOBASE 3.9+ licence); building them belongs
    in the environment setup script. The owner recorded on 2026-10-19 that the licence is no obstacle.
-6. **Caveat line** on every view: `EXIOBASE <version> · <year> · basic prices, M EUR · now-cast years
-   are estimates · capital goods not included in flows`.
+7. **Caveat line**, on every view and in every API response: `EXIOBASE <version> · <year> · basic
+   prices, M EUR · now-cast years are estimates · capital goods not included in flows`.
 
 ## Constraints
 
-- Precision first: exact arithmetic on the table; nothing rounded before display.
+- Precision first: float64 arithmetic on the table; nothing rounded before display.
 - Build: at most 20 minutes and 8 GB peak resident memory for one real archive.
 - Node, tree (depth 4, width 5) and footprint requests: at most 1 s each on a warm process.
 - Repo checks: `ruff`, `pytest`, `npm run lint`, `npx tsc -b`, `npm test`; API contract regenerated
@@ -111,90 +120,121 @@ Indices `i, j, k` run over nodes in archive order. `Z` is `Z.txt` (M EUR), `x` i
 
 ## Left to the builder
 
-File layout and dtypes, how the build streams `Z.txt`, the search matching rule (case-insensitive
-substring on sector name or region code is enough), component structure, and whether the three views
-are tabs or sub-routes, as long as the URLs in Appendix C work.
+File layout, how the build streams `Z.txt`, the search matching rule (case-insensitive substring on
+sector name, region code or region label is enough), component structure, and whether the three
+views are tabs or sub-routes, as long as the URLs in Appendix C work.
 
 ## Appendix A: build output (`<dir>`)
 
-- `manifest.json`: `{"edition": "<label>", "exiobase_version": "<from metadata.json>", "year":
-  <int>, "source_sha256": "<archive hash>", "n_regions": 49, "n_sectors": 163, "built_at": "<RFC 3339>"}`.
-  `--label` defaults to `exiobase-<archive stem>`.
+- `manifest.json`: `{"edition": "<label>", "exiobase_version": "<metadata version>", "year":
+  <int>, "source_sha256": "<archive hash>", "n_regions": <int>, "n_sectors": <int>, "n_nodes":
+  <int>, "built_at": "<RFC 3339>"}`. `--label` defaults to `exiobase-<archive stem>`.
 - `nodes.csv`: `node_id,region,sector,sector_no,output_meur,goods,ghg_t_per_meur,energy_tj_per_meur,jobs_per_meur,va_share`.
 - The matrices `A`, `L`, `G` (and anything else the builder needs), in a layout of the builder's choice.
 
 ## Appendix B: API
 
-All responses carry `edition` and `caveat` (the line in My call 6). Not configured: every endpoint
+Every 200 response carries `edition` and `caveat` (My call 7). Not configured: every endpoint
 answers 503 with `detail` `value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR`.
-Unknown or zero-output node: 404 `detail` `unknown node '<id>'`.
+Unknown or zero-output node: 404 `detail` `unknown node '<id>'`. Parameters out of range: 422.
 
-- `GET /status` → `{edition, year, n_nodes, n_regions, n_sectors, built_at}`.
-- `GET /nodes?q=<text>&limit=20` → `[{node_id, region, region_label, sector}]`, at most `limit` (max 100).
+- `GET /status` → `{edition, version, year, n_nodes, n_regions, n_sectors, built_at}`.
+- `GET /nodes?q=<text>&limit=20` → `{items: [{node_id, region, region_label, sector}]}`, at most
+  `limit` (1–100) items, ordered by node id.
 - `GET /nodes/{id}?limit=10&exclude_own=false` → `{node_id, region, region_label, sector,
   output_meur, ghg_t_per_meur, energy_tj_per_meur, jobs_per_meur, va_share, suppliers, customers}`;
-  `suppliers` and `customers` are each up to `limit` items `{node_id, region, region_label, sector,
-  direct, total}`, ordered by `total` descending. `exclude_own=true` drops the node itself.
+  `suppliers` and `customers` are each up to `limit` (1–50) items `{node_id, region, region_label,
+  sector, direct, total}`, ordered by `total` descending. `exclude_own=true` drops the node itself
+  from both lists.
 - `GET /nodes/{id}/tree?depth=2&width=3&cutoff=0.01&goods_only=false` → nested
-  `{node_id, region_label, sector, coef, chain, children}`; root has `coef` and `chain` 1. A node's
-  children are its `width` largest direct suppliers `i ≠` that node with `A[i,node] ≥ cutoff`
-  (goods nodes only when `goods_only`), by `A` descending; `chain` = parent's `chain` × `coef`.
-  `depth` 1–4, `width` 1–5, `cutoff` 0–1; out of range → 422.
+  `{node_id, region_label, sector, coef, chain, children}`; the root has `coef` and `chain` 1. A
+  node's children are its `width` largest direct suppliers `i ≠` that node (only that node; an
+  ancestor may reappear further down) with `A[i,node] ≥ cutoff` (goods nodes only when
+  `goods_only`), by `A` descending; `chain` = parent's `chain` × `coef`. Nodes at the last level
+  have `children: []`. `depth` 1–4, `width` 1–5, `cutoff` 0–1.
 - `GET /nodes/{id}/footprint?indicator=ghg&amount_meur=1&top=6` → `{indicator, unit, total,
-  in_home_region, by_region: [[label, value]], by_sector: [[sector, value]]}`; `indicator` one of
-  `ghg` (t CO₂e), `energy` (TJ), `jobs` (people); `in_home_region` is the share of `total` arising in
-  the node's own region (null when `total` is 0); lists ordered descending, `top` 1–20; `by_region`
-  labels are region labels (My call 3).
+  in_home_region, by_region: [[region_label, value]], by_sector: [[sector, value]]}`; `indicator`
+  `ghg` (unit `t CO₂e`), `energy` (`TJ`) or `jobs` (`people`); `amount_meur` > 0; `in_home_region`
+  is the share of `total` arising in the node's own region (null when `total` is 0); both lists
+  ordered descending and cut to the first `top` (1–20) entries, with no remainder entry.
 
 ## Appendix C: screen
 
-- `#/valueChain`: picker (search by sector or region) and, until a node is picked, the text
+- `#/valueChain`: a search picker (sector or region) and, until a node is picked, the text
   `Pick a sector and region.` Not configured: the 503 `detail` as the page message.
 - `#/valueChain/<id>`: **node page** as mockup 1: four intensity tiles; suppliers and customers as
-  bar lists; a Total/Direct switch (Total first); `Hide own sector` (off by default); each row opens
-  that node.
-- `#/valueChain/<id>/tree`: **upstream tree** as mockup 2, goods flowing left to right into the
-  selected node; controls Levels (2–4, default 2), cut-off (0–10¢, default 1¢), `Goods only`
-  (off). Each box shows `<coef>¢ per €` and, below level 1, `chain <chain>¢`; clicking a box opens
-  its tree.
+  bar lists (10 each); a Total/Direct switch, Total selected first; `Hide this node`, off by default;
+  in Total mode each row reads `<total>¢ (direct <direct>¢)`; clicking a row opens that node's page.
+- `#/valueChain/<id>/tree`: **upstream tree** as mockup 2, suppliers to the left of what they supply;
+  the screen requests width 3; controls Levels (2–4, default 2), cut-off (0–10¢, default 1¢),
+  `Goods only` (off). Each box shows `<coef>¢ per €` and, from level 2, `chain <chain>¢`; clicking
+  a box opens that node's tree.
 - `#/valueChain/<id>/footprint`: **footprint** as mockup 3: amount (M EUR, default 1), indicator
-  CO₂e/Energy/Jobs (default CO₂e), total with `<n>% in <home region>`, by-region and by-sector bars.
+  CO₂e/Energy/Jobs (default CO₂e), the total, `<n>% in <home region label>`, by-region and
+  by-sector bars (6 each).
 - The caveat line at the foot of every view.
 
 ## Acceptance
 
-Fixture F: an archive with the real file layout holding regions `DE`, `CN` and, in this order, the
-sectors `Cultivation of paddy rice`, `Mining of copper ores and concentrates` and `Other business
-activities (74)`. Paddy rice has `x = 0` and zero rows and columns. For the other four nodes, in the
-order DE.2, DE.3, CN.2, CN.3: `x = [100, 200, 100, 100]`; `Z` rows `[10,20,0,10]`, `[10,20,10,0]`,
+Fixture F: an archive named `IOT_2022_ixi.zip` with the real file layout and a `metadata.json` with
+`version` `3.11.2` and `name` `EXIO_IOT_2022_ixi`. Regions `DE`, `CN`; sectors, in this order,
+`Cultivation of paddy rice`, `Mining of copper ores and concentrates`, `Other business activities
+(74)`. Paddy rice has `x = 0` and zero rows and columns. For the other four nodes, in the order
+DE.2, DE.3, CN.2, CN.3: `x = [100, 200, 100, 100]`; `Z` rows `[10,20,0,10]`, `[10,20,10,0]`,
 `[0,0,20,10]`, `[0,20,10,10]`; `air_emissions` row `CO2 - combustion - air` `[500000, 0, 100000, 0]`
 kg; `energy` row `Energy use - Net` `[10, 0, 0, 0]` TJ; `employment` row `Employment people:
 High-skilled male` `[1, 2, 0, 0]`; `factor_inputs` rows `Compensation of employees; wages, salaries,
 & employers' social contributions: High-skilled` `[30, 100, 50, 50]` and `Taxes less subsidies on
-products purchased: Total` `[5, 5, 5, 5]`; every other satellite row zero. Values are compared
-rounded to 4 decimals.
+products purchased: Total` `[5, 5, 5, 5]`; every other satellite row zero. "F built" means
+`arp io build-full IOT_2022_ixi.zip --out <d>` ran and `ARP_VALUE_CHAIN_DIR=<d>`. Numbers are
+compared rounded to 4 decimals. The caveat for F is `EXIOBASE 3.11.2 · 2022 · basic prices, M EUR ·
+now-cast years are estimates · capital goods not included in flows` (C below).
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
-| AC-1 | Fixture F | `arp io build-full F.zip --out <d>` | exits 0; stdout line 1 `6 nodes (3 sectors × 2 regions) -> <d>`; line 2 `ARP_VALUE_CHAIN_DIR=<d>`; `<d>/manifest.json` has `n_regions` 2, `n_sectors` 3 | holdout |
-| AC-2 | F built, `ARP_VALUE_CHAIN_DIR` set | `GET /api/value-chain/nodes/CN.2` | `suppliers`, in order: CN.2 (direct 0.2, total 0.2696), CN.3 (0.1, 0.1572), DE.3 (0.1, 0.1448), DE.2 (0, 0.0336); no `CN.1` or `DE.1` | holdout |
-| AC-3 | as AC-2 | `GET …/nodes/CN.2?exclude_own=true` | `suppliers` node ids exactly `["CN.3","DE.3","DE.2"]` | holdout |
-| AC-4 | as AC-2 | `GET …/nodes/DE.2` | `customers` totals DE.3 0.279, CN.3 0.1289, DE.2 0.1266, CN.2 0.0336, in that order; directs 0.2, 0.1, 0.1, 0 | holdout |
-| AC-5 | as AC-2 | `GET …/nodes/DE.3` | `ghg_t_per_meur` 0, `energy_tj_per_meur` 0, `jobs_per_meur` 10, `va_share` 0.5; for DE.2: 5, 0.1, 10, 0.3 | holdout |
-| AC-6 | as AC-2 | `GET …/nodes/DE.3/tree?depth=2&width=3&cutoff=0.01` | root children, in order: CN.3 (coef 0.1), DE.2 (coef 0.1); DE.2's children include DE.3 with coef 0.1 and chain 0.01; no child equals its own parent | holdout |
-| AC-7 | as AC-2 | same with `goods_only=true` | root children exactly `["DE.2"]` | holdout |
-| AC-8 | as AC-2 | `GET …/nodes/DE.3/footprint?indicator=ghg&amount_meur=2` | `total` 1.4268; `by_region` `[["DE",1.395],["CN",0.0318]]`; `in_home_region` 0.9777 | holdout |
-| AC-9 | as AC-2 | `GET …/nodes/DE.1` and `GET …/nodes?q=paddy` | 404 `unknown node 'DE.1'`; search returns `[]` | holdout |
-| AC-10 | as AC-2 | `GET …/nodes/DE.2/tree?depth=5` | 422 | holdout |
-| AC-11 | `ARP_VALUE_CHAIN_DIR` unset | `GET /api/value-chain/status` | 503, `detail` `value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR` | holdout |
-| AC-12 | Real `IOT_2022_ixi.zip`, Zenodo record 23039074 | `arp io build-full` measured with peak RSS | exits 0 within 20 min, peak RSS ≤ 8 GB; line 1 `7987 nodes (163 sectors × 49 regions) -> <d>` | evaluator |
-| AC-13 | AC-12 built | open `#/valueChain/<id of CN Manufacture of electrical machinery and apparatus n.e.c.>` | supplier row `Copper production · CN` shows `7.4¢  (direct 4.3¢)`; tile CO₂e shows `14.3` | evaluator |
-| AC-14 | AC-12 built | its tree view, defaults | `Copper production · CN` box shows `4.3¢ per €`; under it `Mining of copper ores and concentrates · CN` shows `18.4¢ per €` and `chain 0.80¢` | evaluator |
-| AC-15 | AC-12 built | its footprint view, defaults | total `973.9 t CO₂e`, `85% in CN` | evaluator |
-| AC-16 | AC-12 built, warm API process | node, tree (depth 4, width 5) and footprint requests for 10 random nodes | each answers in ≤ 1 s | evaluator |
-| AC-17 | the R&D Lab page `#/rdLab` | read the Screens list | it holds `Value Chain Explorer` linking to `#/valueChain` | evaluator |
-| AC-18 | any explorer view | read the foot of the page | the caveat line with edition and year | evaluator |
+| AC-1 | Fixture F | `arp io build-full IOT_2022_ixi.zip --out <d>` | exit 0; stdout line 1 `6 nodes (3 sectors × 2 regions) -> <d>`, line 2 `ARP_VALUE_CHAIN_DIR=<d>` | holdout |
+| AC-1b | as AC-1 | read `<d>/manifest.json` | `edition` `exiobase-IOT_2022_ixi`, `exiobase_version` `3.11.2`, `year` 2022, `n_regions` 2, `n_sectors` 3, `n_nodes` 6 | holdout |
+| AC-2 | F built | `GET /api/value-chain/status` | 200 with `edition` `exiobase-IOT_2022_ixi`, `version` `3.11.2`, `year` 2022, `n_nodes` 6, `n_regions` 2, `n_sectors` 3, `caveat` C | holdout |
+| AC-3 | F built | `GET …/nodes/CN.2` | `suppliers` in order: CN.2 (direct 0.2, total 0.2696), CN.3 (0.1, 0.1572), DE.3 (0.1, 0.1448), DE.2 (0, 0.0336); `caveat` C | holdout |
+| AC-4 | F built | `GET …/nodes/CN.2?exclude_own=true` | `suppliers` node ids exactly `["CN.3","DE.3","DE.2"]` | holdout |
+| AC-5 | F built | `GET …/nodes/DE.2` | `customers` in order: DE.3 (direct 0.2, total 0.279), CN.3 (0.1, 0.1289), DE.2 (0.1, 0.1266), CN.2 (0, 0.0336) | holdout |
+| AC-6 | F built | `GET …/nodes/DE.2?exclude_own=true` | `customers` node ids exactly `["DE.3","CN.3","CN.2"]` | holdout |
+| AC-7 | F built | `GET …/nodes/DE.3` | `sector` `Other business activities`; `ghg_t_per_meur` 0, `energy_tj_per_meur` 0, `jobs_per_meur` 10, `va_share` 0.5 | holdout |
+| AC-8 | F built | `GET …/nodes/DE.2` | `ghg_t_per_meur` 5, `energy_tj_per_meur` 0.1, `jobs_per_meur` 10, `va_share` 0.3 | holdout |
+| AC-9 | F built | `GET …/nodes/DE.3/tree?depth=2&width=3&cutoff=0.01` | exactly: root → [CN.3 (coef 0.1, chain 0.1), DE.2 (0.1, 0.1)]; CN.3 → [CN.2 (0.1, 0.01), DE.2 (0.1, 0.01)]; DE.2 → [DE.3 (0.1, 0.01)]; every level-2 node has `children: []` | holdout |
+| AC-10 | F built | `…/nodes/DE.3/tree?depth=1&width=1` | root children ids exactly `["CN.3"]` | holdout |
+| AC-11 | F built | `…/nodes/DE.3/tree?depth=1&cutoff=0.1` | root children ids exactly `["CN.3","DE.2"]` | holdout |
+| AC-12 | F built | `…/nodes/DE.3/tree?depth=1&cutoff=0.11` | root `children` is `[]` | holdout |
+| AC-13 | F built | `…/nodes/DE.3/tree?depth=1&goods_only=true` | root children ids exactly `["DE.2"]` | holdout |
+| AC-14 | F built | `…/nodes/DE.2/tree?depth=5` | 422 | holdout |
+| AC-15 | F built | `…/nodes/DE.3/footprint?indicator=ghg&amount_meur=2` | `unit` `t CO₂e`; `total` 1.4268; `by_region` `[["DE",1.395],["CN",0.0318]]`; `in_home_region` 0.9777 | holdout |
+| AC-16 | F built | same request | `by_sector` `[["Mining of copper ores and concentrates",1.4268]]` | holdout |
+| AC-17 | F built | `…/footprint?indicator=ghg&amount_meur=2&top=1` | `by_region` `[["DE",1.395]]` | holdout |
+| AC-18 | F built | `…/nodes/DE.3/footprint?indicator=energy&amount_meur=2` | `unit` `TJ`; `total` 0.0279; `in_home_region` 1 | holdout |
+| AC-19 | F built | `…/nodes/DE.3/footprint?indicator=jobs&amount_meur=2` | `unit` `people`; `total` 25.3576 | holdout |
+| AC-20 | F built | `GET …/nodes/DE.1` | 404, `detail` `unknown node 'DE.1'` | holdout |
+| AC-21 | F built | `GET …/nodes?q=paddy` | 200, `items` `[]` | holdout |
+| AC-22 | F built | `GET …/nodes?q=copper` | `items` node ids exactly `["CN.2","DE.2"]` | holdout |
+| AC-23 | `ARP_VALUE_CHAIN_DIR` unset | `GET …/status` | 503, `detail` `value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR` | holdout |
+| AC-24 | `ARP_VALUE_CHAIN_DIR` = an empty directory | `GET …/nodes?q=x` | 503 with the same `detail` | holdout |
+| AC-25 | `ARP_ANTHROPIC_API_KEY` unset | AC-1 to AC-24 | all pass | holdout |
+| AC-26 | Real `IOT_2022_ixi.zip`, Zenodo record 23039074 | `arp io build-full` | exit 0; line 1 `7987 nodes (163 sectors × 49 regions) -> <d>` | evaluator |
+| AC-27 | as AC-26 | the same run under `/usr/bin/time -v` (or `ru_maxrss` of the child) | elapsed ≤ 20:00; maximum resident set size ≤ 8,388,608 KB | evaluator |
+| AC-28 | AC-26 built | open the node page of `Manufacture of electrical machinery and apparatus n.e.c. · CN` | the supplier row `Copper production · CN` reads `7.4¢ (direct 4.3¢)` (whitespace collapsed) | evaluator |
+| AC-29 | as AC-28 | read the CO₂e tile | `14.3` | evaluator |
+| AC-30 | as AC-28 | click the supplier row `Copper production · CN` | the URL becomes `#/valueChain/<id of Copper production · CN>` and that node's page shows | evaluator |
+| AC-31 | as AC-28 | open its tree view with defaults | a box `Copper production · CN` shows `4.3¢ per €`; the box `Mining of copper ores and concentrates · CN` drawn as its supplier shows `18.4¢ per €` and `chain 0.80¢` | evaluator |
+| AC-32 | as AC-28 | open its footprint view with defaults | total `973.9 t CO₂e`; `85% in CN` | evaluator |
+| AC-33 | AC-26 built, API process warmed by one request | for 10 seeded random nodes with `output_meur` > 0: `GET /nodes/{id}`, `/tree?depth=4&width=5&cutoff=0`, `/footprint?indicator=ghg`, from a client on localhost | each answers in ≤ 1.0 s wall-clock | evaluator |
+| AC-34 | AC-26 built | open `#/valueChain` | the page shows `Pick a sector and region.` | evaluator |
+| AC-35 | AC-26 built | search `WA` in the picker | results list region `RoW Asia-Pacific` | evaluator |
+| AC-36 | AC-26 built | open each of `#/valueChain/<id>`, `/tree`, `/footprint` for one node | each page foot shows exactly `EXIOBASE 3.11.2 · 2022 · basic prices, M EUR · now-cast years are estimates · capital goods not included in flows` | evaluator |
+| AC-37 | `ARP_VALUE_CHAIN_DIR` unset | open `#/valueChain` | the page shows `value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR` | evaluator |
+| AC-38 | the R&D Lab page `#/rdLab` | read the Screens list | it holds `Value Chain Explorer` linking to `#/valueChain` | evaluator |
 
 Must not change:
-- AC-19: `arp io import-exiobase IOT_2022_ixi.zip --out <d>` writes byte-identical files to `main`'s. Checked by: holdout.
-- AC-20: the existing indirect-exposure tests pass unchanged. Checked by: unit.
+- AC-39: on the real `IOT_2022_ixi.zip`, the sha256 of every file `arp io import-exiobase --out <d>`
+  writes equals that of the same command run from the PR's merge-base with `main`. Checked by: evaluator.
+- AC-40: `git diff <merge-base> -- backend/tests/test_io_import.py backend/tests/test_leontief.py backend/tests/test_icio_loader.py backend/tests/test_exiobase_loader.py backend/tests/test_factory.py backend/tests/test_exposure.py backend/tests/test_criticality.py`
+  is empty. Checked by: evaluator.
+- AC-41: `pytest tests/test_io_import.py tests/test_leontief.py tests/test_icio_loader.py tests/test_exiobase_loader.py tests/test_factory.py tests/test_exposure.py tests/test_criticality.py` (from `backend/`) exits 0. Checked by: unit.
