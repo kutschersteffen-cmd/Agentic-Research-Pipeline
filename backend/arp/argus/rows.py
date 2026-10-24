@@ -84,7 +84,7 @@ def _prior_runs(run_store: RunStore, last_runs: dict[str, str], principal: Princ
             for row in (r for r in results if r.get("company_id") == cid):
                 for f in row.get("fields", []):
                     d = decisions.get(field_item_key(row.get("issuer_key", ""), f["field_id"], period_key(f)))
-                    if (d is None and f.get("route") == "auto_accept") or (d and d.get("decision") in ("approve", "edit")):
+                    if (d is None and f.get("route") == "auto_accept") or (d and d.get("decision") in ("approve", "edit", "correct")):
                         approved += 1
             waiting = sum(1 for i in open_items if i.payload.get("company_id") == cid)
             out[cid] = PriorRun(label=run_label(m), date=m.created_at[:10], approved=approved, waiting=waiting)
@@ -114,7 +114,7 @@ def flow_rows(
         docs = avail[c.company_id].documents
         out.append(FlowRow(
             company_id=c.company_id, central_id=c.entity_id, name=c.name,
-            identifiers={**({"TICKER": [c.ticker]} if c.ticker else {}), **ids_db.get(c.entity_id, {})} if c.entity_id else own,
+            identifiers={**ids_db.get(c.entity_id, {}), **own},  # the values as the list gave them win
             master_identifiers=map_company(c, index).identifiers,
             sector=(db and db.sector) or c.sector, country=(db and db.country) or c.country,
             problem=problem_of(c), extracted_before=prior.get(c.company_id),

@@ -8,6 +8,7 @@ import csv
 import io
 import json
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from arp.argus.flows import ArgusFlow
@@ -52,10 +53,22 @@ def register(session: Session, row: dict) -> CompanyRef | None:
         entity_id = resolve(session, ids, name=name, allow_create=True, attrs=attrs).company_id  # None on a conflict
     elif own_id:
         entity_id = lookup(session, IdScheme.USER, own_id) or lookup(session, IdScheme.UNIVERSE, own_id)
-    if entity_id and own_id and normalise_identifier(IdScheme.USER, own_id) and lookup(session, IdScheme.USER, own_id) is None:
-        session.add(CompanyIdentifier(company_id=entity_id, scheme=str(IdScheme.USER), value=normalise_identifier(IdScheme.USER, own_id)))
-        session.flush()
-    return CompanyRef(**{**fields, "name": name, "company_id": own_id or str(entity_id or name), "entity_id": entity_id})
+    if entity_id and own_id and normalise_identifier(IdScheme.USER, own_id):
+        owner = lookup(session, IdScheme.USER, own_id)
+        if owner is None:
+            session.add(CompanyIdentifier(company_id=entity_id, scheme=str(IdScheme.USER), value=normalise_identifier(IdScheme.USER, own_id)))
+            session.flush()
+        elif owner != entity_id:
+            own_id = None  # another company's id: never the key two rows could share
+    key = own_id or (entity_id and _universe_id(session, entity_id)) or str(entity_id or name)
+    return CompanyRef(**{**fields, "name": name, "company_id": key, "entity_id": entity_id})
+
+
+def _universe_id(session: Session, entity_id) -> str | None:
+    """The id earlier runs and documents of this company are filed under (until documents are filed by central id)."""
+    return session.scalar(select(CompanyIdentifier.value).where(
+        CompanyIdentifier.company_id == entity_id, CompanyIdentifier.scheme == str(IdScheme.UNIVERSE),
+        CompanyIdentifier.valid_to.is_(None)).order_by(CompanyIdentifier.id).limit(1))
 
 
 def problem_of(company: CompanyRef) -> str | None:

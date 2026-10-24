@@ -69,6 +69,24 @@ def test_prior_run_and_documents(rows_for, store):
     assert (row.documents, row.document_types) == (2, ["annual", "sustainability"])
 
 
+def test_a_corrected_value_counts_as_approved(rows_for, store):
+    _seed_run(store, "r", "2026-10-01T09:00:00+00:00")
+    store.append_decision_row("r", {"item_key": f"{IK}:d:2025-12-31", "decision": "correct", "decided_at": "t2", "user_id": "x"})
+    [row] = rows_for(CompanyRef(company_id="c1", name="C1"))
+    assert (row.extracted_before.approved, row.extracted_before.waiting) == (4, 0)
+
+
+def test_identifiers_show_the_values_given(rows_for, pg):
+    with Session(engine(pg)) as s, s.begin():
+        c = Company(name="Apple")
+        s.add(c)
+        s.flush()
+        s.add(CompanyIdentifier(company_id=c.id, scheme="CIK", value="320193"))
+        cid = c.id
+    [row] = rows_for(CompanyRef(company_id="x", name="Apple", entity_id=cid, cik="0000320193"))
+    assert row.identifiers == {"CIK": ["0000320193"]}
+
+
 def test_never_and_none(rows_for):
     [row] = rows_for(CompanyRef(company_id="fresh", name="Fresh"))
     assert (row.extracted_before, row.documents, row.document_types) == (None, 0, [])

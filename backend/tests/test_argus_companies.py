@@ -101,6 +101,19 @@ def test_user_id_owned_by_another_company_is_left_alone(client, fid, pg):
     assert ("USER", "1") not in identifiers(pg, ms)
 
 
+def test_a_user_id_owned_elsewhere_is_not_the_row_key(client, fid, pg):
+    upload(client, fid, "name,lei,company_id\nApple,HWUPKR0MPOU8FGXBT394,1\n")
+    flow = upload(client, fid, "name,isin,company_id\nMicrosoft,US5949181045,1\n")
+    apple, ms = flow["companies"]
+    assert apple["company_id"] == "1" and ms["company_id"] == ms["entity_id"]
+
+
+def test_matched_without_own_id_keeps_its_universe_id(client, fid, pg):
+    seed(pg, "Apple", lei="HWUPKR0MPOU8FGXBT394", universe="AAPL")
+    flow = client.post(f"/api/argus/flows/{fid}/companies", json={"company": {"name": "Apple", "lei": "HWUPKR0MPOU8FGXBT394"}}).json()
+    assert flow["companies"][0]["company_id"] == "AAPL"
+
+
 def test_conflicting_identifiers_create_nothing(client, fid, pg):
     seed(pg, "A", lei="529900D6BF99LW9R2E68")
     seed(pg, "B", isin="US5949181045")
