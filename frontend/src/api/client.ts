@@ -99,6 +99,7 @@ import type {
   TransitionPlanIndicatorDef,
 } from "../types";
 import type { XbrlRunMarket } from "../types";
+import type { VcFootprint, VcNode, VcSearch, VcStatus, VcTree } from "../types";
 import type { RunFailure } from "../types";
 import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision } from "../types";
 import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
@@ -1080,4 +1081,18 @@ export const api = {
     use_prior_state?: boolean;
     decision_snapshot_ids?: string[];
   }) => request<IndexReviewResult>("/api/index/run", { method: "POST", body: JSON.stringify(body) }),
+  // Value chain explorer
+  valueChainStatus: () => request<VcStatus>("/api/value-chain/status"),
+  valueChainSearch: (q: string, limit?: number) =>
+    request<VcSearch>(`/api/value-chain/nodes${buildQuery({ q, limit: limit === undefined ? undefined : String(limit) })}`),
+  valueChainNode: (id: string, opts: { order: "total" | "direct"; excludeOwn: boolean }) =>
+    request<VcNode>(`/api/value-chain/nodes/${encodeURIComponent(id)}${buildQuery({ order: opts.order, exclude_own: String(opts.excludeOwn) })}`),
+  valueChainTree: (id: string, opts: { depth: number; cutoff: number; goodsOnly: boolean }) =>
+    request<VcTree>(
+      `/api/value-chain/nodes/${encodeURIComponent(id)}/tree${buildQuery({ depth: String(opts.depth), width: "3", cutoff: String(opts.cutoff), goods_only: String(opts.goodsOnly) })}`,
+    ),
+  valueChainFootprint: (id: string, opts: { indicator: "ghg" | "energy" | "jobs"; amount: number }) =>
+    request<VcFootprint>(
+      `/api/value-chain/nodes/${encodeURIComponent(id)}/footprint${buildQuery({ indicator: opts.indicator, amount_meur: String(opts.amount), top: "6" })}`,
+    ),
 };
