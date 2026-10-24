@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { FileImg } from "../components/FileLink";
 import { SourcePanel, type ActiveSource } from "../components/SourcePanel";
-import { filePath, filesLabel, keepPassing, removeAll, SOURCES } from "../lib/argusFlow";
+import { filePath, filesLabel, keepPassing, removeAll, SOURCES, visibleFiles } from "../lib/argusFlow";
 import { DOC_TYPES } from "../lib/docTypes";
 import type { ArgusFlow as Flow, DocType, FlowFile } from "../types";
 
@@ -29,6 +29,11 @@ export function ArgusDocuments({ flow, busy, act, setFlow, onContinue }: {
   const [open, setOpen] = useState<ActiveSource | null>(null);
   const looking = !!flow.discovery && LOOKING.has(flow.discovery.status);
   const files = flow.files;
+  // Removed earlier: gone from the list (still on the company); removed in this visit: stays, marked Removed, so it can be undone.
+  const [removedAtLoad] = useState(() => new Set(flow.files.filter((f) => f.state === "removed").map((f) => f.key)));
+  const [showRemoved, setShowRemoved] = useState(false);
+  const shown = visibleFiles(files, removedAtLoad, showRemoved);
+  const hidden = files.length - shown.length;
   const kept = files.filter((f) => f.state === "kept").length;
 
   useEffect(() => {
@@ -154,7 +159,7 @@ export function ArgusDocuments({ flow, busy, act, setFlow, onContinue }: {
                 </tr>
               </thead>
               <tbody>
-                {files.map((f) => {
+                {shown.map((f) => {
                   const url = raw(f);
                   const pdf = !!url && f.file_name.toLowerCase().endsWith(".pdf");
                   return (
@@ -216,6 +221,11 @@ export function ArgusDocuments({ flow, busy, act, setFlow, onContinue }: {
             </table>
           </div>
           {files.length === 0 && <p className="muted">No files yet. Upload PDFs or look for official filings.</p>}
+          {(hidden > 0 || (showRemoved && removedAtLoad.size > 0)) && (
+            <button type="button" className="link-button" onClick={() => setShowRemoved(!showRemoved)}>
+              {showRemoved ? "Hide removed files" : `Show removed files (${hidden})`}
+            </button>
+          )}
         </div>
         {open && <SourcePanel source={open} onClose={() => setOpen(null)} />}
       </div>

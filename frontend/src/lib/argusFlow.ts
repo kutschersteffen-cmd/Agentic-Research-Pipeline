@@ -47,3 +47,7 @@ export function filePath(f: FlowFile): [string, string, string] | null {
   const [company, type, ...name] = f.key.split("/");
   return [company, type, name.join("/")];
 }
+
+/** Files removed before this visit (`removedAtLoad`) are gone from the list unless `showRemoved`; ones removed now stay, marked Removed. */
+export const visibleFiles = (files: FlowFile[], removedAtLoad: Set<string>, showRemoved: boolean) =>
+  showRemoved ? files : files.filter((f) => !(f.state === "removed" && removedAtLoad.has(f.key)));

@@ -10,3 +10,6 @@ export const DOC_TYPES: [DocType, string][] = [
   ["transition_plan", "Transition plan"],
   ["other", "Other"],
 ];
+
+export const uploadText = (name: string, label: string, duplicateOf: string | null | undefined) =>
+  `${name} (${label}): ${duplicateOf ? `Duplicate of ${duplicateOf}, skipped` : "uploaded"}`;

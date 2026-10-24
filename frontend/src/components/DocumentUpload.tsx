@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../api/client";
-import { DOC_TYPES } from "../lib/docTypes";
+import { DOC_TYPES, uploadText } from "../lib/docTypes";
 import type { DocType } from "../types";
 
 const TYPES = DOC_TYPES;
@@ -25,8 +25,8 @@ export function DocumentUpload({
     for (const f of files) {
       const key = `${companyId}/${docType}/${f.name}/${Date.now()}`;
       try {
-        await api.uploadDocument(companyId, docType, f);
-        setDone((d) => [...d, { key, ok: true, text: `${f.name} (${label}): uploaded` }]);
+        const r = await api.uploadDocument(companyId, docType, f);
+        setDone((d) => [...d, { key, ok: true, text: uploadText(f.name, label, r.duplicate_of) }]);
         onUploaded(companyId);
       } catch (err) {
         setDone((d) => [...d, { key, ok: false, text: `${f.name} (${label}): ${(err as Error).message}` }]);

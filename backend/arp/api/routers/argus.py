@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
@@ -20,7 +21,8 @@ from arp.db.session import require_dsn, transaction
 from arp.discovery.doc_check import check_document
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
 from arp.orchestration.job_manager import JobManager
-from arp.schemas.common import DocType, JobStatus
+from arp.orchestration.jobs import RunBusy, get_job_launcher, run_lease
+from arp.schemas.common import CompanyRef, DocType, JobStatus, RunManifest
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
@@ -72,6 +74,24 @@ class AddCompanies(BaseModel):
     company: CompanyInput | None = None
 
 
+LOOKING = (JobStatus.PENDING, JobStatus.RUNNING)
+_STARTING = timedelta(minutes=2)  # a run just created has no worker yet; give its task time to take the lease
+
+
+def _alive(run_store: RunStore, m: RunManifest) -> bool:
+    """A worker holds the run's lease, or the run was touched so recently that its task may not have taken it yet."""
+    try:
+        if datetime.now(UTC) - datetime.fromisoformat(m.updated_at) < _STARTING:
+            return True
+    except ValueError:
+        pass
+    try:
+        with run_lease(run_store, m.run_id):
+            return False
+    except RunBusy:
+        return True
+
+
 class Viewer:
     """Turns a flow into its view: the flow plus step 1's rows, read fresh from the stores."""
 
@@ -88,7 +108,12 @@ class Viewer:
 
     def discovery(self, flow: ArgusFlow) -> DiscoveryState | None:
         m = self.run_store.load_manifest(flow.discovery_run_id) if flow.discovery_run_id else None
-        return m and DiscoveryState(run_id=m.run_id, status=m.status, done=m.completed_count + m.failed_count, total=m.company_count)
+        if m is None:
+            return None
+        status = m.status
+        if status in LOOKING and not _alive(self.run_store, m):
+            status = JobStatus.FAILED  # its worker is gone (a restart, a crash): the person may look again
+        return DiscoveryState(run_id=m.run_id, status=status, done=m.completed_count + m.failed_count, total=m.company_count)
 
     def __call__(self, flow: ArgusFlow | None) -> ArgusFlowView:
         if flow is None:
@@ -222,19 +247,23 @@ async def find_flow_files(
     run_store: RunStore = Depends(get_run_store), principal: Principal = Depends(require_role("analyst")), view: Viewer = Depends(),
 ) -> ArgusFlowView:
     """Starts one discovery run for the flow's matched companies: official filings only, or filings plus company websites."""
-    flow = store.get(flow_id)
+    started: list[tuple[str, list[CompanyRef]]] = []
+
+    def start(f: ArgusFlow) -> None:  # under the flow's lock, so two clicks never start two runs
+        if (state := view.discovery(f)) and state.status in LOOKING:
+            raise HTTPException(409, "Already looking for files")
+        companies = [c for c in f.companies if c.entity_id]
+        if not companies:
+            raise HTTPException(400, "No matched companies")
+        run_id = create_discovery_run(companies, None, "manual", run_store)
+        JobManager(run_store).set_started_by(run_id, principal.user_id, principal.name)
+        f.discovery_run_id, f.doc_source = run_id, "web" if req.include_web else "filings"
+        started.append((run_id, companies))
+
+    flow = store.update(flow_id, start)
     if flow is None:
         raise HTTPException(404, "Extraction not found")
-    if (state := view.discovery(flow)) and state.status in (JobStatus.PENDING, JobStatus.RUNNING):
-        raise HTTPException(409, "Already looking for files")
-    companies = [c for c in flow.companies if c.entity_id]
-    if not companies:
-        raise HTTPException(400, "No matched companies")
-    run_id = create_discovery_run(companies, None, "manual", run_store)
-    JobManager(run_store).set_started_by(run_id, principal.user_id, principal.name)
-    asyncio.create_task(execute_discovery_run(run_id, companies, settings=settings, run_store=run_store, include_web=req.include_web))
-
-    def link(f: ArgusFlow) -> None:
-        f.discovery_run_id, f.doc_source = run_id, "web" if req.include_web else "filings"
-
-    return view(store.update(flow_id, link))
+    [(run_id, companies)] = started
+    get_job_launcher().launch(run_id, lambda: execute_discovery_run(
+        run_id, companies, settings=settings, run_store=run_store, include_web=req.include_web), run_store=run_store)
+    return view(flow)

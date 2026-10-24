@@ -122,8 +122,8 @@ def test_checks_keep_all_that_pass_and_remove_all(page, tmp_path):
     assert page.console_errors == []
 
 
-def test_failing_files_start_undecided_and_remove_one_survives_reload(page, tmp_path):
-    flow_id = _step2(page, tmp_path)
+def test_failing_files_start_undecided_and_a_removed_file_is_gone_after_reload(page, tmp_path):
+    _step2(page, tmp_path)
     _upload(page, _pdfs(tmp_path, [("2025_a.pdf", "Apple Inc. annual report 2025"), ("2025_b.pdf", "Apple Inc. sustainability 2025")]))
     _upload(page, _pdfs(tmp_path, [("2025_m.pdf", "Microsoft Corporation annual report 2025")]), company="Microsoft Corporation")
     _upload(page, _pdfs(tmp_path, [("2025_s.pdf", "Microsoft annual report 2025")]), company="SAP SE")
@@ -131,10 +131,13 @@ def test_failing_files_start_undecided_and_remove_one_survives_reload(page, tmp_
     _continue(page).filter(has_text="Continue with 3 files for 2 companies").wait_for()
     page.get_by_role("table", name="Files").locator("tbody tr").nth(1).get_by_role("button", name="Remove").click()
     _continue(page).filter(has_text="Continue with 2 files for 2 companies").wait_for()
+    assert _col(page, "Decision")[1].startswith("Removed")  # still listed in this visit, so it can be undone
     page.reload()
-    page.get_by_role("table", name="Files").locator("tbody tr").nth(3).wait_for()
-    assert _col(page, "Decision")[1].startswith("Removed")
+    page.get_by_role("button", name="Show removed files (1)").wait_for()
+    assert len(_col(page, "File")) == 3  # gone after a reload (AC-18), still on the company
     assert _continue(page).inner_text() == "Continue with 2 files for 2 companies"
+    page.get_by_role("button", name="Show removed files (1)").click()
+    assert _col(page, "Decision")[1].startswith("Removed")
 
 
 def test_hover_shows_first_page_and_click_opens_side_panel(page, tmp_path):

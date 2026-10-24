@@ -1,6 +1,7 @@
 """Argus step 2: files uploaded into a flow get a name and year check; Remove only marks them."""
 
 import io
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -178,3 +179,35 @@ def test_filing_rows_pass_and_merge_with_uploads(client, flow, tmp_path, setting
     assert [(r["source"], r["check"], r["state"]) for r in f["files"]] == [("upload", "✓ name, year", "kept"), ("filing", "✓ name, year", "kept")]
     removed = client.patch(f"/api/argus/flows/{fid}", json={"decisions": {f["files"][1]["key"]: "removed"}}).json()
     assert removed["files"][1]["state"] == "removed"
+
+
+def test_a_dead_discovery_run_does_not_block_a_new_one(client, flow, settings, pg, monkeypatch):
+    from sqlalchemy import update
+    from sqlalchemy.orm import Session
+
+    from arp.api.routers import argus as argus_router
+    from arp.argus.flows import FlowStore
+    from arp.db.models import Run
+    from arp.db.session import engine
+    from arp.discovery.pipeline import create_discovery_run
+    from arp.schemas.common import CompanyRef, JobStatus
+    from arp.storage.run_store import RunStore
+
+    fid, ids = flow
+    store = RunStore(pg, settings.runs_dir)
+    dead = create_discovery_run([CompanyRef(company_id=ids["apple"], name="Apple")], None, "manual", store)
+    m = store.load_manifest(dead)
+    m.status = JobStatus.RUNNING
+    store.save_manifest(m)
+    with Session(engine(pg)) as s, s.begin():  # a worker that died long ago: no lease, no progress since
+        s.execute(update(Run).where(Run.run_id == dead).values(updated_at=datetime(2026, 1, 1, tzinfo=UTC)))
+    FlowStore(settings.runs_dir / "_flows").update(fid, lambda f: setattr(f, "discovery_run_id", dead))
+    assert client.get(f"/api/argus/flows/{fid}").json()["discovery"]["status"] == "failed"
+
+    async def _noop(*a, **kw):
+        return None
+
+    monkeypatch.setattr(argus_router, "execute_discovery_run", _noop)
+    r = client.post(f"/api/argus/flows/{fid}/documents/find", json={"include_web": False})
+    assert r.status_code == 200, r.text
+    assert r.json()["discovery_run_id"] != dead

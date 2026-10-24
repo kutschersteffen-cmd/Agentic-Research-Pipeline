@@ -469,7 +469,7 @@ export const api = {
     form.append("company_id", companyId);
     form.append("doc_type", docType);
     form.append("file", file);
-    return request<{ path: string }>("/api/documents/upload", { method: "POST", headers: {}, body: form });
+    return request<{ path: string; duplicate_of: string | null }>("/api/documents/upload", { method: "POST", headers: {}, body: form });
   },
   documentRawUrl: (companyId: string, docType: string, filename: string) =>
     `${API_BASE}/api/documents/${encodeURIComponent(companyId)}/${encodeURIComponent(docType)}/${encodeURIComponent(filename)}/raw`,

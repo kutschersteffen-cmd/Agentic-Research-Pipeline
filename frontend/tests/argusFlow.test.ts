@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { continueLabel, documentsText, extractedBeforeText, filePath, filesLabel, flowHref, identifierList, keepPassing, removeAll } from "../src/lib/argusFlow.ts";
+import { continueLabel, documentsText, extractedBeforeText, filePath, filesLabel, flowHref, identifierList, keepPassing, removeAll, visibleFiles } from "../src/lib/argusFlow.ts";
 import { argusRows } from "../src/lib/argusStart.ts";
 import type { ArgusFlow, FlowFile, FlowRow, RunManifest } from "../src/types.ts";
 
@@ -62,4 +62,10 @@ test("remove all covers everything but duplicates", () => {
 test("only files in the app's folder have a path to open", () => {
   assert.deepEqual(filePath(file("apple/10-K/a b.pdf", "apple", "kept")), ["apple", "10-K", "a b.pdf"]);
   assert.equal(filePath(file("https://sec.gov/x.htm", "apple", "kept", { on_disk: false })), null);
+});
+
+test("files removed before this visit are hidden; ones removed now stay visible", () => {
+  const fs = [file("a", "c", "kept"), file("b", "c", "removed"), file("c", "c", "removed")];
+  assert.deepEqual(visibleFiles(fs, new Set(["b"]), false).map((f) => f.key), ["a", "c"]);
+  assert.deepEqual(visibleFiles(fs, new Set(["b"]), true).map((f) => f.key), ["a", "b", "c"]);
 });
