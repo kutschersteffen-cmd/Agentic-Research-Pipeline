@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 
+from arp.api.auth import Principal
 from arp.api.deps import get_llm_client, get_verifier_llm_client
 from arp.config import Settings
 from arp.db.session import require_dsn
@@ -23,7 +24,7 @@ def schedule_llm_run(
     run: Callable[[str, LLMClient, LLMClient], Awaitable[None]],
     settings: Settings | None = None,
     run_store: RunStore | None = None,
-    started_by: str | None = None,
+    started_by: Principal | None = None,
 ) -> str:
     """The shared shape of every `POST /runs` endpoint that needs an LLM
     (themes, extraction, financials, voting, identity): resolve both LLM
@@ -51,7 +52,7 @@ def schedule_llm_run(
     `create_fn` wrote the run to; else a store on `settings.runs_dir`.
 
     `started_by`, when given, is recorded as the run's `params.started_by`
-    in that same store (so the caller must pass `run_store`).
+    (user id) and `params.started_by_name` in that same store (so the caller must pass `run_store`).
 
     `settings`, when given, builds both clients from it rather than the
     app's settings -- how a run started with its own models gets them.
@@ -62,6 +63,6 @@ def schedule_llm_run(
     if settings is not None and settings.llm_batch:
         mark_batch_run(run_store or RunStore(require_dsn(settings), settings.runs_dir), run_id)
     if started_by is not None and run_store is not None:
-        JobManager(run_store).set_started_by(run_id, started_by)
+        JobManager(run_store).set_started_by(run_id, started_by.user_id, started_by.name)
     get_job_launcher().launch(run_id, lambda: run(run_id, llm, verifier_llm))
     return run_id

@@ -64,7 +64,7 @@ async def start_tnfd_extraction_run(
             run_id, companies, req.as_of, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store
         )
 
-    run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings, run_store=run_store, started_by=principal.user_id)
+    run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings, run_store=run_store, started_by=principal)
     return {"run_id": run_id, "company_count": len(companies)}
 
 

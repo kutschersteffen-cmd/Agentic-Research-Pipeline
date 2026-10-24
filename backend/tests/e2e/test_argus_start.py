@@ -50,7 +50,8 @@ def _run(run_id, run_type, status, created_at, started_by, review_count=0, param
 def test_runs_filter_by_step_and_only_mine(page):
     runs = [
         _run("r1", "extraction", "running", "2026-10-01T10:00:00Z", "dev", params={"schema_name": "Green capex", "schema_version": "s:v2"}),
-        _run("r2", "extraction", "completed", "2026-10-02T10:00:00Z", "bob", review_count=2, params={"schema_name": "Green capex", "schema_version": "s:v3"}),
+        _run("r2", "extraction", "completed", "2026-10-02T10:00:00Z", "u-2", review_count=2,
+             params={"schema_name": "Green capex", "schema_version": "s:v3", "started_by_name": "Bob Lee"}),
         _run("t1", "theme", "completed", "2026-10-03T10:00:00Z", "dev"),
     ]
     items = [{"item_key": k, "kind": "value", "run_id": rid, "run_type": "extraction", "payload": {}, "state": "pending",
@@ -66,7 +67,7 @@ def test_runs_filter_by_step_and_only_mine(page):
 
     assert listed() == ["Green capex v3", "Green capex v2"]
     rows = table.locator("tbody tr")
-    assert "3 companies" in rows.nth(0).inner_text() and "5 Results" in rows.nth(0).inner_text() and "bob" in rows.nth(0).inner_text()
+    assert "3 companies" in rows.nth(0).inner_text() and "5 Results" in rows.nth(0).inner_text() and "Bob Lee" in rows.nth(0).inner_text()
     assert "Needs you" in rows.nth(0).inner_text() and "4 Extract" in rows.nth(1).inner_text() and "Running" in rows.nth(1).inner_text()
 
     waiting = page.get_by_role("complementary", name="Waiting for you")

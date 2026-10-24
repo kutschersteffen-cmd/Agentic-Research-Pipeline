@@ -12,6 +12,7 @@ export interface ArgusRow {
   step: ArgusStep;
   status: ArgusStatus;
   startedBy: string | null;
+  starterName: string | null;
   createdAt: string;
   openHref: string;
 }
@@ -28,26 +29,29 @@ function label(r: RunManifest): string {
   return version ? `${name} v${version}` : name;
 }
 
-function stepAndStatus(r: RunManifest): [ArgusStep, ArgusStatus] {
-  if (r.status === "completed" || r.status === "partially_completed") return [5, r.review_count > 0 ? "Needs you" : "Finished"];
+function stepAndStatus(r: RunManifest, open: Set<string>): [ArgusStep, ArgusStatus] {
+  if (r.status === "completed" || r.status === "partially_completed") return [5, open.has(r.run_id) ? "Needs you" : "Finished"];
   if (r.status === "cancelled") return [4, "Stopped"];
   if (r.status === "failed") return [4, "Failed"];
   return [4, "Running"];
 }
 
-/** Argus runs only, newest first. */
-export function argusRows(runs: RunManifest[]): ArgusRow[] {
+/** Argus runs only, newest first. A finished run needs you while any of its review items is still open. */
+export function argusRows(runs: RunManifest[], items: ReviewItem[]): ArgusRow[] {
+  const open = new Set(items.map((i) => i.run_id));
   return runs
     .filter((r) => ARGUS_RUN_TYPES.includes(r.run_type))
     .map((r) => {
-      const [step, status] = stepAndStatus(r);
+      const [step, status] = stepAndStatus(r, open);
+      const starter = typeof r.params?.started_by === "string" ? r.params.started_by : null;
       return {
         runId: r.run_id,
         label: label(r),
         companies: r.company_count,
         step,
         status,
-        startedBy: typeof r.params?.started_by === "string" ? r.params.started_by : null,
+        startedBy: starter,
+        starterName: typeof r.params?.started_by_name === "string" ? r.params.started_by_name : starter,
         createdAt: r.created_at,
         // shortcut: the old screens until slice 5 builds steps 4 and 5
         openHref: step === 5 ? "#/review" : "#/extraction/extract",

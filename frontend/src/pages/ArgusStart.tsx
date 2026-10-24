@@ -10,26 +10,35 @@ export function ArgusStart() {
   const [runs, setRuns] = useState<RunManifest[] | null>(null);
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [itemsError, setItemsError] = useState<string | null>(null);
   const [me, setMe] = useState<string | null>(null);
   const [onlyMine, setOnlyMine] = useState(false);
   const [step, setStep] = useState<number | null>(null);
 
-  const load = useCallback(async () => {
+  const loadRuns = useCallback(async () => {
     try {
-      const [r, i] = await Promise.all([listAllRuns(), api.listReviewItems()]);
-      setRuns(r);
-      setItems(i.items);
+      setRuns(await listAllRuns());
       setError(null);
     } catch (err) {
       setError((err as Error).message);
     }
   }, []);
-  usePoll(load, runs?.some((r) => ACTIVE_STATUSES.has(r.status)) ? 3000 : 15000);
+  const loadItems = useCallback(async () => {
+    try {
+      setItems((await api.listReviewItems()).items);
+      setItemsError(null);
+    } catch (err) {
+      setItemsError((err as Error).message);
+    }
+  }, []);
+  usePoll(loadRuns, runs?.some((r) => ACTIVE_STATUSES.has(r.status)) ? 3000 : 15000);
+  // Items read every reviewable run's files: the slow interval only.
+  usePoll(loadItems, 15000);
   useEffect(() => {
     api.getMe().then((m) => setMe(m.user_id), () => setMe(null));
   }, []);
 
-  const mine = filterRows(argusRows(runs ?? []), { step: null, mineOf: onlyMine ? me : null });
+  const mine = filterRows(argusRows(runs ?? [], items), { step: null, mineOf: onlyMine ? me : null });
   const shown = filterRows(mine, { step, mineOf: null });
   const wait = waiting(mine, items);
 
@@ -41,6 +50,7 @@ export function ArgusStart() {
         <button onClick={() => (window.location.hash = "#/extraction/companies")}>Start new extraction</button>
       </div>
       {error && <p className="error-text" role="alert">Runs could not be loaded: {error}.</p>}
+      {itemsError && <p className="error-text" role="alert">Review items could not be loaded: {itemsError}. Waiting counts are unknown.</p>}
       <section className="argus-tiles" aria-label="Process">
         {tiles(mine, items).map((t) => (
           <a
@@ -64,7 +74,7 @@ export function ArgusStart() {
       <div className="argus-body">
         <div>
           <label className="argus-mine">
-            <input type="checkbox" id="argus-only-mine" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} /> Only mine
+            <input type="checkbox" id="argus-only-mine" checked={onlyMine} disabled={me === null} onChange={(e) => setOnlyMine(e.target.checked)} /> Only mine
           </label>
           <div className="table-wrap">
             <table className="data-table stack-on-phone" aria-label="Runs">
@@ -90,7 +100,7 @@ export function ArgusStart() {
                     <td>
                       {r.label}
                       <div className="muted">
-                        {r.startedBy ?? "—"} · {new Date(r.createdAt).toLocaleDateString()}
+                        {r.starterName ?? "—"} · {new Date(r.createdAt).toLocaleDateString()}
                       </div>
                     </td>
                     <td>{r.companies} companies</td>

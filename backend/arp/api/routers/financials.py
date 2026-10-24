@@ -73,7 +73,7 @@ async def start_financials_extraction_run(
             xbrl_source=xbrl_source,
         )
 
-    run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings, run_store=run_store, started_by=principal.user_id)
+    run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings, run_store=run_store, started_by=principal)
     return {"run_id": run_id, "company_count": len(companies)}
 
 

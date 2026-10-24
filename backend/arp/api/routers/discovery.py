@@ -46,7 +46,7 @@ async def start_discovery_run(
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
 
     run_id = create_discovery_run(companies, req.doc_types, "manual", run_store)
-    JobManager(run_store).set_started_by(run_id, principal.user_id)
+    JobManager(run_store).set_started_by(run_id, principal.user_id, principal.name)
 
     async def _background() -> None:
         await execute_discovery_run(

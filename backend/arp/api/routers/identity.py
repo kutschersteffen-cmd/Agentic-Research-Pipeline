@@ -55,7 +55,7 @@ async def start_identity_run(
 
     run_id = schedule_llm_run(
         create_fn=_create, run=_run, settings=settings if req.batch else None, run_store=run_store,
-        started_by=principal.user_id,
+        started_by=principal,
     )
     return {"run_id": run_id, "company_count": len(companies)}
 

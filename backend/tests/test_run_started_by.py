@@ -16,8 +16,8 @@ def test_set_started_by_writes_params(pg, tmp_path):
     store = RunStore(pg, tmp_path)
     jm = JobManager(store)
     m = jm.create_run("extraction", {"schema_name": "S"}, 1)
-    jm.set_started_by(m.run_id, "alice")
-    assert store.load_manifest(m.run_id).params == {"schema_name": "S", "started_by": "alice"}
+    jm.set_started_by(m.run_id, "u-1", "Alice Smith")
+    assert store.load_manifest(m.run_id).params == {"schema_name": "S", "started_by": "u-1", "started_by_name": "Alice Smith"}
 
 
 @pytest.fixture
@@ -48,7 +48,7 @@ def client(tmp_path, monkeypatch, pg):
     app.dependency_overrides[deps.get_run_store] = lambda: store
     for dep in (deps.get_registry, deps.get_decision_store, deps.get_xbrl_source):
         app.dependency_overrides[dep] = lambda: None
-    app.dependency_overrides[current_user] = lambda: Principal(user_id="alice", name="Alice", role="analyst")
+    app.dependency_overrides[current_user] = lambda: Principal(user_id="u-1", name="Alice Smith", role="analyst")
     return TestClient(app), store
 
 
@@ -57,14 +57,16 @@ def test_extraction_runs_records_the_signed_in_user(client):
     r = c.post("/api/extraction/runs", json={"companies": [{"company_id": "c1", "name": "Acme"}],
                                              "datapoint_schema": {"schema_id": "s", "name": "s", "fields": []}})
     assert r.status_code == 200, r.text
-    assert store.load_manifest(r.json()["run_id"]).params["started_by"] == "alice"
+    params = store.load_manifest(r.json()["run_id"]).params
+    assert (params["started_by"], params["started_by_name"]) == ("u-1", "Alice Smith")
 
 
 def test_extraction_start_records_the_signed_in_user(client):
     c, store = client
     r = c.post("/api/extraction/start", json={"profile": "financials", "companies": [{"company_id": "c1", "name": "Acme"}]})
     assert r.status_code == 200, r.text
-    assert store.load_manifest(r.json()["run_id"]).params["started_by"] == "alice"
+    params = store.load_manifest(r.json()["run_id"]).params
+    assert (params["started_by"], params["started_by_name"]) == ("u-1", "Alice Smith")
 
 
 def test_without_started_by_params_stay_untouched(pg, tmp_path, monkeypatch):
