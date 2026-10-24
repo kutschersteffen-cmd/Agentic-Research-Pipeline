@@ -3,6 +3,8 @@ import { filenameFromDisposition, inlineSafe } from "../lib/files";
 import { profileEmbedParams } from "../lib/biEmbed";
 import type { Me } from "../lib/reviewKeys";
 import type {
+  ArgusDraft,
+  ArgusFlow,
   AskHistoryTurn,
   AskResponse,
   WorkbenchResponse,
@@ -608,6 +610,20 @@ export const api = {
   cancelRun: (runId: string) => request(`/api/runs/${runId}/cancel`, { method: "POST" }),
   resumeRun: (runId: string) => request(`/api/runs/${runId}/resume`, { method: "POST" }),
   listKnownCompanies: (runType: string) => request(`/api/runs/known-companies?run_type=${runType}`),
+
+  // Argus flows (#/argus/<flow_id>/<step>)
+  createArgusFlow: () => request<ArgusFlow>("/api/argus/flows", { method: "POST" }),
+  listArgusFlows: () => request<{ flows: ArgusDraft[] }>("/api/argus/flows"),
+  getArgusFlow: (flowId: string) => request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}`),
+  patchArgusFlow: (flowId: string, body: { identity_run_id?: string }) =>
+    request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}`, { method: "PATCH", body: JSON.stringify(body) }),
+  uploadFlowCompanies: (flowId: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies/upload`, { method: "POST", headers: {}, body: form });
+  },
+  addFlowCompanies: (flowId: string, body: { universe_path?: string; company?: { name: string; ticker?: string; isin?: string; lei?: string; cik?: string } }) =>
+    request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies`, { method: "POST", body: JSON.stringify(body) }),
 
   // Universe from an in-hand company list (e.g. filtered thematic-run matches)
   universeFromCompanies: (companies: unknown[], name: string) =>

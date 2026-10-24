@@ -4,6 +4,7 @@ import { canLeave } from "./lib/leaveGuard";
 import { ReviewerField } from "./components/ReviewerField";
 import { SignedInAs } from "./components/SignedInAs";
 import { ProcessBar, StartPage, WorkspaceOverview, stageDecisions } from "./pages/ProcessHub";
+import { ArgusFlow } from "./pages/ArgusFlow";
 import { ArgusStart } from "./pages/ArgusStart";
 import { WORKSPACES, workspaceOfProcess, type WorkspaceId } from "./lib/processes";
 import { STAGE_TABS } from "./pages/steward/common";
@@ -417,7 +418,7 @@ function App() {
         )}
         <Suspense fallback={<p className="muted" role="status">Loading…</p>}>
         {active === "home" && <StartPage />}
-        {active === "argus" && <ArgusStart />}
+        {active === "argus" && (route.params[0] ? <ArgusFlow key={route.params[0]} flowId={route.params[0]} step={Number(route.params[1] ?? 1) || 1} onSendUniverse={sendUniverse("Argus")} /> : <ArgusStart />)}
         {isWorkspace(active) && active !== "argus" && <WorkspaceOverview key={active} id={active} />}
         {active === "dashboard" && <MonitoringDashboard onNavigate={go} onOpenReview={openReview} />}
         {active === "search" && <Search />}

@@ -2156,3 +2156,12 @@ th[aria-sort="ascending"] .xbrl-sort, th[aria-sort="descending"] .xbrl-sort { co
 @media (max-width: 640px) {
   .ask-panel { width: 100vw; border-left: 0; box-shadow: none; }
 }
+.argus-steps ol { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-6); list-style: none; padding: 0; margin: var(--s-4) 0 var(--s-6); font-family: var(--font-mono); font-size: var(--text-sm); color: var(--muted); }
+.argus-steps li[aria-current="step"] { color: var(--text); font-weight: 600; border-bottom: 2px solid var(--text); }
+.argus-steps .argus-step-done { color: var(--text); }
+.argus-add { display: grid; gap: var(--s-4); margin-bottom: var(--s-6); }
+.argus-add :is(p, .field-label) { margin: 0; }
+.argus-one fieldset { display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: end; border: 0; padding: 0; margin: 0; }
+.argus-one legend { font-weight: 600; margin-bottom: var(--s-2); }
+.argus-row-await > * { background: color-mix(in srgb, var(--await) 60%, transparent); }
+.argus-flow-actions { margin-top: var(--s-4); flex-wrap: wrap; white-space: normal; }

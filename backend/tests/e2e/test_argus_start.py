@@ -58,6 +58,7 @@ def test_runs_filter_by_step_and_only_mine(page):
               "escalated": False, "high_risk": False, "decision": None} for k, rid in (("a", "r2"), ("b", "r2"), ("c", "stewardiq_run"))]
     page.route("**/api/runs*", lambda route: route.fulfill(json={"runs": runs}))
     page.route("**/api/review/items*", lambda route: route.fulfill(json={"items": items}))
+    page.route("**/api/argus/flows", lambda route: route.fulfill(json={"flows": []}))  # drafts other tests left behind
     page.goto(URL + "/#/argus")
     table = page.get_by_role("table", name="Runs")
     table.get_by_text("Green capex v3").wait_for()

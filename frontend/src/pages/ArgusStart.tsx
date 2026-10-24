@@ -1,23 +1,29 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
+import { flowHref } from "../lib/argusFlow";
 import { STEPS, argusRows, filterRows, tiles, waiting } from "../lib/argusStart";
 import { ACTIVE_STATUSES } from "../lib/runs";
 import { listAllRuns, usePoll } from "../lib/poll";
-import type { ReviewItem, RunManifest } from "../types";
+import type { ArgusDraft, ReviewItem, RunManifest } from "../types";
 
 /** #/argus: the five-step process, the team's Argus runs and what waits on a person. */
 export function ArgusStart() {
   const [runs, setRuns] = useState<RunManifest[] | null>(null);
+  const [flows, setFlows] = useState<ArgusDraft[]>([]);
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [itemsError, setItemsError] = useState<string | null>(null);
   const [me, setMe] = useState<string | null>(null);
   const [onlyMine, setOnlyMine] = useState(false);
   const [step, setStep] = useState<number | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
 
   const loadRuns = useCallback(async () => {
     try {
-      setRuns(await listAllRuns());
+      const [r, f] = await Promise.all([listAllRuns(), api.listArgusFlows()]);
+      setRuns(r);
+      setFlows(f.flows);
       setError(null);
     } catch (err) {
       setError((err as Error).message);
@@ -38,7 +44,7 @@ export function ArgusStart() {
     api.getMe().then((m) => setMe(m.user_id), () => setMe(null));
   }, []);
 
-  const mine = filterRows(argusRows(runs ?? [], items), { step: null, mineOf: onlyMine ? me : null });
+  const mine = filterRows(argusRows(runs ?? [], items, flows), { step: null, mineOf: onlyMine ? me : null });
   const shown = filterRows(mine, { step, mineOf: null });
   const wait = waiting(mine, items);
 
@@ -46,9 +52,22 @@ export function ArgusStart() {
     <div className="page hub argus-start">
       <div className="argus-head">
         <h1>Argus</h1>
-        {/* shortcut: opens the old companies screen until slice 2 builds step 1 */}
-        <button onClick={() => (window.location.hash = "#/extraction/companies")}>Start new extraction</button>
+        <button
+          disabled={starting}
+          onClick={async () => {
+            setStarting(true);
+            try {
+              window.location.hash = flowHref((await api.createArgusFlow()).flow_id, 1);
+            } catch (err) {
+              setStartError((err as Error).message);
+              setStarting(false);
+            }
+          }}
+        >
+          Start new extraction
+        </button>
       </div>
+      {startError && <p className="error-text" role="alert">The extraction could not be started: {startError}.</p>}
       {error && <p className="error-text" role="alert">Runs could not be loaded: {error}.</p>}
       {itemsError && <p className="error-text" role="alert">Review items could not be loaded: {itemsError}. Waiting counts are unknown.</p>}
       <section className="argus-tiles" aria-label="Process">
