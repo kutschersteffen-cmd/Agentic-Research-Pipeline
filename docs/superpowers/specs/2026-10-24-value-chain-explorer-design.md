@@ -106,7 +106,11 @@ arithmetic, stored matrices and cut-off comparisons are float64.
    (purchases from and sales to its own sector in its own region), nothing else.
 6. **Derived files are not committed** (size and the EXIOBASE 3.9+ licence); building them belongs
    in the environment setup script. The owner recorded on 2026-10-19 that the licence is no obstacle.
-7. **Caveat line**, on every view and in every API response: `EXIOBASE <version> · <year> · basic
+7. **Search** ranks exact region matches first, so `WA` or `DE` finds that region's nodes ahead of
+   sector names that merely contain the letters ("waste", "trade").
+8. **Direct mode re-sorts**: switching to Direct shows the top 10 direct suppliers and customers,
+   not the Total list's rows with direct values.
+9. **Caveat line**, on every view and in every API response: `EXIOBASE <version> · <year> · basic
    prices, M EUR · now-cast years are estimates · capital goods not included in flows`.
 
 ## Constraints
@@ -120,9 +124,9 @@ arithmetic, stored matrices and cut-off comparisons are float64.
 
 ## Left to the builder
 
-File layout, how the build streams `Z.txt`, the search matching rule (case-insensitive substring on
-sector name, region code or region label is enough), component structure, and whether the three
-views are tabs or sub-routes, as long as the URLs in Appendix C work.
+File layout, how the build streams `Z.txt`, component structure, and whether the three views are
+tabs or sub-routes, as long as the URLs in Appendix C work. `ARP_VALUE_CHAIN_DIR` is read per request
+(not cached at start-up), so tests can switch it.
 
 ## Appendix A: build output (`<dir>`)
 
@@ -134,18 +138,20 @@ views are tabs or sub-routes, as long as the URLs in Appendix C work.
 
 ## Appendix B: API
 
-Every 200 response carries `edition` and `caveat` (My call 7). Not configured: every endpoint
+Every 200 response carries `edition` and `caveat` (My call 9). Not configured: every endpoint
 answers 503 with `detail` `value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR`.
 Unknown or zero-output node: 404 `detail` `unknown node '<id>'`. Parameters out of range: 422.
 
 - `GET /status` → `{edition, version, year, n_nodes, n_regions, n_sectors, built_at}`.
 - `GET /nodes?q=<text>&limit=20` → `{items: [{node_id, region, region_label, sector}]}`, at most
-  `limit` (1–100) items, ordered by node id.
-- `GET /nodes/{id}?limit=10&exclude_own=false` → `{node_id, region, region_label, sector,
-  output_meur, ghg_t_per_meur, energy_tj_per_meur, jobs_per_meur, va_share, suppliers, customers}`;
-  `suppliers` and `customers` are each up to `limit` (1–50) items `{node_id, region, region_label,
-  sector, direct, total}`, ordered by `total` descending. `exclude_own=true` drops the node itself
-  from both lists.
+  `limit` (1–100) items. A node matches when `q` (case-insensitive) equals its region code or region
+  label, or is a substring of its sector name or region label. Nodes whose region code or label
+  equals `q` come first; then the rest; each group ordered by node id.
+- `GET /nodes/{id}?limit=10&exclude_own=false&order=total` → `{node_id, region, region_label,
+  sector, output_meur, ghg_t_per_meur, energy_tj_per_meur, jobs_per_meur, va_share, suppliers,
+  customers}`; `suppliers` and `customers` are each up to `limit` (1–50) items `{node_id, region,
+  region_label, sector, direct, total}`, ordered by `order` (`total` or `direct`) descending.
+  `exclude_own=true` drops the node itself from both lists.
 - `GET /nodes/{id}/tree?depth=2&width=3&cutoff=0.01&goods_only=false` → nested
   `{node_id, region_label, sector, coef, chain, children}`; the root has `coef` and `chain` 1. A
   node's children are its `width` largest direct suppliers `i ≠` that node (only that node; an
@@ -163,8 +169,10 @@ Unknown or zero-output node: 404 `detail` `unknown node '<id>'`. Parameters out 
 - `#/valueChain`: a search picker (sector or region) and, until a node is picked, the text
   `Pick a sector and region.` Not configured: the 503 `detail` as the page message.
 - `#/valueChain/<id>`: **node page** as mockup 1: four intensity tiles; suppliers and customers as
-  bar lists (10 each); a Total/Direct switch, Total selected first; `Hide this node`, off by default;
-  in Total mode each row reads `<total>¢ (direct <direct>¢)`; clicking a row opens that node's page.
+  bar lists (10 each); a Total/Direct switch, Total selected first, each mode showing the top 10 by
+  that measure (`order=total` or `order=direct`); `Hide this node`, off by default; in Total mode each
+  row reads `<total>¢ (direct <direct>¢)`, in Direct mode `<direct>¢`; clicking a row opens that
+  node's page.
 - `#/valueChain/<id>/tree`: **upstream tree** as mockup 2, suppliers to the left of what they supply;
   the screen requests width 3; controls Levels (2–4, default 2), cut-off (0–10¢, default 1¢),
   `Goods only` (off). Each box shows `<coef>¢ per €` and, from level 2, `chain <chain>¢`; clicking
@@ -215,6 +223,8 @@ now-cast years are estimates · capital goods not included in flows` (C below).
 | AC-20 | F built | `GET …/nodes/DE.1` | 404, `detail` `unknown node 'DE.1'` | holdout |
 | AC-21 | F built | `GET …/nodes?q=paddy` | 200, `items` `[]` | holdout |
 | AC-22 | F built | `GET …/nodes?q=copper` | `items` node ids exactly `["CN.2","DE.2"]` | holdout |
+| AC-22b | F built | `GET …/nodes?q=de` | `items` node ids exactly `["DE.2","DE.3"]` | holdout |
+| AC-22c | F built | `GET …/nodes/CN.2?order=direct` | `suppliers` node ids exactly `["CN.2","CN.3","DE.3","DE.2"]` with `direct` 0.2, 0.1, 0.1, 0 | holdout |
 | AC-23 | `ARP_VALUE_CHAIN_DIR` unset | `GET …/status` | 503, `detail` `value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR` | holdout |
 | AC-24 | `ARP_VALUE_CHAIN_DIR` = an empty directory | `GET …/nodes?q=x` | 503 with the same `detail` | holdout |
 | AC-25 | `ARP_ANTHROPIC_API_KEY` unset | AC-1 to AC-24 | all pass | holdout |
