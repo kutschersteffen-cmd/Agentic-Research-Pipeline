@@ -114,6 +114,28 @@ def test_matched_without_own_id_keeps_its_universe_id(client, fid, pg):
     assert flow["companies"][0]["company_id"] == "AAPL"
 
 
+def test_universe_id_wins_over_the_lists_own_id(client, fid, pg):
+    apple = seed(pg, "Apple", lei="HWUPKR0MPOU8FGXBT394", universe="AAPL")
+    flow = upload(client, fid, "name,lei,company_id\nApple,HWUPKR0MPOU8FGXBT394,AAPL-X\n")
+    assert flow["companies"][0]["company_id"] == "AAPL"  # where earlier runs and documents are filed
+    assert ("USER", "AAPL-X") in identifiers(pg, apple)
+
+
+def test_an_own_id_alone_never_matches(client, fid, pg):
+    seed(pg, "Apple", lei="HWUPKR0MPOU8FGXBT394", user="4", universe="4")
+    flow = upload(client, fid, "name,company_id\nAcme,4\n")
+    assert flow["companies"][0]["entity_id"] is None
+    assert flow["rows"][0]["problem"] == "No identifier: add an ISIN, LEI or CIK"
+
+
+def test_a_user_id_taken_meanwhile_does_not_fail_the_upload(client, fid, pg, monkeypatch):
+    # two uploads at once: both see the id as free, the second insert hits the unique index
+    from arp.argus import companies
+    seed(pg, "Other", user="X")
+    monkeypatch.setattr(companies, "lookup", lambda *_a: None)
+    assert upload(client, fid, "name,isin,company_id\nMicrosoft,US5949181045,X\n")["companies"][0]["entity_id"]
+
+
 def test_conflicting_identifiers_create_nothing(client, fid, pg):
     seed(pg, "A", lei="529900D6BF99LW9R2E68")
     seed(pg, "B", isin="US5949181045")

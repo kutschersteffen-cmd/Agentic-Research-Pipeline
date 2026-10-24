@@ -4,6 +4,7 @@ One JSON file per flow under `runs_dir/_flows/`, so no worker, Run History or re
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
@@ -18,6 +19,8 @@ from arp.schemas.common import CompanyRef, now_iso
 from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.locks import KeyedLock
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
+
+logger = logging.getLogger(__name__)
 
 
 class ArgusFlow(BaseModel):
@@ -61,7 +64,12 @@ class FlowStore:
     def list(self) -> list[ArgusFlow]:
         if not self.flows_dir.is_dir():
             return []
-        flows = [ArgusFlow.model_validate_json(read_text_utf8(p)) for p in self.flows_dir.glob("*.json")]
+        flows = []
+        for p in self.flows_dir.glob("*.json"):
+            try:
+                flows.append(ArgusFlow.model_validate_json(read_text_utf8(p)))
+            except (OSError, ValueError):  # one unreadable file must not hide every other flow
+                logger.warning("unreadable flow file %s", p.name)
         return sorted(flows, key=lambda f: f.created_at, reverse=True)
 
     def update(self, flow_id: str, fn: Callable[[ArgusFlow], None]) -> ArgusFlow | None:

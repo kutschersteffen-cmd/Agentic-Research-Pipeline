@@ -1,5 +1,5 @@
 import { flowHref } from "./argusFlow.ts";
-import type { ArgusFlow, ReviewItem, RunManifest } from "../types";
+import type { ArgusDraft, ReviewItem, RunManifest } from "../types";
 
 // The Argus start page (#/argus), derived from /api/runs and /api/review/items.
 
@@ -38,7 +38,7 @@ function stepAndStatus(r: RunManifest, open: Set<string>): [ArgusStep, ArgusStat
 }
 
 /** Argus runs and draft flows, newest first. A finished run needs you while any of its review items is still open. */
-export function argusRows(runs: RunManifest[], items: ReviewItem[], flows: ArgusFlow[] = []): ArgusRow[] {
+export function argusRows(runs: RunManifest[], items: ReviewItem[], flows: ArgusDraft[] = []): ArgusRow[] {
   const open = new Set(items.map((i) => i.run_id));
   const drafts: ArgusRow[] = flows.map((f) => ({
     runId: f.flow_id,

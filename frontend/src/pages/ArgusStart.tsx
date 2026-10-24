@@ -4,12 +4,12 @@ import { flowHref } from "../lib/argusFlow";
 import { STEPS, argusRows, filterRows, tiles, waiting } from "../lib/argusStart";
 import { ACTIVE_STATUSES } from "../lib/runs";
 import { listAllRuns, usePoll } from "../lib/poll";
-import type { ArgusFlow, ReviewItem, RunManifest } from "../types";
+import type { ArgusDraft, ReviewItem, RunManifest } from "../types";
 
 /** #/argus: the five-step process, the team's Argus runs and what waits on a person. */
 export function ArgusStart() {
   const [runs, setRuns] = useState<RunManifest[] | null>(null);
-  const [flows, setFlows] = useState<ArgusFlow[]>([]);
+  const [flows, setFlows] = useState<ArgusDraft[]>([]);
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [itemsError, setItemsError] = useState<string | null>(null);

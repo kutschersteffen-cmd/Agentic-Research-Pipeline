@@ -33,6 +33,12 @@ def test_list_is_newest_first(client):
     assert [x["flow_id"] for x in client.get("/api/argus/flows").json()["flows"]] == [b, a]
 
 
+def test_an_unreadable_flow_file_is_skipped(client, tmp_path):
+    good = client.post("/api/argus/flows").json()["flow_id"]
+    (tmp_path / "runs" / "_flows" / "broken.json").write_text("{")
+    assert [x["flow_id"] for x in client.get("/api/argus/flows").json()["flows"]] == [good]
+
+
 def test_unknown_or_unsafe_flow_is_404(client):
     assert client.get("/api/argus/flows/nope").status_code == 404
     assert client.get("/api/argus/flows/..%2Fx").status_code == 404

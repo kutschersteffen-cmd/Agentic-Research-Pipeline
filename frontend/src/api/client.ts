@@ -3,6 +3,7 @@ import { filenameFromDisposition, inlineSafe } from "../lib/files";
 import { profileEmbedParams } from "../lib/biEmbed";
 import type { Me } from "../lib/reviewKeys";
 import type {
+  ArgusDraft,
   ArgusFlow,
   AskHistoryTurn,
   AskResponse,
@@ -612,7 +613,7 @@ export const api = {
 
   // Argus flows (#/argus/<flow_id>/<step>)
   createArgusFlow: () => request<ArgusFlow>("/api/argus/flows", { method: "POST" }),
-  listArgusFlows: () => request<{ flows: ArgusFlow[] }>("/api/argus/flows"),
+  listArgusFlows: () => request<{ flows: ArgusDraft[] }>("/api/argus/flows"),
   getArgusFlow: (flowId: string) => request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}`),
   patchArgusFlow: (flowId: string, body: { identity_run_id?: string }) =>
     request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}`, { method: "PATCH", body: JSON.stringify(body) }),
