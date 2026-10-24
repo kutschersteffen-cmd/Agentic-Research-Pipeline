@@ -2098,3 +2098,22 @@ th[aria-sort="ascending"] .xbrl-sort, th[aria-sort="descending"] .xbrl-sort { co
 @media (pointer: coarse) {
   .rules-actions button, .rules-item .toolbar button, .rules-item .inline-fields button, .rules-marker { min-height: 44px; }
 }
+
+/* Argus start page (pages/ArgusStart.tsx): five step tiles, runs beside what waits on you. */
+.argus-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-4); flex-wrap: wrap; }
+.argus-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s-3); margin: var(--s-6) 0 var(--s-8); }
+.argus-tile { display: flex; flex-direction: column; gap: var(--s-2); padding: 18px 20px; border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none; }
+.argus-tile:hover, .argus-tile[aria-pressed="true"] { border-color: var(--text); }
+.argus-tile[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--text); }
+.argus-tile:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+.argus-tile-await { border-color: var(--await-edge); background: var(--await); }
+.argus-tile-name { font-family: var(--font-mono); font-size: var(--text-sm); }
+.argus-tile-count { font-size: 2.5rem; font-weight: 500; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.argus-tile-needs { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--hi-ink); font-weight: 600; }
+.argus-body { display: grid; grid-template-columns: minmax(0, 1fr) 18rem; gap: var(--s-6); align-items: start; }
+.argus-mine { display: inline-flex; align-items: center; gap: var(--s-1_5); margin-bottom: var(--s-3); }
+.argus-waiting h2 { margin-top: 0; }
+.argus-waiting-total { font-size: 2.5rem; font-weight: 500; line-height: 1; margin: 0 0 var(--s-3); font-variant-numeric: tabular-nums; }
+.argus-waiting ul { padding-left: var(--s-4); }
+@media (max-width: 1100px) { .argus-body { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .argus-tiles { grid-template-columns: 1fr; } }
