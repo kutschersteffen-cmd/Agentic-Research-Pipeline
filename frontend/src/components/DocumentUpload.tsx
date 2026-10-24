@@ -1,16 +1,9 @@
 import { useState } from "react";
 import { api } from "../api/client";
+import { DOC_TYPES } from "../lib/docTypes";
 import type { DocType } from "../types";
 
-const TYPES: [DocType, string][] = [
-  ["10-K", "Annual report"],
-  ["sustainability_report", "Sustainability report"],
-  ["DEF-14A", "Proxy statement"],
-  ["earnings_transcript", "Earnings transcript"],
-  ["investor_presentation", "Investor presentation"],
-  ["transition_plan", "Transition plan"],
-  ["other", "Other"],
-];
+const TYPES = DOC_TYPES;
 
 interface FileResult { key: string; text: string; ok: boolean }
 

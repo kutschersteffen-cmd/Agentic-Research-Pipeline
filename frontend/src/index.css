@@ -2165,3 +2165,14 @@ th[aria-sort="ascending"] .xbrl-sort, th[aria-sort="descending"] .xbrl-sort { co
 .argus-one legend { font-weight: 600; margin-bottom: var(--s-2); }
 .argus-row-await > * { background: color-mix(in srgb, var(--await) 60%, transparent); }
 .argus-flow-actions { margin-top: var(--s-4); flex-wrap: wrap; white-space: normal; }
+.argus-year input { width: 8rem; }
+.argus-sources { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-6); border: 0; padding: 0; margin: 0; }
+.argus-sources legend { font-weight: 600; margin-bottom: var(--s-2); }
+.argus-source { display: inline-flex; align-items: center; gap: var(--s-1_5); }
+.argus-source:has(input:disabled) { color: var(--muted); }
+.argus-file { position: relative; }
+.argus-file .link-button { text-align: left; overflow-wrap: anywhere; }
+.argus-preview { position: absolute; z-index: 5; top: 100%; left: 0; width: 220px; padding: var(--s-1_5); background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--r-sm); box-shadow: 0 6px 24px rgb(0 0 0 / 0.18); }
+.argus-preview img { display: block; width: 100%; background: white; /* page = paper, as .source-page-img */ }
+.argus-decision { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.argus-state { font-weight: 600; min-width: 4.5rem; }

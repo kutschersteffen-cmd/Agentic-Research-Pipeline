@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { InputPicker } from "../components/InputPicker";
 import { StepBar } from "../components/StepBar";
+import { ArgusDocuments } from "./ArgusDocuments";
 import { continueLabel, documentsText, extractedBeforeText, flowHref, identifierList } from "../lib/argusFlow";
 import { STEPS } from "../lib/argusStart";
 import type { ArgusFlow as Flow } from "../types";
@@ -54,7 +55,22 @@ export function ArgusFlow({ flowId, step, onSendUniverse }: { flowId: string; st
       <h1>New extraction</h1>
       <StepBar flowId={flow.flow_id} current={step} reached={flow.step} />
       {error && <p className="error-text" role="alert">{error}</p>}
-      {step !== 1 ? (
+      {step === 2 ? (
+        <ArgusDocuments
+          flow={flow}
+          busy={busy}
+          act={act}
+          setFlow={setFlow}
+          onContinue={() =>
+            act(async () => {
+              await api.patchArgusFlow(flow.flow_id, { step: 3 });
+              // shortcut: hands the list to the old Extraction screen until slice 4 builds step 3; it does not yet honour Remove
+              const saved = await api.universeFromCompanies(flow.companies, "argus");
+              onSendUniverse("extraction", saved.path, saved.company_count);
+            })
+          }
+        />
+      ) : step !== 1 ? (
         <p>
           {step} {STEPS[step - 1]} is not available here yet. <a href={flowHref(flow.flow_id, 1)}>Back to 1 Companies</a>
         </p>
@@ -171,9 +187,9 @@ export function ArgusFlow({ flowId, step, onSendUniverse }: { flowId: string; st
               disabled={busy || n === 0}
               onClick={() =>
                 act(async () => {
-                  // shortcut: hands the list to the old Extraction screen until slice 3 builds step 2
-                  const saved = await api.universeFromCompanies(flow.companies, "argus");
-                  onSendUniverse("extraction", saved.path, saved.company_count);
+                  const f = await api.patchArgusFlow(flow.flow_id, { step: 2 });
+                  window.location.hash = flowHref(flow.flow_id, 2);
+                  return f;
                 })
               }
             >
