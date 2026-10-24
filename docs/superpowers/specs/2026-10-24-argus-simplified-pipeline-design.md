@@ -271,6 +271,35 @@ recent run of that company:
    company's files stay together whichever identifier a list used. A one-time migration moves existing
    folders; running it twice changes nothing.
 
+## Pinned interfaces
+
+Added 2026-10-24 after the hidden tests were written, so the tests and the builder agree. These are fixed;
+everything else the spec leaves open stays the builder's.
+
+1. **Review item kinds.** `ReviewItemKind` (`backend/arp/schemas/review.py`) gains `conflict` and
+   `document`. Field items keep their existing kind `value`. `GET /api/review/items` returns each
+   item's `kind`.
+2. **Deciding a conflict** uses the existing endpoint
+   `POST /api/review/runs/{run_id}/items/{item_key}/decision`. **Keep accepted** posts
+   `{"decision": "reject"}` (the new value is rejected); **Accept new** posts `{"decision": "approve"}`.
+3. **Import from the shared folder.**
+   - Preview: `GET /api/documents/import/preview?company_ids=<id>,<id>` returns
+     `{"matched": [{"folder", "company_id", "files"}], "unmatched": ["<folder name>"]}` and copies nothing.
+   - Import: `POST /api/documents/import` with `{"company_ids": [...]}` returns
+     `{"imported": [{"company_id", "doc_id", "doc_type", "report_year", "file_name"}],
+     "unmatched": ["<folder name>"], "skipped_duplicates": [{"company_id", "file_name", "duplicate_of"}],
+     "flagged": [{"company_id", "file_name", "check"}]}`.
+   - Type subfolders map to the app's existing `DocType` values: `annual` → `10-K`,
+     `sustainability` → `sustainability_report`, `proxy` → `DEF-14A`, `transcript` →
+     `earnings_transcript`, `presentation` → `investor_presentation`, `transition-plan` →
+     `transition_plan`, `other` → `other`.
+   - Each registered document gains `report_year: int | None`, returned by `GET /api/documents/{company_id}`
+     in `registered[]`. Imported files set it from the file name, else from the document text, else `None`
+     with the check `Year unclear`.
+4. **Migration command:** `arp documents migrate-central-id`. It moves every company folder under the
+   app's document folder to `<companies.id>/` and updates `documents.local_path`. A second run finds
+   nothing to move and exits 0.
+
 ## Approaches
 
 | | Approach | Trade-off |
@@ -367,18 +396,18 @@ Rows checked by `holdout` are owed as `unit` until `HOLDOUT_TOKEN` is set; the P
 | AC-47 | a fact with status `auto_accepted`, value 12 | a new run extracts 14 | as AC-45 | holdout |
 | AC-48 | a fact with status `approved`, value 12 | a new run extracts 14 routed to review | the current fact is 12 and exactly one new review item exists for that field, of kind `conflict` | holdout |
 | AC-49 | a fact with status `approved`, value 12 | a new run extracts 12 | the fact is unchanged, no review item is created and no new observation row is stored | holdout |
-| AC-50 | the conflict of AC-45 | it is decided `keep` | the current fact is 12 `approved`, the item is closed with decision `keep`, and the 14 observation remains | holdout |
+| AC-50 | the conflict of AC-45 | it is decided `keep` (`{"decision": "reject"}`) | the current fact is 12 `approved`, the item is closed with decision `reject`, and the 14 observation remains | holdout |
 | AC-51 | after AC-50 | another run extracts 14 again | no new conflict item is created | holdout |
-| AC-52 | the conflict of AC-45 | it is decided `accept` | the current fact is 14 `approved`; the 12 fact row still exists with `valid_to` set | holdout |
-| AC-53 | a conflict, a document flag and a field review item | the Review Queue opens | it lists 3 items with kinds `conflict`, `document`, `field` | evaluator |
+| AC-52 | the conflict of AC-45 | it is decided `accept` (`{"decision": "approve"}`) | the current fact is 14 `approved`; the 12 fact row still exists with `valid_to` set | holdout |
+| AC-53 | a conflict, a document flag and a field review item | the Review Queue opens | it lists 3 items with kinds `conflict`, `document`, `value` | evaluator |
 | AC-54 | the items of AC-53 | Tape Reader opens | it steps through the same 3 items | evaluator |
 | AC-55 | step 5 shows the conflict of AC-45 | the row is shown | it reads `Accepted: 12` and `New: 14` with `Keep accepted` and `Accept new` | evaluator |
-| AC-56 | `ARP_IMPORT_DIR` holds `Apple-Inc__LEI-HWUPKR0MPOU8FGXBT394/annual/2025_10-K.pdf` | the import runs for Apple | the file is in the app's document folder under Apple's `companies.id`, with type `annual` and year 2025 | holdout |
-| AC-57 | `ARP_IMPORT_DIR` also holds `Unknown__ISIN-XX0000000000/annual/2025_a.pdf` | the import runs | the result lists `Unknown__ISIN-XX0000000000` as unmatched and the number of rows in `companies` is unchanged | holdout |
+| AC-56 | `ARP_IMPORT_DIR` holds `Apple-Inc__LEI-HWUPKR0MPOU8FGXBT394/annual/2025_10-K.pdf` | `POST /api/documents/import` runs for Apple | the file is in the app's document folder under Apple's `companies.id`, and Apple's `registered[]` entry for it has `doc_type` `10-K` and `report_year` 2025 | holdout |
+| AC-57 | `ARP_IMPORT_DIR` also holds `Unknown__ISIN-XX0000000000/annual/2025_a.pdf` | `POST /api/documents/import` runs | the response's `unmatched` lists `Unknown__ISIN-XX0000000000` and the number of rows in `companies` is unchanged | holdout |
 | AC-58 | the folder of AC-56 | `From the import folder` is chosen in step 2 | before anything is copied, each subfolder is listed with its matched company or `unmatched` | evaluator |
 | AC-59 | an imported file | it is deleted from the import folder | the company's document list still has it and it opens | holdout |
 | AC-60 | `annual/report.pdf` with no year in its name or text | it is imported | its check reads `Year unclear` | holdout |
-| AC-61 | documents stored under a folder named by an ISIN | the migration runs, then runs again | each document sits under `<companies.id>/` and opens; the second run changes nothing | holdout |
+| AC-61 | documents stored under a folder named by an ISIN | `arp documents migrate-central-id` runs, then runs again | each document sits under `<companies.id>/` and opens; the second run changes nothing | holdout |
 | AC-62 | slice 6 is merged | `#/extraction/companies/auto` is opened | the hash becomes `#/argus` | evaluator |
 | AC-63 | slice 6 is merged | each of `#/argusUniverse`, `#/identity` and `#/discovery` is opened in turn | each one opens step 1 of a new flow | evaluator |
 | AC-64 | slice 6 is merged | `#/transitionPlan` is opened | step 1 of a new flow opens, and step 3 has `Transition plan` preselected | evaluator |
@@ -393,7 +422,7 @@ Rows checked by `holdout` are owed as `unit` until `HOLDOUT_TOKEN` is set; the P
 | AC-73 | the flow of AC-8 | `#/argus` is opened | `Runs` has a row for it with status `Draft` and step `1 Companies` | evaluator |
 | AC-74 | step 2 with 9 files | `Remove all` is clicked | all 9 rows show `Removed`, the continue button is disabled, and each company's `Documents on file` in step 1 is unchanged | evaluator |
 | AC-75 | `ARP_IMPORT_DIR` holds an Apple file whose text names only Microsoft | the import runs for Apple | the file's check reads `Company not found in document` | holdout |
-| AC-76 | `ARP_IMPORT_DIR` holds the same content twice under Apple | the import runs | Apple has 1 document for that content and the result lists 1 as `Duplicate of <file name>, skipped` | holdout |
+| AC-76 | `ARP_IMPORT_DIR` holds the same content twice under Apple | `POST /api/documents/import` runs | Apple has 1 document for that content and the response's `skipped_duplicates` has 1 entry | holdout |
 | AC-77 | scoring template T chosen in `Settings (optional)` | the run starts | the started run has T attached | unit |
 
 Must not change: stored runs stay readable (AC-69); XBRL fetch works (AC-68); hand-overs work (AC-65);
