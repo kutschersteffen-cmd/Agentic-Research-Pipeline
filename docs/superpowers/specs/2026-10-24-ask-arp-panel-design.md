@@ -1,7 +1,7 @@
 # Ask ARP: one chat panel for plain-language questions
 
 Date: 2026-10-24
-Status: draft for the owner's approval
+Status: approved by the owner, 2026-10-24 (description and acceptance table)
 Owner decisions on 2026-10-24: approach A (one endpoint that picks a tool, history kept in the browser); the
 first three questions it must answer are the owner's own (below); "review the data" means a check block shown
 above the chart.
