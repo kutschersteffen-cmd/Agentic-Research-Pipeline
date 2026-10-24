@@ -2,6 +2,7 @@ name: Holdout acceptance
 
 # Runs the hidden acceptance tests (private repo kutschersteffen-cmd/holdout) against this PR's build:
 # regression/ always, plus specs/<slug>/ when the PR description names its spec as "Spec: <slug>".
+# A PR that builds one slice of a spec adds a "Rows: AC-1, AC-4" line: only those rows of specs/<slug>/ run.
 # The holdout repo's own run.py prints only "AC-n pass|fail", so the implementing agent, which can
 # read these logs, learns which row failed and never how it was checked. The tests are fetched after
 # the app has started and deleted when the job ends; no artifact is uploaded.
@@ -95,7 +96,8 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           spec=$(printf '%s\n' "$PR_BODY" | sed -n 's/^Spec: *\([A-Za-z0-9_.-]*\).*/\1/p' | head -1)
-          python .holdout/run.py ${spec:+--spec "$spec"}
+          rows=$(printf '%s\n' "$PR_BODY" | sed -n 's/^Rows: *\([AC0-9, -]*\).*/\1/p' | head -1 | tr -d ' ')
+          python .holdout/run.py ${spec:+--spec "$spec"} ${spec:+${rows:+--rows "$rows"}}
 
       - name: Remove the hidden tests
         if: always()
