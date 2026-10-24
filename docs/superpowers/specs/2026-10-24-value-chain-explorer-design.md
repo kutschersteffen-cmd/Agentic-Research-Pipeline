@@ -1,6 +1,6 @@
 # Value Chain Explorer on full-resolution EXIOBASE
 
-Status: draft, 2026-10-24. Owner decisions on 2026-10-24: base the value-chain work on EXIOBASE;
+Status: approved by the owner, 2026-10-24. Owner decisions on 2026-10-24: base the value-chain work on EXIOBASE;
 approach A (matrix core, graph on top; see Approaches); build a screen and functions to explore it;
 keep all three mocked-up views (node page, upstream tree, footprint breakdown). Mockups with real
 EXIOBASE 2022 figures: https://claude.ai/artifact/CaSz62Xaz1jfzhBANf7TE5
