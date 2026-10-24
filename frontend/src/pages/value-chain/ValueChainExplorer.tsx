@@ -67,7 +67,8 @@ function Picker({ onError }: { onError: (message: string | null) => void }) {
   );
 }
 
-/** `#/valueChain[/<node id>[/tree|/footprint]]`: picker on top, then the chosen view. */
+/** `#/valueChain[/<node id>[/tree|/footprint]]`: picker on top, then the chosen view.
+ * App keys this on the route, so a new node or view mounts fresh: no title or data carries over. */
 export function ValueChainExplorer({ params }: { params: string[] }) {
   const [id, sub] = params;
   const view = sub === "tree" || sub === "footprint" ? sub : undefined;
