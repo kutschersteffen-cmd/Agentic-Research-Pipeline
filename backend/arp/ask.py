@@ -12,10 +12,15 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from arp.api.auth import Principal
+from arp.decision.sources import _normalised_name, from_transition_plan_run, is_transition_plan_preset_run
 from arp.portfolio.qa_agent import QAAnswer
+from arp.review.items import list_open_items
+from arp.schemas.common import JobStatus
 from arp.smart_search import SearchAnswer
 from arp.stewardship.benchmark import BenchmarkStore
 from arp.stewardship.process import SAMPLE_PATH
+from arp.storage.run_store import RunStore
 
 Tool = Literal["portfolio", "smart_search", "transition_plan", "benchmark_sectors", "none"]
 
@@ -52,11 +57,13 @@ class AskRouting(BaseModel):
 
 
 class TransitionPlanFigures(BaseModel):
-    indicators_disclosed_count: float
-    walk_disclosed_count: float
-    talk_disclosed_count: float
-    walk_share_pct: float
-    assessment_confidence_pct: float
+    """The run row's figures as extracted; None where the row has none (a run with no walk indicators has no walk share)."""
+
+    indicators_disclosed_count: float | None
+    walk_disclosed_count: float | None
+    talk_disclosed_count: float | None
+    walk_share_pct: float | None
+    assessment_confidence_pct: float | None
 
 
 class OlderRun(BaseModel):
@@ -137,3 +144,61 @@ def benchmark_sectors(streams_root: Path, benchmark_id: str | None) -> tuple[Ben
     )
     sectors = sorted((SectorWeight(sector=s, weight_pct=round(w, 2)) for s, w in by_sector.items()), key=lambda x: (-x.weight_pct, x.sector))
     return BenchmarkCard(benchmark_id=benchmark_id, name=name, is_sample=benchmark_id is None, check=check, sectors=sectors), text
+
+
+_FINISHED = {JobStatus.COMPLETED, JobStatus.PARTIALLY_COMPLETED}  # a partial run can still hold a valid row for the company
+_FIGURES = {
+    "indicators_disclosed_count": "Indicators_Disclosed_Count", "walk_disclosed_count": "Walk_Disclosed_Count",
+    "talk_disclosed_count": "Talk_Disclosed_Count", "walk_share_pct": "Walk_Share_pct",
+    "assessment_confidence_pct": "Assessment_Confidence_pct",
+}
+
+
+def _rows(run_store: RunStore, run_id: str) -> list[dict]:
+    try:
+        return from_transition_plan_run(run_store, run_id).rows
+    except ValueError:  # a finished run with no result rows
+        return []
+
+
+def newest_transition_plan(run_store: RunStore, principal: Principal, company: str | None) -> tuple[TransitionPlanCard | None, str]:
+    """The newest finished transition plan assessment (stored `transition_plan` runs and preset extraction runs, never
+    trial runs) that includes `company`. Returns (card, answer_text); the card is None when nothing or more than one
+    company matches."""
+    key = _normalised_name(company or "")
+    if not key:
+        return None, "Which company do you mean?"
+    runs = sorted(
+        (m for m in run_store.list_runs()
+         if (m.run_type == "transition_plan" or is_transition_plan_preset_run(m)) and m.status in _FINISHED and not m.params.get("trial")),
+        key=lambda m: (m.created_at, m.run_id), reverse=True,
+    )
+    for i, m in enumerate(runs):
+        rows = _rows(run_store, m.run_id)
+        matched = [r for r in rows if _normalised_name(r["Company"]) == key] or [r for r in rows if key in _normalised_name(r["Company"])]
+        names = sorted({r["Company"] for r in matched})
+        if len(names) > 1:
+            return None, f'Several companies match "{company}": {", ".join(names)}. Which one do you mean?'
+        if not names:
+            continue
+        row = matched[0]
+        chosen = _normalised_name(row["Company"])
+        older: list[OlderRun] = []
+        for o in runs[i + 1:]:
+            if len(older) == 2:
+                break
+            if any(_normalised_name(r["Company"]) == chosen for r in _rows(run_store, o.run_id)):
+                older.append(OlderRun(run_id=o.run_id, run_date=o.created_at))
+        open_items = sum(
+            1 for item in list_open_items(run_store, principal, run_id=m.run_id) if item.payload.get("company_id") == row["Company_Id"]
+        )
+        card = TransitionPlanCard(
+            company=row["Company"], company_id=row["Company_Id"], run_id=m.run_id, run_type=m.run_type, run_date=m.created_at,
+            figures=TransitionPlanFigures(**{k: float(row[c]) if row.get(c) not in (None, "") else None for k, c in _FIGURES.items()}),
+            open_review_items=open_items, older_runs=older,
+        )
+        text = f"{card.company}: newest transition plan assessment from {card.run_date[:10]} (run {card.run_id})."
+        if open_items:
+            text += " 1 item still waits for review." if open_items == 1 else f" {open_items} items still wait for review."
+        return card, text
+    return None, f"No completed transition plan assessment includes {company}."
