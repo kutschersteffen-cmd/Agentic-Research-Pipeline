@@ -73,9 +73,12 @@ arithmetic, stored matrices and cut-off comparisons are float64.
   €1 of `k`'s output, counting intermediaries; totals can sum to more than 1.
 - **Intensities** (direct, per M EUR of output; null where `x_k = 0`):
   - `ghg_t_per_meur`: Σ over `air_emissions` stressors of (row × GWP100 factor from the bundled
-    `ghg_gwp100.csv`), kg → t, ÷ `x`.
+    `backend/arp/research/indirect_exposure/reference/ghg_gwp100.csv` as on `main`: IPCC AR6 GWP100,
+    e.g. CO2 1, fossil CH4 29.8, agricultural and waste CH4 27, N2O 273, SF6 25200), kg → t, ÷ `x`.
+    Stressors not in that file count 0.
   - `energy_tj_per_meur`: `energy` row `Energy use - Net` ÷ `x`.
-  - `jobs_per_meur`: Σ `employment` rows starting `Employment people` (1000 p) × 1000 ÷ `x`.
+  - `jobs_per_meur`: Σ `employment` rows starting `Employment people` (1000 p) × 1000 ÷ `x`;
+    `Employment hours` rows are not counted.
   - `va_share`: Σ `factor_inputs` rows except `Taxes less subsidies on products purchased: Total`, ÷ `x`.
 - **Footprint** of `y` M EUR of final demand for `k`, indicator `s`: contribution of node `i` is
   `s_i · L[i,k] · y`; total is the sum; "by region" and "by sector" sum those contributions per
@@ -100,8 +103,9 @@ arithmetic, stored matrices and cut-off comparisons are float64.
    archive, the five rest-of-world codes shown as `RoW Asia-Pacific` (WA), `RoW Europe` (WE),
    `RoW Africa` (WF), `RoW Americas` (WL), `RoW Middle East` (WM).
 4. **Display**: flows in cents per euro with one decimal (`7.4¢`); a tree's `chain` with two
-   decimals (`0.80¢`); intensity tiles with one decimal, value added as a whole percent; the API
-   returns unrounded fractions.
+   decimals (`0.80¢`); intensity tiles with one decimal, value added as a whole percent; a footprint
+   total with one decimal and its unit (`973.9 t CO₂e`); the home-region share as a whole percent,
+   rounded half up (`85%`); the API returns unrounded values.
 5. **"Hide this node"** on the node page drops the node itself from its suppliers and customers
    (purchases from and sales to its own sector in its own region), nothing else.
 6. **Derived files are not committed** (size and the EXIOBASE 3.9+ licence); building them belongs
@@ -190,9 +194,10 @@ Fixture F: an archive named `IOT_2022_ixi.zip` with the real file layout and a `
 `Cultivation of paddy rice`, `Mining of copper ores and concentrates`, `Other business activities
 (74)`. Paddy rice has `x = 0` and zero rows and columns. For the other four nodes, in the order
 DE.2, DE.3, CN.2, CN.3: `x = [100, 200, 100, 100]`; `Z` rows `[10,20,0,10]`, `[10,20,10,0]`,
-`[0,0,20,10]`, `[0,20,10,10]`; `air_emissions` row `CO2 - combustion - air` `[500000, 0, 100000, 0]`
-kg; `energy` row `Energy use - Net` `[10, 0, 0, 0]` TJ; `employment` row `Employment people:
-High-skilled male` `[1, 2, 0, 0]`; `factor_inputs` rows `Compensation of employees; wages, salaries,
+`[0,0,20,10]`, `[0,20,10,10]`; `air_emissions` rows `CO2 - combustion - air` `[500000, 0, 100000, 0]`
+kg and `CH4 - agriculture - air` `[0, 0, 0, 1000]` kg; `energy` row `Energy use - Net` `[10, 0, 0, 0]`
+TJ; `employment` rows `Employment people: High-skilled male` `[1, 2, 0, 0]`, `Employment people:
+Low-skilled female` `[0, 0, 0, 1]` and `Employment hours: High-skilled male` `[500, 500, 500, 500]`; `factor_inputs` rows `Compensation of employees; wages, salaries,
 & employers' social contributions: High-skilled` `[30, 100, 50, 50]` and `Taxes less subsidies on
 products purchased: Total` `[5, 5, 5, 5]`; every other satellite row zero. "F built" means
 `arp io build-full IOT_2022_ixi.zip --out <d>` ran and `ARP_VALUE_CHAIN_DIR=<d>`. Numbers are
@@ -210,6 +215,7 @@ now-cast years are estimates · capital goods not included in flows` (C below).
 | AC-6 | F built | `GET …/nodes/DE.2?exclude_own=true` | `customers` node ids exactly `["DE.3","CN.3","CN.2"]` | holdout |
 | AC-7 | F built | `GET …/nodes/DE.3` | `sector` `Other business activities`; `ghg_t_per_meur` 0, `energy_tj_per_meur` 0, `jobs_per_meur` 10, `va_share` 0.5 | holdout |
 | AC-8 | F built | `GET …/nodes/DE.2` | `ghg_t_per_meur` 5, `energy_tj_per_meur` 0.1, `jobs_per_meur` 10, `va_share` 0.3 | holdout |
+| AC-8b | F built | `GET …/nodes/CN.3` | `ghg_t_per_meur` 0.27, `jobs_per_meur` 10 | holdout |
 | AC-9 | F built | `GET …/nodes/DE.3/tree?depth=2&width=3&cutoff=0.01` | exactly: root → [CN.3 (coef 0.1, chain 0.1), DE.2 (0.1, 0.1)]; CN.3 → [CN.2 (0.1, 0.01), DE.2 (0.1, 0.01)]; DE.2 → [DE.3 (0.1, 0.01)]; every level-2 node has `children: []` | holdout |
 | AC-10 | F built | `…/nodes/DE.3/tree?depth=1&width=1` | root children ids exactly `["CN.3"]` | holdout |
 | AC-11 | F built | `…/nodes/DE.3/tree?depth=1&cutoff=0.1` | root children ids exactly `["CN.3","DE.2"]` | holdout |
@@ -217,16 +223,18 @@ now-cast years are estimates · capital goods not included in flows` (C below).
 | AC-13 | F built | `…/nodes/DE.3/tree?depth=1&goods_only=true` | root children ids exactly `["DE.2"]` | holdout |
 | AC-13b | F built | `…/nodes/DE.3/tree?depth=1&cutoff=0` | root children ids exactly `["CN.3","DE.2"]` | holdout |
 | AC-14 | F built | `…/nodes/DE.2/tree?depth=5` | 422 | holdout |
-| AC-15 | F built | `…/nodes/DE.3/footprint?indicator=ghg&amount_meur=2` | `unit` `t CO₂e`; `total` 1.4268; `by_region` `[["DE",1.395],["CN",0.0318]]`; `in_home_region` 0.9777 | holdout |
-| AC-16 | F built | same request | `by_sector` `[["Mining of copper ores and concentrates",1.4268]]` | holdout |
+| AC-15 | F built | `…/nodes/DE.3/footprint?indicator=ghg&amount_meur=2` | `unit` `t CO₂e`; `total` 1.4955; `by_region` `[["DE",1.395],["CN",0.1004]]`; `in_home_region` 0.9328 | holdout |
+| AC-16 | F built | same request | `by_sector` `[["Mining of copper ores and concentrates",1.4268],["Other business activities",0.0687]]` | holdout |
 | AC-17 | F built | `GET …/nodes/DE.3/footprint?indicator=ghg&amount_meur=2&top=1` | `by_region` `[["DE",1.395]]` | holdout |
 | AC-18 | F built | `…/nodes/DE.3/footprint?indicator=energy&amount_meur=2` | `unit` `TJ`; `total` 0.0279; `in_home_region` 1 | holdout |
-| AC-19 | F built | `…/nodes/DE.3/footprint?indicator=jobs&amount_meur=2` | `unit` `people`; `total` 25.3576 | holdout |
+| AC-19 | F built | `…/nodes/DE.3/footprint?indicator=jobs&amount_meur=2` | `unit` `people`; `total` 27.9004 | holdout |
 | AC-20 | F built | `GET …/nodes/DE.1` | 404, `detail` `unknown node 'DE.1'` | holdout |
 | AC-21 | F built | `GET …/nodes?q=paddy` | 200, `items` `[]` | holdout |
 | AC-22 | F built | `GET …/nodes?q=copper` | `items` node ids exactly `["CN.2","DE.2"]` | holdout |
 | AC-22b | F built | `GET …/nodes?q=de` | `items` node ids exactly `["DE.2","DE.3"]` | holdout |
 | AC-22c | F built | `GET …/nodes/DE.3?order=direct` | `suppliers` node ids exactly `["CN.3","DE.2","DE.3"]`, each `direct` 0.1 | holdout |
+| AC-22f | F built | `GET …/nodes/DE.3?order=direct` | `customers` node ids exactly `["DE.3","CN.2","DE.2"]`, `direct` 0.1, 0.05, 0.05 | holdout |
+| AC-22g | F built | each of `/nodes/DE.3/tree?width=6`, `/nodes/DE.3/tree?cutoff=1.5`, `/nodes/DE.3/footprint?amount_meur=0`, `/nodes/DE.3/footprint?indicator=water`, `/nodes/DE.3/footprint?top=21`, `/nodes/DE.3?limit=51`, `/nodes/DE.3?order=foo`, `/nodes?q=x&limit=101` | each answers 422 | holdout |
 | AC-22d | F built | `GET …/nodes/DE.3` | `suppliers` node ids exactly `["DE.2","DE.3","CN.3","CN.2"]` | holdout |
 | AC-22e | F built | a 200 from each of `/nodes?q=copper`, `/nodes/DE.3/tree`, `/nodes/DE.3/footprint` | each has `edition` `exiobase-IOT_2022_ixi` and `caveat` C | holdout |
 | AC-23 | `ARP_VALUE_CHAIN_DIR` unset | `GET …/status` | 503, `detail` `value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR` | holdout |
@@ -242,7 +250,7 @@ now-cast years are estimates · capital goods not included in flows` (C below).
 | AC-32 | as AC-28 | open its footprint view with defaults | total `973.9 t CO₂e`; `85% in CN` | evaluator |
 | AC-33 | AC-26 built, API process warmed by one request | for 10 seeded random nodes with `output_meur` > 0: `GET /nodes/{id}`, `/tree?depth=4&width=5&cutoff=0`, `/footprint?indicator=ghg`, from a client on localhost | each answers in ≤ 1.0 s wall-clock | evaluator |
 | AC-34 | AC-26 built | open `#/valueChain` | the page shows `Pick a sector and region.` | evaluator |
-| AC-35 | AC-26 built | search `WA` in the picker | every result shown has region `RoW Asia-Pacific` | evaluator |
+| AC-35 | AC-26 built | `GET /nodes?q=wa&limit=100` | every item with region `WA` comes before every other item; at least one other item, a sector containing `wa`, is present | evaluator |
 | AC-35b | AC-26 built | for every `nodes.csv` row, `GET /nodes/{id}` | 200 where `output_meur` > 0; 404 where it is 0 | evaluator |
 | AC-35c | as AC-28 | turn on `Hide this node` | no supplier or customer row reads `Manufacture of electrical machinery and apparatus n.e.c. · CN`; with it off, the first supplier row does | evaluator |
 | AC-35d | as AC-28 | click Direct | the `Copper production · CN` row reads `4.3¢` with no `(direct`; rows are in descending order of their value | evaluator |
@@ -252,7 +260,8 @@ now-cast years are estimates · capital goods not included in flows` (C below).
 
 Must not change:
 - AC-39: on the real `IOT_2022_ixi.zip`, the sha256 of every file `arp io import-exiobase --out <d>`
-  writes equals that of the same command run from the PR's merge-base with `main`. Checked by: evaluator.
+  writes equals that of the same command run from the PR's merge-base with `main` (the importer
+  writes no run-time fields: two runs on 2026-10-24 gave identical files). Checked by: evaluator.
 - AC-40: `git diff <merge-base> -- backend/tests/test_io_import.py backend/tests/test_leontief.py backend/tests/test_icio_loader.py backend/tests/test_exiobase_loader.py backend/tests/test_factory.py backend/tests/test_exposure.py backend/tests/test_criticality.py`
   is empty. Checked by: evaluator.
 - AC-41: `pytest tests/test_io_import.py tests/test_leontief.py tests/test_icio_loader.py tests/test_exiobase_loader.py tests/test_factory.py tests/test_exposure.py tests/test_criticality.py` (from `backend/`) exits 0. Checked by: unit.
