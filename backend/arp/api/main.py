@@ -21,6 +21,8 @@ from arp.api.deps import (
     settings_dep,
 )
 from arp.api.routers import (
+    argus,
+    ask,
     bi,
     calibration,
     climate,
@@ -134,6 +136,7 @@ app.include_router(identity.router, dependencies=[Depends(authorize)])
 app.include_router(runs.router, dependencies=[Depends(authorize)])
 app.include_router(universe.router, dependencies=[Depends(authorize)])
 app.include_router(universe_workbench.router, dependencies=[Depends(authorize)])
+app.include_router(argus.router, dependencies=[Depends(authorize)])
 app.include_router(taxonomies.router, dependencies=[Depends(authorize)])
 app.include_router(overlap.router, dependencies=[Depends(authorize)])
 app.include_router(revenue_catalogue.router, dependencies=[Depends(authorize)])
@@ -171,6 +174,7 @@ app.include_router(security_master.feeds_router, dependencies=[Depends(authorize
 app.include_router(security_master.issues_router, dependencies=[Depends(authorize)])
 app.include_router(security_master.search_router, dependencies=[Depends(authorize)])
 app.include_router(value_chain.router, dependencies=[Depends(authorize)])
+app.include_router(ask.router, dependencies=[Depends(authorize)])
 
 
 @app.exception_handler(RuntimeError)

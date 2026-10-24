@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from arp.api import deps, run_scheduling
+from arp.api.auth import Principal, current_user
 from arp.api.routers import extraction, financials, identity, themes, tnfd, voting
 from arp.config import Settings
 from arp.llm.batching_client import BatchingLLMClient
@@ -65,6 +66,7 @@ def start(tmp_path, monkeypatch, pg):
         for dep in (deps.get_registry, deps.get_decision_store, deps.get_xbrl_source, deps.get_taxonomy_store,
                     deps.get_engagement_store, deps.get_edgar_source, deps.get_web_search_client):
             app.dependency_overrides[dep] = lambda: None
+        app.dependency_overrides[current_user] = lambda: Principal(user_id="u", name="U", role="analyst")
         res = TestClient(app).post(url or default_url, json={"companies": COMPANIES, **body, **extra})
         assert res.status_code == 200, res.text
         asyncio.run(JOBS[0]())

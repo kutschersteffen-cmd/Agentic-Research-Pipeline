@@ -4,6 +4,93 @@
  */
 
 export interface paths {
+    "/api/argus/flows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Flows */
+        get: operations["list_flows_api_argus_flows_get"];
+        put?: never;
+        /** Create Flow */
+        post: operations["create_flow_api_argus_flows_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/argus/flows/{flow_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Flow */
+        get: operations["get_flow_api_argus_flows__flow_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Flow */
+        patch: operations["patch_flow_api_argus_flows__flow_id__patch"];
+        trace?: never;
+    };
+    "/api/argus/flows/{flow_id}/companies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Flow Companies */
+        post: operations["add_flow_companies_api_argus_flows__flow_id__companies_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/argus/flows/{flow_id}/companies/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Companies */
+        post: operations["upload_companies_api_argus_flows__flow_id__companies_upload_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Ask */
+        post: operations["post_ask_api_ask_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bi/ask": {
         parameters: {
             query?: never;
@@ -6957,6 +7044,12 @@ export interface components {
          * @enum {string}
          */
         ActivityTier: "core" | "enabling" | "critical_input";
+        /** AddCompanies */
+        AddCompanies: {
+            company?: components["schemas"]["CompanyInput"] | null;
+            /** Universe Path */
+            universe_path?: string | null;
+        };
         /** AggregationResult */
         AggregationResult: {
             /** As Of */
@@ -7223,6 +7316,81 @@ export interface components {
         };
         /** ApproveSpecRequest */
         ApproveSpecRequest: Record<string, never>;
+        /** ArgusFlow */
+        ArgusFlow: {
+            /**
+             * Companies
+             * @default []
+             */
+            companies: components["schemas"]["CompanyRef"][];
+            /** Created At */
+            created_at: string;
+            /** Flow Id */
+            flow_id: string;
+            /** Identity Run Id */
+            identity_run_id?: string | null;
+            /** Started By */
+            started_by: string;
+            /** Started By Name */
+            started_by_name: string;
+            /**
+             * Step
+             * @default 1
+             */
+            step: number;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** ArgusFlowView */
+        ArgusFlowView: {
+            /**
+             * Companies
+             * @default []
+             */
+            companies: components["schemas"]["CompanyRef"][];
+            /** Created At */
+            created_at: string;
+            /** Flow Id */
+            flow_id: string;
+            /** Identity Run Id */
+            identity_run_id?: string | null;
+            /**
+             * Rows
+             * @default []
+             */
+            rows: components["schemas"]["FlowRow"][];
+            /** Started By */
+            started_by: string;
+            /** Started By Name */
+            started_by_name: string;
+            /**
+             * Step
+             * @default 1
+             */
+            step: number;
+            /** Updated At */
+            updated_at: string;
+        };
+        /** AskResponse */
+        AskResponse: {
+            /** Answer Text */
+            answer_text: string;
+            /** Answered At */
+            answered_at: string;
+            benchmark_sectors?: components["schemas"]["BenchmarkCard"] | null;
+            portfolio?: components["schemas"]["QAAnswer"] | null;
+            /** Question */
+            question: string;
+            smart_search?: components["schemas"]["SearchAnswer"] | null;
+            /** Standalone Question */
+            standalone_question: string;
+            /**
+             * Tool
+             * @enum {string}
+             */
+            tool: "portfolio" | "smart_search" | "transition_plan" | "benchmark_sectors" | "none";
+            transition_plan?: components["schemas"]["TransitionPlanCard"] | null;
+        };
         /** AssumptionOut */
         AssumptionOut: {
             /** Citation */
@@ -7553,6 +7721,33 @@ export interface components {
              */
             scheme: "free_float_mcap" | "equal" | "metric" | "inverse_metric";
         };
+        /** BenchmarkCard */
+        BenchmarkCard: {
+            /** Benchmark Id */
+            benchmark_id: string | null;
+            check: components["schemas"]["BenchmarkCheck"];
+            /** Is Sample */
+            is_sample: boolean;
+            /** Name */
+            name: string;
+            /** Sectors */
+            sectors: components["schemas"]["SectorWeight"][];
+        };
+        /** BenchmarkCheck */
+        BenchmarkCheck: {
+            /** As Of */
+            as_of: string | null;
+            /** Constituents */
+            constituents: number;
+            /** Dropped */
+            dropped: number;
+            /** Source */
+            source: string;
+            /** Total Pct */
+            total_pct: number;
+            /** Unclassified Pct */
+            unclassified_pct: number;
+        };
         /** BenchmarkOut */
         BenchmarkOut: {
             /** Citation */
@@ -7762,6 +7957,11 @@ export interface components {
         };
         /** Body_upload_characteristics_dataset_api_replication_specs__spec_run_id__datasets_characteristics__name__post */
         Body_upload_characteristics_dataset_api_replication_specs__spec_run_id__datasets_characteristics__name__post: {
+            /** File */
+            file: string;
+        };
+        /** Body_upload_companies_api_argus_flows__flow_id__companies_upload_post */
+        Body_upload_companies_api_argus_flows__flow_id__companies_upload_post: {
             /** File */
             file: string;
         };
@@ -8405,6 +8605,19 @@ export interface components {
             valid_to: string | null;
             /** Value */
             value: unknown;
+        };
+        /** CompanyInput */
+        CompanyInput: {
+            /** Cik */
+            cik?: string | null;
+            /** Isin */
+            isin?: string | null;
+            /** Lei */
+            lei?: string | null;
+            /** Name */
+            name: string;
+            /** Ticker */
+            ticker?: string | null;
         };
         /**
          * CompanyRef
@@ -10180,6 +10393,44 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** FlowList */
+        FlowList: {
+            /** Flows */
+            flows: components["schemas"]["ArgusFlow"][];
+        };
+        /** FlowPatch */
+        FlowPatch: {
+            /** Identity Run Id */
+            identity_run_id?: string | null;
+        };
+        /** FlowRow */
+        FlowRow: {
+            /** Central Id */
+            central_id: string | null;
+            /** Company Id */
+            company_id: string;
+            /** Country */
+            country: string | null;
+            /** Document Types */
+            document_types: string[];
+            /** Documents */
+            documents: number;
+            extracted_before: components["schemas"]["PriorRun"] | null;
+            /** Identifiers */
+            identifiers: {
+                [key: string]: string[];
+            };
+            /** Master Identifiers */
+            master_identifiers: {
+                [key: string]: string[];
+            };
+            /** Name */
+            name: string;
+            /** Problem */
+            problem: string | null;
+            /** Sector */
+            sector: string | null;
+        };
         /** FromCompaniesRequest */
         FromCompaniesRequest: {
             /** Companies */
@@ -10318,6 +10569,18 @@ export interface components {
             lower: number;
             /** Upper */
             upper: number;
+        };
+        /** HistoryTurn */
+        HistoryTurn: {
+            /** Question */
+            question: string;
+            /** Standalone Question */
+            standalone_question: string;
+            /**
+             * Tool
+             * @enum {string}
+             */
+            tool: "portfolio" | "smart_search" | "transition_plan" | "benchmark_sectors" | "none";
         };
         /**
          * HolderConfig
@@ -11366,6 +11629,18 @@ export interface components {
             value: unknown;
             value_state: components["schemas"]["ValueState"];
         };
+        /** OlderRun */
+        OlderRun: {
+            /** Run Date */
+            run_date: string;
+            /** Run Id */
+            run_id: string;
+            /**
+             * Run Type
+             * @enum {string}
+             */
+            run_type: "transition_plan" | "extraction";
+        };
         /** OpenFromTriggerRequest */
         OpenFromTriggerRequest: {
             /** Issuer Id */
@@ -11616,6 +11891,17 @@ export interface components {
             roles?: ("snapshot_reader" | "holdings_reader")[];
             /** User Id */
             user_id: string;
+        };
+        /** PriorRun */
+        PriorRun: {
+            /** Approved */
+            approved: number;
+            /** Date */
+            date: string;
+            /** Label */
+            label: string;
+            /** Waiting */
+            waiting: number;
         };
         /** ProgramParams */
         ProgramParams: {
@@ -13016,6 +13302,13 @@ export interface components {
             /** Sector */
             sector: string;
         };
+        /** SectorWeight */
+        SectorWeight: {
+            /** Sector */
+            sector: string;
+            /** Weight Pct */
+            weight_pct: number;
+        };
         /**
          * SelectAll
          * @description No selection step: everything that survives the screens is in. This
@@ -14000,6 +14293,43 @@ export interface components {
              */
             targets: components["schemas"]["TargetOut"][];
         };
+        /** TransitionPlanCard */
+        TransitionPlanCard: {
+            /** Company */
+            company: string;
+            /** Company Id */
+            company_id: string;
+            figures: components["schemas"]["TransitionPlanFigures"];
+            /** Older Runs */
+            older_runs: components["schemas"]["OlderRun"][];
+            /** Open Review Items */
+            open_review_items: number;
+            /** Run Date */
+            run_date: string;
+            /** Run Id */
+            run_id: string;
+            /**
+             * Run Type
+             * @enum {string}
+             */
+            run_type: "transition_plan" | "extraction";
+        };
+        /**
+         * TransitionPlanFigures
+         * @description The run row's figures as extracted; None where the row has none (a run with no walk indicators has no walk share).
+         */
+        TransitionPlanFigures: {
+            /** Assessment Confidence Pct */
+            assessment_confidence_pct: number | null;
+            /** Indicators Disclosed Count */
+            indicators_disclosed_count: number | null;
+            /** Talk Disclosed Count */
+            talk_disclosed_count: number | null;
+            /** Walk Disclosed Count */
+            walk_disclosed_count: number | null;
+            /** Walk Share Pct */
+            walk_share_pct: number | null;
+        };
         /**
          * TransitionPlanIndicator
          * @description One of the 64 assessment indicators from Colesanti Senni, Schimanski,
@@ -14658,6 +14988,13 @@ export interface components {
             /** Universe Path */
             universe_path?: string | null;
         };
+        /** AskRequest */
+        arp__ask__AskRequest: {
+            /** History */
+            history?: components["schemas"]["HistoryTurn"][];
+            /** Question */
+            question: string;
+        };
         /** ChartSpec */
         arp__bi__plan__ChartSpec: {
             /** Dataset */
@@ -14738,6 +15075,215 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_flows_api_argus_flows_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowList"];
+                };
+            };
+        };
+    };
+    create_flow_api_argus_flows_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArgusFlowView"];
+                };
+            };
+        };
+    };
+    get_flow_api_argus_flows__flow_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArgusFlowView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_flow_api_argus_flows__flow_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FlowPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArgusFlowView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_flow_companies_api_argus_flows__flow_id__companies_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddCompanies"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArgusFlowView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_companies_api_argus_flows__flow_id__companies_upload_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_companies_api_argus_flows__flow_id__companies_upload_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArgusFlowView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_ask_api_ask_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["arp__ask__AskRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AskResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     ask_api_bi_ask_post: {
         parameters: {
             query?: never;

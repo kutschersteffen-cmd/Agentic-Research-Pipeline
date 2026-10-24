@@ -476,6 +476,33 @@
     "title": "ActivityTier",
     "type": "string"
    },
+   "AddCompanies": {
+    "properties": {
+     "company": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/CompanyInput"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "universe_path": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Universe Path"
+     }
+    },
+    "title": "AddCompanies",
+    "type": "object"
+   },
    "AggregationResult": {
     "properties": {
      "as_of": {
@@ -1044,6 +1071,208 @@
    "ApproveSpecRequest": {
     "properties": {},
     "title": "ApproveSpecRequest",
+    "type": "object"
+   },
+   "ArgusFlow": {
+    "properties": {
+     "companies": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/CompanyRef"
+      },
+      "title": "Companies",
+      "type": "array"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "flow_id": {
+      "title": "Flow Id",
+      "type": "string"
+     },
+     "identity_run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Identity Run Id"
+     },
+     "started_by": {
+      "title": "Started By",
+      "type": "string"
+     },
+     "started_by_name": {
+      "title": "Started By Name",
+      "type": "string"
+     },
+     "step": {
+      "default": 1,
+      "title": "Step",
+      "type": "integer"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "flow_id",
+     "created_at",
+     "updated_at",
+     "started_by",
+     "started_by_name"
+    ],
+    "title": "ArgusFlow",
+    "type": "object"
+   },
+   "ArgusFlowView": {
+    "properties": {
+     "companies": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/CompanyRef"
+      },
+      "title": "Companies",
+      "type": "array"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "flow_id": {
+      "title": "Flow Id",
+      "type": "string"
+     },
+     "identity_run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Identity Run Id"
+     },
+     "rows": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/FlowRow"
+      },
+      "title": "Rows",
+      "type": "array"
+     },
+     "started_by": {
+      "title": "Started By",
+      "type": "string"
+     },
+     "started_by_name": {
+      "title": "Started By Name",
+      "type": "string"
+     },
+     "step": {
+      "default": 1,
+      "title": "Step",
+      "type": "integer"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "flow_id",
+     "created_at",
+     "updated_at",
+     "started_by",
+     "started_by_name"
+    ],
+    "title": "ArgusFlowView",
+    "type": "object"
+   },
+   "AskResponse": {
+    "properties": {
+     "answer_text": {
+      "title": "Answer Text",
+      "type": "string"
+     },
+     "answered_at": {
+      "title": "Answered At",
+      "type": "string"
+     },
+     "benchmark_sectors": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/BenchmarkCard"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "portfolio": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/QAAnswer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "smart_search": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SearchAnswer"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "standalone_question": {
+      "title": "Standalone Question",
+      "type": "string"
+     },
+     "tool": {
+      "enum": [
+       "portfolio",
+       "smart_search",
+       "transition_plan",
+       "benchmark_sectors",
+       "none"
+      ],
+      "title": "Tool",
+      "type": "string"
+     },
+     "transition_plan": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/TransitionPlanCard"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     }
+    },
+    "required": [
+     "tool",
+     "question",
+     "standalone_question",
+     "answer_text",
+     "answered_at"
+    ],
+    "title": "AskResponse",
     "type": "object"
    },
    "AssumptionOut": {
@@ -1721,6 +1950,93 @@
     "title": "BaseWeighting",
     "type": "object"
    },
+   "BenchmarkCard": {
+    "properties": {
+     "benchmark_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Benchmark Id"
+     },
+     "check": {
+      "$ref": "#/components/schemas/BenchmarkCheck"
+     },
+     "is_sample": {
+      "title": "Is Sample",
+      "type": "boolean"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "sectors": {
+      "items": {
+       "$ref": "#/components/schemas/SectorWeight"
+      },
+      "title": "Sectors",
+      "type": "array"
+     }
+    },
+    "required": [
+     "benchmark_id",
+     "name",
+     "is_sample",
+     "check",
+     "sectors"
+    ],
+    "title": "BenchmarkCard",
+    "type": "object"
+   },
+   "BenchmarkCheck": {
+    "properties": {
+     "as_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "As Of"
+     },
+     "constituents": {
+      "title": "Constituents",
+      "type": "integer"
+     },
+     "dropped": {
+      "title": "Dropped",
+      "type": "integer"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "total_pct": {
+      "title": "Total Pct",
+      "type": "number"
+     },
+     "unclassified_pct": {
+      "title": "Unclassified Pct",
+      "type": "number"
+     }
+    },
+    "required": [
+     "source",
+     "as_of",
+     "constituents",
+     "dropped",
+     "unclassified_pct",
+     "total_pct"
+    ],
+    "title": "BenchmarkCheck",
+    "type": "object"
+   },
    "BenchmarkOut": {
     "properties": {
      "citation": {
@@ -2144,6 +2460,20 @@
      "file"
     ],
     "title": "Body_upload_characteristics_dataset_api_replication_specs__spec_run_id__datasets_characteristics__name__post",
+    "type": "object"
+   },
+   "Body_upload_companies_api_argus_flows__flow_id__companies_upload_post": {
+    "properties": {
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file"
+    ],
+    "title": "Body_upload_companies_api_argus_flows__flow_id__companies_upload_post",
     "type": "object"
    },
    "Body_upload_data_api_projects__id__data_post": {
@@ -3760,6 +4090,63 @@
      "valid_to"
     ],
     "title": "CompanyFactRow",
+    "type": "object"
+   },
+   "CompanyInput": {
+    "properties": {
+     "cik": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cik"
+     },
+     "isin": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Isin"
+     },
+     "lei": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lei"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "ticker": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ticker"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "CompanyInput",
     "type": "object"
    },
    "CompanyRef": {
@@ -8021,6 +8408,152 @@
     "title": "FlagOut",
     "type": "object"
    },
+   "FlowList": {
+    "properties": {
+     "flows": {
+      "items": {
+       "$ref": "#/components/schemas/ArgusFlow"
+      },
+      "title": "Flows",
+      "type": "array"
+     }
+    },
+    "required": [
+     "flows"
+    ],
+    "title": "FlowList",
+    "type": "object"
+   },
+   "FlowPatch": {
+    "properties": {
+     "identity_run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Identity Run Id"
+     }
+    },
+    "title": "FlowPatch",
+    "type": "object"
+   },
+   "FlowRow": {
+    "properties": {
+     "central_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Central Id"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "country": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Country"
+     },
+     "document_types": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Document Types",
+      "type": "array"
+     },
+     "documents": {
+      "title": "Documents",
+      "type": "integer"
+     },
+     "extracted_before": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PriorRun"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "identifiers": {
+      "additionalProperties": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "title": "Identifiers",
+      "type": "object"
+     },
+     "master_identifiers": {
+      "additionalProperties": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "title": "Master Identifiers",
+      "type": "object"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "problem": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Problem"
+     },
+     "sector": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sector"
+     }
+    },
+    "required": [
+     "company_id",
+     "central_id",
+     "name",
+     "identifiers",
+     "master_identifiers",
+     "sector",
+     "country",
+     "problem",
+     "extracted_before",
+     "documents",
+     "document_types"
+    ],
+    "title": "FlowRow",
+    "type": "object"
+   },
    "FromCompaniesRequest": {
     "properties": {
      "companies": {
@@ -8310,6 +8843,39 @@
      "count"
     ],
     "title": "HistogramBin",
+    "type": "object"
+   },
+   "HistoryTurn": {
+    "additionalProperties": false,
+    "properties": {
+     "question": {
+      "maxLength": 1000,
+      "title": "Question",
+      "type": "string"
+     },
+     "standalone_question": {
+      "maxLength": 1000,
+      "title": "Standalone Question",
+      "type": "string"
+     },
+     "tool": {
+      "enum": [
+       "portfolio",
+       "smart_search",
+       "transition_plan",
+       "benchmark_sectors",
+       "none"
+      ],
+      "title": "Tool",
+      "type": "string"
+     }
+    },
+    "required": [
+     "question",
+     "tool",
+     "standalone_question"
+    ],
+    "title": "HistoryTurn",
     "type": "object"
    },
    "HolderConfig": {
@@ -10442,6 +11008,33 @@
     "title": "ObservationOut",
     "type": "object"
    },
+   "OlderRun": {
+    "properties": {
+     "run_date": {
+      "title": "Run Date",
+      "type": "string"
+     },
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     },
+     "run_type": {
+      "enum": [
+       "transition_plan",
+       "extraction"
+      ],
+      "title": "Run Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "run_id",
+     "run_type",
+     "run_date"
+    ],
+    "title": "OlderRun",
+    "type": "object"
+   },
    "OpenFromTriggerRequest": {
     "properties": {
      "issuer_id": {
@@ -11110,6 +11703,34 @@
      "role"
     ],
     "title": "Principal",
+    "type": "object"
+   },
+   "PriorRun": {
+    "properties": {
+     "approved": {
+      "title": "Approved",
+      "type": "integer"
+     },
+     "date": {
+      "title": "Date",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "waiting": {
+      "title": "Waiting",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "label",
+     "date",
+     "approved",
+     "waiting"
+    ],
+    "title": "PriorRun",
     "type": "object"
    },
    "ProgramParams": {
@@ -14492,6 +15113,24 @@
     "title": "SectorBenchmarksOut",
     "type": "object"
    },
+   "SectorWeight": {
+    "properties": {
+     "sector": {
+      "title": "Sector",
+      "type": "string"
+     },
+     "weight_pct": {
+      "title": "Weight Pct",
+      "type": "number"
+     }
+    },
+    "required": [
+     "sector",
+     "weight_pct"
+    ],
+    "title": "SectorWeight",
+    "type": "object"
+   },
    "SelectAll": {
     "description": "No selection step: everything that survives the screens is in. This\nis what an exclusion-only index (MSCI ESG Screened, STOXX ESG-X) uses.",
     "properties": {
@@ -16827,6 +17466,129 @@
     "title": "TransitionOut",
     "type": "object"
    },
+   "TransitionPlanCard": {
+    "properties": {
+     "company": {
+      "title": "Company",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "figures": {
+      "$ref": "#/components/schemas/TransitionPlanFigures"
+     },
+     "older_runs": {
+      "items": {
+       "$ref": "#/components/schemas/OlderRun"
+      },
+      "title": "Older Runs",
+      "type": "array"
+     },
+     "open_review_items": {
+      "title": "Open Review Items",
+      "type": "integer"
+     },
+     "run_date": {
+      "title": "Run Date",
+      "type": "string"
+     },
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     },
+     "run_type": {
+      "enum": [
+       "transition_plan",
+       "extraction"
+      ],
+      "title": "Run Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company",
+     "company_id",
+     "run_id",
+     "run_type",
+     "run_date",
+     "figures",
+     "open_review_items",
+     "older_runs"
+    ],
+    "title": "TransitionPlanCard",
+    "type": "object"
+   },
+   "TransitionPlanFigures": {
+    "description": "The run row's figures as extracted; None where the row has none (a run with no walk indicators has no walk share).",
+    "properties": {
+     "assessment_confidence_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Assessment Confidence Pct"
+     },
+     "indicators_disclosed_count": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Indicators Disclosed Count"
+     },
+     "talk_disclosed_count": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Talk Disclosed Count"
+     },
+     "walk_disclosed_count": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Walk Disclosed Count"
+     },
+     "walk_share_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Walk Share Pct"
+     }
+    },
+    "required": [
+     "indicators_disclosed_count",
+     "walk_disclosed_count",
+     "talk_disclosed_count",
+     "walk_share_pct",
+     "assessment_confidence_pct"
+    ],
+    "title": "TransitionPlanFigures",
+    "type": "object"
+   },
    "TransitionPlanIndicator": {
     "description": "One of the 64 assessment indicators from Colesanti Senni, Schimanski,\nBingler, Ni & Leippold (2024), 'Using AI to assess corporate climate\ntransition disclosures' -- static reference data, not a per-run record.\nSee arp/transition_plan/indicators.py for the loader.",
     "properties": {
@@ -18447,6 +19209,29 @@
     "title": "RunRequest",
     "type": "object"
    },
+   "arp__ask__AskRequest": {
+    "properties": {
+     "history": {
+      "items": {
+       "$ref": "#/components/schemas/HistoryTurn"
+      },
+      "maxItems": 5,
+      "title": "History",
+      "type": "array"
+     },
+     "question": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Question",
+      "type": "string"
+     }
+    },
+    "required": [
+     "question"
+    ],
+    "title": "AskRequest",
+    "type": "object"
+   },
    "arp__bi__plan__ChartSpec": {
     "properties": {
      "dataset": {
@@ -18591,6 +19376,283 @@
  },
  "openapi": "3.1.0",
  "paths": {
+  "/api/argus/flows": {
+   "get": {
+    "operationId": "list_flows_api_argus_flows_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FlowList"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Flows",
+    "tags": [
+     "argus"
+    ]
+   },
+   "post": {
+    "operationId": "create_flow_api_argus_flows_post",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Create Flow",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}": {
+   "get": {
+    "operationId": "get_flow_api_argus_flows__flow_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Flow",
+    "tags": [
+     "argus"
+    ]
+   },
+   "patch": {
+    "operationId": "patch_flow_api_argus_flows__flow_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FlowPatch"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Patch Flow",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/companies": {
+   "post": {
+    "operationId": "add_flow_companies_api_argus_flows__flow_id__companies_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AddCompanies"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Add Flow Companies",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/companies/upload": {
+   "post": {
+    "operationId": "upload_companies_api_argus_flows__flow_id__companies_upload_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_upload_companies_api_argus_flows__flow_id__companies_upload_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Upload Companies",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/ask": {
+   "post": {
+    "operationId": "post_ask_api_ask_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/arp__ask__AskRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AskResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Post Ask",
+    "tags": [
+     "ask"
+    ]
+   }
+  },
   "/api/bi/ask": {
    "post": {
     "operationId": "ask_api_bi_ask_post",

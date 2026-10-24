@@ -162,6 +162,7 @@ async def start_extraction_run(
     registry: DocumentSourceRegistry = Depends(get_registry),
     decision_store: DecisionStore = Depends(get_decision_store),
     xbrl_source=Depends(get_xbrl_source),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     settings = batch_settings(settings, req.batch)
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
@@ -195,7 +196,7 @@ async def start_extraction_run(
             xbrl_source=xbrl_source,
         )
 
-    run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings, run_store=run_store)
+    run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings, run_store=run_store, started_by=principal)
     return {"run_id": run_id, "company_count": len(companies)}
 
 
@@ -226,6 +227,7 @@ async def start_extraction(
     registry: DocumentSourceRegistry = Depends(get_registry),
     decision_store: DecisionStore = Depends(get_decision_store),
     xbrl_source=Depends(get_xbrl_source),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     """The single entry point for the extraction pipelines: custom schema,
     financials, TNFD and transition plan, over a batch or a single company.
@@ -236,10 +238,10 @@ async def start_extraction(
         settings = MODES[req.mode].apply(settings)
     if req.step_settings:
         settings = req.step_settings.apply(settings)
-    return await _dispatch(req, settings, run_store, registry, decision_store, xbrl_source)
+    return await _dispatch(req, settings, run_store, registry, decision_store, xbrl_source, principal)
 
 
-async def _dispatch(req: StartRequest, settings: Settings, run_store: RunStore, registry, decision_store, xbrl_source) -> dict:
+async def _dispatch(req: StartRequest, settings: Settings, run_store: RunStore, registry, decision_store, xbrl_source, principal) -> dict:
     from arp.api.routers import financials, tnfd
 
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
@@ -251,7 +253,7 @@ async def _dispatch(req: StartRequest, settings: Settings, run_store: RunStore, 
         "decision_framework_version": req.decision_framework_version,
         "batch": req.batch,
     }
-    stores = {"settings": settings, "run_store": run_store, "registry": registry, "decision_store": decision_store}
+    stores = {"settings": settings, "run_store": run_store, "registry": registry, "decision_store": decision_store, "principal": principal}
     if req.profile in ("custom", "transition_plan"):
         if req.profile == "transition_plan":  # the preset, installed (a no-op when saved) and run like a custom schema
             schema = install_preset(TRANSITION_PLAN_SCHEMA_ID, _registry_for(settings))
@@ -352,6 +354,7 @@ async def restart_run(
     run_store: RunStore = Depends(get_run_store),
     decision_store: DecisionStore = Depends(get_decision_store),
     xbrl_source=Depends(get_xbrl_source),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     """Starts the run again from one of its steps, as a new run with the
     same inputs and step settings. What comes before the step is reused
@@ -394,7 +397,7 @@ async def restart_run(
 
         registry = build_registry(run_settings, DocumentContentStore(run_settings.document_store_dir, enabled=False, dsn=require_dsn(run_settings)))
     started = await _dispatch(
-        original.model_copy(update={"companies": companies}), run_settings, run_store, registry, decision_store, xbrl_source
+        original.model_copy(update={"companies": companies}), run_settings, run_store, registry, decision_store, xbrl_source, principal
     )
     (run_store.run_dir(started["run_id"]) / "restarted_from.json").write_text(
         json.dumps({"run_id": run_id, "step": req.from_step, "company_count": len(companies)})

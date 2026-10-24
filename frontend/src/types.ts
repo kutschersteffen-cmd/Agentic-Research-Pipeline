@@ -19,11 +19,17 @@ export type DocType =
 export type JobStatus = "pending" | "running" | "completed" | "partially_completed" | "failed" | "cancelled";
 
 export type RunFailure = Served<S["RunFailure"]>;
+export type ArgusFlow = Served<S["ArgusFlowView"]>;
+export type ArgusDraft = Served<S["ArgusFlow"]>; // as GET /api/argus/flows lists it, without rows
+export type FlowRow = Served<S["FlowRow"]>;
+export type PriorRun = Served<S["PriorRun"]>;
 
 export type RfpLibraryEntry = Served<S["RfpLibraryEntryOut"]>;
 export type RfpProjectSummary = Served<S["RfpProjectSummary"]>;
 export type RfpProject = Served<S["RfpProjectOut"]>;
 export type RfpQuestion = Served<S["RfpQuestionOut"]>;
+export type AskResponse = Served<S["AskResponse"]>;
+export type AskHistoryTurn = Served<S["HistoryTurn"]>;
 
 // The run types the Review Queue endpoints exist for -- a subset of every
 // run_type, since discovery has no review queue of its own.
