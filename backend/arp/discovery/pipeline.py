@@ -14,6 +14,7 @@ from arp.discovery.refresh import refresh_hook
 from arp.discovery.report_finding import search_candidates, select_candidates
 from arp.discovery.site_check import check_homepage
 from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient, homepage_from_ids, resolve_company_homepage
+from arp.ingestion.doc_identity import reporting_year
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.esef import EsefDocumentSource
 from arp.ingestion.indexing_config import IndexingConfig
@@ -40,7 +41,9 @@ async def _discover_for_company(
     transport: httpx.AsyncBaseTransport | None = None,
     today: date | None = None,
     sleep=asyncio.sleep,
+    include_web: bool = True,
 ) -> DiscoveryCompanyResult:
+    """`include_web=False` keeps to official filings (EDGAR, ESEF): no web search, homepage lookup or crawl."""
     today = today or date.today()
     filings = await _edgar_filings(company, edgar, doc_types) if edgar and company.cik else []
     esef_docs, esef_current = await _esef_documents(company, esef, doc_types, today) if esef else ([], False)
@@ -50,9 +53,9 @@ async def _discover_for_company(
         types = [t for t in types if t != DocType.ANNUAL_REPORT_10K]
     search_cands = await search_candidates(
         company, search_client, expected_year, types, delay=settings.discovery_request_delay_seconds, sleep=sleep
-    )
-    homepage, check = company.website, None
-    if not homepage:  # a supplied website is used unchecked; a derived one is checked first
+    ) if include_web else []
+    homepage, check = (company.website if include_web else None), None
+    if include_web and not homepage:  # a supplied website is used unchecked; a derived one is checked first
         homepage = await homepage_from_ids(
             settings.discovery_user_agent, lei=company.lei, isin=company.isin, cik=company.cik, transport=transport
         )
@@ -117,7 +120,8 @@ async def _esef_documents(
         return [], False
     found = [
         DiscoveredDocument(company_id=company.company_id, doc_type=d.doc_type, url=d.source_url,
-                           local_path=d.local_path, sha256=d.content_key or d.sha256)
+                           local_path=d.local_path, sha256=d.content_key or d.sha256,
+                           reporting_year=int(d.fiscal_period[:4]) if (d.fiscal_period or "")[:4].isdigit() else None)
         for d in docs if d.source_url
     ]
     try:
@@ -135,7 +139,8 @@ async def _edgar_filings(company: CompanyRef, edgar: EdgarDocumentSource, doc_ty
     except Exception as exc:  # noqa: BLE001 -- a failed EDGAR call must not fail the company
         logger.warning("EDGAR fetch failed for %s: %s", company.company_id, exc)
         return []
-    return [DiscoveredDocument(company_id=company.company_id, doc_type=d.doc_type, url=d.source_url or "", sha256=d.sha256) for d in docs]
+    return [DiscoveredDocument(company_id=company.company_id, doc_type=d.doc_type, url=d.source_url or "", sha256=d.sha256,
+                               reporting_year=reporting_year("", d.full_text)) for d in docs]
 
 
 def create_discovery_run(
@@ -162,6 +167,7 @@ async def execute_discovery_run(
     transport: httpx.AsyncBaseTransport | None = None,
     today: date | None = None,
     sleep=None,
+    include_web: bool = True,
 ) -> str:
     """Runs the document discovery pipeline over a company universe against
     an already-created run (see create_discovery_run).
@@ -198,6 +204,7 @@ async def execute_discovery_run(
         return await _discover_for_company(
             company, settings=settings, search_client=search_client, change_detector=change_detector, doc_types=doc_types,
             edgar=edgar_source, esef=esef_source, transport=transport, today=today, sleep=sleep or asyncio.sleep,
+            include_web=include_web,
         )
 
     def _on_success(company: CompanyRef, result: DiscoveryCompanyResult) -> None:

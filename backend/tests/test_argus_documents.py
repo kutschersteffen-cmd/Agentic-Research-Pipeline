@@ -120,3 +120,61 @@ async def test_documents_upload_skips_identical_content(tmp_path):
     second = await upload_document("acme", DocType.TRANSITION_PLAN, UploadFile(io.BytesIO(b"one"), filename="s.pdf"), settings)
     assert (second["path"], second["duplicate_of"], first["duplicate_of"]) == (first["path"], "r.pdf", None)
     assert [p.name for p in tmp_path.rglob("*.pdf")] == ["r.pdf"]
+
+
+def edgar_entry(cid):
+    return {"company_id": cid, "doc_type": "10-K", "url": "https://www.sec.gov/Archives/aapl-20250927.htm", "reporting_year": 2025}
+
+
+def test_discovered_files_from_run_rows(tmp_path):
+    from arp.argus.documents import discovered_files
+
+    pdf = tmp_path / "apple" / "sustainability_report" / "2025_esg.pdf"
+    pdf.parent.mkdir(parents=True)
+    pdf.write_bytes(b"%PDF")
+    web = {"company_id": "apple", "doc_type": "sustainability_report", "url": "https://apple.example/esg.pdf",
+           "local_path": str(pdf), "company_match": "name", "reporting_year": None}
+    alias = {**web, "url": "https://apple.example/esg2.pdf", "alias_of": "https://apple.example/esg.pdf"}
+    files = discovered_files([{"company_id": "apple", "documents_found": [edgar_entry("apple"), web, alias]}], tmp_path)
+    assert [(f.source, f.on_disk, f.key, f.file_name, f.year) for f in files] == [
+        ("filing", False, "https://www.sec.gov/Archives/aapl-20250927.htm", "aapl-20250927.htm", 2025),
+        ("web", True, "apple/sustainability_report/2025_esg.pdf", "2025_esg.pdf", 2025),
+    ]
+
+
+def test_find_links_one_run_and_refuses_a_second_while_running(client, flow, monkeypatch):
+    from arp.api.routers import argus as argus_router
+
+    started = []
+
+    async def _noop(run_id, companies, **kw):
+        started.append((run_id, [c.company_id for c in companies], kw["include_web"]))
+
+    monkeypatch.setattr(argus_router, "execute_discovery_run", _noop)
+    fid, ids = flow
+    r = client.post(f"/api/argus/flows/{fid}/documents/find", json={"include_web": False})
+    assert r.status_code == 200, r.text
+    f = r.json()
+    assert (f["doc_source"], f["discovery"]["status"] in ("pending", "running"), f["discovery"]["total"]) == ("filings", True, 2)
+    assert started == [(f["discovery_run_id"], [ids["apple"], ids["microsoft"]], False)]
+    again = client.post(f"/api/argus/flows/{fid}/documents/find", json={"include_web": True})
+    assert (again.status_code, again.json()["detail"]) == (409, "Already looking for files")
+
+
+def test_filing_rows_pass_and_merge_with_uploads(client, flow, tmp_path, settings, pg):
+    from arp.discovery.pipeline import create_discovery_run
+    from arp.schemas.common import CompanyRef
+    from arp.storage.run_store import RunStore
+
+    fid, ids = flow
+    upload(client, flow, "apple", "a.pdf", pdf_bytes(tmp_path, APPLE_2025))
+    store = RunStore(pg, settings.runs_dir)
+    run_id = create_discovery_run([CompanyRef(company_id=ids["apple"], name="Apple")], None, "manual", store)
+    store.append_result(run_id, {"company_id": ids["apple"], "documents_found": [edgar_entry(ids["apple"])]})
+    from arp.argus.flows import FlowStore
+
+    FlowStore(settings.runs_dir / "_flows").update(fid, lambda f: setattr(f, "discovery_run_id", run_id))
+    f = client.get(f"/api/argus/flows/{fid}").json()
+    assert [(r["source"], r["check"], r["state"]) for r in f["files"]] == [("upload", "✓ name, year", "kept"), ("filing", "✓ name, year", "kept")]
+    removed = client.patch(f"/api/argus/flows/{fid}", json={"decisions": {f["files"][1]["key"]: "removed"}}).json()
+    assert removed["files"][1]["state"] == "removed"

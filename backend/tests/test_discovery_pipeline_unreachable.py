@@ -115,3 +115,29 @@ async def test_discover_for_company_fetches_edgar_filings_by_cik(tmp_path, monke
 
     assert result.homepage_used is None
     assert [d.url for d in result.documents_found] == ["https://www.sec.gov/x.htm"]
+
+
+async def test_filings_only_never_searches_or_crawls(tmp_path, monkeypatch):
+    from arp.schemas.common import DocType, SourceDocument
+
+    async def _never(*args, **kwargs):
+        raise AssertionError("web step ran")
+
+    class _Search(WebSearchClient):
+        async def search(self, query: str, max_results: int = 5) -> list:
+            raise AssertionError("search ran")
+
+    class _Edgar:
+        async def fetch(self, company, doc_types):
+            return [SourceDocument(company_id=company.company_id, doc_type=DocType.ANNUAL_REPORT_10K, title="Apple 10-K (2026-01-30)",
+                                   source_url="https://www.sec.gov/a/aapl-20250927.htm", fiscal_period="2026-01-30",
+                                   full_text="Annual report for the fiscal year ended September 27, 2025")]
+
+    monkeypatch.setattr(pipeline_module, "crawl_for_documents", _never)
+    monkeypatch.setattr(pipeline_module, "homepage_from_ids", _never)
+    settings = Settings(documents_dir=tmp_path / "documents", discovery_state_dir=tmp_path / "state")
+    detector = ChangeDetector(state_dir=settings.discovery_state_dir, global_events_path=settings.documents_dir / "_events.jsonl")
+    company = CompanyRef(company_id="AAPL", name="Apple Inc.", cik="0000320193", website="https://apple.example/")
+    result = await _discover_for_company(company, settings=settings, search_client=_Search(), change_detector=detector,
+                                         doc_types=None, edgar=_Edgar(), include_web=False)
+    assert [(d.url, d.reporting_year) for d in result.documents_found] == [("https://www.sec.gov/a/aapl-20250927.htm", 2025)]

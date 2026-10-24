@@ -75,3 +75,23 @@ def file_views(flow: ArgusFlow, discovered: list[FlowFile]) -> list[FlowFileView
             state = "kept"
         views.append(FlowFileView(**f.model_dump(), check=problem or PASSED, passed=problem is None, state=state))
     return views
+
+
+def discovered_files(rows: list[dict], documents_dir: Path) -> list[FlowFile]:
+    """The files a discovery run found: a downloaded file under documents_dir is a web file, anything else an official filing."""
+    root = documents_dir.resolve()
+    files = []
+    for row in rows:
+        for d in row.get("documents_found") or []:
+            if d.get("alias_of"):  # the same content under another URL, already listed
+                continue
+            local = Path(d["local_path"]).resolve() if d.get("local_path") else None
+            if local and local.is_relative_to(root):
+                files.append(FlowFile(key=local.relative_to(root).as_posix(), company_id=d["company_id"], doc_type=d["doc_type"],
+                                      file_name=local.name, source="web", on_disk=True, url=d.get("url"),
+                                      year=file_year(local.name, d.get("reporting_year")), company_match=d.get("company_match")))
+            elif d.get("url"):
+                files.append(FlowFile(key=d["url"], company_id=d["company_id"], doc_type=d["doc_type"],
+                                      file_name=d["url"].rstrip("/").rsplit("/", 1)[-1], source="filing", on_disk=False,
+                                      url=d["url"], year=d.get("reporting_year"), company_match=d.get("company_match")))
+    return files

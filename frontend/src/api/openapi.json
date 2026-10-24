@@ -1087,6 +1087,46 @@
       "title": "Created At",
       "type": "string"
      },
+     "decisions": {
+      "additionalProperties": {
+       "enum": [
+        "kept",
+        "removed"
+       ],
+       "type": "string"
+      },
+      "default": {},
+      "title": "Decisions",
+      "type": "object"
+     },
+     "discovery_run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Discovery Run Id"
+     },
+     "doc_source": {
+      "anyOf": [
+       {
+        "enum": [
+         "upload",
+         "import",
+         "filings",
+         "web"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Doc Source"
+     },
      "flow_id": {
       "title": "Flow Id",
       "type": "string"
@@ -1101,6 +1141,10 @@
        }
       ],
       "title": "Identity Run Id"
+     },
+     "reporting_year": {
+      "title": "Reporting Year",
+      "type": "integer"
      },
      "started_by": {
       "title": "Started By",
@@ -1118,6 +1162,14 @@
      "updated_at": {
       "title": "Updated At",
       "type": "string"
+     },
+     "uploads": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/FlowFile"
+      },
+      "title": "Uploads",
+      "type": "array"
      }
     },
     "required": [
@@ -1144,6 +1196,64 @@
       "title": "Created At",
       "type": "string"
      },
+     "decisions": {
+      "additionalProperties": {
+       "enum": [
+        "kept",
+        "removed"
+       ],
+       "type": "string"
+      },
+      "default": {},
+      "title": "Decisions",
+      "type": "object"
+     },
+     "discovery": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DiscoveryState"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "discovery_run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Discovery Run Id"
+     },
+     "doc_source": {
+      "anyOf": [
+       {
+        "enum": [
+         "upload",
+         "import",
+         "filings",
+         "web"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Doc Source"
+     },
+     "files": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/FlowFileView"
+      },
+      "title": "Files",
+      "type": "array"
+     },
      "flow_id": {
       "title": "Flow Id",
       "type": "string"
@@ -1158,6 +1268,10 @@
        }
       ],
       "title": "Identity Run Id"
+     },
+     "reporting_year": {
+      "title": "Reporting Year",
+      "type": "integer"
      },
      "rows": {
       "default": [],
@@ -1183,6 +1297,14 @@
      "updated_at": {
       "title": "Updated At",
       "type": "string"
+     },
+     "uploads": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/FlowFile"
+      },
+      "title": "Uploads",
+      "type": "array"
      }
     },
     "required": [
@@ -2567,6 +2689,29 @@
      "month"
     ],
     "title": "Body_upload_esg_api_portfolio_esg_upload_post",
+    "type": "object"
+   },
+   "Body_upload_flow_document_api_argus_flows__flow_id__documents_upload_post": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "doc_type": {
+      "$ref": "#/components/schemas/DocType"
+     },
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file",
+     "company_id",
+     "doc_type"
+    ],
+    "title": "Body_upload_flow_document_api_argus_flows__flow_id__documents_upload_post",
     "type": "object"
    },
    "Body_upload_price_dataset_api_replication_specs__spec_run_id__datasets_prices_post": {
@@ -6895,6 +7040,34 @@
     "title": "DiscoveryScheduleConfig",
     "type": "object"
    },
+   "DiscoveryState": {
+    "properties": {
+     "done": {
+      "title": "Done",
+      "type": "integer"
+     },
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "run_id",
+     "status",
+     "done",
+     "total"
+    ],
+    "title": "DiscoveryState",
+    "type": "object"
+   },
    "DocType": {
     "enum": [
      "10-K",
@@ -8312,6 +8485,19 @@
     "title": "FieldStatus",
     "type": "string"
    },
+   "FindFiles": {
+    "properties": {
+     "include_web": {
+      "title": "Include Web",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "include_web"
+    ],
+    "title": "FindFiles",
+    "type": "object"
+   },
    "FlagExclusionScreen": {
     "description": "Exclude companies whose boolean field equals `exclude_when` --\nnorms-based screens, controversial weapons, controversy flags.",
     "properties": {
@@ -8408,6 +8594,205 @@
     "title": "FlagOut",
     "type": "object"
    },
+   "FlowFile": {
+    "description": "A file gathered in step 2. Only uploads are stored on the flow; filings and web files are read from its discovery run.",
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "company_match": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Company Match"
+     },
+     "doc_type": {
+      "$ref": "#/components/schemas/DocType"
+     },
+     "duplicate_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duplicate Of"
+     },
+     "file_name": {
+      "title": "File Name",
+      "type": "string"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "on_disk": {
+      "title": "On Disk",
+      "type": "boolean"
+     },
+     "source": {
+      "enum": [
+       "upload",
+       "filing",
+       "web"
+      ],
+      "title": "Source",
+      "type": "string"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Url"
+     },
+     "year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Year"
+     }
+    },
+    "required": [
+     "key",
+     "company_id",
+     "doc_type",
+     "file_name",
+     "source",
+     "on_disk"
+    ],
+    "title": "FlowFile",
+    "type": "object"
+   },
+   "FlowFileView": {
+    "properties": {
+     "check": {
+      "title": "Check",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "company_match": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Company Match"
+     },
+     "doc_type": {
+      "$ref": "#/components/schemas/DocType"
+     },
+     "duplicate_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Duplicate Of"
+     },
+     "file_name": {
+      "title": "File Name",
+      "type": "string"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "on_disk": {
+      "title": "On Disk",
+      "type": "boolean"
+     },
+     "passed": {
+      "title": "Passed",
+      "type": "boolean"
+     },
+     "source": {
+      "enum": [
+       "upload",
+       "filing",
+       "web"
+      ],
+      "title": "Source",
+      "type": "string"
+     },
+     "state": {
+      "anyOf": [
+       {
+        "enum": [
+         "kept",
+         "removed"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "State"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Url"
+     },
+     "year": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Year"
+     }
+    },
+    "required": [
+     "key",
+     "company_id",
+     "doc_type",
+     "file_name",
+     "source",
+     "on_disk",
+     "check",
+     "passed",
+     "state"
+    ],
+    "title": "FlowFileView",
+    "type": "object"
+   },
    "FlowList": {
     "properties": {
      "flows": {
@@ -8426,6 +8811,41 @@
    },
    "FlowPatch": {
     "properties": {
+     "decisions": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "enum": [
+          "kept",
+          "removed"
+         ],
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decisions"
+     },
+     "doc_source": {
+      "anyOf": [
+       {
+        "enum": [
+         "upload",
+         "import",
+         "filings",
+         "web"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Doc Source"
+     },
      "identity_run_id": {
       "anyOf": [
        {
@@ -8436,6 +8856,32 @@
        }
       ],
       "title": "Identity Run Id"
+     },
+     "reporting_year": {
+      "anyOf": [
+       {
+        "maximum": 2100.0,
+        "minimum": 1990.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reporting Year"
+     },
+     "step": {
+      "anyOf": [
+       {
+        "maximum": 5.0,
+        "minimum": 1.0,
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Step"
      }
     },
     "title": "FlowPatch",
@@ -19179,6 +19625,111 @@
      }
     },
     "summary": "Upload Companies",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/documents/find": {
+   "post": {
+    "description": "Starts one discovery run for the flow's matched companies: official filings only, or filings plus company websites.",
+    "operationId": "find_flow_files_api_argus_flows__flow_id__documents_find_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FindFiles"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Find Flow Files",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/documents/upload": {
+   "post": {
+    "operationId": "upload_flow_document_api_argus_flows__flow_id__documents_upload_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_upload_flow_document_api_argus_flows__flow_id__documents_upload_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Upload Flow Document",
     "tags": [
      "argus"
     ]
