@@ -1,23 +1,28 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Literal
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from arp.api.auth import Principal, current_user, require_role
 from arp.api.deps import get_document_content_store, get_identifier_map, get_run_store, settings_dep
 from arp.api.routers.universe_workbench import MAX_COMPANIES
 from arp.argus.companies import add_companies, parse_rows, register
-from arp.argus.documents import FlowFileView, file_views
-from arp.argus.flows import ArgusFlow, FlowStore, get_flow_store
+from arp.argus.documents import FlowFileView, file_views, file_year, save_upload
+from arp.argus.flows import ArgusFlow, FlowFile, FlowStore, get_flow_store
 from arp.argus.rows import FlowRow, flow_rows
 from arp.config import Settings
 from arp.db.session import require_dsn, transaction
+from arp.discovery.doc_check import check_document
+from arp.schemas.common import DocType
 from arp.storage.document_store import DocumentContentStore
 from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
+from arp.storage.safe_path import UnsafeIdentifierError
 from arp.xbrl_pipeline.store import XbrlStore
 
 router = APIRouter(prefix="/api/argus", tags=["argus"])
@@ -155,3 +160,38 @@ def add_flow_companies(
     if not rows:
         raise HTTPException(400, "Provide a company or a saved universe.")
     return _add(flow_id, rows, store, settings, view)
+
+
+@router.post("/flows/{flow_id}/documents/upload", dependencies=[Depends(require_role("analyst"))])
+async def upload_flow_document(
+    flow_id: str, file: UploadFile, company_id: str = Form(...), doc_type: DocType = Form(...),
+    store: FlowStore = Depends(get_flow_store), settings: Settings = Depends(settings_dep), view: Viewer = Depends(),
+) -> ArgusFlowView:
+    flow = store.get(flow_id)
+    if flow is None:
+        raise HTTPException(404, "Extraction not found")
+    company = next((c for c in flow.companies if c.company_id == company_id), None)
+    if company is None:
+        raise HTTPException(400, "Not in this extraction")
+    if not (file.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(400, "Upload a PDF")
+    data = await file.read(settings.max_upload_bytes + 1)
+    if len(data) > settings.max_upload_bytes:
+        raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
+    try:
+        path, duplicate_of = save_upload(settings.documents_dir, company_id, doc_type, file.filename or "", data)
+    except UnsafeIdentifierError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    check = await asyncio.to_thread(check_document, path, company)
+    key = path.relative_to(settings.documents_dir).as_posix()
+    stored = FlowFile(key=key, company_id=company_id, doc_type=path.parent.name, file_name=path.name, source="upload",
+                      on_disk=True, year=file_year(path.name, check.reporting_year), company_match=check.company_match)
+
+    def add(f: ArgusFlow) -> None:
+        f.doc_source = "upload"
+        if not any(u.key == key for u in f.uploads):
+            f.uploads.append(stored)
+        elif duplicate_of:  # the same content again in this flow: a row that says so, never a second file
+            f.uploads.append(stored.model_copy(update={"key": f"{key}#{uuid4().hex[:8]}", "duplicate_of": duplicate_of}))
+
+    return view(store.update(flow_id, add))

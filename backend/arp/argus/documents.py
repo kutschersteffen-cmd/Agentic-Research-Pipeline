@@ -2,11 +2,45 @@
 
 from __future__ import annotations
 
+import hashlib
+import re
+from pathlib import Path
 from typing import Literal
 
 from arp.argus.flows import ArgusFlow, FlowFile
+from arp.schemas.common import DocType
+from arp.storage.safe_path import safe_filename, safe_id
 
 PASSED = "✓ name, year"
+_NAME_YEAR = re.compile(r"^(20\d\d)_")
+
+
+def save_upload(documents_dir: Path, company_id: str, doc_type: DocType, filename: str, data: bytes) -> tuple[Path, str | None]:
+    """Stores the upload under documents_dir/<company_id>/<doc_type>/ and returns its path, or, when the company already
+    has a file with the same content, that file and its name, writing nothing. Raises UnsafeIdentifierError."""
+    company_dir = documents_dir / safe_id(company_id, label="company_id")
+    name = safe_filename(filename)
+    digest = hashlib.sha256(data).digest()
+    if company_dir.is_dir():
+        # shortcut: hashes every file of the company on each upload; keep a digest index once companies hold hundreds
+        for existing in sorted(company_dir.glob("*/*")):
+            if existing.is_file() and existing.stat().st_size == len(data) and hashlib.sha256(existing.read_bytes()).digest() == digest:
+                return existing, existing.name
+    dest_dir = company_dir / doc_type.value
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    # Never overwrite an earlier upload: a repeated name gets "-2", "-3", ...
+    dest, n = dest_dir / name, 1
+    while dest.exists():
+        n += 1
+        dest = dest_dir / f"{Path(name).stem}-{n}{Path(name).suffix}"
+    dest.write_bytes(data)
+    return dest, None
+
+
+def file_year(file_name: str, read: int | None) -> int | None:
+    """A leading `<year>_` in the file name wins over the year read from the document."""
+    m = _NAME_YEAR.match(file_name)
+    return int(m.group(1)) if m else read
 
 
 def check_text(f: FlowFile, reporting_year: int) -> str | None:

@@ -8,11 +8,12 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from arp.api.deps import get_document_content_store, settings_dep
+from arp.argus.documents import save_upload
 from arp.config import Settings
 from arp.ingestion.pdf_page import find_boxes, render_page
 from arp.schemas.common import CompanyRef, DocType
 from arp.storage.document_store import DocumentContentStore, files_on_disk
-from arp.storage.safe_path import UnsafeIdentifierError, safe_filename, safe_id
+from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -44,23 +45,14 @@ async def upload_document(
     `documents_dir/<company_id>/<doc_type>/` convention the discovery
     crawler writes to, so manual uploads and auto-discovered documents are
     indistinguishable to the extraction pipeline."""
-    try:
-        safe_company_id = safe_id(company_id, label="company_id")
-        safe_name = safe_filename(file.filename)
-    except UnsafeIdentifierError as exc:
-        raise HTTPException(400, str(exc)) from exc
     data = await file.read(settings.max_upload_bytes + 1)
     if len(data) > settings.max_upload_bytes:
         raise HTTPException(413, f"File is larger than the {settings.max_upload_bytes // 1_000_000} MB upload limit.")
-    dest_dir = settings.documents_dir / safe_company_id / doc_type.value
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    # Never overwrite an earlier upload: a repeated name gets "-2", "-3", ...
-    dest_path, n = dest_dir / safe_name, 1
-    while dest_path.exists():
-        n += 1
-        dest_path = dest_dir / f"{Path(safe_name).stem}-{n}{Path(safe_name).suffix}"
-    dest_path.write_bytes(data)
-    return {"path": str(dest_path)}
+    try:
+        path, duplicate_of = save_upload(settings.documents_dir, company_id, doc_type, file.filename, data)
+    except UnsafeIdentifierError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"path": str(path), "duplicate_of": duplicate_of}
 
 
 class ReadinessRequest(BaseModel):
