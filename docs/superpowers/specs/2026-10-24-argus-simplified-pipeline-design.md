@@ -204,6 +204,8 @@ placeholders, not real figures. Quoted strings below are the exact UI copy.
   `Checking the answers`, `Done`, `Stopped`, `Failed`), a progress bar, what needs you, and for a failure
   the reason in words with **Retry** and, for a document problem, **Replace file**. For a document with
   no text the reason reads `No text could be read from <file name>`.
+- **Stop**: companies already running finish and save their results; companies not yet started read
+  `Stopped` and never start (today's cooperative cancel).
 - The user can leave; the start page shows the run.
 
 ### Step 5: Results
