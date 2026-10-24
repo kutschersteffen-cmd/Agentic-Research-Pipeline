@@ -45,6 +45,7 @@ async def start_financials_extraction_run(
     registry: DocumentSourceRegistry = Depends(get_registry),
     xbrl_source=Depends(get_xbrl_source),
     decision_store: DecisionStore = Depends(get_decision_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     settings = batch_settings(settings, req.batch)
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
@@ -72,7 +73,7 @@ async def start_financials_extraction_run(
             xbrl_source=xbrl_source,
         )
 
-    run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings, run_store=run_store)
+    run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings, run_store=run_store, started_by=principal.user_id)
     return {"run_id": run_id, "company_count": len(companies)}
 
 

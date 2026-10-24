@@ -23,6 +23,7 @@ def schedule_llm_run(
     run: Callable[[str, LLMClient, LLMClient], Awaitable[None]],
     settings: Settings | None = None,
     run_store: RunStore | None = None,
+    started_by: str | None = None,
 ) -> str:
     """The shared shape of every `POST /runs` endpoint that needs an LLM
     (themes, extraction, financials, voting, identity): resolve both LLM
@@ -49,6 +50,9 @@ def schedule_llm_run(
     `run_store`, when given, is where the batch mark is written -- the one
     `create_fn` wrote the run to; else a store on `settings.runs_dir`.
 
+    `started_by`, when given, is recorded as the run's `params.started_by`
+    in that same store (so the caller must pass `run_store`).
+
     `settings`, when given, builds both clients from it rather than the
     app's settings -- how a run started with its own models gets them.
     """
@@ -57,5 +61,7 @@ def schedule_llm_run(
     run_id = create_fn()
     if settings is not None and settings.llm_batch:
         mark_batch_run(run_store or RunStore(require_dsn(settings), settings.runs_dir), run_id)
+    if started_by is not None and run_store is not None:
+        JobManager(run_store).set_started_by(run_id, started_by)
     get_job_launcher().launch(run_id, lambda: run(run_id, llm, verifier_llm))
     return run_id

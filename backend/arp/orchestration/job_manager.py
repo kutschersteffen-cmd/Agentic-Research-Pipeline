@@ -101,6 +101,9 @@ class JobManager:
 
         return self._update(run_id, fn)
 
+    def set_started_by(self, run_id: str, user_id: str) -> RunManifest:
+        return self._update(run_id, lambda m: m.params.__setitem__("started_by", user_id))
+
     def mark_running(self, run_id: str) -> RunManifest:
         """A (re)start: running again, with the last attempt's error and cancel request cleared."""
 

@@ -5,12 +5,14 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from arp.api.auth import Principal, current_user
 from arp.api.deps import get_scheduler, settings_dep
 from arp.config import Settings
 from arp.db.session import require_dsn
 from arp.discovery.change_detector import ChangeDetector
 from arp.discovery.pipeline import create_discovery_run, execute_discovery_run
 from arp.discovery.scheduler import DiscoveryScheduler
+from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef, DocType
 from arp.schemas.discovery import DiscoveryScheduleConfig
 from arp.storage.run_store import RunStore
@@ -34,6 +36,7 @@ async def start_discovery_run(
     req: DiscoveryRunRequest,
     settings: Settings = Depends(settings_dep),
     run_store: RunStore = Depends(_run_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     """Manual trigger: 'search now' for new/updated investor-disclosure
     documents across the given (or referenced) company universe. Uses the
@@ -43,6 +46,7 @@ async def start_discovery_run(
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
 
     run_id = create_discovery_run(companies, req.doc_types, "manual", run_store)
+    JobManager(run_store).set_started_by(run_id, principal.user_id)
 
     async def _background() -> None:
         await execute_discovery_run(

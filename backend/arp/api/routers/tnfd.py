@@ -43,6 +43,7 @@ async def start_tnfd_extraction_run(
     run_store: RunStore = Depends(get_run_store),
     registry: DocumentSourceRegistry = Depends(get_registry),
     decision_store: DecisionStore = Depends(get_decision_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     settings = batch_settings(settings, req.batch)
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
@@ -63,7 +64,7 @@ async def start_tnfd_extraction_run(
             run_id, companies, req.as_of, llm=llm, verifier_llm=verifier_llm, registry=registry, settings=settings, run_store=run_store
         )
 
-    run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings, run_store=run_store)
+    run_id = schedule_llm_run(create_fn=_create, run=_run, settings=settings, run_store=run_store, started_by=principal.user_id)
     return {"run_id": run_id, "company_count": len(companies)}
 
 
