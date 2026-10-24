@@ -476,6 +476,33 @@
     "title": "ActivityTier",
     "type": "string"
    },
+   "AddCompanies": {
+    "properties": {
+     "company": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/CompanyInput"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "universe_path": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Universe Path"
+     }
+    },
+    "title": "AddCompanies",
+    "type": "object"
+   },
    "AggregationResult": {
     "properties": {
      "as_of": {
@@ -1044,6 +1071,128 @@
    "ApproveSpecRequest": {
     "properties": {},
     "title": "ApproveSpecRequest",
+    "type": "object"
+   },
+   "ArgusFlow": {
+    "properties": {
+     "companies": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/CompanyRef"
+      },
+      "title": "Companies",
+      "type": "array"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "flow_id": {
+      "title": "Flow Id",
+      "type": "string"
+     },
+     "identity_run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Identity Run Id"
+     },
+     "started_by": {
+      "title": "Started By",
+      "type": "string"
+     },
+     "started_by_name": {
+      "title": "Started By Name",
+      "type": "string"
+     },
+     "step": {
+      "default": 1,
+      "title": "Step",
+      "type": "integer"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "flow_id",
+     "created_at",
+     "updated_at",
+     "started_by",
+     "started_by_name"
+    ],
+    "title": "ArgusFlow",
+    "type": "object"
+   },
+   "ArgusFlowView": {
+    "properties": {
+     "companies": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/CompanyRef"
+      },
+      "title": "Companies",
+      "type": "array"
+     },
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "flow_id": {
+      "title": "Flow Id",
+      "type": "string"
+     },
+     "identity_run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Identity Run Id"
+     },
+     "rows": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/FlowRow"
+      },
+      "title": "Rows",
+      "type": "array"
+     },
+     "started_by": {
+      "title": "Started By",
+      "type": "string"
+     },
+     "started_by_name": {
+      "title": "Started By Name",
+      "type": "string"
+     },
+     "step": {
+      "default": 1,
+      "title": "Step",
+      "type": "integer"
+     },
+     "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "flow_id",
+     "created_at",
+     "updated_at",
+     "started_by",
+     "started_by_name"
+    ],
+    "title": "ArgusFlowView",
     "type": "object"
    },
    "AskResponse": {
@@ -2311,6 +2460,20 @@
      "file"
     ],
     "title": "Body_upload_characteristics_dataset_api_replication_specs__spec_run_id__datasets_characteristics__name__post",
+    "type": "object"
+   },
+   "Body_upload_companies_api_argus_flows__flow_id__companies_upload_post": {
+    "properties": {
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file"
+    ],
+    "title": "Body_upload_companies_api_argus_flows__flow_id__companies_upload_post",
     "type": "object"
    },
    "Body_upload_data_api_projects__id__data_post": {
@@ -3927,6 +4090,63 @@
      "valid_to"
     ],
     "title": "CompanyFactRow",
+    "type": "object"
+   },
+   "CompanyInput": {
+    "properties": {
+     "cik": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Cik"
+     },
+     "isin": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Isin"
+     },
+     "lei": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lei"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "ticker": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ticker"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "CompanyInput",
     "type": "object"
    },
    "CompanyRef": {
@@ -8188,6 +8408,152 @@
     "title": "FlagOut",
     "type": "object"
    },
+   "FlowList": {
+    "properties": {
+     "flows": {
+      "items": {
+       "$ref": "#/components/schemas/ArgusFlow"
+      },
+      "title": "Flows",
+      "type": "array"
+     }
+    },
+    "required": [
+     "flows"
+    ],
+    "title": "FlowList",
+    "type": "object"
+   },
+   "FlowPatch": {
+    "properties": {
+     "identity_run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Identity Run Id"
+     }
+    },
+    "title": "FlowPatch",
+    "type": "object"
+   },
+   "FlowRow": {
+    "properties": {
+     "central_id": {
+      "anyOf": [
+       {
+        "format": "uuid",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Central Id"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "country": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Country"
+     },
+     "document_types": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Document Types",
+      "type": "array"
+     },
+     "documents": {
+      "title": "Documents",
+      "type": "integer"
+     },
+     "extracted_before": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PriorRun"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "identifiers": {
+      "additionalProperties": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "title": "Identifiers",
+      "type": "object"
+     },
+     "master_identifiers": {
+      "additionalProperties": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      "title": "Master Identifiers",
+      "type": "object"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "problem": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Problem"
+     },
+     "sector": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sector"
+     }
+    },
+    "required": [
+     "company_id",
+     "central_id",
+     "name",
+     "identifiers",
+     "master_identifiers",
+     "sector",
+     "country",
+     "problem",
+     "extracted_before",
+     "documents",
+     "document_types"
+    ],
+    "title": "FlowRow",
+    "type": "object"
+   },
    "FromCompaniesRequest": {
     "properties": {
      "companies": {
@@ -11337,6 +11703,34 @@
      "role"
     ],
     "title": "Principal",
+    "type": "object"
+   },
+   "PriorRun": {
+    "properties": {
+     "approved": {
+      "title": "Approved",
+      "type": "integer"
+     },
+     "date": {
+      "title": "Date",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     },
+     "waiting": {
+      "title": "Waiting",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "label",
+     "date",
+     "approved",
+     "waiting"
+    ],
+    "title": "PriorRun",
     "type": "object"
    },
    "ProgramParams": {
@@ -18554,6 +18948,242 @@
  },
  "openapi": "3.1.0",
  "paths": {
+  "/api/argus/flows": {
+   "get": {
+    "operationId": "list_flows_api_argus_flows_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/FlowList"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Flows",
+    "tags": [
+     "argus"
+    ]
+   },
+   "post": {
+    "operationId": "create_flow_api_argus_flows_post",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Create Flow",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}": {
+   "get": {
+    "operationId": "get_flow_api_argus_flows__flow_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Flow",
+    "tags": [
+     "argus"
+    ]
+   },
+   "patch": {
+    "operationId": "patch_flow_api_argus_flows__flow_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/FlowPatch"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Patch Flow",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/companies": {
+   "post": {
+    "operationId": "add_flow_companies_api_argus_flows__flow_id__companies_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AddCompanies"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Add Flow Companies",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
+  "/api/argus/flows/{flow_id}/companies/upload": {
+   "post": {
+    "operationId": "upload_companies_api_argus_flows__flow_id__companies_upload_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "flow_id",
+      "required": true,
+      "schema": {
+       "title": "Flow Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_upload_companies_api_argus_flows__flow_id__companies_upload_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ArgusFlowView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Upload Companies",
+    "tags": [
+     "argus"
+    ]
+   }
+  },
   "/api/ask": {
    "post": {
     "operationId": "post_ask_api_ask_post",
