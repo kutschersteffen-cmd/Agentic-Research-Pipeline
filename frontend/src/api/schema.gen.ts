@@ -11363,6 +11363,11 @@ export interface components {
             run_date: string;
             /** Run Id */
             run_id: string;
+            /**
+             * Run Type
+             * @enum {string}
+             */
+            run_type: "transition_plan" | "extraction";
         };
         /** OpenFromTriggerRequest */
         OpenFromTriggerRequest: {

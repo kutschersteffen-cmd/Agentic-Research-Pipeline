@@ -98,7 +98,10 @@ async def post_ask(
         error = f"{type(exc).__name__}: {exc}"
         raise HTTPException(502, ERROR_DETAIL) from exc
     finally:
+        agent = response and (response.portfolio or response.smart_search)  # the two tools with their own audit fields
         qa_audit.record_answer(
             settings, endpoint=f"ask.{tool or 'error'}", principal=principal, question=req.question,
-            answer_text=response.answer_text if response else None, vintage={}, error=error,
+            answer_text=response.answer_text if response else None, error=error,
+            vintage=response.portfolio.vintage if response and response.portfolio else {},
+            resolvable=agent.resolvable if agent else None,
         )

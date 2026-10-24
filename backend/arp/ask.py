@@ -6,6 +6,8 @@ figure shown. Spec: docs/superpowers/specs/2026-10-24-ask-arp-panel-design.md.
 from __future__ import annotations
 
 import json
+import logging
+import unicodedata
 from collections import defaultdict
 from pathlib import Path
 from typing import Annotated, Literal
@@ -13,7 +15,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from arp.api.auth import Principal
-from arp.decision.sources import _normalised_name, from_transition_plan_run, is_transition_plan_preset_run
+from arp.decision.sources import from_transition_plan_run, is_transition_plan_preset_run
 from arp.portfolio.qa_agent import QAAnswer
 from arp.review.items import list_open_items
 from arp.schemas.common import JobStatus
@@ -21,6 +23,8 @@ from arp.smart_search import SearchAnswer
 from arp.stewardship.benchmark import BenchmarkStore
 from arp.stewardship.process import SAMPLE_PATH
 from arp.storage.run_store import RunStore
+
+logger = logging.getLogger(__name__)
 
 Tool = Literal["portfolio", "smart_search", "transition_plan", "benchmark_sectors", "none"]
 
@@ -37,9 +41,9 @@ SAMPLE_TEXT = (
 class HistoryTurn(BaseModel):
     model_config = ConfigDict(extra="forbid")  # only questions and tool names travel, never answers or figures
 
-    question: str
+    question: Annotated[str, StringConstraints(max_length=1000)]
     tool: Tool
-    standalone_question: str
+    standalone_question: Annotated[str, StringConstraints(max_length=1000)]
 
 
 class AskRequest(BaseModel):
@@ -68,6 +72,7 @@ class TransitionPlanFigures(BaseModel):
 
 class OlderRun(BaseModel):
     run_id: str
+    run_type: Literal["transition_plan", "extraction"]
     run_date: str
 
 
@@ -154,18 +159,29 @@ _FIGURES = {
 }
 
 
-def _rows(run_store: RunStore, run_id: str) -> list[dict]:
+def _key(name: str) -> str:
+    """A company name for matching: case-folded, accents dropped ("Nestlé" and "Nestle" agree), letters and digits only."""
+    return "".join(c for c in unicodedata.normalize("NFKD", name.casefold()) if c.isalnum())
+
+
+def _names(run_store: RunStore, run_id: str) -> set[str]:
+    """The run's company names as its scored table shows them (`Company`), read without building the table."""
+    return {str(r.get("name") or r.get("company_id") or "") for r in run_store.read_results(run_id)}
+
+
+def _row(run_store: RunStore, run_id: str, company: str) -> dict | None:
     try:
-        return from_transition_plan_run(run_store, run_id).rows
-    except ValueError:  # a finished run with no result rows
-        return []
+        return next((r for r in from_transition_plan_run(run_store, run_id).rows if r["Company"] == company), None)
+    except Exception:  # one unreadable run must not block every lookup that reaches it
+        logger.warning("transition plan run %s could not be read", run_id, exc_info=True)
+        return None
 
 
 def newest_transition_plan(run_store: RunStore, principal: Principal, company: str | None) -> tuple[TransitionPlanCard | None, str]:
     """The newest finished transition plan assessment (stored `transition_plan` runs and preset extraction runs, never
     trial runs) that includes `company`. Returns (card, answer_text); the card is None when nothing or more than one
     company matches."""
-    key = _normalised_name(company or "")
+    key = _key(company or "")
     if not key:
         return None, "Which company do you mean?"
     runs = sorted(
@@ -174,21 +190,19 @@ def newest_transition_plan(run_store: RunStore, principal: Principal, company: s
         key=lambda m: (m.created_at, m.run_id), reverse=True,
     )
     for i, m in enumerate(runs):
-        rows = _rows(run_store, m.run_id)
-        matched = [r for r in rows if _normalised_name(r["Company"]) == key] or [r for r in rows if key in _normalised_name(r["Company"])]
-        names = sorted({r["Company"] for r in matched})
-        if len(names) > 1:
-            return None, f'Several companies match "{company}": {", ".join(names)}. Which one do you mean?'
-        if not names:
+        names = _names(run_store, m.run_id)
+        matched = sorted({n for n in names if _key(n) == key} or {n for n in names if key in _key(n)})
+        if len(matched) > 1:
+            return None, f'Several companies match "{company}": {", ".join(matched)}. Which one do you mean?'
+        if not matched or (row := _row(run_store, m.run_id, matched[0])) is None:
             continue
-        row = matched[0]
-        chosen = _normalised_name(row["Company"])
+        chosen = _key(row["Company"])
         older: list[OlderRun] = []
         for o in runs[i + 1:]:
             if len(older) == 2:
                 break
-            if any(_normalised_name(r["Company"]) == chosen for r in _rows(run_store, o.run_id)):
-                older.append(OlderRun(run_id=o.run_id, run_date=o.created_at))
+            if any(_key(n) == chosen for n in _names(run_store, o.run_id)):
+                older.append(OlderRun(run_id=o.run_id, run_type=o.run_type, run_date=o.created_at))
         open_items = sum(
             1 for item in list_open_items(run_store, principal, run_id=m.run_id) if item.payload.get("company_id") == row["Company_Id"]
         )

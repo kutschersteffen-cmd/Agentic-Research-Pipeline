@@ -168,3 +168,45 @@ def test_empty_completed_run_is_skipped(run_store):  # Review Focus 2
     old_run(run_store, "tp_old", "2026-10-01T00:00:00+00:00", ["BASF SE"])
     old_run(run_store, "tp_empty", "2026-10-22T00:00:00+00:00", [])
     assert ask(run_store, "BASF")[0].run_id == "tp_old"
+
+
+def test_accents_match_either_way(run_store):  # review I1
+    old_run(run_store, "tp_1", "2026-10-01T00:00:00+00:00", ["Nestlé S.A.", "L'Oreal SA"])
+    assert ask(run_store, "Nestle")[0].company == "Nestlé S.A."
+    assert ask(run_store, "L'Oréal")[0].company == "L'Oreal SA"
+
+
+def test_only_the_matching_run_is_built(run_store, monkeypatch):  # review I2
+    import arp.ask
+
+    old_run(run_store, "tp_1", "2026-01-01T00:00:00+00:00", ["BASF SE"])
+    old_run(run_store, "tp_2", "2026-02-01T00:00:00+00:00", ["Siemens AG"])
+    old_run(run_store, "tp_3", "2026-03-01T00:00:00+00:00", ["Shell plc"])
+    built = []
+    real = arp.ask.from_transition_plan_run
+    monkeypatch.setattr(arp.ask, "from_transition_plan_run", lambda rs, run_id: built.append(run_id) or real(rs, run_id))
+    assert ask(run_store, "BASF")[0].run_id == "tp_1"
+    assert built == ["tp_1"]
+
+
+def test_older_runs_carry_their_own_run_type(run_store):  # review M3
+    old_run(run_store, "tp_old", "2026-06-01T00:00:00+00:00", ["BASF SE"])
+    preset_run(run_store, "2026-10-20T00:00:00+00:00", ["basf se"])
+    card, _ = ask(run_store, "BASF")
+    assert card.run_type == "extraction" and [(o.run_id, o.run_type) for o in card.older_runs] == [("tp_old", "transition_plan")]
+
+
+def test_a_run_that_cannot_be_read_is_skipped(run_store, monkeypatch):  # review M7
+    import arp.ask
+
+    old_run(run_store, "tp_old", "2026-06-01T00:00:00+00:00", ["BASF SE"])
+    old_run(run_store, "tp_bad", "2026-10-20T00:00:00+00:00", ["BASF SE"])
+    real = arp.ask.from_transition_plan_run
+
+    def flaky(rs, run_id):
+        if run_id == "tp_bad":
+            raise KeyError("by_category")
+        return real(rs, run_id)
+
+    monkeypatch.setattr(arp.ask, "from_transition_plan_run", flaky)
+    assert ask(run_store, "BASF")[0].run_id == "tp_old"

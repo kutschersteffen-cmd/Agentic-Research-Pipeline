@@ -42,7 +42,7 @@ function TransitionPlan({ card }: { card: NonNullable<AskResponse["transition_pl
         <p className="muted">
           Older assessments:{" "}
           {card.older_runs.map((o, i) => (
-            <span key={o.run_id}>{i > 0 && ", "}<a href={`#/review/${card.run_type}/${o.run_id}`}>{o.run_date.slice(0, 10)}</a></span>
+            <span key={o.run_id}>{i > 0 && ", "}<a href={`#/review/${o.run_type}/${o.run_id}`}>{o.run_date.slice(0, 10)}</a></span>
           ))}
         </p>
       )}

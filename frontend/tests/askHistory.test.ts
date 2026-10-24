@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { clearTurns, historyFor, loadTurns, saveTurns } from "../src/lib/askHistory.ts";
+import { askErrorText, clearTurns, historyFor, loadTurns, saveTurns } from "../src/lib/askHistory.ts";
 import type { AskTurn } from "../src/lib/askHistory.ts";
 import type { AskResponse } from "../src/types.ts";
 
@@ -53,4 +53,26 @@ test("blocked or missing storage never throws", () => {  // Review Focus 5
   assert.doesNotThrow(() => saveTurns([answered(1)], broken));
   assert.doesNotThrow(() => clearTurns(broken));
   assert.deepEqual(loadTurns(null), []);
+});
+
+test("a stored value that is not a list loads as no turns", () => {  // review M4
+  for (const raw of ["null", "{}", "\"text\""]) {
+    const s = memory();
+    s.setItem("arp.ask.turns", raw);
+    assert.deepEqual(loadTurns(s), []);
+  }
+});
+
+test("an error card shows the API's detail without the status code", () => {  // review M1, AC-44
+  assert.equal(askErrorText(new Error("502: Ask could not answer this question. Try again.")), "Ask could not answer this question. Try again.");
+  assert.equal(askErrorText(new Error("Failed to fetch")), "Failed to fetch");
+  assert.equal(askErrorText("boom"), "Ask could not answer this question. Try again.");
+});
+
+test("history text is cut to the API's 1,000-character limit", () => {  // follows review I3
+  const long: AskTurn = { id: "l", question: "q".repeat(1200), status: "answered",
+    response: { tool: "none", question: "q", standalone_question: "s".repeat(1500) } as AskResponse };
+  const [h] = historyFor([long]);
+  assert.equal(h.question.length, 1000);
+  assert.equal(h.standalone_question.length, 1000);
 });

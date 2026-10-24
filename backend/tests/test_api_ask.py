@@ -199,3 +199,17 @@ def test_ask_only_reads(env):  # AC-28
         assert ask(env, q).status_code == 200
     assert _counts(env) == before
     assert len(audit(env)) == 5
+
+
+def test_history_turn_text_is_limited(env):  # review I3
+    script(env, AskRouting=[routing("none")])
+    assert ask(env, "q", [{**turn(), "standalone_question": "x" * 1000}]).status_code == 200
+    assert ask(env, "q", [{**turn(), "standalone_question": "x" * 1001}]).status_code == 422
+    assert ask(env, "q", [{**turn(), "question": "x" * 1001}]).status_code == 422
+
+
+def test_portfolio_audit_keeps_vintage_and_resolvable(env):  # review I4
+    script(env, AskRouting=[routing("portfolio", BMW_Q)], _ParsedQuestion=[BMW_PARSE])
+    assert ask(env, BMW_Q).status_code == 200
+    [row] = audit(env)
+    assert row["vintage"] == {"holdings_as_of": "2026-01-01"} and row["resolvable"] is True

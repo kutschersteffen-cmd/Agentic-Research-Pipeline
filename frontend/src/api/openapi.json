@@ -8483,10 +8483,12 @@
     "additionalProperties": false,
     "properties": {
      "question": {
+      "maxLength": 1000,
       "title": "Question",
       "type": "string"
      },
      "standalone_question": {
+      "maxLength": 1000,
       "title": "Standalone Question",
       "type": "string"
      },
@@ -10649,10 +10651,19 @@
      "run_id": {
       "title": "Run Id",
       "type": "string"
+     },
+     "run_type": {
+      "enum": [
+       "transition_plan",
+       "extraction"
+      ],
+      "title": "Run Type",
+      "type": "string"
      }
     },
     "required": [
      "run_id",
+     "run_type",
      "run_date"
     ],
     "title": "OlderRun",

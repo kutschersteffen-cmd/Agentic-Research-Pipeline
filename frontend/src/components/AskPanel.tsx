@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "../api/client";
-import { historyFor, type AskTurn } from "../lib/askHistory";
+import { ASK_ERROR_TEXT, askErrorText, historyFor, type AskTurn } from "../lib/askHistory";
 import { AskCard } from "./AskCards";
-
-const ERROR_TEXT = "Ask could not answer this question. Try again.";
 
 /** Ask ARP: a side panel where a plain-language question goes to one read-only tool and comes back as a sourced card.
  * The conversation (`turns`) belongs to the app shell, so it survives moving between pages. */
@@ -41,7 +39,7 @@ export function AskPanel({ turns, setTurns, onClose, onClear }: {
       const response = await api.ask(question, history);
       setTurns((ts) => ts.map((t) => (t.id === id ? { ...t, status: "answered", response } : t)));
     } catch (err) {
-      const error = err instanceof Error && err.message ? err.message : ERROR_TEXT;
+      const error = askErrorText(err);
       setTurns((ts) => ts.map((t) => (t.id === id ? { ...t, status: "error", error } : t)));
     }
     input.current?.focus();
@@ -71,7 +69,7 @@ export function AskPanel({ turns, setTurns, onClose, onClear }: {
           <section key={t.id} className="ask-turn">
             <p className="ask-question">{t.question}</p>
             {t.status === "working" && <p className="ask-card muted">Working…</p>}
-            {t.status === "error" && <p className="ask-card error-text" role="alert">{t.error || ERROR_TEXT}</p>}
+            {t.status === "error" && <p className="ask-card error-text" role="alert">{t.error || ASK_ERROR_TEXT}</p>}
             {t.status === "answered" && t.response && <AskCard response={t.response} />}
           </section>
         ))}
