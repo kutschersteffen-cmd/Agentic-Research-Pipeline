@@ -206,7 +206,7 @@ now-cast years are estimates · capital goods not included in flows` (C below).
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
-| AC-1 | Fixture F | `arp io build-full IOT_2022_ixi.zip --out <d>` | exit 0; stdout line 1 `6 nodes (3 sectors × 2 regions) -> <d>`, line 2 `ARP_VALUE_CHAIN_DIR=<d>` | holdout |
+| AC-1 | Fixture F | `arp io build-full IOT_2022_ixi.zip --out <d>` | exit 0; stdout line 1 `6 nodes (3 sectors × 2 regions) -> <d>`, line 2 `ARP_VALUE_CHAIN_DIR=<d>`, `<d>` being the `--out` argument exactly as given (the test passes an absolute path) | holdout |
 | AC-1b | as AC-1 | read `<d>/manifest.json` | `edition` `exiobase-IOT_2022_ixi`, `exiobase_version` `3.11.2`, `year` 2022, `n_regions` 2, `n_sectors` 3, `n_nodes` 6 | holdout |
 | AC-2 | F built | `GET /api/value-chain/status` | 200 with `edition` `exiobase-IOT_2022_ixi`, `version` `3.11.2`, `year` 2022, `n_nodes` 6, `n_regions` 2, `n_sectors` 3, `caveat` C | holdout |
 | AC-3 | F built | `GET …/nodes/CN.2` | `suppliers` is exactly these 4 items, in order: CN.2 (direct 0.2, total 0.2696), CN.3 (0.1, 0.1572), DE.3 (0.1, 0.1448), DE.2 (0, 0.0336); `caveat` C | holdout |
@@ -240,6 +240,7 @@ now-cast years are estimates · capital goods not included in flows` (C below).
 | AC-23 | `ARP_VALUE_CHAIN_DIR` unset | `GET …/status` | 503, `detail` `value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR` | holdout |
 | AC-24 | `ARP_VALUE_CHAIN_DIR` = an empty directory | `GET …/nodes?q=x` | 503 with the same `detail` | holdout |
 | AC-25 | `ARP_ANTHROPIC_API_KEY` unset | AC-1 to AC-24 | all pass | holdout |
+| AC-25b | `ARP_ANTHROPIC_API_KEY` set to an invalid key (any model call fails) | AC-1 to AC-24 | all pass | holdout |
 | AC-26 | Real `IOT_2022_ixi.zip`, Zenodo record 23039074 | `arp io build-full` | exit 0; line 1 `7987 nodes (163 sectors × 49 regions) -> <d>` | evaluator |
 | AC-27 | as AC-26 | the same run under `/usr/bin/time -v` (or `ru_maxrss` of the child) | elapsed ≤ 20:00 | evaluator |
 | AC-27b | as AC-27 | read maximum resident set size | ≤ 8,388,608 KB | evaluator |
@@ -250,7 +251,7 @@ now-cast years are estimates · capital goods not included in flows` (C below).
 | AC-32 | as AC-28 | open its footprint view with defaults | total `973.9 t CO₂e`; `85% in CN` | evaluator |
 | AC-33 | AC-26 built, API process warmed by one request | for 10 seeded random nodes with `output_meur` > 0: `GET /nodes/{id}`, `/tree?depth=4&width=5&cutoff=0`, `/footprint?indicator=ghg`, from a client on localhost | each answers in ≤ 1.0 s wall-clock | evaluator |
 | AC-34 | AC-26 built | open `#/valueChain` | the page shows `Pick a sector and region.` | evaluator |
-| AC-35 | AC-26 built | `GET /nodes?q=wa&limit=100` | every item with region `WA` comes before every other item; at least one other item, a sector containing `wa`, is present | evaluator |
+| AC-35 | AC-26 built (India has 163 nodes with output; `in` also occurs in most sector names, e.g. `Mining`) | `GET /nodes?q=in&limit=100` | all 100 items have region `IN`, in node-id order | evaluator |
 | AC-35b | AC-26 built | for every `nodes.csv` row, `GET /nodes/{id}` | 200 where `output_meur` > 0; 404 where it is 0 | evaluator |
 | AC-35c | as AC-28 | turn on `Hide this node` | no supplier or customer row reads `Manufacture of electrical machinery and apparatus n.e.c. · CN`; with it off, the first supplier row does | evaluator |
 | AC-35d | as AC-28 | click Direct | the `Copper production · CN` row reads `4.3¢` with no `(direct`; rows are in descending order of their value | evaluator |
