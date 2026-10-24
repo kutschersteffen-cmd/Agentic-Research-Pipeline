@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from arp.api.auth import Principal, current_user
 from arp.api.deps import get_edgar_source, get_run_store, get_web_search_client, settings_dep
 from arp.api.run_scheduling import schedule_llm_run
 from arp.config import Settings
@@ -30,6 +31,7 @@ async def start_identity_run(
     run_store: RunStore = Depends(get_run_store),
     edgar: EdgarDocumentSource = Depends(get_edgar_source),
     search_client: WebSearchClient = Depends(get_web_search_client),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     """Resolves real-world identity (website/CIK) for a list of company
     names -- a separate enrichment run from document discovery. See
@@ -52,7 +54,8 @@ async def start_identity_run(
         )
 
     run_id = schedule_llm_run(
-        create_fn=_create, run=_run, settings=settings if req.batch else None, run_store=run_store
+        create_fn=_create, run=_run, settings=settings if req.batch else None, run_store=run_store,
+        started_by=principal,
     )
     return {"run_id": run_id, "company_count": len(companies)}
 
