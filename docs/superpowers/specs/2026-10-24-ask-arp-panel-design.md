@@ -157,7 +157,9 @@ Code, no model:
    `Walk_Share_pct`, `Assessment_Confidence_pct`. These are the figures as extracted, the same ones Decision
    Studio scores; reviewer corrections are not applied to them (my call: the same truth as Decision Studio).
 7. **Review state (my call):** `open_review_items` counts the items of that run and company that
-   `review.items.list_open_items` returns for the caller. This is what the Review Queue shows the same person. The
+   `review.items.list_open_items` returns for the caller. An item belongs to them when its `run_id` is the run's id
+   and its payload's `company_id` equals the chosen row's `Company_Id`. This is what the Review Queue shows the same
+   person. The
    stored `Needs_Review_Flag` is not used, because review decisions never clear it.
 8. `older_runs`: the next 2 older candidate runs with a row whose normalised `Company` equals the chosen row's
    normalised `Company`, newest first.
@@ -246,7 +248,6 @@ one row, not two.
 - Prompt wording, provided the output model above is kept.
 - Card layout and copy beyond the exact texts in this spec and the Acceptance table.
 - Whether the router module is one file or two.
-- How an open review item is tied to a company (its payload's company id), as long as AC-9 holds.
 
 ## Calls I made (the owner can override any)
 
@@ -277,7 +278,7 @@ real model in the running app.
 | AC-6 | Newest matching run is `partially_completed` (created 2026-10-22) and has a BASF SE row; an older completed one exists | `POST /api/ask`, `company` "BASF" | `run_id` = the 2026-10-22 run | holdout |
 | AC-7 | Newest matching run is a preset run with `params.trial` true; an older non-trial completed run includes BASF SE | `POST /api/ask`, `company` "BASF" | `run_id` = the older non-trial run | holdout |
 | AC-8 | No candidate run includes BASF | `POST /api/ask`, `company` "BASF" | 200; `tool` = `transition_plan`; `transition_plan` null; `answer_text` = `No completed transition plan assessment includes BASF.` | holdout |
-| AC-9 | As AC-3; the 2026-10-20 run has 3 review items for BASF SE (1 approved, 2 pending) and 1 pending item for another company; the 2026-09-01 run has 1 pending BASF SE item | `POST /api/ask` as the analyst who decided none of them | `open_review_items` = 2; `answer_text` ends ` 2 items still wait for review.` | holdout |
+| AC-9 | As AC-3; the 2026-10-20 run has 3 review items whose payload `company_id` is BASF SE's `Company_Id` (1 approved, 2 pending) and 1 pending item with another `company_id`; the 2026-09-01 run has 1 pending item with BASF SE's `company_id` | `POST /api/ask` as the analyst who decided none of them | `open_review_items` = 2; `answer_text` ends ` 2 items still wait for review.` | holdout |
 | AC-10 | As AC-9, but all 3 items approved | `POST /api/ask` | `open_review_items` = 0; `answer_text` = `BASF SE: newest transition plan assessment from 2026-10-20 (run <run_id>).` | holdout |
 | AC-11 | Newest matching run has rows "BASF" and "BASF SE" | `POST /api/ask`, `company` "BASF" | `transition_plan.company` = "BASF" (the exact match wins) | holdout |
 | AC-12 | Newest matching run has rows "BASF SE" and "BASF Coatings GmbH" | `POST /api/ask`, `company` "BASF Coat" | `transition_plan.company` = "BASF Coatings GmbH" | holdout |
