@@ -3,6 +3,8 @@ import { filenameFromDisposition, inlineSafe } from "../lib/files";
 import { profileEmbedParams } from "../lib/biEmbed";
 import type { Me } from "../lib/reviewKeys";
 import type {
+  AskHistoryTurn,
+  AskResponse,
   WorkbenchResponse,
   CompanyBallot,
   ClientEscalationPreview,
@@ -300,6 +302,8 @@ export const api = {
   },
   listOutputs: (kind?: OutputKind) => request<{ outputs: OutputItem[] }>(`/api/outputs${buildQuery({ kind })}`),
   listIssues: () => request<{ issues: DataIssue[] }>("/api/issues"),
+  ask: (question: string, history: AskHistoryTurn[]) =>
+    request<AskResponse>("/api/ask", { method: "POST", body: JSON.stringify({ question, history }) }),
   smartSearch: (question: string) =>
     request<SmartSearchAnswer>("/api/smart-search", { method: "POST", body: JSON.stringify({ question }) }),
   pullNews: () => request<{ added: number; unmatched: number; received: number }>("/api/feeds/news/pull", { method: "POST" }),

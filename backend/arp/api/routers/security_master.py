@@ -125,6 +125,16 @@ def get_issues(
     return {"issues": issues.open_issues(store, idmap, run_store, date.today())}
 
 
+def datahub_lists(settings: Settings, store, idmap, run_store, decisions, taxonomy, index, reports, today: date) -> dict[str, list[dict]]:
+    """The three lists Smart Search filters: open issues, the output catalog and the feeds (also used by Ask ARP)."""
+    return {
+        "issues": issues.open_issues(store, idmap, run_store, today),
+        "outputs": catalog.catalog(runs_dir=settings.runs_dir, run_store=run_store, decisions=decisions, taxonomy=taxonomy,
+                                   index=index, reports=reports),
+        "feeds": feeds.overview(store, idmap, today),
+    }
+
+
 class SmartSearchRequest(BaseModel):
     question: str
 
@@ -140,13 +150,7 @@ async def post_smart_search(
     Every call leaves an audit row, like Ask the Portfolio."""
     answer, error = None, None
     try:
-        today = date.today()
-        lists = await run_in_threadpool(lambda: {
-            "issues": issues.open_issues(store, idmap, run_store, today),
-            "outputs": catalog.catalog(runs_dir=settings.runs_dir, run_store=run_store, decisions=decisions, taxonomy=taxonomy,
-                                       index=index, reports=reports),
-            "feeds": feeds.overview(store, idmap, today),
-        })
+        lists = await run_in_threadpool(datahub_lists, settings, store, idmap, run_store, decisions, taxonomy, index, reports, date.today())
         answer, _usage = await smart_search.smart_search(req.question, llm, **lists)
         return answer
     except Exception as exc:
