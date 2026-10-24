@@ -6,6 +6,7 @@ import type { VcNodeRef } from "../../types";
 import { FootprintView } from "./FootprintView";
 import { NodeView } from "./NodeView";
 import { TreeView } from "./TreeView";
+import { useVcQuery } from "./useVcQuery";
 
 const VIEWS = [
   [undefined, "Node page"],
@@ -14,7 +15,7 @@ const VIEWS = [
 ] as const;
 
 /** Search box over sectors and regions; each hit links to its node page. */
-function Picker({ onError }: { onError: (message: string) => void }) {
+function Picker({ onError }: { onError: (message: string | null) => void }) {
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<VcNodeRef[] | null>(null);
 
@@ -27,7 +28,11 @@ function Picker({ onError }: { onError: (message: string) => void }) {
     const timer = setTimeout(() => {
       api
         .valueChainSearch(q)
-        .then((r) => live && setHits(r.items))
+        .then((r) => {
+          if (!live) return;
+          setHits(r.items);
+          onError(null);
+        })
         .catch((err) => live && onError(apiMessage(err)));
     }, 250);
     return () => {
@@ -44,7 +49,9 @@ function Picker({ onError }: { onError: (message: string) => void }) {
       </label>
       {hits !== null &&
         (hits.length === 0 ? (
-          <p className="muted">No sector or region matches.</p>
+          <p className="muted" role="status">
+            No sector or region matches.
+          </p>
         ) : (
           <ul className="vc-hits">
             {hits.map((h) => (
@@ -64,32 +71,36 @@ function Picker({ onError }: { onError: (message: string) => void }) {
 export function ValueChainExplorer({ params }: { params: string[] }) {
   const [id, sub] = params;
   const view = sub === "tree" || sub === "footprint" ? sub : undefined;
-  const [message, setMessage] = useState<string | null>(null);
-  const [caveat, setCaveat] = useState<string | null>(null);
-
+  const [searchError, setSearchError] = useState<string | null>(null);
+  // A node view names its node here once loaded; the id stands in until then.
+  const [title, setTitle] = useState<string | null>(null);
   // Before a node is picked, the status call says whether the data is built and gives the caveat.
-  useEffect(() => {
-    if (id) return;
-    api
-      .valueChainStatus()
-      .then((s) => setCaveat(s.caveat))
-      .catch((err) => setMessage(apiMessage(err)));
-  }, [id]);
+  const status = useVcQuery(() => (id ? null : api.valueChainStatus()), [id]);
+  const message = status.error ?? searchError;
 
   return (
     <div className="page">
-      <h1>Value Chain Explorer</h1>
+      {id ? (
+        <>
+          <nav className="vc-crumb" aria-label="Breadcrumb">
+            <a href="#/valueChain">Value Chain Explorer</a>
+          </nav>
+          <h1>{title ?? id}</h1>
+        </>
+      ) : (
+        <h1>Value Chain Explorer</h1>
+      )}
       <p className="help-text">Pick a sector in a region to see who it buys from, who it sells to, and what it takes to make one euro of its&nbsp;output.</p>
       {message && (
         <p className="error-text" role="alert">
           {message}
         </p>
       )}
-      <Picker onError={setMessage} />
+      <Picker onError={setSearchError} />
       {!id ? (
         <>
           <p className="muted">Pick a sector and region.</p>
-          {caveat && <p className="help-text vc-note">{caveat}</p>}
+          {status.data && <p className="help-text vc-note">{status.data.caveat}</p>}
         </>
       ) : (
         <>
@@ -100,7 +111,13 @@ export function ValueChainExplorer({ params }: { params: string[] }) {
               </a>
             ))}
           </nav>
-          {view === "tree" ? <TreeView id={id} /> : view === "footprint" ? <FootprintView id={id} /> : <NodeView id={id} />}
+          {view === "tree" ? (
+            <TreeView id={id} onTitle={setTitle} />
+          ) : view === "footprint" ? (
+            <FootprintView id={id} onTitle={setTitle} />
+          ) : (
+            <NodeView id={id} onTitle={setTitle} />
+          )}
         </>
       )}
     </div>

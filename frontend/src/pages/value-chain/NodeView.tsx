@@ -1,14 +1,14 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { api } from "../../api/client";
-import { apiMessage } from "../../lib/projects";
 import { linkText, nodeHash, percent, tile } from "../../lib/valueChain";
-import type { VcLink, VcNode } from "../../types";
+import type { VcLink } from "../../types";
+import { useVcQuery } from "./useVcQuery";
 
 export type Bar = { key: string; label: ReactNode; value: string; size: number };
 
 /** A ranked list where each row carries a bar scaled to the list's largest value. */
 export function Bars({ rows }: { rows: Bar[] }) {
-  const max = Math.max(...rows.map((r) => r.size));
+  const max = Math.max(...rows.map((r) => r.size)) || 1; // all zero: empty bars, not NaN%
   return (
     <ol className="vc-bars">
       {rows.map((r) => (
@@ -63,58 +63,42 @@ function Links({ title, links, mode, help }: { title: string; links: VcLink[]; m
 }
 
 /** Node page: intensity tiles, then top suppliers and customers by total or direct flow. */
-export function NodeView({ id }: { id: string }) {
+export function NodeView({ id, onTitle }: { id: string; onTitle: (title: string) => void }) {
   const [mode, setMode] = useState<"total" | "direct">("total");
   const [excludeOwn, setExcludeOwn] = useState(false);
-  const [node, setNode] = useState<VcNode | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
+  // The lists are drawn in the mode they were fetched with, so a switch never shows old rows in the new format.
+  const q = useVcQuery(() => api.valueChainNode(id, { order: mode, excludeOwn }).then((node) => ({ node, mode })), [id, mode, excludeOwn]);
+  const node = q.data?.node;
   useEffect(() => {
-    let live = true;
-    api
-      .valueChainNode(id, { order: mode, excludeOwn })
-      .then((n) => {
-        if (!live) return;
-        setNode(n);
-        setError(null);
-      })
-      .catch((err) => live && setError(apiMessage(err)));
-    return () => {
-      live = false;
-    };
-  }, [id, mode, excludeOwn]);
+    if (node) onTitle(`${node.sector} · ${node.region_label}`);
+  }, [node, onTitle]);
 
-  if (error)
-    return (
-      <p className="error-text" role="alert">
-        {error}
-      </p>
-    );
-  if (!node) return <p className="muted">Loading…</p>;
-  const tiles = [
-    ["CO₂e", tile(node.ghg_t_per_meur), "t per €1M output"],
-    ["Energy", tile(node.energy_tj_per_meur), "TJ per €1M output"],
-    ["Jobs", tile(node.jobs_per_meur), "people per €1M output"],
-    ["Value added", percent(node.va_share), "of output"],
-  ];
+  const tiles = node
+    ? [
+        ["CO₂e", tile(node.ghg_t_per_meur), "t per €1M output"],
+        ["Energy", tile(node.energy_tj_per_meur), "TJ per €1M output"],
+        ["Jobs", tile(node.jobs_per_meur), "people per €1M output"],
+        ["Value added", percent(node.va_share), "of output"],
+      ]
+    : [];
   return (
     <>
-      <section className="card" aria-labelledby="vc-node">
-        <h2 id="vc-node">
-          {node.sector} · {node.region_label}
-        </h2>
-        <div className="stat-tile-grid">
-          {tiles.map(([label, value, unit]) => (
-            <div key={label} className="stat-tile">
-              <span className="stat-value">{value}</span>
-              <span className="stat-label">
-                {label} · {unit}
-              </span>
-            </div>
-          ))}
-        </div>
-        <p className="help-text">Direct, at the sector itself. The footprint view adds everything upstream.</p>
-      </section>
+      {node && (
+        <section className="card" aria-labelledby="vc-node">
+          <h2 id="vc-node">Intensities</h2>
+          <div className="stat-tile-grid">
+            {tiles.map(([label, value, unit]) => (
+              <div key={label} className="stat-tile">
+                <span className="stat-value">{value}</span>
+                <span className="stat-label">
+                  {label} · {unit}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="help-text">Direct, at the sector itself. The footprint view adds everything upstream.</p>
+        </section>
+      )}
       <div className="toolbar">
         <div className="view-toggle" role="group" aria-label="Measure">
           {(["total", "direct"] as const).map((m) => (
@@ -127,11 +111,25 @@ export function NodeView({ id }: { id: string }) {
           <input type="checkbox" checked={excludeOwn} onChange={(e) => setExcludeOwn(e.target.checked)} /> Hide this node
         </label>
       </div>
-      <div className="vc-columns">
-        <Links title="Suppliers · upstream" links={node.suppliers} mode={mode} help={HELP.suppliers[mode]} />
-        <Links title="Customers · downstream" links={node.customers} mode={mode} help={HELP.customers[mode]} />
-      </div>
-      <p className="help-text vc-note">{node.caveat}</p>
+      {q.error && (
+        <p className="error-text" role="alert">
+          {q.error}
+        </p>
+      )}
+      {q.loading && !q.data && (
+        <p className="muted" role="status">
+          Loading…
+        </p>
+      )}
+      {q.data && (
+        <>
+          <div className="vc-columns" aria-busy={q.loading}>
+            <Links title="Suppliers · upstream" links={q.data.node.suppliers} mode={q.data.mode} help={HELP.suppliers[q.data.mode]} />
+            <Links title="Customers · downstream" links={q.data.node.customers} mode={q.data.mode} help={HELP.customers[q.data.mode]} />
+          </div>
+          <p className="help-text vc-note">{q.data.node.caveat}</p>
+        </>
+      )}
     </>
   );
 }

@@ -2101,6 +2101,8 @@ th[aria-sort="ascending"] .xbrl-sort, th[aria-sort="descending"] .xbrl-sort { co
 
 /* Value Chain Explorer: ranked bar lists, and an upstream tree that grows to the left of the
    selected node. Every tree box has one width, so each level lines up as a column. */
+.vc-crumb { margin-bottom: var(--s-1); font-size: var(--text-sm); color: var(--muted); }
+.vc-crumb a { color: var(--muted); }
 .vc-hits { list-style: none; margin: var(--s-2) 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); gap: var(--s-1) var(--s-4); max-height: 20rem; overflow-y: auto; }
 .vc-hits a, .vc-bars a, a.vc-box { color: var(--text); }
 .vc-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr)); gap: 0 var(--s-6); }

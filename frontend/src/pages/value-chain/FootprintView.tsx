@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
-import { apiMessage } from "../../lib/projects";
 import { footprintTotal, homeShare } from "../../lib/valueChain";
-import type { VcFootprint, VcNode } from "../../types";
+import type { VcFootprint } from "../../types";
 import { Bars } from "./NodeView";
+import { useVcQuery } from "./useVcQuery";
 
 type Indicator = "ghg" | "energy" | "jobs";
 const INDICATORS: [Indicator, string][] = [
@@ -12,51 +12,27 @@ const INDICATORS: [Indicator, string][] = [
   ["jobs", "Jobs"],
 ];
 
+// The generated type widens the API's [name, value] pairs to (string | number)[].
+const bars = (pairs: VcFootprint["by_region"], unit: string) =>
+  pairs.map(([name, v]) => ({ key: String(name), label: <span>{name}</span>, value: footprintTotal(Number(v), unit), size: Number(v) }));
+
 /** Footprint of final demand for one node: the total, the home-region share, and where it arises. */
-export function FootprintView({ id }: { id: string }) {
+export function FootprintView({ id, onTitle }: { id: string; onTitle: (title: string) => void }) {
   const [indicator, setIndicator] = useState<Indicator>("ghg");
   const [amountText, setAmountText] = useState("1");
-  const [node, setNode] = useState<VcNode | null>(null);
-  const [fp, setFp] = useState<VcFootprint | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const amount = Number(amountText);
   const valid = amountText.trim() !== "" && Number.isFinite(amount) && amount > 0;
-
   // The footprint answer has no home region; the node gives it and the heading.
+  const nodeQ = useVcQuery(() => api.valueChainNode(id, { order: "total", excludeOwn: false }), [id]);
+  const fpQ = useVcQuery(() => (valid ? api.valueChainFootprint(id, { indicator, amount }) : null), [id, indicator, amount, valid]);
+  const node = nodeQ.data;
+  const fp = valid ? fpQ.data : null;
+  const error = nodeQ.error ?? fpQ.error;
   useEffect(() => {
-    let live = true;
-    api
-      .valueChainNode(id, { order: "total", excludeOwn: false })
-      .then((n) => live && setNode(n))
-      .catch((err) => live && setError(apiMessage(err)));
-    return () => {
-      live = false;
-    };
-  }, [id]);
+    if (node) onTitle(`${node.sector} · ${node.region_label}`);
+  }, [node, onTitle]);
 
-  useEffect(() => {
-    if (!valid) return;
-    let live = true;
-    api
-      .valueChainFootprint(id, { indicator, amount })
-      .then((f) => live && setFp(f))
-      .catch((err) => live && setError(apiMessage(err)));
-    return () => {
-      live = false;
-    };
-  }, [id, indicator, amount, valid]);
-
-  if (error)
-    return (
-      <p className="error-text" role="alert">
-        {error}
-      </p>
-    );
-  if (!node || !fp) return <p className="muted">Loading…</p>;
-  const share = homeShare(fp.in_home_region, node.region_label);
-  // The generated type widens the API's [name, value] pairs to (string | number)[].
-  const bars = (pairs: VcFootprint["by_region"]) =>
-    pairs.map(([name, v]) => ({ key: String(name), label: <span>{name}</span>, value: footprintTotal(Number(v), fp.unit), size: Number(v) }));
+  const share = node && fp ? homeShare(fp.in_home_region, node.region_label) : "";
   return (
     <>
       <div className="toolbar">
@@ -78,26 +54,38 @@ export function FootprintView({ id }: { id: string }) {
           </div>
         </div>
       </div>
-      <section className="card vc-total" aria-labelledby="vc-fp">
-        <h2 id="vc-fp">
-          Footprint · {node.sector} · {node.region_label}
-        </h2>
-        <p>
-          <span className="vc-total-value">{footprintTotal(fp.total, fp.unit)}</span>{" "}
-          <span className="muted">whole supply chain{share && ` · ${share}`}</span>
+      {error && (
+        <p className="error-text" role="alert">
+          {error}
         </p>
-      </section>
-      <div className="vc-columns">
-        <section className="card" aria-label="By region">
-          <h2>By region</h2>
-          {fp.by_region.length === 0 ? <p className="muted">None.</p> : <Bars rows={bars(fp.by_region)} />}
-        </section>
-        <section className="card" aria-label="By sector">
-          <h2>By sector (all regions)</h2>
-          {fp.by_sector.length === 0 ? <p className="muted">None.</p> : <Bars rows={bars(fp.by_sector)} />}
-        </section>
-      </div>
-      <p className="help-text vc-note">{fp.caveat}</p>
+      )}
+      {valid && !error && !(node && fp) && (
+        <p className="muted" role="status">
+          Loading…
+        </p>
+      )}
+      {node && fp && (
+        <>
+          <section className="card vc-total" aria-labelledby="vc-fp" aria-busy={fpQ.loading}>
+            <h2 id="vc-fp">Footprint</h2>
+            <p>
+              <span className="vc-total-value">{footprintTotal(fp.total, fp.unit)}</span>{" "}
+              <span className="muted">whole supply chain{share && ` · ${share}`}</span>
+            </p>
+          </section>
+          <div className="vc-columns" aria-busy={fpQ.loading}>
+            <section className="card" aria-label="By region">
+              <h2>By region</h2>
+              {fp.by_region.length === 0 ? <p className="muted">None.</p> : <Bars rows={bars(fp.by_region, fp.unit)} />}
+            </section>
+            <section className="card" aria-label="By sector">
+              <h2>By sector (all regions)</h2>
+              {fp.by_sector.length === 0 ? <p className="muted">None.</p> : <Bars rows={bars(fp.by_sector, fp.unit)} />}
+            </section>
+          </div>
+          <p className="help-text vc-note">{fp.caveat}</p>
+        </>
+      )}
     </>
   );
 }
