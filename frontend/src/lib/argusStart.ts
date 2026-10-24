@@ -1,4 +1,5 @@
-import type { ReviewItem, RunManifest } from "../types";
+import { flowHref } from "./argusFlow.ts";
+import type { ArgusFlow, ReviewItem, RunManifest } from "../types";
 
 // The Argus start page (#/argus), derived from /api/runs and /api/review/items.
 
@@ -36,9 +37,20 @@ function stepAndStatus(r: RunManifest, open: Set<string>): [ArgusStep, ArgusStat
   return [4, "Running"];
 }
 
-/** Argus runs only, newest first. A finished run needs you while any of its review items is still open. */
-export function argusRows(runs: RunManifest[], items: ReviewItem[]): ArgusRow[] {
+/** Argus runs and draft flows, newest first. A finished run needs you while any of its review items is still open. */
+export function argusRows(runs: RunManifest[], items: ReviewItem[], flows: ArgusFlow[] = []): ArgusRow[] {
   const open = new Set(items.map((i) => i.run_id));
+  const drafts: ArgusRow[] = flows.map((f) => ({
+    runId: f.flow_id,
+    label: "New extraction",
+    companies: f.companies.length,
+    step: f.step as ArgusStep,
+    status: "Draft",
+    startedBy: f.started_by,
+    starterName: f.started_by_name,
+    createdAt: f.created_at,
+    openHref: flowHref(f.flow_id, f.step),
+  }));
   return runs
     .filter((r) => ARGUS_RUN_TYPES.includes(r.run_type))
     .map((r) => {
@@ -57,6 +69,7 @@ export function argusRows(runs: RunManifest[], items: ReviewItem[]): ArgusRow[] 
         openHref: step === 5 ? "#/review" : "#/extraction/extract",
       };
     })
+    .concat(drafts)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 

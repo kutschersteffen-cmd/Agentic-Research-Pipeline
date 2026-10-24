@@ -19,6 +19,9 @@ export type DocType =
 export type JobStatus = "pending" | "running" | "completed" | "partially_completed" | "failed" | "cancelled";
 
 export type RunFailure = Served<S["RunFailure"]>;
+export type ArgusFlow = Served<S["ArgusFlowView"]>;
+export type FlowRow = Served<S["FlowRow"]>;
+export type PriorRun = Served<S["PriorRun"]>;
 
 export type RfpLibraryEntry = Served<S["RfpLibraryEntryOut"]>;
 export type RfpProjectSummary = Served<S["RfpProjectSummary"]>;
