@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from arp.api import deps, run_scheduling
+from arp.api.auth import Principal, current_user
 from arp.api.routers import extraction, financials, identity, themes, tnfd, voting
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
@@ -84,6 +85,7 @@ def start(tmp_path, monkeypatch, pg):
             taxonomies, taxonomy_id = _released_taxonomy(tmp_path)
             app.dependency_overrides[deps.get_taxonomy_store] = lambda: taxonomies
             body = {"taxonomy_id": taxonomy_id}
+        app.dependency_overrides[current_user] = lambda: Principal(user_id="u", name="U", role="analyst")
         res = TestClient(app).post(url or default_url, json={"companies": COMPANIES, **body, **extra})
         assert res.status_code == 200, res.text
         asyncio.run(JOBS[0]())

@@ -3,6 +3,10 @@ import { filenameFromDisposition, inlineSafe } from "../lib/files";
 import { profileEmbedParams } from "../lib/biEmbed";
 import type { Me } from "../lib/reviewKeys";
 import type {
+  ArgusDraft,
+  ArgusFlow,
+  AskHistoryTurn,
+  AskResponse,
   WorkbenchResponse,
   CompanyBallot,
   ClientEscalationPreview,
@@ -99,6 +103,7 @@ import type {
   TransitionPlanIndicatorDef,
 } from "../types";
 import type { XbrlRunMarket } from "../types";
+import type { VcFootprint, VcNode, VcSearch, VcStatus, VcTree } from "../types";
 import type { RunFailure } from "../types";
 import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision } from "../types";
 import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
@@ -300,6 +305,8 @@ export const api = {
   },
   listOutputs: (kind?: OutputKind) => request<{ outputs: OutputItem[] }>(`/api/outputs${buildQuery({ kind })}`),
   listIssues: () => request<{ issues: DataIssue[] }>("/api/issues"),
+  ask: (question: string, history: AskHistoryTurn[]) =>
+    request<AskResponse>("/api/ask", { method: "POST", body: JSON.stringify({ question, history }) }),
   smartSearch: (question: string) =>
     request<SmartSearchAnswer>("/api/smart-search", { method: "POST", body: JSON.stringify({ question }) }),
   pullNews: () => request<{ added: number; unmatched: number; received: number }>("/api/feeds/news/pull", { method: "POST" }),
@@ -604,6 +611,20 @@ export const api = {
   cancelRun: (runId: string) => request(`/api/runs/${runId}/cancel`, { method: "POST" }),
   resumeRun: (runId: string) => request(`/api/runs/${runId}/resume`, { method: "POST" }),
   listKnownCompanies: (runType: string) => request(`/api/runs/known-companies?run_type=${runType}`),
+
+  // Argus flows (#/argus/<flow_id>/<step>)
+  createArgusFlow: () => request<ArgusFlow>("/api/argus/flows", { method: "POST" }),
+  listArgusFlows: () => request<{ flows: ArgusDraft[] }>("/api/argus/flows"),
+  getArgusFlow: (flowId: string) => request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}`),
+  patchArgusFlow: (flowId: string, body: { identity_run_id?: string }) =>
+    request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}`, { method: "PATCH", body: JSON.stringify(body) }),
+  uploadFlowCompanies: (flowId: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies/upload`, { method: "POST", headers: {}, body: form });
+  },
+  addFlowCompanies: (flowId: string, body: { universe_path?: string; company?: { name: string; ticker?: string; isin?: string; lei?: string; cik?: string } }) =>
+    request<ArgusFlow>(`/api/argus/flows/${encodeURIComponent(flowId)}/companies`, { method: "POST", body: JSON.stringify(body) }),
 
   // Universe from an in-hand company list (e.g. filtered thematic-run matches)
   universeFromCompanies: (companies: unknown[], name: string) =>
@@ -1091,4 +1112,18 @@ export const api = {
     use_prior_state?: boolean;
     decision_snapshot_ids?: string[];
   }) => request<IndexReviewResult>("/api/index/run", { method: "POST", body: JSON.stringify(body) }),
+  // Value chain explorer
+  valueChainStatus: () => request<VcStatus>("/api/value-chain/status"),
+  valueChainSearch: (q: string, limit?: number) =>
+    request<VcSearch>(`/api/value-chain/nodes${buildQuery({ q, limit: limit === undefined ? undefined : String(limit) })}`),
+  valueChainNode: (id: string, opts: { order: "total" | "direct"; excludeOwn: boolean }) =>
+    request<VcNode>(`/api/value-chain/nodes/${encodeURIComponent(id)}${buildQuery({ order: opts.order, exclude_own: String(opts.excludeOwn) })}`),
+  valueChainTree: (id: string, opts: { depth: number; cutoff: number; goodsOnly: boolean }) =>
+    request<VcTree>(
+      `/api/value-chain/nodes/${encodeURIComponent(id)}/tree${buildQuery({ depth: String(opts.depth), width: "3", cutoff: String(opts.cutoff), goods_only: String(opts.goodsOnly) })}`,
+    ),
+  valueChainFootprint: (id: string, opts: { indicator: "ghg" | "energy" | "jobs"; amount: number }) =>
+    request<VcFootprint>(
+      `/api/value-chain/nodes/${encodeURIComponent(id)}/footprint${buildQuery({ indicator: opts.indicator, amount_meur: String(opts.amount), top: "6" })}`,
+    ),
 };

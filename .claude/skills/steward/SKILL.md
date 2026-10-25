@@ -21,6 +21,8 @@ When unsure between two tiers, take the higher one. Never lower a label the owne
 When the PR implements a spec, put `Spec: <slug>` on its own line in the description (the spec file
 name without date and `.md`), so the Holdout acceptance job runs that spec's hidden tests. You never
 see those tests: a failure reads `<slug> AC-n: fail`; fix the behaviour the row describes.
+When the PR builds one slice of a spec, add a `Rows: AC-1, AC-4` line under it naming the rows that
+slice delivers, so hidden tests for later slices don't run yet. The last slice drops the line.
 
 ## 2. Stop after three failed fix rounds
 

@@ -4,10 +4,15 @@ import { canLeave } from "./lib/leaveGuard";
 import { ReviewerField } from "./components/ReviewerField";
 import { SignedInAs } from "./components/SignedInAs";
 import { ProcessBar, StartPage, WorkspaceOverview, stageDecisions } from "./pages/ProcessHub";
+import { ArgusFlow } from "./pages/ArgusFlow";
+import { ArgusStart } from "./pages/ArgusStart";
 import { WORKSPACES, workspaceOfProcess, type WorkspaceId } from "./lib/processes";
 import { STAGE_TABS } from "./pages/steward/common";
 import { SUB_TABS as RISK_TABS } from "./lib/subTabs";
 import { CommandPalette, type PaletteItem } from "./components/CommandPalette";
+import { AskPanel } from "./components/AskPanel";
+import { clearTurns, loadTurns, saveTurns, type AskTurn } from "./lib/askHistory";
+import { useMe } from "./lib/reviewer";
 import { ThemeSwitch } from "./components/ThemeSwitch";
 import { NAV_ICONS } from "./components/NavIcons";
 import type { ReviewableRunKind, RunManifest, UniverseHandoff } from "./types";
@@ -34,6 +39,7 @@ const PortfolioRiskMonitoringTool = lazy(() => import("./pages/PortfolioRiskMoni
 const ReportBuilder = lazy(() => import("./pages/ReportBuilder").then((x) => ({ default: x.ReportBuilder })));
 const StrategyReplication = lazy(() => import("./pages/StrategyReplication").then((x) => ({ default: x.StrategyReplication })));
 const SignalsWorkbench = lazy(() => import("./pages/SignalsWorkbench").then((x) => ({ default: x.SignalsWorkbench })));
+const ValueChainExplorer = lazy(() => import("./pages/value-chain/ValueChainExplorer").then((x) => ({ default: x.ValueChainExplorer })));
 const Search = lazy(() => import("./pages/Search").then((x) => ({ default: x.Search })));
 const SecurityMaster = lazy(() => import("./pages/SecurityMaster").then((x) => ({ default: x.SecurityMaster })));
 const Feeds = lazy(() => import("./pages/Feeds").then((x) => ({ default: x.Feeds })));
@@ -83,6 +89,7 @@ const TABS = [
   { id: "reporting", label: "Presentations & Reports" },
   { id: "strategyReplication", label: "Strategy Replication" },
   { id: "signals", label: "Signals workbench" },
+  { id: "valueChain", label: "Value Chain Explorer" },
   { id: "decision", label: "Decision Studio" },
   { id: "index", label: "Index Construction" },
   { id: "xbrl", label: "XBRL Facts" },
@@ -120,7 +127,7 @@ const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boo
   { label: "Output", ids: ["reporting", "library", "history"] },
   {
     label: "All screens",
-    ids: ["feeds", "issues", "smartSearch", "outputs", "securityMaster", "stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "emergingThemes", "taxonomy", "theme", "strategyReplication", "signals", "decision", "index", "xbrl", "identity", "rfp", "arcade"],
+    ids: ["feeds", "issues", "smartSearch", "outputs", "securityMaster", "stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "emergingThemes", "taxonomy", "theme", "strategyReplication", "signals", "valueChain", "decision", "index", "xbrl", "identity", "rfp", "arcade"],
     collapsed: true,
   },
 ];
@@ -151,6 +158,8 @@ function parseHash(hash = window.location.hash): { tab: TabId; params: string[] 
   if (tab === "processes") return { tab: workspaceOfProcess(params[0])?.id ?? "home", params: [] };
   return TABS.some((t) => t.id === tab) ? { tab: tab as TabId, params } : { tab: "home", params: [] };
 }
+
+const mac = /Mac|iPhone|iPad/.test(navigator.userAgent);
 
 function navigate(tab: TabId, ...params: string[]) {
   window.location.hash = "/" + [tab, ...params].map(encodeURIComponent).join("/");
@@ -232,16 +241,33 @@ function App() {
       : null;
 
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const me = useMe();
+  const canAsk = me != null && me.role !== "viewer";
+  const [askOpen, setAskOpen] = useState(false);
+  const [askTurns, setAskTurns] = useState<AskTurn[]>(() => loadTurns());
+  const askSideRef = useRef<HTMLButtonElement>(null);
+  const askTopRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => saveTurns(askTurns), [askTurns]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen(true);
       }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j" && canAsk) {
+        e.preventDefault();
+        setAskOpen(true);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [canAsk]);
+  function closeAsk() {
+    setAskOpen(false);
+    // The sidebar is a closed drawer at 1024px and below, so focus goes to the top-bar button there.
+    const narrow = window.matchMedia("(max-width: 1024px)").matches;
+    (narrow ? askTopRef : askSideRef).current?.focus();
+  }
 
   // Below 1024px the sidebar is an off-canvas drawer; on desktop navOpen is
   // ignored by the CSS.
@@ -310,6 +336,11 @@ function App() {
         </button>
         <ArpMark />
         <span className="app-topbar-title">{TABS.find((t) => t.id === active)!.label}</span>
+        {canAsk && (
+          <button ref={askTopRef} className="app-topbar-ask" aria-expanded={askOpen} onClick={() => setAskOpen(true)}>
+            Ask
+          </button>
+        )}
       </header>
       <div className="nav-scrim" onClick={() => setNavOpen(false)} />
       <aside className="app-sidebar" id="app-sidebar" ref={navRef}>
@@ -318,14 +349,20 @@ function App() {
           <span className="app-sidebar-wordmark">ARP</span>
         </div>
         <div className="app-sidebar-reviewer">
-          <ReviewerField />
+          {/* The not-verified note is repeated where a typed name confirms a decision. */}
+          <ReviewerField hint={false} />
           <SignedInAs />
         </div>
-        <button className="palette-trigger" onClick={() => setPaletteOpen(true)}>
-          Jump to…
-          <kbd>{/Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘K" : "Ctrl K"}</kbd>
-        </button>
-        <ThemeSwitch />
+        <div className="sidebar-actions">
+          <button className="palette-trigger" title={mac ? "⌘K" : "Ctrl K"} aria-keyshortcuts="Control+K Meta+K" onClick={() => setPaletteOpen(true)}>
+            Jump to…
+          </button>
+          {canAsk && (
+            <button ref={askSideRef} className="palette-trigger" title={mac ? "⌘J" : "Ctrl J"} aria-keyshortcuts="Control+J Meta+J" aria-expanded={askOpen} onClick={() => { setNavOpen(false); setAskOpen(true); }}>
+              Ask ARP
+            </button>
+          )}
+        </div>
         <nav className="app-nav">
           {NAV_GROUPS.map((group, i) => {
             const links = group.ids.map((id) => {
@@ -367,7 +404,11 @@ function App() {
             );
           })}
         </nav>
+        <ThemeSwitch />
       </aside>
+      {askOpen && canAsk && (
+        <AskPanel turns={askTurns} setTurns={setAskTurns} onClose={closeAsk} onClear={() => { clearTurns(); setAskTurns([]); }} />
+      )}
       {paletteOpen && <CommandPalette items={[...PALETTE_ITEMS, ...recentRuns.map(runItem)]} onClose={() => setPaletteOpen(false)} />}
       <main className="app-main" id="main" tabIndex={-1}>
         <ProcessBar tab={active} sub={route.params[0]} />
@@ -382,7 +423,8 @@ function App() {
         )}
         <Suspense fallback={<p className="muted" role="status">Loading…</p>}>
         {active === "home" && <StartPage />}
-        {isWorkspace(active) && <WorkspaceOverview key={active} id={active} />}
+        {active === "argus" && (route.params[0] ? <ArgusFlow key={route.params[0]} flowId={route.params[0]} step={Number(route.params[1] ?? 1) || 1} onSendUniverse={sendUniverse("Argus")} /> : <ArgusStart />)}
+        {isWorkspace(active) && active !== "argus" && <WorkspaceOverview key={active} id={active} />}
         {active === "dashboard" && <MonitoringDashboard onNavigate={go} onOpenReview={openReview} />}
         {active === "search" && <Search />}
         {active === "securityMaster" && <SecurityMaster />}
@@ -415,6 +457,7 @@ function App() {
         {active === "reporting" && <ReportBuilder />}
         {active === "strategyReplication" && <StrategyReplication />}
         {active === "signals" && <SignalsWorkbench />}
+        {active === "valueChain" && <ValueChainExplorer key={route.params.join("/")} params={route.params} />}
         {active === "decision" && <DecisionStudio key={route.params.join("/")} initialSource={route.params[0]} initialRunId={route.params[1]} />}
         {active === "index" && <IndexBuilder />}
         {active === "argusUniverse" && <ArgusUniverse onSendUniverse={sendUniverse("Argus Universe")} />}

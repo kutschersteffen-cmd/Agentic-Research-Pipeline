@@ -47,6 +47,7 @@ class IdScheme(StrEnum):
     UNIVERSE = "UNIVERSE"
     INTERNAL = "INTERNAL"
     MERGED_INTO = "MERGED_INTO"
+    USER = "USER"  # a user's own id from an uploaded list (Argus step 1)
 
 
 class FieldKind(StrEnum):
