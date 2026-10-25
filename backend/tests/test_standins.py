@@ -169,3 +169,20 @@ async def test_switch_off_keeps_the_ssrf_guard(monkeypatch):  # AC-19
     monkeypatch.delenv("ARP_STANDINS_DIR", raising=False)
     monkeypatch.setattr(standins, "active_dir", lambda: None)
     assert await fetch_source_text("http://127.0.0.1/x", "ua") is None
+
+
+def test_cli_prints_the_guard_message_on_one_line(tmp_path, monkeypatch):  # AC-2
+    from typer.testing import CliRunner
+
+    from arp.cli import app
+    from arp.config import get_settings
+
+    monkeypatch.setenv("ARP_STANDINS_DIR", str(tmp_path))
+    monkeypatch.setenv("ARP_GEMINI_API_KEY", "x")
+    get_settings.cache_clear()
+    try:
+        result = CliRunner().invoke(app, ["runs", "list"], terminal_width=40)
+    finally:
+        get_settings.cache_clear()
+    assert result.exit_code == 1
+    assert "ARP_STANDINS_DIR is set together with a model API key; stand-ins are for tests only. Unset one of them." in result.output

@@ -50,6 +50,8 @@ def _require_postgres(ctx: typer.Context) -> None:
     (local input-output table files only) need neither."""
     import sys
 
+    from pydantic import ValidationError
+
     from arp.config import get_settings
     from arp.db.session import require_cutover, require_postgres
 
@@ -57,6 +59,11 @@ def _require_postgres(ctx: typer.Context) -> None:
         return
     try:
         settings = get_settings()
+    except ValidationError as exc:  # one plain line per error, not a terminal-wrapped traceback
+        for error in exc.errors():
+            typer.echo(error["msg"].removeprefix("Value error, "), err=True)
+        raise typer.Exit(1) from exc
+    try:
         require_postgres(settings)
         if ctx.invoked_subcommand != "db":
             require_cutover(settings)
