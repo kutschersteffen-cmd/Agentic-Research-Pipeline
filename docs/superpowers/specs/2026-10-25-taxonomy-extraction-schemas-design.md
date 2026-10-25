@@ -1,6 +1,6 @@
 # Taxonomy-generated extraction schemas
 
-Status: draft, 2026-10-25 (revised after builder check and spec-critic).
+Status: approved by the owner, 2026-10-25.
 
 Step 2 (**Define**) of the five-step theme process tied together by the theme dossier
 (`docs/superpowers/specs/2026-10-25-theme-dossier-design.md`, PR #226). This spec does not change the dossier.
