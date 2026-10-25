@@ -247,7 +247,7 @@ per call (extraction, naming, brief). Universe: `acme` (Acme, `isic_code` `2720`
 
 With the existing rules this gives `candidate_sectors_companies` `["acme", "beta", "delta", "gamma"]` (sorted),
 `corroborating_sources` m1–m5 (first grounded tag per URL, at most 8, member-tag order) and
-`contradiction_evidence` m5. SEC stand-in: `acme` CapEx +25.0, R&D null; others none. So the pool is E1–E5
+`contradiction_evidence` m5. SEC stand-in: `acme` CapEx 0.25, R&D null; others none. So the pool is E1–E5
 (quotes m1–m5), E6 (counter, m5), E7 (financials, acme).
 
 Brief stand-in returns:
@@ -263,7 +263,7 @@ Users `ana` (analyst), `vic` (viewer). Rows say "the fixture" for this setup and
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
 | AC-1 | the fixture run, completed | `GET /api/emerging-themes/runs/{run_id}/candidates` | 1 candidate; `context_brief.status` `written`; `error` null; `written_at` parses as ISO-8601 with UTC offset (`Z` or `+00:00`) | holdout |
-| AC-2 | AC-1 | read `context_brief.evidence` | 7 items, ids `E1`–`E7` in order; kinds `quote` ×5, `counter`, `financials`; E1 `quote` `Acme will invest $2bn in a cell plant.`, `url` `https://n1.test/a`, `published_at` starting `2026-09-01`, `action_type` `capex`; E4 `company_ids` `["delta", "gamma"]`; E6 `quote` `Acme delayed its second line to 2028.`; E7 `company_id` `acme`, `capex_pct_change` 25.0, `rnd_pct_change` null | holdout |
+| AC-2 | AC-1 | read `context_brief.evidence` | 7 items, ids `E1`–`E7` in order; kinds `quote` ×5, `counter`, `financials`; E1 `quote` `Acme will invest $2bn in a cell plant.`, `url` `https://n1.test/a`, `published_at` starting `2026-09-01`, `action_type` `capex`; E4 `company_ids` `["delta", "gamma"]`; E6 `quote` `Acme delayed its second line to 2028.`; E7 `company_id` `acme`, `capex_pct_change` 0.25, `rnd_pct_change` null | holdout |
 | AC-3 | AC-1 | read `context_brief.facts` | `first_seen` `2026-09-01`; `last_seen` `2026-09-20`; `independent_sources` 5; `company_count` 4; `action_counts` `{capex: 1, hiring: 0, orders: 1, capacity: 1, partnership: 1}`; `velocity` equal to the candidate's `signal_velocity` | holdout |
 | AC-4 | AC-1 | read `context_brief.sectors` | exactly 1 entry: `isic_division` `27`, `label` `Manufacture of electrical equipment`, `company_ids` `["acme", "beta"]`, `evidence_ids` `["E1", "E2", "E5", "E6", "E7"]` | holdout |
 | AC-5 | the fixture with `beta`'s `isic_code` `3510` | run, read `sectors` | exactly 2 entries in order: `27` `Manufacture of electrical equipment`, `company_ids` `["acme"]`, `evidence_ids` `["E1", "E5", "E6", "E7"]`; `35` `Electricity, gas, steam and air conditioning supply`, `company_ids` `["beta"]`, `evidence_ids` `["E2"]` | holdout |

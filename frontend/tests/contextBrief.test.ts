@@ -25,8 +25,8 @@ test("facts line and corporate actions", () => {
 });
 
 test("financials and company names", () => {
-  const item = { evidence_id: "E7", kind: "financials" as const, company_id: "acme", capex_pct_change: 25, rnd_pct_change: null };
+  const item = { evidence_id: "E7", kind: "financials" as const, company_id: "acme", capex_pct_change: 0.25, rnd_pct_change: null };
   assert.equal(financialsLine(item, "Acme"), "Acme: CapEx +25.0%, R&D n/a (SEC filings)");
-  assert.equal(financialsLine({ ...item, capex_pct_change: -3.25 }, "Acme"), "Acme: CapEx -3.3%, R&D n/a (SEC filings)");
+  assert.equal(financialsLine({ ...item, capex_pct_change: -0.0325 }, "Acme"), "Acme: CapEx -3.3%, R&D n/a (SEC filings)");
   assert.equal(companyNames(brief({}), ["beta", "acme"]), "Beta, Acme");
 });

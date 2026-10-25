@@ -86,7 +86,7 @@ async def _run(tmp_path, pg, monkeypatch, *, brief=None, isic=None, mentions=MEN
                              company_ids=sorted({c for ids in company_ids_by_mention.values() for c in ids}), mention_count=len(tags))]
 
     async def sec(company, source):
-        return CompanyActionEvidence(company_id="acme", cik="1", capex_pct_change=25.0) if company.company_id == "acme" else None
+        return CompanyActionEvidence(company_id="acme", cik="1", capex_pct_change=0.25) if company.company_id == "acme" else None
 
     monkeypatch.setattr(pipeline_module, "tag_mention", tag_mention)
     monkeypatch.setattr(pipeline_module, "cluster_tags", cluster_tags)
@@ -128,7 +128,7 @@ async def test_fixture_brief(tmp_path, pg, monkeypatch):
         "Acme will invest $2bn in a cell plant.", "https://n1.test/a", "2026-09-01", "capex")
     assert evidence[3]["company_ids"] == ["delta", "gamma"]
     assert evidence[5]["quote"] == "Acme delayed its second line to 2028."
-    assert (evidence[6]["company_id"], evidence[6]["capex_pct_change"], evidence[6]["rnd_pct_change"]) == ("acme", 25.0, None)
+    assert (evidence[6]["company_id"], evidence[6]["capex_pct_change"], evidence[6]["rnd_pct_change"]) == ("acme", 0.25, None)
 
     facts = brief["facts"]
     assert (facts["first_seen"], facts["last_seen"], facts["independent_sources"], facts["company_count"]) == ("2026-09-01", "2026-09-20", 5, 4)

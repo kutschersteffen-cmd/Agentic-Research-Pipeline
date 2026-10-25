@@ -19,7 +19,8 @@ export function actionsLine(brief: ContextBrief): string {
   return `Corporate actions: ${counts.join(", ")}`;
 }
 
-const signedPct = (x: number | null) => (x == null ? "n/a" : `${x >= 0 ? "+" : ""}${fixed(x, 1)}%`);
+// The SEC lookup stores a fraction (0.25 = +25%), as xbrl_corroboration does.
+const signedPct = (x: number | null) => (x == null ? "n/a" : `${x >= 0 ? "+" : ""}${fixed(x * 100, 1)}%`);
 
 export function financialsLine(item: Extract<BriefEvidence, { kind: "financials" }>, name: string): string {
   return `${name}: CapEx ${signedPct(item.capex_pct_change)}, R&D ${signedPct(item.rnd_pct_change)} (SEC filings)`;
