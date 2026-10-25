@@ -93,7 +93,7 @@ function DossierList() {
             {items !== null && shown.length === 0 && (
               <tr>
                 <td colSpan={4} className="muted">
-                  No dossiers yet. Create one above, or promote an Emerging Themes candidate.
+                  {items.length ? "Every dossier is shelved. Turn on Show shelved to see them." : "No dossiers yet. Create one above, or promote an Emerging Themes candidate."}
                 </td>
               </tr>
             )}
