@@ -204,6 +204,9 @@ export function SupersetBI() {
     });
   };
 
+  // Without Superset nothing below the notice can work, so the brief form waits until it is set up.
+  const notConfigured = !project && !!listError?.startsWith("503:");
+
   return (
     <>
       <ProjectBar onOpened={onOpened} onProject={onProject} />
@@ -252,13 +255,13 @@ export function SupersetBI() {
             {selected && <EmbeddedDashboard key={selected.id} dashboardId={selected.id} title={selected.title} />}
           </>
         )}
-        <p className="muted">
+        {!notConfigured && <p className="muted">
           Filter with the dashboard's own filter bar. A dashboard you build by hand in Superset shows up here once its
           slug starts with <code>arp-</code> (set it in the dashboard's Properties).
-        </p>
+        </p>}
       </section>
 
-      <section className="card">
+      {!notConfigured && <section className="card">
         <h2>Describe a dashboard</h2>
         <p className="help-text">
           The model picks charts from the datasets and metrics in Superset; Superset computes every figure, and the model
@@ -303,7 +306,7 @@ export function SupersetBI() {
         )}
         {saveNote && !shown?.length && <p className="muted" role="status">{saveNote}</p>}
         {result && <ResultView result={result} onSave={project ? saveDesign : undefined} />}
-      </section>
+      </section>}
     </>
   );
 }

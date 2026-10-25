@@ -27,15 +27,25 @@ export function Overview(p: {
         <h2>Profiles</h2>
         <fieldset className="profile-picker">
           <legend className="visually-hidden">Extraction profiles</legend>
-          {ORDER.map((id) => (
-            <label key={id} className="profile-option">
-              <input type="checkbox" checked={ticked(id)} onChange={() => p.onToggle(id)} />
-              <span>
-                <strong>{PROFILE_META[id].label}</strong>
-                <span className="help-text">{PROFILE_META[id].about}</span>
-              </span>
-            </label>
-          ))}
+          {ORDER.map((id) => {
+            const { label, short, about } = PROFILE_META[id];
+            return (
+              <div key={id} className="profile-option">
+                <input id={`profile-${id}`} type="checkbox" checked={ticked(id)} onChange={() => p.onToggle(id)} />
+                <label htmlFor={`profile-${id}`}>
+                  <strong>{label}</strong>
+                  <span className="help-text">{short ?? about}</span>
+                </label>
+                {/* Outside the label, so opening Details never ticks the box. */}
+                {short && (
+                  <details className="help-text">
+                    <summary>Details</summary>
+                    {about}
+                  </details>
+                )}
+              </div>
+            );
+          })}
         </fieldset>
         {p.pickerError && <p className="error-text" role="alert">{p.pickerError}</p>}
         <label className="checkbox-label">

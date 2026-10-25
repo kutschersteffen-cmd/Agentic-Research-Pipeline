@@ -98,10 +98,11 @@ export function ValueChainExplorer({ params }: { params: string[] }) {
           {message}
         </p>
       )}
-      <Picker onError={setSearchError} />
+      {/* A failed status call means the data is not there to search. */}
+      {!(status.error && !id) && <Picker onError={setSearchError} />}
       {!id ? (
         <>
-          <p className="muted">Pick a sector and region.</p>
+          {!status.error && <p className="muted">Pick a sector and region.</p>}
           {status.data && <p className="help-text vc-note">{status.data.caveat}</p>}
         </>
       ) : (
