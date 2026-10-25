@@ -147,7 +147,7 @@ export function ArgusFlow({ flowId, step, onSendUniverse }: { flowId: string; st
           <div className="row-actions argus-flow-actions">
             {flow.identity_run_id ? (
               <span>
-                Identity run started. <a href="#/identity">Open identity runs</a>
+                Identity run started. <a href="#/history">Open identity runs</a>
               </span>
             ) : (
               unmatched.length > 0 && (
