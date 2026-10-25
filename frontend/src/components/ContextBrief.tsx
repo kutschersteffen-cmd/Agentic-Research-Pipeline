@@ -64,9 +64,9 @@ export function ContextBriefBody({ brief }: { brief: ContextBrief | null }) {
               financialsLine(e, companyNames(brief, [e.company_id]))
             ) : (
               <>
-                {e.kind === "counter" && "Counter-evidence: "}"{e.quote}" —{" "}
+                {e.kind === "counter" && "Counter-evidence: "}"{e.quote}" (
                 <a href={e.url} target="_blank" rel="noreferrer">{e.title}</a>
-                {e.published_at && <span className="muted">, {e.published_at.slice(0, 10)}</span>}
+                {e.published_at && <span className="muted">, {e.published_at.slice(0, 10)}</span>})
               </>
             )}
           </li>
