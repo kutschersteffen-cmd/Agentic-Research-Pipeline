@@ -122,7 +122,8 @@ The same `results`, in file order, answer **every** query; `snippet` is optional
 `max_results` is ignored, so a fixture can hold more results than one query would ask for. `error` or a
 missing file raises `RuntimeError` (`<message>`, or `no stand-in for web search`). This replaces every
 `DuckDuckGoSearchClient` the app or CLI builds, including `deps.get_web_search_client`: all of them are built
-by one factory function, so `DuckDuckGoSearchClient(` appears nowhere else in `backend/arp`.
+by one factory function, which takes `user_agent` and an optional `transport` (as `arp/discovery/pipeline.py`
+passes one), so `DuckDuckGoSearchClient(` appears nowhere else in `backend/arp`.
 
 ### Fetch: `fetch.json`
 
@@ -202,7 +203,9 @@ stand-ins at this spec:
    `main` with a stand-in-answerable model call (`discover-sources` ranking) keys its answer on ids generated
    during the request, so a fixture cannot name them. AC-13 (unit) covers it now; `theme-research-note`'s rows
    cover it in the running app once that feature is built.
-7. **Holdout job always runs with stand-ins on.** That job has no model key, so model calls failed there
+7. **AC-33 checks source text**, not behaviour. It is the one practical check that all ~16 search call sites go
+   through the stand-in; accept it knowingly.
+8. **Holdout job always runs with stand-ins on.** That job has no model key, so model calls failed there
    before too. Risk: a regression holdout test that expects the old "API key is not set" message or real web
    results would now see the stand-in message or an empty search. The test-writer adjusts such a test.
 
@@ -215,8 +218,7 @@ stand-ins at this spec:
 
 ## Left to the builder
 
-Where the stand-in classes live, how the search stand-in replaces each `DuckDuckGoSearchClient` construction
-(one factory function is the obvious way), how the header is added, and file locking for `calls.jsonl`
+Where the stand-in classes live, how the header is added, and file locking for `calls.jsonl`
 (appends from concurrent requests must not interleave within a line).
 
 ## Acceptance
@@ -249,7 +251,7 @@ runs 7 web searches (4 authority, 3 fund queries) and, when it finds any result,
 | AC-27 | AC-10, then `fetch.json` rewritten so A → `{"text": "two"}` | `GET /api/taxonomies/sources/inspect?url=https://a.example/1` | 200; body `two` | holdout |
 | AC-11 | AC-10 | `GET /api/taxonomies/sources/inspect?url=https://b.example/2` (not in the file) | 502, detail `Could not fetch source: https://b.example/2`, header `X-ARP-Stand-ins: on` | holdout |
 | AC-12 | `fetch.json` with `http://127.0.0.1:9/x` → `{"text": "local"}` | `GET /api/taxonomies/sources/inspect?url=http://127.0.0.1:9/x` | 200; body `local` | holdout |
-| AC-13 | switch on, no key; `model/X.json` `{"output": <valid X>}` | `complete_structured(output_model=X)` on clients from `build_llm_client` and `build_verifier_llm_client`, each with an Anthropic and a Gemini model, `llm_batch` true and false | every call returns that instance; usage `provider` and `model` `stand-in`, `input_tokens` and `output_tokens` 0 | unit |
+| AC-13 | switch on, no key; `model/X.json` `{"output": <valid X>}` | `complete_structured(output_model=X)` on clients from `build_llm_client` and `build_verifier_llm_client`, each with an Anthropic and a Gemini model, with plain settings and with `batch_settings(settings, True)` | every call returns that instance; usage `provider` and `model` `stand-in`, `input_tokens` and `output_tokens` 0 | unit |
 | AC-14 | switch on; `model/X.json` missing | `complete_structured(output_model=X)` | `RuntimeError` whose message equals `no stand-in for X` | unit |
 | AC-28 | switch on; `model/X.json` `{"error": "down"}` | as AC-14 | `RuntimeError` whose message equals `down` | unit |
 | AC-29 | switch on; `model/X.json` holds `{not json` | as AC-14 | `RuntimeError` whose message equals `stand-in model/X.json is not valid JSON` | unit |
@@ -259,7 +261,7 @@ runs 7 web searches (4 authority, 3 fund queries) and, when it finds any result,
 | AC-16 | switch on; `search.json` with 14 results, the first without `snippet` | `search("q", max_results=5)` on the client from `deps.get_web_search_client` | 14 results in file order; the first has `snippet` `""` | unit |
 | AC-32 | switch on | 50 concurrent stand-in search calls | `calls.jsonl` has 50 lines, each valid JSON | unit |
 | AC-33 | the repo | search `backend/arp` for `DuckDuckGoSearchClient(` | it appears only in the class definition's module and the one search-client factory | unit |
-| AC-34 | `ARP_STANDINS_DIR=<path that does not exist yet>`, no key | `bash backend/scripts/e2e_stack.sh up`, then `GET /api/health` | the directory exists; body `stand_ins` true | unit |
+| AC-34 | `ARP_STANDINS_DIR=<path that does not exist yet>`, no key | `bash backend/scripts/e2e_stack.sh up`, then `GET /api/health` | the directory exists; body `stand_ins` true | unit (a script, not pytest: it needs the stack) |
 
 Must not change:
 - AC-17: with `ARP_STANDINS_DIR` unset, `GET /api/health` returns exactly `{"status": "ok"}`, and neither it nor
