@@ -666,6 +666,9 @@ export interface MentionCitation {
   grounded: boolean;
 }
 
+export type ContextBrief = Served<S["ContextBrief"]>;
+export type BriefEvidence = ContextBrief["evidence"][number];
+
 export type CandidateStatus = "candidate" | "under_review" | "promoted" | "rejected" | "disconfirmed";
 
 export interface CompanyActionEvidence {
@@ -715,6 +718,7 @@ export interface EmergingThemeCandidate {
   contradiction: number;
   contradiction_evidence: MentionCitation[];
   company_exposure: CompanyExposure[];
+  context_brief?: ContextBrief | null;
   status: CandidateStatus;
   promoted_to_taxonomy_id?: string | null;
   promoted_to_taxonomy_version?: number | null;

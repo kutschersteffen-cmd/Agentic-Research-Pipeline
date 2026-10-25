@@ -107,7 +107,8 @@ async def promote(
             candidate.theme_name, principal.name, taxonomy_id=tid, run_id=run_id, theme_id=theme_id)
     except TaxonomyTaken:  # a concurrent promote into the same taxonomy got there first
         dossier = dossier_store.owner_of(tid)
-    return {**candidate.model_dump(mode="json"), "dossier_id": dossier.dossier_id}
+    # The promote body keeps its pre-brief keys (dossier spec AC-15); the brief is read from the candidates list.
+    return {**candidate.model_dump(mode="json", exclude={"context_brief"}), "dossier_id": dossier.dossier_id}
 
 
 class RejectRequest(BaseModel):
