@@ -159,6 +159,8 @@ function parseHash(hash = window.location.hash): { tab: TabId; params: string[] 
   return TABS.some((t) => t.id === tab) ? { tab: tab as TabId, params } : { tab: "home", params: [] };
 }
 
+const mac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+
 function navigate(tab: TabId, ...params: string[]) {
   window.location.hash = "/" + [tab, ...params].map(encodeURIComponent).join("/");
 }
@@ -347,20 +349,20 @@ function App() {
           <span className="app-sidebar-wordmark">ARP</span>
         </div>
         <div className="app-sidebar-reviewer">
-          <ReviewerField />
+          {/* The not-verified note is repeated where a typed name confirms a decision. */}
+          <ReviewerField hint={false} />
           <SignedInAs />
         </div>
-        <button className="palette-trigger" onClick={() => setPaletteOpen(true)}>
-          Jump to…
-          <kbd>{/Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘K" : "Ctrl K"}</kbd>
-        </button>
-        {canAsk && (
-          <button ref={askSideRef} className="palette-trigger" aria-expanded={askOpen} onClick={() => { setNavOpen(false); setAskOpen(true); }}>
-            Ask ARP
-            <kbd>{/Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘J" : "Ctrl J"}</kbd>
+        <div className="sidebar-actions">
+          <button className="palette-trigger" title={mac ? "⌘K" : "Ctrl K"} aria-keyshortcuts="Control+K Meta+K" onClick={() => setPaletteOpen(true)}>
+            Jump to…
           </button>
-        )}
-        <ThemeSwitch />
+          {canAsk && (
+            <button ref={askSideRef} className="palette-trigger" title={mac ? "⌘J" : "Ctrl J"} aria-keyshortcuts="Control+J Meta+J" aria-expanded={askOpen} onClick={() => { setNavOpen(false); setAskOpen(true); }}>
+              Ask ARP
+            </button>
+          )}
+        </div>
         <nav className="app-nav">
           {NAV_GROUPS.map((group, i) => {
             const links = group.ids.map((id) => {
@@ -402,6 +404,7 @@ function App() {
             );
           })}
         </nav>
+        <ThemeSwitch />
       </aside>
       {askOpen && canAsk && (
         <AskPanel turns={askTurns} setTurns={setAskTurns} onClose={closeAsk} onClear={() => { clearTurns(); setAskTurns([]); }} />
