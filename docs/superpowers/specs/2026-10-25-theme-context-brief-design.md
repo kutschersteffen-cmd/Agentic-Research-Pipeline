@@ -105,7 +105,7 @@ A `quote` or `counter` item holds `evidence_id`, `kind`, `mention_id`, `source_t
 `company_id`, `capex_pct_change`, `rnd_pct_change`. An item "covers" a company when its `company_ids` (or
 `company_id`) contains it.
 
-**Company order.** Every list of companies in the brief (`companies`, a sector's or group's `company_ids`,
+**Company order.** Every list of companies in the brief (`companies`, an evidence item's, a sector's or a group's `company_ids`,
 `by_company`, `unclassified_company_ids`) follows `candidate_sectors_companies` order (today sorted by
 `company_id`).
 
@@ -127,7 +127,7 @@ and the division is in the ISIC Rev.4 division list; otherwise it has none. The 
 division titles, e.g. `27,Manufacture of electrical equipment`).
 
 `companies` lists every company in `candidate_sectors_companies` with its universe `name` and `isic_division`
-(null when none, or when the company is not in the run's universe).
+(null when none).
 
 `sectors`: one entry per division held by at least one candidate company. `label` is the division title,
 `company_ids` the companies in it (in `candidate_sectors_companies` order), `evidence_ids` every item covering
@@ -166,10 +166,10 @@ sectors are still filled. The candidate is saved either way; the run does not fa
 
 A **Context brief** section, open by default, above the decision buttons:
 
-- **Why now**: a facts line `Mentions <first_seen> to <last_seen> · <independent_sources> independent sources ·
-  <company_count> companies · velocity <velocity, 2 decimals>` (the date part reads `Mention dates unknown` when
-  both are null), a line `Corporate actions: capex 1, orders 1` listing non-zero counts in the order capex,
-  hiring, orders, capacity, partnership (`Corporate actions: none` when all are zero), then the `why_now`
+- **Why now**: a facts line `<dates> · <independent_sources> independent sources · <company_count> companies ·
+  velocity <velocity>`, where `<dates>` is `Mentions <first_seen> to <last_seen>`, or `Mention dates unknown`
+  when both are null, and `<velocity>` has two decimals, rounded half away from zero, a line `Corporate actions: capex 1, orders 1` listing non-zero counts in the order capex,
+  hiring, orders, capacity, partnership (never all zero: the action-score gate needs some), then the `why_now`
   sentences.
 - **Early evidence**: the `early_evidence` sentences, then the evidence items as a numbered list: quotes with
   source title, date and link; `counter` items prefixed `Counter-evidence:`; `financials` items as
@@ -178,8 +178,9 @@ A **Context brief** section, open by default, above the decision buttons:
   company has no ISIC division, **Activities (no ISIC code)**: each group as `<activity>: <company names>`,
   then each by-company line as `<company name>: <activity>`, then `Not classified: <names>` when
   `unclassified_company_ids` is not empty.
-- Each sentence and activity line ends with citation markers `[n]` (the `n` of `E<n>`); a marker scrolls to and
-  highlights that item in the Early evidence list.
+- Each sentence and by-company line ends with one marker per cited id, ` [n]` (the `n` of `E<n>`),
+  space-separated, in pool order. Group lines and sector lines carry no markers. Clicking a marker scrolls that
+  item of the Early evidence list into view and marks it with `aria-current="true"`.
 - `Dropped for lack of a cited source: <n>` when `dropped_statements` > 0.
 - `failed`: the line `The brief's wording failed; facts, evidence and sectors are shown.` in place of the
   sentences.
@@ -190,7 +191,7 @@ A **Context brief** section, open by default, above the decision buttons:
 `GET /api/dossiers/{id}` gains a top-level `context_brief`: the origin candidate's brief, or null (origin
 `topic`, candidate missing, or candidate without a brief). Step 1's `state`, `detail` and `href` are unchanged.
 The dossier page shows the brief under step 1 with the same component as the candidate card, collapsed behind
-**Show context brief**; for origin `candidate` with a null brief it shows `No context brief: this run predates
+**Show context brief** (no brief heading visible until clicked); for origin `candidate` with a null brief it shows `No context brief: this run predates
 briefs.`; for origin `topic` nothing.
 
 ## My calls (owner to confirm with the acceptance table)
@@ -212,7 +213,7 @@ briefs.`; for origin `topic` nothing.
 
 ## Constraints
 
-- **Built after the dossier**, in one PR: rows AC-18 to AC-20, AC-29, AC-30 and AC-33 need the dossier's store
+- **Built after the dossier**, in one PR: rows AC-21 to AC-24, AC-33 to AC-35 and AC-38 need the dossier's store
   and API, and the holdout job runs every row of this spec on the PR.
 - Stand-ins: holdout and evaluator rows need the run to take a fixed mention source, clustering and model
   output, as the research-note spec's rows do. If the app has no such switch when the test-writer starts, that
@@ -228,10 +229,11 @@ within DESIGN.md.
 ## Acceptance
 
 Fixture: an Emerging Themes run executed through `execute_emerging_themes_run` with a stand-in mention source,
-clustering replaced by a stand-in that puts every tag in one BIRTH cluster, company roles off, and a stand-in
-model with fixed output per call (extraction, naming, brief). Universe: `acme` (Acme, `isic_code` `2720`),
-`beta` (Beta, `2710`), `gamma` (Gamma, no code), `delta` (Delta, no code). Mentions, one tag each, all grounded,
-distinct URLs `https://n.test/1` … `/5`:
+clustering replaced by a stand-in that puts every tag in one BIRTH cluster with `member_tag_ids` in the mention
+order listed, the SEC lookup replaced by a stand-in, company roles off, and a stand-in model with fixed output
+per call (extraction, naming, brief). Universe: `acme` (Acme, `isic_code` `2720`), `beta` (Beta, `2710`),
+`gamma` (Gamma, no code), `delta` (Delta, no code). Mentions, one tag each, all grounded, distinct hosts
+`https://n1.test/a` … `https://n5.test/a`:
 
 | Mention | `published_at` | Resolves to | Action | Contradiction | Quote |
 |---|---|---|---|---|---|
@@ -241,53 +243,67 @@ distinct URLs `https://n.test/1` … `/5`:
 | m4 | 2026-09-15 | delta, gamma | partnership | none | `Delta partners with Gamma on cell supply.` |
 | m5 | 2026-09-20 | acme | other | delay | `Acme delayed its second line to 2028.` |
 
-SEC stand-in: `acme` CapEx +25.0, R&D null; others none. So the pool is E1–E5 (quotes m1–m5), E6 (counter, m5),
-E7 (financials, acme). Brief stand-in returns: `why_now` `[{"text": "Companies report spending on cell plants.",
-ids ["E1"]}, {"text": "Orders reached 90 units.", ids ["E2"]}, {"text": "Demand is booming.", ids ["E99"]}]`;
-`early_evidence` `[{"text": "Acme delayed its second line.", ids ["E6"]}]`; `by_company` `[{gamma, "Expanding
-battery-cell output", ["E3"]}, {delta, "Supplying cells through a partnership", ["E4"]}, {acme, "Building a
-plant", ["E1"]}]`; `groups` `[{"Battery-cell manufacturing", [gamma, delta, acme]}]`. Users `ana` (analyst),
-`vic` (viewer).
+With the existing rules this gives `candidate_sectors_companies` `["acme", "beta", "delta", "gamma"]` (sorted),
+`corroborating_sources` m1–m5 (first grounded tag per URL, at most 8, member-tag order) and
+`contradiction_evidence` m5. SEC stand-in: `acme` CapEx +25.0, R&D null; others none. So the pool is E1–E5
+(quotes m1–m5), E6 (counter, m5), E7 (financials, acme).
+
+Brief stand-in returns:
+- `why_now`: `{"Companies report spending on cell plants.", ["E1"]}`, `{"Orders reached 90 units.", ["E2"]}`,
+  `{"Demand is booming.", ["E99"]}`;
+- `early_evidence`: `{"Acme delayed its second line.", ["E6"]}`;
+- `by_company`: `{gamma, "Expanding battery-cell output", ["E3"]}`, `{delta, "Supplying cells through a
+  partnership", ["E4"]}`, `{acme, "Building a plant", ["E1"]}`;
+- `groups`: `{"Battery-cell manufacturing", [gamma, acme, delta]}`.
+
+Users `ana` (analyst), `vic` (viewer). Rows say "the fixture" for this setup and name only what they change.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
-| AC-1 | the fixture run, completed | `GET /api/emerging-themes/runs/{run_id}/candidates` | 1 candidate; `context_brief.status` `written`; `error` null; `written_at` an ISO-8601 timestamp | holdout |
-| AC-2 | AC-1 | read `context_brief.evidence` | 7 items, ids `E1`–`E7` in order; kinds `quote` ×5, `counter`, `financials`; E1's `quote` `Acme will invest $2bn in a cell plant.`, `url` `https://n.test/1`, `published_at` starting `2026-09-01`, `action_type` `capex`; E4's `company_ids` `delta`, `gamma`; E6's `quote` `Acme delayed its second line to 2028.`; E7 `company_id` `acme`, `capex_pct_change` 25.0, `rnd_pct_change` null | holdout |
+| AC-1 | the fixture run, completed | `GET /api/emerging-themes/runs/{run_id}/candidates` | 1 candidate; `context_brief.status` `written`; `error` null; `written_at` parses as ISO-8601 with UTC offset (`Z` or `+00:00`) | holdout |
+| AC-2 | AC-1 | read `context_brief.evidence` | 7 items, ids `E1`–`E7` in order; kinds `quote` ×5, `counter`, `financials`; E1 `quote` `Acme will invest $2bn in a cell plant.`, `url` `https://n1.test/a`, `published_at` starting `2026-09-01`, `action_type` `capex`; E4 `company_ids` `["delta", "gamma"]`; E6 `quote` `Acme delayed its second line to 2028.`; E7 `company_id` `acme`, `capex_pct_change` 25.0, `rnd_pct_change` null | holdout |
 | AC-3 | AC-1 | read `context_brief.facts` | `first_seen` `2026-09-01`; `last_seen` `2026-09-20`; `independent_sources` 5; `company_count` 4; `action_counts` `{capex: 1, hiring: 0, orders: 1, capacity: 1, partnership: 1}`; `velocity` equal to the candidate's `signal_velocity` | holdout |
 | AC-4 | AC-1 | read `context_brief.sectors` | exactly 1 entry: `isic_division` `27`, `label` `Manufacture of electrical equipment`, `company_ids` `["acme", "beta"]`, `evidence_ids` `["E1", "E2", "E5", "E6", "E7"]` | holdout |
-| AC-5 | the fixture with `beta`'s `isic_code` `3510` | run, read `sectors` | exactly 2 entries in order: division `27` `Manufacture of electrical equipment` with `company_ids` `["acme"]`, `evidence_ids` `["E1", "E5", "E6", "E7"]`; division `35` `Electricity, gas, steam and air conditioning supply` with `company_ids` `["beta"]`, `evidence_ids` `["E2"]` | holdout |
-| AC-6 | AC-1 | read `why_now` and `early_evidence` | `why_now` exactly `[{text: "Companies report spending on cell plants.", evidence_ids: ["E1"]}]`; `early_evidence` exactly `[{text: "Acme delayed its second line.", evidence_ids: ["E6"]}]` | holdout |
-| AC-7 | AC-1 | read `activities` | `by_company` exactly, in order, delta `Supplying cells through a partnership` `["E4"]`, gamma `Expanding battery-cell output` `["E3"]`; `groups` exactly `[{activity: "Battery-cell manufacturing", company_ids: ["delta", "gamma"], evidence_ids: ["E3", "E4"]}]`; `unclassified_company_ids` `[]` | holdout |
+| AC-5 | the fixture with `beta`'s `isic_code` `3510` | run, read `sectors` | exactly 2 entries in order: `27` `Manufacture of electrical equipment`, `company_ids` `["acme"]`, `evidence_ids` `["E1", "E5", "E6", "E7"]`; `35` `Electricity, gas, steam and air conditioning supply`, `company_ids` `["beta"]`, `evidence_ids` `["E2"]` | holdout |
+| AC-6 | AC-1 | read `why_now`, `early_evidence` | `why_now` exactly `[{text: "Companies report spending on cell plants.", evidence_ids: ["E1"]}]`; `early_evidence` exactly `[{text: "Acme delayed its second line.", evidence_ids: ["E6"]}]` | holdout |
+| AC-7 | AC-1 | read `activities` | `by_company` exactly, in order, `{delta, "Supplying cells through a partnership", ["E4"]}`, `{gamma, "Expanding battery-cell output", ["E3"]}`; `groups` exactly `[{activity: "Battery-cell manufacturing", company_ids: ["delta", "gamma"], evidence_ids: ["E3", "E4"]}]`; `unclassified_company_ids` `[]` | holdout |
 | AC-8 | AC-1 | read `dropped_statements` | 3 | holdout |
-| AC-9 | AC-1 | read `companies` | in order: `acme` `Acme` `27`, `beta` `Beta` `27`, `delta` `Delta` null, `gamma` `Gamma` null | holdout |
-| AC-10 | the fixture; brief stand-in's `by_company` returns only gamma | run, read `activities` | `groups` `[]`; `unclassified_company_ids` `["delta"]`; `dropped_statements` 3 (two statements, the one-company group) | holdout |
-| AC-11 | the fixture; brief stand-in returns delta citing `["E1"]` | run, read `activities.by_company` | no delta line; `unclassified_company_ids` `["delta"]` | holdout |
-| AC-12 | the fixture; `gamma`'s `isic_code` `X9` and `delta`'s `0012` | run, read the brief | `companies` gamma and delta `isic_division` null; `sectors` holds only division `27` | holdout |
-| AC-13 | the fixture; brief stand-in raises | run completes | 1 candidate; `context_brief.status` `failed`; `error` `brief wording failed`; `why_now`, `early_evidence`, `by_company`, `groups` `[]`; `unclassified_company_ids` `["delta", "gamma"]`; `evidence` 7 items; `sectors` 1 entry; run status `completed` | holdout |
-| AC-14 | the fixture plus acme mentions a1–a6 (new URLs, one acme capex tag each); member-tag order m1, m2, a1–a6, m3, m4, m5 | run, read `evidence` | `corroborating_sources` has 8 entries (m1, m2, a1–a6); the pool has 12 items: E1–E8 those quotes, E9 `quote` m3 with `company_ids` `["gamma"]`, E10 `quote` m4 with `company_ids` `["delta", "gamma"]`, E11 `counter` m5, E12 `financials` acme | holdout |
+| AC-9 | AC-1 | read `companies` | in order: `{acme, Acme, "27"}`, `{beta, Beta, "27"}`, `{delta, Delta, null}`, `{gamma, Gamma, null}` (`company_id`, `name`, `isic_division`) | holdout |
+| AC-10 | the fixture; brief stand-in's `by_company` holds only the gamma line | run, read `activities`, `dropped_statements` | `groups` `[]`; `unclassified_company_ids` `["delta"]`; `dropped_statements` 3 | holdout |
+| AC-11 | the fixture; the delta line cites `["E1"]` instead of `["E4"]`, rest unchanged | run, read `activities`, `dropped_statements` | `by_company` holds only gamma; `groups` `[]`; `unclassified_company_ids` `["delta"]`; `dropped_statements` 5 | holdout |
+| AC-12 | the fixture; `gamma`'s `isic_code` `X9`, `delta`'s `0012` | run, read `companies`, `sectors` | delta and gamma `isic_division` null; `sectors` exactly one entry, division `27` | holdout |
+| AC-13 | the fixture; the brief stand-in raises | run completes | run status `completed`; 1 candidate; `context_brief.status` `failed`; `error` `brief wording failed`; `why_now`, `early_evidence`, `by_company`, `groups` all `[]`; `unclassified_company_ids` `["delta", "gamma"]`; `evidence` 7 items; `sectors` as AC-4 | holdout |
+| AC-14 | the fixture plus acme mentions a1–a6 (hosts `a1.test` … `a6.test`, one acme capex tag each); member-tag order m1, m2, a1–a6, m3, m4, m5 | run, read `evidence` | `corroborating_sources` m1, m2, a1–a6; pool of 12 items: E1–E8 those quotes, E9 `quote` m3 with `company_ids` `["gamma"]`, E10 `quote` m4 with `company_ids` `["delta", "gamma"]`, E11 `counter` m5, E12 `financials` acme | holdout |
 | AC-15 | the fixture with no `published_at` on any mention | run, read `facts` | `first_seen` null; `last_seen` null | holdout |
-| AC-16 | the fixture; brief stand-in's `why_now` adds `{"text": "Acme will invest $2bn.", ids ["E1"]}` | run, read `why_now` | that sentence is kept; `dropped_statements` 3 | holdout |
-| AC-17 | a run written before release (candidate rows with no `context_brief` key) | `GET .../candidates` | 200; that candidate's `context_brief` null | holdout |
-| AC-18 | AC-1's candidate promoted by `ana` | `GET /api/dossiers/{dossier_id}` | `context_brief` equals the candidate's brief; step 1 `done`, detail `promoted: <reason sent>` | holdout |
-| AC-19 | a dossier with origin `topic` | `GET /api/dossiers/{id}` | `context_brief` null | holdout |
-| AC-20 | AC-17's candidate promoted | `GET /api/dossiers/{dossier_id}` | `context_brief` null; step 1 `done` | holdout |
-| AC-21 | caller `vic`, AC-1 | `GET .../candidates` | 200 with `context_brief` | holdout |
-| AC-22 | AC-1 in the running app | open Emerging Themes, view the candidate | **Context brief** open with headings `Why now`, `Early evidence`, `Affected sectors` in order; facts line `Mentions 2026-09-01 to 2026-09-20 · 5 independent sources · 4 companies · velocity <signal_velocity to 2 decimals>`; `Corporate actions: capex 1, orders 1, capacity 1, partnership 1`; sentence `Companies report spending on cell plants. [1]` | evaluator |
-| AC-23 | AC-22 | read Early evidence | `Acme delayed its second line. [6]`; 7 numbered items; item 6 starts `Counter-evidence:`; item 7 reads `Acme: CapEx +25.0%, R&D n/a (SEC filings)` | evaluator |
-| AC-24 | AC-22 | read Affected sectors | `Manufacture of electrical equipment (ISIC 27): Acme, Beta`; **Activities (no ISIC code)** with `Battery-cell manufacturing: Delta, Gamma`, `Delta: Supplying cells through a partnership [4]`, `Gamma: Expanding battery-cell output [3]`; no `Not classified` line | evaluator |
-| AC-25 | AC-22 | click marker `[6]` | item 6 of the Early evidence list is scrolled into view and highlighted | evaluator |
-| AC-26 | AC-22 | read the brief's end | `Dropped for lack of a cited source: 3` | evaluator |
-| AC-27 | AC-13 in the running app | view the candidate | `The brief's wording failed; facts, evidence and sectors are shown.`; the sectors line is shown; `Not classified: Delta, Gamma` | evaluator |
-| AC-28 | AC-17 in the running app | view the candidate | `No context brief: this run predates briefs.` | evaluator |
-| AC-29 | AC-18 in the running app | open the dossier page, click **Show context brief** | the brief appears under step 1 with the same three headings and AC-22's facts line | evaluator |
-| AC-30 | a topic-origin dossier in the running app | open it | no **Show context brief** and no brief text | evaluator |
+| AC-16 | the fixture; `why_now` adds `{"Acme will invest $2bn.", ["E1"]}` | run, read `why_now`, `dropped_statements` | that sentence kept, second in `why_now`; `dropped_statements` 3 | holdout |
+| AC-17 | the fixture; `why_now` adds `{"The second line slips to 2028.", ["E1"]}` | run, read `why_now`, `dropped_statements` | that sentence absent; `dropped_statements` 4 | holdout |
+| ~~AC-18~~ | retired before approval: entity resolution only resolves universe companies, so a candidate company outside the universe cannot occur | | | |
+| AC-19 | a run whose `results.jsonl` candidate rows were written without a `context_brief` key | `GET .../candidates` | 200; that candidate's `context_brief` null | holdout |
+| AC-20 | caller `vic`, AC-1 | `GET .../candidates` | 200; `context_brief.status` `written`; `evidence` 7 items | holdout |
+| AC-21 | AC-1's candidate promoted by `ana` with reason `strong signal` | `GET /api/dossiers/{dossier_id}` | `context_brief` equal to the candidate's; step 1 `done`, detail `promoted: strong signal`, `href` `#/emergingThemes` | holdout |
+| AC-22 | a dossier with origin `topic` | `GET /api/dossiers/{id}` | `context_brief` null | holdout |
+| AC-23 | AC-19's candidate promoted | `GET /api/dossiers/{dossier_id}` | `context_brief` null; step 1 `done` | holdout |
+| AC-24 | AC-21's dossier, then the candidate's run removed from the store | `GET /api/dossiers/{id}` | 200; `context_brief` null; step 1 `failed`, detail `candidate not found` | holdout |
+| AC-25 | AC-1 in the running app | open Emerging Themes, view the candidate | **Context brief** open, above the promote, reject and disconfirm buttons, with headings `Why now`, `Early evidence`, `Affected sectors` in order; facts line `Mentions 2026-09-01 to 2026-09-20 · 5 independent sources · 4 companies · velocity <v>`, where `<v>` is AC-1's `signal_velocity` to two decimals; `Corporate actions: capex 1, orders 1, capacity 1, partnership 1`; sentence `Companies report spending on cell plants. [1]` | evaluator |
+| AC-26 | AC-25 | read Early evidence | `Acme delayed its second line. [6]`; 7 numbered items; item 6 starts `Counter-evidence:`; item 7 reads `Acme: CapEx +25.0%, R&D n/a (SEC filings)` | evaluator |
+| AC-27 | AC-25 | read Affected sectors | in this order: `Manufacture of electrical equipment (ISIC 27): Acme, Beta`; heading **Activities (no ISIC code)**; `Battery-cell manufacturing: Delta, Gamma`; `Delta: Supplying cells through a partnership [4]`; `Gamma: Expanding battery-cell output [3]`; no `Not classified` line | evaluator |
+| AC-28 | AC-25 | click marker `[6]` | Early evidence item 6 is in the viewport and has `aria-current="true"` | evaluator |
+| AC-29 | AC-25 | read the brief's end | `Dropped for lack of a cited source: 3` | evaluator |
+| AC-30 | AC-15's fixture with m2–m4's action `other` and m1, m5 `capex`; brief stand-in returning only `why_now` `{"Companies report spending on cell plants.", ["E1"]}` | view the candidate | facts line starts `Mention dates unknown ·`; `Corporate actions: capex 2`; no `Dropped for lack of a cited source` line | evaluator |
+| AC-31 | AC-13 in the running app | view the candidate | `The brief's wording failed; facts, evidence and sectors are shown.`; `Manufacture of electrical equipment (ISIC 27): Acme, Beta`; `Not classified: Delta, Gamma` | evaluator |
+| AC-32 | AC-19 in the running app | view the candidate | `No context brief: this run predates briefs.` | evaluator |
+| AC-33 | AC-21 in the running app | open the dossier page | under step 1 a **Show context brief** control and no `Why now` heading; after clicking it, the headings `Why now`, `Early evidence`, `Affected sectors` and AC-25's facts line | evaluator |
+| AC-34 | AC-23 in the running app | open the dossier page | under step 1: `No context brief: this run predates briefs.` | evaluator |
+| AC-35 | a topic-origin dossier in the running app | open it | no **Show context brief** control and no brief text | evaluator |
 
 Must not change:
-- AC-31: the candidate's other fields (`theme_name`, scores, `corroborating_sources`, `contradiction_evidence`,
-  `xbrl_corroboration`, `status`) are the same with and without the brief stand-in raising. Checked by: holdout.
-- AC-32: promote, reject and disconfirm return the same status codes as before; a second promote is still 400.
+- AC-36: the candidate's `theme_name`, scores, `corroborating_sources`, `contradiction_evidence`,
+  `xbrl_corroboration` and `status` are identical between the fixture run and AC-13's run. Checked by: holdout.
+- AC-37: on AC-1's candidates, promote returns 200, a second promote 400; reject on another candidate 200;
+  disconfirm on another 200. Checked by: holdout.
+- AC-38: dossier step 1 `state`, `detail` and `href` are as the dossier spec's AC-2, AC-15 and AC-19 require.
   Checked by: holdout.
-- AC-33: dossier step 1 states and details are as the dossier spec's AC-2, AC-15 and AC-19 require. Checked by:
-  holdout.
-- AC-34: a cluster failing the independent-source or action-score gate still produces no candidate and makes no
-  brief model call. Checked by: holdout.
+- AC-39: the fixture with every action `other` (action score 0) produces no candidate and a `completed` run.
+  Checked by: holdout.
+- AC-40: the candidate card still shows the scores, the quotes and the promote, reject and disconfirm buttons.
+  Checked by: evaluator.
