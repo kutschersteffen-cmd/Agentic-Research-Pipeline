@@ -104,10 +104,14 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId, initialRun
   useEffect(() => {
     setSchemaReleased(null);
     if (loadedTaxonomy?.status !== "ratified") return;
+    let stale = false; // a slower answer for a version no longer selected must not land
     api
       .getTaxonomySchema(loadedTaxonomy.taxonomy_id, loadedTaxonomy.version)
-      .then((s) => setSchemaReleased(!!s.release_flag))
-      .catch(() => setSchemaReleased(false));
+      .then((s) => !stale && setSchemaReleased(!!s.release_flag))
+      .catch(() => !stale && setSchemaReleased(false));
+    return () => {
+      stale = true;
+    };
   }, [loadedTaxonomy]);
 
   const runBlocked = !loadedTaxonomy

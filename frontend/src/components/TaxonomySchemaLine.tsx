@@ -12,7 +12,6 @@ export function TaxonomySchemaLine({ taxonomy }: { taxonomy: Taxonomy }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ratified = taxonomy.status === "ratified";
-  const schemaId = `sch_${taxonomy.taxonomy_id}_v${taxonomy.version}`;
 
   useEffect(() => {
     if (!ratified) return;
@@ -41,9 +40,9 @@ export function TaxonomySchemaLine({ taxonomy }: { taxonomy: Taxonomy }) {
     <div className="toolbar">
       {confirming && schema && (
         <ConfirmSignedIn
-          title={`Release schema ${schemaId}?`}
+          title={`Release schema ${schema.schema_id}?`}
           confirmLabel="Release schema"
-          onConfirm={() => act(() => api.releaseSchema(schemaId, schema.version ?? 1))}
+          onConfirm={() => act(() => api.releaseSchema(schema.schema_id, schema.version ?? 1))}
           onCancel={() => setConfirming(false)}
         >
           <p>Releasing lets Thematic Universe runs and extraction jobs use this schema for final results.</p>
