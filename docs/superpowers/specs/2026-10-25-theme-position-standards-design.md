@@ -358,7 +358,8 @@ Step 5's `href` is `#/themes/<id>/position`. Step 5 no longer shows `not_built`.
   and committed.
 - Postgres is required for the registry, facts and extraction. Without a DSN, the standards draft, edit,
   activate and check endpoints answer 503
-  `ARP_POSTGRES_DSN is required: Postgres is the system of record.` That check runs before any 404 or 409.
+  `ARP_POSTGRES_DSN is required: Postgres is the system of record.` Order of checks: the role check (403) and request-body validation (422) come first, then this 503, then any
+  404 or 409.
   The position endpoints are unaffected.
 
 ## Left to the builder
@@ -454,7 +455,10 @@ Evaluator rows get their state seeded through the same stores (position files an
 | AC-40 | AC-39 | `own` activates v1 | 200, `approved_by` `own`, `path` `owner_edit`; `active_version` 1 | holdout |
 | AC-40b | AC-40 | `GET .../standards` | `activations` last row: `version` 1, `approved_by` `own`, `path` `owner_edit` | holdout |
 | AC-41 | — | `ana` `POST .../standards/versions` | 403 | holdout |
-| AC-41b | AC-31 active, its run `completed`; the model returns S-ok plus `S4` on a new boolean field "Grid permit filed", resting on paragraph 1 | `ana` drafts v2; `own` activates v2 | 200, `extraction_run_id` non-null and different from AC-31's; schema `theme_std_…` version 2 is released with 2 fields; in v2, `S3` has `data` `existing`; step 5 `running`, `extracting 2 data points` | holdout |
+| AC-41b | AC-31 active, its run `completed`; the model returns S-ok with `S3` changed to `data` `existing` on the released theme field, plus `S4` on a new boolean field "Grid permit filed", resting on paragraph 1 | `ana` drafts v2; `own` activates v2 | 200, `extraction_run_id` non-null and different from AC-31's | holdout |
+| AC-41c | AC-41b | read the schema registry | `theme_std_…` version 2 is released with 2 fields | holdout |
+| AC-41d | AC-41b | `GET .../standards` | version 2: `S3` `data` `existing`, `S4` `data` `new` | holdout |
+| AC-41e | AC-41b, the new run `running` | `GET /api/dossiers/D` | step 5 `running`, `extracting 2 data points` | holdout |
 | AC-42 | — | `own` `POST .../standards/versions` with S-two, `S1` on `fld_draft` | 422, detail `standard 'S1': unknown or unreleased field 'fld_draft'` | holdout |
 | AC-43 | the API configured with a users file containing a user whose `user_id` is `model` | any request with a valid token | 503, detail contains `user id 'model' is reserved` | holdout |
 | AC-44 | S-two active (via AC-34) | `ana` `POST .../standards/check` | 200; `results` as (company, standard, result): Alpha S1 `met`, Alpha S2 `met`, Beta S1 `unmet`, Beta S2 `no_data`, Gamma S1 `no_data`, Gamma S2 `no_data`; no Delta rows; `flagged` 1 | holdout |
@@ -467,7 +471,7 @@ Evaluator rows get their state seeded through the same stores (position files an
 | AC-51 | no active standards | check | 409, detail `no active standards` | holdout |
 | AC-52 | `GET /api/stewardship/triggers` after monitoring runs for two months | run AC-44's check, then `GET` again | the non-`std:` triggers are identical in both responses (all keys, including `is_new` and `status`) | holdout |
 | AC-53 | holdings for a portfolio loaded for the previous month; no monitoring run recorded for it; AC-44's check ran today | the monthly scheduler ticks | a monitoring run for the previous month is recorded (the tick is not skipped) | holdout |
-| AC-54 | no `ARP_POSTGRES_DSN`; otherwise AC-10's state (approved position, no standards) | `POST` `.../standards/draft`, `.../standards/versions`, `.../standards/activate`, `.../standards/check` | 503 for each, detail `ARP_POSTGRES_DSN is required: Postgres is the system of record.` | holdout |
+| AC-54 | no `ARP_POSTGRES_DSN`; otherwise AC-10's state (approved position, no standards); caller `own` | `POST` `.../standards/draft` `{}`, `.../standards/versions` with S-two, `.../standards/activate` `{"version": 1}`, `.../standards/check` with no body | 503 for each, detail `ARP_POSTGRES_DSN is required: Postgres is the system of record.` | holdout |
 | AC-55 | fixture without an approved note | `GET /api/dossiers/D` | step 5 `not_started`, detail `research note not approved`, `href` `#/themes/D/position` | holdout |
 | AC-56 | approved note, no position | `GET` | step 5 `not_started`, `draft the position` | holdout |
 | AC-57 | AC-2 | `GET` | step 5 `waiting`, `approve position v1` | holdout |
