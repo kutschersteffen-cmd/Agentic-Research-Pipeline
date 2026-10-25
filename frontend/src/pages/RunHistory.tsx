@@ -18,6 +18,7 @@ export function RunHistory({ onOpenReview }: Props = {}) {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [filter, setFilter] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState<Set<string>>(new Set());
   const { busyId, error: resumeError, summary, resume, resumeAll, clearError } = useResume();
   // The reload after a resume must use the filter current when it runs, not the click's render.
@@ -30,6 +31,7 @@ export function RunHistory({ onOpenReview }: Props = {}) {
     try {
       const res = (await api.listRuns(filterRef.current || undefined)) as { runs: RunManifest[] };
       setRuns(res.runs);
+      setLoaded(true);
       // A run that leaves failed/partially_completed starts closed if it fails again.
       const failed = new Set(res.runs.filter((r) => hasFailureDetails(r.status)).map((r) => r.run_id));
       setOpen((prev) => new Set([...prev].filter((id) => failed.has(id))));
@@ -103,6 +105,9 @@ export function RunHistory({ onOpenReview }: Props = {}) {
               </tr>
             </thead>
             <tbody>
+              {loaded && runs.length === 0 && (
+                <tr><td colSpan={8} className="muted">No runs{filter ? " of this type" : ""} yet.</td></tr>
+              )}
               {runs.map((r) => {
                 const runType = r.run_type;
                 return (

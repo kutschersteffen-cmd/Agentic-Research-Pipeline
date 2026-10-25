@@ -64,14 +64,17 @@ export function Search() {
             placeholder="Search companies, documents, taxonomy..."
           />
         </label>
-        {ALL_TYPES.map((t) => (
-          <label key={t.id} style={{ marginLeft: "1rem" }}>
-            <input type="checkbox" checked={types.includes(t.id)} onChange={() => toggleType(t.id)} />
-            {" " + t.label}
-          </label>
-        ))}
+        <div className="inline-fields">
+          {ALL_TYPES.map((t) => (
+            <label key={t.id}>
+              <input type="checkbox" checked={types.includes(t.id)} onChange={() => toggleType(t.id)} />
+              {t.label}
+            </label>
+          ))}
+        </div>
       </section>
 
+      {(notConfigured || error || loading || q.trim() || hits.length > 0) && (
       <section className="card">
         {notConfigured && (
           <p className="muted">
@@ -112,6 +115,7 @@ export function Search() {
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }

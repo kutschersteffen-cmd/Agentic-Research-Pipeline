@@ -66,7 +66,7 @@ export function VotingRuns({ selectedRunId, onSelectRun }: { selectedRunId: stri
           <h2>All voting runs</h2>
         </summary>
         <div className="toolbar">
-          <button className="link-button" onClick={loadRuns}>
+          <button className="secondary" onClick={loadRuns}>
             Refresh
           </button>
         </div>

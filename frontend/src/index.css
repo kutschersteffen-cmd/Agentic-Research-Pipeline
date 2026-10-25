@@ -451,6 +451,8 @@ textarea { field-sizing: content; min-height: 3lh; max-height: 20lh; resize: ver
    file inputs with the attribute, which a bare display rule would undo. */
 input[type="file"]:not([hidden]) { display: block; margin-bottom: var(--s-4); color: var(--muted); }
 input[type="checkbox"] { width: auto; }
+/* A count or interval needs a few digits, not the card's full width. */
+input[type="number"] { max-width: 16rem; }
 /* Touch: the native ~13px box is too small a target. */
 @media (pointer: coarse) {
   input:is([type="checkbox"], [type="radio"]) { width: 22px; height: 22px; margin: 0; flex: none; accent-color: var(--accent); }
@@ -1758,6 +1760,8 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
   .needs-you-meta { grid-column: 2; white-space: normal; }
 }
 .hub-run { margin: 0 0 var(--s-3); }
+/* On a phone the note goes under the button instead of wrapping around it. */
+@media (max-width: 640px) { .hub-run > .muted { display: block; margin-top: var(--s-2); } }
 .hub-run ul { margin: var(--s-1) 0; }
 .hub-crumb { margin: 0 0 var(--s-1); font-size: var(--text-sm); color: var(--muted); }
 .hub-crumb a { color: var(--accent); }

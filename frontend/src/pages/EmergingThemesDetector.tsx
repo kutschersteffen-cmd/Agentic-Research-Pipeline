@@ -166,7 +166,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
 
       <section className="card">
         <h2>Recent scans</h2>
-        <button onClick={refreshRecentRuns}>Refresh</button>
+        <button className="secondary" onClick={refreshRecentRuns}>Refresh</button>
         {recentRuns.length === 0 ? (
           <p className="muted">No scans yet — run one above, or enable the automatic schedule below.</p>
         ) : (
