@@ -45,6 +45,8 @@ must be traceable to a quote in one of them. The note's risks and opportunities 
 - Changing taxonomy research or the taxonomy authority-source feature it reuses code from.
 - Judging source quality beyond the category (no scoring, no ranking shown to the owner).
 - Editing the note's text by hand. A wrong note is rejected and rewritten.
+- Measuring the real model's source classification or wording on a golden set. The owner's plan approval and
+  note approval are the checks on model quality; acceptance rows use stand-ins.
 
 ## Anti-goals
 
@@ -94,7 +96,8 @@ On screen the categories read `Intergovernmental agency`, `Government or officia
 - `status`: `writing`, `write_failed`, `written`, `approved`, `rejected`;
 - `sections`: an object with exactly these keys, in this order: `risks`, `opportunities`,
   `financial_relevance`, `growth_potential`, `transmission_channels`. Each is a list of items;
-- item: `item_id` (`itm_` + 12 hex, never reused), `title` (at most 120 characters), `text`,
+- item: `item_id` (`itm_` + 12 hex, never reused), `title` (a longer title from the model is truncated to its
+  first 120 characters), `text`,
   `channel` (`economic` or `financial` for `transmission_channels` items, null elsewhere), `citations`:
   non-empty list of `{source_id, quote, page}` (`page` set by grounding for PDFs, else null);
 - `unread_sources`: list of `{source_id, reason}` with reason `fetch failed` or `no text extracted`;
@@ -108,14 +111,16 @@ On screen the categories read `Intergovernmental agency`, `Government or officia
 
 Allowed when the dossier has a taxonomy with a ratified version, and there is no round yet or the latest
 round's note is `approved` (that starts a new round), or the latest round is `proposal_failed` (that round is
-proposed again). A new round after an approved one starts with the previous round's approved sources, marked
-`added_by` as before, and the model's new proposals added after them, skipping any URL already present.
+proposed again). A new round after an approved one starts with copies of the previous round's sources, keeping
+their `source_id`, `added_by` and `file`, then the model's new proposals after them, skipping any URL already
+present.
 
 The run searches the web (the existing `WebSearchClient`) with queries built from the taxonomy's theme name
 and description, aimed at each category (e.g. `<theme> IEA report`, `<theme> OECD`, `<theme> official
 statistics`, `<theme> central bank`, `<theme> journal article`). The model then classifies each result into
 one of the four categories or `none`, and for each kept result writes `publisher`, `why` and `how`. Results
-classified `none` are discarded. At most 12 sources are proposed. The round becomes `proposed`; zero sources
+classified `none` are discarded. At most 12 sources are proposed: the first 12 kept results in search
+order. The round becomes `proposed`; zero sources
 is a valid outcome. A failed run sets `proposal_failed`.
 
 ### 2. Edit and approve the plan
@@ -124,8 +129,9 @@ While `plan_status` is `proposed`, the owner can remove sources, add their own (
 category, why, how; all required; category must be one of the four) and approve. Approval needs at least one
 source and freezes the list.
 
-A file can be uploaded to a source while the round's note is null, `write_failed` or `rejected` (PDF, HTML or
-plain text, under the existing `max_upload_bytes` limit). A second upload replaces the first.
+A file can be uploaded to a source while the round's note is null, `write_failed` or `rejected`. Accepted by
+file extension: `.pdf`, `.html`, `.htm`, `.txt`; anything else is 415. Size limit: the existing
+`max_upload_bytes`. A second upload replaces the first.
 
 ### 3. Write the note (background run, type `theme_research_note`)
 
@@ -135,10 +141,13 @@ a file, else the fetched URL text (`fetch_source_text`). Sources with no text go
 source has text, the note is `write_failed` with `error` `no approved source could be read`.
 
 The model receives only the readable approved sources' text, labelled by `source_id`, plus the theme name and
-description, and returns items per section, each with citations. The system prompt asks for neutral,
+description, and returns items per section, each with citations. The note is written in one model call
+(at most 12 sources, each source's text capped at the existing 60,000 characters), so stand-ins are well
+defined. The system prompt asks for neutral,
 fact-based statements (no promotional language, no forecasts the sources do not make) and for each risk and
 opportunity to state the mechanism. Each citation is checked with `ground_citations` against its source's text
-(threshold 0.92, as in authority extraction); ungrounded citations are removed, a citation naming a
+(threshold 0.92, as in authority extraction). `page` is set only for uploaded PDFs, whose page breaks are
+kept; fetched text has none, so their citations have `page` null. Ungrounded citations are removed, a citation naming a
 `source_id` that is not an approved source is removed, and an item left with no citation is dropped and
 counted in `dropped_items`. The note becomes `written`.
 
@@ -182,7 +191,7 @@ Let `R` be the latest round, `L` the taxonomy's latest ratified version. In orde
 | `R` `proposed`, note `rejected` | `waiting` | `note rejected: <reason>` |
 | `R` `proposed`, 0 sources | `waiting` | `add sources` |
 | `R` `proposed` | `waiting` | `approve <n> sources` |
-| note null | `waiting` | `write the note` |
+| note null, or `rejected` with the plan approved again | `waiting` | `write the note` |
 | note `writing` | `running` | `writing note` |
 | note `write_failed` | `failed` | `note failed: <error>` |
 | note `written` | `waiting` | `approve the note` |
@@ -191,7 +200,8 @@ Let `R` be the latest round, `L` the taxonomy's latest ratified version. In orde
 When the state is `done` and `L` > `R.taxonomy_version`, the detail gains ` · older than v<L>` and the state
 is `waiting`, as step 4 does. `href`: `null` in the first row, else `#/themes/<dossier_id>/research`.
 
-`current_step` in `GET /api/dossiers` now counts step 3 like any other step.
+`current_step` in `GET /api/dossiers` now counts step 3 like any other step: a `waiting` step 3 (drift
+included) makes it 3.
 
 ### Dossier spec rows this changes
 
@@ -206,13 +216,19 @@ AC-11's gets 3, not null), AC-34 (step 3 reads `Not started`, not `Coming later`
 - **Sources**: a table with title (linked to the URL), publisher, category label, why, how, file (name or an
   **Upload** button) and a remove action while the plan is open; an **Add source** form; **Approve sources**.
   A **Propose sources** button when proposing is allowed.
+- **Write note**, once the plan is approved and the note is null, `write_failed` or `rejected`.
 - **Note**, once written: the five sections with the headings `Risks`, `Opportunities`,
   `Financial relevance`, `Growth potential`, `Transmission channels`; transmission channel items carry an
   `Economic` or `Financial` tag. Each item shows its title, text and numbered citation markers; a marker opens
   the quote with the source's title, page and link. A line `Not read: <title> (<reason>)` per unread source and
-  `<n> statements dropped for lack of a checked quote` when `dropped_items` > 0. **Approve note** and
+  `Dropped for lack of a checked quote: <n>` when `dropped_items` > 0. **Approve note** and
   **Reject note** (reason required).
 - Earlier rounds as a collapsed list, each showing its sources and note read-only.
+
+## What step 5 reads
+
+`GET /api/dossiers/{id}/research`: the round numbered `approved_round`, its `note.sections.risks` and
+`note.sections.opportunities`. `item_id`s never change once written.
 
 ## My calls (owner to confirm with the acceptance table)
 
@@ -225,79 +241,119 @@ AC-11's gets 3, not null), AC-34 (step 3 reads `Not started`, not `Coming later`
    approved note stays the one step 5 reads until a newer one is approved.
 5. **Taxonomy drift** flags step 3 the same way as step 4.
 6. **12 proposed sources at most**, so the plan stays reviewable.
+7. **Carried-over sources keep their id and upload**, so a new round can cite the same documents without
+   re-uploading.
+8. **Page numbers only for uploaded PDFs.** Fetched PDFs get `page` null, so the fetch code shared with the
+   taxonomy feature stays unchanged.
+9. **The note is written in one model call**, so it is consistent and testable with one stand-in.
 
 ## Constraints
 
+- **Depends on the dossier being built** (store, `/api/dossiers`, `#/themes`). The dossier spec is merged as a
+  spec only; this is built after it.
+- Stand-ins: holdout and evaluator rows need the running app to take a fixed web search, fetch and model
+  output, as the Ask ARP spec's rows do. If the app has no such switch when the test-writer starts, that is a
+  factory question for the owner, not a reason to change these rows.
 - Repo checks; API contract regenerated and committed.
 - Golden-set CI is not triggered (no change under `arp/extraction`, `arp/llm`, `arp/grounding.py`).
 - Fetching goes through the existing SSRF-guarded `fetch_source_text`.
 
 ## Left to the builder
 
-Prompt wording, whether the note is written in one model call or several, query templates beyond the
+Prompt wording, query templates beyond the
 examples, file layout of uploads, component structure and visual design within DESIGN.md.
 
 ## Acceptance
 
 Fixture, seeded through the backend's own stores: dossier `D` with taxonomy `tax_a` (v1 ratified by `ana`);
-dossier `E` with taxonomy `tax_b` (draft only). Backend rows replace the web search and the model with
-stand-ins that return the same fixed output on every call. Search stand-in returns 4 results: `IEA World
-Energy Outlook` (`https://iea.org/weo`), `Eurostat energy statistics` (`https://ec.europa.eu/eurostat/x`),
-`Think Tank X brief` (`https://ttx.org/b`), `J. Energy Econ paper` (`https://doi.org/10.1/x`). Classification
-stand-in: IEA → `intergovernmental`, Eurostat → `official_statistics`, Think Tank X → `none`, paper →
-`academic`. Fetch stand-in: the IEA URL returns text containing `Grid investment must double by 2030.`; the
-Eurostat URL returns text containing `Electricity prices rose 12% in 2023.`; the paper URL fails. Note
-stand-in returns: a `risks` item citing Eurostat with quote `Electricity prices rose 12% in 2023.`; an
-`opportunities` item citing IEA with quote `Grid investment must double by 2030.`; a `growth_potential` item
-citing IEA with quote `Demand will triple.` (not in the text); a `transmission_channels` item with channel
-`financial` citing IEA with the grounded quote and Eurostat with an ungrounded quote. Users `ana` (analyst),
-`vic` (viewer).
+dossier `E` with taxonomy `tax_b` (draft only). The web search, the fetch and the model are replaced by
+stand-ins that return the same fixed output on every call; **the evaluator's running app uses the same
+stand-ins**. Search stand-in returns 4 results: `IEA World Energy Outlook` (`https://iea.org/weo`), `Eurostat
+energy statistics` (`https://ec.europa.eu/eurostat/x`), `Think Tank X brief` (`https://ttx.org/b`), `J. Energy
+Econ paper` (`https://doi.org/10.1/x`). Classification stand-in: IEA → `intergovernmental`, Eurostat →
+`official_statistics`, Think Tank X → `none`, paper → `academic`. Fetch stand-in: the IEA URL returns text
+containing `Grid investment must double by 2030.`; the Eurostat URL returns text containing `Electricity prices
+rose 12% in 2023.`; the paper URL's fetch raises an error. Note stand-in returns: a `risks` item citing Eurostat with quote
+`Electricity prices rose 12% in 2023.`; an `opportunities` item citing IEA with quote `Grid investment must
+double by 2030.`; a `growth_potential` item citing IEA with quote `Demand will triple.` (not in the text); a
+`transmission_channels` item with channel `financial` citing IEA with the grounded quote and Eurostat with an
+ungrounded quote. "Slow" stand-ins wait 30 s before returning. Users `ana` (analyst), `vic` (viewer).
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
 | AC-1 | `D`, no research | `GET /api/dossiers/D/research` | 200; `rounds` `[]`; `approved_round` null | holdout |
 | AC-2 | `D`, no research | `GET /api/dossiers/D` | step 3 `not_started`, detail `propose sources`, `href` `#/themes/D/research` | holdout |
-| AC-3 | `E` | `POST /api/dossiers/E/research/propose` | 409, detail `ratify a taxonomy first`; step 3 of `E` `not_started`, detail `ratify a taxonomy first`, `href` null | holdout |
-| AC-4 | `D` | `POST .../propose`, run completes | 202 with `round` 1; then `GET`: round 1 `plan_status` `proposed`, `taxonomy_version` 1, sources' URLs exactly the IEA, Eurostat and paper URLs in that order, categories `intergovernmental`, `official_statistics`, `academic`, each `added_by` `model`, `why` and `how` non-empty | holdout |
-| AC-5 | AC-4 | `GET /api/dossiers/D` | step 3 `waiting`, detail `approve 3 sources` | holdout |
-| AC-6 | AC-4 | `POST .../propose` again | 409, detail `round 1 is in progress` | holdout |
-| AC-7 | search stand-in raises | propose, run ends | round 1 `plan_status` `proposal_failed`; step 3 `failed`, detail `source proposal failed`; a second propose returns 202 with `round` 1 | holdout |
-| AC-8 | AC-4 | `POST .../sources` with `category` `think_tank`; again with `why` `"  "` | both 422 | holdout |
-| AC-9 | AC-4, caller `ana` | `POST .../sources` `{title: "ECB bulletin", publisher: "ECB", url: "https://ecb.europa.eu/b", category: "central_bank_regulator", why: "w", how: "h"}` | 200; `source_id` matches `^src_[0-9a-f]{12}$`; `added_by` `ana`; `GET` lists 4 sources | holdout |
-| AC-10 | AC-9 | `DELETE .../sources/<ECB id>` | 200; `GET` lists the 3 model sources | holdout |
-| AC-11 | AC-4 with all sources deleted | `POST .../plan/approve` | 409, detail `add at least one source`; step 3 detail `add sources` | holdout |
-| AC-12 | AC-4, caller `ana` | `POST .../plan/approve` | 200; `plan_status` `approved`; `plan_approved_by` `ana`; step 3 `waiting`, detail `write the note` | holdout |
-| AC-13 | AC-12 | `POST .../sources` (valid body); `DELETE` a source | both 409, detail `the source plan is not open for edits` | holdout |
-| AC-14 | AC-4 | `POST .../note` | 409, detail `approve the source plan first` | holdout |
-| AC-15 | AC-12 | `POST .../note`, run completes | note `status` `written`; `risks` has 1 item citing Eurostat; `opportunities` 1 item citing IEA; `growth_potential` `[]`; `financial_relevance` `[]`; `transmission_channels` 1 item with `channel` `financial` and exactly 1 citation (IEA); `dropped_items` 1; `unread_sources` `[{source_id: <paper id>, reason: "fetch failed"}]`; every `item_id` matches `^itm_[0-9a-f]{12}$` | holdout |
-| AC-16 | AC-15 | `GET /api/dossiers/D` | step 3 `waiting`, detail `approve the note` | holdout |
-| AC-17 | AC-12 with a PDF uploaded to the paper source containing `Storage costs fell 40%.`; note stand-in adds an `opportunities` item citing the paper with that quote | `POST .../note`, run completes | `opportunities` has 2 items; `unread_sources` `[]` | holdout |
-| AC-18 | AC-12; fetch stand-in fails for every URL; no uploads | `POST .../note`, run completes | note `status` `write_failed`, `error` `no approved source could be read`; step 3 `failed`, detail `note failed: no approved source could be read` | holdout |
-| AC-19 | AC-12; note stand-in cites a `source_id` not in the plan with a quote present in the IEA text | `POST .../note`, run completes | that item is absent from the note; `dropped_items` counts it | holdout |
-| AC-20 | AC-15 | `POST .../sources/<paper id>/file` with a PDF | 409, detail `the note is already written` | holdout |
-| AC-21 | AC-12 | upload a 1 KB `.exe`; upload a file over `max_upload_bytes` | 415; 413 | holdout |
-| AC-22 | AC-15, caller `ana` | `POST .../note/approve` | 200; note `status` `approved`, `approved_by` `ana`; `GET` research has `approved_round` 1; step 3 `done`, detail `note r1 approved by ana` | holdout |
-| AC-23 | AC-15 | `POST .../note/reject` without `reason`; with `"  "` | both 422 | holdout |
-| AC-24 | AC-15 | `POST .../note/reject {"reason": "Too thin"}` | 200; note `status` `rejected`; `plan_status` `proposed`; step 3 `waiting`, detail `note rejected: Too thin`; adding a source now returns 200 | holdout |
-| AC-25 | AC-24, plan approved again | `POST .../note`, run completes | note `status` `written`; no `item_id` equals one from AC-15's note | holdout |
-| AC-26 | AC-12 | `POST .../note/approve` | 409, detail `there is no written note` | holdout |
-| AC-27 | AC-22 | `POST .../propose`, run completes | 202 with `round` 2; round 2 `plan_status` `proposed`, sources are round 1's 3 approved sources with no duplicate URL; `approved_round` still 1 | holdout |
-| AC-28 | AC-22, then `tax_a` v2 ratified by `bob` | `GET /api/dossiers/D` | step 3 `waiting`, detail `note r1 approved by ana · older than v2` | holdout |
-| AC-29 | AC-22 | `GET /api/dossiers` | `D`'s `current_step` is 4 | holdout |
-| AC-30 | AC-4 | `GET /api/dossiers` | `D`'s `current_step` is 3 | holdout |
-| AC-31 | `D` shelved | `POST .../propose`; `POST .../sources` | both 409, detail `dossier is shelved` | holdout |
-| AC-32 | caller `vic` | `GET .../research`; `POST .../propose`; `POST .../plan/approve`; `POST .../note/approve` | 200; 403; 403; 403 | holdout |
-| AC-33 | unknown id | `GET /api/dossiers/dos_000000000000/research` | 404, detail `unknown dossier 'dos_000000000000'` | holdout |
-| AC-34 | AC-4 | `DELETE .../sources/src_000000000000` | 404, detail `unknown source 'src_000000000000'` | holdout |
-| AC-35 | the running app, AC-4's dossier | open the dossier page, click step 3's link | `#/themes/D/research` shows the 3 sources with category labels `Intergovernmental agency`, `Government or official statistics`, `Academic research`, each with its why and how | evaluator |
-| AC-36 | AC-35 | add a source with category `Central bank or regulator`, remove it, click **Approve sources** | the source appears then disappears; after approval the remove actions and the add form are gone and step 3 on the dossier page reads `Waiting`, `write the note` | evaluator |
-| AC-37 | AC-15's dossier | open `#/themes/D/research` | headings `Risks`, `Opportunities`, `Financial relevance`, `Growth potential`, `Transmission channels` in order; the transmission item is tagged `Financial`; `Not read: J. Energy Econ paper (fetch failed)`; `1 statements dropped for lack of a checked quote` | evaluator |
-| AC-38 | AC-37 | open the risk item's citation marker | shows quote `Electricity prices rose 12% in 2023.`, title `Eurostat energy statistics` and a link to its URL | evaluator |
-| AC-39 | AC-37 | click **Reject note** with reason `Too thin` | the sources table is editable again; the dossier page's step 3 reads `Waiting`, `note rejected: Too thin` | evaluator |
-| AC-40 | AC-27's dossier | open the research screen | round 1 is listed collapsed with its approved note readable | evaluator |
+| AC-3 | `E` | `POST /api/dossiers/E/research/propose` | 409, detail `ratify a taxonomy first` | holdout |
+| AC-4 | `E` | `GET /api/dossiers/E` | step 3 `not_started`, detail `ratify a taxonomy first`, `href` null | holdout |
+| AC-5 | `D` | `POST .../propose` | 202; body `round` 1 and a `run_id` | holdout |
+| AC-6 | AC-5, run completed | `GET .../research` | round 1: `plan_status` `proposed`; `taxonomy_version` 1; sources' URLs exactly IEA, Eurostat, paper in that order; categories `intergovernmental`, `official_statistics`, `academic`; each `source_id` matches `^src_[0-9a-f]{12}$`; each `added_by` `model`; each `why` and `how` non-empty | holdout |
+| AC-7 | AC-6 | `GET /api/dossiers/D` | step 3 `waiting`, detail `approve 3 sources` | holdout |
+| AC-8 | `D`, slow search stand-in | `POST .../propose`, then `GET /api/dossiers/D` within 5 s | step 3 `running`, detail `proposing sources` | holdout |
+| AC-9 | AC-6 | `POST .../propose` | 409, detail `round 1 is in progress` | holdout |
+| AC-10 | `D`, search stand-in raises | `POST .../propose`, run ends | round 1 `plan_status` `proposal_failed` | holdout |
+| AC-11 | AC-10 | `GET /api/dossiers/D` | step 3 `failed`, detail `source proposal failed` | holdout |
+| AC-12 | AC-10 | `POST .../propose` | 202, body `round` 1 | holdout |
+| AC-13 | AC-6 | `POST .../sources` with `category` `think_tank` (other fields valid) | 422 | holdout |
+| AC-14 | AC-6 | `POST .../sources` with `why` `"  "` (other fields valid) | 422 | holdout |
+| AC-15 | AC-6, caller `ana` | `POST .../sources` `{title: "ECB bulletin", publisher: "ECB", url: "https://ecb.europa.eu/b", category: "central_bank_regulator", why: "w", how: "h"}` | 200; `source_id` matches `^src_[0-9a-f]{12}$`; `added_by` `ana`; `GET .../research` lists 4 sources | holdout |
+| AC-16 | AC-15 | `DELETE .../sources/<ECB id>` | 200; `GET .../research` lists exactly the 3 model sources | holdout |
+| AC-17 | AC-6 | `DELETE .../sources/src_000000000000` | 404, detail `unknown source 'src_000000000000'` | holdout |
+| AC-18 | AC-6 with all 3 sources deleted | `POST .../plan/approve` | 409, detail `add at least one source` | holdout |
+| AC-19 | AC-18 | `GET /api/dossiers/D` | step 3 `waiting`, detail `add sources` | holdout |
+| AC-20 | AC-6, caller `ana` | `POST .../plan/approve` | 200; `plan_status` `approved`; `plan_approved_by` `ana`; `plan_approved_at` an ISO-8601 timestamp | holdout |
+| AC-21 | AC-20 | `GET /api/dossiers/D` | step 3 `waiting`, detail `write the note` | holdout |
+| AC-22 | AC-20 | `POST .../sources` (valid body) | 409, detail `the source plan is not open for edits` | holdout |
+| AC-23 | AC-20 | `DELETE .../sources/<IEA id>` | 409, detail `the source plan is not open for edits` | holdout |
+| AC-24 | AC-6 | `POST .../note` | 409, detail `approve the source plan first` | holdout |
+| AC-25 | AC-20 | `POST .../note`, run completes | note `status` `written`; `risks` 1 item citing Eurostat; `opportunities` 1 item citing IEA; `financial_relevance` `[]`; `growth_potential` `[]`; `transmission_channels` 1 item with `channel` `financial` and exactly 1 citation, IEA's, `page` null; every `item_id` matches `^itm_[0-9a-f]{12}$` | holdout |
+| AC-26 | AC-25 | `GET .../research` | note `dropped_items` 1; `unread_sources` `[{source_id: <paper id>, reason: "fetch failed"}]` | holdout |
+| AC-27 | AC-25 | `GET /api/dossiers/D` | step 3 `waiting`, detail `approve the note` | holdout |
+| AC-28 | AC-20, slow model stand-in | `POST .../note`, then `GET /api/dossiers/D` within 5 s | step 3 `running`, detail `writing note` | holdout |
+| AC-29 | AC-20, a one-page PDF containing `Storage costs fell 40%.` uploaded to the paper source; note stand-in adds an `opportunities` item citing the paper with that quote | `POST .../note`, run completes | `opportunities` 2 items; the paper item's citation `page` 1; `unread_sources` `[]` | holdout |
+| AC-30 | AC-20, fetch stand-in fails for every URL, no uploads | `POST .../note`, run completes | note `status` `write_failed`, `error` `no approved source could be read` | holdout |
+| AC-31 | AC-30 | `GET /api/dossiers/D` | step 3 `failed`, detail `note failed: no approved source could be read` | holdout |
+| AC-32 | AC-20; note stand-in also returns a `risks` item citing `src_000000000000` with a quote present in the IEA text | `POST .../note`, run completes | `risks` holds only the Eurostat item; `dropped_items` 2 | holdout |
+| AC-33 | AC-25 | `POST .../sources/<paper id>/file` with a PDF | 409, detail `the note is already written` | holdout |
+| AC-34 | AC-20 | `POST .../sources/<IEA id>/file` with `x.exe`, 1 KB | 415 | holdout |
+| AC-35 | AC-20 | `POST .../sources/<IEA id>/file` with `x.pdf` one byte over `max_upload_bytes` | 413 | holdout |
+| AC-36 | AC-25, caller `ana` | `POST .../note/approve` | 200; note `status` `approved`, `approved_by` `ana`, `approved_at` an ISO-8601 timestamp | holdout |
+| AC-37 | AC-36 | `GET .../research` | `approved_round` 1 | holdout |
+| AC-38 | AC-36 | `GET /api/dossiers/D` | step 3 `done`, detail `note r1 approved by ana` | holdout |
+| AC-39 | AC-36 | `GET .../research` twice | the `item_id`s of round 1's `risks` and `opportunities` are identical in both responses and to AC-25's | holdout |
+| AC-40 | AC-25 | `POST .../note/reject` with no `reason`; with `{"reason": "  "}` | both 422 | holdout |
+| AC-41 | AC-25 | `POST .../note/reject {"reason": "Too thin"}` | 200; note `status` `rejected`; `plan_status` `proposed` | holdout |
+| AC-42 | AC-41 | `GET /api/dossiers/D` | step 3 `waiting`, detail `note rejected: Too thin` | holdout |
+| AC-43 | AC-41 | `POST .../sources` (valid body) | 200 | holdout |
+| AC-44 | AC-41, plan approved again | `GET /api/dossiers/D` | step 3 `waiting`, detail `write the note` | holdout |
+| AC-45 | AC-44 | `POST .../note`, run completes | note `status` `written`; no `item_id` equals one from AC-25's note | holdout |
+| AC-46 | AC-20 | `POST .../note/approve` | 409, detail `there is no written note` | holdout |
+| AC-47 | AC-36 | `POST .../propose`, run completes | 202 with `round` 2; round 2 `plan_status` `proposed`; exactly 3 sources, URLs IEA, Eurostat, paper in that order, the same `source_id`s as round 1, each `added_by` `model`; `approved_round` still 1 | holdout |
+| AC-48 | AC-36, then `tax_a` v2 ratified by `bob` | `GET /api/dossiers/D` | step 3 `waiting`, detail `note r1 approved by ana · older than v2` | holdout |
+| AC-49 | AC-36 | `GET /api/dossiers` | `D`'s `current_step` is 4 | holdout |
+| AC-50 | AC-6 | `GET /api/dossiers` | `D`'s `current_step` is 3 | holdout |
+| AC-51 | `D` shelved | `POST .../propose` | 409, detail `dossier is shelved` | holdout |
+| AC-52 | AC-6, then `D` shelved | `POST .../sources` (valid body) | 409, detail `dossier is shelved` | holdout |
+| AC-53 | AC-25, caller `vic` | `GET .../research`; `POST .../propose`; `POST .../plan/approve`; `POST .../note/approve` | 200; 403; 403; 403 | holdout |
+| AC-54 | unknown id | `GET /api/dossiers/dos_000000000000/research` | 404, detail `unknown dossier 'dos_000000000000'` | holdout |
+| AC-55 | `D` in the running app | open the dossier page, click step 3's link, click **Propose sources** | the URL is `#/themes/D/research`; after the run, 3 sources with category labels `Intergovernmental agency`, `Government or official statistics`, `Academic research`, each with its why and how | evaluator |
+| AC-56 | AC-55 | upload a PDF to the paper source | its file name appears in the paper's file column | evaluator |
+| AC-57 | AC-55 | add a source with category `Central bank or regulator`, then remove it | the source appears, then is gone | evaluator |
+| AC-58 | AC-55 | click **Approve sources** | the remove actions and the add form are gone; **Write note** appears; the dossier page's step 3 reads `Waiting`, `write the note` | evaluator |
+| AC-59 | AC-58, no upload | click **Write note** | after the run: headings `Risks`, `Opportunities`, `Financial relevance`, `Growth potential`, `Transmission channels` in that order; the transmission item tagged `Financial`; `Not read: J. Energy Econ paper (fetch failed)`; `Dropped for lack of a checked quote: 1` | evaluator |
+| AC-60 | AC-59 | open the risk item's citation marker | quote `Electricity prices rose 12% in 2023.`, title `Eurostat energy statistics`, a link to `https://ec.europa.eu/eurostat/x` | evaluator |
+| AC-61 | AC-59 | click **Reject note** with reason `Too thin` | each source shows a remove action; the **Add source** form and **Approve sources** are visible; the dossier page's step 3 reads `Waiting`, `note rejected: Too thin` | evaluator |
+| AC-62 | AC-59 | click **Approve note** | the dossier page's step 3 reads `Done`, `note r1 approved by ana` | evaluator |
+| AC-63 | AC-62, then **Propose sources** again | open the research screen | round 1 is listed collapsed; expanding it shows its approved note | evaluator |
+| AC-67 | AC-20; fetch stand-in returns `""` for the Eurostat URL | `POST .../note`, run completes | `unread_sources` holds `{source_id: <Eurostat id>, reason: "no text extracted"}` and `{source_id: <paper id>, reason: "fetch failed"}` | holdout |
+| AC-68 | AC-6; Eurostat source deleted, plan approved | `POST .../note`, run completes | `risks` `[]`; the transmission item has exactly one citation, IEA's; `dropped_items` 2 | holdout |
+| AC-69 | `D`; search stand-in returns 14 results, all classified `intergovernmental` | `POST .../propose`, run completes | round 1 holds exactly 12 sources, the first 12 URLs in search order | holdout |
+| AC-70 | AC-20; note stand-in's `risks` item has a 150-character title | `POST .../note`, run completes | that item's `title` is the first 120 characters of the stand-in's title; `dropped_items` 1 | holdout |
+| AC-71 | AC-48 | `GET /api/dossiers` | `D`'s `current_step` is 3 | holdout |
 
 Must not change:
-- AC-41: the taxonomy authority-source endpoints and the taxonomy research run return the same status codes and
-  bodies as before. Checked by: holdout.
-- AC-42: dossier steps 1, 2, 4 and 5 derive exactly as in the dossier spec (its AC-5 to AC-14, AC-19, AC-20).
+- AC-64: `POST /api/taxonomies/discover-sources` and `GET /api/taxonomies/sources/inspect` return the same status
+  codes and body keys as before for the same input. Checked by: holdout.
+- AC-65: `POST /api/taxonomies` with authority-source URLs returns the same status codes and body keys as before.
   Checked by: holdout.
+- AC-66: dossier steps 1, 2 and 4 return the same states and details as the dossier spec's AC-5 to AC-14,
+  AC-19 and AC-20 require, and step 5 stays `not_built`. Checked by: holdout.
