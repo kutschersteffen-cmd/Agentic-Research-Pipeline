@@ -196,16 +196,23 @@ function Run({ methods, onRan }: { methods: SignalMethod[]; onRan: (d: SignalExp
         </div>
         <div style={{ flex: "1 1 14rem", minWidth: 0 }}>
           <h3>Methods</h3>
-          <ul>
-            {methods.map((m) => {
-              const note = methodNote(m);
-              return (
-                <li key={m.name}>
-                  <code>{m.name}</code> {note && <span className="muted">{note}</span>}
-                </li>
-              );
-            })}
-          </ul>
+          {[true, false].map((inApp) => {
+            const group = methods.filter((m) => m.runnable_in_app === inApp);
+            return (
+              group.length > 0 && (
+                <div key={String(inApp)}>
+                  <p className="muted">{methodNote(group[0]) ?? "Run here"}</p>
+                  <ul>
+                    {group.map((m) => (
+                      <li key={m.name}>
+                        <code>{m.name}</code>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            );
+          })}
         </div>
       </div>
     </section>

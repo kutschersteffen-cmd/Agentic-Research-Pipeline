@@ -1858,6 +1858,8 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .ds-step-later .ds-step-text strong, .ds-step-done .ds-step-text strong { font-weight: 500; }
 .ds-step-state { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); }
 .ds-step-detail { font-size: var(--text-sm); color: var(--muted); line-height: 1.45; max-width: 75ch; }
+/* Done and later steps keep their titles; the explanation shows when a step is the current one. */
+.ds-step:not(.ds-step-now) .ds-step-detail { display: none; }
 .ds-step > button { margin-top: 0; flex: none; }
 
 .ds-next {
