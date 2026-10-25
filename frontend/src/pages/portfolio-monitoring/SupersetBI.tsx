@@ -261,9 +261,9 @@ export function SupersetBI() {
       <section className="card">
         <h2>Describe a dashboard</h2>
         <p className="help-text">
-          The model chooses charts from the portfolio datasets and saved metrics registered in Superset; it never writes SQL
-          or produces a number. Superset computes every figure. The result is an unpublished draft: review it, then publish
-          it in Superset. A quick question adds one chart to the shared Scratch dashboard instead. Requires Superset and{" "}
+          The model picks charts from the datasets and metrics in Superset; Superset computes every figure, and the model
+          never writes SQL or a number. You get an unpublished draft to review and publish in Superset. A quick question
+          adds one chart to the shared Scratch dashboard. Needs Superset and{" "}
           <code>ARP_ANTHROPIC_API_KEY</code> on the server.
         </p>
         <textarea

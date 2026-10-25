@@ -413,16 +413,14 @@ function StepCard({ s, i, p, runs, flow }: { s: Step; i: number; p: Process; run
           <span className="hub-step-banner">{waiting > 0 ? `${waiting} waiting on you` : `${decisions} decision${decisions === 1 ? "" : "s"} open`}</span>
         )}
         <span className="hub-step-about">{s.does}</span>
-        {mine && (
+        {last && (
           <span className="hub-step-rows">
             <span>
-              Last run<b>{last ? last.status.replace(/_/g, " ") : "none yet"}</b>
+              Last run<b>{last.status.replace(/_/g, " ")}</b>
             </span>
-            {last && (
-              <span>
-                Updated<b>{new Date(last.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</b>
-              </span>
-            )}
+            <span>
+              Updated<b>{new Date(last.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</b>
+            </span>
           </span>
         )}
         {stage && stage.metrics.length > 0 && (
