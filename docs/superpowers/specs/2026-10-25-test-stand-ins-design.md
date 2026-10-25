@@ -1,6 +1,6 @@
 # Test stand-ins: fixed web search, fetch and model answers for the running app
 
-Status: draft for owner approval, 2026-10-25.
+Status: approved by the owner, 2026-10-25.
 
 ## Intent
 
