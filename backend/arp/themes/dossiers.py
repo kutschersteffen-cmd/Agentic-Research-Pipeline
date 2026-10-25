@@ -18,7 +18,7 @@ from arp.api.review_endpoints import get_review_queue
 from arp.config import Settings
 from arp.emerging_themes.pipeline import load_candidates_with_status
 from arp.schemas.common import JobStatus, RunManifest, now_iso
-from arp.schemas.emerging_themes import CandidateStatus
+from arp.schemas.emerging_themes import CandidateStatus, ContextBrief
 from arp.schemas.taxonomy import TaxonomyStatus
 from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.locks import KeyedLock
@@ -135,6 +135,14 @@ class DossierStore:
 
 def get_dossier_store(settings: Settings = Depends(settings_dep)) -> DossierStore:
     return DossierStore(settings.runs_dir / "_dossiers")
+
+
+def context_brief(d: Dossier, run_store: RunStore) -> ContextBrief | None:
+    """The origin candidate's brief; None for a topic dossier, a missing candidate or one without a brief."""
+    if d.origin == "topic":
+        return None
+    candidate = next((c for c in load_candidates_with_status(run_store, d.run_id) if c.theme_id == d.theme_id), None)
+    return candidate.context_brief if candidate else None
 
 
 def _spot(d: Dossier, run_store: RunStore) -> tuple[StepState, str, str | None]:

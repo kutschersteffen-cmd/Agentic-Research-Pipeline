@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -284,6 +284,102 @@ class CompanyExposure(BaseModel):
     as_of: str = Field(default_factory=now_iso)
 
 
+class BriefQuoteEvidence(BaseModel):
+    """A `quote` or `counter` item of a context brief's evidence pool."""
+
+    evidence_id: str
+    kind: Literal["quote", "counter"]
+    mention_id: str
+    source_type: MentionSourceType
+    title: str
+    url: str
+    published_at: str | None = None
+    quote: str
+    action_type: ActionType
+    company_ids: list[str] = Field(default_factory=list)
+
+
+class BriefFinancialsEvidence(BaseModel):
+    """A `financials` item of a context brief's evidence pool: one SEC CapEx/R&D cross-check."""
+
+    evidence_id: str
+    kind: Literal["financials"] = "financials"
+    company_id: str
+    capex_pct_change: float | None = None
+    rnd_pct_change: float | None = None
+
+
+BriefEvidence = Annotated[BriefQuoteEvidence | BriefFinancialsEvidence, Field(discriminator="kind")]
+
+
+class BriefFacts(BaseModel):
+    first_seen: str | None = None
+    last_seen: str | None = None
+    independent_sources: int
+    company_count: int
+    velocity: float
+    breadth: float
+    persistence: int
+    novelty: float
+    materiality: float
+    contradiction: float
+    action_counts: dict[str, int]
+
+
+class BriefCompany(BaseModel):
+    company_id: str
+    name: str
+    isic_division: str | None = None
+
+
+class BriefStatement(BaseModel):
+    text: str
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class BriefSector(BaseModel):
+    isic_division: str
+    label: str
+    company_ids: list[str]
+    evidence_ids: list[str]
+
+
+class CompanyActivity(BaseModel):
+    company_id: str
+    activity: str
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class ActivityGroup(BaseModel):
+    activity: str
+    company_ids: list[str] = Field(default_factory=list)
+    evidence_ids: list[str] = Field(default_factory=list)
+
+
+class BriefActivities(BaseModel):
+    by_company: list[CompanyActivity] = Field(default_factory=list)
+    groups: list[ActivityGroup] = Field(default_factory=list)
+    unclassified_company_ids: list[str] = Field(default_factory=list)
+
+
+class ContextBrief(BaseModel):
+    """Step 1's context brief (spec theme-context-brief): why now, early evidence, affected sectors.
+    Facts, evidence and sectors are computed in code; the sentences and activities come from one model
+    call and keep only what cites the candidate's own evidence. See emerging_themes/context_brief.py."""
+
+    status: Literal["written", "failed"]
+    error: str | None = None
+    written_at: str = Field(default_factory=now_iso)
+    facts: BriefFacts
+    evidence: list[BriefEvidence]
+    companies: list[BriefCompany]
+    why_now: list[BriefStatement] = Field(default_factory=list)
+    early_evidence: list[BriefStatement] = Field(default_factory=list)
+    sectors: list[BriefSector]
+    activities: BriefActivities
+    dropped_statements: int = 0
+
+
 class EmergingThemeCandidate(BaseModel):
     """The Output-layer schema -- the fixed handoff contract into Tool 1
     (the Thematic Universe Builder), field-for-field per the source
@@ -335,6 +431,7 @@ class EmergingThemeCandidate(BaseModel):
         description="Roadmap G4: per-company role + Risk/Momentum/Evidence-quality signals, computed pre-promotion. "
         "See CompanyExposure's docstring for why Revenue/Capex/Purity/Demand/Enablement/Innovation aren't here.",
     )
+    context_brief: ContextBrief | None = Field(default=None, description="None for candidates written before briefs existed.")
     status: CandidateStatus = CandidateStatus.CANDIDATE
     promoted_to_taxonomy_id: str | None = None
     promoted_to_taxonomy_version: int | None = None
