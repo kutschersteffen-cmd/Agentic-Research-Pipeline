@@ -532,6 +532,9 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
 .toolbar a, .data-table a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 0.15em; }
 
 .help-text { color: var(--muted); font-size: var(--text-sm); max-width: 75ch; }
+details.help-text { margin: 0 0 var(--s-3); }
+details.help-text > summary { cursor: pointer; width: fit-content; }
+details.help-text[open] > summary { margin-bottom: var(--s-1); }
 /* The open run in a list of runs. */
 .clickable-row[aria-current] td { background: var(--accent-tint); }
 .clickable-row[aria-current] td:first-child { font-weight: 600; }
@@ -1119,6 +1122,18 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 @media (max-width: 760px) {
   .sub-nav .nav-tab, .view-toggle button { min-height: 44px; }
 }
+/* In a hub the tabs are the page title: the active one names the screen, so
+   the page's own h1 stays for screen readers only instead of repeating it. */
+.hub-nav ~ .page > h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.hub-nav { gap: var(--s-1) var(--s-6); align-items: baseline; }
+.hub-nav .nav-tab, .hub-nav .nav-tab:hover, .hub-nav .nav-tab.active, .hub-nav .nav-tab.active:hover {
+  border: 0; box-shadow: none; background: none; padding: 0;
+  font-family: var(--font-display); font-size: clamp(1.75rem, 1.25rem + 1.4vw, 2.5rem); font-weight: 600; line-height: 1.05; letter-spacing: -0.03em;
+}
+.hub-nav .nav-tab { color: var(--muted); }
+.hub-nav .nav-tab:hover, .hub-nav .nav-tab.active { color: var(--text); }
+.hub-nav .nav-tab.active { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.15em; }
+@media (max-width: 640px) { .hub-nav .nav-tab, .hub-nav .nav-tab:hover, .hub-nav .nav-tab.active, .hub-nav .nav-tab.active:hover { font-size: var(--text-lg); } }
 
 .chart-svg { width: 100%; height: auto; overflow: visible; font-family: inherit; }
 .chart-axis-label { fill: var(--muted); font-size: var(--text-xs); }
