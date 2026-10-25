@@ -1,6 +1,6 @@
 # Simplify navigation: a short sidebar and four screens fewer
 
-Status: draft, 2026-10-25.
+Status: approved by the owner, 2026-10-25.
 
 ## Owner decisions, 2026-10-25
 
