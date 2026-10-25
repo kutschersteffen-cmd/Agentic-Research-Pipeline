@@ -13,7 +13,7 @@ import { resolveSubTab, SUB_TABS } from "../lib/subTabs";
  * area. Ad-hoc slicing lives in Superset (the Dashboards tab), whose
  * native filter bar is that tab's selection UI; old pivot/superset links
  * land there (lib/subTabs). */
-type SendUniverse = (to: "transitionPlan" | "extraction" | "discovery", path: string, count: number) => void;
+type SendUniverse = (to: "transitionPlan" | "extraction", path: string, count: number) => void;
 
 export function PortfolioRiskMonitoringTool({ initialSub, onSendUniverse }: { initialSub?: string; onSendUniverse?: SendUniverse }) {
   return (

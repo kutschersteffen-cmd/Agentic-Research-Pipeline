@@ -62,3 +62,8 @@ test("R&D Lab lists the Value Chain Explorer right after the Signals workbench",
   assert.deepEqual(screens[at], ["#/valueChain", "Value Chain Explorer"]);
   assert.deepEqual(screens[at - 1], ["#/signals", "Signals workbench"]);
 });
+
+test("StewardIQ links RFP Answers, which no other page links", () => {
+  const stewardiq = WORKSPACES.find((w) => w.id === "stewardiq")!;
+  assert.ok(stewardiq.screens.some(([h, l]) => h === "#/rfp" && l === "RFP Answers"));
+});

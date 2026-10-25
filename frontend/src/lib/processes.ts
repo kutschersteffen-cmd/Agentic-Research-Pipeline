@@ -48,6 +48,7 @@ export const WORKSPACES: Workspace[] = [
       ["#/stewardship", "Steward Workflow"],
       ["#/engagement", "Engagement"],
       ["#/voting", "Proxy Voting"],
+      ["#/rfp", "RFP Answers"],
     ],
     processes: [
       {

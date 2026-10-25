@@ -232,12 +232,6 @@ td, .stat-value, .nav-count { font-variant-numeric: tabular-nums; }
   padding: 0 var(--s-2) var(--s-1);
 }
 
-.nav-more > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: var(--s-1_5); }
-.nav-more > summary::-webkit-details-marker { display: none; }
-.nav-more > summary::after { content: "▸"; font-size: 0.9em; }
-.nav-more[open] > summary::after { content: "▾"; }
-.nav-more > summary:hover { color: var(--text); }
-
 .nav-tab {
   display: flex;
   align-items: center;
@@ -921,8 +915,6 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   padding: var(--s-4);
 }
 .dashboard-grid .stat-label { line-height: 1.35; }
-.stat-value.stat-low { color: var(--low); }
-.stat-value.stat-mid { color: var(--mid); }
 /* The two tiles that need a person lead the row and go somewhere. */
 /* Read from the back of a committee room: the two figures that need a
    person are the largest on the screen. */
@@ -939,21 +931,6 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .stat-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
 @media (max-width: 1100px) { .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-
-.dashboard-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--s-6); align-items: start; }
-.dashboard-columns .section-heading { flex-wrap: wrap; gap: var(--s-1) var(--s-3); }
-.dashboard-columns .section-heading > .link-button { white-space: nowrap; margin-top: 0; }
-.dashboard-columns .data-table td:first-child { white-space: nowrap; }
-@media (min-width: 1180px) {
-  .dashboard-columns { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
-}
-
-/* An empty section collapses to its heading and one muted line rather
-   than holding a full-height box open. */
-.card-empty { padding-block: var(--s-3); }
-.card-empty .section-heading { justify-content: flex-start; flex-wrap: wrap; gap: var(--s-1) var(--s-3); margin: 0; }
-.card-empty .section-heading h2 { font-size: var(--text-md); }
-.card-empty .section-heading > .link-button { margin-left: auto; }
 .stat-tile-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
