@@ -79,8 +79,7 @@ function useRuns() {
   return { runs, error, retry: load };
 }
 
-/** Open decisions across the Steward Workflow stages the processes own: the
- * sidebar's Steward Workflow badge uses the same count so the two agree. */
+/** Open decisions across the Steward Workflow stages the processes own. */
 const stageDecisions = (flow: StewardshipFlow | null) => DECISION_STAGES.reduce((n, id) => n + openCount(flow?.stages.find((x) => x.id === id)), 0);
 
 /** The house stewardship flow, loaded once: its stages carry StewardIQ's numbers. */

@@ -15,7 +15,7 @@ type Row = { key: string; workspace: string; what: string; count: number; since:
 
 /** Everything waiting on a person, one row per place it waits (a run's review, a ballot run, a stewardship stage,
  * blocking data issues), oldest first, each linking to where it is decided. Counts come from the same sources the
- * sidebar badges use; nothing is stored. */
+ * Review Queue's sidebar badge uses; nothing is stored. */
 export function NeedsYou({ runs, flow }: { runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
   const [items, setItems] = useState<ReviewItem[] | null>(null);
   const [issues, setIssues] = useState<DataIssue[] | null>(null);

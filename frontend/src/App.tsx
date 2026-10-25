@@ -99,7 +99,6 @@ type TabId = (typeof TABS)[number]["id"];
 const hubOf = (id: TabId) => HUBS.find((h) => h.tabs.some(([t]) => t === id));
 const isWorkspace = (id: string): id is WorkspaceId => WORKSPACES.some((w) => w.id === id);
 
-
 // Everything the command palette can jump to: every screen (under its hub's
 // name where it has one), plus the Steward stages and Risk Monitoring tabs.
 const PALETTE_ITEMS: PaletteItem[] = [
@@ -155,7 +154,7 @@ function App() {
   const [route, setRoute] = useState(readRoute);
   const active = route.tab;
   const [waiting, setWaiting] = useState<{ review: number } | null>(null);
-    const [recentRuns, setRecentRuns] = useState<RunManifest[]>([]);
+  const [recentRuns, setRecentRuns] = useState<RunManifest[]>([]);
   // One universe in flight between screens, addressed to one of them.
   const [handoff, setHandoff] = useState<(UniverseHandoff & { to: TabId }) | null>(null);
   const pendingFor = (to: TabId) => (handoff?.to === to ? handoff : null);
@@ -249,7 +248,8 @@ function App() {
   useEffect(() => {
     if (!navOpen) return;
     const menu = menuRef.current;
-    navRef.current?.querySelector<HTMLElement>(".nav-tab.active")?.focus();
+    // Most screens have no sidebar link; then focus the first one so the drawer still takes focus.
+    (navRef.current?.querySelector<HTMLElement>(".nav-tab.active") ?? navRef.current?.querySelector<HTMLElement>(".nav-tab"))?.focus();
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setNavOpen(false);
     window.addEventListener("keydown", onKey);
     return () => {
