@@ -105,7 +105,7 @@ import type {
 import type { XbrlRunMarket } from "../types";
 import type { VcFootprint, VcNode, VcSearch, VcStatus, VcTree } from "../types";
 import type { RunFailure } from "../types";
-import type { Dossier, DossierItem } from "../types";
+import type { Dossier, DossierItem, ResearchRound, ResearchSource, ResearchView, SourceCategory } from "../types";
 import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision } from "../types";
 import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
@@ -227,6 +227,7 @@ export async function openFile(url: string, fallbackName: string): Promise<void>
 }
 
 const rfpQuestion = (projectId: number, qid: number, action = "") => `/api/rfp/projects/${projectId}/questions/${qid}${action}`;
+const research = (dossierId: string, action = "") => `/api/dossiers/${encodeURIComponent(dossierId)}/research${action}`;
 const jsonBody = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 
 export const api = {
@@ -648,6 +649,21 @@ export const api = {
   getDossier: (id: string) => request<Dossier>(`/api/dossiers/${encodeURIComponent(id)}`),
   patchDossier: (id: string, body: { taxonomy_id: string } | { status: "shelved"; reason: string }) =>
     request<Dossier>(`/api/dossiers/${encodeURIComponent(id)}`, jsonBody("PATCH", body)),
+  getResearch: (id: string) => request<ResearchView>(research(id)),
+  proposeSources: (id: string) => request<{ run_id: string; round: number }>(research(id, "/propose"), { method: "POST" }),
+  addResearchSource: (id: string, body: { title: string; publisher: string; url: string; category: SourceCategory; why: string; how: string }) =>
+    request<ResearchSource>(research(id, "/sources"), jsonBody("POST", body)),
+  removeResearchSource: (id: string, sourceId: string) =>
+    request<{ deleted: string }>(research(id, `/sources/${encodeURIComponent(sourceId)}`), { method: "DELETE" }),
+  uploadResearchFile: (id: string, sourceId: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<ResearchSource>(research(id, `/sources/${encodeURIComponent(sourceId)}/file`), { method: "POST", body: form });
+  },
+  approveSourcePlan: (id: string) => request<ResearchRound>(research(id, "/plan/approve"), { method: "POST" }),
+  writeNote: (id: string) => request<{ run_id: string }>(research(id, "/note"), { method: "POST" }),
+  approveNote: (id: string) => request<ResearchRound>(research(id, "/note/approve"), { method: "POST" }),
+  rejectNote: (id: string, reason: string) => request<ResearchRound>(research(id, "/note/reject"), jsonBody("POST", { reason })),
   newTaxonomyVersion: (taxonomyId: string, body: unknown) =>
     request(`/api/taxonomies/${taxonomyId}/versions`, { method: "POST", body: JSON.stringify(body) }),
   ratifyTaxonomy: (taxonomyId: string, body: { version: number }) =>

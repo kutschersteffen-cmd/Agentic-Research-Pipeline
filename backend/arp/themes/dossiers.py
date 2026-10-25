@@ -25,6 +25,7 @@ from arp.storage.locks import KeyedLock
 from arp.storage.run_store import RunStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 from arp.storage.taxonomy_store import TaxonomyStore
+from arp.themes.research import ResearchRecord
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +182,36 @@ def _find_companies(d: Dossier, run_store: RunStore, theme_runs: list[RunManifes
     return state, detail, href
 
 
-def derive_steps(d: Dossier, run_store: RunStore, taxonomy_store: TaxonomyStore,
+def _research(d: Dossier, record: ResearchRecord, latest_ratified: int | None) -> tuple[StepState, str, str | None]:
+    if latest_ratified is None:
+        return "not_started", "ratify a taxonomy first", None
+    href, r = f"#/themes/{d.dossier_id}/research", record.latest
+    note = r.note if r else None
+    if r is None:
+        return "not_started", "propose sources", href
+    if r.plan_status == "proposing":
+        return "running", "proposing sources", href
+    if r.plan_status == "proposal_failed":
+        return "failed", "source proposal failed", href
+    if r.plan_status == "proposed":
+        if note and note.status == "rejected":
+            return "waiting", f"note rejected: {note.reject_reason}", href
+        return "waiting", f"approve {len(r.sources)} sources" if r.sources else "add sources", href
+    if note is None or note.status == "rejected":
+        return "waiting", "write the note", href
+    if note.status == "writing":
+        return "running", "writing note", href
+    if note.status == "write_failed":
+        return "failed", f"note failed: {note.error}", href
+    if note.status == "written":
+        return "waiting", "approve the note", href
+    detail = f"note r{r.round} approved by {note.approved_by}"
+    if latest_ratified > r.taxonomy_version:
+        return "waiting", f"{detail} · older than v{latest_ratified}", href
+    return "done", detail, href
+
+
+def derive_steps(d: Dossier, run_store: RunStore, taxonomy_store: TaxonomyStore, research: ResearchRecord,
                  theme_runs: list[RunManifest] | None = None) -> list[DossierStep]:
     """The five steps, read fresh from the stores. Pass `theme_runs` to share one run listing across dossiers."""
     latest_ratified = None
@@ -203,7 +233,7 @@ def derive_steps(d: Dossier, run_store: RunStore, taxonomy_store: TaxonomyStore,
     states = [
         _spot(d, run_store),
         define,
-        ("not_built", "coming next", None),
+        _research(d, research, latest_ratified),
         _find_companies(d, run_store, theme_runs, latest_ratified),
         ("not_built", "coming next", None),
     ]
