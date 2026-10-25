@@ -8,7 +8,7 @@ import typer
 
 from arp.cli._shared import _registry, _resolve_taxonomy_ref_or_exit, _taxonomy_store
 from arp.config import get_settings
-from arp.discovery.site_finder import DuckDuckGoSearchClient
+from arp.discovery.site_finder import build_web_search_client
 from arp.llm.factory import build_llm_client
 from arp.research.activity_generator import build_theme, build_theme_industry_anchored
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
@@ -37,7 +37,7 @@ def taxonomy_discover_sources(
     running a derivation with --method authority_source or
     --method etf_index_holdings."""
     settings = get_settings()
-    search_client = DuckDuckGoSearchClient(settings.discovery_user_agent)
+    search_client = build_web_search_client(settings.discovery_user_agent)
 
     async def _run():
         return await discover_authority_sources(name, search_client), await discover_thematic_funds(name, search_client)
@@ -134,7 +134,7 @@ def taxonomy_create(
 
     elif method == DerivationMethod.NEWS_TRANSCRIPT_MINING:
         companies = load_company_universe(universe) if universe else None
-        search_client = DuckDuckGoSearchClient(settings.discovery_user_agent)
+        search_client = build_web_search_client(settings.discovery_user_agent)
         theme, notes, _usage = asyncio.run(
             build_theme_from_news_and_transcripts(
                 name, description, llm, search_client=search_client, companies=companies,

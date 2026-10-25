@@ -11,7 +11,7 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_llm_client, get_registry, get_taxonomy_store, settings_dep
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
-from arp.discovery.site_finder import DuckDuckGoSearchClient
+from arp.discovery.site_finder import build_web_search_client
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.research.activity_generator import build_theme, build_theme_industry_anchored
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
@@ -58,7 +58,7 @@ async def discover_sources(req: DiscoverSourcesRequest, settings: Settings = Dep
     Ranking needs an LLM; if no API key is configured, the search results
     are still returned, just unranked, rather than failing the whole step.
     """
-    search_client = DuckDuckGoSearchClient(settings.discovery_user_agent)
+    search_client = build_web_search_client(settings.discovery_user_agent)
     authority = await discover_authority_sources(req.name, search_client)
     funds = await discover_thematic_funds(req.name, search_client)
 
@@ -185,7 +185,7 @@ async def create_taxonomy(
             raise HTTPException(422, str(exc)) from exc
 
     elif method == DerivationMethod.NEWS_TRANSCRIPT_MINING:
-        search_client = DuckDuckGoSearchClient(settings.discovery_user_agent) if req.mine_news else None
+        search_client = build_web_search_client(settings.discovery_user_agent) if req.mine_news else None
         try:
             theme, notes, _usage = await build_theme_from_news_and_transcripts(
                 req.name, req.description, llm,

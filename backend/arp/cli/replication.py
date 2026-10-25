@@ -11,7 +11,7 @@ from arp.cli._shared import _portfolio_store, _run_store
 from arp.config import Settings, get_settings
 from arp.db.session import require_dsn
 from arp.discovery.academic_search import ArxivSearchClient, CompositeSearchClient, SemanticScholarSearchClient
-from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient
+from arp.discovery.site_finder import WebSearchClient, build_web_search_client
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.replication.characteristics_data import CsvCharacteristicSource
 from arp.replication.cpcv import run_pbo_analysis
@@ -52,14 +52,14 @@ def _price_source(prices: Path, price_kind: str) -> PriceDataSource:
 
 def _build_search_client(source: str, settings: Settings) -> WebSearchClient:
     if source == "duckduckgo":
-        return DuckDuckGoSearchClient(settings.discovery_user_agent)
+        return build_web_search_client(settings.discovery_user_agent)
     if source == "arxiv":
         return ArxivSearchClient()
     if source == "semanticscholar":
         return SemanticScholarSearchClient()
     if source == "all":
         return CompositeSearchClient(
-            [ArxivSearchClient(), SemanticScholarSearchClient(), DuckDuckGoSearchClient(settings.discovery_user_agent)]
+            [ArxivSearchClient(), SemanticScholarSearchClient(), build_web_search_client(settings.discovery_user_agent)]
         )
     raise typer.BadParameter(f"--source must be one of duckduckgo, arxiv, semanticscholar, all -- got {source!r}")
 

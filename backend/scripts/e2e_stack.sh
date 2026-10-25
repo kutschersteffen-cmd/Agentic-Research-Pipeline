@@ -17,6 +17,7 @@ export ARP_NEO4J_URI=${ARP_NEO4J_URI-bolt://localhost:7688} ARP_NEO4J_PASSWORD=$
 root=$(cd "$(dirname "$0")/../.." && pwd)
 state=${TMPDIR:-/tmp}/arp-e2e
 mkdir -p "$state"
+[ -n "${ARP_STANDINS_DIR:-}" ] && mkdir -p "$ARP_STANDINS_DIR" && export ARP_STANDINS_DIR  # test stand-ins (arp/standins.py)
 
 wait_for() {  # wait_for URL NAME LOG
   for _ in $(seq 1 60); do curl -sf "$1" >/dev/null && return 0; sleep 1; done

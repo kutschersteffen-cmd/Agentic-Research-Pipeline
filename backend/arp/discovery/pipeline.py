@@ -13,7 +13,7 @@ from arp.discovery.downloader import download_documents
 from arp.discovery.refresh import refresh_hook
 from arp.discovery.report_finding import search_candidates, select_candidates
 from arp.discovery.site_check import check_homepage
-from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient, homepage_from_ids, resolve_company_homepage
+from arp.discovery.site_finder import WebSearchClient, build_web_search_client, homepage_from_ids, resolve_company_homepage
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.esef import EsefDocumentSource
 from arp.ingestion.indexing_config import IndexingConfig
@@ -175,7 +175,7 @@ async def execute_discovery_run(
     like any discovered document.
     """
     job_manager = JobManager(run_store)
-    search_client = search_client or DuckDuckGoSearchClient(settings.discovery_user_agent, transport=transport)
+    search_client = search_client or build_web_search_client(settings.discovery_user_agent, transport=transport)
     change_detector = ChangeDetector(
         state_dir=settings.discovery_state_dir,
         global_events_path=settings.documents_dir / "_events.jsonl",

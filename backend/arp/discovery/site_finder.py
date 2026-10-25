@@ -60,6 +60,15 @@ class DuckDuckGoSearchClient(WebSearchClient):
         return results
 
 
+def build_web_search_client(user_agent: str, *, transport: httpx.AsyncBaseTransport | None = None) -> WebSearchClient:
+    """The app's one web search client: DuckDuckGo, or the test stand-in when ARP_STANDINS_DIR is set."""
+    from arp import standins
+
+    if (folder := standins.active_dir()) is not None:
+        return standins.StandInSearchClient(folder)
+    return DuckDuckGoSearchClient(user_agent, transport=transport)
+
+
 def _unwrap_ddg_redirect(href: str) -> str | None:
     parsed = urlparse(href)
     if parsed.netloc.endswith("duckduckgo.com") and parsed.path == "/l/":

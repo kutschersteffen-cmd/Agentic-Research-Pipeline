@@ -186,7 +186,7 @@ def test_identity_name_only_edgar_match_passes_with_its_cik(tmp_path, monkeypatc
             return [EdgarNameMatch(ticker="ACME", cik="42", title="Acme Corp")] if name == "Acme Corp" else []
 
     class _NoSearch:
-        def __init__(self, *args):
+        def __init__(self, *args, **kwargs):
             pass
 
         async def search(self, query, max_results=5):

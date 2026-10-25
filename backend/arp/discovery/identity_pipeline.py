@@ -7,7 +7,7 @@ import httpx
 from arp.config import Settings
 from arp.discovery.identity_graph import resolve_company_identity
 from arp.discovery.match_rules import needs_recheck
-from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient
+from arp.discovery.site_finder import WebSearchClient, build_web_search_client
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_company_batch
@@ -61,7 +61,7 @@ async def execute_identity_run(
     company, not something paid again on every discovery run.
     """
     edgar = edgar or EdgarDocumentSource(settings.edgar_user_agent, settings.cache_dir)
-    search_client = search_client or DuckDuckGoSearchClient(settings.discovery_user_agent)
+    search_client = search_client or build_web_search_client(settings.discovery_user_agent)
 
     idmap = IdentifierMapStore(settings.identifier_map_path)
     previous = (
