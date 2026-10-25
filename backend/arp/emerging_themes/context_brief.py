@@ -8,6 +8,7 @@ from __future__ import annotations
 import csv
 import logging
 import re
+from decimal import ROUND_HALF_UP, Decimal
 from functools import cache
 from pathlib import Path
 
@@ -39,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 _ISIC_CSV = Path(__file__).parent / "reference" / "isic4_divisions.csv"
 _NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
+_EVIDENCE_ID = re.compile(r"\bE\d+\b")
 _ACTIONS = ("capex", "hiring", "orders", "capacity", "partnership")
 
 _SYSTEM_PROMPT = """\
@@ -51,7 +53,8 @@ Return:
 the evidence shows it doing, citing the items that cover that company.
 - groups: activities shared by two or more of those companies, each with the company ids that share it.
 
-Every sentence and phrase cites the ids (e.g. "E3") of the items it rests on. Write short, neutral, \
+Every sentence and phrase cites the ids (e.g. "E3") of the items it rests on, in evidence_ids only, \
+never in the text. Write short, neutral, \
 factual sentences. No promotional language, no forecasts, and no figure the cited quotes do not state. \
 Do not restate dates, source counts or scores: they are shown separately. No outside knowledge."""
 
@@ -169,7 +172,7 @@ def _check_draft(draft: _ContextBriefDraft, pool: list, unclassified: list[str])
         for s in raw:
             ids = in_pool_order(s.evidence_ids)
             quotes = [by_id[i].quote for i in ids if isinstance(by_id[i], BriefQuoteEvidence)]
-            if not ids or any(not any(n in q for q in quotes) for n in _NUMBER.findall(s.text)):
+            if not ids or any(not any(n in q for q in quotes) for n in _NUMBER.findall(_EVIDENCE_ID.sub("", s.text))):
                 dropped += 1
                 continue
             kept.append(BriefStatement(text=s.text, evidence_ids=ids))
@@ -201,7 +204,11 @@ def _check_draft(draft: _ContextBriefDraft, pool: list, unclassified: list[str])
 
 def _pct(fraction: float | None) -> str:
     """The SEC lookup stores a fraction (0.25 = +25%); the model reads it as the card shows it."""
-    return "n/a" if fraction is None else f"{fraction * 100:+.1f}%"
+    if fraction is None:
+        return "n/a"
+    # Half away from zero on the 12-digit value, like the card's fixed() (Python's format rounds 1.25 to 1.2).
+    tenths = Decimal(f"{abs(fraction) * 1000:.12g}").quantize(Decimal(1), ROUND_HALF_UP) / 10
+    return f"{'+' if fraction >= 0 else '-' if tenths else ''}{tenths:.1f}%"
 
 
 def _prompt(candidate: EmergingThemeCandidate, pool: list, companies: list[BriefCompany], unclassified: list[str]) -> str:
