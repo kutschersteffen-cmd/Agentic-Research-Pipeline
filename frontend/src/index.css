@@ -2227,6 +2227,8 @@ a.vc-box:hover { border-color: var(--text); }
 .dossier-step { display: flex; gap: var(--s-3); align-items: flex-start; }
 .dossier-step h2 { margin: 0 0 var(--s-1); }
 .dossier-step p { margin: 0 0 var(--s-1); }
+/* The candidate detail cell does not wrap (td:first-child) and runs wider than the screen; the brief wraps within it. */
+.context-brief { max-width: min(72ch, 100vw - 5rem); white-space: normal; }
 .context-brief li[aria-current] { background: var(--accent-tint); }
 /* Waiting is on a person: the one place the signal colour appears. */
 .dossier-waiting { color: var(--hi-ink); border-color: var(--hi); font-weight: 600; }
