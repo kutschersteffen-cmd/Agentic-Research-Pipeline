@@ -10,6 +10,7 @@ import typer
 from arp.cli._shared import _registry, _run_store, _taxonomy_store
 from arp.company_graph import NOT_CONFIGURED, CompanyGraphError, import_edges, open_graph, parse_edge_csv
 from arp.config import Settings, get_settings
+from arp.db.fields import SchemaRegistry
 from arp.db.session import require_dsn
 from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
@@ -25,6 +26,7 @@ from arp.research.rd_exposure.resolver import RDResolverContext
 from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company
 from arp.research.revenue_exposure.catalogue import load_catalogue
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
+from arp.research.taxonomy_schema import THEME_NOT_ALLOWED, ThemeRunRefused, released_run_schema
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
 from arp.schemas.thematic import ThemeDefinition
 from arp.storage.run_store import RunStore
@@ -157,9 +159,9 @@ def theme_classify_lifecycle(
 @theme_app.command("run")
 def theme_run(
     theme_file: Path = typer.Option(
-        None, "--theme", help="ThemeDefinition JSON (from `theme decompose` or hand-written)."
+        None, "--theme", help="Refused: theme runs start from a taxonomy version (--taxonomy)."
     ),
-    taxonomy_id: str = typer.Option(None, "--taxonomy", help="Load a saved taxonomy instead of --theme."),
+    taxonomy_id: str = typer.Option(None, "--taxonomy", help="The saved taxonomy to run; its version's schema must be released."),
     taxonomy_version: int = typer.Option(None, "--taxonomy-version", help="Defaults to the latest version."),
     universe: Path = typer.Option(..., help="Company universe CSV or JSON."),
     use_sample_icio: bool = typer.Option(
@@ -186,20 +188,23 @@ def theme_run(
     batch: bool = typer.Option(False, "--batch", help="Use the Message Batches API: 50% cheaper, slower."),
 ) -> None:
     settings = batch_settings(get_settings(), batch)
+    if theme_file is not None:
+        typer.echo(THEME_NOT_ALLOWED, err=True)
+        raise typer.Exit(1)
+    if taxonomy_id is None:
+        typer.echo("Provide --taxonomy.", err=True)
+        raise typer.Exit(1)
+    try:
+        taxonomy, schema = released_run_schema(
+            _taxonomy_store(), SchemaRegistry(settings.postgres_dsn), taxonomy_id, taxonomy_version
+        )
+    except ThemeRunRefused as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    theme = taxonomy.theme
+    typer.echo(f"Using taxonomy {taxonomy.taxonomy_id} v{taxonomy.version}, schema {schema.schema_id} v{schema.version}.")
     llm = build_llm_client(settings)
     verifier_llm = build_verifier_llm_client(settings)
-    if theme_file is not None:
-        theme = ThemeDefinition.model_validate_json(theme_file.read_text())
-    elif taxonomy_id is not None:
-        taxonomy = _taxonomy_store().get(taxonomy_id, taxonomy_version)
-        if taxonomy is None:
-            typer.echo(f"Taxonomy not found: {taxonomy_id}", err=True)
-            raise typer.Exit(1)
-        theme = taxonomy.theme
-        typer.echo(f"Using taxonomy {taxonomy.taxonomy_id} v{taxonomy.version} ({taxonomy.status.value}).")
-    else:
-        typer.echo("Provide either --theme or --taxonomy.", err=True)
-        raise typer.Exit(1)
     companies = load_company_universe(universe)
     try:
         indirect_model = resolve_indirect_exposure_model(settings, use_sample_icio=use_sample_icio, use_sample_exiobase=use_sample_exiobase)
@@ -218,14 +223,15 @@ def theme_run(
         catalogue = load_catalogue(revenue_catalogue)
         mappings = [ActivityCatalogueMapping.model_validate(m) for m in json.loads(catalogue_mapping.read_text())]
         revenue_resolver = RevenueResolverContext(
-            catalogue_by_company=catalogue_by_company(catalogue), mappings=mappings, registry=_registry(), settings=settings, isic_model=indirect_model
+            catalogue_by_company=catalogue_by_company(catalogue), mappings=mappings, registry=_registry(), settings=settings, schema=schema,
+            isic_model=indirect_model,
         )
         typer.echo(f"Revenue-exposure resolution enabled ({len(mappings)} confirmed activity mapping(s)).")
 
     rd_resolver = None
     if enable_rd_exposure:
         rd_resolver = RDResolverContext(
-            registry=_registry(), settings=settings, isic_model=indirect_model,
+            registry=_registry(), settings=settings, schema=schema, isic_model=indirect_model,
             search_client=DuckDuckGoSearchClient(settings.discovery_user_agent),
         )
         typer.echo("R&D/news exposure resolution enabled (ideation/innovation-stage activities only).")
@@ -249,6 +255,9 @@ def theme_run(
             revenue_catalogue_path=str(revenue_catalogue) if revenue_catalogue else None,
             catalogue_mapping=mappings,
             enable_rd_exposure=enable_rd_exposure,
+            taxonomy_id=taxonomy.taxonomy_id,
+            taxonomy_version=taxonomy.version,
+            extraction_schema=schema,
         )
     )
     typer.echo(f"Run complete: {run_id} (see runs/{run_id}/)")

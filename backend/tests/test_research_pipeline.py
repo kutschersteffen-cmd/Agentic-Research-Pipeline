@@ -17,6 +17,7 @@ from arp.schemas.revenue_exposure import ActivityCatalogueMapping, CatalogueData
 from arp.schemas.thematic import ActivityDefinition, AgentOpinion, ExposureEstimate, LifecycleStage, MatchVerdict, ThemeDefinition
 from arp.storage.run_store import RunStore
 from tests.postgres_helpers import forget_companies, replace_results
+from tests.taxonomy_schema_helpers import registered_schema, released_schema
 
 
 class _FixedDocSource(DocumentSource):
@@ -193,7 +194,7 @@ async def test_match_company_catalogue_hit_skips_qualitative_debate_entirely(tmp
 
     catalogue_rows = [CatalogueDataPoint(data_point_id="d1", company_id="c1", metric="revenue", label="EV Sales", as_pct_of_total=0.4)]
     mappings = [ActivityCatalogueMapping(activity_id=activity.activity_id, metric="revenue", matched_labels=["EV Sales"], rationale="x")]
-    revenue_resolver = RevenueResolverContext(catalogue_by_company={"c1": catalogue_rows}, mappings=mappings, registry=registry, settings=_settings(tmp_path))
+    revenue_resolver = RevenueResolverContext(catalogue_by_company={"c1": catalogue_rows}, mappings=mappings, registry=registry, settings=_settings(tmp_path), schema=released_schema(*theme.activities))
 
     llm = fake_llm({})  # catalogue alone resolves it -- zero LLM calls (no debate, no extraction)
     result = await _match_company(
@@ -225,10 +226,11 @@ async def test_match_company_extraction_hit_skips_qualitative_debate(tmp_path, f
     no_value_draft = ExtractionDraft(value=None, confidence=0.0, citations=[])
     no_value_verifier = VerifierOutput(agrees=True, confidence=0.0, notes="")
 
-    revenue_resolver = RevenueResolverContext(catalogue_by_company={}, mappings=[], registry=registry, settings=_settings(tmp_path))
+    one_at_a_time = _settings(tmp_path).model_copy(update={"max_concurrent_llm_calls": 1})  # fields in schema order
+    revenue_resolver = RevenueResolverContext(catalogue_by_company={}, mappings=[], registry=registry, settings=one_at_a_time, schema=released_schema(*theme.activities))
     llm = fake_llm({
-        "ExtractionDraft": [revenue_draft, no_value_draft],  # revenue hit, capex miss
-        "VerifierOutput": [revenue_verifier, no_value_verifier],
+        "ExtractionDraft": [revenue_draft, no_value_draft, no_value_draft],  # revenue hit, capex and opex miss
+        "VerifierOutput": [revenue_verifier, no_value_verifier, no_value_verifier],
     })
 
     result = await _match_company(
@@ -239,6 +241,7 @@ async def test_match_company_extraction_hit_skips_qualitative_debate(tmp_path, f
     assert match.revenue_exposure.revenue.source == "extracted"
     assert match.revenue_exposure.revenue.value_pct == 0.22
     assert match.revenue_exposure.capex.source == "unresolved"
+    assert match.revenue_exposure.opex.source == "unresolved"
     assert match.exposure_estimate == ExposureEstimate.SIGNIFICANT
 
 
@@ -265,10 +268,10 @@ async def test_match_company_revenue_unresolved_falls_through_to_qualitative_deb
         adjudicator_rationale="Clear, specific evidence.", citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=good_quote)],
     )
 
-    revenue_resolver = RevenueResolverContext(catalogue_by_company={}, mappings=[], registry=registry, settings=_settings(tmp_path))
+    revenue_resolver = RevenueResolverContext(catalogue_by_company={}, mappings=[], registry=registry, settings=_settings(tmp_path), schema=released_schema(*theme.activities))
     llm = fake_llm({
-        "ExtractionDraft": [no_value_draft, no_value_draft],  # revenue miss, capex miss
-        "VerifierOutput": [no_value_verifier, no_value_verifier],
+        "ExtractionDraft": [no_value_draft, no_value_draft, no_value_draft],  # revenue, capex and opex miss
+        "VerifierOutput": [no_value_verifier, no_value_verifier, no_value_verifier],
         "AgentOpinion": [advocate, opposing],
         "AdjudicatorOutput": [adjudication],
     })
@@ -327,7 +330,7 @@ async def test_match_company_rd_exposure_never_short_circuits_debate(tmp_path, f
         "VerifierOutput": [no_rd_verifier],
     })
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
-    rd_resolver = RDResolverContext(registry=registry, settings=_settings(tmp_path))  # no search client -> news_mentions unresolved
+    rd_resolver = RDResolverContext(registry=registry, settings=_settings(tmp_path), schema=released_schema(*theme.activities))  # no search client -> news_mentions unresolved
 
     result = await _match_company(company, theme, registry=registry, llm=llm, settings=_settings(tmp_path), rd_resolver=rd_resolver)
     match = result.matches[0]
@@ -346,7 +349,7 @@ async def test_match_company_rd_exposure_none_for_mature_activity(tmp_path, fake
     company = CompanyRef(company_id="c1", name="Shoe Co")
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
     llm = fake_llm({})  # no evidence matches seed keywords -> finalize_no_evidence, zero LLM calls
-    rd_resolver = RDResolverContext(registry=registry, settings=_settings(tmp_path))
+    rd_resolver = RDResolverContext(registry=registry, settings=_settings(tmp_path), schema=released_schema(*theme.activities))
 
     result = await _match_company(company, theme, registry=registry, llm=llm, settings=_settings(tmp_path), rd_resolver=rd_resolver)
     match = result.matches[0]
@@ -380,7 +383,7 @@ async def test_match_company_arbitration_excludes_qualitative_on_revenue_short_c
 
     catalogue_rows = [CatalogueDataPoint(data_point_id="d1", company_id="c1", metric="revenue", label="EV Sales", as_pct_of_total=0.4)]
     mappings = [ActivityCatalogueMapping(activity_id=activity.activity_id, metric="revenue", matched_labels=["EV Sales"], rationale="x")]
-    revenue_resolver = RevenueResolverContext(catalogue_by_company={"c1": catalogue_rows}, mappings=mappings, registry=registry, settings=_settings(tmp_path))
+    revenue_resolver = RevenueResolverContext(catalogue_by_company={"c1": catalogue_rows}, mappings=mappings, registry=registry, settings=_settings(tmp_path), schema=released_schema(*theme.activities))
     llm = fake_llm({})
 
     result = await _match_company(company, theme, registry=registry, llm=llm, settings=_settings(tmp_path), revenue_resolver=revenue_resolver)
@@ -404,7 +407,7 @@ async def test_match_company_arbitration_disagreement_flags_review_when_base_fla
 
     catalogue_rows = [CatalogueDataPoint(data_point_id="d1", company_id="c1", metric="revenue", label="EV Sales", as_pct_of_total=0.02)]
     mappings = [ActivityCatalogueMapping(activity_id=activity.activity_id, metric="revenue", matched_labels=["EV Sales"], rationale="x")]
-    revenue_resolver = RevenueResolverContext(catalogue_by_company={"c1": catalogue_rows}, mappings=mappings, registry=registry, settings=_settings(tmp_path))
+    revenue_resolver = RevenueResolverContext(catalogue_by_company={"c1": catalogue_rows}, mappings=mappings, registry=registry, settings=_settings(tmp_path), schema=released_schema(*theme.activities))
     indirect_model = build_model(load_sample_icio(), "test-sample")  # company IS its own core sector -> high self-exposure
     llm = fake_llm({})
 
@@ -436,6 +439,7 @@ async def test_resume_theme_run_skips_already_completed_companies(tmp_path, fake
         settings,
         store,
         universe_path=str(universe_path),
+        extraction_schema=registered_schema(*theme.activities),
     )
     # Simulate c1 having already completed in a prior (interrupted) invocation,
     # and that the run was cancelled before c2 got a chance to run.
@@ -490,7 +494,9 @@ async def test_resume_theme_run_unknown_universe_path_raises(tmp_path, fake_llm,
     settings = _settings(tmp_path)
     store = RunStore(pg, settings.runs_dir)
     theme, _activity = _theme()
-    run_id = create_theme_run(theme, [CompanyRef(company_id="c1", name="Acme")], settings, store)  # no universe_path
+    run_id = create_theme_run(
+        theme, [CompanyRef(company_id="c1", name="Acme")], settings, store, extraction_schema=registered_schema(*theme.activities)
+    )  # no universe_path
     forget_companies(store, run_id)  # nor stored companies: a run from before either existed
 
     llm = fake_llm({})

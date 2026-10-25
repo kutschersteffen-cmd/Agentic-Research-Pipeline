@@ -6,14 +6,16 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.research.revenue_exposure.resolver import (
     RevenueResolverContext,
     band_exposure,
+    extract_schema_fields,
     is_sector_relevant,
     resolve_company_activity_exposure,
     resolve_from_catalogue,
-    resolve_from_extraction,
 )
+from arp.research.taxonomy_schema import field_id_for
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping, CatalogueDataPoint
 from arp.schemas.thematic import ActivityDefinition, ExposureEstimate
+from tests.taxonomy_schema_helpers import released_schema
 
 
 class _FixedDocSource(DocumentSource):
@@ -98,9 +100,9 @@ def test_resolve_from_catalogue_mapped_label_absent_from_rows_is_unresolved():
     assert result.source == "unresolved"
 
 
-# --- resolve_from_extraction --------------------------------------------------
+# --- extract_schema_fields ----------------------------------------------------
 
-async def test_resolve_from_extraction_finds_explicit_percentage(tmp_path, fake_llm):
+async def test_extract_schema_fields_finds_explicit_percentage(tmp_path, fake_llm):
     company = CompanyRef(company_id="c1", name="Acme Motors")
     doc = SourceDocument(
         company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K",
@@ -112,21 +114,29 @@ async def test_resolve_from_extraction_finds_explicit_percentage(tmp_path, fake_
     llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [verifier]})
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
 
-    result, usage = await resolve_from_extraction(company, _activity(), "revenue", documents=[doc], registry=registry, llm=llm, settings=_settings(tmp_path))
+    activity = _activity()
+    schema = released_schema(activity)
+    fid = field_id_for(schema, activity.activity_id, "revenue")
+    extracted, usage = await extract_schema_fields(company, schema, [fid], documents=[doc], registry=registry, llm=llm, settings=_settings(tmp_path))
+    result = extracted[fid]
     assert result.source == "extracted"
+    assert result.citation.schema_version == f"{schema.schema_id}:v1"
     assert result.value_pct == 0.22
     assert result.citation is not None and result.citation.grounded is True
     assert usage.input_tokens > 0
 
 
-async def test_resolve_from_extraction_no_evidence_is_unresolved_without_llm_call(tmp_path, fake_llm):
+async def test_extract_schema_fields_no_evidence_is_unresolved_without_llm_call(tmp_path, fake_llm):
     company = CompanyRef(company_id="c1", name="Shoe Co")
     doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
     llm = fake_llm({})
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
 
-    result, _usage = await resolve_from_extraction(company, _activity(), "revenue", documents=[doc], registry=registry, llm=llm, settings=_settings(tmp_path))
-    assert result.source == "unresolved"
+    activity = _activity()
+    schema = released_schema(activity)
+    fid = field_id_for(schema, activity.activity_id, "revenue")
+    extracted, _usage = await extract_schema_fields(company, schema, [fid], documents=[doc], registry=registry, llm=llm, settings=_settings(tmp_path))
+    assert extracted[fid].source == "unresolved"
     assert llm.calls == []
 
 
@@ -138,7 +148,7 @@ async def test_catalogue_hit_short_circuits_extraction(tmp_path, fake_llm):
     catalogue_rows = [CatalogueDataPoint(data_point_id="d1", company_id="c1", metric="revenue", label="EV Sales", as_pct_of_total=0.4)]
     mappings = [ActivityCatalogueMapping(activity_id=activity.activity_id, metric="revenue", matched_labels=["EV Sales"], rationale="x")]
     registry = DocumentSourceRegistry([_FixedDocSource([])])
-    ctx = RevenueResolverContext(catalogue_by_company={"c1": catalogue_rows}, mappings=mappings, registry=registry, settings=_settings(tmp_path))
+    ctx = RevenueResolverContext(catalogue_by_company={"c1": catalogue_rows}, mappings=mappings, registry=registry, settings=_settings(tmp_path), schema=released_schema(activity))
 
     llm = fake_llm({})  # no extraction/LLM calls expected for revenue (catalogue hit); capex has no mapping either
     result, _usage = await resolve_company_activity_exposure(company, activity, company_isic=None, documents=[], ctx=ctx, llm=llm)
@@ -151,7 +161,7 @@ async def test_irrelevant_sector_skips_extraction(tmp_path, fake_llm):
     company = CompanyRef(company_id="c1", name="Acme Retail")
     activity = _activity(core_isic_codes=["29"])  # motor vehicles
     registry = DocumentSourceRegistry([_FixedDocSource([])])
-    ctx = RevenueResolverContext(catalogue_by_company={}, mappings=[], registry=registry, settings=_settings(tmp_path))
+    ctx = RevenueResolverContext(catalogue_by_company={}, mappings=[], registry=registry, settings=_settings(tmp_path), schema=released_schema(activity))
 
     llm = fake_llm({})  # company_isic="45" (retail) doesn't overlap "29" -- extraction must be skipped
     result, _usage = await resolve_company_activity_exposure(company, activity, company_isic="45", documents=[], ctx=ctx, llm=llm)

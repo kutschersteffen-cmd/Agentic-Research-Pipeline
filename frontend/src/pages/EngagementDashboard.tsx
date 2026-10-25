@@ -142,9 +142,8 @@ export function EngagementDashboard() {
       <section className="card">
         <h2>Trigger &amp; detection scan</h2>
         <p className="help-text">
-          Screens the given companies against caller-supplied controversy signals (no live data-provider feed is
-          wired up — see the architecture doc) and opens a new issue for every signal without an already-open issue
-          on the same theme, plus an SLA sweep flagging stalled issues.
+          Opens an issue for each signal below unless one is already open on that theme, and flags issues past their
+          SLA. You enter the signals here; no live feed is connected.
         </p>
         <div className="field-label" id="screen-companies-label">Companies to screen</div>
         <div className="table-wrap" role="group" aria-labelledby="screen-companies-label">

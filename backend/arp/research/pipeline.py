@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 from arp.config import Settings
+from arp.db.fields import SchemaRegistry
 from arp.discovery.site_finder import DuckDuckGoSearchClient
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
@@ -20,6 +21,7 @@ from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_c
 from arp.research.revenue_exposure.catalogue import load_catalogue
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.schemas.common import CompanyRef
+from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
 from arp.schemas.review import sector_item_key
 from arp.schemas.thematic import CompanyMatch, ThemeDefinition
@@ -123,6 +125,7 @@ def create_theme_run(
     enable_rd_exposure: bool = False,
     taxonomy_id: str | None = None,
     taxonomy_version: int | None = None,
+    extraction_schema: DataPointSchema | None = None,
 ) -> str:
     """Creates the run manifest synchronously (fast, file-only) so an API
     caller gets a run_id back immediately; execute_theme_run does the actual
@@ -150,6 +153,9 @@ def create_theme_run(
             **({"batch": True} if settings.llm_batch else {}),
             "taxonomy_id": taxonomy_id,
             "taxonomy_version": taxonomy_version,
+            # The taxonomy version's released schema: the only fields the exposure tiers extract.
+            "extraction_schema_id": extraction_schema.schema_id if extraction_schema else None,
+            "extraction_schema_version": extraction_schema.version if extraction_schema else None,
         },
         len(companies),
         model=settings.llm_model,
@@ -189,6 +195,10 @@ async def resume_theme_run(
 
     run_dir = run_store.run_dir(run_id)
     theme = ThemeDefinition.model_validate_json((run_dir / "theme.json").read_text())
+    # check_resumable refused runs without one
+    schema = SchemaRegistry(settings.postgres_dsn).get(
+        manifest.params["extraction_schema_id"], manifest.params["extraction_schema_version"]
+    )
 
     indirect_model = resolve_indirect_exposure_model(
         settings,
@@ -202,13 +212,13 @@ async def resume_theme_run(
         mappings = [ActivityCatalogueMapping.model_validate(m) for m in json.loads(mapping_path.read_text())] if mapping_path.exists() else []
         revenue_resolver = RevenueResolverContext(
             catalogue_by_company=catalogue_by_company(load_catalogue(Path(revenue_catalogue_path))),
-            mappings=mappings, registry=registry, settings=settings, isic_model=indirect_model,
+            mappings=mappings, registry=registry, settings=settings, schema=schema, isic_model=indirect_model,
         )
 
     rd_resolver = None
     if manifest.params.get("enable_rd_exposure"):
         rd_resolver = RDResolverContext(
-            registry=registry, settings=settings, isic_model=indirect_model,
+            registry=registry, settings=settings, schema=schema, isic_model=indirect_model,
             search_client=DuckDuckGoSearchClient(settings.discovery_user_agent),
         )
 
@@ -295,6 +305,9 @@ async def run_thematic_universe(
     revenue_catalogue_path: str | None = None,
     catalogue_mapping: list[ActivityCatalogueMapping] | None = None,
     enable_rd_exposure: bool = False,
+    taxonomy_id: str | None = None,
+    taxonomy_version: int | None = None,
+    extraction_schema: DataPointSchema | None = None,
 ) -> str:
     """Convenience wrapper (create + execute in one call) for synchronous
     callers such as the CLI, where blocking until completion is expected.
@@ -311,7 +324,8 @@ async def run_thematic_universe(
         theme, companies, settings, run_store,
         universe_path=universe_path, use_sample_icio=use_sample_icio, use_sample_exiobase=use_sample_exiobase,
         revenue_catalogue_path=revenue_catalogue_path, catalogue_mapping=catalogue_mapping,
-        enable_rd_exposure=enable_rd_exposure,
+        enable_rd_exposure=enable_rd_exposure, taxonomy_id=taxonomy_id, taxonomy_version=taxonomy_version,
+        extraction_schema=extraction_schema,
     )
     return await execute_theme_run(
         run_id,

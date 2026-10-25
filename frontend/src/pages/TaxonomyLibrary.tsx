@@ -17,6 +17,7 @@ import type {
 } from "../types";
 import { activatable } from "../lib/activatable";
 import { ConfirmSignedIn } from "../components/ConfirmSignedIn";
+import { TaxonomySchemaLine } from "../components/TaxonomySchemaLine";
 
 const METHOD_LABELS: Record<DerivationMethod, string> = {
   llm_draft: "LLM draft (freeform)",
@@ -81,6 +82,26 @@ export function TaxonomyLibrary({ onUseInTheme }: Props = {}) {
       {sub === "universe" && <UniverseBuilderView />}
       {sub === "overlap" && <OverlapView />}
     </div>
+  );
+}
+
+/** Every version of one taxonomy, latest first, each with its extraction schema line. */
+function TaxonomyVersions({ taxonomy }: { taxonomy: Taxonomy }) {
+  const [versions, setVersions] = useState<Taxonomy[]>([]);
+  useEffect(() => {
+    api.listTaxonomyVersions(taxonomy.taxonomy_id).then((r) => setVersions([...r.versions].reverse())).catch(() => {});
+  }, [taxonomy.taxonomy_id, taxonomy.version, taxonomy.status]);
+  return (
+    <ul className="plain-list" aria-label="Versions">
+      {versions.map((v) => (
+        <li key={`${v.version}-${v.status}`}>
+          <strong>
+            v{v.version} · {v.status}
+          </strong>
+          <TaxonomySchemaLine taxonomy={v} />
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -221,6 +242,7 @@ function LibraryView({
                           </button>
                         </div>
                       )}
+                      <TaxonomyVersions taxonomy={t} />
                       <div className="toolbar">
                         <label className="checkbox-label">
                           <input type="checkbox" checked={useSampleIcio} onChange={(e) => setUseSampleIcio(e.target.checked)} />

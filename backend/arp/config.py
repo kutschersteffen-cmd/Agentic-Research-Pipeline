@@ -192,9 +192,8 @@ class Settings(BaseSettings):
     )
     require_ratified_taxonomy: bool = Field(
         default=False,
-        description="Human curation gate for theme runs (spec Step 0d): when true, POST /api/themes/runs refuses "
-        "a taxonomy_id whose latest/selected version is still DRAFT. Off by default to preserve today's "
-        "iterate-on-a-draft workflow; see arp.storage.taxonomy_store.ensure_taxonomy_usable_for_run.",
+        description="No longer has any effect: theme runs always need a ratified taxonomy version with a released "
+        "schema (arp.research.taxonomy_schema.released_run_schema), whatever this says.",
     )
 
     # Engagement & voting stewardship module

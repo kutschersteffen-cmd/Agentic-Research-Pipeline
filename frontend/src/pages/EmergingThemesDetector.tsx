@@ -20,6 +20,7 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
   const [runId, setRunId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [gated, setGated] = useState<{ taxonomyId: string; reason: string } | null>(null);
 
   const [recentRuns, setRecentRuns] = useState<RunManifest[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -128,7 +129,10 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
       await api.startThemeRun({ taxonomy_id: candidate.promoted_to_taxonomy_id, universe_path: universePath });
       onNavigate?.("theme");
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      // A promoted taxonomy is a draft: it runs once ratified and its schema released in the Library.
+      setGated(message.startsWith("409") ? { taxonomyId: candidate.promoted_to_taxonomy_id, reason: message.replace(/^409: /, "") } : null);
+      if (!message.startsWith("409")) setError(message);
     } finally {
       setBusy(false);
     }
@@ -346,6 +350,14 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                               <button onClick={() => runCompanyExposure(c)} disabled={busy} title="Runs the full Revenue/Capex/Demand/Enablement exposure pipeline (Tool 1) against this taxonomy.">
                                 Run company exposure
                               </button>
+                              {gated && gated.taxonomyId === c.promoted_to_taxonomy_id && (
+                                <span className="muted" role="status">
+                                  {gated.reason}{" "}
+                                  <button className="secondary" onClick={() => onNavigate?.("taxonomy")}>
+                                    Open the Taxonomy Library
+                                  </button>
+                                </span>
+                              )}
                             </p>
                           )}
                           {c.status === "rejected" && c.decision_reason && (
