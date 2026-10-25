@@ -7,7 +7,6 @@ from pydantic import BaseModel, field_validator
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store, get_taxonomy_store
-from arp.schemas.common import now_iso
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.themes.dossiers import Dossier, DossierStep, DossierStore, TaxonomyTaken, current_step, derive_steps, get_dossier_store
@@ -121,10 +120,7 @@ def patch_dossier(
         except TaxonomyTaken as exc:
             raise HTTPException(409, str(exc)) from exc
     if req.status == "shelved":
-        def shelve(d: Dossier) -> None:
-            d.status, d.shelved_by, d.shelved_at, d.shelve_reason = "shelved", principal.name, now_iso(), req.reason.strip()
-
-        dossier = store.update(dossier_id, shelve)
+        dossier = store.shelve(dossier_id, principal.name, req.reason.strip())
     if dossier is None:
         raise _unknown(dossier_id)
     return view(dossier)

@@ -6,7 +6,6 @@ and decisions; every step state is derived on read from the records it links to.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
@@ -124,15 +123,13 @@ class DossierStore:
             dossier.taxonomy_id = taxonomy_id
             return self._save(dossier)
 
-    def update(self, dossier_id: str, fn: Callable[[Dossier], None]) -> Dossier | None:
-        if self._path(dossier_id) is None:
-            return None
+    def shelve(self, dossier_id: str, by: str, reason: str) -> Dossier | None:
         self.dossiers_dir.mkdir(parents=True, exist_ok=True)
-        with self._lock.acquire(dossier_id):
+        with self._lock.acquire("taxonomies"):  # the same lock as attach, so neither write loses the other
             dossier = self.get(dossier_id)
             if dossier is None:
                 return None
-            fn(dossier)
+            dossier.status, dossier.shelved_by, dossier.shelved_at, dossier.shelve_reason = "shelved", by, now_iso(), reason
             return self._save(dossier)
 
 
