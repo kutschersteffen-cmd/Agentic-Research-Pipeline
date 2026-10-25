@@ -53,7 +53,7 @@ import type {
 } from "../types";
 import { tagQuery } from "../lib/xbrlTags";
 import { encodeRef, factsUrl, type FactFilters } from "../pages/company/companyQuery";
-import type { CompanyFactRow, CompanySearchHit, CompanySummary, CompanyTransition, FactTrail, ThemeLayers } from "../types";
+import type { CompanyFactRow, CompanySearchHit, CompanySummary, CompanyTransition, FactTrail, Taxonomy, ThemeLayers } from "../types";
 import type {
   DatasetSummary,
   DecisionComparison,
@@ -628,6 +628,17 @@ export const api = {
     request(`/api/taxonomies/${taxonomyId}/versions`, { method: "POST", body: JSON.stringify(body) }),
   ratifyTaxonomy: (taxonomyId: string, body: { version: number }) =>
     request(`/api/taxonomies/${taxonomyId}/ratify`, { method: "POST", body: JSON.stringify(body) }),
+  listTaxonomyVersions: (taxonomyId: string) => request<{ versions: Taxonomy[] }>(`/api/taxonomies/${taxonomyId}/versions`),
+  getTaxonomySchema: (taxonomyId: string, version: number) =>
+    request<DataPointSchema>(`/api/taxonomies/${taxonomyId}/versions/${version}/schema`),
+  generateTaxonomySchema: (taxonomyId: string, version: number) =>
+    request<DataPointSchema>(`/api/taxonomies/${taxonomyId}/versions/${version}/schema`, { method: "POST" }),
+  listSchemas: () =>
+    request<{ schema_id: string; version: number; name: string; release_flag: boolean; saved_at: string }[]>("/api/extraction/schemas"),
+  getSchema: (schemaId: string, version: number) =>
+    request<DataPointSchema>(`/api/extraction/schemas/${encodeURIComponent(schemaId)}?version=${version}`),
+  releaseSchema: (schemaId: string, version: number) =>
+    request<DataPointSchema>(`/api/extraction/schemas/${encodeURIComponent(schemaId)}/versions/${version}/release`, { method: "POST" }),
   compareTaxonomies: (body: unknown) => request("/api/taxonomies/compare", { method: "POST", body: JSON.stringify(body) }),
   mergeTaxonomies: (body: unknown) => request("/api/taxonomies/merge", { method: "POST", body: JSON.stringify(body) }),
   mapStandards: (taxonomyId: string, body: unknown) =>

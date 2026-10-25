@@ -17838,7 +17838,7 @@
         "type": "null"
        }
       ],
-      "description": "Load a saved taxonomy instead of an inline theme.",
+      "description": "The saved taxonomy to run; its version's schema must be released.",
       "title": "Taxonomy Id"
      },
      "taxonomy_version": {
@@ -17861,7 +17861,8 @@
        {
         "type": "null"
        }
-      ]
+      ],
+      "description": "Refused: theme runs start from a taxonomy version."
      },
      "universe_path": {
       "anyOf": [
@@ -32247,6 +32248,107 @@
      }
     },
     "summary": "New Taxonomy Version",
+    "tags": [
+     "taxonomies"
+    ]
+   }
+  },
+  "/api/taxonomies/{taxonomy_id}/versions/{version}/schema": {
+   "get": {
+    "operationId": "get_taxonomy_schema_api_taxonomies__taxonomy_id__versions__version__schema_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "taxonomy_id",
+      "required": true,
+      "schema": {
+       "title": "Taxonomy Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "version",
+      "required": true,
+      "schema": {
+       "title": "Version",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DataPointSchema"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Taxonomy Schema",
+    "tags": [
+     "taxonomies"
+    ]
+   },
+   "post": {
+    "description": "Registers the version's generated schema; returns the latest registry version unchanged when its content is the same.",
+    "operationId": "generate_taxonomy_schema_api_taxonomies__taxonomy_id__versions__version__schema_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "taxonomy_id",
+      "required": true,
+      "schema": {
+       "title": "Taxonomy Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "version",
+      "required": true,
+      "schema": {
+       "title": "Version",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DataPointSchema"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Generate Taxonomy Schema",
     "tags": [
      "taxonomies"
     ]

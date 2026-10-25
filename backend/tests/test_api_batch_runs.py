@@ -8,20 +8,35 @@ from fastapi.testclient import TestClient
 from arp.api import deps, run_scheduling
 from arp.api.routers import extraction, financials, identity, themes, tnfd, voting
 from arp.config import Settings
+from arp.db.fields import SchemaRegistry
 from arp.llm.batching_client import BatchingLLMClient
 from arp.orchestration.job_manager import JobManager
+from arp.research.taxonomy_schema import build_taxonomy_schema
+from arp.schemas.taxonomy import DerivationMethod
+from arp.schemas.thematic import ThemeDefinition
 from arp.storage.run_store import RunStore
+from arp.storage.taxonomy_store import TaxonomyStore
 
 COMPANIES = [{"company_id": "c1", "name": "Acme"}]
 SCHEMA = {"schema_id": "s", "name": "s", "fields": []}
 THEME = {"name": "t", "description": "d"}
+
+
+def _released_taxonomy(tmp_path) -> tuple[TaxonomyStore, str]:
+    """Theme runs start from a ratified taxonomy version whose schema is released."""
+    store = TaxonomyStore(tmp_path / "taxonomies")
+    tax = store.create("t", ThemeDefinition.model_validate(THEME), DerivationMethod.MANUAL, "")
+    registry = SchemaRegistry(Settings().postgres_dsn)
+    saved = registry.save(build_taxonomy_schema(store.ratify(tax.taxonomy_id, 1, "own")))
+    registry.release(saved.schema_id, saved.version, released_by="own")
+    return store, tax.taxonomy_id
 
 # router, url, create_*, execute_*, body
 ROUTES = {
     "extraction": (extraction, "/api/extraction/runs", "create_extraction_run", "execute_extraction_run", {"datapoint_schema": SCHEMA}),
     "financials": (financials, "/api/financials/runs", "create_financials_extraction_run", "execute_financials_extraction_run", {}),
     "tnfd": (tnfd, "/api/tnfd/runs", "create_tnfd_extraction_run", "execute_tnfd_extraction_run", {"as_of": "FY2025"}),
-    "themes": (themes, "/api/themes/runs", "create_theme_run", "execute_theme_run", {"theme": THEME}),
+    "themes": (themes, "/api/themes/runs", "create_theme_run", "execute_theme_run", {}),
     "voting": (voting, "/api/voting/runs", "create_voting_run", "execute_voting_run", {}),
     "identity": (identity, "/api/identity/runs", "create_identity_run", "execute_identity_run", {}),
 }
@@ -65,6 +80,10 @@ def start(tmp_path, monkeypatch, pg):
         for dep in (deps.get_registry, deps.get_decision_store, deps.get_xbrl_source, deps.get_taxonomy_store,
                     deps.get_engagement_store, deps.get_edgar_source, deps.get_web_search_client):
             app.dependency_overrides[dep] = lambda: None
+        if name == "themes":
+            taxonomies, taxonomy_id = _released_taxonomy(tmp_path)
+            app.dependency_overrides[deps.get_taxonomy_store] = lambda: taxonomies
+            body = {"taxonomy_id": taxonomy_id}
         res = TestClient(app).post(url or default_url, json={"companies": COMPANIES, **body, **extra})
         assert res.status_code == 200, res.text
         asyncio.run(JOBS[0]())

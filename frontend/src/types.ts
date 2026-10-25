@@ -225,7 +225,10 @@ export interface DataPointSchema {
   description: string;
   fields: FieldDefinition[];
   created_at: string;
+  version?: number;
   release_flag?: boolean;
+  released_by?: string | null;
+  released_at?: string | null;
 }
 
 export interface ExtractedField {

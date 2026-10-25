@@ -41,6 +41,8 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId, initialRun
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
   const [selectedTaxonomyId, setSelectedTaxonomyId] = useState("");
   const [loadedTaxonomy, setLoadedTaxonomy] = useState<Taxonomy | null>(null);
+  const [versions, setVersions] = useState<Taxonomy[]>([]);
+  const [schemaReleased, setSchemaReleased] = useState<boolean | null>(null);
   const [cataloguePath, setCataloguePath] = useState<string | null>(null);
   const [catalogueStatus, setCatalogueStatus] = useState("");
   const [catalogueMappings, setCatalogueMappings] = useState<ActivityCatalogueMapping[]>([]);
@@ -86,11 +88,37 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId, initialRun
     const t = taxonomies.find((tax) => tax.taxonomy_id === taxonomyId);
     if (!t) return;
     setSelectedTaxonomyId(taxonomyId);
+    loadVersion(t);
+    setVersions([t]);
+    api.listTaxonomyVersions(taxonomyId).then((r) => setVersions([...r.versions].reverse())).catch(() => {});
+  }
+
+  function loadVersion(t: Taxonomy) {
     setName(t.theme.name);
     setDescription(t.theme.description);
     setTheme(t.theme);
     setLoadedTaxonomy(t);
   }
+
+  // Only a ratified version whose generated schema is released can run.
+  useEffect(() => {
+    setSchemaReleased(null);
+    if (loadedTaxonomy?.status !== "ratified") return;
+    api
+      .getTaxonomySchema(loadedTaxonomy.taxonomy_id, loadedTaxonomy.version)
+      .then((s) => setSchemaReleased(!!s.release_flag))
+      .catch(() => setSchemaReleased(false));
+  }, [loadedTaxonomy]);
+
+  const runBlocked = !loadedTaxonomy
+    ? "Load a ratified taxonomy version first."
+    : loadedTaxonomy.status !== "ratified"
+      ? "Ratify this version and release its schema first."
+      : schemaReleased === false
+        ? "Release this version's schema in the Taxonomy Library first."
+        : theme && JSON.stringify(theme) !== JSON.stringify(loadedTaxonomy.theme)
+          ? "Save the edits as a new taxonomy version, ratify it and release its schema to run."
+          : null;
 
   function loadFromTaxonomy() {
     loadTaxonomyById(selectedTaxonomyId);
@@ -108,15 +136,14 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId, initialRun
   }
 
   async function startRun() {
-    if (!theme || !universePath) return;
+    if (!loadedTaxonomy) return;
+    if (!universePath) return setError("Choose the company universe first.");
     setBusy(true);
     setError(null);
     try {
-      // Unedited from a saved taxonomy: name it, so the run shows under that taxonomy's "Used by".
-      const fromTaxonomy = loadedTaxonomy && JSON.stringify(theme) === JSON.stringify(loadedTaxonomy.theme);
       const res = await api.startThemeRun({
-        theme,
-        ...(fromTaxonomy ? { taxonomy_id: loadedTaxonomy.taxonomy_id, taxonomy_version: loadedTaxonomy.version } : {}),
+        taxonomy_id: loadedTaxonomy.taxonomy_id,
+        taxonomy_version: loadedTaxonomy.version,
         universe_path: universePath,
         use_sample_icio: useSampleIcio,
         batch,
@@ -268,6 +295,24 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId, initialRun
           <button onClick={loadFromTaxonomy} disabled={!selectedTaxonomyId}>
             Load
           </button>
+          {loadedTaxonomy && versions.length > 0 && (
+            <label className="field-label">
+              Version
+              <select
+                value={loadedTaxonomy.version}
+                onChange={(e) => {
+                  const v = versions.find((x) => x.version === Number(e.target.value));
+                  if (v) loadVersion(v);
+                }}
+              >
+                {versions.map((v) => (
+                  <option key={v.version} value={v.version}>
+                    v{v.version} · {v.status}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
         {loadedTaxonomy && (
           <p className="status-text">
@@ -315,73 +360,74 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId, initialRun
         </section>
       )}
 
-      {theme && (
-        <section className="card">
-          <h2>3. Choose the company universe</h2>
-          <UniversePicker
-            onResolved={(path, count) => {
-              setUniversePath(path);
-              setCompanyCount(count);
-            }}
-          />
-          <label className="checkbox-label">
-            <input type="checkbox" checked={useSampleIcio} onChange={(e) => setUseSampleIcio(e.target.checked)} />
-            Enable indirect (input-output) exposure tier using the bundled sample dataset
-          </label>
-          <p className="help-text">
-            Structural supply-chain exposure via OECD ICIO input-output propagation — catches companies with no
-            direct textual evidence but real economic linkage to the theme's core sectors. The sample dataset is
-            illustrative only; for a real run, configure ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH on the
-            backend instead and leave this off.
-          </p>
+      <section className="card">
+        <h2>3. Choose the company universe</h2>
+        <UniversePicker
+          onResolved={(path, count) => {
+            setUniversePath(path);
+            setCompanyCount(count);
+          }}
+        />
+        <label className="checkbox-label">
+          <input type="checkbox" checked={useSampleIcio} onChange={(e) => setUseSampleIcio(e.target.checked)} />
+          Enable indirect (input-output) exposure tier using the bundled sample dataset
+        </label>
+        <p className="help-text">
+          Structural supply-chain exposure via OECD ICIO input-output propagation — catches companies with no
+          direct textual evidence but real economic linkage to the theme's core sectors. The sample dataset is
+          illustrative only; for a real run, configure ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH on the
+          backend instead and leave this off.
+        </p>
 
-          <p className="help-text" style={{ marginTop: 16 }}>
-            Optional: a structured revenue/CapEx catalogue — resolves exposure from hard disclosed numbers
-            (catalogue match, then extraction from disclosures) before falling back to the qualitative debate above.
-          </p>
-          <input type="file" accept=".csv" aria-label="Revenue/CapEx catalogue (CSV)" onChange={uploadCatalogue} />
-          {catalogueStatus && <p className="status-text">{catalogueStatus}</p>}
-          {cataloguePath && !loadedTaxonomy && (
-            <p className="help-text">Load a saved taxonomy above first — mapping suggestion needs a taxonomy_id to reference.</p>
-          )}
-          {cataloguePath && loadedTaxonomy && (
-            <button onClick={suggestMapping} disabled={mappingBusy}>
-              Suggest activity -&gt; catalogue-label mapping
-            </button>
-          )}
-          {catalogueMappings.length > 0 && (
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Activity</th>
-                    <th>Metric</th>
-                    <th>Matched labels</th>
-                    <th>Rationale</th>
+        <p className="help-text" style={{ marginTop: 16 }}>
+          Optional: a structured revenue/CapEx catalogue — resolves exposure from hard disclosed numbers
+          (catalogue match, then extraction from disclosures) before falling back to the qualitative debate above.
+        </p>
+        <input type="file" accept=".csv" aria-label="Revenue/CapEx catalogue (CSV)" onChange={uploadCatalogue} />
+        {catalogueStatus && <p className="status-text">{catalogueStatus}</p>}
+        {cataloguePath && !loadedTaxonomy && (
+          <p className="help-text">Load a saved taxonomy above first — mapping suggestion needs a taxonomy_id to reference.</p>
+        )}
+        {cataloguePath && loadedTaxonomy && (
+          <button onClick={suggestMapping} disabled={mappingBusy}>
+            Suggest activity -&gt; catalogue-label mapping
+          </button>
+        )}
+        {catalogueMappings.length > 0 && (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Activity</th>
+                  <th>Metric</th>
+                  <th>Matched labels</th>
+                  <th>Rationale</th>
+                </tr>
+              </thead>
+              <tbody>
+                {catalogueMappings.map((m, idx) => (
+                  <tr key={`${m.activity_id}-${m.metric}`}>
+                    <td>{activityName(m.activity_id)}</td>
+                    <td>{m.metric}</td>
+                    <td>
+                      <input aria-label={`Matched labels for ${activityName(m.activity_id)} ${m.metric}`} value={m.matched_labels.join(", ")} onChange={(e) => updateMappingLabels(idx, e.target.value)} />
+                    </td>
+                    <td className="muted">{m.rationale}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {catalogueMappings.map((m, idx) => (
-                    <tr key={`${m.activity_id}-${m.metric}`}>
-                      <td>{activityName(m.activity_id)}</td>
-                      <td>{m.metric}</td>
-                      <td>
-                        <input aria-label={`Matched labels for ${activityName(m.activity_id)} ${m.metric}`} value={m.matched_labels.join(", ")} onChange={(e) => updateMappingLabels(idx, e.target.value)} />
-                      </td>
-                      <td className="muted">{m.rationale}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-          <BatchToggle checked={batch} onChange={setBatch} />
-          <button onClick={startRun} disabled={busy || !universePath}>
+        <BatchToggle checked={batch} onChange={setBatch} />
+        <div className="toolbar">
+          <button onClick={startRun} disabled={busy || !!runBlocked || schemaReleased !== true}>
             Run screen against {companyCount ? `${companyCount} companies` : "your companies (upload them first)"}
           </button>
-        </section>
-      )}
+          {runBlocked && <span className="muted" role="status">{runBlocked}</span>}
+        </div>
+      </section>
 
       {error && <p className="error-text" role="alert">{error}</p>}
 
