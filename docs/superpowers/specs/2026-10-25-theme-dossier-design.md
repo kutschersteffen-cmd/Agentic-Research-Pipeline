@@ -1,6 +1,6 @@
 # Theme dossier: one record and one page per theme
 
-Status: draft, 2026-10-25.
+Status: draft, 2026-10-25 (revised after builder check and spec-critic).
 
 ## The process this serves (owner decisions, 2026-10-25)
 
@@ -31,7 +31,8 @@ shows the five steps with their live state.
 
 ## Goals
 
-- Every theme has one dossier, reachable from the R&D Lab.
+- Every theme promoted or started after release has one dossier, reachable from the R&D Lab. No backfill:
+  a theme promoted earlier gets one through **New theme** with its taxonomy attached.
 - The dossier page shows the five steps, each with a state and the next action, read from the records that
   already exist (candidates, taxonomies, theme runs, review items).
 - A promoted Emerging Themes candidate opens a dossier automatically; a user can also start one from a topic.
@@ -62,60 +63,84 @@ shows the five steps with their live state.
 
 A dossier holds:
 
-- `dossier_id` (`dos_` + 12 hex), `name`, `created_by`, `created_at`;
+- `dossier_id` (`dos_` + 12 hex), `name`, `created_by` (display name), `created_at` (ISO-8601 UTC);
 - `origin`: `candidate` (with `run_id`, `theme_id` of the Emerging Themes candidate) or `topic`;
 - `taxonomy_id` (nullable until a taxonomy exists);
-- `status`: `active` or `shelved`, with `shelved_by`, `shelved_at`, `shelve_reason` when shelved.
+- `status`: `active` or `shelved`, with `shelved_by` (display name), `shelved_at` (ISO-8601 UTC),
+  `shelve_reason` when shelved.
 
-Nothing else. Taxonomy versions, runs and review items are found from `taxonomy_id`.
+A taxonomy belongs to at most one dossier, active or shelved. Nothing else is stored. Taxonomy versions, runs and review items are found from `taxonomy_id`.
 
 ## Step states (derived on read)
 
 Each step has a `state` and a `detail` line. States: `done`, `waiting` (on a person), `running`, `failed`,
 `not_started`, `skipped`, `not_built`.
 
-1. **Spot.** Origin `candidate`: the candidate's status (`promoted` → `done`, with its decision reason; the
-   candidate missing → `failed`, detail `candidate not found`). Origin `topic` → `skipped`, detail `started from
-   a topic`.
-2. **Define.** No `taxonomy_id` → `not_started`. A taxonomy with no ratified version → `waiting`, detail
-   `ratify a version`. Otherwise `done`, detail `v<n> ratified by <name>` for the latest ratified version.
+1. **Spot.** Origin `topic` → `skipped`, detail `started from a topic`. Origin `candidate`, by the candidate's
+   status: `promoted` → `done`, detail `promoted: <decision reason>`; `under_review` or `candidate` → `waiting`,
+   detail `awaiting decision`; `rejected` or `disconfirmed` → `failed`, detail `<status>: <decision reason>`;
+   candidate missing → `failed`, detail `candidate not found`.
+2. **Define.** No `taxonomy_id` → `not_started`, detail `choose a taxonomy`. Taxonomy missing from the store →
+   `failed`, detail `taxonomy not found`. No ratified version → `waiting`, detail `ratify a version`. Otherwise
+   `done`, detail `v<n> ratified by <name>` for the latest ratified version.
 3. **Research.** Always `not_built`, detail `coming next`.
-4. **Find companies.** The theme runs whose parameters name this `taxonomy_id`, newest first. None →
-   `not_started`. The newest one: active → `running`; failed → `failed`; completed with open review items →
-   `waiting`, detail `<n> to review`; completed with none open → `done`, detail `<n> companies, taxonomy v<m>`.
-   When `m` is lower than the latest ratified version, detail gains ` · older than v<latest>` and the state is
-   `waiting`.
-5. **Position + standards.** Always `not_built`, detail `coming later`.
+4. **Find companies.** Only theme runs whose manifest params have `taxonomy_id` equal to the dossier's count
+   (the Thematic Universe sets it only when the theme came unedited from the taxonomy, together with
+   `taxonomy_version`). None → `not_started`, detail `no run yet`. Otherwise the newest by `created_at`, by its
+   status:
+   - `pending` or `running` → `running`, detail `run in progress`;
+   - `failed` or `cancelled` → `failed`, detail `last run <status>`;
+   - `completed` or `partially_completed`: let `n` = open review items (the length of `pending` in
+     `GET /api/themes/runs/{run_id}/review-queue`, which already leaves out `isic:` items), `c` = companies with
+     at least one entry in `company_matches` in the run results, `m` = the run's `taxonomy_version`, `L` = the
+     latest ratified version.
+     - `n > 0` → `waiting`, detail `<n> to review`;
+     - `n = 0` → `done`, detail `<c> companies, taxonomy v<m>`;
+     - in both cases, when `L` exists and `m < L`, the detail gains ` · older than v<L>` and the state is
+       `waiting`. A run on a draft version newer than `L` gets no suffix.
 
-A shelved dossier shows its steps the same way, plus a banner `Shelved by <name> on <date>: <reason>`.
+`href` per step (hash routes; `null` means no link): step 1 `#/emergingThemes` (origin `candidate`) else
+`null`; step 2 `#/taxonomy` when a taxonomy is attached, else `null` (the page shows **Choose a taxonomy**);
+step 3 `null`; step 4 `#/theme/<run_id>` for the newest counted run, else `#/theme`; step 5 `null`.
+
+A shelved dossier shows its steps the same way, plus a banner `Shelved by <name> on <YYYY-MM-DD>: <reason>`.
+
+On screen the states read `Done`, `Waiting`, `Running`, `Failed`, `Not started`, `Skipped`, `Coming later`
+(for `not_built`).
 
 ## Scope
 
 1. **Store.** `backend/arp/themes/dossiers.py`: one JSON file per dossier under `runs_dir/_dossiers/`, written
    atomically, like `arp/argus/flows.py`.
 2. **API**, `/api/dossiers`, behind `authorize` (viewer reads, analyst writes):
-   - `GET /api/dossiers` → `{items: [{dossier_id, name, status, origin, current_step, created_at}]}`, newest
-     first; `current_step` is the first step (1–5) whose state is not `done` or `skipped`, or `null` when all
-     built steps are done.
-   - `POST /api/dossiers` `{name, taxonomy_id?}` → the dossier (origin `topic`); 404 when `taxonomy_id` is
-     unknown; 422 when `name` is blank.
+   - `GET /api/dossiers` → `{items: [{dossier_id, name, status, origin, current_step, created_at}]}`, all
+     dossiers including shelved, newest `created_at` first, ties by `dossier_id`; `current_step` is the first step
+     (1–5) whose state is not `done`, `skipped` or `not_built`, or `null` when there is none.
+   - `POST /api/dossiers` `{name, taxonomy_id?}` → 200 and the dossier (origin `topic`); 404 when `taxonomy_id`
+     is unknown; 409 `taxonomy '<tid>' already belongs to dossier '<did>'` when another dossier has it; 422
+     when `name` is blank or whitespace.
    - `GET /api/dossiers/{id}` → the dossier with `steps: [{number, title, state, detail, href}]`; 404
      `unknown dossier '<id>'`.
    - `PATCH /api/dossiers/{id}` `{taxonomy_id}` to attach a taxonomy, or `{status: "shelved", reason}` to shelve
-     (reason required; shelving never deletes); 409 when the dossier already has a different `taxonomy_id`.
+     (shelving never deletes). Attach: 200; the same id again is a no-op 200; 404 for an unknown taxonomy;
+     409 when the dossier already has a different `taxonomy_id`, or another dossier has this one. Shelve: 422
+     when `reason` is missing, blank or whitespace. 404 `unknown dossier '<id>'` for an unknown dossier.
 3. **Promote.** `POST /api/emerging-themes/runs/{run_id}/candidates/{theme_id}/promote` also creates a dossier
-   (origin `candidate`, the new or extended `taxonomy_id`) and returns its `dossier_id`. Promoting the same
-   candidate again returns the existing dossier, never a second one.
+   (origin `candidate`, the new or extended `taxonomy_id`) and adds `dossier_id` to its response. When that
+   taxonomy already belongs to a dossier (promoting into an existing taxonomy), no dossier is created and
+   `dossier_id` is that dossier's. Promoting an already-promoted candidate stays a 400, as today. Reject and
+   disconfirm create no dossier.
 4. **Screens.**
-   - `#/themes`: the list, a **New theme** form (name, optional taxonomy), and a **Show shelved** toggle.
+   - `#/themes`: the list, a **New theme** form (name, optional taxonomy), and a **Show shelved** toggle, off
+     by default.
    - `#/themes/<id>`: the dossier page: name, origin, and the five steps as a vertical stepper. Each step
-     shows its title, state, detail and one action link: step 1 → the candidate in Emerging Themes; step 2 →
-     the taxonomy in the Taxonomy Library (or **Choose a taxonomy** when none); step 4 → the newest run in the
-     Thematic Universe, or **Find companies** opening `#/theme` with the taxonomy preselected; steps 3 and 5 no
-     link. A **Shelve** action with a required reason.
+     shows its title, state label, detail and the step's `href` as a link (step 4's reads **Find companies**
+     when there is no run; it opens `#/theme` with the taxonomy preselected). Step 2 with no taxonomy offers
+     **Choose a taxonomy**, which attaches one in place. A **Shelve** action with a required reason.
    - The R&D Lab lists **Theme dossiers** (`#/themes`) among its screens, and gains the process **Research a
      theme** with the five steps, each pointing at the dossier list.
-   - Emerging Themes shows **Open dossier** on a promoted candidate.
+   - Emerging Themes shows **Open dossier** on a candidate when a dossier with that candidate as origin
+     exists, and nothing otherwise.
 
 ## Step titles (verbatim)
 
@@ -124,13 +149,16 @@ A shelved dossier shows its steps the same way, plus a banner `Shelved by <name>
 ## My calls (owner to confirm with the acceptance table)
 
 1. **Files, not Postgres**, following the Argus draft-flow precedent: a dossier is small and only links.
-2. **One taxonomy per dossier.** Later versions of that taxonomy belong to the same dossier; a second taxonomy
-   means a second dossier.
+2. **One taxonomy per dossier, one dossier per taxonomy.** Later versions belong to the same dossier; a
+   second taxonomy means a second dossier. Promoting into a taxonomy that already has a dossier reuses it.
 3. **The latest ratified version is the dossier's reference version.** No separate pin; the mismatch rule in
    step 4 makes drift visible.
 4. **Steps 3 and 5 show as `not_built`** so the process is visible now and each later spec only changes its
    step's derivation.
-5. **No approvals are stored in the dossier yet.** The two existing gates keep their own records (the candidate
+5. **Repeat promote stays a 400 and there is no backfill**, so existing emerging-themes behaviour is untouched.
+6. **`current_step` skips `not_built` steps**, so the list points at real work (step 4 after Define) until
+   steps 3 and 5 exist.
+7. **No approvals are stored in the dossier yet.** The two existing gates keep their own records (the candidate
    decision, the taxonomy ratification); the later specs add theirs.
 
 ## Constraints
@@ -145,43 +173,59 @@ File layout inside `runs_dir/_dossiers/`, component structure, how the run list 
 
 ## Acceptance
 
-Fixture: an empty `runs_dir` and taxonomy store; a taxonomy `tax_a` with versions 1 (ratified by `ana`) and 2
-(draft); helper functions in the test suite that add a theme run for a given taxonomy id, version, status and
-number of open review items, and an Emerging Themes candidate with a given status.
+Fixture, seeded through the backend's own stores (no test-suite helpers): an empty `runs_dir` and taxonomy
+store; taxonomy `tax_a` with version 1 ratified by `ana` and version 2 draft (`TaxonomyStore`); taxonomy `tax_b`
+with only a draft version. Theme runs are made with `create_theme_run(..., taxonomy_id=, taxonomy_version=)`
+and their status set through the run store; results rows carry `company_matches`; open review items are
+pending items in the run's review queue. Candidates come from an Emerging Themes run in the store. Users `ana`
+(analyst) and `vic` (viewer).
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
 | AC-1 | empty store | `POST /api/dossiers {"name": "Grid electrification"}` | 200; `dossier_id` matches `^dos_[0-9a-f]{12}$`; `origin` `topic`; `taxonomy_id` null; `status` `active` | holdout |
-| AC-2 | AC-1's dossier | `GET /api/dossiers/{id}` | `steps` titles in order `Spot`, `Define`, `Research`, `Find companies`, `Position and standards`; states `skipped`, `not_started`, `not_built`, `not_started`, `not_built` | holdout |
-| AC-3 | empty store | `POST /api/dossiers {"name": "  "}` | 422 | holdout |
+| AC-2 | AC-1's dossier | `GET /api/dossiers/{id}` | `steps` titles in order `Spot`, `Define`, `Research`, `Find companies`, `Position and standards`; states `skipped`, `not_started`, `not_built`, `not_started`, `not_built`; `href` of steps 1, 2, 3, 5 null, step 4 `#/theme` | holdout |
+| AC-3 | empty store | `POST /api/dossiers` with `{"name": "  "}` | 422 | holdout |
 | AC-4 | empty store | `POST /api/dossiers {"name": "X", "taxonomy_id": "tax_none"}` | 404 | holdout |
-| AC-5 | dossier with `tax_a` | `GET /api/dossiers/{id}` | step 2 `done`, detail `v1 ratified by ana` | holdout |
-| AC-6 | taxonomy `tax_b` with only a draft version, attached | `GET` | step 2 `waiting`, detail `ratify a version` | holdout |
-| AC-7 | dossier with `tax_a`, no runs | `GET` | step 4 `not_started` | holdout |
-| AC-8 | a running theme run for `tax_a` v1 | `GET` | step 4 `running` | holdout |
-| AC-9 | newest run for `tax_a` v1 completed, 3 open review items | `GET` | step 4 `waiting`, detail `3 to review` | holdout |
-| AC-10 | newest run for `tax_a` v1 completed with 12 companies, 0 open, and `tax_a` v3 ratified | `GET` | step 4 `waiting`, detail `12 companies, taxonomy v1 · older than v3` | holdout |
-| AC-11 | newest run for `tax_a` v1 completed, 12 companies, 0 open, v1 the latest ratified | `GET` | step 4 `done`, detail `12 companies, taxonomy v1` | holdout |
-| AC-12 | an older completed run and a newer failed run for `tax_a` | `GET` | step 4 `failed` | holdout |
-| AC-13 | an Emerging Themes candidate | promote it | response carries `dossier_id`; `GET` that dossier: `origin` `candidate`, `taxonomy_id` the promoted taxonomy, step 1 `done` | holdout |
-| AC-14 | AC-13 | promote the same candidate again | the same `dossier_id`; `GET /api/dossiers` lists it once | holdout |
-| AC-15 | a dossier whose candidate file is gone | `GET` | step 1 `failed`, detail `candidate not found` | holdout |
-| AC-16 | dossier with `tax_a` | `PATCH {"taxonomy_id": "tax_b"}` | 409 | holdout |
-| AC-17 | a dossier | `PATCH {"status": "shelved"}` (no reason) | 422 | holdout |
-| AC-18 | a dossier | `PATCH {"status": "shelved", "reason": "No data"}` | 200; `status` `shelved`; `shelve_reason` `No data`; the file still exists | holdout |
-| AC-19 | dossiers created at t1 < t2 | `GET /api/dossiers` | items in order t2, t1 | holdout |
-| AC-20 | AC-11's dossier | `GET /api/dossiers` | its `current_step` is `3` | holdout |
-| AC-21 | unknown id | `GET /api/dossiers/dos_000000000000` | 404, `detail` `unknown dossier 'dos_000000000000'` | holdout |
-| AC-22 | a viewer-role user | `POST /api/dossiers` | 403 | holdout |
-| AC-23 | the running app | open `#/rdLab` | Screens list holds `Theme dossiers` → `#/themes`; Processes include `Research a theme` with steps `Spot`, `Define`, `Research`, `Find companies`, `Position and standards` | evaluator |
-| AC-24 | `#/themes` | create "Grid electrification" | the page goes to `#/themes/<id>` and shows the five steps with the AC-2 states | evaluator |
-| AC-25 | a dossier page with no taxonomy | read step 2 | it offers **Choose a taxonomy**; choosing one updates step 2 without a page reload | evaluator |
-| AC-26 | AC-11's dossier page | read step 4 | it links to that run in the Thematic Universe | evaluator |
-| AC-27 | a promoted candidate in Emerging Themes | read it | an **Open dossier** link to `#/themes/<id>` | evaluator |
-| AC-28 | a shelved dossier | open it | the banner `Shelved by <name> on <date>: <reason>`; `#/themes` hides it until **Show shelved** is on | evaluator |
+| AC-5 | dossier with `tax_a` | `GET` | step 2 `done`, detail `v1 ratified by ana`, `href` `#/taxonomy` | holdout |
+| AC-6 | dossier with `tax_b` | `GET` | step 2 `waiting`, detail `ratify a version` | holdout |
+| AC-7 | dossier with `tax_a`, no runs | `GET` | step 4 `not_started`, detail `no run yet` | holdout |
+| AC-8 | dossier with `tax_a`; newest run for `tax_a` v1 `running` | `GET` | step 4 `running`, detail `run in progress` | holdout |
+| AC-9 | newest run for `tax_a` v1 `completed`, 3 pending review items | `GET` | step 4 `waiting`, detail `3 to review` | holdout |
+| AC-10 | newest run for `tax_a` v1 `completed`, 12 companies with matches, 0 pending; `tax_a` v3 ratified by `bob` | `GET` | step 4 `waiting`, detail `12 companies, taxonomy v1 · older than v3` | holdout |
+| AC-11 | newest run for `tax_a` v1 `partially_completed`, 12 companies with matches, 0 pending; v1 the latest ratified | `GET` | step 4 `done`, detail `12 companies, taxonomy v1`, `href` `#/theme/<run_id>` | holdout |
+| AC-12 | an older `completed` run and a newer `cancelled` run for `tax_a` | `GET` | step 4 `failed`, detail `last run cancelled` | holdout |
+| AC-13 | newest run for `tax_a` v1 `completed`, 2 pending; `tax_a` v3 ratified | `GET` | step 4 `waiting`, detail `2 to review · older than v3` | holdout |
+| AC-14 | a theme run with `taxonomy_id` null, and a run for `tax_b` | `GET` a dossier with `tax_a` | step 4 `not_started` | holdout |
+| AC-15 | an Emerging Themes candidate | promote it | 200; body has the old keys plus `dossier_id`; `GET` that dossier: `origin` `candidate` with the candidate's `run_id` and `theme_id`; `taxonomy_id` equal to the promoted taxonomy id; step 1 `done`, detail `promoted: <reason sent>` | holdout |
+| AC-16 | AC-15 | promote the same candidate again | 400 as before; `GET /api/dossiers` lists one dossier | holdout |
+| AC-17 | AC-15's dossier, then a second candidate promoted into the same taxonomy | promote | 200; `dossier_id` equals AC-15's; `GET /api/dossiers` lists one dossier | holdout |
+| AC-18 | a candidate | reject it; disconfirm another | responses as before; `GET /api/dossiers` empty | holdout |
+| AC-19 | a dossier whose candidate was removed from the store | `GET` | step 1 `failed`, detail `candidate not found` | holdout |
+| AC-20 | a dossier whose taxonomy was removed from the store | `GET` | step 2 `failed`, detail `taxonomy not found` | holdout |
+| AC-21 | dossier with no taxonomy | `PATCH {"taxonomy_id": "tax_a"}`; then the same again | both 200, `taxonomy_id` `tax_a` | holdout |
+| AC-22 | dossier with `tax_a` | `PATCH {"taxonomy_id": "tax_b"}` | 409 | holdout |
+| AC-23 | dossier D1 with `tax_a`; dossier D2 without | `PATCH` D2 `{"taxonomy_id": "tax_a"}`; `POST {"name": "Y", "taxonomy_id": "tax_a"}` | both 409, detail `taxonomy 'tax_a' already belongs to dossier '<D1 id>'` | holdout |
+| AC-24 | a dossier | `PATCH {"taxonomy_id": "tax_none"}` | 404 | holdout |
+| AC-25 | a dossier | `PATCH {"status": "shelved"}`; `PATCH {"status": "shelved", "reason": "  "}` | both 422 | holdout |
+| AC-26 | a dossier, caller `ana` | `PATCH {"status": "shelved", "reason": "No data"}` | 200; `status` `shelved`; `shelve_reason` `No data`; `shelved_by` `ana`; `shelved_at` an ISO-8601 timestamp; `GET` it still 200 with five steps; `GET /api/dossiers` lists it with `status` `shelved` | holdout |
+| AC-27 | dossiers A (`created_at` `2026-01-01T00:00:00Z`) and B (`2026-01-02T00:00:00Z`) | `GET /api/dossiers` | B then A | holdout |
+| AC-28 | AC-11's dossier | `GET /api/dossiers` | its `current_step` is `null`; AC-7's dossier has `4`; AC-1's has `2` | holdout |
+| AC-29 | unknown id | `GET` and `PATCH /api/dossiers/dos_000000000000` | 404, `detail` `unknown dossier 'dos_000000000000'` | holdout |
+| AC-30 | caller `vic` | `GET /api/dossiers`, `GET` one; `POST`, `PATCH` | 200, 200; 403, 403 | holdout |
+| AC-31 | dossier with `tax_a`, step 2 `v1 ratified by ana` | ratify `tax_a` v2 as `bob`, no PATCH | `GET` shows step 2 detail `v2 ratified by bob` | holdout |
+| AC-32 | the running app | open `#/rdLab` | Screens holds `Theme dossiers` linking to `#/themes` | evaluator |
+| AC-33 | the running app | open `#/rdLab` | Processes include `Research a theme` with steps `Spot`, `Define`, `Research`, `Find companies`, `Position and standards` in order, each linking to `#/themes` | evaluator |
+| AC-34 | `#/themes` | create "Grid electrification" | the URL becomes `#/themes/<id>`; the steps read `Skipped`, `Not started`, `Coming later`, `Not started`, `Coming later` | evaluator |
+| AC-35 | a dossier page with no taxonomy | choose `tax_a` under **Choose a taxonomy** | step 2 reads `Done` and `v1 ratified by ana`; the URL is unchanged and the page did not reload | evaluator |
+| AC-36 | AC-11's dossier page | click step 4's link | the Thematic Universe opens that run (`#/theme/<run_id>`) | evaluator |
+| AC-37 | Emerging Themes with AC-15's promoted candidate, an earlier-promoted candidate with no dossier, and an unpromoted one | read them | only AC-15's shows **Open dossier**, linking to `#/themes/<id>` | evaluator |
+| AC-38 | a dossier shelved by `ana` on 2026-10-25 with reason `No data` | open it | banner `Shelved by ana on 2026-10-25: No data` | evaluator |
+| AC-39 | AC-38 | open `#/themes` | the dossier is absent; after turning **Show shelved** on it is listed | evaluator |
 
 Must not change:
-- AC-29: promoting, rejecting and disconfirming candidates still record their decision and reason exactly as
-  before (the existing emerging-themes tests pass unchanged). Checked by: unit.
-- AC-30: `POST /api/themes/runs` and the theme run results are unchanged (the existing theme tests pass
-  unchanged). Checked by: unit.
+- AC-40: `POST /api/themes/runs` returns the same status codes and body keys as before, with no dossier fields.
+  Checked by: holdout.
+- AC-41: taxonomy draft, new-version and ratify endpoints return the same status codes and bodies as before.
+  Checked by: holdout.
+- AC-42: `#/rdLab` still lists the process `Launch a thematic product` with its steps unchanged. Checked by:
+  evaluator.
