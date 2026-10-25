@@ -262,6 +262,9 @@ class Settings(BaseSettings):
         description="Which input-output table backs a run: 'auto' uses ICIO if its two paths are set, else EXIOBASE; "
         "'icio'/'exiobase' uses only that table and fails if its paths are unset. `arp io import-*` prints the values.",
     )
+    value_chain_dir: Path | None = Field(
+        default=None, description="Directory written by arp io build-full; unset disables the Value Chain Explorer."
+    )
 
     # Standards mapping (NACE/NAICS/SIC/GICS). Each resolves independently
     # to a real, configured file; falls back to the bundled illustrative

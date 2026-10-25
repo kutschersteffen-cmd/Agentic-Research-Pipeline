@@ -343,6 +343,23 @@ sector` — only `company_id`/`name` are required.
 - Earnings-call transcripts have no free public API — supply them via the
   local file store or add a `DocumentSource` connector.
 
+### Value Chain Explorer data
+
+The R&D Lab's Value Chain Explorer reads a prebuilt EXIOBASE 3.11.2 (2022, ixi) table, not committed to the repo.
+Download the archive from Zenodo record 23039074, build it once, then point the backend at the output:
+
+```bash
+curl -L -o $HOME/IOT_2022_ixi.zip https://zenodo.org/api/records/23039074/files/IOT_2022_ixi.zip/content
+echo "4b717f07bc7a8eeda4317aca49e7c2a9  $HOME/IOT_2022_ixi.zip" | md5sum -c -
+arp io build-full $HOME/IOT_2022_ixi.zip --out $HOME/value-chain-data
+export ARP_VALUE_CHAIN_DIR=$HOME/value-chain-data   # the build prints this line as its second line
+```
+
+The build prints `7987 nodes (163 sectors × 49 regions) -> <dir>` and then `ARP_VALUE_CHAIN_DIR=<dir>`. `--out` must be
+missing, empty or an earlier `build-full` output; the build replaces an earlier output once it succeeds
+and refuses any other non-empty directory. The backend reads `ARP_VALUE_CHAIN_DIR` per request; unset, the screen says
+"value chain not built". The output is about 1.5 GB of derived data: keep it outside the repo (as above) and out of git.
+
 ## Precision controls
 
 - Programmatic (non-LLM) grounding check on every citation

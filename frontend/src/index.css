@@ -2099,6 +2099,39 @@ th[aria-sort="ascending"] .xbrl-sort, th[aria-sort="descending"] .xbrl-sort { co
   .rules-actions button, .rules-item .toolbar button, .rules-item .inline-fields button, .rules-marker { min-height: 44px; }
 }
 
+/* Value Chain Explorer: ranked bar lists, and an upstream tree that grows to the left of the
+   selected node. Every tree box has one width, so each level lines up as a column. */
+.vc-crumb { margin-bottom: var(--s-1); font-size: var(--text-sm); color: var(--muted); }
+.vc-crumb a { color: var(--muted); }
+.vc-hits { list-style: none; margin: var(--s-2) 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); gap: var(--s-1) var(--s-4); max-height: 20rem; overflow-y: auto; }
+.vc-hits a, .vc-bars a, a.vc-box { color: var(--text); }
+.vc-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr)); gap: 0 var(--s-6); }
+.vc-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
+.vc-bar-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-3); }
+.vc-bar-head > :first-child { min-width: 0; overflow-wrap: anywhere; }
+.vc-bar-head > .mono { white-space: nowrap; }
+.vc-bar { height: 8px; margin-top: var(--s-1); background: var(--well); }
+.vc-bar > div { height: 100%; background: var(--text); }
+.vc-note { max-width: 50ch; text-wrap: pretty; }
+.vc-tree-controls { align-items: flex-end; gap: var(--s-2) var(--s-6); }
+.vc-tree-scroll { padding-block: var(--s-2); }
+.vc-tree, .vc-children { list-style: none; margin: 0; padding: 0; }
+.vc-tree { width: max-content; }
+.vc-branch { display: flex; align-items: center; justify-content: flex-end; }
+.vc-children { display: flex; flex-direction: column; position: relative; margin-right: var(--s-6); }
+.vc-children > .vc-branch { position: relative; padding: var(--s-1) var(--s-6) var(--s-1) 0; }
+.vc-children > .vc-branch::before, .vc-children > .vc-branch::after, .vc-children::after { content: ""; position: absolute; border: 0 solid var(--field-border); }
+.vc-children > .vc-branch::before { right: 0; top: 0; bottom: 0; border-right-width: 2px; }
+.vc-children > .vc-branch:first-child::before { top: 50%; }
+.vc-children > .vc-branch:last-child::before { bottom: 50%; }
+.vc-children > .vc-branch::after { right: 0; top: 50%; width: var(--s-6); border-top-width: 2px; }
+.vc-children::after { left: 100%; top: 50%; width: var(--s-6); border-top-width: 2px; }
+.vc-box { flex: none; width: 16rem; min-height: 4rem; display: flex; flex-direction: column; justify-content: center; gap: var(--s-0_5); padding: var(--s-2) var(--s-3); background: var(--panel); border: 1px solid var(--panel-border); font-size: var(--text-sm); text-decoration: none; }
+a.vc-box:hover { border-color: var(--text); }
+.vc-root { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.vc-total-value { font-size: 2rem; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.vc-amount input { width: 10rem; }
+
 /* Argus start page (pages/ArgusStart.tsx): five step tiles, runs beside what waits on you. */
 .argus-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-4); flex-wrap: wrap; }
 .argus-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s-3); margin: var(--s-6) 0 var(--s-8); }

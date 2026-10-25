@@ -55,3 +55,10 @@ test("R&D Lab gains the Signals workbench and keeps what it had", () => {
   for (const id of ["thematic", "strategy", "signal"]) assert.ok(ids.includes(id), id);
   assert.deepEqual(rdLab.processes.find((p) => p.id === "signal")!.steps.map((s) => s.label), ["Run", "Evidence", "Compare", "Decide"]);
 });
+
+test("R&D Lab lists the Value Chain Explorer right after the Signals workbench", () => {
+  const screens = WORKSPACES.find((w) => w.id === "rdLab")!.screens;
+  const at = screens.findIndex(([h]) => h === "#/valueChain");
+  assert.deepEqual(screens[at], ["#/valueChain", "Value Chain Explorer"]);
+  assert.deepEqual(screens[at - 1], ["#/signals", "Signals workbench"]);
+});

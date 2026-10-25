@@ -17786,6 +17786,434 @@
     "title": "ValidationError",
     "type": "object"
    },
+   "ValueChainFootprint": {
+    "properties": {
+     "by_region": {
+      "items": {
+       "maxItems": 2,
+       "minItems": 2,
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "number"
+        }
+       ],
+       "type": "array"
+      },
+      "title": "By Region",
+      "type": "array"
+     },
+     "by_sector": {
+      "items": {
+       "maxItems": 2,
+       "minItems": 2,
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "number"
+        }
+       ],
+       "type": "array"
+      },
+      "title": "By Sector",
+      "type": "array"
+     },
+     "caveat": {
+      "title": "Caveat",
+      "type": "string"
+     },
+     "edition": {
+      "title": "Edition",
+      "type": "string"
+     },
+     "in_home_region": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Share of total arising in the node's own region; null when total is 0.",
+      "title": "In Home Region"
+     },
+     "indicator": {
+      "title": "Indicator",
+      "type": "string"
+     },
+     "total": {
+      "title": "Total",
+      "type": "number"
+     },
+     "unit": {
+      "title": "Unit",
+      "type": "string"
+     }
+    },
+    "required": [
+     "edition",
+     "caveat",
+     "indicator",
+     "unit",
+     "total",
+     "in_home_region",
+     "by_region",
+     "by_sector"
+    ],
+    "title": "ValueChainFootprint",
+    "type": "object"
+   },
+   "ValueChainLink": {
+    "properties": {
+     "direct": {
+      "description": "Euro of this node's output per euro of the opened node's output, direct.",
+      "title": "Direct",
+      "type": "number"
+     },
+     "node_id": {
+      "title": "Node Id",
+      "type": "string"
+     },
+     "region": {
+      "title": "Region",
+      "type": "string"
+     },
+     "region_label": {
+      "title": "Region Label",
+      "type": "string"
+     },
+     "sector": {
+      "title": "Sector",
+      "type": "string"
+     },
+     "total": {
+      "description": "The same including intermediaries (Leontief for suppliers, Ghosh for customers).",
+      "title": "Total",
+      "type": "number"
+     }
+    },
+    "required": [
+     "node_id",
+     "region",
+     "region_label",
+     "sector",
+     "direct",
+     "total"
+    ],
+    "title": "ValueChainLink",
+    "type": "object"
+   },
+   "ValueChainNode": {
+    "properties": {
+     "caveat": {
+      "title": "Caveat",
+      "type": "string"
+     },
+     "customers": {
+      "items": {
+       "$ref": "#/components/schemas/ValueChainLink"
+      },
+      "title": "Customers",
+      "type": "array"
+     },
+     "edition": {
+      "title": "Edition",
+      "type": "string"
+     },
+     "energy_tj_per_meur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Energy Tj Per Meur"
+     },
+     "ghg_t_per_meur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ghg T Per Meur"
+     },
+     "jobs_per_meur": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Jobs Per Meur"
+     },
+     "node_id": {
+      "title": "Node Id",
+      "type": "string"
+     },
+     "output_meur": {
+      "title": "Output Meur",
+      "type": "number"
+     },
+     "region": {
+      "title": "Region",
+      "type": "string"
+     },
+     "region_label": {
+      "title": "Region Label",
+      "type": "string"
+     },
+     "sector": {
+      "title": "Sector",
+      "type": "string"
+     },
+     "suppliers": {
+      "items": {
+       "$ref": "#/components/schemas/ValueChainLink"
+      },
+      "title": "Suppliers",
+      "type": "array"
+     },
+     "va_share": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Va Share"
+     }
+    },
+    "required": [
+     "node_id",
+     "region",
+     "region_label",
+     "sector",
+     "edition",
+     "caveat",
+     "output_meur",
+     "ghg_t_per_meur",
+     "energy_tj_per_meur",
+     "jobs_per_meur",
+     "va_share",
+     "suppliers",
+     "customers"
+    ],
+    "title": "ValueChainNode",
+    "type": "object"
+   },
+   "ValueChainNodeRef": {
+    "properties": {
+     "node_id": {
+      "title": "Node Id",
+      "type": "string"
+     },
+     "region": {
+      "title": "Region",
+      "type": "string"
+     },
+     "region_label": {
+      "title": "Region Label",
+      "type": "string"
+     },
+     "sector": {
+      "title": "Sector",
+      "type": "string"
+     }
+    },
+    "required": [
+     "node_id",
+     "region",
+     "region_label",
+     "sector"
+    ],
+    "title": "ValueChainNodeRef",
+    "type": "object"
+   },
+   "ValueChainSearch": {
+    "properties": {
+     "caveat": {
+      "title": "Caveat",
+      "type": "string"
+     },
+     "edition": {
+      "title": "Edition",
+      "type": "string"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/ValueChainNodeRef"
+      },
+      "title": "Items",
+      "type": "array"
+     }
+    },
+    "required": [
+     "edition",
+     "caveat",
+     "items"
+    ],
+    "title": "ValueChainSearch",
+    "type": "object"
+   },
+   "ValueChainStatus": {
+    "properties": {
+     "built_at": {
+      "title": "Built At",
+      "type": "string"
+     },
+     "caveat": {
+      "title": "Caveat",
+      "type": "string"
+     },
+     "edition": {
+      "title": "Edition",
+      "type": "string"
+     },
+     "n_nodes": {
+      "title": "N Nodes",
+      "type": "integer"
+     },
+     "n_regions": {
+      "title": "N Regions",
+      "type": "integer"
+     },
+     "n_sectors": {
+      "title": "N Sectors",
+      "type": "integer"
+     },
+     "version": {
+      "description": "EXIOBASE version from the archive's metadata.json.",
+      "title": "Version",
+      "type": "string"
+     },
+     "year": {
+      "title": "Year",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "edition",
+     "version",
+     "year",
+     "n_nodes",
+     "n_regions",
+     "n_sectors",
+     "built_at",
+     "caveat"
+    ],
+    "title": "ValueChainStatus",
+    "type": "object"
+   },
+   "ValueChainTree": {
+    "properties": {
+     "caveat": {
+      "title": "Caveat",
+      "type": "string"
+     },
+     "chain": {
+      "description": "Product of coef down the path from the root (1 at the root).",
+      "title": "Chain",
+      "type": "number"
+     },
+     "children": {
+      "items": {
+       "$ref": "#/components/schemas/ValueChainTreeNode"
+      },
+      "title": "Children",
+      "type": "array"
+     },
+     "coef": {
+      "description": "Direct euro from this node per euro of its parent's output (1 at the root).",
+      "title": "Coef",
+      "type": "number"
+     },
+     "edition": {
+      "title": "Edition",
+      "type": "string"
+     },
+     "node_id": {
+      "title": "Node Id",
+      "type": "string"
+     },
+     "region_label": {
+      "title": "Region Label",
+      "type": "string"
+     },
+     "sector": {
+      "title": "Sector",
+      "type": "string"
+     }
+    },
+    "required": [
+     "node_id",
+     "region_label",
+     "sector",
+     "coef",
+     "chain",
+     "children",
+     "edition",
+     "caveat"
+    ],
+    "title": "ValueChainTree",
+    "type": "object"
+   },
+   "ValueChainTreeNode": {
+    "properties": {
+     "chain": {
+      "description": "Product of coef down the path from the root (1 at the root).",
+      "title": "Chain",
+      "type": "number"
+     },
+     "children": {
+      "items": {
+       "$ref": "#/components/schemas/ValueChainTreeNode"
+      },
+      "title": "Children",
+      "type": "array"
+     },
+     "coef": {
+      "description": "Direct euro from this node per euro of its parent's output (1 at the root).",
+      "title": "Coef",
+      "type": "number"
+     },
+     "node_id": {
+      "title": "Node Id",
+      "type": "string"
+     },
+     "region_label": {
+      "title": "Region Label",
+      "type": "string"
+     },
+     "sector": {
+      "title": "Sector",
+      "type": "string"
+     }
+    },
+    "required": [
+     "node_id",
+     "region_label",
+     "sector",
+     "coef",
+     "chain",
+     "children"
+    ],
+    "title": "ValueChainTreeNode",
+    "type": "object"
+   },
    "ValueState": {
     "enum": [
      "found",
@@ -35419,6 +35847,331 @@
     "summary": "Dataset",
     "tags": [
      "snapshots"
+    ]
+   }
+  },
+  "/api/value-chain/nodes": {
+   "get": {
+    "operationId": "search_api_value_chain_nodes_get",
+    "parameters": [
+     {
+      "description": "Sector or region; blank is rejected.",
+      "in": "query",
+      "name": "q",
+      "required": true,
+      "schema": {
+       "description": "Sector or region; blank is rejected.",
+       "minLength": 1,
+       "pattern": "\\S",
+       "title": "Q",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 20,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ValueChainSearch"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Search",
+    "tags": [
+     "value-chain"
+    ]
+   }
+  },
+  "/api/value-chain/nodes/{node_id}": {
+   "get": {
+    "operationId": "node_api_value_chain_nodes__node_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "node_id",
+      "required": true,
+      "schema": {
+       "title": "Node Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 10,
+       "maximum": 50,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "exclude_own",
+      "required": false,
+      "schema": {
+       "default": false,
+       "title": "Exclude Own",
+       "type": "boolean"
+      }
+     },
+     {
+      "in": "query",
+      "name": "order",
+      "required": false,
+      "schema": {
+       "default": "total",
+       "enum": [
+        "total",
+        "direct"
+       ],
+       "title": "Order",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ValueChainNode"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Node",
+    "tags": [
+     "value-chain"
+    ]
+   }
+  },
+  "/api/value-chain/nodes/{node_id}/footprint": {
+   "get": {
+    "operationId": "footprint_api_value_chain_nodes__node_id__footprint_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "node_id",
+      "required": true,
+      "schema": {
+       "title": "Node Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "indicator",
+      "required": false,
+      "schema": {
+       "default": "ghg",
+       "enum": [
+        "ghg",
+        "energy",
+        "jobs"
+       ],
+       "title": "Indicator",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "amount_meur",
+      "required": false,
+      "schema": {
+       "default": 1.0,
+       "exclusiveMinimum": 0,
+       "title": "Amount Meur",
+       "type": "number"
+      }
+     },
+     {
+      "in": "query",
+      "name": "top",
+      "required": false,
+      "schema": {
+       "default": 6,
+       "maximum": 20,
+       "minimum": 1,
+       "title": "Top",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ValueChainFootprint"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Footprint",
+    "tags": [
+     "value-chain"
+    ]
+   }
+  },
+  "/api/value-chain/nodes/{node_id}/tree": {
+   "get": {
+    "operationId": "tree_api_value_chain_nodes__node_id__tree_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "node_id",
+      "required": true,
+      "schema": {
+       "title": "Node Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "depth",
+      "required": false,
+      "schema": {
+       "default": 2,
+       "maximum": 4,
+       "minimum": 1,
+       "title": "Depth",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "width",
+      "required": false,
+      "schema": {
+       "default": 3,
+       "maximum": 5,
+       "minimum": 1,
+       "title": "Width",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cutoff",
+      "required": false,
+      "schema": {
+       "default": 0.01,
+       "maximum": 1,
+       "minimum": 0,
+       "title": "Cutoff",
+       "type": "number"
+      }
+     },
+     {
+      "in": "query",
+      "name": "goods_only",
+      "required": false,
+      "schema": {
+       "default": false,
+       "title": "Goods Only",
+       "type": "boolean"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ValueChainTree"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Tree",
+    "tags": [
+     "value-chain"
+    ]
+   }
+  },
+  "/api/value-chain/status": {
+   "get": {
+    "operationId": "status_api_value_chain_status_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ValueChainStatus"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Status",
+    "tags": [
+     "value-chain"
     ]
    }
   },

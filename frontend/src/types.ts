@@ -2768,3 +2768,13 @@ export type SignalComparison = Served<S["Comparison"]>;
 export type ThemeLayerRow = Served<S["ThemeLayerRow"]>;
 
 export type ThemeLayers = Served<S["ThemeLayers"]>;
+
+/** /api/value-chain: the input-output explorer. */
+export type VcStatus = Served<S["ValueChainStatus"]>;
+export type VcNodeRef = Served<S["ValueChainNodeRef"]>;
+export type VcSearch = Served<S["ValueChainSearch"]>;
+export type VcLink = Served<S["ValueChainLink"]>;
+export type VcNode = Served<S["ValueChainNode"]>;
+export type VcTreeNode = Served<S["ValueChainTreeNode"]>;
+export type VcTree = Served<S["ValueChainTree"]>;
+export type VcFootprint = Served<S["ValueChainFootprint"]>;

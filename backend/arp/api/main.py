@@ -62,6 +62,7 @@ from arp.api.routers import (
     transition_plan,
     universe,
     universe_workbench,
+    value_chain,
     voting,
     xbrl,
 )
@@ -172,6 +173,7 @@ app.include_router(outputs.router, dependencies=[Depends(authorize)])
 app.include_router(security_master.feeds_router, dependencies=[Depends(authorize)])
 app.include_router(security_master.issues_router, dependencies=[Depends(authorize)])
 app.include_router(security_master.search_router, dependencies=[Depends(authorize)])
+app.include_router(value_chain.router, dependencies=[Depends(authorize)])
 app.include_router(ask.router, dependencies=[Depends(authorize)])
 
 

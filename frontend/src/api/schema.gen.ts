@@ -6352,6 +6352,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/value-chain/nodes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search */
+        get: operations["search_api_value_chain_nodes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/value-chain/nodes/{node_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Node */
+        get: operations["node_api_value_chain_nodes__node_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/value-chain/nodes/{node_id}/footprint": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Footprint */
+        get: operations["footprint_api_value_chain_nodes__node_id__footprint_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/value-chain/nodes/{node_id}/tree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tree */
+        get: operations["tree_api_value_chain_nodes__node_id__tree_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/value-chain/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Status */
+        get: operations["status_api_value_chain_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/voting/runs": {
         parameters: {
             query?: never;
@@ -14331,6 +14416,172 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** ValueChainFootprint */
+        ValueChainFootprint: {
+            /** By Region */
+            by_region: [
+                string,
+                number
+            ][];
+            /** By Sector */
+            by_sector: [
+                string,
+                number
+            ][];
+            /** Caveat */
+            caveat: string;
+            /** Edition */
+            edition: string;
+            /**
+             * In Home Region
+             * @description Share of total arising in the node's own region; null when total is 0.
+             */
+            in_home_region: number | null;
+            /** Indicator */
+            indicator: string;
+            /** Total */
+            total: number;
+            /** Unit */
+            unit: string;
+        };
+        /** ValueChainLink */
+        ValueChainLink: {
+            /**
+             * Direct
+             * @description Euro of this node's output per euro of the opened node's output, direct.
+             */
+            direct: number;
+            /** Node Id */
+            node_id: string;
+            /** Region */
+            region: string;
+            /** Region Label */
+            region_label: string;
+            /** Sector */
+            sector: string;
+            /**
+             * Total
+             * @description The same including intermediaries (Leontief for suppliers, Ghosh for customers).
+             */
+            total: number;
+        };
+        /** ValueChainNode */
+        ValueChainNode: {
+            /** Caveat */
+            caveat: string;
+            /** Customers */
+            customers: components["schemas"]["ValueChainLink"][];
+            /** Edition */
+            edition: string;
+            /** Energy Tj Per Meur */
+            energy_tj_per_meur: number | null;
+            /** Ghg T Per Meur */
+            ghg_t_per_meur: number | null;
+            /** Jobs Per Meur */
+            jobs_per_meur: number | null;
+            /** Node Id */
+            node_id: string;
+            /** Output Meur */
+            output_meur: number;
+            /** Region */
+            region: string;
+            /** Region Label */
+            region_label: string;
+            /** Sector */
+            sector: string;
+            /** Suppliers */
+            suppliers: components["schemas"]["ValueChainLink"][];
+            /** Va Share */
+            va_share: number | null;
+        };
+        /** ValueChainNodeRef */
+        ValueChainNodeRef: {
+            /** Node Id */
+            node_id: string;
+            /** Region */
+            region: string;
+            /** Region Label */
+            region_label: string;
+            /** Sector */
+            sector: string;
+        };
+        /** ValueChainSearch */
+        ValueChainSearch: {
+            /** Caveat */
+            caveat: string;
+            /** Edition */
+            edition: string;
+            /** Items */
+            items: components["schemas"]["ValueChainNodeRef"][];
+        };
+        /** ValueChainStatus */
+        ValueChainStatus: {
+            /** Built At */
+            built_at: string;
+            /** Caveat */
+            caveat: string;
+            /** Edition */
+            edition: string;
+            /** N Nodes */
+            n_nodes: number;
+            /** N Regions */
+            n_regions: number;
+            /** N Sectors */
+            n_sectors: number;
+            /**
+             * Version
+             * @description EXIOBASE version from the archive's metadata.json.
+             */
+            version: string;
+            /** Year */
+            year: number;
+        };
+        /** ValueChainTree */
+        ValueChainTree: {
+            /** Caveat */
+            caveat: string;
+            /**
+             * Chain
+             * @description Product of coef down the path from the root (1 at the root).
+             */
+            chain: number;
+            /** Children */
+            children: components["schemas"]["ValueChainTreeNode"][];
+            /**
+             * Coef
+             * @description Direct euro from this node per euro of its parent's output (1 at the root).
+             */
+            coef: number;
+            /** Edition */
+            edition: string;
+            /** Node Id */
+            node_id: string;
+            /** Region Label */
+            region_label: string;
+            /** Sector */
+            sector: string;
+        };
+        /** ValueChainTreeNode */
+        ValueChainTreeNode: {
+            /**
+             * Chain
+             * @description Product of coef down the path from the root (1 at the root).
+             */
+            chain: number;
+            /** Children */
+            children: components["schemas"]["ValueChainTreeNode"][];
+            /**
+             * Coef
+             * @description Direct euro from this node per euro of its parent's output (1 at the root).
+             */
+            coef: number;
+            /** Node Id */
+            node_id: string;
+            /** Region Label */
+            region_label: string;
+            /** Sector */
+            sector: string;
         };
         /**
          * ValueState
@@ -26350,6 +26601,165 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_api_value_chain_nodes_get: {
+        parameters: {
+            query: {
+                /** @description Sector or region; blank is rejected. */
+                q: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValueChainSearch"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    node_api_value_chain_nodes__node_id__get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                exclude_own?: boolean;
+                order?: "total" | "direct";
+            };
+            header?: never;
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValueChainNode"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    footprint_api_value_chain_nodes__node_id__footprint_get: {
+        parameters: {
+            query?: {
+                indicator?: "ghg" | "energy" | "jobs";
+                amount_meur?: number;
+                top?: number;
+            };
+            header?: never;
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValueChainFootprint"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tree_api_value_chain_nodes__node_id__tree_get: {
+        parameters: {
+            query?: {
+                depth?: number;
+                width?: number;
+                cutoff?: number;
+                goods_only?: boolean;
+            };
+            header?: never;
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValueChainTree"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    status_api_value_chain_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValueChainStatus"];
                 };
             };
         };
