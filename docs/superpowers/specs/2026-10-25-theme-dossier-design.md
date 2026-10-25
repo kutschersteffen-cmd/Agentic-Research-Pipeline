@@ -223,7 +223,9 @@ pending items in the run's review queue. Candidates come from an Emerging Themes
 | AC-39 | AC-38 | open `#/themes` | the dossier is absent; after turning **Show shelved** on it is listed | evaluator |
 
 Must not change:
-- AC-40: `POST /api/themes/runs` returns the same status codes and body keys as before, with no dossier fields.
+- AC-40: for a run started from a ratified taxonomy version whose generated schema is released, `POST /api/themes/runs`
+  returns the same status codes and body keys as before, with no dossier fields. (Narrowed by
+  `2026-10-25-taxonomy-extraction-schemas-design.md`, which refuses inline themes and draft versions.)
   Checked by: holdout.
 - AC-41: taxonomy draft, new-version and ratify endpoints return the same status codes and bodies as before.
   Checked by: holdout.

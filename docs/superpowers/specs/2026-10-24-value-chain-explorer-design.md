@@ -251,7 +251,7 @@ now-cast years are estimates · capital goods not included in flows` (C below).
 | AC-32 | as AC-28 | open its footprint view with defaults | total `973.9 t CO₂e`; `85% in CN` | evaluator |
 | AC-33 | AC-26 built, API process warmed by one request | for 10 seeded random nodes with `output_meur` > 0: `GET /nodes/{id}`, `/tree?depth=4&width=5&cutoff=0`, `/footprint?indicator=ghg`, from a client on localhost | each answers in ≤ 1.0 s wall-clock | evaluator |
 | AC-34 | AC-26 built | open `#/valueChain` | the page shows `Pick a sector and region.` | evaluator |
-| AC-35 | AC-26 built (India has 163 nodes with output; `in` also occurs in most sector names, e.g. `Mining`) | `GET /nodes?q=in&limit=100` | all 100 items have region `IN`, in node-id order | evaluator |
+| AC-35 | AC-26 built (India has 121 nodes with output; `in` also occurs in most sector names, e.g. `Mining`) | `GET /nodes?q=in&limit=100` | all 100 items have region `IN`, in node-id string order | evaluator |
 | AC-35b | AC-26 built | for every `nodes.csv` row, `GET /nodes/{id}` | 200 where `output_meur` > 0; 404 where it is 0 | evaluator |
 | AC-35c | as AC-28 | turn on `Hide this node` | no supplier or customer row reads `Manufacture of electrical machinery and apparatus n.e.c. · CN`; with it off, the first supplier row does | evaluator |
 | AC-35d | as AC-28 | click Direct | the `Copper production · CN` row reads `4.3¢` with no `(direct`; rows are in descending order of their value | evaluator |
