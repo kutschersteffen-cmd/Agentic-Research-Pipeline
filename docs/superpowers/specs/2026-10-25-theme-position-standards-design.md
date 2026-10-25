@@ -1,6 +1,6 @@
 # Theme position and standards (step 5 of the theme process)
 
-Status: draft, 2026-10-25 (revised after builder check and spec-critic).
+Status: approved by the owner, 2026-10-25.
 
 ## Where this sits
 
