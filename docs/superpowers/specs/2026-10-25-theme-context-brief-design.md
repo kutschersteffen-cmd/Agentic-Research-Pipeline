@@ -145,7 +145,7 @@ Code then checks the output, in this order. Every dropped statement, activity li
 `dropped_statements`.
 
 1. **Statements** (`why_now`, `early_evidence`): ids not in the pool are removed; a statement left with no id
-   is dropped. Kept statements keep the model's order. A statement containing a number (a match of `\d+(?:[.,]\d+)?`) that is not a substring of the
+   is dropped. Kept statements keep the model's order. A statement containing a number (a match of `\d+(?:[.,]\d+)?`, after removing evidence ids such as `E3` written in its text) that is not a substring of the
    `quote` of any `quote` or `counter` item it cites is dropped.
 2. **By company:** a line is dropped when its company is not a candidate company without an ISIC division, when
    an earlier line already named that company, or when none of its ids is an item covering that company (ids

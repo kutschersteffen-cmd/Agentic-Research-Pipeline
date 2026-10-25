@@ -109,6 +109,8 @@ async def _run(tmp_path, pg, monkeypatch, *, brief=None, isic=None, mentions=MEN
 
 def test_prompt_shows_sec_fractions_as_percent():
     assert [_pct(0.25), _pct(-0.1), _pct(None)] == ["+25.0%", "-10.0%", "n/a"]
+    # Same rounding as the card's signedPct (frontend/tests/contextBrief.test.ts).
+    assert [_pct(0.0125), _pct(-0.0325), _pct(-0.0001), _pct(0)] == ["+1.3%", "-3.3%", "0.0%", "+0.0%"]
 
 
 def test_isic_divisions_reference():
@@ -186,6 +188,7 @@ async def test_activity_lines_need_evidence_covering_their_company(tmp_path, pg,
 
 @pytest.mark.parametrize(("extra", "kept", "dropped"), [
     ("Acme will invest $2bn.", True, 3),  # "2" is in E1's quote
+    ("Acme plans a cell plant (E1).", True, 3),  # an id written in the text is not a number
     ("The second line slips to 2028.", False, 4),  # "2028" is only in E5/E6, not the cited E1
 ])
 async def test_numbers_must_appear_in_a_cited_quote(tmp_path, pg, monkeypatch, extra, kept, dropped):
