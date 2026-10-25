@@ -1,6 +1,6 @@
 # Theme context brief: why now, early evidence, affected sectors (step 1)
 
-Status: draft, 2026-10-25.
+Status: approved by the owner, 2026-10-25.
 
 Builds on the theme dossier spec (`2026-10-25-theme-dossier-design.md`, PR #226), which derives step 1
 (**Spot**) from the candidate's status only. This spec adds the step's context brief and says how the dossier
