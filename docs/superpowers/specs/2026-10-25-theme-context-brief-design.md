@@ -145,7 +145,7 @@ Code then checks the output, in this order. Every dropped statement, activity li
 `dropped_statements`.
 
 1. **Statements** (`why_now`, `early_evidence`): ids not in the pool are removed; a statement left with no id
-   is dropped. A statement containing a number (a match of `\d+(?:[.,]\d+)?`) that is not a substring of the
+   is dropped. Kept statements keep the model's order. A statement containing a number (a match of `\d+(?:[.,]\d+)?`) that is not a substring of the
    `quote` of any `quote` or `counter` item it cites is dropped.
 2. **By company:** a line is dropped when its company is not a candidate company without an ISIC division, when
    an earlier line already named that company, or when none of its ids is an item covering that company (ids
@@ -157,6 +157,7 @@ Code then checks the output, in this order. Every dropped statement, activity li
    in `candidate_sectors_companies` order.
 
 If the model call raises, `status` is `failed`, `error` `brief wording failed`, the four model lists are empty,
+`dropped_statements` 0,
 `unclassified_company_ids` holds every company without an ISIC division, and evidence, facts, companies and
 sectors are still filled. The candidate is saved either way; the run does not fail.
 
@@ -174,6 +175,7 @@ A **Context brief** section, open by default, above the decision buttons:
 - **Early evidence**: the `early_evidence` sentences, then the evidence items as a numbered list: quotes with
   source title, date and link; `counter` items prefixed `Counter-evidence:`; `financials` items as
   `<company name>: CapEx +25.0%, R&D n/a (SEC filings)` (signed, one decimal, `n/a` for null).
+- Company names are listed in company order, joined by `, `.
 - **Affected sectors**: one line per sector, `<label> (ISIC <division>): <company names>`; then, when any
   company has no ISIC division, **Activities (no ISIC code)**: each group as `<activity>: <company names>`,
   then each by-company line as `<company name>: <activity>`, then `Not classified: <names>` when
@@ -192,7 +194,7 @@ A **Context brief** section, open by default, above the decision buttons:
 `topic`, candidate missing, or candidate without a brief). Step 1's `state`, `detail` and `href` are unchanged.
 The dossier page shows the brief under step 1 with the same component as the candidate card, collapsed behind
 **Show context brief** (no brief heading visible until clicked); for origin `candidate` with a null brief it shows `No context brief: this run predates
-briefs.`; for origin `topic` nothing.
+briefs.` straight away, with no **Show context brief** control; for origin `topic` nothing.
 
 ## My calls (owner to confirm with the acceptance table)
 
@@ -272,10 +274,10 @@ Users `ana` (analyst), `vic` (viewer). Rows say "the fixture" for this setup and
 | AC-10 | the fixture; brief stand-in's `by_company` holds only the gamma line | run, read `activities`, `dropped_statements` | `groups` `[]`; `unclassified_company_ids` `["delta"]`; `dropped_statements` 3 | holdout |
 | AC-11 | the fixture; the delta line cites `["E1"]` instead of `["E4"]`, rest unchanged | run, read `activities`, `dropped_statements` | `by_company` holds only gamma; `groups` `[]`; `unclassified_company_ids` `["delta"]`; `dropped_statements` 5 | holdout |
 | AC-12 | the fixture; `gamma`'s `isic_code` `X9`, `delta`'s `0012` | run, read `companies`, `sectors` | delta and gamma `isic_division` null; `sectors` exactly one entry, division `27` | holdout |
-| AC-13 | the fixture; the brief stand-in raises | run completes | run status `completed`; 1 candidate; `context_brief.status` `failed`; `error` `brief wording failed`; `why_now`, `early_evidence`, `by_company`, `groups` all `[]`; `unclassified_company_ids` `["delta", "gamma"]`; `evidence` 7 items; `sectors` as AC-4 | holdout |
+| AC-13 | the fixture; the brief stand-in raises | run completes | run status `completed`; 1 candidate; `context_brief.status` `failed`; `error` `brief wording failed`; `why_now`, `early_evidence`, `by_company`, `groups` all `[]`; `unclassified_company_ids` `["delta", "gamma"]`; `dropped_statements` 0; `evidence` 7 items; `sectors` as AC-4 | holdout |
 | AC-14 | the fixture plus acme mentions a1–a6 (hosts `a1.test` … `a6.test`, one acme capex tag each); member-tag order m1, m2, a1–a6, m3, m4, m5 | run, read `evidence` | `corroborating_sources` m1, m2, a1–a6; pool of 12 items: E1–E8 those quotes, E9 `quote` m3 with `company_ids` `["gamma"]`, E10 `quote` m4 with `company_ids` `["delta", "gamma"]`, E11 `counter` m5, E12 `financials` acme | holdout |
 | AC-15 | the fixture with no `published_at` on any mention | run, read `facts` | `first_seen` null; `last_seen` null | holdout |
-| AC-16 | the fixture; `why_now` adds `{"Acme will invest $2bn.", ["E1"]}` | run, read `why_now`, `dropped_statements` | that sentence kept, second in `why_now`; `dropped_statements` 3 | holdout |
+| AC-16 | the fixture; `why_now` gets `{"Acme will invest $2bn.", ["E1"]}` appended after the E99 sentence | run, read `why_now`, `dropped_statements` | `why_now` texts exactly `["Companies report spending on cell plants.", "Acme will invest $2bn."]`; `dropped_statements` 3 | holdout |
 | AC-17 | the fixture; `why_now` adds `{"The second line slips to 2028.", ["E1"]}` | run, read `why_now`, `dropped_statements` | that sentence absent; `dropped_statements` 4 | holdout |
 | ~~AC-18~~ | retired before approval: entity resolution only resolves universe companies, so a candidate company outside the universe cannot occur | | | |
 | AC-19 | a run whose `results.jsonl` candidate rows were written without a `context_brief` key | `GET .../candidates` | 200; that candidate's `context_brief` null | holdout |
@@ -290,17 +292,17 @@ Users `ana` (analyst), `vic` (viewer). Rows say "the fixture" for this setup and
 | AC-28 | AC-25 | click marker `[6]` | Early evidence item 6 is in the viewport and has `aria-current="true"` | evaluator |
 | AC-29 | AC-25 | read the brief's end | `Dropped for lack of a cited source: 3` | evaluator |
 | AC-30 | AC-15's fixture with m2–m4's action `other` and m1, m5 `capex`; brief stand-in returning only `why_now` `{"Companies report spending on cell plants.", ["E1"]}` | view the candidate | facts line starts `Mention dates unknown ·`; `Corporate actions: capex 2`; no `Dropped for lack of a cited source` line | evaluator |
-| AC-31 | AC-13 in the running app | view the candidate | `The brief's wording failed; facts, evidence and sectors are shown.`; `Manufacture of electrical equipment (ISIC 27): Acme, Beta`; `Not classified: Delta, Gamma` | evaluator |
+| AC-31 | AC-13 in the running app | view the candidate | `The brief's wording failed; facts, evidence and sectors are shown.`; `Manufacture of electrical equipment (ISIC 27): Acme, Beta`; `Not classified: Delta, Gamma`; no `Dropped for lack of a cited source` line | evaluator |
 | AC-32 | AC-19 in the running app | view the candidate | `No context brief: this run predates briefs.` | evaluator |
 | AC-33 | AC-21 in the running app | open the dossier page | under step 1 a **Show context brief** control and no `Why now` heading; after clicking it, the headings `Why now`, `Early evidence`, `Affected sectors` and AC-25's facts line | evaluator |
-| AC-34 | AC-23 in the running app | open the dossier page | under step 1: `No context brief: this run predates briefs.` | evaluator |
+| AC-34 | AC-23 in the running app | open the dossier page | under step 1, without clicking: `No context brief: this run predates briefs.`; no **Show context brief** control | evaluator |
 | AC-35 | a topic-origin dossier in the running app | open it | no **Show context brief** control and no brief text | evaluator |
 
 Must not change:
 - AC-36: the candidate's `theme_name`, scores, `corroborating_sources`, `contradiction_evidence`,
   `xbrl_corroboration` and `status` are identical between the fixture run and AC-13's run. Checked by: holdout.
-- AC-37: on AC-1's candidates, promote returns 200, a second promote 400; reject on another candidate 200;
-  disconfirm on another 200. Checked by: holdout.
+- AC-37: three fixture runs: promote run 1's candidate → 200, promote it again → 400; reject run 2's candidate
+  → 200; disconfirm run 3's candidate → 200. Checked by: holdout.
 - AC-38: dossier step 1 `state`, `detail` and `href` are as the dossier spec's AC-2, AC-15 and AC-19 require.
   Checked by: holdout.
 - AC-39: the fixture with every action `other` (action score 0) produces no candidate and a `completed` run.
