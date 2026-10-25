@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { STATE_CLASS, STATE_LABEL, dossierHref, shelvedBanner, stepLinkText, visibleDossiers } from "../lib/dossiers";
 import type { Dossier, DossierItem, Taxonomy } from "../types";
+import { ContextBriefBody } from "../components/ContextBrief";
+import { NO_BRIEF } from "../lib/contextBrief";
 
 type Props = { params: string[]; onFindCompanies: (taxonomyId: string) => void };
 
@@ -122,6 +124,7 @@ function DossierPage({ id, onFindCompanies }: { id: string; onFindCompanies: (ta
   const [chosen, setChosen] = useState("");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showBrief, setShowBrief] = useState(false);
   const taxonomies = useTaxonomies();
 
   useEffect(() => {
@@ -173,6 +176,16 @@ function DossierPage({ id, onFindCompanies }: { id: string; onFindCompanies: (ta
                   </a>
                 ) : (
                   <a href={s.href}>{stepLinkText(s.number, s.href)}</a>
+                ))}
+              {s.number === 1 && dossier.origin === "candidate" &&
+                (!dossier.context_brief ? (
+                  <p className="muted">{NO_BRIEF}</p>
+                ) : showBrief ? (
+                  <ContextBriefBody brief={dossier.context_brief} />
+                ) : (
+                  <button type="button" className="secondary" onClick={() => setShowBrief(true)}>
+                    Show context brief
+                  </button>
                 ))}
               {s.number === 2 && !dossier.taxonomy_id && (
                 <form

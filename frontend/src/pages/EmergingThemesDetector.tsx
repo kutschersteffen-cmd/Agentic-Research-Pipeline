@@ -6,6 +6,7 @@ import { DecisionBar } from "../components/DecisionBar";
 import { UniversePicker } from "../components/UniversePicker";
 import { CandidateStatusBadge, ConfidenceBadge } from "../components/ConfidenceBadge";
 import { MentionCitationList } from "../components/MentionCitationList";
+import { ContextBriefBody } from "../components/ContextBrief";
 import type { DossierItem, EmergingThemeCandidate, EmergingThemesScheduleConfig, RunManifest } from "../types";
 import { dossierHref, dossierOfCandidate } from "../lib/dossiers";
 import { activatable } from "../lib/activatable";
@@ -311,6 +312,11 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                               </ul>
                             </>
                           )}
+
+                          <details open className="context-brief-section">
+                            <summary><strong>Context brief</strong></summary>
+                            <ContextBriefBody brief={c.context_brief ?? null} />
+                          </details>
 
                           {(c.status === "candidate" || c.status === "under_review") && (
                             <div className="toolbar">
