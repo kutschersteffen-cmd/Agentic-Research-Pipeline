@@ -94,7 +94,8 @@ The brief's evidence pool, numbered `E1`, `E2`, … in this order:
 1. `kind` `quote`: one per entry of `corroborating_sources`, in that order.
 2. `kind` `quote`: for each candidate company without an ISIC division (see Sectors) that no item from 1
    covers, its first grounded member tag in member-tag order, as a citation. A company with no grounded tag of
-   its own gets none.
+   its own gets none. These items are one per mention (two companies whose first tag is the same mention share
+   one item) and are ordered by member-tag order.
 3. `kind` `counter`: one per entry of `contradiction_evidence`, in that order.
 4. `kind` `financials`: one per entry of `xbrl_corroboration`, in that order.
 
@@ -103,6 +104,10 @@ A `quote` or `counter` item holds `evidence_id`, `kind`, `mention_id`, `source_t
 `company_ids` (the companies that mention resolved to). A `financials` item holds `evidence_id`, `kind`,
 `company_id`, `capex_pct_change`, `rnd_pct_change`. An item "covers" a company when its `company_ids` (or
 `company_id`) contains it.
+
+**Company order.** Every list of companies in the brief (`companies`, a sector's or group's `company_ids`,
+`by_company`, `unclassified_company_ids`) follows `candidate_sectors_companies` order (today sorted by
+`company_id`).
 
 ### Facts (code)
 
@@ -144,8 +149,8 @@ Code then checks the output, in this order. Every dropped statement, activity li
    `quote` of any `quote` or `counter` item it cites is dropped.
 2. **By company:** a line is dropped when its company is not a candidate company without an ISIC division, when
    an earlier line already named that company, or when none of its ids is an item covering that company (ids
-   that are not are removed).
-3. **Groups:** `company_ids` are reduced to companies with a kept by-company line; a group left with fewer than
+   that are not are removed). Kept lines are put in company order.
+3. **Groups:** `company_ids` are reduced to companies with a kept by-company line, in company order; a group left with fewer than
    two companies is dropped. A group's `evidence_ids` are the union of its companies' by-company ids, in pool
    order (the model's ids for groups are ignored).
 4. `unclassified_company_ids`: candidate companies without an ISIC division and without a kept by-company line,
@@ -202,10 +207,13 @@ briefs.`; for origin `topic` nothing.
 6. **A failed wording call keeps the candidate** and shows the code-built parts, like the existing SEC and role
    steps.
 7. **No setting to switch the brief off.**
+8. **One company order everywhere** (`candidate_sectors_companies`), so lists never depend on the model's order.
+9. **Built after the dossier, one PR**, rather than splitting the dossier rows into a second spec.
 
 ## Constraints
 
-- **The dossier part depends on the dossier being built.** The candidate-card part does not.
+- **Built after the dossier**, in one PR: rows AC-18 to AC-20, AC-29, AC-30 and AC-33 need the dossier's store
+  and API, and the holdout job runs every row of this spec on the PR.
 - Stand-ins: holdout and evaluator rows need the run to take a fixed mention source, clustering and model
   output, as the research-note spec's rows do. If the app has no such switch when the test-writer starts, that
   is a factory question for the owner, not a reason to change these rows.
@@ -249,13 +257,13 @@ plant", ["E1"]}]`; `groups` `[{"Battery-cell manufacturing", [gamma, delta, acme
 | AC-4 | AC-1 | read `context_brief.sectors` | exactly 1 entry: `isic_division` `27`, `label` `Manufacture of electrical equipment`, `company_ids` `["acme", "beta"]`, `evidence_ids` `["E1", "E2", "E5", "E6", "E7"]` | holdout |
 | AC-5 | the fixture with `beta`'s `isic_code` `3510` | run, read `sectors` | exactly 2 entries in order: division `27` `Manufacture of electrical equipment` with `company_ids` `["acme"]`, `evidence_ids` `["E1", "E5", "E6", "E7"]`; division `35` `Electricity, gas, steam and air conditioning supply` with `company_ids` `["beta"]`, `evidence_ids` `["E2"]` | holdout |
 | AC-6 | AC-1 | read `why_now` and `early_evidence` | `why_now` exactly `[{text: "Companies report spending on cell plants.", evidence_ids: ["E1"]}]`; `early_evidence` exactly `[{text: "Acme delayed its second line.", evidence_ids: ["E6"]}]` | holdout |
-| AC-7 | AC-1 | read `activities` | `by_company` exactly gamma `Expanding battery-cell output` `["E3"]`, delta `Supplying cells through a partnership` `["E4"]`; `groups` exactly `[{activity: "Battery-cell manufacturing", company_ids: ["gamma", "delta"], evidence_ids: ["E3", "E4"]}]`; `unclassified_company_ids` `[]` | holdout |
+| AC-7 | AC-1 | read `activities` | `by_company` exactly, in order, delta `Supplying cells through a partnership` `["E4"]`, gamma `Expanding battery-cell output` `["E3"]`; `groups` exactly `[{activity: "Battery-cell manufacturing", company_ids: ["delta", "gamma"], evidence_ids: ["E3", "E4"]}]`; `unclassified_company_ids` `[]` | holdout |
 | AC-8 | AC-1 | read `dropped_statements` | 3 | holdout |
-| AC-9 | AC-1 | read `companies` | `acme` `27`, `beta` `27`, `gamma` null, `delta` null, with names `Acme`, `Beta`, `Gamma`, `Delta` | holdout |
+| AC-9 | AC-1 | read `companies` | in order: `acme` `Acme` `27`, `beta` `Beta` `27`, `delta` `Delta` null, `gamma` `Gamma` null | holdout |
 | AC-10 | the fixture; brief stand-in's `by_company` returns only gamma | run, read `activities` | `groups` `[]`; `unclassified_company_ids` `["delta"]`; `dropped_statements` 3 (two statements, the one-company group) | holdout |
 | AC-11 | the fixture; brief stand-in returns delta citing `["E1"]` | run, read `activities.by_company` | no delta line; `unclassified_company_ids` `["delta"]` | holdout |
 | AC-12 | the fixture; `gamma`'s `isic_code` `X9` and `delta`'s `0012` | run, read the brief | `companies` gamma and delta `isic_division` null; `sectors` holds only division `27` | holdout |
-| AC-13 | the fixture; brief stand-in raises | run completes | 1 candidate; `context_brief.status` `failed`; `error` `brief wording failed`; `why_now`, `early_evidence`, `by_company`, `groups` `[]`; `unclassified_company_ids` `["gamma", "delta"]`; `evidence` 7 items; `sectors` 1 entry; run status `completed` | holdout |
+| AC-13 | the fixture; brief stand-in raises | run completes | 1 candidate; `context_brief.status` `failed`; `error` `brief wording failed`; `why_now`, `early_evidence`, `by_company`, `groups` `[]`; `unclassified_company_ids` `["delta", "gamma"]`; `evidence` 7 items; `sectors` 1 entry; run status `completed` | holdout |
 | AC-14 | the fixture plus acme mentions a1–a6 (new URLs, one acme capex tag each); member-tag order m1, m2, a1–a6, m3, m4, m5 | run, read `evidence` | `corroborating_sources` has 8 entries (m1, m2, a1–a6); the pool has 12 items: E1–E8 those quotes, E9 `quote` m3 with `company_ids` `["gamma"]`, E10 `quote` m4 with `company_ids` `["delta", "gamma"]`, E11 `counter` m5, E12 `financials` acme | holdout |
 | AC-15 | the fixture with no `published_at` on any mention | run, read `facts` | `first_seen` null; `last_seen` null | holdout |
 | AC-16 | the fixture; brief stand-in's `why_now` adds `{"text": "Acme will invest $2bn.", ids ["E1"]}` | run, read `why_now` | that sentence is kept; `dropped_statements` 3 | holdout |
@@ -266,10 +274,10 @@ plant", ["E1"]}]`; `groups` `[{"Battery-cell manufacturing", [gamma, delta, acme
 | AC-21 | caller `vic`, AC-1 | `GET .../candidates` | 200 with `context_brief` | holdout |
 | AC-22 | AC-1 in the running app | open Emerging Themes, view the candidate | **Context brief** open with headings `Why now`, `Early evidence`, `Affected sectors` in order; facts line `Mentions 2026-09-01 to 2026-09-20 · 5 independent sources · 4 companies · velocity <signal_velocity to 2 decimals>`; `Corporate actions: capex 1, orders 1, capacity 1, partnership 1`; sentence `Companies report spending on cell plants. [1]` | evaluator |
 | AC-23 | AC-22 | read Early evidence | `Acme delayed its second line. [6]`; 7 numbered items; item 6 starts `Counter-evidence:`; item 7 reads `Acme: CapEx +25.0%, R&D n/a (SEC filings)` | evaluator |
-| AC-24 | AC-22 | read Affected sectors | `Manufacture of electrical equipment (ISIC 27): Acme, Beta`; **Activities (no ISIC code)** with `Battery-cell manufacturing: Gamma, Delta`, `Gamma: Expanding battery-cell output [3]`, `Delta: Supplying cells through a partnership [4]`; no `Not classified` line | evaluator |
+| AC-24 | AC-22 | read Affected sectors | `Manufacture of electrical equipment (ISIC 27): Acme, Beta`; **Activities (no ISIC code)** with `Battery-cell manufacturing: Delta, Gamma`, `Delta: Supplying cells through a partnership [4]`, `Gamma: Expanding battery-cell output [3]`; no `Not classified` line | evaluator |
 | AC-25 | AC-22 | click marker `[6]` | item 6 of the Early evidence list is scrolled into view and highlighted | evaluator |
 | AC-26 | AC-22 | read the brief's end | `Dropped for lack of a cited source: 3` | evaluator |
-| AC-27 | AC-13 in the running app | view the candidate | `The brief's wording failed; facts, evidence and sectors are shown.`; the sectors line is shown; `Not classified: Gamma, Delta` | evaluator |
+| AC-27 | AC-13 in the running app | view the candidate | `The brief's wording failed; facts, evidence and sectors are shown.`; the sectors line is shown; `Not classified: Delta, Gamma` | evaluator |
 | AC-28 | AC-17 in the running app | view the candidate | `No context brief: this run predates briefs.` | evaluator |
 | AC-29 | AC-18 in the running app | open the dossier page, click **Show context brief** | the brief appears under step 1 with the same three headings and AC-22's facts line | evaluator |
 | AC-30 | a topic-origin dossier in the running app | open it | no **Show context brief** and no brief text | evaluator |
