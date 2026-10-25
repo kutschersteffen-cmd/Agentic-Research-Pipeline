@@ -167,10 +167,12 @@ function TaxonomyResearcherPanel() {
       )}
 
       <section className="card">
-        <h2>Run now</h2>
-        <button onClick={runNow} disabled={busy}>
-          Scan now
-        </button>
+        <div className="section-heading">
+          <h2>Runs</h2>
+          <button onClick={runNow} disabled={busy}>
+            Scan now
+          </button>
+        </div>
         {runId && (
           <>
             <RunProgress runId={runId} runType="taxonomy_research" />
@@ -205,10 +207,7 @@ function TaxonomyResearcherPanel() {
             </table>
           </div>
         )}
-      </section>
-
-      <section className="card">
-        <h2>Past runs</h2>
+        <h3>Past runs</h3>
         {pastRuns.length === 0 && <p className="muted">No taxonomy research runs yet.</p>}
         {pastRuns.length > 0 && (
           <div className="table-wrap">
@@ -334,10 +333,12 @@ function CalibrationPanel() {
       )}
 
       <section className="card">
-        <h2>Run now</h2>
-        <button onClick={runNow} disabled={busy}>
-          Check now
-        </button>
+        <div className="section-heading">
+          <h2>Runs</h2>
+          <button onClick={runNow} disabled={busy}>
+            Check now
+          </button>
+        </div>
         {runId && (
           <>
             <RunProgress runId={runId} runType="calibration" />
@@ -378,10 +379,7 @@ function CalibrationPanel() {
             </table>
           </div>
         )}
-      </section>
-
-      <section className="card">
-        <h2>Past runs</h2>
+        <h3>Past runs</h3>
         {pastRuns.length === 0 && <p className="muted">No calibration runs yet.</p>}
         {pastRuns.length > 0 && (
           <div className="table-wrap">
