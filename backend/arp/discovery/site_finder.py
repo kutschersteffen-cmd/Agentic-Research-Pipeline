@@ -137,7 +137,7 @@ async def resolve_company_homepage(company_name: str, search_client: WebSearchCl
     for query in (f"{company_name} investor relations", f"{company_name} official website"):
         try:
             results = await search_client.search(query, max_results=5)
-        except httpx.HTTPError as exc:
+        except (httpx.HTTPError, RuntimeError) as exc:  # RuntimeError: the test stand-in's search failure
             logger.info("Web search failed for %r: %s", query, exc)
             continue
         results = [r for r in results if not is_aggregator(r.url)]

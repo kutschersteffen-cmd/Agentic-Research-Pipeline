@@ -61,7 +61,8 @@ def _require_postgres(ctx: typer.Context) -> None:
         settings = get_settings()
     except ValidationError as exc:  # one plain line per error, not a terminal-wrapped traceback
         for error in exc.errors():
-            typer.echo(error["msg"].removeprefix("Value error, "), err=True)
+            where = f"{'.'.join(map(str, error['loc']))}: " if error["loc"] else ""
+            typer.echo(where + error["msg"].removeprefix("Value error, "), err=True)
         raise typer.Exit(1) from exc
     try:
         require_postgres(settings)

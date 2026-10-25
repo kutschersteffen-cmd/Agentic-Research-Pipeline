@@ -94,9 +94,12 @@ class StandInSearchClient(WebSearchClient):
         if entry is _MISSING:
             raise RuntimeError("no stand-in for web search")
         await _delay(entry)
-        if "error" in entry:
+        if isinstance(entry, dict) and "error" in entry:
             raise RuntimeError(str(entry["error"]))
-        return [SearchResult.model_validate(r) for r in entry.get("results", [])]  # max_results ignored by design
+        try:
+            return [SearchResult.model_validate(r) for r in entry.get("results", [])]  # max_results ignored by design
+        except (AttributeError, TypeError, ValidationError):
+            raise RuntimeError("stand-in search.json does not match {\"results\": [{\"title\", \"url\", \"snippet\"}]}") from None
 
 
 async def fetch_text(folder: Path, url: str) -> str | None:

@@ -166,9 +166,27 @@ def test_switch_off_keeps_the_real_clients(tmp_path):  # AC-18
 
 
 async def test_switch_off_keeps_the_ssrf_guard(monkeypatch):  # AC-19
-    monkeypatch.delenv("ARP_STANDINS_DIR", raising=False)
+    def no_http(*a, **kw):
+        raise AssertionError("HTTP request sent: the SSRF guard did not stop it")
+
     monkeypatch.setattr(standins, "active_dir", lambda: None)
+    monkeypatch.setattr(httpx.AsyncClient, "send", no_http)
     assert await fetch_source_text("http://127.0.0.1/x", "ua") is None
+
+
+async def test_homepage_lookup_survives_a_stand_in_search_failure(on):
+    from arp.discovery.site_finder import resolve_company_homepage
+
+    assert await resolve_company_homepage("Acme", deps.get_web_search_client()) is None
+    _write(on, "search.json", {"error": "down"})
+    assert await resolve_company_homepage("Acme", deps.get_web_search_client()) is None
+
+
+async def test_search_fixture_of_the_wrong_shape(on):
+    for content in ([], {"results": [{"title": "no url"}]}):
+        _write(on, "search.json", content)
+        with pytest.raises(RuntimeError, match="^stand-in search.json does not match"):
+            await deps.get_web_search_client().search("q")
 
 
 def test_cli_prints_the_guard_message_on_one_line(tmp_path, monkeypatch):  # AC-2
