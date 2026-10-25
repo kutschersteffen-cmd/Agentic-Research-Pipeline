@@ -53,6 +53,7 @@ const IndexBuilder = lazy(() => import("./pages/IndexBuilder").then((x) => ({ de
 const ArgusUniverse = lazy(() => import("./pages/ArgusUniverse").then((x) => ({ default: x.ArgusUniverse })));
 const Company = lazy(() => import("./pages/Company").then((x) => ({ default: x.Company })));
 const XbrlFacts = lazy(() => import("./pages/XbrlFacts").then((x) => ({ default: x.XbrlFacts })));
+const ThemeDossiers = lazy(() => import("./pages/ThemeDossiers").then((x) => ({ default: x.ThemeDossiers })));
 const RfpAnswers = lazy(() => import("./pages/RfpAnswers").then((x) => ({ default: x.RfpAnswers })));
 
 const TABS = [
@@ -73,6 +74,7 @@ const TABS = [
   { id: "theme", label: "Thematic Universe" },
   { id: "taxonomy", label: "Taxonomy Library" },
   { id: "emergingThemes", label: "Emerging Themes" },
+  { id: "themes", label: "Theme dossiers" },
   { id: "backgroundAgents", label: "Background Agents" },
   { id: "extraction", label: "Extraction" },
   { id: "transitionPlan", label: "Transition Plan" },
@@ -127,7 +129,7 @@ const NAV_GROUPS: { label: string | null; ids: readonly TabId[]; collapsed?: boo
   { label: "Output", ids: ["reporting", "library", "history"] },
   {
     label: "All screens",
-    ids: ["feeds", "issues", "smartSearch", "outputs", "securityMaster", "stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "emergingThemes", "taxonomy", "theme", "strategyReplication", "signals", "valueChain", "decision", "index", "xbrl", "identity", "rfp", "arcade"],
+    ids: ["feeds", "issues", "smartSearch", "outputs", "securityMaster", "stewardship", "engagement", "extraction", "portfolio-monitoring", "transitionBarrier", "themes", "emergingThemes", "taxonomy", "theme", "strategyReplication", "signals", "valueChain", "decision", "index", "xbrl", "identity", "rfp", "arcade"],
     collapsed: true,
   },
 ];
@@ -436,6 +438,7 @@ function App() {
         {active === "theme" && <ThemeBuilder key={route.params[0]} initialRunId={route.params[0] ?? null} onSendToExtraction={(path, count) => sendUniverse("Thematic Universe")("extraction", path, count)} pendingTaxonomyId={pendingTaxonomyId} />}
         {active === "taxonomy" && <TaxonomyLibrary onUseInTheme={sendToTheme} />}
         {active === "emergingThemes" && <EmergingThemesDetector onNavigate={go} />}
+        {active === "themes" && <ThemeDossiers params={route.params} onFindCompanies={sendToTheme} />}
         {active === "backgroundAgents" && <BackgroundAgents />}
         {active === "extraction" && <Extraction key="extraction" initialTab={route.params[0]} initialAuto={route.params[1] === "auto"} pendingUniverse={pendingFor("extraction")} />}
         {active === "transitionPlan" && <Extraction key="transitionPlan" initialProfile="transition_plan" pendingUniverse={pendingFor("transitionPlan")} />}

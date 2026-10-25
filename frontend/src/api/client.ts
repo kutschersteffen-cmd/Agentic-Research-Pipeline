@@ -105,6 +105,7 @@ import type {
 import type { XbrlRunMarket } from "../types";
 import type { VcFootprint, VcNode, VcSearch, VcStatus, VcTree } from "../types";
 import type { RunFailure } from "../types";
+import type { Dossier, DossierItem } from "../types";
 import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision } from "../types";
 import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
@@ -645,6 +646,12 @@ export const api = {
   inspectSourceUrl: (url: string) => `${API_BASE}/api/taxonomies/sources/inspect?url=${encodeURIComponent(url)}`,
   createTaxonomy: (body: unknown) => request("/api/taxonomies", { method: "POST", body: JSON.stringify(body) }),
   listTaxonomies: () => request<{ taxonomies: unknown[] }>("/api/taxonomies"),
+  listDossiers: () => request<{ items: DossierItem[] }>("/api/dossiers"),
+  createDossier: (name: string, taxonomyId: string | null) =>
+    request<Dossier>("/api/dossiers", jsonBody("POST", { name, taxonomy_id: taxonomyId })),
+  getDossier: (id: string) => request<Dossier>(`/api/dossiers/${encodeURIComponent(id)}`),
+  patchDossier: (id: string, body: { taxonomy_id: string } | { status: "shelved"; reason: string }) =>
+    request<Dossier>(`/api/dossiers/${encodeURIComponent(id)}`, jsonBody("PATCH", body)),
   newTaxonomyVersion: (taxonomyId: string, body: unknown) =>
     request(`/api/taxonomies/${taxonomyId}/versions`, { method: "POST", body: JSON.stringify(body) }),
   ratifyTaxonomy: (taxonomyId: string, body: { version: number }) =>
