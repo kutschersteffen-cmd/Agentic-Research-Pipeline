@@ -22,6 +22,9 @@ export type RunFailure = Served<S["RunFailure"]>;
 export type ArgusFlow = Served<S["ArgusFlowView"]>;
 export type ArgusDraft = Served<S["ArgusFlow"]>; // as GET /api/argus/flows lists it, without rows
 export type FlowRow = Served<S["FlowRow"]>;
+export type Dossier = Served<S["DossierView"]>;
+export type DossierItem = Served<S["DossierItem"]>;
+export type DossierStepState = Dossier["steps"][number]["state"];
 export type PriorRun = Served<S["PriorRun"]>;
 
 export type RfpLibraryEntry = Served<S["RfpLibraryEntryOut"]>;

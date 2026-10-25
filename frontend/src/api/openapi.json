@@ -6937,6 +6937,324 @@
     "title": "DocumentRouting",
     "type": "object"
    },
+   "DossierCreate": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "taxonomy_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Taxonomy Id"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "DossierCreate",
+    "type": "object"
+   },
+   "DossierItem": {
+    "properties": {
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "current_step": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Current Step"
+     },
+     "dossier_id": {
+      "title": "Dossier Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "origin": {
+      "title": "Origin",
+      "type": "string"
+     },
+     "run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Run Id"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "theme_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Theme Id"
+     }
+    },
+    "required": [
+     "dossier_id",
+     "name",
+     "status",
+     "origin",
+     "run_id",
+     "theme_id",
+     "current_step",
+     "created_at"
+    ],
+    "title": "DossierItem",
+    "type": "object"
+   },
+   "DossierList": {
+    "properties": {
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/DossierItem"
+      },
+      "title": "Items",
+      "type": "array"
+     }
+    },
+    "required": [
+     "items"
+    ],
+    "title": "DossierList",
+    "type": "object"
+   },
+   "DossierPatch": {
+    "properties": {
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "status": {
+      "anyOf": [
+       {
+        "const": "shelved",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Status"
+     },
+     "taxonomy_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Taxonomy Id"
+     }
+    },
+    "title": "DossierPatch",
+    "type": "object"
+   },
+   "DossierStep": {
+    "properties": {
+     "detail": {
+      "title": "Detail",
+      "type": "string"
+     },
+     "href": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Href"
+     },
+     "number": {
+      "title": "Number",
+      "type": "integer"
+     },
+     "state": {
+      "enum": [
+       "done",
+       "waiting",
+       "running",
+       "failed",
+       "not_started",
+       "skipped",
+       "not_built"
+      ],
+      "title": "State",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "number",
+     "title",
+     "state",
+     "detail",
+     "href"
+    ],
+    "title": "DossierStep",
+    "type": "object"
+   },
+   "DossierView": {
+    "properties": {
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "created_by": {
+      "title": "Created By",
+      "type": "string"
+     },
+     "dossier_id": {
+      "title": "Dossier Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "origin": {
+      "enum": [
+       "candidate",
+       "topic"
+      ],
+      "title": "Origin",
+      "type": "string"
+     },
+     "run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Run Id"
+     },
+     "shelve_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Shelve Reason"
+     },
+     "shelved_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Shelved At"
+     },
+     "shelved_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Shelved By"
+     },
+     "status": {
+      "default": "active",
+      "enum": [
+       "active",
+       "shelved"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "steps": {
+      "items": {
+       "$ref": "#/components/schemas/DossierStep"
+      },
+      "title": "Steps",
+      "type": "array"
+     },
+     "taxonomy_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Taxonomy Id"
+     },
+     "theme_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Theme Id"
+     }
+    },
+    "required": [
+     "dossier_id",
+     "name",
+     "created_by",
+     "created_at",
+     "origin",
+     "steps"
+    ],
+    "title": "DossierView",
+    "type": "object"
+   },
    "DraftSchemaRequest": {
     "properties": {
      "criteria_text": {
@@ -22301,6 +22619,158 @@
     ]
    }
   },
+  "/api/dossiers": {
+   "get": {
+    "operationId": "list_dossiers_api_dossiers_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DossierList"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Dossiers",
+    "tags": [
+     "dossiers"
+    ]
+   },
+   "post": {
+    "operationId": "create_dossier_api_dossiers_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DossierCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DossierView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Dossier",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}": {
+   "get": {
+    "operationId": "get_dossier_api_dossiers__dossier_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DossierView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Dossier",
+    "tags": [
+     "dossiers"
+    ]
+   },
+   "patch": {
+    "operationId": "patch_dossier_api_dossiers__dossier_id__patch",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DossierPatch"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DossierView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Patch Dossier",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
   "/api/emerging-themes/runs": {
    "post": {
     "description": "Manual trigger: scan public news/filings/regulatory flow across the\ngiven (or referenced) universe for emerging themes. Uses the exact\nsame pipeline the automatic schedule uses.",
@@ -22455,7 +22925,7 @@
   },
   "/api/emerging-themes/runs/{run_id}/candidates/{theme_id}/promote": {
    "post": {
-    "description": "The human review gate's action -- no candidate reaches the taxonomy\nlibrary without this explicit call. `reason` is required (roadmap\nP0).",
+    "description": "The human review gate's action -- no candidate reaches the taxonomy\nlibrary without this explicit call. `reason` is required (roadmap\nP0). Opens the theme's dossier, or reuses the one its taxonomy already has.",
     "operationId": "promote_api_emerging_themes_runs__run_id__candidates__theme_id__promote_post",
     "parameters": [
      {
