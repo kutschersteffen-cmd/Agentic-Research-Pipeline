@@ -1,6 +1,7 @@
 # Theme research note: source plan, approval, cited note (step 3)
 
 Status: approved by the owner, 2026-10-25.
+Amended 2026-10-25: model-call and web-search contracts for stand-ins (`2026-10-25-test-stand-ins-design.md`).
 
 Builds on the theme dossier spec (`2026-10-25-theme-dossier-design.md`, PR #226). That spec shows step 3 as
 `not_built`; this spec replaces that with a real derivation and builds the step.
@@ -156,6 +157,24 @@ counted in `dropped_items`. The note becomes `written`.
 `written` → approve (sets `approved_by`, `approved_at`) or reject with a non-blank reason. Rejecting sends the
 round's `plan_status` back to `proposed`, so the owner can change the sources and approve again, then rewrite.
 
+## Model calls and web search (stand-in contract)
+
+Tests and the evaluator answer these through the fixture folder of the test stand-ins spec
+(`2026-10-25-test-stand-ins-design.md`): `search.json`, `fetch.json`, and `model/<ClassName>.json` per class below.
+
+- **Search.** Results from all queries are merged in query order and de-duplicated by URL (first occurrence
+  kept) before classification. The stand-in answers every query with the same list, so its 4 results stay 4.
+- **Classification.** Exactly one `LLMClient.complete_structured` call per propose run (client from
+  `get_llm_client`), `output_model` **`SourceClassificationDraft`**:
+  `{sources: [{url: str, category: "intergovernmental" | "official_statistics" | "central_bank_regulator" |
+  "academic" | "none", publisher: str, why: str, how: str}]}`. Entries are matched to search results by exact
+  `url`; a search result with no entry counts as `none`; an entry whose `url` is not a search result is
+  ignored. `title` comes from the search result. Order is search order.
+- **Note.** Exactly one call per write run, `output_model` **`ResearchNoteDraft`**:
+  `{risks, opportunities, financial_relevance, growth_potential, transmission_channels}`, each a list
+  (default `[]`) of `{title: str, text: str, channel: "economic" | "financial" | null,
+  citations: [{source_id: str, quote: str}]}`.
+
 ## API
 
 Under `/api/dossiers/{dossier_id}/research`, behind `authorize`: viewer reads, analyst writes and approves
@@ -252,8 +271,8 @@ AC-11's gets 3, not null), AC-34 (step 3 reads `Not started`, not `Coming later`
 - **Depends on the dossier being built** (store, `/api/dossiers`, `#/themes`). The dossier spec is merged as a
   spec only; this is built after it.
 - Stand-ins: holdout and evaluator rows need the running app to take a fixed web search, fetch and model
-  output, as the Ask ARP spec's rows do. If the app has no such switch when the test-writer starts, that is a
-  factory question for the owner, not a reason to change these rows.
+  output, through the test stand-ins switch (`2026-10-25-test-stand-ins-design.md`, built first) and the
+  contracts in "Model calls and web search" above.
 - Repo checks; API contract regenerated and committed.
 - Golden-set CI is not triggered (no change under `arp/extraction`, `arp/llm`, `arp/grounding.py`).
 - Fetching goes through the existing SSRF-guarded `fetch_source_text`.
