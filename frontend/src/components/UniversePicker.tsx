@@ -38,11 +38,11 @@ export function UniversePicker({ onResolved }: Props) {
         Company universe (CSV or JSON)
         <input type="file" accept=".csv,.json" onChange={onFile} disabled={busy} />
       </label>
-      <p className="help-text">
-        Columns: company_id, name, ticker, website, cik, lei, isin, country, sector. Only company_id and name are
-        required; adding website and CIK makes document discovery more precise, and an ISIN, LEI or CIK lets the
-        security master map the company and pick its XBRL source.
-      </p>
+      <details className="help-text">
+        <summary>Needs company_id and name columns</summary>
+        Optional: ticker, website, cik, lei, isin, country, sector. Adding website and CIK makes document discovery
+        more precise, and an ISIN, LEI or CIK lets the security master map the company and pick its XBRL source.
+      </details>
       <InputPicker
         kind="universe"
         label="Or pick a saved universe"
