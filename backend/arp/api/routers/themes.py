@@ -13,7 +13,7 @@ from arp.api.run_scheduling import schedule_llm_run
 from arp.company_graph import CompanyGraphError
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
-from arp.discovery.site_finder import DuckDuckGoSearchClient
+from arp.discovery.site_finder import build_web_search_client
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.factory import batch_settings
 from arp.research.activity_generator import build_theme
@@ -142,7 +142,7 @@ async def start_theme_run(
             settings=settings,
             schema=schema,
             isic_model=indirect_model,
-            search_client=DuckDuckGoSearchClient(settings.discovery_user_agent),
+            search_client=build_web_search_client(settings.discovery_user_agent),
         )
 
     def _create() -> str:

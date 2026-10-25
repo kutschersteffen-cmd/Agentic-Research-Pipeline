@@ -9,7 +9,7 @@ from arp.api.auth import Principal, current_user
 from arp.api.deps import get_llm_client, get_run_store, get_verifier_llm_client, settings_dep
 from arp.config import Settings
 from arp.discovery.academic_search import ArxivSearchClient, CompositeSearchClient, SemanticScholarSearchClient
-from arp.discovery.site_finder import DuckDuckGoSearchClient
+from arp.discovery.site_finder import build_web_search_client
 from arp.llm.base import LLMClient
 from arp.orchestration.review_queue import decision_history, latest_decisions, record_review_decision
 from arp.replication.characteristics_data import CsvCharacteristicSource
@@ -118,7 +118,7 @@ async def discover_papers(
     turned into a spec automatically -- picking one is a separate
     POST /specs call."""
     search_client = CompositeSearchClient(
-        [ArxivSearchClient(), SemanticScholarSearchClient(), DuckDuckGoSearchClient(settings.discovery_user_agent)]
+        [ArxivSearchClient(), SemanticScholarSearchClient(), build_web_search_client(settings.discovery_user_agent)]
     )
     candidates = await discover_candidate_papers(req.topic, search_client, max_candidates=req.max_candidates)
     if not candidates:

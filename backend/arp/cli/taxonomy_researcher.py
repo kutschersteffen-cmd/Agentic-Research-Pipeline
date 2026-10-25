@@ -7,7 +7,7 @@ import typer
 from arp.agents.taxonomy_researcher import TaxonomyResearcherScheduler, run_taxonomy_research
 from arp.cli._shared import _run_store, _taxonomy_store
 from arp.config import get_settings
-from arp.discovery.site_finder import DuckDuckGoSearchClient
+from arp.discovery.site_finder import build_web_search_client
 from arp.llm.factory import build_llm_client
 from arp.schemas.taxonomy_researcher import TaxonomyResearcherScheduleConfig
 
@@ -27,7 +27,7 @@ def taxonomy_researcher_run(
     run_store = _run_store()
     run_id = asyncio.run(
         run_taxonomy_research(
-            llm=llm, search_client=DuckDuckGoSearchClient(settings.discovery_user_agent), settings=settings,
+            llm=llm, search_client=build_web_search_client(settings.discovery_user_agent), settings=settings,
             taxonomy_store=_taxonomy_store(), run_store=run_store, taxonomy_ids=ids, triggered_by="manual",
         )
     )
@@ -48,7 +48,7 @@ def taxonomy_researcher_schedule(
     scheduler); this command just persists the config file it reads."""
     settings = get_settings()
     ids = [t.strip() for t in taxonomy_ids.split(",") if t.strip()] or None
-    scheduler = TaxonomyResearcherScheduler(settings, _run_store(), _taxonomy_store(), lambda: build_llm_client(settings), DuckDuckGoSearchClient(settings.discovery_user_agent))
+    scheduler = TaxonomyResearcherScheduler(settings, _run_store(), _taxonomy_store(), lambda: build_llm_client(settings), build_web_search_client(settings.discovery_user_agent))
     config = TaxonomyResearcherScheduleConfig(enabled=enable, interval_hours=interval_hours, taxonomy_ids=ids)
     scheduler.save_config(config)
     typer.echo(f"Schedule saved: enabled={enable}, every {interval_hours}h, taxonomy_ids={ids or 'all ratified'}")

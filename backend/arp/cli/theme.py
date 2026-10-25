@@ -12,7 +12,7 @@ from arp.company_graph import NOT_CONFIGURED, CompanyGraphError, import_edges, o
 from arp.config import Settings, get_settings
 from arp.db.fields import SchemaRegistry
 from arp.db.session import require_dsn
-from arp.discovery.site_finder import DuckDuckGoSearchClient
+from arp.discovery.site_finder import build_web_search_client
 from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
 from arp.orchestration.jobs import resume_run
 from arp.research.activity_generator import build_theme
@@ -232,7 +232,7 @@ def theme_run(
     if enable_rd_exposure:
         rd_resolver = RDResolverContext(
             registry=_registry(), settings=settings, schema=schema, isic_model=indirect_model,
-            search_client=DuckDuckGoSearchClient(settings.discovery_user_agent),
+            search_client=build_web_search_client(settings.discovery_user_agent),
         )
         typer.echo("R&D/news exposure resolution enabled (ideation/innovation-stage activities only).")
 

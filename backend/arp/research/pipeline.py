@@ -6,7 +6,7 @@ from pathlib import Path
 
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry
-from arp.discovery.site_finder import DuckDuckGoSearchClient
+from arp.discovery.site_finder import build_web_search_client
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_company_batch
@@ -219,7 +219,7 @@ async def resume_theme_run(
     if manifest.params.get("enable_rd_exposure"):
         rd_resolver = RDResolverContext(
             registry=registry, settings=settings, schema=schema, isic_model=indirect_model,
-            search_client=DuckDuckGoSearchClient(settings.discovery_user_agent),
+            search_client=build_web_search_client(settings.discovery_user_agent),
         )
 
     return await execute_theme_run(

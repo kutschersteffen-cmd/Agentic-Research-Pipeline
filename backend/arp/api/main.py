@@ -72,6 +72,7 @@ from arp.transition_alignment.benchmarks import check_benchmarks
 from arp.transition_barrier.dataset import check_rule_book
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -82,6 +83,8 @@ async def lifespan(app: FastAPI):
     require_postgres(settings)  # Postgres is the system of record: no DSN or no answer, no app
     require_cutover(settings)  # nor on an un-migrated or un-imported database
     settings.ensure_dirs()
+    if settings.standins_dir is not None:
+        logger.warning("Test stand-ins are ON: web search, fetch and model answers come from %s", settings.standins_dir)
     if settings.auth_mode == "local":
         load_users(settings.users_file)  # a bad users file stops startup
     scheduler = get_scheduler()
@@ -186,6 +189,15 @@ async def runtime_error_handler(request: Request, exc: RuntimeError) -> JSONResp
     return JSONResponse(status_code=503, content={"detail": str(exc)})
 
 
+if settings_dep().standins_dir is not None:
+
+    @app.middleware("http")
+    async def stand_ins_header(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-ARP-Stand-ins"] = "on"
+        return response
+
+
 @app.exception_handler(ValueError)
 async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
     # Covers both request-shape validation raised deep in a pipeline (e.g.
@@ -197,6 +209,8 @@ async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse
 
 @app.get("/api/health")
 def health() -> dict:
+    if settings_dep().standins_dir is not None:
+        return {"status": "ok", "stand_ins": True}
     return {"status": "ok"}
 
 

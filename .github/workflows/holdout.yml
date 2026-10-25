@@ -47,6 +47,11 @@ jobs:
       ARP_NEO4J_USER: neo4j
       ARP_NEO4J_PASSWORD: arp_neo4j_test
     steps:
+      # Test stand-ins: web search, fetch and model answers come from fixture files the hidden tests write here.
+      # Set from a step because the runner context is not available in job-level env.
+      - name: Point the app at the stand-in folder
+        run: echo "ARP_STANDINS_DIR=$RUNNER_TEMP/standins" >>"$GITHUB_ENV"
+
       - name: Check for the token
         id: key
         env:
