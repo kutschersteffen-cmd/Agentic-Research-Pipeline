@@ -1111,6 +1111,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/dossiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Dossiers */
+        get: operations["list_dossiers_api_dossiers_get"];
+        put?: never;
+        /** Create Dossier */
+        post: operations["create_dossier_api_dossiers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Dossier */
+        get: operations["get_dossier_api_dossiers__dossier_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Dossier */
+        patch: operations["patch_dossier_api_dossiers__dossier_id__patch"];
+        trace?: never;
+    };
     "/api/emerging-themes/runs": {
         parameters: {
             query?: never;
@@ -1185,7 +1221,7 @@ export interface paths {
          * Promote
          * @description The human review gate's action -- no candidate reaches the taxonomy
          *     library without this explicit call. `reason` is required (roadmap
-         *     P0).
+         *     P0). Opens the theme's dossier, or reuses the one its taxonomy already has.
          */
         post: operations["promote_api_emerging_themes_runs__run_id__candidates__theme_id__promote_post"];
         delete?: never;
@@ -9864,6 +9900,98 @@ export interface components {
              */
             sections?: string[];
         };
+        /** DossierCreate */
+        DossierCreate: {
+            /** Name */
+            name: string;
+            /** Taxonomy Id */
+            taxonomy_id?: string | null;
+        };
+        /** DossierItem */
+        DossierItem: {
+            /** Created At */
+            created_at: string;
+            /** Current Step */
+            current_step: number | null;
+            /** Dossier Id */
+            dossier_id: string;
+            /** Name */
+            name: string;
+            /** Origin */
+            origin: string;
+            /** Run Id */
+            run_id: string | null;
+            /** Status */
+            status: string;
+            /** Theme Id */
+            theme_id: string | null;
+        };
+        /** DossierList */
+        DossierList: {
+            /** Items */
+            items: components["schemas"]["DossierItem"][];
+        };
+        /** DossierPatch */
+        DossierPatch: {
+            /** Reason */
+            reason?: string | null;
+            /** Status */
+            status?: "shelved" | null;
+            /** Taxonomy Id */
+            taxonomy_id?: string | null;
+        };
+        /** DossierStep */
+        DossierStep: {
+            /** Detail */
+            detail: string;
+            /** Href */
+            href: string | null;
+            /** Number */
+            number: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "done" | "waiting" | "running" | "failed" | "not_started" | "skipped" | "not_built";
+            /** Title */
+            title: string;
+        };
+        /** DossierView */
+        DossierView: {
+            /** Created At */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Dossier Id */
+            dossier_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "candidate" | "topic";
+            /** Run Id */
+            run_id?: string | null;
+            /** Shelve Reason */
+            shelve_reason?: string | null;
+            /** Shelved At */
+            shelved_at?: string | null;
+            /** Shelved By */
+            shelved_by?: string | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "shelved";
+            /** Steps */
+            steps: components["schemas"]["DossierStep"][];
+            /** Taxonomy Id */
+            taxonomy_id?: string | null;
+            /** Theme Id */
+            theme_id?: string | null;
+        };
         /** DraftSchemaRequest */
         DraftSchemaRequest: {
             /** Criteria Text */
@@ -17074,6 +17202,125 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_dossiers_api_dossiers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DossierList"];
+                };
+            };
+        };
+    };
+    create_dossier_api_dossiers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DossierCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DossierView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_dossier_api_dossiers__dossier_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DossierView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_dossier_api_dossiers__dossier_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DossierPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DossierView"];
                 };
             };
             /** @description Validation Error */
