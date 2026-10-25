@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useState, type ReactElement } from "react";
 import { api } from "../api/client";
-import type { RunManifest, StewardshipFlow } from "../types";
+import type { EngagementRecord, RunManifest, StewardshipFlow } from "../types";
 import { ACTIVE_STATUSES, decisionRunType, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
 import { listAllRuns, usePoll } from "../lib/poll";
 import { DECISION_STAGES, PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
@@ -9,6 +9,7 @@ import { useMe } from "../lib/reviewer";
 import { NeedsYou } from "../components/NeedsYou";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
+import { engagementCounts, engagementLine, type EngagementCounts } from "../lib/engagement";
 
 // The start page, the five workspace pages and the process bar. Workspaces and
 // their processes live in lib/processes.ts; this file draws them and reads
@@ -209,6 +210,14 @@ export function StartPage() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const name = reviewer.trim();
+  // Loaded once: the line is a glance, the Engagement screen has the live list.
+  const [engagement, setEngagement] = useState<EngagementCounts | null | "error">(null);
+  useEffect(() => {
+    api.listEngagementRecords().then(
+      (r) => setEngagement(engagementCounts(r.records as EngagementRecord[])),
+      () => setEngagement("error"),
+    );
+  }, []);
 
   const known = runs !== null;
   const all = runs ?? [];
@@ -287,6 +296,9 @@ export function StartPage() {
           All runs →
         </a>
       </nav>
+      <p className="hub-engagement">
+        <span>{engagementLine(engagement)}</span> <a href="#/engagement">Open Engagement →</a>
+      </p>
     </div>
   );
 }

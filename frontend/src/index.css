@@ -1717,6 +1717,8 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .hub-chip:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .hub-chip-wait { border-color: var(--hi); }
 .hub-now-all { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text); }
+.hub-engagement { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-3); margin: var(--s-3) 0 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--muted); }
+.hub-engagement a { color: var(--text); }
 
 @media (max-width: 1400px) { .hub-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 1100px) { .hub-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

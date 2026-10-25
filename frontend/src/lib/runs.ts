@@ -98,3 +98,15 @@ export function batchWaitText(wait: NonNullable<RunManifest["batch_wait"]>): str
   const hhmm = `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
   return `Waiting on batch · ${wait.request_count.toLocaleString("en-US")} requests · submitted ${hhmm} · Anthropic usually finishes within an hour`;
 }
+
+/** One row per proxy voting run with ballots waiting on a person, for the start page's Needs you list. */
+export function ballotRows(runs: RunManifest[]): { runId: string; count: number; what: string; href: string }[] {
+  return runs
+    .filter((r) => r.run_type === "proxy_voting" && r.review_count > 0)
+    .map((r) => ({
+      runId: r.run_id,
+      count: r.review_count,
+      what: `Proxy voting run ${r.run_id}: ${r.review_count === 1 ? "1 ballot" : `${r.review_count} ballots`} to decide`,
+      href: `#/voting/${encodeURIComponent(r.run_id)}`,
+    }));
+}
