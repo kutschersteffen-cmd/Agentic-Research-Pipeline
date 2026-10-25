@@ -1,6 +1,6 @@
 # Theme research note: source plan, approval, cited note (step 3)
 
-Status: draft, 2026-10-25.
+Status: approved by the owner, 2026-10-25.
 
 Builds on the theme dossier spec (`2026-10-25-theme-dossier-design.md`, PR #226). That spec shows step 3 as
 `not_built`; this spec replaces that with a real derivation and builds the step.
