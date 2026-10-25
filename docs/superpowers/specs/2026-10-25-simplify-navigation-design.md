@@ -5,7 +5,8 @@ Status: draft, 2026-10-25.
 ## Owner decisions, 2026-10-25
 
 - The sidebar keeps only Start, the five workspaces, Presentations & Reports and Arcade, plus the
-  **Needs you** group (Review Queue, Proxy Voting) because it carries the waiting counts.
+  **Needs you** group with Review Queue, because it carries the waiting count.
+- Proxy Voting leaves the sidebar but stays as a screen, reached from StewardIQ and from Start's Needs you list.
 - Four screens leave the UI: **Document Discovery**, **Identity Resolution**, **Dashboard** and **Tape Reader**.
 - What the Dashboard shows that Start does not (the engagement counts) moves to Start.
 - RFP Answers, which no page links to today, joins the StewardIQ screen links.
@@ -46,12 +47,12 @@ to each function and a sidebar that fits on a laptop screen without scrolling.
 | Group label | Items, in order |
 |-------------|-----------------|
 | (none)      | Start |
-| Needs you   | Review Queue, Proxy Voting |
+| Needs you   | Review Queue |
 | Workspaces  | StewardIQ, Argus, Transition Intelligence Platform, R&D Lab, Data Hub |
 | Output      | Presentations & Reports |
 | (none)      | Arcade |
 
-Review Queue and Proxy Voting keep their waiting-count badges. A sidebar link is marked current
+Review Queue keeps its waiting-count badge. A sidebar link is marked current
 (`aria-current="page"`) only when its own screen, or a tab of its hub, is open. A screen without a sidebar entry
 (for example Universe) marks no sidebar link current. That includes hub tabs whose hub has no sidebar entry any
 more: on `#/search` or `#/history`, no sidebar link is current.
@@ -71,7 +72,7 @@ separated by semicolons; each source is one phrase.
 | Run history (`#/history`) | Start's `All runs →` link |
 | Background Agents (`#/backgroundAgents`) | Run history's `Standing agents` hub tab (from Start: `All runs →`, then `Standing agents`) |
 | Feeds, Issues, Smart Search, Outputs, Security Master | Data Hub page's Screens links |
-| Steward Workflow, Engagement | StewardIQ page's Screens links |
+| Steward Workflow, Engagement, Proxy Voting | StewardIQ page's Screens links |
 | Extraction, XBRL Facts | Argus page's Screens links |
 | Risk Monitoring, Transition Barriers | Transition Intelligence Platform page's Screens links |
 | Ask the Portfolio (`#/portfolio-monitoring/ask`) | Risk Monitoring's `Ask the Portfolio` tab |
@@ -122,8 +123,8 @@ While engagement records have not loaded, each count shows `—`, never `0`. If 
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-1 | The app at 1440×900 | `#/home`, `#/argusUniverse` and `#/rfp` are each opened | On each, the sidebar's links read, top to bottom: Start, Review Queue, Proxy Voting, StewardIQ, Argus, Transition Intelligence Platform, R&D Lab, Data Hub, Presentations & Reports, Arcade, and no other link | evaluator |
-| AC-2 | The app at 1440×900, `#/home` open | The user reads the sidebar | Top to bottom: Start with no label above it; `Needs you` above Review Queue and Proxy Voting; `Workspaces` above StewardIQ to Data Hub; `Output` above Presentations & Reports; Arcade with no label above it. The text `All screens` appears nowhere in the sidebar | evaluator |
+| AC-1 | The app at 1440×900 | `#/home`, `#/argusUniverse` and `#/rfp` are each opened | On each, the sidebar's links read, top to bottom: Start, Review Queue, StewardIQ, Argus, Transition Intelligence Platform, R&D Lab, Data Hub, Presentations & Reports, Arcade, and no other link | evaluator |
+| AC-2 | The app at 1440×900, `#/home` open | The user reads the sidebar | Top to bottom: Start with no label above it; `Needs you` above Review Queue; `Workspaces` above StewardIQ to Data Hub; `Output` above Presentations & Reports; Arcade with no label above it. The text `All screens` appears nowhere in the sidebar | evaluator |
 | AC-3 | The app at 390×844, `#/home` open | The menu button opens the drawer | The drawer shows the links and group labels of AC-2 in the same order, and no `All screens` text | evaluator |
 | AC-4 | One review item waits on the user | `#/home` is open | Review Queue's sidebar link shows the badge `1` | unit |
 | AC-5 | The app is running | `#/dashboard` is opened | Start renders and the address bar reads `#/home` | unit |
@@ -146,7 +147,7 @@ Must not change:
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
-| AC-20 | One proxy vote waits on the user | `#/home` is open | Proxy Voting's sidebar link shows the badge `1` | unit |
+| ~~AC-20~~ | Retired 2026-10-25: Proxy Voting left the sidebar, so it has no badge there. See AC-32. | | | |
 | AC-21 | Extraction is open with no companies loaded | The user opens the Identify tab | It shows the choices `Manual`, `Automatic` and `Skip` and a button whose label starts with `Resolve identity for` | evaluator |
 | AC-22 | Extraction is open with no companies loaded | The user opens the Documents tab | It shows the choices `Manual`, `Automatic` and `Skip` and a button whose label starts with `Search for documents across` | evaluator |
 | AC-23 | One extraction item waits in Review Queue | The user opens it | Its decision buttons read `Accept`, `Correct…`, `Reject` and `Escalate` | evaluator |
@@ -157,6 +158,7 @@ Must not change:
 | AC-29 | The app is running | `#/argus` is open | Only the `Argus` sidebar link has `aria-current="page"` | unit |
 | AC-30 | The app is running | `#/review` is open | Only the `Review Queue` sidebar link has `aria-current="page"` | unit |
 | AC-31 | The app is running | `#/search` is open | No sidebar link has `aria-current="page"` | unit |
+| AC-32 | One proxy voting run `pv-1` has 2 ballots waiting on the user | `#/home` is open | Start's Needs you list shows `Proxy voting run pv-1: 2 ballots to decide`, linking to `#/voting/pv-1` | unit |
 | AC-27 | No discovery schedule has been saved and the server runs with default settings | `GET /api/discovery/schedule` is called | 200 with `enabled: false`, `interval_hours: 24.0`, `universe_path: null` | unit |
 
 The other backend endpoints the Non-goals name (identity and discovery runs, review queue) get no row: this change
