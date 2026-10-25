@@ -6,7 +6,7 @@ import pytest
 
 from arp.config import Settings
 from arp.emerging_themes import pipeline as pipeline_module
-from arp.emerging_themes.context_brief import _ContextBriefDraft, isic_division, isic_divisions
+from arp.emerging_themes.context_brief import _ContextBriefDraft, _pct, isic_division, isic_divisions
 from arp.emerging_themes.ingestion.base import MentionSource
 from arp.emerging_themes.pipeline import create_emerging_themes_run, execute_emerging_themes_run, load_candidates_with_status
 from arp.llm.base import LLMUsage
@@ -105,6 +105,10 @@ async def _run(tmp_path, pg, monkeypatch, *, brief=None, isic=None, mentions=MEN
     await execute_emerging_themes_run(run_id, companies, llm=FakeLLMClient(script), sources=[_Source(raw)], settings=settings,
                                       run_store=run_store, topic_store=TopicStateStore(tmp_path / "topics"), xbrl_source=object())
     return run_store, run_id, load_candidates_with_status(run_store, run_id)
+
+
+def test_prompt_shows_sec_fractions_as_percent():
+    assert [_pct(0.25), _pct(-0.1), _pct(None)] == ["+25.0%", "-10.0%", "n/a"]
 
 
 def test_isic_divisions_reference():

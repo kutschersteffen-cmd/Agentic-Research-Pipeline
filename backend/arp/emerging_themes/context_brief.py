@@ -199,6 +199,11 @@ def _check_draft(draft: _ContextBriefDraft, pool: list, unclassified: list[str])
     return kept, [c for c in unclassified if c not in lines], dropped
 
 
+def _pct(fraction: float | None) -> str:
+    """The SEC lookup stores a fraction (0.25 = +25%); the model reads it as the card shows it."""
+    return "n/a" if fraction is None else f"{fraction * 100:+.1f}%"
+
+
 def _prompt(candidate: EmergingThemeCandidate, pool: list, companies: list[BriefCompany], unclassified: list[str]) -> str:
     names = {c.company_id: c.name for c in companies}
     evidence = []
@@ -207,7 +212,7 @@ def _prompt(candidate: EmergingThemeCandidate, pool: list, companies: list[Brief
             label = "Counter-evidence" if item.kind == "counter" else "Quote"
             evidence.append(f'{item.evidence_id} [{label}, {item.action_type.value}, companies: {", ".join(item.company_ids) or "none"}] "{item.quote}"')
         else:
-            evidence.append(f"{item.evidence_id} [SEC filings, company: {item.company_id}] CapEx change {item.capex_pct_change}%, R&D change {item.rnd_pct_change}%")
+            evidence.append(f"{item.evidence_id} [SEC filings, company: {item.company_id}] CapEx change {_pct(item.capex_pct_change)}, R&D change {_pct(item.rnd_pct_change)}")
     unclassified_lines = [
         f"- {c} ({names[c]}): items {', '.join(i.evidence_id for i in pool if _covers(i, c)) or 'none'}" for c in unclassified
     ]
