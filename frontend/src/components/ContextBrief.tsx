@@ -18,7 +18,12 @@ export function ContextBriefBody({ brief }: { brief: ContextBrief | null }) {
           className="link-button"
           title={`Show evidence ${evidenceNumber(id)}`}
           onClick={() => {
-            items.current.get(id)?.scrollIntoView({ block: "nearest" });
+            const item = items.current.get(id);
+            // Scroll vertically only: inside the candidates table's overflow box a plain scrollIntoView also shifts it sideways.
+            const sideways: [Element, number][] = [];
+            for (let el = item?.parentElement; el; el = el.parentElement) sideways.push([el, el.scrollLeft]);
+            item?.scrollIntoView({ block: "nearest" });
+            for (const [el, left] of sideways) el.scrollLeft = left;
             setCurrent(id);
           }}
         >
