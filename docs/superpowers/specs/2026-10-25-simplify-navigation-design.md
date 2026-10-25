@@ -53,29 +53,31 @@ to each function and a sidebar that fits on a laptop screen without scrolling.
 
 Review Queue and Proxy Voting keep their waiting-count badges. A sidebar link is marked current
 (`aria-current="page"`) only when its own screen, or a tab of its hub, is open. A screen without a sidebar entry
-(for example Universe) marks no sidebar link current.
+(for example Universe) marks no sidebar link current. That includes hub tabs whose hub has no sidebar entry any
+more: on `#/search` or `#/history`, no sidebar link is current.
 
 "Screens links" below means the link row headed `Screens` at the foot of a workspace page.
 
 ## Reachability (screens leaving the sidebar)
 
-Each screen is reached in one click from **each** source listed, unless the row says otherwise.
+Each screen is reached in one click from **each** source listed, unless the row says otherwise. Sources are
+separated by semicolons; each source is one phrase.
 
 | Screen (route) | Reached from |
 |----------------|--------------|
-| Universe (`#/argusUniverse`) | Argus page, Screens links |
-| Data Library (`#/library`) | Data Hub page, Screens links |
-| Search (`#/search`) | Data Hub page, Screens links; Data Library's `Search` hub tab |
-| Run history (`#/history`) | Start, the `All runs →` link |
+| Universe (`#/argusUniverse`) | Argus page's Screens links |
+| Data Library (`#/library`) | Data Hub page's Screens links |
+| Search (`#/search`) | Data Hub page's Screens links; Data Library's `Search` hub tab |
+| Run history (`#/history`) | Start's `All runs →` link |
 | Background Agents (`#/backgroundAgents`) | Run history's `Standing agents` hub tab (from Start: `All runs →`, then `Standing agents`) |
-| Feeds, Issues, Smart Search, Outputs, Security Master | Data Hub page, Screens links |
-| Steward Workflow, Engagement, Proxy Voting | StewardIQ page, Screens links |
-| Extraction, XBRL Facts | Argus page, Screens links |
-| Risk Monitoring, Transition Barriers | Transition Intelligence Platform page, Screens links |
+| Feeds, Issues, Smart Search, Outputs, Security Master | Data Hub page's Screens links |
+| Steward Workflow, Engagement | StewardIQ page's Screens links |
+| Extraction, XBRL Facts | Argus page's Screens links |
+| Risk Monitoring, Transition Barriers | Transition Intelligence Platform page's Screens links |
 | Ask the Portfolio (`#/portfolio-monitoring/ask`) | Risk Monitoring's `Ask the Portfolio` tab |
-| Theme dossiers, Emerging Themes, Taxonomy Library, Thematic Universe, Strategy Replication, Signals workbench, Value Chain Explorer, Decision Studio, Index Construction | R&D Lab page, Screens links |
-| RFP Answers (`#/rfp`) | StewardIQ page, Screens links (new) |
-| Company (`#/companies/<ref>`) | A company name in Extraction's Companies tab |
+| Theme dossiers, Emerging Themes, Taxonomy Library, Thematic Universe, Strategy Replication, Signals workbench, Value Chain Explorer, Decision Studio, Index Construction | R&D Lab page's Screens links |
+| RFP Answers (`#/rfp`) | StewardIQ page's Screens links (new) |
+| Company (`#/companies/<ref>`) | A company name in Extraction's Companies tab (checked by its own row, AC-28) |
 
 ## Removed screens and where their links go
 
@@ -131,7 +133,7 @@ While engagement records have not loaded, each count shows `—`, never `0`. If 
 | AC-9 | The app is running | `#/dashboard/x` is opened | Start renders and the address bar reads `#/home` | unit |
 | AC-10 | The command palette is open | The user types each of `Dashboard`, `Tape`, `Identity`, `Discovery` and `Onboard` in turn | No item labelled `Dashboard`, `Tape Reader`, `Identity Resolution`, `Document Discovery` or `Onboard issuers` is listed | evaluator |
 | AC-11 | The StewardIQ page is open | The user reads its Screens links | A link labelled `RFP Answers` to `#/rfp` is listed | evaluator |
-| AC-12 | Each row of **Reachability** | The user starts on each listed source | One click on a visible link opens that screen at its route (Background Agents: two clicks from Start) | evaluator |
+| AC-12 | Each row of **Reachability** except Company | The user starts on each listed source | One click on a visible link opens that screen at its route (Background Agents: two clicks from Start) | evaluator |
 | AC-13 | The Argus page is open | The user clicks `Universe` in its Screens links | Universe renders and no sidebar link has `aria-current="page"` | unit |
 | AC-14 | Engagement records hold 5 issues: `open`@`private_engagement`, `open`@`joint_engagement`, `stalled`@`joint_engagement`, `resolved`@`joint_engagement`, `closed`@`joint_engagement` | Start is open | Directly below the Now row, the text before the link reads `Engagement · 3 open · 1 stalled · 2 escalated` | unit |
 | AC-15 | The engagement API has not answered yet | Start is open | The text before the link reads `Engagement · — open · — stalled · — escalated` | unit |
@@ -151,6 +153,10 @@ Must not change:
 | AC-24 | The command palette is open | The user types `Run history`, `Universe` and `Value Chain Explorer` in turn | An item with that label is listed each time | evaluator |
 | AC-25 | The command palette lists `Run history`, `Universe` and `Value Chain Explorer` | The user chooses each in turn | `#/history`, `#/argusUniverse` and `#/valueChain` open, in that order | evaluator |
 | AC-26 | Data Library is open | The user clicks the `Search` hub tab | Search renders at `#/search` | evaluator |
+| AC-28 | Extraction's Companies tab lists at least one company | The user clicks that company's name | The Company screen renders at `#/companies/<that company's ref>` | evaluator |
+| AC-29 | The app is running | `#/argus` is open | Only the `Argus` sidebar link has `aria-current="page"` | unit |
+| AC-30 | The app is running | `#/review` is open | Only the `Review Queue` sidebar link has `aria-current="page"` | unit |
+| AC-31 | The app is running | `#/search` is open | No sidebar link has `aria-current="page"` | unit |
 | AC-27 | No discovery schedule has been saved and the server runs with default settings | `GET /api/discovery/schedule` is called | 200 with `enabled: false`, `interval_hours: 24.0`, `universe_path: null` | unit |
 
 The other backend endpoints the Non-goals name (identity and discovery runs, review queue) get no row: this change
