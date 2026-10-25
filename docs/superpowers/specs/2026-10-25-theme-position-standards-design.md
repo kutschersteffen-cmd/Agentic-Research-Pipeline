@@ -166,6 +166,8 @@ A saved version's content:
 - Fields that an earlier activation released are registry fields, so the model sees them among the
   existing fields.
 - Criterion values are in the field's canonical unit, as facts store it.
+- A theme field that is already released is used with `data: "existing"`. `data: "new"` is only for
+  fields not yet released.
 
 ### Validation (all paths)
 
@@ -176,10 +178,11 @@ A saved version's content:
   `standard '<id>': <key> is blank`.
 - **Position paragraphs.** Each `rests_on` entry must be a paragraph of the approved position:
   `standard '<id>': position has no paragraph <n>`.
-- **Existing data.** With `data: "existing"`, `field_id` must be a released registry field outside the
-  theme schema's new fields: `standard '<id>': unknown or unreleased field '<field_id>'`.
+- **Existing data.** With `data: "existing"`, `field_id` must be a released registry field, including
+  released theme fields: `standard '<id>': unknown or unreleased field '<field_id>'`.
 - **New data.** With `data: "new"`, `field_id` must be a field of `schema`:
   `standard '<id>': field '<field_id>' is not in the new schema`.
+  It must also not be released yet: `standard '<id>': field '<field_id>' is released, use data "existing"`.
 - **Unused fields.** Every field in `schema` that has not yet been released must be used:
   `new field '<name>' is used by no standard`.
 - **Criterion fits the data type.**
@@ -189,6 +192,7 @@ A saved version's content:
   - A wrong operator for the type fails with `standard '<id>': operator '<op>' does not fit <type>`.
   - A wrong value fails with `standard '<id>': value <value> does not fit <type>`.
   - `string` and `date` fields fail with `standard '<id>': field '<field_id>' is <type>, not checkable`.
+  - In messages, `<value>` prints as a JSON scalar, as in a trigger's `reason`.
 
 ### Endpoints
 
@@ -204,7 +208,10 @@ A saved version's content:
   - Saved with `created_by` `model` and `path` `model_draft`.
   - If validation fails: 502 `standards draft invalid: <message>`, and nothing is saved.
   - Otherwise: 200 `{version}`.
-- **Edit.** `POST /api/dossiers/{id}/standards/versions` `{content}`, approver role.
+- **Edit.** `POST /api/dossiers/{id}/standards/versions` `{standards, new_fields}`, approver role. The
+  body has the same shape as `StandardsDraft`.
+  - The server builds the version the same way as for a model draft: it sets `policy_id`, `dossier_id`,
+    `position_version` (the approved position) and `schema`.
   - Saved with `created_by` set to the caller and `path` `owner_edit`.
   - If validation fails: 422 `<message>`.
   - Otherwise: 200 `{version}`.
@@ -214,18 +221,23 @@ A saved version's content:
   2. Its `position_version` must be the approved position, otherwise 409
      `standards v<n> rest on position v<a>; v<b> is approved`.
   3. The dossier's step 4 must be `done`, otherwise 409 `find companies first`.
-  4. If `schema` has fields that are not yet released:
-     - the schema version is saved to the `SchemaRegistry` and released, with `released_by` set to the
-       approver;
-     - an extraction run of the whole schema version is created on the exposed companies, and scheduled
-       the way `POST /api/extraction/runs` does it;
-     - if the run cannot be created: 502 `extraction could not start: <reason>`. Nothing is activated, but
-       the schema version stays released (harmless, since nothing points at it until activation).
+  4. If `schema` is not null:
+     - **Release.** If `schema` has fields that are not yet released, it is saved to the `SchemaRegistry`
+       as the next version of `theme_std_<hex>` and released, with `released_by` set to the approver.
+     - **Extract.** If no extraction run exists yet on the schema version this standards version uses, a
+       run of that whole schema version is created on the exposed companies. Runs are started through
+       the callable that a new `get_extraction_starter` dependency in `arp/api/deps.py` returns, called
+       as `(schema, companies, settings) -> run_id`. It creates and schedules the run the way
+       `POST /api/extraction/runs` does, and tests override it.
+     - **Failure.** If the run cannot be created: 502 `extraction could not start: <reason>`, and nothing
+       is activated. A released schema version stays released. A retry then finds no run on it and
+       starts one.
   5. `PolicyStore.activate` runs with `approved_by` set to the approver.
      - **Model draft:** the unchanged four-eyes check passes, because the author is `model`.
      - **Owner edit:** for `theme_standards` only, `activate` accepts an approver who is also the author.
-     - In both cases the activation row also records `path`. No user may have the user_id `model`: loading
-       a users file that has one fails with `user id 'model' is reserved`.
+     - In both cases the activation row also records `path`.
+     - No user may have the user_id `model`. Loading a users file that has one raises a `RuntimeError`
+       whose message contains `user id 'model' is reserved`, which the API answers with a 503.
   - Response: 200 `{version, approved_by, approved_at, path, extraction_run_id: str | null}`.
 - **Read.** `GET /api/dossiers/{id}/standards`, viewer role. Returns
   `{versions, activations, active_version, active, latest_check: {checked_at, results, flagged} | null}`.
@@ -346,7 +358,8 @@ Step 5's `href` is `#/themes/<id>/position`. Step 5 no longer shows `not_built`.
   and committed.
 - Postgres is required for the registry, facts and extraction. Without a DSN, the standards draft, edit,
   activate and check endpoints answer 503
-  `ARP_POSTGRES_DSN is required: Postgres is the system of record.`; the position endpoints are unaffected.
+  `ARP_POSTGRES_DSN is required: Postgres is the system of record.` That check runs before any 404 or 409.
+  The position endpoints are unaffected.
 
 ## Left to the builder
 
@@ -435,23 +448,26 @@ Evaluator rows get their state seeded through the same stores (position files an
 | AC-35 | AC-19's v1; the newest theme run has 2 pending review items | `own` activates | 409, detail `find companies first`; `active_version` 0 | holdout |
 | AC-36 | AC-19's v1 rests on position v1; position v2 drafted and approved | `own` activates v1 | 409, detail `standards v1 rest on position v1; v2 is approved` | holdout |
 | AC-37 | — | `own` activates version 7 (none) | 404, detail `unknown standards version 7` | holdout |
-| AC-38 | AC-19's v1; extraction run creation made to raise `boom` | `own` activates v1 | 502, detail `extraction could not start: boom`; `active_version` 0 | holdout |
+| AC-38 | AC-19's v1; `get_extraction_starter` overridden to raise `RuntimeError("boom")` | `own` activates v1 | 502, detail `extraction could not start: boom`; `active_version` 0 | holdout |
+| AC-38b | AC-38, then the override removed | `own` activates v1 | 200, `extraction_run_id` non-null; `active_version` 1 | holdout |
 | AC-39 | approved position v1 | `own` `POST .../standards/versions` with S-two as content | 200 `{version: 1}`; version 1 `created_by` `own`, `path` `owner_edit` | holdout |
 | AC-40 | AC-39 | `own` activates v1 | 200, `approved_by` `own`, `path` `owner_edit`; `active_version` 1 | holdout |
+| AC-40b | AC-40 | `GET .../standards` | `activations` last row: `version` 1, `approved_by` `own`, `path` `owner_edit` | holdout |
 | AC-41 | — | `ana` `POST .../standards/versions` | 403 | holdout |
+| AC-41b | AC-31 active, its run `completed`; the model returns S-ok plus `S4` on a new boolean field "Grid permit filed", resting on paragraph 1 | `ana` drafts v2; `own` activates v2 | 200, `extraction_run_id` non-null and different from AC-31's; schema `theme_std_…` version 2 is released with 2 fields; in v2, `S3` has `data` `existing`; step 5 `running`, `extracting 2 data points` | holdout |
 | AC-42 | — | `own` `POST .../standards/versions` with S-two, `S1` on `fld_draft` | 422, detail `standard 'S1': unknown or unreleased field 'fld_draft'` | holdout |
-| AC-43 | a users file with a user whose `user_id` is `model` | the API loads users | it fails with `user id 'model' is reserved` | holdout |
+| AC-43 | the API configured with a users file containing a user whose `user_id` is `model` | any request with a valid token | 503, detail contains `user id 'model' is reserved` | holdout |
 | AC-44 | S-two active (via AC-34) | `ana` `POST .../standards/check` | 200; `results` as (company, standard, result): Alpha S1 `met`, Alpha S2 `met`, Beta S1 `unmet`, Beta S2 `no_data`, Gamma S1 `no_data`, Gamma S2 `no_data`; no Delta rows; `flagged` 1 | holdout |
-| AC-45 | AC-44, with `e1`'s `fld_grid_capex` replaced by a fact in state `zero` | check | Alpha S2 `unmet`, `value` 0; `flagged` 2 | holdout |
+| AC-45 | AC-44, with `e1`'s `fld_grid_capex` replaced by a fact in state `zero`, status `approved` | check | Alpha S2 `unmet`, `value` 0; `flagged` 2 | holdout |
 | AC-46 | AC-44, with `e1`'s `fld_scope3` fact status `pending_review` | check | Alpha S1 `no_data` | holdout |
 | AC-47 | AC-44 | `GET /api/stewardship/triggers` | exactly one trigger with `rule` starting `std:`: `issuer_id` `C2`, `type` `theme_standard`, `theme` `Grid electrification`, `severity` `high`, `rule` `std:D:S1`, `reason` `Scope 3 emissions disclosed: false, expected == true`, `status` `open` | holdout |
 | AC-48 | AC-47's trigger resolved by `own` | check again | still exactly one `std:` trigger, same `trigger_id`, `status` `resolved` | holdout |
 | AC-49 | AC-47 | `POST /api/stewardship/monitoring/open-engagement {"issuer_id": "C2", "rule": "std:D:S1"}` | 200; the new issue's theme `Grid electrification`, severity `high`, sector `Utilities` | holdout |
-| AC-50 | S-two active; facts changed so every exposed company meets both standards | check | 200, `flagged` 0; `GET /api/stewardship/triggers` has no `std:` trigger | holdout |
+| AC-50 | S-two active; `e2` `fld_scope3` true (`approved`), `e2` `fld_grid_capex` 30 (`approved`); no check before | check | 200, `flagged` 0; Gamma's rows `no_data`; `GET /api/stewardship/triggers` has no `std:` trigger | holdout |
 | AC-51 | no active standards | check | 409, detail `no active standards` | holdout |
 | AC-52 | `GET /api/stewardship/triggers` after monitoring runs for two months | run AC-44's check, then `GET` again | the non-`std:` triggers are identical in both responses (all keys, including `is_new` and `status`) | holdout |
-| AC-53 | no monitoring run recorded for the previous month; AC-44's check ran today | the monthly scheduler ticks | a monitoring run for the previous month is recorded (the tick is not skipped) | holdout |
-| AC-54 | no `ARP_POSTGRES_DSN` | `POST .../standards/draft`, `.../standards/check` | 503, detail `ARP_POSTGRES_DSN is required: Postgres is the system of record.` | holdout |
+| AC-53 | holdings for a portfolio loaded for the previous month; no monitoring run recorded for it; AC-44's check ran today | the monthly scheduler ticks | a monitoring run for the previous month is recorded (the tick is not skipped) | holdout |
+| AC-54 | no `ARP_POSTGRES_DSN`; otherwise AC-10's state (approved position, no standards) | `POST` `.../standards/draft`, `.../standards/versions`, `.../standards/activate`, `.../standards/check` | 503 for each, detail `ARP_POSTGRES_DSN is required: Postgres is the system of record.` | holdout |
 | AC-55 | fixture without an approved note | `GET /api/dossiers/D` | step 5 `not_started`, detail `research note not approved`, `href` `#/themes/D/position` | holdout |
 | AC-56 | approved note, no position | `GET` | step 5 `not_started`, `draft the position` | holdout |
 | AC-57 | AC-2 | `GET` | step 5 `waiting`, `approve position v1` | holdout |
