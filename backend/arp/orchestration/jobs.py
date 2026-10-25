@@ -179,6 +179,8 @@ def check_resumable(run_store: RunStore, run_id: str) -> RunManifest:
         raise NotResumable("already completed")  # a completed run that missed companies resumes for them
     if manifest.run_type not in RESUMABLE:
         raise NotResumable(f"{manifest.run_type} runs are not resumable; start a new run")
+    if manifest.run_type == "theme" and not manifest.params.get("extraction_schema_id"):
+        raise NotResumable("Started before taxonomy schemas; start a new run.")
     # A theme run may instead have a universe file (runs from before companies.json).
     if not run_store.has_companies(run_id) and not (
         manifest.run_type == "theme" and manifest.params.get("universe_path")

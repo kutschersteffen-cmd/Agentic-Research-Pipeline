@@ -8,9 +8,16 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
 from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.revenue_exposure.catalogue import CatalogueDataPoint, total_value
+from arp.research.taxonomy_schema import field_id_for
 from arp.schemas.common import CompanyRef, SourceDocument
-from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
-from arp.schemas.revenue_exposure import ActivityCatalogueMapping, MetricExposure, RevenueCapexMetric, RevenueExposureResult
+from arp.schemas.datapoints import DataPointSchema, ExtractedField
+from arp.schemas.revenue_exposure import (
+    ActivityCatalogueMapping,
+    ExposureCitation,
+    MetricExposure,
+    RevenueCapexMetric,
+    RevenueExposureResult,
+)
 from arp.schemas.thematic import ActivityDefinition, ExposureEstimate
 
 
@@ -76,64 +83,52 @@ def resolve_from_catalogue(
     )
 
 
-async def resolve_from_extraction(
+def to_exposure(extracted: ExtractedField | None, schema_version: str) -> MetricExposure:
+    """An extracted percentage as a 0-1 exposure, its citation naming `schema_version`, or unresolved."""
+    if extracted is None or extracted.value is None:
+        return MetricExposure(source="unresolved")
+    try:
+        pct = float(extracted.value)
+    except (TypeError, ValueError):
+        return MetricExposure(source="unresolved", notes="Extracted value was not numeric.")
+
+    pct_fraction = pct / 100 if pct > 1 else pct
+    citation = (
+        ExposureCitation(**extracted.citations[0].model_dump(), schema_version=schema_version) if extracted.citations else None
+    )
+    return MetricExposure(
+        value_pct=min(max(pct_fraction, 0.0), 1.0),
+        source="extracted",
+        confidence=extracted.confidence,
+        citation=citation,
+        notes=extracted.raw_value_text or "",
+    )
+
+
+async def extract_schema_fields(
     company: CompanyRef,
-    activity: ActivityDefinition,
-    metric: RevenueCapexMetric,
+    schema: DataPointSchema,
+    field_ids: list[str],
     *,
     documents: list[SourceDocument],
     registry: DocumentSourceRegistry,
     llm: LLMClient,
     verifier_llm: LLMClient | None = None,
     settings: Settings,
-) -> tuple[MetricExposure, LLMUsage]:
+) -> tuple[dict[str, MetricExposure], LLMUsage]:
     """Path 2: the same Extractor -> independent Verifier -> programmatic
-    grounding check the Extraction Engine already runs for every other
-    data point, applied to an ad hoc field built for this (activity,
-    metric) pair -- see `taxonomy_sources/empirical.py::
-    _activity_description_schema` for the precedent of building a field on
-    the fly rather than requiring a pre-authored schema.
-    """
-    metric_label = "revenue" if metric == "revenue" else "capital expenditure (CapEx)"
-    field = FieldDefinition(
-        name=f"{metric}_share_pct",
-        description=f"The percentage of {company.name}'s total {metric_label} attributable to: {activity.name} ({activity.in_scope_description})",
-        data_type=FieldDataType.PERCENTAGE,
-        unit="%",
-        extraction_instructions=(
-            f"Extract an EXPLICITLY stated percentage of total {metric_label} attributable to this specific "
-            f"activity, as disclosed by the company (e.g. a stated segment revenue share, a 'X% of revenue came "
-            f"from...' statement). Express `value` as a number between 0 and 100 (e.g. 18.5 for 18.5%). If only a "
-            f"dollar figure is stated with no percentage and no computable total, leave `value` null and put the "
-            f"raw figure in raw_value_text -- NEVER estimate, infer, or compute a percentage from unrelated totals."
-        ),
-        seed_keywords=[*activity.seed_keywords, metric],
-    )
-    schema = DataPointSchema(name=f"{activity.name} {metric} share", fields=[field])
+    grounding check the Extraction Engine runs for every other data point,
+    over only `field_ids` of the run's released taxonomy schema. The subset
+    keeps the schema's id, version and release flag, so every citation
+    names the released schema."""
+    subset = schema.model_copy(update={"fields": [f for f in schema.fields if f.field_id in field_ids]})
     result = await _extract_company(
-        company, schema, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings, documents=documents
+        company, subset, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings, documents=documents
     )
-    extracted = result.record.fields[0] if result.record.fields else None
-
-    if extracted is None or extracted.value is None:
-        return MetricExposure(source="unresolved"), result.usage
-    try:
-        pct = float(extracted.value)
-    except (TypeError, ValueError):
-        return MetricExposure(source="unresolved", notes="Extracted value was not numeric."), result.usage
-
-    pct_fraction = pct / 100 if pct > 1 else pct
-    citation = extracted.citations[0] if extracted.citations else None
-    return (
-        MetricExposure(
-            value_pct=min(max(pct_fraction, 0.0), 1.0),
-            source="extracted",
-            confidence=extracted.confidence,
-            citation=citation,
-            notes=extracted.raw_value_text or "",
-        ),
-        result.usage,
-    )
+    first = {}
+    for f in result.record.fields:
+        first.setdefault(f.field_id, f)
+    return {fid: to_exposure(first.get(fid), f"{schema.schema_id}:v{schema.version}") for fid in field_ids}, result.usage
 
 
 @dataclass
@@ -146,6 +141,8 @@ class RevenueResolverContext:
     mappings: list[ActivityCatalogueMapping]
     registry: DocumentSourceRegistry
     settings: Settings
+    schema: DataPointSchema
+    """The run's released taxonomy schema: path 2 extracts only its fields."""
     isic_model: LeontiefModel | None = None
     """Used to resolve a company's ISIC code for the sector-relevance gate
     on path 2, independent of whether the indirect-exposure tier itself is
@@ -165,32 +162,32 @@ async def resolve_company_activity_exposure(
     verifier_llm: LLMClient | None = None,
 ) -> tuple[RevenueExposureResult, LLMUsage]:
     """Orchestrates the full cascade for one company x activity pair:
-    catalogue first for both metrics, then extraction (gated by sector
-    relevance) for whichever metric is still unresolved. The caller
+    catalogue first for revenue and CapEx, then one extraction call (gated
+    by sector relevance) for whichever of revenue, CapEx and OpEx is still
+    unresolved. The caller
     (`research/pipeline.py::_match_company`) decides whether an unresolved
     `revenue` share falls through to the qualitative debate (path 3);
     this function only ever resolves via paths 1/2 or reports unresolved.
     """
     company_rows = ctx.catalogue_by_company.get(company.company_id, [])
     relevant = is_sector_relevant(company_isic, activity.core_isic_codes)
-    total_usage = LLMUsage()
+    usage = LLMUsage()
 
-    metrics: dict[RevenueCapexMetric, MetricExposure] = {}
-    for metric in ("revenue", "capex"):
-        exposure = resolve_from_catalogue(activity.activity_id, metric, company_rows, ctx.mappings)
-        if exposure.source == "unresolved" and relevant:
-            exposure, usage = await resolve_from_extraction(
-                company,
-                activity,
-                metric,
-                documents=documents,
-                registry=ctx.registry,
-                llm=llm,
-                verifier_llm=verifier_llm,
-                settings=ctx.settings,
-            )
-            total_usage = LLMUsage(input_tokens=total_usage.input_tokens + usage.input_tokens, output_tokens=total_usage.output_tokens + usage.output_tokens)
-        metrics[metric] = exposure
+    metrics: dict[str, MetricExposure] = {
+        m: resolve_from_catalogue(activity.activity_id, m, company_rows, ctx.mappings) for m in ("revenue", "capex")
+    }
+    metrics["opex"] = MetricExposure(source="unresolved")  # no catalogue mapping for OpEx: extraction only
+    todo = {field_id_for(ctx.schema, activity.activity_id, m): m for m, e in metrics.items() if e.source == "unresolved"}
+    if todo and relevant:
+        extracted, usage = await extract_schema_fields(
+            company, ctx.schema, list(todo), documents=documents, registry=ctx.registry,
+            llm=llm, verifier_llm=verifier_llm, settings=ctx.settings,
+        )
+        for fid, m in todo.items():
+            metrics[m] = extracted[fid]
 
-    result = RevenueExposureResult(activity_id=activity.activity_id, revenue=metrics["revenue"], capex=metrics["capex"], sector_relevant=relevant)
-    return result, total_usage
+    result = RevenueExposureResult(
+        activity_id=activity.activity_id, revenue=metrics["revenue"], capex=metrics["capex"], opex=metrics["opex"],
+        sector_relevant=relevant,
+    )
+    return result, usage

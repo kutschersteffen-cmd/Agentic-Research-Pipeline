@@ -43,6 +43,10 @@ class ActivityCatalogueMapping(BaseModel):
     rationale: str = ""
 
 
+class ExposureCitation(Citation):
+    schema_version: str = Field(default="", description="`<schema_id>:v<version>` of the schema the value was extracted under.")
+
+
 class MetricExposure(BaseModel):
     """The resolved (or unresolved) 0-1 exposure signal for one company x
     activity x metric, and which source produced it. Originally
@@ -56,17 +60,18 @@ class MetricExposure(BaseModel):
     source: ExposureDataSource = "unresolved"
     confidence: float = Field(default=1.0, ge=0.0, le=1.0, description="1.0 for catalogue (deterministic); the extractor/verifier-derived confidence for extracted.")
     matched_catalogue_labels: list[str] = Field(default_factory=list)
-    citation: Citation | None = None
+    citation: ExposureCitation | None = None
     notes: str = ""
 
 
 class RevenueExposureResult(BaseModel):
-    """A company's revenue/capex-based exposure to one taxonomy activity,
+    """A company's revenue/capex/opex-based exposure to one taxonomy activity,
     resolved via the catalogue -> extraction -> qualitative cascade."""
 
     activity_id: str
     revenue: MetricExposure
     capex: MetricExposure
+    opex: MetricExposure = Field(default_factory=MetricExposure, description="Extraction only: OpEx has no catalogue mapping.")
     sector_relevant: bool = Field(
         description="Whether the company's resolved ISIC code plausibly overlaps this activity's core_isic_codes -- gates whether path 2 (extraction) was attempted."
     )

@@ -11,6 +11,7 @@ from arp.api.deps import get_run_store, settings_dep
 from arp.api.main import app
 from arp.cli.extraction import extract_app
 from arp.config import Settings
+from arp.db.fields import SchemaRegistry
 from arp.extraction.financials_pipeline import create_financials_extraction_run
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMUsage
@@ -18,11 +19,15 @@ from arp.llm.batching_client import BatchingLLMClient
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import NotResumable, RunBusy, resume_run, run_lease
 from arp.research.pipeline import CompanyMatchesResult, create_theme_run
+from arp.research.taxonomy_schema import build_taxonomy_schema
 from arp.schemas.common import CompanyRef, JobStatus
+from arp.schemas.taxonomy import DerivationMethod
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 from arp.storage.run_store import RunStore
+from arp.storage.taxonomy_store import TaxonomyStore
 from arp.voting.pipeline import create_voting_run
 from tests.postgres_helpers import forget_companies, pg_dsn
+from tests.taxonomy_schema_helpers import registered_schema
 
 COMPANIES = [CompanyRef(company_id=f"c{i}", name=f"Co {i}") for i in range(1, 7)]
 LLM = object()  # never called: the fake assessor stands in for every LLM step
@@ -34,7 +39,7 @@ def _settings(tmp_path) -> Settings:
 
 
 def _theme_run(companies, settings, store) -> str:
-    return create_theme_run(THEME, companies, settings, store)
+    return create_theme_run(THEME, companies, settings, store, extraction_schema=registered_schema())
 
 
 class FakeAssessor:
@@ -141,7 +146,7 @@ async def test_resume_theme_falls_back_to_companies_json(tmp_path, monkeypatch, 
     store = RunStore(pg, settings.runs_dir)
     activity = ActivityDefinition(name="EV", in_scope_description="EVs.", out_of_scope_description="ICE.")
     theme = ThemeDefinition(name="Electrification", description="", activities=[activity])
-    run_id = create_theme_run(theme, COMPANIES[:2], settings, store)  # universe_path=None
+    run_id = create_theme_run(theme, COMPANIES[:2], settings, store, extraction_schema=registered_schema(*theme.activities))  # universe_path=None
     seen = []
 
     async def _capture(run_id, theme, companies, **_kwargs):
@@ -160,7 +165,7 @@ async def test_resume_theme_prefers_companies_json(tmp_path, monkeypatch, pg):
     theme = ThemeDefinition(name="Electrification", description="", activities=[activity])
     universe = tmp_path / "universe.json"  # edited since the run started
     universe.write_text(json.dumps([{"company_id": "c9", "name": "Co 9"}]))
-    run_id = create_theme_run(theme, COMPANIES[:2], settings, store, universe_path=str(universe))
+    run_id = create_theme_run(theme, COMPANIES[:2], settings, store, universe_path=str(universe), extraction_schema=registered_schema(*theme.activities))
     seen = []
 
     async def _capture(run_id, theme, companies, **_kwargs):
@@ -177,7 +182,7 @@ async def test_resume_theme_run_busy_keeps_cancel_request(tmp_path, pg):
     store = RunStore(pg, settings.runs_dir)
     activity = ActivityDefinition(name="EV", in_scope_description="EVs.", out_of_scope_description="ICE.")
     theme = ThemeDefinition(name="Electrification", description="", activities=[activity])
-    run_id = create_theme_run(theme, COMPANIES[:2], settings, store)
+    run_id = create_theme_run(theme, COMPANIES[:2], settings, store, extraction_schema=registered_schema(*theme.activities))
     JobManager(store).request_cancel(run_id)
     with run_lease(store, run_id), pytest.raises(RunBusy):  # a live worker
         await _resume(run_id, settings, store)
@@ -329,7 +334,10 @@ def test_cli_theme_resume_keeps_batch_mode(tmp_path, monkeypatch, pg):
     settings = _settings(tmp_path)
     store = RunStore(pg, settings.runs_dir)
     activity = ActivityDefinition(name="EV", in_scope_description="EVs.", out_of_scope_description="ICE.")
-    run_id = create_theme_run(ThemeDefinition(name="E", description="", activities=[activity]), COMPANIES[:1], settings, store)
+    run_id = create_theme_run(
+        ThemeDefinition(name="E", description="", activities=[activity]), COMPANIES[:1], settings, store,
+        extraction_schema=registered_schema(activity),
+    )
     JobManager(store)._update(run_id, lambda m: m.params.__setitem__("batch", True))
     seen = {}
 
@@ -378,7 +386,14 @@ def _batch_cli(tmp_path, monkeypatch, module, attr, app, args, create, theme_arg
 def test_theme_cli_batch_flag(tmp_path, monkeypatch, pg):
     import arp.cli.theme as cli_theme
 
-    (plain, batched), params = _batch_cli(tmp_path, monkeypatch, cli_theme, "run_thematic_universe", cli_theme.theme_app, ["run"], create_theme_run, ["--theme", str(tmp_path / "theme.json")])
+    taxonomies = TaxonomyStore(tmp_path / "taxonomies")  # theme runs start from a ratified version with a released schema
+    tax = taxonomies.create("T", ThemeDefinition(name="T", description=""), DerivationMethod.MANUAL)
+    taxonomies.ratify(tax.taxonomy_id, 1, "own")
+    registry = SchemaRegistry(pg)
+    saved = registry.save(build_taxonomy_schema(taxonomies.get(tax.taxonomy_id)))
+    registry.release(saved.schema_id, saved.version, released_by="own")
+    monkeypatch.setattr(cli_theme, "_taxonomy_store", lambda: taxonomies)
+    (plain, batched), params = _batch_cli(tmp_path, monkeypatch, cli_theme, "run_thematic_universe", cli_theme.theme_app, ["run"], create_theme_run, ["--taxonomy", tax.taxonomy_id])
     assert not isinstance(plain, BatchingLLMClient) and isinstance(batched, BatchingLLMClient)
     assert params == [None, True]
 
@@ -469,7 +484,10 @@ def test_resume_endpoint_crash_marks_theme_run_failed(tmp_path, monkeypatch, api
 
     settings, store = api
     activity = ActivityDefinition(name="EV", in_scope_description="EVs.", out_of_scope_description="ICE.")
-    run_id = create_theme_run(ThemeDefinition(name="E", description="", activities=[activity]), COMPANIES[:1], settings, store)
+    run_id = create_theme_run(
+        ThemeDefinition(name="E", description="", activities=[activity]), COMPANIES[:1], settings, store,
+        extraction_schema=registered_schema(activity),
+    )
     JobManager(store).finish_run(run_id, error="killed")
 
     async def boom(*_a, **_kw):

@@ -5516,6 +5516,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/taxonomies/{taxonomy_id}/versions/{version}/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Taxonomy Schema */
+        get: operations["get_taxonomy_schema_api_taxonomies__taxonomy_id__versions__version__schema_get"];
+        put?: never;
+        /**
+         * Generate Taxonomy Schema
+         * @description Registers the version's generated schema; returns the latest registry version unchanged when its content is the same.
+         */
+        post: operations["generate_taxonomy_schema_api_taxonomies__taxonomy_id__versions__version__schema_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/taxonomy-researcher/runs": {
         parameters: {
             query?: never;
@@ -15045,7 +15066,7 @@ export interface components {
             revenue_catalogue_path?: string | null;
             /**
              * Taxonomy Id
-             * @description Load a saved taxonomy instead of an inline theme.
+             * @description The saved taxonomy to run; its version's schema must be released.
              */
             taxonomy_id?: string | null;
             /**
@@ -15053,6 +15074,7 @@ export interface components {
              * @description Defaults to the taxonomy's latest version.
              */
             taxonomy_version?: number | null;
+            /** @description Refused: theme runs start from a taxonomy version. */
             theme?: components["schemas"]["ThemeDefinition"] | null;
             /** Universe Path */
             universe_path?: string | null;
@@ -25399,6 +25421,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Taxonomy"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_taxonomy_schema_api_taxonomies__taxonomy_id__versions__version__schema_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taxonomy_id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataPointSchema"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_taxonomy_schema_api_taxonomies__taxonomy_id__versions__version__schema_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taxonomy_id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataPointSchema"];
                 };
             };
             /** @description Validation Error */
