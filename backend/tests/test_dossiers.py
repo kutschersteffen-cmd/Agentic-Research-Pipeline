@@ -194,6 +194,7 @@ def test_promote_opens_one_dossier_per_taxonomy(env):
     r = client.post(f"{url}/{first}/promote", json={"reason": "Strong"})
     assert r.status_code == 200 and r.json()["status"] == "promoted"
     did, tid = r.json()["dossier_id"], r.json()["promoted_to_taxonomy_id"]
+    assert "context_brief" not in r.json()
     d = client.get(f"/api/dossiers/{did}").json()
     assert (d["origin"], d["run_id"], d["theme_id"], d["taxonomy_id"]) == ("candidate", run_id, first, tid)
     assert (d["steps"][0]["state"], d["steps"][0]["detail"], d["steps"][0]["href"]) == ("done", "promoted: Strong", "#/emergingThemes")
