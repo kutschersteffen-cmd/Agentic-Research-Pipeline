@@ -2202,3 +2202,12 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-one legend { font-weight: 600; margin-bottom: var(--s-2); }
 .argus-row-await > * { background: color-mix(in srgb, var(--await) 60%, transparent); }
 .argus-flow-actions { margin-top: var(--s-4); flex-wrap: wrap; white-space: normal; }
+
+/* Theme dossier: the five research steps as a vertical stepper. */
+.dossier-steps { list-style: none; padding: 0; display: grid; gap: var(--s-2); }
+.dossier-step { display: flex; gap: var(--s-3); align-items: flex-start; }
+.dossier-step h2 { margin: 0 0 var(--s-1); }
+.dossier-step p { margin: 0 0 var(--s-1); }
+/* Waiting is on a person: the one place the signal colour appears. */
+.dossier-waiting { color: var(--hi-ink); border-color: var(--hi); font-weight: 600; }
+.dossier-not-built { border-style: dashed; }

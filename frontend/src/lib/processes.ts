@@ -184,6 +184,7 @@ export const WORKSPACES: Workspace[] = [
     purpose: "Spot themes and test strategies, score them, and turn them into indices.",
     runTypes: ["emerging_themes", "taxonomy_research", "theme", "calibration"],
     screens: [
+      ["#/themes", "Theme dossiers"],
       ["#/emergingThemes", "Emerging Themes"],
       ["#/taxonomy", "Taxonomy Library"],
       ["#/theme", "Thematic Universe"],
@@ -207,6 +208,19 @@ export const WORKSPACES: Workspace[] = [
           { tab: "decision", label: "Score", does: "Score and tier the universe in Decision Studio; ratify, then publish.", handsOn: "Published scores", carried: true },
           { tab: "index", label: "Construct", does: "Screen, select, weight and cap from the published scores; save an effective-dated calibration.", handsOn: "Index composition", runTypes: ["calibration"] },
           { tab: "reporting", label: "Report", does: "Product committee deck." },
+        ],
+      },
+      {
+        id: "theme",
+        title: "Research a theme",
+        cadence: "Per theme",
+        outcome: "One dossier per theme: spotted, defined by a ratified taxonomy, researched, its exposed companies found and reviewed, and a house position with standards.",
+        steps: [
+          { tab: "themes", label: "Spot", does: "An emerging theme with its context: promote an Emerging Themes candidate, or start a dossier from a topic." },
+          { tab: "themes", label: "Define", does: "Attach the theme's taxonomy and ratify a version." },
+          { tab: "themes", label: "Research", does: "Risks, opportunities and transmission channels from approved authoritative sources (coming later)." },
+          { tab: "themes", label: "Find companies", does: "The exposed universe, measured against the latest ratified taxonomy version and reviewed." },
+          { tab: "themes", label: "Position and standards", does: "The house position and the stewardship standards derived from it (coming later)." },
         ],
       },
       {
