@@ -17,23 +17,27 @@ export interface BuiltInJob { id: BuiltIn; profile: BuiltIn }
 export type Job = BuiltInJob | CustomJob;
 export interface JobSettings { stepSettings: StepSettings; templateId: string | null }
 
-export const PROFILE_META: Record<ExtractionProfile, { label: string; runType: RunScoringKind; about: string }> = {
+/** `short`: the one line the profile picker shows, with `about` behind Details. */
+export const PROFILE_META: Record<ExtractionProfile, { label: string; runType: RunScoringKind; about: string; short?: string }> = {
   custom: { label: "Custom schema", runType: "extraction", about: "Your own fields: describe what to extract on the Schema tab and draft a schema from it. Add several schemas to run each one separately." },
   financials: {
     label: "Financials",
     runType: "financials",
+    short: "Business segments, total CapEx and total R&D, each grounded and independently verified.",
     about:
       "Pulls disclosed business segments (name, description, revenue, operating income, assets), total CapEx, and total R&D — each with a grounded description and any disclosed category breakdown — in a single combined pass per company: one document fetch, one extractor call, one independent verifier call.",
   },
   tnfd: {
     label: "TNFD",
     runType: "tnfd",
+    short: "The 14 TNFD recommendations and the core global metrics, with re-verified citations.",
     about:
       "Checks each of the 14 TNFD recommendations for a disclosure and extracts the core global metrics, each with citations re-verified against the source. Rules can read each recommendation as a Yes/No column (e.g. Governance_A_Disclosed).",
   },
   transition_plan: {
     label: "Transition Plan",
     runType: "transition_plan",
+    short: "The 64 Colesanti Senni et al. (2024) indicators, talk vs. walk, reviewed field by field.",
     about:
       "Runs the 64-indicator transition-plan preset of Colesanti Senni et al. (2024) as an ordinary extraction: 64 grounded question fields plus 8 helper fields per company, separating “talk” (targets) from “walk” (verifiable activity), reviewed field by field. Rules can read each indicator as a Yes/No column (Ind_<identifier>_Disclosed).",
   },

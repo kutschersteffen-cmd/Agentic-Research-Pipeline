@@ -8,6 +8,7 @@ from arp.emerging_themes.action_evidence import check_company_action_evidence
 from arp.emerging_themes.clustering import cluster_tags
 from arp.emerging_themes.company_exposure import compute_company_evidence_quality, compute_company_risk, tags_by_company
 from arp.emerging_themes.company_role import classify_company_role
+from arp.emerging_themes.context_brief import build_context_brief
 from arp.emerging_themes.entity_resolution import resolve_mention_companies
 from arp.emerging_themes.extraction import tag_mention
 from arp.emerging_themes.ingestion.base import MentionSource
@@ -248,6 +249,13 @@ async def execute_emerging_themes_run(
                 ))
             if exposures:
                 candidate = candidate.model_copy(update={"company_exposure": exposures})
+
+        try:
+            brief, brief_usage = await build_context_brief(candidate, member_tags, mentions_by_id, company_ids_by_mention, companies_by_id, llm)
+            job_manager.record_progress(run_id, usage=brief_usage)
+            candidate = candidate.model_copy(update={"context_brief": brief})
+        except Exception:  # noqa: BLE001 - a candidate is never lost because its brief failed
+            logger.exception("Context brief failed for candidate %s", candidate.theme_id)
 
         run_store.append_result(run_id, candidate.model_dump(mode="json"))
         topic_store.append_candidate(candidate)

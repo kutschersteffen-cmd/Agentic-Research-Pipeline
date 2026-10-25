@@ -7,15 +7,26 @@ from pydantic import BaseModel, field_validator
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store, get_taxonomy_store
+from arp.schemas.emerging_themes import ContextBrief
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
-from arp.themes.dossiers import Dossier, DossierStep, DossierStore, TaxonomyTaken, current_step, derive_steps, get_dossier_store
+from arp.themes.dossiers import (
+    Dossier,
+    DossierStep,
+    DossierStore,
+    TaxonomyTaken,
+    context_brief,
+    current_step,
+    derive_steps,
+    get_dossier_store,
+)
 
 router = APIRouter(prefix="/api/dossiers", tags=["dossiers"])
 
 
 class DossierView(Dossier):
     steps: list[DossierStep]
+    context_brief: ContextBrief | None = None
 
 
 class DossierItem(BaseModel):
@@ -67,7 +78,8 @@ class Viewer:
         self.run_store, self.taxonomy_store = run_store, taxonomy_store
 
     def __call__(self, dossier: Dossier) -> DossierView:
-        return DossierView(**dossier.model_dump(), steps=derive_steps(dossier, self.run_store, self.taxonomy_store))
+        return DossierView(**dossier.model_dump(), steps=derive_steps(dossier, self.run_store, self.taxonomy_store),
+                           context_brief=context_brief(dossier, self.run_store))
 
 
 @router.get("", response_model=DossierList)

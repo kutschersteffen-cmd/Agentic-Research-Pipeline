@@ -255,6 +255,19 @@
     "title": "ActionOut",
     "type": "object"
    },
+   "ActionType": {
+    "description": "Roadmap P3's action-evidence taxonomy: classifies whether a claim\ndescribes something a company actually *did* (talk vs. walk) rather\nthan just a topic it was mentioned in connection with. Rolled up into\na per-cluster action_score by synthesis.py::compute_action_score.",
+    "enum": [
+     "capex",
+     "hiring",
+     "orders",
+     "capacity",
+     "partnership",
+     "other"
+    ],
+    "title": "ActionType",
+    "type": "string"
+   },
    "ActivateRequest": {
     "properties": {
      "version": {
@@ -421,6 +434,33 @@
      "similarity_note"
     ],
     "title": "ActivityDuplicateCandidate",
+    "type": "object"
+   },
+   "ActivityGroup": {
+    "properties": {
+     "activity": {
+      "title": "Activity",
+      "type": "string"
+     },
+     "company_ids": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Company Ids",
+      "type": "array"
+     },
+     "evidence_ids": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+     }
+    },
+    "required": [
+     "activity"
+    ],
+    "title": "ActivityGroup",
     "type": "object"
    },
    "ActivityStandardsMapping": {
@@ -2622,6 +2662,310 @@
     "title": "BreachType",
     "type": "string"
    },
+   "BriefActivities": {
+    "properties": {
+     "by_company": {
+      "items": {
+       "$ref": "#/components/schemas/CompanyActivity"
+      },
+      "title": "By Company",
+      "type": "array"
+     },
+     "groups": {
+      "items": {
+       "$ref": "#/components/schemas/ActivityGroup"
+      },
+      "title": "Groups",
+      "type": "array"
+     },
+     "unclassified_company_ids": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Unclassified Company Ids",
+      "type": "array"
+     }
+    },
+    "title": "BriefActivities",
+    "type": "object"
+   },
+   "BriefCompany": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "isic_division": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Isic Division"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "company_id",
+     "name"
+    ],
+    "title": "BriefCompany",
+    "type": "object"
+   },
+   "BriefFacts": {
+    "properties": {
+     "action_counts": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "title": "Action Counts",
+      "type": "object"
+     },
+     "breadth": {
+      "title": "Breadth",
+      "type": "number"
+     },
+     "company_count": {
+      "title": "Company Count",
+      "type": "integer"
+     },
+     "contradiction": {
+      "title": "Contradiction",
+      "type": "number"
+     },
+     "first_seen": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "First Seen"
+     },
+     "independent_sources": {
+      "title": "Independent Sources",
+      "type": "integer"
+     },
+     "last_seen": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Seen"
+     },
+     "materiality": {
+      "title": "Materiality",
+      "type": "number"
+     },
+     "novelty": {
+      "title": "Novelty",
+      "type": "number"
+     },
+     "persistence": {
+      "title": "Persistence",
+      "type": "integer"
+     },
+     "velocity": {
+      "title": "Velocity",
+      "type": "number"
+     }
+    },
+    "required": [
+     "independent_sources",
+     "company_count",
+     "velocity",
+     "breadth",
+     "persistence",
+     "novelty",
+     "materiality",
+     "contradiction",
+     "action_counts"
+    ],
+    "title": "BriefFacts",
+    "type": "object"
+   },
+   "BriefFinancialsEvidence": {
+    "description": "A `financials` item of a context brief's evidence pool: one SEC CapEx/R&D cross-check.",
+    "properties": {
+     "capex_pct_change": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Capex Pct Change"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "evidence_id": {
+      "title": "Evidence Id",
+      "type": "string"
+     },
+     "kind": {
+      "const": "financials",
+      "default": "financials",
+      "title": "Kind",
+      "type": "string"
+     },
+     "rnd_pct_change": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rnd Pct Change"
+     }
+    },
+    "required": [
+     "evidence_id",
+     "company_id"
+    ],
+    "title": "BriefFinancialsEvidence",
+    "type": "object"
+   },
+   "BriefQuoteEvidence": {
+    "description": "A `quote` or `counter` item of a context brief's evidence pool.",
+    "properties": {
+     "action_type": {
+      "$ref": "#/components/schemas/ActionType"
+     },
+     "company_ids": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Company Ids",
+      "type": "array"
+     },
+     "evidence_id": {
+      "title": "Evidence Id",
+      "type": "string"
+     },
+     "kind": {
+      "enum": [
+       "quote",
+       "counter"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "mention_id": {
+      "title": "Mention Id",
+      "type": "string"
+     },
+     "published_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Published At"
+     },
+     "quote": {
+      "title": "Quote",
+      "type": "string"
+     },
+     "source_type": {
+      "$ref": "#/components/schemas/MentionSourceType"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "url": {
+      "title": "Url",
+      "type": "string"
+     }
+    },
+    "required": [
+     "evidence_id",
+     "kind",
+     "mention_id",
+     "source_type",
+     "title",
+     "url",
+     "quote",
+     "action_type"
+    ],
+    "title": "BriefQuoteEvidence",
+    "type": "object"
+   },
+   "BriefSector": {
+    "properties": {
+     "company_ids": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Company Ids",
+      "type": "array"
+     },
+     "evidence_ids": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+     },
+     "isic_division": {
+      "title": "Isic Division",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     }
+    },
+    "required": [
+     "isic_division",
+     "label",
+     "company_ids",
+     "evidence_ids"
+    ],
+    "title": "BriefSector",
+    "type": "object"
+   },
+   "BriefStatement": {
+    "properties": {
+     "evidence_ids": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "title": "BriefStatement",
+    "type": "object"
+   },
    "BucketTilt": {
     "description": "Multiply the base weight by a fixed factor per category value -- the\nmost auditable tilt there is, because the whole rule is a table a\ncommittee can read.",
     "properties": {
@@ -3908,6 +4252,31 @@
      "status"
     ],
     "title": "CommitmentStatusRequest",
+    "type": "object"
+   },
+   "CompanyActivity": {
+    "properties": {
+     "activity": {
+      "title": "Activity",
+      "type": "string"
+     },
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "evidence_ids": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Evidence Ids",
+      "type": "array"
+     }
+    },
+    "required": [
+     "company_id",
+     "activity"
+    ],
+    "title": "CompanyActivity",
     "type": "object"
    },
    "CompanyError": {
@@ -5206,6 +5575,105 @@
      "text"
     ],
     "title": "ContentItem",
+    "type": "object"
+   },
+   "ContextBrief": {
+    "description": "Step 1's context brief (spec theme-context-brief): why now, early evidence, affected sectors.\nFacts, evidence and sectors are computed in code; the sentences and activities come from one model\ncall and keep only what cites the candidate's own evidence. See emerging_themes/context_brief.py.",
+    "properties": {
+     "activities": {
+      "$ref": "#/components/schemas/BriefActivities"
+     },
+     "companies": {
+      "items": {
+       "$ref": "#/components/schemas/BriefCompany"
+      },
+      "title": "Companies",
+      "type": "array"
+     },
+     "dropped_statements": {
+      "default": 0,
+      "title": "Dropped Statements",
+      "type": "integer"
+     },
+     "early_evidence": {
+      "items": {
+       "$ref": "#/components/schemas/BriefStatement"
+      },
+      "title": "Early Evidence",
+      "type": "array"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "evidence": {
+      "items": {
+       "discriminator": {
+        "mapping": {
+         "counter": "#/components/schemas/BriefQuoteEvidence",
+         "financials": "#/components/schemas/BriefFinancialsEvidence",
+         "quote": "#/components/schemas/BriefQuoteEvidence"
+        },
+        "propertyName": "kind"
+       },
+       "oneOf": [
+        {
+         "$ref": "#/components/schemas/BriefQuoteEvidence"
+        },
+        {
+         "$ref": "#/components/schemas/BriefFinancialsEvidence"
+        }
+       ]
+      },
+      "title": "Evidence",
+      "type": "array"
+     },
+     "facts": {
+      "$ref": "#/components/schemas/BriefFacts"
+     },
+     "sectors": {
+      "items": {
+       "$ref": "#/components/schemas/BriefSector"
+      },
+      "title": "Sectors",
+      "type": "array"
+     },
+     "status": {
+      "enum": [
+       "written",
+       "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "why_now": {
+      "items": {
+       "$ref": "#/components/schemas/BriefStatement"
+      },
+      "title": "Why Now",
+      "type": "array"
+     },
+     "written_at": {
+      "title": "Written At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "status",
+     "facts",
+     "evidence",
+     "companies",
+     "sectors",
+     "activities"
+    ],
+    "title": "ContextBrief",
     "type": "object"
    },
    "ControversySignal": {
@@ -7137,6 +7605,16 @@
    },
    "DossierView": {
     "properties": {
+     "context_brief": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ContextBrief"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
      "created_at": {
       "title": "Created At",
       "type": "string"
@@ -10942,6 +11420,15 @@
     ],
     "title": "MeetingSummaryRequest",
     "type": "object"
+   },
+   "MentionSourceType": {
+    "enum": [
+     "edgar_fts",
+     "gdelt",
+     "regulatory_rss"
+    ],
+    "title": "MentionSourceType",
+    "type": "string"
    },
    "MergeRequest": {
     "properties": {

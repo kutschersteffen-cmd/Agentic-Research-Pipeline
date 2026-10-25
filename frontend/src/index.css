@@ -1573,7 +1573,9 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .stage-mode-chip { border-radius: var(--r-pill); }
 /* Extraction overview: profile picker and the per-job switch (wraps on a phone). */
 .profile-picker { border: 0; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
-.profile-option { display: flex; align-items: flex-start; gap: var(--s-2); cursor: pointer; }
+.profile-option { display: grid; grid-template-columns: auto 1fr; align-items: start; column-gap: var(--s-2); }
+.profile-option > label { cursor: pointer; }
+.profile-option > details { grid-column: 2; }
 .profile-option input { margin-top: var(--s-1); flex: none; }
 .profile-option .help-text { display: block; margin: var(--s-0_5) 0 0; }
 .job-switch { flex-wrap: wrap; row-gap: var(--s-1); }
@@ -2225,6 +2227,7 @@ a.vc-box:hover { border-color: var(--text); }
 .dossier-step { display: flex; gap: var(--s-3); align-items: flex-start; }
 .dossier-step h2 { margin: 0 0 var(--s-1); }
 .dossier-step p { margin: 0 0 var(--s-1); }
+.context-brief li[aria-current] { background: var(--accent-tint); }
 /* Waiting is on a person: the one place the signal colour appears. */
 .dossier-waiting { color: var(--hi-ink); border-color: var(--hi); font-weight: 600; }
 .dossier-not-built { border-style: dashed; }

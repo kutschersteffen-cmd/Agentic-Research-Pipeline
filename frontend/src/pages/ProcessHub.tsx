@@ -187,8 +187,8 @@ function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | 
   );
 }
 
-/** The key to the step dots, shared by the start page and the overviews so
- * one state always reads the same. */
+/** The key to the step dots on the start page's workspace cards. Workspace
+ * pages mark state on the step cards themselves, so they carry no legend. */
 function StateLegend() {
   return (
     <p className="muted hub-legend">
@@ -466,7 +466,6 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
       {w.processes.map((p) => (
         <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} />
       ))}
-      <StateLegend />
       <nav className="hub-screens" aria-label={`${w.name} screens`}>
         <span className="hub-now-label">Screens</span>
         {w.screens.map(([href, label]) => (

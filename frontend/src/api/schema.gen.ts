@@ -6973,6 +6973,15 @@ export interface components {
             /** Year */
             year: number | null;
         };
+        /**
+         * ActionType
+         * @description Roadmap P3's action-evidence taxonomy: classifies whether a claim
+         *     describes something a company actually *did* (talk vs. walk) rather
+         *     than just a topic it was mentioned in connection with. Rolled up into
+         *     a per-cluster action_score by synthesis.py::compute_action_score.
+         * @enum {string}
+         */
+        ActionType: "capex" | "hiring" | "orders" | "capacity" | "partnership" | "other";
         /** ActivateRequest */
         ActivateRequest: {
             /** Version */
@@ -7067,6 +7076,15 @@ export interface components {
              * @description Why these two activities from different taxonomies look like the same thing.
              */
             similarity_note: string;
+        };
+        /** ActivityGroup */
+        ActivityGroup: {
+            /** Activity */
+            activity: string;
+            /** Company Ids */
+            company_ids?: string[];
+            /** Evidence Ids */
+            evidence_ids?: string[];
         };
         /**
          * ActivityStandardsMapping
@@ -8085,6 +8103,115 @@ export interface components {
          * @enum {string}
          */
         BreachType: "holdings_caused" | "data_caused" | "mixed" | "unknown";
+        /** BriefActivities */
+        BriefActivities: {
+            /** By Company */
+            by_company?: components["schemas"]["CompanyActivity"][];
+            /** Groups */
+            groups?: components["schemas"]["ActivityGroup"][];
+            /** Unclassified Company Ids */
+            unclassified_company_ids?: string[];
+        };
+        /** BriefCompany */
+        BriefCompany: {
+            /** Company Id */
+            company_id: string;
+            /** Isic Division */
+            isic_division?: string | null;
+            /** Name */
+            name: string;
+        };
+        /** BriefFacts */
+        BriefFacts: {
+            /** Action Counts */
+            action_counts: {
+                [key: string]: number;
+            };
+            /** Breadth */
+            breadth: number;
+            /** Company Count */
+            company_count: number;
+            /** Contradiction */
+            contradiction: number;
+            /** First Seen */
+            first_seen?: string | null;
+            /** Independent Sources */
+            independent_sources: number;
+            /** Last Seen */
+            last_seen?: string | null;
+            /** Materiality */
+            materiality: number;
+            /** Novelty */
+            novelty: number;
+            /** Persistence */
+            persistence: number;
+            /** Velocity */
+            velocity: number;
+        };
+        /**
+         * BriefFinancialsEvidence
+         * @description A `financials` item of a context brief's evidence pool: one SEC CapEx/R&D cross-check.
+         */
+        BriefFinancialsEvidence: {
+            /** Capex Pct Change */
+            capex_pct_change?: number | null;
+            /** Company Id */
+            company_id: string;
+            /** Evidence Id */
+            evidence_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "financials";
+            /** Rnd Pct Change */
+            rnd_pct_change?: number | null;
+        };
+        /**
+         * BriefQuoteEvidence
+         * @description A `quote` or `counter` item of a context brief's evidence pool.
+         */
+        BriefQuoteEvidence: {
+            action_type: components["schemas"]["ActionType"];
+            /** Company Ids */
+            company_ids?: string[];
+            /** Evidence Id */
+            evidence_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "counter" | "quote";
+            /** Mention Id */
+            mention_id: string;
+            /** Published At */
+            published_at?: string | null;
+            /** Quote */
+            quote: string;
+            source_type: components["schemas"]["MentionSourceType"];
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+        };
+        /** BriefSector */
+        BriefSector: {
+            /** Company Ids */
+            company_ids: string[];
+            /** Evidence Ids */
+            evidence_ids: string[];
+            /** Isic Division */
+            isic_division: string;
+            /** Label */
+            label: string;
+        };
+        /** BriefStatement */
+        BriefStatement: {
+            /** Evidence Ids */
+            evidence_ids?: string[];
+            /** Text */
+            text: string;
+        };
         /**
          * BucketTilt
          * @description Multiply the base weight by a fixed factor per category value -- the
@@ -8616,6 +8743,15 @@ export interface components {
              */
             status: "verified" | "missed";
         };
+        /** CompanyActivity */
+        CompanyActivity: {
+            /** Activity */
+            activity: string;
+            /** Company Id */
+            company_id: string;
+            /** Evidence Ids */
+            evidence_ids?: string[];
+        };
         /** CompanyError */
         CompanyError: {
             /** Error */
@@ -9143,6 +9279,40 @@ export interface components {
             bullet: boolean;
             /** Text */
             text: string;
+        };
+        /**
+         * ContextBrief
+         * @description Step 1's context brief (spec theme-context-brief): why now, early evidence, affected sectors.
+         *     Facts, evidence and sectors are computed in code; the sentences and activities come from one model
+         *     call and keep only what cites the candidate's own evidence. See emerging_themes/context_brief.py.
+         */
+        ContextBrief: {
+            activities: components["schemas"]["BriefActivities"];
+            /** Companies */
+            companies: components["schemas"]["BriefCompany"][];
+            /**
+             * Dropped Statements
+             * @default 0
+             */
+            dropped_statements: number;
+            /** Early Evidence */
+            early_evidence?: components["schemas"]["BriefStatement"][];
+            /** Error */
+            error?: string | null;
+            /** Evidence */
+            evidence: (components["schemas"]["BriefQuoteEvidence"] | components["schemas"]["BriefFinancialsEvidence"])[];
+            facts: components["schemas"]["BriefFacts"];
+            /** Sectors */
+            sectors: components["schemas"]["BriefSector"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "written" | "failed";
+            /** Why Now */
+            why_now?: components["schemas"]["BriefStatement"][];
+            /** Written At */
+            written_at?: string;
         };
         /** ControversySignal */
         ControversySignal: {
@@ -9979,6 +10149,7 @@ export interface components {
         };
         /** DossierView */
         DossierView: {
+            context_brief?: components["schemas"]["ContextBrief"] | null;
             /** Created At */
             created_at: string;
             /** Created By */
@@ -11573,6 +11744,11 @@ export interface components {
             /** Notes Or Transcript */
             notes_or_transcript: string;
         };
+        /**
+         * MentionSourceType
+         * @enum {string}
+         */
+        MentionSourceType: "edgar_fts" | "gdelt" | "regulatory_rss";
         /** MergeRequest */
         MergeRequest: {
             /**
