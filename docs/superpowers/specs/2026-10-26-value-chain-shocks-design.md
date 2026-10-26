@@ -1,6 +1,6 @@
 # Shock simulation on the full-resolution value chain
 
-Status: draft for owner approval, 2026-10-26. Owner decisions on 2026-10-26: shocks target sets of nodes
+Status: approved by the owner, 2026-10-26. Owner decisions on 2026-10-26: shocks target sets of nodes
 (node ids, whole regions, whole sectors), not final-demand categories; the Ghosh result is framed as a
 dependency indicator, not a forecast; the carbon price covers chosen regions (or all); the feature ships
 with an API and a fourth "Shocks" view in the Value Chain Explorer.
