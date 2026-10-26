@@ -155,6 +155,11 @@ def _field_definition(run_store: RunStore, run_id: str, item: ReviewItem, settin
     return spec.model_dump(mode="json") | {"first_audit_passed": quality.first_audit_passed}
 
 
+def _field_names(run_store: RunStore, run_id: str, item: ReviewItem) -> dict[str, str]:
+    schema = load_run_schema(run_store, run_id) if item.kind in _FIELD_KINDS else None
+    return {f.field_id: f.name for f in schema.fields} if schema else {}
+
+
 def _prior_period(row: dict | None, value: dict | None) -> dict | None:
     end = (value or {}).get("period_end")
     older = [f for f in (row or {}).get("fields", [])
@@ -242,6 +247,8 @@ def build_context(
             for c in map(CheckResult.model_validate, v.get("checks", [])) if is_failing(c)
         ],
         "route_reasons": v.get("route_reasons", []),
+        "corrections": v.get("corrections", []),
+        "field_names": _field_names(run_store, run_id, item),
         "conflict": {"conflicting_sources": v.get("conflicting_sources", False), "alternatives": v.get("alternatives", [])}
         if value else None,
         "suggested_correction": _suggestion(v, field_definition),

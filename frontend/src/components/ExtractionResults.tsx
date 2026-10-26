@@ -7,6 +7,7 @@ import { CitationList } from "./CitationList";
 import type { ActiveSource } from "./SourcePanel";
 import type { BusinessSegment, CompanyFinancialsRecord, ExtractedField, ExtractionRecord, ReviewDecision, ReviewStates, SpendSummary } from "../types";
 import { fieldItemKey } from "../lib/reviewKeys";
+import { correctionLine } from "../lib/corrections";
 import { failedChecks, routeLabel, valueLabel, withEditedValue } from "../lib/fieldValue";
 import { TRIAL_TITLE } from "../lib/runs";
 import { activatable } from "../lib/activatable";
@@ -67,7 +68,7 @@ export function SegmentDetail({ segment, onOpenSource }: { segment: BusinessSegm
   );
 }
 
-export function FieldDetail({ field, onOpenSource }: { field: ExtractedField; onOpenSource: (s: ActiveSource) => void }) {
+export function FieldDetail({ field, fieldNames = {}, onOpenSource }: { field: ExtractedField; fieldNames?: Record<string, string>; onOpenSource: (s: ActiveSource) => void }) {
   return (
     <div className="field-detail">
       <strong>{field.field_name}:</strong> {valueLabel(field)}{" "}
@@ -84,6 +85,7 @@ export function FieldDetail({ field, onOpenSource }: { field: ExtractedField; on
         <p key={c.check_id}><span className={`badge ${c.severity === "block" ? "badge-low" : "badge-mid"}`}>{c.check_id}: {c.detail}</span></p>
       ))}
       {field.fx_rate_ref && <p className="muted">FX: {field.fx_rate_ref}</p>}
+      {field.corrections?.map((c, i) => <p key={i} className="muted">{correctionLine(c, (id) => fieldNames[id] ?? id)}</p>)}
       {field.verifier_notes && <p className="muted">{field.verifier_notes}</p>}
       <CitationList citations={field.citations} onOpenSource={onOpenSource} />
     </div>
@@ -203,11 +205,12 @@ export function ExtractionResultsTable({
                       <p key={h.doc_id} className="muted">Held: {h.title} (covers {h.covered_entity})</p>
                     ))}
                     {shownFields(r).map((f) => {
+                      const fieldNames = Object.fromEntries(r.fields.map((x) => [x.field_id, x.field_name]));
                       const itemKey = fieldItemKey(r, f);
                       const d = reviewDecisions[itemKey];
                       return (
                         <div key={`${f.field_id}:${f.period_end ?? ""}`}>
-                          <FieldDetail field={editedText(d) === undefined ? f : withEditedValue(f, editedText(d)!)} onOpenSource={onOpenSource} />
+                          <FieldDetail field={editedText(d) === undefined ? f : withEditedValue(f, editedText(d)!)} fieldNames={fieldNames} onOpenSource={onOpenSource} />
                           <OriginTag decision={d} systemValue={valueLabel(f)} />
                           {f.route !== "hold" && (
                             <ReviewControls

@@ -247,6 +247,15 @@ export interface DataPointSchema {
   released_at?: string | null;
 }
 
+/** A deterministic auto-correction applied to a result row. */
+export interface Correction {
+  rule: "label_map" | "period_fill" | "unit_scale" | "planned_move";
+  attribute: "value" | "period_end" | "unit" | "field_id";
+  original: string | number | boolean | null;
+  corrected: string | number | boolean | null;
+  reason: string;
+}
+
 export interface ExtractedField {
   field_id: string;
   field_name: string;
@@ -276,6 +285,8 @@ export interface ExtractedField {
   /** Absent on legacy rows. */
   route?: "auto_accept" | "review" | "hold" | null;
   route_reasons?: string[] | null;
+  /** Absent on rows stored before auto-corrections. */
+  corrections?: Correction[] | null;
 }
 
 export interface CheckResult {
@@ -510,6 +521,9 @@ export interface ItemContext {
   documents: { doc_id: string; doc_type: string; title: string; pages?: number }[];
   failed_checks: { check_id: string; severity: string; plain: string; detail: string }[];
   route_reasons: string[];
+  corrections?: Correction[];
+  /** field_id to name for the item's schema, so a planned_move line can show names. */
+  field_names?: Record<string, string>;
   conflict: { conflicting_sources: boolean; alternatives: { value: unknown; raw_value_text: string | null; source: string; citations: Citation[] }[] } | null;
   /** The verifier's or adjudicator's value, pre-filled when the reviewer opens Correct (E57). */
   suggested_correction?: { value: unknown; citations: Citation[] } | null;

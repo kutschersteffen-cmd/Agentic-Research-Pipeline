@@ -410,6 +410,9 @@ def get_extraction_results(
     run_id: str, offset: int = 0, limit: int = 200, run_store: RunStore = Depends(get_run_store)
 ) -> dict:
     rows = run_store.read_results(run_id)
+    for r in rows[offset : offset + limit]:
+        for f in r.get("fields", []):
+            f.setdefault("corrections", [])  # rows stored before auto-corrections
     return {"total": len(rows), "results": rows[offset : offset + limit]}
 
 

@@ -249,3 +249,23 @@ def test_etag_stable_and_changes_with_state(env):
 
 def test_context_unknown_item_404(env):
     assert _client().get("/api/review/runs/ext1/items/nope/context").status_code == 404
+
+
+CORRECTION = {"rule": "planned_move", "attribute": "field_id", "original": "f1", "corrected": "f1p", "reason": "r"}
+
+
+def test_context_includes_corrections(env):
+    rs = env[0]
+    key = "ISS1:f1:2025-12-31"
+    rs.append_review_item("ext1", {"item_key": key, "company_id": "C1", "field_id": "f1",
+                                   "field": FIELD | {"corrections": [CORRECTION]}})
+    ctx = _client().get(f"/api/review/runs/ext1/items/{key}/context").json()
+    assert ctx["corrections"] == [CORRECTION]
+    assert ctx["field_names"] == {"f1": "Scope 1"}
+    assert _ctx()["corrections"] == []  # a row stored before corrections existed
+
+
+def test_stored_row_without_corrections_is_served_with_empty_list(env):
+    r = _client().get("/api/extraction/runs/ext1/results")
+    assert r.status_code == 200
+    assert [f["corrections"] for f in r.json()["results"][0]["fields"]] == [[], []]
