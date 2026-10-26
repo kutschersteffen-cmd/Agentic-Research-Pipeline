@@ -106,8 +106,9 @@ _TEXT_KEYS = ("title", "expectation", "definition", "where_reported")
 
 
 def _validate_theme_standards(content: dict, sample: dict) -> None:
-    """`sample` holds the approved position's paragraph count (`paragraphs`) and the released registry fields
-    (`released`: field_id -> {name, data_type, allowed_values, ...}). Stops at the first failure."""
+    """`sample` holds the approved position's paragraph count (`paragraphs`), the released registry fields
+    (`released`: field_id -> {name, data_type, allowed_values, ...}) and the ids of the theme's own released fields
+    (`carried`). Stops at the first failure."""
     standards = content.get("standards") or []
     schema_fields = {f["field_id"]: f for f in (content.get("schema") or {}).get("fields", [])}
     released = sample["released"]
@@ -130,6 +131,9 @@ def _validate_theme_standards(content: dict, sample: dict) -> None:
                 raise ValueError(f"standard '{s['standard_id']}': field '{s['field_id']}' is not in the new schema")
             if s["field_id"] in released:
                 raise ValueError(f"standard '{s['standard_id']}': field '{s['field_id']}' is released, use data \"existing\"")
+    for fid, f in schema_fields.items():  # a released field that is not a carried theme field cannot be added again
+        if fid in released and fid not in sample.get("carried", ()):
+            raise ValueError(f"new field '{f['name']}' is already released")
     used = {s["field_id"] for s in standards}
     for fid, f in schema_fields.items():
         if fid not in released and fid not in used:

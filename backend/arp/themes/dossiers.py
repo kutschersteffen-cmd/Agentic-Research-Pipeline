@@ -237,8 +237,10 @@ def exposed_companies(d: Dossier, run_store: RunStore, taxonomy_store: TaxonomyS
 
 
 def derive_steps(d: Dossier, run_store: RunStore, taxonomy_store: TaxonomyStore, research: ResearchRecord,
-                 theme_runs: list[RunManifest] | None = None, *, positions: PositionStore, streams_root: Path) -> list[DossierStep]:
-    """The five steps, read fresh from the stores. Pass `theme_runs` to share one run listing across dossiers."""
+                 theme_runs: list[RunManifest] | None = None, *, positions: PositionStore, streams_root: Path,
+                 extraction_runs: list[RunManifest] | None = None) -> list[DossierStep]:
+    """The five steps, read fresh from the stores. Pass `theme_runs` and `extraction_runs` to share one run listing
+    across dossiers."""
     latest_ratified = None
     if not d.taxonomy_id:
         define: tuple[StepState, str, str | None] = ("not_started", "choose a taxonomy", None)
@@ -260,7 +262,7 @@ def derive_steps(d: Dossier, run_store: RunStore, taxonomy_store: TaxonomyStore,
         define,
         _research(d, research, latest_ratified),
         _find_companies(d, run_store, theme_runs, latest_ratified),
-        step5(d.dossier_id, research, positions, streams_root, run_store),
+        step5(d.dossier_id, research, positions, streams_root, run_store, extraction_runs),
     ]
     return [DossierStep(number=i + 1, title=STEP_TITLES[i], state=s, detail=detail, href=href)
             for i, (s, detail, href) in enumerate(states)]

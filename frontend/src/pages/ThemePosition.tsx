@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { dossierHref } from "../lib/dossiers";
-import { DATA_LABEL, checkGrid, criterion, latestStandards, positionState } from "../lib/position";
+import { DATA_LABEL, checkGrid, criterion, editorDraft, latestStandards, positionState, releasedFieldIds } from "../lib/position";
 import { NOTE_SECTIONS } from "../lib/research";
 import { useMe } from "../lib/reviewer";
 import type { PositionVersion, PositionView, ResearchView, StandardsDraft, StandardsVersion, StandardsView } from "../types";
@@ -190,7 +190,7 @@ function Standards({ id, view, approver, busy, act }: { id: string; view: Standa
         </>
       )}
       {latest && editing && (
-        <StandardsEditor version={latest} busy={busy} onCancel={() => setEditing(false)}
+        <StandardsEditor version={latest} released={releasedFieldIds(view)} busy={busy} onCancel={() => setEditing(false)}
           onSave={async (body) => {
             if (await act(() => api.saveStandards(id, body))) setEditing(false);
           }} />
@@ -239,10 +239,9 @@ function StandardsTable({ version, names }: { version: StandardsVersion; names: 
   );
 }
 
-function StandardsEditor({ version, busy, onSave, onCancel }: { version: StandardsVersion; busy: boolean; onSave: (body: StandardsDraft) => void; onCancel: () => void }) {
+function StandardsEditor({ version, released, busy, onSave, onCancel }: { version: StandardsVersion; released: Set<string>; busy: boolean; onSave: (body: StandardsDraft) => void; onCancel: () => void }) {
   // Released theme fields are carried by the server; only the fields this version adds are edited here.
-  const newFields = (version.schema?.fields ?? []).filter((f) => version.standards.some((s) => s.data === "new" && s.field_id === f.field_id));
-  const [text, setText] = useState(JSON.stringify({ standards: version.standards, new_fields: newFields }, null, 2));
+  const [text, setText] = useState(() => JSON.stringify(editorDraft(version, released), null, 2));
   const [parseError, setParseError] = useState<string | null>(null);
   return (
     <form

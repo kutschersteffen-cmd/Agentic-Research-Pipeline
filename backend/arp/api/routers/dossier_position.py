@@ -205,11 +205,12 @@ def _approved_position(positions: PositionStore, dossier_id: str) -> PositionVer
 def _save_standards(dossier: Dossier, draft: StandardsDraft, *, position: PositionVersion, path: str, created_by: str,
                     note: str, dsn: str, streams: StreamStore) -> int:
     """Raises ValueError with the validator's message when the version is not admissible."""
-    sid = schema_id_for(dossier.dossier_id)
+    released = released_fields(dsn)
+    # a carried field retired since its release is dropped, so the standards that used it can be removed
+    carried = [f for f in released_theme_fields(SchemaRegistry(dsn), schema_id_for(dossier.dossier_id)) if f.field_id in released]
     content = build_standards_content(draft, dossier_id=dossier.dossier_id, dossier_name=dossier.name,
-                                      position_version=position.version, path=path,
-                                      carried=released_theme_fields(SchemaRegistry(dsn), sid))
-    sample = {"paragraphs": len(position.paragraphs), "released": released_fields(dsn)}
+                                      position_version=position.version, path=path, carried=carried)
+    sample = {"paragraphs": len(position.paragraphs), "released": released, "carried": {f.field_id for f in carried}}
     return standards_store(streams.root, dossier.dossier_id).save(POLICY, content, note, created_by, sample)
 
 
@@ -243,7 +244,9 @@ async def draft_standards(dossier_id: str, req: Instructions, request: Request,
     prompt = (f"Theme: {dossier.name}\n\nApproved position (v{position.version}):\nSummary: {position.summary}\n\n{paragraphs}"
               f"\n\nReleased fields:\n{listing or '(none)'}")
     if (latest := max(v["version"] for v in store.versions(POLICY))) > 0:
-        prompt += f"\n\nLatest standards version (v{latest}):\n{store.content(POLICY, latest)['standards']}"
+        # a field the last activation released is existing data now, whatever the version said when it was saved
+        shown = [{**x, "data": "existing"} if x["field_id"] in fields else x for x in store.content(POLICY, latest)["standards"]]
+        prompt += f"\n\nLatest standards version (v{latest}):\n{shown}"
     instructions = (req.instructions or "").strip()
     prompt += f"\n\nInstructions: {instructions or '(none)'}"
     draft, _ = await resolve(request, get_llm_client).complete_structured(
@@ -295,16 +298,12 @@ async def activate_standards(
         raise HTTPException(409, "find companies first")
     run_id = None
     if content["schema"] is not None:
-        registry, schema = SchemaRegistry(dsn), DataPointSchema.model_validate(content["schema"])
-        released = released_fields(dsn)
-        if any(f.field_id not in released for f in schema.fields):
-            saved = registry.save(schema)
-            schema = registry.release(saved.schema_id, saved.version, released_by=principal.user_id)
-        else:
-            versions = [r["version"] for r in registry.list_index() if r["schema_id"] == schema.schema_id and r["release_flag"]]
-            schema = registry.get(schema.schema_id, max(versions))
+        registry = SchemaRegistry(dsn)
+        schema = registry.save(DataPointSchema.model_validate(content["schema"]))  # the latest version when unchanged
+        if not schema.release_flag:
+            schema = registry.release(schema.schema_id, schema.version, released_by=principal.user_id)
         ref = f"{schema.schema_id}:v{schema.version}"
-        if not any(r.params.get("schema_version") == ref for r in run_store.list_runs("extraction")):
+        if not any(r.params.get("schema_version") == ref for r in run_store.extraction_runs()):  # trial runs don't count
             try:
                 run_id = start_extraction(schema, companies, settings)
             except Exception as exc:  # noqa: BLE001 - any failure to start is answered, and nothing is activated

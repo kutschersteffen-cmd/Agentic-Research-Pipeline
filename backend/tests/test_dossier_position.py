@@ -23,8 +23,9 @@ from arp.api.deps import (
 from arp.api.main import app
 from arp.config import Settings
 from arp.db import models as m
-from arp.db.fields import SchemaRegistry
+from arp.db.fields import SchemaRegistry, retire_field
 from arp.db.session import engine
+from arp.orchestration.job_manager import JobManager
 from arp.research.pipeline import create_theme_run
 from arp.schemas.common import CompanyRef, JobStatus
 from arp.schemas.datapoints import DataPointSchema, FieldDefinition
@@ -36,7 +37,7 @@ from arp.stewardship.trigger_store import TriggerStore
 from arp.storage.engagement_store import EngagementStore
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
-from arp.themes.position import PositionDraft, PositionParagraph, PositionStore
+from arp.themes.position import PositionDraft, PositionParagraph, PositionStore, schema_id_for
 from arp.themes.research import NoteItem, NoteSections, ResearchNote, ResearchRound, ResearchStore
 
 USERS = {"own": Principal(user_id="own", name="own", role="approver"), "ana": Principal(user_id="ana", name="ana", role="analyst"),
@@ -465,3 +466,50 @@ def test_stored_triggers_list_the_company_name(env):
     env.post("standards/check", user="ana")
     std = [t for t in env.client.get("/api/stewardship/triggers").json()["triggers"] if t["rule"].startswith("std:")]
     assert [t["company"] for t in std] == ["Beta"]
+
+
+def test_review_round_1_fixes(env):
+    """Findings 1, 3, 4, 5, 6, 7 of the first review of #251."""
+    env.approved_position()
+    sid = schema_id_for(env.did)
+    # 7: a trial run on the schema version does not stand in for the real extraction
+    JobManager(env.run_store).create_run("extraction", {"schema_id": sid, "schema_version": f"{sid}:v1", "trial": True}, 1)
+    env.model("StandardsDraft", S_OK)
+    assert env.post("standards/draft", user="ana").json() == {"version": 1}
+    first = env.post("standards/activate", {"version": 1}, user="own").json()
+    assert first["extraction_run_id"] is not None
+    # 4: a redraft sees the released field as existing data, not as a field still to add
+    env.model("StandardsDraft", S_TWO)
+    assert env.post("standards/draft", user="ana").json() == {"version": 2}
+    assert "'data': 'new'" not in env.prompts("StandardsDraft")[-1]
+    # 6: a new field that reuses a released registry field is refused, whether or not a standard uses it
+    r = env.post("standards/versions", {**S_TWO, "new_fields": [{**NEW, "field_id": "fld_scope3", "name": "Copy"}]}, user="own")
+    assert (r.status_code, r.json()["detail"]) == (422, "new field 'Copy' is already released")
+    # 1: activating the schema an older version used releases that schema, instead of reusing the newest one
+    assert env.post("standards/activate", {"version": 2}).status_code == 200
+    run = env.run_store.load_manifest(first["extraction_run_id"])
+    run.status = JobStatus.COMPLETED
+    env.run_store.save_manifest(run)
+    # 3: once a carried field is retired, the theme can still save standards that drop it
+    with Session(engine(env.pg)) as session, session.begin():
+        retire_field(session, "fld_plan")
+    assert env.post("standards/versions", S_TWO, user="own").json() == {"version": 3}
+    v3 = env.client.get(env.url("standards")).json()["versions"][3]
+    assert v3["schema"] is None
+
+
+def test_a_value_of_the_wrong_type_is_no_data_not_a_flag(env):
+    """Finding 5: `==` never raises, so the type is checked before comparing."""
+    env.active(S_TWO)
+    _fact(env.pg, env.e2, "fld_scope3", "false")  # a string where a boolean belongs
+    rows = {(r["name"], r["standard_id"]): (r["result"], r["value"]) for r in env.post("standards/check", user="ana").json()["results"]}
+    assert rows[("Beta", "S1")] == ("no_data", None)
+    assert not [t for t in env.client.get("/api/stewardship/triggers").json()["triggers"] if t["rule"].startswith("std:")]
+
+
+@pytest.mark.parametrize("user_id", ["model", "Model", " model "])
+def test_every_spelling_of_model_is_reserved(tmp_path, user_id):
+    path = tmp_path / "users.json"
+    path.write_text(json.dumps({"users": [{"user_id": user_id, "name": "M", "role": "approver", "token": "t"}]}))
+    with pytest.raises(RuntimeError, match="user id 'model' is reserved"):
+        load_users(path)

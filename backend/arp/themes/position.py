@@ -188,7 +188,8 @@ def released_theme_fields(registry, schema_id: str) -> list[FieldDefinition]:
 def build_standards_content(draft: StandardsDraft, *, dossier_id: str, dossier_name: str, position_version: int,
                             path: VersionPath, carried: list[FieldDefinition]) -> dict:
     """A version's content: the standards plus the theme schema (released theme fields, then the new ones)."""
-    new = [f.model_copy(update={"status": FieldStatus.DRAFT}) for f in draft.new_fields]
+    carried_ids = {f.field_id for f in carried}  # a redraft may list an already released theme field again
+    new = [f.model_copy(update={"status": FieldStatus.DRAFT}) for f in draft.new_fields if f.field_id not in carried_ids]
     schema = None
     if carried or new:
         schema = DataPointSchema(schema_id=schema_id_for(dossier_id), name=f"{dossier_name} standards",
@@ -239,6 +240,12 @@ def current_facts(dsn: str | None, entity_ids: list, field_ids: list[str]) -> di
     return {k: v for k, (_, v) in best.items()}
 
 
+def _same_kind(value: Any, criterion: Any) -> bool:
+    """Both booleans, both strings, or both numbers (a bool is not a number here)."""
+    kind = lambda v: bool if isinstance(v, bool) else str if isinstance(v, str) else float if isinstance(v, (int, float)) else None  # noqa: E731
+    return kind(value) is not None and kind(value) is kind(criterion)
+
+
 def check_standards(companies: list[CompanyRef], standards: list[dict], facts: dict) -> list[dict]:
     results = []
     for c in sorted(companies, key=lambda c: (c.name, c.company_id)):
@@ -247,10 +254,10 @@ def check_standards(companies: list[CompanyRef], standards: list[dict], facts: d
             fact = facts.get((str(c.entity_id), s["field_id"])) if c.entity_id else None
             if fact and fact[2] not in ("not_found", "not_applicable"):
                 value, period_end = (0 if fact[2] == "zero" else fact[0]), fact[1]
-                try:
+                if _same_kind(value, s["value"]):
                     result = "met" if _OPS[s["operator"]](value, s["value"]) else "unmet"
-                except TypeError:  # a stored value of the wrong type is no data, never a flag
-                    value, result = None, "no_data"
+                else:  # a stored value of the wrong type is no data, never a flag
+                    value = None
             results.append({"company_id": c.company_id, "name": c.name, "standard_id": s["standard_id"], "value": value,
                             "period_end": period_end.isoformat() if period_end else None, "result": result})
     return results
@@ -271,12 +278,14 @@ def standards_triggers(results: list[dict], standards: list[dict], companies: li
 
 # --- dossier step 5 ---
 
-def newest_extraction_run(run_store: RunStore, schema_id: str) -> RunManifest | None:
-    return next((r for r in run_store.extraction_runs() if r.params.get("schema_id") == schema_id), None)
+def newest_extraction_run(runs: list[RunManifest], schema_id: str) -> RunManifest | None:
+    """`runs`: non-trial extraction runs, newest first (RunStore.extraction_runs)."""
+    return next((r for r in runs if r.params.get("schema_id") == schema_id), None)
 
 
 def step5(dossier_id: str, research: ResearchRecord, positions: PositionStore, streams_root: Path,
-          run_store: RunStore) -> tuple[str, str, str]:
+          run_store: RunStore, extraction_runs: list[RunManifest] | None = None) -> tuple[str, str, str]:
+    """Pass `extraction_runs` to share one run listing across dossiers."""
     href = f"#/themes/{dossier_id}/position"
     note = research.approved_round
     if note is None:
@@ -300,7 +309,8 @@ def step5(dossier_id: str, research: ResearchRecord, positions: PositionStore, s
     if active["position_version"] != approved.version:
         return "waiting", f"standards rest on position v{active['position_version']}, v{approved.version} approved", href
     since = store.activations(POLICY)[-1]["approved_at"]
-    if active.get("schema") and (run := newest_extraction_run(run_store, active["schema"]["schema_id"])):
+    if active.get("schema") and (run := newest_extraction_run(
+            run_store.extraction_runs() if extraction_runs is None else extraction_runs, active["schema"]["schema_id"])):
         if run.status in (JobStatus.PENDING, JobStatus.RUNNING):
             return "running", f"extracting {len(active['schema']['fields'])} data points", href
         if run.status in (JobStatus.FAILED, JobStatus.CANCELLED):

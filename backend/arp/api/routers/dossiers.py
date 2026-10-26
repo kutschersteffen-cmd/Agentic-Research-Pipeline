@@ -84,9 +84,10 @@ class Viewer:
         self.run_store, self.taxonomy_store, self.research_store = run_store, taxonomy_store, research_store
         self.positions, self.streams_root = positions, streams.root
 
-    def steps(self, dossier: Dossier, theme_runs: list[RunManifest] | None = None) -> list[DossierStep]:
+    def steps(self, dossier: Dossier, theme_runs: list[RunManifest] | None = None,
+              extraction_runs: list[RunManifest] | None = None) -> list[DossierStep]:
         return derive_steps(dossier, self.run_store, self.taxonomy_store, self.research_store.get(dossier.dossier_id), theme_runs,
-                            positions=self.positions, streams_root=self.streams_root)
+                            positions=self.positions, streams_root=self.streams_root, extraction_runs=extraction_runs)
 
     def __call__(self, dossier: Dossier) -> DossierView:
         return DossierView(**dossier.model_dump(), steps=self.steps(dossier),
@@ -95,11 +96,11 @@ class Viewer:
 
 @router.get("", response_model=DossierList)
 def list_dossiers(store: DossierStore = Depends(get_dossier_store), view: Viewer = Depends()) -> DossierList:
-    theme_runs = view.run_store.list_runs("theme")
+    theme_runs, extraction_runs = view.run_store.list_runs("theme"), view.run_store.extraction_runs()
     return DossierList(items=[
         DossierItem(
             **d.model_dump(include={"dossier_id", "name", "status", "origin", "run_id", "theme_id", "created_at"}),
-            current_step=current_step(view.steps(d, theme_runs)),
+            current_step=current_step(view.steps(d, theme_runs, extraction_runs)),
         )
         for d in store.list()
     ])

@@ -120,6 +120,7 @@ import type {
   StandardsActivation,
   StandardsCheck,
   StandardsDraft,
+  StandardsSaved,
   StandardsView,
 } from "../types";
 import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision } from "../types";
@@ -688,8 +689,8 @@ export const api = {
   approvePosition: (id: string, version: number) => request(step5(id, "position/approve"), jsonBody("POST", { version })),
   getStandards: (id: string) => request<StandardsView>(step5(id, "standards")),
   draftStandards: (id: string, instructions: string | null) =>
-    request<{ version: number }>(step5(id, "standards/draft"), jsonBody("POST", { instructions })),
-  saveStandards: (id: string, body: StandardsDraft) => request<{ version: number }>(step5(id, "standards/versions"), jsonBody("POST", body)),
+    request<StandardsSaved>(step5(id, "standards/draft"), jsonBody("POST", { instructions })),
+  saveStandards: (id: string, body: StandardsDraft) => request<StandardsSaved>(step5(id, "standards/versions"), jsonBody("POST", body)),
   activateStandards: (id: string, version: number) =>
     request<StandardsActivation>(step5(id, "standards/activate"), jsonBody("POST", { version })),
   checkStandards: (id: string) => request<StandardsCheck>(step5(id, "standards/check"), { method: "POST" }),

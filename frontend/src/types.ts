@@ -38,6 +38,7 @@ export type Standard = Served<S["Standard"]>;
 export type StandardsDraft = S["StandardsDraft"];
 export type StandardsCheck = Served<S["StandardsCheck"]>;
 export type StandardsActivation = Served<S["Activation"]>;
+export type StandardsSaved = Served<S["StandardsSaved"]>;
 // The backend serves versions as plain dicts (a policy version's meta plus its content); version 0 has no
 // dossier_id, position_version or path.
 export interface StandardsVersion {
@@ -47,7 +48,7 @@ export interface StandardsVersion {
   position_version?: number;
   path?: "model_draft" | "owner_edit";
   standards: Standard[];
-  schema: DataPointSchema | null;
+  schema: Served<S["DataPointSchema"]> | null;
 }
 export type StandardsView = Omit<Served<S["StandardsView"]>, "versions"> & { versions: StandardsVersion[] };
 export type RunStarted = Served<S["RunStarted"]>;

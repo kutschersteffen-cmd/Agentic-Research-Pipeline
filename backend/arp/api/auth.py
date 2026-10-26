@@ -48,7 +48,7 @@ def load_users(path: Path) -> dict[str, Principal]:
     if not all(tokens) or len(set(tokens)) != len(tokens) or len(set(ids)) != len(ids):
         # No token text in the message: it ends up in logs.
         raise RuntimeError(f"Users file {path} has a blank or duplicate token or a duplicate user_id.")
-    if "model" in ids:  # drafts are saved as authored by `model`; a user by that id could pass four-eyes alone
+    if any(i.strip().lower() == "model" for i in ids):  # four-eyes compares ids case- and space-insensitively
         raise RuntimeError(f"Users file {path}: user id 'model' is reserved.")
     return {u.token.strip(): Principal(**u.model_dump(exclude={"token"})) for u in users}
 
