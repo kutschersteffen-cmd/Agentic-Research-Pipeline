@@ -238,6 +238,7 @@ def test_draft_redraft_edit_and_approve_the_position(env):
     env.approve_note()
     env.model("PositionDraft", P_OK)
     v1 = env.post("position/draft", user="ana").json()
+    assert (env.positions.root / env.did / "v1.json").is_file()  # the API writes where the store reads
     assert (v1["version"], v1["created_by"], v1["path"], v1["note_version"], v1["instructions"], len(v1["paragraphs"])) == (
         1, "model", "model_draft", 1, None, 2)
     assert env.step5() == ("waiting", "approve position v1")
