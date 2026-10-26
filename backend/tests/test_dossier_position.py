@@ -455,3 +455,10 @@ def test_an_engagement_opens_from_a_standards_trigger(env):
     assert issue.status_code == 200
     t = issue.json()["trigger"]
     assert (t["theme"], t["severity"], t["sector"]) == ("Grid electrification", "high", "Utilities")
+
+
+def test_stored_triggers_list_the_company_name(env):
+    env.active(S_TWO)
+    env.post("standards/check", user="ana")
+    std = [t for t in env.client.get("/api/stewardship/triggers").json()["triggers"] if t["rule"].startswith("std:")]
+    assert [t["company"] for t in std] == ["Beta"]

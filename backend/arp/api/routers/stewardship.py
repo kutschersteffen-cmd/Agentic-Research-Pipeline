@@ -351,7 +351,9 @@ def monitoring_triggers(
 
 @router.get("/triggers")
 def list_stored_triggers(status: Literal["open", "acknowledged", "resolved"] | None = None, streams: StreamStore = Depends(get_stream_store)) -> dict:
-    return {"triggers": [t.model_dump() for t in TriggerStore(streams.root).list_triggers(status)]}
+    store = TriggerStore(streams.root)
+    names = store.companies()
+    return {"triggers": [{**t.model_dump(), "company": names.get(t.trigger_id, "")} for t in store.list_triggers(status)]}
 
 
 class TriggerTransitionRequest(BaseModel):

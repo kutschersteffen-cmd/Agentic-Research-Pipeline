@@ -59,7 +59,6 @@ class TriggerStore:
                             reason=t["reason"],
                             first_seen_month=row["month"],
                             rule=t["rule"],
-                            company=t.get("company", ""),
                         ),
                     )
             elif row["event"] == "standards":
@@ -68,7 +67,6 @@ class TriggerStore:
                     found.setdefault(tid, UnifiedTrigger(
                         trigger_id=tid, source="stewardship", issuer_id=t["issuer_id"], type=t["type"], theme=t["theme"],
                         severity=t["severity"], reason=t["reason"], first_seen_month=row["checked_at"][:7], rule=t["rule"],
-                        company=t["company"],
                     ))
             elif row["trigger_id"] in found:
                 found[row["trigger_id"]].status = row["status"]
@@ -95,6 +93,11 @@ class TriggerStore:
         """The trigger as the latest run or standards check that raised it recorded it (company, sector, theme, severity, reason, ...)."""
         hits = [t for r in self._rows() if r["event"] in ("run", "standards") for t in r["triggers"] if trigger_id(t["issuer_id"], t["rule"]) == tid]
         return hits[-1] if hits else None
+
+    def companies(self) -> dict[str, str]:
+        """trigger_id -> the company name the latest run or standards check that raised it recorded."""
+        return {trigger_id(t["issuer_id"], t["rule"]): t.get("company", "")
+                for r in self._rows() if r["event"] in ("run", "standards") for t in r["triggers"]}
 
     def list_triggers(self, status: str | None = None) -> list[UnifiedTrigger]:
         return [t for t in self._fold().values() if status is None or t.status == status]

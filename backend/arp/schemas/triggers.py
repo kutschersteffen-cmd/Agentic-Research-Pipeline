@@ -23,7 +23,6 @@ class UnifiedTrigger(BaseModel):
     first_seen_month: str = ""
     is_new: bool = False
     rule: str = ""  # the monitoring rule that raised it; open-engagement needs (issuer_id, rule)
-    company: str = ""  # the company's name as the run or check that raised it recorded it
 
 
 def from_alert(alert: Alert) -> UnifiedTrigger:
