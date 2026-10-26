@@ -460,7 +460,7 @@ Evaluator rows get their state seeded through the same stores (position files an
 | AC-41d | AC-41b | `GET .../standards` | version 2: `S3` `data` `existing`, `S4` `data` `new` | holdout |
 | AC-41e | AC-41b, the new run `running` | `GET /api/dossiers/D` | step 5 `running`, `extracting 2 data points` | holdout |
 | AC-42 | — | `own` `POST .../standards/versions` with S-two, `S1` on `fld_draft` | 422, detail `standard 'S1': unknown or unreleased field 'fld_draft'` | holdout |
-| AC-43 | the API configured with a users file containing a user whose `user_id` is `model` | any request with a valid token | 503, detail contains `user id 'model' is reserved` | holdout |
+| AC-43 | the API configured with a users file containing a user whose `user_id` is `model` | any request with a valid token | 503, detail contains `user id 'model' is reserved` | unit |
 | AC-44 | S-two active (via AC-34) | `ana` `POST .../standards/check` | 200; `results` as (company, standard, result): Alpha S1 `met`, Alpha S2 `met`, Beta S1 `unmet`, Beta S2 `no_data`, Gamma S1 `no_data`, Gamma S2 `no_data`; no Delta rows; `flagged` 1 | holdout |
 | AC-45 | AC-44, with `e1`'s `fld_grid_capex` replaced by a fact in state `zero`, status `approved` | check | Alpha S2 `unmet`, `value` 0; `flagged` 2 | holdout |
 | AC-46 | AC-44, with `e1`'s `fld_scope3` fact status `pending_review` | check | Alpha S1 `no_data` | holdout |
