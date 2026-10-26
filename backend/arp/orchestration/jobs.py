@@ -6,7 +6,7 @@ import traceback
 from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
@@ -152,6 +152,24 @@ def get_job_launcher() -> LocalJobLauncher:
         # ponytail: a cloud_run launcher plugs in here at Cloud switch-on.
         _launcher = LocalJobLauncher(get_run_store)
     return _launcher
+
+
+_LEASE_GRACE = timedelta(seconds=60)  # a run is launched just after its request returns; its lease comes a moment later
+
+
+def run_alive(run_store, run_id: str | None) -> bool:
+    """A worker holds the run's lease, or the run is too new to have taken it yet. A process restart frees the lease,
+    so a run left `detecting` or `drafting` by a restart can be started again (RFP) or reads as failed (theme research)."""
+    if not run_id:
+        return False
+    manifest = run_store.load_manifest(run_id)
+    if manifest and datetime.now(UTC) - datetime.fromisoformat(manifest.created_at) < _LEASE_GRACE:
+        return True
+    try:
+        with run_lease(run_store, run_id):
+            return False
+    except RunBusy:
+        return True
 
 
 class NotResumable(ValueError):

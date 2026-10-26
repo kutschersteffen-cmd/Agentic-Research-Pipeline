@@ -81,6 +81,9 @@ def env(tmp_path, pg, monkeypatch):
             while jobs:
                 asyncio.run(jobs.pop(0)())
 
+        def drop_jobs(self):  # as a crash would
+            jobs.clear()
+
         def url(self, path=""):
             return f"/api/dossiers/{self.d}/research{path}"
 
@@ -391,3 +394,31 @@ def test_a_new_upload_keeps_the_file_an_earlier_round_read(env):
     record = ResearchRecord.model_validate(env.research())
     paths = [store.file_path(env.d, next(s for s in r.sources if s.source_id == ids[PAPER])) for r in record.rounds]
     assert paths[0] != paths[1] and all(p.is_file() for p in paths)
+
+
+def test_a_round_whose_run_died_reads_as_failed_and_can_be_retried(env, pg):  # AC-72
+    run_store = RunStore(pg, env.settings.runs_dir)
+
+    def die(run_id):  # past the lease grace, with no worker holding the lease: what a restart leaves behind
+        m = run_store.load_manifest(run_id)
+        m.created_at = "2026-01-01T00:00:00+00:00"
+        run_store.save_manifest(m)
+
+    die(env.client.post(env.url("/propose")).json()["run_id"])
+    env.drop_jobs()
+    assert env.research()["rounds"][0]["plan_status"] == "proposal_failed"
+    assert env.step3() == ("failed", "source proposal failed")
+    r = env.client.post(env.url("/propose"))
+    assert (r.status_code, r.json()["round"]) == (202, 1)
+    env.run_jobs()
+    env.client.post(env.url("/plan/approve"))
+    _default_note(env)
+
+    die(env.client.post(env.url("/note")).json()["run_id"])
+    env.drop_jobs()
+    note = env.research()["rounds"][0]["note"]
+    assert (note["status"], note["error"]) == ("write_failed", "the run stopped before the note was written")
+    assert env.step3() == ("failed", "note failed: the run stopped before the note was written")
+    assert env.client.post(env.url("/note")).status_code == 202
+    env.run_jobs()
+    assert env.research()["rounds"][0]["note"]["status"] == "written"
