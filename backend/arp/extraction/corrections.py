@@ -8,8 +8,16 @@ from arp.extraction.extractor_agent import PeriodValue
 from arp.normalise.period import resolve_period
 from arp.normalise.units import split_unit
 from arp.normalise.value import PRINTED, typed_value
-from arp.schemas.common import SourceDocument
-from arp.schemas.datapoints import Correction, DataPointSchema, ExtractedField, FieldDataType, FieldDefinition, ValueState
+from arp.schemas.common import ProvenanceInfo, SourceDocument
+from arp.schemas.datapoints import (
+    Alternative,
+    Correction,
+    DataPointSchema,
+    ExtractedField,
+    FieldDataType,
+    FieldDefinition,
+    ValueState,
+)
 from arp.schemas.review import ReasonCode
 
 NUMERIC = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
@@ -51,7 +59,7 @@ def apply_corrections(
             rows[i] = r
     rows = [_unit_scale(r, specs[r.field_id], fiscal_year_end=fiscal_year_end) if r.field_id in specs else r
             for r in rows]
-    rows = _planned_move(rows, schema, documents_by_id, input_hashes)
+    rows = _planned_move(rows, schema, documents_by_id=documents_by_id, input_hashes=input_hashes)
     return [
         r.model_copy(update={"review_reasons": [*r.review_reasons, ReasonCode.AUTO_CORRECTED]})
         if r.corrections and ReasonCode.AUTO_CORRECTED not in r.review_reasons
@@ -193,7 +201,39 @@ def _unit_scale(row: ExtractedField, spec: FieldDefinition, *, fiscal_year_end: 
         "corrections": [*row.corrections, c]})
 
 
-# R4 lands in a later task; a no-op keeps the call order fixed.
-def _planned_move(rows: list[ExtractedField], schema: DataPointSchema, documents_by_id: dict[str, SourceDocument],
+def _amount(row: ExtractedField):
+    return row.canonical_value if row.canonical_value is not None else row.value
+
+
+def _planned_move(rows: list[ExtractedField], schema: DataPointSchema, *, documents_by_id: dict[str, SourceDocument],
                   input_hashes: dict[str, str | None]) -> list[ExtractedField]:
+    """R4: a figure for a period after the report's period end is planned, not actual."""
+    specs = {f.field_id: f for f in schema.fields}
+    live = (ValueState.FOUND, ValueState.ZERO)
+    rows = list(rows)
+    for i, r in enumerate(rows):
+        spec = specs.get(r.field_id)
+        planned = specs.get(spec.planned_field_id) if spec and spec.planned_field_id else None
+        end = report_period_end(r, documents_by_id)
+        if not planned or r.value_state not in live or not r.period_end or not end or r.period_end <= end:
+            continue
+        reason = f"Period {r.period_end} is after the report's period end {end}, so it is a planned figure."
+        j = next((j for j, p in enumerate(rows)
+                  if p.field_id == planned.field_id and p.period_end == r.period_end and p.value_state in live), None)
+        if j is None:
+            c = Correction(rule="planned_move", attribute="field_id", original=r.field_id,
+                           corrected=planned.field_id, reason=reason)
+            prov = r.provenance or ProvenanceInfo()
+            rows[i] = r.model_copy(update={
+                "field_id": planned.field_id, "field_name": planned.name, "input_hash": input_hashes.get(planned.field_id),
+                "provenance": prov.model_copy(update={"field_version": planned.version}),
+                "corrections": [*r.corrections, c]})
+            continue
+        c = Correction(rule="planned_move", attribute="value", original=r.value, corrected=None, reason=reason)
+        rows[i] = r.model_copy(update={"value": None, "value_state": ValueState.NOT_FOUND, "canonical_value": None,
+                                       "corrections": [*r.corrections, c]})
+        a, b = _amount(r), _amount(rows[j])
+        if not (isinstance(a, (int, float)) and isinstance(b, (int, float))) or abs(a - b) > 0.01 * abs(b):
+            alt = Alternative(value=r.value, raw_value_text=r.raw_value_text, source="planned_move", citations=r.citations)
+            rows[j] = rows[j].model_copy(update={"alternatives": [*rows[j].alternatives, alt]})
     return rows

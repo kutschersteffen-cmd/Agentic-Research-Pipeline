@@ -246,7 +246,7 @@ class Alternative(BaseModel):
 
     value: str | float | bool | None = None
     raw_value_text: str | None = None
-    source: Literal["extractor", "duplicate", "verifier", "adjudicator", "tagged"]
+    source: Literal["extractor", "duplicate", "verifier", "adjudicator", "tagged", "planned_move"]
     citations: list[Citation] = Field(default_factory=list)
 
 

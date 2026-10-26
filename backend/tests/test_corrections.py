@@ -1,7 +1,7 @@
 import pytest
 
 from arp.extraction.corrections import apply_corrections
-from arp.schemas.common import Citation, DocType, PeriodPlan, SourceDocument
+from arp.schemas.common import Citation, DocType, PeriodPlan, ProvenanceInfo, SourceDocument
 from arp.schemas.datapoints import Correction, DataPointSchema, ExtractedField, FieldDataType, FieldDefinition, ValueState
 from arp.schemas.review import ReasonCode
 
@@ -276,3 +276,102 @@ def test_attached_scale_word_with_value_2_8():
 def test_attached_scale_word_must_end_at_a_word_boundary():
     out = _scale(_urow("USD millions", "Capital expenditures were $2.794bnx during 2025"))
     assert _uc(out) == []
+
+
+# --- R4 planned_move ------------------------------------------------------
+
+REASON_2026 = "Period 2026-12-31 is after the report's period end 2025-12-31, so it is a planned figure."
+
+
+def _mrow(field_id="capex", value=2.5, period_end="2026-12-31", **kw) -> ExtractedField:
+    return _nrow("q", field_id=field_id, period_end=period_end, value=value).model_copy(update=kw)
+
+
+def _move(rows, docs="default"):
+    return apply_corrections(_num_schema(), rows, documents_by_id=_docs() if docs == "default" else docs,
+                             fiscal_year_end=None, input_hashes={"capex_planned": "h-planned"})
+
+
+def _pc(row):
+    return [c for c in row.corrections if c.rule == "planned_move"]
+
+
+def test_future_actual_moves_to_planned_field():
+    row = _mrow(provenance=ProvenanceInfo(field_version=1))
+    (out,) = _move([row])
+    assert (out.field_id, out.field_name, out.value, out.input_hash) == ("capex_planned", "Capex planned", 2.5, "h-planned")
+    assert out.corrections == [Correction(rule="planned_move", attribute="field_id", original="capex",
+                                          corrected="capex_planned", reason=REASON_2026)]
+    assert out.review_reasons.count(ReasonCode.AUTO_CORRECTED) == 1
+    assert row.field_id == "capex" and row.corrections == []  # input not mutated
+
+
+def test_moved_row_takes_the_planned_field_version():
+    schema = _num_schema()
+    schema.fields[1].version = 3
+    row = _mrow(provenance=ProvenanceInfo(field_version=1))
+    (out,) = apply_corrections(schema, [row], documents_by_id=_docs(), fiscal_year_end=None,
+                               input_hashes={"capex_planned": "h"})
+    assert out.provenance.field_version == 3
+    (bare,) = apply_corrections(schema, [_mrow()], documents_by_id=_docs(), fiscal_year_end=None, input_hashes={})
+    assert bare.provenance.field_version == 3 and bare.input_hash is None
+
+
+def test_existing_planned_row_clears_actual_and_keeps_alternative():
+    actual, planned = _mrow(value=3.0), _mrow("capex_planned", 2.5)
+    out_actual, out_planned = _move([actual, planned])
+    assert (out_actual.value, out_actual.value_state, out_actual.field_id) == (None, ValueState.NOT_FOUND, "capex")
+    assert [(c.original, c.corrected, c.reason) for c in _pc(out_actual)] == [(3.0, None, REASON_2026)]
+    (alt,) = [a for a in out_planned.alternatives if a.source == "planned_move"]
+    assert alt.value == 3.0 and out_planned.value == 2.5 and out_planned.corrections == []
+
+
+def test_close_values_add_no_alternative():
+    out_actual, out_planned = _move([_mrow(value=2.51), _mrow("capex_planned", 2.5)])
+    assert out_actual.value is None and len(_pc(out_actual)) == 1
+    assert out_planned.alternatives == []
+
+
+def test_not_found_planned_row_does_not_block_the_move():
+    gone = _mrow("capex_planned", None, value_state=ValueState.NOT_FOUND)
+    out = _move([_mrow(), gone])
+    assert [(r.field_id, r.value) for r in out] == [("capex_planned", 2.5), ("capex_planned", None)]
+
+
+def test_planned_row_for_another_period_does_not_block_the_move():
+    out = _move([_mrow(), _mrow("capex_planned", 9.0, period_end="2027-12-31")])
+    assert out[0].field_id == "capex_planned" and out[0].value == 2.5
+
+
+def test_field_without_link_is_untouched():
+    row = _mrow("flag", value=True)
+    assert _move([row]) == [row]
+    row = _mrow("capex_planned", 2.5)  # a planned field has no link of its own
+    assert _move([row]) == [row]
+
+
+def test_link_to_missing_field_is_ignored():
+    schema = _num_schema()
+    schema.fields[0].planned_field_id = "nowhere"
+    row = _mrow()
+    assert apply_corrections(schema, [row], documents_by_id=_docs(), fiscal_year_end=None, input_hashes={}) == [row]
+
+
+@pytest.mark.parametrize("period_end", ["2025-12-31", "2024-12-31"])
+def test_not_after_report_period_is_untouched(period_end):
+    row = _mrow(period_end=period_end)
+    assert _move([row]) == [row]
+
+
+def test_no_report_period_end_or_no_period_is_untouched():
+    row = _mrow()
+    assert _move([row], docs={}) == [row]
+    row = _mrow(period_end=None)  # R2 cannot fill it without a report period end either
+    assert _move([row], docs={})[0].field_id == "capex"
+
+
+def test_planned_move_twice_changes_nothing():
+    once = _move([_mrow(value=3.0), _mrow("capex_planned", 2.5)])
+    assert _move(once) == once
+    moved = _move([_mrow()])
+    assert _move(moved) == moved
