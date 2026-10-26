@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import re
 
+from arp.extraction.extractor_agent import PeriodValue
 from arp.normalise.period import resolve_period
+from arp.normalise.units import split_unit
+from arp.normalise.value import PRINTED, typed_value
 from arp.schemas.common import SourceDocument
 from arp.schemas.datapoints import Correction, DataPointSchema, ExtractedField, FieldDataType, FieldDefinition, ValueState
 from arp.schemas.review import ReasonCode
@@ -46,7 +49,8 @@ def apply_corrections(
                               fiscal_year_end=fiscal_year_end, planned_ids=planned_ids)
         for i, r in zip(idx, filled, strict=True):
             rows[i] = r
-    rows = _unit_scale(rows, schema)
+    rows = [_unit_scale(r, specs[r.field_id], fiscal_year_end=fiscal_year_end) if r.field_id in specs else r
+            for r in rows]
     rows = _planned_move(rows, schema, documents_by_id, input_hashes)
     return [
         r.model_copy(update={"review_reasons": [*r.review_reasons, ReasonCode.AUTO_CORRECTED]})
@@ -124,11 +128,71 @@ def _year_start_iso(end: str) -> str | None:
         return None
 
 
-# R3-R4 land in later tasks; no-ops keep the call order fixed.
-def _unit_scale(rows: list[ExtractedField], schema: DataPointSchema) -> list[ExtractedField]:
-    return rows
+_SCALE_WORDS = {"thousand": 1e3, "thousands": 1e3, "k": 1e3, "million": 1e6, "millions": 1e6, "mn": 1e6, "m": 1e6,
+                "billion": 1e9, "billions": 1e9, "bn": 1e9, "b": 1e9}
+_SCALE_WORD = re.compile(r"\b(" + "|".join(sorted(_SCALE_WORDS, key=len, reverse=True)) + r")\b", re.I)
 
 
+def _printed(row: ExtractedField) -> str | None:
+    """The row's number as a string: the first number in raw_value_text, else the value."""
+    if row.raw_value_text:
+        m = PRINTED.search(row.raw_value_text)
+        return m[0].replace(",", "") if m else None
+    if isinstance(row.value, (int, float)) and not isinstance(row.value, bool):
+        return f"{row.value:.10g}"
+    return None
+
+
+def _unit_scale(row: ExtractedField, spec: FieldDefinition, *, fiscal_year_end: str | None) -> ExtractedField:
+    """R3: a unit whose scale word contradicts the one printed next to the value in a grounded quote."""
+    quotes = grounded_quotes(row)
+    printed = _printed(row)
+    if (spec.data_type not in (FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT) or row.value_state != ValueState.FOUND
+            or not quotes or printed is None or not row.unit):
+        return row
+    whole, _, frac = printed.partition(".")
+    # Thousands separators are optional; a decimal point is not ("2,794" is not 2.794).
+    number = re.sub(r"(?<=\d)(?=(?:\d{3})+$)", ",?", whole) + (r"\." + frac if frac else "")
+    pattern = re.compile(r"(?<![\d.,])(" + number + r")\s{0,3}" + _SCALE_WORD.pattern + r"(?!\w)")
+    hits = [m for q in quotes for m in pattern.finditer(q)]
+    if len({_SCALE_WORDS[m[2].lower()] for m in hits}) != 1:
+        return row
+    effective = row.scale_applied if row.scale_applied is not None else split_unit(row.unit)[0]
+    word = hits[0][2]
+    if _SCALE_WORDS[word.lower()] == effective:
+        return row
+
+    def _like(old: str) -> str:  # the quote's word, plural and in the case of the word it replaces
+        w = word.lower() + ("s" if old.lower().endswith("s") and word.lower() in ("thousand", "million", "billion") else "")
+        return w.upper() if old.isupper() else w.capitalize() if old[0].isupper() else w
+
+    if old := _SCALE_WORD.search(row.unit):
+        unit = row.unit[: old.start()] + _like(old[0]) + row.unit[old.end():]
+    else:
+        unit = f"{row.unit} {word.lower()}"
+
+    def _typed(u: str):
+        pv = PeriodValue(value=row.value, state=row.value_state, raw_value_text=row.raw_value_text, unit_text=u,
+                         period_text=row.period_text, basis_text=row.basis)
+        return typed_value(spec, pv, fiscal_year_end=fiscal_year_end)
+
+    before, after = _typed(row.unit), _typed(unit)
+    reasons = [r for r in row.review_reasons if r not in before.reasons or r in after.reasons]
+    reasons += [r for r in after.reasons if r not in reasons]
+    notes = row.verifier_notes or ""
+    for n in before.notes:
+        if n not in after.notes:
+            notes = notes.replace(n, "")
+    notes = " ".join([*notes.split(), *(n for n in after.notes if n not in before.notes)]) or None
+    c = Correction(rule="unit_scale", attribute="unit", original=row.unit, corrected=unit,
+                   reason=f'The quote says "{word}" next to {hits[0][1]}.')
+    return row.model_copy(update={
+        "unit": unit, "canonical_value": after.canonical_value, "canonical_unit": after.canonical_unit,
+        "scale_applied": after.scale_applied, "review_reasons": reasons, "verifier_notes": notes,
+        "corrections": [*row.corrections, c]})
+
+
+# R4 lands in a later task; a no-op keeps the call order fixed.
 def _planned_move(rows: list[ExtractedField], schema: DataPointSchema, documents_by_id: dict[str, SourceDocument],
                   input_hashes: dict[str, str | None]) -> list[ExtractedField]:
     return rows

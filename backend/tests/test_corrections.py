@@ -164,3 +164,92 @@ def test_enum_and_boolean_rows_are_not_filled():
 def test_period_fill_twice_changes_nothing():
     once = _fill([_nrow(QUOTE_2025), _nrow("no year", field_id="capex_planned")])
     assert _fill(once) == once
+
+
+# --- R3 unit_scale --------------------------------------------------------
+
+def _urow(unit, quote, value=2.794, raw=None, grounded=True, field_id="capex", **kw) -> ExtractedField:
+    return _nrow(quote, field_id=field_id, value=value, grounded=grounded).model_copy(
+        update={"unit": unit, "raw_value_text": raw, **kw})
+
+
+def _scale(row):
+    return _fill([row])[0]
+
+
+def _uc(out):
+    return [c for c in out.corrections if c.rule == "unit_scale"]  # quotes with a year also get R2
+
+
+BILLION = "Capital expenditures were $2.794 billion during 2025"
+
+
+def test_billion_quote_rewrites_millions_unit():
+    row = _urow("USD millions", BILLION)
+    out = _scale(row)
+    assert out.unit == "USD billions"
+    assert _uc(out) == [Correction(rule="unit_scale", attribute="unit", original="USD millions",
+                                          corrected="USD billions", reason='The quote says "billion" next to 2.794.')]
+    assert (out.canonical_value, out.canonical_unit, out.scale_applied) == (2794000000.0, "USD", 1e9)
+    assert ReasonCode.AUTO_CORRECTED in out.review_reasons
+    assert row.unit == "USD millions" and row.corrections == []  # input not mutated
+
+
+def test_case_is_kept():
+    assert _scale(_urow("Millions of dollars", BILLION)).unit == "Billions of dollars"
+
+
+def test_no_scale_word_no_correction():
+    out = _scale(_urow("USD millions", "Capital expenditures were 2.794 during 2025"))
+    assert out.unit == "USD millions" and _uc(out) == []
+
+
+def test_already_converted_scale_is_left_alone():
+    out = _scale(_urow("USD", BILLION, raw="$2.794 billion", canonical_value=2794000000.0, canonical_unit="USD",
+                       scale_applied=1e9))
+    assert out.unit == "USD" and _uc(out) == [] and out.canonical_value == 2794000000.0
+
+
+def test_two_scale_words_no_correction():
+    out = _scale(_urow("USD millions", "Capex was $2.794 billion, or 2.794 million in the old report"))
+    assert out.unit == "USD millions" and _uc(out) == []
+
+
+def test_stale_scale_conflict_is_cleared():
+    out = _scale(_urow("USD millions", BILLION, raw="$2.794 billion",
+                       review_reasons=[ReasonCode.CHECK_FAILED], verifier_notes="scale stated twice and differs"))
+    assert out.unit == "USD billions"
+    assert ReasonCode.CHECK_FAILED not in out.review_reasons
+    assert out.verifier_notes is None
+    assert ReasonCode.AUTO_CORRECTED in out.review_reasons
+
+
+def test_separators_in_printed_value():
+    out = _scale(_urow("USD thousands", "capex was $2,479 million in 2025", value=2479.0))
+    assert out.unit == "USD millions" and _uc(out)[0].reason == 'The quote says "million" next to 2,479.'
+    out = _scale(_urow("USD millions", "capex was 2,794 billion in 2025"))  # 2.794 is not 2,794
+    assert _uc(out) == []
+
+
+def test_currency_symbol_unit_gets_word_appended():
+    out = _scale(_urow("$", "capex was $2.8 billion in 2025", value=2.8))
+    assert out.unit == "$ billion" and len(_uc(out)) == 1
+
+
+def test_percentage_rows_untouched():
+    f = FieldDefinition(field_id="pct", name="Pct", description="d", data_type=FieldDataType.PERCENTAGE,
+                        extraction_instructions="x")
+    row = _urow("% millions", "share was 2.794 billion", field_id="pct")
+    (out,) = apply_corrections(DataPointSchema(schema_id="s", name="S", fields=[f]), [row], documents_by_id={},
+                               fiscal_year_end=None, input_hashes={})
+    assert out.unit == "% millions" and _uc(out) == []
+
+
+def test_ungrounded_quote_no_correction():
+    out = _scale(_urow("USD millions", BILLION, grounded=False))
+    assert out.unit == "USD millions" and _uc(out) == []
+
+
+def test_unit_scale_twice_changes_nothing():
+    once = _fill([_urow("USD millions", BILLION)])
+    assert _fill(once) == once
