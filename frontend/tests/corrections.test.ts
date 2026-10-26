@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { correctionLine } from "../src/lib/corrections.ts";
+import { correctionLine, recordFieldNames } from "../src/lib/corrections.ts";
 import type { Correction } from "../src/types.ts";
 
 const names: Record<string, string> = { tc_capex_total: "Total capex", tc_capex_total_planned: "Total capex, planned" };
@@ -40,4 +40,15 @@ test("planned_move on a cleared row shows the number and a dash, no name lookup"
     correctionLine(c({ rule: "planned_move", original: 3, corrected: null, reason: "Moved to the planned field." }), name),
     "Auto-corrected (Planned figure): 3 → —. Moved to the planned field.",
   );
+});
+
+test("a moved row's original field is named from the schema when the record has no row for it", () => {
+  const moved = { field_id: "tc_capex_total_planned", field_name: "Total capex, planned" };
+  const record = { fields: [moved], field_names: names } as never;
+  const fieldNames = recordFieldNames(record);
+  assert.equal(
+    correctionLine(c({ rule: "planned_move", attribute: "field_id", original: "tc_capex_total", corrected: "tc_capex_total_planned", reason: "r." }), (id) => fieldNames[id] ?? id),
+    "Auto-corrected (Planned figure): Total capex → Total capex, planned. r.",
+  );
+  assert.equal(recordFieldNames({ fields: [moved] } as never).tc_capex_total, undefined);
 });

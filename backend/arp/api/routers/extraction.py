@@ -34,7 +34,7 @@ from arp.presets.green import green_summary
 from arp.presets.registry import PRESETS, install_preset
 from arp.presets.remuneration import remuneration_summary
 from arp.presets.transition_plan import SCHEMA_ID as TRANSITION_PLAN_SCHEMA_ID
-from arp.review.context import similar_decisions, visible_history
+from arp.review.context import run_field_names, similar_decisions, visible_history
 from arp.review.decide import DecisionError, bulk_accept
 from arp.review.items import get_item
 from arp.schemas.common import CompanyRef
@@ -410,9 +410,12 @@ def get_extraction_results(
     run_id: str, offset: int = 0, limit: int = 200, run_store: RunStore = Depends(get_run_store)
 ) -> dict:
     rows = run_store.read_results(run_id)
+    names = run_field_names(run_store, run_id)
     for r in rows[offset : offset + limit]:
         for f in r.get("fields", []):
             f.setdefault("corrections", [])  # rows stored before auto-corrections
+        if names:
+            r["field_names"] = names  # a planned_move correction names a field the row may not hold
     return {"total": len(rows), "results": rows[offset : offset + limit]}
 
 
@@ -444,12 +447,14 @@ def get_remuneration_summary(run_id: str, run_store: RunStore = Depends(get_run_
 
 
 @router.get("/companies/{company_id}/results")
-def get_extraction_results_for_company(company_id: str) -> dict:
+def get_extraction_results_for_company(company_id: str, run_store: RunStore = Depends(get_run_store)) -> dict:
     """The company-centric complement to /runs/{run_id}/results -- every
     result this company has ever had across every extraction run, not just
     one run's, for the Data Library's "By company" view."""
     with transaction() as s:
-        return {"results": results_by_company(s, "extraction", company_id)}
+        rows = results_by_company(s, "extraction", company_id)
+    names = {run_id: run_field_names(run_store, run_id) for run_id in {r["run_id"] for r in rows if r.get("run_id")}}
+    return {"results": [r | {"field_names": names[r["run_id"]]} if names.get(r.get("run_id")) else r for r in rows]}
 
 
 @router.get("/runs/{run_id}/review-decisions")

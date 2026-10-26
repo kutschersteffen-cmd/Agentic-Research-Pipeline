@@ -314,6 +314,8 @@ export interface ExtractionRecord {
   schema_id: string;
   run_id: string;
   fields: ExtractedField[];
+  /** field_id to name from the run's schema; absent when the run kept no schema. */
+  field_names?: Record<string, string>;
   overall_confidence: number;
   needs_review: boolean;
   generated_at: string;

@@ -7,7 +7,7 @@ import { CitationList } from "./CitationList";
 import type { ActiveSource } from "./SourcePanel";
 import type { BusinessSegment, CompanyFinancialsRecord, ExtractedField, ExtractionRecord, ReviewDecision, ReviewStates, SpendSummary } from "../types";
 import { fieldItemKey } from "../lib/reviewKeys";
-import { correctionLine } from "../lib/corrections";
+import { correctionLine, recordFieldNames } from "../lib/corrections";
 import { failedChecks, routeLabel, valueLabel, withEditedValue } from "../lib/fieldValue";
 import { TRIAL_TITLE } from "../lib/runs";
 import { activatable } from "../lib/activatable";
@@ -190,7 +190,9 @@ export function ExtractionResultsTable({
           </tr>
         </thead>
         <tbody>
-          {shown.map((r) => (
+          {shown.map((r) => {
+            const names = recordFieldNames(r);
+            return (
             <Fragment key={r.company_id}>
               <tr className="clickable-row" {...activatable(() => onToggleExpanded(r.company_id), expanded === r.company_id)}>
                 <td><CompanyLink companyId={r.company_id}>{r.name}</CompanyLink> {r.ticker && <span className="muted">({r.ticker})</span>}</td>
@@ -205,12 +207,11 @@ export function ExtractionResultsTable({
                       <p key={h.doc_id} className="muted">Held: {h.title} (covers {h.covered_entity})</p>
                     ))}
                     {shownFields(r).map((f) => {
-                      const fieldNames = Object.fromEntries(r.fields.map((x) => [x.field_id, x.field_name]));
                       const itemKey = fieldItemKey(r, f);
                       const d = reviewDecisions[itemKey];
                       return (
                         <div key={`${f.field_id}:${f.period_end ?? ""}`}>
-                          <FieldDetail field={editedText(d) === undefined ? f : withEditedValue(f, editedText(d)!)} fieldNames={fieldNames} onOpenSource={onOpenSource} />
+                          <FieldDetail field={editedText(d) === undefined ? f : withEditedValue(f, editedText(d)!)} fieldNames={names} onOpenSource={onOpenSource} />
                           <OriginTag decision={d} systemValue={valueLabel(f)} />
                           {f.route !== "hold" && (
                             <ReviewControls
@@ -234,7 +235,8 @@ export function ExtractionResultsTable({
                 </tr>
               )}
             </Fragment>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
