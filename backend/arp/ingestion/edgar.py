@@ -38,7 +38,7 @@ ANNUAL_FORMS = ("10-K", "20-F", "40-F")
 _US_COUNTRIES = {"us", "usa", "united states"}
 
 # Bump whenever ingestion/html_text.py::extract_html_text's logic changes.
-_EDGAR_PARSER_LOGIC_VERSION = 1
+_EDGAR_PARSER_LOGIC_VERSION = 2  # 2: full-text fallback for filings trafilatura cuts to the cover page
 
 
 @functools.lru_cache(maxsize=1)
