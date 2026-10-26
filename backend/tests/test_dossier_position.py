@@ -554,3 +554,20 @@ def test_activating_again_retries_a_failed_or_cancelled_extraction(env, status):
     again = env.post("standards/activate", {"version": 1}, user="own").json()["extraction_run_id"]
     assert again not in (None, first)
     assert env.step5() == ("running", "extracting 1 data points")
+
+
+def test_the_api_answers_a_reserved_user_id_with_503(tmp_path):
+    """AC-43 (unit): any request with a valid token reads the users file and gets the reserved-id error as a 503."""
+    path = tmp_path / "users.json"
+    path.write_text(json.dumps({"users": [{"user_id": " Model", "name": "M", "role": "approver", "token": "m"},
+                                          {"user_id": "own", "name": "own", "role": "approver", "token": "own-token"}]}))
+    load_users.cache_clear()
+    for dep in (authorize, current_user):  # conftest signs every request in; this test needs the real token check
+        app.dependency_overrides.pop(dep, None)
+    app.dependency_overrides[settings_dep] = lambda: Settings(users_file=path, auth_mode="local", runs_dir=tmp_path / "runs")
+    try:
+        r = TestClient(app).get("/api/dossiers/dos_x/position", headers={"Authorization": "Bearer own-token"})
+        assert r.status_code == 503 and "user id 'model' is reserved" in r.json()["detail"]
+    finally:
+        app.dependency_overrides.pop(settings_dep, None)
+        load_users.cache_clear()
