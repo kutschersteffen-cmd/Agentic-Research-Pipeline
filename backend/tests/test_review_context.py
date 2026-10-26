@@ -11,7 +11,7 @@ from arp.api.main import app
 from arp.config import Settings
 from arp.orchestration.review_queue import append_decision
 from arp.review.context import build_context, page_of, page_window, write_snapshot
-from arp.schemas.common import RunManifest
+from arp.schemas.common import CompanyRef, RunManifest
 from arp.schemas.datapoints import DataPointSchema, FieldDefinition
 from arp.schemas.review import ReviewDecision
 from arp.storage.document_store import DocumentContentStore
@@ -249,3 +249,44 @@ def test_etag_stable_and_changes_with_state(env):
 
 def test_context_unknown_item_404(env):
     assert _client().get("/api/review/runs/ext1/items/nope/context").status_code == 404
+
+
+CORRECTION = {"rule": "planned_move", "attribute": "field_id", "original": "f1", "corrected": "f1p", "reason": "r"}
+
+
+def test_context_includes_corrections(env):
+    rs = env[0]
+    key = "ISS1:f1:2025-12-31"
+    rs.append_review_item("ext1", {"item_key": key, "company_id": "C1", "field_id": "f1",
+                                   "field": FIELD | {"corrections": [CORRECTION]}})
+    ctx = _client().get(f"/api/review/runs/ext1/items/{key}/context").json()
+    assert ctx["corrections"] == [CORRECTION]
+    assert ctx["field_names"] == {"f1": "Scope 1"}
+    assert _ctx()["corrections"] == []  # a row stored before corrections existed
+    assert _ctx()["field_names"] == {}  # only fields a correction names: a seeded item must not differ by schema
+
+
+def test_stored_row_without_corrections_is_served_with_empty_list(env):
+    r = _client().get("/api/extraction/runs/ext1/results")
+    assert r.status_code == 200
+    assert [f["corrections"] for f in r.json()["results"][0]["fields"]] == [[], []]
+
+
+def test_results_carry_the_run_schemas_field_names(env):
+    # the record has no row for a field a planned_move correction names, so only the schema can name it
+    rs = env[0]
+    assert _client().get("/api/extraction/runs/ext1/results").json()["results"][0]["field_names"] == {"f1": "Scope 1"}
+    rs.save_manifest(RunManifest(run_id="ext2", run_type="extraction"))
+    rs.save_companies("ext2", [CompanyRef(company_id="C1", name="Acme")])
+    (rs.run_dir("ext2") / "schema.json").write_text(_schema().model_dump_json())
+    rs.append_result("ext2", {"company_id": "C1", "name": "Acme", "run_id": "ext2", "fields": [], "_key": "C1"})
+    [row] = _client().get("/api/extraction/companies/C1/results").json()["results"]
+    assert row["field_names"] == {"f1": "Scope 1"}
+
+
+def test_company_results_serve_stored_row_with_empty_corrections(env):  # AC-14 through the by-company endpoint
+    rs = env[0]
+    rs.save_manifest(RunManifest(run_id="ext2", run_type="extraction"))
+    rs.save_companies("ext2", [CompanyRef(company_id="C1", name="Acme")])
+    rs.append_result("ext2", {"company_id": "C1", "name": "Acme", "run_id": "ext2", "fields": [FIELD], "_key": "C1"})
+    assert [f["corrections"] for f in _client().get("/api/extraction/companies/C1/results").json()["results"][0]["fields"]] == [[]]

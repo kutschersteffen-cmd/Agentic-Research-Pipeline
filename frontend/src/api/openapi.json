@@ -9067,6 +9067,18 @@
       "title": "Name",
       "type": "string"
      },
+     "planned_field_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "On an actual-figure field: the field_id of its planned sibling.",
+      "title": "Planned Field Id"
+     },
      "required": {
       "default": true,
       "title": "Required",
