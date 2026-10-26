@@ -179,10 +179,30 @@ def schema_id_for(dossier_id: str) -> str:
     return f"theme_std_{dossier_id.removeprefix('dos_')}"
 
 
+def released_theme_versions(registry, schema_id: str) -> list[DataPointSchema]:
+    """The released versions of the theme schema, newest first."""
+    versions = sorted((r["version"] for r in registry.list_index() if r["schema_id"] == schema_id and r["release_flag"]), reverse=True)
+    return [registry.get(schema_id, v) for v in versions]
+
+
 def released_theme_fields(registry, schema_id: str) -> list[FieldDefinition]:
     """The fields of the newest released version of the theme schema; empty before the first release."""
-    released = [r["version"] for r in registry.list_index() if r["schema_id"] == schema_id and r["release_flag"]]
-    return registry.get(schema_id, max(released)).fields if released else []
+    released = released_theme_versions(registry, schema_id)
+    return released[0].fields if released else []
+
+
+def schema_to_extract(registry, content_schema: dict, released_by: str) -> DataPointSchema:
+    """The released theme schema version a standards version uses: an already released version with the same fields
+    (a rollback re-uses it and its run), else a new version released now. A field released before keeps the
+    definition the registry released, not the draft copy the standards version stored."""
+    schema = DataPointSchema.model_validate(content_schema)
+    released = released_theme_versions(registry, schema.schema_id)
+    ids = {f.field_id for f in schema.fields}
+    if match := next((v for v in released if {f.field_id for f in v.fields} == ids), None):
+        return match
+    defs = {f.field_id: f for v in reversed(released) for f in v.fields}  # newest release wins
+    saved = registry.save(schema.model_copy(update={"fields": [defs.get(f.field_id, f) for f in schema.fields]}))
+    return saved if saved.release_flag else registry.release(saved.schema_id, saved.version, released_by=released_by)
 
 
 def build_standards_content(draft: StandardsDraft, *, dossier_id: str, dossier_name: str, position_version: int,
@@ -242,8 +262,13 @@ def current_facts(dsn: str | None, entity_ids: list, field_ids: list[str]) -> di
 
 def _same_kind(value: Any, criterion: Any) -> bool:
     """Both booleans, both strings, or both numbers (a bool is not a number here)."""
-    kind = lambda v: bool if isinstance(v, bool) else str if isinstance(v, str) else float if isinstance(v, (int, float)) else None  # noqa: E731
-    return kind(value) is not None and kind(value) is kind(criterion)
+    return _kind(value) is not None and _kind(value) is _kind(criterion)
+
+
+def _kind(v: Any) -> type | None:
+    if isinstance(v, bool | str):
+        return type(v)
+    return float if isinstance(v, int | float) else None
 
 
 def check_standards(companies: list[CompanyRef], standards: list[dict], facts: dict) -> list[dict]:

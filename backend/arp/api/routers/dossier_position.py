@@ -22,7 +22,6 @@ from arp.config import Settings
 from arp.db.fields import SchemaRegistry, released_fields
 from arp.db.session import require_dsn
 from arp.schemas.common import now_iso
-from arp.schemas.datapoints import DataPointSchema
 from arp.stewardship.process import StreamStore
 from arp.stewardship.trigger_store import TriggerStore
 from arp.themes.dossiers import Dossier, DossierStore, exposed_companies, get_dossier_store
@@ -41,6 +40,7 @@ from arp.themes.position import (
     position_problem,
     released_theme_fields,
     schema_id_for,
+    schema_to_extract,
     standards_store,
     standards_triggers,
     standards_view,
@@ -298,10 +298,7 @@ async def activate_standards(
         raise HTTPException(409, "find companies first")
     run_id = None
     if content["schema"] is not None:
-        registry = SchemaRegistry(dsn)
-        schema = registry.save(DataPointSchema.model_validate(content["schema"]))  # the latest version when unchanged
-        if not schema.release_flag:
-            schema = registry.release(schema.schema_id, schema.version, released_by=principal.user_id)
+        schema = schema_to_extract(SchemaRegistry(dsn), content["schema"], principal.user_id)
         ref = f"{schema.schema_id}:v{schema.version}"
         if not any(r.params.get("schema_version") == ref for r in run_store.extraction_runs()):  # trial runs don't count
             try:

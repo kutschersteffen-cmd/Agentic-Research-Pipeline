@@ -33,9 +33,12 @@ export function checkGrid(check: StandardsCheck): { standards: string[]; rows: {
 /** The latest saved version above 0, if any. */
 export const latestStandards = (versions: StandardsVersion[]) => versions.filter((v) => v.version > 0).at(-1) ?? null;
 
-/** Field ids the active version's activation released (it releases that version's whole theme schema). */
-export const releasedFieldIds = (view: Pick<StandardsView, "versions" | "active_version">) =>
-  new Set((view.versions.find((v) => v.version === view.active_version)?.schema?.fields ?? []).map((f) => f.field_id));
+/** Field ids any activation released: each releases its version's whole theme schema, and a rollback to an
+ * older version does not unrelease the fields a newer one added. */
+export function releasedFieldIds(view: Pick<StandardsView, "versions" | "activations">): Set<string> {
+  const activated = new Set(view.activations.map((a) => a.version as number));
+  return new Set(view.versions.filter((v) => activated.has(v.version)).flatMap((v) => (v.schema?.fields ?? []).map((f) => f.field_id)));
+}
 
 /** What the editor starts from: the version's standards and the fields it adds. A field released since the version
  * was saved is existing data now, so saving it unchanged does not fail with "use data existing". */

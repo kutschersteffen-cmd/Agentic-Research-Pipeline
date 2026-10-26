@@ -22,6 +22,7 @@ from arp.api.deps import (
 )
 from arp.api.main import app
 from arp.config import Settings
+from arp.db import fields as fields_module
 from arp.db import models as m
 from arp.db.fields import SchemaRegistry, retire_field
 from arp.db.session import engine
@@ -513,3 +514,30 @@ def test_every_spelling_of_model_is_reserved(tmp_path, user_id):
     path.write_text(json.dumps({"users": [{"user_id": user_id, "name": "M", "role": "approver", "token": "t"}]}))
     with pytest.raises(RuntimeError, match="user id 'model' is reserved"):
         load_users(path)
+
+
+def test_a_rollback_reuses_the_released_schema_and_later_activations_still_work(env, monkeypatch):
+    """Review round 2, A and B: v1 -> v2 -> v1 again (days later) -> v3 must not re-release v1's fields with a new date."""
+    s4 = _std("S4", "fld_permit", "==", True, "low", data="new")
+    permit = {**NEW, "field_id": "fld_permit", "name": "Grid permit filed"}
+    v1 = env.active(S_OK).json()
+    env.model("StandardsDraft", {"standards": [S1, S2, {**S3, "data": "existing"}, s4], "new_fields": [permit]})
+    assert env.post("standards/draft", user="ana").json() == {"version": 2}
+    assert env.post("standards/activate", {"version": 2}, user="own").json()["extraction_run_id"] is not None
+
+    class Later(date):
+        @classmethod
+        def today(cls):
+            return date.fromordinal(date.today().toordinal() + 2)
+
+    monkeypatch.setattr(fields_module, "date", Later)
+    rollback = env.post("standards/activate", {"version": 1}).json()
+    assert (rollback["version"], rollback["extraction_run_id"]) == (1, None)  # schema v1 and its run are reused
+    assert v1["extraction_run_id"] is not None
+    env.model("StandardsDraft", {"standards": [S1, S2, {**S3, "data": "existing"}, {**s4, "data": "existing"}], "new_fields": []})
+    assert env.post("standards/draft", user="ana").json() == {"version": 3}
+    r = env.post("standards/activate", {"version": 3}, user="own")
+    assert r.status_code == 200, r.text
+    assert len(SchemaRegistry(env.pg).list_index()) == len({(x["schema_id"], x["version"]) for x in SchemaRegistry(env.pg).list_index()})
+    sid = schema_id_for(env.did)
+    assert [x["version"] for x in SchemaRegistry(env.pg).list_index() if x["schema_id"] == sid] == [1, 2]  # no extra release

@@ -37,8 +37,11 @@ test("the editor turns fields released since the version was saved into existing
   const field = (field_id: string) => ({ field_id, name: field_id, description: "d", data_type: "boolean", extraction_instructions: "x" });
   const v1 = { version: 1, created_by: "model", created_at: null, standards: [std("S1", "old", "existing"), std("S2", "plan", "new")],
                schema: { schema_id: "theme_std_x", name: "n", fields: [field("plan")] } } as never;
-  const view = { versions: [v1], active_version: 1 };
+  const view = { versions: [v1], activations: [{ version: 1 }] };
   assert.deepEqual([...releasedFieldIds(view)], ["plan"]);
+  const v0 = { version: 0, created_by: "system", created_at: null, standards: [], schema: null } as never;
+  // a rollback to an older version keeps the newer version's fields released
+  assert.deepEqual([...releasedFieldIds({ versions: [v0, v1], activations: [{ version: 1 }, { version: 0 }] })], ["plan"]);
   const draft = editorDraft(v1, releasedFieldIds(view));
   assert.deepEqual(draft.standards.map((s) => s.data), ["existing", "existing"]);
   assert.deepEqual(draft.new_fields, []);
