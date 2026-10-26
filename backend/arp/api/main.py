@@ -30,6 +30,7 @@ from arp.api.routers import (
     decision,
     discovery,
     documents,
+    dossier_research,
     dossiers,
     emerging_themes,
     engagement,
@@ -162,6 +163,7 @@ app.include_router(projects.router, dependencies=[Depends(authorize)])
 app.include_router(search.router, dependencies=[Depends(authorize)])
 app.include_router(emerging_themes.router, dependencies=[Depends(authorize)])
 app.include_router(dossiers.router, dependencies=[Depends(authorize)])
+app.include_router(dossier_research.router, dependencies=[Depends(authorize)])
 app.include_router(taxonomy_researcher.router, dependencies=[Depends(authorize)])
 app.include_router(calibration.router, dependencies=[Depends(authorize)])
 app.include_router(reporting.router, dependencies=[Depends(authorize)])

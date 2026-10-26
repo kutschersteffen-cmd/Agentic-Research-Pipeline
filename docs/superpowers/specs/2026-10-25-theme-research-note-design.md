@@ -157,6 +157,14 @@ counted in `dropped_items`. The note becomes `written`.
 `written` → approve (sets `approved_by`, `approved_at`) or reject with a non-blank reason. Rejecting sends the
 round's `plan_status` back to `proposed`, so the owner can change the sources and approve again, then rewrite.
 
+### 5. Recovery from a run that died
+
+Owner decision 2026-10-26 ("recover"). Derived on read, no background job: a round in `proposing` whose
+`proposal_run_id` run is no longer running counts as `proposal_failed`, and a note in `writing` whose `note_run_id`
+run is no longer running counts as `write_failed` with `error` `the run stopped before the note was written`. The
+existing retry paths then apply (propose again; write the note again). A run counts as running while a worker holds
+its lease or it is less than 60 s old.
+
 ## Model calls and web search (stand-in contract)
 
 Tests and the evaluator answer these through the fixture folder of the test stand-ins spec
@@ -368,6 +376,7 @@ ungrounded quote. "Slow" stand-ins wait 30 s before returning. Users `ana` (anal
 | AC-69 | `D`; search stand-in returns 14 results, all classified `intergovernmental` | `POST .../propose`, run completes | round 1 holds exactly 12 sources, the first 12 URLs in search order | holdout |
 | AC-70 | AC-20; note stand-in's `risks` item has a 150-character title | `POST .../note`, run completes | that item's `title` is the first 120 characters of the stand-in's title; `dropped_items` 1 | holdout |
 | AC-71 | AC-48 | `GET /api/dossiers` | `D`'s `current_step` is 3 | holdout |
+| AC-72 | `D`, a proposal run, then (after AC-20) a note run, each with no worker and older than 60 s | `GET .../research`, `GET /api/dossiers/D`, then retry | round 1 `plan_status` `proposal_failed`, step 3 `failed` `source proposal failed`, `POST .../propose` 202 with `round` 1; note `status` `write_failed`, `error` `the run stopped before the note was written`, step 3 `failed` `note failed: the run stopped before the note was written`, `POST .../note` 202 | unit |
 
 Must not change:
 - AC-64: `POST /api/taxonomies/discover-sources` and `GET /api/taxonomies/sources/inspect` return the same status
