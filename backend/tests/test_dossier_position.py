@@ -541,3 +541,16 @@ def test_a_rollback_reuses_the_released_schema_and_later_activations_still_work(
     assert len(SchemaRegistry(env.pg).list_index()) == len({(x["schema_id"], x["version"]) for x in SchemaRegistry(env.pg).list_index()})
     sid = schema_id_for(env.did)
     assert [x["version"] for x in SchemaRegistry(env.pg).list_index() if x["schema_id"] == sid] == [1, 2]  # no extra release
+
+
+@pytest.mark.parametrize("status", [JobStatus.FAILED, JobStatus.CANCELLED])
+def test_activating_again_retries_a_failed_or_cancelled_extraction(env, status):
+    """Review round 2, D (owner decision 2026-10-26): such a run is not an existing run on the schema version."""
+    first = env.active(S_OK).json()["extraction_run_id"]
+    run = env.run_store.load_manifest(first)
+    run.status = status
+    env.run_store.save_manifest(run)
+    assert env.step5()[0] == "failed"
+    again = env.post("standards/activate", {"version": 1}, user="own").json()["extraction_run_id"]
+    assert again not in (None, first)
+    assert env.step5() == ("running", "extracting 1 data points")

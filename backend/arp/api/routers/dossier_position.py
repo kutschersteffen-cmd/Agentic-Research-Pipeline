@@ -21,7 +21,7 @@ from arp.api.routers.dossier_research import _dossier
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry, released_fields
 from arp.db.session import require_dsn
-from arp.schemas.common import now_iso
+from arp.schemas.common import JobStatus, now_iso
 from arp.stewardship.process import StreamStore
 from arp.stewardship.trigger_store import TriggerStore
 from arp.themes.dossiers import Dossier, DossierStore, exposed_companies, get_dossier_store
@@ -300,7 +300,9 @@ async def activate_standards(
     if content["schema"] is not None:
         schema = schema_to_extract(SchemaRegistry(dsn), content["schema"], principal.user_id)
         ref = f"{schema.schema_id}:v{schema.version}"
-        if not any(r.params.get("schema_version") == ref for r in run_store.extraction_runs()):  # trial runs don't count
+        # trial runs don't count; a failed or cancelled one doesn't either, so activating again retries (owner, 2026-10-26)
+        live = [r for r in run_store.extraction_runs() if r.status not in (JobStatus.FAILED, JobStatus.CANCELLED)]
+        if not any(r.params.get("schema_version") == ref for r in live):
             try:
                 run_id = start_extraction(schema, companies, settings)
             except Exception as exc:  # noqa: BLE001 - any failure to start is answered, and nothing is activated
