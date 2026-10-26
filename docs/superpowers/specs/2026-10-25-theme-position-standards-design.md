@@ -471,7 +471,7 @@ Evaluator rows get their state seeded through the same stores (position files an
 | AC-51 | no active standards | check | 409, detail `no active standards` | holdout |
 | AC-52 | `GET /api/stewardship/triggers` after monitoring runs for two months | run AC-44's check, then `GET` again | the non-`std:` triggers are identical in both responses (all keys, including `is_new` and `status`) | holdout |
 | AC-53 | holdings for a portfolio loaded for the previous month; no monitoring run recorded for it; AC-44's check ran today | the monthly scheduler ticks | a monitoring run for the previous month is recorded (the tick is not skipped) | holdout |
-| AC-54 | no `ARP_POSTGRES_DSN`; otherwise AC-10's state (approved position, no standards); caller `own` | `POST` `.../standards/draft` `{}`, `.../standards/versions` with S-two, `.../standards/activate` `{"version": 1}`, `.../standards/check` with no body | 503 for each, detail `ARP_POSTGRES_DSN is required: Postgres is the system of record.` | holdout |
+| AC-54 | no `ARP_POSTGRES_DSN`; otherwise AC-10's state (approved position, no standards); caller `own` | `POST` `.../standards/draft` `{}`, `.../standards/versions` with S-two, `.../standards/activate` `{"version": 1}`, `.../standards/check` with no body | 503 for each, detail `ARP_POSTGRES_DSN is required: Postgres is the system of record.` | unit |
 | AC-55 | fixture without an approved note | `GET /api/dossiers/D` | step 5 `not_started`, detail `research note not approved`, `href` `#/themes/D/position` | holdout |
 | AC-56 | approved note, no position | `GET` | step 5 `not_started`, `draft the position` | holdout |
 | AC-57 | AC-2 | `GET` | step 5 `waiting`, `approve position v1` | holdout |
