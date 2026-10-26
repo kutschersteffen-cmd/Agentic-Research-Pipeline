@@ -213,7 +213,8 @@ apparatus n.e.c. (31)` (4). Node ids `DE.1` … `WA.4`.
 - `Z` (supplier → user, M EUR), 0 except: CN.1→CN.4 40, CN.2→CN.4 20, WA.1→CN.4 20, DE.1→DE.4 10,
   CN.1→DE.4 10, CN.3→CN.4 20, DE.3→DE.4 20, DE.4→DE.3 30, CN.4→CN.3 16, CN.4→DE.3 10,
   CN.3→CN.1 10, WA.4→WA.1 6, WA.1→WA.4 5, DE.4→CN.4 20.
-- `Y.txt`: the 7 categories of Appendix A for each region; 0 except (column region, category,
+- `Y.txt`: columns region-major (`DE`, `CN`, `WA`), within each region the 7 categories in Appendix A's
+  table order, exact strings as there; 0 except (column region, category,
   row node, value): DE GFCF DE.4 100; DE households DE.4 20; CN GFCF CN.4 200; CN households CN.4
   100; DE households CN.4 30; DE households DE.3 50; CN households CN.3 30; CN government CN.3 4;
   CN changes in inventories CN.1 10; WA households WA.4 39; CN exports CN.4 999.
@@ -234,11 +235,12 @@ apparatus n.e.c. (31)` (4). Node ids `DE.1` … `WA.4`.
 | AC-2 | as AC-1 | read `<d>/y_columns.csv` | 21 data rows: for `DE`, `CN`, `WA` in turn, the 7 categories in Appendix A's table order (households, NPISH, government, GFCF, inventories, valuables, exports) | holdout |
 | AC-3 | as AC-1 | `numpy.load(<d>/Y.npy)` | shape `(12, 21)`; row CN.4 column (CN, `Gross fixed capital formation`) 200; row CN.4 column (CN, `Exports: Total (fob)`) 999; row CN.4 column (DE, households) 30 | holdout |
 | AC-4 | Fixture V without `Y.txt` | `arp io build-full` | exit 0; `<d>` has no `Y.npy` and no `y_columns.csv` | holdout |
-| AC-5 | Fixture V with one `Y.txt` category renamed `Made-up demand` | `arp io build-full` | exit 1; stderr contains `Y.txt: unknown final-demand category: Made-up demand` | holdout |
+| AC-5 | Fixture V with the `Changes in valuables` cell of region `CN` on `Y.txt` line 2 replaced by `Made-up demand` | `arp io build-full` | exit 1; stderr contains `Y.txt: unknown final-demand category: Made-up demand` | holdout |
 | AC-6 | V built | `resolve_indirect_exposure_model(Settings())` | `edition_label` `exiobase-IOT_2022_ixi`; `codes` has 55 entries, the last five `D_GEN_FOS`, `D_GEN_NUC`, `D_GEN_REN`, `D_TD`, `D_GAS` | holdout |
 | AC-7 | `ARP_VALUE_CHAIN_DIR` unset | `resolve_indirect_exposure_model(Settings())` | returns None | holdout |
 | AC-8 | `ARP_VALUE_CHAIN_DIR` = an empty directory | `resolve_indirect_exposure_model(Settings())` | raises `ValueError` with message `value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR` | holdout |
 | AC-9 | V built | exposure `C27`, core `{"B07"}`, country `CN` | `upstream_exposure` 0.1549, `downstream_exposure` 0.015 | holdout |
+| AC-9b | as AC-9 | same call | `isic_code` `C27`, `isic_label` `Manufacture of electrical equipment`, `core_sector` false, `icio_edition` `e`, `company_id` `x` | holdout |
 | AC-10 | as AC-9 | same call | `end_market` `{"households": 0.4116, "government": 0.0023, "investment": 0.5855, "inventories": 0.0006}` in that key order; `theme_demand_share` 0.0006 | holdout |
 | AC-11 | as AC-9 | same call | `ghg_direct_t_per_meur` 5, `ghg_supply_chain_t_per_meur` 5.2949 | holdout |
 | AC-12 | as AC-9 | same call | `regional.region` `CN`; `upstream_by_region` `{"CN": 0.1149, "EU": 0.0019, "ASIA_OTH": 0.038}` in that key order; `downstream_by_region` `{"CN": 0.015, "EU": 0, "ASIA_OTH": 0}`; `upstream` 0.1549 | holdout |
@@ -253,21 +255,26 @@ apparatus n.e.c. (31)` (4). Node ids `DE.1` … `WA.4`.
 | AC-21 | V built without `Y.txt` | exposure as AC-9 | `end_market` null, `theme_demand_share` null; `upstream_exposure` 0.1549 | holdout |
 | AC-22 | V built | lookup with `isic_code` `27`; then `35`; then `35.12` | `C27`, `D`, `D_TD`; the stub recorded 0 calls | holdout |
 | AC-23 | V built | lookup with `isic_code` `D_GEN_REN` | `D_GEN_REN`; 0 stub calls | holdout |
-| AC-24 | — | `resolve_indirect_exposure_model(Settings(), use_sample=True)`, then exposure `C27`, core `{"B07"}`, country `CN` on it | `edition_label` `sample`; result not None; `upstream_exposure` > 0 | holdout |
+| AC-24 | — | `resolve_indirect_exposure_model(Settings(), use_sample=True)`, then exposure `C27`, core `{"B07"}`, country `CN` on it | `edition_label` `sample`; result not None; `upstream_exposure` > 0, `downstream_exposure` > 0, `end_market` not null | holdout |
 | AC-25 | V built | `arp io status` | exit 0; stdout exactly `source: exiobase`, `edition: exiobase-IOT_2022_ixi`, `nodes: 12`, `final demand: yes` | holdout |
+| AC-25b | V built without `Y.txt` | `arp io status` | stdout line 4 `final demand: no` | holdout |
 | AC-26 | `ARP_VALUE_CHAIN_DIR` unset, `ARP_IO_SOURCE=icio` and `ARP_ICIO_MATRIX_PATH=/x` in the environment | `arp io status` | exit 0; stdout `source: none`; stderr lines exactly `ignored (retired): ARP_ICIO_MATRIX_PATH`, `ignored (retired): ARP_IO_SOURCE` | holdout |
 | AC-27 | — | `arp io import-exiobase x.zip --out d`; then `arp io import-icio x.csv --out d` | each exits 2 with `No such command` on stderr | holdout |
 | AC-28 | — | `arp theme classify-sectors --use-sample-icio …` | exit 2, stderr contains `No such option: --use-sample-icio` | holdout |
+| AC-28b | — | `arp taxonomy create --use-sample-exiobase …` | exit 2, stderr contains `No such option: --use-sample-exiobase` | holdout |
 | AC-29 | `ARP_VALUE_CHAIN_DIR` unset, any valid theme file `<f>` | `arp theme classify-sectors --theme <f> --out <o>` | exit 1; stderr `No input-output data available: run arp io build-full and set ARP_VALUE_CHAIN_DIR, or pass --use-sample-io.` | holdout |
 | AC-30 | `ARP_VALUE_CHAIN_DIR` unset; app as in the 2026-10-19 spec's API rows | `POST /api/taxonomies` with `{"name": "t", "derivation_method": "industry_anchored", "use_sample_io": false}` | 400, `detail` `No input-output data available: run arp io build-full and set ARP_VALUE_CHAIN_DIR, or set use_sample_io.` | holdout |
-| AC-31 | a stored theme run whose `manifest.json` params have `use_sample_icio: true`, interrupted before its first company | resume it | the run's first company result has `indirect_exposure.icio_edition` `sample` | holdout |
+| AC-31 | a stored theme run whose `manifest.json` params have `use_sample_icio: true`, interrupted before its first company; a second such run with `use_sample_exiobase: true` instead | resume each | in both, the first company result has `indirect_exposure.icio_edition` `sample` | holdout |
+| AC-30b | as AC-30 | `POST /api/themes/runs` with a valid taxonomy run body and `use_sample_io` false | 400, `detail` exactly as AC-30 | holdout |
 | AC-32 | — | `GET /openapi.json` | the request schemas of `POST /api/themes/runs` and `POST /api/taxonomies` have property `use_sample_io` and neither `use_sample_icio` nor `use_sample_exiobase` | holdout |
 | AC-33 | Real `IOT_2022_ixi.zip` (Zenodo record 23039074) built with `build-full` | read `y_columns.csv` | 343 data rows (49 regions × 7) | evaluator |
 | AC-34 | as AC-33 | exposure `C27`, core `{"B07"}`, country `CN` | not None; `regional.region` `CN`; `upstream_by_region` keys exactly `CN, US, EU, EUR_OTH, JP, KR, TW, IN, ASIA_OTH, AMER_OTH, MEA` in that order | evaluator |
 | AC-35 | as AC-33 | time `resolve_indirect_exposure_model` and read the process's RSS before and after | ≤ 30.0 s; RSS grows ≤ 1,572,864 KB | evaluator |
 | AC-36 | as AC-35, model loaded | time 10 `compute_indirect_exposure` calls (country None, codes `C27`, `B07`, `D`, `C20`, `C29`, `F`, `G`, `K`, `A01`, `C24A`; core `{"B07"}`) | each ≤ 2.0 s | evaluator |
-| AC-37 | Thematic Universe screen `#/theme` | tick the sample checkbox and start a run | the request body has `use_sample_io: true`; the help text reads exactly as Scope 12 | evaluator |
+| AC-37 | Thematic Universe screen `#/theme` | tick the sample checkbox and start a run | the request body has `use_sample_io: true` | evaluator |
+| AC-37b | Thematic Universe screen `#/theme` | read the help text under the sample checkbox | exactly as Scope 12 | evaluator |
 | AC-38 | Taxonomy Library | read the two checkbox labels | exactly as Scope 12 | evaluator |
+| AC-38b | Taxonomy Library, new taxonomy, method industry-anchored | tick the sample checkbox and create | the request body has `use_sample_io: true` | evaluator |
 
 Must not change:
 
@@ -275,8 +282,8 @@ Must not change:
   no `Y.txt`). Checked by: holdout.
 - AC-40: `build-full` on Fixture V writes `manifest.json` and `nodes.csv` byte-identical to those the
   PR's merge-base with `main` writes, apart from `built_at`. Checked by: holdout.
-- AC-41: a stored theme run from before this change opens in Run History with its indirect-exposure
-  numbers and `Computed from <its old edition>` as before. Checked by: evaluator.
+- AC-41: a stored theme run from before this change opens in Run History; its indirect-exposure
+  figures equal the values in the run's stored result file, and it reads `Computed from <stored icio_edition>`. Checked by: evaluator.
 - AC-42: `pytest tests/test_revenue_resolver.py tests/test_rd_exposure_resolver.py
   tests/test_standards_mapper.py tests/test_api_value_chain.py tests/test_value_chain_model.py`
   (from `backend/`) exits 0 with no test removed from those files. Checked by: unit.
