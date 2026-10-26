@@ -4,11 +4,13 @@ import { STATE_CLASS, STATE_LABEL, dossierHref, shelvedBanner, stepLinkText, vis
 import type { Dossier, DossierItem, Taxonomy } from "../types";
 import { ContextBriefBody } from "../components/ContextBrief";
 import { NO_BRIEF } from "../lib/contextBrief";
+import { ThemeResearch } from "./ThemeResearch";
 
 type Props = { params: string[]; onFindCompanies: (taxonomyId: string) => void };
 
-/** #/themes lists the theme dossiers; #/themes/<id> shows one dossier's five steps. */
+/** #/themes lists the theme dossiers; #/themes/<id> shows one dossier's five steps; #/themes/<id>/research its step 3. */
 export function ThemeDossiers({ params, onFindCompanies }: Props) {
+  if (params[0] && params[1] === "research") return <ThemeResearch key={params[0]} id={params[0]} />;
   return params[0] ? <DossierPage key={params[0]} id={params[0]} onFindCompanies={onFindCompanies} /> : <DossierList />;
 }
 

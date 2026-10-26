@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import UTC, date, datetime, timedelta
+from datetime import date
 from pathlib import PurePath
 from urllib.parse import quote
 
@@ -15,7 +15,7 @@ from arp.api.run_scheduling import schedule_llm_run
 from arp.db import models as m
 from arp.db.session import transaction
 from arp.orchestration.job_manager import JobManager
-from arp.orchestration.jobs import RunBusy, run_lease
+from arp.orchestration.jobs import run_alive
 from arp.rfp import store
 from arp.rfp.draft import APPROVED, DRAFTED, EDITED, LEFT_BLANK, flags_for
 from arp.rfp.fill import FillRefused, fill
@@ -157,24 +157,6 @@ def get_project(project_id: int) -> RfpProjectOut:
         return store.project_out(s, _project(s, project_id))
 
 
-_LEASE_GRACE = timedelta(seconds=60)  # a run is launched just after its request returns; its lease comes a moment later
-
-
-def _run_alive(run_store, run_id: str | None) -> bool:
-    """A worker holds the run's lease, or the run is too new to have taken it yet. A process restart frees the lease,
-    so a run left `detecting` or `drafting` by a restart can be started again."""
-    if not run_id:
-        return False
-    manifest = run_store.load_manifest(run_id)
-    if manifest and datetime.now(UTC) - datetime.fromisoformat(manifest.created_at) < _LEASE_GRACE:
-        return True
-    try:
-        with run_lease(run_store, run_id):
-            return False
-    except RunBusy:
-        return True
-
-
 @router.post("/projects/{project_id}/autofill", response_model=RfpProjectOut)
 async def autofill_project(
     project_id: int, settings=Depends(settings_dep), run_store=Depends(get_run_store), blobs=Depends(blob_store_dep)
@@ -186,7 +168,7 @@ async def autofill_project(
         p = s.get(m.RfpProject, project_id, with_for_update=True)
         if p is None:
             raise HTTPException(404, "RFP project not found")
-        if p.run_status in ("detecting", "drafting") and _run_alive(run_store, p.run_id):
+        if p.run_status in ("detecting", "drafting") and run_alive(run_store, p.run_id):
             raise HTTPException(409, "This RFP is still being processed.")
         redetect = not store.questions_of(s, project_id)
         filename, key = p.filename, p.content_key

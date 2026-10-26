@@ -25,9 +25,14 @@ async def fetch_source_text(url: str, user_agent: str, timeout: float = 20.0) ->
     source URL. Returns None on any failure rather than raising, so one
     unreachable source doesn't abort a multi-source derivation.
     """
+    return await fetch_source_text_or_empty(url, user_agent, timeout) or None
+
+
+async def fetch_source_text_or_empty(url: str, user_agent: str, timeout: float = 20.0) -> str | None:
+    """`fetch_source_text`, but "" for a page that was fetched and had no extractable text."""
     if (folder := standins.active_dir()) is not None:
         text = await standins.fetch_text(folder, url)
-        return text[:_MAX_CHARS] if text else None
+        return None if text is None else text[:_MAX_CHARS]
     try:
         assert_safe_fetch_target(url)
     except UnsafeURLError as exc:
@@ -51,9 +56,7 @@ async def fetch_source_text(url: str, user_agent: str, timeout: float = 20.0) ->
         text = _extract_pdf_text(resp.content)
     else:
         text = extract_html_text(resp.text)
-    if not text:
-        return None
-    return text[:_MAX_CHARS]
+    return (text or "")[:_MAX_CHARS]
 
 
 def _cache_paths(cache_dir: Path, url: str) -> tuple[Path, Path]:

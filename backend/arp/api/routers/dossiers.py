@@ -7,6 +7,7 @@ from pydantic import BaseModel, field_validator
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_run_store, get_taxonomy_store
+from arp.schemas.common import RunManifest
 from arp.schemas.emerging_themes import ContextBrief
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
@@ -20,6 +21,7 @@ from arp.themes.dossiers import (
     derive_steps,
     get_dossier_store,
 )
+from arp.themes.research import ResearchStore, get_research_store
 
 router = APIRouter(prefix="/api/dossiers", tags=["dossiers"])
 
@@ -74,11 +76,15 @@ def _unknown(dossier_id: str) -> HTTPException:
 class Viewer:
     """Turns a dossier into its view: the record plus its five steps, derived fresh from the stores."""
 
-    def __init__(self, run_store: RunStore = Depends(get_run_store), taxonomy_store: TaxonomyStore = Depends(get_taxonomy_store)) -> None:
-        self.run_store, self.taxonomy_store = run_store, taxonomy_store
+    def __init__(self, run_store: RunStore = Depends(get_run_store), taxonomy_store: TaxonomyStore = Depends(get_taxonomy_store),
+                 research_store: ResearchStore = Depends(get_research_store)) -> None:
+        self.run_store, self.taxonomy_store, self.research_store = run_store, taxonomy_store, research_store
+
+    def steps(self, dossier: Dossier, theme_runs: list[RunManifest] | None = None) -> list[DossierStep]:
+        return derive_steps(dossier, self.run_store, self.taxonomy_store, self.research_store.get(dossier.dossier_id), theme_runs)
 
     def __call__(self, dossier: Dossier) -> DossierView:
-        return DossierView(**dossier.model_dump(), steps=derive_steps(dossier, self.run_store, self.taxonomy_store),
+        return DossierView(**dossier.model_dump(), steps=self.steps(dossier),
                            context_brief=context_brief(dossier, self.run_store))
 
 
@@ -88,7 +94,7 @@ def list_dossiers(store: DossierStore = Depends(get_dossier_store), view: Viewer
     return DossierList(items=[
         DossierItem(
             **d.model_dump(include={"dossier_id", "name", "status", "origin", "run_id", "theme_id", "created_at"}),
-            current_step=current_step(derive_steps(d, view.run_store, view.taxonomy_store, theme_runs)),
+            current_step=current_step(view.steps(d, theme_runs)),
         )
         for d in store.list()
     ])
