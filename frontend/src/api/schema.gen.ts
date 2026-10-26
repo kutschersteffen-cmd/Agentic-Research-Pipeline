@@ -10752,6 +10752,11 @@ export interface components {
             /** Name */
             name: string;
             /**
+             * Planned Field Id
+             * @description On an actual-figure field: the field_id of its planned sibling.
+             */
+            planned_field_id?: string | null;
+            /**
              * Required
              * @default true
              */

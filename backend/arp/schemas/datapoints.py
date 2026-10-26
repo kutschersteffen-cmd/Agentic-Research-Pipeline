@@ -149,6 +149,9 @@ class FieldDefinition(BaseModel):
         default=None, description="Boolean fields only: computed from other fields by rule, with no model call."
     )
     rules: list[FieldRule] = Field(default_factory=list, description="Typed conditions on this field's extracted value.")
+    planned_field_id: str | None = Field(
+        default=None, description="On an actual-figure field: the field_id of its planned sibling."
+    )
 
     @model_validator(mode="after")
     def _derived_is_boolean(self) -> FieldDefinition:
@@ -247,6 +250,14 @@ class Alternative(BaseModel):
     citations: list[Citation] = Field(default_factory=list)
 
 
+class Correction(BaseModel):
+    rule: Literal["label_map", "period_fill", "unit_scale", "planned_move"]
+    attribute: Literal["value", "period_end", "unit", "field_id"]
+    original: str | float | bool | None
+    corrected: str | float | bool | None
+    reason: str = Field(description="One sentence a reviewer can read, naming the evidence.")
+
+
 class ExtractedField(BaseModel):
     field_id: str
     field_name: str
@@ -283,6 +294,7 @@ class ExtractedField(BaseModel):
     input_hash: str | None = None
     reused_from_run: str | None = None
     method: Literal["extracted", "tagged", "adjudicated"] = "extracted"
+    corrections: list[Correction] = Field(default_factory=list, description="Deterministic auto-corrections applied to this row.")
 
     @model_validator(mode="before")
     @classmethod
