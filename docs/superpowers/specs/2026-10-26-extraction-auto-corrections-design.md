@@ -210,7 +210,7 @@ the correction line.
 ## Acceptance
 
 All rows use the test stand-ins for model calls (`ARP_STANDINS_DIR`), on schema `sch_transition_capex` unless the row
-says otherwise. "The run" is a trial `arp extract run`; "the row" is the result row for the named field and period.
+says otherwise. "The run" is a trial `arp extract run` (AC-13 and AC-17 use two non-trial runs instead, because trial runs are never reused); "the row" is the result row for the named field and period.
 Unless a row says otherwise, the company has no `fiscal_year_end`, the cited document's `period_plan.current` is
 `2025-12-31`, and every quote named in a row is grounded.
 
