@@ -6,9 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 
 from arp.api.auth import Principal, current_user
-from arp.api.deps import get_run_store, get_taxonomy_store
+from arp.api.deps import get_run_store, get_stream_store, get_taxonomy_store
 from arp.schemas.common import RunManifest
 from arp.schemas.emerging_themes import ContextBrief
+from arp.stewardship.process import StreamStore
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.themes.dossiers import (
@@ -21,6 +22,7 @@ from arp.themes.dossiers import (
     derive_steps,
     get_dossier_store,
 )
+from arp.themes.position import PositionStore, get_position_store
 from arp.themes.research import ResearchStore, get_research_store
 
 router = APIRouter(prefix="/api/dossiers", tags=["dossiers"])
@@ -77,11 +79,14 @@ class Viewer:
     """Turns a dossier into its view: the record plus its five steps, derived fresh from the stores."""
 
     def __init__(self, run_store: RunStore = Depends(get_run_store), taxonomy_store: TaxonomyStore = Depends(get_taxonomy_store),
-                 research_store: ResearchStore = Depends(get_research_store)) -> None:
+                 research_store: ResearchStore = Depends(get_research_store),
+                 positions: PositionStore = Depends(get_position_store), streams: StreamStore = Depends(get_stream_store)) -> None:
         self.run_store, self.taxonomy_store, self.research_store = run_store, taxonomy_store, research_store
+        self.positions, self.streams_root = positions, streams.root
 
     def steps(self, dossier: Dossier, theme_runs: list[RunManifest] | None = None) -> list[DossierStep]:
-        return derive_steps(dossier, self.run_store, self.taxonomy_store, self.research_store.get(dossier.dossier_id), theme_runs)
+        return derive_steps(dossier, self.run_store, self.taxonomy_store, self.research_store.get(dossier.dossier_id), theme_runs,
+                            positions=self.positions, streams_root=self.streams_root)
 
     def __call__(self, dossier: Dossier) -> DossierView:
         return DossierView(**dossier.model_dump(), steps=self.steps(dossier),

@@ -17,7 +17,7 @@ from arp.api.deps import settings_dep
 from arp.api.review_endpoints import get_review_queue
 from arp.config import Settings
 from arp.emerging_themes.pipeline import load_candidates_with_status
-from arp.schemas.common import JobStatus, RunManifest, now_iso
+from arp.schemas.common import CompanyRef, JobStatus, RunManifest, now_iso
 from arp.schemas.emerging_themes import CandidateStatus, ContextBrief
 from arp.schemas.taxonomy import TaxonomyStatus
 from arp.storage.atomic_io import atomic_write_text, read_text_utf8
@@ -25,6 +25,7 @@ from arp.storage.locks import KeyedLock
 from arp.storage.run_store import RunStore
 from arp.storage.safe_path import UnsafeIdentifierError, safe_id
 from arp.storage.taxonomy_store import TaxonomyStore
+from arp.themes.position import PositionStore, step5
 from arp.themes.research import ResearchRecord
 
 logger = logging.getLogger(__name__)
@@ -160,11 +161,15 @@ def _spot(d: Dossier, run_store: RunStore) -> tuple[StepState, str, str | None]:
     return "waiting", "awaiting decision", href
 
 
-def _find_companies(d: Dossier, run_store: RunStore, theme_runs: list[RunManifest], latest_ratified: int | None) -> tuple[StepState, str, str]:
+def _newest_theme_run(d: Dossier, theme_runs: list[RunManifest]) -> RunManifest | None:
     runs = [m for m in theme_runs if d.taxonomy_id and m.params.get("taxonomy_id") == d.taxonomy_id]
-    if not runs:
+    return max(runs, key=lambda m: m.created_at) if runs else None
+
+
+def _find_companies(d: Dossier, run_store: RunStore, theme_runs: list[RunManifest], latest_ratified: int | None) -> tuple[StepState, str, str]:
+    run = _newest_theme_run(d, theme_runs)
+    if run is None:
         return "not_started", "no run yet", "#/theme"
-    run = max(runs, key=lambda m: m.created_at)
     href = f"#/theme/{run.run_id}"
     if run.status in (JobStatus.PENDING, JobStatus.RUNNING):
         return "running", "run in progress", href
@@ -211,8 +216,28 @@ def _research(d: Dossier, record: ResearchRecord, latest_ratified: int | None) -
     return "done", detail, href
 
 
+def _latest_ratified(d: Dossier, taxonomy_store: TaxonomyStore) -> int | None:
+    ratified = [t for t in taxonomy_store.list_versions(d.taxonomy_id) if t.status == TaxonomyStatus.RATIFIED] if d.taxonomy_id else []
+    return ratified[-1].version if ratified else None
+
+
+def exposed_companies(d: Dossier, run_store: RunStore, taxonomy_store: TaxonomyStore) -> list[CompanyRef] | None:
+    """The companies with at least one match in the newest theme run, in run order; None while step 4 is not done."""
+    theme_runs = run_store.list_runs("theme")
+    if _find_companies(d, run_store, theme_runs, _latest_ratified(d, taxonomy_store))[0] != "done":
+        return None
+    run = _newest_theme_run(d, theme_runs)
+    refs = {c.company_id: c for c in run_store.load_companies(run.run_id) or []}
+    exposed = []
+    for row in run_store.read_results(run.run_id):
+        if matches := row.get("company_matches"):
+            key = row.get("_key") or matches[0].get("company_id")
+            exposed.append(refs.get(key) or CompanyRef(company_id=key, name=matches[0].get("name") or key))
+    return exposed
+
+
 def derive_steps(d: Dossier, run_store: RunStore, taxonomy_store: TaxonomyStore, research: ResearchRecord,
-                 theme_runs: list[RunManifest] | None = None) -> list[DossierStep]:
+                 theme_runs: list[RunManifest] | None = None, *, positions: PositionStore, streams_root: Path) -> list[DossierStep]:
     """The five steps, read fresh from the stores. Pass `theme_runs` to share one run listing across dossiers."""
     latest_ratified = None
     if not d.taxonomy_id:
@@ -235,7 +260,7 @@ def derive_steps(d: Dossier, run_store: RunStore, taxonomy_store: TaxonomyStore,
         define,
         _research(d, research, latest_ratified),
         _find_companies(d, run_store, theme_runs, latest_ratified),
-        ("not_built", "coming next", None),
+        step5(d.dossier_id, research, positions, streams_root, run_store),
     ]
     return [DossierStep(number=i + 1, title=STEP_TITLES[i], state=s, detail=detail, href=href)
             for i, (s, detail, href) in enumerate(states)]

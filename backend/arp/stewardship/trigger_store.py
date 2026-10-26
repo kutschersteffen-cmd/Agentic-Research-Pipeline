@@ -1,7 +1,9 @@
 """Stewardship monitoring triggers, kept across monthly runs.
 
 Append-only JSONL: `run` events record what a month's monitoring raised, `transition` events record
-a person's decision. The current state is folded from the log; nothing is rewritten."""
+a person's decision, `standards` events record what a theme's standards check flagged. The current state is
+folded from the log; nothing is rewritten. Standards events only add triggers: everything that reads `run`
+events (month order, reopening, `is_new`, `last_run_at`) ignores them."""
 
 from __future__ import annotations
 
@@ -57,8 +59,17 @@ class TriggerStore:
                             reason=t["reason"],
                             first_seen_month=row["month"],
                             rule=t["rule"],
+                            company=t.get("company", ""),
                         ),
                     )
+            elif row["event"] == "standards":
+                for t in row["triggers"]:
+                    tid = trigger_id(t["issuer_id"], t["rule"])
+                    found.setdefault(tid, UnifiedTrigger(
+                        trigger_id=tid, source="stewardship", issuer_id=t["issuer_id"], type=t["type"], theme=t["theme"],
+                        severity=t["severity"], reason=t["reason"], first_seen_month=row["checked_at"][:7], rule=t["rule"],
+                        company=t["company"],
+                    ))
             elif row["trigger_id"] in found:
                 found[row["trigger_id"]].status = row["status"]
         months = sorted(runs)
@@ -74,12 +85,15 @@ class TriggerStore:
         found = self._fold()
         return [found[trigger_id(t["issuer_id"], t["rule"])] for t in triggers]
 
+    def record_standards(self, dossier_id: str, checked_at: str, triggers: list[dict]) -> None:
+        self._append({"event": "standards", "dossier_id": dossier_id, "checked_at": checked_at, "triggers": triggers})
+
     def last_run_at(self, month: str) -> str | None:
         return max((r["at"] for r in self._rows() if r["event"] == "run" and r["month"] == month), default=None)
 
     def stored_trigger(self, tid: str) -> dict | None:
-        """The trigger as the latest run that raised it recorded it (company, sector, theme, severity, reason, ...)."""
-        hits = [t for r in self._rows() if r["event"] == "run" for t in r["triggers"] if trigger_id(t["issuer_id"], t["rule"]) == tid]
+        """The trigger as the latest run or standards check that raised it recorded it (company, sector, theme, severity, reason, ...)."""
+        hits = [t for r in self._rows() if r["event"] in ("run", "standards") for t in r["triggers"] if trigger_id(t["issuer_id"], t["rule"]) == tid]
         return hits[-1] if hits else None
 
     def list_triggers(self, status: str | None = None) -> list[UnifiedTrigger]:

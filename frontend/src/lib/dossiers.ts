@@ -28,6 +28,7 @@ export const dossierHref = (id: string) => `#/themes/${encodeURIComponent(id)}`;
 export function stepLinkText(number: number, href: string): string {
   if (number === 4) return href === "#/theme" ? "Find companies" : "Open the run";
   if (number === 3) return "Open research";
+  if (number === 5) return "Open position and standards";
   return number === 1 ? "Open Emerging Themes" : "Open the Taxonomy Library";
 }
 
