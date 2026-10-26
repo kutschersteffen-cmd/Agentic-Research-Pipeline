@@ -130,7 +130,8 @@ def _year_start_iso(end: str) -> str | None:
 
 _SCALE_WORDS = {"thousand": 1e3, "thousands": 1e3, "k": 1e3, "million": 1e6, "millions": 1e6, "mn": 1e6, "m": 1e6,
                 "billion": 1e9, "billions": 1e9, "bn": 1e9, "b": 1e9}
-_SCALE_WORD = re.compile(r"\b(" + "|".join(sorted(_SCALE_WORDS, key=len, reverse=True)) + r")\b", re.I)
+_SCALE_ALT = "|".join(sorted(_SCALE_WORDS, key=len, reverse=True))
+_SCALE_WORD = re.compile(r"\b(" + _SCALE_ALT + r")\b", re.I)
 
 
 def _printed(row: ExtractedField) -> str | None:
@@ -153,7 +154,7 @@ def _unit_scale(row: ExtractedField, spec: FieldDefinition, *, fiscal_year_end: 
     whole, _, frac = printed.partition(".")
     # Thousands separators are optional; a decimal point is not ("2,794" is not 2.794).
     number = re.sub(r"(?<=\d)(?=(?:\d{3})+$)", ",?", whole) + (r"\." + frac if frac else "")
-    pattern = re.compile(r"(?<![\d.,])(" + number + r")\s{0,3}" + _SCALE_WORD.pattern + r"(?!\w)")
+    pattern = re.compile(r"(?<![\d.,])(" + number + r")\s{0,3}(?<![A-Za-z])(" + _SCALE_ALT + r")(?!\w)", re.I)
     hits = [m for q in quotes for m in pattern.finditer(q)]
     if len({_SCALE_WORDS[m[2].lower()] for m in hits}) != 1:
         return row

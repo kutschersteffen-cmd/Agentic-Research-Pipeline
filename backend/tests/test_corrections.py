@@ -253,3 +253,26 @@ def test_ungrounded_quote_no_correction():
 def test_unit_scale_twice_changes_nothing():
     once = _fill([_urow("USD millions", BILLION)])
     assert _fill(once) == once
+
+
+@pytest.mark.parametrize("quote,word,unit", [
+    ("Capital expenditures were $2.794 Billion during 2025", "Billion", "USD billions"),
+    ("Capital expenditures were $2.794 BILLION during 2025", "BILLION", "USD billions"),
+    ("Capital expenditures were $2.794bn during 2025", "bn", "USD bn"),
+    ("Capital expenditures were $2.794B during 2025", "B", "USD b"),
+])
+def test_scale_word_case_and_attached_to_number(quote, word, unit):
+    out = _scale(_urow("USD millions", quote))
+    assert out.unit == unit  # the unit keeps the case of the word it replaces, not the quote's
+    assert _uc(out)[0].reason == f'The quote says "{word}" next to 2.794.'
+
+
+def test_attached_scale_word_with_value_2_8():
+    out = _scale(_urow("USD millions", "capex was $2.8bn in 2025", value=2.8))
+    assert out.unit == "USD bn" and _uc(out)[0].reason == 'The quote says "bn" next to 2.8.'
+    assert out.canonical_value == 2.8e9
+
+
+def test_attached_scale_word_must_end_at_a_word_boundary():
+    out = _scale(_urow("USD millions", "Capital expenditures were $2.794bnx during 2025"))
+    assert _uc(out) == []
