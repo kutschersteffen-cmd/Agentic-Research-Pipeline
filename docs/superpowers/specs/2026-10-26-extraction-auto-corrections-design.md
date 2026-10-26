@@ -1,6 +1,6 @@
 # Extraction auto-corrections
 
-Status: draft for owner approval, 2026-10-26.
+Status: approved by the owner, 2026-10-26.
 
 ## Why
 
