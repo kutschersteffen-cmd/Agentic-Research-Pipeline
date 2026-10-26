@@ -52,18 +52,18 @@ class ChunkSpanCache:
     Thread-safe for concurrent readers/writers (the batch runner's workers
     and FastAPI's sync-route threadpool can both call chunk_document
     concurrently): a plain lock guards only the dict's get/put, never held
-    across the actual computation. A cache miss racing another miss for
-    the same key just means both callers compute once and the second
-    write wins -- the value is a pure function of the key, so a lost write
-    costs one recomputation, not a correctness problem. This is why there
-    is no KeyedLock here: KeyedLock exists to protect a read-modify-write
-    invariant, and there isn't one.
+    across the actual computation. Misses for the same key wait on a
+    per-key lock so only the first computes: parallel splits of one large
+    document compete for the GIL, which pushed NLTK's wall-clock ReDoS
+    limit (5 s) over and raised TimeoutError for a 1-3M-char report.
+    Different keys still compute in parallel.
     """
 
     def __init__(self, max_entries: int = _MAX_CACHED_DOCUMENTS) -> None:
         self._max_entries = max_entries
         self._entries: OrderedDict[tuple, tuple[ChunkSpan, ...]] = OrderedDict()
         self._lock = threading.Lock()
+        self._computing: dict[tuple, threading.Lock] = {}
 
     @staticmethod
     def make_key(text: str, doc_type: DocType, chunk_chars: int, overlap_chars: int) -> tuple:
@@ -75,14 +75,24 @@ class ChunkSpanCache:
             if cached is not None:
                 self._entries.move_to_end(key)
                 return cached
+            key_lock = self._computing.setdefault(key, threading.Lock())
 
-        spans = compute()
-
-        with self._lock:
-            self._entries[key] = spans
-            self._entries.move_to_end(key)
-            while len(self._entries) > self._max_entries:
-                self._entries.popitem(last=False)
+        with key_lock:
+            with self._lock:
+                cached = self._entries.get(key)
+                if cached is not None:  # computed while this caller waited
+                    self._entries.move_to_end(key)
+                    return cached
+            try:
+                spans = compute()
+                with self._lock:
+                    self._entries[key] = spans
+                    self._entries.move_to_end(key)
+                    while len(self._entries) > self._max_entries:
+                        self._entries.popitem(last=False)
+            finally:
+                with self._lock:
+                    self._computing.pop(key, None)
         return spans
 
     def clear(self) -> None:
