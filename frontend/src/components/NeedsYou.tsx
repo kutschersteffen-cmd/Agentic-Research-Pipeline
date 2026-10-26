@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { compareSince, needsAttentionRuns, runTypeLabel } from "../lib/runs";
+import { ballotRows, compareSince, needsAttentionRuns, runTypeLabel } from "../lib/runs";
 import { useResume } from "../lib/useResume";
 import { STAGE_TABS, openCount } from "../pages/steward/common";
 import type { DataIssue, ReviewItem, RunManifest, StewardshipFlow } from "../types";
@@ -15,7 +15,7 @@ type Row = { key: string; workspace: string; what: string; count: number; since:
 
 /** Everything waiting on a person, one row per place it waits (a run's review, a ballot run, a stewardship stage,
  * blocking data issues), oldest first, each linking to where it is decided. Counts come from the same sources the
- * sidebar badges use; nothing is stored. */
+ * Review Queue's sidebar badge uses; nothing is stored. */
 export function NeedsYou({ runs, flow }: { runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
   const [items, setItems] = useState<ReviewItem[] | null>(null);
   const [issues, setIssues] = useState<DataIssue[] | null>(null);
@@ -42,14 +42,8 @@ export function NeedsYou({ runs, flow }: { runs: RunManifest[] | null; flow: Ste
       href: `#/review/${type}/${encodeURIComponent(runId)}`,
     });
   }
-  for (const r of runs ?? []) {
-    if (r.run_type === "proxy_voting" && r.review_count > 0) {
-      rows.push({
-        key: `ballots/${r.run_id}`, workspace: "StewardIQ", count: r.review_count, since: r.updated_at,
-        what: `Proxy voting run ${r.run_id}: ${r.review_count === 1 ? "1 ballot" : `${r.review_count} ballots`} to decide`,
-        href: `#/voting/${encodeURIComponent(r.run_id)}`,
-      });
-    }
+  for (const b of ballotRows(runs ?? [])) {
+    rows.push({ key: `ballots/${b.runId}`, workspace: "StewardIQ", count: b.count, since: byRun.get(b.runId)!.updated_at, what: b.what, href: b.href });
   }
   for (const r of needsAttentionRuns(runs ?? [], new Date())) {
     const done = r.company_count > 0 ? ` (${r.completed_count}/${r.company_count} companies done)` : "";

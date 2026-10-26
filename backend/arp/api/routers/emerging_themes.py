@@ -5,6 +5,7 @@ import asyncio
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from arp.api.auth import Principal, current_user
 from arp.api.deps import (
     get_emerging_themes_scheduler,
     get_llm_client,
@@ -31,6 +32,7 @@ from arp.schemas.emerging_themes import EmergingThemesScheduleConfig
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.storage.topic_store import TopicStateStore
+from arp.themes.dossiers import DossierStore, TaxonomyTaken, get_dossier_store
 from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/emerging-themes", tags=["emerging-themes"])
@@ -89,15 +91,24 @@ async def promote(
     run_store: RunStore = Depends(get_run_store),
     taxonomy_store: TaxonomyStore = Depends(get_taxonomy_store),
     llm: LLMClient = Depends(get_llm_client),
+    dossier_store: DossierStore = Depends(get_dossier_store),
+    principal: Principal = Depends(current_user),
 ) -> dict:
     """The human review gate's action -- no candidate reaches the taxonomy
     library without this explicit call. `reason` is required (roadmap
-    P0)."""
+    P0). Opens the theme's dossier, or reuses the one its taxonomy already has."""
     try:
         candidate = await promote_candidate(run_store, taxonomy_store, llm, run_id, theme_id, req.reason, taxonomy_id=req.taxonomy_id)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    return candidate.model_dump(mode="json")
+    tid = candidate.promoted_to_taxonomy_id
+    try:
+        dossier = dossier_store.owner_of(tid) or dossier_store.create(
+            candidate.theme_name, principal.name, taxonomy_id=tid, run_id=run_id, theme_id=theme_id)
+    except TaxonomyTaken:  # a concurrent promote into the same taxonomy got there first
+        dossier = dossier_store.owner_of(tid)
+    # The promote body keeps its pre-brief keys (dossier spec AC-15); the brief is read from the candidates list.
+    return {**candidate.model_dump(mode="json", exclude={"context_brief"}), "dossier_id": dossier.dossier_id}
 
 
 class RejectRequest(BaseModel):

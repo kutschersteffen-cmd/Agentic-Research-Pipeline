@@ -649,7 +649,7 @@ shape: `arp {agent} run`, `arp {agent} schedule --interval-hours ... --enable/--
 Both also get a frontend panel under a single **Background Agents** tab
 (`frontend/src/pages/BackgroundAgents.tsx`, two page-local sub-tabs mirroring
 `TaxonomyLibrary.tsx`'s own sub-tab pattern) -- a schedule editor cloned from
-`DocumentDiscovery.tsx`'s existing schedule-editor UI, a "run now" trigger wired to
+the schedule editor Document Discovery had at the time (that page was removed on 2026-10-25), a "run now" trigger wired to
 `RunProgress`, and a results table per agent. Findings/flags are rendered read-only, not
 routed through `ReviewQueue.tsx` -- neither a `TaxonomyResearchFinding` nor a `DriftFlag` is
 an approve/reject decision, so they don't fit that page's dispatch-table pattern.

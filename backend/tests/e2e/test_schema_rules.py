@@ -65,11 +65,9 @@ def open_schema(page, drafted, *responses):
 
     page.route("**/api/extraction/schemas/draft", lambda route: route.fulfill(json=drafted))
     page.route("**/api/extraction/schemas/suggest-rules", suggest)
-    page.goto(URL)
+    # Extraction is no longer in the sidebar; open it by its route.
+    page.goto(URL + "/#/extraction")
     page.wait_for_load_state("networkidle")
-    nav = page.get_by_role("navigation").first
-    nav.get_by_text("All screens").click()
-    nav.get_by_text("Extraction", exact=True).click()
     page.get_by_role("tab", name="4. Schema").click()
     page.get_by_role("button", name="Draft extraction schema").click()
     page.get_by_role("button", name="+ Add a rule").wait_for()

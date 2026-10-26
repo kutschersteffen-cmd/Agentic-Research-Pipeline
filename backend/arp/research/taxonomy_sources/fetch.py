@@ -8,6 +8,7 @@ from pathlib import Path
 
 import httpx
 
+from arp import standins
 from arp.ingestion.html_text import extract_html_text
 from arp.net_safety import UnsafeURLError, assert_safe_fetch_target, ssrf_guard_request_hook
 
@@ -24,6 +25,14 @@ async def fetch_source_text(url: str, user_agent: str, timeout: float = 20.0) ->
     source URL. Returns None on any failure rather than raising, so one
     unreachable source doesn't abort a multi-source derivation.
     """
+    return await fetch_source_text_or_empty(url, user_agent, timeout) or None
+
+
+async def fetch_source_text_or_empty(url: str, user_agent: str, timeout: float = 20.0) -> str | None:
+    """`fetch_source_text`, but "" for a page that was fetched and had no extractable text."""
+    if (folder := standins.active_dir()) is not None:
+        text = await standins.fetch_text(folder, url)
+        return None if text is None else text[:_MAX_CHARS]
     try:
         assert_safe_fetch_target(url)
     except UnsafeURLError as exc:
@@ -47,9 +56,7 @@ async def fetch_source_text(url: str, user_agent: str, timeout: float = 20.0) ->
         text = _extract_pdf_text(resp.content)
     else:
         text = extract_html_text(resp.text)
-    if not text:
-        return None
-    return text[:_MAX_CHARS]
+    return (text or "")[:_MAX_CHARS]
 
 
 def _cache_paths(cache_dir: Path, url: str) -> tuple[Path, Path]:
@@ -64,6 +71,9 @@ async def fetch_source_original(url: str, user_agent: str, cache_dir: Path, time
     produces for prompting. Cached by URL hash so repeatedly opening the
     inspector for the same source doesn't refetch it.
     """
+    if (folder := standins.active_dir()) is not None:
+        text = await standins.fetch_text(folder, url)
+        return None if text is None else (text.encode("utf-8"), "text/plain")
     cache_dir.mkdir(parents=True, exist_ok=True)
     content_path, meta_path = _cache_paths(cache_dir, url)
     if content_path.exists() and meta_path.exists():

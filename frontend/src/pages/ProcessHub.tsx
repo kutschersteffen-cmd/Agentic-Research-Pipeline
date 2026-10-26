@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useState, type ReactElement } from "react";
 import { api } from "../api/client";
-import type { RunManifest, StewardshipFlow } from "../types";
+import type { EngagementRecord, RunManifest, StewardshipFlow } from "../types";
 import { ACTIVE_STATUSES, decisionRunType, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
 import { listAllRuns, usePoll } from "../lib/poll";
 import { DECISION_STAGES, PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
@@ -9,6 +9,7 @@ import { useMe } from "../lib/reviewer";
 import { NeedsYou } from "../components/NeedsYou";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
+import { engagementCounts, engagementLine, type EngagementCounts } from "../lib/engagement";
 
 // The start page, the five workspace pages and the process bar. Workspaces and
 // their processes live in lib/processes.ts; this file draws them and reads
@@ -78,9 +79,8 @@ function useRuns() {
   return { runs, error, retry: load };
 }
 
-/** Open decisions across the Steward Workflow stages the processes own: the
- * sidebar's Steward Workflow badge uses the same count so the two agree. */
-export const stageDecisions = (flow: StewardshipFlow | null) => DECISION_STAGES.reduce((n, id) => n + openCount(flow?.stages.find((x) => x.id === id)), 0);
+/** Open decisions across the Steward Workflow stages the processes own. */
+const stageDecisions = (flow: StewardshipFlow | null) => DECISION_STAGES.reduce((n, id) => n + openCount(flow?.stages.find((x) => x.id === id)), 0);
 
 /** The house stewardship flow, loaded once: its stages carry StewardIQ's numbers. */
 function useHouseFlow() {
@@ -187,8 +187,8 @@ function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | 
   );
 }
 
-/** The key to the step dots, shared by the start page and the overviews so
- * one state always reads the same. */
+/** The key to the step dots on the start page's workspace cards. Workspace
+ * pages mark state on the step cards themselves, so they carry no legend. */
 function StateLegend() {
   return (
     <p className="muted hub-legend">
@@ -209,6 +209,14 @@ export function StartPage() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const name = reviewer.trim();
+  // Loaded once: the line is a glance, the Engagement screen has the live list.
+  const [engagement, setEngagement] = useState<EngagementCounts | null | "error">(null);
+  useEffect(() => {
+    api.listEngagementRecords().then(
+      (r) => setEngagement(engagementCounts(r.records as EngagementRecord[])),
+      () => setEngagement("error"),
+    );
+  }, []);
 
   const known = runs !== null;
   const all = runs ?? [];
@@ -287,6 +295,9 @@ export function StartPage() {
           All runs →
         </a>
       </nav>
+      <p className="hub-engagement">
+        <span>{engagementLine(engagement)}</span> <a href="#/engagement">Open Engagement →</a>
+      </p>
     </div>
   );
 }
@@ -413,16 +424,14 @@ function StepCard({ s, i, p, runs, flow }: { s: Step; i: number; p: Process; run
           <span className="hub-step-banner">{waiting > 0 ? `${waiting} waiting on you` : `${decisions} decision${decisions === 1 ? "" : "s"} open`}</span>
         )}
         <span className="hub-step-about">{s.does}</span>
-        {mine && (
+        {last && (
           <span className="hub-step-rows">
             <span>
-              Last run<b>{last ? last.status.replace(/_/g, " ") : "none yet"}</b>
+              Last run<b>{last.status.replace(/_/g, " ")}</b>
             </span>
-            {last && (
-              <span>
-                Updated<b>{new Date(last.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</b>
-              </span>
-            )}
+            <span>
+              Updated<b>{new Date(last.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</b>
+            </span>
           </span>
         )}
         {stage && stage.metrics.length > 0 && (
@@ -468,7 +477,6 @@ export function WorkspaceOverview({ id }: { id: WorkspaceId }) {
       {w.processes.map((p) => (
         <ProcessFlow key={p.id} p={p} runs={runs} flow={flow} />
       ))}
-      <StateLegend />
       <nav className="hub-screens" aria-label={`${w.name} screens`}>
         <span className="hub-now-label">Screens</span>
         {w.screens.map(([href, label]) => (

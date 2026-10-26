@@ -57,7 +57,7 @@ import type {
 } from "../types";
 import { tagQuery } from "../lib/xbrlTags";
 import { encodeRef, factsUrl, type FactFilters } from "../pages/company/companyQuery";
-import type { CompanyFactRow, CompanySearchHit, CompanySummary, CompanyTransition, FactTrail, ThemeLayers } from "../types";
+import type { CompanyFactRow, CompanySearchHit, CompanySummary, CompanyTransition, FactTrail, Taxonomy, ThemeLayers } from "../types";
 import type {
   DatasetSummary,
   DecisionComparison,
@@ -105,6 +105,7 @@ import type {
 import type { XbrlRunMarket } from "../types";
 import type { VcFootprint, VcNode, VcSearch, VcStatus, VcTree } from "../types";
 import type { RunFailure } from "../types";
+import type { Dossier, DossierItem, ProposalStarted, ResearchRound, ResearchSource, ResearchView, RunStarted, SourceCategory } from "../types";
 import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision } from "../types";
 import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
@@ -226,6 +227,7 @@ export async function openFile(url: string, fallbackName: string): Promise<void>
 }
 
 const rfpQuestion = (projectId: number, qid: number, action = "") => `/api/rfp/projects/${projectId}/questions/${qid}${action}`;
+const research = (dossierId: string, action = "") => `/api/dossiers/${encodeURIComponent(dossierId)}/research${action}`;
 const jsonBody = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 
 export const api = {
@@ -493,10 +495,6 @@ export const api = {
     request<{ run_id: string; company_count: number }>("/api/discovery/runs", { method: "POST", body: JSON.stringify(body) }),
   getDiscoveryResults: (runId: string, offset = 0, limit = 500) =>
     request(`/api/discovery/runs/${runId}/results?offset=${offset}&limit=${limit}`),
-  getDiscoveryEvents: (since?: string) => request(`/api/discovery/events${since ? `?since=${encodeURIComponent(since)}` : ""}`),
-  getDiscoverySchedule: () => request("/api/discovery/schedule"),
-  updateDiscoverySchedule: (config: unknown) =>
-    request("/api/discovery/schedule", { method: "PUT", body: JSON.stringify(config) }),
 
   // XBRL
   startXbrlRun: (body: { companies?: unknown[]; universe_path?: string; tags?: string[]; refresh?: boolean; market?: XbrlRunMarket }) =>
@@ -645,10 +643,42 @@ export const api = {
   inspectSourceUrl: (url: string) => `${API_BASE}/api/taxonomies/sources/inspect?url=${encodeURIComponent(url)}`,
   createTaxonomy: (body: unknown) => request("/api/taxonomies", { method: "POST", body: JSON.stringify(body) }),
   listTaxonomies: () => request<{ taxonomies: unknown[] }>("/api/taxonomies"),
+  listDossiers: () => request<{ items: DossierItem[] }>("/api/dossiers"),
+  createDossier: (name: string, taxonomyId: string | null) =>
+    request<Dossier>("/api/dossiers", jsonBody("POST", { name, taxonomy_id: taxonomyId })),
+  getDossier: (id: string) => request<Dossier>(`/api/dossiers/${encodeURIComponent(id)}`),
+  patchDossier: (id: string, body: { taxonomy_id: string } | { status: "shelved"; reason: string }) =>
+    request<Dossier>(`/api/dossiers/${encodeURIComponent(id)}`, jsonBody("PATCH", body)),
+  getResearch: (id: string) => request<ResearchView>(research(id)),
+  proposeSources: (id: string) => request<ProposalStarted>(research(id, "/propose"), { method: "POST" }),
+  addResearchSource: (id: string, body: { title: string; publisher: string; url: string; category: SourceCategory; why: string; how: string }) =>
+    request<ResearchSource>(research(id, "/sources"), jsonBody("POST", body)),
+  removeResearchSource: (id: string, sourceId: string) =>
+    request<{ deleted: string }>(research(id, `/sources/${encodeURIComponent(sourceId)}`), { method: "DELETE" }),
+  uploadResearchFile: (id: string, sourceId: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<ResearchSource>(research(id, `/sources/${encodeURIComponent(sourceId)}/file`), { method: "POST", body: form });
+  },
+  approveSourcePlan: (id: string) => request<ResearchRound>(research(id, "/plan/approve"), { method: "POST" }),
+  writeNote: (id: string) => request<RunStarted>(research(id, "/note"), { method: "POST" }),
+  approveNote: (id: string) => request<ResearchRound>(research(id, "/note/approve"), { method: "POST" }),
+  rejectNote: (id: string, reason: string) => request<ResearchRound>(research(id, "/note/reject"), jsonBody("POST", { reason })),
   newTaxonomyVersion: (taxonomyId: string, body: unknown) =>
     request(`/api/taxonomies/${taxonomyId}/versions`, { method: "POST", body: JSON.stringify(body) }),
   ratifyTaxonomy: (taxonomyId: string, body: { version: number }) =>
     request(`/api/taxonomies/${taxonomyId}/ratify`, { method: "POST", body: JSON.stringify(body) }),
+  listTaxonomyVersions: (taxonomyId: string) => request<{ versions: Taxonomy[] }>(`/api/taxonomies/${taxonomyId}/versions`),
+  getTaxonomySchema: (taxonomyId: string, version: number) =>
+    request<DataPointSchema>(`/api/taxonomies/${taxonomyId}/versions/${version}/schema`),
+  generateTaxonomySchema: (taxonomyId: string, version: number) =>
+    request<DataPointSchema>(`/api/taxonomies/${taxonomyId}/versions/${version}/schema`, { method: "POST" }),
+  listSchemas: () =>
+    request<{ schema_id: string; version: number; name: string; release_flag: boolean; saved_at: string }[]>("/api/extraction/schemas"),
+  getSchema: (schemaId: string, version: number) =>
+    request<DataPointSchema>(`/api/extraction/schemas/${encodeURIComponent(schemaId)}?version=${version}`),
+  releaseSchema: (schemaId: string, version: number) =>
+    request<DataPointSchema>(`/api/extraction/schemas/${encodeURIComponent(schemaId)}/versions/${version}/release`, { method: "POST" }),
   compareTaxonomies: (body: unknown) => request("/api/taxonomies/compare", { method: "POST", body: JSON.stringify(body) }),
   mergeTaxonomies: (body: unknown) => request("/api/taxonomies/merge", { method: "POST", body: JSON.stringify(body) }),
   mapStandards: (taxonomyId: string, body: unknown) =>

@@ -11,7 +11,7 @@ from arp.bi.superset_client import SupersetClient
 from arp.config import Settings, get_settings
 from arp.db.session import require_dsn
 from arp.discovery.scheduler import DiscoveryScheduler
-from arp.discovery.site_finder import DuckDuckGoSearchClient, WebSearchClient
+from arp.discovery.site_finder import WebSearchClient, build_web_search_client
 from arp.emerging_themes.scheduler import EmergingThemesScheduler
 from arp.ingestion.edgar import EdgarDocumentSource
 from arp.ingestion.esef import EsefDocumentSource
@@ -158,7 +158,7 @@ def get_xbrl_source() -> XbrlFactSource:
 
 @lru_cache
 def get_web_search_client() -> WebSearchClient:
-    return DuckDuckGoSearchClient(get_settings().discovery_user_agent)
+    return build_web_search_client(get_settings().discovery_user_agent)
 
 
 def get_llm_client() -> LLMClient:

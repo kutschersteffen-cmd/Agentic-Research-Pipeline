@@ -8,11 +8,10 @@ import type { DemoSeedSummary } from "../types";
 /** The persistent portfolio/group + as-of-date selector (spec §9): not a
  * sub-tab itself, rendered once above the sub-nav, and read by every
  * sub-tab via `usePortfolioPane()` -- switching sub-tabs never resets it. */
-type Destination = "transitionPlan" | "extraction" | "discovery";
+type Destination = "transitionPlan" | "extraction";
 const DESTINATIONS: { id: Destination; label: string }[] = [
   { id: "transitionPlan", label: "Transition Plan" },
   { id: "extraction", label: "Extraction" },
-  { id: "discovery", label: "Document Discovery" },
 ];
 
 export function PersistentSelectionPane({ onSendUniverse }: { onSendUniverse?: (to: Destination, path: string, count: number) => void }) {

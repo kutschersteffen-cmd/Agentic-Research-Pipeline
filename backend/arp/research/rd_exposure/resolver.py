@@ -4,15 +4,15 @@ from dataclasses import dataclass
 
 from arp.config import Settings
 from arp.discovery.site_finder import WebSearchClient
-from arp.extraction.pipeline import _extract_company
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.cost_tracker import combine_usage
 from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.rd_exposure.news_scoring import score_news_mentions
-from arp.research.revenue_exposure.resolver import is_sector_relevant
+from arp.research.revenue_exposure.resolver import extract_schema_fields, is_sector_relevant
+from arp.research.taxonomy_schema import field_id_for
 from arp.schemas.common import CompanyRef, SourceDocument
-from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
+from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.rd_exposure import RDExposureResult
 from arp.schemas.revenue_exposure import MetricExposure
 from arp.schemas.thematic import ActivityDefinition, LifecycleStage
@@ -25,63 +25,28 @@ async def resolve_rd_intensity(
     company: CompanyRef,
     activity: ActivityDefinition,
     *,
+    schema: DataPointSchema,
     documents: list[SourceDocument],
     registry: DocumentSourceRegistry,
     llm: LLMClient,
     settings: Settings,
 ) -> tuple[MetricExposure, LLMUsage]:
-    """Extracts an R&D-spend-intensity signal for this activity from the
-    same disclosures already gathered for evidence-gathering -- the same
-    Extractor -> Verifier -> grounding engine
-    revenue_exposure/resolver.py::resolve_from_extraction uses for its own
-    ad hoc single-field schema.
+    """Extracts this activity's R&D intensity field of the run's released
+    taxonomy schema from the same disclosures already gathered for
+    evidence-gathering -- the same Extractor -> Verifier -> grounding engine
+    revenue_exposure/resolver.py::extract_schema_fields uses, in its own
+    call so the tier works without a catalogue.
 
     Companies rarely break out R&D spend per thematic activity, so the
-    extraction instructions accept a company-wide R&D-as-%-of-revenue
-    figure when it's accompanied by explicit commentary tying R&D effort
-    to this specific activity -- noted as company-wide in `notes`, not
-    silently presented as activity-specific precision the disclosure
-    doesn't actually support.
+    field's instructions accept a company-wide R&D-as-%-of-revenue figure
+    when it's accompanied by explicit commentary tying R&D effort to this
+    specific activity (see research/taxonomy_schema.py).
     """
-    field = FieldDefinition(
-        name="rd_intensity_pct",
-        description=f"R&D spend intensity related to {company.name}'s investment in: {activity.name} ({activity.in_scope_description})",
-        data_type=FieldDataType.PERCENTAGE,
-        unit="%",
-        extraction_instructions=(
-            "Extract an EXPLICITLY stated R&D-spend-as-percentage-of-revenue figure, but only when the "
-            "disclosure also names or clearly describes R&D effort specifically tied to this activity (a named "
-            "program, product line, or research focus area) -- not just a bare company-wide R&D % with no "
-            "connection to this activity. If the company discloses a company-wide R&D % alongside explicit "
-            "commentary on this activity's R&D effort, extract the company-wide % and note in raw_value_text "
-            "that it is company-wide, not activity-specific. NEVER estimate, infer, or compute a figure that "
-            "isn't explicitly stated."
-        ),
-        seed_keywords=[*activity.seed_keywords, "research and development", "R&D"],
+    field_id = field_id_for(schema, activity.activity_id, "rd")
+    extracted, usage = await extract_schema_fields(
+        company, schema, [field_id], documents=documents, registry=registry, llm=llm, settings=settings
     )
-    schema = DataPointSchema(name=f"{activity.name} R&D intensity", fields=[field])
-    result = await _extract_company(company, schema, registry=registry, llm=llm, settings=settings, documents=documents)
-    extracted = result.record.fields[0] if result.record.fields else None
-
-    if extracted is None or extracted.value is None:
-        return MetricExposure(source="unresolved"), result.usage
-    try:
-        pct = float(extracted.value)
-    except (TypeError, ValueError):
-        return MetricExposure(source="unresolved", notes="Extracted value was not numeric."), result.usage
-
-    pct_fraction = pct / 100 if pct > 1 else pct
-    citation = extracted.citations[0] if extracted.citations else None
-    return (
-        MetricExposure(
-            value_pct=min(max(pct_fraction, 0.0), 1.0),
-            source="extracted",
-            confidence=extracted.confidence,
-            citation=citation,
-            notes=extracted.raw_value_text or "",
-        ),
-        result.usage,
-    )
+    return extracted[field_id], usage
 
 
 async def resolve_news_mentions(
@@ -123,6 +88,8 @@ class RDResolverContext:
 
     registry: DocumentSourceRegistry
     settings: Settings
+    schema: DataPointSchema
+    """The run's released taxonomy schema: rd_intensity extracts its `rd` field."""
     isic_model: LeontiefModel | None = None
     """Used to resolve a company's ISIC code for the sector-relevance gate
     on rd_intensity extraction, independent of whether the indirect-
@@ -161,7 +128,7 @@ async def resolve_company_activity_rd_exposure(
     rd_intensity = MetricExposure(source="unresolved")
     if relevant:
         rd_intensity, usage = await resolve_rd_intensity(
-            company, activity, documents=documents, registry=ctx.registry, llm=llm, settings=ctx.settings
+            company, activity, schema=ctx.schema, documents=documents, registry=ctx.registry, llm=llm, settings=ctx.settings
         )
         usages.append(usage)
 

@@ -10,11 +10,13 @@ from pydantic import BaseModel, Field
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_llm_client, get_registry, get_taxonomy_store, settings_dep
 from arp.config import Settings
-from arp.discovery.site_finder import DuckDuckGoSearchClient
+from arp.db.fields import SchemaRegistry
+from arp.discovery.site_finder import build_web_search_client
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.research.activity_generator import build_theme, build_theme_industry_anchored
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.standards_mapping.mapper import format_standards_csv, map_theme_to_standards
+from arp.research.taxonomy_schema import build_taxonomy_schema, schema_id_for
 from arp.research.taxonomy_sources.authority import build_theme_from_authority_sources
 from arp.research.taxonomy_sources.compare import compare_taxonomies, merge_taxonomies
 from arp.research.taxonomy_sources.discovery import discover_authority_sources, discover_thematic_funds, rank_authority_sources
@@ -23,7 +25,8 @@ from arp.research.taxonomy_sources.etf_holdings import build_theme_from_holdings
 from arp.research.taxonomy_sources.fetch import fetch_source_original
 from arp.research.taxonomy_sources.news_mining import build_theme_from_news_and_transcripts
 from arp.schemas.common import CompanyRef
-from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyComparison, TaxonomyRef
+from arp.schemas.datapoints import DataPointSchema
+from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyComparison, TaxonomyRef, TaxonomyStatus
 from arp.schemas.taxonomy_sources import SourceCandidate
 from arp.schemas.thematic import ThemeDefinition
 from arp.storage.taxonomy_store import TaxonomyStore
@@ -55,7 +58,7 @@ async def discover_sources(req: DiscoverSourcesRequest, settings: Settings = Dep
     Ranking needs an LLM; if no API key is configured, the search results
     are still returned, just unranked, rather than failing the whole step.
     """
-    search_client = DuckDuckGoSearchClient(settings.discovery_user_agent)
+    search_client = build_web_search_client(settings.discovery_user_agent)
     authority = await discover_authority_sources(req.name, search_client)
     funds = await discover_thematic_funds(req.name, search_client)
 
@@ -182,7 +185,7 @@ async def create_taxonomy(
             raise HTTPException(422, str(exc)) from exc
 
     elif method == DerivationMethod.NEWS_TRANSCRIPT_MINING:
-        search_client = DuckDuckGoSearchClient(settings.discovery_user_agent) if req.mine_news else None
+        search_client = build_web_search_client(settings.discovery_user_agent) if req.mine_news else None
         try:
             theme, notes, _usage = await build_theme_from_news_and_transcripts(
                 req.name, req.description, llm,
@@ -254,11 +257,47 @@ def ratify_taxonomy(
     req: RatifyRequest,
     store: TaxonomyStore = Depends(get_taxonomy_store),
     principal: Principal = Depends(current_user),
+    settings: Settings = Depends(settings_dep),
 ) -> Taxonomy:
     try:
-        return store.ratify(taxonomy_id, req.version, principal.name)
+        ratified = store.ratify(taxonomy_id, req.version, principal.name)
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
+    try:  # the schema never fails a ratify: POST .../schema regenerates it
+        SchemaRegistry(settings.postgres_dsn).save(build_taxonomy_schema(ratified))
+    except Exception:  # noqa: BLE001
+        logger.warning("Could not register the schema for %s v%s", taxonomy_id, req.version, exc_info=True)
+    return ratified
+
+
+def _ratified_version(store: TaxonomyStore, taxonomy_id: str, version: int) -> Taxonomy:
+    taxonomy = store.get(taxonomy_id, version)
+    if taxonomy is None:
+        raise HTTPException(404, f"Taxonomy not found: {taxonomy_id} v{version}")
+    if taxonomy.status != TaxonomyStatus.RATIFIED:
+        raise HTTPException(409, f"Taxonomy {taxonomy_id} v{version} is a draft; ratify it first.")
+    return taxonomy
+
+
+@router.post("/{taxonomy_id}/versions/{version}/schema", response_model=DataPointSchema)
+def generate_taxonomy_schema(
+    taxonomy_id: str, version: int, store: TaxonomyStore = Depends(get_taxonomy_store),
+    settings: Settings = Depends(settings_dep),
+) -> DataPointSchema:
+    """Registers the version's generated schema; returns the latest registry version unchanged when its content is the same."""
+    return SchemaRegistry(settings.postgres_dsn).save(build_taxonomy_schema(_ratified_version(store, taxonomy_id, version)))
+
+
+@router.get("/{taxonomy_id}/versions/{version}/schema", response_model=DataPointSchema)
+def get_taxonomy_schema(
+    taxonomy_id: str, version: int, store: TaxonomyStore = Depends(get_taxonomy_store),
+    settings: Settings = Depends(settings_dep),
+) -> DataPointSchema:
+    _ratified_version(store, taxonomy_id, version)
+    try:
+        return SchemaRegistry(settings.postgres_dsn).get(schema_id_for(taxonomy_id, version))
+    except KeyError:
+        raise HTTPException(404, f"No schema for {taxonomy_id} v{version}") from None
 
 
 def _resolve_taxonomy(ref: TaxonomyRef, store: TaxonomyStore) -> Taxonomy:

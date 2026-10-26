@@ -113,7 +113,7 @@ async def _run(node: str, step, company: CompanyRef, found: dict[str, dict]):
 
 async def _identity(company: CompanyRef, settings: Settings, llm: LLMClient):
     from arp.discovery.identity_graph import resolve_company_identity
-    from arp.discovery.site_finder import DuckDuckGoSearchClient
+    from arp.discovery.site_finder import build_web_search_client
     from arp.ingestion.edgar import EdgarDocumentSource
     from arp.storage.identifier_map import IdentifierMapStore
 
@@ -121,7 +121,7 @@ async def _identity(company: CompanyRef, settings: Settings, llm: LLMClient):
         company,
         llm=llm,
         edgar=EdgarDocumentSource(settings.edgar_user_agent, settings.cache_dir),
-        search_client=DuckDuckGoSearchClient(settings.discovery_user_agent),
+        search_client=build_web_search_client(settings.discovery_user_agent),
         max_search_results=settings.identity_resolution_max_search_results,
         confidence_threshold=settings.identity_resolution_confidence_threshold,
         identifier_map=IdentifierMapStore(settings.identifier_map_path),
@@ -162,9 +162,9 @@ async def _identity(company: CompanyRef, settings: Settings, llm: LLMClient):
 
 async def _content_search(company: CompanyRef, settings: Settings):
     from arp.discovery.crawler import CrawlConfig, HomepageUnreachableError, crawl_for_documents
-    from arp.discovery.site_finder import DuckDuckGoSearchClient, resolve_company_homepage
+    from arp.discovery.site_finder import build_web_search_client, resolve_company_homepage
 
-    homepage = company.website or await resolve_company_homepage(company.name, DuckDuckGoSearchClient(settings.discovery_user_agent))
+    homepage = company.website or await resolve_company_homepage(company.name, build_web_search_client(settings.discovery_user_agent))
     if not homepage:
         raise _Unusable("no homepage found for the company", {"homepage": None, "links": 0, "found_homepage": False})
     config = CrawlConfig(

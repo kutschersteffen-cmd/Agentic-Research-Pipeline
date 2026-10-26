@@ -13,6 +13,7 @@ from arp.research.rd_exposure.resolver import (
 )
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
 from arp.schemas.thematic import ActivityDefinition, LifecycleStage
+from tests.taxonomy_schema_helpers import released_schema
 
 
 class _FixedDocSource(DocumentSource):
@@ -47,6 +48,7 @@ def _settings(tmp_path) -> Settings:
 
 def _activity(lifecycle_stage=None, core_isic_codes=None) -> ActivityDefinition:
     return ActivityDefinition(
+        activity_id="act_ssb",
         name="Solid-state batteries",
         in_scope_description="Development of solid-state battery technology for EVs.",
         out_of_scope_description="",
@@ -56,12 +58,15 @@ def _activity(lifecycle_stage=None, core_isic_codes=None) -> ActivityDefinition:
     )
 
 
+SCHEMA = released_schema(_activity())
+
+
 # --- resolve_company_activity_rd_exposure: lifecycle-stage gating -----------
 
 async def test_returns_none_when_lifecycle_stage_not_set(tmp_path, fake_llm):
     company = CompanyRef(company_id="c1", name="Acme Motors")
     llm = fake_llm({})
-    ctx = RDResolverContext(registry=DocumentSourceRegistry([]), settings=_settings(tmp_path))
+    ctx = RDResolverContext(registry=DocumentSourceRegistry([]), settings=_settings(tmp_path), schema=SCHEMA)
     result, usage = await resolve_company_activity_rd_exposure(
         company, _activity(lifecycle_stage=None), None, documents=[], ctx=ctx, llm=llm
     )
@@ -73,7 +78,7 @@ async def test_returns_none_when_lifecycle_stage_not_set(tmp_path, fake_llm):
 async def test_returns_none_for_mature_activity(tmp_path, fake_llm):
     company = CompanyRef(company_id="c1", name="Acme Motors")
     llm = fake_llm({})
-    ctx = RDResolverContext(registry=DocumentSourceRegistry([]), settings=_settings(tmp_path))
+    ctx = RDResolverContext(registry=DocumentSourceRegistry([]), settings=_settings(tmp_path), schema=SCHEMA)
     result, _usage = await resolve_company_activity_rd_exposure(
         company, _activity(lifecycle_stage=LifecycleStage.MATURE), None, documents=[], ctx=ctx, llm=llm
     )
@@ -86,7 +91,7 @@ async def test_resolves_for_ideation_stage_activity(tmp_path, fake_llm):
     doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
     llm = fake_llm({})  # no evidence -> no extraction call; no search client -> no news call
-    ctx = RDResolverContext(registry=registry, settings=_settings(tmp_path))
+    ctx = RDResolverContext(registry=registry, settings=_settings(tmp_path), schema=SCHEMA)
 
     result, _usage = await resolve_company_activity_rd_exposure(
         company, _activity(lifecycle_stage=LifecycleStage.IDEATION), None, documents=[doc], ctx=ctx, llm=llm
@@ -104,7 +109,7 @@ async def test_irrelevant_sector_skips_rd_intensity_extraction(tmp_path, fake_ll
     doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We are investing heavily in solid-state batteries.")
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
     llm = fake_llm({})  # company_isic="45" (retail) doesn't overlap "27" -- extraction must be skipped
-    ctx = RDResolverContext(registry=registry, settings=_settings(tmp_path))
+    ctx = RDResolverContext(registry=registry, settings=_settings(tmp_path), schema=SCHEMA)
 
     result, _usage = await resolve_company_activity_rd_exposure(
         company, _activity(lifecycle_stage=LifecycleStage.IDEATION, core_isic_codes=["27"]), "45", documents=[doc], ctx=ctx, llm=llm
@@ -128,7 +133,7 @@ async def test_resolve_rd_intensity_finds_explicit_percentage(tmp_path, fake_llm
     llm = fake_llm({"ExtractionDraft": [draft], "VerifierOutput": [verifier]})
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
 
-    result, usage = await resolve_rd_intensity(company, _activity(), documents=[doc], registry=registry, llm=llm, settings=_settings(tmp_path))
+    result, usage = await resolve_rd_intensity(company, _activity(), schema=SCHEMA, documents=[doc], registry=registry, llm=llm, settings=_settings(tmp_path))
     assert result.source == "extracted"
     assert result.value_pct == 0.14
     assert result.citation is not None and result.citation.grounded is True
@@ -141,7 +146,7 @@ async def test_resolve_rd_intensity_no_evidence_is_unresolved(tmp_path, fake_llm
     llm = fake_llm({"ExtractionDraft": [ExtractionDraft(value=None, confidence=0.0, citations=[])], "VerifierOutput": [VerifierOutput(agrees=True, confidence=0.0, notes="")]})
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
 
-    result, _usage = await resolve_rd_intensity(company, _activity(), documents=[doc], registry=registry, llm=llm, settings=_settings(tmp_path))
+    result, _usage = await resolve_rd_intensity(company, _activity(), schema=SCHEMA, documents=[doc], registry=registry, llm=llm, settings=_settings(tmp_path))
     assert result.source == "unresolved"
 
 

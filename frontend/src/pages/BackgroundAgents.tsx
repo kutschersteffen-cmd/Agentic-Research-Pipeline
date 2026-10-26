@@ -110,9 +110,8 @@ function TaxonomyResearcherPanel() {
   return (
     <div>
       <p className="help-text">
-        Periodically re-derives every ratified taxonomy from current authority sources and proposes a new
-        DRAFT version when genuinely new activities surface. Never ratifies — review any proposal below in
-        the Taxonomy Library before it's used by a run.
+        Re-derives each ratified taxonomy from current authority sources and proposes a new draft when new
+        activities appear. It never ratifies: review its proposals in the Taxonomy Library before a run uses them.
       </p>
       {error && <p className="error-text" role="alert">{error}</p>}
 
@@ -167,10 +166,12 @@ function TaxonomyResearcherPanel() {
       )}
 
       <section className="card">
-        <h2>Run now</h2>
-        <button onClick={runNow} disabled={busy}>
-          Scan now
-        </button>
+        <div className="section-heading">
+          <h2>Runs</h2>
+          <button onClick={runNow} disabled={busy}>
+            Scan now
+          </button>
+        </div>
         {runId && (
           <>
             <RunProgress runId={runId} runType="taxonomy_research" />
@@ -205,10 +206,7 @@ function TaxonomyResearcherPanel() {
             </table>
           </div>
         )}
-      </section>
-
-      <section className="card">
-        <h2>Past runs</h2>
+        <h3>Past runs</h3>
         {pastRuns.length === 0 && <p className="muted">No taxonomy research runs yet.</p>}
         {pastRuns.length > 0 && (
           <div className="table-wrap">
@@ -300,9 +298,8 @@ function CalibrationPanel() {
   return (
     <div>
       <p className="help-text">
-        Scans every completed thematic-universe run and flags a verdict as possibly stale when a company's
-        currently-fetchable documents include one fetched after that verdict was generated. A flag is not a
-        claim the verdict is wrong — it never re-runs classification or edits a match itself.
+        Flags a thematic-universe verdict as possibly stale when a document for that company was fetched after the
+        verdict was made. A flag doesn't mean the verdict is wrong, and the agent never re-classifies or edits a match.
       </p>
       {error && <p className="error-text" role="alert">{error}</p>}
 
@@ -334,10 +331,12 @@ function CalibrationPanel() {
       )}
 
       <section className="card">
-        <h2>Run now</h2>
-        <button onClick={runNow} disabled={busy}>
-          Check now
-        </button>
+        <div className="section-heading">
+          <h2>Runs</h2>
+          <button onClick={runNow} disabled={busy}>
+            Check now
+          </button>
+        </div>
         {runId && (
           <>
             <RunProgress runId={runId} runType="calibration" />
@@ -378,10 +377,7 @@ function CalibrationPanel() {
             </table>
           </div>
         )}
-      </section>
-
-      <section className="card">
-        <h2>Past runs</h2>
+        <h3>Past runs</h3>
         {pastRuns.length === 0 && <p className="muted">No calibration runs yet.</p>}
         {pastRuns.length > 0 && (
           <div className="table-wrap">

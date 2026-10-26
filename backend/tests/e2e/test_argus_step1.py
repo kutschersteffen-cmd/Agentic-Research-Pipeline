@@ -101,6 +101,7 @@ def test_resolve_identities_starts_one_run_for_the_unmatched(page, tmp_path):
     page.get_by_role("button", name="Resolve identities").click()
     page.get_by_text("Identity run started").wait_for()
     assert [[c["name"] for c in body["companies"]] for body in calls] == [["Acme"]]
+    assert page.get_by_role("link", name="Open identity runs").get_attribute("href") == "#/history"
     page.reload()
     page.get_by_text("Identity run started").wait_for()
     assert page.get_by_role("button", name="Resolve identities").count() == 0

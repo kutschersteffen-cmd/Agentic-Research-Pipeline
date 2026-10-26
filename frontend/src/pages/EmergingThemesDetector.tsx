@@ -6,7 +6,9 @@ import { DecisionBar } from "../components/DecisionBar";
 import { UniversePicker } from "../components/UniversePicker";
 import { CandidateStatusBadge, ConfidenceBadge } from "../components/ConfidenceBadge";
 import { MentionCitationList } from "../components/MentionCitationList";
-import type { EmergingThemeCandidate, EmergingThemesScheduleConfig, RunManifest } from "../types";
+import { ContextBriefBody } from "../components/ContextBrief";
+import type { DossierItem, EmergingThemeCandidate, EmergingThemesScheduleConfig, RunManifest } from "../types";
+import { dossierHref, dossierOfCandidate } from "../lib/dossiers";
 import { activatable } from "../lib/activatable";
 
 interface Props {
@@ -19,10 +21,12 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
   const [runId, setRunId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [gated, setGated] = useState<{ taxonomyId: string; reason: string } | null>(null);
 
   const [recentRuns, setRecentRuns] = useState<RunManifest[]>([]);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<EmergingThemeCandidate[]>([]);
+  const [dossiers, setDossiers] = useState<DossierItem[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [taxonomyIdInputs, setTaxonomyIdInputs] = useState<Record<string, string>>({});
   const [reasonInputs, setReasonInputs] = useState<Record<string, string>>({});
@@ -43,6 +47,8 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
   async function refreshCandidates(id: string) {
     const res = await api.getEmergingThemesCandidates(id);
     setCandidates(res.candidates);
+    // No dossiers loaded just means no "Open dossier" links.
+    api.listDossiers().then((r) => setDossiers(r.items), () => setDossiers([]));
   }
 
   async function runNow() {
@@ -124,7 +130,10 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
       await api.startThemeRun({ taxonomy_id: candidate.promoted_to_taxonomy_id, universe_path: universePath });
       onNavigate?.("theme");
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      // A promoted taxonomy is a draft: it runs once ratified and its schema released in the Library.
+      setGated(message.startsWith("409") ? { taxonomyId: candidate.promoted_to_taxonomy_id, reason: message.replace(/^409: /, "") } : null);
+      if (!message.startsWith("409")) setError(message);
     } finally {
       setBusy(false);
     }
@@ -222,7 +231,17 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                 {candidates.map((c) => (
                   <Fragment key={c.theme_id}>
                     <tr {...activatable(() => setExpanded(expanded === c.theme_id ? null : c.theme_id), expanded === c.theme_id)} className="clickable-row">
-                      <td>{c.theme_name}</td>
+                      <td>
+                        {c.theme_name}
+                        {(() => {
+                          const d = selectedRunId ? dossierOfCandidate(dossiers, selectedRunId, c.theme_id) : undefined;
+                          return d && (
+                            <div>
+                              <a href={dossierHref(d.dossier_id)} onClick={(e) => e.stopPropagation()}>Open dossier</a>
+                            </div>
+                          );
+                        })()}
+                      </td>
                       <td><ConfidenceBadge value={c.confidence_score} /></td>
                       <td><CandidateStatusBadge status={c.status} /></td>
                       <td>
@@ -294,6 +313,11 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                             </>
                           )}
 
+                          <details open className="context-brief-section">
+                            <summary><strong>Context brief</strong></summary>
+                            <ContextBriefBody brief={c.context_brief ?? null} />
+                          </details>
+
                           {(c.status === "candidate" || c.status === "under_review") && (
                             <div className="toolbar">
                               <input
@@ -332,6 +356,14 @@ export function EmergingThemesDetector({ onNavigate }: Props = {}) {
                               <button onClick={() => runCompanyExposure(c)} disabled={busy} title="Runs the full Revenue/Capex/Demand/Enablement exposure pipeline (Tool 1) against this taxonomy.">
                                 Run company exposure
                               </button>
+                              {gated && gated.taxonomyId === c.promoted_to_taxonomy_id && (
+                                <span className="muted" role="status">
+                                  {gated.reason}{" "}
+                                  <button className="secondary" onClick={() => onNavigate?.("taxonomy")}>
+                                    Open the Taxonomy Library
+                                  </button>
+                                </span>
+                              )}
                             </p>
                           )}
                           {c.status === "rejected" && c.decision_reason && (

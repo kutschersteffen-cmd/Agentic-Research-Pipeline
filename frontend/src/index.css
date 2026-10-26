@@ -219,6 +219,7 @@ td, .stat-value, .nav-count { font-variant-numeric: tabular-nums; }
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
+  margin-bottom: var(--s-6);
 }
 
 .nav-group { display: flex; flex-direction: column; gap: var(--s-0_5); }
@@ -230,12 +231,6 @@ td, .stat-value, .nav-count { font-variant-numeric: tabular-nums; }
   color: var(--muted);
   padding: 0 var(--s-2) var(--s-1);
 }
-
-.nav-more > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: var(--s-1_5); }
-.nav-more > summary::-webkit-details-marker { display: none; }
-.nav-more > summary::after { content: "▸"; font-size: 0.9em; }
-.nav-more[open] > summary::after { content: "▾"; }
-.nav-more > summary:hover { color: var(--text); }
 
 .nav-tab {
   display: flex;
@@ -521,6 +516,7 @@ td.mono { white-space: nowrap; }
 .failure-details pre { max-height: 20rem; overflow: auto; margin: 0 0 var(--s-2); padding: var(--s-2); background: var(--well); font-family: var(--font-mono); font-size: var(--text-xs); }
 .failure-details ul { margin: 0; padding-left: var(--s-3); font-size: var(--text-sm); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.citation-marker { background: none; border: none; padding: 0 0 0 0.25em; color: var(--accent, inherit); font: inherit; font-size: 0.85em; vertical-align: super; cursor: pointer; min-height: 0; }
 .field-label.inline-label { display: inline-flex; align-items: center; gap: var(--s-2); margin: 0; }
 .field-label.inline-label > select { margin-top: 0; width: auto; max-width: 100%; }
 .review-item-source { margin: 0 0 var(--s-1); }
@@ -531,6 +527,9 @@ details.start-run[open] > summary { margin-bottom: var(--s-3); }
 .toolbar a, .data-table a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 0.15em; }
 
 .help-text { color: var(--muted); font-size: var(--text-sm); max-width: 75ch; }
+details.help-text { margin: 0 0 var(--s-3); }
+details.help-text > summary { cursor: pointer; width: fit-content; }
+details.help-text[open] > summary { margin-bottom: var(--s-1); }
 /* The open run in a list of runs. */
 .clickable-row[aria-current] td { background: var(--accent-tint); }
 .clickable-row[aria-current] td:first-child { font-weight: 600; }
@@ -917,8 +916,6 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
   padding: var(--s-4);
 }
 .dashboard-grid .stat-label { line-height: 1.35; }
-.stat-value.stat-low { color: var(--low); }
-.stat-value.stat-mid { color: var(--mid); }
 /* The two tiles that need a person lead the row and go somewhere. */
 /* Read from the back of a committee room: the two figures that need a
    person are the largest on the screen. */
@@ -935,21 +932,6 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 .stat-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
 @media (max-width: 1100px) { .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-
-.dashboard-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--s-6); align-items: start; }
-.dashboard-columns .section-heading { flex-wrap: wrap; gap: var(--s-1) var(--s-3); }
-.dashboard-columns .section-heading > .link-button { white-space: nowrap; margin-top: 0; }
-.dashboard-columns .data-table td:first-child { white-space: nowrap; }
-@media (min-width: 1180px) {
-  .dashboard-columns { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
-}
-
-/* An empty section collapses to its heading and one muted line rather
-   than holding a full-height box open. */
-.card-empty { padding-block: var(--s-3); }
-.card-empty .section-heading { justify-content: flex-start; flex-wrap: wrap; gap: var(--s-1) var(--s-3); margin: 0; }
-.card-empty .section-heading h2 { font-size: var(--text-md); }
-.card-empty .section-heading > .link-button { margin-left: auto; }
 .stat-tile-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -1118,6 +1100,18 @@ dialog.modal-panel::backdrop { background: oklch(20% 0.014 58 / 0.55); }
 @media (max-width: 760px) {
   .sub-nav .nav-tab, .view-toggle button { min-height: 44px; }
 }
+/* In a hub the tabs are the page title: the active one names the screen, so
+   the page's own h1 stays for screen readers only instead of repeating it. */
+.hub-nav ~ .page > h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.hub-nav { gap: var(--s-1) var(--s-6); align-items: baseline; }
+.hub-nav .nav-tab, .hub-nav .nav-tab:hover, .hub-nav .nav-tab.active, .hub-nav .nav-tab.active:hover {
+  border: 0; box-shadow: none; background: none; padding: 0;
+  font-family: var(--font-display); font-size: clamp(1.75rem, 1.25rem + 1.4vw, 2.5rem); font-weight: 600; line-height: 1.05; letter-spacing: -0.03em;
+}
+.hub-nav .nav-tab { color: var(--muted); }
+.hub-nav .nav-tab:hover, .hub-nav .nav-tab.active { color: var(--text); }
+.hub-nav .nav-tab.active { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.15em; }
+@media (max-width: 640px) { .hub-nav .nav-tab, .hub-nav .nav-tab:hover, .hub-nav .nav-tab.active, .hub-nav .nav-tab.active:hover { font-size: var(--text-lg); } }
 
 .chart-svg { width: 100%; height: auto; overflow: visible; font-family: inherit; }
 .chart-axis-label { fill: var(--muted); font-size: var(--text-xs); }
@@ -1557,7 +1551,9 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .stage-mode-chip { border-radius: var(--r-pill); }
 /* Extraction overview: profile picker and the per-job switch (wraps on a phone). */
 .profile-picker { border: 0; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
-.profile-option { display: flex; align-items: flex-start; gap: var(--s-2); cursor: pointer; }
+.profile-option { display: grid; grid-template-columns: auto 1fr; align-items: start; column-gap: var(--s-2); }
+.profile-option > label { cursor: pointer; }
+.profile-option > details { grid-column: 2; }
 .profile-option input { margin-top: var(--s-1); flex: none; }
 .profile-option .help-text { display: block; margin: var(--s-0_5) 0 0; }
 .job-switch { flex-wrap: wrap; row-gap: var(--s-1); }
@@ -1634,20 +1630,19 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .stepper .nav-tab.active .stepper-num { background: var(--accent); border-color: var(--accent); color: var(--panel); }
 
 /* Command palette (Ctrl/⌘K) and its sidebar trigger. */
+.sidebar-actions { display: flex; gap: var(--s-1_5); margin: 0 var(--s-2) var(--s-4); }
+/* Styled as secondary buttons: side by side, two fields would read as inputs. */
 .palette-trigger {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin: 0 var(--s-2) var(--s-3);
+  flex: 1;
+  margin: 0;
   padding: var(--s-1_5) var(--s-2);
-  background: var(--panel);
-  color: var(--muted);
+  background: transparent;
+  color: var(--text);
   border: 1px solid var(--panel-border);
-  border-radius: var(--r-sm);
-  font-weight: 400;
+  border-radius: var(--r-md);
+  font-size: var(--text-sm);
 }
-.palette-trigger:hover { color: var(--text); border-color: var(--accent); background: var(--panel); }
-.palette-trigger kbd { font-family: var(--font-mono); font-size: var(--text-xs); }
+button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); border-color: var(--accent); }
 .palette-input { width: 100%; margin-top: var(--s-3); }
 .palette-list { list-style: none; margin: var(--s-2) 0 0; padding: 0; max-height: 50vh; overflow: auto; }
 .palette-item {
@@ -1723,6 +1718,8 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .hub-chip:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .hub-chip-wait { border-color: var(--hi); }
 .hub-now-all { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text); }
+.hub-engagement { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-3); margin: var(--s-3) 0 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--muted); }
+.hub-engagement a { color: var(--text); }
 
 @media (max-width: 1400px) { .hub-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 1100px) { .hub-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -1801,7 +1798,7 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 }
 
 /* Sidebar colour-theme switch: System / Light / Dark. */
-.theme-switch { display: flex; margin: 0 var(--s-2) var(--s-3); padding: var(--s-0_5); gap: var(--s-0_5); border: 1px solid var(--panel-border); border-radius: var(--r-sm); background: var(--well); }
+.theme-switch { display: flex; margin: auto var(--s-2) 0; padding: var(--s-0_5); gap: var(--s-0_5); border: 1px solid var(--panel-border); border-radius: var(--r-sm); background: var(--well); }
 .theme-switch button { flex: 1; padding: var(--s-1) 0; font-size: var(--text-xs); font-weight: 500; background: transparent; color: var(--muted); border-radius: var(--r-sm); }
 .theme-switch button:hover:not(.on) { background: var(--panel); color: var(--text); }
 .theme-switch button.on { background: var(--accent); color: var(--on-accent); font-weight: 600; }
@@ -1843,6 +1840,8 @@ button.pipeline-pill.status-done:hover:not(:disabled) { background: color-mix(in
 .ds-step-later .ds-step-text strong, .ds-step-done .ds-step-text strong { font-weight: 500; }
 .ds-step-state { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted); }
 .ds-step-detail { font-size: var(--text-sm); color: var(--muted); line-height: 1.45; max-width: 75ch; }
+/* Done and later steps keep their titles; the explanation shows when a step is the current one. */
+.ds-step:not(.ds-step-now) .ds-step-detail { display: none; }
 .ds-step > button { margin-top: 0; flex: none; }
 
 .ds-next {
@@ -2202,3 +2201,15 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-one legend { font-weight: 600; margin-bottom: var(--s-2); }
 .argus-row-await > * { background: color-mix(in srgb, var(--await) 60%, transparent); }
 .argus-flow-actions { margin-top: var(--s-4); flex-wrap: wrap; white-space: normal; }
+
+/* Theme dossier: the five research steps as a vertical stepper. */
+.dossier-steps { list-style: none; padding: 0; display: grid; gap: var(--s-2); }
+.dossier-step { display: flex; gap: var(--s-3); align-items: flex-start; }
+.dossier-step h2 { margin: 0 0 var(--s-1); }
+.dossier-step p { margin: 0 0 var(--s-1); }
+/* The candidate detail cell does not wrap (td:first-child) and runs wider than the screen; the brief wraps within it. */
+.context-brief { max-width: min(72ch, 100vw - 5rem); white-space: normal; }
+.context-brief li[aria-current] { background: var(--accent-tint); }
+/* Waiting is on a person: the one place the signal colour appears. */
+.dossier-waiting { color: var(--hi-ink); border-color: var(--hi); font-weight: 600; }
+.dossier-not-built { border-style: dashed; }

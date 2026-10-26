@@ -89,7 +89,7 @@ The gaps are in the stages around extraction:
 | Coverage status (Pending to coverage team → … → Approved / Declined) | — | Not built. No per-customer workflow status. |
 | Criteria tab read-only, overrides only in the controlled flow | Overrides go through the review endpoint; the results view doesn't edit in place | Built in effect, but not enforced by role |
 | Evidence: open the PDF and **highlight the exact sentence** | `SourcePanel` iframe with `#page=N` and the quote shown above it | Partial. Jumps to the page but does not highlight inside the PDF. |
-| Batch monitoring (BATCH / CUSTOMER / CREATED / RUN START / RUN END / STATUS) | `RunHistory.tsx`, `RunProgress.tsx`, `MonitoringDashboard.tsx` | Partial. Shows per-run progress, not per-DAG-node status or duration per customer. |
+| Batch monitoring (BATCH / CUSTOMER / CREATED / RUN START / RUN END / STATUS) | `RunHistory.tsx`, `RunProgress.tsx`, the Start page's Now row (`ProcessHub.tsx`) | Partial. Shows per-run progress, not per-DAG-node status or duration per customer. |
 
 ## Suggested order to close the gaps
 

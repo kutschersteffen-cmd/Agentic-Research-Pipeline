@@ -1111,6 +1111,195 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/dossiers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Dossiers */
+        get: operations["list_dossiers_api_dossiers_get"];
+        put?: never;
+        /** Create Dossier */
+        post: operations["create_dossier_api_dossiers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Dossier */
+        get: operations["get_dossier_api_dossiers__dossier_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Dossier */
+        patch: operations["patch_dossier_api_dossiers__dossier_id__patch"];
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Research */
+        get: operations["get_research_api_dossiers__dossier_id__research_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research/note": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Writing */
+        post: operations["start_writing_api_dossiers__dossier_id__research_note_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research/note/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Note */
+        post: operations["approve_note_api_dossiers__dossier_id__research_note_approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research/note/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Note */
+        post: operations["reject_note_api_dossiers__dossier_id__research_note_reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research/plan/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Plan */
+        post: operations["approve_plan_api_dossiers__dossier_id__research_plan_approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research/propose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Propose */
+        post: operations["propose_api_dossiers__dossier_id__research_propose_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Source */
+        post: operations["add_source_api_dossiers__dossier_id__research_sources_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research/sources/{source_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Source */
+        delete: operations["delete_source_api_dossiers__dossier_id__research_sources__source_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research/sources/{source_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Source File */
+        post: operations["upload_source_file_api_dossiers__dossier_id__research_sources__source_id__file_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/emerging-themes/runs": {
         parameters: {
             query?: never;
@@ -1185,7 +1374,7 @@ export interface paths {
          * Promote
          * @description The human review gate's action -- no candidate reaches the taxonomy
          *     library without this explicit call. `reason` is required (roadmap
-         *     P0).
+         *     P0). Opens the theme's dossier, or reuses the one its taxonomy already has.
          */
         post: operations["promote_api_emerging_themes_runs__run_id__candidates__theme_id__promote_post"];
         delete?: never;
@@ -5480,6 +5669,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/taxonomies/{taxonomy_id}/versions/{version}/schema": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Taxonomy Schema */
+        get: operations["get_taxonomy_schema_api_taxonomies__taxonomy_id__versions__version__schema_get"];
+        put?: never;
+        /**
+         * Generate Taxonomy Schema
+         * @description Registers the version's generated schema; returns the latest registry version unchanged when its content is the same.
+         */
+        post: operations["generate_taxonomy_schema_api_taxonomies__taxonomy_id__versions__version__schema_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/taxonomy-researcher/runs": {
         parameters: {
             query?: never;
@@ -6916,6 +7126,15 @@ export interface components {
             /** Year */
             year: number | null;
         };
+        /**
+         * ActionType
+         * @description Roadmap P3's action-evidence taxonomy: classifies whether a claim
+         *     describes something a company actually *did* (talk vs. walk) rather
+         *     than just a topic it was mentioned in connection with. Rolled up into
+         *     a per-cluster action_score by synthesis.py::compute_action_score.
+         * @enum {string}
+         */
+        ActionType: "capex" | "hiring" | "orders" | "capacity" | "partnership" | "other";
         /** ActivateRequest */
         ActivateRequest: {
             /** Version */
@@ -7010,6 +7229,15 @@ export interface components {
              * @description Why these two activities from different taxonomies look like the same thing.
              */
             similarity_note: string;
+        };
+        /** ActivityGroup */
+        ActivityGroup: {
+            /** Activity */
+            activity: string;
+            /** Company Ids */
+            company_ids?: string[];
+            /** Evidence Ids */
+            evidence_ids?: string[];
         };
         /**
          * ActivityStandardsMapping
@@ -8007,6 +8235,11 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_upload_source_file_api_dossiers__dossier_id__research_sources__source_id__file_post */
+        Body_upload_source_file_api_dossiers__dossier_id__research_sources__source_id__file_post: {
+            /** File */
+            file: string;
+        };
         /** Body_upload_template_api_reports_templates_post */
         Body_upload_template_api_reports_templates_post: {
             /** File */
@@ -8028,6 +8261,115 @@ export interface components {
          * @enum {string}
          */
         BreachType: "holdings_caused" | "data_caused" | "mixed" | "unknown";
+        /** BriefActivities */
+        BriefActivities: {
+            /** By Company */
+            by_company?: components["schemas"]["CompanyActivity"][];
+            /** Groups */
+            groups?: components["schemas"]["ActivityGroup"][];
+            /** Unclassified Company Ids */
+            unclassified_company_ids?: string[];
+        };
+        /** BriefCompany */
+        BriefCompany: {
+            /** Company Id */
+            company_id: string;
+            /** Isic Division */
+            isic_division?: string | null;
+            /** Name */
+            name: string;
+        };
+        /** BriefFacts */
+        BriefFacts: {
+            /** Action Counts */
+            action_counts: {
+                [key: string]: number;
+            };
+            /** Breadth */
+            breadth: number;
+            /** Company Count */
+            company_count: number;
+            /** Contradiction */
+            contradiction: number;
+            /** First Seen */
+            first_seen?: string | null;
+            /** Independent Sources */
+            independent_sources: number;
+            /** Last Seen */
+            last_seen?: string | null;
+            /** Materiality */
+            materiality: number;
+            /** Novelty */
+            novelty: number;
+            /** Persistence */
+            persistence: number;
+            /** Velocity */
+            velocity: number;
+        };
+        /**
+         * BriefFinancialsEvidence
+         * @description A `financials` item of a context brief's evidence pool: one SEC CapEx/R&D cross-check.
+         */
+        BriefFinancialsEvidence: {
+            /** Capex Pct Change */
+            capex_pct_change?: number | null;
+            /** Company Id */
+            company_id: string;
+            /** Evidence Id */
+            evidence_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "financials";
+            /** Rnd Pct Change */
+            rnd_pct_change?: number | null;
+        };
+        /**
+         * BriefQuoteEvidence
+         * @description A `quote` or `counter` item of a context brief's evidence pool.
+         */
+        BriefQuoteEvidence: {
+            action_type: components["schemas"]["ActionType"];
+            /** Company Ids */
+            company_ids?: string[];
+            /** Evidence Id */
+            evidence_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "counter" | "quote";
+            /** Mention Id */
+            mention_id: string;
+            /** Published At */
+            published_at?: string | null;
+            /** Quote */
+            quote: string;
+            source_type: components["schemas"]["MentionSourceType"];
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+        };
+        /** BriefSector */
+        BriefSector: {
+            /** Company Ids */
+            company_ids: string[];
+            /** Evidence Ids */
+            evidence_ids: string[];
+            /** Isic Division */
+            isic_division: string;
+            /** Label */
+            label: string;
+        };
+        /** BriefStatement */
+        BriefStatement: {
+            /** Evidence Ids */
+            evidence_ids?: string[];
+            /** Text */
+            text: string;
+        };
         /**
          * BucketTilt
          * @description Multiply the base weight by a fixed factor per category value -- the
@@ -8559,6 +8901,15 @@ export interface components {
              */
             status: "verified" | "missed";
         };
+        /** CompanyActivity */
+        CompanyActivity: {
+            /** Activity */
+            activity: string;
+            /** Company Id */
+            company_id: string;
+            /** Evidence Ids */
+            evidence_ids?: string[];
+        };
         /** CompanyError */
         CompanyError: {
             /** Error */
@@ -9086,6 +9437,40 @@ export interface components {
             bullet: boolean;
             /** Text */
             text: string;
+        };
+        /**
+         * ContextBrief
+         * @description Step 1's context brief (spec theme-context-brief): why now, early evidence, affected sectors.
+         *     Facts, evidence and sectors are computed in code; the sentences and activities come from one model
+         *     call and keep only what cites the candidate's own evidence. See emerging_themes/context_brief.py.
+         */
+        ContextBrief: {
+            activities: components["schemas"]["BriefActivities"];
+            /** Companies */
+            companies: components["schemas"]["BriefCompany"][];
+            /**
+             * Dropped Statements
+             * @default 0
+             */
+            dropped_statements: number;
+            /** Early Evidence */
+            early_evidence?: components["schemas"]["BriefStatement"][];
+            /** Error */
+            error?: string | null;
+            /** Evidence */
+            evidence: (components["schemas"]["BriefQuoteEvidence"] | components["schemas"]["BriefFinancialsEvidence"])[];
+            facts: components["schemas"]["BriefFacts"];
+            /** Sectors */
+            sectors: components["schemas"]["BriefSector"][];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "written" | "failed";
+            /** Why Now */
+            why_now?: components["schemas"]["BriefStatement"][];
+            /** Written At */
+            written_at?: string;
         };
         /** ControversySignal */
         ControversySignal: {
@@ -9863,6 +10248,99 @@ export interface components {
              * @description Section-heading substrings, case-insensitive.
              */
             sections?: string[];
+        };
+        /** DossierCreate */
+        DossierCreate: {
+            /** Name */
+            name: string;
+            /** Taxonomy Id */
+            taxonomy_id?: string | null;
+        };
+        /** DossierItem */
+        DossierItem: {
+            /** Created At */
+            created_at: string;
+            /** Current Step */
+            current_step: number | null;
+            /** Dossier Id */
+            dossier_id: string;
+            /** Name */
+            name: string;
+            /** Origin */
+            origin: string;
+            /** Run Id */
+            run_id: string | null;
+            /** Status */
+            status: string;
+            /** Theme Id */
+            theme_id: string | null;
+        };
+        /** DossierList */
+        DossierList: {
+            /** Items */
+            items: components["schemas"]["DossierItem"][];
+        };
+        /** DossierPatch */
+        DossierPatch: {
+            /** Reason */
+            reason?: string | null;
+            /** Status */
+            status?: "shelved" | null;
+            /** Taxonomy Id */
+            taxonomy_id?: string | null;
+        };
+        /** DossierStep */
+        DossierStep: {
+            /** Detail */
+            detail: string;
+            /** Href */
+            href: string | null;
+            /** Number */
+            number: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "done" | "waiting" | "running" | "failed" | "not_started" | "skipped" | "not_built";
+            /** Title */
+            title: string;
+        };
+        /** DossierView */
+        DossierView: {
+            context_brief?: components["schemas"]["ContextBrief"] | null;
+            /** Created At */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Dossier Id */
+            dossier_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "candidate" | "topic";
+            /** Run Id */
+            run_id?: string | null;
+            /** Shelve Reason */
+            shelve_reason?: string | null;
+            /** Shelved At */
+            shelved_at?: string | null;
+            /** Shelved By */
+            shelved_by?: string | null;
+            /**
+             * Status
+             * @default active
+             * @enum {string}
+             */
+            status: "active" | "shelved";
+            /** Steps */
+            steps: components["schemas"]["DossierStep"][];
+            /** Taxonomy Id */
+            taxonomy_id?: string | null;
+            /** Theme Id */
+            theme_id?: string | null;
         };
         /** DraftSchemaRequest */
         DraftSchemaRequest: {
@@ -11424,6 +11902,11 @@ export interface components {
             /** Notes Or Transcript */
             notes_or_transcript: string;
         };
+        /**
+         * MentionSourceType
+         * @enum {string}
+         */
+        MentionSourceType: "edgar_fts" | "gdelt" | "regulatory_rss";
         /** MergeRequest */
         MergeRequest: {
             /**
@@ -11607,6 +12090,61 @@ export interface components {
              */
             source_notes: string;
             theme: components["schemas"]["ThemeDefinition"];
+        };
+        /** NoteCitation */
+        NoteCitation: {
+            /** Page */
+            page?: number | null;
+            /** Quote */
+            quote: string;
+            /** Source Id */
+            source_id: string;
+        };
+        /** NoteItem */
+        NoteItem: {
+            /** Channel */
+            channel?: ("economic" | "financial") | null;
+            /** Citations */
+            citations: components["schemas"]["NoteCitation"][];
+            /** Item Id */
+            item_id?: string;
+            /** Text */
+            text: string;
+            /** Title */
+            title: string;
+        };
+        /** NoteReject */
+        NoteReject: {
+            /** Reason */
+            reason: string;
+        };
+        /** NoteSections */
+        NoteSections: {
+            /**
+             * Financial Relevance
+             * @default []
+             */
+            financial_relevance: components["schemas"]["NoteItem"][];
+            /**
+             * Growth Potential
+             * @default []
+             */
+            growth_potential: components["schemas"]["NoteItem"][];
+            /**
+             * Opportunities
+             * @default []
+             */
+            opportunities: components["schemas"]["NoteItem"][];
+            /**
+             * Risks
+             * @default []
+             */
+            risks: components["schemas"]["NoteItem"][];
+            /**
+             * Transmission Channels
+             * @default []
+             */
+            transmission_channels: components["schemas"]["NoteItem"][];
         };
         /** ObservationOut */
         ObservationOut: {
@@ -12018,6 +12556,13 @@ export interface components {
             reason: string;
             /** Taxonomy Id */
             taxonomy_id?: string | null;
+        };
+        /** ProposalStarted */
+        ProposalStarted: {
+            /** Round */
+            round: number;
+            /** Run Id */
+            run_id: string;
         };
         /**
          * ProvenanceInfo
@@ -12587,6 +13132,108 @@ export interface components {
              */
             when?: boolean | string | number | null;
         };
+        /** ResearchNote */
+        ResearchNote: {
+            /** Approved At */
+            approved_at?: string | null;
+            /** Approved By */
+            approved_by?: string | null;
+            /**
+             * Dropped Items
+             * @default 0
+             */
+            dropped_items: number;
+            /** Error */
+            error?: string | null;
+            /** Reject Reason */
+            reject_reason?: string | null;
+            /** Rejected At */
+            rejected_at?: string | null;
+            /** Rejected By */
+            rejected_by?: string | null;
+            /**
+             * @default {
+             *       "financial_relevance": [],
+             *       "growth_potential": [],
+             *       "opportunities": [],
+             *       "risks": [],
+             *       "transmission_channels": []
+             *     }
+             */
+            sections: components["schemas"]["NoteSections"];
+            /**
+             * Status
+             * @default writing
+             * @enum {string}
+             */
+            status: "writing" | "write_failed" | "written" | "approved" | "rejected";
+            /**
+             * Unread Sources
+             * @default []
+             */
+            unread_sources: components["schemas"]["UnreadSource"][];
+            /** Written At */
+            written_at?: string | null;
+        };
+        /** ResearchRound */
+        ResearchRound: {
+            note?: components["schemas"]["ResearchNote"] | null;
+            /** Note Run Id */
+            note_run_id?: string | null;
+            /** Plan Approved At */
+            plan_approved_at?: string | null;
+            /** Plan Approved By */
+            plan_approved_by?: string | null;
+            /**
+             * Plan Status
+             * @default proposing
+             * @enum {string}
+             */
+            plan_status: "proposing" | "proposal_failed" | "proposed" | "approved";
+            /** Proposal Run Id */
+            proposal_run_id?: string | null;
+            /** Round */
+            round: number;
+            /**
+             * Sources
+             * @default []
+             */
+            sources: components["schemas"]["ResearchSource"][];
+            /** Taxonomy Version */
+            taxonomy_version: number;
+        };
+        /** ResearchSource */
+        ResearchSource: {
+            /** Added By */
+            added_by: string;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "intergovernmental" | "official_statistics" | "central_bank_regulator" | "academic";
+            file?: components["schemas"]["SourceFile"] | null;
+            /** How */
+            how: string;
+            /** Publisher */
+            publisher: string;
+            /** Source Id */
+            source_id?: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+            /** Why */
+            why: string;
+        };
+        /** ResearchView */
+        ResearchView: {
+            /** Approved Round */
+            approved_round: number | null;
+            /** Dossier Id */
+            dossier_id: string;
+            /** Rounds */
+            rounds: components["schemas"]["ResearchRound"][];
+        };
         /** RestartRequest */
         RestartRequest: {
             /**
@@ -13072,6 +13719,11 @@ export interface components {
             /** Ref Id */
             ref_id: string;
         };
+        /** RunStarted */
+        RunStarted: {
+            /** Run Id */
+            run_id: string;
+        };
         /**
          * SanityCheckAssessment
          * @description A qualitative, LLM-generated second opinion on an already-computed
@@ -13475,6 +14127,33 @@ export interface components {
          * @enum {string}
          */
         SourceCandidateType: "authority" | "thematic_fund";
+        /** SourceCreate */
+        SourceCreate: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "intergovernmental" | "official_statistics" | "central_bank_regulator" | "academic";
+            /** How */
+            how: string;
+            /** Publisher */
+            publisher: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+            /** Why */
+            why: string;
+        };
+        /** SourceFile */
+        SourceFile: {
+            /** Filename */
+            filename: string;
+            /** Uploaded At */
+            uploaded_at: string;
+            /** Uploaded By */
+            uploaded_by: string;
+        };
         /**
          * SourceKind
          * @enum {string}
@@ -14388,6 +15067,16 @@ export interface components {
              */
             source: "sample" | "portfolio";
         };
+        /** UnreadSource */
+        UnreadSource: {
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "fetch failed" | "no text extracted";
+            /** Source Id */
+            source_id: string;
+        };
         /** UpdateDraftRequest */
         UpdateDraftRequest: {
             interaction_type?: components["schemas"]["InteractionType"] | null;
@@ -14917,7 +15606,7 @@ export interface components {
             revenue_catalogue_path?: string | null;
             /**
              * Taxonomy Id
-             * @description Load a saved taxonomy instead of an inline theme.
+             * @description The saved taxonomy to run; its version's schema must be released.
              */
             taxonomy_id?: string | null;
             /**
@@ -14925,6 +15614,7 @@ export interface components {
              * @description Defaults to the taxonomy's latest version.
              */
             taxonomy_version?: number | null;
+            /** @description Refused: theme runs start from a taxonomy version. */
             theme?: components["schemas"]["ThemeDefinition"] | null;
             /** Universe Path */
             universe_path?: string | null;
@@ -17074,6 +17764,420 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_dossiers_api_dossiers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DossierList"];
+                };
+            };
+        };
+    };
+    create_dossier_api_dossiers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DossierCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DossierView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_dossier_api_dossiers__dossier_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DossierView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_dossier_api_dossiers__dossier_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DossierPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DossierView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_research_api_dossiers__dossier_id__research_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_writing_api_dossiers__dossier_id__research_note_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_note_api_dossiers__dossier_id__research_note_approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchRound"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_note_api_dossiers__dossier_id__research_note_reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteReject"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchRound"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_plan_api_dossiers__dossier_id__research_plan_approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchRound"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_api_dossiers__dossier_id__research_propose_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_source_api_dossiers__dossier_id__research_sources_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchSource"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_source_api_dossiers__dossier_id__research_sources__source_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_source_file_api_dossiers__dossier_id__research_sources__source_id__file_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_source_file_api_dossiers__dossier_id__research_sources__source_id__file_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchSource"];
                 };
             };
             /** @description Validation Error */
@@ -25152,6 +26256,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Taxonomy"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_taxonomy_schema_api_taxonomies__taxonomy_id__versions__version__schema_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taxonomy_id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataPointSchema"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_taxonomy_schema_api_taxonomies__taxonomy_id__versions__version__schema_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taxonomy_id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataPointSchema"];
                 };
             };
             /** @description Validation Error */

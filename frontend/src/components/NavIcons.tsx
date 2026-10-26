@@ -22,14 +22,6 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <path d="M10 20v-5h4v5" />
     </svg>
   ),
-  dashboard: (
-    <svg {...ICON_PROPS}>
-      <rect x="3" y="3" width="8" height="8" rx="1.5" />
-      <rect x="13" y="3" width="8" height="8" rx="1.5" />
-      <rect x="3" y="13" width="8" height="8" rx="1.5" />
-      <rect x="13" y="13" width="8" height="8" rx="1.5" />
-    </svg>
-  ),
   // The five workspaces: small versions of their start-page box icons.
   stewardiq: (
     <svg {...ICON_PROPS}>
@@ -139,22 +131,6 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <path d="M3 15 H21" />
     </svg>
   ),
-  identity: (
-    <svg {...ICON_PROPS}>
-      <rect x="3" y="5" width="18" height="14" rx="2" />
-      <circle cx="9" cy="11" r="2.1" />
-      <path d="M6 16c0-2 1.5-3 3-3s3 1 3 3" />
-      <line x1="14" y1="9" x2="18" y2="9" />
-      <line x1="14" y1="13" x2="18" y2="13" />
-    </svg>
-  ),
-  discovery: (
-    <svg {...ICON_PROPS}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M3 12h18" />
-      <path d="M12 3c2.5 2.5 3.5 6 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-6-3.5-9s1-6.5 3.5-9z" />
-    </svg>
-  ),
   "portfolio-monitoring": (
     <svg {...ICON_PROPS}>
       <rect x="4" y="12" width="4" height="8" rx="0.5" />
@@ -228,13 +204,6 @@ export const NAV_ICONS: Record<string, ReactElement> = {
     <svg {...ICON_PROPS}>
       <circle cx="9" cy="12" r="4.5" />
       <circle cx="15" cy="12" r="4.5" />
-    </svg>
-  ),
-  // A ticker tape: a paper strip with the price line running along it.
-  tape: (
-    <svg {...ICON_PROPS}>
-      <rect x="3" y="6" width="18" height="12" rx="1.5" />
-      <path d="m6 14.5 3-3 3 2 3-4 3 3" />
     </svg>
   ),
   voting: (

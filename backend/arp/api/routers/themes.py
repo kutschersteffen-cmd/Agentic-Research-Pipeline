@@ -12,7 +12,8 @@ from arp.api.review_endpoints import ReviewDecisionRequest, get_review_queue, su
 from arp.api.run_scheduling import schedule_llm_run
 from arp.company_graph import CompanyGraphError
 from arp.config import Settings
-from arp.discovery.site_finder import DuckDuckGoSearchClient
+from arp.db.fields import SchemaRegistry
+from arp.discovery.site_finder import build_web_search_client
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.factory import batch_settings
 from arp.research.activity_generator import build_theme
@@ -23,11 +24,12 @@ from arp.research.rd_exposure.resolver import RDResolverContext
 from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company
 from arp.research.revenue_exposure.catalogue import load_catalogue
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
+from arp.research.taxonomy_schema import THEME_NOT_ALLOWED, ThemeRunRefused, released_run_schema
 from arp.schemas.common import CompanyRef
-from arp.schemas.revenue_exposure import ActivityCatalogueMapping
+from arp.schemas.revenue_exposure import ActivityCatalogueMapping, MetricExposure
 from arp.schemas.thematic import ThemeDefinition
 from arp.storage.run_store import RunStore
-from arp.storage.taxonomy_store import TaxonomyStore, ensure_taxonomy_usable_for_run
+from arp.storage.taxonomy_store import TaxonomyStore
 from arp.universe import load_company_universe
 
 router = APIRouter(prefix="/api/themes", tags=["themes"])
@@ -49,8 +51,8 @@ async def decompose_theme(req: DecomposeRequest) -> ThemeDefinition:
 
 class RunRequest(BaseModel):
     batch: bool = Field(default=False, description="Run through the Message Batches API: 50% cheaper, slower.")
-    theme: ThemeDefinition | None = None
-    taxonomy_id: str | None = Field(default=None, description="Load a saved taxonomy instead of an inline theme.")
+    theme: ThemeDefinition | None = Field(default=None, description="Refused: theme runs start from a taxonomy version.")
+    taxonomy_id: str | None = Field(default=None, description="The saved taxonomy to run; its version's schema must be released.")
     taxonomy_version: int | None = Field(default=None, description="Defaults to the taxonomy's latest version.")
     companies: list[CompanyRef] | None = None
     universe_path: str | None = None
@@ -96,27 +98,20 @@ async def start_theme_run(
     taxonomy_store: TaxonomyStore = Depends(get_taxonomy_store),
 ) -> dict:
     settings = batch_settings(settings, req.batch)
+    if req.theme is not None:
+        raise HTTPException(400, THEME_NOT_ALLOWED)
+    if req.taxonomy_id is None:
+        raise HTTPException(400, "Provide `taxonomy_id`.")
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
     if not companies:
         raise HTTPException(400, "Provide either `companies` or `universe_path`.")
-
-    taxonomy = None
-    if req.theme is not None:
-        theme = req.theme
-        # A theme loaded unedited from a saved taxonomy names it too: recorded for "used by" only, never re-checked.
-        if req.taxonomy_id is not None:
-            taxonomy = taxonomy_store.get(req.taxonomy_id, req.taxonomy_version)
-    elif req.taxonomy_id is not None:
-        taxonomy = taxonomy_store.get(req.taxonomy_id, req.taxonomy_version)
-        if taxonomy is None:
-            raise HTTPException(404, f"Taxonomy not found: {req.taxonomy_id}")
-        try:
-            ensure_taxonomy_usable_for_run(taxonomy, settings.require_ratified_taxonomy)
-        except ValueError as exc:
-            raise HTTPException(409, str(exc)) from exc
-        theme = taxonomy.theme
-    else:
-        raise HTTPException(400, "Provide either `theme` or `taxonomy_id`.")
+    try:
+        taxonomy, schema = released_run_schema(
+            taxonomy_store, SchemaRegistry(settings.postgres_dsn), req.taxonomy_id, req.taxonomy_version
+        )
+    except ThemeRunRefused as exc:
+        raise HTTPException(exc.status, str(exc)) from exc
+    theme = taxonomy.theme
 
     if bool(req.revenue_catalogue_path) != bool(req.catalogue_mapping):
         raise HTTPException(400, "Provide both revenue_catalogue_path and catalogue_mapping together, or neither.")
@@ -136,6 +131,7 @@ async def start_theme_run(
             mappings=req.catalogue_mapping or [],
             registry=registry,
             settings=settings,
+            schema=schema,
             isic_model=indirect_model,
         )
 
@@ -144,8 +140,9 @@ async def start_theme_run(
         rd_resolver = RDResolverContext(
             registry=registry,
             settings=settings,
+            schema=schema,
             isic_model=indirect_model,
-            search_client=DuckDuckGoSearchClient(settings.discovery_user_agent),
+            search_client=build_web_search_client(settings.discovery_user_agent),
         )
 
     def _create() -> str:
@@ -157,8 +154,9 @@ async def start_theme_run(
             revenue_catalogue_path=req.revenue_catalogue_path,
             catalogue_mapping=req.catalogue_mapping,
             enable_rd_exposure=req.enable_rd_exposure,
-            taxonomy_id=taxonomy.taxonomy_id if taxonomy else None,
-            taxonomy_version=taxonomy.version if taxonomy else None,
+            taxonomy_id=taxonomy.taxonomy_id,
+            taxonomy_version=taxonomy.version,
+            extraction_schema=schema,
         )
 
     async def _run(run_id: str, llm, verifier_llm) -> None:
@@ -196,6 +194,9 @@ def get_theme_results(
 ) -> dict:
     rows = run_store.read_results(run_id)
     matches = [m for row in rows for m in row.get("company_matches", [])]
+    for m in matches:  # rows stored before OpEx: the model default
+        if (rev := m.get("revenue_exposure")) is not None and "opex" not in rev:
+            rev["opex"] = MetricExposure().model_dump(mode="json")
     return {"total": len(matches), "results": matches[offset : offset + limit]}
 
 

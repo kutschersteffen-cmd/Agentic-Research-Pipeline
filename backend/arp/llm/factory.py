@@ -15,6 +15,10 @@ def batch_settings(settings: Settings, batch: bool) -> Settings:
 
 
 def build_llm_client(settings: Settings, *, model: str | None = None, cache_refresh: bool | None = None) -> LLMClient:
+    if settings.standins_dir is not None:
+        from arp.standins import StandInLLMClient
+
+        return StandInLLMClient(settings.standins_dir)
     model = model or settings.llm_model
     refresh = settings.llm_cache_refresh if cache_refresh is None else cache_refresh
     if model.startswith("gemini-"):

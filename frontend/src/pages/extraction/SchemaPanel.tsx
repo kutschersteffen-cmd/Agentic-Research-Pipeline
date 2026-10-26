@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
 import { ruleMarkers, RulesList } from "../../components/RulesList";
 import { SchemaFieldsEditor } from "../../components/SchemaFieldsEditor";
@@ -33,6 +33,18 @@ export function SchemaPanel({ jobs, onChange, onNext, nextCustomId, defaultReque
   // Patches after an await must apply to the jobs as they are then, not as they were at the click.
   const latest = useRef(jobs);
   latest.current = jobs;
+  const [fromTaxonomy, setFromTaxonomy] = useState<{ schema_id: string; version: number; name: string }[]>([]);
+  useEffect(() => {
+    api
+      .listSchemas()
+      .then((rows) => {
+        // shortcut: taxonomy schemas are recognised by their id (sch_<taxonomy_id>_v<n>, taxonomy ids start tax_); add a kind to the index if that ever clashes
+        const latest = new Map<string, (typeof rows)[number]>();
+        for (const r of rows) if (/^sch_tax_.+_v\d+$/.test(r.schema_id) && (latest.get(r.schema_id)?.version ?? 0) < r.version) latest.set(r.schema_id, r);
+        setFromTaxonomy([...latest.values()].filter((r) => r.release_flag));
+      })
+      .catch(() => {});
+  }, []);
   const custom = jobs.filter((j): j is CustomJob => j.profile === "custom");
   const setError = (id: string, e: string | null) => setErrors((s) => ({ ...s, [id]: e }));
   const patch = (id: string, p: Partial<CustomJob>) =>
@@ -78,6 +90,18 @@ export function SchemaPanel({ jobs, onChange, onNext, nextCustomId, defaultReque
     }
   }
 
+  /** A released taxonomy schema, as is: confirmed, no rule suggestions. */
+  async function pickTaxonomySchema(j: CustomJob, key: string) {
+    const row = fromTaxonomy.find((r) => `${r.schema_id}:${r.version}` === key);
+    if (!row) return;
+    setError(j.id, null);
+    try {
+      patch(j.id, { schema: await api.getSchema(row.schema_id, row.version), confirmed: true, waiting: [] });
+    } catch (err) {
+      setError(j.id, (err as Error).message);
+    }
+  }
+
   /** A field marker's target: the field's first rule, else the first rule that reads it. */
   function showRules(jobId: string, fieldId: string) {
     const list = document.getElementById(`rules-${jobId}`);
@@ -106,6 +130,21 @@ export function SchemaPanel({ jobs, onChange, onNext, nextCustomId, defaultReque
             Draft extraction schema
           </button>{" "}
           <button onClick={() => remove(j.id)}>Remove</button>
+          <label className="field-label">
+            From a taxonomy
+            <select
+              value={fromTaxonomy.some((r) => r.schema_id === j.schema?.schema_id && r.version === j.schema?.version) ? `${j.schema!.schema_id}:${j.schema!.version}` : ""}
+              onChange={(e) => pickTaxonomySchema(j, e.target.value)}
+              disabled={busy[j.id] || suggesting[j.id]}
+            >
+              <option value="">{fromTaxonomy.length ? "Pick a released taxonomy schema…" : "No released taxonomy schema yet"}</option>
+              {fromTaxonomy.map((r) => (
+                <option key={r.schema_id} value={`${r.schema_id}:${r.version}`}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <p className="help-text">Or skip this and build a schema entirely by hand before starting a run.</p>
           {errors[j.id] && <p className="error-text" role="alert">{errors[j.id]}</p>}
           {j.schema && (

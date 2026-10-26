@@ -60,6 +60,15 @@ class DuckDuckGoSearchClient(WebSearchClient):
         return results
 
 
+def build_web_search_client(user_agent: str, *, transport: httpx.AsyncBaseTransport | None = None) -> WebSearchClient:
+    """The app's one web search client: DuckDuckGo, or the test stand-in when ARP_STANDINS_DIR is set."""
+    from arp import standins
+
+    if (folder := standins.active_dir()) is not None:
+        return standins.StandInSearchClient(folder)
+    return DuckDuckGoSearchClient(user_agent, transport=transport)
+
+
 def _unwrap_ddg_redirect(href: str) -> str | None:
     parsed = urlparse(href)
     if parsed.netloc.endswith("duckduckgo.com") and parsed.path == "/l/":
@@ -128,7 +137,7 @@ async def resolve_company_homepage(company_name: str, search_client: WebSearchCl
     for query in (f"{company_name} investor relations", f"{company_name} official website"):
         try:
             results = await search_client.search(query, max_results=5)
-        except httpx.HTTPError as exc:
+        except (httpx.HTTPError, RuntimeError) as exc:  # RuntimeError: the test stand-in's search failure
             logger.info("Web search failed for %r: %s", query, exc)
             continue
         results = [r for r in results if not is_aggregator(r.url)]

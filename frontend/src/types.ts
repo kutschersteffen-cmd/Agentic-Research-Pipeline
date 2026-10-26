@@ -22,6 +22,16 @@ export type RunFailure = Served<S["RunFailure"]>;
 export type ArgusFlow = Served<S["ArgusFlowView"]>;
 export type ArgusDraft = Served<S["ArgusFlow"]>; // as GET /api/argus/flows lists it, without rows
 export type FlowRow = Served<S["FlowRow"]>;
+export type Dossier = Served<S["DossierView"]>;
+export type DossierItem = Served<S["DossierItem"]>;
+export type DossierStepState = Dossier["steps"][number]["state"];
+export type ResearchView = Served<S["ResearchView"]>;
+export type ResearchRound = Served<S["ResearchRound"]>;
+export type ResearchSource = Served<S["ResearchSource"]>;
+export type ResearchNote = NonNullable<ResearchRound["note"]>;
+export type SourceCategory = ResearchSource["category"];
+export type ProposalStarted = Served<S["ProposalStarted"]>;
+export type RunStarted = Served<S["RunStarted"]>;
 export type PriorRun = Served<S["PriorRun"]>;
 
 export type RfpLibraryEntry = Served<S["RfpLibraryEntryOut"]>;
@@ -231,7 +241,10 @@ export interface DataPointSchema {
   description: string;
   fields: FieldDefinition[];
   created_at: string;
+  version?: number;
   release_flag?: boolean;
+  released_by?: string | null;
+  released_at?: string | null;
 }
 
 export interface ExtractedField {
@@ -660,6 +673,9 @@ export interface MentionCitation {
   grounded: boolean;
 }
 
+export type ContextBrief = Served<S["ContextBrief"]>;
+export type BriefEvidence = ContextBrief["evidence"][number];
+
 export type CandidateStatus = "candidate" | "under_review" | "promoted" | "rejected" | "disconfirmed";
 
 export interface CompanyActionEvidence {
@@ -709,6 +725,7 @@ export interface EmergingThemeCandidate {
   contradiction: number;
   contradiction_evidence: MentionCitation[];
   company_exposure: CompanyExposure[];
+  context_brief?: ContextBrief | null;
   status: CandidateStatus;
   promoted_to_taxonomy_id?: string | null;
   promoted_to_taxonomy_version?: number | null;

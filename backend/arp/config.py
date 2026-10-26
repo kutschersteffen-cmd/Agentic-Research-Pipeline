@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     # LLM
     anthropic_api_key: str | None = Field(default=None)
     gemini_api_key: str | None = Field(default=None, description="Google Gemini API key, needed only when a run uses a gemini-* model.")
+    standins_dir: Path | None = Field(
+        default=None,
+        description="Test stand-ins: web search, source fetches and model calls answered from fixture files in this "
+        "folder (arp/standins.py). For tests only; refused together with a model API key.",
+    )
     llm_model: str = Field(default="claude-sonnet-5-5")
     llm_verifier_model: str = Field(
         default="claude-opus-5-5",
@@ -192,9 +197,8 @@ class Settings(BaseSettings):
     )
     require_ratified_taxonomy: bool = Field(
         default=False,
-        description="Human curation gate for theme runs (spec Step 0d): when true, POST /api/themes/runs refuses "
-        "a taxonomy_id whose latest/selected version is still DRAFT. Off by default to preserve today's "
-        "iterate-on-a-draft workflow; see arp.storage.taxonomy_store.ensure_taxonomy_usable_for_run.",
+        description="No longer has any effect: theme runs always need a ratified taxonomy version with a released "
+        "schema (arp.research.taxonomy_schema.released_run_schema), whatever this says.",
     )
 
     # Engagement & voting stewardship module
@@ -572,6 +576,18 @@ class Settings(BaseSettings):
                     f"{setting} is '{needs_connection}' but {connection_setting} is not set. "
                     f"Set {env_var}, or use {alternative}."
                 )
+        return self
+
+    @model_validator(mode="after")
+    def _standins_only_without_model_key(self) -> "Settings":
+        if self.standins_dir is None:
+            return self
+        if self.anthropic_api_key or self.gemini_api_key:
+            raise ValueError(
+                "ARP_STANDINS_DIR is set together with a model API key; stand-ins are for tests only. Unset one of them."
+            )
+        if not self.standins_dir.is_dir():
+            raise ValueError(f"ARP_STANDINS_DIR {self.standins_dir} is not a directory.")
         return self
 
     def ensure_dirs(self) -> None:
