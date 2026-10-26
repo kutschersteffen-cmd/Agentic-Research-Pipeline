@@ -1147,6 +1147,159 @@ export interface paths {
         patch: operations["patch_dossier_api_dossiers__dossier_id__patch"];
         trace?: never;
     };
+    "/api/dossiers/{dossier_id}/research": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Research */
+        get: operations["get_research_api_dossiers__dossier_id__research_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research/note": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Writing */
+        post: operations["start_writing_api_dossiers__dossier_id__research_note_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research/note/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Note */
+        post: operations["approve_note_api_dossiers__dossier_id__research_note_approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research/note/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Note */
+        post: operations["reject_note_api_dossiers__dossier_id__research_note_reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research/plan/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Plan */
+        post: operations["approve_plan_api_dossiers__dossier_id__research_plan_approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research/propose": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Propose */
+        post: operations["propose_api_dossiers__dossier_id__research_propose_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Source */
+        post: operations["add_source_api_dossiers__dossier_id__research_sources_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research/sources/{source_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Source */
+        delete: operations["delete_source_api_dossiers__dossier_id__research_sources__source_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/research/sources/{source_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload Source File */
+        post: operations["upload_source_file_api_dossiers__dossier_id__research_sources__source_id__file_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/emerging-themes/runs": {
         parameters: {
             query?: never;
@@ -8082,6 +8235,11 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_upload_source_file_api_dossiers__dossier_id__research_sources__source_id__file_post */
+        Body_upload_source_file_api_dossiers__dossier_id__research_sources__source_id__file_post: {
+            /** File */
+            file: string;
+        };
         /** Body_upload_template_api_reports_templates_post */
         Body_upload_template_api_reports_templates_post: {
             /** File */
@@ -11933,6 +12091,61 @@ export interface components {
             source_notes: string;
             theme: components["schemas"]["ThemeDefinition"];
         };
+        /** NoteCitation */
+        NoteCitation: {
+            /** Page */
+            page?: number | null;
+            /** Quote */
+            quote: string;
+            /** Source Id */
+            source_id: string;
+        };
+        /** NoteItem */
+        NoteItem: {
+            /** Channel */
+            channel?: ("economic" | "financial") | null;
+            /** Citations */
+            citations: components["schemas"]["NoteCitation"][];
+            /** Item Id */
+            item_id?: string;
+            /** Text */
+            text: string;
+            /** Title */
+            title: string;
+        };
+        /** NoteReject */
+        NoteReject: {
+            /** Reason */
+            reason: string;
+        };
+        /** NoteSections */
+        NoteSections: {
+            /**
+             * Financial Relevance
+             * @default []
+             */
+            financial_relevance: components["schemas"]["NoteItem"][];
+            /**
+             * Growth Potential
+             * @default []
+             */
+            growth_potential: components["schemas"]["NoteItem"][];
+            /**
+             * Opportunities
+             * @default []
+             */
+            opportunities: components["schemas"]["NoteItem"][];
+            /**
+             * Risks
+             * @default []
+             */
+            risks: components["schemas"]["NoteItem"][];
+            /**
+             * Transmission Channels
+             * @default []
+             */
+            transmission_channels: components["schemas"]["NoteItem"][];
+        };
         /** ObservationOut */
         ObservationOut: {
             /** Confidence */
@@ -12343,6 +12556,13 @@ export interface components {
             reason: string;
             /** Taxonomy Id */
             taxonomy_id?: string | null;
+        };
+        /** ProposalStarted */
+        ProposalStarted: {
+            /** Round */
+            round: number;
+            /** Run Id */
+            run_id: string;
         };
         /**
          * ProvenanceInfo
@@ -12912,6 +13132,108 @@ export interface components {
              */
             when?: boolean | string | number | null;
         };
+        /** ResearchNote */
+        ResearchNote: {
+            /** Approved At */
+            approved_at?: string | null;
+            /** Approved By */
+            approved_by?: string | null;
+            /**
+             * Dropped Items
+             * @default 0
+             */
+            dropped_items: number;
+            /** Error */
+            error?: string | null;
+            /** Reject Reason */
+            reject_reason?: string | null;
+            /** Rejected At */
+            rejected_at?: string | null;
+            /** Rejected By */
+            rejected_by?: string | null;
+            /**
+             * @default {
+             *       "financial_relevance": [],
+             *       "growth_potential": [],
+             *       "opportunities": [],
+             *       "risks": [],
+             *       "transmission_channels": []
+             *     }
+             */
+            sections: components["schemas"]["NoteSections"];
+            /**
+             * Status
+             * @default writing
+             * @enum {string}
+             */
+            status: "writing" | "write_failed" | "written" | "approved" | "rejected";
+            /**
+             * Unread Sources
+             * @default []
+             */
+            unread_sources: components["schemas"]["UnreadSource"][];
+            /** Written At */
+            written_at?: string | null;
+        };
+        /** ResearchRound */
+        ResearchRound: {
+            note?: components["schemas"]["ResearchNote"] | null;
+            /** Note Run Id */
+            note_run_id?: string | null;
+            /** Plan Approved At */
+            plan_approved_at?: string | null;
+            /** Plan Approved By */
+            plan_approved_by?: string | null;
+            /**
+             * Plan Status
+             * @default proposing
+             * @enum {string}
+             */
+            plan_status: "proposing" | "proposal_failed" | "proposed" | "approved";
+            /** Proposal Run Id */
+            proposal_run_id?: string | null;
+            /** Round */
+            round: number;
+            /**
+             * Sources
+             * @default []
+             */
+            sources: components["schemas"]["ResearchSource"][];
+            /** Taxonomy Version */
+            taxonomy_version: number;
+        };
+        /** ResearchSource */
+        ResearchSource: {
+            /** Added By */
+            added_by: string;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "intergovernmental" | "official_statistics" | "central_bank_regulator" | "academic";
+            file?: components["schemas"]["SourceFile"] | null;
+            /** How */
+            how: string;
+            /** Publisher */
+            publisher: string;
+            /** Source Id */
+            source_id?: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+            /** Why */
+            why: string;
+        };
+        /** ResearchView */
+        ResearchView: {
+            /** Approved Round */
+            approved_round: number | null;
+            /** Dossier Id */
+            dossier_id: string;
+            /** Rounds */
+            rounds: components["schemas"]["ResearchRound"][];
+        };
         /** RestartRequest */
         RestartRequest: {
             /**
@@ -13397,6 +13719,11 @@ export interface components {
             /** Ref Id */
             ref_id: string;
         };
+        /** RunStarted */
+        RunStarted: {
+            /** Run Id */
+            run_id: string;
+        };
         /**
          * SanityCheckAssessment
          * @description A qualitative, LLM-generated second opinion on an already-computed
@@ -13800,6 +14127,33 @@ export interface components {
          * @enum {string}
          */
         SourceCandidateType: "authority" | "thematic_fund";
+        /** SourceCreate */
+        SourceCreate: {
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "intergovernmental" | "official_statistics" | "central_bank_regulator" | "academic";
+            /** How */
+            how: string;
+            /** Publisher */
+            publisher: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+            /** Why */
+            why: string;
+        };
+        /** SourceFile */
+        SourceFile: {
+            /** Filename */
+            filename: string;
+            /** Uploaded At */
+            uploaded_at: string;
+            /** Uploaded By */
+            uploaded_by: string;
+        };
         /**
          * SourceKind
          * @enum {string}
@@ -14712,6 +15066,16 @@ export interface components {
              * @enum {string}
              */
             source: "sample" | "portfolio";
+        };
+        /** UnreadSource */
+        UnreadSource: {
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "fetch failed" | "no text extracted";
+            /** Source Id */
+            source_id: string;
         };
         /** UpdateDraftRequest */
         UpdateDraftRequest: {
@@ -17519,6 +17883,301 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DossierView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_research_api_dossiers__dossier_id__research_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_writing_api_dossiers__dossier_id__research_note_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_note_api_dossiers__dossier_id__research_note_approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchRound"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reject_note_api_dossiers__dossier_id__research_note_reject_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteReject"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchRound"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_plan_api_dossiers__dossier_id__research_plan_approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchRound"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    propose_api_dossiers__dossier_id__research_propose_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_source_api_dossiers__dossier_id__research_sources_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchSource"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_source_api_dossiers__dossier_id__research_sources__source_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_source_file_api_dossiers__dossier_id__research_sources__source_id__file_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_source_file_api_dossiers__dossier_id__research_sources__source_id__file_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResearchSource"];
                 };
             };
             /** @description Validation Error */

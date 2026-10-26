@@ -2623,6 +2623,20 @@
     "title": "Body_upload_price_dataset_api_replication_specs__spec_run_id__datasets_prices_post",
     "type": "object"
    },
+   "Body_upload_source_file_api_dossiers__dossier_id__research_sources__source_id__file_post": {
+    "properties": {
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file"
+    ],
+    "title": "Body_upload_source_file_api_dossiers__dossier_id__research_sources__source_id__file_post",
+    "type": "object"
+   },
    "Body_upload_template_api_reports_templates_post": {
     "properties": {
      "file": {
@@ -11735,6 +11749,139 @@
     "title": "NewVersionRequest",
     "type": "object"
    },
+   "NoteCitation": {
+    "properties": {
+     "page": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page"
+     },
+     "quote": {
+      "title": "Quote",
+      "type": "string"
+     },
+     "source_id": {
+      "title": "Source Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "source_id",
+     "quote"
+    ],
+    "title": "NoteCitation",
+    "type": "object"
+   },
+   "NoteItem": {
+    "properties": {
+     "channel": {
+      "anyOf": [
+       {
+        "enum": [
+         "economic",
+         "financial"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Channel"
+     },
+     "citations": {
+      "items": {
+       "$ref": "#/components/schemas/NoteCitation"
+      },
+      "title": "Citations",
+      "type": "array"
+     },
+     "item_id": {
+      "title": "Item Id",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title",
+     "text",
+     "citations"
+    ],
+    "title": "NoteItem",
+    "type": "object"
+   },
+   "NoteReject": {
+    "properties": {
+     "reason": {
+      "title": "Reason",
+      "type": "string"
+     }
+    },
+    "required": [
+     "reason"
+    ],
+    "title": "NoteReject",
+    "type": "object"
+   },
+   "NoteSections": {
+    "properties": {
+     "financial_relevance": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/NoteItem"
+      },
+      "title": "Financial Relevance",
+      "type": "array"
+     },
+     "growth_potential": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/NoteItem"
+      },
+      "title": "Growth Potential",
+      "type": "array"
+     },
+     "opportunities": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/NoteItem"
+      },
+      "title": "Opportunities",
+      "type": "array"
+     },
+     "risks": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/NoteItem"
+      },
+      "title": "Risks",
+      "type": "array"
+     },
+     "transmission_channels": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/NoteItem"
+      },
+      "title": "Transmission Channels",
+      "type": "array"
+     }
+    },
+    "title": "NoteSections",
+    "type": "object"
+   },
    "ObservationOut": {
     "properties": {
      "confidence": {
@@ -12743,6 +12890,24 @@
      "reason"
     ],
     "title": "PromoteRequest",
+    "type": "object"
+   },
+   "ProposalStarted": {
+    "properties": {
+     "round": {
+      "title": "Round",
+      "type": "integer"
+     },
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "run_id",
+     "round"
+    ],
+    "title": "ProposalStarted",
     "type": "object"
    },
    "ProvenanceInfo": {
@@ -14067,6 +14232,311 @@
     "title": "RequiresRule",
     "type": "object"
    },
+   "ResearchNote": {
+    "properties": {
+     "approved_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved At"
+     },
+     "approved_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved By"
+     },
+     "dropped_items": {
+      "default": 0,
+      "title": "Dropped Items",
+      "type": "integer"
+     },
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "reject_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reject Reason"
+     },
+     "rejected_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rejected At"
+     },
+     "rejected_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rejected By"
+     },
+     "sections": {
+      "$ref": "#/components/schemas/NoteSections",
+      "default": {
+       "financial_relevance": [],
+       "growth_potential": [],
+       "opportunities": [],
+       "risks": [],
+       "transmission_channels": []
+      }
+     },
+     "status": {
+      "default": "writing",
+      "enum": [
+       "writing",
+       "write_failed",
+       "written",
+       "approved",
+       "rejected"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "unread_sources": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/UnreadSource"
+      },
+      "title": "Unread Sources",
+      "type": "array"
+     },
+     "written_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Written At"
+     }
+    },
+    "title": "ResearchNote",
+    "type": "object"
+   },
+   "ResearchRound": {
+    "properties": {
+     "note": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ResearchNote"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "note_run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note Run Id"
+     },
+     "plan_approved_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Plan Approved At"
+     },
+     "plan_approved_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Plan Approved By"
+     },
+     "plan_status": {
+      "default": "proposing",
+      "enum": [
+       "proposing",
+       "proposal_failed",
+       "proposed",
+       "approved"
+      ],
+      "title": "Plan Status",
+      "type": "string"
+     },
+     "proposal_run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Proposal Run Id"
+     },
+     "round": {
+      "title": "Round",
+      "type": "integer"
+     },
+     "sources": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/ResearchSource"
+      },
+      "title": "Sources",
+      "type": "array"
+     },
+     "taxonomy_version": {
+      "title": "Taxonomy Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "round",
+     "taxonomy_version"
+    ],
+    "title": "ResearchRound",
+    "type": "object"
+   },
+   "ResearchSource": {
+    "properties": {
+     "added_by": {
+      "title": "Added By",
+      "type": "string"
+     },
+     "category": {
+      "enum": [
+       "intergovernmental",
+       "official_statistics",
+       "central_bank_regulator",
+       "academic"
+      ],
+      "title": "Category",
+      "type": "string"
+     },
+     "file": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SourceFile"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "how": {
+      "title": "How",
+      "type": "string"
+     },
+     "publisher": {
+      "title": "Publisher",
+      "type": "string"
+     },
+     "source_id": {
+      "title": "Source Id",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "url": {
+      "title": "Url",
+      "type": "string"
+     },
+     "why": {
+      "title": "Why",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title",
+     "publisher",
+     "url",
+     "category",
+     "why",
+     "how",
+     "added_by"
+    ],
+    "title": "ResearchSource",
+    "type": "object"
+   },
+   "ResearchView": {
+    "properties": {
+     "approved_round": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved Round"
+     },
+     "dossier_id": {
+      "title": "Dossier Id",
+      "type": "string"
+     },
+     "rounds": {
+      "items": {
+       "$ref": "#/components/schemas/ResearchRound"
+      },
+      "title": "Rounds",
+      "type": "array"
+     }
+    },
+    "required": [
+     "dossier_id",
+     "approved_round",
+     "rounds"
+    ],
+    "title": "ResearchView",
+    "type": "object"
+   },
    "RestartRequest": {
     "properties": {
      "company_ids": {
@@ -15323,6 +15793,19 @@
     "title": "RunRef",
     "type": "object"
    },
+   "RunStarted": {
+    "properties": {
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "run_id"
+    ],
+    "title": "RunStarted",
+    "type": "object"
+   },
    "SanityCheckAssessment": {
     "description": "A qualitative, LLM-generated second opinion on an already-computed\nReplicationComparisonReport -- advisory only. This is deliberately NOT\ngrounded/verified the way an extraction elsewhere in this codebase is:\nthere is no source document to check a quote against, only an opinion\nabout whether a set of numbers looks statistically plausible. Never\ntreat `plausible=True` as validation, or `plausible=False` as proof of\na bug -- it's a prompt for a human to look closer, nothing more.",
     "properties": {
@@ -16319,6 +16802,73 @@
     ],
     "title": "SourceCandidateType",
     "type": "string"
+   },
+   "SourceCreate": {
+    "properties": {
+     "category": {
+      "enum": [
+       "intergovernmental",
+       "official_statistics",
+       "central_bank_regulator",
+       "academic"
+      ],
+      "title": "Category",
+      "type": "string"
+     },
+     "how": {
+      "title": "How",
+      "type": "string"
+     },
+     "publisher": {
+      "title": "Publisher",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "url": {
+      "title": "Url",
+      "type": "string"
+     },
+     "why": {
+      "title": "Why",
+      "type": "string"
+     }
+    },
+    "required": [
+     "title",
+     "publisher",
+     "url",
+     "category",
+     "why",
+     "how"
+    ],
+    "title": "SourceCreate",
+    "type": "object"
+   },
+   "SourceFile": {
+    "properties": {
+     "filename": {
+      "title": "Filename",
+      "type": "string"
+     },
+     "uploaded_at": {
+      "title": "Uploaded At",
+      "type": "string"
+     },
+     "uploaded_by": {
+      "title": "Uploaded By",
+      "type": "string"
+     }
+    },
+    "required": [
+     "filename",
+     "uploaded_by",
+     "uploaded_at"
+    ],
+    "title": "SourceFile",
+    "type": "object"
    },
    "SourceKind": {
     "enum": [
@@ -18501,6 +19051,28 @@
      "source"
     ],
     "title": "UniverseRequest",
+    "type": "object"
+   },
+   "UnreadSource": {
+    "properties": {
+     "reason": {
+      "enum": [
+       "fetch failed",
+       "no text extracted"
+      ],
+      "title": "Reason",
+      "type": "string"
+     },
+     "source_id": {
+      "title": "Source Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "source_id",
+     "reason"
+    ],
+    "title": "UnreadSource",
     "type": "object"
    },
    "UpdateDraftRequest": {
@@ -23254,6 +23826,434 @@
      }
     },
     "summary": "Patch Dossier",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/research": {
+   "get": {
+    "operationId": "get_research_api_dossiers__dossier_id__research_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ResearchView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Research",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/research/note": {
+   "post": {
+    "operationId": "start_writing_api_dossiers__dossier_id__research_note_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RunStarted"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Start Writing",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/research/note/approve": {
+   "post": {
+    "operationId": "approve_note_api_dossiers__dossier_id__research_note_approve_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ResearchRound"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Approve Note",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/research/note/reject": {
+   "post": {
+    "operationId": "reject_note_api_dossiers__dossier_id__research_note_reject_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/NoteReject"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ResearchRound"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Reject Note",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/research/plan/approve": {
+   "post": {
+    "operationId": "approve_plan_api_dossiers__dossier_id__research_plan_approve_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ResearchRound"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Approve Plan",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/research/propose": {
+   "post": {
+    "operationId": "propose_api_dossiers__dossier_id__research_propose_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ProposalStarted"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Propose",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/research/sources": {
+   "post": {
+    "operationId": "add_source_api_dossiers__dossier_id__research_sources_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SourceCreate"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ResearchSource"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Add Source",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/research/sources/{source_id}": {
+   "delete": {
+    "operationId": "delete_source_api_dossiers__dossier_id__research_sources__source_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "source_id",
+      "required": true,
+      "schema": {
+       "title": "Source Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Delete Source Api Dossiers  Dossier Id  Research Sources  Source Id  Delete",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Source",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/research/sources/{source_id}/file": {
+   "post": {
+    "operationId": "upload_source_file_api_dossiers__dossier_id__research_sources__source_id__file_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "source_id",
+      "required": true,
+      "schema": {
+       "title": "Source Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_upload_source_file_api_dossiers__dossier_id__research_sources__source_id__file_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ResearchSource"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Upload Source File",
     "tags": [
      "dossiers"
     ]

@@ -25,6 +25,13 @@ export type FlowRow = Served<S["FlowRow"]>;
 export type Dossier = Served<S["DossierView"]>;
 export type DossierItem = Served<S["DossierItem"]>;
 export type DossierStepState = Dossier["steps"][number]["state"];
+export type ResearchView = Served<S["ResearchView"]>;
+export type ResearchRound = Served<S["ResearchRound"]>;
+export type ResearchSource = Served<S["ResearchSource"]>;
+export type ResearchNote = NonNullable<ResearchRound["note"]>;
+export type SourceCategory = ResearchSource["category"];
+export type ProposalStarted = Served<S["ProposalStarted"]>;
+export type RunStarted = Served<S["RunStarted"]>;
 export type PriorRun = Served<S["PriorRun"]>;
 
 export type RfpLibraryEntry = Served<S["RfpLibraryEntryOut"]>;

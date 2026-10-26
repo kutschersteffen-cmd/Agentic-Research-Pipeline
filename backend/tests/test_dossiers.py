@@ -70,7 +70,7 @@ def test_a_topic_dossier_starts_with_nothing_to_show(env):
     assert (d["origin"], d["taxonomy_id"], d["status"], d["created_by"]) == ("topic", None, "active", "Test")
     steps = client.get(f"/api/dossiers/{d['dossier_id']}").json()["steps"]
     assert [s["title"] for s in steps] == ["Spot", "Define", "Research", "Find companies", "Position and standards"]
-    assert [s["state"] for s in steps] == ["skipped", "not_started", "not_built", "not_started", "not_built"]
+    assert [s["state"] for s in steps] == ["skipped", "not_started", "not_started", "not_started", "not_built"]
     assert [s["href"] for s in steps] == [None, None, None, "#/theme", None]
     assert client.get("/api/dossiers").json()["items"][0]["current_step"] == 2
 
@@ -117,7 +117,7 @@ def test_find_companies_reads_the_newest_run_for_the_taxonomy(env):
     assert _steps(client, d)[3] == ("done", "12 companies, taxonomy v1")
     view = client.get(f"/api/dossiers/{d}").json()
     assert view["steps"][3]["href"] == f"#/theme/{run_id}"
-    assert client.get("/api/dossiers").json()["items"][0]["current_step"] is None
+    assert client.get("/api/dossiers").json()["items"][0]["current_step"] == 3  # step 3 has not started
 
     taxonomies.ratify(tid, 3, "bob")
     assert _steps(client, d)[3] == ("waiting", "12 companies, taxonomy v1 · older than v3")
