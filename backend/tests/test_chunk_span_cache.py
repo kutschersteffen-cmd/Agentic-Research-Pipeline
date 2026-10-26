@@ -159,3 +159,26 @@ def test_concurrent_calls_agree(monkeypatch):
     first = [(c.char_start, c.char_end) for c in results[0]]
     for r in results[1:]:
         assert [(c.char_start, c.char_end) for c in r] == first
+
+
+def test_concurrent_misses_split_once(monkeypatch):
+    # Parallel splits of one large report push NLTK's wall-clock ReDoS limit over 5 s, so misses must wait.
+    calls = []
+    original = parsing._sentence_aware_split
+
+    def slow_split(text, chunk_chars, overlap_chars):
+        calls.append(1)
+        time.sleep(0.05)
+        return original(text, chunk_chars, overlap_chars)
+
+    monkeypatch.setattr(parsing, "_sentence_aware_split", slow_split)
+
+    doc = _doc(_TEXT)
+    threads = [threading.Thread(target=chunk_document, args=(doc,), kwargs={"chunk_chars": 500, "overlap_chars": 50})
+               for _ in range(10)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert len(calls) == 1
