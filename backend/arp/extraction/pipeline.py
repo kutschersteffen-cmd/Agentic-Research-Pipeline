@@ -12,6 +12,7 @@ from arp.checks.runner import CheckContext, check_record
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry, UnreleasedFieldError
 from arp.extraction.aggregator import no_evidence_field
+from arp.extraction.corrections import apply_corrections
 from arp.extraction.derived import evaluate_derived
 from arp.extraction.extractor_agent import extract_group
 from arp.extraction.field_graph import MAX_END_DRIFT_DAYS, days_apart, extract_one_field, field_evidence, merge_evidence
@@ -31,6 +32,7 @@ from arp.planning.doc_routing import input_hash, route_documents
 from arp.planning.entity_check import confirm_entity
 from arp.planning.periods import plan_periods, union_planned
 from arp.presets import transition_plan_actions as plan_preset
+from arp.presets.transition_plan import SCHEMA_ID as TRANSITION_PLAN_SCHEMA_ID
 from arp.schemas.common import CompanyRef, DocType, MatchStatus, SourceDocument
 from arp.schemas.datapoints import (
     CheckResult,
@@ -142,6 +144,7 @@ async def _extract_company(
     trial: bool = False,
     xbrl_source: XbrlFactSource | None = None,
     field_limit: asyncio.Semaphore | None = None,
+    corrections: bool = False,
 ) -> ExtractionRecordResult:
     """`documents`, when supplied, skips the registry fetch -- for callers
     (like the revenue-exposure resolver) that already fetched a company's
@@ -155,6 +158,8 @@ async def _extract_company(
     entry is unaudited, so that field's values route to review.
 
     `trial` routes every non-held row to review.
+
+    `corrections` applies the auto-corrections (R1-R4) before the record checks.
 
     `xbrl_source` (with settings.xbrl_facts_enabled): the company's XBRL facts
     are fetched once and fields with `xbrl_tags` take their tagged values first. Facts in an
@@ -281,21 +286,24 @@ async def _extract_company(
     slots: list[list[ExtractedField]] = []
     plan_slots: dict[str, list[ExtractedField]] = {}
     todo: list[tuple[FieldDefinition, str | None, list[ExtractedField]]] = []
+    input_hashes: dict[str, str | None] = {}
     for field in to_extract:
         if schema.schema_id == plan_preset.SCHEMA_ID and field.field_id not in plan_preset.OPERATES_FIELDS:
             slots.append(plan_slots.setdefault(field.field_id, []))
             continue
-        h = input_hash(field, route_documents(field, kept), planned_periods, run_settings)
+        h = input_hashes[field.field_id] = input_hash(field, route_documents(field, kept), planned_periods, run_settings)
         prior = history.last_rows(company.company_id, field.field_id) if reuse and h else []
         if prior and history.last_rejected(company.company_id, field.field_id):
             prior = []  # a human rejected the last answer: ask again rather than reuse it
         # shortcut: rows with failing non-rule checks re-extract; strip check-derived notes instead if that costs too many calls
         if prior and all(
             r.get("input_hash") == h and (r.get("provenance") or {}).get("field_version") == field.version
-            and not any(  # a rule failure is a reviewer prompt, not a reason to re-ask the model
-                is_failing(res) and not res.check_id.startswith("rule.")
-                for res in map(CheckResult.model_validate, r.get("checks", []))
-            )
+            # a row R4 moved here came from another field's answer: re-asking this field cannot fix its checks
+            and (any(c.get("rule") == "planned_move" and c.get("attribute") == "field_id" for c in r.get("corrections", []))
+                 or not any(  # a rule failure is a reviewer prompt, not a reason to re-ask the model
+                     is_failing(res) and not res.check_id.startswith("rule.")
+                     for res in map(CheckResult.model_validate, r.get("checks", []))
+                 ))
             for r in prior
         ):
             run = history.last_run_id(company.company_id)
@@ -318,6 +326,9 @@ async def _extract_company(
     for field_usages in await asyncio.gather(*pending):
         usages.extend(field_usages)
     fields.extend(f for slot in slots for f in slot)
+    if corrections:  # reused rows already carry theirs; the rules leave a corrected row unchanged
+        fields = apply_corrections(schema, fields, documents_by_id=documents_by_id,
+                                   fiscal_year_end=company.fiscal_year_end, input_hashes=input_hashes)
 
     # In a thread: a sync Postgres read here would stall every other company's LLM calls.
     published = await asyncio.to_thread(_published_values, settings, key)
@@ -490,6 +501,7 @@ async def execute_extraction_run(
             company, schema, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings,
             history=history, identifier_map=identifier_map, qualities=qualities, trial=trial, xbrl_source=xbrl_source,
             field_limit=field_limit,
+            corrections=schema.schema_id not in {TRANSITION_PLAN_SCHEMA_ID, plan_preset.SCHEMA_ID},
         )
         result.record.run_id = run_id
         open_restatement_candidates(run_store, run_id, result.record, history)
