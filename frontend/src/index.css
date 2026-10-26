@@ -637,6 +637,10 @@ details.help-text[open] > summary { margin-bottom: var(--s-1); }
 .clickable-row { cursor: pointer; }
 .clickable-row:hover { background: var(--well); }
 .detail-cell { background: var(--well); }
+/* A detail row is a .data-table row's only td, so it would inherit td:first-child's nowrap and run off a phone. */
+.data-table td.detail-cell { white-space: normal; }
+/* The table can still be wider than a phone; keep the detail text on screen. */
+.data-table td.detail-cell > * { max-width: calc(100vw - 6rem); }
 
 .badge {
   display: inline-block;
