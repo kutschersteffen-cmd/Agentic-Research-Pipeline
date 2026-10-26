@@ -273,7 +273,7 @@ def edit_standards(dossier_id: str, req: StandardsDraft, principal: Principal = 
 
 
 @router.post("/standards/activate", response_model=Activation)
-def activate_standards(
+async def activate_standards(
     dossier_id: str, req: VersionRef, request: Request, principal: Principal = Depends(_approver),
     settings: Settings = Depends(settings_dep), dossiers: DossierStore = Depends(get_dossier_store),
     positions: PositionStore = Depends(get_position_store), streams: StreamStore = Depends(get_stream_store),

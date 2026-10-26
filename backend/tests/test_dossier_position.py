@@ -1,5 +1,6 @@
 """Dossier step 5: position -> standards -> extraction -> check, with the model answered by the test stand-ins."""
 
+import asyncio
 import json
 import uuid
 from datetime import date
@@ -113,6 +114,7 @@ def env(tmp_path, pg, monkeypatch):
 
     class Launcher:
         def launch(self, run_id, job):
+            asyncio.get_running_loop()  # as LocalJobLauncher's create_task does: a sync endpoint would fail here
             job().close()  # never run: the extraction itself is not under test
 
     monkeypatch.setattr(run_scheduling, "get_job_launcher", Launcher)
