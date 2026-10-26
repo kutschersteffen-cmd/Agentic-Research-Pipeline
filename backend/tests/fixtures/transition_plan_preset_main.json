@@ -38,7 +38,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_headline_2",
@@ -79,7 +80,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_ambition_3",
@@ -121,7 +123,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_ambition_4",
@@ -162,7 +165,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_ambition_5",
@@ -221,7 +225,8 @@
      }
     ]
    }
-  ]
+  ],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_coverage_6",
@@ -262,7 +267,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_coverage_7",
@@ -303,7 +309,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_coverage_8",
@@ -344,7 +351,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_pathway_11",
@@ -386,7 +394,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_pathway_12",
@@ -428,7 +437,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_offsetting_13",
@@ -469,7 +479,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_offsetting_14",
@@ -510,7 +521,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_structure_15",
@@ -551,7 +563,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_skills_17",
@@ -592,7 +605,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_skills_18",
@@ -633,7 +647,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_skills_19",
@@ -674,7 +689,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_accountability_21",
@@ -715,7 +731,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_accountability_22",
@@ -756,7 +773,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_incentives_26",
@@ -798,7 +816,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_transparency_29",
@@ -840,7 +859,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_transparency_30",
@@ -881,7 +901,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_management_32",
@@ -922,7 +943,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_management_33",
@@ -963,7 +985,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_management_34",
@@ -1005,7 +1028,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_management_35",
@@ -1046,7 +1070,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_production_39",
@@ -1088,7 +1113,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_production_40",
@@ -1130,7 +1156,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_planning_41",
@@ -1171,7 +1198,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_planning_42",
@@ -1213,7 +1241,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_planning_43",
@@ -1254,7 +1283,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_planning_44",
@@ -1295,7 +1325,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_engagement_45",
@@ -1337,7 +1368,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_engagement_46",
@@ -1378,7 +1410,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_engagement_47",
@@ -1419,7 +1452,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_engagement_48",
@@ -1460,7 +1494,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_engagement_49",
@@ -1501,7 +1536,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_fossil_fuels_50",
@@ -1543,7 +1579,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_fossil_fuels_51",
@@ -1584,7 +1621,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_fossil_fuels_52",
@@ -1625,7 +1663,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_just_transition_53",
@@ -1666,7 +1705,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_just_transition_54",
@@ -1707,7 +1747,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_biosphere_55",
@@ -1748,7 +1789,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_biosphere_56",
@@ -1789,7 +1831,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_biosphere_57",
@@ -1830,7 +1873,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_biosphere_58",
@@ -1871,7 +1915,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_emissions_59",
@@ -1912,7 +1957,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_emissions_60",
@@ -1953,7 +1999,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_emissions_61",
@@ -1994,7 +2041,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_emissions_62",
@@ -2036,7 +2084,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_progress_66",
@@ -2077,7 +2126,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_progress_67",
@@ -2127,7 +2177,8 @@
     "years": 5,
     "trend": "none"
    }
-  ]
+  ],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_progress_68",
@@ -2177,7 +2228,8 @@
     "years": 5,
     "trend": "none"
    }
-  ]
+  ],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_progress_69",
@@ -2227,7 +2279,8 @@
     "years": 5,
     "trend": "none"
    }
-  ]
+  ],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_progress_70",
@@ -2277,7 +2330,8 @@
     "years": 5,
     "trend": "down"
    }
-  ]
+  ],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_progress_71",
@@ -2327,7 +2381,8 @@
     "years": 5,
     "trend": "down"
    }
-  ]
+  ],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_progress_72",
@@ -2377,7 +2432,8 @@
     "years": 5,
     "trend": "down"
    }
-  ]
+  ],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_progress_73",
@@ -2419,7 +2475,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_progress_74",
@@ -2460,7 +2517,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_capex_75",
@@ -2502,7 +2560,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_capex_77",
@@ -2543,7 +2602,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_revenues_81",
@@ -2585,7 +2645,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_revenues_83",
@@ -2626,7 +2687,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_engagement_86",
@@ -2667,7 +2729,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_a_engagement_87",
@@ -2709,7 +2772,8 @@
   "high_risk": true,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_h_target_pct",
@@ -2751,7 +2815,8 @@
   "high_risk": false,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_h_target_year",
@@ -2792,7 +2857,8 @@
   "high_risk": false,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_h_scope1_emissions",
@@ -2833,7 +2899,8 @@
   "high_risk": false,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_h_scope2_emissions",
@@ -2874,7 +2941,8 @@
   "high_risk": false,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_h_scope3_emissions",
@@ -2914,7 +2982,8 @@
   "high_risk": false,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_h_scope1_intensity",
@@ -2954,7 +3023,8 @@
   "high_risk": false,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_h_scope2_intensity",
@@ -2994,7 +3064,8 @@
   "high_risk": false,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  },
  {
   "field_id": "tp_h_scope3_intensity",
@@ -3034,6 +3105,7 @@
   "high_risk": false,
   "xbrl_tags": [],
   "derived_rule": null,
-  "rules": []
+  "rules": [],
+  "planned_field_id": null
  }
 ]

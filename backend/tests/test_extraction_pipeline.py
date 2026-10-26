@@ -241,11 +241,11 @@ async def test_pipeline_queues_one_row_per_flagged_field(pg, tmp_path, fake_llm)
     )
     company = CompanyRef(company_id="c1", name="Acme Corp", ticker="ACME")
 
-    def _draft(v, quote):
-        return ExtractionDraft(
-            value=v, raw_value_text=quote,
-            citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=quote)], confidence=0.9,
-        )
+    def _draft(v, quote):  # with a period: a numeric row without one goes to review (period_missing)
+        return ExtractionDraft(values=[PeriodValue(
+            value=v, raw_value_text=quote, period_text="FY2025",
+            citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote=quote)],
+        )], confidence=0.9)
 
     agree = VerifierOutput(agrees=True, confidence=0.9, notes="ok")
     disagree = VerifierOutput(agrees=False, corrected_value=None, confidence=0.9, notes="wrong")
@@ -268,7 +268,7 @@ async def test_pipeline_queues_one_row_per_flagged_field(pg, tmp_path, fake_llm)
     rows = run_store.read_review_queue(run_id)
     key, scheme = issuer_key(run_store.load_companies(run_id)[0])  # the batch runs the stored, resolved ref
     flagged = [f.field_id for f in schema.fields[1:]]
-    assert [r["item_key"] for r in rows] == [f"{key}:{fid}:unspecified" for fid in flagged]
+    assert [r["item_key"] for r in rows] == [f"{key}:{fid}:2025-12-31" for fid in flagged]
     assert rows[0]["reason_codes"] == ["verifier_disagrees", "adjudicator_unresolved"]
     assert rows[0]["issuer_key"] == key and rows[0]["issuer_scheme"] == scheme
     assert rows[0]["field"]["field_id"] == flagged[0] and rows[0]["company_id"] == "c1"
@@ -491,7 +491,7 @@ def _trial_run_one_field(tmp_path, fake_llm, verifier):
     )
     draft = ExtractionDraft(
         values=[PeriodValue(
-            value=120.0, raw_value_text="$120 million", unit_text="USD million",
+            value=120.0, raw_value_text="$120 million", unit_text="USD million", period_text="fiscal 2025",
             citations=[Citation(doc_id=doc.doc_id, doc_type=doc.doc_type, quote="invested $120 million in green capex")],
         )],
         confidence=0.95,

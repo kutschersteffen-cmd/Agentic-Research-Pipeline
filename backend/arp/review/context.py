@@ -155,6 +155,20 @@ def _field_definition(run_store: RunStore, run_id: str, item: ReviewItem, settin
     return spec.model_dump(mode="json") | {"first_audit_passed": quality.first_audit_passed}
 
 
+def run_field_names(run_store: RunStore, run_id: str) -> dict[str, str]:
+    """{field_id: name} of the schema the run used; empty for a run that kept no schema."""
+    schema = load_run_schema(run_store, run_id)
+    return {f.field_id: f.name for f in schema.fields} if schema else {}
+
+
+def _field_names(run_store: RunStore, run_id: str, item: ReviewItem, corrections: list[dict]) -> dict[str, str]:
+    """Names of the fields the item's planned_move corrections name, and no others: a known-answer item holds none."""
+    ids = {c.get(k) for c in corrections if c.get("attribute") == "field_id" for k in ("original", "corrected")}
+    if not ids or item.kind not in _FIELD_KINDS:
+        return {}
+    return {i: n for i, n in run_field_names(run_store, run_id).items() if i in ids}
+
+
 def _prior_period(row: dict | None, value: dict | None) -> dict | None:
     end = (value or {}).get("period_end")
     older = [f for f in (row or {}).get("fields", [])
@@ -242,6 +256,8 @@ def build_context(
             for c in map(CheckResult.model_validate, v.get("checks", [])) if is_failing(c)
         ],
         "route_reasons": v.get("route_reasons", []),
+        "corrections": v.get("corrections", []),
+        "field_names": _field_names(run_store, run_id, item, v.get("corrections", [])),
         "conflict": {"conflicting_sources": v.get("conflicting_sources", False), "alternatives": v.get("alternatives", [])}
         if value else None,
         "suggested_correction": _suggestion(v, field_definition),

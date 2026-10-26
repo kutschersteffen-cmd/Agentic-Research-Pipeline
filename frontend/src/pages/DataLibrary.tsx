@@ -16,6 +16,7 @@ import type {
   ReviewStates,
   RunManifest,
 } from "../types";
+import { recordFieldNames } from "../lib/corrections";
 import { activatable } from "../lib/activatable";
 import { useMe } from "../lib/reviewer";
 import { SignedInAs } from "../components/SignedInAs";
@@ -289,17 +290,20 @@ function CompanyResultsView() {
         <div className="split-review">
           <div className="split-review-main">
             {kind === "extraction" &&
-              extractionRecords.map((r) => (
+              extractionRecords.map((r) => {
+                const names = recordFieldNames(r);
+                return (
                 <section className="card" key={r.run_id}>
                   <h2>Run {r.run_id} — {new Date(r.generated_at).toLocaleString()}</h2>
                   <p>
                     <ConfidenceBadge value={r.overall_confidence} /> {r.needs_review && <span className="badge badge-low">needs review</span>}
                   </p>
                   {r.fields.map((f) => (
-                    <FieldDetail key={f.field_id} field={f} onOpenSource={setActiveSource} />
+                    <FieldDetail key={f.field_id} field={f} fieldNames={names} onOpenSource={setActiveSource} />
                   ))}
                 </section>
-              ))}
+                );
+              })}
 
             {kind === "financials" &&
               financialsRecords.map((r) => (
