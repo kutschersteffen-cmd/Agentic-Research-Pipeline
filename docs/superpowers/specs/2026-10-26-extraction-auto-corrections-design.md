@@ -247,7 +247,8 @@ Unless a row says otherwise, the company has no `fiscal_year_end`, the cited doc
 | AC-29 | As AC-4, but the company's `fiscal_year_end` is `03-31` | the run completes | `period_end` is `2025-03-31`; `period_start` is `2024-04-01` | holdout |
 | AC-30 | This change merged | the existing test files for the financials, TNFD, transition-plan and replication pipelines run | They pass with no test changed | unit |
 | AC-31 | As AC-5 (no year in the quote), but the cited document has no `period_plan.current` | the run completes | `period_end` is null; `corrections` is empty; `review_reasons` contains `period_missing` | holdout |
+| AC-32 | A released custom schema (not a trial run) with one enum field `denominator` (allowed `cash_flow`, `other`; not high-risk; `auto_accept_min` 0.9; first audit passed) and two companies. For company A the stand-in returns `cash_flow`, for company B `Cash flow`; for both, extractor and verifier confidence 0.95, the verifier agrees, and the quote is grounded | the run completes | Company A's row has `route` `auto_accept`; company B's row has `value` `cash_flow`, `route` `review` and `auto_corrected` in `route_reasons` | holdout |
 
-Must not change: rows that need no correction keep their values, units, periods and routes (AC-12); stored rows from earlier
+Must not change: an uncorrected row on a released schema still auto-accepts (AC-32); rows that need no correction keep their values, units, periods and routes (AC-12); stored rows from earlier
 runs still load (AC-14); the transition-plan schemas and the research callers get no corrections (AC-21 to AC-24);
 the other pipelines' tests pass unchanged (AC-30).
