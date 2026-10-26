@@ -129,6 +129,12 @@ class ExtractionRecordResult:
         self.cost_usd = cost_usd
 
 
+def _moved_from(row: dict) -> str | None:
+    """The field R4 moved this stored row from, or None."""
+    return next((c.get("original") for c in row.get("corrections", [])
+                 if c.get("rule") == "planned_move" and c.get("attribute") == "field_id"), None)
+
+
 async def _extract_company(
     company: CompanyRef,
     schema: DataPointSchema,
@@ -286,7 +292,14 @@ async def _extract_company(
     slots: list[list[ExtractedField]] = []
     plan_slots: dict[str, list[ExtractedField]] = {}
     todo: list[tuple[FieldDefinition, str | None, list[ExtractedField]]] = []
+    moved: list[tuple[list[ExtractedField], list[dict]]] = []  # a re-asked field's slot, and its prior rows R4 moved there
     input_hashes: dict[str, str | None] = {}
+
+    def _reused(rows: list[dict]) -> list[ExtractedField]:
+        run = history.last_run_id(company.company_id)
+        return [ExtractedField.model_validate(r).model_copy(
+            update={"reused_from_run": run, "checks": [], "route_reasons": [], "route": None}) for r in rows]
+
     for field in to_extract:
         if schema.schema_id == plan_preset.SCHEMA_ID and field.field_id not in plan_preset.OPERATES_FIELDS:
             slots.append(plan_slots.setdefault(field.field_id, []))
@@ -299,23 +312,19 @@ async def _extract_company(
         if prior and all(
             r.get("input_hash") == h and (r.get("provenance") or {}).get("field_version") == field.version
             # a row R4 moved here came from another field's answer: re-asking this field cannot fix its checks
-            and (any(c.get("rule") == "planned_move" and c.get("attribute") == "field_id" for c in r.get("corrections", []))
+            and (_moved_from(r)
                  or not any(  # a rule failure is a reviewer prompt, not a reason to re-ask the model
                      is_failing(res) and not res.check_id.startswith("rule.")
                      for res in map(CheckResult.model_validate, r.get("checks", []))
                  ))
             for r in prior
         ):
-            run = history.last_run_id(company.company_id)
-            slots.append([
-                ExtractedField.model_validate(r).model_copy(
-                    update={"reused_from_run": run, "checks": [], "route_reasons": [], "route": None}
-                )
-                for r in prior
-            ])
+            slots.append(_reused(prior))
             continue
         slots.append([])
         todo.append((field, h, slots[-1]))
+        if carry := [r for r in prior if _moved_from(r)]:
+            moved.append((slots[-1], carry))
     size = settings.extraction_group_size
     grouping = [size > 1 and not f.high_risk and not f.xbrl_tags for f, _, _ in todo]
     groupable = [t for t, g in zip(todo, grouping, strict=True) if g]
@@ -325,6 +334,10 @@ async def _extract_company(
         pending.append(_extract_plans([f for f in to_extract if f.field_id in plan_slots]))
     for field_usages in await asyncio.gather(*pending):
         usages.extend(field_usages)
+    asked = {f.field_id for f, _, _ in todo}
+    for slot, rows in moved:  # re-asking this field never yields a moved row; R4 redoes a move only if its source is re-asked
+        covered = {r.period_end for r in slot}
+        slot.extend(_reused([r for r in rows if _moved_from(r) not in asked and r.get("period_end") not in covered]))
     fields.extend(f for slot in slots for f in slot)
     if corrections:  # reused rows already carry theirs; the rules leave a corrected row unchanged
         fields = apply_corrections(schema, fields, documents_by_id=documents_by_id,

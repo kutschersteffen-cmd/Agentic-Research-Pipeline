@@ -180,14 +180,14 @@ def _unit_scale(row: ExtractedField, spec: FieldDefinition, *, fiscal_year_end: 
     else:
         unit = f"{row.unit} {word.lower()}"
 
-    def _typed(u: str):
+    def _typed(u: str):  # the row's period, however it was set (period text, planned period or R2), picks the FX rate
         pv = PeriodValue(value=row.value, state=row.value_state, raw_value_text=row.raw_value_text, unit_text=u,
-                         period_text=row.period_text, basis_text=row.basis)
-        return typed_value(spec, pv, fiscal_year_end=fiscal_year_end)
+                         period_text=row.period_text, basis_text=row.basis, planned_period_end=row.period_end)
+        return typed_value(spec, pv, fiscal_year_end=fiscal_year_end, planned={row.period_end} if row.period_end else None)
 
     before, after = _typed(row.unit), _typed(unit)
     reasons = [r for r in row.review_reasons if r not in before.reasons or r in after.reasons]
-    reasons += [r for r in after.reasons if r not in reasons]
+    reasons += [r for r in after.reasons if r not in before.reasons and r not in reasons]
     notes = row.verifier_notes or ""
     for n in before.notes:
         if n not in after.notes:
@@ -211,6 +211,7 @@ def _planned_move(rows: list[ExtractedField], schema: DataPointSchema, *, docume
     specs = {f.field_id: f for f in schema.fields}
     live = (ValueState.FOUND, ValueState.ZERO)
     rows = list(rows)
+    drop: set[int] = set()
     for i, r in enumerate(rows):
         spec = specs.get(r.field_id)
         planned = specs.get(spec.planned_field_id) if spec and spec.planned_field_id else None
@@ -221,6 +222,8 @@ def _planned_move(rows: list[ExtractedField], schema: DataPointSchema, *, docume
         j = next((j for j, p in enumerate(rows)
                   if p.field_id == planned.field_id and p.period_end == r.period_end and p.value_state in live), None)
         if j is None:
+            # a not_found planned row for this period would share the moved row's item key
+            drop.update(k for k, p in enumerate(rows) if p.field_id == planned.field_id and p.period_end == r.period_end)
             c = Correction(rule="planned_move", attribute="field_id", original=r.field_id,
                            corrected=planned.field_id, reason=reason)
             prov = r.provenance or ProvenanceInfo()
@@ -229,11 +232,16 @@ def _planned_move(rows: list[ExtractedField], schema: DataPointSchema, *, docume
                 "provenance": prov.model_copy(update={"field_version": planned.version}),
                 "corrections": [*r.corrections, c]})
             continue
+        a, b = _amount(r), _amount(rows[j])
+        close = isinstance(a, (int, float)) and isinstance(b, (int, float)) and abs(a - b) <= 0.01 * abs(b)
+        if close and rows[j].reused_from_run and any(
+                (c.rule, c.attribute, c.original) == ("planned_move", "field_id", r.field_id) for c in rows[j].corrections):
+            drop.add(i)  # an earlier run already moved this figure and the moved row is reused: nothing new to review
+            continue
         c = Correction(rule="planned_move", attribute="value", original=r.value, corrected=None, reason=reason)
         rows[i] = r.model_copy(update={"value": None, "value_state": ValueState.NOT_FOUND, "canonical_value": None,
                                        "corrections": [*r.corrections, c]})
-        a, b = _amount(r), _amount(rows[j])
-        if not (isinstance(a, (int, float)) and isinstance(b, (int, float))) or abs(a - b) > 0.01 * abs(b):
+        if not close:
             alt = Alternative(value=r.value, raw_value_text=r.raw_value_text, source="planned_move", citations=r.citations)
             rows[j] = rows[j].model_copy(update={"alternatives": [*rows[j].alternatives, alt]})
-    return rows
+    return [r for k, r in enumerate(rows) if k not in drop]

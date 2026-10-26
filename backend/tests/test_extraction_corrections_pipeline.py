@@ -42,12 +42,12 @@ class _LLM:
         key = next((k for k in self.answers if k in prompt), None)
         values = []
         if key:
-            value, quote, unit, period = self.answers[key]
+            answer = self.answers[key]  # one (value, quote, unit, period) tuple, or a list of them
             doc_id = prompt.split("[doc_id=", 1)[1].split(" ", 1)[0]  # the evidence's own document
             values = [PeriodValue(
                 value=value, raw_value_text=str(value), unit_text=unit, period_text=period,
                 citations=[Citation(doc_id=doc_id, doc_type=DocType.SUSTAINABILITY_REPORT, quote=quote)],
-            )]
+            ) for value, quote, unit, period in (answer if isinstance(answer, list) else [answer])]
         return ExtractionDraft(values=values, confidence=0.95), LLMUsage(provider="fake")
 
 
@@ -152,6 +152,33 @@ async def test_moved_row_is_reused_under_planned_field(tmp_path):  # AC-9, AC-17
     assert [c["rule"] for c in planned["corrections"]] == ["planned_move"]
     actual = [f for f in _rows(store, run2) if f["field_id"] == "tc_capex_total" and f["period_end"] == "2026-12-31"]
     assert all(f["value"] is None for f in actual)
+
+
+Q2025 = "Capital expenditures were $2.4 billion in 2025"
+Q2026 = "Capital expenditures for 2026 are estimated to be approximately $2.5 billion"
+Q2027 = "Capital expenditures for 2027 are planned at $2.7 billion"
+
+
+@pytest.mark.parametrize("answers", [
+    # A: the actual field also has 2025, so it is reused; the planned field's own 2027 row makes it re-asked
+    {_field("Total capex"): [(2.4, Q2025, "USD billions", "2025"), (2.5, Q2026, "USD billions", "2026")],
+     _field("Total capex, planned"): (2.7, Q2027, "USD billions", "2027")},
+    # B: the actual field had only the moved row, so it has no rows of its own and is re-asked every run
+    {_field("Total capex"): (2.5, Q2026, "USD billions", "2026")},
+], ids=["actual-reused-planned-reasked", "actual-reasked-planned-reused"])
+async def test_moved_figure_survives_unchanged_reruns(tmp_path, answers):  # AC-17 over three runs
+    schema = _capex("tc_capex_total", "tc_capex_total_planned")
+    docs = [_doc(f"Annual Report 2025. {Q2025}. {Q2026}. {Q2027}.")]
+    prev, _, _ = await _run(tmp_path, schema, docs, answers, trial=False)
+    for _ in range(2):
+        run, store, _ = await _run(tmp_path, schema, docs, answers, trial=False)
+        planned = _row(store, run, "tc_capex_total_planned", "2026-12-31")
+        assert (planned["value"], planned["reused_from_run"]) == (2.5, prev)
+        assert [(c["rule"], c["attribute"]) for c in planned["corrections"]] == [("planned_move", "field_id")]
+        assert not [f for f in _rows(store, run) if f["field_id"] == "tc_capex_total" and f["period_end"] == "2026-12-31"]
+        assert not [q for q in store.read_review_queue(run) if q["field_id"] == "tc_capex_total"
+                    and q.get("period_end") == "2026-12-31"]
+        prev = run
 
 
 async def test_released_schema_auto_accepts_uncorrected_twin_only(tmp_path):  # AC-32

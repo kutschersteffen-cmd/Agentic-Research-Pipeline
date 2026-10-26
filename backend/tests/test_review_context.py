@@ -263,6 +263,7 @@ def test_context_includes_corrections(env):
     assert ctx["corrections"] == [CORRECTION]
     assert ctx["field_names"] == {"f1": "Scope 1"}
     assert _ctx()["corrections"] == []  # a row stored before corrections existed
+    assert _ctx()["field_names"] == {}  # only fields a correction names: a seeded item must not differ by schema
 
 
 def test_stored_row_without_corrections_is_served_with_empty_list(env):
@@ -281,3 +282,11 @@ def test_results_carry_the_run_schemas_field_names(env):
     rs.append_result("ext2", {"company_id": "C1", "name": "Acme", "run_id": "ext2", "fields": [], "_key": "C1"})
     [row] = _client().get("/api/extraction/companies/C1/results").json()["results"]
     assert row["field_names"] == {"f1": "Scope 1"}
+
+
+def test_company_results_serve_stored_row_with_empty_corrections(env):  # AC-14 through the by-company endpoint
+    rs = env[0]
+    rs.save_manifest(RunManifest(run_id="ext2", run_type="extraction"))
+    rs.save_companies("ext2", [CompanyRef(company_id="C1", name="Acme")])
+    rs.append_result("ext2", {"company_id": "C1", "name": "Acme", "run_id": "ext2", "fields": [FIELD], "_key": "C1"})
+    assert [f["corrections"] for f in _client().get("/api/extraction/companies/C1/results").json()["results"][0]["fields"]] == [[]]

@@ -453,6 +453,9 @@ def get_extraction_results_for_company(company_id: str, run_store: RunStore = De
     one run's, for the Data Library's "By company" view."""
     with transaction() as s:
         rows = results_by_company(s, "extraction", company_id)
+    for r in rows:
+        for f in r.get("fields", []):
+            f.setdefault("corrections", [])  # rows stored before auto-corrections
     names = {run_id: run_field_names(run_store, run_id) for run_id in {r["run_id"] for r in rows if r.get("run_id")}}
     return {"results": [r | {"field_names": names[r["run_id"]]} if names.get(r.get("run_id")) else r for r in rows]}
 

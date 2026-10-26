@@ -1,6 +1,8 @@
 import pytest
 
 from arp.extraction.corrections import apply_corrections
+from arp.extraction.extractor_agent import PeriodValue
+from arp.normalise.value import typed_value
 from arp.schemas.common import Citation, DocType, PeriodPlan, ProvenanceInfo, SourceDocument
 from arp.schemas.datapoints import Correction, DataPointSchema, ExtractedField, FieldDataType, FieldDefinition, ValueState
 from arp.schemas.review import ReasonCode
@@ -278,6 +280,27 @@ def test_attached_scale_word_must_end_at_a_word_boundary():
     assert _uc(out) == []
 
 
+@pytest.mark.parametrize("period_end,quote", [
+    ("2025-12-31", "Capital expenditures were EUR 2.794 billion"),  # period set without period text (planned period)
+    (None, "Capital expenditures were EUR 2.794 billion in 2025"),  # period filled by R2
+])
+def test_unit_scale_recompute_keeps_the_rows_period(period_end, quote):
+    # A target unit needs an FX rate, picked by the period end; the period here comes only from period_end.
+    spec = FieldDefinition(field_id="capex", name="Capex", description="d", data_type=FieldDataType.CURRENCY_AMOUNT,
+                           extraction_instructions="x", unit="USD")
+    pv = PeriodValue(value=2.794, raw_value_text="2.794", unit_text="EUR millions", planned_period_end="2025-12-31")
+    pipeline = typed_value(spec, pv, fiscal_year_end=None, planned={"2025-12-31"}, decimal=".")  # as the pipeline typed it
+    row = _urow("EUR millions", quote, raw="2.794", period_end=period_end, canonical_value=pipeline.canonical_value,
+                canonical_unit="USD", scale_applied=1e6)
+    (out,) = apply_corrections(DataPointSchema(schema_id="s", name="S", fields=[spec]), [row], documents_by_id={},
+                               fiscal_year_end=None, input_hashes={})
+    assert out.unit == "EUR billions" and len(_uc(out)) == 1
+    assert out.canonical_value == pytest.approx(1000 * pipeline.canonical_value)
+    assert (out.canonical_unit, out.scale_applied) == ("USD", 1e9)
+    assert ReasonCode.CHECK_FAILED not in out.review_reasons
+    assert ReasonCode.NUMBER_LOCALE_AMBIGUOUS not in out.review_reasons  # "before" has it too: not caused by R3
+
+
 # --- R4 planned_move ------------------------------------------------------
 
 REASON_2026 = "Period 2026-12-31 is after the report's period end 2025-12-31, so it is a planned figure."
@@ -335,7 +358,16 @@ def test_close_values_add_no_alternative():
 def test_not_found_planned_row_does_not_block_the_move():
     gone = _mrow("capex_planned", None, value_state=ValueState.NOT_FOUND)
     out = _move([_mrow(), gone])
-    assert [(r.field_id, r.value) for r in out] == [("capex_planned", 2.5), ("capex_planned", None)]
+    # the moved row replaces the not_found one: two rows for one period would share an item key
+    assert [(r.field_id, r.value, r.period_end) for r in out] == [("capex_planned", 2.5, "2026-12-31")]
+
+
+def test_reasked_actual_of_a_reused_move_is_dropped():
+    # A later run reuses the moved row and re-asks the source field, which gives the same figure again.
+    reused = _move([_mrow()])[0].model_copy(update={"reused_from_run": "run1"})
+    assert _move([_mrow(value=2.51), reused]) == [reused]
+    out_actual, out_planned = _move([_mrow(value=3.0), reused])  # a new figure is still shown to the reviewer
+    assert out_actual.value is None and [a.value for a in out_planned.alternatives] == [3.0]
 
 
 def test_planned_row_for_another_period_does_not_block_the_move():
