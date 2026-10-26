@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { dossierHref } from "../lib/dossiers";
+import { safeHref } from "../lib/xbrlTags";
 import { CATEGORY_LABEL, NOTE_SECTIONS, canPropose, canUpload, canWriteNote, planOpen, unreadLines } from "../lib/research";
 import type { ResearchNote, ResearchRound, ResearchSource, ResearchView, SourceCategory } from "../types";
 
@@ -14,15 +15,19 @@ export function ThemeResearch({ id }: { id: string }) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // A failed refresh keeps the last view on screen: only the first load can fail the page.
-  const load = useCallback(() => api.getResearch(id).then(setView, () => undefined), [id]);
+  // A failed refresh keeps the last view on screen and polls until one succeeds: only the first load can fail the page.
+  const [stale, setStale] = useState(false);
+  const load = useCallback(
+    () => api.getResearch(id).then((v) => { setView(v); setStale(false); }, () => setStale(true)),
+    [id],
+  );
   useEffect(() => {
     api.getResearch(id).then(setView, (err: Error) => setError(err.message));
     api.getDossier(id).then((d) => setName(d.name), () => undefined);
   }, [id]);
 
   const latest = view?.rounds[view.rounds.length - 1];
-  const running = latest?.plan_status === "proposing" || latest?.note?.status === "writing";
+  const running = stale || latest?.plan_status === "proposing" || latest?.note?.status === "writing";
   useEffect(() => {
     if (!running) return;
     const timer = window.setInterval(load, 2000);
@@ -163,7 +168,7 @@ function SourceTable({ round, onRemove, onUpload }: { round: ResearchRound; onRe
         <tbody>
           {round.sources.map((s) => (
             <tr key={s.source_id}>
-              <td><a href={s.url} target="_blank" rel="noreferrer">{s.title}</a></td>
+              <td>{safeHref(s.url) ? <a href={s.url} target="_blank" rel="noreferrer">{s.title}</a> : s.title}</td>
               <td>{s.publisher}</td>
               <td>{CATEGORY_LABEL[s.category]}</td>
               <td>{s.why}</td>
@@ -280,7 +285,7 @@ function Note({ round, note }: { round: ResearchRound; note: ResearchNote }) {
                     <p className="muted">
                       {s?.title ?? c.source_id}
                       {c.page != null && `, page ${c.page}`}
-                      {s && <> · <a href={s.url} target="_blank" rel="noreferrer">{s.url}</a></>}
+                      {s && <> · {safeHref(s.url) ? <a href={s.url} target="_blank" rel="noreferrer">{s.url}</a> : s.url}</>}
                     </p>
                   </blockquote>
                 );

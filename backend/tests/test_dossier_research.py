@@ -422,3 +422,37 @@ def test_a_round_whose_run_died_reads_as_failed_and_can_be_retried(env, pg):  # 
     assert env.client.post(env.url("/note")).status_code == 202
     env.run_jobs()
     assert env.research()["rounds"][0]["note"]["status"] == "written"
+
+
+def test_a_later_round_over_twelve_sources_cannot_be_approved(env):
+    env.approved()
+    _default_note(env)
+    env.client.post(env.url("/note"))
+    env.run_jobs()
+    env.client.post(env.url("/note/approve"))
+    urls = [f"https://u{i}.int/r" for i in range(10)]
+    _write(env.folder, "search.json", {"results": [{"title": u, "url": u} for u in urls]})
+    _write(env.folder, "model/SourceClassificationDraft.json", {"output": {"sources": [
+        {"url": u, "category": "academic", "publisher": "p", "why": "w", "how": "h"} for u in urls]}})
+    env.proposed()
+    assert len(env.research()["rounds"][1]["sources"]) == 13
+    r = env.client.post(env.url("/plan/approve"))
+    assert (r.status_code, r.json()["detail"]) == (409, "a plan holds at most 12 sources")
+    env.client.delete(env.url(f"/sources/{env.ids()[urls[-1]]}"))
+    assert env.client.post(env.url("/plan/approve")).status_code == 200
+
+
+def test_a_lost_upload_falls_back_to_the_url(env):
+    env.approved()
+    ids = _default_note(env)
+    env.client.post(env.url(f"/sources/{ids[IEA]}/file"), files={"file": ("i.txt", b"Nothing useful.")})
+    from arp.themes.research import ResearchRecord, ResearchStore
+
+    record = ResearchRecord.model_validate(env.research())
+    iea = next(s for s in record.rounds[0].sources if s.source_id == ids[IEA])
+    ResearchStore(env.settings.runs_dir / "_dossiers" / "research").file_path(env.d, iea).unlink()
+    env.client.post(env.url("/note"))
+    env.run_jobs()
+    note = env.research()["rounds"][0]["note"]
+    assert (note["status"], note["error"]) == ("written", None)
+    assert [i["citations"][0]["source_id"] for i in note["sections"]["opportunities"]] == [ids[IEA]]

@@ -382,13 +382,17 @@ def _file_document(source_id: str, path: Path) -> SourceDocument:
 
 async def read_sources(sources: list[tuple[ResearchSource, Path | None]], user_agent: str
                        ) -> tuple[dict[str, SourceDocument], list[UnreadSource]]:
-    """Each source's text: its uploaded file when it has one, else its fetched URL."""
+    """Each source's text: its uploaded file when it has one (and it can be read), else its fetched URL."""
     docs: dict[str, SourceDocument] = {}
     unread: list[UnreadSource] = []
     for source, path in sources:
+        doc = None
         if path is not None:
-            doc = _file_document(source.source_id, path)
-        else:
+            try:
+                doc = _file_document(source.source_id, path)
+            except OSError as exc:  # a lost upload falls back to the URL rather than failing the note
+                logger.warning("could not read the upload for %s: %s", source.source_id, exc)
+        if doc is None:
             text = await fetch_source_text_or_empty(source.url, user_agent)
             if text is None:
                 unread.append(UnreadSource(source_id=source.source_id, reason="fetch failed"))

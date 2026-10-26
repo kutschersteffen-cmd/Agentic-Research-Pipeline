@@ -253,6 +253,8 @@ def approve_plan(dossier_id: str, dossiers: DossierStore = Depends(get_dossier_s
         r = open_round(record)
         if not r.sources:
             raise Refused(409, "add at least one source")
+        if len(r.sources) > MAX_SOURCES:  # a later round's proposals come on top of the carried-over sources
+            raise Refused(409, f"a plan holds at most {MAX_SOURCES} sources")
         r.plan_status, r.plan_approved_by, r.plan_approved_at = "approved", principal.name, now_iso()
         return r
 
@@ -298,7 +300,7 @@ async def start_writing(
             if error:
                 note.status, note.error = "write_failed", error
             else:
-                note.status, note.sections, note.dropped_items, note.written_at = "written", sections, dropped, now_iso()
+                note.status, note.sections, note.dropped_items, note.written_at, note.error = "written", sections, dropped, now_iso(), None
             note.unread_sources = unread
 
         store.update(dossier_id, finish)

@@ -17,8 +17,6 @@ export const NOTE_SECTIONS: [keyof ResearchNote["sections"], string][] = [
   ["transmission_channels", "Transmission channels"],
 ];
 
-export const researchHref = (dossierId: string) => `#/themes/${encodeURIComponent(dossierId)}/research`;
-
 /** No round yet, the latest note approved (a new round), or the last proposal failed (proposed again). */
 export const canPropose = (r: ResearchRound | undefined) =>
   !r || r.plan_status === "proposal_failed" || r.note?.status === "approved";
