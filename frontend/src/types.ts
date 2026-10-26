@@ -30,6 +30,8 @@ export type ResearchRound = Served<S["ResearchRound"]>;
 export type ResearchSource = Served<S["ResearchSource"]>;
 export type ResearchNote = NonNullable<ResearchRound["note"]>;
 export type SourceCategory = ResearchSource["category"];
+export type ProposalStarted = Served<S["ProposalStarted"]>;
+export type RunStarted = Served<S["RunStarted"]>;
 export type PriorRun = Served<S["PriorRun"]>;
 
 export type RfpLibraryEntry = Served<S["RfpLibraryEntryOut"]>;

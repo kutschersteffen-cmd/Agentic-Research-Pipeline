@@ -14,11 +14,12 @@ export function ThemeResearch({ id }: { id: string }) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(() => api.getResearch(id).then(setView, (err: Error) => setError(err.message)), [id]);
+  // A failed refresh keeps the last view on screen: only the first load can fail the page.
+  const load = useCallback(() => api.getResearch(id).then(setView, () => undefined), [id]);
   useEffect(() => {
-    load();
+    api.getResearch(id).then(setView, (err: Error) => setError(err.message));
     api.getDossier(id).then((d) => setName(d.name), () => undefined);
-  }, [id, load]);
+  }, [id]);
 
   const latest = view?.rounds[view.rounds.length - 1];
   const running = latest?.plan_status === "proposing" || latest?.note?.status === "writing";

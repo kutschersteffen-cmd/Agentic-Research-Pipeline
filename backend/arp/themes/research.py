@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import io
 import logging
-import shutil
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Literal
@@ -199,16 +199,18 @@ class ResearchStore:
             atomic_write_text(self.research_dir / f"{key}.json", record.model_dump_json(indent=2))
             return result
 
-    def file_path(self, dossier_id: str, source: ResearchSource) -> Path | None:
-        if source.file is None:
-            return None
-        return self.research_dir / self._key(dossier_id) / source.source_id / source.file.filename
+    def _file_path(self, dossier_id: str, source_id: str, file: SourceFile) -> Path:
+        # One folder per upload: a replacement in a later round must not delete the file an earlier round's note read.
+        upload = re.sub(r"[^0-9A-Za-z]", "", file.uploaded_at)
+        return self.research_dir / self._key(dossier_id) / safe_id(source_id, label="source id") / upload / file.filename
 
-    def save_file(self, dossier_id: str, source_id: str, filename: str, data: bytes) -> None:
-        folder = self.research_dir / self._key(dossier_id) / safe_id(source_id, label="source id")
-        shutil.rmtree(folder, ignore_errors=True)  # a second upload replaces the first
-        folder.mkdir(parents=True)
-        (folder / filename).write_bytes(data)
+    def file_path(self, dossier_id: str, source: ResearchSource) -> Path | None:
+        return self._file_path(dossier_id, source.source_id, source.file) if source.file else None
+
+    def save_file(self, dossier_id: str, source_id: str, file: SourceFile, data: bytes) -> None:
+        path = self._file_path(dossier_id, source_id, file)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
 
 
 def get_research_store(settings: Settings = Depends(settings_dep)) -> ResearchStore:
@@ -398,7 +400,7 @@ def ground_note(draft: ResearchNoteDraft, docs: dict[str, SourceDocument]) -> tu
                 continue
             getattr(sections, name).append(NoteItem(
                 title=item.title[:120], text=item.text, channel=item.channel if name == "transmission_channels" else None,
-                citations=[NoteCitation(source_id=c.doc_id, quote=c.quote, page=c.page) for c in grounded],
+                citations=[NoteCitation(source_id=c.doc_id, quote=c.span_text or c.quote, page=c.page) for c in grounded],
             ))
     return sections, dropped
 

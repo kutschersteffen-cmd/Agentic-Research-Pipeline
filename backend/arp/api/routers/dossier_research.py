@@ -19,6 +19,7 @@ from arp.storage.safe_path import UnsafeIdentifierError, safe_filename
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.themes.dossiers import Dossier, DossierStore, get_dossier_store
 from arp.themes.research import (
+    MAX_SOURCES,
     UPLOAD_SUFFIXES,
     Category,
     Refused,
@@ -182,7 +183,14 @@ def add_source(
 ) -> ResearchSource:
     _dossier(dossier_id, dossiers, write=True)
     source = ResearchSource(**req.model_dump(), added_by=principal.name)
-    _apply(store, dossier_id, lambda rec: open_round(rec).sources.append(source))
+
+    def fn(record: ResearchRecord) -> None:
+        r = open_round(record)
+        if len(r.sources) >= MAX_SOURCES:  # the note is written in one model call over at most this many sources
+            raise Refused(409, f"a plan holds at most {MAX_SOURCES} sources")
+        r.sources.append(source)
+
+    _apply(store, dossier_id, fn)
     return source
 
 
@@ -216,7 +224,7 @@ async def upload_source_file(
             raise Refused(409, "the note is already written")
         return source
 
-    _apply(store, dossier_id, check)
+    _check(store, dossier_id, check)
     try:
         filename = safe_filename(file.filename)
     except UnsafeIdentifierError as exc:
@@ -229,8 +237,8 @@ async def upload_source_file(
 
     def save(record: ResearchRecord) -> ResearchSource:
         source = check(record)  # again under the lock: the note may have started meanwhile
-        store.save_file(dossier_id, source_id, filename, data)
         source.file = SourceFile(filename=filename, uploaded_by=principal.name, uploaded_at=now_iso())
+        store.save_file(dossier_id, source_id, source.file, data)
         return source
 
     return _apply(store, dossier_id, save)

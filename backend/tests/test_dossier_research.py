@@ -356,3 +356,38 @@ def test_a_draft_taxonomy_cannot_be_researched(env):
     step = env.client.get(f"/api/dossiers/{e}").json()["steps"][2]
     assert (step["state"], step["detail"], step["href"]) == ("not_started", "ratify a taxonomy first", None)
     assert env.client.get(f"/api/dossiers/{env.d}").json()["steps"][2]["href"] == f"#/themes/{env.d}/research"
+
+
+def test_the_shown_quote_is_the_source_text_and_a_plan_holds_twelve_sources(env):
+    env.proposed()
+    body = {"title": "t", "publisher": "p", "category": "official_statistics", "why": "w", "how": "h"}
+    for i in range(9):
+        assert env.client.post(env.url("/sources"), json={**body, "url": f"https://x.gov/{i}"}).status_code == 200
+    r = env.client.post(env.url("/sources"), json={**body, "url": "https://x.gov/13"})
+    assert (r.status_code, r.json()["detail"]) == (409, "a plan holds at most 12 sources")
+    for sid in list(env.ids().values())[3:]:
+        env.client.delete(env.url(f"/sources/{sid}"))
+    env.client.post(env.url("/plan/approve"))
+    ids = env.ids()
+    env.note_stand_in(risks=[_item("Prices", (ids[EUROSTAT], "electricity  prices rose 12% in 2023."))])
+    env.client.post(env.url("/note"))
+    env.run_jobs()
+    assert env.research()["rounds"][0]["note"]["sections"]["risks"][0]["citations"][0]["quote"] == PRICES
+
+
+def test_a_new_upload_keeps_the_file_an_earlier_round_read(env):
+    env.approved()
+    ids = _default_note(env)
+    pdf = lambda text: {"file": ("p.pdf", _pdf(text), "application/pdf")}  # noqa: E731
+    env.client.post(env.url(f"/sources/{ids[PAPER]}/file"), files=pdf("Storage costs fell 40%."))
+    env.client.post(env.url("/note"))
+    env.run_jobs()
+    env.client.post(env.url("/note/approve"))
+    env.proposed()
+    env.client.post(env.url(f"/sources/{ids[PAPER]}/file"), files=pdf("Other text."))
+    from arp.themes.research import ResearchRecord, ResearchStore
+
+    store = ResearchStore(env.settings.runs_dir / "_dossiers" / "research")
+    record = ResearchRecord.model_validate(env.research())
+    paths = [store.file_path(env.d, next(s for s in r.sources if s.source_id == ids[PAPER])) for r in record.rounds]
+    assert paths[0] != paths[1] and all(p.is_file() for p in paths)
