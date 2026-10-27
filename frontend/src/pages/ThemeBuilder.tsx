@@ -37,7 +37,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId, initialRun
   const [results, setResults] = useState<CompanyMatch[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [batch, setBatch] = useState(false);
-  const [useSampleIcio, setUseSampleIcio] = useState(false);
+  const [useSampleIo, setUseSampleIo] = useState(false);
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
   const [selectedTaxonomyId, setSelectedTaxonomyId] = useState("");
   const [loadedTaxonomy, setLoadedTaxonomy] = useState<Taxonomy | null>(null);
@@ -149,7 +149,7 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId, initialRun
         taxonomy_id: loadedTaxonomy.taxonomy_id,
         taxonomy_version: loadedTaxonomy.version,
         universe_path: universePath,
-        use_sample_icio: useSampleIcio,
+        use_sample_io: useSampleIo,
         batch,
         ...(cataloguePath && catalogueMappings.length > 0
           ? { revenue_catalogue_path: cataloguePath, catalogue_mapping: catalogueMappings }
@@ -373,14 +373,13 @@ export function ThemeBuilder({ onSendToExtraction, pendingTaxonomyId, initialRun
           }}
         />
         <label className="checkbox-label">
-          <input type="checkbox" checked={useSampleIcio} onChange={(e) => setUseSampleIcio(e.target.checked)} />
+          <input type="checkbox" checked={useSampleIo} onChange={(e) => setUseSampleIo(e.target.checked)} />
           Enable indirect (input-output) exposure tier using the bundled sample dataset
         </label>
         <p className="help-text">
-          Structural supply-chain exposure via OECD ICIO input-output propagation — catches companies with no
+          Structural supply-chain exposure via EXIOBASE input-output propagation — catches companies with no
           direct textual evidence but real economic linkage to the theme's core sectors. The sample dataset is
-          illustrative only; for a real run, configure ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH on the
-          backend instead and leave this off.
+          illustrative only; for a real run, set ARP_VALUE_CHAIN_DIR on the backend instead and leave this off.
         </p>
 
         <p className="help-text" style={{ marginTop: 16 }}>

@@ -1,58 +1,32 @@
-# Sample input-output data
+# Sample input-output model
 
-`icio_matrix.csv` and `industries.csv` are a small, **illustrative** 10-industry
-intermediate-flows table over real ISIC Rev.4 division codes, hand-constructed
-to have a plausible electrification-relevant value-chain structure (mining ->
-chemicals/basic metals -> electrical equipment -> motor vehicles / electricity
-supply, with civil engineering, trade, and IT services layered in). The flow
-values are illustrative, not real OECD figures.
+This directory is one `arp io build-full` output, edition `sample`: the same
+files the indirect-exposure tier and the Value Chain Explorer read from
+`ARP_VALUE_CHAIN_DIR` (`manifest.json`, `nodes.csv`, `A.npy`, `L.npy`,
+`G.npy`, `Y.npy`, `y_columns.csv`). **Every value is illustrative**, not an
+EXIOBASE figure. It exists so the tier is runnable and testable out of the box
+(`--use-sample-io`, or `use_sample_io` in the API) without the ~800 MB EXIOBASE
+download.
 
-This exists so the indirect-exposure tier is runnable and testable out of the
-box, without a multi-hundred-megabyte download. For production use, replace
-these two files with a real extract from the
-[OECD Inter-Country Input-Output Tables](https://www.oecd.org/en/data/datasets/inter-country-input-output-tables.html),
-aggregated across countries down to industry x industry (see
-`docs/METHODOLOGY.md` for the exact format and the aggregation this loader
-expects), and point `ARP_ICIO_MATRIX_PATH` / `ARP_ICIO_INDUSTRIES_PATH` at
-them.
+It has 4 regions (`DE`, `CN`, `US`, `WA`) and 8 EXIOBASE sectors: copper ore
+mining, copper production, wind and coal electricity, electrical machinery,
+motor vehicles, construction and retail trade -- 32 nodes, every one with
+output, plus final demand. The flows follow a plausible electrification value
+chain (mining -> copper -> electrical machinery -> vehicles and construction,
+with power feeding every sector) and some imports from `CN` and `WA`.
 
-## Format
+`backend/scripts/make_io_sample.py` writes the archive it was built from:
 
-`industries.csv`: `isic_code,label,total_output` — one row per industry,
-`total_output` is that industry's gross total output (used as the
-denominator for technical coefficients).
+```
+python scripts/make_io_sample.py /tmp/IOT_sample_ixi.zip
+arp io build-full /tmp/IOT_sample_ixi.zip --out arp/research/indirect_exposure/sample_data --label sample
+```
 
-`icio_matrix.csv`: a square matrix, header row and first column both equal
-the industry codes in `industries.csv`, in the same order. Cell `[i, j]` is
-the value of intermediate goods/services flowing **from** industry `i` (the
-supplier, the row) **to** industry `j` (the user, the column) as an input to
-its production.
+(`build-full` replaces the directory, so copy this README back afterwards.)
 
-## EXIOBASE (`exiobase_flows.csv`)
-
-`exiobase_flows.csv` is the **same illustrative economy** as `icio_matrix.csv`,
-re-expressed in EXIOBASE's realistic long format: one row per
-(supplier industry, user industry, region) flow, rather than a pre-squared
-matrix. Concretely, every nonzero cell of `icio_matrix.csv` was split across
-two illustrative regions (`EU`, `ROW`) into two rows whose values sum back to
-the original cell exactly. This is deliberate: it lets
-`load_sample_exiobase()`'s aggregation reproduce `load_sample_icio()`'s matrix
-exactly, which proves the group-and-sum aggregation arithmetic in
-`exiobase_loader.py` is correct. **It is not a claim about what a real
-EXIOBASE extract's region/sector granularity, units, or classification
-quality would actually look like** — treat it purely as a correctness-test
-fixture, the same way `icio_matrix.csv`'s values are illustrative rather than
-real OECD figures.
-
-For production use, point `ARP_EXIOBASE_FLOWS_PATH`/`ARP_EXIOBASE_INDUSTRIES_PATH`
-at a real long-format extract from [EXIOBASE](https://www.exiobase.eu/)
-(registration required) with columns `supplier_isic_code,user_isic_code,value`
-(extra columns, e.g. region, are permitted and summed/collapsed over). **You
-must map EXIOBASE's native product/sector classification to ISIC Rev.4
-division codes yourself first** — this loader does not attempt that
-crosswalk, since EXIOBASE's categories are NACE/CPA-based, not ISIC-based.
-`industries.csv`'s `total_output` must likewise already be aggregated across
-regions.
+For a real run, build the real table instead and point the tier at it:
+`arp io build-full IOT_2022_ixi.zip --out <dir>`, then `ARP_VALUE_CHAIN_DIR=<dir>`.
+See `docs/METHODOLOGY.md` for how the tier reads the build.
 
 ## Criticality overlay
 

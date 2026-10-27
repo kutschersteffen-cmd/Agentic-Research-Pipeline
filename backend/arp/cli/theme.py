@@ -19,7 +19,7 @@ from arp.research.activity_generator import build_theme
 from arp.research.exposure_layers import load_run_layers, parse_as_of
 from arp.research.indirect_exposure.core_sectors import classify_theme_core_sectors
 from arp.research.indirect_exposure.criticality import apply_criticality_overlay
-from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
+from arp.research.indirect_exposure.factory import NO_MODEL, resolve_indirect_exposure_model
 from arp.research.lifecycle_classifier import classify_theme_lifecycle_stages
 from arp.research.pipeline import run_thematic_universe
 from arp.research.rd_exposure.resolver import RDResolverContext
@@ -90,37 +90,30 @@ def theme_decompose(name: str, description: str = "", out: Path = typer.Option(.
 def theme_classify_sectors(
     theme_file: Path = typer.Option(..., "--theme"),
     out: Path = typer.Option(..., help="Where to write the ThemeDefinition JSON with core_isic_codes populated."),
-    use_sample_icio: bool = typer.Option(
-        False, help="Use the bundled illustrative ICIO-shaped sample dataset instead of the configured ICIO paths."
-    ),
-    use_sample_exiobase: bool = typer.Option(
-        False, help="Use the bundled illustrative EXIOBASE-shaped sample dataset instead of the configured EXIOBASE paths."
+    use_sample_io: bool = typer.Option(
+        False, "--use-sample-io", help="Use the bundled illustrative sample input-output model instead of ARP_VALUE_CHAIN_DIR."
     ),
 ) -> None:
     """Populates each activity's core_isic_codes -- one classification call
     per activity against the input-output model's fixed industry list, run
     once per theme (not per company) before enabling the indirect-exposure
-    tier in `theme run --use-sample-icio`/`--use-sample-exiobase` or a
-    configured ARP_ICIO_*/ARP_EXIOBASE_* path. Also applies the bundled
+    tier in `theme run --use-sample-io` or with ARP_VALUE_CHAIN_DIR set.
+    Also applies the bundled
     criticality overlay (arp.research.indirect_exposure.criticality),
     flagging any activity whose freshly-classified core_isic_codes touch a
     USGS/IEA-listed critical mineral's industry.
     """
     settings = get_settings()
-    llm = build_llm_client(settings)
     theme = ThemeDefinition.model_validate_json(theme_file.read_text())
     try:
-        model = resolve_indirect_exposure_model(settings, use_sample_icio=use_sample_icio, use_sample_exiobase=use_sample_exiobase)
+        model = resolve_indirect_exposure_model(settings, use_sample=use_sample_io)
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
     if model is None:
-        typer.echo(
-            "No input-output data available: set ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH or "
-            "ARP_EXIOBASE_FLOWS_PATH/ARP_EXIOBASE_INDUSTRIES_PATH, or pass --use-sample-icio/--use-sample-exiobase.",
-            err=True,
-        )
+        typer.echo(f"{NO_MODEL}, or pass --use-sample-io.", err=True)
         raise typer.Exit(1)
+    llm = build_llm_client(settings)
     updated_theme, _usage = asyncio.run(classify_theme_core_sectors(theme, model, llm))
     updated_theme = apply_criticality_overlay(updated_theme)
     out.write_text(updated_theme.model_dump_json(indent=2))
@@ -164,15 +157,10 @@ def theme_run(
     taxonomy_id: str = typer.Option(None, "--taxonomy", help="The saved taxonomy to run; its version's schema must be released."),
     taxonomy_version: int = typer.Option(None, "--taxonomy-version", help="Defaults to the latest version."),
     universe: Path = typer.Option(..., help="Company universe CSV or JSON."),
-    use_sample_icio: bool = typer.Option(
+    use_sample_io: bool = typer.Option(
         False,
-        "--use-sample-icio",
-        help="Enable the indirect-exposure tier using the bundled illustrative ICIO-shaped sample dataset (demo only).",
-    ),
-    use_sample_exiobase: bool = typer.Option(
-        False,
-        "--use-sample-exiobase",
-        help="Enable the indirect-exposure tier using the bundled illustrative EXIOBASE-shaped sample dataset (demo only).",
+        "--use-sample-io",
+        help="Enable the indirect-exposure tier using the bundled illustrative sample input-output model (demo only).",
     ),
     revenue_catalogue: Path = typer.Option(
         None, "--revenue-catalogue", help="A structured revenue/capex catalogue CSV (see `revenue-catalogue suggest-mapping`)."
@@ -207,7 +195,7 @@ def theme_run(
     verifier_llm = build_verifier_llm_client(settings)
     companies = load_company_universe(universe)
     try:
-        indirect_model = resolve_indirect_exposure_model(settings, use_sample_icio=use_sample_icio, use_sample_exiobase=use_sample_exiobase)
+        indirect_model = resolve_indirect_exposure_model(settings, use_sample=use_sample_io)
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
@@ -250,8 +238,7 @@ def theme_run(
             revenue_resolver=revenue_resolver,
             rd_resolver=rd_resolver,
             universe_path=str(universe),
-            use_sample_icio=use_sample_icio,
-            use_sample_exiobase=use_sample_exiobase,
+            use_sample_io=use_sample_io,
             revenue_catalogue_path=str(revenue_catalogue) if revenue_catalogue else None,
             catalogue_mapping=mappings,
             enable_rd_exposure=enable_rd_exposure,

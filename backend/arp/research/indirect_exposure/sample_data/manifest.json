@@ -1,0 +1,10 @@
+{
+  "edition": "sample",
+  "exiobase_version": "sample",
+  "year": 2022,
+  "source_sha256": "fa4806b7e47a351fbb7d545bad9a7309f159fdd9c66622fa26db76c0e245f796",
+  "n_regions": 4,
+  "n_sectors": 8,
+  "n_nodes": 32,
+  "built_at": "2026-10-27T07:53:55Z"
+}

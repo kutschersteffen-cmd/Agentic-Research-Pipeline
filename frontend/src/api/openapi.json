@@ -6197,14 +6197,9 @@
       ],
       "title": "Universe Path"
      },
-     "use_sample_exiobase": {
+     "use_sample_io": {
       "default": false,
-      "title": "Use Sample Exiobase",
-      "type": "boolean"
-     },
-     "use_sample_icio": {
-      "default": false,
-      "title": "Use Sample Icio",
+      "title": "Use Sample Io",
       "type": "boolean"
      }
     },
@@ -11202,14 +11197,9 @@
    },
    "MapStandardsRequest": {
     "properties": {
-     "use_sample_exiobase": {
+     "use_sample_io": {
       "default": false,
-      "title": "Use Sample Exiobase",
-      "type": "boolean"
-     },
-     "use_sample_icio": {
-      "default": false,
-      "title": "Use Sample Icio",
+      "title": "Use Sample Io",
       "type": "boolean"
      },
      "use_sample_standards": {
@@ -20966,16 +20956,10 @@
       ],
       "title": "Universe Path"
      },
-     "use_sample_exiobase": {
+     "use_sample_io": {
       "default": false,
-      "description": "Enable the indirect (input-output) exposure tier using the bundled illustrative EXIOBASE-shaped sample dataset. For a real run, configure ARP_EXIOBASE_FLOWS_PATH/ARP_EXIOBASE_INDUSTRIES_PATH instead and leave this false. Mutually exclusive with use_sample_icio.",
-      "title": "Use Sample Exiobase",
-      "type": "boolean"
-     },
-     "use_sample_icio": {
-      "default": false,
-      "description": "Enable the indirect (input-output) exposure tier using the bundled illustrative ICIO-shaped sample dataset. For a real run, configure ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH instead and leave this false. Mutually exclusive with use_sample_exiobase.",
-      "title": "Use Sample Icio",
+      "description": "Enable the indirect (input-output) exposure tier using the bundled illustrative sample input-output model. For a real run, set ARP_VALUE_CHAIN_DIR to an `arp io build-full` output instead and leave this false.",
+      "title": "Use Sample Io",
       "type": "boolean"
      }
     },

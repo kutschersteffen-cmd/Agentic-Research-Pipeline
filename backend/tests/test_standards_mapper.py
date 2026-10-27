@@ -60,26 +60,29 @@ async def test_map_theme_to_standards_uses_sample_data_when_requested(tmp_path, 
     )
     llm = fake_llm({_GicsSelectionList.__name__: [_GicsSelectionList(matches=[])]})
 
-    updated, _usage = await map_theme_to_standards(theme, settings, llm, use_sample_icio=False, use_sample_standards=True)
+    updated, _usage = await map_theme_to_standards(theme, settings, llm, use_sample_io=False, use_sample_standards=True)
     mapping = updated.activities[0].standards_mapping
     assert mapping is not None
     assert [m.code for m in mapping.naics_codes] == ["3361"]
 
 
-async def test_map_theme_to_standards_use_sample_exiobase(tmp_path, fake_llm):
-    """use_sample_exiobase resolves an EXIOBASE-sourced model instead of the
-    default ICIO-sourced one, and the mapping still completes normally."""
+async def test_map_theme_to_standards_use_sample_io(tmp_path, fake_llm):
+    """use_sample_io resolves the bundled sample model: supplied core codes
+    are kept when they are among its ICIO codes (C29), and the mapping still
+    completes normally. The sample crosswalks are keyed on ISIC divisions
+    (`29`), so the ICIO code C29 comes back unmapped."""
     settings = _settings(tmp_path)
     theme = ThemeDefinition(
         name="Electrification", description="",
-        activities=[ActivityDefinition(name="EV manufacturing", in_scope_description="x", out_of_scope_description="", core_isic_codes=["29"])],
+        activities=[ActivityDefinition(name="EV manufacturing", in_scope_description="x", out_of_scope_description="", core_isic_codes=["C29", "29"])],
     )
     llm = fake_llm({_GicsSelectionList.__name__: [_GicsSelectionList(matches=[])]})
 
-    updated, _usage = await map_theme_to_standards(theme, settings, llm, use_sample_exiobase=True, use_sample_standards=True)
-    mapping = updated.activities[0].standards_mapping
-    assert mapping is not None
-    assert [m.code for m in mapping.naics_codes] == ["3361"]
+    updated, _usage = await map_theme_to_standards(theme, settings, llm, use_sample_io=True, use_sample_standards=True)
+    activity = updated.activities[0]
+    assert activity.core_isic_codes == ["C29"]
+    assert activity.standards_mapping is not None
+    assert activity.standards_mapping.unmapped_isic_codes == ["C29"]
 
 
 async def test_map_theme_to_standards_no_tables_configured_skips_gracefully(tmp_path, fake_llm):
@@ -90,7 +93,7 @@ async def test_map_theme_to_standards_no_tables_configured_skips_gracefully(tmp_
     )
     llm = fake_llm({})  # no GICS call expected: empty reference list short-circuits
 
-    updated, _usage = await map_theme_to_standards(theme, settings, llm, use_sample_icio=False, use_sample_standards=False)
+    updated, _usage = await map_theme_to_standards(theme, settings, llm, use_sample_io=False, use_sample_standards=False)
     mapping = updated.activities[0].standards_mapping
     assert mapping is not None
     assert mapping.nace_codes == mapping.naics_codes == mapping.sic_codes == mapping.gics == []
