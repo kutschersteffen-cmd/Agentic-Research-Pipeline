@@ -6908,6 +6908,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/walkthrough/runs/{run_id}/companies/{company_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Walkthrough */
+        get: operations["get_walkthrough_api_walkthrough_runs__run_id__companies__company_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/xbrl/companies": {
         parameters: {
             query?: never;
@@ -28779,6 +28796,44 @@ export interface operations {
             header?: never;
             path: {
                 run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_walkthrough_api_walkthrough_runs__run_id__companies__company_id__get: {
+        parameters: {
+            query: {
+                item: string;
+                period_end?: string | null;
+                basis?: string | null;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+                company_id: string;
             };
             cookie?: never;
         };
