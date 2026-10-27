@@ -80,8 +80,10 @@ def test_seeded_items_unchanged(qenv, monkeypatch):  # noqa: F811  # AC-62 stand
     without = seed_known_answers(rs, settings, count=4, seed=5)
 
     def bodies(run_id):
-        text = re.sub(r"[a-z]+_[0-9a-f]{12}|[0-9a-f]{64}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", "ID", json.dumps(rs.read_review_queue(run_id), sort_keys=True))
-        return re.sub(r"\d{4}-\d\d-\d\dT[\d:.+Z-]+", "TS", text)
+        # sorted: the batch commits each company in a thread, so queue order is a race, not part of the item
+        text = [re.sub(r"[a-z]+_[0-9a-f]{12}|[0-9a-f]{64}|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", "ID", json.dumps(r, sort_keys=True))
+                for r in rs.read_review_queue(run_id)]
+        return sorted(re.sub(r"\d{4}-\d\d-\d\dT[\d:.+Z-]+", "TS", t) for t in text)
 
     assert bodies(with_trace) == bodies(without)
     assert not (rs.run_dir(without) / "traces").exists()
