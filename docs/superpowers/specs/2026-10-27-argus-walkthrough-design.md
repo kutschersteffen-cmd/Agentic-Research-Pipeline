@@ -115,8 +115,8 @@ seeded field, at `run_dir(<the seeded run>)/traces/<seeded company_id>.json` (th
 trial extraction run, so the walkthrough takes that run and company like any other): `passages` as below,
 `extractor` = the seeded draft, `verifier` = the seeded verifier output, `adjudicator` `null`. A seeded
 item's walkthrough is therefore built the same way as a real agreeing item's (anti-goal 3). Two details keep it
-indistinguishable *(builder check; my calls)*: the passages come from running the real evidence selection
-(`field_evidence`) over the seeded document, so the passage count is whatever real retrieval returns for it; and
+indistinguishable *(builder check; my calls)*: the passages come from running the evidence selection the real run would use for that field over the seeded
+document (`field_evidence`, or the group's selection when the field is extracted in a group call), so the passage count is whatever real retrieval returns for it; and
 for a high-risk seeded field `verifier.answer` is a draft (equal to the seeded draft) with `verifier.verdict` the
 seeded output, as blind verification records. `model` and `prompt_version` are the values the real extractor and
 verifier would record for that field (the same ones the seeded row's provenance already carries).
@@ -148,6 +148,7 @@ sections take no `period_end`. `trace_run_id`, `passages`, `extractor`, `verifie
   period, in the same order (the picked row is the one whose `period_end` matches). Results rows carry no review
   decision data: decisions are stored separately and are not merged into results.
 - For a plan list field, `rows` holds only that field's rows with the requested `basis`, every period.
+- For a Financials or TNFD section, `rows` is that section as the results endpoint returns it for the company.
 - Fields that did not reach the models still store a row, as today: `no_evidence` and `documents_held` a
   `not_found` row, `derived` the derived row. So the picker and the links reach them like any other row.
 - Status codes: 401 without a session (as the results endpoints); 404 for an unknown run, an unknown company in
@@ -240,7 +241,8 @@ Steps a pipeline does not have are left out, not shown as "not recorded".
 - **Model steps** (Extract, Verify, Adjudicate) each have three tabs: **Summary** (default: the plain line),
   **Full answer** (a table with one row per period: value, printed as, unit, state; then each quote with its
   passage and whether it was grounded; for the verifier and adjudicator, their fields as labelled lines) and
-  **JSON** (the answer exactly as recorded, with a Copy button).
+  **JSON** (the answer exactly as recorded, pretty-printed, lines not wrapped, scrolling sideways inside its own
+  box, with a Copy button).
 - **Not recorded** (`recorded: false`): a note above the result card. For `before_traces`: `This run is from
   before walkthroughs were recorded. Passages and model answers were not saved; the steps below show what the
   stored row holds.` For `expired`: `This run's walkthrough has expired: runs older than <retention_runs_days>
@@ -296,9 +298,9 @@ endpoint rows cover it.
 | AC-7 | The AC-6 run | the walkthrough is requested for that field | `recorded` true; `skipped` `tagged` | holdout |
 | AC-8 | Fields A and B extracted in one group call; the stand-in group answer gives A one value 10 and B one value 20 | the run completes | both entries have `grouped` true and equal `passages`; A's `extractor.answer.values` has length 1 with value 10; B's has length 1 with value 20 | holdout |
 | AC-9 | A Financials run for one company | the run completes | the trace file's top level has exactly the key `record`, holding `passages`, `extractor` and `verifier`, with no `adjudicator` key | holdout |
-| AC-10 | The AC-9 run | the walkthrough is requested with `item=capex` | `recorded` true; `adjudicator` null; `rows` equals `[record.capex]` (one element) | holdout |
-| AC-11 | A TNFD run for one company | the walkthrough is requested with `item=disclosures` | `recorded` true; `rows` equals `record.disclosures` | holdout |
-| AC-12 | A TNFD run whose record has a `general_requirements` object | the walkthrough is requested with `item=general_requirements` | `rows` equals `[record.general_requirements]` | holdout |
+| AC-10 | The AC-9 run | the walkthrough is requested with `item=capex` | `recorded` true; `adjudicator` null; `rows` equals `[<the results endpoint's capex for that company>]` (one element) | holdout |
+| AC-11 | A TNFD run for one company | the walkthrough is requested with `item=disclosures` | `recorded` true; `rows` equals the results endpoint's `disclosures` for that company | holdout |
+| AC-12 | A TNFD run whose record has a `general_requirements` object | the walkthrough is requested with `item=general_requirements` | `rows` equals `[<the results endpoint's general_requirements for that company>]` | holdout |
 | AC-13 | A TNFD run whose record's `general_requirements` is `None` | the walkthrough is requested with `item=general_requirements` | HTTP 200; `rows` `[]` | holdout |
 | AC-14 | `traces` in the run folder is a regular file, not a folder, so creating `traces/<company_id>.json` fails | the run processes one company | run status `completed`; done count 1; the company's row is returned by the results endpoint; the run's events include `trace_write_failed` with that company id | holdout |
 | AC-15 | The AC-14 run | the walkthrough is requested for that company's field | `recorded` false; `not_recorded_reason` `write_failed` | holdout |
@@ -306,12 +308,12 @@ endpoint rows cover it.
 | AC-17 | A transition-plan actions run and the AC-1 run | the walkthrough is requested for a plan list field without `basis`, and for the AC-1 field without `period_end` | HTTP 422 for each | holdout |
 | AC-18 | No session | the walkthrough is requested | the same status code as the results endpoint returns without a session (401) | holdout |
 | AC-19 | A field whose review item has a decision with the note `zq-note-7f3a` by a reviewer whose user id is a fresh UUID, and a cosign | the walkthrough is requested | outside `rows` and the model `answer` objects, no key contains `decision`, `reviewer` or `cosign`; neither the reviewer's user id nor the decision note's text appears anywhere in the body | holdout |
-| AC-20 | A seeded known-answer item (`seed_known_answers`) and a real trial-run item, both for the same non-high-risk field, the real verifier agreeing | both walkthroughs are requested | both have `recorded` true and `adjudicator` null; outside `rows`, the set of key paths (list indexes folded into `[]`) is equal between the two bodies; equal `extractor.model`, `extractor.prompt_version`, `verifier.model`, `verifier.prompt_version`; no key, and no value outside `passages[].text`, `rows[].citations` and the answers' `quote` fields, contains `seed` or `known` (case-insensitive); every `passages[i].text` is non-null in both bodies | holdout |
+| AC-20 | A seeded known-answer item (`seed_known_answers`) and a real trial-run item, both for the same non-high-risk field extracted in its own call (not grouped); the real verifier agrees and every real quote is grounded by text match (no vision check) | both walkthroughs are requested | both have `recorded` true and `adjudicator` null; outside `rows`, the set of key paths (list indexes folded into `[]`) is equal between the two bodies; equal `extractor.model`, `extractor.prompt_version`, `verifier.model`, `verifier.prompt_version`; no key, and no value outside `passages[].text`, `rows[].citations` and the answers' `quote` fields, contains `seed` or `known` (case-insensitive); every `passages[i].text` is non-null in both bodies | holdout |
 | AC-21 | The AC-20 seeded item | its walkthrough is requested | the list of `(doc_id, char_start, char_end, section)` from `passages`, in order, equals the same list from `field_evidence` for the seeded document and field | holdout |
 | AC-22 | A seeded high-risk known-answer item | its walkthrough is requested | `verifier.blind` true; `verifier.answer` has the key `values`; `verifier.verdict` has the key `agrees` | holdout |
 | AC-23 | The golden set runs | it completes | no file matching `**/traces/*.json` exists under the runs root or the golden-set output directory | holdout |
 | AC-24 | Each research caller (`research/revenue_exposure/resolver.py`, `research/taxonomy_sources/empirical.py`) extracts for one company | it completes | no file matching `**/traces/*.json` exists under the runs root | holdout |
-| AC-25 | The AC-1 run and the same run on `main` | the results endpoint is read for both | the response bodies are equal | holdout |
+| AC-25 | The AC-1, AC-8, AC-39 and AC-41 runs and the same runs on `main` | the results endpoint is read for each pair | the response bodies are equal | holdout |
 | AC-26 | The AC-1 and AC-2 runs and the same runs on `main` | their stored result rows are compared | every row's `value`, `confidence`, `route`, `route_reasons`, `checks` and `corrections` are equal | holdout |
 | AC-27 | The AC-1 run, after which every `traces/*.json` is overwritten with the bytes `{not json` | the results endpoint is read | HTTP 200 with the same body as before | holdout |
 | AC-28 | The AC-1 run | the model calls are counted | 1 extractor call and 1 verifier call | holdout |
@@ -323,7 +325,7 @@ endpoint rows cover it.
 | AC-34 | A derived field | the run completes | its trace entry has `skipped` `derived` | holdout |
 | AC-35 | A company whose documents are all held | the run completes | each field's trace entry has `skipped` `documents_held` | holdout |
 | AC-36 | The AC-33 run | the walkthrough is requested for that field | `recorded` true; `not_recorded_reason` null | holdout |
-| AC-37 | A row that R4 moved from `tc_capex_total` to `tc_capex_total_planned`, while `tc_capex_total_planned` also has its own trace entry | the walkthrough is requested for `tc_capex_total_planned` with the moved row's `period_end` | `extractor` equals the `extractor` of the `tc_capex_total` entry in the trace file | holdout |
+| AC-37 | A row that R4 moved from `tc_capex_total` to `tc_capex_total_planned`, while `tc_capex_total_planned` also has its own trace entry but no row of its own with the moved row's `period_end` | the walkthrough is requested for `tc_capex_total_planned` with the moved row's `period_end` | `extractor` equals the `extractor` of the `tc_capex_total` entry in the trace file | holdout |
 | AC-38 | A run whose `created_at` is more than `retention_runs_days` days ago and whose trace files were deleted | the walkthrough is requested | `recorded` false; `not_recorded_reason` `expired` | holdout |
 | AC-39 | Vision fallback on; a quote the text match cannot ground; the stand-in vision check answers | the run completes | the field's trace entry `vision.answer` equals the stand-in's answer | holdout |
 | AC-40 | Vision fallback off | the run completes | every trace entry has `vision` null | holdout |
@@ -348,18 +350,20 @@ endpoint rows cover it.
 | AC-59 | The running app, a TNFD run | the reviewer clicks `How was this found?` on Disclosures in the TNFD results | the route equals `#/argusWalkthrough/<run>/<company>/disclosures` | evaluator |
 | AC-60 | The running app, a Financials run with a review item | the reviewer clicks `How was this found?` on that review item | the route equals `#/argusWalkthrough/<run>/<company>/segments` | evaluator |
 | AC-61 | The running app, the AC-41 run | the reviewer clicks `How was this found?` on a plan list row | the route equals `#/argusWalkthrough/<run>/<company>/<field>/<period_end>?basis=<the row's basis>` | evaluator |
-| AC-62 | `seed_known_answers` with the same inputs and seed, on this branch and on `main` | the created review items are compared | their bodies are equal | holdout |
+| AC-62 | `seed_known_answers` with the same inputs and seed, on this branch and on `main` | the created review items are compared | they are equal once their ids, run ids and timestamps are ignored | holdout |
 | AC-63 | The AC-9 Financials run and a TNFD run, and the same runs on `main` | the results endpoint is read for each | the response bodies are equal | holdout |
 | AC-64 | Run 1 created more than `retention_runs_days` days ago, its trace files deleted; run 2 reuses its row | the walkthrough is requested in run 2 for that row | `trace_run_id` is run 1's id; `recorded` false; `not_recorded_reason` `expired` | holdout |
 | AC-65 | A TNFD run | the model calls are counted | 1 extractor call and 1 verifier call | holdout |
 | AC-66 | The AC-41 run | the model calls are counted | 1 `extract_plan` call | holdout |
 | AC-67 | The AC-39 run | the vision calls are counted | exactly 1 | holdout |
-| AC-68 | A Financials run made with no `traces/` folder, created within `retention_runs_days` | the walkthrough is requested with `item=capex` | `recorded` false; `not_recorded_reason` `before_traces`; `rows` equals `[record.capex]` | holdout |
+| AC-68 | A Financials run made with no `traces/` folder, created within `retention_runs_days` | the walkthrough is requested with `item=capex` | `recorded` false; `not_recorded_reason` `before_traces`; `rows` equals `[<the results endpoint's capex for that company>]` | holdout |
 | AC-70 | The AC-1 run | the walkthrough is requested for its field with `period_end=1999-12-31` | HTTP 404 | holdout |
 | AC-71 | The AC-1 run with its files dated older than `retention_runs_days` | retention cleanup runs with apply | no `traces/*.json` remains in its run folder; the results endpoint body is unchanged | holdout |
+| AC-72 | A seeded known-answer item for a field the real pipeline extracts in a group call | its walkthrough is requested | the `(doc_id, char_start, char_end, section)` list of `passages` equals the group's evidence selection over the seeded document | holdout |
+| AC-73 | The AC-8 run and the same run on `main` | the model calls are counted | equal counts for extractor, verifier and adjudicator calls (one group extractor call) | holdout |
 | AC-69 | The AC-68 run in the running app | the reviewer opens the CapEx walkthrough | steps 1 and 2 read `not recorded`; step 3 shows the section's `verifier_notes` | evaluator |
 
 Must not change, each a row above: results endpoint bodies (AC-25, AC-63) and the CSV export built from them;
 seeded review items (AC-62); stored
-rows and routing (AC-26); results never read traces (AC-27); model call counts (AC-28, AC-29, AC-30, AC-65, AC-66, AC-67); the golden
+rows and routing (AC-26); results never read traces (AC-27); model call counts (AC-28, AC-29, AC-30, AC-65, AC-66, AC-67, AC-73); the golden
 set and research callers write no traces (AC-23, AC-24).
