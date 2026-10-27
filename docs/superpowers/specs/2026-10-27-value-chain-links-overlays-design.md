@@ -1,6 +1,6 @@
 # Value-chain links and portfolio overlays
 
-Status: draft for owner approval, 2026-10-27. Owner decisions on 2026-10-27:
+Status: approved by the owner, 2026-10-27. Owner decisions on 2026-10-27:
 
 - A company's link may be spec 1's default (ICIO code + country), a revenue split over several ICIO codes,
   or an explicit node override.
