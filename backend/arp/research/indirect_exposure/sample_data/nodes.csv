@@ -1,0 +1,33 @@
+node_id,region,sector,sector_no,output_meur,goods,ghg_t_per_meur,energy_tj_per_meur,jobs_per_meur,va_share
+DE.1,DE,Mining of copper ores and concentrates,1,40.0,true,300.0,0.002,10.0,0.4
+DE.2,DE,Copper production,2,120.0,true,900.0,0.002,10.0,0.4
+DE.3,DE,Production of electricity by wind,3,60.0,true,10.0,0.002,10.0,0.4
+DE.4,DE,Production of electricity by coal,4,90.0,true,6000.0,0.002,10.0,0.4
+DE.5,DE,Manufacture of electrical machinery and apparatus n.e.c. (31),5,300.0,true,150.0,0.002,10.0,0.4
+DE.6,DE,"Manufacture of motor vehicles, trailers and semi-trailers (34)",6,500.0,true,120.0,0.002,10.0,0.4
+DE.7,DE,Construction (45),7,800.0,false,200.0,0.002,10.0,0.4
+DE.8,DE,"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",8,700.0,false,50.0,0.002,10.0,0.4
+CN.1,CN,Mining of copper ores and concentrates,1,100.0,true,300.0,0.002,10.0,0.4
+CN.2,CN,Copper production,2,300.0,true,900.0,0.002,10.0,0.4
+CN.3,CN,Production of electricity by wind,3,150.0,true,10.0,0.002,10.0,0.4
+CN.4,CN,Production of electricity by coal,4,225.0,true,6000.0,0.002,10.0,0.4
+CN.5,CN,Manufacture of electrical machinery and apparatus n.e.c. (31),5,750.0,true,150.0,0.002,10.0,0.4
+CN.6,CN,"Manufacture of motor vehicles, trailers and semi-trailers (34)",6,1250.0,true,120.0,0.002,10.0,0.4
+CN.7,CN,Construction (45),7,2000.0,false,200.0,0.002,10.0,0.4
+CN.8,CN,"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",8,1750.0,false,50.0,0.002,10.0,0.4
+US.1,US,Mining of copper ores and concentrates,1,72.0,true,300.0,0.002,10.0,0.4
+US.2,US,Copper production,2,216.0,true,900.0,0.002,10.0,0.4
+US.3,US,Production of electricity by wind,3,108.0,true,10.0,0.002,10.0,0.4
+US.4,US,Production of electricity by coal,4,162.0,true,6000.0,0.002,10.0,0.39999999999999997
+US.5,US,Manufacture of electrical machinery and apparatus n.e.c. (31),5,540.0,true,150.0,0.002,10.0,0.4
+US.6,US,"Manufacture of motor vehicles, trailers and semi-trailers (34)",6,900.0,true,120.0,0.002,10.0,0.4
+US.7,US,Construction (45),7,1440.0,false,200.0,0.002,10.0,0.4
+US.8,US,"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",8,1260.0,false,50.0,0.002,10.0,0.4
+WA.1,WA,Mining of copper ores and concentrates,1,24.0,true,300.0,0.002,10.0,0.39999999999999997
+WA.2,WA,Copper production,2,72.0,true,900.0,0.002,10.0,0.4
+WA.3,WA,Production of electricity by wind,3,36.0,true,10.0,0.002,10.0,0.4
+WA.4,WA,Production of electricity by coal,4,54.0,true,6000.0,0.002,10.0,0.4
+WA.5,WA,Manufacture of electrical machinery and apparatus n.e.c. (31),5,180.0,true,150.0,0.002,10.0,0.4
+WA.6,WA,"Manufacture of motor vehicles, trailers and semi-trailers (34)",6,300.0,true,120.0,0.002,10.0,0.4
+WA.7,WA,Construction (45),7,480.0,false,200.0,0.002,10.0,0.4
+WA.8,WA,"Retail trade, except of motor vehicles and motorcycles; repair of personal and household goods (52)",8,420.0,false,50.0,0.002,10.0,0.4

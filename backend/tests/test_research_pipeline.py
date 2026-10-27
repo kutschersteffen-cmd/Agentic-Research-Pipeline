@@ -1,4 +1,6 @@
 
+import pytest
+
 from arp.config import Settings
 from arp.extraction.extractor_agent import ExtractionDraft
 from arp.extraction.verifier_agent import VerifierOutput
@@ -6,8 +8,7 @@ from arp.ingestion.base import DocumentSource
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import resume_run
-from arp.research.indirect_exposure.icio_loader import load_sample_icio
-from arp.research.indirect_exposure.leontief import build_model
+from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.matcher_agents import AdjudicatorOutput
 from arp.research.pipeline import _match_company, create_theme_run
 from arp.research.rd_exposure.resolver import RDResolverContext
@@ -148,12 +149,12 @@ async def test_match_company_no_evidence_with_high_structural_exposure_is_flagge
     of a flat, unreviewed exclude."""
     doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
     theme, activity = _theme()
-    activity.core_isic_codes = ["27"]
-    company = CompanyRef(company_id="c1", name="Acme Electricals", ticker="ACME", isic_code="27")
+    activity.core_isic_codes = ["C27"]
+    company = CompanyRef(company_id="c1", name="Acme Electricals", ticker="ACME", isic_code="C27")
 
     llm = fake_llm({})  # company_isic is supplied and matches the model, so no LLM call should occur
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
-    model = build_model(load_sample_icio(), "test-sample")
+    model = resolve_indirect_exposure_model(Settings(), use_sample=True)
 
     result = await _match_company(
         company, theme, registry=registry, llm=llm, settings=_settings(tmp_path), indirect_model=model
@@ -169,13 +170,13 @@ async def test_match_company_no_evidence_with_high_structural_exposure_is_flagge
 async def test_match_company_no_evidence_with_low_structural_exposure_not_flagged(tmp_path, fake_llm):
     doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
     theme, activity = _theme()
-    activity.core_isic_codes = ["27"]
-    # retail/trade (45) has low structural linkage to electrical equipment (27) in the sample model
-    company = CompanyRef(company_id="c1", name="Acme Retail", ticker="ACME", isic_code="45")
+    activity.core_isic_codes = ["C27"]
+    # retail trade (G) has low structural linkage to electrical equipment (C27) in the sample model
+    company = CompanyRef(company_id="c1", name="Acme Retail", ticker="ACME", isic_code="G")
 
     llm = fake_llm({})
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
-    model = build_model(load_sample_icio(), "test-sample")
+    model = resolve_indirect_exposure_model(Settings(), use_sample=True)
 
     result = await _match_company(
         company, theme, registry=registry, llm=llm, settings=_settings(tmp_path), indirect_model=model
@@ -400,15 +401,15 @@ async def test_match_company_arbitration_disagreement_flags_review_when_base_fla
     shows strongly diverging structural exposure for the same company,
     arbitration's disagreement flag should still route it to review."""
     theme, activity = _theme()
-    activity.core_isic_codes = ["27"]
-    company = CompanyRef(company_id="c1", name="Acme Electricals", ticker="ACME", isic_code="27")
+    activity.core_isic_codes = ["C27"]
+    company = CompanyRef(company_id="c1", name="Acme Electricals", ticker="ACME", isic_code="C27")
     doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
 
     catalogue_rows = [CatalogueDataPoint(data_point_id="d1", company_id="c1", metric="revenue", label="EV Sales", as_pct_of_total=0.02)]
     mappings = [ActivityCatalogueMapping(activity_id=activity.activity_id, metric="revenue", matched_labels=["EV Sales"], rationale="x")]
     revenue_resolver = RevenueResolverContext(catalogue_by_company={"c1": catalogue_rows}, mappings=mappings, registry=registry, settings=_settings(tmp_path), schema=released_schema(*theme.activities))
-    indirect_model = build_model(load_sample_icio(), "test-sample")  # company IS its own core sector -> high self-exposure
+    indirect_model = resolve_indirect_exposure_model(Settings(), use_sample=True)  # company IS its own core sector -> high self-exposure
     llm = fake_llm({})
 
     result = await _match_company(
@@ -463,13 +464,10 @@ async def test_resume_theme_run_skips_already_completed_companies(tmp_path, fake
     assert keys == {"c1", "c2"}  # c1's pre-existing row preserved, c2 newly processed
 
 
-def test_create_theme_run_persists_use_sample_exiobase(tmp_path, pg):
-    """create_theme_run persists use_sample_exiobase in manifest.params --
-    what resume_theme_run reads back to resolve an EXIOBASE-sourced model
-    instead of the default ICIO-sourced one (see
-    arp.research.indirect_exposure.factory.resolve_indirect_exposure_model,
-    exercised directly against this exact param round-trip in
-    test_factory.py).
+def test_create_theme_run_persists_use_sample_io(tmp_path, pg):
+    """create_theme_run persists use_sample_io in manifest.params --
+    what resume_theme_run reads back to resolve the bundled sample model
+    (see arp.research.indirect_exposure.factory.resolve_indirect_exposure_model).
     """
     settings = _settings(tmp_path)
     store = RunStore(pg, settings.runs_dir)
@@ -483,11 +481,35 @@ def test_create_theme_run_persists_use_sample_exiobase(tmp_path, pg):
         settings,
         store,
         universe_path=str(universe_path),
-        use_sample_exiobase=True,
+        use_sample_io=True,
     )
     manifest = store.load_manifest(run_id)
-    assert manifest.params["use_sample_exiobase"] is True
-    assert manifest.params["use_sample_icio"] is False
+    assert manifest.params["use_sample_io"] is True
+    assert "use_sample_icio" not in manifest.params and "use_sample_exiobase" not in manifest.params
+
+
+@pytest.mark.parametrize("legacy", ["use_sample_icio", "use_sample_exiobase"])
+async def test_resume_run_stored_with_legacy_sample_flag_uses_sample(tmp_path, fake_llm, pg, legacy):
+    """Runs stored before use_sample_icio / use_sample_exiobase became
+    use_sample_io resume on the bundled sample model."""
+    settings = _settings(tmp_path)
+    store = RunStore(pg, settings.runs_dir)
+    theme, activity = _theme()
+    activity.core_isic_codes = ["C27"]
+    company = CompanyRef(company_id="c1", name="Acme Electricals", isic_code="C27")
+    run_id = create_theme_run(theme, [company], settings, store, extraction_schema=registered_schema(*theme.activities))
+    manifest = store.load_manifest(run_id)
+    del manifest.params["use_sample_io"]
+    manifest.params[legacy] = True
+    store.save_manifest(manifest)
+    JobManager(store).request_cancel(run_id)
+
+    doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
+    registry = DocumentSourceRegistry([_FixedDocSource([doc])])
+    llm = fake_llm({})
+    await resume_run(run_id, llm=llm, verifier_llm=llm, registry=registry, settings=settings, run_store=store)
+    row = store.read_results(run_id)[0]
+    assert row["company_matches"][0]["indirect_exposure"]["icio_edition"] == "sample"
 
 
 async def test_resume_theme_run_unknown_universe_path_raises(tmp_path, fake_llm, pg):

@@ -239,3 +239,10 @@ def test_cli_theme_run_gate(api, tmp_path, monkeypatch):
     for args, message in cases:
         result = CliRunner().invoke(app_cli, ["theme", "run", *args, "--universe", str(universe)])
         assert result.exit_code == 1 and message in result.output
+
+
+def test_industry_anchored_taxonomy_needs_an_input_output_model(api):
+    client, *_ = api
+    res = client.post("/api/taxonomies", json={"name": "t", "derivation_method": "industry_anchored", "use_sample_io": False})
+    assert (res.status_code, res.json()["detail"]) == (
+        400, "No input-output data available: run arp io build-full and set ARP_VALUE_CHAIN_DIR, or set use_sample_io.")

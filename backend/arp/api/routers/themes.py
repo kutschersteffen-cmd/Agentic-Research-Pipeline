@@ -56,20 +56,12 @@ class RunRequest(BaseModel):
     taxonomy_version: int | None = Field(default=None, description="Defaults to the taxonomy's latest version.")
     companies: list[CompanyRef] | None = None
     universe_path: str | None = None
-    use_sample_icio: bool = Field(
+    use_sample_io: bool = Field(
         default=False,
         description=(
-            "Enable the indirect (input-output) exposure tier using the bundled illustrative ICIO-shaped sample "
-            "dataset. For a real run, configure ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH instead and leave "
-            "this false. Mutually exclusive with use_sample_exiobase."
-        ),
-    )
-    use_sample_exiobase: bool = Field(
-        default=False,
-        description=(
-            "Enable the indirect (input-output) exposure tier using the bundled illustrative EXIOBASE-shaped "
-            "sample dataset. For a real run, configure ARP_EXIOBASE_FLOWS_PATH/ARP_EXIOBASE_INDUSTRIES_PATH "
-            "instead and leave this false. Mutually exclusive with use_sample_icio."
+            "Enable the indirect (input-output) exposure tier using the bundled illustrative sample input-output "
+            "model. For a real run, set ARP_VALUE_CHAIN_DIR to an `arp io build-full` output instead and leave "
+            "this false."
         ),
     )
     revenue_catalogue_path: str | None = Field(
@@ -117,9 +109,7 @@ async def start_theme_run(
         raise HTTPException(400, "Provide both revenue_catalogue_path and catalogue_mapping together, or neither.")
 
     try:
-        indirect_model = resolve_indirect_exposure_model(
-            settings, use_sample_icio=req.use_sample_icio, use_sample_exiobase=req.use_sample_exiobase
-        )
+        indirect_model = resolve_indirect_exposure_model(settings, use_sample=req.use_sample_io)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -149,8 +139,7 @@ async def start_theme_run(
         return create_theme_run(
             theme, companies, settings, run_store,
             universe_path=req.universe_path,
-            use_sample_icio=req.use_sample_icio,
-            use_sample_exiobase=req.use_sample_exiobase,
+            use_sample_io=req.use_sample_io,
             revenue_catalogue_path=req.revenue_catalogue_path,
             catalogue_mapping=req.catalogue_mapping,
             enable_rd_exposure=req.enable_rd_exposure,
