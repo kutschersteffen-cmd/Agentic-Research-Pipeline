@@ -113,11 +113,13 @@ explorer; `B` follows from the stored `A` and `x` as `B[i,j] = A[i,j] · x_j / x
    new build. Each has a server-assigned `recipe_id` (URL-safe, never reused), `name` (1–120 chars),
    `home`, `output_meur`, `inputs`, `source` (1–2000 chars), `set_by` (principal name) and `set_at`
    (RFC 3339). Saving with the same `recipe_id` replaces the recipe.
-2. **Validation on save**, against the current build; the first failing check answers 422 with its `detail`:
+2. **Validation on save**, against the current build. Checks run in the order listed, and the first failing
+   one answers 422 with its `detail` (body shape and text-length errors stay the framework's own 422):
    - a region + sector that names no node: `unknown node <region> · <sector>`; a zero-output one:
      `no output: <region> · <sector>`;
-   - inputs: 1 to 50, no node twice (`input named twice: <region> · <sector>`), each share > 0, sum ≤ 1
-     (`input shares add up to more than 1`);
+   - inputs: 1 to 50 (`a recipe has 1 to 50 inputs`), no node twice (`input named twice: <region> ·
+     <sector>`), each share > 0 (`input share must be above 0: <region> · <sector>`), sum ≤ 1 (`input
+     shares add up to more than 1`);
    - `output_meur` > 0 and below the home node's output (`output_meur must be below the home node's
      output (<x_h> M EUR)`, `x_h` with at most 4 decimals and no trailing zeros);
    - not consistent: `the recipe buys more from <sector> · <region label> than <home sector> · <home region
@@ -206,7 +208,11 @@ battery", "home": {"region": "DE", "sector": "Other business activities"}, "outp
 "sector": "Other business activities", "share": 0.1}], "source": "test"}`. "R saved" means `POST
 /recipes` with R as an analyst returned 201 with `recipe_id` `<rid>`. Fixture F2 is F with the `Z` entry
 from CN.3 to DE.3 set to 0 (row CN.3 `[0, 0, 10, 10]`), and "switched to F2" means F2 built into another
-directory and `ARP_VALUE_CHAIN_DIR` pointed at it. Numbers are compared rounded to 4 decimals.
+directory and `ARP_VALUE_CHAIN_DIR` pointed at it. Fixture F3 is F with the sectors in the order `Cultivation of paddy rice`, `Other business activities (74)`,
+`Mining of copper ores and concentrates`, the same flows and satellites moved with their nodes, so node ids
+swap (DE.2 ↔ DE.3, CN.2 ↔ CN.3). Fixture F4 is F with CN · `Other business activities` at `x = 0` and its
+`Z` row, `Z` column and satellite column all 0. "Switched to F3/F4" as for F2. Numbers are compared rounded
+to 4 decimals.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
@@ -222,25 +228,35 @@ directory and `ARP_VALUE_CHAIN_DIR` pointed at it. Numbers are compared rounded 
 | AC-10 | F built | `POST /recipes` with R, but the input `{"region":"CN","sector":"Mining of copper ores and concentrates","share":0.1}` replacing the CN input | 422; `detail` `the recipe buys more from Mining of copper ores and concentrates · CN than Other business activities · DE does in total` | holdout |
 | AC-11 | F built | `POST /recipes` with R and `output_meur` 200 | 422; `detail` `output_meur must be below the home node's output (200 M EUR)` | holdout |
 | AC-12 | F built | `POST /recipes` with R and shares 0.6 and 0.5 | 422; `detail` `input shares add up to more than 1` | holdout |
-| AC-13 | F built | `POST /recipes` with R and an input `DE` · `Cultivation of paddy rice` | 422; `detail` `no output: DE · Cultivation of paddy rice` | holdout |
+| AC-13 | F built | `POST /recipes` with R plus a third input `{"region":"DE","sector":"Cultivation of paddy rice","share":0.1}` | 422; `detail` `no output: DE · Cultivation of paddy rice` | holdout |
 | AC-14 | F built | `POST /recipes` with R and home `XX` · `Other business activities` | 422; `detail` `unknown node XX · Other business activities` | holdout |
 | AC-15 | F built | `POST /recipes` with R, the DE input named twice (shares 0.2 and 0.1) | 422; `detail` `input named twice: DE · Mining of copper ores and concentrates` | holdout |
-| AC-16 | F built | `POST /recipes` with R as a viewer | 403; `GET /recipes` lists no recipe | holdout |
-| AC-17 | R saved, switched to F2 | `GET …/exposure?target=recipe:<rid>` | 409; `detail` `the recipe buys more from Other business activities · CN than Other business activities · DE does in total`; `GET /recipes` lists it with `status` `inconsistent` | holdout |
+| AC-16 | F built | `POST /recipes` with R as a viewer | 403 | holdout |
+| AC-16b | after AC-16, nothing else saved | `GET /recipes` | `items` `[]` | holdout |
+| AC-17 | R saved, switched to F2 | `GET …/exposure?target=recipe:<rid>` | 409; `detail` `the recipe buys more from Other business activities · CN than Other business activities · DE does in total` | holdout |
+| AC-17b | as AC-17 | `GET /recipes` | the R item has `status` `inconsistent` | holdout |
+| AC-17c | R saved on F, switched to F3 | `GET …/recipes/<rid>`, then `GET …/exposure?target=recipe:<rid>` | `status` `ok`; items node ids `["DE.3","CN.2","CN.3","DE.2"]` with `share` 0.1183, 0.0575, 0.0072, 0.007 | holdout |
+| AC-17d | R saved on F, switched to F4 | `GET …/exposure?target=recipe:<rid>` | 409; `detail` `no output: CN · Other business activities` | holdout |
+| AC-17e | as AC-17d | `GET /recipes` | the R item has `status` `unresolved` | holdout |
 | AC-18 | R saved, then the API process restarted | `GET …/recipes/<rid>` | 200, same body as AC-6 | holdout |
 | AC-19 | R saved | `PUT …/recipes/<rid>` with R and `output_meur` 100, then `GET …/exposure?target=recipe:<rid>` | items node ids `["DE.2","CN.3","CN.2","DE.3"]`; `DE.2` `direct` 0.2, `share` 0.2349; `CN.3` `direct` 0.1, `share` 0.1142 | holdout |
+| AC-15b | F built | `POST /recipes` with R and `inputs` `[]` | 422; `detail` `a recipe has 1 to 50 inputs` | holdout |
+| AC-15c | F built | `POST /recipes` with R and the CN input's share 0 | 422; `detail` `input share must be above 0: CN · Other business activities` | holdout |
+| AC-19b | R saved, deleted, then R posted again | read the second `recipe_id` | 201; `recipe_id` differs from `<rid>` | holdout |
 | AC-20 | R saved | `DELETE …/recipes/<rid>`, then `GET …/exposure?target=recipe:<rid>` | 204, then 404 `unknown recipe '<rid>'` | holdout |
 | AC-21 | F built | each of `/exposure?target=DE.1`, `/routes?target=DE.3&from=DE.1` | 404, `detail` `unknown node 'DE.1'` | holdout |
 | AC-22 | F built | each of `/exposure?target=DE.3&top=101`, `/routes?target=DE.3&from=CN.3&max_hops=7`, `…&min_share=0.00001`, `…&top=51`, `/exposure` with no `target` | each answers 422 | holdout |
-| AC-23 | `ARP_VALUE_CHAIN_DIR` unset | `GET …/exposure?target=DE.3` and `POST /recipes` with R | 503, explorer `detail` | holdout |
+| AC-22b | R saved | each of `/routes?target=DE.3&from=CN.3`, `GET /recipes`, `GET /recipes/<rid>` | each has `edition` `exiobase-IOT_2022_ixi`, `caveat` C and `model_caveat` M | holdout |
+| AC-23 | `ARP_VALUE_CHAIN_DIR` unset | each of `GET …/exposure?target=DE.3`, `POST /recipes` with R | 503, explorer `detail` | holdout |
 | AC-24 | `ARP_ANTHROPIC_API_KEY` unset, and separately set to an invalid key | AC-1 to AC-23 | all pass | holdout |
-| AC-25 | Real `IOT_2022_ixi.zip` built (explorer AC-26) | for 10 seeded random live nodes: `/exposure?target=<id>` and `/routes?target=<id>&from=<the first item's node id>`, warm process, client on localhost | each answers in ≤ 2.0 s | evaluator |
-| AC-26 | as AC-25 | for the same 10 targets and sellers: `/routes?…&max_hops=6&min_share=0.0001&top=50` | `shown_share` equals the sum of the listed routes' `share` within 1e-12; `rest_share` ≥ −1e-9; `share` equals that seller's `share` in `/exposure?target=<id>&top=100` when listed there | evaluator |
+| AC-25 | Real `IOT_2022_ixi.zip` built (explorer AC-26) | for the 10 node ids `numpy.random.default_rng(0).choice(sorted(live node ids), 10, replace=False)`: `/exposure?target=<id>` and `/routes?target=<id>&from=<the first item's node id>`, warm process, client on localhost | each answers in ≤ 2.0 s | evaluator |
+| AC-26 | as AC-25 | for the same 10 targets and sellers: `/routes?…&max_hops=6&min_share=0.0001&top=50` | `shown_share` equals the sum of the listed routes' `share` within 1e-12; `rest_share` ≥ −1e-9; `share` equals that seller's `share` in `/exposure?target=<id>&top=100` within 1e-9 when listed there | evaluator |
 | AC-27 | as AC-25 | open the node page of `Manufacture of electrical machinery and apparatus n.e.c. · CN`, click `Revenue exposure` | the URL becomes `#/valueChain/<its id>/exposure`; a table of up to 20 sellers with percent and M EUR columns, percent descending | evaluator |
 | AC-28 | as AC-27 | click the first seller row | its route list appears; the routes' percents plus `Other routes` add up to the row's percent (± 0.1 for rounding) | evaluator |
 | AC-29 | as AC-25, signed in as analyst | on `#/valueChain/recipes` create a recipe with home `Manufacture of electrical machinery and apparatus n.e.c. · CN`, output 1000, inputs `Copper production · CN` 10% and `Manufacture of rubber and plastic products · CN` 5%, source `evaluator test` | the exposure view opens; `Copper production · CN` is listed; the page shows `Unlisted share 85.0%` and the source `evaluator test` | evaluator |
 | AC-30 | as AC-29 | edit the recipe and set output to a value ≥ that node's output | the form shows `output_meur must be below the home node's output (…)` and nothing is saved | evaluator |
 | AC-31 | as AC-25, signed in as viewer | open the recipe from AC-29 | the form is read-only; no `Save` or `Delete` | evaluator |
+| AC-31b | as AC-29 | click `Delete`, cancel, then click `Delete` and confirm | after cancel the recipe is still listed on `#/valueChain/recipes`; after confirm it is not | evaluator |
 | AC-32 | as AC-25 | open each view of this spec | each page foot shows caveat C for the real build and M | evaluator |
 
 Must not change:
@@ -248,4 +264,4 @@ Must not change:
   `git diff <merge-base> -- backend/tests/test_value_chain*.py` is empty and
   `pytest tests/test_value_chain*.py` (from `backend/`) exits 0. Checked by: unit.
 - AC-34: `git diff <merge-base> -- backend/arp/company_graph.py backend/arp/research/exposure_layers.py` is
-  empty (no change to the company graph or theme layers). Checked by: evaluator.
+  empty (no change to the company graph or theme layers). Checked by: unit.
