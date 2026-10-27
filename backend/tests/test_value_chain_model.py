@@ -3,7 +3,7 @@ import threading
 import pytest
 
 from arp.research.value_chain.build import build_full
-from arp.research.value_chain.model import NotBuilt, UnknownNode, _load, load_value_chain
+from arp.research.value_chain.model import NotBuilt, UnknownNode, _load, load_value_chain, sector_name
 from tests.value_chain_fixture import write_fixture_f
 
 NOT_BUILT = "value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR"
@@ -173,3 +173,8 @@ def test_rowl_labels(vc):
 
     assert [region_label(c) for c in ("WA", "WE", "WF", "WL", "WM", "DE")] == [
         "RoW Asia-Pacific", "RoW Europe", "RoW Africa", "RoW Americas", "RoW Middle East", "DE"]
+
+
+def test_sector_name_drops_only_a_trailing_number_in_brackets():
+    assert sector_name("Manufacture of electrical machinery and apparatus n.e.c. (31)") == "Manufacture of electrical machinery and apparatus n.e.c."
+    assert sector_name("Mining of copper ores (and concentrates)") == "Mining of copper ores (and concentrates)"

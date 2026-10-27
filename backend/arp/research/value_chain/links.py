@@ -63,16 +63,21 @@ def _live_regions(vc: ValueChain) -> frozenset[str]:
 
 
 def company_region(vc: ValueChain, country: str | None) -> str | None:
-    region = country_regions().get((country or "").upper())
+    region = country_regions().get(country.upper()) if country else None
     return region if region in _live_regions(vc) else None
 
 
-def _code_set(vc: ValueChain, code: str, region: str | None) -> dict[int, float]:
-    idx = _code_nodes(vc).get(code, np.array([], dtype=np.intp))
-    if region is not None:
-        idx = idx[[vc._nodes[i].region == region for i in idx]] if len(idx) else idx
+def _by_output(vc: ValueChain, idx: np.ndarray) -> dict[int, float]:
+    """Each node weighted by x / sum x over the set; empty for an empty set."""
     x = vc._x[idx]
-    return {int(i): float(v / x.sum()) for i, v in zip(idx, x, strict=True)} if len(idx) else {}
+    return dict(zip(idx.tolist(), (x / x.sum()).tolist(), strict=True))
+
+
+def _code_set(vc: ValueChain, code: str, region: str | None) -> dict[int, float]:
+    idx = _code_nodes(vc)[code]
+    if region is not None:
+        idx = idx[[vc._nodes[i].region == region for i in idx]]
+    return _by_output(vc, idx)
 
 
 def _resolve_parts(vc: ValueChain, rule: LinkRule, region: str | None) -> tuple[dict[int, float], list[dict]]:
@@ -88,8 +93,8 @@ def _resolve_parts(vc: ValueChain, rule: LinkRule, region: str | None) -> tuple[
             unresolved.append(part)
         for k, w in found.items():
             weights[k] = weights.get(k, 0.0) + part["share"] * w
-    total = sum(weights.values())
-    if unresolved and total:
+    total = sum(weights.values())  # below 1 only when parts are unresolved: rescale the rest to 1
+    if total:
         weights = {k: w / total for k, w in weights.items()}
     return weights, unresolved
 
@@ -117,11 +122,8 @@ def resolve_activity(vc: ValueChain, activity: ActivityDefinition, rule: LinkRul
     if rule is not None:
         return Resolution("nodes", None, *_resolve_parts(vc, rule, None))
     idx = np.unique(np.concatenate([_code_nodes(vc)[c] for c in activity.core_isic_codes if c in _code_nodes(vc)] or [[]]))
-    idx = idx.astype(np.intp)
-    if not len(idx):
-        return Resolution("none", None, {}, [])
-    x = vc._x[idx]
-    return Resolution("code", None, {int(i): float(v / x.sum()) for i, v in zip(idx, x, strict=True)}, [])
+    weights = _by_output(vc, idx.astype(np.intp))
+    return Resolution("code" if weights else "none", None, weights, [])
 
 
 def weighted_nodes(vc: ValueChain, weights: dict[int, float]) -> list[dict]:
@@ -138,7 +140,7 @@ def validate_rule(vc: ValueChain, kind: str, parts: list, *, company: bool) -> l
     keys = ("icio_code",) if kind == "split" else ("region", "sector")
     clean = []
     for p in parts:
-        share = p.get("share") if isinstance(p, dict) else None
+        share = p.get("share")
         if not all(isinstance(p.get(k), str) for k in keys) or isinstance(share, bool) or not isinstance(share, int | float):
             raise LinkError(f"each part needs {', '.join(keys)} and a numeric share")
         clean.append({**{k: p[k] for k in keys}, "share": float(share)})
@@ -173,7 +175,7 @@ def _top_nodes(vc: ValueChain, values: np.ndarray, top: int) -> list[dict]:
 
 
 def overlay(
-    vc: ValueChain, store, holdings: list, as_of: str, *, indicator: str = "ghg", top: int = 6,
+    vc: ValueChain, store, holdings: list, as_of: str, *, indicator: str, top: int,
     activity: tuple[str, ActivityDefinition, Resolution] | None = None,
 ) -> dict:
     """The overlay of spec Appendix B (without edition and caveat) for one snapshot's holdings."""
@@ -192,7 +194,7 @@ def overlay(
     for h in holdings:
         security = securities.get(h.security_id)
         company_id = security.company_id if security else None
-        company = companies.get(company_id) if company_id else None
+        company = companies.get(company_id)
         weight = h.market_value_eur / nav if nav else 0.0
         res = resolve_company(vc, company, rules.get(company_subject(company_id))) if company else None
         o_h = None

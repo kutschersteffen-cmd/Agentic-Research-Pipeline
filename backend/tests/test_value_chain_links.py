@@ -102,7 +102,7 @@ def test_company_links(linked):  # AC-1 to AC-5
     us = client.get(f"{BASE}/links/company/us").json()
     assert (us["source"], us["region"], nodes(us)) == ("code", None, [("CN.4", 0.6154), ("DE.4", 0.3077), ("WA.4", 0.0769)])
     dz = client.get(f"{BASE}/links/company/dz").json()
-    assert (dz["source"], dz["nodes"]) == ("none", [])
+    assert (dz["source"], dz["region"], dz["nodes"]) == ("none", "DE", [])
 
 
 def test_split_renormalises_unresolved_parts(env):  # AC-6, AC-7
@@ -112,6 +112,10 @@ def test_split_renormalises_unresolved_parts(env):  # AC-6, AC-7
     assert (nodes(res.json()), res.json()["unresolved"]) == ([("DE.4", 1.0)], [{"icio_code": "A01", "share": 0.4}])
     res = client.put(f"{BASE}/links/company/dz", json={"kind": "split", "parts": [{"icio_code": "B07", "share": 0.5}, {"icio_code": "D_GEN_REN", "share": 0.5}]})
     assert nodes(res.json()) == [("DE.1", 0.5), ("DE.3", 0.5)]
+    # D and D_GEN_REN both cover wind: those two parts land on one node and add up
+    parts = [{"icio_code": "D", "share": 0.25}, {"icio_code": "D_GEN_REN", "share": 0.25}, {"icio_code": "B07", "share": 0.5}]
+    res = client.put(f"{BASE}/links/company/dz", json={"kind": "split", "parts": parts})
+    assert (nodes(res.json()), res.json()["unresolved"]) == ([("DE.1", 0.5), ("DE.3", 0.5)], [])
 
 
 @pytest.mark.parametrize(("body", "detail"), [
@@ -121,12 +125,22 @@ def test_split_renormalises_unresolved_parts(env):  # AC-6, AC-7
     ({"kind": "split", "parts": [{"icio_code": "C27", "share": 0.5}, {"icio_code": "B07", "share": 0.4}]}, "shares must sum to 1"),
     ({"kind": "split", "parts": [{"icio_code": "ZZ", "share": 1}]}, "unknown code 'ZZ'"),
     ({"kind": "nodes", "parts": [{"region": "DE", "sector": NICKEL, "share": 1}]}, f"unknown node 'DE · {NICKEL}'"),
+    ({"kind": "split", "parts": [{"icio_code": f"C{n}", "share": 1 / 21} for n in range(10, 31)]}, "1 to 20 parts"),
+    ({"kind": "split", "parts": [{"icio_code": "C27", "share": True}]}, "each part needs icio_code and a numeric share"),
+    ({"kind": "split", "parts": [{"code": "C27", "share": 1}]}, "each part needs icio_code and a numeric share"),
+    ({"kind": "nodes", "parts": [{"region": "DE", "share": 1}]}, "each part needs region, sector and a numeric share"),
 ])
 def test_validation(env, body, detail):  # AC-8
     client, store = env
     res = client.put(f"{BASE}/links/company/dz", json=body)
     assert (res.status_code, res.json()["detail"]) == (422, detail)
     assert store.get_link_rule("company:dz") is None
+
+
+def test_twenty_parts_is_the_limit(env):
+    codes = [c["code"] for c in TestClient(app).get(f"{BASE}/codes").json()][:20]
+    res = env[0].put(f"{BASE}/links/company/dz", json={"kind": "split", "parts": [{"icio_code": c, "share": 0.05} for c in codes]})
+    assert res.status_code == 200 and len(res.json()["rule"]["parts"]) == 20
 
 
 def test_viewer_cannot_write(linked):  # AC-9, AC-9b
@@ -191,6 +205,7 @@ def test_overlay(linked):  # AC-17 to AC-22, AC-24
         for h in o["holdings"]
     ] == [("s_cm", 0.4, "code", ("CN.4", 1.0), 0.2), ("s_sx", 0.3, "split", ("CN.4", 0.5), 0.15),
           ("s_nx", 0.2, "nodes", ("WA.1", 1.0), None), ("s_cash", 0.1, "none", None, None)]
+    assert [h["name"] for h in o["holdings"]] == ["Sec cm", "Sec sx", "Sec nx", "Cash"]
     assert nodes(o) == [("CN.4", 0.55), ("WA.1", 0.2), ("CN.1", 0.1071), ("CN.2", 0.0429)]
     assert r4(o["direct_by_region"]) == [["CN", 0.7], ["RoW Asia-Pacific", 0.2]]
     assert round(o["upstream_total"], 4) == 0.2504
@@ -201,6 +216,8 @@ def test_overlay(linked):  # AC-17 to AC-22, AC-24
     f = o["footprint"]
     assert (f["indicator"], f["unit"], round(f["total"], 4), round(f["per_meur_invested"], 4)) == ("ghg", "t CO₂e", 1.5154, 2.1648)
     assert r4(f["by_region"]) == [["CN", 1.4802], ["DE", 0.0288], ["RoW Asia-Pacific", 0.0064]]
+    assert f["per_meur_invested"] == pytest.approx(f["total"] / 0.7, rel=1e-12)  # per M EUR of the attributed 700,000
+    assert [h["owned_output_meur"] for h in o["holdings"][:2]] == pytest.approx([0.2, 0.15], rel=1e-12)
     a = o["activity"]
     assert (a["name"], round(a["direct_weight"], 4), round(a["upstream_share"], 4)) == ("Copper and nickel mining", 0.35, 0.5193)
     assert client.get(f"{BASE}/portfolio/P").json()["activity"] is None
@@ -231,6 +248,48 @@ def test_overlay_older_snapshot_and_top(linked):  # AC-25d, AC-25h, AC-25e
     o = client.get(f"{BASE}/portfolio/P", params={"top": 2}).json()
     assert ([n["node_id"] for n in o["nodes"]], [n["node_id"] for n in o["upstream_nodes"]], len(o["holdings"])) == (
         ["CN.4", "WA.1"], ["CN.1", "CN.3"], 4)
+    o = client.get(f"{BASE}/portfolio/P", params={"top": 1}).json()
+    assert [len(o[k]) for k in ("direct_by_region", "upstream_by_region", "upstream_by_sector")] == [1, 1, 1]
+    assert len(o["footprint"]["by_region"]) == 1
+
+
+def test_data_points_resolve_as_of_the_snapshot(linked):  # AC-27's rule, on nx
+    client, store = linked
+
+    def observe(field, value, date):
+        store.append_observation(DataPointObservation(
+            company_id="nx", field_id=field, field_name=field, value=value, period=date[:7], source="internal_api",
+            observed_at=f"{date}T00:00:00Z"))
+
+    observe("climate_revenue_eur_m", 20, "2026-09-01")
+    observe("climate_evic_eur_m", 1, "2026-10-15")  # after the snapshot: nx has no EVIC as of 2026-09-30
+    o = client.get(f"{BASE}/portfolio/P").json()
+    assert (round(o["attributed_weight"], 4), o["holdings"][2]["owned_output_meur"]) == (0.7, None)
+    observe("climate_evic_eur_m", 1, "2026-09-02")
+    observe("climate_revenue_eur_m", 99, "2026-10-15")  # later revenue is not seen either
+    o = client.get(f"{BASE}/portfolio/P").json()
+    assert (round(o["attributed_weight"], 4), o["holdings"][2]["owned_output_meur"]) == (0.9, pytest.approx(0.2 / 1 * 20))
+
+
+def test_overlay_of_an_unknown_security_with_no_value(env):
+    from arp.config import Settings
+    from arp.research.value_chain.links import Resolution, company_region, overlay, resolve_activity
+    from arp.research.value_chain.model import load_value_chain
+
+    _, store = env
+    vc = load_value_chain(Settings().value_chain_dir)
+    activity = ActivityDefinition(activity_id="a1", name="A", in_scope_description="x", out_of_scope_description="y",
+                                                   core_isic_codes=["B07"])
+    ghost = Holding(holder_id="P", security_id="s_ghost", as_of_date="2026-09-30", market_value=0, market_value_eur=0)
+    o = overlay(vc, store, [ghost], "2026-09-30", indicator="ghg", top=6,
+                activity=("T", activity, resolve_activity(vc, activity, None)))
+    assert o["holdings"] == [{"security_id": "s_ghost", "company_id": None, "name": "s_ghost", "market_value_eur": 0,
+                              "weight": 0.0, "link_source": "none", "top_node": None, "owned_output_meur": None}]
+    assert (o["nav_eur"], o["linked_weight"], o["upstream_total"], o["nodes"], o["direct_by_region"]) == (0, 0, 0, [], [])
+    assert (o["footprint"]["per_meur_invested"], o["activity"]["direct_weight"], o["activity"]["upstream_share"]) == (None, 0, None)
+    nowhere = activity.model_copy(update={"core_isic_codes": ["ZZ"]})  # codes outside the list are ignored
+    assert resolve_activity(vc, nowhere, None) == Resolution("none", None, {}, [])
+    assert company_region(vc, None) is None and company_region(vc, "th") == "WA"
 
 
 def test_overlay_without_rules(env):  # AC-26
@@ -282,6 +341,17 @@ def test_classify_unlinked(env, monkeypatch):  # AC-33, AC-34, AC-34b, AC-35
     client.put(f"{BASE}/links/company/nx", json=NX_NODES)
     again = _StubLLM("C27")
     assert asyncio.run(classify_unlinked(store, "P", "2026-09-30", model, again)) == (0, 0) and again.calls == []
+
+    # a second portfolio Q holds two unlinked companies; classifying P never reaches them
+    store.save_company(CompanyRef(company_id="zx", name="ZX", country="DE"))
+    for cid in ("dz", "zx"):
+        store.save_security(SecurityRef(security_id=f"s_{cid}", name=cid, asset_class="equity", currency="EUR", company_id=cid))
+    store.save_portfolio(Portfolio(portfolio_id="Q", name="Q"))
+    store.save_snapshot("Q", "2026-09-30", [Holding(holder_id="Q", security_id=s, as_of_date="2026-09-30", market_value=1, market_value_eur=1)
+                                            for s in ("s_dz", "s_zx")])
+    assert asyncio.run(classify_unlinked(store, "P", "2026-09-30", model, _StubLLM(None))) == (0, 0)
+    assert asyncio.run(classify_unlinked(store, "Q", "2026-09-30", model, _StubLLM(None))) == (0, 2)
+    assert asyncio.run(classify_unlinked(store, "Q", "2026-09-30", model, _StubLLM("C27"))) == (2, 0)
 
     store.save_company(CompanyRef(company_id="cm", name="CM", country="CN"))
     assert asyncio.run(classify_unlinked(store, "P", "2026-09-30", model, _StubLLM("B07"))) == (1, 0)
