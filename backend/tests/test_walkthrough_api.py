@@ -18,6 +18,7 @@ from arp.config import Settings
 from arp.extraction.pipeline import load_run_schema
 from arp.extraction.tnfd_extractor_agent import GeneralRequirementsDraft
 from arp.extraction.verifier_agent import VerifierOutput
+from arp.ingestion.local_files import parser_version
 from arp.orchestration.review_queue import append_decision
 from arp.review.quality import seed_known_answers
 from arp.schemas.common import RunManifest
@@ -226,17 +227,21 @@ async def test_moved_row_reads_source_field(tmp_path):  # AC-37
 def test_expired(tmp_path, pg):  # AC-38
     store = RunStore(pg, tmp_path / "runs")
     _hand_run(store, "extraction_old", created_at=OLD, fields=[_row()])
+    shutil.rmtree(store.run_dir("extraction_old"))  # as retention does; the run stays in Postgres
     body = _ok(store, "extraction_old", "f1", period_end="2025-12-31")
     _assert_not_recorded(body, "expired")
+    assert not (tmp_path / "runs" / "extraction_old").exists()  # reads never recreate the folder
 
 
 def test_reused_from_expired_run(tmp_path, pg):  # AC-64
     store = RunStore(pg, tmp_path / "runs")
     _hand_run(store, "extraction_r1", created_at=OLD, fields=[_row()])
+    shutil.rmtree(store.run_dir("extraction_r1"))  # as retention does; the run stays in Postgres
     _hand_run(store, "extraction_r2", fields=[_row(reused_from_run="extraction_r1")])
     body = _ok(store, "extraction_r2", "f1", period_end="2025-12-31")
     assert body["trace_run_id"] == "extraction_r1"
     _assert_not_recorded(body, "expired")
+    assert not (tmp_path / "runs" / "extraction_r1").exists()
 
 
 def test_chain_stops_on_period_mismatch(tmp_path, pg):  # Review Focus 5
@@ -278,6 +283,19 @@ async def test_financials_capex(tmp_path, fake_llm):  # AC-10
     record = _trace(store, run_id)["record"]
     assert (body["extractor"], body["verifier"]) == (record["extractor"], record["verifier"])
     assert [p["rank"] for p in body["passages"]] == list(range(1, len(record["passages"]) + 1))
+
+
+async def test_financials_passage_text(tmp_path, fake_llm):
+    doc = fintnfd.fin._doc()
+    store, run_id = await fintnfd._fin_run(tmp_path, fake_llm(fintnfd._fin_responses(doc)), doc)
+    content = _content(tmp_path, doc=None)
+    content.store("k-fin", key_kind="file", parser_version=parser_version(), source_suffix=".txt",
+                  byte_size=len(doc.full_text), text=doc.full_text, page_breaks=[])
+    content.register_document(doc_id=doc.doc_id, company_id="c1", doc_type=doc.doc_type.value, content_key="k-fin",
+                              title="Acme 10-K", local_path=None, source_url=None)
+    p = _ok(store, run_id, "capex", content=content)["passages"][0]
+    assert p["doc_title"] == "Acme 10-K"
+    assert p["text"] is not None and p["text"] == doc.full_text[p["char_start"]:p["char_end"]]
 
 
 async def test_financials_old_run(tmp_path, fake_llm):  # AC-68
@@ -449,7 +467,9 @@ def test_seeded_and_real_look_alike(qenv, monkeypatch):  # noqa: F811  # AC-20
     rs, store, settings = qenv
     call = FakeLLMClient.complete_structured
 
-    async def stamped(self, *, system, output_model, **kw):  # usage as the real model client stamps it
+    # FakeLLMClient leaves usage.model/prompt_version empty; real clients stamp the configured model and
+    # sha256(system)[:12], which the seeded provenance mirrors
+    async def stamped(self, *, system, output_model, **kw):
         answer, usage = await call(self, system=system, output_model=output_model, **kw)
         model = settings.llm_verifier_model if output_model is VerifierOutput else settings.llm_model
         return answer, usage.model_copy(update={"model": model,
