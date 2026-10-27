@@ -184,6 +184,7 @@ class ValueChain:
         self, node_id: str, depth: int = 2, width: int = 3, cutoff: float = 0.01, goods_only: bool = False,
         material: str | None = None, amount_meur: float = 1.0,
     ) -> TreeItem:
+        root = self._k(node_id)  # an unknown node is a 404 before any material check
         total = None
         if material is not None:
             j = self._material(material)
@@ -203,7 +204,7 @@ class ValueChain:
                 ]
             return TreeItem(self._nodes[k], coef, chain, kids, None if total is None else amount_meur * chain * float(total[k]))
 
-        return grow(self._k(node_id), 1.0, 1.0, 0)
+        return grow(root, 1.0, 1.0, 0)
 
     def footprint(
         self, node_id: str, indicator: str, amount_meur: float = 1.0, top: int = 6,

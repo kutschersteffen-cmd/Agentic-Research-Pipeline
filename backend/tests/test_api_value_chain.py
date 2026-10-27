@@ -345,3 +345,9 @@ def test_tree_without_material_unchanged(mat):  # AC-10, AC-21b
     b = get(mat, "/nodes/DE.3/tree?depth=2&width=3&cutoff=0.01")
     assert not {"extracted_t", "material_note"} & keys(b)
     assert get(mat, "/nodes/DE.3/tree?amount_meur=0") == get(mat, "/nodes/DE.3/tree")
+
+
+@pytest.mark.parametrize("build", ["mat", "client"])  # with materials, and F0
+def test_unknown_node_with_material_is_404(request, build):  # final review: node checked before the material
+    res = request.getfixturevalue(build).get(BASE + f"/nodes/XX.9/tree?material={CU}")
+    assert (res.status_code, res.json()["detail"]) == (404, "unknown node 'XX.9'")
