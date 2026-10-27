@@ -105,7 +105,24 @@ import type {
 import type { XbrlRunMarket } from "../types";
 import type { VcFootprint, VcNode, VcSearch, VcStatus, VcTree } from "../types";
 import type { RunFailure } from "../types";
-import type { Dossier, DossierItem, ProposalStarted, ResearchRound, ResearchSource, ResearchView, RunStarted, SourceCategory } from "../types";
+import type {
+  Dossier,
+  DossierItem,
+  PositionDraft,
+  PositionVersion,
+  PositionView,
+  ProposalStarted,
+  ResearchRound,
+  ResearchSource,
+  ResearchView,
+  RunStarted,
+  SourceCategory,
+  StandardsActivation,
+  StandardsCheck,
+  StandardsDraft,
+  StandardsSaved,
+  StandardsView,
+} from "../types";
 import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision } from "../types";
 import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
@@ -228,6 +245,7 @@ export async function openFile(url: string, fallbackName: string): Promise<void>
 
 const rfpQuestion = (projectId: number, qid: number, action = "") => `/api/rfp/projects/${projectId}/questions/${qid}${action}`;
 const research = (dossierId: string, action = "") => `/api/dossiers/${encodeURIComponent(dossierId)}/research${action}`;
+const step5 = (dossierId: string, path: string) => `/api/dossiers/${encodeURIComponent(dossierId)}/${path}`;
 const jsonBody = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 
 export const api = {
@@ -664,6 +682,18 @@ export const api = {
   writeNote: (id: string) => request<RunStarted>(research(id, "/note"), { method: "POST" }),
   approveNote: (id: string) => request<ResearchRound>(research(id, "/note/approve"), { method: "POST" }),
   rejectNote: (id: string, reason: string) => request<ResearchRound>(research(id, "/note/reject"), jsonBody("POST", { reason })),
+  getPosition: (id: string) => request<PositionView>(step5(id, "position")),
+  draftPosition: (id: string, instructions: string | null) =>
+    request<PositionVersion>(step5(id, "position/draft"), jsonBody("POST", { instructions })),
+  savePosition: (id: string, body: PositionDraft) => request<PositionVersion>(step5(id, "position/versions"), jsonBody("POST", body)),
+  approvePosition: (id: string, version: number) => request(step5(id, "position/approve"), jsonBody("POST", { version })),
+  getStandards: (id: string) => request<StandardsView>(step5(id, "standards")),
+  draftStandards: (id: string, instructions: string | null) =>
+    request<StandardsSaved>(step5(id, "standards/draft"), jsonBody("POST", { instructions })),
+  saveStandards: (id: string, body: StandardsDraft) => request<StandardsSaved>(step5(id, "standards/versions"), jsonBody("POST", body)),
+  activateStandards: (id: string, version: number) =>
+    request<StandardsActivation>(step5(id, "standards/activate"), jsonBody("POST", { version })),
+  checkStandards: (id: string) => request<StandardsCheck>(step5(id, "standards/check"), { method: "POST" }),
   newTaxonomyVersion: (taxonomyId: string, body: unknown) =>
     request(`/api/taxonomies/${taxonomyId}/versions`, { method: "POST", body: JSON.stringify(body) }),
   ratifyTaxonomy: (taxonomyId: string, body: { version: number }) =>

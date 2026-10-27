@@ -31,6 +31,26 @@ export type ResearchSource = Served<S["ResearchSource"]>;
 export type ResearchNote = NonNullable<ResearchRound["note"]>;
 export type SourceCategory = ResearchSource["category"];
 export type ProposalStarted = Served<S["ProposalStarted"]>;
+export type PositionView = Served<S["PositionView"]>;
+export type PositionVersion = Served<S["PositionVersion"]>;
+export type PositionDraft = Served<S["PositionDraft"]>;
+export type Standard = Served<S["Standard"]>;
+export type StandardsDraft = S["StandardsDraft"];
+export type StandardsCheck = Served<S["StandardsCheck"]>;
+export type StandardsActivation = Served<S["Activation"]>;
+export type StandardsSaved = Served<S["StandardsSaved"]>;
+// The backend serves versions as plain dicts (a policy version's meta plus its content); version 0 has no
+// dossier_id, position_version or path.
+export interface StandardsVersion {
+  version: number;
+  created_by: string;
+  created_at: string | null;
+  position_version?: number;
+  path?: "model_draft" | "owner_edit";
+  standards: Standard[];
+  schema: Served<S["DataPointSchema"]> | null;
+}
+export type StandardsView = Omit<Served<S["StandardsView"]>, "versions"> & { versions: StandardsVersion[] };
 export type RunStarted = Served<S["RunStarted"]>;
 export type PriorRun = Served<S["PriorRun"]>;
 
@@ -247,6 +267,15 @@ export interface DataPointSchema {
   released_at?: string | null;
 }
 
+/** A deterministic auto-correction applied to a result row. */
+export interface Correction {
+  rule: "label_map" | "period_fill" | "unit_scale" | "planned_move";
+  attribute: "value" | "period_end" | "unit" | "field_id";
+  original: string | number | boolean | null;
+  corrected: string | number | boolean | null;
+  reason: string;
+}
+
 export interface ExtractedField {
   field_id: string;
   field_name: string;
@@ -276,6 +305,8 @@ export interface ExtractedField {
   /** Absent on legacy rows. */
   route?: "auto_accept" | "review" | "hold" | null;
   route_reasons?: string[] | null;
+  /** Absent on rows stored before auto-corrections. */
+  corrections?: Correction[] | null;
 }
 
 export interface CheckResult {
@@ -303,6 +334,8 @@ export interface ExtractionRecord {
   schema_id: string;
   run_id: string;
   fields: ExtractedField[];
+  /** field_id to name from the run's schema; absent when the run kept no schema. */
+  field_names?: Record<string, string>;
   overall_confidence: number;
   needs_review: boolean;
   generated_at: string;
@@ -510,6 +543,9 @@ export interface ItemContext {
   documents: { doc_id: string; doc_type: string; title: string; pages?: number }[];
   failed_checks: { check_id: string; severity: string; plain: string; detail: string }[];
   route_reasons: string[];
+  corrections?: Correction[];
+  /** field_id to name for the item's schema, so a planned_move line can show names. */
+  field_names?: Record<string, string>;
   conflict: { conflicting_sources: boolean; alternatives: { value: unknown; raw_value_text: string | null; source: string; citations: Citation[] }[] } | null;
   /** The verifier's or adjudicator's value, pre-filled when the reviewer opens Correct (E57). */
   suggested_correction?: { value: unknown; citations: Citation[] } | null;
@@ -2445,6 +2481,7 @@ export interface UnifiedTrigger {
   first_seen_month: string;
   is_new: boolean;
   rule: string;
+  company: string;
 }
 
 // XBRL fact pipeline (wire format: snake_case, mirrors backend arp/xbrl_pipeline/models.py)

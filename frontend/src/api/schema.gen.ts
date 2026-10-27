@@ -1147,6 +1147,74 @@ export interface paths {
         patch: operations["patch_dossier_api_dossiers__dossier_id__patch"];
         trace?: never;
     };
+    "/api/dossiers/{dossier_id}/position": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Position */
+        get: operations["get_position_api_dossiers__dossier_id__position_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/position/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve Position */
+        post: operations["approve_position_api_dossiers__dossier_id__position_approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/position/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Draft Position */
+        post: operations["draft_position_api_dossiers__dossier_id__position_draft_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/position/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Edit Position */
+        post: operations["edit_position_api_dossiers__dossier_id__position_versions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/dossiers/{dossier_id}/research": {
         parameters: {
             query?: never;
@@ -1294,6 +1362,91 @@ export interface paths {
         put?: never;
         /** Upload Source File */
         post: operations["upload_source_file_api_dossiers__dossier_id__research_sources__source_id__file_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/standards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Standards */
+        get: operations["get_standards_api_dossiers__dossier_id__standards_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/standards/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Activate Standards */
+        post: operations["activate_standards_api_dossiers__dossier_id__standards_activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/standards/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check Companies */
+        post: operations["check_companies_api_dossiers__dossier_id__standards_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/standards/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Draft Standards */
+        post: operations["draft_standards_api_dossiers__dossier_id__standards_draft_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dossiers/{dossier_id}/standards/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Edit Standards */
+        post: operations["edit_standards_api_dossiers__dossier_id__standards_versions_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7140,6 +7293,19 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** Activation */
+        Activation: {
+            /** Approved At */
+            approved_at: string;
+            /** Approved By */
+            approved_by: string;
+            /** Extraction Run Id */
+            extraction_run_id: string | null;
+            /** Path */
+            path: string;
+            /** Version */
+            version: number;
+        };
         /**
          * ActivityCatalogueMapping
          * @description LLM-suggested (reviewable, never auto-applied) crosswalk from one
@@ -8663,6 +8829,21 @@ export interface components {
              * @default 0.01
              */
             sum_tolerance: number;
+        };
+        /** CheckResult */
+        CheckResult: {
+            /** Company Id */
+            company_id: string;
+            /** Name */
+            name: string;
+            /** Period End */
+            period_end: string | null;
+            /** Result */
+            result: string;
+            /** Standard Id */
+            standard_id: string;
+            /** Value */
+            value: boolean | number | string | null;
         };
         /** ChoiceRequest */
         ChoiceRequest: {
@@ -10752,6 +10933,11 @@ export interface components {
             /** Name */
             name: string;
             /**
+             * Planned Field Id
+             * @description On an actual-figure field: the field_id of its planned sibling.
+             */
+            planned_field_id?: string | null;
+            /**
              * Required
              * @default true
              */
@@ -11403,6 +11589,11 @@ export interface components {
          * @enum {string}
          */
         IndicatorCategory: "target" | "governance" | "strategy" | "tracking";
+        /** Instructions */
+        Instructions: {
+            /** Instructions */
+            instructions?: string | null;
+        };
         /**
          * InteractionType
          * @description E6: every call, letter and meeting is tagged, so pressure-type engagement
@@ -12378,6 +12569,62 @@ export interface components {
              * @description Sum over both legs of |w_t - w_{t-1}| in absolute weight; the first emitted month trades the full 2.0.
              */
             traded_weight?: number | null;
+        };
+        /** PositionApproval */
+        PositionApproval: {
+            /** Approved At */
+            approved_at: string;
+            /** Approved By */
+            approved_by: string;
+            /** Version */
+            version: number;
+        };
+        /** PositionDraft */
+        PositionDraft: {
+            /** Paragraphs */
+            paragraphs: components["schemas"]["PositionParagraph"][];
+            /** Summary */
+            summary: string;
+        };
+        /** PositionParagraph */
+        PositionParagraph: {
+            /** Cites */
+            cites: string[];
+            /** Text */
+            text: string;
+        };
+        /** PositionVersion */
+        PositionVersion: {
+            /** Created At */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Dossier Id */
+            dossier_id: string;
+            /** Instructions */
+            instructions?: string | null;
+            /** Note Version */
+            note_version: number;
+            /** Paragraphs */
+            paragraphs: components["schemas"]["PositionParagraph"][];
+            /**
+             * Path
+             * @enum {string}
+             */
+            path: "model_draft" | "owner_edit";
+            /** Summary */
+            summary: string;
+            /** Version */
+            version: number;
+        };
+        /** PositionView */
+        PositionView: {
+            /** Approvals */
+            approvals: components["schemas"]["PositionApproval"][];
+            /** Approved Version */
+            approved_version: number | null;
+            /** Versions */
+            versions: components["schemas"]["PositionVersion"][];
         };
         /**
          * PrimarySource
@@ -14202,6 +14449,40 @@ export interface components {
             /** Total */
             total: number;
         };
+        /** Standard */
+        Standard: {
+            /**
+             * Data
+             * @enum {string}
+             */
+            data: "existing" | "new";
+            /** Definition */
+            definition: string;
+            /** Expectation */
+            expectation: string;
+            /** Field Id */
+            field_id: string;
+            /**
+             * Operator
+             * @enum {string}
+             */
+            operator: ">=" | "<=" | ">" | "<" | "==";
+            /** Rests On */
+            rests_on: number[];
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "low" | "medium" | "high";
+            /** Standard Id */
+            standard_id: string;
+            /** Title */
+            title: string;
+            /** Value */
+            value: boolean | number | string;
+            /** Where Reported */
+            where_reported: string;
+        };
         /**
          * StandardCodeMatch
          * @description One code from an external classification standard, derived via a
@@ -14217,6 +14498,52 @@ export interface components {
              * @default
              */
             label: string;
+        };
+        /** StandardsCheck */
+        StandardsCheck: {
+            /** Checked At */
+            checked_at: string;
+            /** Flagged */
+            flagged: number;
+            /** Results */
+            results: components["schemas"]["CheckResult"][];
+        };
+        /** StandardsDraft */
+        StandardsDraft: {
+            /**
+             * New Fields
+             * @default []
+             */
+            new_fields: components["schemas"]["FieldDefinition"][];
+            /** Standards */
+            standards: components["schemas"]["Standard"][];
+        };
+        /** StandardsSaved */
+        StandardsSaved: {
+            /** Version */
+            version: number;
+        };
+        /** StandardsView */
+        StandardsView: {
+            /** Activations */
+            activations: {
+                [key: string]: unknown;
+            }[];
+            /** Active */
+            active: {
+                [key: string]: unknown;
+            };
+            /** Active Version */
+            active_version: number;
+            /** Field Names */
+            field_names: {
+                [key: string]: string;
+            };
+            latest_check: components["schemas"]["StandardsCheck"] | null;
+            /** Versions */
+            versions: {
+                [key: string]: unknown;
+            }[];
         };
         /**
          * StartRequest
@@ -15295,6 +15622,11 @@ export interface components {
              * @default 0.005
              */
             tolerance: number;
+        };
+        /** VersionRef */
+        VersionRef: {
+            /** Version */
+            version: number;
         };
         /**
          * VetoRule
@@ -17896,6 +18228,142 @@ export interface operations {
             };
         };
     };
+    get_position_api_dossiers__dossier_id__position_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PositionView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approve_position_api_dossiers__dossier_id__position_approve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionRef"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PositionApproval"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    draft_position_api_dossiers__dossier_id__position_draft_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Instructions"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PositionVersion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_position_api_dossiers__dossier_id__position_versions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PositionDraft"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PositionVersion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_research_api_dossiers__dossier_id__research_get: {
         parameters: {
             query?: never;
@@ -18178,6 +18646,173 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResearchSource"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_standards_api_dossiers__dossier_id__standards_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_standards_api_dossiers__dossier_id__standards_activate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionRef"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Activation"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_companies_api_dossiers__dossier_id__standards_check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardsCheck"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    draft_standards_api_dossiers__dossier_id__standards_draft_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Instructions"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardsSaved"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_standards_api_dossiers__dossier_id__standards_versions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dossier_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StandardsDraft"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StandardsSaved"];
                 };
             };
             /** @description Validation Error */

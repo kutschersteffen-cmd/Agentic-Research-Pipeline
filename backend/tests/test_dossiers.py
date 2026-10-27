@@ -70,8 +70,9 @@ def test_a_topic_dossier_starts_with_nothing_to_show(env):
     assert (d["origin"], d["taxonomy_id"], d["status"], d["created_by"]) == ("topic", None, "active", "Test")
     steps = client.get(f"/api/dossiers/{d['dossier_id']}").json()["steps"]
     assert [s["title"] for s in steps] == ["Spot", "Define", "Research", "Find companies", "Position and standards"]
-    assert [s["state"] for s in steps] == ["skipped", "not_started", "not_started", "not_started", "not_built"]
-    assert [s["href"] for s in steps] == [None, None, None, "#/theme", None]
+    assert [s["state"] for s in steps] == ["skipped", "not_started", "not_started", "not_started", "not_started"]
+    assert steps[4]["detail"] == "research note not approved"
+    assert [s["href"] for s in steps] == [None, None, None, "#/theme", f"#/themes/{d['dossier_id']}/position"]
     assert client.get("/api/dossiers").json()["items"][0]["current_step"] == 2
 
 
