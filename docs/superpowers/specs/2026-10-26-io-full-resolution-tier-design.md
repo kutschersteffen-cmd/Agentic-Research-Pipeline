@@ -1,6 +1,6 @@
 # Indirect-exposure tier on full-resolution EXIOBASE
 
-Status: draft, 2026-10-26. Owner decisions on 2026-10-26: retire the 50-industry path entirely (ICIO
+Status: approved by the owner, 2026-10-27. Owner decisions on 2026-10-26: retire the 50-industry path entirely (ICIO
 source, `arp io import-icio`, `arp io import-exiobase`, the 10-industry samples); keep ICIO codes as
 the labels for companies and activities and map them to nodes; replace the samples with a tiny
 full-format sample; leave stored run results as they are; approach A (output-weighted node set).
