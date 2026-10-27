@@ -162,7 +162,7 @@ the file, or its region has no live node in the build.
    other columns keep their order, and ESG files without the column import as before. It resolves through the same
    data-point cascade.
 8. **Shocks lens** (needs spec 2's endpoints on `main`; if they are not there when the rest is done, Scope 8,
-   the Shocks-view picker and rows AC-28 to AC-31b, AC-44 and AC-47 ship as a second PR, using the steward
+   the Shocks-view picker and rows AC-28 to AC-31b, AC-37b, AC-44, AC-45b and AC-47 ship as a second PR, using the steward
    skill's `Rows:` line). Spec 2's `shock/quantity` and `shock/price` take optional `portfolio` and `as_of`
    (Appendix B). Without `portfolio`, the response's `portfolio` field is null and nothing else changes.
 9. **Screen** (Appendix C): a fifth view, "Portfolio", with the link editor; a portfolio picker on the
@@ -257,7 +257,7 @@ Not built: 503 as in the explorer. Every 200 carries `edition` and `caveat`.
   - `indicator` and `unit` work as in the explorer footprint.
   - `taxonomy` and `activity` are given together or not at all; only one of them → 422 `taxonomy and
     activity go together`.
-  - `top` outside 1–20 or an unknown `indicator` → 422.
+  - `top` outside 1–20 → 422 `top must be 1 to 20`; an unknown `indicator` → 422 `unknown indicator '<i>'`.
 
   Errors:
   - unknown portfolio: 404 `unknown portfolio '<id>'`;
@@ -316,8 +316,8 @@ flow, output and satellite value moved with its sector. So V's `WA.1` is V′'s 
 - securities `s_cm`, `s_sx`, `s_nx` with the company of the same suffix, and `s_cash` with no company;
 - portfolio `P`, a snapshot on `2026-09-30` with `market_value_eur`: `s_cm` 400,000, `s_sx` 300,000,
   `s_nx` 200,000, `s_cash` 100,000; and an older snapshot on `2026-06-30`: `s_cm` 1,000,000 only;
-- observations dated `2026-09-01`, source `internal_api`: `cm` evic 100 and revenue 50; `sx` evic 60
-  and revenue 30; none for `nx`;
+- observations, source `internal_api`: `cm` evic 100 and revenue 50, dated `2026-06-01`; `sx` evic 60
+  and revenue 30, dated `2026-09-01`; none for `nx`;
 - taxonomy `T` with activity `a1` (name `Copper and nickel mining`, `core_isic_codes` `["B07"]`).
 
 "S linked" means S plus:
@@ -365,10 +365,11 @@ returning the `isic_code` the row names.
 | AC-25d | as AC-17 | `O?as_of=2026-06-30` | `nav_eur` 1000000; `linked_weight` 1; `upstream_total` 0.3446; `footprint.per_meur_invested` 2.6475 | holdout |
 | AC-25h | as AC-17 | `O?as_of=2026-08-15` | `as_of` `2026-06-30`; `nav_eur` 1000000 | holdout |
 | AC-25e | as AC-17 | `O?top=2` | `nodes` ids `CN.4, WA.1`; `upstream_nodes` ids `CN.1, CN.3`; `holdings` 4 rows | holdout |
-| AC-25f | as AC-17 | `O?top=0`; `O?top=21` | 422 each | holdout |
+| AC-25f | as AC-17 | `O?top=0`; `O?top=21` | 422 each, `detail` `top must be 1 to 20` | holdout |
+| AC-25i | as AC-17 | `O?indicator=zz` | 422 `unknown indicator 'zz'` | holdout |
 | AC-25g | `ARP_VALUE_CHAIN_DIR` unset, S | `GET …/links/company/cm`; `O` | 503 each, `detail` `value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR` | holdout |
 | AC-26 | V built, S (no rules) | `O` | `linked_weight` 0.7 (`s_nx` and `s_cash` unlinked); holdings row s_nx `link_source` `none` | holdout |
-| AC-27 | V built, S linked, observations for `cm` dated `2026-10-15` instead | `O` | `attributed_weight` 0.3; s_cm `owned_output_meur` null | holdout |
+| AC-27 | V built, S linked, all of `cm`'s observations dated `2026-10-15` instead | `O` | `attributed_weight` 0.3; s_cm `owned_output_meur` null | holdout |
 | AC-28 | V built, S linked | spec 2 `GET /api/value-chain/shock/quantity?model=demand&region=CN&change=-10&portfolio=P` | `portfolio` `{portfolio_id P, as_of 2026-09-30, linked_weight 0.9, change_pct -8.2277}`; `total_meur` -64.2658 | holdout |
 | AC-29 | as AC-28 | `…/shock/quantity?model=supply&region=CN&change=-10&portfolio=P` | `portfolio.change_pct` -7.1757 | holdout |
 | AC-30 | as AC-28 | `…/shock/price?carbon_eur_per_t=100&portfolio=P` | `portfolio.dp_pct` 0.0347 | holdout |
@@ -381,10 +382,11 @@ returning the `isic_code` the row names.
 | AC-35 | V built, S with `cm` stored without `isic_code`; stub `llm` returning `B07`; `classify_unlinked` run; then `cm` saved again with `isic_code` `C27` | `GET …/links/company/cm` | `source` `code`; `nodes` exactly `[{CN.4, 1}]`; `rule.kind` `llm` | holdout |
 | AC-36 | — | `GET /api/portfolio/esg/template` | the columns are those of the PR's merge-base with `main`, in the same order, with `climate_revenue_eur_m` inserted directly after `climate_evic_eur_m` | holdout |
 | AC-36b | an ESG file accepted by `POST /api/portfolio/esg/upload` on the merge-base, without a `climate_revenue_eur_m` column | upload it | the same status code and response body as on the merge-base | holdout |
-| AC-36c | V built, S linked, the app's LLM client replaced by a recording stub | `GET …/links/company/dz`; `O` | 0 LLM calls | unit |
+| AC-36c | V built, S linked, the app's LLM client replaced by a recording stub (as the holdout does for spec 1's API rows) | `GET …/links/company/dz`; `O` | 0 LLM calls | holdout |
 | AC-36d | S linked in the Postgres store (`ARP_TEST_POSTGRES_DSN`), V built | AC-2's, AC-3's and AC-10's requests | the same results as those rows | holdout |
 | AC-36e | V built, S linked; a theme run with `sx` (C27, `CN`) in its universe and core codes `{"B07"}` | read `sx`'s result | `indirect_exposure.upstream_exposure` 0.1549 (spec 1's code + country value; the split rule is ignored) | holdout |
-| AC-37 | — | `GET /openapi.json` | paths `/api/value-chain/links/company/{company_id}` (get, put, delete), `/api/value-chain/links/activity/{taxonomy_id}/{activity_id}` (get, put, delete), `/api/value-chain/portfolio/{portfolio_id}` (get) exist; `shock/quantity` and `shock/price` have query parameters `portfolio` and `as_of` | holdout |
+| AC-37 | — | `GET /openapi.json` | paths `/api/value-chain/links/company/{company_id}` (get, put, delete), `/api/value-chain/links/activity/{taxonomy_id}/{activity_id}` (get, put, delete), `/api/value-chain/portfolio/{portfolio_id}` (get) exist | holdout |
+| AC-37b | — | `GET /openapi.json` | `shock/quantity` and `shock/price` have query parameters `portfolio` and `as_of` | holdout |
 | AC-38 | V built, S linked, app running | open `#/valueChain/portfolio`, pick `P` | the URL becomes `#/valueChain/portfolio/P`; the coverage line reads `Linked 90.0% of NAV · footprint covers 70.0%`; the footprint tile reads `2.2 t CO₂e per M EUR invested` | evaluator |
 | AC-39 | as AC-38 | read the holdings table | 4 rows in AC-18's order, with weights `40.0%`, `30.0%`, `20.0%`, `10.0%` and the link sources shown | evaluator |
 | AC-40 | as AC-38 | `Edit link` on `s_sx`, `Revenue split`, change the shares to 60/40 and `Save` | the PUT body carries shares 0.6 and 0.4; without a manual page reload, the s_sx top-node cell reads `CN · Manufacture of electrical machinery and apparatus n.e.c. 60.0%` | evaluator |
@@ -392,9 +394,10 @@ returning the `isic_code` the row names.
 | AC-42 | as AC-38 | `Edit link` on `s_sx`, `Reset to default` | DELETE sent; the row's link source reads `code` | evaluator |
 | AC-43 | as AC-38 | pick activity `T` / `Copper and nickel mining` | the line reads `Copper and nickel mining: 35.0% of NAV directly · 51.9% of upstream` | evaluator |
 | AC-43b | as AC-43 | the activity's `Edit link`, `Nodes`, CN / `Mining of copper ores and concentrates` 100%, `Save` | the line reads `Copper and nickel mining: 10.7% of NAV directly · 25.5% of upstream` | evaluator |
-| AC-43c | V built, S, AC-6's split saved for `dz` | open the link editor for `dz` (from a portfolio holding it, or the API-backed editor URL the builder exposes) | the text `Not in this edition: A01 40.0%` shows | evaluator |
+| AC-43c | S linked, then Fixture V−WA built in place of V | open `#/valueChain/portfolio/P`, `Edit link` on `s_nx` | the text `Not in this edition: WA · Mining of copper ores and concentrates 100.0%` shows | evaluator |
 | AC-44 | as AC-38 | Shocks view of any CN node, Demand, `All of CN`, −10%, `Portfolio` `P` | the results show `Portfolio output change −8.23%` | evaluator |
-| AC-45 | Real build, a portfolio of 500 linked holdings | time `O` and a demand shock with `portfolio` on a warm process | `O` ≤ 2.0 s; shock ≤ 1.5 s | evaluator |
+| AC-45 | Real build, a portfolio of 500 linked holdings | time `O` on a warm process | ≤ 2.0 s | evaluator |
+| AC-45b | as AC-45 | time a demand shock with `portfolio` on a warm process | ≤ 1.5 s | evaluator |
 
 Must not change:
 
