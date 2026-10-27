@@ -109,8 +109,9 @@ explorer; `B` follows from the stored `A` and `x` as `B[i,j] = A[i,j] · x_j / x
 
 ## Scope
 
-1. **Recipe store.** Recipes are kept by the app, outside `ARP_VALUE_CHAIN_DIR`, and survive a restart and a
-   new build. Each has a server-assigned `recipe_id` (URL-safe, never reused), `name` (1–120 chars),
+1. **Recipe store.** Recipes are files under a new setting `ARP_VALUE_CHAIN_RECIPES_DIR` (default
+   `data/value_chain_recipes` under the repo root, like `xbrl_dir`), read on every request like
+   `ARP_VALUE_CHAIN_DIR`, so tests can point it at an empty directory. They survive a restart and a new build. Each has a server-assigned `recipe_id` (URL-safe, never reused), `name` (1–120 chars),
    `home`, `output_meur`, `inputs`, `source` (1–2000 chars), `set_by` (principal name) and `set_at`
    (RFC 3339). Saving with the same `recipe_id` replaces the recipe.
 2. **Validation on save**, against the current build. Checks run in the order listed, and the first failing
@@ -125,9 +126,10 @@ explorer; `B` follows from the stored `A` and `x` as `B[i,j] = A[i,j] · x_j / x
    - not consistent: `the recipe buys more from <sector> · <region label> than <home sector> · <home region
      label> does in total`, for the first such input in input order.
    Not built: 503 as in the explorer.
-3. **Use against a later build.** When a stored recipe no longer resolves (a name with no live node) or is
-   not consistent with the current build, every exposure or route request on it answers 409 with the same
-   `detail` text as on save. `GET /recipes` lists it with `status` `unresolved` or `inconsistent`.
+3. **Use against a later build.** When a stored recipe no longer resolves (a name with no live node) or fails
+   a save check on the current build (its output no longer below the home node's, or not consistent), every exposure or route request on it answers 409 with the same
+   `detail` text as on save. `GET /recipes` lists it with `status` `unresolved` (no live node) or `inconsistent` (any other failed check).
+   With no build, every endpoint of this spec, recipe reads and deletes included, answers the explorer's 503.
 4. **API** under `/api/value-chain` (Appendix A). GET for viewers; POST, PUT and DELETE need the analyst role
    (the router's existing `authorize`).
 5. **Screen**: two views in the Value Chain Explorer (Appendix B), and a `Revenue exposure` link on the node
@@ -158,7 +160,7 @@ explorer; `B` follows from the stored `A` and `x` as `B[i,j] = A[i,j] · x_j / x
 
 ## Left to the builder
 
-The recipe store's backend (Postgres or the app's file store), recipe id format, how `r` is computed (solve or
+The recipe file layout, recipe id format, how `r` is computed (solve or
 rank-one update on `G`), the route search (any search that returns exactly the route list defined above), and
 the screen's component structure, as long as the URLs in Appendix B work.
 
@@ -232,7 +234,7 @@ to 4 decimals.
 | AC-14 | F built | `POST /recipes` with R and home `XX` · `Other business activities` | 422; `detail` `unknown node XX · Other business activities` | holdout |
 | AC-15 | F built | `POST /recipes` with R, the DE input named twice (shares 0.2 and 0.1) | 422; `detail` `input named twice: DE · Mining of copper ores and concentrates` | holdout |
 | AC-16 | F built | `POST /recipes` with R as a viewer | 403 | holdout |
-| AC-16b | after AC-16, nothing else saved | `GET /recipes` | `items` `[]` | holdout |
+| AC-16b | AC-16 run with `ARP_VALUE_CHAIN_RECIPES_DIR` an empty directory | `GET /recipes` | `items` `[]` | holdout |
 | AC-17 | R saved, switched to F2 | `GET …/exposure?target=recipe:<rid>` | 409; `detail` `the recipe buys more from Other business activities · CN than Other business activities · DE does in total` | holdout |
 | AC-17b | as AC-17 | `GET /recipes` | the R item has `status` `inconsistent` | holdout |
 | AC-17c | R saved on F, switched to F3 | `GET …/recipes/<rid>`, then `GET …/exposure?target=recipe:<rid>` | `status` `ok`; items node ids `["DE.3","CN.2","CN.3","DE.2"]` with `share` 0.1183, 0.0575, 0.0072, 0.007 | holdout |
