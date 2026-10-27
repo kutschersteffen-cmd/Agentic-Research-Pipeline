@@ -19,6 +19,7 @@ from arp.schemas.portfolio import (
     SecurityResolution,
 )
 from arp.schemas.portfolio_monitoring import AlertRule
+from arp.schemas.value_chain import LinkRule
 from arp.storage.atomic_io import atomic_write_text, read_text_utf8
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.locks import KeyedLock
@@ -51,6 +52,7 @@ class PortfolioStore:
         portfolios/holdings/revisions/<kind>/<holder_id>/<as_of_date>.r<n>.jsonl  write-once revisions
         portfolios/holdings/holders.json                      HolderConfig per "<kind>:<holder_id>"
         portfolios/holdings/audit.jsonl                       holdings audit log (never served)
+        portfolios/value_chain_links.json                     LinkRule per subject (`company:<id>`, `activity:<t>/<a>`)
 
     The registry-style files above (`registry.json`, `securities.json`,
     `companies.json`, `security_resolutions.json`, `analytics.json`,
@@ -155,6 +157,28 @@ class PortfolioStore:
 
     def list_companies(self) -> list[CompanyRef]:
         return [CompanyRef.model_validate(v) for v in self._read_json(self.companies_path()).values()]
+
+    # --- value-chain link rules (arp/research/value_chain/links.py) ---
+
+    def links_path(self) -> Path:
+        return self.portfolios_dir / "value_chain_links.json"
+
+    def save_link_rule(self, subject: str, rule: LinkRule) -> None:
+        self._put_json_entry(self.links_path(), subject, rule.model_dump())
+
+    def get_link_rule(self, subject: str) -> LinkRule | None:
+        row = self._read_json(self.links_path()).get(subject)
+        return LinkRule.model_validate(row) if row else None
+
+    def list_link_rules(self) -> dict[str, LinkRule]:
+        return {k: LinkRule.model_validate(v) for k, v in self._read_json(self.links_path()).items()}
+
+    def delete_link_rule(self, subject: str) -> None:
+        path = self.links_path()
+        with self._lock(path):
+            data = self._read_json(path)
+            if data.pop(subject, None) is not None:
+                self._write_json(path, data)
 
     # --- security resolutions (ISIN/name -> company_id) ---
 

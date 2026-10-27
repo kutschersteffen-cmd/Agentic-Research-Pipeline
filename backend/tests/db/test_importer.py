@@ -331,6 +331,22 @@ def test_import_esg_loads_and_legacy_postgres_documents(pg, legacy_settings):
 
 
 
+def test_import_keeps_esg_loads_without_the_optional_revenue_field(pg, legacy_settings):
+    """Loads written before climate_revenue_eur_m existed have no revenue observation and still import."""
+    from arp.portfolio.climate.esg_intake import FIELD_IDS, OPTIONAL_FIELD_IDS
+    from arp.portfolio.loads import LoadRecord, record_load
+    from arp.schemas.portfolio import DataPointObservation
+    from arp.storage.portfolio_store import PortfolioStore
+
+    store = PortfolioStore(legacy_settings.portfolios_dir)
+    store.save_company(CompanyRef(company_id="beta", name="Beta"))
+    for fid in (f for f in FIELD_IDS if f not in OPTIONAL_FIELD_IDS):
+        store.append_observation(DataPointObservation(company_id="beta", field_id=fid, field_name=fid, value=1.0,
+                                                      period="2025-06", source="internal_api"))
+    record_load(store, LoadRecord(kind="esg", source_id="msci", month="2025-06", status="ok", content_hash="h"))
+    assert importer.import_all(pg, legacy_settings, dry_run=True).counts["esg_loads"] == 1
+
+
 def test_import_copies_the_file_portfolio_store_once(legacy_settings, pg):
     """R46: deployments that ran the file portfolio store keep their portfolios and holdings."""
     from arp.schemas.portfolio import Holding, Portfolio, SecurityRef, SecurityResolution

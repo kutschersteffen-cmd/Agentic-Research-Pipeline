@@ -78,6 +78,11 @@ def region_label(code: str) -> str:
     return ROW_LABELS.get(code, code)
 
 
+def sector_name(raw: str) -> str:
+    """The sector as the explorer shows it: the archive's name without a trailing " (31)"."""
+    return re.sub(r" \(\d+\)$", "", raw)
+
+
 def _opt(cell: str) -> float | None:
     return float(cell) if cell else None
 
@@ -86,12 +91,18 @@ def _read_nodes(path: Path) -> list[Node]:
     with path.open(newline="") as f:
         return [
             Node(
-                r["node_id"], r["region"], region_label(r["region"]), re.sub(r" \(\d+\)$", "", r["sector"]),
+                r["node_id"], r["region"], region_label(r["region"]), sector_name(r["sector"]),
                 float(r["output_meur"]), r["goods"] == "true", _opt(r["ghg_t_per_meur"]),
                 _opt(r["energy_tj_per_meur"]), _opt(r["jobs_per_meur"]), _opt(r["va_share"]),
             )
             for r in csv.DictReader(f)
         ]
+
+
+def _groups(names: np.ndarray, codes: np.ndarray, values: np.ndarray, top: int) -> list[tuple[str, float]]:
+    sums = np.bincount(codes, weights=values, minlength=len(names))
+    nz = np.flatnonzero(sums)
+    return [(str(names[i]), float(sums[i])) for i in nz[np.lexsort((names[nz], -sums[nz]))][:top]]
 
 
 class ValueChain:
@@ -188,16 +199,18 @@ class ValueChain:
         contribution = self._intensity[indicator] * self._l[:, k] * amount_meur
         total = float(contribution.sum())
 
-        def groups(names: np.ndarray, codes: np.ndarray) -> list[tuple[str, float]]:
-            sums = np.bincount(codes, weights=contribution, minlength=len(names))
-            nz = np.flatnonzero(sums)
-            return [(str(names[i]), float(sums[i])) for i in nz[np.lexsort((names[nz], -sums[nz]))][:top]]
-
         in_home = float(contribution[self._region_of == self._region_of[k]].sum()) / total if total else None
         return Footprint(
             indicator, UNITS[indicator], total, in_home,
-            groups(self._regions, self._region_of), groups(self._sectors, self._sector_of),
+            self.by_region(contribution, top), self.by_sector(contribution, top),
         )
+
+    def by_region(self, values: np.ndarray, top: int) -> list[tuple[str, float]]:
+        """Per-node values summed by region label; zero groups left out, value descending, ties by name."""
+        return _groups(self._regions, self._region_of, values, top)
+
+    def by_sector(self, values: np.ndarray, top: int) -> list[tuple[str, float]]:
+        return _groups(self._sectors, self._sector_of, values, top)
 
 
 _load_lock = threading.Lock()  # lru_cache lets concurrent misses each load the 1.5 GB matrices

@@ -150,7 +150,7 @@ def _documents(settings: Settings, session: Session) -> list[dict]:
 def _esg_loads(settings: Settings) -> list[dict]:
     """Each successful ESG file load (portfolio governance log) with the rows it wrote: per company,
     the latest observation of every ESG field for that month as of the load."""
-    from arp.portfolio.climate.esg_intake import FIELD_IDS
+    from arp.portfolio.climate.esg_intake import FIELD_IDS, OPTIONAL_FIELD_IDS
     from arp.storage.portfolio_store import PortfolioStore
 
     store = PortfolioStore(settings.portfolios_dir)  # observations and governance events are files
@@ -166,7 +166,7 @@ def _esg_loads(settings: Settings) -> list[dict]:
             hits = [o for o in obs if o.period == e["month"] and o.observed_at <= e["at"]]
             if hits:
                 rows[company][fid] = hits[-1].value
-        complete = [{"company_id": c, **v} for c, v in rows.items() if set(v) == set(FIELD_IDS)]
+        complete = [{"company_id": c, **v} for c, v in rows.items() if set(v) >= set(FIELD_IDS) - OPTIONAL_FIELD_IDS]
         if complete:
             loads.append({"provider": e["source_id"], "month": e["month"], "rows": complete})
     return loads

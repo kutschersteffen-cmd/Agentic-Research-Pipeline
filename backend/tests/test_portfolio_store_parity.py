@@ -40,7 +40,7 @@ DSN = os.environ.get("ARP_TEST_POSTGRES_DSN")
 FILE_ONLY_METHODS = frozenset(
     {"registry_path", "securities_path", "companies_path", "resolutions_path", "snapshot_path",
      "observations_path", "news_path", "flags_path", "analytics_path", "groups_path", "rules_path",
-     "alert_events_path", "governance_events_path", "revision_path", "holders_path", "holdings_audit_path"}
+     "alert_events_path", "governance_events_path", "revision_path", "holders_path", "holdings_audit_path", "links_path"}
 )
 
 
@@ -210,6 +210,23 @@ def test_company_round_trip(store):
     assert store.get_company("bmw") == company
     assert store.get_company("nope") is None
     assert store.list_companies() == [company]
+
+
+def test_link_rule_round_trip_replace_and_delete(store):
+    from arp.schemas.value_chain import LinkRule
+
+    split = LinkRule(kind="split", parts=[{"icio_code": "C27", "share": 0.5}, {"icio_code": "B07", "share": 0.5}],
+                     set_by="ana", set_at="2026-10-27T10:00:00Z")
+    nodes = LinkRule(kind="nodes", parts=[{"region": "WA", "sector": "Wind", "share": 1.0}], set_by="ana",
+                     set_at="2026-10-27T11:00:00Z")
+    store.save_link_rule("company:sx", split)
+    assert store.get_link_rule("company:sx") == split
+    store.save_link_rule("company:sx", nodes)
+    assert store.get_link_rule("company:sx") == nodes
+    assert store.list_link_rules() == {"company:sx": nodes}
+    store.delete_link_rule("company:sx")
+    store.delete_link_rule("company:sx")  # deleting what is not there is fine
+    assert store.get_link_rule("company:sx") is None
 
 
 def test_resolution_round_trip_and_review_filter(store):

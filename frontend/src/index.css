@@ -2138,6 +2138,14 @@ a.vc-box:hover { border-color: var(--text); }
 .vc-root { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .vc-total-value { font-size: 2rem; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .vc-amount input { width: 10rem; }
+.vc-portfolio-controls { align-items: flex-end; gap: var(--s-2) var(--s-6); }
+.vc-coverage { font-size: var(--text-lg); font-weight: 600; margin-bottom: var(--s-1); }
+.vc-editor-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--s-2) var(--s-4); }
+.vc-editor-rows { list-style: none; margin: var(--s-3) 0; padding: 0; display: grid; gap: var(--s-3); }
+.vc-editor-rows > li { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-2) var(--s-4); }
+.vc-node-search { display: grid; gap: var(--s-1); min-width: min(100%, 22rem); }
+.vc-share input { width: 7rem; }
+.vc-activity { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); }
 
 /* Argus start page (pages/ArgusStart.tsx): five step tiles, runs beside what waits on you. */
 .argus-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-4); flex-wrap: wrap; }
