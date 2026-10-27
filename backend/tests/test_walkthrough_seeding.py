@@ -85,3 +85,15 @@ def test_seeded_items_unchanged(qenv, monkeypatch):  # noqa: F811  # AC-62 stand
 
     assert bodies(with_trace) == bodies(without)
     assert not (rs.run_dir(without) / "traces").exists()
+
+
+def test_seeding_survives_a_trace_error(qenv, monkeypatch):  # noqa: F811
+    rs, _, settings = qenv
+
+    def boom(*a, **k):
+        raise RuntimeError("no embedding model")
+
+    monkeypatch.setattr("arp.review.quality.field_evidence", boom)
+    run_id = seed_known_answers(rs, settings, count=3, seed=3)
+    assert len(rs.read_review_queue(run_id)) >= 3
+    assert not (rs.run_dir(run_id) / "traces").exists()

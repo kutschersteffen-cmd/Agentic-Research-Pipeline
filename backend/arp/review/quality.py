@@ -144,16 +144,19 @@ async def _record(
         verifier_prompt_version=_prompt_version((extractor_agent if spec.high_risk else verifier_agent)._SYSTEM_PROMPT),
         schema_version=f"{schema.schema_id}:v{schema.version}", field_version=spec.version,
     )
-    if trace_sink is not None:  # built as a real run's is: the same evidence selection, the same provenance
-        usage_e = LLMUsage(model=provenance.extractor_model, prompt_version=provenance.extractor_prompt_version)
-        usage_v = LLMUsage(model=provenance.verifier_model, prompt_version=provenance.verifier_prompt_version)
-        trace_sink.setdefault("fields", {})[spec.field_id] = trace.field_entry(
-            spec.field_id, passages=[trace.passage(c) for c in field_evidence(spec, [doc], settings)],
-            extractor=trace.call(usage_e, draft),
-            verifier=trace.verifier_call(
-                usage_v, draft if spec.high_risk else verifier, blind=spec.high_risk,
-                verdict=verifier if spec.high_risk else None),
-        )
+    if trace_sink is not None:  # built as a real run's is; never fails the item
+        try:
+            usage_e = LLMUsage(model=provenance.extractor_model, prompt_version=provenance.extractor_prompt_version)
+            usage_v = LLMUsage(model=provenance.verifier_model, prompt_version=provenance.verifier_prompt_version)
+            trace_sink.setdefault("fields", {})[spec.field_id] = trace.field_entry(
+                spec.field_id, passages=[trace.passage(c) for c in field_evidence(spec, [doc], settings)],
+                extractor=trace.call(usage_e, draft),
+                verifier=trace.verifier_call(
+                    usage_v, draft if spec.high_risk else verifier, blind=spec.high_risk,
+                    verdict=verifier if spec.high_risk else None),
+            )
+        except Exception:
+            logger.warning("no trace for seeded company %s", company.company_id, exc_info=True)
     h = input_hash(spec, route_documents(spec, [doc]), planned, input_settings(settings))
     fields = [f.model_copy(update={"provenance": provenance, "input_hash": h}) for f in fields]
     key, scheme = issuer_key(company, IdentifierMapStore(settings.identifier_map_path))
