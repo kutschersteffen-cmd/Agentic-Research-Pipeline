@@ -97,7 +97,9 @@ processed to one entry, always with every key below (`null` when unused):
   change grounding, so a full trace includes it.)*
 - A field that did not reach the models records an entry with `skipped` set and `passages` `[]`, all answers
   `null`: `"skipped": "tagged"` (value from tagged data, `method` `tagged`), `"no_evidence"` (no passage matched),
-  `"derived"` (a derived field computed by a rule) or `"documents_held"` (every document was held). Otherwise
+  `"derived"` (a derived field computed by a rule), `"documents_held"` (every document was held) or
+  `"not_applicable"` (the field's applicability rule ruled it out for this company; added during build, see the
+  amendment note at the end). Otherwise
   `skipped` is `null`. When two apply, `tagged` and `derived` win over `documents_held`. *(My call: a new run
   must never show the "before walkthroughs" note.)*
 - A field extracted in a group call records `grouped: true`, the group's passages, and the group answer's values
@@ -213,7 +215,8 @@ Data-point runs, ten steps:
 | 9 | Checks | `6 passed` / `1 failed` | row `checks` |
 | 10 | Route | `review` / `auto_accept` / `hold` | row `route`, `route_reasons` |
 
-- **Skipped fields:** step 1 shows `taken from XBRL tag` for `skipped` `tagged`; for `no_evidence` step 2 shows
+- **Skipped fields:** step 1 shows `taken from XBRL tag` for `skipped` `tagged`, `not applicable by rule` for
+  `not_applicable` (steps 2–5 `not reached`); for `no_evidence` step 2 shows
   `no passage matched` and steps 3–5 `not reached`; for `derived` step 1 shows `derived by rule` and steps 2–5
   `not reached`; for `documents_held` step 2 shows `documents held` and steps 3–5 `not reached`.
 - **Vision check:** when `vision` is set, step 6 shows a line `Vision check · <model>` with its own Summary / Full
@@ -361,7 +364,7 @@ endpoint rows cover it.
 | AC-67 | The AC-39 run | the vision calls are counted | exactly 1 | holdout |
 | AC-68 | A Financials run made with no `traces/` folder, created within `retention_runs_days` | the walkthrough is requested with `item=capex` | `recorded` false; `not_recorded_reason` `before_traces`; `rows` equals `[<the results endpoint's capex for that company>]` | holdout |
 | AC-70 | The AC-1 run | the walkthrough is requested for its field with `period_end=1999-12-31` | HTTP 404 | holdout |
-| AC-71 | The AC-1 run with its files dated older than `retention_runs_days` | retention cleanup runs with apply | no `traces/*.json` remains in its run folder; the results endpoint body is unchanged | holdout |
+| AC-71 | The AC-1 run with its files dated older than `retention_runs_days` | retention cleanup runs with apply | no `traces/*.json` remains in its run folder; the results endpoint's `results` rows are unchanged | holdout |
 | AC-72 | A seeded known-answer item for a field the real pipeline extracts in a group call | its walkthrough is requested | the `(doc_id, char_start, char_end, section)` list of `passages` equals the group's evidence selection over the seeded document | holdout |
 | AC-73 | The AC-8 run and the same run on `main` | the model calls are counted | equal counts for extractor, verifier and adjudicator calls (one group extractor call) | holdout |
 | AC-74 | The AC-19 item in the running app | the reviewer opens its walkthrough | the page text contains neither `zq-note-7f3a` nor the reviewer's user id or name, and shows no cosign | evaluator |
@@ -371,3 +374,10 @@ Must not change, each a row above: results endpoint bodies (AC-25, AC-63) and th
 seeded review items (AC-62); stored
 rows and routing (AC-26); results never read traces (AC-27); model call counts (AC-28, AC-29, AC-30, AC-65, AC-66, AC-67, AC-73); the golden
 set and research callers write no traces (AC-23, AC-24).
+
+## Amendments during build (2026-10-27)
+
+- AC-71 compared the whole results body, but retention already deletes the run's `schema.json`, so `field_names`
+  drops out of the body on `main` too. The row now compares the `results` rows.
+- Fields that a field's applicability rule skips for a company now record `skipped: "not_applicable"`, so a new
+  run never shows the "before walkthroughs" note for them.
