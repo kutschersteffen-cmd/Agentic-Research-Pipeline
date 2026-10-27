@@ -1,10 +1,12 @@
+import shutil
+
 import pytest
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
 from arp.api.main import app
 from arp.cli import app as cli_app
-from tests.value_chain_fixture import write_fixture_f
+from tests.value_chain_fixture import MATERIAL, MATERIALS, write_fixture_f
 
 BASE = "/api/value-chain"
 NOT_BUILT = "value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR"
@@ -55,7 +57,7 @@ def test_status(client):  # AC-2
     assert body.pop("built_at").endswith("Z")
     assert body == {
         "edition": "exiobase-IOT_2022_ixi", "version": "3.11.2", "year": 2022, "n_nodes": 6, "n_regions": 2,
-        "n_sectors": 3, "caveat": CAVEAT,
+        "n_sectors": 3, "caveat": CAVEAT, "materials": [],
     }
 
 
@@ -228,3 +230,118 @@ def test_manifest_without_matrix_is_503(built, tmp_path, monkeypatch):
     monkeypatch.setenv("ARP_VALUE_CHAIN_DIR", str(partial))
     res = TestClient(app).get(BASE + "/status")
     assert (res.status_code, res.json()) == (503, {"detail": NOT_BUILT})
+
+
+# Material extraction, spec 2026-10-27-product-recipes-design.md (project 1)
+CU, SAND, NI = "metal_ores_copper_ores", "non_metallic_minerals_sand_and_gravel", "metal_ores_nickel_ores"
+NOTE = "Extraction: tonnes taken from nature (metal ores as gross ore), not content in the product"
+
+
+@pytest.fixture(scope="module")
+def built_mat(tmp_path_factory):
+    root = tmp_path_factory.mktemp("vc_mat")
+    res = CliRunner().invoke(cli_app, ["io", "build-full", str(write_fixture_f(root, MATERIAL)), "--out", str(root / "out")])
+    assert res.exit_code == 0, res.output
+    return root / "out"
+
+
+@pytest.fixture
+def mat(built_mat, monkeypatch):
+    monkeypatch.setenv("ARP_VALUE_CHAIN_DIR", str(built_mat))
+    return TestClient(app)
+
+
+@pytest.fixture
+def old_build(built_mat, tmp_path, monkeypatch):
+    """A build directory without the material files, as `main` writes it (AC-23, AC-27)."""
+    d = tmp_path / "old"
+    shutil.copytree(built_mat, d)
+    for name in ("materials.json", "material_m.npy", "material_M.npy"):
+        (d / name).unlink()
+    monkeypatch.setenv("ARP_VALUE_CHAIN_DIR", str(d))
+    return TestClient(app)
+
+
+def pairs(body, key):
+    return [[k, r4(v)] for k, v in body[key]]
+
+
+def test_status_materials(mat):  # AC-1
+    assert get(mat, "/status")["materials"] == MATERIALS
+
+
+def test_status_old_build(old_build):  # AC-23
+    assert get(old_build, "/status")["materials"] == []
+
+
+def test_material_footprint(mat):  # AC-3, AC-4
+    b = get(mat, f"/nodes/DE.3/footprint?indicator=material:{CU}&amount_meur=2")
+    assert (b["unit"], r4(b["total"]), r4(b["in_home_region"]), b["material_note"]) == ("t", 143.3869, 0.7783, NOTE)
+    assert pairs(b, "by_region") == [["DE", 111.6016], ["CN", 31.7853]]
+    assert pairs(b, "by_sector") == [["Mining of copper ores and concentrates", 143.3869]]
+    assert r4(get(mat, f"/nodes/CN.2/footprint?indicator=material:{CU}")["total"]) == 1283.0655
+
+
+def test_material_footprint_zero(mat):  # AC-5
+    b = get(mat, f"/nodes/DE.3/footprint?indicator=material:{NI}")
+    assert (b["unit"], b["total"], b["in_home_region"], b["by_region"], b["by_sector"], b["material_note"]) == (
+        "t", 0, None, [], [], NOTE)
+
+
+def test_sand_footprint(mat):  # AC-6b
+    b = get(mat, f"/nodes/DE.3/footprint?indicator=material:{SAND}&amount_meur=2")
+    assert (r4(b["total"]), r4(b["in_home_region"])) == (84.6724, 0.8311)
+    assert pairs(b, "by_region") == [["DE", 70.3691], ["CN", 14.3034]]
+    assert pairs(b, "by_sector") == [["Other business activities", 69.133], ["Mining of copper ores and concentrates", 15.5395]]
+
+
+def test_ghg_footprint_has_no_note(mat):  # AC-9
+    b = get(mat, "/nodes/DE.3/footprint?indicator=ghg&amount_meur=2")
+    assert (b["unit"], r4(b["total"]), r4(b["in_home_region"])) == ("t CO₂e", 1.4955, 0.9328)
+    assert pairs(b, "by_region") == [["DE", 1.395], ["CN", 0.1004]]
+    assert pairs(b, "by_sector") == [["Mining of copper ores and concentrates", 1.4268], ["Other business activities", 0.0687]]
+    assert "material_note" not in b
+
+
+@pytest.mark.parametrize("path", [
+    "/nodes/DE.3/footprint?indicator=material:copper_ores",  # AC-6
+    "/nodes/DE.3/footprint?indicator=material:metal_ores_gold_ores",  # AC-6
+    "/nodes/DE.3/footprint?indicator=water",
+    "/nodes/DE.3/tree?material=metal_ores_gold_ores",  # AC-8
+    f"/nodes/DE.3/tree?material={CU}&amount_meur=0",  # AC-21
+    f"/nodes/DE.3/tree?material={CU}&amount_meur=nan",  # Review Focus 2
+    f"/nodes/DE.3/tree?material={CU}&amount_meur=inf",
+])
+def test_material_422(mat, path):
+    assert mat.get(BASE + path).status_code == 422
+
+
+@pytest.mark.parametrize("build", ["client", "old_build"])  # F0, and a build directory made by main
+@pytest.mark.parametrize("path", [f"/nodes/DE.3/footprint?indicator=material:{CU}", f"/nodes/DE.3/tree?material={CU}"])
+def test_material_on_build_without_materials(request, build, path):  # AC-27
+    assert request.getfixturevalue(build).get(BASE + path).status_code == 422
+
+
+def extracted(node):
+    return [node["node_id"], r4(node["extracted_t"]), [extracted(c) for c in node["children"]]]
+
+
+def test_material_tree(mat):  # AC-7, AC-7b, AC-20
+    b = get(mat, f"/nodes/DE.3/tree?material={CU}&amount_meur=2&depth=2&width=3&cutoff=0.01")
+    assert b["material_note"] == NOTE
+    assert extracted(b) == ["DE.3", 143.3869, [
+        ["CN.3", 38.5661, [["CN.2", 25.6613, []], ["DE.2", 9.0482, []]]],
+        ["DE.2", 90.4821, [["DE.3", 1.4339, []]]],
+    ]]
+    s = get(mat, f"/nodes/DE.3/tree?material={SAND}&amount_meur=2")
+    assert [r4(s["extracted_t"]), [[c["node_id"], r4(c["extracted_t"])] for c in s["children"]]] == [
+        84.6724, [["CN.3", 14.1533], ["DE.2", 12.0519]]]
+    assert r4(get(mat, f"/nodes/DE.3/tree?material={CU}")["extracted_t"]) == 71.6934
+
+
+def test_tree_without_material_unchanged(mat):  # AC-10, AC-21b
+    def keys(node):
+        return set(node) | set().union(*(keys(c) for c in node["children"]))
+    b = get(mat, "/nodes/DE.3/tree?depth=2&width=3&cutoff=0.01")
+    assert not {"extracted_t", "material_note"} & keys(b)
+    assert get(mat, "/nodes/DE.3/tree?amount_meur=0") == get(mat, "/nodes/DE.3/tree")
