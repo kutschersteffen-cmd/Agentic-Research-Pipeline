@@ -1,6 +1,6 @@
 # Product recipes on the full-resolution value chain
 
-Status: draft for owner approval, 2026-10-27 (revision: project 1 covers all materials; the first version, ores only, was approved earlier the same day). Owner decisions on 2026-10-27 (brainstorming session):
+Status: approved by the owner, 2026-10-27 (revision: project 1 covers all materials; first library covers all four families). Owner decisions on 2026-10-27 (brainstorming session):
 recipes start from taxonomy activities linked to EXIOBASE nodes; the input is a physical amount
 ("10 GW of wind"); coarse nodes get estimated recipe nodes attached at the input they refine, in the
 same tree, marked estimated with their source; EXIOBASE and estimate are shown side by side and never
