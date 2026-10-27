@@ -13,6 +13,7 @@ from arp.orchestration.step_tally import run_graph
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import CompanyRef, DocumentChunk, ProvenanceInfo, SourceDocument
 from arp.schemas.tnfd import TNFDExtractionRecord
+from arp.walkthrough import trace
 
 _MAX_CHUNKS = 40  # TNFD covers 4 pillars + metrics + sector guidance, so it
 # needs a wider evidence slice than a single-topic extraction like segments.
@@ -153,6 +154,7 @@ async def extract_company_tnfd(
     settings: Settings | None = None,
     fuzzy_threshold: float,
     confidence_review_threshold: float,
+    trace_sink: dict | None = None,
 ) -> tuple[TNFDExtractionRecord, list[LLMUsage]]:
     """Runs the combined TNFD flow (one evidence gather, one combined
     extractor call across all 4 pillars/14 recommendations/metrics, one
@@ -184,4 +186,10 @@ async def extract_company_tnfd(
         "record": None,
     }
     final_state = await run_graph(_COMPILED_GRAPH, initial)
+    if trace_sink is not None:  # built from what the graph already holds: no extra model call
+        trace_sink["record"] = {
+            "passages": [trace.passage(c) for c in final_state["evidence"]],
+            "extractor": trace.call(final_state["extractor_usage"], final_state["draft"]),
+            "verifier": trace.call(final_state["verifier_usage"], final_state["verifier"]),
+        }
     return final_state["record"], final_state["usages"]

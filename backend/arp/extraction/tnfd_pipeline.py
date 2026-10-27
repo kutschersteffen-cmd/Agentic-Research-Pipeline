@@ -13,6 +13,7 @@ from arp.orchestration.job_manager import JobManager
 from arp.schemas.common import CompanyRef
 from arp.schemas.tnfd import TNFDExtractionRecord
 from arp.storage.run_store import RunStore
+from arp.walkthrough import trace
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ async def _extract_company_tnfd(
     llm: LLMClient,
     verifier_llm: LLMClient | None = None,
     settings: Settings,
+    trace_sink: dict | None = None,
 ) -> TNFDExtractionResult:
     documents = await registry.fetch_all(company)
     record, usages = await extract_company_tnfd(
@@ -45,6 +47,7 @@ async def _extract_company_tnfd(
         settings=settings,
         fuzzy_threshold=settings.grounding_fuzzy_threshold,
         confidence_review_threshold=settings.confidence_review_threshold,
+        trace_sink=trace_sink,
     )
     cost = sum(estimate_cost_usd(u.model or settings.llm_model, u) for u in usages)
     return TNFDExtractionResult(record, combine_usage(*usages) if usages else LLMUsage(), cost)
@@ -85,10 +88,14 @@ async def execute_tnfd_extraction_run(
     a TNFD extraction run always targets one reporting period at a time."""
 
     async def _worker(company: CompanyRef) -> TNFDExtractionResult:
+        traces: dict = {}
         company = await prepare_company(company, settings=settings, llm=llm, registry=registry)
-        return await _extract_company_tnfd(
-            company, run_id=run_id, as_of=as_of, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings
+        result = await _extract_company_tnfd(
+            company, run_id=run_id, as_of=as_of, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings,
+            trace_sink=traces,
         )
+        trace.write_trace(run_store, run_id, company.company_id, traces)
+        return result
 
     await run_company_batch(
         run_id,

@@ -16,6 +16,7 @@ from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import CompanyRef, DocumentChunk, ProvenanceInfo, SourceDocument
 from arp.schemas.financials import CompanyFinancialsRecord
 from arp.schemas.spend import SpendTopic
+from arp.walkthrough import trace
 
 # Union of every section's doc types/keywords -- fetched and chunked once
 # per company rather than once per topic, since segments/capex/R&D are
@@ -181,6 +182,7 @@ async def extract_company_financials(
     settings: Settings | None = None,
     fuzzy_threshold: float,
     confidence_review_threshold: float,
+    trace_sink: dict | None = None,
 ) -> tuple[CompanyFinancialsRecord, list[LLMUsage]]:
     """Runs the combined segments/CapEx/R&D flow (one evidence gather, one
     combined extractor call, one combined independent-verifier call,
@@ -209,4 +211,10 @@ async def extract_company_financials(
         "record": None,
     }
     final_state = await run_graph(_COMPILED_GRAPH, initial)
+    if trace_sink is not None:  # built from what the graph already holds: no extra model call
+        trace_sink["record"] = {
+            "passages": [trace.passage(c) for c in final_state["evidence"]],
+            "extractor": trace.call(final_state["extractor_usage"], final_state["draft"]),
+            "verifier": trace.call(final_state["verifier_usage"], final_state["verifier"]),
+        }
     return final_state["record"], final_state["usages"]
