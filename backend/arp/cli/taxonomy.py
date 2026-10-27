@@ -106,7 +106,7 @@ def taxonomy_create(
             typer.echo(f"{NO_MODEL}, or pass --use-sample-io.", err=True)
             raise typer.Exit(1)
         theme, _usage = asyncio.run(build_theme_industry_anchored(name, description, model.industry_reference_list(), llm))
-        notes = f"Anchored against {model.edition_label} ({len(model.codes)} industries)."
+        notes = f"Anchored against {model.edition_label} ({len(model.industry_reference_list())} industries)."
 
     elif method == DerivationMethod.AUTHORITY_SOURCE:
         if not authority_url:

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_llm_client, get_registry, get_run_store, get_taxonomy_store, settings_dep
@@ -109,7 +110,7 @@ async def start_theme_run(
         raise HTTPException(400, "Provide both revenue_catalogue_path and catalogue_mapping together, or neither.")
 
     try:
-        indirect_model = resolve_indirect_exposure_model(settings, use_sample=req.use_sample_io)
+        indirect_model = await run_in_threadpool(resolve_indirect_exposure_model, settings, use_sample=req.use_sample_io)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
 

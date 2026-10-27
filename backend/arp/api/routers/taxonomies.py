@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_llm_client, get_registry, get_taxonomy_store, settings_dep
@@ -135,7 +136,7 @@ async def create_taxonomy(
     model = None
     if method == DerivationMethod.INDUSTRY_ANCHORED:
         try:
-            model = resolve_indirect_exposure_model(settings, use_sample=req.use_sample_io)
+            model = await run_in_threadpool(resolve_indirect_exposure_model, settings, use_sample=req.use_sample_io)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
         if model is None:
@@ -159,7 +160,7 @@ async def create_taxonomy(
 
     elif method == DerivationMethod.INDUSTRY_ANCHORED:
         theme, _usage = await build_theme_industry_anchored(req.name, req.description, model.industry_reference_list(), llm)
-        notes = f"Anchored against {model.edition_label} ({len(model.codes)} industries)."
+        notes = f"Anchored against {model.edition_label} ({len(model.industry_reference_list())} industries)."
 
     elif method == DerivationMethod.AUTHORITY_SOURCE:
         try:

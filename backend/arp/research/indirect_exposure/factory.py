@@ -11,12 +11,12 @@ import numpy as np
 from arp.config import Settings
 from arp.research.indirect_exposure.io_import import EXIOBASE_FD, FD_GROUPS, SPLIT_INDUSTRIES, _read_reference
 from arp.research.indirect_exposure.leontief import LeontiefModel
+from arp.research.value_chain.model import NOT_BUILT
 
 # The tier reads the same `arp io build-full` output as the Value Chain Explorer.
 # See docs/superpowers/specs/2026-10-26-io-full-resolution-tier-design.md.
 
 SAMPLE_DIR = Path(__file__).resolve().parent / "sample_data"
-NOT_BUILT = "value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR"
 NO_MODEL = "No input-output data available: run arp io build-full and set ARP_VALUE_CHAIN_DIR"
 
 

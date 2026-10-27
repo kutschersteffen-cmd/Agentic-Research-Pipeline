@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import csv
 import io
 from pathlib import Path
@@ -77,7 +78,7 @@ async def map_theme_to_standards(
     activities.
     """
     total_usage = LLMUsage()
-    model = resolve_indirect_exposure_model(settings, use_sample=use_sample_io)
+    model = await asyncio.to_thread(resolve_indirect_exposure_model, settings, use_sample=use_sample_io)
     if model is not None:
         theme, isic_usage = await classify_theme_core_sectors(theme, model, llm)
         total_usage = LLMUsage(input_tokens=isic_usage.input_tokens, output_tokens=isic_usage.output_tokens)
