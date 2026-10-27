@@ -3,6 +3,7 @@ and phase-outs; each stated value becomes one row, grounded and typed as any oth
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -130,14 +131,17 @@ def _row(field: FieldDefinition, c: Cited, document: SourceDocument, passages: d
 async def extract_plan(
     company: CompanyRef, sector: str | None, document: SourceDocument, chunks: list[DocumentChunk], llm: LLMClient,
     *, fields: list[FieldDefinition], fuzzy_threshold: float, schema_version: str = "",
+    on_draft: Callable[[PlanDraft], None] | None = None,
 ) -> tuple[list[ExtractedField], LLMUsage]:
     """One row per stated value of `fields` (the list fields still to extract). An action's rows share basis
     `action:<doc_id>:<page>:<n>`, a target's `target:...` and a phase-out's `phaseout:...` alike (D1); an assumption
-    has `region:<Region>` or `region:any`, period_end 31 Dec of its year."""
+    has `region:<Region>` or `region:any`, period_end 31 Dec of its year. `on_draft` gets the model's draft (walkthrough trace)."""
     ids = [*(f"{a['id']} ({a['label']})" for a in sector_actions(sector)), "other"]
     prompt = (f"Company: {company.name}\nAllowed action ids: {', '.join(ids)}\n\n"
               f"Evidence:\n{format_evidence(chunks)}")
     draft, usage = await llm.complete_structured(system=_SYSTEM, prompt=prompt, output_model=PlanDraft)
+    if on_draft:
+        on_draft(draft)
     by_id = {f.field_id: f for f in fields}
     passages = {c.chunk_id: c for c in chunks}
     provenance = {fid: ProvenanceInfo(provider=usage.provider, extractor_model=usage.model,
