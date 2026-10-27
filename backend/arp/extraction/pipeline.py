@@ -202,6 +202,8 @@ async def _extract_company(
 
     usages: list[LLMUsage] = []
     to_extract, fields = plan_fields(schema, company)
+    for f in fields:  # an all-held company's entries below replace these
+        _skipped(f.field_id, "not_applicable")
     to_extract = [f for f in to_extract if not f.derived_rule]  # derived fields never reach the LLM graph
     all_held = bool(documents) and not kept
     if all_held:  # nothing left to extract from: every field is a held no-evidence row

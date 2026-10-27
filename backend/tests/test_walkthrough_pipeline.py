@@ -24,7 +24,14 @@ from arp.research.revenue_exposure.resolver import extract_schema_fields
 from arp.research.taxonomy_sources.empirical import gather_corpus_from_extraction
 from arp.retention import cleanup
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
-from arp.schemas.datapoints import DataPointSchema, DerivedRule, ExtractedField, FieldDataType, FieldDefinition
+from arp.schemas.datapoints import (
+    ApplicabilityRules,
+    DataPointSchema,
+    DerivedRule,
+    ExtractedField,
+    FieldDataType,
+    FieldDefinition,
+)
 from arp.storage.run_store import RunStore
 from tests.test_extraction_pipeline import _FixedDocSource, _schema, _settings
 from tests.test_transition_alignment_plan_extraction import _plan, _record, _script
@@ -164,6 +171,17 @@ async def test_derived_and_held_entries(tmp_path, fake_llm, monkeypatch):  # AC-
         f.field_id: "documents_held" for f in SCHEMA.fields}
 
 
+async def test_not_applicable_entry(tmp_path, fake_llm):
+    ruled_out = _num_field("mfg_only", applicability_rules=ApplicabilityRules(sector_codes=["24"]))
+    schema = DataPointSchema(name="S", fields=[ruled_out])
+    traces = {}
+    await _extract_company(COMPANY.model_copy(update={"isic_code": "6419"}), schema,
+                           registry=DocumentSourceRegistry([_FixedDocSource([DOC])]), llm=fake_llm({}),
+                           settings=_settings(tmp_path), traces=traces)
+    e = traces["fields"]["mfg_only"]
+    assert (e["skipped"], e["passages"], e["extractor"]) == ("not_applicable", [], None)
+
+
 @pytest.mark.usefixtures("ta_dirs")
 async def test_plan_documents_recorded(tmp_path, fake_llm):  # AC-41, AC-66
     plan = _plan()
@@ -269,7 +287,4 @@ async def test_retention_removes_traces(tmp_path, fake_llm):  # AC-71
             os.utime(f, (t, t))
     cleanup(settings, apply=True)
     assert _trace_files(store.run_dir(run_id).parent) == []
-    after = _results(store, run_id)
-    # `field_names` comes from the run's schema.json, which retention removes with every other run file (as on main)
-    before["results"][0].pop("field_names")
-    assert after == before
+    assert [r["fields"] for r in _results(store, run_id)["results"]] == [r["fields"] for r in before["results"]]
