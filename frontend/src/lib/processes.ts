@@ -99,6 +99,7 @@ export const WORKSPACES: Workspace[] = [
     runTypes: [...EXTRACTION_RUNS, "xbrl_fetch"],
     screens: [
       ["#/argusUniverse", "Universe"],
+      ["#/argusWalkthrough", "Walkthrough"],
       ["#/xbrl", "XBRL Facts"],
       ["#/extraction", "Extraction"],
       ["#/transitionPlan", "Transition Plan extraction"],

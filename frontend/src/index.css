@@ -2205,6 +2205,35 @@ a.vc-box:hover { border-color: var(--text); }
 .argus-one legend { font-weight: 600; margin-bottom: var(--s-2); }
 .argus-row-await > * { background: color-mix(in srgb, var(--await) 60%, transparent); }
 .argus-flow-actions { margin-top: var(--s-4); flex-wrap: wrap; white-space: normal; }
+/* Argus walkthrough: pickers, result card and one white card per step. */
+.wt-pickers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-4); }
+.wt-pickers .field-label { margin: 0; }
+.wt-value { font-size: var(--text-xl); font-weight: 600; margin: 0 0 var(--s-3); font-variant-numeric: tabular-nums; }
+.wt-facts, .wt-kv { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-6); margin: 0 0 var(--s-3); }
+.wt-kv { flex-direction: column; gap: var(--s-1); margin: var(--s-3) 0 0; }
+.wt-facts dt, .wt-kv dt { color: var(--muted); font-size: var(--text-sm); }
+.wt-kv div { display: flex; gap: var(--s-3); }
+.wt-kv dt { min-width: 12ch; }
+.wt-facts dd, .wt-kv dd { margin: 0; overflow-wrap: anywhere; }
+.wt-steps { list-style: none; padding: 0; margin: 0; }
+.wt-step-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-3); }
+.wt-step-head h3 { margin: 0; font-size: var(--text-md); }
+.wt-step-n { color: var(--muted); min-width: 2ch; }
+.wt-kind { color: var(--muted); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.wt-label { margin-left: auto; border: 1px solid var(--field-border); border-radius: var(--r-sm); padding: var(--s-0_5) var(--s-2); font-family: var(--font-mono); font-size: var(--text-xs); }
+.wt-nr { border: 1px dashed var(--field-border); color: var(--muted); padding: var(--s-2) var(--s-3); margin: var(--s-3) 0 0; font-family: var(--font-mono); font-size: var(--text-sm); }
+.wt-line { margin: var(--s-3) 0 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
+.wt-lines { margin: var(--s-3) 0 0; padding-left: var(--s-4); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.wt-passages { list-style: none; padding: 0; margin: 0 0 var(--s-2); }
+.wt-passage { margin: var(--s-1) 0 0; padding: var(--s-2) var(--s-3); background: var(--well); max-height: 14rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); }
+.wt-passage mark { background: var(--panel); color: inherit; font-weight: 600; border-bottom: 2px solid var(--text); }
+.wt-tabs { margin-top: var(--s-3); }
+.wt-tabs .sub-nav { margin: 0 0 var(--s-2); }
+.wt-tabs h4 { margin: var(--s-4) 0 0; font-size: var(--text-sm); }
+.wt-json { margin: 0; padding: var(--s-3); background: var(--well); overflow-x: auto; white-space: pre; max-height: 28rem; font-family: var(--font-mono); font-size: var(--text-xs); }
+.wt-copy { display: flex; align-items: center; gap: var(--s-3); margin-top: var(--s-2); }
+.wt-sub { margin-top: var(--s-3); }
+@media (max-width: 720px) { .wt-pickers { grid-template-columns: 1fr; } .wt-label { margin-left: 0; } }
 
 /* Theme dossier: the five research steps as a vertical stepper. */
 .dossier-steps { list-style: none; padding: 0; display: grid; gap: var(--s-2); }
