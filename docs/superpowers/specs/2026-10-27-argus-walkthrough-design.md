@@ -147,13 +147,16 @@ sections take no `period_end`. `trace_run_id`, `passages`, `extractor`, `verifie
 - `rows` for a data-point field equals what the run results endpoint returns for that company and field, every
   period, in the same order (the picked row is the one whose `period_end` matches). Results rows carry no review
   decision data: decisions are stored separately and are not merged into results.
+- For a plan list field, `rows` holds only that field's rows with the requested `basis`, every period.
 - Fields that did not reach the models still store a row, as today: `no_evidence` and `documents_held` a
   `not_found` row, `derived` the derived row. So the picker and the links reach them like any other row.
 - Status codes: 401 without a session (as the results endpoints); 404 for an unknown run, an unknown company in
   the run, a field not in the run's schema, a schema field with neither a stored row nor a trace entry for the company, or a section name
   not listed below for that run type (a TNFD section on a Financials run, a Financials section on a TNFD run, any
   section name on a data-point run that is not one of its fields); 422 for a data-point or plan list field
-  requested without `period_end`, or a plan list field without `basis`.
+  requested without `period_end`, or a plan list field without `basis`. The 404 checks (run, company, item) come
+  first, then the 422 checks, then the row: a `period_end` that matches no stored row of that field (with that
+  `basis` for a plan list field) is a 404. A `period_end` sent with a Financials or TNFD section is ignored.
 - `trace_run_id`: the run whose trace was read. For a reused row the endpoint follows `reused_from_run` from run
   to run (each run's stored row for the same field and period) until it reaches a row without `reused_from_run`;
   that run is `trace_run_id`. Stored rows are not changed. *(Builder check; my call: reuse overwrites
@@ -284,7 +287,7 @@ endpoint rows cover it.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
-| AC-1 | A data-point run, one company, one non-high-risk field; the stand-in extractor returns 120 with one quote and the verifier agrees | the run completes | `traces/<company_id>.json` exists in the run folder; its top level has exactly the key `fields`; `fields` has exactly one key, the field id; that entry has `grouped` false, `skipped` null, `vision` null, `adjudicator` null, `verifier.blind` false, `verifier.verdict` null, `extractor.answer.values[0].value` 120, and `passages` equal in order to the chunks sent to the extractor, each with exactly the keys `doc_id`, `char_start`, `char_end`, `section` | holdout |
+| AC-1 | A data-point run, one company, one non-high-risk field; the stand-in extractor returns 120 with one quote and the verifier agrees | the run completes | `traces/<company_id>.json` exists in the run folder; its top level has exactly the key `fields`; `fields` has exactly one key, the field id; that entry has `grouped` false, `skipped` null, `vision` null, `adjudicator` null, `verifier.blind` false, `verifier.verdict` null, `extractor.answer.values[0].value` 120, and `passages` each with exactly the keys `doc_id`, `char_start`, `char_end`, `section`; for every i, `document_text[char_start:char_end]` of `passages[i]` appears in the stand-in extractor's recorded prompt, in the order of i | holdout |
 | AC-2 | As AC-1 but the field is high-risk; the stand-in extractor returns one value for the period ending 2025-12-31 with its quote in the rank-1 passage; evidence selection returns 12 passages; the stand-in blind verifier re-extracts 2.794, the comparison disagrees, the adjudicator returns `settled` false | the run completes | the entry has `verifier.blind` true, `verifier.answer.values[0].value` 2.794, `verifier.verdict.agrees` false, `adjudicator.answer.settled` false | holdout |
 | AC-3 | The AC-1 run | the walkthrough is requested for that company, field and the row's `period_end` | HTTP 200; `recorded` true; `not_recorded_reason` null; `trace_run_id` equals `run_id`; for every i, `passages[i].rank` is i+1 and `passages[i].text` equals the document text `[char_start:char_end]` (end exclusive); `extractor.answer.values[0].value` 120 | holdout |
 | AC-4 | A run created within `retention_runs_days`, whose folder has no `traces/` (made before this change) | the walkthrough is requested for a stored field | HTTP 200; `recorded` false; `not_recorded_reason` `before_traces`; `passages` `[]`; `extractor`, `verifier`, `adjudicator`, `vision` null; `rows` equals the results endpoint's rows for that company and field | holdout |
@@ -299,11 +302,11 @@ endpoint rows cover it.
 | AC-13 | A TNFD run whose record's `general_requirements` is `None` | the walkthrough is requested with `item=general_requirements` | HTTP 200; `rows` `[]` | holdout |
 | AC-14 | `traces` in the run folder is a regular file, not a folder, so creating `traces/<company_id>.json` fails | the run processes one company | run status `completed`; done count 1; the company's row is returned by the results endpoint; the run's events include `trace_write_failed` with that company id | holdout |
 | AC-15 | The AC-14 run | the walkthrough is requested for that company's field | `recorded` false; `not_recorded_reason` `write_failed` | holdout |
-| AC-16 | A completed data-point run, the AC-9 Financials run and a TNFD run | the walkthrough is requested with: an unknown run id; a company not in the run; a field not in the schema; a schema field with neither a stored row nor a trace entry for the company; `item=disclosures` on the Financials run; `item=capex` on the TNFD run; `item=capex` on the data-point run | HTTP 404 for each | holdout |
+| AC-16 | A completed data-point run, the AC-9 Financials run and a TNFD run; every data-point request carries `period_end=2025-12-31` | the walkthrough is requested with: an unknown run id; a company not in the run; a field not in the schema; a schema field with neither a stored row nor a trace entry for the company; `item=disclosures` on the Financials run; `item=capex` on the TNFD run; `item=capex` on the data-point run | HTTP 404 for each | holdout |
 | AC-17 | A transition-plan actions run and the AC-1 run | the walkthrough is requested for a plan list field without `basis`, and for the AC-1 field without `period_end` | HTTP 422 for each | holdout |
 | AC-18 | No session | the walkthrough is requested | the same status code as the results endpoint returns without a session (401) | holdout |
-| AC-19 | A field whose review item has a decision with a note and a cosign | the walkthrough is requested | outside `rows` and the model `answer` objects, no key contains `decision`, `reviewer` or `cosign`; neither the reviewer's user id nor the decision note's text appears anywhere in the body | holdout |
-| AC-20 | A seeded known-answer item (`seed_known_answers`) and a real trial-run item, both for the same non-high-risk field, the real verifier agreeing | both walkthroughs are requested | both have `recorded` true and `adjudicator` null; outside `rows`, the set of key paths (list indexes folded into `[]`) is equal between the two bodies; equal `extractor.model`, `extractor.prompt_version`, `verifier.model`, `verifier.prompt_version`; no key, and no value outside `passages[].text`, `rows[].citations` and the answers' `quote` fields, contains `seed` or `known` (case-insensitive) | holdout |
+| AC-19 | A field whose review item has a decision with the note `zq-note-7f3a` by a reviewer whose user id is a fresh UUID, and a cosign | the walkthrough is requested | outside `rows` and the model `answer` objects, no key contains `decision`, `reviewer` or `cosign`; neither the reviewer's user id nor the decision note's text appears anywhere in the body | holdout |
+| AC-20 | A seeded known-answer item (`seed_known_answers`) and a real trial-run item, both for the same non-high-risk field, the real verifier agreeing | both walkthroughs are requested | both have `recorded` true and `adjudicator` null; outside `rows`, the set of key paths (list indexes folded into `[]`) is equal between the two bodies; equal `extractor.model`, `extractor.prompt_version`, `verifier.model`, `verifier.prompt_version`; no key, and no value outside `passages[].text`, `rows[].citations` and the answers' `quote` fields, contains `seed` or `known` (case-insensitive); every `passages[i].text` is non-null in both bodies | holdout |
 | AC-21 | The AC-20 seeded item | its walkthrough is requested | the list of `(doc_id, char_start, char_end, section)` from `passages`, in order, equals the same list from `field_evidence` for the seeded document and field | holdout |
 | AC-22 | A seeded high-risk known-answer item | its walkthrough is requested | `verifier.blind` true; `verifier.answer` has the key `values`; `verifier.verdict` has the key `agrees` | holdout |
 | AC-23 | The golden set runs | it completes | no file matching `**/traces/*.json` exists under the runs root or the golden-set output directory | holdout |
@@ -324,7 +327,7 @@ endpoint rows cover it.
 | AC-38 | A run whose `created_at` is more than `retention_runs_days` days ago and whose trace files were deleted | the walkthrough is requested | `recorded` false; `not_recorded_reason` `expired` | holdout |
 | AC-39 | Vision fallback on; a quote the text match cannot ground; the stand-in vision check answers | the run completes | the field's trace entry `vision.answer` equals the stand-in's answer | holdout |
 | AC-40 | Vision fallback off | the run completes | every trace entry has `vision` null | holdout |
-| AC-41 | A transition-plan actions run with one plan document | the run completes | the trace file has `plans.<doc_id>` holding `passages` and `extractor` | holdout |
+| AC-41 | A transition-plan actions run with one plan document whose list field yields rows with two different `basis` values | the run completes | the trace file has `plans.<doc_id>` holding `passages` and `extractor` | holdout |
 | AC-42 | The AC-41 run | the walkthrough is requested for a list field with one of its rows' `period_end` and `basis` | `recorded` true; `rows` is non-empty and every row's `basis` equals the requested basis; `extractor` equals the trace file's `plans.<doc_id>.extractor` for the document the row's citation names; `verifier` and `adjudicator` null | holdout |
 | AC-43 | The AC-2 run loaded in the running app | a reviewer opens Argus › Walkthrough and picks run, company and the field's 2025 row | the result card's value, unit, period and route equal the results endpoint's row; ten numbered steps show; the route reads `#/argusWalkthrough/<run>/<company>/<field>/2025-12-31` | evaluator |
 | AC-44 | As AC-43 | the reviewer reads step 4 | its name is `Verify, blind` | evaluator |
@@ -352,6 +355,8 @@ endpoint rows cover it.
 | AC-66 | The AC-41 run | the model calls are counted | 1 `extract_plan` call | holdout |
 | AC-67 | The AC-39 run | the vision calls are counted | exactly 1 | holdout |
 | AC-68 | A Financials run made with no `traces/` folder, created within `retention_runs_days` | the walkthrough is requested with `item=capex` | `recorded` false; `not_recorded_reason` `before_traces`; `rows` equals `[record.capex]` | holdout |
+| AC-70 | The AC-1 run | the walkthrough is requested for its field with `period_end=1999-12-31` | HTTP 404 | holdout |
+| AC-71 | The AC-1 run with its files dated older than `retention_runs_days` | retention cleanup runs with apply | no `traces/*.json` remains in its run folder; the results endpoint body is unchanged | holdout |
 | AC-69 | The AC-68 run in the running app | the reviewer opens the CapEx walkthrough | steps 1 and 2 read `not recorded`; step 3 shows the section's `verifier_notes` | evaluator |
 
 Must not change, each a row above: results endpoint bodies (AC-25, AC-63) and the CSV export built from them;
