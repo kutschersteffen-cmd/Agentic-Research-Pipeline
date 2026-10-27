@@ -2374,6 +2374,7 @@ export interface TnfdMetric {
 /** A company's TNFD extraction (subset of the backend's TNFDExtractionRecord). */
 export interface TnfdRecord {
   company_id: string;
+  run_id: string;
   ticker: string | null;
   name: string;
   as_of: string;

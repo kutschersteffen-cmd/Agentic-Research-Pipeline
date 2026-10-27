@@ -28,6 +28,30 @@ export function walkthroughHref(runId: string, companyId: string, item: string, 
   return `#/argusWalkthrough/${parts.map(encodeURIComponent).join("/")}${query}`;
 }
 
+// The plan actions schema's list fields carry a basis; its "operates in" fields are plain data points (backend preset).
+const PLAN_SCHEMA = "sch_transition_plan_actions";
+// A review item knows no schema; these basis prefixes mark a list row there (the backend's review `period_key`).
+const LIST_BASIS = /^(action|region|target|phaseout):/;
+
+/** The basis that puts a plan list row on its own route, else null. `schemaId` undefined: a review item. */
+export function planBasis(schemaId: string | undefined, field: { field_id: string; basis?: string | null }): string | null {
+  const basis = field.basis ?? null;
+  if (schemaId === undefined) return basis && LIST_BASIS.test(basis) ? basis : null;
+  return schemaId === PLAN_SCHEMA && !field.field_id.startsWith("ta_operates_") ? basis : null;
+}
+
+/** A result row (or review item's value): its field, period and, for a plan list row, basis. */
+export function rowWalkthroughHref(
+  runId: string,
+  record: { company_id: string; schema_id?: string },
+  field: { field_id: string; period_end?: string | null; basis?: string | null },
+): string {
+  return walkthroughHref(runId, record.company_id, field.field_id, field.period_end ?? null, planBasis(record.schema_id, field));
+}
+
+/** A Financials or TNFD section: no period. */
+export const recordWalkthroughHref = (runId: string, companyId: string, section: string) => walkthroughHref(runId, companyId, section);
+
 /** App's parseHash splits on "/" and decodes, so a plan row's `?basis=` is still on the last part. */
 export function parseWalkthroughParams(params: string[]): WalkthroughParams {
   const parts = [...params];

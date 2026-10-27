@@ -4,6 +4,8 @@ import { ConfidenceBadge, GroundedBadge } from "./ConfidenceBadge";
 import { CitationList } from "./CitationList";
 import type { ActiveSource } from "./SourcePanel";
 import { ProposedTag } from "./ProposedTag";
+import { WalkthroughLink } from "./WalkthroughLink";
+import { recordWalkthroughHref } from "../lib/walkthrough";
 import type { TnfdRecord } from "../types";
 import { activatable } from "../lib/activatable";
 
@@ -50,6 +52,7 @@ export function TnfdResultsTable({ results, expanded, onToggleExpanded, onOpenSo
                     {r.missing_recommendations.length > 0 && (
                       <p className="muted">Not disclosed: {r.missing_recommendations.map(pretty).join(", ")}</p>
                     )}
+                    <WalkthroughLink href={recordWalkthroughHref(r.run_id, r.company_id, "disclosures")} />
                     {r.disclosures.filter((d) => d.disclosed).map((d) => (
                       <div key={d.recommendation_id} className="field-detail">
                         <h3>

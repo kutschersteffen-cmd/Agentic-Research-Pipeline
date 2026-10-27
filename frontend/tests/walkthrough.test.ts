@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { markQuotes, notRecordedNote, parseWalkthroughParams, steps, walkthroughHref } from "../src/lib/walkthrough.ts";
+import { markQuotes, notRecordedNote, parseWalkthroughParams, recordWalkthroughHref, rowWalkthroughHref, steps, walkthroughHref } from "../src/lib/walkthrough.ts";
 import type { Walkthrough } from "../src/types.ts";
 
 /** What App's parseHash hands the page: the hash after the tab, split on "/", each part decoded. */
@@ -155,4 +155,28 @@ test("quoted words are marked inside passage text", () => {
     { text: "Total ", mark: false }, { text: "capex of 2,821", mark: true }, { text: " in 2025", mark: false },
   ]);
   assert.deepEqual(markQuotes("abc", []), [{ text: "abc", mark: false }]);
+});
+
+const PLAN = "sch_transition_plan_actions";
+
+test("row links: the field's period, unspecified without one, basis only on a plan list row (AC-50, AC-52, AC-61)", () => {
+  const f = (field_id: string, period_end: string | null, basis: string | null = null) => ({ field_id, period_end, basis });
+  assert.equal(rowWalkthroughHref("r", { company_id: "cat" }, f("tc_capex_total", "2025-12-31")), "#/argusWalkthrough/r/cat/tc_capex_total/2025-12-31");
+  assert.equal(rowWalkthroughHref("r", { company_id: "cat" }, f("tc_capex_total", null)), "#/argusWalkthrough/r/cat/tc_capex_total/unspecified");
+  // another schema's basis is part of the value, not the route
+  assert.equal(rowWalkthroughHref("r", { company_id: "cat", schema_id: "sch_x" }, f("tc_capex_total", "2025-12-31", "consolidated")), "#/argusWalkthrough/r/cat/tc_capex_total/2025-12-31");
+  const plan = { company_id: "cat", schema_id: PLAN };
+  assert.equal(rowWalkthroughHref("r", plan, f("ta_action_text", "2030-12-31", "action:3")), "#/argusWalkthrough/r/cat/ta_action_text/2030-12-31?basis=action:3");
+  assert.equal(rowWalkthroughHref("r", plan, f("ta_operates_eu", "2025-12-31", "action:3")), "#/argusWalkthrough/r/cat/ta_operates_eu/2025-12-31");
+  // a review item knows no schema: only a list basis (`action:`, `region:`, `target:`, `phaseout:`) marks a plan row
+  assert.equal(rowWalkthroughHref("r", { company_id: "cat" }, f("ta_target_pct", null, "target:1")), "#/argusWalkthrough/r/cat/ta_target_pct/unspecified?basis=target:1");
+});
+
+test("record links: a section route with no period (AC-53, AC-59, AC-60)", () => {
+  assert.equal(recordWalkthroughHref("r", "cat", "capex"), "#/argusWalkthrough/r/cat/capex");
+  assert.equal(recordWalkthroughHref("r", "cat", "disclosures"), "#/argusWalkthrough/r/cat/disclosures");
+});
+
+test("an empty quote marks nothing", () => {
+  assert.deepEqual(markQuotes("abc", [""]), [{ text: "abc", mark: false }]);
 });
