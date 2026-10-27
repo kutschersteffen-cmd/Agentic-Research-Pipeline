@@ -30,6 +30,7 @@ from arp.api.routers import (
     decision,
     discovery,
     documents,
+    dossier_position,
     dossier_research,
     dossiers,
     emerging_themes,
@@ -66,6 +67,7 @@ from arp.api.routers import (
     universe_workbench,
     value_chain,
     voting,
+    walkthrough,
     xbrl,
 )
 from arp.db.session import require_cutover, require_postgres
@@ -164,6 +166,7 @@ app.include_router(search.router, dependencies=[Depends(authorize)])
 app.include_router(emerging_themes.router, dependencies=[Depends(authorize)])
 app.include_router(dossiers.router, dependencies=[Depends(authorize)])
 app.include_router(dossier_research.router, dependencies=[Depends(authorize)])
+app.include_router(dossier_position.router, dependencies=[Depends(authorize)])
 app.include_router(taxonomy_researcher.router, dependencies=[Depends(authorize)])
 app.include_router(calibration.router, dependencies=[Depends(authorize)])
 app.include_router(reporting.router, dependencies=[Depends(authorize)])
@@ -172,6 +175,7 @@ app.include_router(replication.router, dependencies=[Depends(authorize)])
 app.include_router(signals.router, dependencies=[Depends(current_user)])
 app.include_router(index.router, dependencies=[Depends(authorize)])
 app.include_router(review.router, dependencies=[Depends(authorize)])
+app.include_router(walkthrough.router, dependencies=[Depends(authorize)])
 app.include_router(publish.router, dependencies=[Depends(authorize)])
 app.include_router(snapshots.router, dependencies=[Depends(authorize)])
 app.include_router(holdings.router, dependencies=[Depends(authorize)])

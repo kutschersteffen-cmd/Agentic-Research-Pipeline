@@ -72,6 +72,10 @@ def bundled_prefixes() -> list[str]:
     return sorted({p for s in sectors.values() for p in s["isic_prefixes"]})
 
 
+_PLANNED_OF = {"tc_capex_total": "tc_capex_total_planned", "tc_lowcarbon_capex": "tc_lowcarbon_capex_planned",
+               "tc_lowcarbon_capex_share_pct": "tc_lowcarbon_capex_share_pct_planned"}
+
+
 def _field(spec: tuple, prefixes: list[str]) -> FieldDefinition:
     fid, name, dtype, definition, extra, allowed, keywords = spec
     kw: dict = {}
@@ -84,7 +88,7 @@ def _field(spec: tuple, prefixes: list[str]) -> FieldDefinition:
     return FieldDefinition(
         field_id=fid, name=name, description=definition, data_type=dtype,
         extraction_instructions=f"{definition} {_COMMON}{extra}", seed_keywords=keywords,
-        required=False, high_risk=True, version=1,
+        required=False, high_risk=True, version=1, planned_field_id=_PLANNED_OF.get(fid),
         applicability_rules=ApplicabilityRules(sector_codes=prefixes), **kw,
     )
 

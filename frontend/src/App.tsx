@@ -47,6 +47,7 @@ const Arcade = lazy(() => import("./pages/Arcade").then((x) => ({ default: x.Arc
 const DecisionStudio = lazy(() => import("./pages/DecisionStudio").then((x) => ({ default: x.DecisionStudio })));
 const IndexBuilder = lazy(() => import("./pages/IndexBuilder").then((x) => ({ default: x.IndexBuilder })));
 const ArgusUniverse = lazy(() => import("./pages/ArgusUniverse").then((x) => ({ default: x.ArgusUniverse })));
+const ArgusWalkthrough = lazy(() => import("./pages/ArgusWalkthrough").then((x) => ({ default: x.ArgusWalkthrough })));
 const Company = lazy(() => import("./pages/Company").then((x) => ({ default: x.Company })));
 const XbrlFacts = lazy(() => import("./pages/XbrlFacts").then((x) => ({ default: x.XbrlFacts })));
 const ThemeDossiers = lazy(() => import("./pages/ThemeDossiers").then((x) => ({ default: x.ThemeDossiers })));
@@ -57,6 +58,7 @@ const TABS = [
   { id: "stewardiq", label: "StewardIQ" },
   { id: "argus", label: "Argus" },
   { id: "argusUniverse", label: "Universe" },
+  { id: "argusWalkthrough", label: "Walkthrough" },
   { id: "transitionIntel", label: "Transition Intelligence Platform" },
   { id: "rdLab", label: "R&D Lab" },
   { id: "dataHub", label: "Data Hub" },
@@ -415,6 +417,7 @@ function App() {
         {active === "decision" && <DecisionStudio key={route.params.join("/")} initialSource={route.params[0]} initialRunId={route.params[1]} />}
         {active === "index" && <IndexBuilder />}
         {active === "argusUniverse" && <ArgusUniverse onSendUniverse={sendUniverse("Argus Universe")} />}
+        {active === "argusWalkthrough" && <ArgusWalkthrough key={route.params.join("/")} params={route.params} />}
         {active === "rfp" && <RfpAnswers projectId={route.params[0] ? Number(route.params[0]) : null} onOpen={(id) => (id === null ? navigate("rfp") : navigate("rfp", String(id)))} />}
         {active === "xbrl" && <XbrlFacts pendingUniverse={pendingFor("xbrl")} selectedRunId={route.params[0] ?? null} onSelectRun={(id) => navigate("xbrl", id)} />}
         {active === "library" && <DataLibrary />}

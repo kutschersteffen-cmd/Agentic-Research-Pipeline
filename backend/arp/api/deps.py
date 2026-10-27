@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 
 from arp.agents.calibration_agent import CalibrationAgentScheduler
 from arp.agents.taxonomy_researcher import TaxonomyResearcherScheduler
@@ -45,6 +46,9 @@ from arp.storage.topic_store import TopicStateStore
 
 if TYPE_CHECKING:
     from opensearchpy import OpenSearch
+
+    from arp.schemas.common import CompanyRef
+    from arp.schemas.datapoints import DataPointSchema
 
 
 def settings_dep() -> Settings:
@@ -262,3 +266,30 @@ def get_stream_store() -> StreamStore:
 def get_reporting_store() -> ReportingStore:
     settings = get_settings()
     return ReportingStore(settings.reports_dir, settings.report_templates_dir)
+
+
+def resolve(request: Request, dep: Callable):
+    """`dep()`, honouring the app's dependency overrides: for a store an endpoint needs only after the request is
+    validated, so a missing database answers after a 403 or 422."""
+    return request.app.dependency_overrides.get(dep, dep)()
+
+
+def get_extraction_starter(request: Request) -> Callable[[DataPointSchema, list[CompanyRef], Settings], str]:
+    """Creates and schedules a (non-trial) extraction run the way `POST /api/extraction/runs` does; returns its run_id.
+    Raises when the run cannot be created."""
+
+    def start(schema: DataPointSchema, companies: list[CompanyRef], settings: Settings) -> str:
+        from arp.api.run_scheduling import schedule_llm_run
+        from arp.extraction.pipeline import create_extraction_run, execute_extraction_run
+
+        run_store = resolve(request, get_run_store)
+        registry, xbrl_source = resolve(request, get_registry), resolve(request, get_xbrl_source)
+
+        async def run(run_id: str, llm: LLMClient, verifier_llm: LLMClient) -> None:
+            await execute_extraction_run(run_id, schema, companies, llm=llm, verifier_llm=verifier_llm, registry=registry,
+                                         settings=settings, run_store=run_store, xbrl_source=xbrl_source)
+
+        return schedule_llm_run(create_fn=lambda: create_extraction_run(schema, companies, settings, run_store), run=run,
+                                settings=settings, run_store=run_store)
+
+    return start

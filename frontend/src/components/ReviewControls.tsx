@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { correctionLine } from "../lib/corrections";
 import type { EvidenceSpan, ItemContext, ItemDecisionBody, ReviewDecision, ReviewItem, SimilarDecision } from "../types";
 import { SIGN_IN_REQUIRED, useMe } from "../lib/reviewer";
 import { DECISION_REASONS, agreeBody, decideBlock, decisionChoices, needsCitation, type Me } from "../lib/reviewKeys";
@@ -10,6 +11,8 @@ import { DecisionBar } from "./DecisionBar";
 import { ProposedTag } from "./ProposedTag";
 import { announce } from "../lib/announce";
 import { CommentField } from "./CommentField";
+import { WalkthroughLink } from "./WalkthroughLink";
+import { rowWalkthroughHref } from "../lib/walkthrough";
 
 export function decisionBadgeClass(decision: string): string {
   if (decision === "approve") return "badge badge-high";
@@ -446,6 +449,10 @@ function ItemDecision({
               )}
             </p>
           )}
+          {item.run_type === "extraction" && ctx.value && typeof ctx.item.payload.company_id === "string" && (
+            <WalkthroughLink href={rowWalkthroughHref(runId, { company_id: ctx.item.payload.company_id }, ctx.value)} />
+          )}
+          {ctx.corrections?.map((c, i) => <p key={i} className="muted">{correctionLine(c, (id) => ctx.field_names?.[id] ?? id)}</p>)}
           <CheckResults checks={ctx.failed_checks} />
           {ctx.route_reasons.length > 0 && <p className="muted">Routed for review: {ctx.route_reasons.join(", ")}</p>}
           {ctx.conflict && ctx.conflict.alternatives.length > 0 && (

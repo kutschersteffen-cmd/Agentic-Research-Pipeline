@@ -12,6 +12,7 @@ from arp.checks.runner import CheckContext, check_record
 from arp.config import Settings
 from arp.db.fields import SchemaRegistry, UnreleasedFieldError
 from arp.extraction.aggregator import no_evidence_field
+from arp.extraction.corrections import apply_corrections
 from arp.extraction.derived import evaluate_derived
 from arp.extraction.extractor_agent import extract_group
 from arp.extraction.field_graph import MAX_END_DRIFT_DAYS, days_apart, extract_one_field, field_evidence, merge_evidence
@@ -31,6 +32,7 @@ from arp.planning.doc_routing import input_hash, route_documents
 from arp.planning.entity_check import confirm_entity
 from arp.planning.periods import plan_periods, union_planned
 from arp.presets import transition_plan_actions as plan_preset
+from arp.presets.transition_plan import SCHEMA_ID as TRANSITION_PLAN_SCHEMA_ID
 from arp.schemas.common import CompanyRef, DocType, MatchStatus, SourceDocument
 from arp.schemas.datapoints import (
     CheckResult,
@@ -48,6 +50,7 @@ from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
 from arp.transition_alignment.benchmarks import load_benchmarks, sector_for_isic
 from arp.transition_alignment.plan_extraction import extract_plan, plan_evidence
+from arp.walkthrough import trace
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +130,12 @@ class ExtractionRecordResult:
         self.cost_usd = cost_usd
 
 
+def _moved_from(row: dict) -> str | None:
+    """The field R4 moved this stored row from, or None."""
+    return next((c.get("original") for c in row.get("corrections", [])
+                 if c.get("rule") == "planned_move" and c.get("attribute") == "field_id"), None)
+
+
 async def _extract_company(
     company: CompanyRef,
     schema: DataPointSchema,
@@ -142,6 +151,8 @@ async def _extract_company(
     trial: bool = False,
     xbrl_source: XbrlFactSource | None = None,
     field_limit: asyncio.Semaphore | None = None,
+    corrections: bool = False,
+    traces: dict | None = None,
 ) -> ExtractionRecordResult:
     """`documents`, when supplied, skips the registry fetch -- for callers
     (like the revenue-exposure resolver) that already fetched a company's
@@ -156,12 +167,17 @@ async def _extract_company(
 
     `trial` routes every non-held row to review.
 
+    `corrections` applies the auto-corrections (R1-R4) before the record checks.
+
     `xbrl_source` (with settings.xbrl_facts_enabled): the company's XBRL facts
     are fetched once and fields with `xbrl_tags` take their tagged values first. Facts in an
     ESEF filing among the documents count too: ahead of SEC's for a non-US filer.
 
     Fields are extracted concurrently. `field_limit` caps field graphs in flight; a run shares
-    one across its companies so the cap is run-wide. Defaults to max_concurrent_llm_calls per call."""
+    one across its companies so the cap is run-wide. Defaults to max_concurrent_llm_calls per call.
+
+    `traces`, when supplied, is filled with the company's walkthrough trace: `fields` (an entry per field processed
+    this run; reused fields add none) and `plans` (per plan document). Built from values already held: no extra call."""
     if documents is None:
         documents = await registry.fetch_all(company)
     documents = [confirm_entity(d, company, identifier_map) for d in documents]
@@ -179,12 +195,21 @@ async def _extract_company(
         for d in documents
         if d.match_status == MatchStatus.MISMATCH
     ]
+
+    def _skipped(field_id: str, reason: str) -> None:
+        if traces is not None:
+            traces.setdefault("fields", {})[field_id] = trace.field_entry(field_id, skipped=reason)
+
     usages: list[LLMUsage] = []
     to_extract, fields = plan_fields(schema, company)
+    for f in fields:  # an all-held company's entries below replace these
+        _skipped(f.field_id, "not_applicable")
     to_extract = [f for f in to_extract if not f.derived_rule]  # derived fields never reach the LLM graph
     all_held = bool(documents) and not kept
     if all_held:  # nothing left to extract from: every field is a held no-evidence row
         to_extract, fields = [], [no_evidence_field(f)[0] for f in schema.fields]
+        for f in schema.fields:  # no facts are fetched for an all-held company, so none is tagged
+            _skipped(f.field_id, "derived" if f.derived_rule else "documents_held")
     key, scheme = issuer_key(company, identifier_map)
     recorded = history.recorded_periods(key) if history else set()
     for d in kept:
@@ -227,6 +252,7 @@ async def _extract_company(
                 planned_periods=planned_periods,
                 facts=facts,
                 grouped=grouped,
+                trace_sink=None if traces is None else traces.setdefault("fields", {}),
             )
         slot.extend(f.model_copy(update={"input_hash": h}) for f in extracted)
         return field_usages
@@ -263,12 +289,17 @@ async def _extract_company(
         for d in plans:
             if not (chunks := await asyncio.to_thread(plan_evidence, defs, d, settings)):
                 continue
+            drafts = []
             async with limit:
                 rows, usage = await extract_plan(
                     company, sector, d, chunks, llm, fields=defs, fuzzy_threshold=settings.grounding_fuzzy_threshold,
-                    schema_version=f"{schema.schema_id}:v{schema.version}",
+                    schema_version=f"{schema.schema_id}:v{schema.version}", on_draft=drafts.append,
                 )
             out.append(usage)
+            if traces is not None:
+                traces.setdefault("plans", {})[d.doc_id] = {
+                    "passages": [trace.passage(c) for c in chunks], "extractor": trace.call(usage, drafts[0]),
+                }
             for r in rows:
                 if r.field_id in plan_preset.ASSUMPTION_FIELDS:
                     if (key := (r.field_id, r.period_end, r.basis)) in seen:
@@ -281,33 +312,39 @@ async def _extract_company(
     slots: list[list[ExtractedField]] = []
     plan_slots: dict[str, list[ExtractedField]] = {}
     todo: list[tuple[FieldDefinition, str | None, list[ExtractedField]]] = []
+    moved: list[tuple[list[ExtractedField], list[dict]]] = []  # a re-asked field's slot, and its prior rows R4 moved there
+    input_hashes: dict[str, str | None] = {}
+
+    def _reused(rows: list[dict]) -> list[ExtractedField]:
+        run = history.last_run_id(company.company_id)
+        return [ExtractedField.model_validate(r).model_copy(
+            update={"reused_from_run": run, "checks": [], "route_reasons": [], "route": None}) for r in rows]
+
     for field in to_extract:
         if schema.schema_id == plan_preset.SCHEMA_ID and field.field_id not in plan_preset.OPERATES_FIELDS:
             slots.append(plan_slots.setdefault(field.field_id, []))
             continue
-        h = input_hash(field, route_documents(field, kept), planned_periods, run_settings)
+        h = input_hashes[field.field_id] = input_hash(field, route_documents(field, kept), planned_periods, run_settings)
         prior = history.last_rows(company.company_id, field.field_id) if reuse and h else []
         if prior and history.last_rejected(company.company_id, field.field_id):
             prior = []  # a human rejected the last answer: ask again rather than reuse it
         # shortcut: rows with failing non-rule checks re-extract; strip check-derived notes instead if that costs too many calls
         if prior and all(
             r.get("input_hash") == h and (r.get("provenance") or {}).get("field_version") == field.version
-            and not any(  # a rule failure is a reviewer prompt, not a reason to re-ask the model
-                is_failing(res) and not res.check_id.startswith("rule.")
-                for res in map(CheckResult.model_validate, r.get("checks", []))
-            )
+            # a row R4 moved here came from another field's answer: re-asking this field cannot fix its checks
+            and (_moved_from(r)
+                 or not any(  # a rule failure is a reviewer prompt, not a reason to re-ask the model
+                     is_failing(res) and not res.check_id.startswith("rule.")
+                     for res in map(CheckResult.model_validate, r.get("checks", []))
+                 ))
             for r in prior
         ):
-            run = history.last_run_id(company.company_id)
-            slots.append([
-                ExtractedField.model_validate(r).model_copy(
-                    update={"reused_from_run": run, "checks": [], "route_reasons": [], "route": None}
-                )
-                for r in prior
-            ])
+            slots.append(_reused(prior))
             continue
         slots.append([])
         todo.append((field, h, slots[-1]))
+        if carry := [r for r in prior if _moved_from(r)]:
+            moved.append((slots[-1], carry))
     size = settings.extraction_group_size
     grouping = [size > 1 and not f.high_risk and not f.xbrl_tags for f, _, _ in todo]
     groupable = [t for t, g in zip(todo, grouping, strict=True) if g]
@@ -317,7 +354,14 @@ async def _extract_company(
         pending.append(_extract_plans([f for f in to_extract if f.field_id in plan_slots]))
     for field_usages in await asyncio.gather(*pending):
         usages.extend(field_usages)
+    asked = {f.field_id for f, _, _ in todo}
+    for slot, rows in moved:  # re-asking this field never yields a moved row; R4 redoes a move only if its source is re-asked
+        covered = {r.period_end for r in slot}
+        slot.extend(_reused([r for r in rows if _moved_from(r) not in asked and r.get("period_end") not in covered]))
     fields.extend(f for slot in slots for f in slot)
+    if corrections:  # reused rows already carry theirs; the rules leave a corrected row unchanged
+        fields = apply_corrections(schema, fields, documents_by_id=documents_by_id,
+                                   fiscal_year_end=company.fiscal_year_end, input_hashes=input_hashes)
 
     # In a thread: a sync Postgres read here would stall every other company's LLM calls.
     published = await asyncio.to_thread(_published_values, settings, key)
@@ -357,6 +401,7 @@ async def _extract_company(
         if d.derived_rule and d.field_id not in by_id:
             by_id[d.field_id] = row = _route(evaluate_derived(d, by_id))
             routed.append(row)
+            _skipped(d.field_id, "derived")
     fields = routed
 
     confidences = [f.confidence for f in fields if f.value is not None]
@@ -483,6 +528,7 @@ async def execute_extraction_run(
     field_limit = asyncio.Semaphore(settings.max_concurrent_llm_calls)
 
     async def _worker(company: CompanyRef) -> ExtractionRecordResult:
+        traces: dict = {}
         company = await prepare_company(
             company, settings=settings, llm=llm, registry=registry, parent_run=(schema.schema_id, run_id)
         )
@@ -490,7 +536,9 @@ async def execute_extraction_run(
             company, schema, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings,
             history=history, identifier_map=identifier_map, qualities=qualities, trial=trial, xbrl_source=xbrl_source,
             field_limit=field_limit,
+            corrections=schema.schema_id not in {TRANSITION_PLAN_SCHEMA_ID, plan_preset.SCHEMA_ID}, traces=traces,
         )
+        trace.write_trace(run_store, run_id, company.company_id, traces)
         result.record.run_id = run_id
         open_restatement_candidates(run_store, run_id, result.record, history)
         return result

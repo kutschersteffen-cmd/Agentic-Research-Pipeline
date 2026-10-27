@@ -163,6 +163,15 @@ export const NAV_ICONS: Record<string, ReactElement> = {
       <line x1="9" y1="10" x2="9" y2="20" />
     </svg>
   ),
+  // Numbered steps: how one value was found.
+  argusWalkthrough: (
+    <svg {...ICON_PROPS}>
+      <circle cx="5" cy="6" r="1.6" />
+      <circle cx="5" cy="12" r="1.6" />
+      <circle cx="5" cy="18" r="1.6" />
+      <path d="M10 6h10M10 12h10M10 18h7" />
+    </svg>
+  ),
   // A tag: XBRL facts are chosen by tag.
   rfp: (
     <svg {...ICON_PROPS}>

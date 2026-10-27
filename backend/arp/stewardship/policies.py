@@ -14,6 +14,10 @@ stream's directory) for the policies that have a client form: so far
 `escalation_rules`, a graph chained on the house result, whose version 0
 returns the house answer unchanged.
 
+Each theme dossier has its own store (`PolicyStore(root, theme=True)` under
+`themes/<dossier_id>/`) for `theme_standards`: the stewardship expectations
+derived from the theme's approved position. The house store does not know it.
+
 Version 0 is the bundled draft in `data/`, always available as the baseline.
 Saved versions are immutable files; activations are an append-only log, and
 the active version is the last activation. Nothing is stored that fails
@@ -97,6 +101,59 @@ def _validate_voting(policy: dict, sample: dict) -> None:
     evaluate_votes(generate(policy)["graph"], [])  # compiles
 
 
+_NUMERIC = ("number", "percentage", "currency_amount")
+_TEXT_KEYS = ("title", "expectation", "definition", "where_reported")
+
+
+def _validate_theme_standards(content: dict, sample: dict) -> None:
+    """`sample` holds the approved position's paragraph count (`paragraphs`), the released registry fields
+    (`released`: field_id -> {name, data_type, allowed_values, ...}) and the ids of the theme's own released fields
+    (`carried`). Stops at the first failure."""
+    standards = content.get("standards") or []
+    schema_fields = {f["field_id"]: f for f in (content.get("schema") or {}).get("fields", [])}
+    released = sample["released"]
+    if not standards or [s.get("standard_id") for s in standards] != [f"S{i}" for i in range(1, len(standards) + 1)]:
+        raise ValueError("standard ids must be S1..Sn")
+    for s in standards:
+        for key in _TEXT_KEYS:
+            if not str(s.get(key) or "").strip():
+                raise ValueError(f"standard '{s['standard_id']}': {key} is blank")
+    for s in standards:
+        for n in s.get("rests_on") or []:
+            if not 1 <= n <= sample["paragraphs"]:
+                raise ValueError(f"standard '{s['standard_id']}': position has no paragraph {n}")
+    for s in standards:
+        if s["data"] == "existing" and s["field_id"] not in released:
+            raise ValueError(f"standard '{s['standard_id']}': unknown or unreleased field '{s['field_id']}'")
+    for s in standards:
+        if s["data"] == "new":
+            if s["field_id"] not in schema_fields:
+                raise ValueError(f"standard '{s['standard_id']}': field '{s['field_id']}' is not in the new schema")
+            if s["field_id"] in released:
+                raise ValueError(f"standard '{s['standard_id']}': field '{s['field_id']}' is released, use data \"existing\"")
+    for fid, f in schema_fields.items():  # a released field that is not a carried theme field cannot be added again
+        if fid in released and fid not in sample.get("carried", ()):
+            raise ValueError(f"new field '{f['name']}' is already released")
+    used = {s["field_id"] for s in standards}
+    for fid, f in schema_fields.items():
+        if fid not in released and fid not in used:
+            raise ValueError(f"new field '{f['name']}' is used by no standard")
+    for s in standards:
+        field = released[s["field_id"]] if s["data"] == "existing" else schema_fields[s["field_id"]]
+        kind, op, value, sid = str(field["data_type"]), s["operator"], s["value"], s["standard_id"]
+        if kind in ("string", "date"):
+            raise ValueError(f"standard '{sid}': field '{s['field_id']}' is {kind}, not checkable")
+        if kind not in _NUMERIC and op != "==":
+            raise ValueError(f"standard '{sid}': operator '{op}' does not fit {kind}")
+        fits = (
+            isinstance(value, (int, float)) and not isinstance(value, bool) if kind in _NUMERIC
+            else isinstance(value, bool) if kind == "boolean"
+            else isinstance(value, str) and value in (field.get("allowed_values") or [])
+        )
+        if not fits:
+            raise ValueError(f"standard '{sid}': value {json.dumps(value)} does not fit {kind}")
+
+
 POLICIES: dict[str, dict[str, Callable]] = {
     "monitoring_rules": {"default": monitoring.load_graph, "validate": _validate_monitoring},
     "coverage_rules": {"default": default_coverage_graph, "validate": _validate_coverage},
@@ -108,17 +165,22 @@ POLICIES: dict[str, dict[str, Callable]] = {
     },
     "phrase_blocklist": {"default": style.load_blocklist, "validate": style.validate_blocklist},
     "house_voting": {"default": lambda: load("house_voting_policy_draft.json"), "validate": _validate_voting},
+    "theme_standards": {
+        "theme_default": lambda: {"policy_id": "theme_standards", "standards": [], "schema": None},
+        "theme_validate": _validate_theme_standards,
+    },
 }
 
 
 class PolicyStore:
-    def __init__(self, root: Path, client: bool = False) -> None:
+    def __init__(self, root: Path, client: bool = False, theme: bool = False) -> None:
         self.root = root / "policies"
         self.client = client
+        self.theme = theme
 
     def _spec(self, policy_id: str, key: str) -> Callable:
         spec = POLICIES.get(policy_id, {})
-        fn = spec.get(f"client_{key}" if self.client else key)
+        fn = spec.get(f"client_{key}" if self.client else f"theme_{key}" if self.theme else key)
         if fn is None:
             raise KeyError(policy_id)
         return fn
@@ -179,11 +241,15 @@ class PolicyStore:
     def activate(self, policy_id: str, version: int, approved_by: str) -> dict:
         if not approved_by.strip():
             raise ValueError("Activating a policy version needs approved_by")
-        self.content(policy_id, version)  # raises for an unknown version
+        content = self.content(policy_id, version)  # raises for an unknown version
         meta = next(v for v in self.versions(policy_id) if v["version"] == version)
-        if version > 0 and meta["created_by"].strip().lower() == approved_by.strip().lower():
+        # theme_standards only: the owner may activate their own edit alone; the row records the path.
+        own_edit = self.theme and content.get("path") == "owner_edit"
+        if version > 0 and not own_edit and meta["created_by"].strip().lower() == approved_by.strip().lower():
             raise ValueError("Four-eyes rule: a version must be activated by someone other than the person who saved it")
         row = {"version": version, "approved_by": approved_by, "approved_at": datetime.now(UTC).isoformat()}
+        if "path" in content:
+            row["path"] = content["path"]
         append_jsonl(self._dir(policy_id) / "activations.jsonl", row)
         return row
 

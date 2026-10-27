@@ -29,6 +29,7 @@ test("shelved dossiers are hidden until asked for", () => {
 test("step 4 reads Find companies until a run exists", () => {
   assert.equal(stepLinkText(4, "#/theme"), "Find companies");
   assert.equal(stepLinkText(4, "#/theme/run_1"), "Open the run");
+  assert.equal(stepLinkText(5, "#/themes/d/position"), "Open position and standards");
 });
 
 test("a candidate's dossier is found by its run and theme", () => {

@@ -21,6 +21,8 @@ class ReasonCode(StrEnum):
     ADJUDICATOR_UNRESOLVED = "adjudicator_unresolved"
     HIGH_RISK_NOT_FOUND_UNRANKED = "high_risk_not_found_unranked"
     UNVERIFIED_LIST_ITEM = "unverified_list_item"  # a plan list row: no verifier pass, so never auto-accepted
+    AUTO_CORRECTED = "auto_corrected"
+    PERIOD_MISSING = "period_missing"
 
 
 class DecisionKind(StrEnum):

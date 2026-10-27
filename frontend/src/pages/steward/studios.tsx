@@ -20,6 +20,7 @@ import type {
   StewardshipStage,
   StewardshipStream,
   TierChangeItem,
+  UnifiedTrigger,
   VotingPolicy,
   VotingPosition,
   VotingPreview,
@@ -91,15 +92,16 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
   const actor = useActor();
   const [contexts, setContexts] = useState<Record<string, unknown>[] | null>(null);
   const [triggers, setTriggers] = useState<MonitoringTrigger[] | null>(null);
+  const [standards, setStandards] = useState<UnifiedTrigger[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const loadTriggers = () =>
-    api.getMonitoringTriggers().then(
-      (r) => setTriggers(r.triggers),
-      (e) => setLoadError((e as Error).message),
-    );
+    Promise.all([
+      api.getMonitoringTriggers().then((r) => setTriggers(r.triggers)),
+      api.listTriggers("open").then((r) => setStandards(r.triggers.filter((t) => t.type === "theme_standard"))),
+    ]).catch((e) => setLoadError((e as Error).message));
   useEffect(() => {
     api.getCoverageInputs().then(
       (r) => setContexts(r.contexts),
@@ -108,7 +110,7 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
     loadTriggers();
   }, []);
 
-  async function openEngagement(t: MonitoringTrigger) {
+  async function openEngagement(t: Pick<MonitoringTrigger, "issuer_id" | "rule">) {
     setBusy(`${t.issuer_id}-${t.rule}`);
     setActionError(null);
     try {
@@ -219,6 +221,50 @@ export function MonitoringStudio({ stage, onChanged, onOpen }: StudioProps) {
             New engagements are tiered at stage 2 →
           </button>
         </div>
+      </Section>
+      <Section step="Review · Decide" title="Theme standards">
+        <p className="help-text">
+          Open triggers from a theme dossier&apos;s standards check: an exposed company that fails one of the theme&apos;s active
+          standards. Only people acknowledge or resolve them; a new check never changes their status.
+        </p>
+        {standards === null ? (
+          <p className="status-text">Loading…</p>
+        ) : standards.length === 0 ? (
+          <p className="muted">No open theme standard trigger.</p>
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table" aria-label="Theme standards">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Theme</th>
+                  <th>Standard</th>
+                  <th>Severity</th>
+                  <th>Reason</th>
+                  <th>Engagement</th>
+                </tr>
+              </thead>
+              <tbody>
+                {standards.map((t) => (
+                  <tr key={t.trigger_id}>
+                    <td>{t.company || t.issuer_id}</td>
+                    <td>{t.theme}</td>
+                    <td>{t.rule.split(":").at(-1)}</td>
+                    <td>
+                      <span className={`badge ${SEVERITY_BADGE[t.severity]}`}>{t.severity}</span>
+                    </td>
+                    <td>{t.reason}</td>
+                    <td>
+                      <button onClick={() => openEngagement(t)} disabled={!actor || busy !== null} title={actor ? undefined : "Sign in above first"}>
+                        {busy === `${t.issuer_id}-${t.rule}` ? "Opening…" : "Open engagement"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Section>
       <Section step="Review" title="Companies in scope">
         <p className="help-text">

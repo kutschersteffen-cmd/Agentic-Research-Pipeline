@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import date
 from typing import TypedDict
 
@@ -22,6 +23,9 @@ from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import DocumentChunk, ProvenanceInfo, SourceDocument
 from arp.schemas.datapoints import ExtractedField, FieldDefinition, ValueState
 from arp.schemas.review import ReasonCode
+from arp.walkthrough import trace
+
+logger = logging.getLogger(__name__)
 
 
 class FieldState(TypedDict):
@@ -50,6 +54,7 @@ class FieldState(TypedDict):
     needs_review: bool
     facts: FactSource | None
     grouped: tuple[ExtractionDraft, list[DocumentChunk], LLMUsage] | None  # draft, evidence and usage of a group call
+    seen: dict | None  # walkthrough trace only: model answers the state does not keep (blind draft, page reading)
 
 
 def _tagged_field(state: FieldState, fact: XbrlFact, period_end: str) -> ExtractedField:
@@ -198,10 +203,12 @@ async def _extract(state: FieldState) -> dict:
 
 
 async def _verify(state: FieldState) -> dict:
+    seen = state["seen"]
     if state["field"].high_risk:  # E38: re-extract without seeing the draft
         verifier, usage = await blind_verify(
             state["company_name"], state["field"], state["evidence"], state["draft"], state["verifier_llm"],
             state["planned_periods"], state["fiscal_year_end"],
+            on_draft=None if seen is None else lambda d: seen.update(blind_draft=d),
         )
     else:
         verifier, usage = await verify_extraction(
@@ -262,13 +269,17 @@ async def _aggregate(state: FieldState) -> dict:
     usages = state["usages"]
     if state["settings"] and state["settings"].vision_fallback_enabled:
         passages = {c.chunk_id: c for c in state["evidence"]}
+        seen = state["seen"]
         checked = []
         for f in extracted:
             if ReasonCode.NOT_GROUNDED in f.review_reasons:
                 f, usage = await check_on_page(
-                    state["company_name"], state["field"], f, passages, state["documents_by_id"], state["verifier_llm"]
+                    state["company_name"], state["field"], f, passages, state["documents_by_id"], state["verifier_llm"],
+                    on_reading=None if seen is None else lambda r: seen.update(reading=r),
                 )
                 usages = usages + [usage] if usage else usages
+                if seen is not None and usage:
+                    seen["vision_usage"] = usage
             checked.append(f)
         extracted = checked
     return {"extracted": extracted, "needs_review": any(f.review_reasons for f in extracted), "usages": usages}
@@ -291,6 +302,32 @@ _COMPILED_GRAPH = build_extract_verify_graph(
 )
 
 
+def _trace_entry(state: FieldState, grouped: bool) -> dict:
+    extracted, seen = state["extracted"], state["seen"]
+    if extracted and extracted[0].method == "tagged":
+        skipped = "tagged"
+    elif not state["evidence"]:
+        skipped = "no_evidence"
+    else:
+        skipped = None
+    if state["field"].high_risk:
+        verifier = trace.verifier_call(
+            state["verifier_usage"], seen.get("blind_draft"), blind=True, verdict=state["verifier"]
+        )
+    else:
+        verifier = trace.verifier_call(state["verifier_usage"], state["verifier"], blind=False, verdict=None)
+    return trace.field_entry(
+        state["field"].field_id,
+        grouped=grouped,
+        skipped=skipped,
+        passages=[trace.passage(c) for c in state["evidence"]],
+        extractor=trace.call(state["extractor_usage"], state["draft"]),
+        verifier=verifier,
+        adjudicator=trace.call(state["adjudicator_usage"], state["adjudicator"]),
+        vision=trace.call(seen.get("vision_usage"), seen.get("reading")),
+    )
+
+
 async def extract_one_field(
     company_name: str,
     field: FieldDefinition,
@@ -307,6 +344,7 @@ async def extract_one_field(
     planned_periods: list[str] | None = None,
     facts: FactSource | None = None,
     grouped: tuple[ExtractionDraft, list[DocumentChunk], LLMUsage] | None = None,
+    trace_sink: dict | None = None,
 ) -> tuple[list[ExtractedField], bool, list[LLMUsage]]:
     """Runs one field's evidence-gather -> extract -> independent-verify ->
     adjudicate (typed disagreements only) -> programmatic-grounding-check -> aggregate flow as a LangGraph graph.
@@ -330,6 +368,9 @@ async def extract_one_field(
     `grouped` (draft, evidence, usage): the field was already extracted by a group call
     (extractor_agent.extract_group); its evidence and draft are used as given, and verification,
     adjudication and grounding run on it as on any field. The usage is not added again.
+
+    `trace_sink`, when supplied, gets `trace_sink[field.field_id]` = the field's walkthrough entry
+    (passages and model answers), built from what the graph already holds: no extra model call.
     """
     initial: FieldState = {
         "company_name": company_name,
@@ -357,6 +398,12 @@ async def extract_one_field(
         "needs_review": False,
         "facts": facts,
         "grouped": grouped,
+        "seen": None if trace_sink is None else {},
     }
     final_state = await run_graph(_COMPILED_GRAPH, initial)
+    if trace_sink is not None:
+        try:
+            trace_sink[field.field_id] = _trace_entry(final_state, grouped is not None)
+        except Exception:  # the trace never fails a field
+            logger.warning("no trace for field %s", field.field_id, exc_info=True)
     return final_state["extracted"], final_state["needs_review"], final_state["usages"]

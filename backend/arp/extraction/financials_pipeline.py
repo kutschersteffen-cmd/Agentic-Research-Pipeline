@@ -16,6 +16,7 @@ from arp.schemas.common import CompanyRef
 from arp.schemas.financials import CompanyFinancialsRecord
 from arp.schemas.spend import AmountMetric
 from arp.storage.run_store import RunStore
+from arp.walkthrough import trace
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,7 @@ async def _extract_company_financials(
     verifier_llm: LLMClient | None = None,
     settings: Settings,
     xbrl_source: XbrlFactSource | None = None,
+    trace_sink: dict | None = None,
 ) -> FinancialsExtractionResult:
     documents = await registry.fetch_all(company)
     record, usages = await extract_company_financials(
@@ -100,6 +102,7 @@ async def _extract_company_financials(
         settings=settings,
         fuzzy_threshold=settings.grounding_fuzzy_threshold,
         confidence_review_threshold=settings.confidence_review_threshold,
+        trace_sink=trace_sink,
     )
     if xbrl_source is not None and settings.xbrl_facts_enabled:
         record = await _overlay_xbrl_facts(record, company, xbrl_source)
@@ -138,10 +141,13 @@ async def execute_financials_extraction_run(
     already-created run (see create_financials_extraction_run)."""
 
     async def _worker(company: CompanyRef) -> FinancialsExtractionResult:
+        traces: dict = {}
         company = await prepare_company(company, settings=settings, llm=llm, registry=registry)
         result = await _extract_company_financials(
-            company, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings, xbrl_source=xbrl_source
+            company, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings, xbrl_source=xbrl_source,
+            trace_sink=traces,
         )
+        trace.write_trace(run_store, run_id, company.company_id, traces)
         result.record.run_id = run_id
         return result
 
