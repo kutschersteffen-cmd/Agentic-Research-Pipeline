@@ -5,7 +5,7 @@ import { correctionLine } from "../lib/corrections";
 import { valueLabel } from "../lib/fieldValue";
 import { listAllRuns } from "../lib/poll";
 import { runTypeLabel } from "../lib/runs";
-import { allCitations, fmt, markQuotes, notRecordedNote, parseWalkthroughParams, pickRow, planBasis, steps, walkthroughHref, type Step } from "../lib/walkthrough";
+import { allCitations, fmt, markQuotes, notRecordedNote, passageFor, parseWalkthroughParams, pickRow, planBasis, steps, walkthroughHref, type Step } from "../lib/walkthrough";
 import type { Correction, ExtractedField, RunManifest, Walkthrough, WalkthroughPassage } from "../types";
 
 type Obj = Record<string, unknown>;
@@ -379,7 +379,7 @@ function FullAnswer({ answer, w, row }: { answer: unknown; w: Walkthrough; row: 
         <ul className="wt-lines">
           {cites.map((c, i) => {
             const q = String(c.quote ?? "");
-            const p = w.passages.find((x) => x.text?.includes(q));
+            const p = passageFor(w.passages, q);
             const g = rowCites.find((x) => x.quote === q);
             return <li key={i}>“{q}” · {p ? `passage ${p.rank}` : "passage not found"} · {g ? (g.grounded ? "grounded" : "not grounded") : "not in the stored row"}</li>;
           })}

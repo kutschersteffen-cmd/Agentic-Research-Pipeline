@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import date
 from typing import TypedDict
 
@@ -23,6 +24,8 @@ from arp.schemas.common import DocumentChunk, ProvenanceInfo, SourceDocument
 from arp.schemas.datapoints import ExtractedField, FieldDefinition, ValueState
 from arp.schemas.review import ReasonCode
 from arp.walkthrough import trace
+
+logger = logging.getLogger(__name__)
 
 
 class FieldState(TypedDict):
@@ -399,5 +402,8 @@ async def extract_one_field(
     }
     final_state = await run_graph(_COMPILED_GRAPH, initial)
     if trace_sink is not None:
-        trace_sink[field.field_id] = _trace_entry(final_state, grouped is not None)
+        try:
+            trace_sink[field.field_id] = _trace_entry(final_state, grouped is not None)
+        except Exception:  # the trace never fails a field
+            logger.warning("no trace for field %s", field.field_id, exc_info=True)
     return final_state["extracted"], final_state["needs_review"], final_state["usages"]

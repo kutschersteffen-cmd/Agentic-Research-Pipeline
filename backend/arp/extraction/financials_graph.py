@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TypedDict
 
 from arp.config import Settings
@@ -17,6 +18,8 @@ from arp.schemas.common import CompanyRef, DocumentChunk, ProvenanceInfo, Source
 from arp.schemas.financials import CompanyFinancialsRecord
 from arp.schemas.spend import SpendTopic
 from arp.walkthrough import trace
+
+logger = logging.getLogger(__name__)
 
 # Union of every section's doc types/keywords -- fetched and chunked once
 # per company rather than once per topic, since segments/capex/R&D are
@@ -212,9 +215,12 @@ async def extract_company_financials(
     }
     final_state = await run_graph(_COMPILED_GRAPH, initial)
     if trace_sink is not None:  # built from what the graph already holds: no extra model call
-        trace_sink["record"] = {
-            "passages": [trace.passage(c) for c in final_state["evidence"]],
-            "extractor": trace.call(final_state["extractor_usage"], final_state["draft"]),
-            "verifier": trace.call(final_state["verifier_usage"], final_state["verifier"]),
-        }
+        try:
+            trace_sink["record"] = {
+                "passages": [trace.passage(c) for c in final_state["evidence"]],
+                "extractor": trace.call(final_state["extractor_usage"], final_state["draft"]),
+                "verifier": trace.call(final_state["verifier_usage"], final_state["verifier"]),
+            }
+        except Exception:  # the trace never fails a record
+            logger.warning("no trace for the record", exc_info=True)
     return final_state["record"], final_state["usages"]

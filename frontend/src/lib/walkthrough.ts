@@ -186,6 +186,11 @@ function combineLabel(row: Obj): string {
   return alts ? `${value} + ${plural(alts, "alternative")}` : value;
 }
 
+/** The passage that holds a quote; an empty quote matches none. */
+export function passageFor<P extends { text: string | null }>(passages: P[], quote: string): P | undefined {
+  return quote ? passages.find((x) => x.text?.includes(quote)) : undefined;
+}
+
 /** Passage text split around the quoted words, each occurrence of each quote marked. */
 export function markQuotes(text: string, quotes: string[]): { text: string; mark: boolean }[] {
   const hits: [number, number][] = [];

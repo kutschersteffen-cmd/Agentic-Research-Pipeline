@@ -96,6 +96,17 @@ async def test_no_evidence_entry(fake_llm):
     assert sink["scope1"]["extractor"] is None
 
 
+async def test_entry_failure_never_fails_the_field(fake_llm, monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("model_dump failed")
+
+    monkeypatch.setattr("arp.extraction.field_graph._trace_entry", boom)
+    llm, sink = _agreeing_llm(fake_llm), {}
+    rows, needs_review, usages = await _run(llm, _field(), sink=sink)
+    assert rows[0].value == 120 and isinstance(needs_review, bool) and usages
+    assert sink == {}
+
+
 async def test_no_sink_changes_nothing(fake_llm):
     with_sink, without = _agreeing_llm(fake_llm), _agreeing_llm(fake_llm)
     assert await _run(with_sink, _field(), sink={}) == await _run(without, _field())

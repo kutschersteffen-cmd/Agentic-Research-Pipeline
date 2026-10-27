@@ -9,7 +9,7 @@ import re
 
 import pytest
 
-from arp.extraction.field_graph import field_evidence
+from arp.extraction.field_graph import field_evidence, merge_evidence
 from arp.golden_set.runner import load_cases
 from arp.ingestion.local_files import parser_version
 from arp.review.quality import _record, seed_known_answers
@@ -53,6 +53,24 @@ def test_seeded_passages_match_real_selection(qenv):  # noqa: F811  # AC-21
         full_text=case.document_text, content_key=d["content_key"], parser_version=parser_version(),
     )
     want = [(c.doc_id, c.char_start, c.char_end, c.section) for c in field_evidence(spec, [doc], settings)]
+    assert want
+    assert [(p["doc_id"], p["char_start"], p["char_end"], p["section"]) for p in entry["passages"]] == want
+
+
+def test_seeded_grouped_field_passages(qenv):  # noqa: F811  # AC-72
+    # A seeded company holds one field, and a real run groups only when more than one field has evidence;
+    # merge_evidence of a single ranking is that ranking, so the seeded passages are the group's selection.
+    _, _, settings = qenv
+    settings = settings.model_copy(update={"extraction_group_size": 4})
+    case, spec, record, entry = _seeded_record(settings)
+    assert not spec.high_risk and not spec.xbrl_tags
+    [d] = record.documents
+    doc = SourceDocument(
+        doc_id=d["doc_id"], company_id=d["company_id"], doc_type=case.doc_type, title=d["title"],
+        full_text=case.document_text, content_key=d["content_key"], parser_version=parser_version(),
+    )
+    want = [(c.doc_id, c.char_start, c.char_end, c.section)
+            for c in merge_evidence([field_evidence(spec, [doc], settings)], settings.evidence_max_chunks * 2)]
     assert want
     assert [(p["doc_id"], p["char_start"], p["char_end"], p["section"]) for p in entry["passages"]] == want
 

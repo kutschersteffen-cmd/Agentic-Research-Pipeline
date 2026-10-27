@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { markQuotes, notRecordedNote, parseWalkthroughParams, recordWalkthroughHref, rowWalkthroughHref, steps, walkthroughHref } from "../src/lib/walkthrough.ts";
+import { markQuotes, notRecordedNote, passageFor, parseWalkthroughParams, recordWalkthroughHref, rowWalkthroughHref, steps, walkthroughHref } from "../src/lib/walkthrough.ts";
 import type { Walkthrough } from "../src/types.ts";
 
 /** What App's parseHash hands the page: the hash after the tab, split on "/", each part decoded. */
@@ -179,4 +179,11 @@ test("record links: a section route with no period (AC-53, AC-59, AC-60)", () =>
 
 test("an empty quote marks nothing", () => {
   assert.deepEqual(markQuotes("abc", [""]), [{ text: "abc", mark: false }]);
+});
+
+test("passageFor finds the passage holding a quote and never matches an empty quote", () => {
+  const ps = [passage(1), passage(2)];
+  assert.equal(passageFor(ps, "passage 2")?.rank, 2);
+  assert.equal(passageFor(ps, "absent"), undefined);
+  assert.equal(passageFor(ps, ""), undefined);
 });

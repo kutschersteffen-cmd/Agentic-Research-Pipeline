@@ -73,10 +73,12 @@ def _document(content_store, doc_id: str) -> dict:
 
 def _passages(entry: dict, record: dict, content_store) -> list[dict]:
     docs = {d.get("doc_id"): d for d in record.get("documents", [])}
-    out = []
+    out, loaded = [], {}  # per request: each document's text is loaded once, not once per passage
     for i, p in enumerate(entry.get("passages", [])):
-        doc = docs.get(p["doc_id"]) or _document(content_store, p["doc_id"])
-        t = _text(content_store, doc)
+        if p["doc_id"] not in loaded:
+            doc = docs.get(p["doc_id"]) or _document(content_store, p["doc_id"])
+            loaded[p["doc_id"]] = doc, _text(content_store, doc)
+        doc, t = loaded[p["doc_id"]]
         out.append({"rank": i + 1, **p, "doc_title": doc.get("title"),
                     "text": t.full_text[p["char_start"]:p["char_end"]] if t else None})
     return out
