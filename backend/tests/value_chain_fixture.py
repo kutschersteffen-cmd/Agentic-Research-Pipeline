@@ -23,6 +23,20 @@ SATELLITES = {
         "Taxes less subsidies on products purchased: Total": [5, 5, 5, 5],
     },
 }
+# Spec 2026-10-27-product-recipes-design.md, Acceptance (project 1): material/F.txt rows of fixture F, kt.
+MATERIAL = {
+    "Domestic Extraction Used - Metal Ores - Other non-ferrous metal ores (incl. PGM)": [0, 0, 0, 0],
+    "Unused Domestic Extraction - Metal Ores - Copper ores": [999, 999, 999, 999],
+    "Domestic Extraction Used - Metal Ores - Nickel ores": [0, 0, 0, 0],
+    "Domestic Extraction Used - Metal Ores - Copper ores": [40, 0, 100, 0],
+    "Domestic Extraction Used - Non-Metallic Minerals - Sand and gravel": [5, 5, 5, 5],
+}
+MATERIALS = [
+    {"key": "metal_ores_other_non_ferrous_metal_ores_incl_pgm", "label": "Other non-ferrous metal ores (incl. PGM)", "group": "Metal Ores"},
+    {"key": "metal_ores_nickel_ores", "label": "Nickel ores", "group": "Metal Ores"},
+    {"key": "metal_ores_copper_ores", "label": "Copper ores", "group": "Metal Ores"},
+    {"key": "non_metallic_minerals_sand_and_gravel", "label": "Sand and gravel", "group": "Non-Metallic Minerals"},
+]
 
 
 def _line(cells) -> str:
@@ -35,7 +49,8 @@ def _spread(values) -> list:
     return [by_key.get(k, 0) for k in KEYS]
 
 
-def write_fixture_f(directory: Path) -> Path:
+def write_fixture_f(directory: Path, material: dict[str, list] | None = None) -> Path:
+    """`material` adds a material/F.txt (values for the four live nodes); the explorer's F has none."""
     path = Path(directory) / "IOT_2022_ixi.zip"
     z_rows = {k: dict(zip(LIVE, row, strict=True)) for k, row in zip(LIVE, Z, strict=True)}
     zt = _line(["region", "", *(r for r, _ in KEYS)]) + _line(["sector", "", *(s for _, s in KEYS)])
@@ -47,7 +62,7 @@ def write_fixture_f(directory: Path) -> Path:
         zf.writestr("Z.txt", zt)
         zf.writestr("x.txt", xt)
         zf.writestr("metadata.json", json.dumps({"name": "EXIO_IOT_2022_ixi", "system": "ixi", "version": "3.11.2"}))
-        for folder, rows in SATELLITES.items():
+        for folder, rows in {**SATELLITES, **({"material": material} if material else {})}.items():
             ft = _line(["region", *(r for r, _ in KEYS)]) + _line(["sector", *(s for _, s in KEYS)])
             ft += _line(["stressor", *[""] * len(KEYS)])
             ft += "".join(_line([name, *_spread(values)]) for name, values in rows.items())
