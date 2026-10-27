@@ -103,7 +103,7 @@ import type {
   TransitionPlanIndicatorDef,
 } from "../types";
 import type { XbrlRunMarket } from "../types";
-import type { VcFootprint, VcNode, VcSearch, VcStatus, VcTree } from "../types";
+import type { VcFootprint, VcMaterialFootprint, VcMaterialTree, VcNode, VcSearch, VcStatus, VcTree } from "../types";
 import type { RunFailure } from "../types";
 import type {
   Dossier,
@@ -1169,12 +1169,19 @@ export const api = {
     request<VcSearch>(`/api/value-chain/nodes${buildQuery({ q, limit: limit === undefined ? undefined : String(limit) })}`),
   valueChainNode: (id: string, opts: { order: "total" | "direct"; excludeOwn: boolean }) =>
     request<VcNode>(`/api/value-chain/nodes/${encodeURIComponent(id)}${buildQuery({ order: opts.order, exclude_own: String(opts.excludeOwn) })}`),
-  valueChainTree: (id: string, opts: { depth: number; cutoff: number; goodsOnly: boolean }) =>
-    request<VcTree>(
-      `/api/value-chain/nodes/${encodeURIComponent(id)}/tree${buildQuery({ depth: String(opts.depth), width: "3", cutoff: String(opts.cutoff), goods_only: String(opts.goodsOnly) })}`,
+  valueChainTree: (id: string, opts: { depth: number; cutoff: number; goodsOnly: boolean; material?: string; amount?: number }) =>
+    request<VcTree | VcMaterialTree>(
+      `/api/value-chain/nodes/${encodeURIComponent(id)}/tree${buildQuery({
+        depth: String(opts.depth),
+        width: "3",
+        cutoff: String(opts.cutoff),
+        goods_only: String(opts.goodsOnly),
+        material: opts.material,
+        amount_meur: opts.material ? String(opts.amount ?? 1) : undefined,
+      })}`,
     ),
-  valueChainFootprint: (id: string, opts: { indicator: "ghg" | "energy" | "jobs"; amount: number }) =>
-    request<VcFootprint>(
+  valueChainFootprint: (id: string, opts: { indicator: string; amount: number }) =>
+    request<VcFootprint | VcMaterialFootprint>(
       `/api/value-chain/nodes/${encodeURIComponent(id)}/footprint${buildQuery({ indicator: opts.indicator, amount_meur: String(opts.amount), top: "6" })}`,
     ),
 };
