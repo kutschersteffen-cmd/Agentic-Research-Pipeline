@@ -1,6 +1,6 @@
 # Argus walkthrough: how one value was found
 
-Status: draft for the owner, 2026-10-27. Spec-critic: six rounds; the sixth round's five findings are fixed.
+Status: approved by the owner, 2026-10-27.
 
 ## Why
 
