@@ -157,7 +157,7 @@ build-backend = "setuptools.build_meta"
 include = ["arp*"]
 
 [tool.setuptools.package-data]
-"arp.research.indirect_exposure" = ["sample_data/*.csv", "sample_data/*.md", "reference/*.csv"]
+"arp.research.indirect_exposure" = ["sample_data/*.csv", "sample_data/*.md", "sample_data/*.json", "sample_data/*.npy", "reference/*.csv"]
 "arp.golden_set" = ["data/*.json"]
 "arp.emerging_themes" = ["reference/*.csv"]
 "arp.normalise" = ["tables/*.csv", "tables/*.json"]

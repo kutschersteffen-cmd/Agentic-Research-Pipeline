@@ -11,7 +11,7 @@ from arp.config import get_settings
 from arp.discovery.site_finder import build_web_search_client
 from arp.llm.factory import build_llm_client
 from arp.research.activity_generator import build_theme, build_theme_industry_anchored
-from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
+from arp.research.indirect_exposure.factory import NO_MODEL, resolve_indirect_exposure_model
 from arp.research.standards_mapping.mapper import format_standards_csv, map_theme_to_standards
 from arp.research.taxonomy_sources.authority import build_theme_from_authority_sources
 from arp.research.taxonomy_sources.compare import compare_taxonomies, merge_taxonomies
@@ -71,11 +71,8 @@ def taxonomy_create(
     name: str,
     description: str = "",
     method: DerivationMethod = typer.Option(DerivationMethod.LLM_DRAFT, "--method", help="How to derive this taxonomy."),
-    use_sample_icio: bool = typer.Option(
-        False, help="[industry_anchored] Anchor against the bundled illustrative ICIO-shaped ISIC reference list."
-    ),
-    use_sample_exiobase: bool = typer.Option(
-        False, help="[industry_anchored] Anchor against the bundled illustrative EXIOBASE-shaped ISIC reference list."
+    use_sample_io: bool = typer.Option(
+        False, "--use-sample-io", help="[industry_anchored] Anchor against the bundled sample input-output industry list."
     ),
     authority_url: list[str] = typer.Option(
         [], "--authority-url", help="[authority_source] One or more source URLs (repeatable). See `taxonomy discover-sources`."
@@ -101,19 +98,15 @@ def taxonomy_create(
 
     elif method == DerivationMethod.INDUSTRY_ANCHORED:
         try:
-            model = resolve_indirect_exposure_model(settings, use_sample_icio=use_sample_icio, use_sample_exiobase=use_sample_exiobase)
+            model = resolve_indirect_exposure_model(settings, use_sample=use_sample_io)
         except ValueError as exc:
             typer.echo(str(exc), err=True)
             raise typer.Exit(1) from exc
         if model is None:
-            typer.echo(
-                "No input-output data available: set ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH or "
-                "ARP_EXIOBASE_FLOWS_PATH/ARP_EXIOBASE_INDUSTRIES_PATH, or pass --use-sample-icio/--use-sample-exiobase.",
-                err=True,
-            )
+            typer.echo(f"{NO_MODEL}, or pass --use-sample-io.", err=True)
             raise typer.Exit(1)
         theme, _usage = asyncio.run(build_theme_industry_anchored(name, description, model.industry_reference_list(), llm))
-        notes = f"Anchored against {model.edition_label} ({len(model.codes)} industries)."
+        notes = f"Anchored against {model.edition_label} ({len(model.industry_reference_list())} industries)."
 
     elif method == DerivationMethod.AUTHORITY_SOURCE:
         if not authority_url:
@@ -251,11 +244,8 @@ def taxonomy_merge(
 @taxonomy_app.command("map-standards")
 def taxonomy_map_standards(
     ref: str,
-    use_sample_icio: bool = typer.Option(
-        False, help="Classify any activity missing core_isic_codes using the bundled sample ICIO dataset first."
-    ),
-    use_sample_exiobase: bool = typer.Option(
-        False, help="Classify any activity missing core_isic_codes using the bundled sample EXIOBASE dataset first."
+    use_sample_io: bool = typer.Option(
+        False, "--use-sample-io", help="Classify any activity missing core_isic_codes using the bundled sample input-output model first."
     ),
     use_sample_standards: bool = typer.Option(
         False, help="Use the bundled illustrative NACE/NAICS/SIC/GICS reference data instead of configured ARP_*_PATH files."
@@ -273,8 +263,7 @@ def taxonomy_map_standards(
         updated_theme, _usage = asyncio.run(
             map_theme_to_standards(
                 taxonomy.theme, settings, llm,
-                use_sample_icio=use_sample_icio,
-                use_sample_exiobase=use_sample_exiobase,
+                use_sample_io=use_sample_io,
                 use_sample_standards=use_sample_standards,
             )
         )

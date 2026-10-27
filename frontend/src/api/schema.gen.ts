@@ -9819,15 +9819,10 @@ export interface components {
             /** Universe Path */
             universe_path?: string | null;
             /**
-             * Use Sample Exiobase
+             * Use Sample Io
              * @default false
              */
-            use_sample_exiobase: boolean;
-            /**
-             * Use Sample Icio
-             * @default false
-             */
-            use_sample_icio: boolean;
+            use_sample_io: boolean;
         };
         /** Criterion */
         Criterion: {
@@ -11917,15 +11912,10 @@ export interface components {
         /** MapStandardsRequest */
         MapStandardsRequest: {
             /**
-             * Use Sample Exiobase
+             * Use Sample Io
              * @default false
              */
-            use_sample_exiobase: boolean;
-            /**
-             * Use Sample Icio
-             * @default false
-             */
-            use_sample_icio: boolean;
+            use_sample_io: boolean;
             /**
              * Use Sample Standards
              * @default false
@@ -16073,17 +16063,11 @@ export interface components {
             /** Universe Path */
             universe_path?: string | null;
             /**
-             * Use Sample Exiobase
-             * @description Enable the indirect (input-output) exposure tier using the bundled illustrative EXIOBASE-shaped sample dataset. For a real run, configure ARP_EXIOBASE_FLOWS_PATH/ARP_EXIOBASE_INDUSTRIES_PATH instead and leave this false. Mutually exclusive with use_sample_icio.
+             * Use Sample Io
+             * @description Enable the indirect (input-output) exposure tier using the bundled illustrative sample input-output model. For a real run, set ARP_VALUE_CHAIN_DIR to an `arp io build-full` output instead and leave this false.
              * @default false
              */
-            use_sample_exiobase: boolean;
-            /**
-             * Use Sample Icio
-             * @description Enable the indirect (input-output) exposure tier using the bundled illustrative ICIO-shaped sample dataset. For a real run, configure ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH instead and leave this false. Mutually exclusive with use_sample_exiobase.
-             * @default false
-             */
-            use_sample_icio: boolean;
+            use_sample_io: boolean;
         };
         /** RunRequest */
         arp__api__routers__tnfd__RunRequest: {

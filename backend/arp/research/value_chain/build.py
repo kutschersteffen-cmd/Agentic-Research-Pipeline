@@ -11,7 +11,7 @@ from pathlib import Path
 
 import numpy as np
 
-from arp.research.indirect_exposure.io_import import _lines, _read_reference
+from arp.research.indirect_exposure.io_import import EXIOBASE_FD, _lines, _read_reference
 
 # Full-resolution EXIOBASE build for the Value Chain Explorer: every region x sector
 # is one node. See docs/superpowers/specs/2026-10-24-value-chain-explorer-design.md.
@@ -146,6 +146,25 @@ def _materials(zf: zipfile.ZipFile, index: dict[tuple[str, str], int]) -> tuple[
     return materials, np.array(rows)
 
 
+def _read_y(zf: zipfile.ZipFile, index: dict[tuple[str, str], int]) -> tuple[list[tuple[str, str]], np.ndarray]:
+    """Y.txt as (region, category) columns in archive order and a node x column matrix."""
+    lines = _lines(zf, "Y.txt")
+    regions, categories = next(lines), next(lines)
+    next(lines)
+    columns = list(zip(regions[2:], categories[2:], strict=True))
+    for _, category in columns:
+        if category not in EXIOBASE_FD:
+            raise ValueError(f"Y.txt: unknown final-demand category: {category}")
+    y = np.zeros((len(index), len(columns)))
+    for cells in lines:
+        if len(cells) < 2:
+            continue
+        if (cells[0], cells[1]) not in index:
+            raise ValueError(f"Y.txt: {cells[0]}, {cells[1]} is not in x.txt")
+        y[index[(cells[0], cells[1])]] = _floats(cells[2:], f"Y.txt row {cells[0]}, {cells[1]}")
+    return columns, y
+
+
 def _per_output(total: np.ndarray, x: np.ndarray) -> list[str]:
     return [repr(float(t / v)) if v else "" for t, v in zip(total, x, strict=True)]
 
@@ -157,8 +176,8 @@ def _write(tmp: Path, **arrays: np.ndarray) -> None:
 
 
 def build_full(zip_path: Path, out: Path, label: str | None = None) -> list[str]:
-    """Reads one EXIOBASE 3 ixi archive and writes manifest.json, nodes.csv and the
-    A, L, G matrices to `out`. Returns the stdout lines. Raises ValueError with a
+    """Reads one EXIOBASE 3 ixi archive and writes manifest.json, nodes.csv, the
+    A, L, G matrices and, when the archive has Y.txt, Y.npy and y_columns.csv to `out`. Returns the stdout lines. Raises ValueError with a
     one-line message; `out` must be missing, empty or an earlier build-full output, and
     is replaced only once the build succeeded."""
     out = Path(out)
@@ -186,6 +205,7 @@ def build_full(zip_path: Path, out: Path, label: str | None = None) -> list[str]
             _per_output(_satellite(zf, "factor_inputs/F.txt", index, lambda r: r != TAXES_ROW), x),
         ]
         materials = _materials(zf, index)
+        final_demand = _read_y(zf, index) if "Y.txt" in zf.namelist() else None
 
     n = len(keys)
     tmp = out.parent / f".{out.name}.building"
@@ -215,6 +235,10 @@ def build_full(zip_path: Path, out: Path, label: str | None = None) -> list[str]
         except np.linalg.LinAlgError:
             raise ValueError("I - A or I - B is singular: the flows cannot be inverted") from None
         del b
+        if final_demand is not None:
+            np.save(tmp / "Y.npy", final_demand[1])
+            with (tmp / "y_columns.csv").open("w", newline="") as f:
+                csv.writer(f).writerows([("region", "category"), *final_demand[0]])
 
         sector_no: dict[str, int] = {}
         with (tmp / "nodes.csv").open("w", newline="") as f:

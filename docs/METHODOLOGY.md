@@ -51,21 +51,21 @@ baskets) motivates the `ExposureEstimate` enum (`pure_play` / `significant`
 is rarely binary, and collapsing it to a boolean discards information a
 portfolio manager needs.
 
-**OECD [Inter-Country Input-Output (ICIO)
-Tables](https://www.oecd.org/en/data/datasets/inter-country-input-output-tables.html)**
-(45 industries, ISIC Rev.4). The Advocate/Opposing/Adjudicator debate above
+**[EXIOBASE 3](https://www.exiobase.eu/) input-output tables** (163
+sectors x 49 regions, labelled by the 50 OECD ICIO 2025 industry codes). The Advocate/Opposing/Adjudicator debate above
 answers "does this company's own disclosed activity fall in scope" — it has
 nothing to say about a company that is structurally entangled with a theme
 through its supply chain but never mentions the theme in its own words (a
 specialty-chemicals supplier three hops upstream of battery manufacturing,
 say). The indirect-exposure tier (`backend/arp/research/indirect_exposure/`)
 answers that second question with a **purely quantitative, non-LLM** signal:
-a Leontief inverse `L = (I - A)⁻¹` computed from an industry x industry
-flow table gives, for any industry, the direct-plus-indirect share of its
-inputs/outputs that traces to a theme's core sectors. It's the same
+a Leontief inverse `L = (I - A)⁻¹` computed from EXIOBASE's full
+region x sector flow table gives, for any company's industry, the
+direct-plus-indirect share of its inputs/outputs that traces to a theme's
+core sectors. It's the same
 underlying mathematics EEIO models use for Scope 3 emissions accounting,
 applied to a thematic value chain instead of carbon. This tier is opt-in
-(off unless an ICIO dataset is configured) and its results are kept in a
+(off unless `ARP_VALUE_CHAIN_DIR` names an `arp io build-full` output) and its results are kept in a
 separate `indirect_exposure` field on `CompanyMatch`, deliberately not
 blended into the qualitative `exposure_estimate` the debate produces — see
 "The indirect (input-output) exposure tier" below.
@@ -311,8 +311,8 @@ z-score with pinned cut-points.
 
 ## The indirect (input-output) exposure tier
 
-Disabled by default; enabling it requires an industry x industry
-intermediate-flows table (see below). When enabled, it runs alongside —
+Disabled by default; enabling it requires the full-resolution EXIOBASE
+build the Value Chain Explorer reads (see below). When enabled, it runs alongside —
 never instead of — the qualitative Advocate/Opposing/Adjudicator pipeline,
 and its main practical effect is on the *no-evidence* path: a company whose
 disclosures never mention an activity is normally excluded at full
@@ -332,56 +332,63 @@ score, because they answer different portfolio questions:
   theme's core sectors as an input (a utility whose demand is increasingly
   driven by EV charging load).
 
-**Data format.** The loader (`icio_loader.py`) intentionally does not parse
-the raw OECD release (a country x industry x country x industry matrix,
-hundreds of megabytes) — it expects a pre-aggregated industry x industry
-table:
-- `industries.csv`: `isic_code,label,total_output` (one row per industry).
-- `icio_matrix.csv`: a square matrix, header row and first column both
-  equal to the industry codes in `industries.csv`, same order; cell
-  `[i, j]` is intermediate flow value from supplying industry `i` to using
-  industry `j`.
+**Data.** The tier reads one `arp io build-full` output: every EXIOBASE 3
+region x sector (49 x 163 = 7,987 nodes) is a node, with its output `x`,
+GHG intensity, the Leontief inverse `L` and, when the archive has `Y.txt`,
+final demand per region of demand and category (`Y.npy`, `y_columns.csv`).
+`ARP_VALUE_CHAIN_DIR` points at it -- the same setting, and the same build,
+as the Value Chain Explorer, so the product has one input-output model.
+Unset, the tier is off; set to a directory without a build, a run fails with
+`value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR`.
+Only nodes with output take part in the arithmetic. `L` is copied into
+memory once per process and build (about 0.5 GB for the real table).
 
-Technical coefficients are computed as `A[i,j] = flow[i,j] / total_output[j]`
-— the standard formula, using only intermediate flows (no separate final-
-demand series required, since `total_output` is supplied directly per
-industry). A small illustrative sample dataset (10 industries, real ISIC
-Rev.4 codes, plausible but not official flow values) ships in
-`arp/research/indirect_exposure/sample_data/` for demos and tests; replace
-it with a real OECD ICIO extract, aggregated across countries, for
-production use.
+**Codes stay ICIO codes.** Companies (`isic_code`) and activities
+(`core_isic_codes`) keep the 50 OECD ICIO 2025 codes of
+`reference/icio2025_industries.csv`, plus the five electricity split codes
+(`D_GEN_FOS`, `D_GEN_NUC`, `D_GEN_REN`, `D_TD`, `D_GAS`). A code covers the
+EXIOBASE sectors `reference/exiobase_ixi_to_icio2025.csv` maps to it
+(`icio_code`, or `split_code` for a split code). Classification prompts
+offer only the 50 ICIO codes; split codes count when supplied (theme files,
+a company's `isic_code`, a NACE class such as `35.12`).
+
+**From codes to nodes (output-weighted).** A company is the set of nodes its
+code covers in the EXIOBASE region of its `country`
+(`reference/country_exiobase_region.csv`: every ISO alpha-2/alpha-3 code;
+countries outside EXIOBASE's 44 fall into the rest-of-world regions `WA`,
+`WE`, `WF`, `WL`, `WM`), or in every region when the country is unknown or
+its region not in the build, weighted by output: `w_k = x_k / Σ x`. The core
+is every node a core code covers, in every region. With the composite column
+`c = L[:, K] · w` and row `r = wᵀ · L[K, :]`:
+- `upstream_exposure = Σ_core c / Σ c`, `downstream_exposure = Σ_core r / Σ r`.
+- `end_market`: `d = r · Yg` with final demand summed into households
+  (incl. NPISH), government, investment (GFCF) and inventories (incl.
+  valuables); exports are left out. `theme_demand_share = Σ_core r_j y_j / Σ d`.
+- `ghg_direct_t_per_meur = Σ w_k g_k`, `ghg_supply_chain_t_per_meur = g · c`.
+- `regional` (only when the company's region is known): the same shares of
+  `c` and `r` split by the region group of each core node
+  (`reference/region_groups.csv`).
+
+The bundled sample (`arp/research/indirect_exposure/sample_data/`, 4 regions
+x 8 sectors, illustrative values) is a build-full output too; `--use-sample-io`
+on the CLI or `use_sample_io` in the API selects it for demos and tests.
+`arp io status` prints which build is active (`source: exiobase` or
+`source: none`, edition, nodes, whether it has final demand) and names any
+setting of the retired 50-industry path (`ARP_ICIO_*`, `ARP_EXIOBASE_*`,
+`ARP_IO_SOURCE`) still in the environment. Stored runs keep the numbers and
+`icio_edition` they were computed with.
 
 **Two classification steps sit around the math**, both designed to be cheap
 because they're one-time, not per-company: `core_sectors.py` maps a theme's
-activities to the model's ISIC codes (one LLM call per activity, or
+activities to the model's ICIO codes (one LLM call per activity, or
 zero if supplied by hand via `arp theme classify-sectors`), and
-`company_mapper.py` maps a company to its ISIC code (supplied directly on
-the company universe file is the precise, zero-cost path; an LLM fallback
+`company_mapper.py` maps a company to its ICIO code (supplied directly on
+the company universe file is the precise, zero-cost path; an ISIC division
+or NACE class that matches exactly one code next; an LLM fallback
 against the model's fixed, closed industry list otherwise). Both reject a
 code the model doesn't actually contain rather than silently coercing it,
 since a wrong industry code would corrupt every exposure number computed
 from it.
-
-**EXIOBASE, as an alternative source.** `exiobase_loader.py` is a sibling
-loader for [EXIOBASE](https://www.exiobase.eu/) data, sourcing the same
-`ICIOData` shape the Leontief math above needs zero changes to consume.
-Unlike OECD ICIO's release, EXIOBASE realistically arrives as a long-format
-table — one row per (supplier industry, user industry, region) flow — so
-`exiobase_loader.py` groups rows by industry-code pair and sums `value`,
-collapsing region detail the same way the ICIO loader already collapses
-countries. Required columns: `supplier_isic_code,user_isic_code,value` (any
-others, e.g. region, are permitted and summed over). **This loader does not
-attempt an EXIOBASE-category-to-ISIC crosswalk** — EXIOBASE's native
-categories are NACE/CPA-based, not ISIC-based, so a real deployment must
-supply already-ISIC-mapped data via `ARP_EXIOBASE_FLOWS_PATH`/
-`ARP_EXIOBASE_INDUSTRIES_PATH`. A run is backed by at most one input-output
-source at a time — `factory.py::resolve_indirect_exposure_model` is the
-single entry point that picks ICIO first, then EXIOBASE, unless a caller
-explicitly requests one via `use_sample_icio`/`use_sample_exiobase` (opt-in
-flags are mutually exclusive; requesting both raises). A bundled
-illustrative EXIOBASE-shaped sample ships alongside the ICIO one — see
-`sample_data/README.md` for exactly how it relates to (and is a correctness
-proof against) the ICIO sample, not a claim about real EXIOBASE data.
 
 **Criticality overlay.** `criticality.py` bundles a small, hand-curated
 subset of commodities from the current USGS 2025 List of Critical Minerals
@@ -572,8 +579,7 @@ not empirically tuned against a labeled eval set** -- building one requires
 real company disclosure data this project doesn't have access to yet. Tuning
 `arbitration_weight_*`/`arbitration_disagreement_threshold`/
 `arbitration_mid_band_*` against real run outcomes is expected follow-up
-work, same caveat as the criticality-overlay ISIC mapping and the EXIOBASE
-sample's correctness-only convergence above.
+work, same caveat as the criticality-overlay ISIC mapping above.
 
 ## Output layer: ranked results, tags, diffing, export
 
@@ -905,11 +911,11 @@ The four standards are **not** all handled the same way, deliberately:
   titles), so the bundled sample crosswalk is a close correspondence, not
   just illustrative; NAICS and SIC don't align numerically with ISIC at all,
   so the bundled sample there is a small, explicitly-illustrative set of
-  hand-picked matches for the 10 divisions in the sample ICIO dataset. For
+  hand-picked matches for 10 ISIC divisions. For
   production use, point `ARP_NACE_CROSSWALK_PATH` / `ARP_NAICS_CROSSWALK_PATH`
   / `ARP_SIC_CROSSWALK_PATH` at the real official UN Statistics Division /
   Eurostat RAMON / US Census correspondence tables -- same "bundled sample,
-  replace for production" pattern as the OECD ICIO data itself.
+  replace for production" pattern as the input-output sample.
 - **GICS** has no public official correspondence table from ISIC (or
   anything else) -- it's a proprietary MSCI/S&P classification assigned by
   a company's principal business activity, not derivable by table lookup.
