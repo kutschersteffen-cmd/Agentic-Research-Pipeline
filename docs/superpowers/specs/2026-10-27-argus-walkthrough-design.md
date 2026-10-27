@@ -1,6 +1,6 @@
 # Argus walkthrough: how one value was found
 
-Status: draft for the owner, 2026-10-27.
+Status: draft for the owner, 2026-10-27. Spec-critic: six rounds; the sixth round's five findings are fixed.
 
 ## Why
 
@@ -82,6 +82,8 @@ processed to one entry, always with every key below (`null` when unused):
 }}}
 ```
 
+- `model` and `prompt_version` in each answer are the values the stored row's provenance records for that step
+  (the configured model id, not the name a response reports).
 - `passages`: the evidence chunks sent to the extractor, in the order sent. `char_end` is exclusive: the passage
   text is `document_text[char_start:char_end]`.
 - `verifier` / `adjudicator`: `null` when that call did not happen in this run.
@@ -96,7 +98,8 @@ processed to one entry, always with every key below (`null` when unused):
 - A field that did not reach the models records an entry with `skipped` set and `passages` `[]`, all answers
   `null`: `"skipped": "tagged"` (value from tagged data, `method` `tagged`), `"no_evidence"` (no passage matched),
   `"derived"` (a derived field computed by a rule) or `"documents_held"` (every document was held). Otherwise
-  `skipped` is `null`. *(My call: a new run must never show the "before walkthroughs" note.)*
+  `skipped` is `null`. When two apply, `tagged` and `derived` win over `documents_held`. *(My call: a new run
+  must never show the "before walkthroughs" note.)*
 - A field extracted in a group call records `grouped: true`, the group's passages, and the group answer's values
   for this field only.
 - A field reused from an earlier run (`reused_from_run` set) records nothing; the walkthrough reads the trace
@@ -305,7 +308,7 @@ endpoint rows cover it.
 | AC-14 | `traces` in the run folder is a regular file, not a folder, so creating `traces/<company_id>.json` fails | the run processes one company | run status `completed`; done count 1; the company's row is returned by the results endpoint; the run's events include `trace_write_failed` with that company id | holdout |
 | AC-15 | The AC-14 run | the walkthrough is requested for that company's field | `recorded` false; `not_recorded_reason` `write_failed` | holdout |
 | AC-16 | A completed data-point run, the AC-9 Financials run and a TNFD run; every data-point request carries `period_end=2025-12-31` | the walkthrough is requested with: an unknown run id; a company not in the run; a field not in the schema; a schema field with neither a stored row nor a trace entry for the company; `item=disclosures` on the Financials run; `item=capex` on the TNFD run; `item=capex` on the data-point run | HTTP 404 for each | holdout |
-| AC-17 | A transition-plan actions run and the AC-1 run | the walkthrough is requested for a plan list field without `basis`, and for the AC-1 field without `period_end` | HTTP 422 for each | holdout |
+| AC-17 | A transition-plan actions run and the AC-1 run | the walkthrough is requested for a plan list field with the `period_end` of one of its stored rows but without `basis`, and for the AC-1 field without `period_end` | HTTP 422 for each | holdout |
 | AC-18 | No session | the walkthrough is requested | the same status code as the results endpoint returns without a session (401) | holdout |
 | AC-19 | A field whose review item has a decision with the note `zq-note-7f3a` by a reviewer whose user id is a fresh UUID, and a cosign | the walkthrough is requested | outside `rows` and the model `answer` objects, no key contains `decision`, `reviewer` or `cosign`; neither the reviewer's user id nor the decision note's text appears anywhere in the body | holdout |
 | AC-20 | A seeded known-answer item (`seed_known_answers`) and a real trial-run item, both for the same non-high-risk field extracted in its own call (not grouped); the real verifier agrees and every real quote is grounded by text match (no vision check) | both walkthroughs are requested | both have `recorded` true and `adjudicator` null; outside `rows`, the set of key paths (list indexes folded into `[]`) is equal between the two bodies; equal `extractor.model`, `extractor.prompt_version`, `verifier.model`, `verifier.prompt_version`; no key, and no value outside `passages[].text`, `rows[].citations` and the answers' `quote` fields, contains `seed` or `known` (case-insensitive); every `passages[i].text` is non-null in both bodies | holdout |
@@ -313,7 +316,7 @@ endpoint rows cover it.
 | AC-22 | A seeded high-risk known-answer item | its walkthrough is requested | `verifier.blind` true; `verifier.answer` has the key `values`; `verifier.verdict` has the key `agrees` | holdout |
 | AC-23 | The golden set runs | it completes | no file matching `**/traces/*.json` exists under the runs root or the golden-set output directory | holdout |
 | AC-24 | Each research caller (`research/revenue_exposure/resolver.py`, `research/taxonomy_sources/empirical.py`) extracts for one company | it completes | no file matching `**/traces/*.json` exists under the runs root | holdout |
-| AC-25 | The AC-1, AC-8, AC-39 and AC-41 runs and the same runs on `main` | the results endpoint is read for each pair | the response bodies are equal | holdout |
+| AC-25 | The AC-1, AC-6, AC-8, AC-33, AC-34, AC-35, AC-39 and AC-41 runs and the same runs on `main` | the results endpoint is read for each pair | the response bodies are equal | holdout |
 | AC-26 | The AC-1 and AC-2 runs and the same runs on `main` | their stored result rows are compared | every row's `value`, `confidence`, `route`, `route_reasons`, `checks` and `corrections` are equal | holdout |
 | AC-27 | The AC-1 run, after which every `traces/*.json` is overwritten with the bytes `{not json` | the results endpoint is read | HTTP 200 with the same body as before | holdout |
 | AC-28 | The AC-1 run | the model calls are counted | 1 extractor call and 1 verifier call | holdout |
@@ -323,7 +326,7 @@ endpoint rows cover it.
 | AC-32 | Runs 1, 2 and 3 with unchanged inputs: run 1 extracts the field, runs 2 and 3 reuse it | the walkthrough is requested in run 3 for that row's field and `period_end` | `trace_run_id` is run 1's id; `recorded` true | holdout |
 | AC-33 | A field where no passage matches | the run completes | its trace entry has `skipped` `no_evidence` | holdout |
 | AC-34 | A derived field | the run completes | its trace entry has `skipped` `derived` | holdout |
-| AC-35 | A company whose documents are all held | the run completes | each field's trace entry has `skipped` `documents_held` | holdout |
+| AC-35 | A company whose documents are all held, in a schema with no tagged or derived fields | the run completes | each field's trace entry has `skipped` `documents_held` | holdout |
 | AC-36 | The AC-33 run | the walkthrough is requested for that field | `recorded` true; `not_recorded_reason` null | holdout |
 | AC-37 | A row that R4 moved from `tc_capex_total` to `tc_capex_total_planned`, while `tc_capex_total_planned` also has its own trace entry but no row of its own with the moved row's `period_end` | the walkthrough is requested for `tc_capex_total_planned` with the moved row's `period_end` | `extractor` equals the `extractor` of the `tc_capex_total` entry in the trace file | holdout |
 | AC-38 | A run whose `created_at` is more than `retention_runs_days` days ago and whose trace files were deleted | the walkthrough is requested | `recorded` false; `not_recorded_reason` `expired` | holdout |
@@ -361,6 +364,7 @@ endpoint rows cover it.
 | AC-71 | The AC-1 run with its files dated older than `retention_runs_days` | retention cleanup runs with apply | no `traces/*.json` remains in its run folder; the results endpoint body is unchanged | holdout |
 | AC-72 | A seeded known-answer item for a field the real pipeline extracts in a group call | its walkthrough is requested | the `(doc_id, char_start, char_end, section)` list of `passages` equals the group's evidence selection over the seeded document | holdout |
 | AC-73 | The AC-8 run and the same run on `main` | the model calls are counted | equal counts for extractor, verifier and adjudicator calls (one group extractor call) | holdout |
+| AC-74 | The AC-19 item in the running app | the reviewer opens its walkthrough | the page text contains neither `zq-note-7f3a` nor the reviewer's user id or name, and shows no cosign | evaluator |
 | AC-69 | The AC-68 run in the running app | the reviewer opens the CapEx walkthrough | steps 1 and 2 read `not recorded`; step 3 shows the section's `verifier_notes` | evaluator |
 
 Must not change, each a row above: results endpoint bodies (AC-25, AC-63) and the CSV export built from them;
