@@ -171,6 +171,9 @@ def test_model_caveats_exact():  # AC-11, Definitions
         (Q + "?model=demand&node=DE.1&change=-10", "unknown node 'DE.1'"),
         (Q + "?model=demand&region=FR&change=-10", "unknown region 'FR'"),
         (Q + "?model=demand&sector=Fishing&change=-10", "unknown sector 'Fishing'"),
+        # a sector with no live node is unknown: paddy rice has x = 0 in both regions of F
+        (Q + "?model=demand&sector=Cultivation%20of%20paddy%20rice&change=-10",
+         "unknown sector 'Cultivation of paddy rice'"),
         (Q + "?model=foo&node=DE.2&change=-10", None),
         (Q + "?model=demand&node=DE.2&change=-101&unit=pct", None),
         (Q + "?model=demand&node=DE.2&change=-61&unit=meur", None),

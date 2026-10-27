@@ -35,8 +35,7 @@ function Toggle<T extends string>({ label, options, value, onChange }: { label: 
 const bars = (pairs: VcQuantityShock["by_region"], fmt: (v: number) => string) =>
   pairs.map(([name, v]) => ({ key: String(name), label: <span>{name}</span>, value: fmt(Number(v)), size: Math.abs(Number(v)) }));
 
-// Non-breaking space: the unit never wraps away from its number.
-const meur = (v: number) => `${signed(v)}\u00a0M\u00a0EUR`;
+const meur = (v: number) => `${signed(v)} M EUR`;
 
 function Results({ heading, total, tiles, byRegion, bySector, nodes, fmt, busy }: {
   heading: string;
@@ -123,21 +122,22 @@ export function ShockView({ id, onTitle }: { id: string; onTitle: (title: string
 
   const nodeQ = useVcQuery(() => api.valueChainNode(id, { order: "total", excludeOwn: false }), [id]);
   const node = nodeQ.data;
-  // Each result is kept with the model it was fetched for, so a switch never draws old numbers under a new heading.
-  const shockQ = useVcQuery<{ model: Model; q?: VcQuantityShock; p?: VcPriceShock } | null>(
+  // Each result is kept with the request it answers, so a change never leaves the last scenario's numbers on screen.
+  const requestKey = JSON.stringify([node?.node_id, model, target, coverage, change, carbon]);
+  const shockQ = useVcQuery<{ key: string; model: Model; q?: VcQuantityShock; p?: VcPriceShock } | null>(
     () =>
       !node || !valid
         ? null
         : model === "price"
-          ? priceRequest(node, coverage, carbon).then((p) => ({ model, p }))
-          : quantityRequest(node, model, target, change).then((q) => ({ model, q })),
-    [node?.node_id, model, target, coverage, change, carbon, valid],
+          ? priceRequest(node, coverage, carbon).then((p) => ({ key: requestKey, model, p }))
+          : quantityRequest(node, model, target, change).then((q) => ({ key: requestKey, model, q })),
+    [requestKey, valid],
   );
   useEffect(() => {
     if (node) onTitle(`${node.sector} · ${node.region_label}`);
   }, [node, onTitle]);
 
-  const r = valid && shockQ.data?.model === model ? shockQ.data : null;
+  const r = valid && shockQ.data?.key === requestKey ? shockQ.data : null;
   const error = nodeQ.error ?? shockQ.error;
   const caveat = r?.q?.model_caveat ?? r?.p?.model_caveat;
   return (

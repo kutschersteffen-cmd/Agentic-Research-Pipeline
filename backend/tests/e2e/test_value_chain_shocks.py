@@ -71,9 +71,15 @@ def _last_query(page):
     return parse_qs(urlparse(page.shock_requests[-1]).query)
 
 
+def _click(page, name):
+    """Click a button and wait for the shock request it sends, so _last_query reads that request."""
+    with page.expect_request("**/api/value-chain/shock/*"):
+        page.get_by_role("button", name=name).click()
+
+
 def test_shocks_view(page):  # AC-26 to AC-30e, on stubbed numbers
     page.goto(URL + "/#/valueChain/CN.2/shock")
-    page.get_by_text("Δ output −30.2\u00a0M\u00a0EUR").wait_for()
+    page.get_by_text("Δ output −30.2 M EUR").wait_for()
     assert page.get_by_role("button", name="Demand").get_attribute("aria-pressed") == "true"
     assert page.get_by_role("button", name="This node").get_attribute("aria-pressed") == "true"
     assert page.get_by_label("Change (%)").input_value() == "-10"
@@ -85,25 +91,22 @@ def test_shocks_view(page):  # AC-26 to AC-30e, on stubbed numbers
     assert page.get_by_text("−45.8 t CO₂e").is_visible()
     assert page.get_by_text(CAVEAT).is_visible()
 
-    page.get_by_role("button", name="All of CN").click()
-    page.wait_for_load_state("networkidle")
+    _click(page, "All of CN")
     assert _last_query(page)["region"] == ["CN"] and "node" not in _last_query(page)
 
-    page.get_by_role("button", name="Supply dependency").click()
+    _click(page, "Supply dependency")
     page.get_by_role("heading", name="Dependency indicator: output change").wait_for()
     assert page.get_by_text(MODEL_CAVEATS["supply"]).is_visible()
     headings = " ".join(page.locator("h1, h2, .field-label, button").all_inner_texts())
     assert "forecast" not in headings.lower()
 
-    page.get_by_role("button", name="Carbon price").click()
+    _click(page, "Carbon price")
     page.get_by_text("this node 0.01%").wait_for()
     assert _last_query(page) == {"carbon_eur_per_t": ["100"], "top": ["6"], "focus": ["CN.2"]}
     assert page.get_by_role("region", name="By region").locator("li").count() == 6
-    page.get_by_role("button", name="EU-27").click()
-    page.wait_for_load_state("networkidle")
+    _click(page, "EU-27")
     assert len(_last_query(page)["region"]) == 27 and "GB" not in _last_query(page)["region"]
-    page.get_by_role("button", name="CN only").click()
-    page.wait_for_load_state("networkidle")
+    _click(page, "CN only")
     assert _last_query(page)["region"] == ["CN"]
     assert page.console_errors == []
 

@@ -145,6 +145,9 @@ class ValueChain:
         self._sectors, self._sector_of = np.unique([n.sector for n in self._nodes], return_inverse=True)
         self._region_codes = np.array([n.region for n in self._nodes])
         self._sector_names = np.array([n.sector for n in self._nodes])
+        # only live nodes count: a region or sector with no live node is unknown to the shocks
+        self._live_regions = set(self._region_codes[self._live].tolist())
+        self._live_sectors = set(self._sector_names[self._live].tolist())
         # shock bases, spec value-chain-shocks Definitions: final demand and primary inputs, from A and x alone
         self._y = self._x - self._a @ self._x
         self._v = self._x * (1 - self._a.sum(axis=0))
@@ -236,18 +239,20 @@ class ValueChain:
             groups(self._regions, self._region_of), groups(self._sectors, self._sector_of),
         )
 
+    def _check_known(self, regions: Sequence[str], sectors: Sequence[str] = ()) -> None:
+        for code in regions:
+            if code not in self._live_regions:
+                raise ShockError(f"unknown region '{code}'")
+        for name in sectors:
+            if name not in self._live_sectors:
+                raise ShockError(f"unknown sector '{name}'")
+
     def _selection(self, nodes: Sequence[str], regions: Sequence[str], sectors: Sequence[str]) -> np.ndarray:
         sel = np.zeros(len(self._nodes), dtype=bool)
         for node_id in nodes:
             sel[self._k(node_id)] = True
-        for code in regions:
-            if code not in self._region_codes:
-                raise ShockError(f"unknown region '{code}'")
-            sel |= self._region_codes == code
-        for name in sectors:
-            if name not in self._sector_names:
-                raise ShockError(f"unknown sector '{name}'")
-            sel |= self._sector_names == name
+        self._check_known(regions, sectors)
+        sel |= np.isin(self._region_codes, list(regions)) | np.isin(self._sector_names, list(sectors))
         return sel & self._live
 
     def _by_id(self, mask: np.ndarray) -> np.ndarray:
@@ -290,7 +295,9 @@ class ValueChain:
             raise ShockError("select at least one node, region or sector")
         sel = self._selection(nodes, regions, sectors)
         base = self._y if model == "demand" else self._v
-        shocked, skipped = sel & (base > 0), sel & (base <= 0)
+        # relative tolerance: a true zero base derived from x − A·x can come out as ±1e-13
+        positive = base > 1e-9 * self._x
+        shocked, skipped = sel & positive, sel & ~positive
         if not shocked.any():
             raise ShockError("no selected node has a positive base")
         if unit == "pct":
@@ -319,12 +326,8 @@ class ValueChain:
     ) -> PriceShock:
         """Leontief carbon cost-push: dp' = c'·L, c = τ · GHG intensity / 10⁶ in covered regions."""
         f = self._k(focus) if focus is not None else None
-        if not 0 <= carbon_eur_per_t <= 10_000:
-            raise ShockError("carbon_eur_per_t must be between 0 and 10000")
-        for code in regions:
-            if code not in self._region_codes:
-                raise ShockError(f"unknown region '{code}'")
-        covered = sorted(set(regions) if regions else set(self._region_codes.tolist()))
+        self._check_known(regions)
+        covered = sorted(set(regions) if regions else self._live_regions)
         cov = np.isin(self._region_codes, covered) & self._live
         ghg = self._intensity["ghg"]
         c = np.where(cov, carbon_eur_per_t * ghg / 1e6, 0.0)
