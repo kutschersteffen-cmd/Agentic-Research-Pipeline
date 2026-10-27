@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
@@ -127,10 +128,14 @@ async def blind_verify(
     verifier_llm: LLMClient,
     planned_periods: list[str] | None = None,
     fiscal_year_end: str | None = None,
+    on_draft: Callable[[ExtractionDraft], None] | None = None,
 ) -> tuple[VerifierOutput, LLMUsage]:
     """E38: the verifier client extracts the field again without seeing the
-    draft; the disagreement is decided here in code, not by the model."""
+    draft; the disagreement is decided here in code, not by the model.
+    `on_draft` receives the blind draft (the walkthrough trace keeps it)."""
     blind, usage = await extract_field(company_name, field, evidence, verifier_llm, planned_periods)
+    if on_draft:
+        on_draft(blind)
     kind, pv = compare(draft, blind, field, planned_periods=planned_periods, fiscal_year_end=fiscal_year_end)
     agrees = kind == DisagreementType.NONE
     # A period mismatch has no blind value for the draft's period to offer.

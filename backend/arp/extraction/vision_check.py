@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import bisect
 import math
+from collections.abc import Callable
 
 from pydantic import BaseModel, Field
 
@@ -57,8 +58,10 @@ async def check_on_page(
     passages: dict[str, DocumentChunk],
     documents_by_id: dict[str, SourceDocument],
     llm: LLMClient,
+    on_reading: Callable[[PageReading], None] | None = None,
 ) -> tuple[ExtractedField, LLMUsage | None]:
-    """Returns `ef` unchanged (and no usage) when there is no PDF page to look at."""
+    """Returns `ef` unchanged (and no usage) when there is no PDF page to look at.
+    `on_reading` receives the model's reading (the walkthrough trace keeps it)."""
     located = cited_page(ef, passages, documents_by_id)
     if located is None:
         return ef, None
@@ -72,6 +75,8 @@ async def check_on_page(
         f"Read this figure off page {page} of '{doc.title}'."
     )
     reading, usage = await llm.complete_structured(system=_SYSTEM, prompt=prompt, output_model=PageReading, images=[image])
+    if on_reading:
+        on_reading(reading)
     if reading.found and same_figure(reading.figure_text, ef.raw_value_text):
         note = f"Page {page} image shows {reading.figure_text!r}, matching the value (vision check)."
         reasons = ef.review_reasons if field.high_risk else [r for r in ef.review_reasons if r != ReasonCode.NOT_GROUNDED]
