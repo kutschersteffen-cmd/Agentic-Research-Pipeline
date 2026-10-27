@@ -18,5 +18,17 @@ export const homeShare = (share: number | null, regionLabel: string): string =>
 
 export const searchable = (q: string): boolean => q.trim() !== "";
 
-export const nodeHash = (id: string, view?: "tree" | "footprint"): string =>
+export const nodeHash = (id: string, view?: "tree" | "footprint" | "shock"): string =>
   `#/valueChain/${encodeURIComponent(id)}${view ? `/${view}` : ""}`;
+
+// Shocks view (spec value-chain-shocks My call 6): M EUR with one decimal and its sign, price changes with two decimals.
+const MINUS = "\u2212";
+export const signed = (v: number, digits = 1): string => {
+  const t = Math.abs(v).toFixed(digits);
+  return Number(t) === 0 ? t : `${v < 0 ? MINUS : "+"}${t}`;
+};
+
+export const pricePct = (v: number): string => `${v < 0 && Number(Math.abs(v).toFixed(2)) !== 0 ? MINUS : ""}${Math.abs(v).toFixed(2)}%`;
+
+/** EU-27 coverage preset of the Carbon price model (GB excluded). */
+export const EU27 = "AT BE BG CY CZ DE DK EE ES FI FR GR HR HU IE IT LT LU LV MT NL PL PT RO SE SI SK".split(" ");

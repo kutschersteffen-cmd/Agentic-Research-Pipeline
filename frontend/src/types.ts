@@ -2868,3 +2868,5 @@ export type VcNode = Served<S["ValueChainNode"]>;
 export type VcTreeNode = Served<S["ValueChainTreeNode"]>;
 export type VcTree = Served<S["ValueChainTree"]>;
 export type VcFootprint = Served<S["ValueChainFootprint"]>;
+export type VcQuantityShock = Served<S["ValueChainQuantityShock"]>;
+export type VcPriceShock = Served<S["ValueChainPriceShock"]>;

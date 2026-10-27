@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cents, footprintTotal, homeShare, linkText, nodeHash, percent, searchable, tile } from "../src/lib/valueChain.ts";
+import { cents, EU27, footprintTotal, homeShare, linkText, nodeHash, percent, pricePct, searchable, signed, tile } from "../src/lib/valueChain.ts";
 
 test("flows in cents", () => {
   assert.equal(cents(0.0738), "7.4¢"); assert.equal(cents(0.0079798, 2), "0.80¢");
@@ -17,4 +17,10 @@ test("search only with a non-space character; hashes encode ids", () => {
   assert.equal(searchable(" "), false); assert.equal(searchable("wa"), true);
   assert.equal(nodeHash("CN.95"), "#/valueChain/CN.95"); assert.equal(nodeHash("CN.95", "tree"), "#/valueChain/CN.95/tree");
   assert.equal(nodeHash("a/b c", "footprint"), "#/valueChain/a%2Fb%20c/footprint");
+});
+test("shock numbers: signed M EUR, two-decimal price percents, EU-27 preset", () => {
+  assert.equal(signed(-30.1819), "−30.2"); assert.equal(signed(12.34), "+12.3"); assert.equal(signed(-0.04), "0.0");
+  assert.equal(pricePct(0.0564), "0.06%"); assert.equal(pricePct(0), "0.00%"); assert.equal(pricePct(-0.125), "−0.13%");
+  assert.equal(EU27.length, 27); assert.ok(!EU27.includes("GB"));
+  assert.equal(nodeHash("CN.95", "shock"), "#/valueChain/CN.95/shock");
 });

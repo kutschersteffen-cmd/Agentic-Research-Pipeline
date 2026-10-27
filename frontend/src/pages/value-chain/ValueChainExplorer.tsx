@@ -5,6 +5,7 @@ import { nodeHash, searchable } from "../../lib/valueChain";
 import type { VcNodeRef } from "../../types";
 import { FootprintView } from "./FootprintView";
 import { NodeView } from "./NodeView";
+import { ShockView } from "./ShockView";
 import { TreeView } from "./TreeView";
 import { useVcQuery } from "./useVcQuery";
 
@@ -12,6 +13,7 @@ const VIEWS = [
   [undefined, "Node page"],
   ["tree", "Upstream tree"],
   ["footprint", "Footprint"],
+  ["shock", "Shocks"],
 ] as const;
 
 /** Search box over sectors and regions; each hit links to its node page. */
@@ -68,11 +70,11 @@ function Picker({ onError }: { onError: (message: string | null) => void }) {
   );
 }
 
-/** `#/valueChain[/<node id>[/tree|/footprint]]`: picker on top, then the chosen view.
+/** `#/valueChain[/<node id>[/tree|/footprint|/shock]]`: picker on top, then the chosen view.
  * App keys this on the route, so a new node or view mounts fresh: no title or data carries over. */
 export function ValueChainExplorer({ params }: { params: string[] }) {
   const [id, sub] = params;
-  const view = sub === "tree" || sub === "footprint" ? sub : undefined;
+  const view = sub === "tree" || sub === "footprint" || sub === "shock" ? sub : undefined;
   const [searchError, setSearchError] = useState<string | null>(null);
   // A node view names its node here once loaded; the id stands in until then.
   const [title, setTitle] = useState<string | null>(null);
@@ -118,6 +120,8 @@ export function ValueChainExplorer({ params }: { params: string[] }) {
             <TreeView id={id} onTitle={setTitle} />
           ) : view === "footprint" ? (
             <FootprintView id={id} onTitle={setTitle} />
+          ) : view === "shock" ? (
+            <ShockView id={id} onTitle={setTitle} />
           ) : (
             <NodeView id={id} onTitle={setTitle} />
           )}

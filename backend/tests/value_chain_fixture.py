@@ -35,9 +35,9 @@ def _spread(values) -> list:
     return [by_key.get(k, 0) for k in KEYS]
 
 
-def write_fixture_f(directory: Path) -> Path:
+def write_fixture_f(directory: Path, z: list[list[int]] = Z) -> Path:
     path = Path(directory) / "IOT_2022_ixi.zip"
-    z_rows = {k: dict(zip(LIVE, row, strict=True)) for k, row in zip(LIVE, Z, strict=True)}
+    z_rows = {k: dict(zip(LIVE, row, strict=True)) for k, row in zip(LIVE, z, strict=True)}
     zt = _line(["region", "", *(r for r, _ in KEYS)]) + _line(["sector", "", *(s for _, s in KEYS)])
     zt += _line(["region", "sector", *[""] * len(KEYS)])
     zt += "".join(_line([*k, *(z_rows.get(k, {}).get(c, 0) for c in KEYS)]) for k in KEYS)
