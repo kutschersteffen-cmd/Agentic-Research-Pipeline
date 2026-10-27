@@ -25,6 +25,7 @@ from arp.db.fields import SchemaRegistry
 from arp.extraction import extractor_agent, verifier_agent
 from arp.extraction.aggregator import build_extracted_fields
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue
+from arp.extraction.field_graph import field_evidence
 from arp.extraction.pipeline import (
     ExtractionRecordResult,
     create_extraction_run,
@@ -53,6 +54,7 @@ from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.locks import KeyedLock
 from arp.storage.run_store import RunStore
+from arp.walkthrough import trace
 
 logger = logging.getLogger(__name__)
 KNOWN = "known.jsonl"
@@ -108,7 +110,7 @@ def _prompt_version(system: str) -> str:
 
 async def _record(
     company: CompanyRef, case: GoldenSetCase, value, schema: DataPointSchema, spec: FieldDefinition,
-    settings: Settings, rng: random.Random,
+    settings: Settings, rng: random.Random, trace_sink: dict | None = None,
 ) -> ExtractionRecord:
     """One company's record, built by the real aggregate -> checks -> routing steps from a fixed draft."""
     text = case.document_text
@@ -142,6 +144,16 @@ async def _record(
         verifier_prompt_version=_prompt_version((extractor_agent if spec.high_risk else verifier_agent)._SYSTEM_PROMPT),
         schema_version=f"{schema.schema_id}:v{schema.version}", field_version=spec.version,
     )
+    if trace_sink is not None:  # built as a real run's is: the same evidence selection, the same provenance
+        usage_e = LLMUsage(model=provenance.extractor_model, prompt_version=provenance.extractor_prompt_version)
+        usage_v = LLMUsage(model=provenance.verifier_model, prompt_version=provenance.verifier_prompt_version)
+        trace_sink.setdefault("fields", {})[spec.field_id] = trace.field_entry(
+            spec.field_id, passages=[trace.passage(c) for c in field_evidence(spec, [doc], settings)],
+            extractor=trace.call(usage_e, draft),
+            verifier=trace.verifier_call(
+                usage_v, draft if spec.high_risk else verifier, blind=spec.high_risk,
+                verdict=verifier if spec.high_risk else None),
+        )
     h = input_hash(spec, route_documents(spec, [doc]), planned, input_settings(settings))
     fields = [f.model_copy(update={"provenance": provenance, "input_hash": h}) for f in fields]
     key, scheme = issuer_key(company, IdentifierMapStore(settings.identifier_map_path))
@@ -196,7 +208,9 @@ def seed_known_answers(run_store: RunStore, settings: Settings, *, count: int, s
     async def _worker(company: CompanyRef) -> ExtractionRecordResult:
         case, perturbed = planned[company.company_id]
         value = _perturb(case.expected_value) if perturbed else case.expected_value
-        record = await _record(company, case, value, schema, specs[case.field.name], settings, rng)
+        traces: dict = {}
+        record = await _record(company, case, value, schema, specs[case.field.name], settings, rng, trace_sink=traces)
+        trace.write_trace(run_store, run_id, company.company_id, traces)
         record.run_id = run_id
         known.extend({"item_key": field_item_key(record.issuer_key, f.field_id, period_key(f)), "run_id": run_id,
                       "case_id": case.case_id, "expected_value": case.expected_value, "perturbed": perturbed}
