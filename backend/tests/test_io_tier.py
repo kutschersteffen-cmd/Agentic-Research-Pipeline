@@ -2,6 +2,7 @@
 
 import asyncio
 import csv
+import re
 
 import numpy as np
 import pytest
@@ -223,7 +224,9 @@ def test_retired_commands(args):
 ])
 def test_retired_options(args, pg):
     result = runner.invoke(app, args)
-    assert result.exit_code == 2 and f"No such option: {args[-1]}" in result.stderr
+    # CI forces colour: Rich wraps the message in ANSI codes and a box
+    stderr = " ".join(re.sub(r"[│╭╮╰╯─]", " ", re.sub(r"\x1b\[[0-9;]*m", "", result.stderr)).split())
+    assert result.exit_code == 2 and f"No such option: {args[-1]}" in stderr
 
 
 def test_classify_sectors_without_model(tmp_path, monkeypatch, pg):
