@@ -120,7 +120,7 @@ function LibraryView({
   const [activities, setActivities] = useState<ActivityDefinition[]>([]);
   const [notes, setNotes] = useState("Manual edit.");
   const [confirmingRatify, setConfirmingRatify] = useState<Taxonomy | null>(null);
-  const [useSampleIcio, setUseSampleIcio] = useState(false);
+  const [useSampleIo, setUseSampleIo] = useState(false);
   const [useSampleStandards, setUseSampleStandards] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -164,7 +164,7 @@ function LibraryView({
     try {
       await api.mapStandards(t.taxonomy_id, {
         version: t.version,
-        use_sample_icio: useSampleIcio,
+        use_sample_io: useSampleIo,
         use_sample_standards: useSampleStandards,
       });
       onChange();
@@ -245,8 +245,8 @@ function LibraryView({
                       <TaxonomyVersions taxonomy={t} />
                       <div className="toolbar">
                         <label className="checkbox-label">
-                          <input type="checkbox" checked={useSampleIcio} onChange={(e) => setUseSampleIcio(e.target.checked)} />
-                          sample ICIO (for ISIC classification)
+                          <input type="checkbox" checked={useSampleIo} onChange={(e) => setUseSampleIo(e.target.checked)} />
+                          sample input-output model (for ISIC classification)
                         </label>
                         <label className="checkbox-label">
                           <input type="checkbox" checked={useSampleStandards} onChange={(e) => setUseSampleStandards(e.target.checked)} />
@@ -291,7 +291,7 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
   const [method, setMethod] = useState<DerivationMethod>("llm_draft");
   const [name, setName] = useState("Electrification");
   const [description, setDescription] = useState("");
-  const [useSampleIcio, setUseSampleIcio] = useState(false);
+  const [useSampleIo, setUseSampleIo] = useState(false);
   const [mineNews, setMineNews] = useState(true);
   const [sampleSize, setSampleSize] = useState(25);
   const [universePath, setUniversePath] = useState<string | null>(null);
@@ -350,7 +350,7 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
         name,
         description,
         derivation_method: method,
-        use_sample_icio: useSampleIcio,
+        use_sample_io: useSampleIo,
         authority_urls: authorityUrls,
         universe_path: universePath,
         sample_size: sampleSize,
@@ -412,8 +412,8 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
 
         {method === "industry_anchored" && (
           <label className="checkbox-label">
-            <input type="checkbox" checked={useSampleIcio} onChange={(e) => setUseSampleIcio(e.target.checked)} />
-            Anchor against the bundled sample ISIC/OECD-ICIO reference list
+            <input type="checkbox" checked={useSampleIo} onChange={(e) => setUseSampleIo(e.target.checked)} />
+            Anchor against the bundled sample input-output industry list
           </label>
         )}
 

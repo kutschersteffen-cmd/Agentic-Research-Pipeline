@@ -260,9 +260,9 @@ now-cast years are estimates · capital goods not included in flows` (C below).
 | AC-38 | the R&D Lab page `#/rdLab` | read the Screens list | it holds `Value Chain Explorer` linking to `#/valueChain` | evaluator |
 
 Must not change:
-- AC-39: on the real `IOT_2022_ixi.zip`, the sha256 of every file `arp io import-exiobase --out <d>`
+- ~~AC-39: on the real `IOT_2022_ixi.zip`, the sha256 of every file `arp io import-exiobase --out <d>`
   writes equals that of the same command run from the PR's merge-base with `main` (the importer
-  writes no run-time fields: two runs on 2026-10-24 gave identical files). Checked by: evaluator.
-- AC-40: `git diff <merge-base> -- backend/tests/test_io_import.py backend/tests/test_leontief.py backend/tests/test_icio_loader.py backend/tests/test_exiobase_loader.py backend/tests/test_factory.py backend/tests/test_exposure.py backend/tests/test_criticality.py`
-  is empty. Checked by: evaluator.
-- AC-41: `pytest tests/test_io_import.py tests/test_leontief.py tests/test_icio_loader.py tests/test_exiobase_loader.py tests/test_factory.py tests/test_exposure.py tests/test_criticality.py` (from `backend/`) exits 0. Checked by: unit.
+  writes no run-time fields: two runs on 2026-10-24 gave identical files). Checked by: evaluator.~~ retired by 2026-10-26-io-full-resolution-tier-design.md
+- ~~AC-40: `git diff <merge-base> -- backend/tests/test_io_import.py backend/tests/test_leontief.py backend/tests/test_icio_loader.py backend/tests/test_exiobase_loader.py backend/tests/test_factory.py backend/tests/test_exposure.py backend/tests/test_criticality.py`
+  is empty. Checked by: evaluator.~~ retired by 2026-10-26-io-full-resolution-tier-design.md
+- ~~AC-41: `pytest tests/test_io_import.py tests/test_leontief.py tests/test_icio_loader.py tests/test_exiobase_loader.py tests/test_factory.py tests/test_exposure.py tests/test_criticality.py` (from `backend/`) exits 0. Checked by: unit.~~ retired by 2026-10-26-io-full-resolution-tier-design.md

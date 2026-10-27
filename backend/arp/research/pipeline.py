@@ -118,8 +118,7 @@ def create_theme_run(
     run_store: RunStore,
     *,
     universe_path: str | None = None,
-    use_sample_icio: bool = False,
-    use_sample_exiobase: bool = False,
+    use_sample_io: bool = False,
     revenue_catalogue_path: str | None = None,
     catalogue_mapping: list[ActivityCatalogueMapping] | None = None,
     enable_rd_exposure: bool = False,
@@ -131,8 +130,8 @@ def create_theme_run(
     caller gets a run_id back immediately; execute_theme_run does the actual
     (potentially long-running) work and can be scheduled in the background.
 
-    The resume-relevant inputs (`universe_path`, `use_sample_icio`,
-    `use_sample_exiobase`, `revenue_catalogue_path`, `catalogue_mapping`,
+    The resume-relevant inputs (`universe_path`, `use_sample_io`,
+    `revenue_catalogue_path`, `catalogue_mapping`,
     `enable_rd_exposure`) are persisted alongside the manifest -- not
     needed to *start* a run, but what `resume_theme_run` reads back to
     reconstruct and re-invoke `execute_theme_run` for a run that was
@@ -145,8 +144,7 @@ def create_theme_run(
             "theme_id": theme.theme_id,
             "theme_name": theme.name,
             "universe_path": universe_path,
-            "use_sample_icio": use_sample_icio,
-            "use_sample_exiobase": use_sample_exiobase,
+            "use_sample_io": use_sample_io,
             "revenue_catalogue_path": revenue_catalogue_path,
             "enable_rd_exposure": enable_rd_exposure,
             # The saved taxonomy version the theme came from, if any: the output catalog's "used by" link.
@@ -200,11 +198,9 @@ async def resume_theme_run(
         manifest.params["extraction_schema_id"], manifest.params["extraction_schema_version"]
     )
 
-    indirect_model = resolve_indirect_exposure_model(
-        settings,
-        use_sample_icio=bool(manifest.params.get("use_sample_icio")),
-        use_sample_exiobase=bool(manifest.params.get("use_sample_exiobase")),
-    )
+    # use_sample_icio / use_sample_exiobase: runs stored before both became use_sample_io
+    use_sample = any(manifest.params.get(k) for k in ("use_sample_io", "use_sample_icio", "use_sample_exiobase"))
+    indirect_model = resolve_indirect_exposure_model(settings, use_sample=use_sample)
     revenue_resolver = None
     revenue_catalogue_path = manifest.params.get("revenue_catalogue_path")
     if revenue_catalogue_path:
@@ -300,8 +296,7 @@ async def run_thematic_universe(
     revenue_resolver: RevenueResolverContext | None = None,
     rd_resolver: RDResolverContext | None = None,
     universe_path: str | None = None,
-    use_sample_icio: bool = False,
-    use_sample_exiobase: bool = False,
+    use_sample_io: bool = False,
     revenue_catalogue_path: str | None = None,
     catalogue_mapping: list[ActivityCatalogueMapping] | None = None,
     enable_rd_exposure: bool = False,
@@ -312,7 +307,7 @@ async def run_thematic_universe(
     """Convenience wrapper (create + execute in one call) for synchronous
     callers such as the CLI, where blocking until completion is expected.
 
-    The `universe_path`/`use_sample_icio`/`use_sample_exiobase`/
+    The `universe_path`/`use_sample_io`/
     `revenue_catalogue_path`/`catalogue_mapping`/`enable_rd_exposure`
     params are passed straight through to create_theme_run purely so the
     resulting run is resumable via `resume_theme_run` later -- they don't
@@ -322,7 +317,7 @@ async def run_thematic_universe(
     """
     run_id = create_theme_run(
         theme, companies, settings, run_store,
-        universe_path=universe_path, use_sample_icio=use_sample_icio, use_sample_exiobase=use_sample_exiobase,
+        universe_path=universe_path, use_sample_io=use_sample_io,
         revenue_catalogue_path=revenue_catalogue_path, catalogue_mapping=catalogue_mapping,
         enable_rd_exposure=enable_rd_exposure, taxonomy_id=taxonomy_id, taxonomy_version=taxonomy_version,
         extraction_schema=extraction_schema,

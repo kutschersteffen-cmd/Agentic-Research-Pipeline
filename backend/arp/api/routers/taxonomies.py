@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_llm_client, get_registry, get_taxonomy_store, settings_dep
@@ -14,7 +15,7 @@ from arp.db.fields import SchemaRegistry
 from arp.discovery.site_finder import build_web_search_client
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.research.activity_generator import build_theme, build_theme_industry_anchored
-from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
+from arp.research.indirect_exposure.factory import NO_MODEL, resolve_indirect_exposure_model
 from arp.research.standards_mapping.mapper import format_standards_csv, map_theme_to_standards
 from arp.research.taxonomy_schema import build_taxonomy_schema, schema_id_for
 from arp.research.taxonomy_sources.authority import build_theme_from_authority_sources
@@ -92,8 +93,7 @@ class CreateTaxonomyRequest(BaseModel):
     derivation_method: DerivationMethod = DerivationMethod.LLM_DRAFT
 
     # industry_anchored
-    use_sample_icio: bool = False
-    use_sample_exiobase: bool = False
+    use_sample_io: bool = False
 
     # authority_source -- URLs the user selected from /discover-sources
     authority_urls: list[str] = Field(default_factory=list)
@@ -136,17 +136,11 @@ async def create_taxonomy(
     model = None
     if method == DerivationMethod.INDUSTRY_ANCHORED:
         try:
-            model = resolve_indirect_exposure_model(
-                settings, use_sample_icio=req.use_sample_icio, use_sample_exiobase=req.use_sample_exiobase
-            )
+            model = await run_in_threadpool(resolve_indirect_exposure_model, settings, use_sample=req.use_sample_io)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from exc
         if model is None:
-            raise HTTPException(
-                400,
-                "No input-output data available: configure ARP_ICIO_MATRIX_PATH/ARP_ICIO_INDUSTRIES_PATH or "
-                "ARP_EXIOBASE_FLOWS_PATH/ARP_EXIOBASE_INDUSTRIES_PATH, or set use_sample_icio/use_sample_exiobase.",
-            )
+            raise HTTPException(400, f"{NO_MODEL}, or set use_sample_io.")
     elif method == DerivationMethod.AUTHORITY_SOURCE and not req.authority_urls:
         raise HTTPException(400, "Provide authority_urls (see POST /api/taxonomies/discover-sources).")
     elif method == DerivationMethod.ETF_INDEX_HOLDINGS and not req.holdings_path:
@@ -166,7 +160,7 @@ async def create_taxonomy(
 
     elif method == DerivationMethod.INDUSTRY_ANCHORED:
         theme, _usage = await build_theme_industry_anchored(req.name, req.description, model.industry_reference_list(), llm)
-        notes = f"Anchored against {model.edition_label} ({len(model.codes)} industries)."
+        notes = f"Anchored against {model.edition_label} ({len(model.industry_reference_list())} industries)."
 
     elif method == DerivationMethod.AUTHORITY_SOURCE:
         try:
@@ -348,8 +342,7 @@ async def merge_taxonomies_endpoint(req: MergeRequest, store: TaxonomyStore = De
 
 class MapStandardsRequest(BaseModel):
     version: int | None = None
-    use_sample_icio: bool = False
-    use_sample_exiobase: bool = False
+    use_sample_io: bool = False
     use_sample_standards: bool = False
 
 
@@ -372,8 +365,7 @@ async def map_standards(
     try:
         updated_theme, _usage = await map_theme_to_standards(
             taxonomy.theme, settings, llm,
-            use_sample_icio=req.use_sample_icio,
-            use_sample_exiobase=req.use_sample_exiobase,
+            use_sample_io=req.use_sample_io,
             use_sample_standards=req.use_sample_standards,
         )
     except ValueError as exc:
