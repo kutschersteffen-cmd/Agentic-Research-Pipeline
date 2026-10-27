@@ -19,7 +19,7 @@ Third of four value-chain specs: (1) indirect-exposure tier on the full build
 (`2026-10-26-value-chain-shocks-design.md`, "spec 2"), (3) this, (4) Neo4j summary graph and path finder.
 Builds on the explorer spec (`2026-10-24-value-chain-explorer-design.md`): its build, definitions
 (`A`, `L`, intensities, node ids, labels, ties, caveat line) and anti-goals hold here unchanged. Needs spec 1
-merged: it reuses spec 1's code list, sector map, country → region file and company node set.
+implemented on `main`: it reuses spec 1's code list, sector map, country → region file and company node set.
 
 ## Intent
 
@@ -77,7 +77,8 @@ weights those nodes by holdings.
 
 Arithmetic, node ids, labels, ties and live nodes (`x > 0`) as in the explorer spec. `codes`, the
 sector map (ICIO code → EXIOBASE sectors) and the region of a country (`country_exiobase_region.csv`,
-"region `R`, or none") as in spec 1.
+"region `R`, or none") as in spec 1: `R` is none when the company has no country, the country is not in
+the file, or its region has no live node in the build.
 
 - **Code node set** of ICIO code `c` in region `R`: the live nodes whose sector `c` covers, in `R` (in every
   region when `R` is none), each weighted by `x / Σ x` over the set. This is spec 1's company set `K`
@@ -144,26 +145,31 @@ sector map (ICIO code → EXIOBASE sectors) and the region of a country (`countr
    role, as every write in this app does.
 4. **CSV import.** `arp io links import <csv>` takes header `company_id,icio_code,share`, with one
    split per company built from its rows. Each company is validated as in 2 and saved as a `split`
-   rule. stdout: `<n> companies linked, <m> rejected`. For each rejected company, stderr gets one line
-   `<company_id>: <detail>`, with the detail exactly as the API's 422. Exit 0 when none is rejected,
+   rule. stdout: `linked: <n>, rejected: <m>`. For each rejected company, in the order it first appears in the
+   CSV, stderr gets one line `<company_id>: <detail>`, with the detail exactly as the API's 422. Exit 0 when none is rejected,
    else 1; valid companies are saved either way. A `company_id` not in the store is rejected with
    `unknown company '<id>'`.
-5. **Overlay** `GET /api/value-chain/portfolio/{portfolio_id}` (Appendix B) on the snapshot as of `as_of`
-   (default: the portfolio's latest snapshot date).
+5. **Overlay** `GET /api/value-chain/portfolio/{portfolio_id}` (Appendix B) on the portfolio's latest
+   snapshot dated on or before `as_of` (default: its latest snapshot), as the store's `load_holdings_as_of`
+   reads them. The response's `as_of` is that snapshot's date, and data points resolve as of it.
 6. **LLM classification.** `arp io links classify --portfolio <id> [--as-of <date>]` runs
    `resolve_company_isic` (spec 1) on every company held at that date whose resolution is `none`. It
    stores each code it gets as an `llm` rule. stdout: `<n> classified, <m> left unlinked`. Its function
    form is `await classify_unlinked(store, portfolio_id, as_of, model, llm) -> (classified, unlinked)`
    in `arp.research.value_chain.links`.
 7. **Revenue field.** `climate_revenue_eur_m` ("Total revenue", NUMBER, unit `EUR M`, `required=False`)
-   joins the fields of `sch_climate_core_v1`, next to `climate_evic_eur_m`. It resolves through the same
+   joins the fields of `sch_climate_core_v1`, directly after `climate_evic_eur_m`; the ESG template's
+   other columns keep their order, and ESG files without the column import as before. It resolves through the same
    data-point cascade.
-8. **Shocks lens.** Spec 2's `shock/quantity` and `shock/price` take optional `portfolio` and `as_of`
+8. **Shocks lens** (needs spec 2's endpoints on `main`; if they are not there when the rest is done, Scope 8,
+   the Shocks-view picker and rows AC-28 to AC-31b, AC-44 and AC-47 ship as a second PR, using the steward
+   skill's `Rows:` line). Spec 2's `shock/quantity` and `shock/price` take optional `portfolio` and `as_of`
    (Appendix B). Without `portfolio`, the response's `portfolio` field is null and nothing else changes.
 9. **Screen** (Appendix C): a fifth view, "Portfolio", with the link editor; a portfolio picker on the
    Shocks view.
 
 ## My calls (owner to confirm with the acceptance table)
+
 
 1. **Precedence: analyst rules, then the company's own code, then the LLM.** An analyst override always
    wins. The company's stored `isic_code` beats an earlier LLM guess, so fixing the code on the company
@@ -187,6 +193,8 @@ sector map (ICIO code → EXIOBASE sectors) and the region of a country (`countr
    one decimal (`15.4¢`), as in the explorer; footprint per M EUR with one decimal and unit (`2.2 t CO₂e
    per M EUR invested`); the lens as percent with two decimals (`−8.23%`). The API returns unrounded
    values.
+8. **`as_of` means on or before**, as everywhere else in the portfolio store, so a month-end date finds
+   the last snapshot before it.
 
 ## Constraints
 
@@ -226,6 +234,8 @@ Not built: 503 as in the explorer. Every 200 carries `edition` and `caveat`.
   - `shares must sum to 1`
   - `unknown code '<c>'`
   - `unknown node '<region> · <sector>'`
+
+  For an activity, `split is for companies only` is checked before all of these.
 - `DELETE /links/company/{company_id}` → 204. Deleting when no rule exists is also 204.
 - `GET|PUT|DELETE /links/activity/{taxonomy_id}/{activity_id}`: the same, with `kind` `nodes` only
   (`split` → 422 `split is for companies only`) and `region` always null. Unknown taxonomy or
@@ -245,16 +255,18 @@ Not built: 503 as in the explorer. Every 200 carries `edition` and `caveat`.
   - `name` is the security name.
   - `top` (1–20) cuts `nodes`, `upstream_nodes` and the `by_*` lists; holdings are never cut.
   - `indicator` and `unit` work as in the explorer footprint.
-  - `taxonomy` and `activity` are given together or not at all; only one of them → 422.
+  - `taxonomy` and `activity` are given together or not at all; only one of them → 422 `taxonomy and
+    activity go together`.
+  - `top` outside 1–20 or an unknown `indicator` → 422.
 
   Errors:
   - unknown portfolio: 404 `unknown portfolio '<id>'`;
-  - no snapshot on `as_of`: 404 `no holdings for '<id>' on <as_of>`;
+  - no snapshot on or before `as_of`: 404 `no holdings for '<id>' on or before <as_of>`;
   - unknown activity: 404 as above.
 - Spec 2's `GET /shock/quantity` and `GET /shock/price` take `portfolio` and `as_of` (same defaults and
   404s as the overlay). They add `portfolio: {portfolio_id, as_of, linked_weight, change_pct}` (quantity)
   or `{portfolio_id, as_of, linked_weight, dp_pct}` (price), and `portfolio: null` without the
-  parameter. `as_of` without `portfolio` → 422.
+  parameter. `as_of` without `portfolio` → 422 `as_of needs portfolio`.
 
 ## Appendix C: screen
 
@@ -266,7 +278,7 @@ Not built: 503 as in the explorer. Every 200 carries `edition` and `caveat`.
   - a footprint tile `<per> <unit> per M EUR invested` with the CO₂e/Energy/Jobs switch (CO₂e first),
     or `—` when null;
   - bars, 6 each: direct region mix, upstream by region, upstream by sector;
-  - the holdings table: name, weight, link source, top node, `Edit link`;
+  - the holdings table: name, weight, link source, top node as `<region_label> · <sector> <weight>%`, `Edit link`;
   - an `Activity` picker (taxonomy, then activity), which adds the line `<activity name>: <direct>% of
     NAV directly · <upstream>% of upstream` and its own `Edit link`.
 - **Link editor** (panel opened by `Edit link`):
@@ -275,7 +287,8 @@ Not built: 503 as in the explorer. Every 200 carries `edition` and `caveat`.
   - node rows: the explorer's search picker and a share in %;
   - `Save` sends PUT and `Reset to default` sends DELETE; a 422 `detail` shows under the rows;
   - after saving, the overlay reloads;
-  - the editor shows the current source and any `unresolved` parts as `Not in this edition: <part>`.
+  - the editor shows the current source and each `unresolved` part as `Not in this edition: <icio_code>
+    <share>%` or `Not in this edition: <region> · <sector> <share>%` (share with one decimal).
 - **Shocks view**: a `Portfolio` picker (default none). When one is chosen, the results add `Portfolio
   output change <change>%` (quantity models) or `Portfolio price change <dp>%` (price).
 - The caveat line at the foot, as on every explorer view.
@@ -293,7 +306,7 @@ flow, output and satellite value moved with its sector. So V's `WA.1` is V′'s 
 
 **Fixture V−WA**: V without region `WA` (its outputs, flows, final demand and satellite values removed).
 
-**Store S** (portfolio store, either backend):
+**Store S** (the JSON portfolio store unless a row says Postgres):
 - companies, as `CompanyRef`:
   - `cm`: country `CN`, `isic_code` `C27`;
   - `sx`: country `CN`, `isic_code` `C27`;
@@ -301,8 +314,8 @@ flow, output and satellite value moved with its sector. So V's `WA.1` is V′'s 
   - `us`: country `US`, `isic_code` `C27`;
   - `dz`: country `DE`, no code;
 - securities `s_cm`, `s_sx`, `s_nx` with the company of the same suffix, and `s_cash` with no company;
-- portfolio `P`, one snapshot on `2026-09-30` with `market_value_eur`: `s_cm` 400,000, `s_sx` 300,000,
-  `s_nx` 200,000, `s_cash` 100,000;
+- portfolio `P`, a snapshot on `2026-09-30` with `market_value_eur`: `s_cm` 400,000, `s_sx` 300,000,
+  `s_nx` 200,000, `s_cash` 100,000; and an older snapshot on `2026-06-30`: `s_cm` 1,000,000 only;
 - observations dated `2026-09-01`, source `internal_api`: `cm` evic 100 and revenue 50; `sx` evic 60
   and revenue 30; none for `nx`;
 - taxonomy `T` with activity `a1` (name `Copper and nickel mining`, `core_isic_codes` `["B07"]`).
@@ -314,7 +327,8 @@ flow, output and satellite value moved with its sector. So V's `WA.1` is V′'s 
   "share": 1}]}`.
 
 `O` is `GET /api/value-chain/portfolio/P`. Numbers are compared rounded to 4 decimals. Requests are made
-as an analyst unless a row says otherwise.
+as an analyst unless a row says otherwise. "Stub `llm`" is spec 1's lookup stub (records calls),
+returning the `isic_code` the row names.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
@@ -325,16 +339,19 @@ as an analyst unless a row says otherwise.
 | AC-5 | V built, S | `GET …/links/company/dz` | 200; `source` `none`; `nodes` `[]` | holdout |
 | AC-6 | V built, S | `PUT …/links/company/dz` `{"kind":"split","parts":[{"icio_code":"A01","share":0.4},{"icio_code":"C27","share":0.6}]}` | 200; `nodes` exactly `[{DE.4, 1}]`; `unresolved` `[{"icio_code":"A01","share":0.4}]` | holdout |
 | AC-7 | V built, S | `PUT …/links/company/dz` with split parts B07 0.5 and `D_GEN_REN` 0.5 | `nodes` in order: DE.1 0.5, DE.3 0.5 (DE.2 has no output) | holdout |
-| AC-8 | V built, S | `PUT …/links/company/dz`, in turn, with: 0 parts; parts C27 0.5 twice; C27 share 0 and B07 share 1; C27 0.5 and B07 0.4; `ZZ` 1; kind `nodes` with region `DE`, sector `<Nickel>` (DE.2 has no output), share 1 | 422 each, `detail` in turn: `1 to 20 parts`, `duplicate part`, `share must be > 0`, `shares must sum to 1`, `unknown code 'ZZ'`, `unknown node 'DE · Mining of nickel ores and concentrates'` | holdout |
-| AC-9 | V built, S linked, as a viewer | `PUT …/links/company/cm` with a valid split; then `GET …/links/company/cm` | PUT 403; GET 200 | holdout |
+| AC-8 | V built, S | `PUT …/links/company/dz` with kind `split`, in turn: 0 parts; parts C27 0.5 twice; C27 share 0 and B07 share 1; C27 0.5 and B07 0.4; `ZZ` 1; kind `nodes` with region `DE`, sector `<Nickel>` (DE.2 has no output), share 1 | 422 each, `detail` in turn: `1 to 20 parts`, `duplicate part`, `share must be > 0`, `shares must sum to 1`, `unknown code 'ZZ'`, `unknown node 'DE · Mining of nickel ores and concentrates'` | holdout |
+| AC-9 | V built, S linked, as a viewer | `PUT …/links/company/cm` with split C27 1 | 403 | holdout |
+| AC-9b | after AC-9 | `GET …/links/company/cm` as a viewer | 200; `source` `code`; `rule` null | holdout |
 | AC-10 | V built, S linked | `DELETE …/links/company/sx`; then GET it | 204; then `source` `code`, `nodes` exactly `[{CN.4, 1}]`, `rule` null | holdout |
 | AC-11 | V built, S linked | `GET …/links/company/zz` | 404 `unknown company 'zz'` | holdout |
 | AC-12 | S linked, then V′ built in place of V | `GET …/links/company/nx` | `nodes` exactly `[{WA.2, 1}]` with `sector` `<Copper>` | holdout |
 | AC-13 | S linked, then Fixture V−WA built in place of V | `GET …/links/company/nx` | 200; `nodes` `[]`; `unresolved` `[{"region":"WA","sector":"<Copper>","share":1}]`; `source` `nodes` | holdout |
 | AC-14 | V built, S | `GET …/links/activity/T/a1` | `source` `code`; `region` null; `nodes` in order: CN.1 0.3704, WA.1 0.2222, DE.1 0.1852, CN.2 0.1481, WA.2 0.0741 | holdout |
-| AC-15 | V built, S | `PUT …/links/activity/T/a1` `{"kind":"nodes","parts":[{"region":"CN","sector":"<Copper>","share":1}]}`; then `PUT` with kind `split` | first 200 with `nodes` exactly `[{CN.1, 1}]`, `source` `nodes`; second 422 `split is for companies only` | holdout |
+| AC-15 | V built, S | `PUT …/links/activity/T/a1` `{"kind":"nodes","parts":[{"region":"CN","sector":"<Copper>","share":1}]}` | 200; `source` `nodes`; `nodes` exactly `[{CN.1, 1}]` | holdout |
+| AC-15b | V built, S | `PUT …/links/activity/T/a1` `{"kind":"split","parts":[{"icio_code":"ZZ","share":2}]}` | 422 `split is for companies only` | holdout |
+| AC-15c | after AC-15 | `DELETE …/links/activity/T/a1`; then GET it | 204; then `source` `code` and the nodes of AC-14 | holdout |
 | AC-16 | V built, S | `GET …/links/activity/T/zz` | 404 `unknown activity 'T/zz'` | holdout |
-| AC-17 | V built, S linked | `O` | `as_of` `2026-09-30`; `nav_eur` 1000000; `linked_weight` 0.9; `attributed_weight` 0.7 | holdout |
+| AC-17 | V built, S linked | `O` (no `as_of`) | `as_of` `2026-09-30`; `nav_eur` 1000000; `linked_weight` 0.9; `attributed_weight` 0.7 | holdout |
 | AC-18 | as AC-17 | `O` | `holdings` in order: s_cm (`weight` 0.4, `link_source` `code`, `top_node` CN.4 weight 1, `owned_output_meur` 0.2), s_sx (0.3, `split`, CN.4 0.5, 0.15), s_nx (0.2, `nodes`, WA.1 1, null), s_cash (0.1, `none`, null, null) | holdout |
 | AC-19 | as AC-17 | `O` | `nodes` in order: CN.4 0.55, WA.1 0.2, CN.1 0.1071, CN.2 0.0429; `direct_by_region` `[["CN",0.7],["RoW Asia-Pacific",0.2]]` | holdout |
 | AC-20 | as AC-17 | `O` | `upstream_total` 0.2504; `upstream_by_region` `[["CN",0.1543],["RoW Asia-Pacific",0.0592],["DE",0.0368]]` | holdout |
@@ -342,25 +359,40 @@ as an analyst unless a row says otherwise.
 | AC-22 | as AC-17 | `O` (indicator default) | `footprint` `indicator` `ghg`, `unit` `t CO₂e`, `total` 1.5154, `per_meur_invested` 2.1648, `by_region` `[["CN",1.4802],["DE",0.0288],["RoW Asia-Pacific",0.0064]]` | holdout |
 | AC-23 | as AC-17 | `O?indicator=jobs` | `footprint.total` 0; `footprint.by_region` `[]` | holdout |
 | AC-24 | as AC-17 | `O?taxonomy=T&activity=a1` | `activity` `{taxonomy_id T, activity_id a1, name "Copper and nickel mining", direct_weight 0.35, upstream_share 0.5193}`; without the parameters `activity` null | holdout |
-| AC-25 | as AC-17 | `O?taxonomy=T`; `O?as_of=2026-01-01`; `GET …/portfolio/ZZ` | 422; 404 `no holdings for 'P' on 2026-01-01`; 404 `unknown portfolio 'ZZ'` | holdout |
+| AC-25 | as AC-17 | `O?taxonomy=T` | 422 `taxonomy and activity go together` | holdout |
+| AC-25b | as AC-17 | `O?as_of=2026-01-01` | 404 `no holdings for 'P' on or before 2026-01-01` | holdout |
+| AC-25c | as AC-17 | `GET …/portfolio/ZZ` | 404 `unknown portfolio 'ZZ'` | holdout |
+| AC-25d | as AC-17 | `O?as_of=2026-06-30` | `nav_eur` 1000000; `linked_weight` 1; `upstream_total` 0.3446; `footprint.per_meur_invested` 2.6475 | holdout |
+| AC-25h | as AC-17 | `O?as_of=2026-08-15` | `as_of` `2026-06-30`; `nav_eur` 1000000 | holdout |
+| AC-25e | as AC-17 | `O?top=2` | `nodes` ids `CN.4, WA.1`; `upstream_nodes` ids `CN.1, CN.3`; `holdings` 4 rows | holdout |
+| AC-25f | as AC-17 | `O?top=0`; `O?top=21` | 422 each | holdout |
+| AC-25g | `ARP_VALUE_CHAIN_DIR` unset, S | `GET …/links/company/cm`; `O` | 503 each, `detail` `value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR` | holdout |
 | AC-26 | V built, S (no rules) | `O` | `linked_weight` 0.7 (`s_nx` and `s_cash` unlinked); holdings row s_nx `link_source` `none` | holdout |
 | AC-27 | V built, S linked, observations for `cm` dated `2026-10-15` instead | `O` | `attributed_weight` 0.3; s_cm `owned_output_meur` null | holdout |
 | AC-28 | V built, S linked | spec 2 `GET /api/value-chain/shock/quantity?model=demand&region=CN&change=-10&portfolio=P` | `portfolio` `{portfolio_id P, as_of 2026-09-30, linked_weight 0.9, change_pct -8.2277}`; `total_meur` -64.2658 | holdout |
 | AC-29 | as AC-28 | `…/shock/quantity?model=supply&region=CN&change=-10&portfolio=P` | `portfolio.change_pct` -7.1757 | holdout |
 | AC-30 | as AC-28 | `…/shock/price?carbon_eur_per_t=100&portfolio=P` | `portfolio.dp_pct` 0.0347 | holdout |
-| AC-31 | as AC-28 | the AC-28 request without `portfolio`; then with `as_of=2026-09-30` and no `portfolio` | first: `portfolio` null and every other field equal to the AC-28 response's; second: 422 | holdout |
-| AC-32 | V built, S; CSV `company_id,icio_code,share` with rows `sx,C27,0.5` `sx,B07,0.5` `dz,C27,0.7` `zz,C27,1` | `arp io links import <csv>` | exit 1; stdout `2 companies linked, 2 rejected`; stderr lines `dz: shares must sum to 1` and `zz: unknown company 'zz'`; then `GET …/links/company/sx` `source` `split` | holdout |
-| AC-33 | V built, S; stub `llm` as in spec 1's lookup rows but returning `isic_code` `C27` | `await classify_unlinked(store, "P", "2026-09-30", model, llm)` | returns `(1, 0)`; the stub recorded exactly 1 call, for `nx`; then `GET …/links/company/nx` `source` `llm`, `nodes` exactly `[{DE.4, 1}]`, `rule.set_by` `llm` | holdout |
+| AC-31 | as AC-28 | the AC-28 request without `portfolio` | `portfolio` null; every other field equal to the AC-28 response's | holdout |
+| AC-31b | as AC-28 | the AC-28 request with `as_of=2026-09-30` and no `portfolio` | 422 `as_of needs portfolio` | holdout |
+| AC-32 | V built, S; CSV `company_id,icio_code,share` with rows `sx,C27,0.5` `sx,B07,0.5` `dz,C27,0.7` `zz,C27,1` | `arp io links import <csv>` | exit 1; stdout `linked: 1, rejected: 2`; stderr exactly 2 lines, in order: `dz: shares must sum to 1`, `zz: unknown company 'zz'`; then `GET …/links/company/sx` `source` `split` | holdout |
+| AC-33 | V built, S; stub `llm` returning `C27` | `await classify_unlinked(store, "P", "2026-09-30", model, llm)` | returns `(1, 0)`; the stub recorded exactly 1 call, for `nx`; then `GET …/links/company/nx` `source` `llm`, `nodes` exactly `[{DE.4, 1}]`, `rule.set_by` `llm` | holdout |
 | AC-34 | as AC-33, then `PUT` `nx` back to S linked's `nodes` rule, and `cm` keeps its `isic_code` | `classify_unlinked` again | returns `(0, 0)`; 0 stub calls | holdout |
-| AC-35 | V built, S; an `llm` rule `B07` stored for `cm` | `GET …/links/company/cm` | `source` `code` (company `isic_code` `C27` beats `llm`); `nodes` `[{CN.4, 1}]` | holdout |
-| AC-36 | — | `GET /api/portfolio/esg/template` | the template includes column `climate_revenue_eur_m` | holdout |
+| AC-34b | V built, S; stub `llm` returning null | `await classify_unlinked(store, "P", "2026-09-30", model, llm)`; then `GET …/links/company/nx` | returns `(0, 1)`; then `source` `none`, `rule` null | holdout |
+| AC-35 | V built, S with `cm` stored without `isic_code`; stub `llm` returning `B07`; `classify_unlinked` run; then `cm` saved again with `isic_code` `C27` | `GET …/links/company/cm` | `source` `code`; `nodes` exactly `[{CN.4, 1}]`; `rule.kind` `llm` | holdout |
+| AC-36 | — | `GET /api/portfolio/esg/template` | the columns are those of the PR's merge-base with `main`, in the same order, with `climate_revenue_eur_m` inserted directly after `climate_evic_eur_m` | holdout |
+| AC-36b | an ESG file accepted by `POST /api/portfolio/esg/upload` on the merge-base, without a `climate_revenue_eur_m` column | upload it | the same status code and response body as on the merge-base | holdout |
+| AC-36c | V built, S linked, the app's LLM client replaced by a recording stub | `GET …/links/company/dz`; `O` | 0 LLM calls | unit |
+| AC-36d | S linked in the Postgres store (`ARP_TEST_POSTGRES_DSN`), V built | AC-2's, AC-3's and AC-10's requests | the same results as those rows | holdout |
+| AC-36e | V built, S linked; a theme run with `sx` (C27, `CN`) in its universe and core codes `{"B07"}` | read `sx`'s result | `indirect_exposure.upstream_exposure` 0.1549 (spec 1's code + country value; the split rule is ignored) | holdout |
 | AC-37 | — | `GET /openapi.json` | paths `/api/value-chain/links/company/{company_id}` (get, put, delete), `/api/value-chain/links/activity/{taxonomy_id}/{activity_id}` (get, put, delete), `/api/value-chain/portfolio/{portfolio_id}` (get) exist; `shock/quantity` and `shock/price` have query parameters `portfolio` and `as_of` | holdout |
 | AC-38 | V built, S linked, app running | open `#/valueChain/portfolio`, pick `P` | the URL becomes `#/valueChain/portfolio/P`; the coverage line reads `Linked 90.0% of NAV · footprint covers 70.0%`; the footprint tile reads `2.2 t CO₂e per M EUR invested` | evaluator |
 | AC-39 | as AC-38 | read the holdings table | 4 rows in AC-18's order, with weights `40.0%`, `30.0%`, `20.0%`, `10.0%` and the link sources shown | evaluator |
-| AC-40 | as AC-38 | `Edit link` on `s_sx`, `Revenue split`, change the shares to 60/40 and `Save` | the PUT body carries shares 0.6 and 0.4; the overlay reloads; the s_sx top node weight changes to `60.0%` | evaluator |
-| AC-41 | as AC-38 | `Edit link` on `s_sx`, shares 60/30, `Save` | the text `shares must sum to 1` shows under the rows; nothing saved | evaluator |
+| AC-40 | as AC-38 | `Edit link` on `s_sx`, `Revenue split`, change the shares to 60/40 and `Save` | the PUT body carries shares 0.6 and 0.4; without a manual page reload, the s_sx top-node cell reads `CN · Manufacture of electrical machinery and apparatus n.e.c. 60.0%` | evaluator |
+| AC-41 | as AC-38 | `Edit link` on `s_sx`, shares 60/30, `Save` | the text `shares must sum to 1` shows under the rows; `GET …/links/company/sx` still returns shares 0.5 and 0.5 | evaluator |
 | AC-42 | as AC-38 | `Edit link` on `s_sx`, `Reset to default` | DELETE sent; the row's link source reads `code` | evaluator |
 | AC-43 | as AC-38 | pick activity `T` / `Copper and nickel mining` | the line reads `Copper and nickel mining: 35.0% of NAV directly · 51.9% of upstream` | evaluator |
+| AC-43b | as AC-43 | the activity's `Edit link`, `Nodes`, CN / `Mining of copper ores and concentrates` 100%, `Save` | the line reads `Copper and nickel mining: 10.7% of NAV directly · 25.5% of upstream` | evaluator |
+| AC-43c | V built, S, AC-6's split saved for `dz` | open the link editor for `dz` (from a portfolio holding it, or the API-backed editor URL the builder exposes) | the text `Not in this edition: A01 40.0%` shows | evaluator |
 | AC-44 | as AC-38 | Shocks view of any CN node, Demand, `All of CN`, −10%, `Portfolio` `P` | the results show `Portfolio output change −8.23%` | evaluator |
 | AC-45 | Real build, a portfolio of 500 linked holdings | time `O` and a demand shock with `portfolio` on a warm process | `O` ≤ 2.0 s; shock ≤ 1.5 s | evaluator |
 
