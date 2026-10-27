@@ -20,6 +20,8 @@ ROW_LABELS = {
 }
 UNITS = {"ghg": "t CO₂e", "energy": "TJ", "jobs": "people"}
 INTENSITY = {"ghg": "ghg_t_per_meur", "energy": "energy_tj_per_meur", "jobs": "jobs_per_meur"}
+MATERIAL_UNIT = "t"
+MATERIAL_NOTE = "Extraction: tonnes taken from nature (metal ores as gross ore), not content in the product"
 
 
 class NotBuilt(Exception):
@@ -33,6 +35,11 @@ class UnknownNode(KeyError):
 
     def __str__(self) -> str:
         return self.args[0]
+
+
+class UnknownMaterial(ValueError):
+    def __init__(self, key: str) -> None:
+        super().__init__(f"unknown material '{key}'")
 
 
 @dataclass(frozen=True)
@@ -62,6 +69,7 @@ class TreeItem:
     coef: float
     chain: float
     children: list[TreeItem]
+    extracted_t: float | None = None  # embodied tonnes of the requested material; None without one
 
 
 @dataclass(frozen=True)
@@ -111,6 +119,11 @@ class ValueChain:
         self._search_text = [(n.sector.lower(), n.region_label.lower(), n.region.lower()) for n in self._nodes]
         self._regions, self._region_of = np.unique([n.region_label for n in self._nodes], return_inverse=True)
         self._sectors, self._sector_of = np.unique([n.sector for n in self._nodes], return_inverse=True)
+        listing = directory / "materials.json"  # absent when the archive had no material/F.txt
+        self.materials: list[dict] = json.loads(listing.read_text()) if listing.is_file() else []
+        if self.materials:
+            self._material_m, self._material_M = (np.load(directory / f"material_{m}.npy") for m in "mM")
+        self._material_row = {m["key"]: j for j, m in enumerate(self.materials)}
 
     @property
     def caveat(self) -> str:
@@ -124,6 +137,11 @@ class ValueChain:
         if k is None or not self._live[k]:
             raise UnknownNode(node_id)
         return k
+
+    def _material(self, key: str) -> int:
+        if key not in self._material_row:
+            raise UnknownMaterial(key)
+        return self._material_row[key]
 
     def _ranked(self, values: np.ndarray, candidates: np.ndarray) -> np.ndarray:
         """Candidate indices by value descending, ties by node id ascending."""
@@ -164,7 +182,13 @@ class ValueChain:
 
     def tree(
         self, node_id: str, depth: int = 2, width: int = 3, cutoff: float = 0.01, goods_only: bool = False,
+        material: str | None = None, amount_meur: float = 1.0,
     ) -> TreeItem:
+        total = None
+        if material is not None:
+            j = self._material(material)
+            total = self._material_M[j]
+
         def grow(k: int, coef: float, chain: float, level: int) -> TreeItem:
             kids: list[TreeItem] = []
             if level < depth:
@@ -177,15 +201,21 @@ class ValueChain:
                     grow(int(i), float(col[i]), chain * float(col[i]), level + 1)
                     for i in self._ranked(col, np.flatnonzero(keep))[:width]
                 ]
-            return TreeItem(self._nodes[k], coef, chain, kids)
+            return TreeItem(self._nodes[k], coef, chain, kids, None if total is None else amount_meur * chain * float(total[k]))
 
         return grow(self._k(node_id), 1.0, 1.0, 0)
 
     def footprint(
-        self, node_id: str, indicator: Literal["ghg", "energy", "jobs"], amount_meur: float = 1.0, top: int = 6,
+        self, node_id: str, indicator: str, amount_meur: float = 1.0, top: int = 6,
     ) -> Footprint:
+        """`indicator` is ghg, energy, jobs or material:<key>."""
         k = self._k(node_id)
-        contribution = self._intensity[indicator] * self._l[:, k] * amount_meur
+        if indicator.startswith("material:"):
+            j = self._material(indicator.removeprefix("material:"))  # before the attribute: F0 builds have none
+            intensity, unit = self._material_m[j], MATERIAL_UNIT
+        else:
+            intensity, unit = self._intensity[indicator], UNITS[indicator]
+        contribution = intensity * self._l[:, k] * amount_meur
         total = float(contribution.sum())
 
         def groups(names: np.ndarray, codes: np.ndarray) -> list[tuple[str, float]]:
@@ -195,7 +225,7 @@ class ValueChain:
 
         in_home = float(contribution[self._region_of == self._region_of[k]].sum()) / total if total else None
         return Footprint(
-            indicator, UNITS[indicator], total, in_home,
+            indicator, unit, total, in_home,
             groups(self._regions, self._region_of), groups(self._sectors, self._sector_of),
         )
 
