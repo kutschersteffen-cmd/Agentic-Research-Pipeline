@@ -279,3 +279,19 @@ class SchemaRegistry:
             )
             row.quality = q.model_dump(mode="json")
             return q
+
+
+def released_fields(dsn: str | None = None) -> dict[str, dict]:
+    """field_id -> its newest released definition (name, description, data type, unit, allowed values), retired
+    fields left out."""
+    with transaction(dsn) as s:
+        rows = s.scalars(
+            select(m.FieldDefinition).join(m.Field, m.Field.field_id == m.FieldDefinition.field_id)
+            .where(m.FieldDefinition.released_at.is_not(None), m.Field.retired_at.is_(None))
+            .order_by(m.FieldDefinition.version)
+        ).all()
+        return {
+            r.field_id: {"field_id": r.field_id, "name": r.name, "description": (r.definition or {}).get("description", ""),
+                         "data_type": r.data_type, "unit": r.unit, "allowed_values": (r.definition or {}).get("allowed_values")}
+            for r in rows
+        }

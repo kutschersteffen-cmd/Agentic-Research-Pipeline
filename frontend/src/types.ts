@@ -31,6 +31,26 @@ export type ResearchSource = Served<S["ResearchSource"]>;
 export type ResearchNote = NonNullable<ResearchRound["note"]>;
 export type SourceCategory = ResearchSource["category"];
 export type ProposalStarted = Served<S["ProposalStarted"]>;
+export type PositionView = Served<S["PositionView"]>;
+export type PositionVersion = Served<S["PositionVersion"]>;
+export type PositionDraft = Served<S["PositionDraft"]>;
+export type Standard = Served<S["Standard"]>;
+export type StandardsDraft = S["StandardsDraft"];
+export type StandardsCheck = Served<S["StandardsCheck"]>;
+export type StandardsActivation = Served<S["Activation"]>;
+export type StandardsSaved = Served<S["StandardsSaved"]>;
+// The backend serves versions as plain dicts (a policy version's meta plus its content); version 0 has no
+// dossier_id, position_version or path.
+export interface StandardsVersion {
+  version: number;
+  created_by: string;
+  created_at: string | null;
+  position_version?: number;
+  path?: "model_draft" | "owner_edit";
+  standards: Standard[];
+  schema: Served<S["DataPointSchema"]> | null;
+}
+export type StandardsView = Omit<Served<S["StandardsView"]>, "versions"> & { versions: StandardsVersion[] };
 export type RunStarted = Served<S["RunStarted"]>;
 export type PriorRun = Served<S["PriorRun"]>;
 
@@ -2461,6 +2481,7 @@ export interface UnifiedTrigger {
   first_seen_month: string;
   is_new: boolean;
   rule: string;
+  company: string;
 }
 
 // XBRL fact pipeline (wire format: snake_case, mirrors backend arp/xbrl_pipeline/models.py)

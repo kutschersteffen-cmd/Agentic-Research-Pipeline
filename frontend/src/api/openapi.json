@@ -281,6 +281,46 @@
     "title": "ActivateRequest",
     "type": "object"
    },
+   "Activation": {
+    "properties": {
+     "approved_at": {
+      "title": "Approved At",
+      "type": "string"
+     },
+     "approved_by": {
+      "title": "Approved By",
+      "type": "string"
+     },
+     "extraction_run_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Extraction Run Id"
+     },
+     "path": {
+      "title": "Path",
+      "type": "string"
+     },
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "version",
+     "approved_by",
+     "approved_at",
+     "path",
+     "extraction_run_id"
+    ],
+    "title": "Activation",
+    "type": "object"
+   },
    "ActivityCatalogueMapping": {
     "description": "LLM-suggested (reviewable, never auto-applied) crosswalk from one\ntaxonomy activity to one or more catalogue labels, for one metric.",
     "properties": {
@@ -3613,6 +3653,67 @@
      }
     },
     "title": "CheckConfig",
+    "type": "object"
+   },
+   "CheckResult": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "period_end": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Period End"
+     },
+     "result": {
+      "title": "Result",
+      "type": "string"
+     },
+     "standard_id": {
+      "title": "Standard Id",
+      "type": "string"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "integer"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value"
+     }
+    },
+    "required": [
+     "company_id",
+     "name",
+     "standard_id",
+     "value",
+     "period_end",
+     "result"
+    ],
+    "title": "CheckResult",
     "type": "object"
    },
    "ChoiceRequest": {
@@ -10408,6 +10509,23 @@
     "title": "IndicatorCategory",
     "type": "string"
    },
+   "Instructions": {
+    "properties": {
+     "instructions": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Instructions"
+     }
+    },
+    "title": "Instructions",
+    "type": "object"
+   },
    "InteractionType": {
     "description": "E6: every call, letter and meeting is tagged, so pressure-type engagement\ncan be reported and gated.",
     "enum": [
@@ -12530,6 +12648,173 @@
      "num_short"
     ],
     "title": "PortfolioPeriodReturn",
+    "type": "object"
+   },
+   "PositionApproval": {
+    "properties": {
+     "approved_at": {
+      "title": "Approved At",
+      "type": "string"
+     },
+     "approved_by": {
+      "title": "Approved By",
+      "type": "string"
+     },
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "version",
+     "approved_by",
+     "approved_at"
+    ],
+    "title": "PositionApproval",
+    "type": "object"
+   },
+   "PositionDraft": {
+    "properties": {
+     "paragraphs": {
+      "items": {
+       "$ref": "#/components/schemas/PositionParagraph"
+      },
+      "title": "Paragraphs",
+      "type": "array"
+     },
+     "summary": {
+      "title": "Summary",
+      "type": "string"
+     }
+    },
+    "required": [
+     "summary",
+     "paragraphs"
+    ],
+    "title": "PositionDraft",
+    "type": "object"
+   },
+   "PositionParagraph": {
+    "properties": {
+     "cites": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Cites",
+      "type": "array"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text",
+     "cites"
+    ],
+    "title": "PositionParagraph",
+    "type": "object"
+   },
+   "PositionVersion": {
+    "properties": {
+     "created_at": {
+      "title": "Created At",
+      "type": "string"
+     },
+     "created_by": {
+      "title": "Created By",
+      "type": "string"
+     },
+     "dossier_id": {
+      "title": "Dossier Id",
+      "type": "string"
+     },
+     "instructions": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Instructions"
+     },
+     "note_version": {
+      "title": "Note Version",
+      "type": "integer"
+     },
+     "paragraphs": {
+      "items": {
+       "$ref": "#/components/schemas/PositionParagraph"
+      },
+      "title": "Paragraphs",
+      "type": "array"
+     },
+     "path": {
+      "enum": [
+       "model_draft",
+       "owner_edit"
+      ],
+      "title": "Path",
+      "type": "string"
+     },
+     "summary": {
+      "title": "Summary",
+      "type": "string"
+     },
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "summary",
+     "paragraphs",
+     "version",
+     "dossier_id",
+     "note_version",
+     "created_by",
+     "created_at",
+     "path"
+    ],
+    "title": "PositionVersion",
+    "type": "object"
+   },
+   "PositionView": {
+    "properties": {
+     "approvals": {
+      "items": {
+       "$ref": "#/components/schemas/PositionApproval"
+      },
+      "title": "Approvals",
+      "type": "array"
+     },
+     "approved_version": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Approved Version"
+     },
+     "versions": {
+      "items": {
+       "$ref": "#/components/schemas/PositionVersion"
+      },
+      "title": "Versions",
+      "type": "array"
+     }
+    },
+    "required": [
+     "versions",
+     "approvals",
+     "approved_version"
+    ],
+    "title": "PositionView",
     "type": "object"
    },
    "PrimarySource": {
@@ -16991,6 +17276,101 @@
     "title": "StalenessReport",
     "type": "object"
    },
+   "Standard": {
+    "properties": {
+     "data": {
+      "enum": [
+       "existing",
+       "new"
+      ],
+      "title": "Data",
+      "type": "string"
+     },
+     "definition": {
+      "title": "Definition",
+      "type": "string"
+     },
+     "expectation": {
+      "title": "Expectation",
+      "type": "string"
+     },
+     "field_id": {
+      "title": "Field Id",
+      "type": "string"
+     },
+     "operator": {
+      "enum": [
+       ">=",
+       "<=",
+       ">",
+       "<",
+       "=="
+      ],
+      "title": "Operator",
+      "type": "string"
+     },
+     "rests_on": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Rests On",
+      "type": "array"
+     },
+     "severity": {
+      "enum": [
+       "low",
+       "medium",
+       "high"
+      ],
+      "title": "Severity",
+      "type": "string"
+     },
+     "standard_id": {
+      "title": "Standard Id",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "integer"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "title": "Value"
+     },
+     "where_reported": {
+      "title": "Where Reported",
+      "type": "string"
+     }
+    },
+    "required": [
+     "standard_id",
+     "title",
+     "expectation",
+     "definition",
+     "where_reported",
+     "rests_on",
+     "severity",
+     "field_id",
+     "operator",
+     "value",
+     "data"
+    ],
+    "title": "Standard",
+    "type": "object"
+   },
    "StandardCodeMatch": {
     "description": "One code from an external classification standard, derived via a\ndeterministic crosswalk from an activity's core_isic_codes -- never\nLLM-guessed, since these are large fixed code lists a model can't be\ntrusted to recall exactly.",
     "properties": {
@@ -17008,6 +17388,125 @@
      "code"
     ],
     "title": "StandardCodeMatch",
+    "type": "object"
+   },
+   "StandardsCheck": {
+    "properties": {
+     "checked_at": {
+      "title": "Checked At",
+      "type": "string"
+     },
+     "flagged": {
+      "title": "Flagged",
+      "type": "integer"
+     },
+     "results": {
+      "items": {
+       "$ref": "#/components/schemas/CheckResult"
+      },
+      "title": "Results",
+      "type": "array"
+     }
+    },
+    "required": [
+     "checked_at",
+     "results",
+     "flagged"
+    ],
+    "title": "StandardsCheck",
+    "type": "object"
+   },
+   "StandardsDraft": {
+    "properties": {
+     "new_fields": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/FieldDefinition"
+      },
+      "title": "New Fields",
+      "type": "array"
+     },
+     "standards": {
+      "items": {
+       "$ref": "#/components/schemas/Standard"
+      },
+      "title": "Standards",
+      "type": "array"
+     }
+    },
+    "required": [
+     "standards"
+    ],
+    "title": "StandardsDraft",
+    "type": "object"
+   },
+   "StandardsSaved": {
+    "properties": {
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "version"
+    ],
+    "title": "StandardsSaved",
+    "type": "object"
+   },
+   "StandardsView": {
+    "properties": {
+     "activations": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Activations",
+      "type": "array"
+     },
+     "active": {
+      "additionalProperties": true,
+      "title": "Active",
+      "type": "object"
+     },
+     "active_version": {
+      "title": "Active Version",
+      "type": "integer"
+     },
+     "field_names": {
+      "additionalProperties": {
+       "type": "string"
+      },
+      "title": "Field Names",
+      "type": "object"
+     },
+     "latest_check": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/StandardsCheck"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "versions": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Versions",
+      "type": "array"
+     }
+    },
+    "required": [
+     "versions",
+     "activations",
+     "active_version",
+     "active",
+     "latest_check",
+     "field_names"
+    ],
+    "title": "StandardsView",
     "type": "object"
    },
    "StartRequest": {
@@ -19652,6 +20151,19 @@
      "mapping"
     ],
     "title": "VerifyRequest",
+    "type": "object"
+   },
+   "VersionRef": {
+    "properties": {
+     "version": {
+      "title": "Version",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "version"
+    ],
+    "title": "VersionRef",
     "type": "object"
    },
    "VetoRule": {
@@ -23843,6 +24355,204 @@
     ]
    }
   },
+  "/api/dossiers/{dossier_id}/position": {
+   "get": {
+    "operationId": "get_position_api_dossiers__dossier_id__position_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PositionView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Position",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/position/approve": {
+   "post": {
+    "operationId": "approve_position_api_dossiers__dossier_id__position_approve_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/VersionRef"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PositionApproval"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Approve Position",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/position/draft": {
+   "post": {
+    "operationId": "draft_position_api_dossiers__dossier_id__position_draft_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/Instructions"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PositionVersion"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Draft Position",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/position/versions": {
+   "post": {
+    "operationId": "edit_position_api_dossiers__dossier_id__position_versions_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PositionDraft"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PositionVersion"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Edit Position",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
   "/api/dossiers/{dossier_id}/research": {
    "get": {
     "operationId": "get_research_api_dossiers__dossier_id__research_get",
@@ -24266,6 +24976,246 @@
      }
     },
     "summary": "Upload Source File",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/standards": {
+   "get": {
+    "operationId": "get_standards_api_dossiers__dossier_id__standards_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StandardsView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Standards",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/standards/activate": {
+   "post": {
+    "operationId": "activate_standards_api_dossiers__dossier_id__standards_activate_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/VersionRef"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Activation"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Activate Standards",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/standards/check": {
+   "post": {
+    "operationId": "check_companies_api_dossiers__dossier_id__standards_check_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StandardsCheck"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Check Companies",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/standards/draft": {
+   "post": {
+    "operationId": "draft_standards_api_dossiers__dossier_id__standards_draft_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/Instructions"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StandardsSaved"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Draft Standards",
+    "tags": [
+     "dossiers"
+    ]
+   }
+  },
+  "/api/dossiers/{dossier_id}/standards/versions": {
+   "post": {
+    "operationId": "edit_standards_api_dossiers__dossier_id__standards_versions_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "dossier_id",
+      "required": true,
+      "schema": {
+       "title": "Dossier Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/StandardsDraft"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/StandardsSaved"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Edit Standards",
     "tags": [
      "dossiers"
     ]

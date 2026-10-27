@@ -36,8 +36,8 @@ class DownClient(FakeClient):
 
 def _app(llm, superset, portfolio_store=None) -> TestClient:
     app = FastAPI()
-    if portfolio_store is not None:
-        app.dependency_overrides[deps.get_portfolio_store] = lambda: portfolio_store
+    store = portfolio_store or PortfolioStore(Path(tempfile.mkdtemp()))  # never the cached, DSN-backed default
+    app.dependency_overrides[deps.get_portfolio_store] = lambda: store
     app.include_router(bi_router.router)
     app.dependency_overrides[get_llm_client] = lambda: llm
     app.dependency_overrides[get_superset_client] = lambda: superset
