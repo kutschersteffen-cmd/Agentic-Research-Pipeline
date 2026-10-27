@@ -226,12 +226,20 @@ rows below pass.
 
 ## Project 4 (outline): Recipe research
 
-- **Seed library** as a cited JSON file in the repo, imported with `arp recipes import`. First
-  families and sources (see the source research page):
-  - energy technology: NREL REMPD (CC BY), JRC139701 (wind by drivetrain), JRC143190 (grid);
-  - vehicles and batteries: GREET 2025, carculator;
-  - buildings: RASMI, Heeren & Fishman;
-  - electronics: Babbitt et al. (CC0), EU ecodesign disclosures.
+- **Seed library** as a cited JSON file in the repo, imported with `arp recipes import`. Owner decision
+  on 2026-10-27: the first library covers all four families, one recipe per product type, about 67
+  recipes (see the source research page):
+  - energy technology, 14: 6 plant types (onshore wind, offshore wind, PV c-Si utility, PV CdTe utility,
+    PV commercial rooftop, PV residential rooftop) from NREL REMPD (CC BY); 5 wind drivetrains (C, D-EE,
+    D-PM, E, F) from JRC139701; 3 grid parts (400 kV overhead line, 525 kV cable, 400/100 kV
+    transformer) from JRC143190;
+  - vehicles and batteries, 18: 9 battery chemistries per kWh (LMO, NMC111, NMC532, NMC622, NMC811,
+    NMC95, NCA, LFP, and LFP by its second route) from GREET; 9 passenger cars, small / medium / large
+    SUV × BEV / petrol ICEV / petrol PHEV, from carculator and GREET (the 9-car selection is my call);
+  - buildings, 12: 3 uses × 4 structures, the region a parameter, from RASMI, cross-checked with
+    Heeren & Fishman;
+  - electronics, 23: one per device category, from Babbitt et al. (CC0), with EU ecodesign bands for
+    cobalt, tantalum, neodymium and gold where a category has them.
   Values from sources that forbid redistribution (EC3, IBU.data) are cited, not stored.
 - **Agent**: drafts a recipe for a named product, each line with a grounded quote checked by
   `arp/grounding.py`; writes DRAFT only.
