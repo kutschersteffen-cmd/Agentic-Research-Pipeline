@@ -12,6 +12,8 @@ import { failedChecks, routeLabel, valueLabel, withEditedValue } from "../lib/fi
 import { TRIAL_TITLE } from "../lib/runs";
 import { activatable } from "../lib/activatable";
 import { ProposedTag } from "./ProposedTag";
+import { WalkthroughLink } from "./WalkthroughLink";
+import { recordWalkthroughHref, rowWalkthroughHref } from "../lib/walkthrough";
 import { OriginTag } from "./ReviewTiles";
 import { editedText, matchesTile, type ReviewTileCounts } from "../lib/stagedFlow";
 
@@ -68,7 +70,7 @@ export function SegmentDetail({ segment, onOpenSource }: { segment: BusinessSegm
   );
 }
 
-export function FieldDetail({ field, fieldNames = {}, onOpenSource }: { field: ExtractedField; fieldNames?: Record<string, string>; onOpenSource: (s: ActiveSource) => void }) {
+export function FieldDetail({ field, fieldNames = {}, walkthroughHref, onOpenSource }: { field: ExtractedField; fieldNames?: Record<string, string>; walkthroughHref?: string; onOpenSource: (s: ActiveSource) => void }) {
   return (
     <div className="field-detail">
       <strong>{field.field_name}:</strong> {valueLabel(field)}{" "}
@@ -88,6 +90,7 @@ export function FieldDetail({ field, fieldNames = {}, onOpenSource }: { field: E
       {field.corrections?.map((c, i) => <p key={i} className="muted">{correctionLine(c, (id) => fieldNames[id] ?? id)}</p>)}
       {field.verifier_notes && <p className="muted">{field.verifier_notes}</p>}
       <CitationList citations={field.citations} onOpenSource={onOpenSource} />
+      {walkthroughHref && <WalkthroughLink href={walkthroughHref} />}
     </div>
   );
 }
@@ -211,7 +214,7 @@ export function ExtractionResultsTable({
                       const d = reviewDecisions[itemKey];
                       return (
                         <div key={`${f.field_id}:${f.period_end ?? ""}`}>
-                          <FieldDetail field={editedText(d) === undefined ? f : withEditedValue(f, editedText(d)!)} fieldNames={names} onOpenSource={onOpenSource} />
+                          <FieldDetail field={editedText(d) === undefined ? f : withEditedValue(f, editedText(d)!)} fieldNames={names} walkthroughHref={rowWalkthroughHref(runId, r, f)} onOpenSource={onOpenSource} />
                           <OriginTag decision={d} systemValue={valueLabel(f)} />
                           {f.route !== "hold" && (
                             <ReviewControls
@@ -298,6 +301,7 @@ export function FinancialsResultsTable({
                 <tr>
                   <td colSpan={6} className="detail-cell">
                     <h3>Business Segments</h3>
+                    <WalkthroughLink href={recordWalkthroughHref(runId, r.company_id, "segments")} />
                     {r.segments.length === 0 && <p className="muted">No segment reporting evidence found.</p>}
                     {r.segments.map((s, si) => (
                       <SegmentDetail key={si} segment={s} onOpenSource={onOpenSource} />
@@ -305,9 +309,11 @@ export function FinancialsResultsTable({
                     {r.segments_verifier_notes && <p className="muted">{r.segments_verifier_notes}</p>}
 
                     <h3>CapEx</h3>
+                    <WalkthroughLink href={recordWalkthroughHref(runId, r.company_id, "capex")} />
                     <SpendDetail label="CapEx" spend={r.capex} onOpenSource={onOpenSource} />
 
                     <h3>R&amp;D</h3>
+                    <WalkthroughLink href={recordWalkthroughHref(runId, r.company_id, "rnd")} />
                     <SpendDetail label="R&D" spend={r.rnd} onOpenSource={onOpenSource} />
 
                     {editedText(reviewDecisions[r.company_id]) !== undefined && (

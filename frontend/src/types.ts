@@ -342,6 +342,41 @@ export interface ExtractionRecord {
   held_documents?: HeldDocument[] | null;
 }
 
+/** One model call in a walkthrough: the answer exactly as the run recorded it. */
+export interface WalkthroughCall { model: string; prompt_version: string; answer: unknown }
+export interface WalkthroughPassage {
+  rank: number;
+  doc_id: string;
+  doc_title: string | null;
+  section: string | null;
+  char_start: number;
+  char_end: number;
+  /** null when the document text is not available. */
+  text: string | null;
+}
+
+/** GET /api/walkthrough/runs/{run}/companies/{company}: how one stored row was found (no response model). */
+export interface Walkthrough {
+  run_id: string;
+  run_type: string;
+  company_id: string;
+  company_name: string | null;
+  item: string;
+  item_name: string;
+  recorded: boolean;
+  trace_run_id: string;
+  /** Data-point rows (every period) or the Financials/TNFD section's entries. */
+  rows: Record<string, unknown>[];
+  passages: WalkthroughPassage[];
+  extractor: WalkthroughCall | null;
+  /** blind: answer is the model's re-extracted draft and verdict the code's comparison. */
+  verifier: (WalkthroughCall & { blind?: boolean; verdict?: unknown }) | null;
+  adjudicator: WalkthroughCall | null;
+  vision: WalkthroughCall | null;
+  skipped: "tagged" | "no_evidence" | "derived" | "documents_held" | "not_applicable" | null;
+  not_recorded_reason: "write_failed" | "expired" | "before_traces" | null;
+}
+
 // --- Company Financials: business segments + CapEx + R&D, extracted
 // together in a single combined pass per company (they're almost always
 // wanted together, so this avoids re-fetching/re-extracting per topic) ---
@@ -2339,6 +2374,7 @@ export interface TnfdMetric {
 /** A company's TNFD extraction (subset of the backend's TNFDExtractionRecord). */
 export interface TnfdRecord {
   company_id: string;
+  run_id: string;
   ticker: string | null;
   name: string;
   as_of: string;

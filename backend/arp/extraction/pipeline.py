@@ -50,6 +50,7 @@ from arp.storage.identifier_map import IdentifierMapStore
 from arp.storage.run_store import RunStore
 from arp.transition_alignment.benchmarks import load_benchmarks, sector_for_isic
 from arp.transition_alignment.plan_extraction import extract_plan, plan_evidence
+from arp.walkthrough import trace
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +152,7 @@ async def _extract_company(
     xbrl_source: XbrlFactSource | None = None,
     field_limit: asyncio.Semaphore | None = None,
     corrections: bool = False,
+    traces: dict | None = None,
 ) -> ExtractionRecordResult:
     """`documents`, when supplied, skips the registry fetch -- for callers
     (like the revenue-exposure resolver) that already fetched a company's
@@ -172,7 +174,10 @@ async def _extract_company(
     ESEF filing among the documents count too: ahead of SEC's for a non-US filer.
 
     Fields are extracted concurrently. `field_limit` caps field graphs in flight; a run shares
-    one across its companies so the cap is run-wide. Defaults to max_concurrent_llm_calls per call."""
+    one across its companies so the cap is run-wide. Defaults to max_concurrent_llm_calls per call.
+
+    `traces`, when supplied, is filled with the company's walkthrough trace: `fields` (an entry per field processed
+    this run; reused fields add none) and `plans` (per plan document). Built from values already held: no extra call."""
     if documents is None:
         documents = await registry.fetch_all(company)
     documents = [confirm_entity(d, company, identifier_map) for d in documents]
@@ -190,12 +195,21 @@ async def _extract_company(
         for d in documents
         if d.match_status == MatchStatus.MISMATCH
     ]
+
+    def _skipped(field_id: str, reason: str) -> None:
+        if traces is not None:
+            traces.setdefault("fields", {})[field_id] = trace.field_entry(field_id, skipped=reason)
+
     usages: list[LLMUsage] = []
     to_extract, fields = plan_fields(schema, company)
+    for f in fields:  # an all-held company's entries below replace these
+        _skipped(f.field_id, "not_applicable")
     to_extract = [f for f in to_extract if not f.derived_rule]  # derived fields never reach the LLM graph
     all_held = bool(documents) and not kept
     if all_held:  # nothing left to extract from: every field is a held no-evidence row
         to_extract, fields = [], [no_evidence_field(f)[0] for f in schema.fields]
+        for f in schema.fields:  # no facts are fetched for an all-held company, so none is tagged
+            _skipped(f.field_id, "derived" if f.derived_rule else "documents_held")
     key, scheme = issuer_key(company, identifier_map)
     recorded = history.recorded_periods(key) if history else set()
     for d in kept:
@@ -238,6 +252,7 @@ async def _extract_company(
                 planned_periods=planned_periods,
                 facts=facts,
                 grouped=grouped,
+                trace_sink=None if traces is None else traces.setdefault("fields", {}),
             )
         slot.extend(f.model_copy(update={"input_hash": h}) for f in extracted)
         return field_usages
@@ -274,12 +289,17 @@ async def _extract_company(
         for d in plans:
             if not (chunks := await asyncio.to_thread(plan_evidence, defs, d, settings)):
                 continue
+            drafts = []
             async with limit:
                 rows, usage = await extract_plan(
                     company, sector, d, chunks, llm, fields=defs, fuzzy_threshold=settings.grounding_fuzzy_threshold,
-                    schema_version=f"{schema.schema_id}:v{schema.version}",
+                    schema_version=f"{schema.schema_id}:v{schema.version}", on_draft=drafts.append,
                 )
             out.append(usage)
+            if traces is not None:
+                traces.setdefault("plans", {})[d.doc_id] = {
+                    "passages": [trace.passage(c) for c in chunks], "extractor": trace.call(usage, drafts[0]),
+                }
             for r in rows:
                 if r.field_id in plan_preset.ASSUMPTION_FIELDS:
                     if (key := (r.field_id, r.period_end, r.basis)) in seen:
@@ -381,6 +401,7 @@ async def _extract_company(
         if d.derived_rule and d.field_id not in by_id:
             by_id[d.field_id] = row = _route(evaluate_derived(d, by_id))
             routed.append(row)
+            _skipped(d.field_id, "derived")
     fields = routed
 
     confidences = [f.confidence for f in fields if f.value is not None]
@@ -507,6 +528,7 @@ async def execute_extraction_run(
     field_limit = asyncio.Semaphore(settings.max_concurrent_llm_calls)
 
     async def _worker(company: CompanyRef) -> ExtractionRecordResult:
+        traces: dict = {}
         company = await prepare_company(
             company, settings=settings, llm=llm, registry=registry, parent_run=(schema.schema_id, run_id)
         )
@@ -514,8 +536,9 @@ async def execute_extraction_run(
             company, schema, registry=registry, llm=llm, verifier_llm=verifier_llm, settings=settings,
             history=history, identifier_map=identifier_map, qualities=qualities, trial=trial, xbrl_source=xbrl_source,
             field_limit=field_limit,
-            corrections=schema.schema_id not in {TRANSITION_PLAN_SCHEMA_ID, plan_preset.SCHEMA_ID},
+            corrections=schema.schema_id not in {TRANSITION_PLAN_SCHEMA_ID, plan_preset.SCHEMA_ID}, traces=traces,
         )
+        trace.write_trace(run_store, run_id, company.company_id, traces)
         result.record.run_id = run_id
         open_restatement_candidates(run_store, run_id, result.record, history)
         return result

@@ -39521,6 +39521,100 @@
     ]
    }
   },
+  "/api/walkthrough/runs/{run_id}/companies/{company_id}": {
+   "get": {
+    "operationId": "get_walkthrough_api_walkthrough_runs__run_id__companies__company_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "company_id",
+      "required": true,
+      "schema": {
+       "title": "Company Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "item",
+      "required": true,
+      "schema": {
+       "title": "Item",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "period_end",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Period End"
+      }
+     },
+     {
+      "in": "query",
+      "name": "basis",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Basis"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Walkthrough Api Walkthrough Runs  Run Id  Companies  Company Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Walkthrough",
+    "tags": [
+     "walkthrough"
+    ]
+   }
+  },
   "/api/xbrl/companies": {
    "get": {
     "operationId": "get_companies_api_xbrl_companies_get",

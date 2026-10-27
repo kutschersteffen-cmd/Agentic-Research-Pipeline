@@ -123,7 +123,7 @@ import type {
   StandardsSaved,
   StandardsView,
 } from "../types";
-import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision } from "../types";
+import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, Walkthrough } from "../types";
 import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
 import type { BIChartPlan, BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
@@ -277,6 +277,8 @@ export const api = {
     request<{ items: ReviewItem[] }>(`/api/review/items${runId ? `?run_id=${encodeURIComponent(runId)}` : ""}`),
   getItemContext: (runId: string, itemKey: string) =>
     request<ItemContext>(`/api/review/runs/${encodeURIComponent(runId)}/items/${encodeURIComponent(itemKey)}/context`),
+  getWalkthrough: (runId: string, companyId: string, q: { item: string; period_end?: string; basis?: string }) =>
+    request<Walkthrough>(`/api/walkthrough/runs/${encodeURIComponent(runId)}/companies/${encodeURIComponent(companyId)}${buildQuery(q)}`),
   getItemSource: (runId: string, itemKey: string, docId: string, page: number) =>
     request<ItemSource>(
       `/api/review/runs/${encodeURIComponent(runId)}/items/${encodeURIComponent(itemKey)}/source?doc_id=${encodeURIComponent(docId)}&page=${page}`,

@@ -9,6 +9,8 @@ import { api } from "../api/client";
 import { focusNextCard, useCardKeys } from "../lib/cardKeys";
 import { ITEM_KIND_LABEL, flaggedReasons } from "../lib/reviewKeys";
 import { BarrierItemFields } from "./BarrierReview";
+import { WalkthroughLink } from "./WalkthroughLink";
+import { recordWalkthroughHref } from "../lib/walkthrough";
 import { matchesTile, type ReviewTileCounts } from "../lib/stagedFlow";
 import type { Citation, ReviewDecision, ReviewItem, ReviewItemKind, ReviewableRunKind } from "../types";
 
@@ -142,6 +144,10 @@ export async function applyDecision(
   }
 }
 
+/** A legacy Financials or TNFD item is a whole company; its walkthrough opens the section the reviewer reads first. */
+const legacySection = (q: QueueItem) =>
+  q.review.kind === "other" && typeof q.item.company_id === "string" ? { financials: "segments", tnfd: "disclosures" }[q.kind as string] : undefined;
+
 /** The review cards themselves: decided items stay in place, collapsed, and
  * "Change" reopens one. Decision state is owned by the caller. */
 export function ReviewItems({
@@ -187,6 +193,7 @@ export function ReviewItems({
               {REVIEW_KIND_LABEL[q.kind]} · {ITEM_KIND_LABEL[q.review.kind]} · {q.runId}
             </p>
             <ReviewItemFields item={q.item} onOpenSource={onOpenSource} reviewKind={q.review.kind} />
+            {legacySection(q) && <WalkthroughLink href={recordWalkthroughHref(q.runId, String(q.item.company_id), legacySection(q)!)} />}
             {d && (
               <button className="link-button" onClick={() => setReopened(null)}>
                 Keep the current decision

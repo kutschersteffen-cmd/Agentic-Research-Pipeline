@@ -20,6 +20,8 @@ import { recordFieldNames } from "../lib/corrections";
 import { activatable } from "../lib/activatable";
 import { useMe } from "../lib/reviewer";
 import { SignedInAs } from "../components/SignedInAs";
+import { WalkthroughLink } from "../components/WalkthroughLink";
+import { recordWalkthroughHref, rowWalkthroughHref } from "../lib/walkthrough";
 
 const SUB_TABS = [
   { id: "results", label: "Run results" },
@@ -299,7 +301,7 @@ function CompanyResultsView() {
                     <ConfidenceBadge value={r.overall_confidence} /> {r.needs_review && <span className="badge badge-low">needs review</span>}
                   </p>
                   {r.fields.map((f) => (
-                    <FieldDetail key={f.field_id} field={f} fieldNames={names} onOpenSource={setActiveSource} />
+                    <FieldDetail key={f.field_id} field={f} fieldNames={names} walkthroughHref={rowWalkthroughHref(r.run_id, r, f)} onOpenSource={setActiveSource} />
                   ))}
                 </section>
                 );
@@ -313,13 +315,16 @@ function CompanyResultsView() {
                     <ConfidenceBadge value={r.overall_confidence} /> {r.needs_review && <span className="badge badge-low">needs review</span>}
                   </p>
                   <h3>Business Segments</h3>
+                  <WalkthroughLink href={recordWalkthroughHref(r.run_id, r.company_id, "segments")} />
                   {r.segments.length === 0 && <p className="muted">No segment reporting evidence found.</p>}
                   {r.segments.map((s, si) => (
                     <SegmentDetail key={si} segment={s} onOpenSource={setActiveSource} />
                   ))}
                   <h3>CapEx</h3>
+                  <WalkthroughLink href={recordWalkthroughHref(r.run_id, r.company_id, "capex")} />
                   <SpendDetail label="CapEx" spend={r.capex} onOpenSource={setActiveSource} />
                   <h3>R&amp;D</h3>
+                  <WalkthroughLink href={recordWalkthroughHref(r.run_id, r.company_id, "rnd")} />
                   <SpendDetail label="R&D" spend={r.rnd} onOpenSource={setActiveSource} />
                 </section>
               ))}

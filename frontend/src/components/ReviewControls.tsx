@@ -11,6 +11,8 @@ import { DecisionBar } from "./DecisionBar";
 import { ProposedTag } from "./ProposedTag";
 import { announce } from "../lib/announce";
 import { CommentField } from "./CommentField";
+import { WalkthroughLink } from "./WalkthroughLink";
+import { rowWalkthroughHref } from "../lib/walkthrough";
 
 export function decisionBadgeClass(decision: string): string {
   if (decision === "approve") return "badge badge-high";
@@ -446,6 +448,9 @@ function ItemDecision({
                 </span>
               )}
             </p>
+          )}
+          {item.run_type === "extraction" && ctx.value && typeof ctx.item.payload.company_id === "string" && (
+            <WalkthroughLink href={rowWalkthroughHref(runId, { company_id: ctx.item.payload.company_id }, ctx.value)} />
           )}
           {ctx.corrections?.map((c, i) => <p key={i} className="muted">{correctionLine(c, (id) => ctx.field_names?.[id] ?? id)}</p>)}
           <CheckResults checks={ctx.failed_checks} />
