@@ -364,7 +364,7 @@ endpoint rows cover it.
 | AC-67 | The AC-39 run | the vision calls are counted | exactly 1 | holdout |
 | AC-68 | A Financials run made with no `traces/` folder, created within `retention_runs_days` | the walkthrough is requested with `item=capex` | `recorded` false; `not_recorded_reason` `before_traces`; `rows` equals `[<the results endpoint's capex for that company>]` | holdout |
 | AC-70 | The AC-1 run | the walkthrough is requested for its field with `period_end=1999-12-31` | HTTP 404 | holdout |
-| AC-71 | The AC-1 run with its files dated older than `retention_runs_days` | retention cleanup runs with apply | no `traces/*.json` remains in its run folder; the results endpoint's `results` rows are unchanged | holdout |
+| AC-71 | The AC-1 run with its files dated older than `retention_runs_days` | retention cleanup runs with apply | no `traces/*.json` remains in its run folder; each row's `fields` in the results endpoint's `results` is unchanged | holdout |
 | AC-72 | A seeded known-answer item for a field the real pipeline extracts in a group call | its walkthrough is requested | the `(doc_id, char_start, char_end, section)` list of `passages` equals the group's evidence selection over the seeded document | holdout |
 | AC-73 | The AC-8 run and the same run on `main` | the model calls are counted | equal counts for extractor, verifier and adjudicator calls (one group extractor call) | holdout |
 | AC-74 | The AC-19 item in the running app | the reviewer opens its walkthrough | the page text contains neither `zq-note-7f3a` nor the reviewer's user id or name, and shows no cosign | evaluator |
@@ -378,6 +378,6 @@ set and research callers write no traces (AC-23, AC-24).
 ## Amendments during build (2026-10-27)
 
 - AC-71 compared the whole results body, but retention already deletes the run's `schema.json`, so `field_names`
-  drops out of the body on `main` too. The row now compares the `results` rows.
+  drops out of the body on `main` too (it sits on each row). The row now compares each row's `fields`.
 - Fields that a field's applicability rule skips for a company now record `skipped: "not_applicable"`, so a new
   run never shows the "before walkthroughs" note for them.
