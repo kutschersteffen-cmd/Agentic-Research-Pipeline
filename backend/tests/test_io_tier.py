@@ -171,6 +171,7 @@ class _Stub:
 
 @pytest.mark.parametrize(("code", "expected", "calls"), [
     ("27", "C27", 0), ("35", "D", 0), ("35.12", "D_TD", 0), ("D_GEN_REN", "D_GEN_REN", 0), ("35.11", None, 1), ("24", None, 1),
+    ("62", "J62_63", 0), ("2610", None, 1), ("C27", "C27", 0),
 ])
 def test_company_lookup(built, code, expected, calls):
     built()
@@ -178,6 +179,14 @@ def test_company_lookup(built, code, expected, calls):
     company = CompanyRef(company_id="x", name="X", isic_code=code)
     assert asyncio.run(resolve_company_isic(company, resolve_indirect_exposure_model(Settings()), stub))[0] == expected
     assert stub.calls == calls
+
+
+def test_rebuild_into_same_directory_reloads(built):
+    built()
+    assert resolve_indirect_exposure_model(Settings()).final_demand is not None
+    result, _ = built(with_y=False)  # same --out, different archive: a new manifest
+    assert result.exit_code == 0, result.output
+    assert resolve_indirect_exposure_model(Settings()).final_demand is None
 
 
 def test_sample():

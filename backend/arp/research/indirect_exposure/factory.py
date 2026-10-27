@@ -28,7 +28,7 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
 _load_lock = threading.Lock()  # lru_cache lets concurrent misses each load L
 
 
-@functools.lru_cache(maxsize=1)
+@functools.lru_cache(maxsize=2)  # the configured build and the sample
 def _load(directory: str, manifest_text: str) -> LeontiefModel:
     folder = Path(directory)
     nodes = _read_csv(folder / "nodes.csv")
