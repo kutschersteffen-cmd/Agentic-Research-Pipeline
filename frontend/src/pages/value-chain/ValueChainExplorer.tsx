@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { apiMessage } from "../../lib/projects";
-import { nodeHash, portfolioHash, searchable } from "../../lib/valueChain";
+import { nodeHash, portfolioHash, recipesHash, searchable } from "../../lib/valueChain";
 import type { VcNodeRef } from "../../types";
+import { ExposureView } from "./ExposureView";
 import { FootprintView } from "./FootprintView";
 import { NodeView } from "./NodeView";
 import { PortfolioView } from "./PortfolioView";
+import { RecipeForm, RecipeList } from "./RecipesView";
 import { ShockView } from "./ShockView";
 import { TreeView } from "./TreeView";
 import { useVcQuery } from "./useVcQuery";
@@ -14,6 +16,7 @@ const VIEWS = [
   [undefined, "Node page"],
   ["tree", "Upstream tree"],
   ["footprint", "Footprint"],
+  ["exposure", "Revenue exposure"],
   ["shock", "Shocks"],
 ] as const;
 
@@ -86,12 +89,35 @@ export function ValueChainExplorer({ params }: { params: string[] }) {
       </div>
     );
   }
+  if (params[0] === "recipes") return <Recipes params={params.slice(1)} />;
   return <NodeExplorer params={params} />;
 }
 
+/** `#/valueChain/recipes`, `…/recipes/new`, `…/recipes/<rid>` and `…/recipes/<rid>/exposure[/<from id>]`. */
+function Recipes({ params }: { params: string[] }) {
+  const [rid, sub, from] = params;
+  const [title, setTitle] = useState<string | null>(null);
+  return (
+    <div className="page">
+      <nav className="vc-crumb" aria-label="Breadcrumb">
+        <a href="#/valueChain">Value Chain Explorer</a> · <a href={recipesHash()}>Recipes</a>
+      </nav>
+      <h1>{rid ? (title ?? rid) : "Recipes"}</h1>
+      <p className="help-text">A recipe describes one product more finely than its sector: what it buys, as shares of its&nbsp;cost.</p>
+      {!rid ? (
+        <RecipeList />
+      ) : sub === "exposure" ? (
+        <ExposureView target={`recipe:${rid}`} from={from} onTitle={setTitle} />
+      ) : (
+        <RecipeForm key={rid} rid={rid === "new" ? null : rid} onTitle={setTitle} />
+      )}
+    </div>
+  );
+}
+
 function NodeExplorer({ params }: { params: string[] }) {
-  const [id, sub] = params;
-  const view = sub === "tree" || sub === "footprint" || sub === "shock" ? sub : undefined;
+  const [id, sub, from] = params;
+  const view = sub === "tree" || sub === "footprint" || sub === "shock" || sub === "exposure" ? sub : undefined;
   const [searchError, setSearchError] = useState<string | null>(null);
   // A node view names its node here once loaded; the id stands in until then.
   const [title, setTitle] = useState<string | null>(null);
@@ -125,6 +151,9 @@ function NodeExplorer({ params }: { params: string[] }) {
           <p>
             <a href={portfolioHash()}>Portfolio</a> <span className="muted">· see a portfolio's holdings on the value chain</span>
           </p>
+          <p>
+            <a href={recipesHash()}>Recipes</a> <span className="muted">· product recipes and who earns from them</span>
+          </p>
           {status.data && <p className="help-text vc-note">{status.data.caveat}</p>}
         </>
       ) : (
@@ -141,6 +170,8 @@ function NodeExplorer({ params }: { params: string[] }) {
           </nav>
           {view === "tree" ? (
             <TreeView id={id} onTitle={setTitle} />
+          ) : view === "exposure" ? (
+            <ExposureView target={id} from={from} onTitle={setTitle} />
           ) : view === "footprint" ? (
             <FootprintView id={id} onTitle={setTitle} />
           ) : view === "shock" ? (

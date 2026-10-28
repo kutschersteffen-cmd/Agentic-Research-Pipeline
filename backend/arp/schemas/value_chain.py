@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ValueChainMaterial(BaseModel):
@@ -257,3 +257,96 @@ class ValueChainPortfolio(BaseModel):
     upstream_nodes: list[WeightedNode] = Field(description="weight: euro from the node per euro of the linked output mix.")
     footprint: PortfolioFootprint
     activity: PortfolioActivity | None
+
+
+# --- revenue routes: docs/superpowers/specs/2026-10-27-value-chain-revenue-routes-design.md ---
+
+
+class RecipeNode(BaseModel):
+    region: str = Field(description="EXIOBASE region code, e.g. DE.")
+    sector: str = Field(description="Sector name as the explorer shows it.")
+
+
+class RecipeInput(RecipeNode):
+    share: float = Field(allow_inf_nan=False, description="Cost share of the recipe's output bought from this node.")
+
+
+class RecipeIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    home: RecipeNode
+    output_meur: float = Field(allow_inf_nan=False, description="Annual output, M EUR; above 0 and below the home node's output.")
+    inputs: list[RecipeInput] = Field(max_length=10_000, description="1 to 50 inputs; the cap only bounds the body.")
+    source: str = Field(min_length=1, max_length=2000)
+
+
+class Recipe(RecipeIn):
+    recipe_id: str
+    set_by: str
+    set_at: str
+
+
+RecipeStatus = Literal["ok", "unresolved", "inconsistent"]
+
+
+class RecipeOut(Recipe):
+    edition: str
+    caveat: str
+    model_caveat: str
+    unlisted_share: float = Field(description="1 minus the input shares: value added and inputs not listed.")
+    status: RecipeStatus
+
+
+class RecipeListItem(BaseModel):
+    recipe_id: str
+    name: str
+    home: RecipeNode
+    output_meur: float
+    n_inputs: int
+    status: RecipeStatus
+
+
+class RecipeList(BaseModel):
+    edition: str
+    caveat: str
+    model_caveat: str
+    items: list[RecipeListItem]
+
+
+class ExposureItem(BaseModel):
+    node_id: str
+    region_label: str
+    sector: str
+    direct: float = Field(description="Share of this node's sales bought by the target directly.")
+    share: float = Field(description="Share of this node's sales that ends up as the target's purchases.")
+    revenue_meur: float
+
+
+class Exposure(BaseModel):
+    edition: str
+    caveat: str
+    model_caveat: str
+    target: str
+    target_label: str
+    basis: Literal["node", "recipe"]
+    recipe_source: str | None
+    unlisted_share: float | None
+    items: list[ExposureItem]
+
+
+class RevenueRoute(BaseModel):
+    nodes: list[str] = Field(description="Node ids from the seller on, ending with the target as requested.")
+    share: float
+
+
+class RevenueRoutes(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    edition: str
+    caveat: str
+    model_caveat: str
+    target: str
+    from_: str = Field(alias="from")
+    share: float
+    routes: list[RevenueRoute]
+    shown_share: float
+    rest_share: float

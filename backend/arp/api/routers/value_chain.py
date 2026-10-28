@@ -11,6 +11,7 @@ from arp.api.deps import get_portfolio_store, get_taxonomy_store, resolve
 from arp.config import Settings
 from arp.research.indirect_exposure.factory import code_list
 from arp.research.value_chain import links as vc_links
+from arp.research.value_chain import revenue
 from arp.research.value_chain.model import (
     INTENSITY,
     MATERIAL_NOTE,
@@ -22,13 +23,23 @@ from arp.research.value_chain.model import (
     ValueChain,
     load_value_chain,
 )
+from arp.schemas.common import now_iso
 from arp.schemas.value_chain import (
+    Exposure,
+    ExposureItem,
     IcioCode,
     LinkRuleIn,
     PriceShockFocus,
     PriceShockNode,
     QuantityShockFocus,
     QuantityShockNode,
+    Recipe,
+    RecipeIn,
+    RecipeList,
+    RecipeListItem,
+    RecipeOut,
+    RevenueRoute,
+    RevenueRoutes,
     ShockedNode,
     ShockIndicators,
     ValueChainFootprint,
@@ -399,3 +410,139 @@ def portfolio_overlay(
         lens = (taxonomy, definition, vc_links.resolve_activity(vc, definition, rule))
     result = vc_links.overlay(vc, store, holdings, snapshot, indicator=indicator, top=top, activity=lens)
     return ValueChainPortfolio(edition=vc.manifest["edition"], caveat=vc.caveat, portfolio_id=portfolio_id, **result)
+
+
+# --- revenue routes: docs/superpowers/specs/2026-10-27-value-chain-revenue-routes-design.md ---
+
+
+def _recipes() -> revenue.RecipeStore:
+    return revenue.RecipeStore(Settings().value_chain_recipes_dir)  # read on every request, like the build
+
+
+def _meta(vc: ValueChain) -> dict:
+    return {"edition": vc.manifest["edition"], "caveat": vc.caveat, "model_caveat": revenue.MODEL_CAVEAT}
+
+
+def _recipe(store: revenue.RecipeStore, rid: str) -> Recipe:
+    try:
+        return store.get(rid)
+    except revenue.UnknownRecipe as e:
+        raise HTTPException(404, str(e)) from None
+
+
+def _recipe_out(vc: ValueChain, r: Recipe) -> RecipeOut:
+    return RecipeOut(
+        **r.model_dump(), **_meta(vc), unlisted_share=1 - sum(i.share for i in r.inputs), status=revenue.status(vc, r),
+    )
+
+
+def _checked(vc: ValueChain, body: RecipeIn, code: int) -> revenue.Resolved:
+    try:
+        return revenue.check(vc, body)
+    except revenue.RecipeError as e:
+        raise HTTPException(code, str(e)) from None
+
+
+def _target(vc: ValueChain, store: revenue.RecipeStore, key: str) -> tuple[revenue.Target, Recipe | None]:
+    if key.startswith(revenue.RECIPE_PREFIX):
+        r = _recipe(store, key.removeprefix(revenue.RECIPE_PREFIX))
+        return revenue.recipe_target(vc, key, _checked(vc, r, 409)), r
+    with _unknown_is_404():
+        return revenue.node_target(vc, key), None
+
+
+@router.get("/recipes")
+def list_recipes(vc: ValueChain = Depends(_chain), store: revenue.RecipeStore = Depends(_recipes)) -> RecipeList:
+    return RecipeList(
+        **_meta(vc),
+        items=[
+            RecipeListItem(
+                recipe_id=r.recipe_id, name=r.name, home=r.home, output_meur=r.output_meur, n_inputs=len(r.inputs),
+                status=revenue.status(vc, r),
+            )
+            for r in store.list()
+        ],
+    )
+
+
+@router.get("/recipes/{rid}")
+def get_recipe(rid: str, vc: ValueChain = Depends(_chain), store: revenue.RecipeStore = Depends(_recipes)) -> RecipeOut:
+    return _recipe_out(vc, _recipe(store, rid))
+
+
+def _put(vc: ValueChain, store: revenue.RecipeStore, rid: str, body: RecipeIn, user: Principal) -> RecipeOut:
+    _checked(vc, body, 422)
+    recipe = Recipe(**body.model_dump(), recipe_id=rid, set_by=user.name, set_at=now_iso())
+    store.save(recipe)
+    return _recipe_out(vc, recipe)
+
+
+@router.post("/recipes", status_code=201)
+def create_recipe(
+    body: RecipeIn, vc: ValueChain = Depends(_chain), store: revenue.RecipeStore = Depends(_recipes),
+    user: Principal = Depends(current_user),
+) -> RecipeOut:
+    return _put(vc, store, store.new_id(), body, user)
+
+
+@router.put("/recipes/{rid}")
+def update_recipe(
+    rid: str, body: RecipeIn, vc: ValueChain = Depends(_chain), store: revenue.RecipeStore = Depends(_recipes),
+    user: Principal = Depends(current_user),
+) -> RecipeOut:
+    _recipe(store, rid)
+    return _put(vc, store, rid, body, user)
+
+
+@router.delete("/recipes/{rid}", status_code=204)
+def delete_recipe(rid: str, vc: ValueChain = Depends(_chain), store: revenue.RecipeStore = Depends(_recipes)) -> Response:
+    _recipe(store, rid)
+    store.delete(rid)
+    return Response(status_code=204)
+
+
+@router.get("/exposure")
+def exposure(
+    target: Annotated[str, Query(description="A node id or recipe:<recipe_id>.")],
+    top: Annotated[int, Query(ge=1, le=100)] = 20,
+    vc: ValueChain = Depends(_chain),
+    store: revenue.RecipeStore = Depends(_recipes),
+) -> Exposure:
+    t, recipe = _target(vc, store, target)
+    items = [
+        ExposureItem(
+            node_id=n.node_id, region_label=n.region_label, sector=n.sector, direct=float(t.d[k]), share=float(t.r[k]),
+            revenue_meur=float(t.r[k]) * n.output_meur,
+        )
+        for k in revenue.sellers(vc, t, top)
+        for n in [vc._nodes[k]]
+    ]
+    if recipe is None:
+        n = vc.node(target)
+        label, source, unlisted = f"{n.sector} · {n.region_label}", None, None
+    else:
+        label, source, unlisted = recipe.name, recipe.source, 1 - sum(i.share for i in recipe.inputs)
+    return Exposure(
+        **_meta(vc), target=target, target_label=label, basis="recipe" if recipe else "node", recipe_source=source,
+        unlisted_share=unlisted, items=items,
+    )
+
+
+@router.get("/routes")
+def routes(
+    target: Annotated[str, Query(description="A node id or recipe:<recipe_id>.")],
+    from_: Annotated[str, Query(alias="from", description="The selling node's id.")],
+    max_hops: Annotated[int, Query(ge=1, le=6)] = 4,
+    min_share: Annotated[float, Query(ge=0.0001, le=1)] = 0.001,
+    top: Annotated[int, Query(ge=1, le=50)] = 10,
+    vc: ValueChain = Depends(_chain),
+    store: revenue.RecipeStore = Depends(_recipes),
+) -> RevenueRoutes:
+    t, _ = _target(vc, store, target)
+    with _unknown_is_404():
+        share, found = revenue.routes(vc, t, from_, max_hops, min_share, top)
+    shown = sum(s for _, s in found)
+    return RevenueRoutes(
+        **_meta(vc), target=target, from_=from_, share=share, routes=[RevenueRoute(nodes=p, share=s) for p, s in found],
+        shown_share=shown, rest_share=share - shown,
+    )
