@@ -43,6 +43,13 @@ jobs:
           if git ls-remote --exit-code origin "revert-$short" >/dev/null; then echo "revert-$short already exists"; exit 0; fi
           failed=$(gh run view "$RUN_ID" --json jobs --jq '.jobs[] | select(.conclusion == "failure") | "- " + .name')
           subject=$(git log -1 --format=%s "$SHA")
+          # One proposal at a time: while a revert PR is open, a red main is most likely the same failure
+          # (gitleaks on push re-scans earlier merges), so add to that PR instead of reverting the tip too.
+          open=$(gh pr list --state open --json number,headRefName --jq 'map(select(.headRefName | startswith("revert-")))[0].number // empty')
+          if [ -n "$open" ]; then
+            gh pr comment "$open" --body "$(printf 'CI is still red on `main` at %s (%s). No second revert was opened while this one is open.\n\nFailed jobs:\n%s\n\nRun: %s\n\nIf this is a different failure, revert it by hand: `bash .github/scripts/revert_red_main.sh %s`.' "$short" "$subject" "$failed" "$RUN_URL" "$short")"
+            exit 0
+          fi
           body=$(printf 'CI failed on `main` after %s (%s).\n\nFailed jobs:\n%s\n\nRun: %s\n\nThis reverts it so `main` returns to the state before. Merge it if the failure is real; close it if it was a flake or a fix is already on the way. CI does not start on PRs opened by the Actions token: push a commit to this branch, or run CI from the Actions tab, to see it green first.' "$short" "$subject" "$failed" "$RUN_URL")
           if branch=$(bash .github/scripts/revert_red_main.sh "$SHA"); then
             git push origin "$branch"
