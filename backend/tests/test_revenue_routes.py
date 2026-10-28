@@ -264,3 +264,12 @@ def test_unreadable_recipe_file_is_skipped(client, tmp_path):
     rid = post(client, R)["recipe_id"]
     (tmp_path / "recipes" / f"{'f' * 32}.json").write_text("{not json")
     assert [i["recipe_id"] for i in get(client, "/recipes")["items"]] == [rid]
+
+
+def test_sellers_drop_rounding_noise(builds):
+    vc = load_value_chain(builds["F"])
+    r = np.zeros(len(vc._x))
+    for node_id, share in {"DE.2": 1e-17, "DE.3": 1e-12, "CN.2": 2e-12, "CN.3": 0.5}.items():
+        r[vc._index[node_id]] = share
+    target = revenue.Target("t", np.zeros_like(r), r, 0, recipe=False)
+    assert [vc._nodes[k].node_id for k in revenue.sellers(vc, target, 20)] == ["CN.3", "CN.2"]

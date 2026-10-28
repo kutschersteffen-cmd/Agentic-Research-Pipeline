@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
 import { apiMessage } from "../../lib/projects";
-import { activityLine, cents, inRegion, nodeQuery, pct1, portfolioHash, searchable, unresolvedText } from "../../lib/valueChain";
+import { activityLine, cents, pct1, pickerHits, portfolioHash, searchable, unresolvedText } from "../../lib/valueChain";
 import type { PortfolioSummary, Taxonomy, VcIcioCode, VcLinkRuleIn, VcLinks, VcNodeRef, VcPortfolio } from "../../types";
 import { Bars } from "./NodeView";
 import { useVcQuery } from "./useVcQuery";
@@ -35,9 +35,8 @@ export function NodeSearch({ row, onPick }: { row: Pick<Row, "region" | "sector"
     let live = true;
     const timer = setTimeout(() => {
       // A region after a comma filters a wider sector search: one sector spans every region.
-      const { q: text, region } = nodeQuery(q);
-      api.valueChainSearch(text, region ? 100 : 20).then(
-        (r) => live && setHits(r.items.filter((n) => inRegion(n, region)).slice(0, 20)),
+      pickerHits(q, (text, limit) => api.valueChainSearch(text, limit).then((r) => r.items)).then(
+        (items) => live && setHits(items),
         () => live && setHits([]),
       );
     }, 250);

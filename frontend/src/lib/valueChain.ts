@@ -55,12 +55,26 @@ export const exposureHash = (target: string, from?: string): string => {
 /** A route as its labels joined by arrows; ids without a label show as themselves. */
 export const routeText = (nodes: string[], labels: Record<string, string>): string => nodes.map((n) => labels[n] ?? n).join(" → ");
 
-/** A picker query: "copper, CN" searches "copper" and keeps hits whose region code or label is "CN"; no comma, no filter. */
+/** A picker query: "copper, CN" searches "copper" and keeps hits whose region code or label is "CN"; no comma, no filter.
+ * Many sector names hold a comma too, so `pickerHits` falls back to the whole text when the filter keeps nothing. */
 export const nodeQuery = (q: string): { q: string; region: string | null } => {
   const at = q.lastIndexOf(",");
+  const head = at < 0 ? "" : q.slice(0, at);
   const region = at < 0 ? "" : q.slice(at + 1).trim().toLowerCase();
-  return region ? { q: q.slice(0, at), region } : { q, region: null };
+  return region && head.trim() ? { q: head, region } : { q, region: null };
 };
 
 export const inRegion = (n: { region: string; region_label: string }, region: string | null): boolean =>
   region === null || n.region.toLowerCase() === region || n.region_label.toLowerCase() === region;
+
+type Hit = { region: string; region_label: string };
+
+/** Up to 20 picker hits for `q`, searching with `search(text, limit)`. */
+export async function pickerHits<T extends Hit>(q: string, search: (text: string, limit: number) => Promise<T[]>): Promise<T[]> {
+  const { q: text, region } = nodeQuery(q);
+  if (region !== null) {
+    const kept = (await search(text, 100)).filter((n) => inRegion(n, region));
+    if (kept.length) return kept.slice(0, 20);
+  }
+  return search(q, 20);
+}

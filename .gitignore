@@ -65,3 +65,4 @@ frontend/reports/
 
 # Obsidian vault config
 .obsidian/
+backend/test-results/

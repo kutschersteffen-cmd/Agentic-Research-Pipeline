@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activityLine, cents, exposureHash, footprintTotal, homeShare, inRegion, linkText, meur, nodeHash, nodeQuery, pct1, percent, portfolioHash, recipesHash, routeText, searchable, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
+import { activityLine, cents, exposureHash, footprintTotal, homeShare, inRegion, linkText, meur, nodeHash, nodeQuery, pickerHits, pct1, percent, portfolioHash, recipesHash, routeText, searchable, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
 
 test("flows in cents", () => {
   assert.equal(cents(0.0738), "7.4¢"); assert.equal(cents(0.0079798, 2), "0.80¢");
@@ -41,7 +41,24 @@ test("node picker: a region after a comma filters the hits", () => {
   assert.deepEqual(nodeQuery("copper, CN"), { q: "copper", region: "cn" });
   assert.deepEqual(nodeQuery("copper"), { q: "copper", region: null });
   assert.deepEqual(nodeQuery("copper, "), { q: "copper, ", region: null });
+  assert.deepEqual(nodeQuery(", CN"), { q: ", CN", region: null });
   assert.equal(inRegion({ region: "WA", region_label: "RoW Asia-Pacific" }, "row asia-pacific"), true);
   assert.equal(inRegion({ region: "US", region_label: "US" }, "cn"), false);
   assert.equal(inRegion({ region: "US", region_label: "US" }, null), true);
+});
+test("node picker: a comma inside a sector name still finds it", async () => {
+  const nodes = [
+    { region: "CN", region_label: "CN", sector: "Copper production" },
+    { region: "DE", region_label: "DE", sector: "Copper production" },
+    { region: "DE", region_label: "DE", sector: "Manufacture of motor vehicles, trailers and semi-trailers" },
+  ];
+  const sent: [string, number][] = [];
+  const search = async (text: string, limit: number) => {
+    sent.push([text, limit]);
+    return nodes.filter((n) => n.sector.toLowerCase().includes(text.trim().toLowerCase())).slice(0, limit);
+  };
+  assert.deepEqual((await pickerHits("copper, CN", search)).map((n) => n.region), ["CN"]);
+  const motor = await pickerHits("motor vehicles, trailers", search);
+  assert.deepEqual(motor.map((n) => n.sector), ["Manufacture of motor vehicles, trailers and semi-trailers"]);
+  assert.deepEqual(sent.slice(1), [["motor vehicles", 100], ["motor vehicles, trailers", 20]]);
 });
