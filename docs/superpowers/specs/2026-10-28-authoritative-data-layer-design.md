@@ -93,7 +93,8 @@ inputs it used and the logic that produced it.
 - **Portfolio-store inputs.** The portfolio store's `climate_*` observations (`DataPointObservation`) can also be
   picked, so a framework can reproduce today's WACI behaviour before switching over. They are joined by mapping the
   observation's `company_id` through the identity registry. The latest observation with `observed_at <= as_of` is
-  used. The default alias is `portfolio_<source>_<field_id>`, e.g. `portfolio_internal_api_climate_scope1_tco2e`.
+  used. The user picks a portfolio field **and one source**; only that source's observations are used. The default
+  alias is `portfolio_<source>_<field_id>`, e.g. `portfolio_internal_api_climate_scope1_tco2e`.
   Columns are `<alias>`, `<alias>__unit`, `<alias>__period` (the free-text period, for example `FY2025`),
   `<alias>__source` (`internal_api`, `extracted`, `catalogue`, `estimated_proxy`) and `<alias>__observed_at`.
   *(Claude's call.)*
@@ -105,6 +106,8 @@ A calculate-only framework declares its **outputs**, which are the authoritative
 `{column, name, data_type, unit}`, for example `auth_scope1_tco2e`. The rule graph must output `<column>`, and may
 output `<column>__period_end` (ISO date) to state which period the value is for.
 
+- Ratifying fails with HTTP 422 if a declared output's column equals an input column of its dataset; the message names
+  the column. This keeps Decision Studio's rule that a rule never overwrites a source column.
 - Ratifying a framework fails with HTTP 422 if, evaluated on its current dataset, any declared output is absent from
   every row's result. The message names the output.
 - An output can be blank for a row. The verdict is then `no_value`, with reason `no_rule_value` when the graph ran but
@@ -224,6 +227,7 @@ Rows marked `holdout` stay `unit` until the `HOLDOUT_TOKEN` secret is set; the P
 | AC-5 | The fixture | Build the dataset with `as_of` 2026-09-01 | A and B: `prov_esg_demo_scope1` = `null`. A: `scope1_tco2e` = 90 | holdout |
 | AC-6 | Two picked fields whose default aliases are equal | Build the dataset | HTTP 422; the message names both field ids | unit |
 | AC-7 | The portfolio store holds `climate_scope1_tco2e` = 200 for A (source `internal_api`, period `FY2025`, observed 2026-05-01) | Build D1 with that field picked | A: `portfolio_internal_api_climate_scope1_tco2e` = 200, `…__period` = `FY2025`, `…__source` = `internal_api` | unit |
+| AC-7b | As AC-7, and B has only a `catalogue` observation of `climate_scope1_tco2e` | Build D1 with field `climate_scope1_tco2e`, source `internal_api` picked | B: `portfolio_internal_api_climate_scope1_tco2e` = `null` | unit |
 | AC-8 | F unratified; signed in as an analyst | `POST` ratify for F | HTTP 403 | holdout |
 | AC-9 | F ratified by an approver; signed in as an analyst | `POST` publish for F on D1 | HTTP 403, and `authoritative_values` has 0 rows | holdout |
 | AC-10 | A scoring framework (`purpose` = `score`); signed in as an analyst | Ratify, then publish | Both return HTTP 200, as today | holdout |
@@ -248,7 +252,7 @@ Rows marked `holdout` stay `unit` until the `HOLDOUT_TOKEN` secret is set; the P
 | AC-27 | After AC-25 | `GET …&company_id=A&as_of=<a time before AC-13's publish>` | 0 items | holdout |
 | AC-28 | After AC-13, B removed from the universe; dataset D4 with `as_of` 2026-10-26 | Publish F on D4 | B's current row: `status` `no_value`, `reason` `not_in_dataset`; B's row with `value` 50 still exists with `valid_to` set | holdout |
 | AC-29 | Before and after AC-13's publish | Count and hash all rows of `company_facts`, `field_observations` and `published_facts` | Identical | holdout |
-| AC-29b | Framework F6 whose graph outputs `scope1_tco2e = 0` and `z = scope1_tco2e`, output `z`, ratified | Publish F6 on D1, read A | A: `z` = 90 (a rule never overwrites a source column) | holdout |
+| AC-29b | Framework F6 declares output `scope1_tco2e`, which is also an input column of D1 | Ratify as an approver | HTTP 422; the message contains `scope1_tco2e` | holdout |
 | AC-30 | After AC-13, in the running app | Open F's result in Decision Studio and click A's `auth_scope1` cell | A panel shows value 90; the input `scope1_tco2e` = 90 with `approved`, `extraction`, `2025-12-31`; and the expression text `scope1_tco2e__status == 'approved' ? scope1_tco2e : prov_esg_demo_scope1` | evaluator |
 | AC-31 | Phase 2. Portfolio store: A and B have `climate_scope1_tco2e` 200 and 300, `climate_scope2_tco2e` 0 and 0, `climate_evic_eur_m` 10 and 10. One holding each, `market_value_eur` 1,000,000. `climate_scope1_tco2e` bound to F/`auth_scope1`; state after AC-13 | `compute_financed_emissions` with `as_of` now | `financed_emissions_tco2e` = 14.0 (0.1 × 90 + 0.1 × 50) | holdout |
 | AC-32 | As AC-31 but no binding | Same call | `financed_emissions_tco2e` = 50.0 (0.1 × 200 + 0.1 × 300), as on `main` | holdout |
