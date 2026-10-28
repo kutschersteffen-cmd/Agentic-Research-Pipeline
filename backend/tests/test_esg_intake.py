@@ -35,7 +35,7 @@ def n_obs(store):
 def test_valid_file_writes_one_observation_per_company_field(store):
     res = run(store, [row("acme"), row("globex", 3)])
     assert (res.status, res.rows) == ("written", 2)
-    assert n_obs(store) == 14
+    assert n_obs(store) == 12
     o = store.latest_observation("acme", FIELD_IDS[0])
     assert (o.source, o.period, o.notes, o.value) == ("internal_api", MONTH, "file:sha256:x", 1.5)
 
@@ -43,13 +43,7 @@ def test_valid_file_writes_one_observation_per_company_field(store):
 def test_identical_reupload_is_unchanged_and_adds_no_observations(store):
     run(store, [row()])
     assert run(store, [row()]).status == "unchanged"
-    assert n_obs(store) == 7
-
-
-def test_file_without_revenue_column_imports_as_before(store):
-    res = run(store, [{k: v for k, v in row().items() if k != "climate_revenue_eur_m"}])
-    assert (res.status, n_obs(store)) == ("written", 6)
-    assert store.latest_observation("acme", "climate_revenue_eur_m") is None
+    assert n_obs(store) == 6
 
 
 def test_changed_reupload_appends_new_values_latest_wins(store):
@@ -87,8 +81,7 @@ def test_failed_validation_records_failed_load(store):
 
 
 def test_template_has_all_climate_field_columns():
-    assert ["company_id", *FIELD_IDS] == ESG_TEMPLATE_COLUMNS and len(FIELD_IDS) == 7
-    assert FIELD_IDS[FIELD_IDS.index("climate_evic_eur_m") + 1] == "climate_revenue_eur_m"
+    assert ["company_id", *FIELD_IDS] == ESG_TEMPLATE_COLUMNS and len(FIELD_IDS) == 6
     assert template("csv").decode().strip().split(",") == ESG_TEMPLATE_COLUMNS
     assert template("xlsx")[:2] == b"PK"
 

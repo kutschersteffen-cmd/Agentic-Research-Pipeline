@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 from datetime import date
-from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -627,9 +626,8 @@ def k_fact(pg, run_store, ids):
 @pytest.fixture
 def kpi_ids(pg, ids, monkeypatch):
     """H, X and F, over the bundled benchmarks and barrier data (BM has no Chemicals or Heavy-Duty Road Transport)."""
-    # by package path, not config's REPO_ROOT default, which is wrong inside mutmut's backend/mutants/ copy
-    monkeypatch.setenv("ARP_TRANSITION_ALIGNMENT_DATA_DIR", str(Path(benchmarks.__file__).parent / "data"))
-    monkeypatch.setenv("ARP_TRANSITION_BARRIER_DATA_DIR", str(Path(dataset.__file__).parent / "data"))
+    monkeypatch.delenv("ARP_TRANSITION_ALIGNMENT_DATA_DIR")
+    monkeypatch.delenv("ARP_TRANSITION_BARRIER_DATA_DIR")
     get_settings.cache_clear()
     dataset.reset_caches()
     benchmarks.reset_cache()

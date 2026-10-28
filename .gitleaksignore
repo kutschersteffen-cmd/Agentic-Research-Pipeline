@@ -2,6 +2,3 @@
 41397815e4cbf596cb840e60922bca1a66aae208:backend/tests/fixtures/transition_barrier_main/criterion_STL-R1.json:generic-api-key:89
 9ddf9e8a31250aa28616b2401b881e188206cd62:backend/arp/transition_barrier/data/criteria_schema.json:generic-api-key:344
 9ddf9e8a31250aa28616b2401b881e188206cd62:backend/arp/transition_barrier/data/criteria_schema.json:generic-api-key:1480
-
-# False positive: a test timestamp (observed_at=f"2025-07-{day}T…"), not a secret.
-7199adb5e655b640c0b8d88b60106e2d3137ba96:backend/tests/db/test_importer.py:generic-api-key:361

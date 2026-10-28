@@ -103,7 +103,7 @@ import type {
   TransitionPlanIndicatorDef,
 } from "../types";
 import type { XbrlRunMarket } from "../types";
-import type { VcFootprint, VcIcioCode, VcLinkRuleIn, VcLinks, VcNode, VcPortfolio, VcSearch, VcStatus, VcTree } from "../types";
+import type { VcFootprint, VcNode, VcSearch, VcStatus, VcTree } from "../types";
 import type { RunFailure } from "../types";
 import type {
   Dossier,
@@ -1177,15 +1177,4 @@ export const api = {
     request<VcFootprint>(
       `/api/value-chain/nodes/${encodeURIComponent(id)}/footprint${buildQuery({ indicator: opts.indicator, amount_meur: String(opts.amount), top: "6" })}`,
     ),
-  valueChainCodes: () => request<VcIcioCode[]>("/api/value-chain/codes"),
-  valueChainPortfolio: (id: string, opts: { asOf?: string; indicator: "ghg" | "energy" | "jobs"; taxonomy?: string; activity?: string }) =>
-    request<VcPortfolio>(
-      `/api/value-chain/portfolio/${encodeURIComponent(id)}${buildQuery({ as_of: opts.asOf, indicator: opts.indicator, top: "6", taxonomy: opts.taxonomy, activity: opts.activity })}`,
-    ),
-  // `subject` is `company/<id>` or `activity/<taxonomy id>/<activity id>`, each part URL-encoded.
-  valueChainLinks: (subject: string) => request<VcLinks>(`/api/value-chain/links/${subject}`),
-  saveValueChainLinks: (subject: string, rule: VcLinkRuleIn) => request<VcLinks>(`/api/value-chain/links/${subject}`, jsonBody("PUT", rule)),
-  resetValueChainLinks: async (subject: string): Promise<void> => {
-    await authFetch(`${API_BASE}/api/value-chain/links/${subject}`, { method: "DELETE" }); // 204: no body to parse
-  },
 };

@@ -40,7 +40,7 @@ DSN = os.environ.get("ARP_TEST_POSTGRES_DSN")
 FILE_ONLY_METHODS = frozenset(
     {"registry_path", "securities_path", "companies_path", "resolutions_path", "snapshot_path",
      "observations_path", "news_path", "flags_path", "analytics_path", "groups_path", "rules_path",
-     "alert_events_path", "governance_events_path", "revision_path", "holders_path", "holdings_audit_path", "links_path"}
+     "alert_events_path", "governance_events_path", "revision_path", "holders_path", "holdings_audit_path"}
 )
 
 
@@ -212,23 +212,6 @@ def test_company_round_trip(store):
     assert store.list_companies() == [company]
 
 
-def test_link_rule_round_trip_replace_and_delete(store):
-    from arp.schemas.value_chain import LinkRule
-
-    split = LinkRule(kind="split", parts=[{"icio_code": "C27", "share": 0.5}, {"icio_code": "B07", "share": 0.5}],
-                     set_by="ana", set_at="2026-10-27T10:00:00Z")
-    nodes = LinkRule(kind="nodes", parts=[{"region": "WA", "sector": "Wind", "share": 1.0}], set_by="ana",
-                     set_at="2026-10-27T11:00:00Z")
-    store.save_link_rule("company:sx", split)
-    assert store.get_link_rule("company:sx") == split
-    store.save_link_rule("company:sx", nodes)
-    assert store.get_link_rule("company:sx") == nodes
-    assert store.list_link_rules() == {"company:sx": nodes}
-    store.delete_link_rule("company:sx")
-    store.delete_link_rule("company:sx")  # deleting what is not there is fine
-    assert store.get_link_rule("company:sx") is None
-
-
 def test_resolution_round_trip_and_review_filter(store):
     resolved = SecurityResolution(
         security_id="DE0005190003", company_id="bmw", confidence=0.99, method="isin_exact",
@@ -277,9 +260,8 @@ def test_public_surfaces_match():
     without a database."""
     from arp.storage.postgres_portfolio_store import PostgresPortfolioStore
 
-    # "__mutmut_": the mutation check's trampoline copies of each method, added to the class it mutates
-    file_surface = {name for name in dir(PortfolioStore) if not name.startswith("_") and "__mutmut_" not in name}
-    pg_surface = {name for name in dir(PostgresPortfolioStore) if not name.startswith("_") and "__mutmut_" not in name}
+    file_surface = {name for name in dir(PortfolioStore) if not name.startswith("_")}
+    pg_surface = {name for name in dir(PostgresPortfolioStore) if not name.startswith("_")}
 
     assert file_surface - pg_surface == FILE_ONLY_METHODS
     # The Postgres store may add capabilities the file store can't offer

@@ -34,9 +34,8 @@ logger = logging.getLogger(__name__)
 MAPPINGS_DIR = Path(__file__).parent / "mappings"
 FIELD_IDS = [
     schemas.FIELD_SCOPE1, schemas.FIELD_SCOPE2, schemas.FIELD_SCOPE3,
-    schemas.FIELD_CARBON_INTENSITY, schemas.FIELD_EVIC, schemas.FIELD_REVENUE, schemas.FIELD_GREEN_REVENUE_PCT,
+    schemas.FIELD_CARBON_INTENSITY, schemas.FIELD_EVIC, schemas.FIELD_GREEN_REVENUE_PCT,
 ]
-OPTIONAL_FIELD_IDS = {schemas.FIELD_REVENUE}  # a blank or missing column imports as before
 # ponytail: company_id only; an `isin` column needs the security resolution step and is deferred.
 ESG_TEMPLATE_COLUMNS = ["company_id", *FIELD_IDS]
 MONTH = re.compile(r"\d{4}-(0[1-9]|1[0-2])")
@@ -85,8 +84,7 @@ def validate_esg(raw: list[dict], *, month: str, known_company_ids: set[str], de
         for fid in FIELD_IDS:
             v = r.get(fid)
             if _blank(v):
-                if fid not in OPTIONAL_FIELD_IDS:
-                    errors.append(RowError(n, fid, "required"))
+                errors.append(RowError(n, fid, "required"))
                 continue
             try:
                 row[fid] = parse_decimal(v, decimal)
@@ -112,7 +110,7 @@ def ingest_esg(store, validated: ValidatedEsg, *, provider: str, month: str, sou
         return EsgIntakeResult("unchanged", len(validated.rows))
     names = {f.field_id: f for f in schemas.build_climate_schema().fields}
     for r in validated.rows:
-        for fid in (f for f in FIELD_IDS if f in r):
+        for fid in FIELD_IDS:
             store.append_observation(DataPointObservation(
                 company_id=r["company_id"], field_id=fid, field_name=names[fid].name, value=r[fid], unit=names[fid].unit,
                 period=month, source="internal_api", notes=f"file:{source_ref}" if source_ref else "",
@@ -135,7 +133,7 @@ def _provider_rows(payload: bytes) -> list[ProviderRow]:
     return [
         ProviderRow(issuer_ids=[(IdScheme.UNIVERSE, r["company_id"])], metric_code=fid, metric_name=names[fid].name,
                     unit=names[fid].unit, data_type="number", period_end=period_end, value=r[fid])
-        for r in doc["rows"] for fid in FIELD_IDS if fid in r
+        for r in doc["rows"] for fid in FIELD_IDS
     ]
 
 

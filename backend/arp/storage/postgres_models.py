@@ -60,19 +60,6 @@ class CompanyModel(Base):
     isic_code: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
-class LinkRuleModel(Base):
-    """Value-chain link rules (arp/research/value_chain/links.py), one per subject; parts hold ICIO codes or
-    region + sector names, never node ids."""
-
-    __tablename__ = "value_chain_link_rules"
-
-    subject: Mapped[str] = mapped_column(String, primary_key=True)
-    kind: Mapped[str] = mapped_column(String)
-    parts: Mapped[list] = mapped_column(JSONB)
-    set_by: Mapped[str] = mapped_column(String)
-    set_at: Mapped[str] = mapped_column(String)
-
-
 class SecurityModel(Base):
     __tablename__ = "securities"
 

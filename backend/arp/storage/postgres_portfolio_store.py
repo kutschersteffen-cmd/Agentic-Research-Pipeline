@@ -20,7 +20,6 @@ from arp.schemas.portfolio import (
     SecurityResolution,
 )
 from arp.schemas.portfolio_monitoring import AlertRule
-from arp.schemas.value_chain import LinkRule
 from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.postgres import get_engine
 
@@ -239,42 +238,6 @@ class PostgresPortfolioStore:
         with self._session() as session:
             rows = session.scalars(select(CompanyModel).order_by(CompanyModel.company_id)).all()
             return [_company_from_row(r) for r in rows]
-
-    # --- value-chain link rules -------------------------------------------
-
-    def save_link_rule(self, subject: str, rule: LinkRule) -> None:
-        from arp.storage.postgres_models import LinkRuleModel
-
-        with self._session() as session:
-            session.merge(LinkRuleModel(subject=subject, **rule.model_dump()))
-            session.commit()
-
-    def get_link_rule(self, subject: str) -> LinkRule | None:
-        from arp.storage.postgres_models import LinkRuleModel
-
-        with self._session() as session:
-            row = session.get(LinkRuleModel, subject)
-            return None if row is None else LinkRule(kind=row.kind, parts=row.parts, set_by=row.set_by, set_at=row.set_at)
-
-    def list_link_rules(self) -> dict[str, LinkRule]:
-        from sqlalchemy import select
-
-        from arp.storage.postgres_models import LinkRuleModel
-
-        with self._session() as session:
-            return {
-                r.subject: LinkRule(kind=r.kind, parts=r.parts, set_by=r.set_by, set_at=r.set_at)
-                for r in session.scalars(select(LinkRuleModel)).all()
-            }
-
-    def delete_link_rule(self, subject: str) -> None:
-        from sqlalchemy import delete
-
-        from arp.storage.postgres_models import LinkRuleModel
-
-        with self._session() as session:
-            session.execute(delete(LinkRuleModel).where(LinkRuleModel.subject == subject))
-            session.commit()
 
     # --- security resolutions ----------------------------------------------
 
