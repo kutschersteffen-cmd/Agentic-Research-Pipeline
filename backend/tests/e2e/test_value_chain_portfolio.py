@@ -134,3 +134,19 @@ def test_ac43_ac43b_activity_line_and_its_link(page):
     editor.get_by_role("button", name="Save").click()
     page.get_by_text("Copper and nickel mining: 10.7% of NAV directly · 25.5% of upstream").wait_for()
     assert page.console_errors == []
+
+
+def test_ac44_shocks_view_portfolio_lens(page):
+    page.goto(URL + "/#/valueChain/CN.4/shock")
+    page.get_by_role("group", name="Target").get_by_role("button", name="All of CN").click()
+    field(page, "Change (%)").fill("-10")
+    field(page, "Portfolio").select_option("P")
+    page.get_by_text("Portfolio output change −8.23%").wait_for()
+    SCREENSHOT.parent.mkdir(exist_ok=True)
+    page.screenshot(path=str(SCREENSHOT.with_name("value-chain-shock-lens.png")), full_page=True)
+    page.get_by_role("group", name="Model").get_by_role("button", name="Carbon price").click()
+    page.get_by_text("Portfolio price change 0.03%").wait_for()
+    field(page, "Portfolio").select_option("")
+    page.get_by_role("heading", name="Price change").wait_for()
+    assert page.get_by_text("Portfolio price change").count() == 0
+    assert page.console_errors == []

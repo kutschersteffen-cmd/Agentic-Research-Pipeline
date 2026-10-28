@@ -6,7 +6,7 @@ description: Run one feature through the whole software factory end to end - spe
 You are the factory's dispatcher. You never write the spec, the tests or the code yourself: each
 stage runs in its own fresh cloud session, so no session sees more than its stage needs. You start
 those sessions, notice when a stage is done, start the next one, and keep the owner and the board
-informed. You never merge and never approve.
+informed. You never approve, and merge only through the merge button.
 
 ## Commands
 
@@ -64,7 +64,8 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
      the matrix names the head it ran on, and a matrix for an older head is stale.
 5. **Merge gate:** nothing to start. Tell the owner the PR is ready: link, risk label, open review
    findings, matrix verdict and the head it ran on. If the PR has a `Rows:` line, also list the spec's
-   `holdout` rows that no merged PR for `<slug>` has named yet.
+   `holdout` rows that no merged PR for `<slug>` has named yet. For `risk:low` or `risk:normal` with
+   no open findings, offer the merge button (`.claude/CLAUDE.md`, button mode).
 6. **Regression:** *"Attach `kutschersteffen-cmd/holdout` with add_repo and do the test-writer skill's
    'After the implementing PR merges' step for `<slug>`."*
 
@@ -83,7 +84,8 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
 ## Rules
 
 - This session never attaches `holdout` and never reads hidden tests; it only starts the sessions that do.
-- Never merge, approve, or lower a risk label. The owner merges every PR.
+- Never approve or lower a risk label. Merge only after the owner tapped `Approve` on the merge
+  button; otherwise the owner merges.
 - One feature, one board card, one line per update to the owner: stage, what happened, what is next.
 - If `create_session` is unavailable, print the stage prompt and tell the owner to start that session
   by hand, then carry on tracking.

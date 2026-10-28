@@ -78,6 +78,88 @@ class ValueChainFootprint(BaseModel):
     by_sector: list[tuple[str, float]]
 
 
+class ShockIndicators(BaseModel):
+    ghg: float = Field(description="t CO₂e")
+    energy: float = Field(description="TJ")
+    jobs: float = Field(description="people")
+
+
+class ShockedNode(BaseModel):
+    node_id: str
+    base_meur: float = Field(description="Final demand (demand model) or primary inputs (supply model), M EUR.")
+    shock_meur: float
+
+
+class QuantityShockNode(BaseModel):
+    node_id: str
+    region_label: str
+    sector: str
+    delta_meur: float
+
+
+class QuantityShockFocus(BaseModel):
+    node_id: str
+    delta_meur: float
+
+
+class PortfolioQuantityLens(BaseModel):
+    portfolio_id: str
+    as_of: str
+    linked_weight: float
+    change_pct: float | None = Field(description="Holding-weighted output change of the linked holdings, %; null when none is linked.")
+
+
+class PortfolioPriceLens(BaseModel):
+    portfolio_id: str
+    as_of: str
+    linked_weight: float
+    dp_pct: float | None = Field(description="Holding-weighted price change of the linked holdings, %; null when none is linked.")
+
+
+class ValueChainQuantityShock(BaseModel):
+    edition: str
+    caveat: str
+    model_caveat: str
+    model: str
+    unit: str
+    change_pct: float
+    total_meur: float
+    by_region: list[tuple[str, float]]
+    by_sector: list[tuple[str, float]]
+    nodes: list[QuantityShockNode]
+    shocked: list[ShockedNode]
+    skipped: list[str]
+    indicators: ShockIndicators
+    focus: QuantityShockFocus | None
+    portfolio: PortfolioQuantityLens | None = Field(description="With ?portfolio=: the portfolio's holding-weighted output change.")
+
+
+class PriceShockNode(BaseModel):
+    node_id: str
+    region_label: str
+    sector: str
+    dp_pct: float
+
+
+class PriceShockFocus(BaseModel):
+    node_id: str
+    dp_pct: float
+
+
+class ValueChainPriceShock(BaseModel):
+    edition: str
+    caveat: str
+    model_caveat: str
+    carbon_eur_per_t: float
+    covered_regions: list[str]
+    priced_t: float
+    carbon_cost_meur: float
+    by_region: list[tuple[str, float]] = Field(description="Output-weighted mean price change, %.")
+    by_sector: list[tuple[str, float]] = Field(description="Output-weighted mean price change, %.")
+    nodes: list[PriceShockNode]
+    focus: PriceShockFocus | None
+    portfolio: PortfolioPriceLens | None = Field(description="With ?portfolio=: the portfolio's holding-weighted price change.")
+
 class ValueChainMaterialFootprint(ValueChainFootprint):
     material_note: str
 

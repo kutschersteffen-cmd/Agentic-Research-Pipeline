@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_portfolio_store, get_taxonomy_store
@@ -16,6 +16,7 @@ from arp.research.value_chain.model import (
     MATERIAL_NOTE,
     NOT_BUILT,
     NotBuilt,
+    ShockError,
     UnknownMaterial,
     UnknownNode,
     ValueChain,
@@ -24,6 +25,12 @@ from arp.research.value_chain.model import (
 from arp.schemas.value_chain import (
     IcioCode,
     LinkRuleIn,
+    PriceShockFocus,
+    PriceShockNode,
+    QuantityShockFocus,
+    QuantityShockNode,
+    ShockedNode,
+    ShockIndicators,
     ValueChainFootprint,
     ValueChainLink,
     ValueChainLinks,
@@ -34,6 +41,8 @@ from arp.schemas.value_chain import (
     ValueChainNode,
     ValueChainNodeRef,
     ValueChainPortfolio,
+    ValueChainPriceShock,
+    ValueChainQuantityShock,
     ValueChainSearch,
     ValueChainStatus,
     ValueChainTree,
@@ -42,6 +51,18 @@ from arp.schemas.value_chain import (
 from arp.storage.taxonomy_store import TaxonomyStore
 
 router = APIRouter(prefix="/api/value-chain", tags=["value-chain"])
+
+MODEL_CAVEATS = {
+    "demand": "Linear Leontief model: fixed input recipes, no substitution, no capacity limits, no price effects.",
+    "supply": (
+        "Ghosh dependency indicator, not a forecast: downstream output resting on the lost inputs if every buyer "
+        "keeps its sales shares; no substitution or rerouting."
+    ),
+    "price": (
+        "Leontief cost-push: full pass-through of the carbon cost, no substitution, no demand response; producers' "
+        "direct emissions only, households' own emissions not priced; basic prices."
+    ),
+}
 
 
 def _chain() -> ValueChain:
@@ -159,6 +180,82 @@ def footprint(
 
 
 
+def _store_if_asked(request: Request):
+    """The portfolio store, built only for a shock with ?portfolio=, so a plain shock needs no database;
+    looked up through dependency_overrides like Depends(get_portfolio_store) would be."""
+    if request.query_params.get("portfolio") is None:
+        return None
+    return request.app.dependency_overrides.get(get_portfolio_store, get_portfolio_store)()
+
+
+@contextmanager
+def _shock_errors_are_422() -> Iterator[None]:
+    try:
+        yield
+    except (UnknownNode, ShockError) as e:
+        raise HTTPException(422, str(e)) from None
+
+
+# GET so the viewer role can run shocks; selections are repeated query parameters (spec value-chain-shocks).
+@router.get("/shock/quantity")
+def shock_quantity(
+    model: Literal["demand", "supply"],
+    change: Annotated[float, Query(allow_inf_nan=False, description="Percent (unit=pct) or total M EUR (unit=meur).")],
+    unit: Literal["pct", "meur"] = "pct",
+    node: Annotated[list[str], Query()] = [],  # noqa: B006 - FastAPI copies query defaults
+    region: Annotated[list[str], Query(description="Region codes.")] = [],  # noqa: B006
+    sector: Annotated[list[str], Query(description="Sector names as the API shows them.")] = [],  # noqa: B006
+    top: Annotated[int, Query(ge=1, le=20)] = 6,
+    focus: str | None = None,
+    portfolio: Annotated[str | None, Query(description="Adds the portfolio's holding-weighted output change.")] = None,
+    as_of: Annotated[str | None, Query(description="The portfolio's snapshot on or before this date; default latest.")] = None,
+    vc: ValueChain = Depends(_chain),
+    store=Depends(_store_if_asked),
+) -> ValueChainQuantityShock:
+    snapshot = _lens_snapshot(store, portfolio, as_of)
+    with _shock_errors_are_422():
+        s = vc.shock_quantity(model, change, unit, node, region, sector, top, focus)
+    lens = _lens(vc, store, portfolio, snapshot, "change_pct", dx=s.dx) if snapshot else None
+    return ValueChainQuantityShock(
+        edition=vc.manifest["edition"], caveat=vc.caveat, model_caveat=MODEL_CAVEATS[model], model=s.model,
+        unit=s.unit, change_pct=s.change_pct, total_meur=s.total_meur, by_region=s.by_region,
+        by_sector=s.by_sector,
+        nodes=[
+            QuantityShockNode(node_id=n.node_id, region_label=n.region_label, sector=n.sector, delta_meur=v)
+            for n, v in s.nodes
+        ],
+        shocked=[ShockedNode(node_id=i, base_meur=b, shock_meur=d) for i, b, d in s.shocked],
+        skipped=s.skipped, indicators=ShockIndicators(**s.indicators),
+        focus=QuantityShockFocus(node_id=s.focus[0], delta_meur=s.focus[1]) if s.focus else None, portfolio=lens,
+    )
+
+
+@router.get("/shock/price")
+def shock_price(
+    carbon_eur_per_t: Annotated[float, Query(ge=0, le=10_000, allow_inf_nan=False)],
+    region: Annotated[list[str], Query(description="Covered region codes; all when none.")] = [],  # noqa: B006
+    top: Annotated[int, Query(ge=1, le=20)] = 6,
+    focus: str | None = None,
+    portfolio: Annotated[str | None, Query(description="Adds the portfolio's holding-weighted price change.")] = None,
+    as_of: Annotated[str | None, Query(description="The portfolio's snapshot on or before this date; default latest.")] = None,
+    vc: ValueChain = Depends(_chain),
+    store=Depends(_store_if_asked),
+) -> ValueChainPriceShock:
+    snapshot = _lens_snapshot(store, portfolio, as_of)
+    with _shock_errors_are_422():
+        s = vc.shock_price(carbon_eur_per_t, region, top, focus)
+    lens = _lens(vc, store, portfolio, snapshot, "dp_pct", dp_pct=s.dp_pct) if snapshot else None
+    return ValueChainPriceShock(
+        edition=vc.manifest["edition"], caveat=vc.caveat, model_caveat=MODEL_CAVEATS["price"],
+        carbon_eur_per_t=s.carbon_eur_per_t, covered_regions=s.covered_regions, priced_t=s.priced_t,
+        carbon_cost_meur=s.carbon_cost_meur, by_region=s.by_region, by_sector=s.by_sector,
+        nodes=[
+            PriceShockNode(node_id=n.node_id, region_label=n.region_label, sector=n.sector, dp_pct=v)
+            for n, v in s.nodes
+        ],
+        focus=PriceShockFocus(node_id=s.focus[0], dp_pct=s.focus[1]) if s.focus else None, portfolio=lens,
+    )
+
 # --- links and portfolio overlay: docs/superpowers/specs/2026-10-27-value-chain-links-overlays-design.md ---
 
 
@@ -167,6 +264,29 @@ def icio_codes() -> list[IcioCode]:
     """The ICIO codes a revenue split may name: the 50 industries, then the five electricity split codes."""
     codes = code_list()
     return [IcioCode(code=c, label=codes.labels[c]) for c in codes.codes]
+
+
+def _snapshot(store, portfolio_id: str, as_of: str | None) -> tuple[str, list]:
+    """The portfolio's latest snapshot on or before `as_of` (default: its latest): (date, holdings)."""
+    if store.get_portfolio(portfolio_id) is None:
+        raise HTTPException(404, f"unknown portfolio '{portfolio_id}'")
+    dates = [d for d in store.list_snapshot_dates(portfolio_id) if as_of is None or d <= as_of]
+    if not dates:
+        raise HTTPException(404, f"no holdings for '{portfolio_id}'" + (f" on or before {as_of}" if as_of else ""))
+    return dates[-1], store.load_holdings_as_of(dates[-1], [portfolio_id])
+
+
+def _lens_snapshot(store, portfolio: str | None, as_of: str | None) -> tuple[str, list] | None:
+    """The shocks' portfolio lens input (links spec Scope 8), checked before the shock runs."""
+    if as_of is not None and portfolio is None:
+        raise HTTPException(422, "as_of needs portfolio")
+    return _snapshot(store, portfolio, as_of) if portfolio is not None else None
+
+
+def _lens(vc: ValueChain, store, portfolio: str, snapshot: tuple[str, list], key: str, **vector) -> dict:
+    """Holding-weighted output (`dx`) or price (`dp_pct`) change over the portfolio's nodes."""
+    linked, change = vc_links.shock_lens(vc, vc_links.portfolio_weights(vc, store, snapshot[1]), **vector)
+    return {"portfolio_id": portfolio, "as_of": snapshot[0], "linked_weight": linked, key: change}
 
 
 def _company(company_id: str, store):
@@ -274,16 +394,11 @@ def portfolio_overlay(
         raise HTTPException(422, f"unknown indicator '{indicator}'")
     if (taxonomy is None) != (activity is None):
         raise HTTPException(422, "taxonomy and activity go together")
-    if store.get_portfolio(portfolio_id) is None:
-        raise HTTPException(404, f"unknown portfolio '{portfolio_id}'")
-    dates = [d for d in store.list_snapshot_dates(portfolio_id) if as_of is None or d <= as_of]
-    if not dates:
-        raise HTTPException(404, f"no holdings for '{portfolio_id}'" + (f" on or before {as_of}" if as_of else ""))
+    snapshot, holdings = _snapshot(store, portfolio_id, as_of)
     lens = None
     if taxonomy is not None:
         definition = _activity(taxonomy, activity, taxonomies)
         rule = store.get_link_rule(vc_links.activity_subject(taxonomy, activity))
         lens = (taxonomy, definition, vc_links.resolve_activity(vc, definition, rule))
-    holdings = store.load_holdings_as_of(dates[-1], [portfolio_id])
-    result = vc_links.overlay(vc, store, holdings, dates[-1], indicator=indicator, top=top, activity=lens)
+    result = vc_links.overlay(vc, store, holdings, snapshot, indicator=indicator, top=top, activity=lens)
     return ValueChainPortfolio(edition=vc.manifest["edition"], caveat=vc.caveat, portfolio_id=portfolio_id, **result)
