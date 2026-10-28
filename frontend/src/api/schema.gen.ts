@@ -15791,6 +15791,106 @@ export interface components {
                 [key: string]: unknown;
             }[];
         };
+        /** ValueChainMaterial */
+        ValueChainMaterial: {
+            /**
+             * Group
+             * @description EXIOBASE material category, e.g. Metal Ores.
+             */
+            group: string;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+        };
+        /** ValueChainMaterialFootprint */
+        ValueChainMaterialFootprint: {
+            /** By Region */
+            by_region: [
+                string,
+                number
+            ][];
+            /** By Sector */
+            by_sector: [
+                string,
+                number
+            ][];
+            /** Caveat */
+            caveat: string;
+            /** Edition */
+            edition: string;
+            /**
+             * In Home Region
+             * @description Share of total arising in the node's own region; null when total is 0.
+             */
+            in_home_region: number | null;
+            /** Indicator */
+            indicator: string;
+            /** Material Note */
+            material_note: string;
+            /** Total */
+            total: number;
+            /** Unit */
+            unit: string;
+        };
+        /** ValueChainMaterialTree */
+        ValueChainMaterialTree: {
+            /** Caveat */
+            caveat: string;
+            /**
+             * Chain
+             * @description Product of coef down the path from the root (1 at the root).
+             */
+            chain: number;
+            /** Children */
+            children: components["schemas"]["ValueChainMaterialTreeNode"][];
+            /**
+             * Coef
+             * @description Direct euro from this node per euro of its parent's output (1 at the root).
+             */
+            coef: number;
+            /** Edition */
+            edition: string;
+            /**
+             * Extracted T
+             * @description Tonnes of the requested material extracted for this box's share of the amount.
+             */
+            extracted_t: number;
+            /** Material Note */
+            material_note: string;
+            /** Node Id */
+            node_id: string;
+            /** Region Label */
+            region_label: string;
+            /** Sector */
+            sector: string;
+        };
+        /** ValueChainMaterialTreeNode */
+        ValueChainMaterialTreeNode: {
+            /**
+             * Chain
+             * @description Product of coef down the path from the root (1 at the root).
+             */
+            chain: number;
+            /** Children */
+            children: components["schemas"]["ValueChainMaterialTreeNode"][];
+            /**
+             * Coef
+             * @description Direct euro from this node per euro of its parent's output (1 at the root).
+             */
+            coef: number;
+            /**
+             * Extracted T
+             * @description Tonnes of the requested material extracted for this box's share of the amount.
+             */
+            extracted_t: number;
+            /** Node Id */
+            node_id: string;
+            /** Region Label */
+            region_label: string;
+            /** Sector */
+            sector: string;
+        };
         /** ValueChainNode */
         ValueChainNode: {
             /** Caveat */
@@ -15964,6 +16064,11 @@ export interface components {
             caveat: string;
             /** Edition */
             edition: string;
+            /**
+             * Materials
+             * @description Materials of the build's extraction accounts; empty without them.
+             */
+            materials: components["schemas"]["ValueChainMaterial"][];
             /** N Nodes */
             n_nodes: number;
             /** N Regions */
@@ -29122,7 +29227,8 @@ export interface operations {
     footprint_api_value_chain_nodes__node_id__footprint_get: {
         parameters: {
             query?: {
-                indicator?: "ghg" | "energy" | "jobs";
+                /** @description ghg, energy, jobs or material:<key>. */
+                indicator?: string;
                 amount_meur?: number;
                 top?: number;
             };
@@ -29140,7 +29246,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ValueChainFootprint"];
+                    "application/json": components["schemas"]["ValueChainFootprint"] | components["schemas"]["ValueChainMaterialFootprint"];
                 };
             };
             /** @description Validation Error */
@@ -29161,6 +29267,10 @@ export interface operations {
                 width?: number;
                 cutoff?: number;
                 goods_only?: boolean;
+                /** @description A key from /status materials: adds extracted_t to every box. */
+                material?: string | null;
+                /** @description Used only with material; must be > 0. */
+                amount_meur?: number;
             };
             header?: never;
             path: {
@@ -29176,7 +29286,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ValueChainTree"];
+                    "application/json": components["schemas"]["ValueChainTree"] | components["schemas"]["ValueChainMaterialTree"];
                 };
             };
             /** @description Validation Error */

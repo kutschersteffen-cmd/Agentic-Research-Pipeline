@@ -7,7 +7,8 @@ import pytest
 from typer.testing import CliRunner
 
 from arp.cli import app
-from tests.value_chain_fixture import write_fixture_f
+from arp.research.value_chain.build import material_key, split_material
+from tests.value_chain_fixture import MATERIAL, MATERIALS, write_fixture_f
 
 runner = CliRunner()
 
@@ -117,3 +118,66 @@ def test_failed_rebuild_keeps_previous_build(tmp_path):
     d = build(tmp_path)
     res = runner.invoke(app, ["io", "build-full", str(broken_fixture(tmp_path, "bad_cell")), "--out", str(d)])
     assert res.exit_code == 1 and json.loads((d / "manifest.json").read_text())["n_nodes"] == 6
+
+
+# Material extraction, spec 2026-10-27-product-recipes-design.md (project 1)
+
+
+def build_mat(tmp_path, material):
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    out = tmp_path / "vc"
+    res = runner.invoke(app, ["io", "build-full", str(write_fixture_f(tmp_path, material)), "--out", str(out)])
+    return res, out
+
+
+def last_err_line(res):
+    return [ln for ln in res.stderr.splitlines() if ln.strip()][-1]
+
+
+def test_material_key_and_split():
+    assert material_key("Metal Ores - Other non-ferrous metal ores (incl. PGM)") == "metal_ores_other_non_ferrous_metal_ores_incl_pgm"
+    assert split_material("Metal Ores - Copper ores") == ("Metal Ores", "Copper ores")
+    assert split_material("Peat") == ("Other", "Peat")
+
+
+def test_materials_written(tmp_path):  # AC-1, AC-32
+    res, out = build_mat(tmp_path, {**MATERIAL, "Domestic Extraction Used - Peat": [0, 0, 0, 0]})
+    assert res.exit_code == 0, res.output
+    materials = json.loads((out / "materials.json").read_text())
+    assert materials[:-1] == MATERIALS
+    assert materials[-1] == {"key": "peat", "label": "Peat", "group": "Other"}
+    m, total = np.load(out / "material_m.npy"), np.load(out / "material_M.npy")
+    live = [1, 2, 4, 5]  # DE.2, DE.3, CN.2, CN.3; DE.1 and CN.1 have x = 0
+    assert list(m[2, live]) == [400, 0, 1000, 0]
+    assert list(total[2, live].round(4)) == [452.4104, 71.6934, 1283.0655, 192.8307]
+    assert list(total[3, live].round(4)) == [60.2596, 42.3362, 76.6378, 70.7664]
+    assert not m[:, [0, 3]].any() and not total[:, [0, 3]].any()
+
+
+def test_no_material_no_files(tmp_path):  # AC-11, AC-24, AC-33
+    res0, out0 = build_mat(tmp_path / "f0", None)
+    res1, out1 = build_mat(tmp_path / "f", MATERIAL)
+    for res, out in ((res0, out0), (res1, out1)):
+        assert res.exit_code == 0, res.output
+        assert res.stdout.splitlines() == [f"6 nodes (3 sectors × 2 regions) -> {out}", f"ARP_VALUE_CHAIN_DIR={out}"]
+    assert not {"materials.json", "material_m.npy", "material_M.npy"} & {p.name for p in out0.iterdir()}
+    assert (out0 / "nodes.csv").read_bytes() == (out1 / "nodes.csv").read_bytes()
+    manifests = [json.loads((o / "manifest.json").read_text()) for o in (out0, out1)]
+    for mf in manifests:
+        del mf["built_at"], mf["source_sha256"]
+    assert manifests[0] == manifests[1]
+
+
+def test_material_without_rows_fails(tmp_path):  # AC-17
+    res, out = build_mat(tmp_path, {"Unused Domestic Extraction - Metal Ores - Copper ores": [999, 999, 999, 999]})
+    assert res.exit_code != 0
+    assert last_err_line(res) == "material/F.txt: no row starts with 'Domestic Extraction Used - '"
+    assert not out.exists()
+
+
+def test_key_collision_fails(tmp_path):  # AC-31
+    rows = list(MATERIAL.items())
+    rows.insert(4, ("Domestic Extraction Used - Metal Ores - Copper-ores", [0, 0, 0, 0]))
+    res, out = build_mat(tmp_path, dict(rows))
+    assert res.exit_code != 0
+    assert last_err_line(res) == "material/F.txt: two rows share the key 'metal_ores_copper_ores'"

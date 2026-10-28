@@ -13,9 +13,11 @@ from arp.research.indirect_exposure.factory import code_list
 from arp.research.value_chain import links as vc_links
 from arp.research.value_chain.model import (
     INTENSITY,
+    MATERIAL_NOTE,
     NOT_BUILT,
     NotBuilt,
     ShockError,
+    UnknownMaterial,
     UnknownNode,
     ValueChain,
     load_value_chain,
@@ -32,6 +34,10 @@ from arp.schemas.value_chain import (
     ValueChainFootprint,
     ValueChainLink,
     ValueChainLinks,
+    ValueChainMaterial,
+    ValueChainMaterialFootprint,
+    ValueChainMaterialTree,
+    ValueChainMaterialTreeNode,
     ValueChainNode,
     ValueChainNodeRef,
     ValueChainPortfolio,
@@ -73,6 +79,8 @@ def _unknown_is_404() -> Iterator[None]:
         yield
     except UnknownNode as e:
         raise HTTPException(404, str(e)) from None
+    except UnknownMaterial as e:
+        raise HTTPException(422, str(e)) from None
 
 
 def _ref(n) -> dict:
@@ -80,10 +88,10 @@ def _ref(n) -> dict:
 
 
 def _tree(t) -> ValueChainTreeNode:
-    return ValueChainTreeNode(
-        node_id=t.node.node_id, region_label=t.node.region_label, sector=t.node.sector, coef=t.coef, chain=t.chain,
-        children=[_tree(c) for c in t.children],
-    )
+    fields = {"node_id": t.node.node_id, "region_label": t.node.region_label, "sector": t.node.sector, "coef": t.coef, "chain": t.chain}
+    if t.extracted_t is None:
+        return ValueChainTreeNode(**fields, children=[_tree(c) for c in t.children])
+    return ValueChainMaterialTreeNode(**fields, extracted_t=t.extracted_t, children=[_tree(c) for c in t.children])
 
 
 @router.get("/status")
@@ -92,6 +100,7 @@ def status(vc: ValueChain = Depends(_chain)) -> ValueChainStatus:
     return ValueChainStatus(
         edition=m["edition"], version=m["exiobase_version"], year=m["year"], n_nodes=m["n_nodes"],
         n_regions=m["n_regions"], n_sectors=m["n_sectors"], built_at=m["built_at"], caveat=vc.caveat,
+        materials=[ValueChainMaterial(**x) for x in vc.materials],
     )
 
 
@@ -137,27 +146,38 @@ def tree(
     width: Annotated[int, Query(ge=1, le=5)] = 3,
     cutoff: Annotated[float, Query(ge=0, le=1)] = 0.01,
     goods_only: bool = False,
+    material: Annotated[str | None, Query(description="A key from /status materials: adds extracted_t to every box.")] = None,
+    amount_meur: Annotated[float, Query(allow_inf_nan=False, description="Used only with material; must be > 0.")] = 1.0,
     vc: ValueChain = Depends(_chain),
-) -> ValueChainTree:
+) -> ValueChainTree | ValueChainMaterialTree:
+    if material is not None and amount_meur <= 0:
+        raise HTTPException(422, "amount_meur must be greater than 0")
     with _unknown_is_404():
-        root = _tree(vc.tree(node_id, depth, width, cutoff, goods_only))
-    return ValueChainTree(**root.model_dump(), edition=vc.manifest["edition"], caveat=vc.caveat)
+        root = _tree(vc.tree(node_id, depth, width, cutoff, goods_only, material, amount_meur))
+    meta = {"edition": vc.manifest["edition"], "caveat": vc.caveat}
+    if material is None:
+        return ValueChainTree(**root.model_dump(), **meta)
+    return ValueChainMaterialTree(**root.model_dump(), **meta, material_note=MATERIAL_NOTE)
 
 
 @router.get("/nodes/{node_id}/footprint")
 def footprint(
     node_id: str,
-    indicator: Literal["ghg", "energy", "jobs"] = "ghg",
+    indicator: Annotated[str, Query(pattern=r"^(ghg|energy|jobs|material:.+)$", description="ghg, energy, jobs or material:<key>.")] = "ghg",
     amount_meur: Annotated[float, Query(gt=0, allow_inf_nan=False)] = 1.0,
     top: Annotated[int, Query(ge=1, le=20)] = 6,
     vc: ValueChain = Depends(_chain),
-) -> ValueChainFootprint:
+) -> ValueChainFootprint | ValueChainMaterialFootprint:
     with _unknown_is_404():
         f = vc.footprint(node_id, indicator, amount_meur, top)
-    return ValueChainFootprint(
-        edition=vc.manifest["edition"], caveat=vc.caveat, indicator=f.indicator, unit=f.unit, total=f.total,
-        in_home_region=f.in_home_region, by_region=f.by_region, by_sector=f.by_sector,
-    )
+    body = {
+        "edition": vc.manifest["edition"], "caveat": vc.caveat, "indicator": f.indicator, "unit": f.unit, "total": f.total,
+        "in_home_region": f.in_home_region, "by_region": f.by_region, "by_sector": f.by_sector,
+    }
+    if indicator.startswith("material:"):
+        return ValueChainMaterialFootprint(**body, material_note=MATERIAL_NOTE)
+    return ValueChainFootprint(**body)
+
 
 
 @contextmanager

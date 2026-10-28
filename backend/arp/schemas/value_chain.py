@@ -5,6 +5,12 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+class ValueChainMaterial(BaseModel):
+    key: str
+    label: str
+    group: str = Field(description="EXIOBASE material category, e.g. Metal Ores.")
+
+
 class ValueChainStatus(BaseModel):
     edition: str
     version: str = Field(description="EXIOBASE version from the archive's metadata.json.")
@@ -14,6 +20,7 @@ class ValueChainStatus(BaseModel):
     n_sectors: int
     built_at: str
     caveat: str
+    materials: list[ValueChainMaterial] = Field(description="Materials of the build's extraction accounts; empty without them.")
 
 
 class ValueChainNodeRef(BaseModel):
@@ -136,6 +143,21 @@ class ValueChainPriceShock(BaseModel):
     by_sector: list[tuple[str, float]] = Field(description="Output-weighted mean price change, %.")
     nodes: list[PriceShockNode]
     focus: PriceShockFocus | None
+
+class ValueChainMaterialFootprint(ValueChainFootprint):
+    material_note: str
+
+
+class ValueChainMaterialTreeNode(ValueChainTreeNode):
+    extracted_t: float = Field(description="Tonnes of the requested material extracted for this box's share of the amount.")
+    children: list[ValueChainMaterialTreeNode]
+
+
+class ValueChainMaterialTree(ValueChainMaterialTreeNode):
+    edition: str
+    caveat: str
+    material_note: str
+
 
 class LinkRule(BaseModel):
     """An analyst's (or Scope 6's LLM) link of a company or taxonomy activity to value-chain nodes, stored as

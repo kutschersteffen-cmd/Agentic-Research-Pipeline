@@ -20258,6 +20258,230 @@
     "title": "ValueChainLinks",
     "type": "object"
    },
+   "ValueChainMaterial": {
+    "properties": {
+     "group": {
+      "description": "EXIOBASE material category, e.g. Metal Ores.",
+      "title": "Group",
+      "type": "string"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "label": {
+      "title": "Label",
+      "type": "string"
+     }
+    },
+    "required": [
+     "key",
+     "label",
+     "group"
+    ],
+    "title": "ValueChainMaterial",
+    "type": "object"
+   },
+   "ValueChainMaterialFootprint": {
+    "properties": {
+     "by_region": {
+      "items": {
+       "maxItems": 2,
+       "minItems": 2,
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "number"
+        }
+       ],
+       "type": "array"
+      },
+      "title": "By Region",
+      "type": "array"
+     },
+     "by_sector": {
+      "items": {
+       "maxItems": 2,
+       "minItems": 2,
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "number"
+        }
+       ],
+       "type": "array"
+      },
+      "title": "By Sector",
+      "type": "array"
+     },
+     "caveat": {
+      "title": "Caveat",
+      "type": "string"
+     },
+     "edition": {
+      "title": "Edition",
+      "type": "string"
+     },
+     "in_home_region": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Share of total arising in the node's own region; null when total is 0.",
+      "title": "In Home Region"
+     },
+     "indicator": {
+      "title": "Indicator",
+      "type": "string"
+     },
+     "material_note": {
+      "title": "Material Note",
+      "type": "string"
+     },
+     "total": {
+      "title": "Total",
+      "type": "number"
+     },
+     "unit": {
+      "title": "Unit",
+      "type": "string"
+     }
+    },
+    "required": [
+     "edition",
+     "caveat",
+     "indicator",
+     "unit",
+     "total",
+     "in_home_region",
+     "by_region",
+     "by_sector",
+     "material_note"
+    ],
+    "title": "ValueChainMaterialFootprint",
+    "type": "object"
+   },
+   "ValueChainMaterialTree": {
+    "properties": {
+     "caveat": {
+      "title": "Caveat",
+      "type": "string"
+     },
+     "chain": {
+      "description": "Product of coef down the path from the root (1 at the root).",
+      "title": "Chain",
+      "type": "number"
+     },
+     "children": {
+      "items": {
+       "$ref": "#/components/schemas/ValueChainMaterialTreeNode"
+      },
+      "title": "Children",
+      "type": "array"
+     },
+     "coef": {
+      "description": "Direct euro from this node per euro of its parent's output (1 at the root).",
+      "title": "Coef",
+      "type": "number"
+     },
+     "edition": {
+      "title": "Edition",
+      "type": "string"
+     },
+     "extracted_t": {
+      "description": "Tonnes of the requested material extracted for this box's share of the amount.",
+      "title": "Extracted T",
+      "type": "number"
+     },
+     "material_note": {
+      "title": "Material Note",
+      "type": "string"
+     },
+     "node_id": {
+      "title": "Node Id",
+      "type": "string"
+     },
+     "region_label": {
+      "title": "Region Label",
+      "type": "string"
+     },
+     "sector": {
+      "title": "Sector",
+      "type": "string"
+     }
+    },
+    "required": [
+     "node_id",
+     "region_label",
+     "sector",
+     "coef",
+     "chain",
+     "children",
+     "extracted_t",
+     "edition",
+     "caveat",
+     "material_note"
+    ],
+    "title": "ValueChainMaterialTree",
+    "type": "object"
+   },
+   "ValueChainMaterialTreeNode": {
+    "properties": {
+     "chain": {
+      "description": "Product of coef down the path from the root (1 at the root).",
+      "title": "Chain",
+      "type": "number"
+     },
+     "children": {
+      "items": {
+       "$ref": "#/components/schemas/ValueChainMaterialTreeNode"
+      },
+      "title": "Children",
+      "type": "array"
+     },
+     "coef": {
+      "description": "Direct euro from this node per euro of its parent's output (1 at the root).",
+      "title": "Coef",
+      "type": "number"
+     },
+     "extracted_t": {
+      "description": "Tonnes of the requested material extracted for this box's share of the amount.",
+      "title": "Extracted T",
+      "type": "number"
+     },
+     "node_id": {
+      "title": "Node Id",
+      "type": "string"
+     },
+     "region_label": {
+      "title": "Region Label",
+      "type": "string"
+     },
+     "sector": {
+      "title": "Sector",
+      "type": "string"
+     }
+    },
+    "required": [
+     "node_id",
+     "region_label",
+     "sector",
+     "coef",
+     "chain",
+     "children",
+     "extracted_t"
+    ],
+    "title": "ValueChainMaterialTreeNode",
+    "type": "object"
+   },
    "ValueChainNode": {
     "properties": {
      "caveat": {
@@ -20796,6 +21020,14 @@
       "title": "Edition",
       "type": "string"
      },
+     "materials": {
+      "description": "Materials of the build's extraction accounts; empty without them.",
+      "items": {
+       "$ref": "#/components/schemas/ValueChainMaterial"
+      },
+      "title": "Materials",
+      "type": "array"
+     },
      "n_nodes": {
       "title": "N Nodes",
       "type": "integer"
@@ -20826,7 +21058,8 @@
      "n_regions",
      "n_sectors",
      "built_at",
-     "caveat"
+     "caveat",
+     "materials"
     ],
     "title": "ValueChainStatus",
     "type": "object"
@@ -40171,16 +40404,14 @@
       }
      },
      {
+      "description": "ghg, energy, jobs or material:<key>.",
       "in": "query",
       "name": "indicator",
       "required": false,
       "schema": {
        "default": "ghg",
-       "enum": [
-        "ghg",
-        "energy",
-        "jobs"
-       ],
+       "description": "ghg, energy, jobs or material:<key>.",
+       "pattern": "^(ghg|energy|jobs|material:.+)$",
        "title": "Indicator",
        "type": "string"
       }
@@ -40214,7 +40445,15 @@
       "content": {
        "application/json": {
         "schema": {
-         "$ref": "#/components/schemas/ValueChainFootprint"
+         "anyOf": [
+          {
+           "$ref": "#/components/schemas/ValueChainFootprint"
+          },
+          {
+           "$ref": "#/components/schemas/ValueChainMaterialFootprint"
+          }
+         ],
+         "title": "Response Footprint Api Value Chain Nodes  Node Id  Footprint Get"
         }
        }
       },
@@ -40295,6 +40534,36 @@
        "title": "Goods Only",
        "type": "boolean"
       }
+     },
+     {
+      "description": "A key from /status materials: adds extracted_t to every box.",
+      "in": "query",
+      "name": "material",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "A key from /status materials: adds extracted_t to every box.",
+       "title": "Material"
+      }
+     },
+     {
+      "description": "Used only with material; must be > 0.",
+      "in": "query",
+      "name": "amount_meur",
+      "required": false,
+      "schema": {
+       "default": 1.0,
+       "description": "Used only with material; must be > 0.",
+       "title": "Amount Meur",
+       "type": "number"
+      }
      }
     ],
     "responses": {
@@ -40302,7 +40571,15 @@
       "content": {
        "application/json": {
         "schema": {
-         "$ref": "#/components/schemas/ValueChainTree"
+         "anyOf": [
+          {
+           "$ref": "#/components/schemas/ValueChainTree"
+          },
+          {
+           "$ref": "#/components/schemas/ValueChainMaterialTree"
+          }
+         ],
+         "title": "Response Tree Api Value Chain Nodes  Node Id  Tree Get"
         }
        }
       },

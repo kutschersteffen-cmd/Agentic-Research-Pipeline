@@ -20,7 +20,7 @@ OBA = "Other business activities"
 
 
 def _build(root, z=Z):
-    res = CliRunner().invoke(cli_app, ["io", "build-full", str(write_fixture_f(root, z)), "--out", str(root / "out")])
+    res = CliRunner().invoke(cli_app, ["io", "build-full", str(write_fixture_f(root, z=z)), "--out", str(root / "out")])
     assert res.exit_code == 0, res.output
     return root / "out"
 

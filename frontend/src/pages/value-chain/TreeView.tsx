@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
-import { cents, nodeHash } from "../../lib/valueChain";
-import type { VcTreeNode } from "../../types";
+import { cents, nodeHash, tonnes } from "../../lib/valueChain";
+import type { VcMaterialTreeNode, VcTreeNode } from "../../types";
+import { MaterialOptions } from "./MaterialOptions";
 import { useVcQuery } from "./useVcQuery";
 
 /** One box with its suppliers stacked to its left; levels line up because every box is the same width. */
-function Branch({ node, level }: { node: VcTreeNode; level: number }) {
+type Box = VcTreeNode | VcMaterialTreeNode;
+const extracted = (n: Box) => ("extracted_t" in n ? <span className="mono">{tonnes(n.extracted_t)}</span> : null);
+
+function Branch({ node, level }: { node: Box; level: number }) {
   return (
     <li className="vc-branch">
       {node.children.length > 0 && (
@@ -22,6 +26,7 @@ function Branch({ node, level }: { node: VcTreeNode; level: number }) {
         <span className="mono">
           {cents(node.coef)} per €{level >= 2 && ` · chain ${cents(node.chain, 2)}`}
         </span>
+        {extracted(node)}
       </a>
     </li>
   );
@@ -32,7 +37,15 @@ export function TreeView({ id, onTitle }: { id: string; onTitle: (title: string)
   const [depth, setDepth] = useState(2);
   const [cutoff, setCutoff] = useState(1); // cents per €
   const [goodsOnly, setGoodsOnly] = useState(false);
-  const { data: tree, error, loading } = useVcQuery(() => api.valueChainTree(id, { depth, cutoff: cutoff / 100, goodsOnly }), [id, depth, cutoff, goodsOnly]);
+  const [material, setMaterial] = useState("");
+  const [amountText, setAmountText] = useState("1");
+  const amount = Number(amountText);
+  const valid = amountText.trim() !== "" && Number.isFinite(amount) && amount > 0;
+  const picked = material !== "" && valid ? material : undefined;
+  const { data: tree, error, loading } = useVcQuery(
+    () => api.valueChainTree(id, { depth, cutoff: cutoff / 100, goodsOnly, material: picked, amount }),
+    [id, depth, cutoff, goodsOnly, picked, amount],
+  );
   const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!tree) return;
@@ -65,6 +78,18 @@ export function TreeView({ id, onTitle }: { id: string; onTitle: (title: string)
           <label className="checkbox-label">
             <input type="checkbox" checked={goodsOnly} onChange={(e) => setGoodsOnly(e.target.checked)} /> Goods only
           </label>
+          <label className="field-label">
+            Show material
+            <select value={material} onChange={(e) => setMaterial(e.target.value)}>
+              <option value="">None</option>
+              <MaterialOptions prefix="" />
+            </select>
+          </label>
+          <label className="field-label vc-amount">
+            Amount (€ million)
+            <input type="number" min={0} step="any" value={amountText} onChange={(e) => setAmountText(e.target.value)} aria-invalid={!valid || undefined} />
+            {!valid && <span className="error-text">Enter an amount above 0.</span>}
+          </label>
         </div>
         {error && (
           <p className="error-text" role="alert">
@@ -95,6 +120,7 @@ export function TreeView({ id, onTitle }: { id: string; onTitle: (title: string)
                       <b>{tree.sector}</b> · {tree.region_label}
                     </span>
                     <span className="mono">Selected</span>
+                    {extracted(tree)}
                   </div>
                 </li>
               </ul>
@@ -103,6 +129,7 @@ export function TreeView({ id, onTitle }: { id: string; onTitle: (title: string)
         )}
       </section>
       {tree && <p className="help-text vc-note">{tree.caveat}</p>}
+      {tree && "material_note" in tree && <p className="help-text vc-note">{tree.material_note}</p>}
     </>
   );
 }

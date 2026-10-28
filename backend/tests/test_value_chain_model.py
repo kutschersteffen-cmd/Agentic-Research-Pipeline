@@ -3,8 +3,8 @@ import threading
 import pytest
 
 from arp.research.value_chain.build import build_full
-from arp.research.value_chain.model import NotBuilt, UnknownNode, _load, load_value_chain, sector_name
-from tests.value_chain_fixture import write_fixture_f
+from arp.research.value_chain.model import NotBuilt, UnknownMaterial, UnknownNode, _load, load_value_chain, sector_name
+from tests.value_chain_fixture import MATERIAL, MATERIALS, write_fixture_f
 
 NOT_BUILT = "value chain not built: run arp io build-full and set ARP_VALUE_CHAIN_DIR"
 
@@ -178,3 +178,88 @@ def test_rowl_labels(vc):
 def test_sector_name_drops_only_a_trailing_number_in_brackets():
     assert sector_name("Manufacture of electrical machinery and apparatus n.e.c. (31)") == "Manufacture of electrical machinery and apparatus n.e.c."
     assert sector_name("Mining of copper ores (and concentrates)") == "Mining of copper ores (and concentrates)"
+
+
+# Material extraction, spec 2026-10-27-product-recipes-design.md (project 1)
+CU, SAND, NI = "metal_ores_copper_ores", "non_metallic_minerals_sand_and_gravel", "metal_ores_nickel_ores"
+
+
+@pytest.fixture(scope="module")
+def vc_mat(tmp_path_factory):
+    d = tmp_path_factory.mktemp("vc_mat")
+    build_full(write_fixture_f(d, MATERIAL), d / "out")
+    return load_value_chain(d / "out")
+
+
+def r4(pairs):
+    return [(k, round(v, 4)) for k, v in pairs]
+
+
+def extracted(item):
+    return (item.node.node_id, round(item.extracted_t, 4), [extracted(c) for c in item.children])
+
+
+def test_materials_listed(vc, vc_mat):
+    assert vc_mat.materials == MATERIALS
+    assert vc.materials == []
+
+
+def test_material_footprint(vc_mat):  # AC-3, AC-4
+    f = vc_mat.footprint("DE.3", f"material:{CU}", amount_meur=2)
+    assert (f.unit, round(f.total, 4), round(f.in_home_region, 4)) == ("t", 143.3869, 0.7783)
+    assert r4(f.by_region) == [("DE", 111.6016), ("CN", 31.7853)]
+    assert r4(f.by_sector) == [("Mining of copper ores and concentrates", 143.3869)]
+    assert round(vc_mat.footprint("CN.2", f"material:{CU}").total, 4) == 1283.0655
+
+
+def test_material_footprint_zero(vc_mat):  # AC-5
+    f = vc_mat.footprint("DE.3", f"material:{NI}")
+    assert (f.total, f.in_home_region, f.by_region, f.by_sector) == (0, None, [], [])
+
+
+def test_sand_footprint(vc_mat):  # AC-6b
+    f = vc_mat.footprint("DE.3", f"material:{SAND}", amount_meur=2)
+    assert (round(f.total, 4), round(f.in_home_region, 4)) == (84.6724, 0.8311)
+    assert r4(f.by_region) == [("DE", 70.3691), ("CN", 14.3034)]
+    assert r4(f.by_sector) == [("Other business activities", 69.133), ("Mining of copper ores and concentrates", 15.5395)]
+
+
+@pytest.mark.parametrize("key", ["copper_ores", "metal_ores_gold_ores"])
+def test_unknown_material(vc, vc_mat, key):  # AC-6, AC-8, AC-27
+    with pytest.raises(UnknownMaterial, match=f"unknown material '{key}'"):
+        vc_mat.footprint("DE.3", f"material:{key}")
+    with pytest.raises(UnknownMaterial):
+        vc_mat.tree("DE.3", material=key)
+    with pytest.raises(UnknownMaterial):
+        vc.footprint("DE.3", f"material:{CU}")
+    with pytest.raises(UnknownMaterial):
+        vc.tree("DE.3", material=CU)
+
+
+def test_material_tree(vc_mat):  # AC-7
+    t = vc_mat.tree("DE.3", material=CU, amount_meur=2)
+    assert extracted(t) == ("DE.3", 143.3869, [
+        ("CN.3", 38.5661, [("CN.2", 25.6613, []), ("DE.2", 9.0482, [])]),
+        ("DE.2", 90.4821, [("DE.3", 1.4339, [])]),
+    ])
+    assert shape(t) == shape(vc_mat.tree("DE.3"))
+
+
+def test_sand_tree(vc_mat):  # AC-7b
+    t = vc_mat.tree("DE.3", material=SAND, amount_meur=2)
+    assert (round(t.extracted_t, 4), [(c.node.node_id, round(c.extracted_t, 4)) for c in t.children]) == (
+        84.6724, [("CN.3", 14.1533), ("DE.2", 12.0519)])
+
+
+def test_material_tree_default_amount(vc_mat):  # AC-20
+    assert round(vc_mat.tree("DE.3", material=CU).extracted_t, 4) == 71.6934
+
+
+def test_tree_without_material(vc_mat):  # AC-10
+    def all_none(item):
+        return item.extracted_t is None and all(all_none(c) for c in item.children)
+    assert all_none(vc_mat.tree("DE.3"))
+
+
+def test_material_tree_zero_root(vc_mat):  # Review Focus 3
+    assert vc_mat.tree("DE.3", material=NI).extracted_t == 0.0

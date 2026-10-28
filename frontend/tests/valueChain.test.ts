@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activityLine, cents, EU27, footprintTotal, homeShare, linkText, nodeHash, pct1, percent, portfolioHash, pricePct, searchable, signed, tile, unresolvedText } from "../src/lib/valueChain.ts";
+import { activityLine, cents, EU27, footprintTotal, homeShare, linkText, nodeHash, pct1, percent, portfolioHash, pricePct, searchable, signed, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
 
 test("flows in cents", () => {
   assert.equal(cents(0.0738), "7.4¢"); assert.equal(cents(0.0079798, 2), "0.80¢");
@@ -23,6 +23,10 @@ test("shock numbers: signed M EUR, two-decimal price percents, EU-27 preset", ()
   assert.equal(pricePct(0.0564), "0.06%"); assert.equal(pricePct(0), "0.00%"); assert.equal(pricePct(-0.125), "−0.13%");
   assert.equal(EU27.length, 27); assert.ok(!EU27.includes("GB"));
   assert.equal(nodeHash("CN.95", "shock"), "#/valueChain/CN.95/shock");
+});
+test("tonnes extracted: one decimal below 1,000 t, whole with separators from 1,000 t (rounded first)", () => {
+  assert.equal(tonnes(143.3869), "143.4 t"); assert.equal(tonnes(0), "0.0 t");
+  assert.equal(tonnes(999.94), "999.9 t"); assert.equal(tonnes(999.96), "1,000 t"); assert.equal(tonnes(1283.0655), "1,283 t");
 });
 test("portfolio view: one-decimal percents, unresolved parts, the activity line, hashes", () => {
   assert.equal(pct1(0.55), "55.0%"); assert.equal(pct1(0.9), "90.0%"); assert.equal(pct1(0.10714), "10.7%"); assert.equal(pct1(0.00285), "0.3%");
