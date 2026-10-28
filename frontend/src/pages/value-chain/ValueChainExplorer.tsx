@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { apiMessage } from "../../lib/projects";
-import { nodeHash, portfolioHash, recipesHash, searchable } from "../../lib/valueChain";
+import { nodeHash, portfolioHash, recipesHash, searchable, shockHash } from "../../lib/valueChain";
 import type { VcNodeRef } from "../../types";
 import { ExposureView } from "./ExposureView";
 import { FootprintView } from "./FootprintView";
@@ -121,6 +121,8 @@ function NodeExplorer({ params }: { params: string[] }) {
   const [searchError, setSearchError] = useState<string | null>(null);
   // A node view names its node here once loaded; the id stands in until then.
   const [title, setTitle] = useState<string | null>(null);
+  // The Shocks view's portfolio, so its tab links back to the lens the view shows (it updates the URL by replaceState).
+  const [shockPortfolio, setShockPortfolio] = useState(view === "shock" ? (from ?? "") : "");
   // Before a node is picked, the status call says whether the data is built and gives the caveat.
   const status = useVcQuery(() => (id ? null : api.valueChainStatus()), [id]);
   const message = status.error ?? searchError;
@@ -160,7 +162,7 @@ function NodeExplorer({ params }: { params: string[] }) {
         <>
           <nav className="sub-nav" aria-label="Views">
             {VIEWS.map(([v, label]) => (
-              <a key={label} href={nodeHash(id, v)} className={v === view ? "nav-tab active" : "nav-tab"} aria-current={v === view ? "page" : undefined}>
+              <a key={label} href={v === "shock" ? shockHash(id, shockPortfolio) : nodeHash(id, v)} className={v === view ? "nav-tab active" : "nav-tab"} aria-current={v === view ? "page" : undefined}>
                 {label}
               </a>
             ))}
@@ -175,7 +177,7 @@ function NodeExplorer({ params }: { params: string[] }) {
           ) : view === "footprint" ? (
             <FootprintView id={id} onTitle={setTitle} />
           ) : view === "shock" ? (
-            <ShockView id={id} onTitle={setTitle} initialPortfolio={params[2]} />
+            <ShockView id={id} onTitle={setTitle} initialPortfolio={from} onPortfolio={setShockPortfolio} />
           ) : (
             <NodeView id={id} onTitle={setTitle} />
           )}

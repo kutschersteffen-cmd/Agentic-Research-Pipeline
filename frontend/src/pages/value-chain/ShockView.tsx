@@ -106,7 +106,12 @@ function priceRequest(node: VcNode, coverage: Coverage, carbon: number, portfoli
 }
 
 /** "What happens if…?" for one node: a demand or supply shock on it, its region or its sector, or a carbon price. */
-export function ShockView({ id, onTitle, initialPortfolio }: { id: string; onTitle: (title: string) => void; initialPortfolio?: string }) {
+export function ShockView({ id, onTitle, initialPortfolio, onPortfolio }: {
+  id: string;
+  onTitle: (title: string) => void;
+  initialPortfolio?: string;
+  onPortfolio?: (portfolio: string) => void;
+}) {
   const [model, setModel] = useState<Model>("demand");
   const [target, setTarget] = useState<Target>("node");
   const [coverage, setCoverage] = useState<Coverage>("all");
@@ -188,11 +193,14 @@ export function ShockView({ id, onTitle, initialPortfolio }: { id: string; onTit
             value={portfolio}
             onChange={(e) => {
               setPortfolio(e.target.value);
+              onPortfolio?.(e.target.value);
               // replaceState: no hashchange, so the view keeps its model and inputs; a reload restores the lens
               history.replaceState(null, "", shockHash(id, e.target.value));
             }}
           >
             <option value="">None</option>
+            {/* a portfolio from the URL that is not in the list (stale or mistyped link) stays selectable, so None can clear it */}
+            {portfolio && portfolios.data && !portfolios.data.some((p) => p.portfolio_id === portfolio) && <option value={portfolio}>{portfolio}</option>}
             {(portfolios.data ?? []).map((p) => (
               <option key={p.portfolio_id} value={p.portfolio_id}>
                 {p.name}

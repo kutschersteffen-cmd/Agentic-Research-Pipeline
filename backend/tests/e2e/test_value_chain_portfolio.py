@@ -154,3 +154,24 @@ def test_ac44_shocks_view_portfolio_lens(page):
     page.get_by_role("heading", name="Price change").wait_for()
     assert page.get_by_text("Portfolio price change").count() == 0
     assert page.console_errors == []
+
+
+def test_shocks_view_url_portfolio_stale_link_and_tab(page):
+    # a stale or mistyped portfolio in the URL shows its 404 and can be cleared with None
+    page.goto(URL + "/#/valueChain/CN.4/shock/OLD")
+    page.get_by_text("unknown portfolio 'OLD'").wait_for()
+    assert field(page, "Portfolio").input_value() == "OLD"
+    field(page, "Portfolio").select_option("")
+    page.get_by_role("heading", name="Output change").wait_for()
+    assert page.url.endswith("#/valueChain/CN.4/shock") and page.get_by_text("unknown portfolio").count() == 0
+    # after picking P, the Shocks tab links back to the lens instead of dropping it
+    field(page, "Portfolio").select_option("P")
+    page.get_by_text("Portfolio output change").wait_for()
+    tab = page.get_by_role("navigation", name="Views").get_by_role("link", name="Shocks")
+    assert tab.get_attribute("href").endswith("#/valueChain/CN.4/shock/P")
+    tab.click()
+    assert page.url.endswith("#/valueChain/CN.4/shock/P")
+    page.reload()
+    page.get_by_text("Portfolio output change").wait_for()
+    # the one 404 is the stale link's, provoked above
+    assert [e for e in page.console_errors if "status of 404" not in e] == []

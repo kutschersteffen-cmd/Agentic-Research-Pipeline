@@ -279,7 +279,7 @@ def _snapshot(store, portfolio_id: str, as_of: str | None) -> tuple[str, list]:
     return dates[-1], store.load_holdings_as_of(dates[-1], [portfolio_id])
 
 
-def _lens_snapshot(request: Request, portfolio: str | None, as_of: str | None) -> tuple:
+def _lens_snapshot(request: Request, portfolio: str | None, as_of: str | None) -> tuple[object | None, tuple[str, list] | None]:
     """(store, snapshot) for the shocks' portfolio lens (links spec Scope 8), checked before the shock runs;
     (None, None) without ?portfolio=, so a plain shock builds no store and needs no database."""
     if as_of is not None and portfolio is None:
