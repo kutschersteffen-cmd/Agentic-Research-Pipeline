@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activityLine, cents, exposureHash, footprintTotal, homeShare, linkText, meur, nodeHash, pct1, percent, portfolioHash, recipesHash, routeText, searchable, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
+import { activityLine, cents, exposureHash, footprintTotal, homeShare, inRegion, linkText, meur, nodeHash, nodeQuery, pct1, percent, portfolioHash, recipesHash, routeText, searchable, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
 
 test("flows in cents", () => {
   assert.equal(cents(0.0738), "7.4¢"); assert.equal(cents(0.0079798, 2), "0.80¢");
@@ -36,4 +36,12 @@ test("revenue exposure formats and hashes", () => {
   assert.equal(recipesHash(), "#/valueChain/recipes"); assert.equal(recipesHash("new"), "#/valueChain/recipes/new");
   assert.equal(routeText(["CN.3", "DE.3"], { "CN.3": "Other business activities · CN", "DE.3": "Other business activities · DE" }), "Other business activities · CN → Other business activities · DE");
   assert.equal(routeText(["X.1"], {}), "X.1");
+});
+test("node picker: a region after a comma filters the hits", () => {
+  assert.deepEqual(nodeQuery("copper, CN"), { q: "copper", region: "cn" });
+  assert.deepEqual(nodeQuery("copper"), { q: "copper", region: null });
+  assert.deepEqual(nodeQuery("copper, "), { q: "copper, ", region: null });
+  assert.equal(inRegion({ region: "WA", region_label: "RoW Asia-Pacific" }, "row asia-pacific"), true);
+  assert.equal(inRegion({ region: "US", region_label: "US" }, "cn"), false);
+  assert.equal(inRegion({ region: "US", region_label: "US" }, null), true);
 });

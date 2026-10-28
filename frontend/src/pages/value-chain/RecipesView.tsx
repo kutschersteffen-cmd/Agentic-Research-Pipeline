@@ -159,7 +159,7 @@ export function RecipeForm({ rid, onTitle }: { rid: string | null; onTitle: (tit
               <input value={form.name} maxLength={120} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </label>
             <div className="field-label">
-              Home
+              Home{" "}
               {canEdit ? (
                 <NodeSearch row={form.home} onPick={(n) => setForm({ ...form, home: { region: n.region, sector: n.sector } })} />
               ) : (

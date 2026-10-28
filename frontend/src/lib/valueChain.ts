@@ -54,3 +54,13 @@ export const exposureHash = (target: string, from?: string): string => {
 
 /** A route as its labels joined by arrows; ids without a label show as themselves. */
 export const routeText = (nodes: string[], labels: Record<string, string>): string => nodes.map((n) => labels[n] ?? n).join(" → ");
+
+/** A picker query: "copper, CN" searches "copper" and keeps hits whose region code or label is "CN"; no comma, no filter. */
+export const nodeQuery = (q: string): { q: string; region: string | null } => {
+  const at = q.lastIndexOf(",");
+  const region = at < 0 ? "" : q.slice(at + 1).trim().toLowerCase();
+  return region ? { q: q.slice(0, at), region } : { q, region: null };
+};
+
+export const inRegion = (n: { region: string; region_label: string }, region: string | null): boolean =>
+  region === null || n.region.toLowerCase() === region || n.region_label.toLowerCase() === region;
