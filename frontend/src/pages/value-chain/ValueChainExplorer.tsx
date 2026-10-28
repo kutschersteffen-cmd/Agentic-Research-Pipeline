@@ -107,7 +107,7 @@ function Recipes({ params }: { params: string[] }) {
       ) : sub === "exposure" ? (
         <ExposureView target={`recipe:${rid}`} from={from} onTitle={setTitle} />
       ) : (
-        <RecipeForm rid={rid === "new" ? null : rid} onTitle={setTitle} />
+        <RecipeForm key={rid} rid={rid === "new" ? null : rid} onTitle={setTitle} />
       )}
     </div>
   );

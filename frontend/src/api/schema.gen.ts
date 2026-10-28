@@ -13341,7 +13341,10 @@ export interface components {
         /** RecipeIn */
         RecipeIn: {
             home: components["schemas"]["RecipeNode"];
-            /** Inputs */
+            /**
+             * Inputs
+             * @description 1 to 50 inputs; the cap only bounds the body.
+             */
             inputs: components["schemas"]["RecipeInput"][];
             /** Name */
             name: string;
@@ -13419,7 +13422,10 @@ export interface components {
             /** Edition */
             edition: string;
             home: components["schemas"]["RecipeNode"];
-            /** Inputs */
+            /**
+             * Inputs
+             * @description 1 to 50 inputs; the cap only bounds the body.
+             */
             inputs: components["schemas"]["RecipeInput"][];
             /** Model Caveat */
             model_caveat: string;

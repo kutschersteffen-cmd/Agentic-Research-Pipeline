@@ -14113,9 +14113,11 @@
       "$ref": "#/components/schemas/RecipeNode"
      },
      "inputs": {
+      "description": "1 to 50 inputs; the cap only bounds the body.",
       "items": {
        "$ref": "#/components/schemas/RecipeInput"
       },
+      "maxItems": 10000,
       "title": "Inputs",
       "type": "array"
      },
@@ -14280,9 +14282,11 @@
       "$ref": "#/components/schemas/RecipeNode"
      },
      "inputs": {
+      "description": "1 to 50 inputs; the cap only bounds the body.",
       "items": {
        "$ref": "#/components/schemas/RecipeInput"
       },
+      "maxItems": 10000,
       "title": "Inputs",
       "type": "array"
      },

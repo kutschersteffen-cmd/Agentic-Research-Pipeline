@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
+import tempfile
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,6 +22,7 @@ MODEL_CAVEAT = (
 )
 RECIPE_PREFIX = "recipe:"
 TOL = 1e-9
+log = logging.getLogger(__name__)
 _RID = re.compile(r"[0-9a-f]{32}")
 
 
@@ -56,7 +59,14 @@ class RecipeStore:
     def list(self) -> list[Recipe]:
         if not self.directory.is_dir():
             return []
-        found = [Recipe.model_validate_json(p.read_text()) for p in self.directory.glob("*.json") if _RID.fullmatch(p.stem)]
+        found = []
+        for p in self.directory.glob("*.json"):
+            if not _RID.fullmatch(p.stem):
+                continue
+            try:
+                found.append(Recipe.model_validate_json(p.read_text()))
+            except (OSError, ValueError):  # a hand-edited or vanished file must not take the whole list down
+                log.warning("skipping unreadable recipe file %s", p)
         return sorted(found, key=lambda r: (r.name, r.recipe_id))
 
     def get(self, rid: str) -> Recipe:
@@ -68,9 +78,10 @@ class RecipeStore:
     def save(self, recipe: Recipe) -> None:
         path = self._path(recipe.recipe_id)
         self.directory.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(recipe.model_dump(), indent=2) + "\n")
-        tmp.replace(path)
+        # a temp file per call: two concurrent saves of one recipe must not share one
+        with tempfile.NamedTemporaryFile("w", dir=self.directory, suffix=".tmp", delete=False) as f:
+            f.write(json.dumps(recipe.model_dump(), indent=2) + "\n")
+        Path(f.name).replace(path)
 
     def delete(self, rid: str) -> None:
         self.get(rid)
@@ -190,8 +201,9 @@ def _bprime_row(vc: ValueChain, target: Target, m: int) -> np.ndarray:
 
 
 def sellers(vc: ValueChain, target: Target, top: int) -> list[int]:
-    """Live nodes with a revenue share above 0, by share descending, ties by node id."""
-    return [int(k) for k in vc._ranked(target.r, np.flatnonzero(vc._live & (target.r > 0)))[:top]]
+    """Live nodes with a revenue share above 0, by share descending, ties by node id. Shares ≤ 1e-12 count as 0:
+    r comes from the inverted G, so a node with no path to the target can carry rounding noise near 1e-17."""
+    return [int(k) for k in vc._ranked(target.r, np.flatnonzero(vc._live & (target.r > 1e-12)))[:top]]
 
 
 def routes(

@@ -193,7 +193,7 @@ class RecipeIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     home: RecipeNode
     output_meur: float = Field(allow_inf_nan=False, description="Annual output, M EUR; above 0 and below the home node's output.")
-    inputs: list[RecipeInput]
+    inputs: list[RecipeInput] = Field(max_length=10_000, description="1 to 50 inputs; the cap only bounds the body.")
     source: str = Field(min_length=1, max_length=2000)
 
 

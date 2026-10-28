@@ -258,3 +258,9 @@ def test_routes_add_up(client):  # AC-26 on F: all routes of up to 6 hops cover 
             body = get(client, f"/routes?target={target}&from={seller['node_id']}&max_hops=6&min_share=0.0001&top=50")
             assert abs(body["shown_share"] - sum(r["share"] for r in body["routes"])) < 1e-12
             assert body["rest_share"] >= -1e-9 and abs(body["share"] - seller["share"]) < 1e-9
+
+
+def test_unreadable_recipe_file_is_skipped(client, tmp_path):
+    rid = post(client, R)["recipe_id"]
+    (tmp_path / "recipes" / f"{'f' * 32}.json").write_text("{not json")
+    assert [i["recipe_id"] for i in get(client, "/recipes")["items"]] == [rid]
