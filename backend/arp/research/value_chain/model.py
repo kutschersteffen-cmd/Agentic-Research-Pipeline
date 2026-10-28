@@ -5,7 +5,8 @@ import functools
 import json
 import re
 import threading
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
@@ -27,6 +28,10 @@ MATERIAL_NOTE = "Extraction: tonnes taken from nature (metal ores as gross ore),
 class NotBuilt(Exception):
     def __init__(self) -> None:
         super().__init__(NOT_BUILT)
+
+
+class ShockError(ValueError):
+    """A shock request the model cannot run (unknown region or sector, bad size, nothing to shock)."""
 
 
 class UnknownNode(KeyError):
@@ -82,6 +87,35 @@ class Footprint:
     by_sector: list[tuple[str, float]]
 
 
+@dataclass(frozen=True)
+class QuantityShock:
+    model: str
+    unit: str
+    change_pct: float
+    total_meur: float
+    by_region: list[tuple[str, float]]
+    by_sector: list[tuple[str, float]]
+    nodes: list[tuple[Node, float]]
+    shocked: list[tuple[str, float, float]]
+    skipped: list[str]
+    indicators: dict[str, float]
+    focus: tuple[str, float] | None
+    dx: np.ndarray | None = field(default=None, repr=False, compare=False)  # per node, for the portfolio lens
+
+
+@dataclass(frozen=True)
+class PriceShock:
+    carbon_eur_per_t: float
+    covered_regions: list[str]
+    priced_t: float
+    carbon_cost_meur: float
+    by_region: list[tuple[str, float]]
+    by_sector: list[tuple[str, float]]
+    nodes: list[tuple[Node, float]]
+    focus: tuple[str, float] | None
+    dp_pct: np.ndarray | None = field(default=None, repr=False, compare=False)  # per node, for the portfolio lens
+
+
 def region_label(code: str) -> str:
     return ROW_LABELS.get(code, code)
 
@@ -130,6 +164,14 @@ class ValueChain:
         self._search_text = [(n.sector.lower(), n.region_label.lower(), n.region.lower()) for n in self._nodes]
         self._regions, self._region_of = np.unique([n.region_label for n in self._nodes], return_inverse=True)
         self._sectors, self._sector_of = np.unique([n.sector for n in self._nodes], return_inverse=True)
+        self._region_codes = np.array([n.region for n in self._nodes])
+        self._sector_names = np.array([n.sector for n in self._nodes])
+        # only live nodes count: a region or sector with no live node is unknown to the shocks
+        self._live_regions = set(self._region_codes[self._live].tolist())
+        self._live_sectors = set(self._sector_names[self._live].tolist())
+        # shock bases, spec value-chain-shocks Definitions: final demand and primary inputs, from A and x alone
+        self._y = self._x - self._a @ self._x
+        self._v = self._x * (1 - self._a.sum(axis=0))
         listing = directory / "materials.json"  # absent when the archive had no material/F.txt
         self.materials: list[dict] = json.loads(listing.read_text()) if listing.is_file() else []
         if self.materials:
@@ -234,6 +276,106 @@ class ValueChain:
         return Footprint(
             indicator, unit, total, in_home,
             self.by_region(contribution, top), self.by_sector(contribution, top),
+        )
+
+    def _check_known(self, regions: Sequence[str], sectors: Sequence[str] = ()) -> None:
+        for code in regions:
+            if code not in self._live_regions:
+                raise ShockError(f"unknown region '{code}'")
+        for name in sectors:
+            if name not in self._live_sectors:
+                raise ShockError(f"unknown sector '{name}'")
+
+    def _selection(self, nodes: Sequence[str], regions: Sequence[str], sectors: Sequence[str]) -> np.ndarray:
+        sel = np.zeros(len(self._nodes), dtype=bool)
+        for node_id in nodes:
+            sel[self._k(node_id)] = True
+        self._check_known(regions, sectors)
+        sel |= np.isin(self._region_codes, list(regions)) | np.isin(self._sector_names, list(sectors))
+        return sel & self._live
+
+    def _by_id(self, mask: np.ndarray) -> np.ndarray:
+        idx = np.flatnonzero(mask)
+        return idx[np.argsort(self._rank[idx])]
+
+    def _shock_lists(
+        self, values: np.ndarray, top: int, by_abs: bool, weights: np.ndarray | None = None,
+    ) -> tuple[list[tuple[str, float]], list[tuple[str, float]], list[tuple[Node, float]]]:
+        """By-region, by-sector and node lists of a per-node result over live nodes, zeros left out.
+        With `weights`, groups are weighted means instead of sums."""
+        key = np.abs if by_abs else (lambda a: a)
+        live = values * self._live
+
+        def groups(names: np.ndarray, codes: np.ndarray) -> list[tuple[str, float]]:
+            if weights is None:
+                g = np.bincount(codes, weights=live, minlength=len(names))
+            else:
+                w = weights * self._live
+                den = np.bincount(codes, weights=w, minlength=len(names))
+                g = np.divide(np.bincount(codes, weights=live * w, minlength=len(names)), den,
+                              out=np.zeros(len(names)), where=den > 0)
+            nz = np.flatnonzero(g)
+            return [(str(names[i]), float(g[i])) for i in nz[np.lexsort((names[nz], -key(g[nz])))][:top]]
+
+        ranked = self._ranked(key(live), np.flatnonzero(live))[:top]
+        return (
+            groups(self._regions, self._region_of), groups(self._sectors, self._sector_of),
+            [(self._nodes[i], float(values[i])) for i in ranked],
+        )
+
+    def shock_quantity(
+        self, model: Literal["demand", "supply"], change: float, unit: Literal["pct", "meur"] = "pct",
+        nodes: Sequence[str] = (), regions: Sequence[str] = (), sectors: Sequence[str] = (), top: int = 6,
+        focus: str | None = None,
+    ) -> QuantityShock:
+        """Leontief demand shock (dx = L·dy) or Ghosh supply dependency (dx' = dv'·G); spec value-chain-shocks."""
+        f = self._k(focus) if focus is not None else None
+        if not (nodes or regions or sectors):
+            raise ShockError("select at least one node, region or sector")
+        sel = self._selection(nodes, regions, sectors)
+        base = self._y if model == "demand" else self._v
+        # relative tolerance: a true zero base derived from x − A·x can come out as ±1e-13
+        positive = base > 1e-9 * self._x
+        shocked, skipped = sel & positive, sel & ~positive
+        if not shocked.any():
+            raise ShockError("no selected node has a positive base")
+        if unit == "pct":
+            if not -100 <= change <= 100:
+                raise ShockError("change in pct must be between -100 and 100")
+            change_pct = change
+        else:
+            total_base = float(base[shocked].sum())
+            if change == 0 or abs(change) > total_base:
+                raise ShockError(f"change in meur must be non-zero and at most {total_base} in absolute value")
+            change_pct = 100 * change / total_base
+        d = np.where(shocked, change_pct / 100 * base, 0.0)
+        dx = self._l @ d if model == "demand" else d @ self._g
+        dx = np.where(self._live, dx, 0.0)
+        by_region, by_sector, top_nodes = self._shock_lists(dx, top, by_abs=True)
+        return QuantityShock(
+            model, unit, change_pct, float(dx.sum()), by_region, by_sector, top_nodes,
+            [(self._nodes[i].node_id, float(base[i]), float(d[i])) for i in self._by_id(shocked)],
+            [self._nodes[i].node_id for i in self._by_id(skipped)],
+            {k: float(self._intensity[k] @ dx) for k in INTENSITY},
+            (self._nodes[f].node_id, float(dx[f])) if f is not None else None, dx,
+        )
+
+    def shock_price(
+        self, carbon_eur_per_t: float, regions: Sequence[str] = (), top: int = 6, focus: str | None = None,
+    ) -> PriceShock:
+        """Leontief carbon cost-push: dp' = c'·L, c = τ · GHG intensity / 10⁶ in covered regions."""
+        f = self._k(focus) if focus is not None else None
+        self._check_known(regions)
+        covered = sorted(set(regions) if regions else self._live_regions)
+        cov = np.isin(self._region_codes, covered) & self._live
+        ghg = self._intensity["ghg"]
+        c = np.where(cov, carbon_eur_per_t * ghg / 1e6, 0.0)
+        dp_pct = np.where(self._live, 100 * (c @ self._l), 0.0)
+        priced_t = float(ghg[cov] @ self._x[cov])
+        by_region, by_sector, top_nodes = self._shock_lists(dp_pct, top, by_abs=False, weights=self._x)
+        return PriceShock(
+            carbon_eur_per_t, covered, priced_t, carbon_eur_per_t * priced_t / 1e6, by_region, by_sector,
+            top_nodes, (self._nodes[f].node_id, float(dp_pct[f])) if f is not None else None, dp_pct,
         )
 
     def by_region(self, values: np.ndarray, top: int) -> list[tuple[str, float]]:

@@ -12893,6 +12893,78 @@
     "title": "PortfolioPeriodReturn",
     "type": "object"
    },
+   "PortfolioPriceLens": {
+    "properties": {
+     "as_of": {
+      "title": "As Of",
+      "type": "string"
+     },
+     "dp_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Holding-weighted price change of the linked holdings, %; null when none is linked.",
+      "title": "Dp Pct"
+     },
+     "linked_weight": {
+      "title": "Linked Weight",
+      "type": "number"
+     },
+     "portfolio_id": {
+      "title": "Portfolio Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "portfolio_id",
+     "as_of",
+     "linked_weight",
+     "dp_pct"
+    ],
+    "title": "PortfolioPriceLens",
+    "type": "object"
+   },
+   "PortfolioQuantityLens": {
+    "properties": {
+     "as_of": {
+      "title": "As Of",
+      "type": "string"
+     },
+     "change_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Holding-weighted output change of the linked holdings, %; null when none is linked.",
+      "title": "Change Pct"
+     },
+     "linked_weight": {
+      "title": "Linked Weight",
+      "type": "number"
+     },
+     "portfolio_id": {
+      "title": "Portfolio Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "portfolio_id",
+     "as_of",
+     "linked_weight",
+     "change_pct"
+    ],
+    "title": "PortfolioQuantityLens",
+    "type": "object"
+   },
    "PositionApproval": {
     "properties": {
      "approved_at": {
@@ -13058,6 +13130,52 @@
      "approved_version"
     ],
     "title": "PositionView",
+    "type": "object"
+   },
+   "PriceShockFocus": {
+    "properties": {
+     "dp_pct": {
+      "title": "Dp Pct",
+      "type": "number"
+     },
+     "node_id": {
+      "title": "Node Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "node_id",
+     "dp_pct"
+    ],
+    "title": "PriceShockFocus",
+    "type": "object"
+   },
+   "PriceShockNode": {
+    "properties": {
+     "dp_pct": {
+      "title": "Dp Pct",
+      "type": "number"
+     },
+     "node_id": {
+      "title": "Node Id",
+      "type": "string"
+     },
+     "region_label": {
+      "title": "Region Label",
+      "type": "string"
+     },
+     "sector": {
+      "title": "Sector",
+      "type": "string"
+     }
+    },
+    "required": [
+     "node_id",
+     "region_label",
+     "sector",
+     "dp_pct"
+    ],
+    "title": "PriceShockNode",
     "type": "object"
    },
    "PrimarySource": {
@@ -13859,6 +13977,52 @@
      "columns"
     ],
     "title": "QuantitativeDataset",
+    "type": "object"
+   },
+   "QuantityShockFocus": {
+    "properties": {
+     "delta_meur": {
+      "title": "Delta Meur",
+      "type": "number"
+     },
+     "node_id": {
+      "title": "Node Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "node_id",
+     "delta_meur"
+    ],
+    "title": "QuantityShockFocus",
+    "type": "object"
+   },
+   "QuantityShockNode": {
+    "properties": {
+     "delta_meur": {
+      "title": "Delta Meur",
+      "type": "number"
+     },
+     "node_id": {
+      "title": "Node Id",
+      "type": "string"
+     },
+     "region_label": {
+      "title": "Region Label",
+      "type": "string"
+     },
+     "sector": {
+      "title": "Sector",
+      "type": "string"
+     }
+    },
+    "required": [
+     "node_id",
+     "region_label",
+     "sector",
+     "delta_meur"
+    ],
+    "title": "QuantityShockNode",
     "type": "object"
    },
    "RatifyRequest": {
@@ -17159,6 +17323,56 @@
      "fact_ids"
     ],
     "title": "ShareOut",
+    "type": "object"
+   },
+   "ShockIndicators": {
+    "properties": {
+     "energy": {
+      "description": "TJ",
+      "title": "Energy",
+      "type": "number"
+     },
+     "ghg": {
+      "description": "t CO₂e",
+      "title": "Ghg",
+      "type": "number"
+     },
+     "jobs": {
+      "description": "people",
+      "title": "Jobs",
+      "type": "number"
+     }
+    },
+    "required": [
+     "ghg",
+     "energy",
+     "jobs"
+    ],
+    "title": "ShockIndicators",
+    "type": "object"
+   },
+   "ShockedNode": {
+    "properties": {
+     "base_meur": {
+      "description": "Final demand (demand model) or primary inputs (supply model), M EUR.",
+      "title": "Base Meur",
+      "type": "number"
+     },
+     "node_id": {
+      "title": "Node Id",
+      "type": "string"
+     },
+     "shock_meur": {
+      "title": "Shock Meur",
+      "type": "number"
+     }
+    },
+    "required": [
+     "node_id",
+     "base_meur",
+     "shock_meur"
+    ],
+    "title": "ShockedNode",
     "type": "object"
    },
    "SignalType": {
@@ -20615,6 +20829,251 @@
      "activity"
     ],
     "title": "ValueChainPortfolio",
+    "type": "object"
+   },
+   "ValueChainPriceShock": {
+    "properties": {
+     "by_region": {
+      "description": "Output-weighted mean price change, %.",
+      "items": {
+       "maxItems": 2,
+       "minItems": 2,
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "number"
+        }
+       ],
+       "type": "array"
+      },
+      "title": "By Region",
+      "type": "array"
+     },
+     "by_sector": {
+      "description": "Output-weighted mean price change, %.",
+      "items": {
+       "maxItems": 2,
+       "minItems": 2,
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "number"
+        }
+       ],
+       "type": "array"
+      },
+      "title": "By Sector",
+      "type": "array"
+     },
+     "carbon_cost_meur": {
+      "title": "Carbon Cost Meur",
+      "type": "number"
+     },
+     "carbon_eur_per_t": {
+      "title": "Carbon Eur Per T",
+      "type": "number"
+     },
+     "caveat": {
+      "title": "Caveat",
+      "type": "string"
+     },
+     "covered_regions": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Covered Regions",
+      "type": "array"
+     },
+     "edition": {
+      "title": "Edition",
+      "type": "string"
+     },
+     "focus": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PriceShockFocus"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "model_caveat": {
+      "title": "Model Caveat",
+      "type": "string"
+     },
+     "nodes": {
+      "items": {
+       "$ref": "#/components/schemas/PriceShockNode"
+      },
+      "title": "Nodes",
+      "type": "array"
+     },
+     "portfolio": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PortfolioPriceLens"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "With ?portfolio=: the portfolio's holding-weighted price change."
+     },
+     "priced_t": {
+      "title": "Priced T",
+      "type": "number"
+     }
+    },
+    "required": [
+     "edition",
+     "caveat",
+     "model_caveat",
+     "carbon_eur_per_t",
+     "covered_regions",
+     "priced_t",
+     "carbon_cost_meur",
+     "by_region",
+     "by_sector",
+     "nodes",
+     "focus",
+     "portfolio"
+    ],
+    "title": "ValueChainPriceShock",
+    "type": "object"
+   },
+   "ValueChainQuantityShock": {
+    "properties": {
+     "by_region": {
+      "items": {
+       "maxItems": 2,
+       "minItems": 2,
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "number"
+        }
+       ],
+       "type": "array"
+      },
+      "title": "By Region",
+      "type": "array"
+     },
+     "by_sector": {
+      "items": {
+       "maxItems": 2,
+       "minItems": 2,
+       "prefixItems": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "number"
+        }
+       ],
+       "type": "array"
+      },
+      "title": "By Sector",
+      "type": "array"
+     },
+     "caveat": {
+      "title": "Caveat",
+      "type": "string"
+     },
+     "change_pct": {
+      "title": "Change Pct",
+      "type": "number"
+     },
+     "edition": {
+      "title": "Edition",
+      "type": "string"
+     },
+     "focus": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/QuantityShockFocus"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "indicators": {
+      "$ref": "#/components/schemas/ShockIndicators"
+     },
+     "model": {
+      "title": "Model",
+      "type": "string"
+     },
+     "model_caveat": {
+      "title": "Model Caveat",
+      "type": "string"
+     },
+     "nodes": {
+      "items": {
+       "$ref": "#/components/schemas/QuantityShockNode"
+      },
+      "title": "Nodes",
+      "type": "array"
+     },
+     "portfolio": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PortfolioQuantityLens"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "With ?portfolio=: the portfolio's holding-weighted output change."
+     },
+     "shocked": {
+      "items": {
+       "$ref": "#/components/schemas/ShockedNode"
+      },
+      "title": "Shocked",
+      "type": "array"
+     },
+     "skipped": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Skipped",
+      "type": "array"
+     },
+     "total_meur": {
+      "title": "Total Meur",
+      "type": "number"
+     },
+     "unit": {
+      "title": "Unit",
+      "type": "string"
+     }
+    },
+    "required": [
+     "edition",
+     "caveat",
+     "model_caveat",
+     "model",
+     "unit",
+     "change_pct",
+     "total_meur",
+     "by_region",
+     "by_sector",
+     "nodes",
+     "shocked",
+     "skipped",
+     "indicators",
+     "focus",
+     "portfolio"
+    ],
+    "title": "ValueChainQuantityShock",
     "type": "object"
    },
    "ValueChainSearch": {
@@ -40346,6 +40805,307 @@
      }
     },
     "summary": "Portfolio Overlay",
+    "tags": [
+     "value-chain"
+    ]
+   }
+  },
+  "/api/value-chain/shock/price": {
+   "get": {
+    "operationId": "shock_price_api_value_chain_shock_price_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "carbon_eur_per_t",
+      "required": true,
+      "schema": {
+       "maximum": 10000,
+       "minimum": 0,
+       "title": "Carbon Eur Per T",
+       "type": "number"
+      }
+     },
+     {
+      "description": "Covered region codes; all when none.",
+      "in": "query",
+      "name": "region",
+      "required": false,
+      "schema": {
+       "default": [],
+       "description": "Covered region codes; all when none.",
+       "items": {
+        "type": "string"
+       },
+       "title": "Region",
+       "type": "array"
+      }
+     },
+     {
+      "in": "query",
+      "name": "top",
+      "required": false,
+      "schema": {
+       "default": 6,
+       "maximum": 20,
+       "minimum": 1,
+       "title": "Top",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "focus",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Focus"
+      }
+     },
+     {
+      "description": "Adds the portfolio's holding-weighted price change.",
+      "in": "query",
+      "name": "portfolio",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Adds the portfolio's holding-weighted price change.",
+       "title": "Portfolio"
+      }
+     },
+     {
+      "description": "The portfolio's snapshot on or before this date; default latest.",
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "The portfolio's snapshot on or before this date; default latest.",
+       "title": "As Of"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ValueChainPriceShock"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Shock Price",
+    "tags": [
+     "value-chain"
+    ]
+   }
+  },
+  "/api/value-chain/shock/quantity": {
+   "get": {
+    "operationId": "shock_quantity_api_value_chain_shock_quantity_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "model",
+      "required": true,
+      "schema": {
+       "enum": [
+        "demand",
+        "supply"
+       ],
+       "title": "Model",
+       "type": "string"
+      }
+     },
+     {
+      "description": "Percent (unit=pct) or total M EUR (unit=meur).",
+      "in": "query",
+      "name": "change",
+      "required": true,
+      "schema": {
+       "description": "Percent (unit=pct) or total M EUR (unit=meur).",
+       "title": "Change",
+       "type": "number"
+      }
+     },
+     {
+      "in": "query",
+      "name": "unit",
+      "required": false,
+      "schema": {
+       "default": "pct",
+       "enum": [
+        "pct",
+        "meur"
+       ],
+       "title": "Unit",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "node",
+      "required": false,
+      "schema": {
+       "default": [],
+       "items": {
+        "type": "string"
+       },
+       "title": "Node",
+       "type": "array"
+      }
+     },
+     {
+      "description": "Region codes.",
+      "in": "query",
+      "name": "region",
+      "required": false,
+      "schema": {
+       "default": [],
+       "description": "Region codes.",
+       "items": {
+        "type": "string"
+       },
+       "title": "Region",
+       "type": "array"
+      }
+     },
+     {
+      "description": "Sector names as the API shows them.",
+      "in": "query",
+      "name": "sector",
+      "required": false,
+      "schema": {
+       "default": [],
+       "description": "Sector names as the API shows them.",
+       "items": {
+        "type": "string"
+       },
+       "title": "Sector",
+       "type": "array"
+      }
+     },
+     {
+      "in": "query",
+      "name": "top",
+      "required": false,
+      "schema": {
+       "default": 6,
+       "maximum": 20,
+       "minimum": 1,
+       "title": "Top",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "focus",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Focus"
+      }
+     },
+     {
+      "description": "Adds the portfolio's holding-weighted output change.",
+      "in": "query",
+      "name": "portfolio",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Adds the portfolio's holding-weighted output change.",
+       "title": "Portfolio"
+      }
+     },
+     {
+      "description": "The portfolio's snapshot on or before this date; default latest.",
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "The portfolio's snapshot on or before this date; default latest.",
+       "title": "As Of"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ValueChainQuantityShock"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Shock Quantity",
     "tags": [
      "value-chain"
     ]

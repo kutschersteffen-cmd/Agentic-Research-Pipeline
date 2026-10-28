@@ -190,39 +190,69 @@ def _top_nodes(vc: ValueChain, values: np.ndarray, top: int) -> list[dict]:
     return [_ref(vc, int(k), float(values[k])) for k in vc._ranked(values, np.flatnonzero(values))[:top]]
 
 
+def _resolved(vc: ValueChain, store, holdings: list) -> list[tuple]:
+    """(holding, security, company_id, NAV weight, resolution or None) per holding."""
+    securities, companies = portfolio_directories(store)
+    rules = store.list_link_rules()
+    nav = sum(h.market_value_eur for h in holdings)
+    out = []
+    for h in holdings:
+        security = securities.get(h.security_id)
+        company_id = security.company_id if security else None
+        company = companies.get(company_id)
+        res = resolve_company(vc, company, rules.get(company_subject(company_id))) if company else None
+        out.append((h, security, company_id, h.market_value_eur / nav if nav else 0.0, res))
+    return out
+
+
+def _node_weights(vc: ValueChain, resolved: list[tuple]) -> np.ndarray:
+    """W: per node, the NAV share of the linked holdings sitting on it."""
+    w = np.zeros(len(vc._nodes))
+    for *_, weight, res in resolved:
+        for k, share in (res.weights if res else {}).items():
+            w[k] += weight * share
+    return w
+
+
+def portfolio_weights(vc: ValueChain, store, holdings: list) -> np.ndarray:
+    return _node_weights(vc, _resolved(vc, store, holdings))
+
+
+def shock_lens(vc: ValueChain, w: np.ndarray, *, dx: np.ndarray | None = None, dp_pct: np.ndarray | None = None) -> tuple[float, float | None]:
+    """(linked_weight, the portfolio's holding-weighted output change in % (dx) or price change in % (dp_pct))."""
+    linked = float(w.sum())
+    if not linked:
+        return 0.0, None
+    held = np.flatnonzero(w)  # live nodes only, so x > 0
+    if dx is not None:
+        return linked, 100 * float(w[held] @ (dx[held] / vc._x[held])) / linked
+    return linked, float(w[held] @ dp_pct[held]) / linked
+
+
 def overlay(
     vc: ValueChain, store, holdings: list, as_of: str, *, indicator: str, top: int,
     activity: tuple[str, ActivityDefinition, Resolution] | None = None,
 ) -> dict:
     """The overlay of spec Appendix B (without edition and caveat) for one snapshot's holdings."""
-    securities, companies = portfolio_directories(store)
-    rules = store.list_link_rules()
+    resolved = _resolved(vc, store, holdings)
     nav = sum(h.market_value_eur for h in holdings)
-    company_ids = sorted({s.company_id for h in holdings if (s := securities.get(h.security_id)) and s.company_id})
+    company_ids = sorted({c for _, _, c, _, _ in resolved if c})
     evic = resolve_field_values_for_universe(store, company_ids, FIELD_EVIC, as_of)
     revenue = resolve_field_values_for_universe(store, company_ids, FIELD_REVENUE, as_of)
 
     n = len(vc._nodes)
-    portfolio_w = np.zeros(n)  # W
+    portfolio_w = _node_weights(vc, resolved)  # W
     owned = np.zeros(n)  # sum over attributed holdings of o_h * w_h
     attributed_weight = attributed_meur = 0.0
     rows = []
-    for h in holdings:
-        security = securities.get(h.security_id)
-        company_id = security.company_id if security else None
-        company = companies.get(company_id)
-        weight = h.market_value_eur / nav if nav else 0.0
-        res = resolve_company(vc, company, rules.get(company_subject(company_id))) if company else None
+    for h, security, company_id, weight, res in resolved:
         o_h = None
-        if res and res.weights:
+        if res and res.weights and evic.get(company_id, 0) > 0 and company_id in revenue:
+            o_h = (h.market_value_eur / 1e6) / evic[company_id] * revenue[company_id]
+            attributed_weight += weight
+            attributed_meur += h.market_value_eur / 1e6
             for k, w in res.weights.items():
-                portfolio_w[k] += weight * w
-            if evic.get(company_id, 0) > 0 and company_id in revenue:
-                o_h = (h.market_value_eur / 1e6) / evic[company_id] * revenue[company_id]
-                attributed_weight += weight
-                attributed_meur += h.market_value_eur / 1e6
-                for k, w in res.weights.items():
-                    owned[k] += o_h * w
+                owned[k] += o_h * w
         rows.append({
             "security_id": h.security_id, "company_id": company_id, "name": security.name if security else h.security_id,
             "market_value_eur": h.market_value_eur, "weight": weight, "link_source": res.source if res else "none",

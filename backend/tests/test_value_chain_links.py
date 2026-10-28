@@ -403,3 +403,51 @@ def test_esg_template_has_revenue_after_evic(env):  # AC-36
 def test_codes_lists_the_split_codes_last():
     codes = TestClient(app).get(f"{BASE}/codes").json()
     assert len(codes) == 55 and [c["code"] for c in codes[-5:]] == ["D_GEN_FOS", "D_GEN_NUC", "D_GEN_REN", "D_TD", "D_GAS"]
+
+
+# --- Scope 8: the shocks' portfolio lens ---------------------------------------
+
+
+def test_shock_lens(linked):  # AC-28 to AC-31b
+    client, _ = linked
+    demand = {"model": "demand", "region": "CN", "change": -10}
+    q = client.get(f"{BASE}/shock/quantity", params={**demand, "portfolio": "P"}).json()
+    lens = q["portfolio"]
+    assert (lens["portfolio_id"], lens["as_of"], round(lens["linked_weight"], 4), round(lens["change_pct"], 4)) == (
+        "P", "2026-09-30", 0.9, -8.2277)
+    assert round(q["total_meur"], 4) == -64.2658
+    supply = client.get(f"{BASE}/shock/quantity", params={**demand, "model": "supply", "portfolio": "P"}).json()
+    assert round(supply["portfolio"]["change_pct"], 4) == -7.1757
+    price = client.get(f"{BASE}/shock/price", params={"carbon_eur_per_t": 100, "portfolio": "P"}).json()
+    assert round(price["portfolio"]["dp_pct"], 4) == 0.0347 and set(price["portfolio"]) == {"portfolio_id", "as_of", "linked_weight", "dp_pct"}
+
+    plain = client.get(f"{BASE}/shock/quantity", params=demand).json()
+    assert plain["portfolio"] is None and {k: v for k, v in q.items() if k != "portfolio"} == {k: v for k, v in plain.items() if k != "portfolio"}
+    for path, params in (("quantity", demand), ("price", {"carbon_eur_per_t": 100})):
+        res = client.get(f"{BASE}/shock/{path}", params={**params, "as_of": "2026-09-30"})
+        assert (res.status_code, res.json()["detail"]) == (422, "as_of needs portfolio")
+
+
+def test_shock_lens_snapshot_and_errors(linked):
+    client, _ = linked
+    demand = {"model": "demand", "region": "CN", "change": -10}
+    older = client.get(f"{BASE}/shock/quantity", params={**demand, "portfolio": "P", "as_of": "2026-08-15"}).json()
+    assert (older["portfolio"]["as_of"], older["portfolio"]["linked_weight"]) == ("2026-06-30", 1.0)  # only s_cm, on CN.4
+    for params, detail in (({"portfolio": "ZZ"}, "unknown portfolio 'ZZ'"),
+                           ({"portfolio": "P", "as_of": "2026-01-01"}, "no holdings for 'P' on or before 2026-01-01")):
+        res = client.get(f"{BASE}/shock/price", params={"carbon_eur_per_t": 100, **params})
+        assert (res.status_code, res.json()["detail"]) == (404, detail)
+
+
+def test_shock_lens_with_nothing_linked(env):
+    client, store = env
+    store.save_snapshot("P", "2026-10-01", [Holding(holder_id="P", security_id="s_cash", as_of_date="2026-10-01",
+                                                    market_value=1, market_value_eur=1)])
+    lens = client.get(f"{BASE}/shock/price", params={"carbon_eur_per_t": 100, "portfolio": "P"}).json()["portfolio"]
+    assert (lens["as_of"], lens["linked_weight"], lens["dp_pct"]) == ("2026-10-01", 0.0, None)
+
+
+def test_openapi_has_the_lens_parameters():  # AC-37b
+    paths = TestClient(app).get("/openapi.json").json()["paths"]
+    for path in ("/api/value-chain/shock/quantity", "/api/value-chain/shock/price"):
+        assert {"portfolio", "as_of"} <= {p["name"] for p in paths[path]["get"]["parameters"]}

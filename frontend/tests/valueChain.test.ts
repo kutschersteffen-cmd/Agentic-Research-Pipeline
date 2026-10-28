@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activityLine, cents, footprintTotal, homeShare, linkText, nodeHash, pct1, percent, portfolioHash, searchable, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
+import { activityLine, lensLine, cents, EU27, footprintTotal, homeShare, linkText, nodeHash, pct1, percent, portfolioHash, pricePct, searchable, signed, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
 
 test("flows in cents", () => {
   assert.equal(cents(0.0738), "7.4¢"); assert.equal(cents(0.0079798, 2), "0.80¢");
@@ -18,6 +18,12 @@ test("search only with a non-space character; hashes encode ids", () => {
   assert.equal(nodeHash("CN.95"), "#/valueChain/CN.95"); assert.equal(nodeHash("CN.95", "tree"), "#/valueChain/CN.95/tree");
   assert.equal(nodeHash("a/b c", "footprint"), "#/valueChain/a%2Fb%20c/footprint");
 });
+test("shock numbers: signed M EUR, two-decimal price percents, EU-27 preset", () => {
+  assert.equal(signed(-30.1819), "−30.2"); assert.equal(signed(12.34), "+12.3"); assert.equal(signed(-0.04), "0.0");
+  assert.equal(pricePct(0.0564), "0.06%"); assert.equal(pricePct(0), "0.00%"); assert.equal(pricePct(-0.125), "−0.13%");
+  assert.equal(EU27.length, 27); assert.ok(!EU27.includes("GB"));
+  assert.equal(nodeHash("CN.95", "shock"), "#/valueChain/CN.95/shock");
+});
 test("tonnes extracted: one decimal below 1,000 t, whole with separators from 1,000 t (rounded first)", () => {
   assert.equal(tonnes(143.3869), "143.4 t"); assert.equal(tonnes(0), "0.0 t");
   assert.equal(tonnes(999.94), "999.9 t"); assert.equal(tonnes(999.96), "1,000 t"); assert.equal(tonnes(1283.0655), "1,283 t");
@@ -28,4 +34,9 @@ test("portfolio view: one-decimal percents, unresolved parts, the activity line,
   assert.equal(unresolvedText({ region: "WA", sector: "Mining of copper ores and concentrates", share: 1 }), "Not in this edition: WA · Mining of copper ores and concentrates 100.0%");
   assert.equal(activityLine({ name: "Copper and nickel mining", direct_weight: 0.35, upstream_share: 0.5193 }), "Copper and nickel mining: 35.0% of NAV directly · 51.9% of upstream");
   assert.equal(portfolioHash(), "#/valueChain/portfolio"); assert.equal(portfolioHash("P 1"), "#/valueChain/portfolio/P%201");
+});
+test("shocks portfolio lens line", () => {
+  assert.equal(lensLine("output", -8.2277), "Portfolio output change \u22128.23%");
+  assert.equal(lensLine("price", 0.0347), "Portfolio price change 0.03%");
+  assert.equal(lensLine("price", null), "Portfolio price change —");
 });
