@@ -144,6 +144,10 @@ def test_ac44_shocks_view_portfolio_lens(page):
     page.get_by_text("Portfolio output change −8.23%").wait_for()
     SCREENSHOT.parent.mkdir(exist_ok=True)
     page.screenshot(path=str(SCREENSHOT.with_name("value-chain-shock-lens.png")), full_page=True)
+    assert page.url.endswith("#/valueChain/CN.4/shock/P")  # a reload or a shared link keeps the lens
+    page.reload()
+    page.get_by_role("group", name="Target").get_by_role("button", name="All of CN").click()
+    page.get_by_text("Portfolio output change −8.23%").wait_for()
     page.get_by_role("group", name="Model").get_by_role("button", name="Carbon price").click()
     page.get_by_text("Portfolio price change 0.03%").wait_for()
     field(page, "Portfolio").select_option("")

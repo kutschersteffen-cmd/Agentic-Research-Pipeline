@@ -71,7 +71,7 @@ function Picker({ onError }: { onError: (message: string | null) => void }) {
   );
 }
 
-/** `#/valueChain[/<node id>[/tree|/footprint|/shock]]`: picker on top, then the chosen view; `#/valueChain/portfolio[/<id>]`: the
+/** `#/valueChain[/<node id>[/tree|/footprint|/shock[/<portfolio id>]]]`: picker on top, then the chosen view; `#/valueChain/portfolio[/<id>]`: the
  * Portfolio view. App keys this on the route, so a new node or view mounts fresh: no title or data carries over. */
 export function ValueChainExplorer({ params }: { params: string[] }) {
   if (params[0] === "portfolio") {
@@ -144,7 +144,7 @@ function NodeExplorer({ params }: { params: string[] }) {
           ) : view === "footprint" ? (
             <FootprintView id={id} onTitle={setTitle} />
           ) : view === "shock" ? (
-            <ShockView id={id} onTitle={setTitle} />
+            <ShockView id={id} onTitle={setTitle} initialPortfolio={params[2]} />
           ) : (
             <NodeView id={id} onTitle={setTitle} />
           )}

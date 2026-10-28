@@ -28,6 +28,10 @@ export const searchable = (q: string): boolean => q.trim() !== "";
 export const nodeHash = (id: string, view?: "tree" | "footprint" | "shock"): string =>
   `#/valueChain/${encodeURIComponent(id)}${view ? `/${view}` : ""}`;
 
+/** The Shocks view with its portfolio lens, so a reload or a shared link keeps the chosen portfolio. */
+export const shockHash = (id: string, portfolio: string): string =>
+  `${nodeHash(id, "shock")}${portfolio ? `/${encodeURIComponent(portfolio)}` : ""}`;
+
 // Shocks view (spec value-chain-shocks My call 6): M EUR with one decimal and its sign, price changes with two decimals.
 const MINUS = "\u2212";
 export const signed = (v: number, digits = 1): string => {

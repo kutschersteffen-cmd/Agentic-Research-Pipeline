@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
 from arp.api.auth import Principal, current_user
-from arp.api.deps import get_portfolio_store, get_taxonomy_store
+from arp.api.deps import get_portfolio_store, get_taxonomy_store, resolve
 from arp.config import Settings
 from arp.research.indirect_exposure.factory import code_list
 from arp.research.value_chain import links as vc_links
@@ -180,14 +180,6 @@ def footprint(
 
 
 
-def _store_if_asked(request: Request):
-    """The portfolio store, built only for a shock with ?portfolio=, so a plain shock needs no database;
-    looked up through dependency_overrides like Depends(get_portfolio_store) would be."""
-    if request.query_params.get("portfolio") is None:
-        return None
-    return request.app.dependency_overrides.get(get_portfolio_store, get_portfolio_store)()
-
-
 @contextmanager
 def _shock_errors_are_422() -> Iterator[None]:
     try:
@@ -199,6 +191,7 @@ def _shock_errors_are_422() -> Iterator[None]:
 # GET so the viewer role can run shocks; selections are repeated query parameters (spec value-chain-shocks).
 @router.get("/shock/quantity")
 def shock_quantity(
+    request: Request,
     model: Literal["demand", "supply"],
     change: Annotated[float, Query(allow_inf_nan=False, description="Percent (unit=pct) or total M EUR (unit=meur).")],
     unit: Literal["pct", "meur"] = "pct",
@@ -210,9 +203,8 @@ def shock_quantity(
     portfolio: Annotated[str | None, Query(description="Adds the portfolio's holding-weighted output change.")] = None,
     as_of: Annotated[str | None, Query(description="The portfolio's snapshot on or before this date; default latest.")] = None,
     vc: ValueChain = Depends(_chain),
-    store=Depends(_store_if_asked),
 ) -> ValueChainQuantityShock:
-    snapshot = _lens_snapshot(store, portfolio, as_of)
+    store, snapshot = _lens_snapshot(request, portfolio, as_of)
     with _shock_errors_are_422():
         s = vc.shock_quantity(model, change, unit, node, region, sector, top, focus)
     lens = _lens(vc, store, portfolio, snapshot, "change_pct", dx=s.dx) if snapshot else None
@@ -232,6 +224,7 @@ def shock_quantity(
 
 @router.get("/shock/price")
 def shock_price(
+    request: Request,
     carbon_eur_per_t: Annotated[float, Query(ge=0, le=10_000, allow_inf_nan=False)],
     region: Annotated[list[str], Query(description="Covered region codes; all when none.")] = [],  # noqa: B006
     top: Annotated[int, Query(ge=1, le=20)] = 6,
@@ -239,9 +232,8 @@ def shock_price(
     portfolio: Annotated[str | None, Query(description="Adds the portfolio's holding-weighted price change.")] = None,
     as_of: Annotated[str | None, Query(description="The portfolio's snapshot on or before this date; default latest.")] = None,
     vc: ValueChain = Depends(_chain),
-    store=Depends(_store_if_asked),
 ) -> ValueChainPriceShock:
-    snapshot = _lens_snapshot(store, portfolio, as_of)
+    store, snapshot = _lens_snapshot(request, portfolio, as_of)
     with _shock_errors_are_422():
         s = vc.shock_price(carbon_eur_per_t, region, top, focus)
     lens = _lens(vc, store, portfolio, snapshot, "dp_pct", dp_pct=s.dp_pct) if snapshot else None
@@ -276,16 +268,21 @@ def _snapshot(store, portfolio_id: str, as_of: str | None) -> tuple[str, list]:
     return dates[-1], store.load_holdings_as_of(dates[-1], [portfolio_id])
 
 
-def _lens_snapshot(store, portfolio: str | None, as_of: str | None) -> tuple[str, list] | None:
-    """The shocks' portfolio lens input (links spec Scope 8), checked before the shock runs."""
+def _lens_snapshot(request: Request, portfolio: str | None, as_of: str | None) -> tuple:
+    """(store, snapshot) for the shocks' portfolio lens (links spec Scope 8), checked before the shock runs;
+    (None, None) without ?portfolio=, so a plain shock builds no store and needs no database."""
     if as_of is not None and portfolio is None:
         raise HTTPException(422, "as_of needs portfolio")
-    return _snapshot(store, portfolio, as_of) if portfolio is not None else None
+    if portfolio is None:
+        return None, None
+    store = resolve(request, get_portfolio_store)
+    return store, _snapshot(store, portfolio, as_of)
 
 
 def _lens(vc: ValueChain, store, portfolio: str, snapshot: tuple[str, list], key: str, **vector) -> dict:
     """Holding-weighted output (`dx`) or price (`dp_pct`) change over the portfolio's nodes."""
-    linked, change = vc_links.shock_lens(vc, vc_links.portfolio_weights(vc, store, snapshot[1]), **vector)
+    _, resolved = vc_links.resolve_holdings(vc, store, snapshot[1])
+    linked, change = vc_links.shock_lens(vc, vc_links.node_weights(vc, resolved), **vector)
     return {"portfolio_id": portfolio, "as_of": snapshot[0], "linked_weight": linked, key: change}
 
 

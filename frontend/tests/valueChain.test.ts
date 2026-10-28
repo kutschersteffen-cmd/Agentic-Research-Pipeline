@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activityLine, lensLine, cents, EU27, footprintTotal, homeShare, linkText, nodeHash, pct1, percent, portfolioHash, pricePct, searchable, signed, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
+import { activityLine, lensLine, shockHash, cents, EU27, footprintTotal, homeShare, linkText, nodeHash, pct1, percent, portfolioHash, pricePct, searchable, signed, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
 
 test("flows in cents", () => {
   assert.equal(cents(0.0738), "7.4¢"); assert.equal(cents(0.0079798, 2), "0.80¢");
@@ -39,4 +39,9 @@ test("shocks portfolio lens line", () => {
   assert.equal(lensLine("output", -8.2277), "Portfolio output change \u22128.23%");
   assert.equal(lensLine("price", 0.0347), "Portfolio price change 0.03%");
   assert.equal(lensLine("price", null), "Portfolio price change —");
+});
+test("shocks view hash keeps the portfolio", () => {
+  assert.equal(shockHash("CN.4", "P"), "#/valueChain/CN.4/shock/P");
+  assert.equal(shockHash("CN.4", "P 1/x"), "#/valueChain/CN.4/shock/P%201%2Fx");
+  assert.equal(shockHash("CN.4", ""), "#/valueChain/CN.4/shock");
 });

@@ -190,8 +190,8 @@ def _top_nodes(vc: ValueChain, values: np.ndarray, top: int) -> list[dict]:
     return [_ref(vc, int(k), float(values[k])) for k in vc._ranked(values, np.flatnonzero(values))[:top]]
 
 
-def _resolved(vc: ValueChain, store, holdings: list) -> list[tuple]:
-    """(holding, security, company_id, NAV weight, resolution or None) per holding."""
+def resolve_holdings(vc: ValueChain, store, holdings: list) -> tuple[float, list[tuple]]:
+    """NAV, and (holding, security, company_id, NAV weight, resolution or None) per holding."""
     securities, companies = portfolio_directories(store)
     rules = store.list_link_rules()
     nav = sum(h.market_value_eur for h in holdings)
@@ -202,20 +202,16 @@ def _resolved(vc: ValueChain, store, holdings: list) -> list[tuple]:
         company = companies.get(company_id)
         res = resolve_company(vc, company, rules.get(company_subject(company_id))) if company else None
         out.append((h, security, company_id, h.market_value_eur / nav if nav else 0.0, res))
-    return out
+    return nav, out
 
 
-def _node_weights(vc: ValueChain, resolved: list[tuple]) -> np.ndarray:
+def node_weights(vc: ValueChain, resolved: list[tuple]) -> np.ndarray:
     """W: per node, the NAV share of the linked holdings sitting on it."""
     w = np.zeros(len(vc._nodes))
     for *_, weight, res in resolved:
         for k, share in (res.weights if res else {}).items():
             w[k] += weight * share
     return w
-
-
-def portfolio_weights(vc: ValueChain, store, holdings: list) -> np.ndarray:
-    return _node_weights(vc, _resolved(vc, store, holdings))
 
 
 def shock_lens(vc: ValueChain, w: np.ndarray, *, dx: np.ndarray | None = None, dp_pct: np.ndarray | None = None) -> tuple[float, float | None]:
@@ -234,14 +230,13 @@ def overlay(
     activity: tuple[str, ActivityDefinition, Resolution] | None = None,
 ) -> dict:
     """The overlay of spec Appendix B (without edition and caveat) for one snapshot's holdings."""
-    resolved = _resolved(vc, store, holdings)
-    nav = sum(h.market_value_eur for h in holdings)
+    nav, resolved = resolve_holdings(vc, store, holdings)
     company_ids = sorted({c for _, _, c, _, _ in resolved if c})
     evic = resolve_field_values_for_universe(store, company_ids, FIELD_EVIC, as_of)
     revenue = resolve_field_values_for_universe(store, company_ids, FIELD_REVENUE, as_of)
 
     n = len(vc._nodes)
-    portfolio_w = _node_weights(vc, resolved)  # W
+    portfolio_w = node_weights(vc, resolved)  # W
     owned = np.zeros(n)  # sum over attributed holdings of o_h * w_h
     attributed_weight = attributed_meur = 0.0
     rows = []
