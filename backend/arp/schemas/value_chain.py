@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -67,3 +69,87 @@ class ValueChainFootprint(BaseModel):
     in_home_region: float | None = Field(description="Share of total arising in the node's own region; null when total is 0.")
     by_region: list[tuple[str, float]]
     by_sector: list[tuple[str, float]]
+
+
+class LinkRule(BaseModel):
+    """An analyst's (or Scope 6's LLM) link of a company or taxonomy activity to value-chain nodes, stored as
+    ICIO codes or region + sector names, never node ids. docs/superpowers/specs/2026-10-27-value-chain-links-overlays-design.md"""
+
+    kind: Literal["split", "nodes", "llm"]
+    parts: list[dict] = Field(description="split/llm: [{icio_code, share}]; nodes: [{region, sector, share}].")
+    set_by: str
+    set_at: str
+
+
+class IcioCode(BaseModel):
+    code: str
+    label: str
+
+
+class LinkRuleIn(BaseModel):
+    kind: Literal["split", "nodes"]
+    parts: list[dict] = Field(description="split: [{icio_code, share}]; nodes: [{region, sector, share}]; shares sum to 1.")
+
+
+class WeightedNode(BaseModel):
+    node_id: str
+    region_label: str
+    sector: str
+    weight: float
+
+
+class ValueChainLinks(BaseModel):
+    edition: str
+    caveat: str
+    subject: str
+    source: Literal["nodes", "split", "code", "llm", "none"]
+    region: str | None = Field(description="The company's EXIOBASE region; null for activities.")
+    nodes: list[WeightedNode]
+    unresolved: list[dict] = Field(description="Rule parts the current build has no node for.")
+    rule: LinkRule | None
+
+
+class PortfolioHoldingLink(BaseModel):
+    security_id: str
+    company_id: str | None
+    name: str
+    market_value_eur: float
+    weight: float
+    link_source: Literal["nodes", "split", "code", "llm", "none"]
+    top_node: WeightedNode | None
+    owned_output_meur: float | None
+
+
+class PortfolioFootprint(BaseModel):
+    indicator: str
+    unit: str
+    total: float
+    per_meur_invested: float | None
+    by_region: list[tuple[str, float]]
+
+
+class PortfolioActivity(BaseModel):
+    taxonomy_id: str
+    activity_id: str
+    name: str
+    direct_weight: float = Field(description="Share of NAV on the activity's nodes.")
+    upstream_share: float | None
+
+
+class ValueChainPortfolio(BaseModel):
+    edition: str
+    caveat: str
+    portfolio_id: str
+    as_of: str
+    nav_eur: float
+    linked_weight: float
+    attributed_weight: float
+    holdings: list[PortfolioHoldingLink]
+    nodes: list[WeightedNode]
+    direct_by_region: list[tuple[str, float]]
+    upstream_total: float
+    upstream_by_region: list[tuple[str, float]]
+    upstream_by_sector: list[tuple[str, float]]
+    upstream_nodes: list[WeightedNode] = Field(description="weight: euro from the node per euro of the linked output mix.")
+    footprint: PortfolioFootprint
+    activity: PortfolioActivity | None
