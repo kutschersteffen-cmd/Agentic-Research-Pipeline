@@ -1,6 +1,6 @@
 # Authoritative data layer
 
-Status: draft, awaiting owner approval. Delivered as three PRs (see Phases).
+Status: approved by the owner on 2026-10-28. Delivered as three PRs (see Phases).
 
 ## Why
 
