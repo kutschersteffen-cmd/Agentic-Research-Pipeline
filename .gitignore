@@ -55,6 +55,7 @@ projects/*
 # graphify output
 graphify-out/
 data/xbrl/
+data/value_chain_recipes/
 
 # mutmut work folder (backend/scripts/mutation_check.py cleans it up)
 backend/mutants/

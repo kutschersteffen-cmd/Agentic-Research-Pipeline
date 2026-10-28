@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
 import { apiMessage } from "../../lib/projects";
-import { activityLine, cents, pct1, portfolioHash, searchable, unresolvedText } from "../../lib/valueChain";
+import { activityLine, cents, pct1, pickerHits, portfolioHash, searchable, unresolvedText } from "../../lib/valueChain";
 import type { PortfolioSummary, Taxonomy, VcIcioCode, VcLinkRuleIn, VcLinks, VcNodeRef, VcPortfolio } from "../../types";
 import { Bars } from "./NodeView";
 import { useVcQuery } from "./useVcQuery";
@@ -24,7 +24,7 @@ const bars = (pairs: VcPortfolio["direct_by_region"], format: (v: number) => str
   pairs.map(([name, v]) => ({ key: String(name), label: <span>{name}</span>, value: format(Number(v)), size: Number(v) }));
 
 /** The explorer's search over sectors and regions, picking one node for a link editor row. */
-function NodeSearch({ row, onPick }: { row: Row; onPick: (n: VcNodeRef) => void }) {
+export function NodeSearch({ row, onPick }: { row: Pick<Row, "region" | "sector">; onPick: (n: VcNodeRef) => void }) {
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<VcNodeRef[]>([]);
   useEffect(() => {
@@ -34,7 +34,11 @@ function NodeSearch({ row, onPick }: { row: Row; onPick: (n: VcNodeRef) => void 
     }
     let live = true;
     const timer = setTimeout(() => {
-      api.valueChainSearch(q, 8).then((r) => live && setHits(r.items), () => live && setHits([]));
+      // A region after a comma filters a wider sector search: one sector spans every region.
+      pickerHits(q, (text, limit) => api.valueChainSearch(text, limit).then((r) => r.items)).then(
+        (items) => live && setHits(items),
+        () => live && setHits([]),
+      );
     }, 250);
     return () => {
       live = false;

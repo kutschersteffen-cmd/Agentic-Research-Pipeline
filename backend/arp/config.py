@@ -238,6 +238,10 @@ class Settings(BaseSettings):
     value_chain_dir: Path | None = Field(
         default=None, description="Directory written by arp io build-full; unset disables the Value Chain Explorer and the indirect-exposure tier."
     )
+    value_chain_recipes_dir: Path = Field(
+        default=REPO_ROOT / "data" / "value_chain_recipes",
+        description="Product recipes of the revenue-routes screen, one JSON file each; read on every request.",
+    )
 
     # Standards mapping (NACE/NAICS/SIC/GICS). Each resolves independently
     # to a real, configured file; falls back to the bundled illustrative
