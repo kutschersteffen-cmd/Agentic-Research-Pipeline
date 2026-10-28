@@ -1,0 +1,437 @@
+<title>ARP Architecture Review, October 28</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Layout: one reading column, pyramid order (answer, table, candidates, recommendation); hairline boxes only. */
+:root {
+  --bg: #ffffff;
+  --fg: #1c2a2d;
+  --muted: #5b6b6f;
+  --line: #cfdcde;
+  --petrol: #23727a;
+  --petrol-soft: #eef6f7;
+  --leak: #c0392b;
+  --amber: #8f5a0c;
+  --font: Calibri, Carlito, "Segoe UI", Arial, sans-serif;
+  --mono: Consolas, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 16px; line-height: 1.5; }
+.wrap { max-width: 1040px; margin: 0 auto; padding-block: 32px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 28px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.2; font-weight: 700; }
+h1 { font-size: 30px; }
+h2 { font-size: 23px; }
+h3 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+p { margin: 0; max-width: 72ch; }
+ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+code, .files { font-family: var(--mono); font-size: 13.5px; }
+.eyebrow { color: var(--petrol); font-size: 14px; letter-spacing: .06em; text-transform: uppercase; font-weight: 700; }
+.meta { color: var(--muted); font-size: 14px; }
+.box { border: 1px solid var(--line); padding: 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.box.accent { border-color: var(--petrol); }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; font-variant-numeric: tabular-nums; }
+th, td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; }
+td.files { font-size: 12.5px; color: var(--muted); }
+.strength { white-space: nowrap; }
+.strong { color: var(--petrol); font-weight: 700; }
+.files-list { font-family: var(--mono); font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.diagrams { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.diagram { border: 1px solid var(--line); padding: 12px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.diagram .label { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+.diagram .label.leak { color: var(--leak); }
+.diagram pre.mermaid { margin: 0; overflow-x: auto; background: var(--bg); min-height: 120px; }
+.diagram svg { max-width: 100%; height: auto; }
+.ps { display: grid; grid-template-columns: 90px 1fr; gap: 6px 14px; }
+.ps dt { font-weight: 700; color: var(--petrol); }
+.ps dd { margin: 0; min-width: 0; }
+.note { border: 1px solid var(--line); padding: 10px 14px; font-size: 14.5px; color: var(--muted); }
+.note.adr { border-color: var(--amber); color: var(--fg); }
+.note.adr b { color: var(--amber); }
+.leaktext { color: var(--leak); font-weight: 700; }
+@media (max-width: 720px) {
+  .diagrams { grid-template-columns: 1fr; }
+  .ps { grid-template-columns: 1fr; }
+  h1 { font-size: 25px; }
+}
+</style>
+
+<div class="wrap">
+
+<header style="display:flex;flex-direction:column;gap:6px">
+  <div class="eyebrow">Architecture review · Agentic Research Pipeline · 2026-10-28</div>
+  <p class="meta">Scope: the 216 commits in the clone, hot spots first. The 2026-10-11 review covered <code>db/</code> and the run store; this one covers the extraction pipelines, run launch, API and CLI assembly, and the frontend data layer. ADR 0001 (importer keeps its own fact rules) is untouched by every candidate.</p>
+</header>
+
+<section class="box accent">
+  <h1>Each run type wires its own step sequence, launch path and frontend polling; deepening those modules removes most of the repeated work in recent commits</h1>
+  <ul>
+    <li><b>Health:</b> the core seams hold. <code>ground_citations</code> has 32 call sites in 21 modules, every LLM call goes through one protocol method (<code>llm/base.py:40</code>), and HTTP errors are handled once in <code>client.ts:159</code>. The friction sits one level up, where each run type assembles its own copy of the sequence around those seams.</li>
+    <li><b>Biggest friction:</b> one per-company extraction feature lands in 4 to 6 places. Tracing went in at 4 write sites and 6 entry builders with 3 trace shapes. Corrections reached 1 of 5 document pipelines.</li>
+    <li><b>First move:</b> route every grounding roll-up through <code>ground_claim</code> (effort S). Today 8 copies of the rule give 3 different answers for a claim with no citations, and the engagement dossier counts an uncited claim as grounded.</li>
+  </ul>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:12px">
+  <h2>Three candidates are strong; four are smaller or follow from them</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>#</th><th>Candidate</th><th>Files</th><th>Dependency category</th><th>Strength</th><th>Effort</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>One extraction step module for every document pipeline</td><td class="files">extraction/pipeline.py, field_graph.py, financials_graph.py, tnfd_graph.py, plan_extraction.py, review/quality.py, walkthrough/view.py</td><td>In-process + Mock (LLM)</td><td class="strength strong">Strong</td><td>L</td></tr>
+      <tr><td>2</td><td>One grounding roll-up rule</td><td class="files">grounding.py and 8 aggregator sites</td><td>In-process</td><td class="strength strong">Strong</td><td>S</td></tr>
+      <tr><td>3</td><td>One start path per run type</td><td class="files">orchestration/jobs.py, api/run_scheduling.py, 5 routers, api/deps.py, cli/_shared.py</td><td>Local-substitutable (Postgres)</td><td class="strength strong">Strong</td><td>M</td></tr>
+      <tr><td>4</td><td>API client derived from the generated OpenAPI paths</td><td class="files">frontend/src/types.ts, api/client.ts, api/contract.ts</td><td>Ports &amp; adapters (own backend over HTTP)</td><td class="strength strong">Strong</td><td>M</td></tr>
+      <tr><td>5</td><td>One run-tracking hook</td><td class="files">RunProgress.tsx, IdentityStage.tsx, DocumentsStage.tsx, useRunManifest.ts, lib/poll.ts, lib/runs.ts</td><td>Ports &amp; adapters (fake client in tests)</td><td class="strength">Worth exploring</td><td>S</td></tr>
+      <tr><td>6</td><td>Store construction below the API layer</td><td class="files">api/deps.py, orchestration/jobs.py:150, themes/*, argus/flows.py, 5 routers</td><td>Local-substitutable</td><td class="strength">Worth exploring</td><td>M</td></tr>
+      <tr><td>7</td><td>One screen table and one router list</td><td class="files">App.tsx, lib/nav.ts, lib/processes.ts, NavIcons.tsx, ProcessHub.tsx, api/main.py</td><td>In-process</td><td class="strength">Speculative</td><td>S</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- 1 -->
+<section class="box">
+  <div class="eyebrow">Candidate 1 · Strong · L</div>
+  <h2>One extraction step module puts retrieve-to-trace in one place, so the next per-company feature lands once</h2>
+  <div class="files-list">
+    <span>extraction/pipeline.py · _extract_company :139–436, write_trace :541, corrections gate :539</span>
+    <span>extraction/field_graph.py :305–327 · financials_graph.py (226 lines) · tnfd_graph.py (201 lines)</span>
+    <span>extraction/plan_extraction.py · review/quality.py _record :147–216 · walkthrough/view.py :14–20, :99–139</span>
+    <span>callers of private _extract_company: research/revenue_exposure/resolver.py:6, research/taxonomy_sources/empirical.py:4, golden_set/precision.py:7</span>
+  </div>
+  <div class="diagrams">
+    <div class="diagram"><div class="label leak">Before: each pipeline wires its own steps</div>
+<pre class="mermaid">
+flowchart TB
+  CS["custom schema"] --> S1["retrieve · ask · verify · ground · correct · route · trace"]
+  FI["financials"] --> S2["own retrieve · own route · own trace"]
+  TN["TNFD"] --> S3["same code as financials"]
+  PL["plan fields"] --> S4["no verify · no correct · own trace"]
+  SE["seeded items"] --> S5["copied routing tail · own trace"]
+  S1 & S2 & S3 & S4 & S5 --> WV["walkthrough reads 3 trace shapes"]
+  classDef leak stroke:#c0392b,stroke-width:2px,color:#8e2a20;
+  class S2,S3,S4,S5,WV leak
+</pre></div>
+    <div class="diagram"><div class="label">After: pipelines supply prompts and record shape</div>
+<pre class="mermaid">
+flowchart TB
+  CS["custom schema"] --> M
+  FI["financials"] --> M
+  TN["TNFD"] --> M
+  PL["plan fields"] --> M
+  SE["seeded items"] --> M
+  M["Extraction step module: retrieve · ask · verify · ground · correct · check · route · trace"] --> LLM["LLM protocol"]
+  M --> GR["grounding"]
+  M --> TR["one trace shape"]
+  classDef deep fill:#eef6f7,stroke:#2f8a93,stroke-width:2px,color:#1c2a2d;
+  class M deep
+</pre></div>
+  </div>
+  <dl class="ps">
+    <dt>Problem</dt><dd>Five document pipelines each wire their own per-company sequence, so tracing went in at 4 write sites and 6 builders, corrections reached only the custom-schema pipeline, and <code>financials_graph</code> and <code>tnfd_graph</code> are about 90% the same code.</dd>
+    <dt>Solution</dt><dd>One Extraction step module owns the per-company sequence from retrieval to trace, and each pipeline supplies only its prompts and its record shape.</dd>
+  </dl>
+  <h3>Wins</h3>
+  <ul>
+    <li>Locality: tracing, corrections and review routing change in one module.</li>
+    <li>Leverage: financials, TNFD, plan fields and seeded items get corrections and passage-bound grounding without their own code.</li>
+    <li>The interface is the test surface: 11 test files stop calling the private <code>_extract_company</code>, and 3 walkthrough test files stop monkeypatching private functions.</li>
+    <li>Seam made real: the 3 production modules that import <code>_extract_company</code> get a public interface.</li>
+    <li>Deletion: one of <code>financials_graph</code> / <code>tnfd_graph</code> goes; <code>quality._record</code> stops copying the routing tail (<code>quality.py:163–181</code> vs <code>pipeline.py:387–430</code>) and stops hashing the private <code>_SYSTEM_PROMPT</code>.</li>
+  </ul>
+</section>
+
+<!-- 2 -->
+<section class="box">
+  <div class="eyebrow">Candidate 2 · Strong · S</div>
+  <h2>Routing every roll-up through ground_claim makes “is this claim grounded” one rule again</h2>
+  <div class="files-list">
+    <span>grounding.py · ground_claim :233–260 (6 callers)</span>
+    <span>re-derivations: extraction/aggregator.py:157, tnfd_aggregator.py:34/55/115, plan_extraction.py:118, research/match_graph.py:259, engagement/research_agent.py:75, replication/spec_aggregator.py:37</span>
+  </div>
+  <div class="diagrams">
+    <div class="diagram"><div class="label leak">Before: 8 copies, 3 answers for an uncited claim</div>
+<pre class="mermaid">
+flowchart LR
+  GC["ground_citations"] --> A1["aggregator.py:157"] --> R1["not has_value"]
+  GC --> A2["tnfd_aggregator ×3 · plan_extraction · match_graph"] --> R4["own copies"]
+  GC --> A3["spec_aggregator.py:37"] --> R2["False"]
+  GC --> A4["research_agent.py:75"] --> R3["True: grounded"]
+  classDef leak stroke:#c0392b,stroke-width:2px,color:#8e2a20;
+  class R3,R4 leak
+</pre></div>
+    <div class="diagram"><div class="label">After: one rule, passages required</div>
+<pre class="mermaid">
+flowchart LR
+  A1["aggregators"] --> GCL["ground_claim: every citation grounds; uncited grounds only if the claim is empty"]
+  A2["dossier · matching · replication"] --> GCL
+  GCL --> GC["ground_citations with the passages the model saw"]
+  classDef deep fill:#eef6f7,stroke:#2f8a93,stroke-width:2px,color:#1c2a2d;
+  class GCL deep
+</pre></div>
+  </div>
+  <dl class="ps">
+    <dt>Problem</dt><dd><code>ground_claim</code> was written to state the roll-up once, yet 8 sites re-derive it and disagree; <code>research_agent.py:75</code> (<code>… else True</code>) counts a dossier with no citations as grounded, which contradicts the rule in <code>grounding.py:243</code>.</dd>
+    <dt>Solution</dt><dd>Every aggregator calls <code>ground_claim</code>, and financials and TNFD pass the passages the model was shown.</dd>
+  </dl>
+  <h3>Wins</h3>
+  <ul>
+    <li>Locality: the codebase's second design rule (every citation is re-verified) lives in one function.</li>
+    <li>Leverage: 8 sites drop their copy; the rule is tested once, in memory.</li>
+    <li>Financials and TNFD quotes ground against the shown passages instead of anywhere in the document.</li>
+  </ul>
+</section>
+
+<!-- 3 -->
+<section class="box">
+  <div class="eyebrow">Candidate 3 · Strong · M</div>
+  <h2>One start path per run type gives every run a lease, a crash handler and the same assembly in the API and the CLI</h2>
+  <div class="files-list">
+    <span>api/run_scheduling.py schedule_llm_run :21–68 · orchestration/jobs.py RESUMABLE / _RESUME :339–348</span>
+    <span>bare asyncio.create_task: api/routers/emerging_themes.py:71, calibration.py:35, discovery.py:56, transition_barrier.py:150</span>
+    <span>api/routers/xbrl.py :98–128 (copy of runs.py :108–133) · in-request runs: transition_barrier.py :247, :279</span>
+    <span>extraction assembled 4×: routers/extraction.py :157–200, :244–279 · api/deps.py :277–295 · cli/extraction.py :79–91</span>
+    <span>builders written twice or three times: deps.build_registry :111 / cli/_shared._registry :62 · XBRL source deps.py:137, jobs.py:210, cli/_shared.py:86</span>
+  </div>
+  <div class="diagrams">
+    <div class="diagram"><div class="label leak">Before: five launch patterns, per-caller assembly</div>
+<pre class="mermaid">
+flowchart TB
+  R1["12 routers"] --> A["schedule_llm_run: lease, crash → failed"]
+  R2["xbrl · runs"] --> B["launcher direct, own lifecycle copy"]
+  R3["emerging_themes · calibration · discovery · transition_barrier"] --> C["bare create_task: no lease, stuck at running"]
+  R4["transition_barrier"] --> D["runs inside the request"]
+  CLI["CLI commands"] --> E["own assembly: registry, Edgar, XBRL source"]
+  RT["36 run_type literal branches · 4 run-type sets"]
+  classDef leak stroke:#c0392b,stroke-width:2px,color:#8e2a20;
+  class B,C,D,E,RT leak
+</pre></div>
+    <div class="diagram"><div class="label">After: one lifecycle, one entry per run type</div>
+<pre class="mermaid">
+flowchart TB
+  API["API routers"] --> LC
+  CLI["CLI"] --> LC
+  RES["resume / retry"] --> LC
+  LC["Run lifecycle: assemble · create with companies · launch under lease · finish on crash"] --> RT["run-type entry: execute · resumable · review rules · export"]
+  classDef deep fill:#eef6f7,stroke:#2f8a93,stroke-width:2px,color:#1c2a2d;
+  class LC deep
+</pre></div>
+  </div>
+  <dl class="ps">
+    <dt>Problem</dt><dd>Routers launch runs five ways, four of them without the launcher's lease or crash handling, and each of the API and the CLI assembles stores and clients itself: the identity CLI runs without the Edgar content store, and two extraction start paths never write the <code>step_settings.json</code> that <code>xbrl_pipeline/verify.py:24</code> requires.</dd>
+    <dt>Solution</dt><dd>Each run type gets one start function in a Run lifecycle module that the API, the CLI and resume all call.</dd>
+  </dl>
+  <h3>Wins</h3>
+  <ul>
+    <li>Leverage: every run gets a lease, a kept task reference and crash-to-failed.</li>
+    <li>Locality: run assembly sits in one place per type, so the API and the CLI cannot drift.</li>
+    <li>Deletion: the xbrl router's lifecycle copy goes; 36 run-type branches and 4 run-type sets become fields on run-type entries.</li>
+    <li>Resume, launch and crash handling are tested once, for every run type.</li>
+  </ul>
+  <div class="note">Follows candidate 2 of the 2026-10-11 review. Done since then: resume is a dispatch table and leases are Postgres advisory locks. Not done: create, launch and finish-on-crash in one place; <code>JobManager.create_run</code> still has 19 callers and only 9 pass companies.</div>
+</section>
+
+<!-- 4 -->
+<section class="box">
+  <div class="eyebrow">Candidate 4 · Strong · M</div>
+  <h2>Deriving the client from the generated OpenAPI paths makes the backend the only author of request and response types</h2>
+  <div class="files-list">
+    <span>frontend/src/types.ts (2,878 lines, 451 types; 152 Served&lt;&gt; aliases, 58 hand-written copies of generated types)</span>
+    <span>frontend/src/api/client.ts (356 members; 66 untyped request( calls) · api/contract.ts :19–27 (8 Satisfies lines)</span>
+    <span>34 casts in pages, 9 as RunManifest (e.g. components/RunProgress.tsx:26) · backend/arp/api/routers/runs.py:85 get_run → dict</span>
+  </div>
+  <div class="diagrams">
+    <div class="diagram"><div class="label leak">Before: interface as tall as the implementation</div>
+      <svg viewBox="0 0 320 260" role="img" aria-label="Mass diagram: hand-written types and client methods form a tall interface over a thin request function">
+        <rect x="20" y="20" width="120" height="190" fill="#ffffff" stroke="#c0392b" stroke-width="1.5"/>
+        <text x="80" y="60" text-anchor="middle" font-size="12" fill="#1c2a2d" font-family="Calibri, Carlito, sans-serif">types.ts</text>
+        <text x="80" y="76" text-anchor="middle" font-size="11" fill="#5b6b6f" font-family="Calibri, Carlito, sans-serif">58 copies · 9/22 drift</text>
+        <line x1="20" y1="100" x2="140" y2="100" stroke="#cfdcde"/>
+        <text x="80" y="130" text-anchor="middle" font-size="12" fill="#1c2a2d" font-family="Calibri, Carlito, sans-serif">client.ts</text>
+        <text x="80" y="146" text-anchor="middle" font-size="11" fill="#5b6b6f" font-family="Calibri, Carlito, sans-serif">356 members · 66 unknown</text>
+        <line x1="20" y1="168" x2="140" y2="168" stroke="#cfdcde"/>
+        <text x="80" y="192" text-anchor="middle" font-size="12" fill="#1c2a2d" font-family="Calibri, Carlito, sans-serif">contract.ts · 8 checks</text>
+        <rect x="180" y="170" width="120" height="40" fill="#ffffff" stroke="#5b6b6f" stroke-width="1"/>
+        <text x="240" y="195" text-anchor="middle" font-size="12" fill="#1c2a2d" font-family="Calibri, Carlito, sans-serif">request&lt;T&gt;()</text>
+        <text x="80" y="235" text-anchor="middle" font-size="11" fill="#5b6b6f" font-family="Calibri, Carlito, sans-serif">interface</text>
+        <text x="240" y="235" text-anchor="middle" font-size="11" fill="#5b6b6f" font-family="Calibri, Carlito, sans-serif">implementation</text>
+      </svg>
+    </div>
+    <div class="diagram"><div class="label">After: small interface over generated types</div>
+      <svg viewBox="0 0 320 260" role="img" aria-label="Mass diagram: a small typed call interface over generated schema and request code">
+        <rect x="20" y="170" width="120" height="40" fill="#eef6f7" stroke="#2f8a93" stroke-width="1.5"/>
+        <text x="80" y="195" text-anchor="middle" font-size="12" fill="#1c2a2d" font-family="Calibri, Carlito, sans-serif">call(path, method)</text>
+        <rect x="180" y="20" width="120" height="190" fill="#ffffff" stroke="#5b6b6f" stroke-width="1"/>
+        <text x="240" y="70" text-anchor="middle" font-size="12" fill="#1c2a2d" font-family="Calibri, Carlito, sans-serif">schema.gen.ts paths</text>
+        <text x="240" y="86" text-anchor="middle" font-size="11" fill="#5b6b6f" font-family="Calibri, Carlito, sans-serif">URL · method · body · response</text>
+        <line x1="180" y1="120" x2="300" y2="120" stroke="#cfdcde"/>
+        <text x="240" y="150" text-anchor="middle" font-size="12" fill="#1c2a2d" font-family="Calibri, Carlito, sans-serif">auth · errors · encoding</text>
+        <text x="80" y="235" text-anchor="middle" font-size="11" fill="#5b6b6f" font-family="Calibri, Carlito, sans-serif">interface</text>
+        <text x="240" y="235" text-anchor="middle" font-size="11" fill="#5b6b6f" font-family="Calibri, Carlito, sans-serif">implementation</text>
+      </svg>
+    </div>
+  </div>
+  <dl class="ps">
+    <dt>Problem</dt><dd><code>types.ts</code> hand-writes 58 types the generator already emits, 9 of 22 sampled types drop or narrow fields, 66 requests return <code>unknown</code> that pages cast, and the generated <code>paths</code> type is never imported, so URLs, methods and bodies go unchecked.</dd>
+    <dt>Solution</dt><dd>The client takes URL, method, body and response types from the generated <code>paths</code>, and <code>types.ts</code> keeps only frontend-only types.</dd>
+  </dl>
+  <h3>Wins</h3>
+  <ul>
+    <li>Leverage: a new endpoint touches the backend route, the two generated files and the page, instead of 5 to 6 frontend files.</li>
+    <li>Locality: a backend field change shows up as a <code>tsc</code> error at the page that reads it.</li>
+    <li>Deletion test passes for <code>contract.ts</code>: once types come from <code>paths</code>, it has nothing left to guard.</li>
+    <li>Backend routes that return <code>dict</code> (e.g. <code>get_run</code>) show up as missing response models.</li>
+    <li>Path encoding (38 raw <code>${runId}</code> vs 17 encoded) is decided once.</li>
+  </ul>
+</section>
+
+<!-- 5 -->
+<section class="box">
+  <div class="eyebrow">Candidate 5 · Worth exploring · S</div>
+  <h2>One useRun hook makes “when is this run finished” one rule on the frontend</h2>
+  <div class="files-list">
+    <span>hand-rolled pollAfter loops: IdentityStage.tsx:125, DocumentsStage.tsx:154, useRunManifest.ts:27, RunProgress.tsx:31, PipelineEditor.tsx:242, FlowRuns.tsx:80, XbrlFetchArea.tsx:101</span>
+    <span>setInterval (keeps polling in hidden tabs): ThemeResearch.tsx:33, RfpAnswers.tsx:159 · usePoll: ProcessHub.tsx:78, ArgusStart.tsx:40</span>
+    <span>finished-status sets: lib/runs.ts:4, IdentityStage.tsx:12, DocumentsStage.tsx:25, RunScoring.tsx:103, ProcessHub.tsx:96</span>
+  </div>
+  <div class="diagrams">
+    <div class="diagram"><div class="label leak">Before: the same run polled twice</div>
+<pre class="mermaid">
+flowchart TB
+  IS["IdentityStage · DocumentsStage · JobRun"] --> P1["own getRun loop + FINAL set"]
+  IS --> RP["RunProgress"] --> P2["second getRun loop"]
+  TR["ThemeResearch · RfpAnswers"] --> P3["setInterval"]
+  P1 & P2 & P3 --> API["GET run"]
+  classDef leak stroke:#c0392b,stroke-width:2px,color:#8e2a20;
+  class P1,P2,P3 leak
+</pre></div>
+    <div class="diagram"><div class="label">After: one hook, one rule</div>
+<pre class="mermaid">
+flowchart TB
+  IS["stages · job pages"] --> H
+  RP["RunProgress renders from hook state"] --> H
+  TR["ThemeResearch · RfpAnswers"] --> H
+  H["useRun: poll · pause when hidden · finished rule"] --> API["GET run"]
+  classDef deep fill:#eef6f7,stroke:#2f8a93,stroke-width:2px,color:#1c2a2d;
+  class H deep
+</pre></div>
+  </div>
+  <dl class="ps">
+    <dt>Problem</dt><dd>Ten components poll runs with three mechanisms, three screens poll the same run twice because <code>RunProgress</code> has no status callback (<code>IdentityStage.tsx:104</code>), and five status sets disagree on whether <code>failed</code> is finished.</dd>
+    <dt>Solution</dt><dd>One <code>useRun(runId)</code> hook owns polling, hidden-tab pausing and the finished rule, and <code>RunProgress</code> renders from it.</dd>
+  </dl>
+  <h3>Wins</h3>
+  <ul>
+    <li>Locality: the finished rule lives in one place. The backend has the same drift: <code>_FINISHED</code> in <code>api/routers/decision.py:546</code> includes <code>cancelled</code>, the copies in <code>ask.py:154</code>, <code>transition_barrier/ratings.py:18</code> and <code>calibration_agent.py:18</code> do not.</li>
+    <li>Leverage: staged screens halve their run polling.</li>
+    <li>One hook test with a fake client replaces per-component timing tests.</li>
+  </ul>
+</section>
+
+<!-- 6 -->
+<section class="box">
+  <div class="eyebrow">Candidate 6 · Worth exploring · M</div>
+  <h2>Building stores below the API layer lets orchestration, the CLI and tests get them from one place</h2>
+  <div class="files-list">
+    <span>orchestration/jobs.py:150 imports arp.api.deps</span>
+    <span>FastAPI dependency functions in domain code: themes/dossiers.py:138, themes/position.py:170, themes/research.py:220, argus/flows.py:87</span>
+    <span>private _run_store bypassing get_run_store: routers discovery.py:24, calibration.py:18, taxonomy_researcher.py:28, universe_workbench.py:36, xbrl.py:39</span>
+    <span>RunStore( built directly in 19 places · PolicyStore( 10× in routers/stewardship.py</span>
+  </div>
+  <div class="diagrams">
+    <div class="diagram"><div class="label leak">Before: dependencies point up into the API</div>
+<pre class="mermaid">
+flowchart TB
+  DEPS["api/deps.py"]
+  ORCH["orchestration/jobs.py"] --> DEPS
+  DOM["themes · argus define FastAPI deps"] --> FA["fastapi"]
+  R5["5 routers: own RunStore"] -.ignores test overrides.-> DEPS
+  CLI["cli/_shared.py"] --> OWN["own registry and XBRL builders"]
+  classDef leak stroke:#c0392b,stroke-width:2px,color:#8e2a20;
+  class ORCH,DOM,R5,OWN leak
+</pre></div>
+    <div class="diagram"><div class="label">After: one construction module at the bottom</div>
+<pre class="mermaid">
+flowchart TB
+  DEPS["api/deps.py adapts"] --> SC
+  CLI["cli/_shared.py adapts"] --> SC
+  ORCH["orchestration"] --> SC
+  SC["Store construction: run, policy, portfolio, registry, XBRL source"]
+  classDef deep fill:#eef6f7,stroke:#2f8a93,stroke-width:2px,color:#1c2a2d;
+  class SC deep
+</pre></div>
+  </div>
+  <dl class="ps">
+    <dt>Problem</dt><dd>Orchestration imports the API layer, four domain modules depend on FastAPI, and five routers build a private <code>RunStore</code> that test overrides of <code>get_run_store</code> never reach.</dd>
+    <dt>Solution</dt><dd>One store-construction module below <code>api/</code> and <code>cli/</code> builds each store, and <code>deps.py</code> and <code>cli/_shared.py</code> only adapt it.</dd>
+  </dl>
+  <h3>Wins</h3>
+  <ul>
+    <li>Dependency direction: domain and orchestration code no longer import <code>fastapi</code> or <code>arp.api</code> (18 modules today).</li>
+    <li>Tests override stores in one place.</li>
+    <li>Overlaps candidate 3: the CLI and API share the registry and XBRL builders.</li>
+  </ul>
+</section>
+
+<!-- 7 -->
+<section class="box">
+  <div class="eyebrow">Candidate 7 · Speculative · S</div>
+  <h2>One screen table and one router list end the registration churn in App.tsx and main.py</h2>
+  <div class="files-list">
+    <span>frontend: App.tsx :23–54, :56–97, :389–424 · lib/nav.ts:6, :16 · lib/processes.ts:11 · NavIcons.tsx:17 · ProcessHub.tsx:22</span>
+    <span>backend: api/main.py routers named twice (:23–72, :137–188), 8 schedulers started by hand (:93–119)</span>
+  </div>
+  <div class="diagrams">
+    <div class="diagram"><div class="label leak">Before: one string id, five files</div>
+<pre class="mermaid">
+flowchart LR
+  ID["screen id"] --> F1["App.tsx import · TABS · render"]
+  ID --> F2["nav.ts"]
+  ID --> F3["processes.ts tab: string"]
+  ID --> F4["NavIcons: 35 keys, 9 read"]
+  ID --> F5["ProcessHub ICONS"]
+  classDef leak stroke:#c0392b,stroke-width:2px,color:#8e2a20;
+  class F3,F4 leak
+</pre></div>
+    <div class="diagram"><div class="label">After: one entry per screen</div>
+<pre class="mermaid">
+flowchart LR
+  T["Screen table: id · label · icon · component · group"] --> APP["App routes"]
+  T --> NAV["nav"]
+  T --> PR["processes, type-checked ids"]
+  classDef deep fill:#eef6f7,stroke:#2f8a93,stroke-width:2px,color:#1c2a2d;
+  class T deep
+</pre></div>
+  </div>
+  <dl class="ps">
+    <dt>Problem</dt><dd>A new screen is registered by string id in up to five files, a typo in a process step silently routes to home (<code>App.tsx:128</code>), and 8 of the last 12 <code>main.py</code> commits only added an import and an <code>include_router</code>.</dd>
+    <dt>Solution</dt><dd>One screen table on the frontend and one router list on the backend.</dd>
+  </dl>
+  <h3>Wins</h3>
+  <ul>
+    <li>Locality: a screen is one entry, and the drift visible today (26 unread icons, a <code>lab</code> key with no tab, “Background Agents” vs “Standing agents”) has nowhere to live.</li>
+    <li>Fewer merge conflicts between parallel agent PRs in <code>main.py</code> and <code>App.tsx</code>.</li>
+  </ul>
+  <div class="note">Speculative because the cost today is merge conflicts and small drift, not wrong behaviour.</div>
+</section>
+
+<section class="box">
+  <h2>Three defects turned up during the review and stand on their own</h2>
+  <ul>
+    <li><code>engagement/research_agent.py:75</code>: a dossier with no citations counts as grounded and skips review. Checked in code.</li>
+    <li><code>api/routers/emerging_themes.py:71</code>, <code>calibration.py:35</code>, <code>discovery.py:56</code>, <code>transition_barrier.py:150</code>: <code>asyncio.create_task</code> with no kept reference; outside discovery, no lease, and a crash leaves the run at <code>running</code>. Checked in code.</li>
+    <li><code>POST /api/extraction/runs</code> and <code>deps.get_extraction_starter</code> do not write <code>step_settings.json</code>, which <code>xbrl_pipeline/verify.py:24</code> requires. Not checked: whether the UI uses that route.</li>
+  </ul>
+</section>
+
+<section class="box accent">
+  <h2>Start with candidate 2, then take on candidate 1</h2>
+  <p>Candidate 2 is a small change that fixes a live contradiction of the codebase's rule that every citation is re-verified, and the step module in candidate 1 would own that rule anyway. Candidate 1 is the largest deepening: it is where the last two feature series (traces, corrections) paid the most for missing locality.</p>
+  <p><b>Which of these would you like to explore?</b></p>
+</section>
+
+</div>
