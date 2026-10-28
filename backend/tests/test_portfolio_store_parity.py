@@ -277,8 +277,9 @@ def test_public_surfaces_match():
     without a database."""
     from arp.storage.postgres_portfolio_store import PostgresPortfolioStore
 
-    file_surface = {name for name in dir(PortfolioStore) if not name.startswith("_")}
-    pg_surface = {name for name in dir(PostgresPortfolioStore) if not name.startswith("_")}
+    # "__mutmut_": the mutation check's trampoline copies of each method, added to the class it mutates
+    file_surface = {name for name in dir(PortfolioStore) if not name.startswith("_") and "__mutmut_" not in name}
+    pg_surface = {name for name in dir(PostgresPortfolioStore) if not name.startswith("_") and "__mutmut_" not in name}
 
     assert file_surface - pg_surface == FILE_ONLY_METHODS
     # The Postgres store may add capabilities the file store can't offer
