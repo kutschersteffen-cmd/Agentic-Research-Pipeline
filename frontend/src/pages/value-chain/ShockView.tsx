@@ -37,7 +37,7 @@ const bars = (pairs: VcQuantityShock["by_region"], fmt: (v: number) => string) =
 
 const meur = (v: number) => `${signed(v)} M EUR`;
 
-function Results({ heading, total, tiles, byRegion, bySector, nodes, fmt, busy }: {
+function Results({ heading, total, tiles, byRegion, bySector, nodes, fmt }: {
   heading: string;
   total: string;
   tiles: [string, string][];
@@ -45,11 +45,10 @@ function Results({ heading, total, tiles, byRegion, bySector, nodes, fmt, busy }
   bySector: VcQuantityShock["by_sector"];
   nodes: { node_id: string; sector: string; region_label: string; value: number }[];
   fmt: (v: number) => string;
-  busy: boolean;
 }) {
   return (
     <>
-      <section className="card vc-total" aria-labelledby="vc-shock" aria-busy={busy}>
+      <section className="card vc-total" aria-labelledby="vc-shock">
         <h2 id="vc-shock">{heading}</h2>
         <p className="vc-total-value">{total}</p>
         {tiles.length > 0 && (
@@ -63,7 +62,7 @@ function Results({ heading, total, tiles, byRegion, bySector, nodes, fmt, busy }
           </div>
         )}
       </section>
-      <div className="vc-columns" aria-busy={busy}>
+      <div className="vc-columns">
         <section className="card" aria-label="By region">
           <h2>By region</h2>
           {byRegion.length === 0 ? <p className="muted">None.</p> : <Bars rows={bars(byRegion, fmt)} />}
@@ -208,7 +207,6 @@ export function ShockView({ id, onTitle }: { id: string; onTitle: (title: string
               bySector={r.q.by_sector}
               nodes={r.q.nodes.map((n) => ({ ...n, value: n.delta_meur }))}
               fmt={meur}
-              busy={shockQ.loading}
             />
           )}
           {r.p && (
@@ -220,7 +218,6 @@ export function ShockView({ id, onTitle }: { id: string; onTitle: (title: string
               bySector={r.p.by_sector}
               nodes={r.p.nodes.map((n) => ({ ...n, value: n.dp_pct }))}
               fmt={pricePct}
-              busy={shockQ.loading}
             />
           )}
           {r.p && (
