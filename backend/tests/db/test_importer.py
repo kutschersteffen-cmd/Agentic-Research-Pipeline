@@ -358,7 +358,7 @@ def test_esg_load_without_revenue_does_not_take_an_earlier_loads_revenue(legacy_
     for day, fields in (("01", FIELD_IDS), ("02", [f for f in FIELD_IDS if f not in OPTIONAL_FIELD_IDS])):
         for fid in fields:
             store.append_observation(DataPointObservation(company_id="beta", field_id=fid, field_name=fid, value=1.0,
-                                                          period="2025-07", source="internal_api", observed_at=f"2025-07-{day}T00:00:00+00:00"))
+                                                          period="2025-07", source="internal_api", observed_at=f"2025-07-{day}T00:00:00+00:00"))  # gitleaks:allow
         record_load(store, LoadRecord(kind="esg", source_id="msci", month="2025-07", status="ok", content_hash=day,
                                       at=f"2025-07-{day}T01:00:00+00:00"))
     first, second = (load["rows"][0] for load in importer._esg_loads(legacy_settings) if load["month"] == "2025-07")
