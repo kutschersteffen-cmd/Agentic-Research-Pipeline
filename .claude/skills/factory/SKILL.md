@@ -24,7 +24,7 @@ All state comes from GitHub, so a fresh session can always pick up:
 | 2. Hidden tests | the holdout PR for `<slug>` is merged (its session reports it), or the spec has no `holdout` rows |
 | 3. Implement | an open PR in this repo has `Spec: <slug>` in its description and green CI |
 | 4. Review + evaluator | that PR has a `Code review (factory)` comment, and an `Acceptance matrix (evaluator)` comment unless the spec has no `evaluator` rows |
-| 5. Merge gate | the owner merged the PR |
+| 5. Merge gate | the owner merged the PR; with a `Rows:` line that is one slice, and the feature goes back to stage 3 |
 | 6. Regression | the holdout PR moving `specs/<slug>/` into `regression/` is merged |
 
 `<slug>` is the spec file name without the date and `.md`. Keep one board card per feature
@@ -60,15 +60,20 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
      The implementing session fixes or answers each blocking finding (steward rules); a push that
      changes code re-runs this review once CI is green again, at most three rounds per PR.
    - **Evaluator** (skip if no `evaluator` rows): *"Run the evaluator skill on PR #<n>."*
+     A later push that changes `backend/arp/` or `frontend/src/` re-runs it once CI is green again:
+     the matrix names the head it ran on, and a matrix for an older head is stale.
 5. **Merge gate:** nothing to start. Tell the owner the PR is ready: link, risk label, open review
-   findings, matrix verdict.
+   findings, matrix verdict and the head it ran on. If the PR has a `Rows:` line, also list the spec's
+   `holdout` rows that no merged PR for `<slug>` has named yet.
 6. **Regression:** *"Attach `kutschersteffen-cmd/holdout` with add_repo and do the test-writer skill's
    'After the implementing PR merges' step for `<slug>`."*
 
 ## Waiting
 
 - When a session messages you with a PR url, `subscribe_pr_activity` to it. A merge event moves the
-  feature to the next stage: start it at once. Green CI on the implementing PR starts the review and the evaluator.
+  feature to the next stage: start it at once. A merged slice (`Rows:` line) starts stage 3 for the
+  rows still owed, never stage 6: regression would run the unbuilt rows on every PR. Green CI on the
+  implementing PR starts the review and the evaluator.
 - A `blocked:` message, a `factory:blocked` label or a `Blocked: fix limit` comment: put the reason on
   the card and tell the owner in one line what they need to decide. Don't start the next stage.
 - If nothing arrives, keep one `send_later` check-in about 50 minutes out, then every 4 hours: run
