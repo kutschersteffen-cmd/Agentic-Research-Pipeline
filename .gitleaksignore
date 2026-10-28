@@ -3,5 +3,10 @@
 9ddf9e8a31250aa28616b2401b881e188206cd62:backend/arp/transition_barrier/data/criteria_schema.json:generic-api-key:344
 9ddf9e8a31250aa28616b2401b881e188206cd62:backend/arp/transition_barrier/data/criteria_schema.json:generic-api-key:1480
 
-# False positive: a test timestamp (observed_at=f"2025-07-{day}T…"), not a secret.
-7199adb5e655b640c0b8d88b60106e2d3137ba96:backend/tests/db/test_importer.py:generic-api-key:361
+# False positive: a test timestamp (observed_at=f"2025-07-{day}T…"), not a secret. Now also marked inline.
+b9fa36b752d8cdb21467f5a1aefc26823268fce8:backend/tests/db/test_importer.py:generic-api-key:361
+
+# Entries here are pinned to a commit SHA, and a squash merge gives the PR's commits new SHAs on main,
+# so an entry added in a PR stops matching after the merge and main goes red. For a false positive in a
+# PR, put `# gitleaks:allow` at the end of the flagged line instead. Add a line here only for a commit
+# already on main.
