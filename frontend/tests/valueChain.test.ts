@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cents, footprintTotal, homeShare, linkText, nodeHash, percent, searchable, tile, tonnes } from "../src/lib/valueChain.ts";
+import { activityLine, cents, footprintTotal, homeShare, linkText, nodeHash, pct1, percent, portfolioHash, searchable, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
 
 test("flows in cents", () => {
   assert.equal(cents(0.0738), "7.4¢"); assert.equal(cents(0.0079798, 2), "0.80¢");
@@ -21,4 +21,11 @@ test("search only with a non-space character; hashes encode ids", () => {
 test("tonnes extracted: one decimal below 1,000 t, whole with separators from 1,000 t (rounded first)", () => {
   assert.equal(tonnes(143.3869), "143.4 t"); assert.equal(tonnes(0), "0.0 t");
   assert.equal(tonnes(999.94), "999.9 t"); assert.equal(tonnes(999.96), "1,000 t"); assert.equal(tonnes(1283.0655), "1,283 t");
+});
+test("portfolio view: one-decimal percents, unresolved parts, the activity line, hashes", () => {
+  assert.equal(pct1(0.55), "55.0%"); assert.equal(pct1(0.9), "90.0%"); assert.equal(pct1(0.10714), "10.7%"); assert.equal(pct1(0.00285), "0.3%");
+  assert.equal(unresolvedText({ icio_code: "A01", share: 0.4 }), "Not in this edition: A01 40.0%");
+  assert.equal(unresolvedText({ region: "WA", sector: "Mining of copper ores and concentrates", share: 1 }), "Not in this edition: WA · Mining of copper ores and concentrates 100.0%");
+  assert.equal(activityLine({ name: "Copper and nickel mining", direct_weight: 0.35, upstream_share: 0.5193 }), "Copper and nickel mining: 35.0% of NAV directly · 51.9% of upstream");
+  assert.equal(portfolioHash(), "#/valueChain/portfolio"); assert.equal(portfolioHash("P 1"), "#/valueChain/portfolio/P%201");
 });

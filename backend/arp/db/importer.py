@@ -150,23 +150,27 @@ def _documents(settings: Settings, session: Session) -> list[dict]:
 def _esg_loads(settings: Settings) -> list[dict]:
     """Each successful ESG file load (portfolio governance log) with the rows it wrote: per company,
     the latest observation of every ESG field for that month as of the load."""
-    from arp.portfolio.climate.esg_intake import FIELD_IDS
+    from arp.portfolio.climate.esg_intake import FIELD_IDS, OPTIONAL_FIELD_IDS
     from arp.storage.portfolio_store import PortfolioStore
 
     store = PortfolioStore(settings.portfolios_dir)  # observations and governance events are files
     keys = [(c, f) for c, f in store.list_observation_keys() if f in FIELD_IDS]
     history = {k: store.load_observations(*k) for k in keys}
     loads = []
+    last_at: dict[str, str] = {}  # month -> the previous ok load of that month
     for e in store.list_governance_events():
         if (e.get("event_type"), e.get("kind"), e.get("status")) != ("load_recorded", "esg", "ok"):
             continue
+        since, last_at[e["month"]] = last_at.get(e["month"], ""), e["at"]
         # ponytail: observations do not record their provider; two providers loading the same month blend
         rows: dict[str, dict] = defaultdict(dict)
         for (company, fid), obs in history.items():
-            hits = [o for o in obs if o.period == e["month"] and o.observed_at <= e["at"]]
+            # an optional field counts only if this load wrote it, not an earlier load of the month
+            hits = [o for o in obs if o.period == e["month"] and o.observed_at <= e["at"]
+                    and (fid not in OPTIONAL_FIELD_IDS or o.observed_at > since)]
             if hits:
                 rows[company][fid] = hits[-1].value
-        complete = [{"company_id": c, **v} for c, v in rows.items() if set(v) == set(FIELD_IDS)]
+        complete = [{"company_id": c, **v} for c, v in rows.items() if set(v) >= set(FIELD_IDS) - OPTIONAL_FIELD_IDS]
         if complete:
             loads.append({"provider": e["source_id"], "month": e["month"], "rows": complete})
     return loads

@@ -6715,6 +6715,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/value-chain/codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Icio Codes
+         * @description The ICIO codes a revenue split may name: the 50 industries, then the five electricity split codes.
+         */
+        get: operations["icio_codes_api_value_chain_codes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/value-chain/links/activity/{taxonomy_id}/{activity_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Activity Links */
+        get: operations["activity_links_api_value_chain_links_activity__taxonomy_id___activity_id__get"];
+        /** Put Activity Links */
+        put: operations["put_activity_links_api_value_chain_links_activity__taxonomy_id___activity_id__put"];
+        post?: never;
+        /** Delete Activity Links */
+        delete: operations["delete_activity_links_api_value_chain_links_activity__taxonomy_id___activity_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/value-chain/links/company/{company_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Company Links */
+        get: operations["company_links_api_value_chain_links_company__company_id__get"];
+        /** Put Company Links */
+        put: operations["put_company_links_api_value_chain_links_company__company_id__put"];
+        post?: never;
+        /** Delete Company Links */
+        delete: operations["delete_company_links_api_value_chain_links_company__company_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/value-chain/nodes": {
         parameters: {
             query?: never;
@@ -6775,6 +6833,23 @@ export interface paths {
         };
         /** Tree */
         get: operations["tree_api_value_chain_nodes__node_id__tree_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/value-chain/portfolio/{portfolio_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Portfolio Overlay */
+        get: operations["portfolio_overlay_api_value_chain_portfolio__portfolio_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -11372,6 +11447,13 @@ export interface components {
             /** T Nw */
             t_nw: number | null;
         };
+        /** IcioCode */
+        IcioCode: {
+            /** Code */
+            code: string;
+            /** Label */
+            label: string;
+        };
         /** IdentifierOut */
         IdentifierOut: {
             /** Scheme */
@@ -11890,6 +11972,44 @@ export interface components {
          * @enum {string}
          */
         LifecycleStage: "ideation" | "innovation" | "commercialization" | "mature";
+        /**
+         * LinkRule
+         * @description An analyst's (or Scope 6's LLM) link of a company or taxonomy activity to value-chain nodes, stored as
+         *     ICIO codes or region + sector names, never node ids. docs/superpowers/specs/2026-10-27-value-chain-links-overlays-design.md
+         */
+        LinkRule: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "split" | "nodes" | "llm";
+            /**
+             * Parts
+             * @description split/llm: [{icio_code, share}]; nodes: [{region, sector, share}].
+             */
+            parts: {
+                [key: string]: unknown;
+            }[];
+            /** Set At */
+            set_at: string;
+            /** Set By */
+            set_by: string;
+        };
+        /** LinkRuleIn */
+        LinkRuleIn: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "split" | "nodes";
+            /**
+             * Parts
+             * @description split: [{icio_code, share}]; nodes: [{region, sector, share}]; shares sum to 1.
+             */
+            parts: {
+                [key: string]: unknown;
+            }[];
+        };
         /** LoadOut */
         LoadOut: {
             /**
@@ -12524,6 +12644,38 @@ export interface components {
              */
             tags?: string[];
         };
+        /** PortfolioActivity */
+        PortfolioActivity: {
+            /** Activity Id */
+            activity_id: string;
+            /**
+             * Direct Weight
+             * @description Share of NAV on the activity's nodes.
+             */
+            direct_weight: number;
+            /** Name */
+            name: string;
+            /** Taxonomy Id */
+            taxonomy_id: string;
+            /** Upstream Share */
+            upstream_share: number | null;
+        };
+        /** PortfolioFootprint */
+        PortfolioFootprint: {
+            /** By Region */
+            by_region: [
+                string,
+                number
+            ][];
+            /** Indicator */
+            indicator: string;
+            /** Per Meur Invested */
+            per_meur_invested: number | null;
+            /** Total */
+            total: number;
+            /** Unit */
+            unit: string;
+        };
         /**
          * PortfolioGroup
          * @description A saved, named set of portfolios, companies or securities. Members are
@@ -12549,6 +12701,27 @@ export interface components {
             members?: string[];
             /** Name */
             name: string;
+        };
+        /** PortfolioHoldingLink */
+        PortfolioHoldingLink: {
+            /** Company Id */
+            company_id: string | null;
+            /**
+             * Link Source
+             * @enum {string}
+             */
+            link_source: "nodes" | "split" | "code" | "llm" | "none";
+            /** Market Value Eur */
+            market_value_eur: number;
+            /** Name */
+            name: string;
+            /** Owned Output Meur */
+            owned_output_meur: number | null;
+            /** Security Id */
+            security_id: string;
+            top_node: components["schemas"]["WeightedNode"] | null;
+            /** Weight */
+            weight: number;
         };
         /**
          * PortfolioPeriodReturn
@@ -15489,6 +15662,35 @@ export interface components {
              */
             total: number;
         };
+        /** ValueChainLinks */
+        ValueChainLinks: {
+            /** Caveat */
+            caveat: string;
+            /** Edition */
+            edition: string;
+            /** Nodes */
+            nodes: components["schemas"]["WeightedNode"][];
+            /**
+             * Region
+             * @description The company's EXIOBASE region; null for activities.
+             */
+            region: string | null;
+            rule: components["schemas"]["LinkRule"] | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "nodes" | "split" | "code" | "llm" | "none";
+            /** Subject */
+            subject: string;
+            /**
+             * Unresolved
+             * @description Rule parts the current build has no node for.
+             */
+            unresolved: {
+                [key: string]: unknown;
+            }[];
+        };
         /** ValueChainMaterial */
         ValueChainMaterial: {
             /**
@@ -15628,6 +15830,51 @@ export interface components {
             region_label: string;
             /** Sector */
             sector: string;
+        };
+        /** ValueChainPortfolio */
+        ValueChainPortfolio: {
+            activity: components["schemas"]["PortfolioActivity"] | null;
+            /** As Of */
+            as_of: string;
+            /** Attributed Weight */
+            attributed_weight: number;
+            /** Caveat */
+            caveat: string;
+            /** Direct By Region */
+            direct_by_region: [
+                string,
+                number
+            ][];
+            /** Edition */
+            edition: string;
+            footprint: components["schemas"]["PortfolioFootprint"];
+            /** Holdings */
+            holdings: components["schemas"]["PortfolioHoldingLink"][];
+            /** Linked Weight */
+            linked_weight: number;
+            /** Nav Eur */
+            nav_eur: number;
+            /** Nodes */
+            nodes: components["schemas"]["WeightedNode"][];
+            /** Portfolio Id */
+            portfolio_id: string;
+            /** Upstream By Region */
+            upstream_by_region: [
+                string,
+                number
+            ][];
+            /** Upstream By Sector */
+            upstream_by_sector: [
+                string,
+                number
+            ][];
+            /**
+             * Upstream Nodes
+             * @description weight: euro from the node per euro of the linked output mix.
+             */
+            upstream_nodes: components["schemas"]["WeightedNode"][];
+            /** Upstream Total */
+            upstream_total: number;
         };
         /** ValueChainSearch */
         ValueChainSearch: {
@@ -15804,6 +16051,17 @@ export interface components {
          * @enum {string}
          */
         WalkOrTalk: "walk" | "talk";
+        /** WeightedNode */
+        WeightedNode: {
+            /** Node Id */
+            node_id: string;
+            /** Region Label */
+            region_label: string;
+            /** Sector */
+            sector: string;
+            /** Weight */
+            weight: number;
+        };
         /**
          * WeightingScheme
          * @enum {string}
@@ -28514,6 +28772,219 @@ export interface operations {
             };
         };
     };
+    icio_codes_api_value_chain_codes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IcioCode"][];
+                };
+            };
+        };
+    };
+    activity_links_api_value_chain_links_activity__taxonomy_id___activity_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taxonomy_id: string;
+                activity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValueChainLinks"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_activity_links_api_value_chain_links_activity__taxonomy_id___activity_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taxonomy_id: string;
+                activity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkRuleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValueChainLinks"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_activity_links_api_value_chain_links_activity__taxonomy_id___activity_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                taxonomy_id: string;
+                activity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    company_links_api_value_chain_links_company__company_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValueChainLinks"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_company_links_api_value_chain_links_company__company_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkRuleIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValueChainLinks"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_company_links_api_value_chain_links_company__company_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                company_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     search_api_value_chain_nodes_get: {
         parameters: {
             query: {
@@ -28645,6 +29116,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ValueChainTree"] | components["schemas"]["ValueChainMaterialTree"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    portfolio_overlay_api_value_chain_portfolio__portfolio_id__get: {
+        parameters: {
+            query?: {
+                /** @description Latest snapshot on or before this date; default the latest. */
+                as_of?: string | null;
+                indicator?: string;
+                top?: number;
+                taxonomy?: string | null;
+                activity?: string | null;
+            };
+            header?: never;
+            path: {
+                portfolio_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValueChainPortfolio"];
                 };
             };
             /** @description Validation Error */

@@ -4,6 +4,7 @@ import csv
 import functools
 import json
 import threading
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -25,6 +26,37 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
+@dataclass(frozen=True)
+class CodeList:
+    """The tier's ICIO code list (50 codes, then the five split codes) and each code's EXIOBASE sectors."""
+
+    codes: list[str]
+    labels: dict[str, str]
+    covers: dict[str, set[str]]  # code -> EXIOBASE sector names as in the archive (with any " (31)" suffix)
+    isic_divisions: dict[str, list[str]]
+    nace_classes: dict[str, list[str]]
+    prompt_codes: list[str]
+
+
+@functools.cache
+def code_list() -> CodeList:
+    icio = _read_reference("icio2025_industries.csv")
+    codes = [r["code"] for r in icio] + [c for c, *_ in SPLIT_INDUSTRIES]
+    covers: dict[str, set[str]] = {c: set() for c in codes}
+    for r in _read_reference("exiobase_ixi_to_icio2025.csv"):
+        covers[r["icio_code"]].add(r["exiobase_sector"])
+        if r["split_code"] != r["icio_code"]:
+            covers[r["split_code"]].add(r["exiobase_sector"])
+    return CodeList(
+        codes=codes,
+        labels={r["code"]: r["label"] for r in icio} | {c: label for c, label, *_ in SPLIT_INDUSTRIES},
+        covers=covers,
+        isic_divisions={r["code"]: [d for d in r["isic_divisions"].split(";") if d] for r in icio},
+        nace_classes={c: nace.split(";") for c, _, _, nace in SPLIT_INDUSTRIES},
+        prompt_codes=[r["code"] for r in icio],
+    )
+
+
 _load_lock = threading.Lock()  # lru_cache lets concurrent misses each load L
 
 
@@ -35,14 +67,7 @@ def _load(directory: str, manifest_text: str) -> LeontiefModel:
     live = np.flatnonzero(np.array([float(r["output_meur"]) for r in nodes]) > 0)
     nodes = [nodes[i] for i in live]
     leontief_inverse = np.load(folder / "L.npy", mmap_mode="r")[np.ix_(live, live)]
-
-    icio = _read_reference("icio2025_industries.csv")
-    codes = [r["code"] for r in icio] + [c for c, *_ in SPLIT_INDUSTRIES]
-    covers: dict[str, set[str]] = {c: set() for c in codes}
-    for r in _read_reference("exiobase_ixi_to_icio2025.csv"):
-        covers[r["icio_code"]].add(r["exiobase_sector"])
-        if r["split_code"] != r["icio_code"]:
-            covers[r["split_code"]].add(r["exiobase_sector"])
+    codes = code_list()
     sectors = [r["sector"] for r in nodes]
 
     final_demand = None
@@ -55,18 +80,18 @@ def _load(directory: str, manifest_text: str) -> LeontiefModel:
         final_demand = np.load(folder / "Y.npy", mmap_mode="r")[live] @ grouping
 
     return LeontiefModel(
-        codes=codes,
-        labels={r["code"]: r["label"] for r in icio} | {c: label for c, label, *_ in SPLIT_INDUSTRIES},
+        codes=codes.codes,
+        labels=codes.labels,
         edition_label=json.loads(manifest_text)["edition"],
         leontief_inverse=leontief_inverse,
         output=np.array([float(r["output_meur"]) for r in nodes]),
         regions=np.array([r["region"] for r in nodes]),
-        code_nodes={c: np.array([i for i, s in enumerate(sectors) if s in covers[c]], dtype=np.intp) for c in codes},
+        code_nodes={c: np.array([i for i, s in enumerate(sectors) if s in codes.covers[c]], dtype=np.intp) for c in codes.codes},
         ghg_t_per_meur=np.array([float(r["ghg_t_per_meur"] or 0) for r in nodes]),
         final_demand=final_demand,
-        isic_divisions={r["code"]: [d for d in r["isic_divisions"].split(";") if d] for r in icio},
-        nace_classes={c: nace.split(";") for c, _, _, nace in SPLIT_INDUSTRIES},
-        prompt_codes=[r["code"] for r in icio],
+        isic_divisions=codes.isic_divisions,
+        nace_classes=codes.nace_classes,
+        prompt_codes=codes.prompt_codes,
     )
 
 

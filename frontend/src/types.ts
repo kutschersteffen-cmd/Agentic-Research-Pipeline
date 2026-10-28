@@ -2872,3 +2872,7 @@ export type VcMaterial = Served<S["ValueChainMaterial"]>;
 export type VcMaterialFootprint = Served<S["ValueChainMaterialFootprint"]>;
 export type VcMaterialTree = Served<S["ValueChainMaterialTree"]>;
 export type VcMaterialTreeNode = Served<S["ValueChainMaterialTreeNode"]>;
+export type VcLinks = Served<S["ValueChainLinks"]>;
+export type VcLinkRuleIn = S["LinkRuleIn"];
+export type VcPortfolio = Served<S["ValueChainPortfolio"]>;
+export type VcIcioCode = Served<S["IcioCode"]>;

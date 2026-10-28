@@ -65,3 +65,95 @@ def io_status() -> None:
     typer.echo(f"edition: {edition}")
     typer.echo(f"nodes: {n_nodes}")
     typer.echo(f"final demand: {'yes' if (folder / 'Y.npy').is_file() else 'no'}")
+
+
+links_app = typer.Typer(help="Link companies to value-chain nodes (docs/superpowers/specs/2026-10-27-value-chain-links-overlays-design.md).")
+io_app.add_typer(links_app, name="links")
+
+
+def _value_chain():
+    from arp.research.value_chain.model import NotBuilt, load_value_chain
+
+    try:
+        return load_value_chain(Settings().value_chain_dir)
+    except (NotBuilt, FileNotFoundError) as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+
+
+def _set_by() -> str:
+    from arp.cli._shared import cli_principal, get_settings
+
+    return cli_principal(get_settings()).name if os.environ.get("ARP_CLI_TOKEN", "").strip() else "cli"
+
+
+@links_app.command("import")
+def links_import(csv_file: Path = typer.Argument(..., exists=True, dir_okay=False, help="Header company_id,icio_code,share.")) -> None:
+    """Saves one revenue split per company from the CSV rows; prints one line per rejected company."""
+    from arp.cli._shared import _portfolio_store
+    from arp.research.value_chain import links
+
+    vc, store = _value_chain(), _portfolio_store()
+    with csv_file.open(newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        if reader.fieldnames != ["company_id", "icio_code", "share"]:
+            typer.echo("header must be company_id,icio_code,share", err=True)
+            raise typer.Exit(1)
+        splits: dict[str, list[dict]] = {}
+        for row in reader:
+            try:
+                share: float | str = float(row["share"])
+            except (TypeError, ValueError):
+                share = row["share"]
+            splits.setdefault(row["company_id"], []).append({"icio_code": row["icio_code"], "share": share})
+    set_by, rejected = _set_by(), []
+    for company_id, parts in splits.items():
+        try:
+            if store.get_company(company_id) is None:
+                raise links.LinkError(f"unknown company '{company_id}'")
+            clean = links.validate_rule(vc, "split", parts, company=True)
+        except links.LinkError as exc:
+            rejected.append(f"{company_id}: {exc}")
+            continue
+        store.save_link_rule(links.company_subject(company_id), links.new_rule("split", clean, set_by))
+    typer.echo(f"linked: {len(splits) - len(rejected)}, rejected: {len(rejected)}")
+    for line in rejected:
+        typer.echo(line, err=True)
+    if rejected:
+        raise typer.Exit(1)
+
+
+@links_app.command("classify")
+def links_classify(
+    portfolio: str = typer.Option(..., "--portfolio"),
+    as_of: str = typer.Option(None, "--as-of", help="Default: the portfolio's latest snapshot."),
+) -> None:
+    """Asks the LLM for an ICIO code for each held company that has no link, and stores it as an `llm` rule."""
+    import asyncio
+
+    from arp.cli._shared import _portfolio_store
+    from arp.llm.factory import build_llm_client
+    from arp.research.indirect_exposure.factory import load_model
+    from arp.research.value_chain.links import classify_unlinked
+
+    settings, store = Settings(), _portfolio_store()  # Settings(): ARP_VALUE_CHAIN_DIR as now, like links import
+    if settings.value_chain_dir is None:
+        from arp.research.value_chain.model import NOT_BUILT
+
+        typer.echo(NOT_BUILT, err=True)
+        raise typer.Exit(1)
+    if store.get_portfolio(portfolio) is None:
+        typer.echo(f"unknown portfolio '{portfolio}'", err=True)
+        raise typer.Exit(1)
+    dates = [d for d in store.list_snapshot_dates(portfolio) if as_of is None or d <= as_of]
+    if not dates:
+        typer.echo(f"no holdings for '{portfolio}'" + (f" on or before {as_of}" if as_of else ""), err=True)
+        raise typer.Exit(1)
+    as_of = as_of or dates[-1]
+    try:
+        model = load_model(settings.value_chain_dir)
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
+    classified, unlinked = asyncio.run(classify_unlinked(store, portfolio, as_of, model, build_llm_client(settings)))
+    typer.echo(f"{classified} classified, {unlinked} left unlinked")
