@@ -26,4 +26,7 @@ check what the spec says, not what the implementation happens to do.
 
 ## After the implementing PR merges
 
+Only after the last slice: a merged PR with a `Rows:` line leaves rows unbuilt, and `regression/` runs
+on every PR.
+
 Move `specs/<slug>/` into `regression/` (or copy it) so the behaviour stays checked on every PR.
