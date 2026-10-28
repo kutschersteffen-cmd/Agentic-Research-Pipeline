@@ -8809,6 +8809,120 @@
     "title": "ExportedDashboard",
     "type": "object"
    },
+   "Exposure": {
+    "properties": {
+     "basis": {
+      "enum": [
+       "node",
+       "recipe"
+      ],
+      "title": "Basis",
+      "type": "string"
+     },
+     "caveat": {
+      "title": "Caveat",
+      "type": "string"
+     },
+     "edition": {
+      "title": "Edition",
+      "type": "string"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/ExposureItem"
+      },
+      "title": "Items",
+      "type": "array"
+     },
+     "model_caveat": {
+      "title": "Model Caveat",
+      "type": "string"
+     },
+     "recipe_source": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Recipe Source"
+     },
+     "target": {
+      "title": "Target",
+      "type": "string"
+     },
+     "target_label": {
+      "title": "Target Label",
+      "type": "string"
+     },
+     "unlisted_share": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unlisted Share"
+     }
+    },
+    "required": [
+     "edition",
+     "caveat",
+     "model_caveat",
+     "target",
+     "target_label",
+     "basis",
+     "recipe_source",
+     "unlisted_share",
+     "items"
+    ],
+    "title": "Exposure",
+    "type": "object"
+   },
+   "ExposureItem": {
+    "properties": {
+     "direct": {
+      "description": "Share of this node's sales bought by the target directly.",
+      "title": "Direct",
+      "type": "number"
+     },
+     "node_id": {
+      "title": "Node Id",
+      "type": "string"
+     },
+     "region_label": {
+      "title": "Region Label",
+      "type": "string"
+     },
+     "revenue_meur": {
+      "title": "Revenue Meur",
+      "type": "number"
+     },
+     "sector": {
+      "title": "Sector",
+      "type": "string"
+     },
+     "share": {
+      "description": "Share of this node's sales that ends up as the target's purchases.",
+      "title": "Share",
+      "type": "number"
+     }
+    },
+    "required": [
+     "node_id",
+     "region_label",
+     "sector",
+     "direct",
+     "share",
+     "revenue_meur"
+    ],
+    "title": "ExposureItem",
+    "type": "object"
+   },
    "FactStatus": {
     "enum": [
      "auto_accepted",
@@ -13993,6 +14107,251 @@
     "title": "Recipe",
     "type": "object"
    },
+   "RecipeIn": {
+    "properties": {
+     "home": {
+      "$ref": "#/components/schemas/RecipeNode"
+     },
+     "inputs": {
+      "items": {
+       "$ref": "#/components/schemas/RecipeInput"
+      },
+      "title": "Inputs",
+      "type": "array"
+     },
+     "name": {
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+     },
+     "output_meur": {
+      "description": "Annual output, M EUR; above 0 and below the home node's output.",
+      "title": "Output Meur",
+      "type": "number"
+     },
+     "source": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "title": "Source",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "home",
+     "output_meur",
+     "inputs",
+     "source"
+    ],
+    "title": "RecipeIn",
+    "type": "object"
+   },
+   "RecipeInput": {
+    "properties": {
+     "region": {
+      "description": "EXIOBASE region code, e.g. DE.",
+      "title": "Region",
+      "type": "string"
+     },
+     "sector": {
+      "description": "Sector name as the explorer shows it.",
+      "title": "Sector",
+      "type": "string"
+     },
+     "share": {
+      "description": "Cost share of the recipe's output bought from this node.",
+      "title": "Share",
+      "type": "number"
+     }
+    },
+    "required": [
+     "region",
+     "sector",
+     "share"
+    ],
+    "title": "RecipeInput",
+    "type": "object"
+   },
+   "RecipeList": {
+    "properties": {
+     "caveat": {
+      "title": "Caveat",
+      "type": "string"
+     },
+     "edition": {
+      "title": "Edition",
+      "type": "string"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/RecipeListItem"
+      },
+      "title": "Items",
+      "type": "array"
+     },
+     "model_caveat": {
+      "title": "Model Caveat",
+      "type": "string"
+     }
+    },
+    "required": [
+     "edition",
+     "caveat",
+     "model_caveat",
+     "items"
+    ],
+    "title": "RecipeList",
+    "type": "object"
+   },
+   "RecipeListItem": {
+    "properties": {
+     "home": {
+      "$ref": "#/components/schemas/RecipeNode"
+     },
+     "n_inputs": {
+      "title": "N Inputs",
+      "type": "integer"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "output_meur": {
+      "title": "Output Meur",
+      "type": "number"
+     },
+     "recipe_id": {
+      "title": "Recipe Id",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "ok",
+       "unresolved",
+       "inconsistent"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "recipe_id",
+     "name",
+     "home",
+     "output_meur",
+     "n_inputs",
+     "status"
+    ],
+    "title": "RecipeListItem",
+    "type": "object"
+   },
+   "RecipeNode": {
+    "properties": {
+     "region": {
+      "description": "EXIOBASE region code, e.g. DE.",
+      "title": "Region",
+      "type": "string"
+     },
+     "sector": {
+      "description": "Sector name as the explorer shows it.",
+      "title": "Sector",
+      "type": "string"
+     }
+    },
+    "required": [
+     "region",
+     "sector"
+    ],
+    "title": "RecipeNode",
+    "type": "object"
+   },
+   "RecipeOut": {
+    "properties": {
+     "caveat": {
+      "title": "Caveat",
+      "type": "string"
+     },
+     "edition": {
+      "title": "Edition",
+      "type": "string"
+     },
+     "home": {
+      "$ref": "#/components/schemas/RecipeNode"
+     },
+     "inputs": {
+      "items": {
+       "$ref": "#/components/schemas/RecipeInput"
+      },
+      "title": "Inputs",
+      "type": "array"
+     },
+     "model_caveat": {
+      "title": "Model Caveat",
+      "type": "string"
+     },
+     "name": {
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+     },
+     "output_meur": {
+      "description": "Annual output, M EUR; above 0 and below the home node's output.",
+      "title": "Output Meur",
+      "type": "number"
+     },
+     "recipe_id": {
+      "title": "Recipe Id",
+      "type": "string"
+     },
+     "set_at": {
+      "title": "Set At",
+      "type": "string"
+     },
+     "set_by": {
+      "title": "Set By",
+      "type": "string"
+     },
+     "source": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "title": "Source",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "ok",
+       "unresolved",
+       "inconsistent"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "unlisted_share": {
+      "description": "1 minus the input shares: value added and inputs not listed.",
+      "title": "Unlisted Share",
+      "type": "number"
+     }
+    },
+    "required": [
+     "name",
+     "home",
+     "output_meur",
+     "inputs",
+     "source",
+     "recipe_id",
+     "set_by",
+     "set_at",
+     "edition",
+     "caveat",
+     "model_caveat",
+     "unlisted_share",
+     "status"
+    ],
+    "title": "RecipeOut",
+    "type": "object"
+   },
    "RedlineDef": {
     "properties": {
      "citation": {
@@ -15104,6 +15463,84 @@
      "from_step"
     ],
     "title": "RestartRequest",
+    "type": "object"
+   },
+   "RevenueRoute": {
+    "properties": {
+     "nodes": {
+      "description": "Node ids from the seller on, ending with the target as requested.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Nodes",
+      "type": "array"
+     },
+     "share": {
+      "title": "Share",
+      "type": "number"
+     }
+    },
+    "required": [
+     "nodes",
+     "share"
+    ],
+    "title": "RevenueRoute",
+    "type": "object"
+   },
+   "RevenueRoutes": {
+    "properties": {
+     "caveat": {
+      "title": "Caveat",
+      "type": "string"
+     },
+     "edition": {
+      "title": "Edition",
+      "type": "string"
+     },
+     "from": {
+      "title": "From",
+      "type": "string"
+     },
+     "model_caveat": {
+      "title": "Model Caveat",
+      "type": "string"
+     },
+     "rest_share": {
+      "title": "Rest Share",
+      "type": "number"
+     },
+     "routes": {
+      "items": {
+       "$ref": "#/components/schemas/RevenueRoute"
+      },
+      "title": "Routes",
+      "type": "array"
+     },
+     "share": {
+      "title": "Share",
+      "type": "number"
+     },
+     "shown_share": {
+      "title": "Shown Share",
+      "type": "number"
+     },
+     "target": {
+      "title": "Target",
+      "type": "string"
+     }
+    },
+    "required": [
+     "edition",
+     "caveat",
+     "model_caveat",
+     "target",
+     "from",
+     "share",
+     "routes",
+     "shown_share",
+     "rest_share"
+    ],
+    "title": "RevenueRoutes",
     "type": "object"
    },
    "ReviewDecisionRequest": {
@@ -39614,6 +40051,62 @@
     ]
    }
   },
+  "/api/value-chain/exposure": {
+   "get": {
+    "operationId": "exposure_api_value_chain_exposure_get",
+    "parameters": [
+     {
+      "description": "A node id or recipe:<recipe_id>.",
+      "in": "query",
+      "name": "target",
+      "required": true,
+      "schema": {
+       "description": "A node id or recipe:<recipe_id>.",
+       "title": "Target",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "top",
+      "required": false,
+      "schema": {
+       "default": 20,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Top",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Exposure"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Exposure",
+    "tags": [
+     "value-chain"
+    ]
+   }
+  },
   "/api/value-chain/links/activity/{taxonomy_id}/{activity_id}": {
    "delete": {
     "operationId": "delete_activity_links_api_value_chain_links_activity__taxonomy_id___activity_id__delete",
@@ -40346,6 +40839,282 @@
      }
     },
     "summary": "Portfolio Overlay",
+    "tags": [
+     "value-chain"
+    ]
+   }
+  },
+  "/api/value-chain/recipes": {
+   "get": {
+    "operationId": "list_recipes_api_value_chain_recipes_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RecipeList"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Recipes",
+    "tags": [
+     "value-chain"
+    ]
+   },
+   "post": {
+    "operationId": "create_recipe_api_value_chain_recipes_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RecipeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RecipeOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Recipe",
+    "tags": [
+     "value-chain"
+    ]
+   }
+  },
+  "/api/value-chain/recipes/{rid}": {
+   "delete": {
+    "operationId": "delete_recipe_api_value_chain_recipes__rid__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "rid",
+      "required": true,
+      "schema": {
+       "title": "Rid",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Delete Recipe",
+    "tags": [
+     "value-chain"
+    ]
+   },
+   "get": {
+    "operationId": "get_recipe_api_value_chain_recipes__rid__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "rid",
+      "required": true,
+      "schema": {
+       "title": "Rid",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RecipeOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Recipe",
+    "tags": [
+     "value-chain"
+    ]
+   },
+   "put": {
+    "operationId": "update_recipe_api_value_chain_recipes__rid__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "rid",
+      "required": true,
+      "schema": {
+       "title": "Rid",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/RecipeIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RecipeOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Update Recipe",
+    "tags": [
+     "value-chain"
+    ]
+   }
+  },
+  "/api/value-chain/routes": {
+   "get": {
+    "operationId": "routes_api_value_chain_routes_get",
+    "parameters": [
+     {
+      "description": "A node id or recipe:<recipe_id>.",
+      "in": "query",
+      "name": "target",
+      "required": true,
+      "schema": {
+       "description": "A node id or recipe:<recipe_id>.",
+       "title": "Target",
+       "type": "string"
+      }
+     },
+     {
+      "description": "The selling node's id.",
+      "in": "query",
+      "name": "from",
+      "required": true,
+      "schema": {
+       "description": "The selling node's id.",
+       "title": "From",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "max_hops",
+      "required": false,
+      "schema": {
+       "default": 4,
+       "maximum": 6,
+       "minimum": 1,
+       "title": "Max Hops",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "min_share",
+      "required": false,
+      "schema": {
+       "default": 0.001,
+       "maximum": 1,
+       "minimum": 0.0001,
+       "title": "Min Share",
+       "type": "number"
+      }
+     },
+     {
+      "in": "query",
+      "name": "top",
+      "required": false,
+      "schema": {
+       "default": 10,
+       "maximum": 50,
+       "minimum": 1,
+       "title": "Top",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RevenueRoutes"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Routes",
     "tags": [
      "value-chain"
     ]

@@ -25,7 +25,7 @@ export const homeShare = (share: number | null, regionLabel: string): string =>
 
 export const searchable = (q: string): boolean => q.trim() !== "";
 
-export const nodeHash = (id: string, view?: "tree" | "footprint"): string =>
+export const nodeHash = (id: string, view?: "tree" | "footprint" | "exposure"): string =>
   `#/valueChain/${encodeURIComponent(id)}${view ? `/${view}` : ""}`;
 
 /** A share as percent with one decimal: 0.55 -> "55.0%". */
@@ -40,3 +40,17 @@ export const unresolvedText = (part: { icio_code?: string; region?: string; sect
 /** "Copper and nickel mining: 35.0% of NAV directly · 51.9% of upstream". */
 export const activityLine = (a: { name: string; direct_weight: number; upstream_share: number | null }): string =>
   `${a.name}: ${pct1(a.direct_weight)} of NAV directly · ${a.upstream_share === null ? "—" : pct1(a.upstream_share)} of upstream`;
+
+/** Revenue in M EUR with one decimal: 24.7261 -> "24.7 M EUR". */
+export const meur = (v: number): string => `${v.toFixed(1)} M EUR`;
+
+export const recipesHash = (rid?: string): string => `#/valueChain/recipes${rid ? `/${encodeURIComponent(rid)}` : ""}`;
+
+/** The exposure view of a target (a node id or recipe:<rid>), with one seller's routes when `from` is given. */
+export const exposureHash = (target: string, from?: string): string => {
+  const base = target.startsWith("recipe:") ? `${recipesHash(target.slice("recipe:".length))}/exposure` : nodeHash(target, "exposure");
+  return from ? `${base}/${encodeURIComponent(from)}` : base;
+};
+
+/** A route as its labels joined by arrows; ids without a label show as themselves. */
+export const routeText = (nodes: string[], labels: Record<string, string>): string => nodes.map((n) => labels[n] ?? n).join(" → ");

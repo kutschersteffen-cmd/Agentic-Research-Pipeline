@@ -6735,6 +6735,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/value-chain/exposure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Exposure */
+        get: operations["exposure_api_value_chain_exposure_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/value-chain/links/activity/{taxonomy_id}/{activity_id}": {
         parameters: {
             query?: never;
@@ -6850,6 +6867,60 @@ export interface paths {
         };
         /** Portfolio Overlay */
         get: operations["portfolio_overlay_api_value_chain_portfolio__portfolio_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/value-chain/recipes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Recipes */
+        get: operations["list_recipes_api_value_chain_recipes_get"];
+        put?: never;
+        /** Create Recipe */
+        post: operations["create_recipe_api_value_chain_recipes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/value-chain/recipes/{rid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Recipe */
+        get: operations["get_recipe_api_value_chain_recipes__rid__get"];
+        /** Update Recipe */
+        put: operations["update_recipe_api_value_chain_recipes__rid__put"];
+        post?: never;
+        /** Delete Recipe */
+        delete: operations["delete_recipe_api_value_chain_recipes__rid__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/value-chain/routes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Routes */
+        get: operations["routes_api_value_chain_routes_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10926,6 +10997,51 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** Exposure */
+        Exposure: {
+            /**
+             * Basis
+             * @enum {string}
+             */
+            basis: "node" | "recipe";
+            /** Caveat */
+            caveat: string;
+            /** Edition */
+            edition: string;
+            /** Items */
+            items: components["schemas"]["ExposureItem"][];
+            /** Model Caveat */
+            model_caveat: string;
+            /** Recipe Source */
+            recipe_source: string | null;
+            /** Target */
+            target: string;
+            /** Target Label */
+            target_label: string;
+            /** Unlisted Share */
+            unlisted_share: number | null;
+        };
+        /** ExposureItem */
+        ExposureItem: {
+            /**
+             * Direct
+             * @description Share of this node's sales bought by the target directly.
+             */
+            direct: number;
+            /** Node Id */
+            node_id: string;
+            /** Region Label */
+            region_label: string;
+            /** Revenue Meur */
+            revenue_meur: number;
+            /** Sector */
+            sector: string;
+            /**
+             * Share
+             * @description Share of this node's sales that ends up as the target's purchases.
+             */
+            share: number;
+        };
         /**
          * FactStatus
          * @enum {string}
@@ -13222,6 +13338,117 @@ export interface components {
             /** Window Start */
             window_start: string;
         };
+        /** RecipeIn */
+        RecipeIn: {
+            home: components["schemas"]["RecipeNode"];
+            /** Inputs */
+            inputs: components["schemas"]["RecipeInput"][];
+            /** Name */
+            name: string;
+            /**
+             * Output Meur
+             * @description Annual output, M EUR; above 0 and below the home node's output.
+             */
+            output_meur: number;
+            /** Source */
+            source: string;
+        };
+        /** RecipeInput */
+        RecipeInput: {
+            /**
+             * Region
+             * @description EXIOBASE region code, e.g. DE.
+             */
+            region: string;
+            /**
+             * Sector
+             * @description Sector name as the explorer shows it.
+             */
+            sector: string;
+            /**
+             * Share
+             * @description Cost share of the recipe's output bought from this node.
+             */
+            share: number;
+        };
+        /** RecipeList */
+        RecipeList: {
+            /** Caveat */
+            caveat: string;
+            /** Edition */
+            edition: string;
+            /** Items */
+            items: components["schemas"]["RecipeListItem"][];
+            /** Model Caveat */
+            model_caveat: string;
+        };
+        /** RecipeListItem */
+        RecipeListItem: {
+            home: components["schemas"]["RecipeNode"];
+            /** N Inputs */
+            n_inputs: number;
+            /** Name */
+            name: string;
+            /** Output Meur */
+            output_meur: number;
+            /** Recipe Id */
+            recipe_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "unresolved" | "inconsistent";
+        };
+        /** RecipeNode */
+        RecipeNode: {
+            /**
+             * Region
+             * @description EXIOBASE region code, e.g. DE.
+             */
+            region: string;
+            /**
+             * Sector
+             * @description Sector name as the explorer shows it.
+             */
+            sector: string;
+        };
+        /** RecipeOut */
+        RecipeOut: {
+            /** Caveat */
+            caveat: string;
+            /** Edition */
+            edition: string;
+            home: components["schemas"]["RecipeNode"];
+            /** Inputs */
+            inputs: components["schemas"]["RecipeInput"][];
+            /** Model Caveat */
+            model_caveat: string;
+            /** Name */
+            name: string;
+            /**
+             * Output Meur
+             * @description Annual output, M EUR; above 0 and below the home node's output.
+             */
+            output_meur: number;
+            /** Recipe Id */
+            recipe_id: string;
+            /** Set At */
+            set_at: string;
+            /** Set By */
+            set_by: string;
+            /** Source */
+            source: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "ok" | "unresolved" | "inconsistent";
+            /**
+             * Unlisted Share
+             * @description 1 minus the input shares: value added and inputs not listed.
+             */
+            unlisted_share: number;
+        };
         /** RedlineDef */
         RedlineDef: {
             /** Citation */
@@ -13673,6 +13900,37 @@ export interface components {
              * @description A node id from /pipeline: steps before it are reused, it and those after run afresh.
              */
             from_step: string;
+        };
+        /** RevenueRoute */
+        RevenueRoute: {
+            /**
+             * Nodes
+             * @description Node ids from the seller on, ending with the target as requested.
+             */
+            nodes: string[];
+            /** Share */
+            share: number;
+        };
+        /** RevenueRoutes */
+        RevenueRoutes: {
+            /** Caveat */
+            caveat: string;
+            /** Edition */
+            edition: string;
+            /** From */
+            from: string;
+            /** Model Caveat */
+            model_caveat: string;
+            /** Rest Share */
+            rest_share: number;
+            /** Routes */
+            routes: components["schemas"]["RevenueRoute"][];
+            /** Share */
+            share: number;
+            /** Shown Share */
+            shown_share: number;
+            /** Target */
+            target: string;
         };
         /** ReviewDecisionRequest */
         ReviewDecisionRequest: {
@@ -28792,6 +29050,39 @@ export interface operations {
             };
         };
     };
+    exposure_api_value_chain_exposure_get: {
+        parameters: {
+            query: {
+                /** @description A node id or recipe:<recipe_id>. */
+                target: string;
+                top?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Exposure"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     activity_links_api_value_chain_links_activity__taxonomy_id___activity_id__get: {
         parameters: {
             query?: never;
@@ -29154,6 +29445,191 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ValueChainPortfolio"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_recipes_api_value_chain_recipes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeList"];
+                };
+            };
+        };
+    };
+    create_recipe_api_value_chain_recipes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecipeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_recipe_api_value_chain_recipes__rid__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_recipe_api_value_chain_recipes__rid__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecipeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_recipe_api_value_chain_recipes__rid__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    routes_api_value_chain_routes_get: {
+        parameters: {
+            query: {
+                /** @description A node id or recipe:<recipe_id>. */
+                target: string;
+                /** @description The selling node's id. */
+                from: string;
+                max_hops?: number;
+                min_share?: number;
+                top?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevenueRoutes"];
                 };
             };
             /** @description Validation Error */

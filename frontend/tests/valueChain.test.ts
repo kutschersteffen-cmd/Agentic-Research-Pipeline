@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activityLine, cents, footprintTotal, homeShare, linkText, nodeHash, pct1, percent, portfolioHash, searchable, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
+import { activityLine, cents, exposureHash, footprintTotal, homeShare, linkText, meur, nodeHash, pct1, percent, portfolioHash, recipesHash, routeText, searchable, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
 
 test("flows in cents", () => {
   assert.equal(cents(0.0738), "7.4¢"); assert.equal(cents(0.0079798, 2), "0.80¢");
@@ -28,4 +28,12 @@ test("portfolio view: one-decimal percents, unresolved parts, the activity line,
   assert.equal(unresolvedText({ region: "WA", sector: "Mining of copper ores and concentrates", share: 1 }), "Not in this edition: WA · Mining of copper ores and concentrates 100.0%");
   assert.equal(activityLine({ name: "Copper and nickel mining", direct_weight: 0.35, upstream_share: 0.5193 }), "Copper and nickel mining: 35.0% of NAV directly · 51.9% of upstream");
   assert.equal(portfolioHash(), "#/valueChain/portfolio"); assert.equal(portfolioHash("P 1"), "#/valueChain/portfolio/P%201");
+});
+test("revenue exposure formats and hashes", () => {
+  assert.equal(meur(24.7261), "24.7 M EUR");
+  assert.equal(exposureHash("DE.3"), "#/valueChain/DE.3/exposure"); assert.equal(exposureHash("DE.3", "CN.3"), "#/valueChain/DE.3/exposure/CN.3");
+  assert.equal(exposureHash("recipe:ab12"), "#/valueChain/recipes/ab12/exposure"); assert.equal(exposureHash("recipe:ab12", "DE.2"), "#/valueChain/recipes/ab12/exposure/DE.2");
+  assert.equal(recipesHash(), "#/valueChain/recipes"); assert.equal(recipesHash("new"), "#/valueChain/recipes/new");
+  assert.equal(routeText(["CN.3", "DE.3"], { "CN.3": "Other business activities · CN", "DE.3": "Other business activities · DE" }), "Other business activities · CN → Other business activities · DE");
+  assert.equal(routeText(["X.1"], {}), "X.1");
 });

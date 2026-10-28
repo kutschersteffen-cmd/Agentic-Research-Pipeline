@@ -103,7 +103,7 @@ import type {
   TransitionPlanIndicatorDef,
 } from "../types";
 import type { XbrlRunMarket } from "../types";
-import type { VcFootprint, VcIcioCode, VcLinkRuleIn, VcLinks, VcMaterialFootprint, VcMaterialTree, VcNode, VcPortfolio, VcSearch, VcStatus, VcTree } from "../types";
+import type { VcExposure, VcFootprint, VcIcioCode, VcLinkRuleIn, VcLinks, VcMaterialFootprint, VcMaterialTree, VcNode, VcPortfolio, VcRecipe, VcRecipeIn, VcRecipeList, VcRoutes, VcSearch, VcStatus, VcTree } from "../types";
 import type { RunFailure } from "../types";
 import type {
   Dossier,
@@ -1194,5 +1194,17 @@ export const api = {
   saveValueChainLinks: (subject: string, rule: VcLinkRuleIn) => request<VcLinks>(`/api/value-chain/links/${subject}`, jsonBody("PUT", rule)),
   resetValueChainLinks: async (subject: string): Promise<void> => {
     await authFetch(`${API_BASE}/api/value-chain/links/${subject}`, { method: "DELETE" }); // 204: no body to parse
+  },
+  // `target` is a node id or recipe:<recipe id>.
+  valueChainExposure: (target: string) => request<VcExposure>(`/api/value-chain/exposure${buildQuery({ target, top: "20" })}`),
+  valueChainRoutes: (target: string, from: string) => request<VcRoutes>(`/api/value-chain/routes${buildQuery({ target, from })}`),
+  valueChainRecipes: () => request<VcRecipeList>("/api/value-chain/recipes"),
+  valueChainRecipe: (rid: string) => request<VcRecipe>(`/api/value-chain/recipes/${encodeURIComponent(rid)}`),
+  saveValueChainRecipe: (rid: string | null, body: VcRecipeIn) =>
+    rid === null
+      ? request<VcRecipe>("/api/value-chain/recipes", jsonBody("POST", body))
+      : request<VcRecipe>(`/api/value-chain/recipes/${encodeURIComponent(rid)}`, jsonBody("PUT", body)),
+  deleteValueChainRecipe: async (rid: string): Promise<void> => {
+    await authFetch(`${API_BASE}/api/value-chain/recipes/${encodeURIComponent(rid)}`, { method: "DELETE" }); // 204: no body to parse
   },
 };

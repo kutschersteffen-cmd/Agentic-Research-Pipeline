@@ -24,7 +24,7 @@ const bars = (pairs: VcPortfolio["direct_by_region"], format: (v: number) => str
   pairs.map(([name, v]) => ({ key: String(name), label: <span>{name}</span>, value: format(Number(v)), size: Number(v) }));
 
 /** The explorer's search over sectors and regions, picking one node for a link editor row. */
-function NodeSearch({ row, onPick }: { row: Row; onPick: (n: VcNodeRef) => void }) {
+export function NodeSearch({ row, onPick }: { row: Pick<Row, "region" | "sector">; onPick: (n: VcNodeRef) => void }) {
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<VcNodeRef[]>([]);
   useEffect(() => {
