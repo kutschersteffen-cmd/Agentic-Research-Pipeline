@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activityLine, cents, EU27, footprintTotal, homeShare, linkText, nodeHash, pct1, percent, portfolioHash, pricePct, searchable, signed, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
+import { activityLine, lensLine, cents, EU27, footprintTotal, homeShare, linkText, nodeHash, pct1, percent, portfolioHash, pricePct, searchable, signed, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
 
 test("flows in cents", () => {
   assert.equal(cents(0.0738), "7.4¢"); assert.equal(cents(0.0079798, 2), "0.80¢");
@@ -34,4 +34,9 @@ test("portfolio view: one-decimal percents, unresolved parts, the activity line,
   assert.equal(unresolvedText({ region: "WA", sector: "Mining of copper ores and concentrates", share: 1 }), "Not in this edition: WA · Mining of copper ores and concentrates 100.0%");
   assert.equal(activityLine({ name: "Copper and nickel mining", direct_weight: 0.35, upstream_share: 0.5193 }), "Copper and nickel mining: 35.0% of NAV directly · 51.9% of upstream");
   assert.equal(portfolioHash(), "#/valueChain/portfolio"); assert.equal(portfolioHash("P 1"), "#/valueChain/portfolio/P%201");
+});
+test("shocks portfolio lens line", () => {
+  assert.equal(lensLine("output", -8.2277), "Portfolio output change \u22128.23%");
+  assert.equal(lensLine("price", 0.0347), "Portfolio price change 0.03%");
+  assert.equal(lensLine("price", null), "Portfolio price change —");
 });

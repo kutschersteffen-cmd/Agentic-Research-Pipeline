@@ -102,6 +102,20 @@ class QuantityShockFocus(BaseModel):
     delta_meur: float
 
 
+class PortfolioQuantityLens(BaseModel):
+    portfolio_id: str
+    as_of: str
+    linked_weight: float
+    change_pct: float | None = Field(description="Holding-weighted output change of the linked holdings, %; null when none is linked.")
+
+
+class PortfolioPriceLens(BaseModel):
+    portfolio_id: str
+    as_of: str
+    linked_weight: float
+    dp_pct: float | None = Field(description="Holding-weighted price change of the linked holdings, %; null when none is linked.")
+
+
 class ValueChainQuantityShock(BaseModel):
     edition: str
     caveat: str
@@ -117,6 +131,7 @@ class ValueChainQuantityShock(BaseModel):
     skipped: list[str]
     indicators: ShockIndicators
     focus: QuantityShockFocus | None
+    portfolio: PortfolioQuantityLens | None = Field(description="With ?portfolio=: the portfolio's holding-weighted output change.")
 
 
 class PriceShockNode(BaseModel):
@@ -143,6 +158,7 @@ class ValueChainPriceShock(BaseModel):
     by_sector: list[tuple[str, float]] = Field(description="Output-weighted mean price change, %.")
     nodes: list[PriceShockNode]
     focus: PriceShockFocus | None
+    portfolio: PortfolioPriceLens | None = Field(description="With ?portfolio=: the portfolio's holding-weighted price change.")
 
 class ValueChainMaterialFootprint(ValueChainFootprint):
     material_note: str
