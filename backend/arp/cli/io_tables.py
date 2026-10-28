@@ -131,21 +131,25 @@ def links_classify(
     """Asks the LLM for an ICIO code for each held company that has no link, and stores it as an `llm` rule."""
     import asyncio
 
-    from arp.cli._shared import _portfolio_store, get_settings
+    from arp.cli._shared import _portfolio_store
     from arp.llm.factory import build_llm_client
     from arp.research.indirect_exposure.factory import load_model
     from arp.research.value_chain.links import classify_unlinked
 
-    settings, store = get_settings(), _portfolio_store()
+    settings, store = Settings(), _portfolio_store()  # Settings(): ARP_VALUE_CHAIN_DIR as now, like links import
     if settings.value_chain_dir is None:
         from arp.research.value_chain.model import NOT_BUILT
 
         typer.echo(NOT_BUILT, err=True)
         raise typer.Exit(1)
-    as_of = as_of or store.latest_snapshot_date(portfolio)
-    if as_of is None:
-        typer.echo(f"no holdings for '{portfolio}'", err=True)
+    if store.get_portfolio(portfolio) is None:
+        typer.echo(f"unknown portfolio '{portfolio}'", err=True)
         raise typer.Exit(1)
+    dates = [d for d in store.list_snapshot_dates(portfolio) if as_of is None or d <= as_of]
+    if not dates:
+        typer.echo(f"no holdings for '{portfolio}'" + (f" on or before {as_of}" if as_of else ""), err=True)
+        raise typer.Exit(1)
+    as_of = as_of or dates[-1]
     try:
         model = load_model(settings.value_chain_dir)
     except ValueError as exc:

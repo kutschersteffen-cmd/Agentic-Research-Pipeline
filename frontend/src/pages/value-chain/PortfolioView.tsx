@@ -156,7 +156,11 @@ function LinkEditor({ subject, title, isCompany, codes, onChanged, onClose }: {
       )}
       <div className="view-toggle" role="group" aria-label="Link mode">
         {modes.map(([m, label]) => (
-          <button key={m} type="button" className={m === mode ? "active" : ""} aria-pressed={m === mode} onClick={() => setMode(m)}>
+          <button key={m} type="button" className={m === mode ? "active" : ""} aria-pressed={m === mode} onClick={() => {
+              // the other mode's rows (codes vs. nodes) would be sent as empty fields
+              if (m !== mode) setRows([blankRow()]);
+              setMode(m);
+            }}>
             {label}
           </button>
         ))}

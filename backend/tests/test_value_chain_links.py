@@ -105,6 +105,32 @@ def test_company_links(linked):  # AC-1 to AC-5
     assert (dz["source"], dz["region"], dz["nodes"]) == ("none", "DE", [])
 
 
+def test_code_with_no_node_in_the_region_is_unresolved(env):
+    client, store = env
+    store.save_company(CompanyRef(company_id="ag", name="AG", country="DE", isic_code="A01"))  # V has no agriculture
+    body = client.get(f"{BASE}/links/company/ag").json()
+    assert (body["source"], body["nodes"], body["unresolved"]) == ("code", [], [{"icio_code": "A01", "share": 1.0}])
+
+
+def test_lookup_caches_go_with_their_build(env):
+    import gc
+    import json
+    import os
+    import weakref
+    from pathlib import Path
+
+    from arp.research.value_chain import links
+    from arp.research.value_chain.model import ValueChain
+
+    folder = Path(os.environ["ARP_VALUE_CHAIN_DIR"])
+    vc = ValueChain(folder, json.loads((folder / "manifest.json").read_text()))
+    assert links.company_region(vc, "CN") == "CN" and len(links._code_nodes(vc)["C27"]) == 3
+    gone = weakref.ref(vc)
+    del vc
+    gc.collect()
+    assert gone() is None  # no cache keeps an old build (and its L) alive
+
+
 def test_split_renormalises_unresolved_parts(env):  # AC-6, AC-7
     client, _ = env
     res = client.put(f"{BASE}/links/company/dz", json={"kind": "split", "parts": [{"icio_code": "A01", "share": 0.4}, {"icio_code": "C27", "share": 0.6}]})
@@ -323,6 +349,15 @@ class _StubLLM:
     async def complete_structured(self, *, system, prompt, output_model, **kwargs):
         self.calls.append(prompt)
         return output_model(isic_code=self.code, rationale="stub"), LLMUsage()
+
+
+@pytest.mark.parametrize(("args", "detail"), [
+    (["--portfolio", "ZZ"], "unknown portfolio 'ZZ'"),
+    (["--portfolio", "P", "--as-of", "2026-01-01"], "no holdings for 'P' on or before 2026-01-01"),
+])
+def test_classify_command_refuses_what_it_cannot_read(env, args, detail):
+    res = runner.invoke(cli_app, ["io", "links", "classify", *args])
+    assert (res.exit_code, res.stderr.strip()) == (1, detail)
 
 
 def test_classify_unlinked(env, monkeypatch):  # AC-33, AC-34, AC-34b, AC-35

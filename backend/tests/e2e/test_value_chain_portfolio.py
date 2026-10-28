@@ -96,6 +96,16 @@ def test_ac40_ac41_ac42_edit_split_then_reset(page):
     open_p(page)
     editor = edit(page, "Sec sx")
     shares = field(editor, "Share %")
+    assert shares.count() == 2  # the stored 50/50 split
+    editor.get_by_role("button", name="Nodes").click()  # another mode starts from one empty row
+    assert (shares.count(), shares.nth(0).input_value()) == (1, "100")
+    editor.get_by_role("button", name="Revenue split").click()
+    editor.get_by_role("button", name="Reset to default").click()
+    holding_row(page, "Sec sx").get_by_role("cell", name="code", exact=True).wait_for()
+    editor.get_by_role("button", name="Revenue split").click()
+    field(editor, "ICIO code").nth(0).select_option("C27")
+    editor.get_by_role("button", name="Add row").click()
+    field(editor, "ICIO code").nth(1).select_option("B07")
     shares.nth(0).fill("60")
     shares.nth(1).fill("30")
     editor.get_by_role("button", name="Save").click()

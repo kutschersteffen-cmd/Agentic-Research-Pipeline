@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import functools
 import math
+import weakref
 from dataclasses import dataclass
 
 import numpy as np
@@ -44,7 +45,20 @@ def activity_subject(taxonomy_id: str, activity_id: str) -> str:
     return f"activity:{taxonomy_id}/{activity_id}"
 
 
-@functools.lru_cache(maxsize=1)  # the one build load_value_chain keeps
+def _per_build(fn):
+    """Caches fn(vc) for as long as that build is alive, so a rebuild frees the old build's lookups with it."""
+    cache: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+
+    @functools.wraps(fn)
+    def cached(vc: ValueChain):
+        if vc not in cache:
+            cache[vc] = fn(vc)
+        return cache[vc]
+
+    return cached
+
+
+@_per_build
 def _code_nodes(vc: ValueChain) -> dict[str, np.ndarray]:
     """Live node indices per ICIO code: the nodes whose sector the code covers."""
     covers = {c: {sector_name(s) for s in sectors} for c, sectors in code_list().covers.items()}
@@ -52,12 +66,12 @@ def _code_nodes(vc: ValueChain) -> dict[str, np.ndarray]:
     return {c: np.flatnonzero(vc._live & np.isin(sectors, list(names))) for c, names in covers.items()}
 
 
-@functools.lru_cache(maxsize=1)  # the one build load_value_chain keeps
+@_per_build
 def _node_at(vc: ValueChain) -> dict[tuple[str, str], int]:
     return {(n.region, n.sector): i for i, n in enumerate(vc._nodes) if vc._live[i]}
 
 
-@functools.lru_cache(maxsize=1)  # the one build load_value_chain keeps
+@_per_build
 def _live_regions(vc: ValueChain) -> frozenset[str]:
     return frozenset(r for r, _ in _node_at(vc))
 
@@ -115,7 +129,9 @@ def resolve_company(vc: ValueChain, company: CompanyRef, rule: LinkRule | None) 
         return Resolution(source, region, *_resolve_parts(vc, rule, region))
     if source == "none":
         return Resolution(source, region, {}, [])
-    return Resolution(source, region, _code_set(vc, lookup_isic(company.isic_code, code_list()), region), [])
+    code = lookup_isic(company.isic_code, code_list())
+    weights = _code_set(vc, code, region)  # a code with no node here is reported like an llm rule's part
+    return Resolution(source, region, weights, [] if weights else [{"icio_code": code, "share": 1.0}])
 
 
 def resolve_activity(vc: ValueChain, activity: ActivityDefinition, rule: LinkRule | None) -> Resolution:
