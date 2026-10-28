@@ -6858,6 +6858,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/value-chain/shock/price": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Shock Price */
+        get: operations["shock_price_api_value_chain_shock_price_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/value-chain/shock/quantity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Shock Quantity */
+        get: operations["shock_quantity_api_value_chain_shock_quantity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/value-chain/status": {
         parameters: {
             query?: never;
@@ -12806,6 +12840,24 @@ export interface components {
             /** Versions */
             versions: components["schemas"]["PositionVersion"][];
         };
+        /** PriceShockFocus */
+        PriceShockFocus: {
+            /** Dp Pct */
+            dp_pct: number;
+            /** Node Id */
+            node_id: string;
+        };
+        /** PriceShockNode */
+        PriceShockNode: {
+            /** Dp Pct */
+            dp_pct: number;
+            /** Node Id */
+            node_id: string;
+            /** Region Label */
+            region_label: string;
+            /** Sector */
+            sector: string;
+        };
         /**
          * PrimarySource
          * @description One source attached to one criterion in criteria_schema.json. These six
@@ -13165,6 +13217,24 @@ export interface components {
             rows?: {
                 [key: string]: unknown;
             }[];
+        };
+        /** QuantityShockFocus */
+        QuantityShockFocus: {
+            /** Delta Meur */
+            delta_meur: number;
+            /** Node Id */
+            node_id: string;
+        };
+        /** QuantityShockNode */
+        QuantityShockNode: {
+            /** Delta Meur */
+            delta_meur: number;
+            /** Node Id */
+            node_id: string;
+            /** Region Label */
+            region_label: string;
+            /** Sector */
+            sector: string;
         };
         /** RatifyRequest */
         RatifyRequest: {
@@ -14473,6 +14543,36 @@ export interface components {
             source: "disclosed" | "computed from amounts";
             /** Value */
             value: number;
+        };
+        /** ShockIndicators */
+        ShockIndicators: {
+            /**
+             * Energy
+             * @description TJ
+             */
+            energy: number;
+            /**
+             * Ghg
+             * @description t CO₂e
+             */
+            ghg: number;
+            /**
+             * Jobs
+             * @description people
+             */
+            jobs: number;
+        };
+        /** ShockedNode */
+        ShockedNode: {
+            /**
+             * Base Meur
+             * @description Final demand (demand model) or primary inputs (supply model), M EUR.
+             */
+            base_meur: number;
+            /** Node Id */
+            node_id: string;
+            /** Shock Meur */
+            shock_meur: number;
         };
         /**
          * SignalType
@@ -15875,6 +15975,77 @@ export interface components {
             upstream_nodes: components["schemas"]["WeightedNode"][];
             /** Upstream Total */
             upstream_total: number;
+        };
+        /** ValueChainPriceShock */
+        ValueChainPriceShock: {
+            /**
+             * By Region
+             * @description Output-weighted mean price change, %.
+             */
+            by_region: [
+                string,
+                number
+            ][];
+            /**
+             * By Sector
+             * @description Output-weighted mean price change, %.
+             */
+            by_sector: [
+                string,
+                number
+            ][];
+            /** Carbon Cost Meur */
+            carbon_cost_meur: number;
+            /** Carbon Eur Per T */
+            carbon_eur_per_t: number;
+            /** Caveat */
+            caveat: string;
+            /** Covered Regions */
+            covered_regions: string[];
+            /** Edition */
+            edition: string;
+            focus: components["schemas"]["PriceShockFocus"] | null;
+            /** Model Caveat */
+            model_caveat: string;
+            /** Nodes */
+            nodes: components["schemas"]["PriceShockNode"][];
+            /** Priced T */
+            priced_t: number;
+        };
+        /** ValueChainQuantityShock */
+        ValueChainQuantityShock: {
+            /** By Region */
+            by_region: [
+                string,
+                number
+            ][];
+            /** By Sector */
+            by_sector: [
+                string,
+                number
+            ][];
+            /** Caveat */
+            caveat: string;
+            /** Change Pct */
+            change_pct: number;
+            /** Edition */
+            edition: string;
+            focus: components["schemas"]["QuantityShockFocus"] | null;
+            indicators: components["schemas"]["ShockIndicators"];
+            /** Model */
+            model: string;
+            /** Model Caveat */
+            model_caveat: string;
+            /** Nodes */
+            nodes: components["schemas"]["QuantityShockNode"][];
+            /** Shocked */
+            shocked: components["schemas"]["ShockedNode"][];
+            /** Skipped */
+            skipped: string[];
+            /** Total Meur */
+            total_meur: number;
+            /** Unit */
+            unit: string;
         };
         /** ValueChainSearch */
         ValueChainSearch: {
@@ -29154,6 +29325,82 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ValueChainPortfolio"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    shock_price_api_value_chain_shock_price_get: {
+        parameters: {
+            query: {
+                carbon_eur_per_t: number;
+                /** @description Covered region codes; all when none. */
+                region?: string[];
+                top?: number;
+                focus?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValueChainPriceShock"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    shock_quantity_api_value_chain_shock_quantity_get: {
+        parameters: {
+            query: {
+                model: "demand" | "supply";
+                /** @description Percent (unit=pct) or total M EUR (unit=meur). */
+                change: number;
+                unit?: "pct" | "meur";
+                node?: string[];
+                /** @description Region codes. */
+                region?: string[];
+                /** @description Sector names as the API shows them. */
+                sector?: string[];
+                top?: number;
+                focus?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ValueChainQuantityShock"];
                 };
             };
             /** @description Validation Error */

@@ -49,10 +49,11 @@ def _spread(values) -> list:
     return [by_key.get(k, 0) for k in KEYS]
 
 
-def write_fixture_f(directory: Path, material: dict[str, list] | None = None) -> Path:
-    """`material` adds a material/F.txt (values for the four live nodes); the explorer's F has none."""
+def write_fixture_f(directory: Path, material: dict[str, list] | None = None, z: list[list[int]] = Z) -> Path:
+    """`material` adds a material/F.txt (values for the four live nodes); the explorer's F has none.
+    `z` replaces the Z rows of the four live nodes (fixture F2 of the shocks spec)."""
     path = Path(directory) / "IOT_2022_ixi.zip"
-    z_rows = {k: dict(zip(LIVE, row, strict=True)) for k, row in zip(LIVE, Z, strict=True)}
+    z_rows = {k: dict(zip(LIVE, row, strict=True)) for k, row in zip(LIVE, z, strict=True)}
     zt = _line(["region", "", *(r for r, _ in KEYS)]) + _line(["sector", "", *(s for _, s in KEYS)])
     zt += _line(["region", "sector", *[""] * len(KEYS)])
     zt += "".join(_line([*k, *(z_rows.get(k, {}).get(c, 0) for c in KEYS)]) for k in KEYS)
