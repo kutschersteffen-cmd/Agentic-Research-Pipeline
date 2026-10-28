@@ -103,7 +103,7 @@ import type {
   TransitionPlanIndicatorDef,
 } from "../types";
 import type { XbrlRunMarket } from "../types";
-import type { VcExposure, VcFootprint, VcIcioCode, VcLinkRuleIn, VcLinks, VcMaterialFootprint, VcMaterialTree, VcNode, VcPortfolio, VcRecipe, VcRecipeIn, VcRecipeList, VcRoutes, VcSearch, VcStatus, VcTree } from "../types";
+import type { VcExposure, VcFootprint, VcIcioCode, VcLinkRuleIn, VcLinks, VcMaterialFootprint, VcMaterialTree, VcNode, VcPortfolio, VcPriceShock, VcQuantityShock, VcRecipe, VcRecipeIn, VcRecipeList, VcRoutes, VcSearch, VcStatus, VcTree } from "../types";
 import type { RunFailure } from "../types";
 import type {
   Dossier,
@@ -1184,6 +1184,12 @@ export const api = {
     request<VcFootprint | VcMaterialFootprint>(
       `/api/value-chain/nodes/${encodeURIComponent(id)}/footprint${buildQuery({ indicator: opts.indicator, amount_meur: String(opts.amount), top: "6" })}`,
     ),
+  valueChainShockQuantity: (opts: { model: "demand" | "supply"; change: number; node?: string[]; region?: string[]; sector?: string[]; focus: string }) =>
+    request<VcQuantityShock>(
+      `/api/value-chain/shock/quantity${buildQuery({ model: opts.model, change: String(opts.change), unit: "pct", node: opts.node, region: opts.region, sector: opts.sector, top: "6", focus: opts.focus })}`,
+    ),
+  valueChainShockPrice: (opts: { carbon: number; region: string[]; focus: string }) =>
+    request<VcPriceShock>(`/api/value-chain/shock/price${buildQuery({ carbon_eur_per_t: String(opts.carbon), region: opts.region, top: "6", focus: opts.focus })}`),
   valueChainCodes: () => request<VcIcioCode[]>("/api/value-chain/codes"),
   valueChainPortfolio: (id: string, opts: { asOf?: string; indicator: "ghg" | "energy" | "jobs"; taxonomy?: string; activity?: string }) =>
     request<VcPortfolio>(

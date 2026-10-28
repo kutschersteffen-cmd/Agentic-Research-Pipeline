@@ -30,11 +30,12 @@ R = {
 
 
 def _build(root, monkeypatch, **patch):
+    z = patch.pop("Z", fx.Z)  # write_fixture_f takes Z as an argument; the other constants are read from the module
     with monkeypatch.context() as m:
         for name, value in patch.items():
             m.setattr(fx, name, value)
         root.mkdir()
-        res = CliRunner().invoke(cli_app, ["io", "build-full", str(fx.write_fixture_f(root)), "--out", str(root / "out")])
+        res = CliRunner().invoke(cli_app, ["io", "build-full", str(fx.write_fixture_f(root, z=z)), "--out", str(root / "out")])
     assert res.exit_code == 0, res.output
     return root / "out"
 

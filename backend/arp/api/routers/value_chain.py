@@ -17,6 +17,7 @@ from arp.research.value_chain.model import (
     MATERIAL_NOTE,
     NOT_BUILT,
     NotBuilt,
+    ShockError,
     UnknownMaterial,
     UnknownNode,
     ValueChain,
@@ -28,6 +29,10 @@ from arp.schemas.value_chain import (
     ExposureItem,
     IcioCode,
     LinkRuleIn,
+    PriceShockFocus,
+    PriceShockNode,
+    QuantityShockFocus,
+    QuantityShockNode,
     Recipe,
     RecipeIn,
     RecipeList,
@@ -35,6 +40,8 @@ from arp.schemas.value_chain import (
     RecipeOut,
     RevenueRoute,
     RevenueRoutes,
+    ShockedNode,
+    ShockIndicators,
     ValueChainFootprint,
     ValueChainLink,
     ValueChainLinks,
@@ -45,6 +52,8 @@ from arp.schemas.value_chain import (
     ValueChainNode,
     ValueChainNodeRef,
     ValueChainPortfolio,
+    ValueChainPriceShock,
+    ValueChainQuantityShock,
     ValueChainSearch,
     ValueChainStatus,
     ValueChainTree,
@@ -53,6 +62,18 @@ from arp.schemas.value_chain import (
 from arp.storage.taxonomy_store import TaxonomyStore
 
 router = APIRouter(prefix="/api/value-chain", tags=["value-chain"])
+
+MODEL_CAVEATS = {
+    "demand": "Linear Leontief model: fixed input recipes, no substitution, no capacity limits, no price effects.",
+    "supply": (
+        "Ghosh dependency indicator, not a forecast: downstream output resting on the lost inputs if every buyer "
+        "keeps its sales shares; no substitution or rerouting."
+    ),
+    "price": (
+        "Leontief cost-push: full pass-through of the carbon cost, no substitution, no demand response; producers' "
+        "direct emissions only, households' own emissions not priced; basic prices."
+    ),
+}
 
 
 def _chain() -> ValueChain:
@@ -169,6 +190,64 @@ def footprint(
     return ValueChainFootprint(**body)
 
 
+
+@contextmanager
+def _shock_errors_are_422() -> Iterator[None]:
+    try:
+        yield
+    except (UnknownNode, ShockError) as e:
+        raise HTTPException(422, str(e)) from None
+
+
+# GET so the viewer role can run shocks; selections are repeated query parameters (spec value-chain-shocks).
+@router.get("/shock/quantity")
+def shock_quantity(
+    model: Literal["demand", "supply"],
+    change: Annotated[float, Query(allow_inf_nan=False, description="Percent (unit=pct) or total M EUR (unit=meur).")],
+    unit: Literal["pct", "meur"] = "pct",
+    node: Annotated[list[str], Query()] = [],  # noqa: B006 - FastAPI copies query defaults
+    region: Annotated[list[str], Query(description="Region codes.")] = [],  # noqa: B006
+    sector: Annotated[list[str], Query(description="Sector names as the API shows them.")] = [],  # noqa: B006
+    top: Annotated[int, Query(ge=1, le=20)] = 6,
+    focus: str | None = None,
+    vc: ValueChain = Depends(_chain),
+) -> ValueChainQuantityShock:
+    with _shock_errors_are_422():
+        s = vc.shock_quantity(model, change, unit, node, region, sector, top, focus)
+    return ValueChainQuantityShock(
+        edition=vc.manifest["edition"], caveat=vc.caveat, model_caveat=MODEL_CAVEATS[model], model=s.model,
+        unit=s.unit, change_pct=s.change_pct, total_meur=s.total_meur, by_region=s.by_region,
+        by_sector=s.by_sector,
+        nodes=[
+            QuantityShockNode(node_id=n.node_id, region_label=n.region_label, sector=n.sector, delta_meur=v)
+            for n, v in s.nodes
+        ],
+        shocked=[ShockedNode(node_id=i, base_meur=b, shock_meur=d) for i, b, d in s.shocked],
+        skipped=s.skipped, indicators=ShockIndicators(**s.indicators),
+        focus=QuantityShockFocus(node_id=s.focus[0], delta_meur=s.focus[1]) if s.focus else None,
+    )
+
+
+@router.get("/shock/price")
+def shock_price(
+    carbon_eur_per_t: Annotated[float, Query(ge=0, le=10_000, allow_inf_nan=False)],
+    region: Annotated[list[str], Query(description="Covered region codes; all when none.")] = [],  # noqa: B006
+    top: Annotated[int, Query(ge=1, le=20)] = 6,
+    focus: str | None = None,
+    vc: ValueChain = Depends(_chain),
+) -> ValueChainPriceShock:
+    with _shock_errors_are_422():
+        s = vc.shock_price(carbon_eur_per_t, region, top, focus)
+    return ValueChainPriceShock(
+        edition=vc.manifest["edition"], caveat=vc.caveat, model_caveat=MODEL_CAVEATS["price"],
+        carbon_eur_per_t=s.carbon_eur_per_t, covered_regions=s.covered_regions, priced_t=s.priced_t,
+        carbon_cost_meur=s.carbon_cost_meur, by_region=s.by_region, by_sector=s.by_sector,
+        nodes=[
+            PriceShockNode(node_id=n.node_id, region_label=n.region_label, sector=n.sector, dp_pct=v)
+            for n, v in s.nodes
+        ],
+        focus=PriceShockFocus(node_id=s.focus[0], dp_pct=s.focus[1]) if s.focus else None,
+    )
 
 # --- links and portfolio overlay: docs/superpowers/specs/2026-10-27-value-chain-links-overlays-design.md ---
 

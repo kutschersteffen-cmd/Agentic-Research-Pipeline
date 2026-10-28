@@ -65,4 +65,6 @@ frontend/reports/
 
 # Obsidian vault config
 .obsidian/
+
+# Playwright screenshots from local E2E runs
 backend/test-results/
