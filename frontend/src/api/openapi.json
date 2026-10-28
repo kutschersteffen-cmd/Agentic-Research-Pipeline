@@ -13007,6 +13007,78 @@
     "title": "PortfolioPeriodReturn",
     "type": "object"
    },
+   "PortfolioPriceLens": {
+    "properties": {
+     "as_of": {
+      "title": "As Of",
+      "type": "string"
+     },
+     "dp_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Holding-weighted price change of the linked holdings, %; null when none is linked.",
+      "title": "Dp Pct"
+     },
+     "linked_weight": {
+      "title": "Linked Weight",
+      "type": "number"
+     },
+     "portfolio_id": {
+      "title": "Portfolio Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "portfolio_id",
+     "as_of",
+     "linked_weight",
+     "dp_pct"
+    ],
+    "title": "PortfolioPriceLens",
+    "type": "object"
+   },
+   "PortfolioQuantityLens": {
+    "properties": {
+     "as_of": {
+      "title": "As Of",
+      "type": "string"
+     },
+     "change_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Holding-weighted output change of the linked holdings, %; null when none is linked.",
+      "title": "Change Pct"
+     },
+     "linked_weight": {
+      "title": "Linked Weight",
+      "type": "number"
+     },
+     "portfolio_id": {
+      "title": "Portfolio Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "portfolio_id",
+     "as_of",
+     "linked_weight",
+     "change_pct"
+    ],
+    "title": "PortfolioQuantityLens",
+    "type": "object"
+   },
    "PositionApproval": {
     "properties": {
      "approved_at": {
@@ -21282,6 +21354,17 @@
       "title": "Nodes",
       "type": "array"
      },
+     "portfolio": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PortfolioPriceLens"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "With ?portfolio=: the portfolio's holding-weighted price change."
+     },
      "priced_t": {
       "title": "Priced T",
       "type": "number"
@@ -21298,7 +21381,8 @@
      "by_region",
      "by_sector",
      "nodes",
-     "focus"
+     "focus",
+     "portfolio"
     ],
     "title": "ValueChainPriceShock",
     "type": "object"
@@ -21379,6 +21463,17 @@
       "title": "Nodes",
       "type": "array"
      },
+     "portfolio": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/PortfolioQuantityLens"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "With ?portfolio=: the portfolio's holding-weighted output change."
+     },
      "shocked": {
       "items": {
        "$ref": "#/components/schemas/ShockedNode"
@@ -21416,7 +21511,8 @@
      "shocked",
      "skipped",
      "indicators",
-     "focus"
+     "focus",
+     "portfolio"
     ],
     "title": "ValueChainQuantityShock",
     "type": "object"
@@ -41544,6 +41640,42 @@
        ],
        "title": "Focus"
       }
+     },
+     {
+      "description": "Adds the portfolio's holding-weighted price change.",
+      "in": "query",
+      "name": "portfolio",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Adds the portfolio's holding-weighted price change.",
+       "title": "Portfolio"
+      }
+     },
+     {
+      "description": "The portfolio's snapshot on or before this date; default latest.",
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "The portfolio's snapshot on or before this date; default latest.",
+       "title": "As Of"
+      }
      }
     ],
     "responses": {
@@ -41685,6 +41817,42 @@
         }
        ],
        "title": "Focus"
+      }
+     },
+     {
+      "description": "Adds the portfolio's holding-weighted output change.",
+      "in": "query",
+      "name": "portfolio",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "Adds the portfolio's holding-weighted output change.",
+       "title": "Portfolio"
+      }
+     },
+     {
+      "description": "The portfolio's snapshot on or before this date; default latest.",
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "The portfolio's snapshot on or before this date; default latest.",
+       "title": "As Of"
       }
      }
     ],

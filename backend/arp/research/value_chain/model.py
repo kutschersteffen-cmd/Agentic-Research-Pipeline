@@ -6,7 +6,7 @@ import json
 import re
 import threading
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
@@ -100,6 +100,7 @@ class QuantityShock:
     skipped: list[str]
     indicators: dict[str, float]
     focus: tuple[str, float] | None
+    dx: np.ndarray | None = field(default=None, repr=False, compare=False)  # per node, for the portfolio lens
 
 
 @dataclass(frozen=True)
@@ -112,6 +113,7 @@ class PriceShock:
     by_sector: list[tuple[str, float]]
     nodes: list[tuple[Node, float]]
     focus: tuple[str, float] | None
+    dp_pct: np.ndarray | None = field(default=None, repr=False, compare=False)  # per node, for the portfolio lens
 
 
 def region_label(code: str) -> str:
@@ -355,7 +357,7 @@ class ValueChain:
             [(self._nodes[i].node_id, float(base[i]), float(d[i])) for i in self._by_id(shocked)],
             [self._nodes[i].node_id for i in self._by_id(skipped)],
             {k: float(self._intensity[k] @ dx) for k in INTENSITY},
-            (self._nodes[f].node_id, float(dx[f])) if f is not None else None,
+            (self._nodes[f].node_id, float(dx[f])) if f is not None else None, dx,
         )
 
     def shock_price(
@@ -373,7 +375,7 @@ class ValueChain:
         by_region, by_sector, top_nodes = self._shock_lists(dp_pct, top, by_abs=False, weights=self._x)
         return PriceShock(
             carbon_eur_per_t, covered, priced_t, carbon_eur_per_t * priced_t / 1e6, by_region, by_sector,
-            top_nodes, (self._nodes[f].node_id, float(dp_pct[f])) if f is not None else None,
+            top_nodes, (self._nodes[f].node_id, float(dp_pct[f])) if f is not None else None, dp_pct,
         )
 
     def by_region(self, values: np.ndarray, top: int) -> list[tuple[str, float]]:

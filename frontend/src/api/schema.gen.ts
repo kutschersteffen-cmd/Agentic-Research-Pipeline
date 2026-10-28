@@ -12900,6 +12900,34 @@ export interface components {
              */
             traded_weight?: number | null;
         };
+        /** PortfolioPriceLens */
+        PortfolioPriceLens: {
+            /** As Of */
+            as_of: string;
+            /**
+             * Dp Pct
+             * @description Holding-weighted price change of the linked holdings, %; null when none is linked.
+             */
+            dp_pct: number | null;
+            /** Linked Weight */
+            linked_weight: number;
+            /** Portfolio Id */
+            portfolio_id: string;
+        };
+        /** PortfolioQuantityLens */
+        PortfolioQuantityLens: {
+            /** As Of */
+            as_of: string;
+            /**
+             * Change Pct
+             * @description Holding-weighted output change of the linked holdings, %; null when none is linked.
+             */
+            change_pct: number | null;
+            /** Linked Weight */
+            linked_weight: number;
+            /** Portfolio Id */
+            portfolio_id: string;
+        };
         /** PositionApproval */
         PositionApproval: {
             /** Approved At */
@@ -16273,6 +16301,8 @@ export interface components {
             model_caveat: string;
             /** Nodes */
             nodes: components["schemas"]["PriceShockNode"][];
+            /** @description With ?portfolio=: the portfolio's holding-weighted price change. */
+            portfolio: components["schemas"]["PortfolioPriceLens"] | null;
             /** Priced T */
             priced_t: number;
         };
@@ -16302,6 +16332,8 @@ export interface components {
             model_caveat: string;
             /** Nodes */
             nodes: components["schemas"]["QuantityShockNode"][];
+            /** @description With ?portfolio=: the portfolio's holding-weighted output change. */
+            portfolio: components["schemas"]["PortfolioQuantityLens"] | null;
             /** Shocked */
             shocked: components["schemas"]["ShockedNode"][];
             /** Skipped */
@@ -29828,6 +29860,10 @@ export interface operations {
                 region?: string[];
                 top?: number;
                 focus?: string | null;
+                /** @description Adds the portfolio's holding-weighted price change. */
+                portfolio?: string | null;
+                /** @description The portfolio's snapshot on or before this date; default latest. */
+                as_of?: string | null;
             };
             header?: never;
             path?: never;
@@ -29869,6 +29905,10 @@ export interface operations {
                 sector?: string[];
                 top?: number;
                 focus?: string | null;
+                /** @description Adds the portfolio's holding-weighted output change. */
+                portfolio?: string | null;
+                /** @description The portfolio's snapshot on or before this date; default latest. */
+                as_of?: string | null;
             };
             header?: never;
             path?: never;

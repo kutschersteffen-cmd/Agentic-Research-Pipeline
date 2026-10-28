@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activityLine, cents, EU27, exposureHash, footprintTotal, homeShare, inRegion, linkText, meur, nodeHash, nodeQuery, pct1, percent, pickerHits, portfolioHash, pricePct, recipesHash, routeText, searchable, signed, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
+import { activityLine, cents, EU27, exposureHash, footprintTotal, homeShare, inRegion, lensLine, linkText, meur, nodeHash, nodeQuery, pct1, percent, pickerHits, portfolioHash, pricePct, recipesHash, routeText, searchable, signed, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
 
 test("flows in cents", () => {
   assert.equal(cents(0.0738), "7.4¢"); assert.equal(cents(0.0079798, 2), "0.80¢");
@@ -67,4 +67,9 @@ test("node picker: a comma inside a sector name still finds it", async () => {
   const motor = await pickerHits("motor vehicles, trailers", search);
   assert.deepEqual(motor.map((n) => n.sector), ["Manufacture of motor vehicles, trailers and semi-trailers"]);
   assert.deepEqual(sent.slice(1), [["motor vehicles", 100], ["motor vehicles, trailers", 20]]);
+});
+test("shocks portfolio lens line", () => {
+  assert.equal(lensLine("output", -8.2277), "Portfolio output change \u22128.23%");
+  assert.equal(lensLine("price", 0.0347), "Portfolio price change 0.03%");
+  assert.equal(lensLine("price", null), "Portfolio price change —");
 });
