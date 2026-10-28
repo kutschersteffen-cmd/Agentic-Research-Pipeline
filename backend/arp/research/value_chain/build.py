@@ -21,6 +21,7 @@ NODE_COLUMNS = (
     "ghg_t_per_meur", "energy_tj_per_meur", "jobs_per_meur", "va_share",
 )
 TAXES_ROW = "Taxes less subsidies on products purchased: Total"
+MATERIAL_PREFIX = "Domestic Extraction Used - "
 
 
 def _floats(cells: list[str], where: str) -> np.ndarray:
@@ -105,6 +106,46 @@ def _satellite(zf: zipfile.ZipFile, name: str, index: dict[tuple[str, str], int]
     return total
 
 
+def split_material(rest: str) -> tuple[str, str]:
+    """`Metal Ores - Copper ores` -> (group, label); a rest without ` - ` is group `Other`."""
+    group, sep, label = rest.partition(" - ")
+    return (group, label) if sep else ("Other", rest)
+
+
+def material_key(rest: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", rest.lower()).strip("_")
+
+
+def _materials(zf: zipfile.ZipFile, index: dict[tuple[str, str], int]) -> tuple[list[dict], np.ndarray] | None:
+    """Used-extraction rows of material/F.txt in tonnes per node, or None when the archive has no such file."""
+    name = "material/F.txt"
+    if name not in zf.namelist():
+        return None
+    lines = _lines(zf, name)
+    regions, sectors = next(lines), next(lines)
+    next(lines)
+    cols = [index.get(k, -1) for k in zip(regions[1:], sectors[1:], strict=True)]
+    if min(cols, default=0) < 0:
+        raise ValueError(f"{name}: a column is not in x.txt")
+    materials: list[dict] = []
+    rows: list[np.ndarray] = []
+    for cells in lines:
+        if not cells or not cells[0].startswith(MATERIAL_PREFIX):
+            continue
+        rest = cells[0][len(MATERIAL_PREFIX):]
+        key = material_key(rest)
+        if any(m["key"] == key for m in materials):
+            raise ValueError(f"{name}: two rows share the key '{key}'")
+        group, label = split_material(rest)
+        materials.append({"key": key, "label": label, "group": group})
+        row = np.zeros(len(index))
+        row[cols] = _floats(cells[1:], f"{name} row {cells[0]}") * 1000  # kt -> t
+        rows.append(row)
+    if not materials:
+        raise ValueError(f"{name}: no row starts with '{MATERIAL_PREFIX}'")
+    return materials, np.array(rows)
+
+
 def _read_y(zf: zipfile.ZipFile, index: dict[tuple[str, str], int]) -> tuple[list[tuple[str, str]], np.ndarray]:
     """Y.txt as (region, category) columns in archive order and a node x column matrix."""
     lines = _lines(zf, "Y.txt")
@@ -163,6 +204,7 @@ def build_full(zip_path: Path, out: Path, label: str | None = None) -> list[str]
             _per_output(_satellite(zf, "employment/F.txt", index, lambda r: 1000 * r.startswith("Employment people")), x),
             _per_output(_satellite(zf, "factor_inputs/F.txt", index, lambda r: r != TAXES_ROW), x),
         ]
+        materials = _materials(zf, index)
         final_demand = _read_y(zf, index) if "Y.txt" in zf.namelist() else None
 
     n = len(keys)
@@ -178,8 +220,15 @@ def build_full(zip_path: Path, out: Path, label: str | None = None) -> list[str]
         z *= -1
         z[eye, eye] += 1
         try:
-            np.save(tmp / "L.npy", np.linalg.inv(z))
-            del z
+            leontief = np.linalg.inv(z)
+            np.save(tmp / "L.npy", leontief)
+            if materials:
+                labels, tonnes = materials
+                m = np.divide(tonnes, x, out=np.zeros_like(tonnes), where=live)
+                np.save(tmp / "material_m.npy", m)
+                np.save(tmp / "material_M.npy", m @ leontief)
+                (tmp / "materials.json").write_text(json.dumps(labels, indent=2) + "\n")
+            del z, leontief
             b *= -1
             b[eye, eye] += 1
             np.save(tmp / "G.npy", np.linalg.inv(b))

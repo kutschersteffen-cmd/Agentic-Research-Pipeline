@@ -14,6 +14,12 @@ export const percent = (v: number | null, digits = 0): string =>
 
 export const footprintTotal = (total: number, unit: string): string => `${total.toFixed(1)} ${unit}`;
 
+/** Tonnes extracted, rounded to one decimal first: 999.94 -> "999.9 t", 999.96 -> "1,000 t". */
+export const tonnes = (t: number): string => {
+  const r = Math.round(t * 10) / 10;
+  return `${r < 1000 ? r.toFixed(1) : Math.round(r).toLocaleString("en-US")} t`;
+};
+
 export const homeShare = (share: number | null, regionLabel: string): string =>
   share === null ? "" : `${percent(share)} in ${regionLabel}`;
 
