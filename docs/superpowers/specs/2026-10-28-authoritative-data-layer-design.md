@@ -93,7 +93,8 @@ inputs it used and the logic that produced it.
 - **Portfolio-store inputs.** The portfolio store's `climate_*` observations (`DataPointObservation`) can also be
   picked, so a framework can reproduce today's WACI behaviour before switching over. They are joined by mapping the
   observation's `company_id` through the identity registry. The latest observation with `observed_at <= as_of` is
-  used. Columns are `<alias>`, `<alias>__unit`, `<alias>__period` (the free-text period, for example `FY2025`),
+  used. The default alias is `portfolio_<source>_<field_id>`, e.g. `portfolio_internal_api_climate_scope1_tco2e`.
+  Columns are `<alias>`, `<alias>__unit`, `<alias>__period` (the free-text period, for example `FY2025`),
   `<alias>__source` (`internal_api`, `extracted`, `catalogue`, `estimated_proxy`) and `<alias>__observed_at`.
   *(Claude's call.)*
 - **`as_of`.** Set when the dataset is built, defaulting to now, and recorded on the dataset.
@@ -133,15 +134,16 @@ in-place updates are closing a row (`valid_to`, `superseded_by`) and stamping `r
   `no_value`), `reason`, `derivation` (JSONB), `framework_version`, `dataset_as_of`, `snapshot_id`, `published_by`,
   `valid_from`, `valid_to`, `superseded_by`, `reconfirmed_at`.
 - **Publishing a snapshot.** For each key in the dataset:
-  - same value, unit, period and status as the current row → set `reconfirmed_at`;
+  - same value, unit, period, status **and `framework_version`** as the current row → set `reconfirmed_at`. A new
+    framework version always inserts a new row, so every current derivation names the version that produced it;
   - anything else → insert a new version and close the previous one.
 
   A current key whose company is not in the new dataset gets a new `no_value` version with reason `not_in_dataset`.
   *(Claude's call: a value never outlives its framework version unnoticed.)*
 - **Publish record.** Every publish, including one that only reconfirms, inserts one row into
   `authoritative_publishes`: `snapshot_id`, `framework_id`, `framework_version`, `dataset_id`, `dataset_as_of`,
-  `published_by`, `published_at`. Every value row written or reconfirmed by that publish carries its `snapshot_id`
-  (`reconfirmed_at` = that publish's `published_at`).
+  `published_by`, `published_at`. A newly inserted value row carries that publish's `snapshot_id`. A reconfirmed row
+  keeps its original `snapshot_id`; only `reconfirmed_at` is set to the reconfirming publish's `published_at`.
 - **Time.** `valid_from` is the publish time. Reading as of `b` returns rows with `valid_from <= b` and (`valid_to`
   null or `> b`), so it shows what was published at `b`. Publishing a dataset whose `as_of` is earlier than the greatest
   `dataset_as_of` in that framework's `authoritative_publishes` is refused with HTTP 409. *(Claude's call: the timeline
@@ -199,6 +201,8 @@ There is no merge and no change to the publish gate.
 
 Rows marked `holdout` stay `unit` until the `HOLDOUT_TOKEN` secret is set; the PR then lists them as owed.
 
+"After AC-n" means: the fixture, plus the steps of AC-n and of the rows AC-n itself names, nothing else.
+
 **Fixture.** A universe with companies **A** and **B**, both resolved in the identity registry. Times are UTC.
 
 - A: provider field `prov:esg_demo:scope1` (source slug `esg_demo`) = 100 tCO2e, period_end 2026-09-30, fact valid from
@@ -223,31 +227,35 @@ Rows marked `holdout` stay `unit` until the `HOLDOUT_TOKEN` secret is set; the P
 | AC-8 | F unratified; signed in as an analyst | `POST` ratify for F | HTTP 403 | holdout |
 | AC-9 | F ratified by an approver; signed in as an analyst | `POST` publish for F on D1 | HTTP 403, and `authoritative_values` has 0 rows | holdout |
 | AC-10 | A scoring framework (`purpose` = `score`); signed in as an analyst | Ratify, then publish | Both return HTTP 200, as today | holdout |
-| AC-11 | A framework file written before this change (no `purpose` key) | Load it and apply it to its dataset | `purpose` = `score`; the result's scores, ranks and tiers equal those of the same file on `main` | holdout |
+| AC-11 | A framework file written before this change (no `purpose` key) | Load it | `purpose` = `score` | holdout |
+| AC-11b | The existing Decision Studio test files (`backend/tests/test_decision*.py`) | Run them on the PR build | All pass with no test changed | unit |
 | AC-12 | F also declares output `auth_scope2`, which the graph never outputs | Ratify as an approver | HTTP 422; the message contains `auth_scope2` | holdout |
 | AC-13 | F ratified; approver signed in | Publish F on D1 | `authoritative_values` has exactly 2 current rows for `auth_scope1`: A: `value` 90, `status` `value`, `period_end` 2025-12-31. B: `value` 50, `status` `value`, `period_end` 2026-09-30 | holdout |
 | AC-14 | After AC-13 | `GET /api/authoritative/values/{A's id}` | `derivation.inputs` has an entry `scope1_tco2e` with `value` 90, `status` `approved`, `source` `extraction`, `period_end` `2025-12-31` and `observation_id` = the `field_observations.id` of the 90 | holdout |
 | AC-15 | After AC-13 | Same request as AC-14 | `derivation.trace` contains a node whose output has `auth_scope1` = 90. `framework_version` = F's ratified version, `dataset_as_of` = D1's `as_of`, `snapshot_id` = B's row's `snapshot_id` | holdout |
 | AC-16 | After AC-13, and A's 90 is published in `published_facts` as fact P | Same request as AC-14 | The `scope1_tco2e` input has `published_fact_id` = P's `fact_id` | unit |
 | AC-17 | Framework F2 (purpose authoritative), output `x`, expression `x = 100 / scope1_tco2e`, ratified | Publish F2 on D1 | B: `status` `no_value`, `reason` starts with `rule_error:` | holdout |
-| AC-18 | As AC-17 | Publish F2 on D1 | A: `status` `value`, `value` 1.1111… (100/90) | unit |
+| AC-18 | As AC-17 | Publish F2 on D1 | A: `status` `value`, `value` within 1e-9 of 100/90 | unit |
 | AC-19 | Framework F3, output `y`, expression `y = scope1_tco2e`, ratified | Publish F3 on D1 | B: `status` `no_value`, `reason` = `no_rule_value` | holdout |
 | AC-20 | Framework F4, output `total`, expression `total = scope1_tco2e + prov_esg_demo_scope1`, ratified | Publish F4 on D1, read A | A: `value` 190; `derivation.inputs` lists both `scope1_tco2e` and `prov_esg_demo_scope1` | holdout |
-| AC-21 | Framework F5, output `latest`, expression `latest = prov_esg_demo_scope1__period_end > scope1_tco2e__period_end ? prov_esg_demo_scope1 : scope1_tco2e`, ratified | Publish F5 on D1, read A | A: `value` 100 | unit |
-| AC-22 | After AC-13, no change; dataset D2 = D1 with `as_of` 2026-10-20 | Publish F on D2 | Still exactly 2 current rows, with the same `id`s as after AC-13; both have `reconfirmed_at` = this publish's `published_at`; `authoritative_publishes` has 2 rows for F | holdout |
+| AC-21 | Framework F5, output `latest`, expression `latest = date(prov_esg_demo_scope1__period_end) > date(scope1_tco2e__period_end) ? prov_esg_demo_scope1 : scope1_tco2e` (plain `>` on two date strings raises a `NodeError` in ZEN 2.0.2, checked), ratified | Publish F5 on D1, read A | A: `value` 100 | unit |
+| AC-22 | After AC-13, no change; dataset D2 = D1 with `as_of` 2026-10-20 | Publish F on D2 | Still exactly 2 current rows, with the same `id`s as after AC-13; both have `reconfirmed_at` = this publish's `published_at` and keep AC-13's `snapshot_id`; `authoritative_publishes` has 2 rows for F | holdout |
 | AC-23 | After AC-22 | Publish F on a dataset with `as_of` 2026-10-17 | HTTP 409, and no row in `authoritative_values` or `authoritative_publishes` changes | holdout |
 | AC-24 | After AC-13, A's `scope1_tco2e` fact is edited to 95 (status `edited`); nothing republished | `GET /api/authoritative/values?framework_id=F&output=auth_scope1&company_id=A` | Exactly 1 item, `value` 90 | holdout |
 | AC-25 | After AC-24, F v2 ratified with `scope1_tco2e__status in ['approved','edited']` in both expressions; dataset D3 with `as_of` 2026-10-25 | Publish F v2 on D3 | A has 2 rows: v1 `value` 90 with `valid_to` = v2's `valid_from` and `superseded_by` = v2's `id`; v2 `value` 95 with `valid_to` null | holdout |
+| AC-25b | After AC-25 | Read B's current `auth_scope1` row | `value` 50, `framework_version` = 2 (a new row); B's v1 row has `valid_to` set | holdout |
 | AC-26 | After AC-25 | `GET …&company_id=A&as_of=<a time between the two publishes>` | Exactly 1 item, `value` 90 | holdout |
 | AC-27 | After AC-25 | `GET …&company_id=A&as_of=<a time before AC-13's publish>` | 0 items | holdout |
 | AC-28 | After AC-13, B removed from the universe; dataset D4 with `as_of` 2026-10-26 | Publish F on D4 | B's current row: `status` `no_value`, `reason` `not_in_dataset`; B's row with `value` 50 still exists with `valid_to` set | holdout |
 | AC-29 | Before and after AC-13's publish | Count and hash all rows of `company_facts`, `field_observations` and `published_facts` | Identical | holdout |
+| AC-29b | Framework F6 whose graph outputs `scope1_tco2e = 0` and `z = scope1_tco2e`, output `z`, ratified | Publish F6 on D1, read A | A: `z` = 90 (a rule never overwrites a source column) | holdout |
 | AC-30 | After AC-13, in the running app | Open F's result in Decision Studio and click A's `auth_scope1` cell | A panel shows value 90; the input `scope1_tco2e` = 90 with `approved`, `extraction`, `2025-12-31`; and the expression text `scope1_tco2e__status == 'approved' ? scope1_tco2e : prov_esg_demo_scope1` | evaluator |
 | AC-31 | Phase 2. Portfolio store: A and B have `climate_scope1_tco2e` 200 and 300, `climate_scope2_tco2e` 0 and 0, `climate_evic_eur_m` 10 and 10. One holding each, `market_value_eur` 1,000,000. `climate_scope1_tco2e` bound to F/`auth_scope1`; state after AC-13 | `compute_financed_emissions` with `as_of` now | `financed_emissions_tco2e` = 14.0 (0.1 × 90 + 0.1 × 50) | holdout |
 | AC-32 | As AC-31 but no binding | Same call | `financed_emissions_tco2e` = 50.0 (0.1 × 200 + 0.1 × 300), as on `main` | holdout |
 | AC-33 | As AC-31, state after AC-28 (B `no_value`) | Same call | `financed_emissions_tco2e` = 9.0, `uncovered_holding_count` = 1 | holdout |
 | AC-34 | As AC-33 | `coverage_report` for `climate_scope1_tco2e` | `missing` = `{B: "not_in_dataset"}` | holdout |
 | AC-35 | As AC-31, but F never published | `coverage_report` for `climate_scope1_tco2e` | `missing` = `{A: "not_published", B: "not_published"}` | holdout |
+| AC-35b | As AC-31 after AC-13, plus a holding in company C, resolved but not in F's universe, with portfolio-store values | `coverage_report` for `climate_scope1_tco2e` | `missing` includes `C: "no_authoritative_row"` | holdout |
 | AC-36 | As AC-31, state after AC-25 | `compute_financed_emissions` with `as_of` between AC-13's and AC-25's publish | `financed_emissions_tco2e` = 14.0 (A still 90) | unit |
 | AC-37 | Phase 3, state after AC-28 | `from_authoritative(F, as_of=now, ["auth_scope1"])` | 2 rows. A: `auth_scope1` = 90, `auth_scope1__reason` = `null`. B: `auth_scope1` = `null`, `auth_scope1__reason` = `not_in_dataset` | holdout |
 
