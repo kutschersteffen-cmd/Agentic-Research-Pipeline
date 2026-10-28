@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { apiMessage } from "../../lib/projects";
-import { nodeHash, searchable } from "../../lib/valueChain";
+import { nodeHash, portfolioHash, searchable } from "../../lib/valueChain";
 import type { VcNodeRef } from "../../types";
 import { FootprintView } from "./FootprintView";
 import { NodeView } from "./NodeView";
+import { PortfolioView } from "./PortfolioView";
 import { ShockView } from "./ShockView";
 import { TreeView } from "./TreeView";
 import { useVcQuery } from "./useVcQuery";
@@ -70,9 +71,25 @@ function Picker({ onError }: { onError: (message: string | null) => void }) {
   );
 }
 
-/** `#/valueChain[/<node id>[/tree|/footprint|/shock]]`: picker on top, then the chosen view.
- * App keys this on the route, so a new node or view mounts fresh: no title or data carries over. */
+/** `#/valueChain[/<node id>[/tree|/footprint|/shock]]`: picker on top, then the chosen view; `#/valueChain/portfolio[/<id>]`: the
+ * Portfolio view. App keys this on the route, so a new node or view mounts fresh: no title or data carries over. */
 export function ValueChainExplorer({ params }: { params: string[] }) {
+  if (params[0] === "portfolio") {
+    return (
+      <div className="page">
+        <nav className="vc-crumb" aria-label="Breadcrumb">
+          <a href="#/valueChain">Value Chain Explorer</a>
+        </nav>
+        <h1>Portfolio</h1>
+        <p className="help-text">Which sectors and regions a portfolio's companies sit on, what their supply chains draw on, and what one million euro invested carries along the&nbsp;chain.</p>
+        <PortfolioView id={params[1]} />
+      </div>
+    );
+  }
+  return <NodeExplorer params={params} />;
+}
+
+function NodeExplorer({ params }: { params: string[] }) {
   const [id, sub] = params;
   const view = sub === "tree" || sub === "footprint" || sub === "shock" ? sub : undefined;
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -105,6 +122,9 @@ export function ValueChainExplorer({ params }: { params: string[] }) {
       {!id ? (
         <>
           {!status.error && <p className="muted">Pick a sector and region.</p>}
+          <p>
+            <a href={portfolioHash()}>Portfolio</a> <span className="muted">· see a portfolio's holdings on the value chain</span>
+          </p>
           {status.data && <p className="help-text vc-note">{status.data.caveat}</p>}
         </>
       ) : (
@@ -115,6 +135,9 @@ export function ValueChainExplorer({ params }: { params: string[] }) {
                 {label}
               </a>
             ))}
+            <a href={portfolioHash()} className="nav-tab">
+              Portfolio
+            </a>
           </nav>
           {view === "tree" ? (
             <TreeView id={id} onTitle={setTitle} />

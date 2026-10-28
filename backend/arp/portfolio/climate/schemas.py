@@ -9,6 +9,7 @@ FIELD_SCOPE2 = "climate_scope2_tco2e"
 FIELD_SCOPE3 = "climate_scope3_tco2e"
 FIELD_CARBON_INTENSITY = "climate_carbon_intensity"
 FIELD_EVIC = "climate_evic_eur_m"
+FIELD_REVENUE = "climate_revenue_eur_m"
 FIELD_GREEN_REVENUE_PCT = "climate_green_revenue_pct"
 
 _FIELDS: list[FieldDefinition] = [
@@ -69,6 +70,16 @@ _FIELDS: list[FieldDefinition] = [
         ),
         extraction_instructions="Compute from balance sheet and market data as of the same fiscal year-end as the emissions figures.",
         seed_keywords=["enterprise value", "EVIC"],
+    ),
+    FieldDefinition(
+        field_id=FIELD_REVENUE,
+        name="Total revenue",
+        data_type=FieldDataType.NUMBER,
+        unit="EUR M",
+        description="Total revenue; with EVIC it attributes a holding's share of the company's output (value-chain overlay).",
+        extraction_instructions="Total revenue for the same fiscal year as EVIC, in EUR millions.",
+        seed_keywords=["revenue", "total revenue", "turnover"],
+        required=False,
     ),
     FieldDefinition(
         field_id=FIELD_GREEN_REVENUE_PCT,

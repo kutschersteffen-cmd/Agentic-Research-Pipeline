@@ -2870,3 +2870,7 @@ export type VcTree = Served<S["ValueChainTree"]>;
 export type VcFootprint = Served<S["ValueChainFootprint"]>;
 export type VcQuantityShock = Served<S["ValueChainQuantityShock"]>;
 export type VcPriceShock = Served<S["ValueChainPriceShock"]>;
+export type VcLinks = Served<S["ValueChainLinks"]>;
+export type VcLinkRuleIn = S["LinkRuleIn"];
+export type VcPortfolio = Served<S["ValueChainPortfolio"]>;
+export type VcIcioCode = Served<S["IcioCode"]>;

@@ -38,7 +38,7 @@ def test_pull_uses_same_ingest_as_upload(store, tmp_path):
     other.save_company(CompanyRef(company_id="acme", name="Acme"))
     pull_esg(store, SETTINGS, MONTH, fetcher=lambda url, headers: CSV)
     ingest_esg_bytes(other, CSV, "esg.csv", provider="default", month=MONTH, source_ref=None)
-    assert obs(store) == obs(other) and len(obs(store)) == 6
+    assert obs(store) == obs(other) and len(obs(store)) == 7
 
 
 def test_missing_credentials_records_failed_load(store):
@@ -75,7 +75,7 @@ def test_token_sent_as_bearer_and_never_logged(store):
 def test_pull_twice_same_month_is_unchanged(store):
     assert pull_esg(store, SETTINGS, MONTH, fetcher=lambda u, h: CSV).status == "written"
     assert pull_esg(store, SETTINGS, MONTH, fetcher=lambda u, h: CSV).status == "unchanged"
-    assert len(obs(store)) == 6
+    assert len(obs(store)) == 7
 
 
 def test_empty_file_is_rejected_and_records_failed_load(store):
@@ -132,7 +132,7 @@ def _cli(store, settings, monkeypatch, *args):
 
 def test_cli_esg_pull_exit_codes(store, monkeypatch):
     assert _cli(store, SETTINGS, monkeypatch, "--month", MONTH).exit_code == 0
-    assert len(obs(store)) == 6
+    assert len(obs(store)) == 7
     assert _cli(store, SETTINGS, monkeypatch, "--month", MONTH, "--provider", "default").exit_code == 0  # unchanged
     assert _cli(store, SETTINGS, monkeypatch, "--month", "2026-9").exit_code == 1
     assert _cli(store, SETTINGS, monkeypatch, "--month", MONTH, "--provider", "x&y").exit_code == 1
