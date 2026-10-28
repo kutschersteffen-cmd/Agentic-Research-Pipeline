@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api/client";
-import { EU27, nodeHash, pricePct, signed } from "../../lib/valueChain";
-import type { VcNode, VcPriceShock, VcQuantityShock } from "../../types";
+import { EU27, lensLine, nodeHash, pricePct, signed } from "../../lib/valueChain";
+import type { PortfolioSummary, VcNode, VcPriceShock, VcQuantityShock } from "../../types";
 import { Bars } from "./NodeView";
 import { useVcQuery } from "./useVcQuery";
 
@@ -95,14 +95,14 @@ function Results({ heading, total, tiles, byRegion, bySector, nodes, fmt }: {
   );
 }
 
-function quantityRequest(node: VcNode, model: "demand" | "supply", target: Target, change: number) {
+function quantityRequest(node: VcNode, model: "demand" | "supply", target: Target, change: number, portfolio: string) {
   const pick = target === "node" ? { node: [node.node_id] } : target === "region" ? { region: [node.region] } : { sector: [node.sector] };
-  return api.valueChainShockQuantity({ model, change, focus: node.node_id, ...pick });
+  return api.valueChainShockQuantity({ model, change, focus: node.node_id, portfolio: portfolio || undefined, ...pick });
 }
 
-function priceRequest(node: VcNode, coverage: Coverage, carbon: number) {
+function priceRequest(node: VcNode, coverage: Coverage, carbon: number, portfolio: string) {
   const region = coverage === "eu27" ? EU27 : coverage === "home" ? [node.region] : [];
-  return api.valueChainShockPrice({ carbon, region, focus: node.node_id });
+  return api.valueChainShockPrice({ carbon, region, focus: node.node_id, portfolio: portfolio || undefined });
 }
 
 /** "What happens if…?" for one node: a demand or supply shock on it, its region or its sector, or a carbon price. */
@@ -112,6 +112,8 @@ export function ShockView({ id, onTitle }: { id: string; onTitle: (title: string
   const [coverage, setCoverage] = useState<Coverage>("all");
   const [changeText, setChangeText] = useState("-10");
   const [carbonText, setCarbonText] = useState("100");
+  const [portfolio, setPortfolio] = useState("");
+  const portfolios = useVcQuery<PortfolioSummary[]>(() => api.listPortfolios(), []);
   const change = Number(changeText);
   const carbon = Number(carbonText);
   const quantity = model !== "price";
@@ -122,14 +124,14 @@ export function ShockView({ id, onTitle }: { id: string; onTitle: (title: string
   const nodeQ = useVcQuery(() => api.valueChainNode(id, { order: "total", excludeOwn: false }), [id]);
   const node = nodeQ.data;
   // Each result is kept with the request it answers, so a change never leaves the last scenario's numbers on screen.
-  const requestKey = JSON.stringify([node?.node_id, model, target, coverage, change, carbon]);
+  const requestKey = JSON.stringify([node?.node_id, model, target, coverage, change, carbon, portfolio]);
   const shockQ = useVcQuery<{ key: string; model: Model; q?: VcQuantityShock; p?: VcPriceShock } | null>(
     () =>
       !node || !valid
         ? null
         : model === "price"
-          ? priceRequest(node, coverage, carbon).then((p) => ({ key: requestKey, model, p }))
-          : quantityRequest(node, model, target, change).then((q) => ({ key: requestKey, model, q })),
+          ? priceRequest(node, coverage, carbon, portfolio).then((p) => ({ key: requestKey, model, p }))
+          : quantityRequest(node, model, target, change, portfolio).then((q) => ({ key: requestKey, model, q })),
     [requestKey, valid],
   );
   useEffect(() => {
@@ -180,6 +182,17 @@ export function ShockView({ id, onTitle }: { id: string; onTitle: (title: string
             {!valid && <span className="error-text">Enter a price from 0 to 10,000.</span>}
           </label>
         )}
+        <label className="field-label">
+          Portfolio
+          <select value={portfolio} onChange={(e) => setPortfolio(e.target.value)}>
+            <option value="">None</option>
+            {(portfolios.data ?? []).map((p) => (
+              <option key={p.portfolio_id} value={p.portfolio_id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
       {error && (
         <p className="error-text" role="alert">
@@ -194,6 +207,7 @@ export function ShockView({ id, onTitle }: { id: string; onTitle: (title: string
       {r && (
         <>
           <p className="help-text vc-note">{caveat}</p>
+          {(r.q?.portfolio ?? r.p?.portfolio) && <p className="vc-coverage">{r.q ? lensLine("output", r.q.portfolio?.change_pct) : lensLine("price", r.p?.portfolio?.dp_pct)}</p>}
           {r.q && (
             <Results
               heading={HEADINGS[r.model]}

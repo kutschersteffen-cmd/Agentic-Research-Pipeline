@@ -37,6 +37,10 @@ export const signed = (v: number, digits = 1): string => {
 
 export const pricePct = (v: number): string => `${v < 0 && Number(Math.abs(v).toFixed(2)) !== 0 ? MINUS : ""}${Math.abs(v).toFixed(2)}%`;
 
+/** The Shocks view's portfolio lens: "Portfolio output change −8.23%"; "—" when nothing in the portfolio is linked. */
+export const lensLine = (kind: "output" | "price", v: number | null | undefined): string =>
+  `Portfolio ${kind} change ${v == null ? "—" : pricePct(v)}`;
+
 /** EU-27 coverage preset of the Carbon price model (GB excluded). */
 export const EU27 = "AT BE BG CY CZ DE DK EE ES FI FR GR HR HU IE IT LT LU LV MT NL PL PT RO SE SI SK".split(" ");
 /** A share as percent with one decimal: 0.55 -> "55.0%". */
