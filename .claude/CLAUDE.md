@@ -127,6 +127,18 @@ The gaps ponytail leaves from `karpathy-guidelines`. Where they clash, these win
 - Never delete or weaken an existing test to make it pass. List every test change in the PR
   description.
 
+## Asking the owner (button mode)
+
+The owner answers by tapping buttons, not by typing. Every question to the owner goes through the
+`AskUserQuestion` tool, never as plain chat text:
+
+- Yes/no and approvals (specs, plans, PRs, destructive steps): two options, `Approve` and
+  `Not approved`. Put what each one triggers in its description.
+- Choices between options: one button per option, recommended first, marked `(Recommended)`.
+- The question must stand alone: say what was found and what is being decided, since earlier chat
+  may be hidden while the buttons are open.
+- A spec or plan is still shown as an artifact first; the buttons collect the verdict.
+
 ## Checks
 
 - Backend: `cd backend && ruff check . && python3 -m pytest tests/<file>`
