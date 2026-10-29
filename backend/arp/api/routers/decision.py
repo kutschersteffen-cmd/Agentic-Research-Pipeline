@@ -10,8 +10,9 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-from arp.api.auth import Principal, current_user
+from arp.api.auth import ROLE_RANK, Principal, current_user
 from arp.api.deps import get_decision_store, get_portfolio_store, get_run_store, settings_dep
+from arp.authoritative.evaluate import check_outputs
 from arp.authoritative.source_values import SourcePick
 from arp.config import Settings
 from arp.decision import overrides, sources, templates
@@ -404,6 +405,17 @@ def ratify_mechanism(
     store: DecisionStore = Depends(get_decision_store),
     principal: Principal = Depends(current_user),
 ) -> MechanismConfig:
+    config = store.get(framework_id, version)
+    if config is not None and config.purpose == "authoritative" and not config.ratified:
+        # Authoritative values feed every consumer, so only an approver ratifies them (scoring frameworks: any analyst).
+        if ROLE_RANK[principal.role] < ROLE_RANK["approver"]:
+            raise HTTPException(403, "Requires role 'approver' or higher")
+        if not config.dataset_id:
+            raise HTTPException(422, "An authoritative framework needs a dataset_id")
+        try:
+            check_outputs(_load_dataset(config.dataset_id, store), config)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
     try:
         return store.ratify(framework_id, version, ratified_by=principal.name)
     except ValueError as exc:

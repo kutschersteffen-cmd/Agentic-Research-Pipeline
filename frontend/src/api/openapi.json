@@ -1545,6 +1545,192 @@
     "title": "AuditEntry",
     "type": "object"
    },
+   "AuthoritativeOutput": {
+    "description": "One authoritative data point a calculate-only framework's rule graph must produce.",
+    "properties": {
+     "column": {
+      "description": "The rule graph output key, e.g. auth_scope1_tco2e.",
+      "title": "Column",
+      "type": "string"
+     },
+     "data_type": {
+      "default": "number",
+      "enum": [
+       "number",
+       "text",
+       "boolean"
+      ],
+      "title": "Data Type",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "unit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit"
+     }
+    },
+    "required": [
+     "column",
+     "name"
+    ],
+    "title": "AuthoritativeOutput",
+    "type": "object"
+   },
+   "AuthoritativeValueOut": {
+    "properties": {
+     "company_id": {
+      "title": "Company Id",
+      "type": "string"
+     },
+     "dataset_as_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dataset As Of"
+     },
+     "derivation": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Derivation"
+     },
+     "framework_id": {
+      "title": "Framework Id",
+      "type": "string"
+     },
+     "framework_version": {
+      "title": "Framework Version",
+      "type": "integer"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "output": {
+      "title": "Output",
+      "type": "string"
+     },
+     "period_end": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Period End"
+     },
+     "published_by": {
+      "title": "Published By",
+      "type": "string"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "reconfirmed_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reconfirmed At"
+     },
+     "snapshot_id": {
+      "title": "Snapshot Id",
+      "type": "string"
+     },
+     "status": {
+      "title": "Status",
+      "type": "string"
+     },
+     "superseded_by": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Superseded By"
+     },
+     "unit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit"
+     },
+     "valid_from": {
+      "title": "Valid From",
+      "type": "string"
+     },
+     "valid_to": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Valid To"
+     },
+     "value": {
+      "title": "Value"
+     }
+    },
+    "required": [
+     "id",
+     "framework_id",
+     "output",
+     "company_id",
+     "status",
+     "framework_version",
+     "snapshot_id",
+     "published_by",
+     "valid_from"
+    ],
+    "title": "AuthoritativeValueOut",
+    "type": "object"
+   },
    "B02Out": {
     "properties": {
      "fact_ids": {
@@ -9620,11 +9806,41 @@
       ],
       "title": "As Of"
      },
+     "company_ids": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "source_values: registry company ids, one row each.",
+      "title": "Company Ids"
+     },
      "include_indicators": {
       "default": false,
       "description": "transition_plan_run: one Yes/No column per indicator.",
       "title": "Include Indicators",
       "type": "boolean"
+     },
+     "picks": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/SourcePick"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "source_values: the fields to read, with optional aliases.",
+      "title": "Picks"
      },
      "portfolio_ids": {
       "anyOf": [
@@ -11452,6 +11668,18 @@
       "title": "Cut Mode",
       "type": "string"
      },
+     "dataset_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "authoritative: the source-values dataset ratification checks the outputs against.",
+      "title": "Dataset Id"
+     },
      "dimensions": {
       "items": {
        "$ref": "#/components/schemas/Dimension"
@@ -11575,6 +11803,14 @@
       "title": "Notes",
       "type": "string"
      },
+     "outputs": {
+      "description": "authoritative: the data points the rule graph must output.",
+      "items": {
+       "$ref": "#/components/schemas/AuthoritativeOutput"
+      },
+      "title": "Outputs",
+      "type": "array"
+     },
      "pinned_cuts": {
       "anyOf": [
        {
@@ -11589,6 +11825,16 @@
       ],
       "description": "Explicit cut-points that survive a re-run against different data. The prototype wrote derived cuts back into the saved config on every recompute, so a 'saved' framework silently carried whatever dataset was last loaded; pinned and derived are separate here for exactly that reason.",
       "title": "Pinned Cuts"
+     },
+     "purpose": {
+      "default": "score",
+      "description": "score: the usual scoring, ranking and tiering. authoritative: calculate-only -- the rule graph computes the declared `outputs`, which are published as authoritative values (arp.authoritative).",
+      "enum": [
+       "score",
+       "authoritative"
+      ],
+      "title": "Purpose",
+      "type": "string"
      },
      "ratified": {
       "default": false,
@@ -13763,6 +14009,48 @@
      }
     },
     "title": "ProvenanceInfo",
+    "type": "object"
+   },
+   "PublishAuthoritativeRequest": {
+    "properties": {
+     "dataset_id": {
+      "title": "Dataset Id",
+      "type": "string"
+     },
+     "framework_id": {
+      "title": "Framework Id",
+      "type": "string"
+     },
+     "version": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Version"
+     }
+    },
+    "required": [
+     "framework_id",
+     "dataset_id"
+    ],
+    "title": "PublishAuthoritativeRequest",
+    "type": "object"
+   },
+   "PublishAuthoritativeResponse": {
+    "properties": {
+     "snapshot_id": {
+      "title": "Snapshot Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "snapshot_id"
+    ],
+    "title": "PublishAuthoritativeResponse",
     "type": "object"
    },
    "PublishRequest": {
@@ -18074,6 +18362,41 @@
     ],
     "title": "SourceKind",
     "type": "string"
+   },
+   "SourcePick": {
+    "properties": {
+     "alias": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Alias"
+     },
+     "field_id": {
+      "title": "Field Id",
+      "type": "string"
+     },
+     "portfolio_source": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Portfolio Source"
+     }
+    },
+    "required": [
+     "field_id"
+    ],
+    "title": "SourcePick",
+    "type": "object"
    },
    "StageTrace": {
     "description": "One line of the construction funnel -- what a rule did, in numbers.\n\nThis is simultaneously the UI's funnel view, the committee's evidence\npack, and the input-data audit trail.",
@@ -23169,6 +23492,183 @@
     "summary": "Post Ask",
     "tags": [
      "ask"
+    ]
+   }
+  },
+  "/api/authoritative/publish": {
+   "post": {
+    "operationId": "publish_api_authoritative_publish_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PublishAuthoritativeRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PublishAuthoritativeResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Publish",
+    "tags": [
+     "authoritative"
+    ]
+   }
+  },
+  "/api/authoritative/values": {
+   "get": {
+    "operationId": "list_values_api_authoritative_values_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "framework_id",
+      "required": true,
+      "schema": {
+       "title": "Framework Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "output",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Output"
+      }
+     },
+     {
+      "in": "query",
+      "name": "company_id",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Company Id"
+      }
+     },
+     {
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "As Of"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/AuthoritativeValueOut"
+         },
+         "title": "Response List Values Api Authoritative Values Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "List Values",
+    "tags": [
+     "authoritative"
+    ]
+   }
+  },
+  "/api/authoritative/values/{value_id}": {
+   "get": {
+    "operationId": "get_value_api_authoritative_values__value_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "value_id",
+      "required": true,
+      "schema": {
+       "title": "Value Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AuthoritativeValueOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Value",
+    "tags": [
+     "authoritative"
     ]
    }
   },

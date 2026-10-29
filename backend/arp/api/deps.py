@@ -59,6 +59,12 @@ def publish_store_dep(settings: Settings = Depends(settings_dep)) -> PublishStor
     return PublishStore(require_dsn(settings))
 
 
+def authoritative_store_dep(settings: Settings = Depends(settings_dep)):
+    from arp.authoritative.store import AuthoritativeStore
+
+    return AuthoritativeStore(require_dsn(settings))
+
+
 def blob_store_dep(settings: Settings = Depends(settings_dep)):
     return blob_store_for(IndexingConfig.from_settings(settings))
 
