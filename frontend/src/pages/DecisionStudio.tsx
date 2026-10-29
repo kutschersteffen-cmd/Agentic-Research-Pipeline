@@ -3,6 +3,7 @@ import { FileLink } from "../components/FileLink";
 import { api, downloadFile } from "../api/client";
 import { AuditLogView } from "../components/AuditLogView";
 import { ColumnProfileTable } from "../components/ColumnProfileTable";
+import { AuthoritativeValuesPanel } from "../components/AuthoritativeValuesPanel";
 import { DecisionResultsTable } from "../components/DecisionResultsTable";
 import { DecisionTreeEditor } from "../components/DecisionTreeEditor";
 import { MechanismEditor } from "../components/MechanismEditor";
@@ -1079,7 +1080,13 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
         </>
       )}
 
-      {sub === "results" && config && !result && <p className="status-text">Scoring…</p>}
+      {sub === "results" && config?.purpose === "authoritative" && (
+        <AuthoritativeValuesPanel
+          frameworkId={config.framework_id}
+          names={Object.fromEntries((dataset?.preview ?? []).map((r) => [r.company_id, r.Company]))}
+        />
+      )}
+      {sub === "results" && config && config.purpose !== "authoritative" && !result && <p className="status-text">Scoring…</p>}
       {dataset && !config && ["mechanism", "tree", "results", "movement", "audit"].includes(sub) && (
         <div className="card ds-empty">
           <p className="muted">This tab needs a framework, and the selected table has none yet.</p>
@@ -1088,7 +1095,7 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
         </div>
       )}
 
-      {sub === "results" && result && config && (
+      {sub === "results" && result && config && config.purpose !== "authoritative" && (
         <>
           {!!result.missing_columns?.length && (
             <p className="decision-check-banner" role="alert">

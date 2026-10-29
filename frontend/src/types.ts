@@ -1611,6 +1611,7 @@ export type TierDefinition = Served<S["TierDefinition"]>;
 
 export interface MechanismConfig {
   framework_id: string;
+  purpose?: "score" | "authoritative";
   version: number;
   name: string;
   notes: string;
@@ -2338,6 +2339,7 @@ export interface VotingPreview {
 /** A ratified Decision Studio result, frozen for Steward Workflow and Index Construction. */
 // `cuts_held_from`: The first publication of this framework version, whose cut-points were reused.
 export type PublishedDecision = Served<S["PublishedDecision"]>;
+export type AuthoritativeValue = Served<S["AuthoritativeValueOut"]>;
 
 export interface DecisionInput {
   snapshot_id: string;
