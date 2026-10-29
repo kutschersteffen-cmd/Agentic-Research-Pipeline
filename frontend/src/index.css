@@ -637,6 +637,12 @@ details.help-text[open] > summary { margin-bottom: var(--s-1); }
 .clickable-row { cursor: pointer; }
 .clickable-row:hover { background: var(--well); }
 .detail-cell { background: var(--well); }
+/* Authoritative value derivation: the rule text wraps rather than clipping on a phone (same truth at every size). */
+.derivation-panel { padding: var(--s-3) var(--s-4); display: grid; gap: var(--s-2); }
+.derivation-panel :is(h3, h4, p, ul, pre) { margin: 0; }
+.derivation-panel h4 { margin-top: var(--s-2); }
+.derivation-panel pre { font-family: var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.authoritative-cell { min-height: 24px; }
 /* A detail row is a .data-table row's only td, so it would inherit td:first-child's nowrap and run off a phone. */
 .data-table td.detail-cell { white-space: normal; }
 /* The table can still be wider than a phone; keep the detail text on screen. */

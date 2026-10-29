@@ -10,8 +10,10 @@ from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-from arp.api.auth import Principal, current_user
+from arp.api.auth import ROLE_RANK, Principal, current_user
 from arp.api.deps import get_decision_store, get_portfolio_store, get_run_store, settings_dep
+from arp.authoritative.evaluate import check_outputs
+from arp.authoritative.source_values import SourcePick
 from arp.config import Settings
 from arp.decision import overrides, sources, templates
 from arp.decision.compare import compare_datasets
@@ -175,6 +177,8 @@ class FromSourceRequest(BaseModel):
     portfolio_ids: list[str] | None = None
     region: str | None = Field(default=None, description="transition_barrier: one of the matrix's three jurisdictions.")
     sectors: list[str] | None = None
+    company_ids: list[str] | None = Field(default=None, description="source_values: registry company ids, one row each.")
+    picks: list[SourcePick] | None = Field(default=None, description="source_values: the fields to read, with optional aliases.")
 
 
 @router.post("/datasets/from-source", response_model=DatasetSummary)
@@ -191,9 +195,10 @@ def dataset_from_source(
         dataset = sources.from_source(
             req.source, run_store, portfolio_store, run_id=req.run_id, run_ids=req.run_ids, as_of=req.as_of,
             portfolio_ids=req.portfolio_ids, region=req.region, sectors=req.sectors, include_indicators=req.include_indicators,
+            company_ids=req.company_ids, picks=req.picks,
         )
     except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
+        raise HTTPException(422 if req.source == "source_values" else 400, str(exc)) from exc
     store.save_dataset(dataset)
     return _summarise(dataset)
 
@@ -400,6 +405,17 @@ def ratify_mechanism(
     store: DecisionStore = Depends(get_decision_store),
     principal: Principal = Depends(current_user),
 ) -> MechanismConfig:
+    config = store.get(framework_id, version)
+    if config is not None and config.purpose == "authoritative" and not config.ratified:
+        # Authoritative values feed every consumer, so only an approver ratifies them (scoring frameworks: any analyst).
+        if ROLE_RANK[principal.role] < ROLE_RANK["approver"]:
+            raise HTTPException(403, "Requires role 'approver' or higher")
+        if not config.dataset_id:
+            raise HTTPException(422, "An authoritative framework needs a dataset_id")
+        try:
+            check_outputs(_load_dataset(config.dataset_id, store), config)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
     try:
         return store.ratify(framework_id, version, ratified_by=principal.name)
     except ValueError as exc:
@@ -795,6 +811,9 @@ def post_publish(
     confirming at the checkpoint, and an index still needs its own run."""
     dataset = _load_dataset(req.dataset_id, store)
     config = _resolve_config(None, req.framework_id, req.version, store)
+    if config.purpose == "authoritative":
+        raise HTTPException(422, "An authoritative framework publishes values, not a decision: an approver uses "
+                                 "POST /api/authoritative/publish.")
     held, held_from = hold_published_cuts(config, store.list_published())
     try:
         result = _apply(dataset, held, overrides=overrides.load(store.overrides_path(dataset.dataset_id)))

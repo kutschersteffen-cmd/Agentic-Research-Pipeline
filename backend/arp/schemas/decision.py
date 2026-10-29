@@ -187,6 +187,15 @@ class TierDefinition(BaseModel):
     action: str = ""
 
 
+class AuthoritativeOutput(BaseModel):
+    """One authoritative data point a calculate-only framework's rule graph must produce."""
+
+    column: str = Field(description="The rule graph output key, e.g. auth_scope1_tco2e.")
+    name: str
+    data_type: Literal["number", "text", "boolean"] = "number"
+    unit: str | None = None
+
+
 class MechanismConfig(BaseModel):
     """The versioned, ratifiable artefact: everything needed to turn a
     table into a decision, and nothing about any particular table's
@@ -278,6 +287,18 @@ class MechanismConfig(BaseModel):
         description="Rank-correlation floor for grouping two criteria into one dimension, under complete linkage. "
         "A framework field rather than a constant because it is a judgement call -- but two frameworks with "
         "different thresholds are not directly comparable, which the audit log says explicitly.",
+    )
+
+    purpose: Literal["score", "authoritative"] = Field(
+        default="score",
+        description="score: the usual scoring, ranking and tiering. authoritative: calculate-only -- the rule graph "
+        "computes the declared `outputs`, which are published as authoritative values (arp.authoritative).",
+    )
+    outputs: list[AuthoritativeOutput] = Field(
+        default_factory=list, description="authoritative: the data points the rule graph must output."
+    )
+    dataset_id: str | None = Field(
+        default=None, description="authoritative: the source-values dataset ratification checks the outputs against."
     )
 
     rule_graph: dict[str, Any] | None = Field(

@@ -91,6 +91,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/authoritative/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Publish */
+        post: operations["publish_api_authoritative_publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/authoritative/values": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Values */
+        get: operations["list_values_api_authoritative_values_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/authoritative/values/{value_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Value */
+        get: operations["get_value_api_authoritative_values__value_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bi/ask": {
         parameters: {
             query?: never;
@@ -8067,6 +8118,68 @@ export interface components {
             /** Why */
             why: string;
         };
+        /**
+         * AuthoritativeOutput
+         * @description One authoritative data point a calculate-only framework's rule graph must produce.
+         */
+        AuthoritativeOutput: {
+            /**
+             * Column
+             * @description The rule graph output key, e.g. auth_scope1_tco2e.
+             */
+            column: string;
+            /**
+             * Data Type
+             * @default number
+             * @enum {string}
+             */
+            data_type: "number" | "text" | "boolean";
+            /** Name */
+            name: string;
+            /** Unit */
+            unit?: string | null;
+        };
+        /** AuthoritativeValueOut */
+        AuthoritativeValueOut: {
+            /** Company Id */
+            company_id: string;
+            /** Dataset As Of */
+            dataset_as_of?: string | null;
+            /** Derivation */
+            derivation?: {
+                [key: string]: unknown;
+            } | null;
+            /** Framework Id */
+            framework_id: string;
+            /** Framework Version */
+            framework_version: number;
+            /** Id */
+            id: number;
+            /** Output */
+            output: string;
+            /** Period End */
+            period_end?: string | null;
+            /** Published By */
+            published_by: string;
+            /** Reason */
+            reason?: string | null;
+            /** Reconfirmed At */
+            reconfirmed_at?: string | null;
+            /** Snapshot Id */
+            snapshot_id: string;
+            /** Status */
+            status: string;
+            /** Superseded By */
+            superseded_by?: number | null;
+            /** Unit */
+            unit?: string | null;
+            /** Valid From */
+            valid_from: string;
+            /** Valid To */
+            valid_to?: string | null;
+            /** Value */
+            value?: unknown;
+        };
         /** B02Out */
         B02Out: {
             /**
@@ -11347,11 +11460,21 @@ export interface components {
             /** As Of */
             as_of?: string | null;
             /**
+             * Company Ids
+             * @description source_values: registry company ids, one row each.
+             */
+            company_ids?: string[] | null;
+            /**
              * Include Indicators
              * @description transition_plan_run: one Yes/No column per indicator.
              * @default false
              */
             include_indicators: boolean;
+            /**
+             * Picks
+             * @description source_values: the fields to read, with optional aliases.
+             */
+            picks?: components["schemas"]["SourcePick"][] | null;
             /** Portfolio Ids */
             portfolio_ids?: string[] | null;
             /**
@@ -12219,6 +12342,11 @@ export interface components {
              * @enum {string}
              */
             cut_mode: "quantile" | "breaks" | "absolute";
+            /**
+             * Dataset Id
+             * @description authoritative: the source-values dataset ratification checks the outputs against.
+             */
+            dataset_id?: string | null;
             /** Dimensions */
             dimensions?: components["schemas"]["Dimension"][];
             /** Framework Id */
@@ -12295,10 +12423,22 @@ export interface components {
              */
             notes: string;
             /**
+             * Outputs
+             * @description authoritative: the data points the rule graph must output.
+             */
+            outputs?: components["schemas"]["AuthoritativeOutput"][];
+            /**
              * Pinned Cuts
              * @description Explicit cut-points that survive a re-run against different data. The prototype wrote derived cuts back into the saved config on every recompute, so a 'saved' framework silently carried whatever dataset was last loaded; pinned and derived are separate here for exactly that reason.
              */
             pinned_cuts?: number[] | null;
+            /**
+             * Purpose
+             * @description score: the usual scoring, ranking and tiering. authoritative: calculate-only -- the rule graph computes the declared `outputs`, which are published as authoritative values (arp.authoritative).
+             * @default score
+             * @enum {string}
+             */
+            purpose: "score" | "authoritative";
             /**
              * Ratified
              * @default false
@@ -13221,6 +13361,20 @@ export interface components {
             verifier_model?: string | null;
             /** Verifier Prompt Version */
             verifier_prompt_version?: string | null;
+        };
+        /** PublishAuthoritativeRequest */
+        PublishAuthoritativeRequest: {
+            /** Dataset Id */
+            dataset_id: string;
+            /** Framework Id */
+            framework_id: string;
+            /** Version */
+            version?: number | null;
+        };
+        /** PublishAuthoritativeResponse */
+        PublishAuthoritativeResponse: {
+            /** Snapshot Id */
+            snapshot_id: string;
         };
         /** PublishRequest */
         PublishRequest: {
@@ -14978,6 +15132,15 @@ export interface components {
          * @enum {string}
          */
         SourceKind: "extraction" | "provider" | "xbrl" | "manual";
+        /** SourcePick */
+        SourcePick: {
+            /** Alias */
+            alias?: string | null;
+            /** Field Id */
+            field_id: string;
+            /** Portfolio Source */
+            portfolio_source?: string | null;
+        };
         /**
          * StageTrace
          * @description One line of the construction funnel -- what a rule did, in numbers.
@@ -17124,6 +17287,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AskResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_api_authoritative_publish_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishAuthoritativeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublishAuthoritativeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_values_api_authoritative_values_get: {
+        parameters: {
+            query: {
+                framework_id: string;
+                output?: string | null;
+                company_id?: string | null;
+                as_of?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthoritativeValueOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_value_api_authoritative_values__value_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                value_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthoritativeValueOut"];
                 };
             };
             /** @description Validation Error */

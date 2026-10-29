@@ -3,6 +3,7 @@ import { filenameFromDisposition, inlineSafe } from "../lib/files";
 import { profileEmbedParams } from "../lib/biEmbed";
 import type { Me } from "../lib/reviewKeys";
 import type {
+  AuthoritativeValue,
   ArgusDraft,
   ArgusFlow,
   AskHistoryTurn,
@@ -1129,6 +1130,9 @@ export const api = {
   publishDecision: (body: { dataset_id: string; framework_id: string; version?: number; id_column?: string; note?: string }) =>
     request<PublishedDecision>("/api/decision/publish", { method: "POST", body: JSON.stringify(body) }),
   listPublishedDecisions: () => request<PublishedDecision[]>("/api/decision/published"),
+  listAuthoritativeValues: (frameworkId: string) =>
+    request<AuthoritativeValue[]>(`/api/authoritative/values?framework_id=${encodeURIComponent(frameworkId)}`),
+  getAuthoritativeValue: (id: number) => request<AuthoritativeValue>(`/api/authoritative/values/${id}`),
   getHouseUniverse: () =>
     request<{ source: "sample" | "portfolio"; set_by: string | null; set_at: string | null; issuers: number; note: string | null }>(
       "/api/stewardship/universe",

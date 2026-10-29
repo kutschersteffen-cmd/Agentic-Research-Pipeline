@@ -722,3 +722,5 @@ class RfpQuestion(Base):
     sources: Mapped[list] = mapped_column(JSONB, default=list, server_default=text("'[]'::jsonb"))  # {entry_id, quote}
     assignee: Mapped[str | None] = mapped_column(Text)
     last_editor: Mapped[str | None] = mapped_column(Text)
+
+import arp.authoritative.models  # noqa: E402,F401  (registers the authoritative layer tables on Base)

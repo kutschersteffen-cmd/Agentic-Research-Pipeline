@@ -68,7 +68,10 @@ def mutate(path: str, tests: list[str]) -> dict[str, list[str]]:
         "ARP_TRANSITION_BARRIER_DATA_DIR": str(Path("arp/transition_barrier/data").resolve()),
         "ARP_TRANSITION_ALIGNMENT_DATA_DIR": str(Path("arp/transition_alignment/data").resolve()),
     }
-    run = subprocess.run(["mutmut", "run"], capture_output=True, text=True, timeout=1800, env=env)
+    try:
+        run = subprocess.run(["mutmut", "run"], capture_output=True, text=True, timeout=1800, env=env)
+    except subprocess.TimeoutExpired:  # a module imported by most tests (arp/api/main.py, deps.py): report, go on
+        return {"timeout": []}
     out = subprocess.run(["mutmut", "results", "--all", "true"], capture_output=True, text=True).stdout
     groups: dict[str, list[str]] = {}
     if run.returncode != 0 and _NOTHING_COVERED in run.stdout:  # e.g. an empty __init__.py: nothing to judge
@@ -129,6 +132,9 @@ def main() -> int:
             g = mutate(f, tests)
             if "uncovered" in g:
                 lines.append(f"| `{f}` | {len(tests)} | – | – | no mutant is covered by these tests |")
+                continue
+            if "timeout" in g:
+                lines.append(f"| `{f}` | {len(tests)} | – | – | **timed out** after 30 min: too many tests import it to mutate in CI |")
                 continue
             if "error" in g:
                 lines.append(f"| `{f}` | {len(tests)} | – | – | **mutmut failed**: {' / '.join(g['error'])[-160:]} |")

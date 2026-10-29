@@ -23,6 +23,7 @@ from arp.api.deps import (
 from arp.api.routers import (
     argus,
     ask,
+    authoritative,
     bi,
     calibration,
     climate,
@@ -160,6 +161,7 @@ app.include_router(rfp.router, dependencies=[Depends(authorize)])
 app.include_router(portfolio.router, dependencies=[Depends(authorize)])
 app.include_router(climate.router, dependencies=[Depends(authorize)])
 app.include_router(decision.router, dependencies=[Depends(authorize)])
+app.include_router(authoritative.router, dependencies=[Depends(authorize)])
 app.include_router(bi.router, dependencies=[Depends(authorize)])
 app.include_router(projects.router, dependencies=[Depends(authorize)])
 app.include_router(search.router, dependencies=[Depends(authorize)])
