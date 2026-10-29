@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import re
 from collections import Counter, defaultdict
 
@@ -684,6 +685,8 @@ def from_source(
     region: str | None = None,
     sectors: list[str] | None = None,
     include_indicators: bool = False,
+    company_ids: list[str] | None = None,
+    picks: list | None = None,
 ) -> Dataset:
     """The decision table for one named source (the API's and the CLI's
     `source`). Raises ValueError for an unknown source or missing input."""
@@ -711,6 +714,15 @@ def from_source(
         return from_transition_barrier(region, sectors)
     if source == "replication_runs":
         return from_replication_runs(run_store, run_ids)
+    if source == "source_values":  # the authoritative layer's input: every source value per company (arp.authoritative)
+        from arp.authoritative.source_values import from_source_values
+        from arp.db.session import transaction
+
+        with transaction() as session:
+            return from_source_values(
+                session, company_ids=company_ids or [], picks=picks or [], as_of=as_of or datetime.date.today().isoformat(),
+                portfolio_store=portfolio_store,
+            )
     raise ValueError(f"Unknown source: {source}")
 
 

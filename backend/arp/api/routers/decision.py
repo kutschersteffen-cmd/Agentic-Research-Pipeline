@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_decision_store, get_portfolio_store, get_run_store, settings_dep
+from arp.authoritative.source_values import SourcePick
 from arp.config import Settings
 from arp.decision import overrides, sources, templates
 from arp.decision.compare import compare_datasets
@@ -175,6 +176,8 @@ class FromSourceRequest(BaseModel):
     portfolio_ids: list[str] | None = None
     region: str | None = Field(default=None, description="transition_barrier: one of the matrix's three jurisdictions.")
     sectors: list[str] | None = None
+    company_ids: list[str] | None = Field(default=None, description="source_values: registry company ids, one row each.")
+    picks: list[SourcePick] | None = Field(default=None, description="source_values: the fields to read, with optional aliases.")
 
 
 @router.post("/datasets/from-source", response_model=DatasetSummary)
@@ -191,9 +194,10 @@ def dataset_from_source(
         dataset = sources.from_source(
             req.source, run_store, portfolio_store, run_id=req.run_id, run_ids=req.run_ids, as_of=req.as_of,
             portfolio_ids=req.portfolio_ids, region=req.region, sectors=req.sectors, include_indicators=req.include_indicators,
+            company_ids=req.company_ids, picks=req.picks,
         )
     except ValueError as exc:
-        raise HTTPException(400, str(exc)) from exc
+        raise HTTPException(422 if req.source == "source_values" else 400, str(exc)) from exc
     store.save_dataset(dataset)
     return _summarise(dataset)
 
