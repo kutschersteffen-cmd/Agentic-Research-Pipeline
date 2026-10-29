@@ -811,6 +811,9 @@ def post_publish(
     confirming at the checkpoint, and an index still needs its own run."""
     dataset = _load_dataset(req.dataset_id, store)
     config = _resolve_config(None, req.framework_id, req.version, store)
+    if config.purpose == "authoritative":
+        raise HTTPException(422, "An authoritative framework publishes values, not a decision: an approver uses "
+                                 "POST /api/authoritative/publish.")
     held, held_from = hold_published_cuts(config, store.list_published())
     try:
         result = _apply(dataset, held, overrides=overrides.load(store.overrides_path(dataset.dataset_id)))

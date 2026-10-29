@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from arp.db import models as m
 from arp.decision.dataset import Dataset
 
+_ALIAS = re.compile(r"[a-z][a-z0-9_]*")
 COMPANION = ("unit", "period_end", "status", "source", "provider", "method", "confidence", "observed_at", "observation_id")
 PORTFOLIO_COMPANION = ("unit", "period", "source", "observed_at")
 
@@ -118,6 +119,9 @@ def from_source_values(
     aliases: dict[str, str] = {}
     for p in picks:
         alias = p.alias or default_alias(p.field_id, p.portfolio_source)
+        if not _ALIAS.fullmatch(alias) or "__" in alias or alias in ("company_id", "Company"):
+            raise ValueError(f"{alias!r} is not a usable column name for {p.field_id!r}: use lower-case letters, digits "
+                             "and single underscores, starting with a letter.")
         if alias in aliases:
             raise ValueError(f"Fields {aliases[alias]!r} and {p.field_id!r} share the column name {alias!r}; rename one.")
         aliases[alias] = p.field_id
@@ -127,14 +131,14 @@ def from_source_values(
             raise ValueError("Portfolio-store inputs need a portfolio store.")
 
     wanted: list[UUID] = []
-    for raw in company_ids:
+    for raw in dict.fromkeys(company_ids):  # once each, in the order given
         try:
             wanted.append(UUID(raw))
         except ValueError:
             continue
     names = dict(session.execute(select(m.Company.id, m.Company.name).where(m.Company.id.in_(wanted))).all())
-    known = [c for c in wanted if c in names]
-    unknown = len(company_ids) - len(known)
+    known = list(dict.fromkeys(c for c in wanted if c in names))
+    unknown = len(dict.fromkeys(company_ids)) - len(known)
 
     at = _as_of_end(as_of)
     universe = _universe_ids(session, known) if any(p.portfolio_source for p in picks) else {}

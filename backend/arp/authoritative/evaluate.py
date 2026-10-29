@@ -11,7 +11,6 @@ import zen
 from pydantic import BaseModel
 
 from arp.decision.dataset import Dataset
-from arp.decision.rules import rule_inputs
 from arp.schemas.decision import MechanismConfig
 
 NO_RULE_VALUE = "no_rule_value"
@@ -28,6 +27,25 @@ class Verdict(BaseModel):
     derivation: dict
 
 
+_NUMBER = re.compile(r"-?\d+(\.\d+)?([eE][-+]?\d+)?")
+
+
+def _typed(raw: str):
+    """One cell as the rules see it, decided from that cell alone: Decision Studio's column profiling looks at every
+    row, so one company's value would change another company's type (0/1 read as booleans, a number read as text)."""
+    if raw == "":
+        return None
+    if raw in ("true", "false"):
+        return raw == "true"
+    if _NUMBER.fullmatch(raw):
+        return int(raw) if raw.lstrip("-").isdigit() else float(raw)
+    return raw
+
+
+def _contexts(dataset: Dataset) -> list[dict]:
+    return [{c: _typed(row.get(c, "")) for c in dataset.columns} for row in dataset.rows]
+
+
 def _run(graph: dict, contexts: list[dict], *, trace: bool) -> list[dict]:
     content = json.dumps(graph)
     engine = zen.ZenEngine({"loader": lambda _key: content})
@@ -40,6 +58,7 @@ def _node_texts(graph: dict) -> dict[str, list[str]]:
     for node in graph.get("nodes", []):
         content = node.get("content") or {}
         texts = [e.get("value", "") for e in content.get("expressions", [])]
+        texts += [st.get("condition", "") for st in content.get("statements", []) if st.get("condition")]
         for rule in content.get("rules", []):
             texts += [str(v) for k, v in rule.items() if k != "_id" and v not in ("", None)]
         if texts:
@@ -58,7 +77,7 @@ def check_outputs(dataset: Dataset, config: MechanismConfig) -> None:
             raise ValueError(f"Output {out.column!r} has the name of an input column; a rule never overwrites a source column.")
     if not config.outputs:
         raise ValueError("An authoritative framework declares at least one output.")
-    responses = _run(config.rule_graph or {}, rule_inputs(dataset), trace=False)
+    responses = _run(config.rule_graph or {}, _contexts(dataset), trace=False)
     produced = {k for r in responses if r.get("success") for k in (r["data"].get("result") or {})}
     missing = [o.column for o in config.outputs if o.column not in produced]
     if missing:
@@ -71,7 +90,7 @@ def _blank(raw: str) -> str | None:
 
 def evaluate(dataset: Dataset, config: MechanismConfig, *, snapshot_id: str) -> list[Verdict]:
     graph = config.rule_graph or {}
-    contexts = rule_inputs(dataset)
+    contexts = _contexts(dataset)
     responses = _run(graph, contexts, trace=True)
     texts = _node_texts(graph)
     aliases = _input_aliases(dataset)
@@ -87,7 +106,7 @@ def evaluate(dataset: Dataset, config: MechanismConfig, *, snapshot_id: str) -> 
             trace = [
                 {"node": n.get("name"), "expressions": texts.get(node_id, []), "output": n.get("output") or {}}
                 for node_id, n in sorted(nodes.items(), key=lambda kv: kv[1].get("order", 0))
-                if out.column in (n.get("output") or {}) and node_id in texts
+                if node_id in texts  # every rule node that ran: an output may be computed over several chained nodes
             ]
             # shortcut: an input counts as used when its name occurs in an expression that computed this output, so
             # the losing side of `a ?? b` is listed too; the trace shows the actual result. Upgrade: parse the AST.

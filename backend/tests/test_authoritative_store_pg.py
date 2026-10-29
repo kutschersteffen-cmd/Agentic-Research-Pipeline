@@ -213,3 +213,11 @@ def test_concurrent_publishes_leave_one_current_row_each(store, fx):
         t.join()
     assert errors == []
     assert len(store.values(framework_id="fw_f", output="auth_scope1", company_id=None, as_of=None)) == 2
+
+
+def test_review_not_in_dataset_row_moves_to_new_framework_version(store, fx):
+    publish_d1(store, fx)
+    publish_d1(store, fx, as_of="2026-10-20", company_ids=[fx["A"]])
+    publish_d1(store, fx, as_of="2026-10-25", company_ids=[fx["A"]], config=f_config(version=2))
+    [b] = current(store, fx["B"])
+    assert (b["reason"], b["framework_version"]) == ("not_in_dataset", 2)

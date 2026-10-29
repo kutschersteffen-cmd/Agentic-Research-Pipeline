@@ -94,7 +94,8 @@ class AuthoritativeStore:
                         derivation={"inputs": {}, "trace": [], "framework_id": config.framework_id,
                                     "framework_version": config.version, "dataset_id": dataset.dataset_id,
                                     "dataset_as_of": dataset.as_of, "snapshot_id": snapshot_id})
-                for (out, cid), row in current.items() if (out, cid) not in seen and row.reason != NOT_IN_DATASET
+                for (out, cid), row in current.items()
+                if (out, cid) not in seen and not (row.reason == NOT_IN_DATASET and row.framework_version == config.version)
             ]
             for verdict in verdicts + dropped:
                 key = (verdict.output, UUID(verdict.company_id))

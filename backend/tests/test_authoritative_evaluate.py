@@ -126,3 +126,39 @@ def test_ac_29b_output_may_not_shadow_an_input_column(d1):
 
 def test_check_outputs_passes_for_f(d1):
     check_outputs(d1, _config(["auth_scope1"], auth_scope1=F_VALUE))
+
+
+def _plain(columns, rows):
+    return Dataset(dataset_id="ds_x", name="x", columns=["company_id", "Company", *columns],
+                   rows=[{"company_id": c, "Company": c, **r} for c, r in rows], source="source_values", as_of="2026-10-15")
+
+
+def test_review_0_and_1_stay_numbers_whatever_the_other_rows_hold():
+    ds = _plain(["s3"], [("A", {"s3": "1"}), ("B", {"s3": "0"})])
+    verdicts = evaluate(ds, _config(["out"], out="s3 + 1"), snapshot_id="s")
+    assert [_by(verdicts, c, "out").value for c in ("A", "B")] == [2, 1]
+
+
+def test_review_a_text_cell_does_not_turn_another_rows_number_into_text():
+    ds = _plain(["t"], [("A", {"t": "abc"}), ("B", {"t": "5"})])
+    assert _by(evaluate(ds, _config(["out"], out="t + 1"), snapshot_id="s"), "B", "out").value == 6
+
+
+def test_review_chained_nodes_list_the_source_input(d1):
+    graph = {
+        "nodes": [
+            {"id": "in", "type": "inputNode", "name": "Input", "position": {"x": 0, "y": 0}},
+            {"id": "n1", "type": "expressionNode", "name": "Step 1", "position": {"x": 0, "y": 0},
+             "content": {"expressions": [{"id": "a", "key": "tmp", "value": "scope1_tco2e"}]}},
+            {"id": "n2", "type": "expressionNode", "name": "Step 2", "position": {"x": 0, "y": 0},
+             "content": {"expressions": [{"id": "b", "key": "auth", "value": "tmp * 2"}]}},
+            {"id": "out", "type": "outputNode", "name": "Output", "position": {"x": 0, "y": 0}},
+        ],
+        "edges": [{"id": "e1", "sourceId": "in", "targetId": "n1", "type": "edge"},
+                  {"id": "e2", "sourceId": "n1", "targetId": "n2", "type": "edge"},
+                  {"id": "e3", "sourceId": "n2", "targetId": "out", "type": "edge"}],
+    }
+    config = _config(["auth"]).model_copy(update={"rule_graph": graph})
+    a = _by(evaluate(d1, config, snapshot_id="s"), "A", "auth")
+    assert a.value == 180
+    assert "scope1_tco2e" in a.derivation["inputs"]

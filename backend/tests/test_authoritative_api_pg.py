@@ -186,3 +186,26 @@ def test_ac_24_26_27_reads_as_of(env, pg):
     just_before = (datetime.fromisoformat(now["valid_from"]) - timedelta(microseconds=1)).isoformat()
     assert [v["value"] for v in _values(c, company_id=fx["A"], as_of=just_before)] == [90]  # AC-26
     assert _values(c, company_id=fx["A"], as_of="2026-01-01") == []  # AC-27
+
+
+def test_review_decision_publish_refuses_authoritative_framework(env):
+    c, store, fx, who = env
+    ds = _dataset(c, fx)
+    fid = _save_f(store, ds)
+    assert _ratify(c, fid).status_code == 200
+    who["user"] = ANN
+    r = c.post("/api/decision/publish", json={"dataset_id": ds, "framework_id": fid})
+    assert r.status_code == 422
+    assert "/api/authoritative/publish" in r.json()["detail"]
+
+
+def test_review_publish_checks_outputs_on_the_published_dataset(env):
+    c, store, fx, _ = env
+    fid = _save_f(store, _dataset(c, fx))
+    assert _ratify(c, fid).status_code == 200
+    only_provider = c.post("/api/decision/datasets/from-source", json={
+        "source": "source_values", "company_ids": [fx["A"]], "picks": [{"field_id": "prov:esg_demo:scope1", "alias": "scope1_tco2e"}],
+        "as_of": "2026-10-15"}).json()["dataset_id"]
+    r = _publish(c, fid, only_provider)  # lacks scope1_tco2e__status, so F's rule cannot produce its output
+    assert r.status_code == 422
+    assert "auth_scope1" in r.json()["detail"]

@@ -37,3 +37,8 @@ test("a blank input reads as a dash", () => {
   const lines = derivationLines({ ...a, derivation: { inputs: { scope1_tco2e: blank }, trace: [] } });
   assert.deepEqual(lines.inputs, ["scope1_tco2e = —"]);
 });
+
+test("an object value is shown as JSON, not [object Object]", () => {
+  const lines = derivationLines({ ...a, value: { low: 1, high: 2 }, unit: null });
+  assert.equal(lines.value, '{"low":1,"high":2}');
+});

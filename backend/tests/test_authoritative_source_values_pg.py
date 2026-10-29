@@ -162,3 +162,14 @@ def test_route_builds_dataset_and_refuses_collision_with_422(pg, fixture, tmp_pa
                      json={**body, "picks": [{"field_id": "scope1_tco2e"}, {"field_id": "scope1_tco2e"}]})
         assert bad.status_code == 422
         assert "scope1_tco2e" in bad.json()["detail"]
+
+
+def test_review_duplicate_company_ids_give_one_row(fixture):
+    ds = build(fixture, company_ids=[fixture["A"], fixture["A"], fixture["B"]])
+    assert sorted(r["company_id"] for r in ds.rows) == sorted([fixture["A"], fixture["B"]])
+
+
+@pytest.mark.parametrize("alias", ["company_id", "Company", "a:b", "x__unit", "Scope", "1st"])
+def test_review_bad_alias_is_refused(fixture, alias):
+    with pytest.raises(ValueError, match="column name"):
+        build(fixture, picks=[{"field_id": "scope1_tco2e", "alias": alias}])

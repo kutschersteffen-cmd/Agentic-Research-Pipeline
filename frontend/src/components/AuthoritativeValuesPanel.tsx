@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { derivationLines } from "../lib/derivation";
+import { derivationLines, showValue } from "../lib/derivation";
 import type { AuthoritativeValue } from "../types";
 
 type Derived = Parameters<typeof derivationLines>[0];
@@ -14,6 +14,7 @@ export function AuthoritativeValuesPanel({ frameworkId, names }: { frameworkId: 
   useEffect(() => {
     setValues(null);
     setOpen(null);
+    setError(null);
     api.listAuthoritativeValues(frameworkId).then(setValues, (e: Error) => setError(e.message));
   }, [frameworkId]);
 
@@ -49,9 +50,9 @@ export function AuthoritativeValuesPanel({ frameworkId, names }: { frameworkId: 
                         <button
                           className="link-button authoritative-cell"
                           aria-label={`How ${output} for ${names[company] ?? company} was derived`}
-                          onClick={async () => setOpen(await api.getAuthoritativeValue(v.id))}
+                          onClick={() => api.getAuthoritativeValue(v.id).then(setOpen, (e: Error) => setError(e.message))}
                         >
-                          {v.status === "value" ? String(v.value) : "No value"}
+                          {v.status === "value" ? showValue(v.value) : "No value"}
                         </button>
                       ) : "—"}
                     </td>

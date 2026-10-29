@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from arp.api.auth import Principal, require_role
 from arp.api.deps import authoritative_store_dep, get_decision_store
+from arp.authoritative.evaluate import check_outputs
 from arp.authoritative.store import AuthoritativeStore, StalePublish
 from arp.storage.decision_store import DecisionStore
 
@@ -63,6 +64,10 @@ def publish(
     dataset = store.get_dataset(req.dataset_id)
     if dataset is None or dataset.source != "source_values":
         raise HTTPException(404, f"No source-values dataset {req.dataset_id}")
+    try:
+        check_outputs(dataset, config)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
     try:
         return PublishAuthoritativeResponse(snapshot_id=values.publish(dataset, config, published_by=principal.name))
     except StalePublish as exc:
