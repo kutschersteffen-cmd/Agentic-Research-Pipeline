@@ -105,3 +105,28 @@ def test_link_repo_root_links_missing_top_level_entries(tmp_path, monkeypatch):
     assert Path("backend/tests").is_dir() and Path("docs").resolve() == tmp_path / "docs"
     assert Path("scripts/report.js").resolve() == tmp_path / "scripts" / "report.js"
     assert not Path(".git").exists()
+
+
+def test_a_mutmut_timeout_is_reported_not_raised(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+
+    def run(cmd, **kwargs):
+        if cmd[:2] == ["mutmut", "run"]:
+            raise mutation_check.subprocess.TimeoutExpired(cmd, kwargs.get("timeout"))
+        return _Run(0)
+
+    monkeypatch.setattr(mutation_check.subprocess, "run", run)
+    assert mutation_check.mutate("arp/x.py", ["tests/test_x.py"]) == {"timeout": []}
+
+
+def test_a_timed_out_file_is_listed_and_the_next_file_still_runs(monkeypatch, capsys):
+    ran = []
+
+    def mutate(path, tests):
+        ran.append(path)
+        return {"timeout": []} if path == "arp/api/main.py" else {"killed": ["m1"]}
+
+    assert _main(monkeypatch, ["arp/api/main.py", "arp/y.py"], mutate) == 0
+    out = capsys.readouterr().out
+    assert ran == ["arp/api/main.py", "arp/y.py"]
+    assert "| `arp/api/main.py` | 1 | – | – | **timed out** after 30 min: too many tests import it to mutate in CI |" in out
