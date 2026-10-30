@@ -179,6 +179,8 @@ class FromSourceRequest(BaseModel):
     sectors: list[str] | None = None
     company_ids: list[str] | None = Field(default=None, description="source_values: registry company ids, one row each.")
     picks: list[SourcePick] | None = Field(default=None, description="source_values: the fields to read, with optional aliases.")
+    framework_id: str | None = Field(default=None, description="authoritative: the authoritative framework to read.")
+    outputs: list[str] | None = Field(default=None, description="authoritative: the outputs to include (default all).")
 
 
 @router.post("/datasets/from-source", response_model=DatasetSummary)
@@ -195,10 +197,10 @@ def dataset_from_source(
         dataset = sources.from_source(
             req.source, run_store, portfolio_store, run_id=req.run_id, run_ids=req.run_ids, as_of=req.as_of,
             portfolio_ids=req.portfolio_ids, region=req.region, sectors=req.sectors, include_indicators=req.include_indicators,
-            company_ids=req.company_ids, picks=req.picks,
+            company_ids=req.company_ids, picks=req.picks, framework_id=req.framework_id, outputs=req.outputs,
         )
     except ValueError as exc:
-        raise HTTPException(422 if req.source == "source_values" else 400, str(exc)) from exc
+        raise HTTPException(422 if req.source in ("source_values", "authoritative") else 400, str(exc)) from exc
     store.save_dataset(dataset)
     return _summarise(dataset)
 
