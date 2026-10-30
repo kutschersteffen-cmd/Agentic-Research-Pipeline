@@ -1,6 +1,6 @@
 # Score lineage
 
-Status: draft, awaiting owner approval. Replaces phase 3 of
+Status: approved by the owner on 2026-10-30. Replaces phase 3 of
 `2026-10-28-authoritative-data-layer-design.md`, whose AC-37 this spec takes over as AC-1.
 
 ## Why
