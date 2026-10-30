@@ -52,7 +52,7 @@ def seed(dsn: str) -> dict:
                                                            "output": {output: value}}],
                                 "framework_id": F, "framework_version": 1, "dataset_id": "ds_src",
                                 "dataset_as_of": "2026-10-29", "snapshot_id": "auth_1"},
-                    framework_version=1, dataset_as_of="2026-10-29", snapshot_id="auth_1", published_by="Bob",
+                    framework_version=1, dataset_as_of="2026-10-29", snapshot_id="auth_1", published_by="Bob",  # gitleaks:allow
                     valid_from=now,
                 )
                 s.add(row)
