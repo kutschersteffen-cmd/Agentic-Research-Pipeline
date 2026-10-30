@@ -132,6 +132,20 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
   const [confirmingRatify, setConfirmingRatify] = useState(false);
   const [confirmingPublish, setConfirmingPublish] = useState(false);
   const [published, setPublished] = useState<PublishedDecision | null>(null);
+  // The latest publication of this framework version on this table: its lineage carries the document citations.
+  const [lineageSnapshot, setLineageSnapshot] = useState<PublishedDecision | null>(null);
+  useEffect(() => {
+    if (!config || !dataset) return setLineageSnapshot(null);
+    api.listPublishedDecisions().then(
+      (all) =>
+        setLineageSnapshot(
+          all
+            .filter((p) => p.framework_id === config.framework_id && p.framework_version === config.version && p.dataset_id === dataset.dataset_id)
+            .sort((x, y) => y.published_at.localeCompare(x.published_at))[0] ?? null,
+        ),
+      () => setLineageSnapshot(null),
+    );
+  }, [config?.framework_id, config?.version, dataset?.dataset_id, published]); // eslint-disable-line react-hooks/exhaustive-deps
   const [idColumn, setIdColumn] = useState("");
   const [error, setError] = useState("");
   const [source, setSource] = useState<string>(SOURCES.some((s) => s.id === initialSource) ? initialSource! : "transition_plan_run");
@@ -1141,10 +1155,17 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
               <button className="link-button" onClick={onExport}>
                 Export CSV
               </button>
+              {lineageSnapshot && (
+                <>
+                  <FileLink url={api.lineageUrl(lineageSnapshot.snapshot_id, "csv")} name={`lineage-${lineageSnapshot.snapshot_id}.csv`}>Download lineage (CSV)</FileLink>
+                  <FileLink url={api.lineageUrl(lineageSnapshot.snapshot_id, "json")} name={`lineage-${lineageSnapshot.snapshot_id}.json`}>Download lineage (JSON)</FileLink>
+                </>
+              )}
             </div>
             <DecisionResultsTable
               result={result}
               config={config}
+              published={lineageSnapshot}
               orderBy={orderBy}
               onOrderBy={setOrderBy}
               onExplain={onExplain}
@@ -1377,7 +1398,9 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
                 Published {published.rows.length} entities (matched on <code>{published.id_column}</code>) as{" "}
                 <code>decision.{published.framework_id}</code>
                 {published.cuts_held_from ? ` on the cut-points of its first publication (${published.cut_points?.map((c) => c.toFixed(1)).join(" / ")})` : ""}. Next: <a href="#/stewardship/selection">use the tiers in coverage rules</a> or{" "}
-                <a href="#/index">join the scores in an index</a>.
+                <a href="#/index">join the scores in an index</a>. Lineage:{" "}
+                <FileLink url={api.lineageUrl(published.snapshot_id, "csv")} name={`lineage-${published.snapshot_id}.csv`}>Download lineage (CSV)</FileLink>{" "}
+                <FileLink url={api.lineageUrl(published.snapshot_id, "json")} name={`lineage-${published.snapshot_id}.json`}>Download lineage (JSON)</FileLink>
               </p>
             )}
             <p className="help-text">
