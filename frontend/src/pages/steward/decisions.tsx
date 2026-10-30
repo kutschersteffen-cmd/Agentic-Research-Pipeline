@@ -1,14 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { ConfirmSignedIn } from "../../components/ConfirmSignedIn";
+import { WhyLinks } from "../../components/WhyLinks";
 import { announce } from "../../lib/announce";
-import type { ClientExceptionItem, EscalationDecisionItem, PolicyDifferenceItem, TierChangeItem } from "../../types";
+import type { ClientExceptionItem, EscalationDecisionItem, PolicyDifferenceItem, PublishedDecision, TierChangeItem } from "../../types";
 import { fmt, words } from "./common";
 
 export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[]; actor: string; onDone: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmingAll, setConfirmingAll] = useState(false);
+  const [published, setPublished] = useState<PublishedDecision[]>([]);
+  useEffect(() => {
+    api.listPublishedDecisions().then(setPublished, () => setPublished([]));
+  }, []);
   async function confirm(issuerIds?: string[]) {
     setConfirmingAll(false);
     setBusy(issuerIds ? issuerIds[0] : "all");
@@ -69,6 +74,7 @@ export function TierDecisions({ items, actor, onDone }: { items: TierChangeItem[
                 </td>
                 <td data-label="Why (rule that fired)">
                   {item.reason} <span className="muted">({item.rule})</span>
+                  <WhyLinks issuerId={item.issuer_id} published={published} />
                 </td>
                 <td>
                   <button className="secondary" onClick={() => confirm([item.issuer_id])} disabled={!actor || busy !== null} title={needName}>
