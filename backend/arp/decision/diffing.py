@@ -10,6 +10,7 @@ _SETTING_LABELS = {
     "norm": "Normalisation method",
     "winsor_pct": "Winsorised tails (%)",
     "missing": "Missing-data policy",
+    "no_score_rows": "Rows with no score",
     "weighting": "Weighting preset",
     "min_coverage_pct": "Minimum weight covered (%)",
     "normalise_within": "Peer cohort column",

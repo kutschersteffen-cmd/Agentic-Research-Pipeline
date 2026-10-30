@@ -6,6 +6,10 @@
 # False positive: a test timestamp (observed_at=f"2025-07-{day}T…"), not a secret. Now also marked inline.
 b9fa36b752d8cdb21467f5a1aefc26823268fce8:backend/tests/db/test_importer.py:generic-api-key:361
 
+# False positive: a test snapshot id (snapshot_id="auth_1"), not a secret. Also marked inline; this PR is merged
+# with a merge commit (merge button: merge_method=merge), so the SHA below survives the merge.
+62edb49ab3fecba82896526893bfb4cceb1c0a49:backend/tests/score_lineage_fixtures.py:generic-api-key:55
+
 # Entries here are pinned to a commit SHA, and a squash merge gives the PR's commits new SHAs on main,
 # so an entry added in a PR stops matching after the merge and main goes red. For a false positive in a
 # PR, put `# gitleaks:allow` at the end of the flagged line instead. Add a line here only for a commit

@@ -1,6 +1,7 @@
 import { clearToken, getToken } from "../lib/auth";
 import { filenameFromDisposition, inlineSafe } from "../lib/files";
 import { profileEmbedParams } from "../lib/biEmbed";
+import type { RowLineage } from "../lib/lineage";
 import type { Me } from "../lib/reviewKeys";
 import type {
   AuthoritativeValue,
@@ -1133,6 +1134,9 @@ export const api = {
   listAuthoritativeValues: (frameworkId: string) =>
     request<AuthoritativeValue[]>(`/api/authoritative/values?framework_id=${encodeURIComponent(frameworkId)}`),
   getAuthoritativeValue: (id: number) => request<AuthoritativeValue>(`/api/authoritative/values/${id}`),
+  getRowLineage: (snapshotId: string, entityId: string) =>
+    request<RowLineage>(`/api/decision/published/${encodeURIComponent(snapshotId)}/rows/${encodeURIComponent(entityId)}/lineage`),
+  lineageUrl: (snapshotId: string, format: "csv" | "json") => `${API_BASE}/api/decision/published/${encodeURIComponent(snapshotId)}/lineage.${format}`,
   getHouseUniverse: () =>
     request<{ source: "sample" | "portfolio"; set_by: string | null; set_at: string | null; issuers: number; note: string | null }>(
       "/api/stewardship/universe",

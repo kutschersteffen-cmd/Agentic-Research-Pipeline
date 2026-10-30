@@ -1,3 +1,4 @@
+import { WhyLinks } from "../components/WhyLinks";
 import { useEffect, useMemo, useState } from "react";
 import { useMe } from "../lib/reviewer";
 import { api } from "../api/client";
@@ -429,7 +430,7 @@ export function IndexBuilder() {
         />
       )}
 
-      {sub === "result" && <ResultTab result={result} indexId={indexId} />}
+      {sub === "result" && <ResultTab result={result} indexId={indexId} joined={snapshot ? [snapshot] : []} />}
     </div>
   );
 }
@@ -1376,7 +1377,7 @@ function CalibrationsTab({
 
 // -------------------------------------------------------------- result
 
-function ResultTab({ result, indexId }: { result: IndexReviewResult | null; indexId: string }) {
+function ResultTab({ result, indexId, joined }: { result: IndexReviewResult | null; indexId: string; joined: PublishedDecision[] }) {
   const [showAll, setShowAll] = useState(false);
   const sorted = useMemo(() => (result ? [...result.constituents].sort((a, b) => b.weight - a.weight) : []), [result]);
 
@@ -1530,7 +1531,10 @@ function ResultTab({ result, indexId }: { result: IndexReviewResult | null; inde
           <tbody>
             {shown.map((c) => (
               <tr key={c.company_id}>
-                <td>{c.name}</td>
+                <td>
+                  {c.name}
+                  <WhyLinks issuerId={c.company_id} published={joined} />
+                </td>
                 <td>{c.sector ?? "--"}</td>
                 <td>{pct(c.weight, 3)}</td>
                 <td>{pct(c.base_weight, 3)}</td>

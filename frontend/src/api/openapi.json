@@ -6419,6 +6419,12 @@
       "title": "Enabled",
       "type": "boolean"
      },
+     "required": {
+      "default": false,
+      "description": "Relative mode: a company without a usable value here gets no score, with the reason, instead of a filled-in value. Applies whatever its weight; a disabled criterion is never required.",
+      "title": "Required",
+      "type": "boolean"
+     },
      "weight": {
       "default": 1.0,
       "description": "Relative share of its dimension's weight. 0 parks it without deleting it.",
@@ -6466,6 +6472,18 @@
       "title": "Low Confidence",
       "type": "boolean"
      },
+     "missing_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Why the value was missing, when it was.",
+      "title": "Missing Reason"
+     },
      "normalised": {
       "anyOf": [
        {
@@ -6497,6 +6515,18 @@
         "type": "null"
        }
       ]
+     },
+     "value_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The authoritative_values row this criterion read, if any.",
+      "title": "Value Id"
      },
      "weight": {
       "default": 0.0,
@@ -8320,6 +8350,14 @@
       ],
       "title": "Rank Min"
      },
+     "reasons": {
+      "description": "no_score: one `required_missing: <column> (<reason>)` per missing required criterion.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Reasons",
+      "type": "array"
+     },
      "score": {
       "anyOf": [
        {
@@ -8358,7 +8396,8 @@
       "enum": [
        "scored",
        "excluded",
-       "insufficient"
+       "insufficient",
+       "no_score"
       ],
       "title": "Status",
       "type": "string"
@@ -8494,7 +8533,8 @@
         "enum": [
          "scored",
          "excluded",
-         "insufficient"
+         "insufficient",
+         "no_score"
         ],
         "type": "string"
        },
@@ -8510,7 +8550,8 @@
         "enum": [
          "scored",
          "excluded",
-         "insufficient"
+         "insufficient",
+         "no_score"
         ],
         "type": "string"
        },
@@ -9821,11 +9862,38 @@
       "description": "source_values: registry company ids, one row each.",
       "title": "Company Ids"
      },
+     "framework_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "authoritative: the authoritative framework to read.",
+      "title": "Framework Id"
+     },
      "include_indicators": {
       "default": false,
       "description": "transition_plan_run: one Yes/No column per indicator.",
       "title": "Include Indicators",
       "type": "boolean"
+     },
+     "outputs": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "authoritative: the outputs to include (default all).",
+      "title": "Outputs"
      },
      "picks": {
       "anyOf": [
@@ -11774,6 +11842,16 @@
      "name": {
       "default": "Untitled framework",
       "title": "Name",
+      "type": "string"
+     },
+     "no_score_rows": {
+      "default": "include",
+      "description": "Companies with no score (a required criterion is missing). include: they still count in normalisation, means, cohorts and entropy weights. exclude: the others are normalised among themselves.",
+      "enum": [
+       "include",
+       "exclude"
+      ],
+      "title": "No Score Rows",
       "type": "string"
      },
      "norm": {
@@ -14099,6 +14177,51 @@
     "title": "PublishRequest",
     "type": "object"
    },
+   "PublishedCriterion": {
+    "properties": {
+     "column": {
+      "title": "Column",
+      "type": "string"
+     },
+     "contribution": {
+      "default": 0.0,
+      "title": "Contribution",
+      "type": "number"
+     },
+     "imputed": {
+      "default": false,
+      "title": "Imputed",
+      "type": "boolean"
+     },
+     "missing_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Missing Reason"
+     },
+     "value_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value Id"
+     }
+    },
+    "required": [
+     "column"
+    ],
+    "title": "PublishedCriterion",
+    "type": "object"
+   },
    "PublishedDecision": {
     "description": "A ratified framework's result on one dataset, frozen and signed so\nother functions can read it. Stewardship coverage rules and index\nconstruction see it as company fields (`decision.<framework_id>.tier`\netc.); neither ever reads a live, re-scorable result.",
     "properties": {
@@ -14180,6 +14303,29 @@
      "snapshot_id": {
       "title": "Snapshot Id",
       "type": "string"
+     },
+     "source": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The dataset's source, e.g. authoritative.",
+      "title": "Source"
+     },
+     "source_ref": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Ref"
      }
     },
     "required": [
@@ -14196,6 +14342,21 @@
    },
    "PublishedRow": {
     "properties": {
+     "criteria": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/PublishedCriterion"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Per criterion: contribution and the value it read. None: published before lineage.",
+      "title": "Criteria"
+     },
      "entity_id": {
       "title": "Entity Id",
       "type": "string"
@@ -14237,6 +14398,13 @@
       ],
       "title": "Rank Min"
      },
+     "reasons": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Reasons",
+      "type": "array"
+     },
      "score": {
       "anyOf": [
        {
@@ -14253,7 +14421,8 @@
       "enum": [
        "scored",
        "excluded",
-       "insufficient"
+       "insufficient",
+       "no_score"
       ],
       "title": "Status",
       "type": "string"
@@ -25171,6 +25340,149 @@
      }
     },
     "summary": "List Published",
+    "tags": [
+     "decision"
+    ]
+   }
+  },
+  "/api/decision/published/{snapshot_id}/lineage.csv": {
+   "get": {
+    "operationId": "published_lineage_csv_api_decision_published__snapshot_id__lineage_csv_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "snapshot_id",
+      "required": true,
+      "schema": {
+       "title": "Snapshot Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "text/plain": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Published Lineage Csv",
+    "tags": [
+     "decision"
+    ]
+   }
+  },
+  "/api/decision/published/{snapshot_id}/lineage.json": {
+   "get": {
+    "operationId": "published_lineage_json_api_decision_published__snapshot_id__lineage_json_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "snapshot_id",
+      "required": true,
+      "schema": {
+       "title": "Snapshot Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response Published Lineage Json Api Decision Published  Snapshot Id  Lineage Json Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Published Lineage Json",
+    "tags": [
+     "decision"
+    ]
+   }
+  },
+  "/api/decision/published/{snapshot_id}/rows/{entity_id}/lineage": {
+   "get": {
+    "description": "How one published row's score, rank and tier came about: each criterion, the authoritative value it read,\nthat value's inputs and the document citations behind them.",
+    "operationId": "published_row_lineage_api_decision_published__snapshot_id__rows__entity_id__lineage_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "snapshot_id",
+      "required": true,
+      "schema": {
+       "title": "Snapshot Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "entity_id",
+      "required": true,
+      "schema": {
+       "title": "Entity Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Published Row Lineage Api Decision Published  Snapshot Id  Rows  Entity Id  Lineage Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Published Row Lineage",
     "tags": [
      "decision"
     ]

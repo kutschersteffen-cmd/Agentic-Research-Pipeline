@@ -716,6 +716,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/decision/published/{snapshot_id}/lineage.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Published Lineage Csv */
+        get: operations["published_lineage_csv_api_decision_published__snapshot_id__lineage_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decision/published/{snapshot_id}/lineage.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Published Lineage Json */
+        get: operations["published_lineage_json_api_decision_published__snapshot_id__lineage_json_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decision/published/{snapshot_id}/rows/{entity_id}/lineage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Published Row Lineage
+         * @description How one published row's score, rank and tier came about: each criterion, the authoritative value it read,
+         *     that value's inputs and the document citations behind them.
+         */
+        get: operations["published_row_lineage_api_decision_published__snapshot_id__rows__entity_id__lineage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/decision/runs/{run_id}/decision": {
         parameters: {
             query?: never;
@@ -10135,6 +10190,12 @@ export interface components {
              */
             enabled: boolean;
             /**
+             * Required
+             * @description Relative mode: a company without a usable value here gets no score, with the reason, instead of a filled-in value. Applies whatever its weight; a disabled criterion is never required.
+             * @default false
+             */
+            required: boolean;
+            /**
              * Weight
              * @description Relative share of its dimension's weight. 0 parks it without deleting it.
              * @default 1
@@ -10162,11 +10223,21 @@ export interface components {
              * @default false
              */
             low_confidence: boolean;
+            /**
+             * Missing Reason
+             * @description Why the value was missing, when it was.
+             */
+            missing_reason?: string | null;
             /** Normalised */
             normalised?: number | null;
             /** Overridden From */
             overridden_from?: number | null;
             override?: components["schemas"]["LevelOverride"] | null;
+            /**
+             * Value Id
+             * @description The authoritative_values row this criterion read, if any.
+             */
+            value_id?: number | null;
             /**
              * Weight
              * @default 0
@@ -10918,6 +10989,11 @@ export interface components {
             rank_max?: number | null;
             /** Rank Min */
             rank_min?: number | null;
+            /**
+             * Reasons
+             * @description no_score: one `required_missing: <column> (<reason>)` per missing required criterion.
+             */
+            reasons?: string[];
             /** Score */
             score?: number | null;
             /** Segment */
@@ -10929,7 +11005,7 @@ export interface components {
              * @default scored
              * @enum {string}
              */
-            status: "scored" | "excluded" | "insufficient";
+            status: "scored" | "excluded" | "insufficient" | "no_score";
             /** Tier */
             tier?: number | null;
             /** Tier Action */
@@ -10961,9 +11037,9 @@ export interface components {
             /** Score Delta */
             score_delta?: number | null;
             /** Status After */
-            status_after?: ("scored" | "excluded" | "insufficient") | null;
+            status_after?: ("scored" | "excluded" | "insufficient" | "no_score") | null;
             /** Status Before */
-            status_before?: ("scored" | "excluded" | "insufficient") | null;
+            status_before?: ("scored" | "excluded" | "insufficient" | "no_score") | null;
             /** Tier After */
             tier_after?: number | null;
             /** Tier Before */
@@ -11465,11 +11541,21 @@ export interface components {
              */
             company_ids?: string[] | null;
             /**
+             * Framework Id
+             * @description authoritative: the authoritative framework to read.
+             */
+            framework_id?: string | null;
+            /**
              * Include Indicators
              * @description transition_plan_run: one Yes/No column per indicator.
              * @default false
              */
             include_indicators: boolean;
+            /**
+             * Outputs
+             * @description authoritative: the outputs to include (default all).
+             */
+            outputs?: string[] | null;
             /**
              * Picks
              * @description source_values: the fields to read, with optional aliases.
@@ -12406,6 +12492,13 @@ export interface components {
              * @default Untitled framework
              */
             name: string;
+            /**
+             * No Score Rows
+             * @description Companies with no score (a required criterion is missing). include: they still count in normalisation, means, cohorts and entropy weights. exclude: the others are normalised among themselves.
+             * @default include
+             * @enum {string}
+             */
+            no_score_rows: "include" | "exclude";
             /**
              * Norm
              * @default percentile
@@ -13395,6 +13488,25 @@ export interface components {
             /** Version */
             version?: number | null;
         };
+        /** PublishedCriterion */
+        PublishedCriterion: {
+            /** Column */
+            column: string;
+            /**
+             * Contribution
+             * @default 0
+             */
+            contribution: number;
+            /**
+             * Imputed
+             * @default false
+             */
+            imputed: boolean;
+            /** Missing Reason */
+            missing_reason?: string | null;
+            /** Value Id */
+            value_id?: number | null;
+        };
         /**
          * PublishedDecision
          * @description A ratified framework's result on one dataset, frozen and signed so
@@ -13440,9 +13552,21 @@ export interface components {
             rows?: components["schemas"]["PublishedRow"][];
             /** Snapshot Id */
             snapshot_id?: string;
+            /**
+             * Source
+             * @description The dataset's source, e.g. authoritative.
+             */
+            source?: string | null;
+            /** Source Ref */
+            source_ref?: string | null;
         };
         /** PublishedRow */
         PublishedRow: {
+            /**
+             * Criteria
+             * @description Per criterion: contribution and the value it read. None: published before lineage.
+             */
+            criteria?: components["schemas"]["PublishedCriterion"][] | null;
             /** Entity Id */
             entity_id: string;
             /** Name */
@@ -13453,6 +13577,8 @@ export interface components {
             rank_max?: number | null;
             /** Rank Min */
             rank_min?: number | null;
+            /** Reasons */
+            reasons?: string[];
             /** Score */
             score?: number | null;
             /**
@@ -13460,7 +13586,7 @@ export interface components {
              * @default scored
              * @enum {string}
              */
-            status: "scored" | "excluded" | "insufficient";
+            status: "scored" | "excluded" | "insufficient" | "no_score";
             /** Tier */
             tier?: number | null;
             /** Tier Name */
@@ -18430,6 +18556,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublishedDecision"][];
+                };
+            };
+        };
+    };
+    published_lineage_csv_api_decision_published__snapshot_id__lineage_csv_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    published_lineage_json_api_decision_published__snapshot_id__lineage_json_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    published_row_lineage_api_decision_published__snapshot_id__rows__entity_id__lineage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: string;
+                entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -1612,6 +1612,7 @@ export type TierDefinition = Served<S["TierDefinition"]>;
 export interface MechanismConfig {
   framework_id: string;
   purpose?: "score" | "authoritative";
+  no_score_rows?: "include" | "exclude";
   version: number;
   name: string;
   notes: string;

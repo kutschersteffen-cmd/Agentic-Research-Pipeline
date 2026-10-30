@@ -673,6 +673,45 @@ def from_replication_runs(run_store: RunStore, run_ids: list[str] | None = None)
     )
 
 
+def from_authoritative(store, framework_id: str, as_of: str | None, outputs: list[str] | None) -> Dataset:
+    """A framework's published authoritative values as a decision table: one row per company, and per output its
+    value, the reason when there is none, and the authoritative_values id the score lineage points at."""
+    from uuid import UUID
+
+    from sqlalchemy import select
+    from sqlalchemy.orm import Session
+
+    from arp.authoritative.source_values import _cell
+    from arp.db import models as m
+
+    values = store.values(framework_id=framework_id, as_of=as_of)
+    if not values:
+        raise ValueError(f"No authoritative values published for {framework_id}")
+    wanted = sorted({v["output"] for v in values} if not outputs else set(outputs))
+    by_company: dict[str, dict[str, dict]] = {}
+    for v in values:
+        if v["output"] in wanted:
+            by_company.setdefault(v["company_id"], {})[v["output"]] = v
+    with Session(store.engine) as s:
+        names = {str(i): n for i, n in s.execute(
+            select(m.Company.id, m.Company.name).where(m.Company.id.in_([UUID(c) for c in by_company]))
+        )}
+    columns = ["company_id", "Company"] + [f"{o}{suffix}" for o in wanted for suffix in ("", "__reason", "__value_id")]
+    rows = []
+    for company_id, cells in by_company.items():
+        row = {"company_id": company_id, "Company": names.get(company_id, company_id)}
+        for o in wanted:
+            v = cells.get(o)
+            row[o] = _cell(v["value"]) if v and v["status"] == "value" else ""  # exact; _num would round to 6 digits
+            row[f"{o}__reason"] = (v["reason"] or "") if v else "not_published"
+            row[f"{o}__value_id"] = str(v["id"]) if v else ""
+        rows.append(row)
+    return Dataset(
+        name=f"Authoritative values ({framework_id})", columns=columns, rows=rows, source="authoritative",
+        source_ref=framework_id, as_of=as_of or datetime.date.today().isoformat(),
+    )
+
+
 def from_source(
     source: str,
     run_store: RunStore,
@@ -687,6 +726,8 @@ def from_source(
     include_indicators: bool = False,
     company_ids: list[str] | None = None,
     picks: list | None = None,
+    framework_id: str | None = None,
+    outputs: list[str] | None = None,
 ) -> Dataset:
     """The decision table for one named source (the API's and the CLI's
     `source`). Raises ValueError for an unknown source or missing input."""
@@ -714,6 +755,14 @@ def from_source(
         return from_transition_barrier(region, sectors)
     if source == "replication_runs":
         return from_replication_runs(run_store, run_ids)
+    if source == "authoritative":
+        from arp.authoritative.store import AuthoritativeStore
+        from arp.config import get_settings
+        from arp.db.session import require_dsn
+
+        if not framework_id:
+            raise ValueError("source=authoritative needs a framework_id.")
+        return from_authoritative(AuthoritativeStore(require_dsn(get_settings())), framework_id, as_of, outputs)
     if source == "source_values":  # the authoritative layer's input: every source value per company (arp.authoritative)
         from arp.authoritative.source_values import from_source_values
         from arp.db.session import transaction

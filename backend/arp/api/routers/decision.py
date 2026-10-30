@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from arp.api.auth import ROLE_RANK, Principal, current_user
-from arp.api.deps import get_decision_store, get_portfolio_store, get_run_store, settings_dep
+from arp.api.deps import authoritative_store_dep, get_decision_store, get_portfolio_store, get_run_store, settings_dep
 from arp.authoritative.evaluate import check_outputs
 from arp.authoritative.source_values import SourcePick
 from arp.config import Settings
@@ -20,6 +20,7 @@ from arp.decision.compare import compare_datasets
 from arp.decision.dataset import Dataset, build_dataset
 from arp.decision.diffing import describe_changes
 from arp.decision.indicator_list import build_framework, parse_indicator_list
+from arp.decision.lineage import lineage_csv, lineage_rows, row_lineage
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
 from arp.decision.parsing import load_table
 from arp.decision.profiling import profile_dataset
@@ -179,6 +180,8 @@ class FromSourceRequest(BaseModel):
     sectors: list[str] | None = None
     company_ids: list[str] | None = Field(default=None, description="source_values: registry company ids, one row each.")
     picks: list[SourcePick] | None = Field(default=None, description="source_values: the fields to read, with optional aliases.")
+    framework_id: str | None = Field(default=None, description="authoritative: the authoritative framework to read.")
+    outputs: list[str] | None = Field(default=None, description="authoritative: the outputs to include (default all).")
 
 
 @router.post("/datasets/from-source", response_model=DatasetSummary)
@@ -195,10 +198,10 @@ def dataset_from_source(
         dataset = sources.from_source(
             req.source, run_store, portfolio_store, run_id=req.run_id, run_ids=req.run_ids, as_of=req.as_of,
             portfolio_ids=req.portfolio_ids, region=req.region, sectors=req.sectors, include_indicators=req.include_indicators,
-            company_ids=req.company_ids, picks=req.picks,
+            company_ids=req.company_ids, picks=req.picks, framework_id=req.framework_id, outputs=req.outputs,
         )
     except ValueError as exc:
-        raise HTTPException(422 if req.source == "source_values" else 400, str(exc)) from exc
+        raise HTTPException(422 if req.source in ("source_values", "authoritative") else 400, str(exc)) from exc
     store.save_dataset(dataset)
     return _summarise(dataset)
 
@@ -825,6 +828,49 @@ def post_publish(
     return store.save_published(snapshot)
 
 
+def _published_or_404(snapshot_id: str, store: DecisionStore) -> PublishedDecision:
+    try:
+        snapshot = store.get_published(snapshot_id)
+    except ValueError:  # not a valid snapshot id
+        snapshot = None
+    if snapshot is None:
+        raise HTTPException(404, f"Unknown published decision: {snapshot_id}")
+    return snapshot
+
+
+@router.get("/published/{snapshot_id}/rows/{entity_id}/lineage")
+def published_row_lineage(
+    snapshot_id: str, entity_id: str, store: DecisionStore = Depends(get_decision_store),
+    values=Depends(authoritative_store_dep),
+) -> dict:
+    """How one published row's score, rank and tier came about: each criterion, the authoritative value it read,
+    that value's inputs and the document citations behind them."""
+    try:
+        return row_lineage(_published_or_404(snapshot_id, store), entity_id, values=values)
+    except KeyError as exc:
+        raise HTTPException(404, f"{snapshot_id} has no row for {entity_id}") from exc
+
+
+@router.get("/published/{snapshot_id}/lineage.json")
+def published_lineage_json(
+    snapshot_id: str, store: DecisionStore = Depends(get_decision_store), values=Depends(authoritative_store_dep)
+) -> list[dict]:
+    snapshot = _published_or_404(snapshot_id, store)
+    return lineage_rows(snapshot, snapshot.rows, values=values)
+
+
+@router.get("/published/{snapshot_id}/lineage.csv", response_class=PlainTextResponse)
+def published_lineage_csv(
+    snapshot_id: str, store: DecisionStore = Depends(get_decision_store), values=Depends(authoritative_store_dep)
+) -> PlainTextResponse:
+    snapshot = _published_or_404(snapshot_id, store)
+    return PlainTextResponse(
+        lineage_csv(lineage_rows(snapshot, snapshot.rows, values=values)), media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="lineage-{snapshot_id}.csv"'},
+    )
+
+
 @router.get("/published", response_model=list[PublishedDecision])
 def list_published(store: DecisionStore = Depends(get_decision_store)) -> list[PublishedDecision]:
-    return store.list_published()
+    # Without per-row criteria: they are only for the lineage routes, and would make this list ~10x larger.
+    return [p.model_copy(update={"rows": [r.model_copy(update={"criteria": None}) for r in p.rows]}) for p in store.list_published()]
