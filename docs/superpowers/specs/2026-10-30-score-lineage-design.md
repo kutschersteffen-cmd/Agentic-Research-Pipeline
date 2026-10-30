@@ -33,7 +33,7 @@ reason, not a quiet fill-in.
 
 - A reverse lookup ("which published tiers used this value?"). Approach B, deferred.
 - Copying the chain into published decisions (approach C). Only ids are stored.
-- Any change to scoring maths, normalisation, weighting or tiers for criteria that are not required.
+- Any change to scoring maths, normalisation, weighting or tiers for frameworks that mark no criterion required.
 - Alerts when an authoritative value behind a published tier is restated.
 - Lineage for datasets that do not come from `from_authoritative`. Their criteria show the link `dataset_cell` and stop
   there.
@@ -104,7 +104,7 @@ behaving as today, that value reproduces today's behaviour, and the setting is s
 - `EntityDecision.reasons: list[str]` holds one entry per missing required criterion, in criterion order:
   - `required_missing: <column> (<reason>)`;
   - `<reason>` is the row's `<column>__reason` cell when the dataset has one, else `blank`.
-- Levels mode follows the same rule.
+- Levels mode never produces `no_score`.
 
 ### 3. Contributions carry their source
 
@@ -121,8 +121,7 @@ reason, so the drill-down can show what was there.
 - `PublishedRow` gains `reasons: list[str]` and
   `criteria: list[{column, contribution, imputed, value_id, missing_reason}]`.
 - `PublishedDecision` gains `source: str` (the dataset's source) and `source_ref`.
-- A published decision written before this change has neither. Its lineage reports `link: "not_recorded"` per
-  criterion.
+- A published decision written before this change has neither. Its lineage returns `criteria: [{"link": "not_recorded"}]`, exactly one entry.
 
 ### 5. Resolving the chain (one function, used by all four places)
 
@@ -146,7 +145,37 @@ reason, so the drill-down can show what was there.
    An input without an observation id is shown with `link: "no_observation"`.
 
 The result also carries the row's score, rank, tier, status and reasons, and the snapshot's framework id, version,
-`as_of`, `published_by` and `published_at`.
+`as_of`, `published_by` and `published_at`. Its shape, with every key; values are JSON numbers, strings, booleans or
+null:
+
+```json
+{
+  "snapshot_id": "pub_…", "framework_id": "fw_s", "framework_version": 1, "as_of": "…",
+  "published_by": "Bob", "published_at": "…",
+  "entity_id": "A", "name": "Company A", "status": "scored", "reasons": [],
+  "score": 61.2, "rank": 2, "tier": 1, "tier_name": "Tier 1",
+  "criteria": [
+    {
+      "column": "auth_scope1", "contribution": 30.6, "imputed": false, "missing_reason": null,
+      "link": "authoritative", "value_id": 17,
+      "value": {"value": 90, "unit": "tCO2e", "status": "value", "reason": null, "period_end": "2025-12-31",
+                "framework_id": "fw_f", "framework_version": 1, "superseded": false,
+                "current_valid_to": null},
+      "inputs": [
+        {"name": "scope1_tco2e", "value": 90, "status": "approved", "source": "extraction", "provider": null,
+         "period_end": "2025-12-31", "unit": "tCO2e", "observation_id": 42, "published_fact_id": null,
+         "link": "observation",
+         "citations": [{"doc_id": "d1", "page": 4, "quote": "Scope 1: 90 tCO2e", "grounded": true}]}
+      ]
+    }
+  ]
+}
+```
+
+`criteria[].link` is one of `authoritative`, `dataset_cell` (with `value` and `inputs` null), `missing` (with `value_id`
+set and `value` and `inputs` null) or `not_recorded`. For a published row written before this change, `criteria` is
+exactly `[{"link": "not_recorded"}]`. `inputs[].link` is `observation` or `no_observation` (with `observation_id` null
+and `citations` empty).
 
 ### 6. Where it is shown
 
@@ -154,7 +183,9 @@ The result also carries the row's score, rank, tier, status and reasons, and the
   - `GET /api/decision/published/{snapshot_id}/rows/{entity_id}/lineage` returns `row_lineage`, or 404 for an unknown
     snapshot or entity;
   - `GET /api/decision/published/{snapshot_id}/lineage.json` returns all rows;
-  - `GET /api/decision/published/{snapshot_id}/lineage.csv` returns one line per entity × criterion × input. Header:
+  - `GET /api/decision/published/{snapshot_id}/lineage.csv` returns one line per entity × criterion × input ×
+    citation. An input with no citation gives one line with blank citation columns, and `reasons` are joined with
+    `; `. Header:
     `entity_id,name,status,score,tier,rank,reasons,criterion,contribution,imputed,missing_reason,value_id,value,value_status,value_reason,input,input_value,observation_id,source,provider,period_end,published_fact_id,doc_id,page,quote`.
     A criterion with no inputs gets one line with blank input columns. A `no_score` row with no criteria data gets one
     line.
@@ -218,32 +249,40 @@ Dataset **DA** = `from_authoritative(F, as_of=now)`.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
-| AC-1 | The fixture | Build DA | 4 rows. C: `auth_scope1` = `""`, `auth_scope1__reason` = `not_in_dataset`, `auth_scope1__value_id` = C's `auth_scope1` row id in `authoritative_values`. A: `auth_scope1` = `90` | holdout |
+| AC-1 | The fixture | Build DA | 4 rows. C: `auth_scope1` = `""`, `auth_scope1__reason` = `not_in_dataset`, `auth_scope1__value_id` = C's `auth_scope1` row id in `authoritative_values`. A: `auth_scope1` = `"90"` (dataset cells are strings), `auth_scope1__value_id` = the id as a string | holdout |
 | AC-2 | DA | `POST /api/decision/mechanisms/derive` on DA | No proposed criterion has a column ending in `__reason` or `__value_id` | holdout |
 | AC-3 | DA, S | Score | C: `status` = `no_score`, `reasons` = `["required_missing: auth_scope1 (not_in_dataset)"]` | holdout |
 | AC-4 | DA, S | Score | C: `score`, `rank`, `rank_min`, `rank_max`, `tier`, `tier_name` and `leverage` are all `null` | holdout |
 | AC-5 | DA, S | Score | The ranks of A, B and D are exactly {1, 2, 3} | holdout |
 | AC-6 | DA, S | Score | B's `auth_capex` contribution: `missing_reason` = `no_rule_value`, `value_id` = B's `auth_capex` row id, `imputed` = `false` | holdout |
 | AC-7 | DA, S | Score | A's contributions: `value_id` = A's `auth_scope1` and `auth_capex` row ids; `missing_reason` = `null` on both | holdout |
-| AC-8 | DA, S (`no_score_rows = "include"`) and S' = S with `required = false` | Score both | A, B and D have equal scores under S and S' (difference < 1e-9) | holdout |
+| AC-8 | DA, S (`no_score_rows = "include"`) and S' = S with `required = false` | Score both | A, B and D have equal scores (difference < 1e-9), equal ranks and equal tiers under S and S' | holdout |
 | AC-9 | DA, S with `no_score_rows = "exclude"`, and DA' = DA without C's row | Score S on DA and on DA' | A, B and D have equal scores in both (difference < 1e-9) | holdout |
 | AC-10 | The existing Decision Studio tests (`backend/tests/test_decision_*.py`) | Run on the PR build | All pass with no test changed | unit |
 | AC-11 | A levels-mode framework with a criterion `required = true` | `POST /api/decision/mechanisms` | HTTP 422; the message contains `required` | holdout |
-| AC-12 | An uploaded CSV with a blank cell in column `x` for row R, and a framework where `x` is required | Score | R: `status` = `no_score`, `reasons` = `["required_missing: x (blank)"]` | holdout |
+| AC-12 | An uploaded CSV with a blank cell in column `x` for row R, and a relative-mode framework where `x` is required | Score | R: `status` = `no_score`, `reasons` = `["required_missing: x (blank)"]` | holdout |
 | AC-13 | DA, S ratified | Publish | The published row for C has `status` = `no_score` and the same `reasons` as AC-3. The published row for A has `criteria` with A's two `value_id`s. The snapshot's `source` = `authoritative` | holdout |
-| AC-14 | After AC-13 | `GET /api/decision/published/{snapshot}/rows/A/lineage` | Criterion `auth_scope1`: `value` = 90, `value_id` = A's row id; one input `scope1_tco2e` with its `observation_id`; one citation with `doc_id` = `d1`, `page` = 4, `quote` = `Scope 1: 90 tCO2e` | holdout |
-| AC-15 | After AC-13, F republished so that A's `auth_scope1` = 95 (a new version) | The same request as AC-14 | `auth_scope1` still has `value` = 90 and the same `value_id`, and `superseded` = `true` | holdout |
+| AC-14 | After AC-13 | `GET /api/decision/published/{snapshot}/rows/A/lineage` | In `criteria` the entry with `column` = `auth_scope1` has `link` = `authoritative`, `value_id` = A's row id and `value.value` == 90 (a JSON number). Its `inputs` holds exactly one entry, with `name` = `scope1_tco2e`, the observation's id as `observation_id`, and `citations` = `[{"doc_id": "d1", "page": 4, "quote": "Scope 1: 90 tCO2e", "grounded": true}]` | holdout |
+| AC-15 | After AC-13, F republished so that A's `auth_scope1` = 95 (a new version) | The same request as AC-14 | The `auth_scope1` entry still has `value.value` == 90 and the same `value_id`, and `value.superseded` = `true` | holdout |
 | AC-16 | A published decision of a framework scored on an uploaded CSV | Lineage of any row | Every criterion has `link` = `dataset_cell` | holdout |
 | AC-17 | A published decision file written before this change (rows have no `criteria` key) | Lineage of a row | Response 200. The row's status and score are present, and `criteria` = `[{"link": "not_recorded"}]` | holdout |
 | AC-18 | After AC-13 | Lineage for an unknown snapshot id; for an unknown entity id | HTTP 404 for each | holdout |
-| AC-19 | After AC-13 | `GET …/lineage.csv` | The first line equals the header in §6 exactly; there are exactly 8 data lines (A, B, C and D × 2 criteria × 1 input; C's `auth_scope1` has no input and gives one line with blank input columns) | holdout |
+| AC-19 | After AC-13 | `GET …/lineage.csv` | The first line equals the header in §6 exactly; there are exactly 8 data lines: A, B, C and D × 2 criteria × 1 line. Each input has at most one citation, and C's `auth_scope1` has no input, so it gives one line with blank input columns | holdout |
 | AC-20 | After AC-13 | `GET …/lineage.json` | A list of 4 objects, each equal to that row's `…/rows/{id}/lineage` response | holdout |
-| AC-21 | After AC-13 | `as_fields(snapshot)` | C has `decision.<S>.status` = `no_score` and `decision.<S>.reasons` = `required_missing: auth_scope1 (not_in_dataset)`, and no `.score`, `.tier` or `.rank` key. A's keys are a superset of those before this change | holdout |
+| AC-21 | After AC-13 | `as_fields(snapshot)` | C has `decision.<S>.status` = `no_score` and `decision.<S>.reasons` = `required_missing: auth_scope1 (not_in_dataset)`, and no `.score`, `.tier` or `.rank` key. A has the keys `decision.<S>.score`, `.tier`, `.tier_name`, `.rank`, `.rank_min`, `.rank_max` and `.status`, with `.status` = `scored` | holdout |
 | AC-22 | S saved with `no_score_rows = "include"` | Save a new version with `"exclude"` | The audit log for the new version has one entry naming `no_score_rows`, with `origin` = `human` | unit |
 | AC-23 | After AC-13, in the running app | In Decision Studio Results, click C's `no_score` badge; then click A's score | C's panel shows `required_missing: auth_scope1 (not_in_dataset)`. A's panel shows `auth_scope1` = 90 → `scope1_tco2e` → `d1` page 4 `Scope 1: 90 tCO2e` | evaluator |
 | AC-24 | After AC-13, with the coverage screen showing company A | Open the Steward coverage screen | A shows a link `Why: S <A's tier name>`; clicking it shows the same chain as AC-23 | evaluator |
-| AC-25 | After AC-13, with S's snapshot joined in Index Builder | Open Index Builder | Each company with a row shows a `Why` link that opens its chain | evaluator |
+| AC-25 | After AC-13, with S's snapshot joined in Index Builder | Open Index Builder | A shows `Why: S <A's tier name>` and C shows `Why: S no score`; clicking A's link shows the chain of AC-23 | evaluator |
 | AC-26 | S open on the Mechanism tab | Look at the missing-data settings | A control for `no_score_rows` with the choices "include" and "exclude", showing the saved value | evaluator |
+| AC-27 | After AC-13, A's `auth_scope1` row deleted from `authoritative_values` directly in the test database | The lineage of A | The `auth_scope1` entry has `link` = `missing`, `value_id` = the deleted id, and `value` = `null` | holdout |
+| AC-28 | After AC-13, the `observation_id` removed from A's `scope1_tco2e` input in the stored derivation (test setup) | The lineage of A | That input has `link` = `no_observation`, `observation_id` = `null` and `citations` = `[]` | holdout |
+| AC-29 | An uploaded CSV whose numeric column `x` holds `n/a` for row R, and a relative framework where `x` is required | Score | R: `status` = `no_score`, `reasons` = `["required_missing: x (blank)"]` | holdout |
+| AC-30 | DA, S with `auth_scope1` required but disabled | Score | C has `status` = `insufficient` or `scored` (not `no_score`), and `reasons` = `[]` | holdout |
+| AC-31 | DA, S with `missing` = `"mean"` | Score | B's `auth_capex` contribution: `imputed` = `true`, `missing_reason` = `no_rule_value` | holdout |
+| AC-32 | DA, S, not yet published, in the running app | In Results, click C's `no_score` badge | The panel shows `required_missing: auth_scope1 (not_in_dataset)` | evaluator |
+| AC-33 | After AC-13, in the running app | The published-decisions list | S's snapshot shows "Download lineage (CSV)" and "Download lineage (JSON)", and each downloads the file of AC-19 / AC-20 | evaluator |
+| AC-34 | After AC-13, S published a second time, and a framework T published with a row for A | Open the Steward coverage screen | A shows exactly two links, `Why: S …` (opening the second S snapshot) and `Why: T …` | evaluator |
 
 Must not change: scoring of frameworks with no required criterion (AC-8, AC-10); existing `as_fields` keys (AC-21);
 published decisions written before this change still load and resolve (AC-17).
