@@ -202,7 +202,7 @@ and `citations` empty).
 
 - `as_fields` adds `decision.<framework_id>.status` (`scored`, `excluded`, `insufficient` or `no_score`) and
   `decision.<framework_id>.reasons` (the reasons joined with `; `). All existing fields are unchanged.
-- A `no_score` company has no `.score`, `.tier` or `.rank` field. Coverage rules and index screens treat those as
+- A `no_score` row emits none of today's keys `.score`, `.tier`, `.tier_name`, `.rank` or `.rank_max`; it has only `.status` and `.reasons`. Coverage rules and index screens treat those as
   missing, under their own missing-value policy, which the user sets there. A rule can also read `.status` directly.
   The company appears in Index Builder's "matched" count because `.status` is present.
 
@@ -237,7 +237,7 @@ F is published for companies A, B, C and D:
 | C | `no_value`, reason `not_in_dataset` | 5 |
 | D | 70 | 20 |
 
-A's `scope1_tco2e` observation has one `value_citations` row: doc `d1`, page 4, quote `Scope 1: 90 tCO2e`.
+A's `scope1_tco2e` observation has one `value_citations` row: doc `d1`, page 4, quote `Scope 1: 90 tCO2e`, grounded `true`.
 
 Scoring framework **S**:
 - relative mode;
@@ -249,7 +249,7 @@ Dataset **DA** = `from_authoritative(F, as_of=now)`.
 
 | ID | Given | When | Then (observable, exact) | Checked by |
 |----|-------|------|--------------------------|------------|
-| AC-1 | The fixture | Build DA | 4 rows. C: `auth_scope1` = `""`, `auth_scope1__reason` = `not_in_dataset`, `auth_scope1__value_id` = C's `auth_scope1` row id in `authoritative_values`. A: `auth_scope1` = `"90"` (dataset cells are strings), `auth_scope1__value_id` = the id as a string | holdout |
+| AC-1 | The fixture | Build DA | 4 rows. C: `auth_scope1` = `""`, `auth_scope1__reason` = `not_in_dataset`, `auth_scope1__value_id` = C's `auth_scope1` row id in `authoritative_values`, as a string. A: `auth_scope1` = `"90"` (dataset cells are strings), `auth_scope1__value_id` = the id as a string | holdout |
 | AC-2 | DA | `POST /api/decision/mechanisms/derive` on DA | No proposed criterion has a column ending in `__reason` or `__value_id` | holdout |
 | AC-3 | DA, S | Score | C: `status` = `no_score`, `reasons` = `["required_missing: auth_scope1 (not_in_dataset)"]` | holdout |
 | AC-4 | DA, S | Score | C: `score`, `rank`, `rank_min`, `rank_max`, `tier`, `tier_name` and `leverage` are all `null` | holdout |
@@ -269,7 +269,7 @@ Dataset **DA** = `from_authoritative(F, as_of=now)`.
 | AC-18 | After AC-13 | Lineage for an unknown snapshot id; for an unknown entity id | HTTP 404 for each | holdout |
 | AC-19 | After AC-13 | `GET …/lineage.csv` | The first line equals the header in §6 exactly; there are exactly 8 data lines: A, B, C and D × 2 criteria × 1 line. Each input has at most one citation, and C's `auth_scope1` has no input, so it gives one line with blank input columns | holdout |
 | AC-20 | After AC-13 | `GET …/lineage.json` | A list of 4 objects, each equal to that row's `…/rows/{id}/lineage` response | holdout |
-| AC-21 | After AC-13 | `as_fields(snapshot)` | C has `decision.<S>.status` = `no_score` and `decision.<S>.reasons` = `required_missing: auth_scope1 (not_in_dataset)`, and no `.score`, `.tier` or `.rank` key. A has the keys `decision.<S>.score`, `.tier`, `.tier_name`, `.rank`, `.rank_min`, `.rank_max` and `.status`, with `.status` = `scored` | holdout |
+| AC-21 | After AC-13 | `as_fields(snapshot)` | C has `decision.<S>.status` = `no_score` and `decision.<S>.reasons` = `required_missing: auth_scope1 (not_in_dataset)`, and none of the keys `.score`, `.tier`, `.tier_name`, `.rank` or `.rank_max`. A has exactly the keys `decision.<S>.score`, `.tier`, `.tier_name`, `.rank`, `.rank_max`, `.status` and `.reasons`, with `.status` = `scored` and `.reasons` = `""` | holdout |
 | AC-22 | S saved with `no_score_rows = "include"` | Save a new version with `"exclude"` | The audit log for the new version has one entry naming `no_score_rows`, with `origin` = `human` | unit |
 | AC-23 | After AC-13, in the running app | In Decision Studio Results, click C's `no_score` badge; then click A's score | C's panel shows `required_missing: auth_scope1 (not_in_dataset)`. A's panel shows `auth_scope1` = 90 → `scope1_tco2e` → `d1` page 4 `Scope 1: 90 tCO2e` | evaluator |
 | AC-24 | After AC-13, with the coverage screen showing company A | Open the Steward coverage screen | A shows a link `Why: S <A's tier name>`; clicking it shows the same chain as AC-23 | evaluator |
@@ -278,8 +278,8 @@ Dataset **DA** = `from_authoritative(F, as_of=now)`.
 | AC-27 | After AC-13, A's `auth_scope1` row deleted from `authoritative_values` directly in the test database | The lineage of A | The `auth_scope1` entry has `link` = `missing`, `value_id` = the deleted id, and `value` = `null` | holdout |
 | AC-28 | After AC-13, the `observation_id` removed from A's `scope1_tco2e` input in the stored derivation (test setup) | The lineage of A | That input has `link` = `no_observation`, `observation_id` = `null` and `citations` = `[]` | holdout |
 | AC-29 | An uploaded CSV whose numeric column `x` holds `n/a` for row R, and a relative framework where `x` is required | Score | R: `status` = `no_score`, `reasons` = `["required_missing: x (blank)"]` | holdout |
-| AC-30 | DA, S with `auth_scope1` required but disabled | Score | C has `status` = `insufficient` or `scored` (not `no_score`), and `reasons` = `[]` | holdout |
-| AC-31 | DA, S with `missing` = `"mean"` | Score | B's `auth_capex` contribution: `imputed` = `true`, `missing_reason` = `no_rule_value` | holdout |
+| AC-30 | DA, S with `auth_scope1` required but disabled | Score | C has `status` = `scored`, a non-null `rank`, and `reasons` = `[]` | holdout |
+| AC-31 | DA, S with `missing` = `"mean"` (the existing mean-imputation policy value) | Score | B's `auth_capex` contribution: `imputed` = `true`, `missing_reason` = `no_rule_value` | holdout |
 | AC-32 | DA, S, not yet published, in the running app | In Results, click C's `no_score` badge | The panel shows `required_missing: auth_scope1 (not_in_dataset)` | evaluator |
 | AC-33 | After AC-13, in the running app | The published-decisions list | S's snapshot shows "Download lineage (CSV)" and "Download lineage (JSON)", and each downloads the file of AC-19 / AC-20 | evaluator |
 | AC-34 | After AC-13, S published a second time, and a framework T published with a row for A | Open the Steward coverage screen | A shows exactly two links, `Why: S …` (opening the second S snapshot) and `Why: T …` | evaluator |
