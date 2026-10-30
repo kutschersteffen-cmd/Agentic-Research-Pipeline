@@ -6419,6 +6419,12 @@
       "title": "Enabled",
       "type": "boolean"
      },
+     "required": {
+      "default": false,
+      "description": "Relative mode: a company without a usable value here gets no score, with the reason, instead of a filled-in value. Applies whatever its weight; a disabled criterion is never required.",
+      "title": "Required",
+      "type": "boolean"
+     },
      "weight": {
       "default": 1.0,
       "description": "Relative share of its dimension's weight. 0 parks it without deleting it.",
@@ -6466,6 +6472,18 @@
       "title": "Low Confidence",
       "type": "boolean"
      },
+     "missing_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Why the value was missing, when it was.",
+      "title": "Missing Reason"
+     },
      "normalised": {
       "anyOf": [
        {
@@ -6497,6 +6515,18 @@
         "type": "null"
        }
       ]
+     },
+     "value_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The authoritative_values row this criterion read, if any.",
+      "title": "Value Id"
      },
      "weight": {
       "default": 0.0,
@@ -8320,6 +8350,14 @@
       ],
       "title": "Rank Min"
      },
+     "reasons": {
+      "description": "no_score: one `required_missing: <column> (<reason>)` per missing required criterion.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Reasons",
+      "type": "array"
+     },
      "score": {
       "anyOf": [
        {
@@ -8358,7 +8396,8 @@
       "enum": [
        "scored",
        "excluded",
-       "insufficient"
+       "insufficient",
+       "no_score"
       ],
       "title": "Status",
       "type": "string"
@@ -8494,7 +8533,8 @@
         "enum": [
          "scored",
          "excluded",
-         "insufficient"
+         "insufficient",
+         "no_score"
         ],
         "type": "string"
        },
@@ -8510,7 +8550,8 @@
         "enum": [
          "scored",
          "excluded",
-         "insufficient"
+         "insufficient",
+         "no_score"
         ],
         "type": "string"
        },
@@ -11776,6 +11817,16 @@
       "title": "Name",
       "type": "string"
      },
+     "no_score_rows": {
+      "default": "include",
+      "description": "Companies with no score (a required criterion is missing). include: they still count in normalisation, means, cohorts and entropy weights. exclude: the others are normalised among themselves.",
+      "enum": [
+       "include",
+       "exclude"
+      ],
+      "title": "No Score Rows",
+      "type": "string"
+     },
      "norm": {
       "default": "percentile",
       "enum": [
@@ -14099,6 +14150,51 @@
     "title": "PublishRequest",
     "type": "object"
    },
+   "PublishedCriterion": {
+    "properties": {
+     "column": {
+      "title": "Column",
+      "type": "string"
+     },
+     "contribution": {
+      "default": 0.0,
+      "title": "Contribution",
+      "type": "number"
+     },
+     "imputed": {
+      "default": false,
+      "title": "Imputed",
+      "type": "boolean"
+     },
+     "missing_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Missing Reason"
+     },
+     "value_id": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value Id"
+     }
+    },
+    "required": [
+     "column"
+    ],
+    "title": "PublishedCriterion",
+    "type": "object"
+   },
    "PublishedDecision": {
     "description": "A ratified framework's result on one dataset, frozen and signed so\nother functions can read it. Stewardship coverage rules and index\nconstruction see it as company fields (`decision.<framework_id>.tier`\netc.); neither ever reads a live, re-scorable result.",
     "properties": {
@@ -14180,6 +14276,29 @@
      "snapshot_id": {
       "title": "Snapshot Id",
       "type": "string"
+     },
+     "source": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The dataset's source, e.g. authoritative.",
+      "title": "Source"
+     },
+     "source_ref": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Ref"
      }
     },
     "required": [
@@ -14196,6 +14315,21 @@
    },
    "PublishedRow": {
     "properties": {
+     "criteria": {
+      "anyOf": [
+       {
+        "items": {
+         "$ref": "#/components/schemas/PublishedCriterion"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Per criterion: contribution and the value it read. None: published before lineage.",
+      "title": "Criteria"
+     },
      "entity_id": {
       "title": "Entity Id",
       "type": "string"
@@ -14237,6 +14371,13 @@
       ],
       "title": "Rank Min"
      },
+     "reasons": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Reasons",
+      "type": "array"
+     },
      "score": {
       "anyOf": [
        {
@@ -14253,7 +14394,8 @@
       "enum": [
        "scored",
        "excluded",
-       "insufficient"
+       "insufficient",
+       "no_score"
       ],
       "title": "Status",
       "type": "string"

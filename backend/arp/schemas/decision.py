@@ -15,7 +15,7 @@ WeightPreset = Literal["balanced", "equal", "entropy", "manual"]
 CutMode = Literal["quantile", "breaks", "absolute"]
 GateOp = Literal["is", "isnot", "lt", "gt", "eq"]
 GateOutcome = Literal["exclude", "demote", "flag"]
-EntityStatus = Literal["scored", "excluded", "insufficient"]
+EntityStatus = Literal["scored", "excluded", "insufficient", "no_score"]
 AuditOrigin = Literal["derived", "human"]
 ScoringMode = Literal["relative", "levels"]
 RULE_NODE_TYPES = frozenset({"inputNode", "outputNode", "expressionNode", "decisionTableNode", "switchNode"})
@@ -104,6 +104,11 @@ class Criterion(BaseModel):
     weight: float = Field(default=1.0, ge=0.0, description="Relative share of its dimension's weight. 0 parks it without deleting it.")
     enabled: bool = True
     direction: Direction = "higher"
+    required: bool = Field(
+        default=False,
+        description="Relative mode: a company without a usable value here gets no score, with the reason, instead of "
+        "a filled-in value. Applies whatever its weight; a disabled criterion is never required.",
+    )
 
 
 class LevelRule(BaseModel):
@@ -228,6 +233,11 @@ class MechanismConfig(BaseModel):
     norm: NormMethod = "percentile"
     winsor_pct: float = Field(default=5.0, ge=0.0, le=20.0)
     missing: MissingPolicy = "renormalise"
+    no_score_rows: Literal["include", "exclude"] = Field(
+        default="include",
+        description="Companies with no score (a required criterion is missing). include: they still count in "
+        "normalisation, means, cohorts and entropy weights. exclude: the others are normalised among themselves.",
+    )
     weighting: WeightPreset = "balanced"
     min_coverage_pct: float = Field(default=60.0, ge=0.0, le=100.0)
 
@@ -328,6 +338,8 @@ class MechanismConfig(BaseModel):
         quietly matching nothing on every row."""
         if self.level_min >= self.level_max:
             raise ValueError("level_min must be below level_max.")
+        if self.mode == "levels" and any(c.required for c in self.criteria):
+            raise ValueError("A required criterion is only available in relative mode.")
         import zen
 
         for criterion in self.level_criteria:
@@ -383,6 +395,8 @@ class CriterionContribution(BaseModel):
     criterion_id: str | None = None
     overridden_from: float | None = None
     override: LevelOverride | None = None
+    value_id: int | None = Field(default=None, description="The authoritative_values row this criterion read, if any.")
+    missing_reason: str | None = Field(default=None, description="Why the value was missing, when it was.")
 
 
 class EntityDecision(BaseModel):
@@ -396,6 +410,7 @@ class EntityDecision(BaseModel):
     grounded_coverage: float | None = None
 
     status: EntityStatus = "scored"
+    reasons: list[str] = Field(default_factory=list, description="no_score: one `required_missing: <column> (<reason>)` per missing required criterion.")
     tier: int | None = None
     tier_name: str | None = None
     tier_action: str | None = None
@@ -537,6 +552,14 @@ class DecisionComparison(BaseModel):
     )
 
 
+class PublishedCriterion(BaseModel):
+    column: str
+    contribution: float = 0.0
+    imputed: bool = False
+    value_id: int | None = None
+    missing_reason: str | None = None
+
+
 class PublishedRow(BaseModel):
     entity_id: str
     name: str
@@ -547,6 +570,10 @@ class PublishedRow(BaseModel):
     rank_min: int | None = None
     rank_max: int | None = None
     status: EntityStatus = "scored"
+    reasons: list[str] = Field(default_factory=list)
+    criteria: list[PublishedCriterion] | None = Field(
+        default=None, description="Per criterion: contribution and the value it read. None: published before lineage."
+    )
 
 
 class PublishedDecision(BaseModel):
@@ -573,3 +600,5 @@ class PublishedDecision(BaseModel):
         "tiered on its first publication's cut-points, so a tier only changes when the score does.",
     )
     rows: list[PublishedRow] = Field(default_factory=list)
+    source: str | None = Field(default=None, description="The dataset's source, e.g. authoritative.")
+    source_ref: str | None = None

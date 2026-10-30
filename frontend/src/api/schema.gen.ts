@@ -10135,6 +10135,12 @@ export interface components {
              */
             enabled: boolean;
             /**
+             * Required
+             * @description Relative mode: a company without a usable value here gets no score, with the reason, instead of a filled-in value. Applies whatever its weight; a disabled criterion is never required.
+             * @default false
+             */
+            required: boolean;
+            /**
              * Weight
              * @description Relative share of its dimension's weight. 0 parks it without deleting it.
              * @default 1
@@ -10162,11 +10168,21 @@ export interface components {
              * @default false
              */
             low_confidence: boolean;
+            /**
+             * Missing Reason
+             * @description Why the value was missing, when it was.
+             */
+            missing_reason?: string | null;
             /** Normalised */
             normalised?: number | null;
             /** Overridden From */
             overridden_from?: number | null;
             override?: components["schemas"]["LevelOverride"] | null;
+            /**
+             * Value Id
+             * @description The authoritative_values row this criterion read, if any.
+             */
+            value_id?: number | null;
             /**
              * Weight
              * @default 0
@@ -10918,6 +10934,11 @@ export interface components {
             rank_max?: number | null;
             /** Rank Min */
             rank_min?: number | null;
+            /**
+             * Reasons
+             * @description no_score: one `required_missing: <column> (<reason>)` per missing required criterion.
+             */
+            reasons?: string[];
             /** Score */
             score?: number | null;
             /** Segment */
@@ -10929,7 +10950,7 @@ export interface components {
              * @default scored
              * @enum {string}
              */
-            status: "scored" | "excluded" | "insufficient";
+            status: "scored" | "excluded" | "insufficient" | "no_score";
             /** Tier */
             tier?: number | null;
             /** Tier Action */
@@ -10961,9 +10982,9 @@ export interface components {
             /** Score Delta */
             score_delta?: number | null;
             /** Status After */
-            status_after?: ("scored" | "excluded" | "insufficient") | null;
+            status_after?: ("scored" | "excluded" | "insufficient" | "no_score") | null;
             /** Status Before */
-            status_before?: ("scored" | "excluded" | "insufficient") | null;
+            status_before?: ("scored" | "excluded" | "insufficient" | "no_score") | null;
             /** Tier After */
             tier_after?: number | null;
             /** Tier Before */
@@ -12407,6 +12428,13 @@ export interface components {
              */
             name: string;
             /**
+             * No Score Rows
+             * @description Companies with no score (a required criterion is missing). include: they still count in normalisation, means, cohorts and entropy weights. exclude: the others are normalised among themselves.
+             * @default include
+             * @enum {string}
+             */
+            no_score_rows: "include" | "exclude";
+            /**
              * Norm
              * @default percentile
              * @enum {string}
@@ -13395,6 +13423,25 @@ export interface components {
             /** Version */
             version?: number | null;
         };
+        /** PublishedCriterion */
+        PublishedCriterion: {
+            /** Column */
+            column: string;
+            /**
+             * Contribution
+             * @default 0
+             */
+            contribution: number;
+            /**
+             * Imputed
+             * @default false
+             */
+            imputed: boolean;
+            /** Missing Reason */
+            missing_reason?: string | null;
+            /** Value Id */
+            value_id?: number | null;
+        };
         /**
          * PublishedDecision
          * @description A ratified framework's result on one dataset, frozen and signed so
@@ -13440,9 +13487,21 @@ export interface components {
             rows?: components["schemas"]["PublishedRow"][];
             /** Snapshot Id */
             snapshot_id?: string;
+            /**
+             * Source
+             * @description The dataset's source, e.g. authoritative.
+             */
+            source?: string | null;
+            /** Source Ref */
+            source_ref?: string | null;
         };
         /** PublishedRow */
         PublishedRow: {
+            /**
+             * Criteria
+             * @description Per criterion: contribution and the value it read. None: published before lineage.
+             */
+            criteria?: components["schemas"]["PublishedCriterion"][] | null;
             /** Entity Id */
             entity_id: string;
             /** Name */
@@ -13453,6 +13512,8 @@ export interface components {
             rank_max?: number | null;
             /** Rank Min */
             rank_min?: number | null;
+            /** Reasons */
+            reasons?: string[];
             /** Score */
             score?: number | null;
             /**
@@ -13460,7 +13521,7 @@ export interface components {
              * @default scored
              * @enum {string}
              */
-            status: "scored" | "excluded" | "insufficient";
+            status: "scored" | "excluded" | "insufficient" | "no_score";
             /** Tier */
             tier?: number | null;
             /** Tier Name */
