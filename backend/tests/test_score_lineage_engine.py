@@ -139,3 +139,17 @@ def test_exclude_with_every_row_no_score_does_not_crash():
         r["auth_scope1"], r["auth_scope1__reason"] = "", rows[r["company_id"]][1]
     result = apply_mechanism(ds, s_config(no_score_rows="exclude"), with_stability=False)
     assert {e.status for e in result.entities} == {"no_score"}
+
+
+def test_review_c1_exclude_keeps_each_rows_own_confidence():
+    rows = [{"Company": c, "x": x, "y": "1"} for c, x in (("A", ""), ("B", "2"), ("C", "3"), ("D", "4"), ("E", "5"))]
+    ds = Dataset(dataset_id="ds_c", name="c", columns=["Company", "x", "y"], rows=rows,
+                 confidence={"y": [0.1, 0.9, 0.9, 0.9, 0.1]})
+    config = MechanismConfig(
+        label_column="Company", min_coverage_pct=60, require_grounded_coverage=True, grounded_confidence_min=0.8,
+        dimensions=[Dimension(id="d1", name="D")],
+        criteria=[Criterion(column="x", dimension_id="d1", required=True, weight=0.0001), Criterion(column="y", dimension_id="d1")],
+    )
+    include = {e.name: e.status for e in apply_mechanism(ds, config, with_stability=False).entities}
+    exclude = {e.name: e.status for e in apply_mechanism(ds, config.model_copy(update={"no_score_rows": "exclude"}), with_stability=False).entities}
+    assert (exclude["B"], exclude["E"]) == (include["B"], include["E"])

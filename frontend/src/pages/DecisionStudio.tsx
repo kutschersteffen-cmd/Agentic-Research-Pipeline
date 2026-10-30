@@ -1165,7 +1165,7 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
             <DecisionResultsTable
               result={result}
               config={config}
-              published={lineageSnapshot}
+              published={unsaved ? null : lineageSnapshot /* edited: the live result no longer matches it */}
               orderBy={orderBy}
               onOrderBy={setOrderBy}
               onExplain={onExplain}

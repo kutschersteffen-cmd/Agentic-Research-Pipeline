@@ -20,7 +20,7 @@ from arp.decision.compare import compare_datasets
 from arp.decision.dataset import Dataset, build_dataset
 from arp.decision.diffing import describe_changes
 from arp.decision.indicator_list import build_framework, parse_indicator_list
-from arp.decision.lineage import lineage_csv, row_lineage
+from arp.decision.lineage import lineage_csv, lineage_rows, row_lineage
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
 from arp.decision.parsing import load_table
 from arp.decision.profiling import profile_dataset
@@ -838,10 +838,6 @@ def _published_or_404(snapshot_id: str, store: DecisionStore) -> PublishedDecisi
     return snapshot
 
 
-def _all_lineage(snapshot: PublishedDecision, values) -> list[dict]:
-    return [row_lineage(snapshot, r.entity_id, values=values) for r in snapshot.rows]
-
-
 @router.get("/published/{snapshot_id}/rows/{entity_id}/lineage")
 def published_row_lineage(
     snapshot_id: str, entity_id: str, store: DecisionStore = Depends(get_decision_store),
@@ -859,7 +855,8 @@ def published_row_lineage(
 def published_lineage_json(
     snapshot_id: str, store: DecisionStore = Depends(get_decision_store), values=Depends(authoritative_store_dep)
 ) -> list[dict]:
-    return _all_lineage(_published_or_404(snapshot_id, store), values)
+    snapshot = _published_or_404(snapshot_id, store)
+    return lineage_rows(snapshot, snapshot.rows, values=values)
 
 
 @router.get("/published/{snapshot_id}/lineage.csv", response_class=PlainTextResponse)
@@ -868,11 +865,12 @@ def published_lineage_csv(
 ) -> PlainTextResponse:
     snapshot = _published_or_404(snapshot_id, store)
     return PlainTextResponse(
-        lineage_csv(_all_lineage(snapshot, values)), media_type="text/csv",
+        lineage_csv(lineage_rows(snapshot, snapshot.rows, values=values)), media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="lineage-{snapshot_id}.csv"'},
     )
 
 
 @router.get("/published", response_model=list[PublishedDecision])
 def list_published(store: DecisionStore = Depends(get_decision_store)) -> list[PublishedDecision]:
-    return store.list_published()
+    # Without per-row criteria: they are only for the lineage routes, and would make this list ~10x larger.
+    return [p.model_copy(update={"rows": [r.model_copy(update={"criteria": None}) for r in p.rows]}) for p in store.list_published()]

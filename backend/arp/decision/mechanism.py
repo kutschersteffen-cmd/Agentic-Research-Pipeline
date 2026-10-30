@@ -530,7 +530,10 @@ def _without_no_score_rows(dataset: Dataset, config: MechanismConfig, audit: lis
     places (publishing lines entities up with dataset rows). The rule graph already ran on `dataset`."""
     plain = config.model_copy(update={"rule_graph": None, "no_score_rows": "include"})
     keep = [i for i, r in enumerate(reasons) if not r]
-    sub = dataset.model_copy(update={"rows": [dataset.rows[i] for i in keep]})
+    sub = dataset.model_copy(update={
+        "rows": [dataset.rows[i] for i in keep],
+        "confidence": {k: [v[i] for i in keep] for k, v in dataset.confidence.items()},  # per-row, so filter it too
+    })
     result = _apply_config(sub, plain, audit, with_stability=with_stability, overrides=None)
     full = _apply_config(dataset, plain, [], with_stability=False, overrides=None)  # its no_score rows, unscored
     scored = iter(result.entities)

@@ -19,6 +19,13 @@ CSV_HEADER = [
 ]
 
 
+def _values(session: Session, ids: set[int]) -> dict[int, dict]:
+    from arp.authoritative.models import AuthoritativeValue
+    from arp.authoritative.store import _row
+
+    return {v.id: _row(v, derivation=True) for v in session.scalars(select(AuthoritativeValue).where(AuthoritativeValue.id.in_(ids)))} if ids else {}
+
+
 def _citations(session: Session, observation_ids: list[int]) -> dict[int, list[dict]]:
     from arp.db.models import ValueCitation
 
@@ -31,9 +38,8 @@ def _citations(session: Session, observation_ids: list[int]) -> dict[int, list[d
     return out
 
 
-def _inputs(session: Session, derivation: dict) -> list[dict]:
+def _inputs(derivation: dict, cited: dict[int, list[dict]]) -> list[dict]:
     inputs = derivation.get("inputs") or {}
-    cited = _citations(session, [i["observation_id"] for i in inputs.values() if i.get("observation_id")])
     return [
         {
             "name": name, "value": i.get("value"), "status": i.get("status"), "source": i.get("source"),
@@ -46,7 +52,7 @@ def _inputs(session: Session, derivation: dict) -> list[dict]:
     ]
 
 
-def _criterion(session: Session, values, c) -> dict:
+def _criterion(c, values: dict[int, dict], cited: dict[int, list[dict]]) -> dict:
     base = {"column": c.column, "contribution": c.contribution, "imputed": c.imputed,
             "missing_reason": c.missing_reason, "value_id": c.value_id}
     if c.value_id is None:
@@ -60,7 +66,7 @@ def _criterion(session: Session, values, c) -> dict:
         # valid_to is today's validity, not the scoring day's: labelled as current, the value itself never changes
         "superseded": v["valid_to"] is not None, "current_valid_to": v["valid_to"],
     }
-    return {**base, "link": "authoritative", "value": value, "inputs": _inputs(session, v["derivation"])}
+    return {**base, "link": "authoritative", "value": value, "inputs": _inputs(v["derivation"], cited)}
 
 
 def _row(snapshot: PublishedDecision, entity_id: str) -> PublishedRow:
@@ -72,7 +78,21 @@ def _row(snapshot: PublishedDecision, entity_id: str) -> PublishedRow:
 
 def row_lineage(snapshot: PublishedDecision, entity_id: str, *, values) -> dict:
     """`values` is an AuthoritativeStore. Raises KeyError for an entity the snapshot has no row for."""
-    r = _row(snapshot, entity_id)
+    return lineage_rows(snapshot, [_row(snapshot, entity_id)], values=values)[0]
+
+
+def lineage_rows(snapshot: PublishedDecision, rows: list[PublishedRow], *, values) -> list[dict]:
+    """The lineage of `rows` in two queries in all (values, then citations), whatever the number of rows."""
+    ids = {c.value_id for r in rows for c in r.criteria or [] if c.value_id is not None}
+    with Session(values.engine) as session:
+        found = _values(session, ids)
+        obs = [i["observation_id"] for v in found.values() for i in (v["derivation"].get("inputs") or {}).values()
+               if i.get("observation_id")]
+        cited = _citations(session, obs)
+    return [_one(snapshot, r, found, cited) for r in rows]
+
+
+def _one(snapshot: PublishedDecision, r: PublishedRow, found: dict[int, dict], cited: dict[int, list[dict]]) -> dict:
     head = {
         "snapshot_id": snapshot.snapshot_id, "framework_id": snapshot.framework_id,
         "framework_version": snapshot.framework_version, "as_of": snapshot.as_of,
@@ -82,8 +102,7 @@ def row_lineage(snapshot: PublishedDecision, entity_id: str, *, values) -> dict:
     }
     if r.criteria is None:
         return {**head, "criteria": [{"link": "not_recorded"}]}
-    with Session(values.engine) as session:
-        return {**head, "criteria": [_criterion(session, values, c) for c in r.criteria]}
+    return {**head, "criteria": [_criterion(c, found, cited) for c in r.criteria]}
 
 
 def lineage_csv(rows: list[dict]) -> str:

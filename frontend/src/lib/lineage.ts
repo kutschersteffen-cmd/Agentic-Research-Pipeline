@@ -135,3 +135,10 @@ export function lineageFromEntity(e: LiveEntity, values: Record<number, FetchedV
     }),
   };
 }
+
+/** The published row for a live result, found by name. A name two rows share gives none: guessing would show
+ *  another company's chain, so the panel falls back to the live result. */
+export function publishedEntityId(rows: { entity_id: string; name: string }[], name: string): string | undefined {
+  const matches = rows.filter((r) => r.name === name);
+  return matches.length === 1 ? matches[0].entity_id : undefined;
+}

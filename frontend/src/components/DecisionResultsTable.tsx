@@ -1,4 +1,5 @@
 import { Fragment, useState } from "react";
+import { publishedEntityId } from "../lib/lineage";
 import { EntityLineage } from "./LineagePanel";
 import { LevelOverrides } from "./LevelOverrides";
 import { activatable } from "../lib/activatable";
@@ -179,7 +180,7 @@ export function DecisionResultsTable({
                       <EntityLineage
                         entity={entity}
                         snapshotId={published?.snapshot_id}
-                        entityId={published?.rows.find((r) => r.name === entity.name)?.entity_id}
+                        entityId={published ? publishedEntityId(published.rows, entity.name) : undefined}
                       />
                     </td>
                   </tr>

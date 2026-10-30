@@ -174,3 +174,29 @@ def test_csv_quotes_round_trip(env, pg):
     text = c.get(f"/api/decision/published/{snap}/lineage.csv").text
     quotes = [r["quote"] for r in csv.DictReader(io.StringIO(text)) if r["quote"]]
     assert quotes == ['Scope 1, "direct":\n90 tCO2e']
+
+
+def test_review_i1_lineage_export_uses_a_bounded_number_of_queries(env, pg):
+    from sqlalchemy import event
+
+    from arp.storage.postgres import get_engine
+
+    c, _, _, snap = env
+    count = {"n": 0}
+
+    def tally(*_args, **_kw):
+        count["n"] += 1
+
+    engine = get_engine(pg)
+    event.listen(engine, "before_cursor_execute", tally)
+    try:
+        assert c.get(f"/api/decision/published/{snap}/lineage.json").status_code == 200
+    finally:
+        event.remove(engine, "before_cursor_execute", tally)
+    assert count["n"] <= 3  # values, citations (and nothing per row or criterion)
+
+
+def test_review_i2_published_list_leaves_out_criteria(env):
+    c, _, _, _ = env
+    rows = [r for p in c.get("/api/decision/published").json() for r in p["rows"]]
+    assert rows and all(r.get("criteria") is None for r in rows)

@@ -39,3 +39,10 @@ test("a live result becomes the same lineage shape", () => {
   assert.equal(l.status, "no_score");
   assert.equal(l.criteria[0].link, "missing");
 });
+
+test("review I3: a name shared by two published rows opens no published chain", async () => {
+  const { publishedEntityId } = await import("../src/lib/lineage.ts");
+  const rows = [{ entity_id: "X1", name: "Acme" }, { entity_id: "X2", name: "Acme" }, { entity_id: "Y", name: "Beta" }];
+  assert.equal(publishedEntityId(rows, "Acme"), undefined);
+  assert.equal(publishedEntityId(rows, "Beta"), "Y");
+});
