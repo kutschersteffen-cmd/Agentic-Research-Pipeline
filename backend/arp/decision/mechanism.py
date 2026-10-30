@@ -309,6 +309,9 @@ def _apply_config(
     n = dataset.row_count
 
     normalised = _normalise_all(dataset, profiles, config, columns, config.norm, cohorts)
+    reasons = required_missing(dataset, config, normalised)
+    if config.no_score_rows == "exclude" and any(reasons) and not all(reasons):
+        return _without_no_score_rows(dataset, config, audit, reasons, with_stability=with_stability)
     # Always computed: entropy weighting needs it, and so does the
     # entropy alternative specification the rank-stability band is
     # measured over, whatever preset the framework itself uses.
@@ -354,7 +357,7 @@ def _apply_config(
         insufficient.append(base[i].score is None or coverage * 100 < config.min_coverage_pct)
 
     def mask(values: list[float | None]) -> list[float | None]:
-        return [v if (excluded_by[i] is None and not insufficient[i]) else None for i, v in enumerate(values)]
+        return [v if (excluded_by[i] is None and not insufficient[i] and not reasons[i]) else None for i, v in enumerate(values)]
 
     eligible = mask([b.score for b in base])
     cuts, cuts_origin = derive_cuts(eligible, config)
@@ -389,7 +392,9 @@ def _apply_config(
         status = "scored"
         tier: int | None = None
 
-        if excluded_by[i] is not None:
+        if reasons[i]:
+            status = "no_score"
+        elif excluded_by[i] is not None:
             status = "excluded"
             notes.append(f"Gate: {pretty(excluded_by[i].column)}")
         elif insufficient[i]:
@@ -425,10 +430,11 @@ def _apply_config(
                 name=str(row.get(config.label_column) or f"Row {i + 1}"),
                 segment=(row.get(config.segment_column) or None) if config.segment_column else None,
                 cohort=cohorts[i] if cohorts else None,
-                score=row_score.score,
+                score=None if status == "no_score" else row_score.score,
                 coverage=row_score.coverage,
                 grounded_coverage=row_score.grounded_coverage,
                 status=status,
+                reasons=reasons[i],
                 tier=tier,
                 tier_name=tier_definition.name if tier_definition else None,
                 tier_action=tier_definition.action if tier_definition else None,
@@ -439,7 +445,7 @@ def _apply_config(
                 size=size,
                 leverage=(size * (100.0 - row_score.score) / 100.0) if (size is not None and row_score.score is not None and status == "scored") else None,
                 dimension_scores=dimensions,
-                contributions=row_score.contributions,
+                contributions=_with_sources(row_score.contributions, row, normalised, i, zero=status == "no_score"),
             )
         )
 
@@ -486,6 +492,52 @@ def _apply_config(
         audit=audit,
         tier_inputs=tier_inputs,
     )
+
+
+def _cell_reason(row: dict, column: str) -> str:
+    return (row.get(f"{column}__reason") or "").strip() or "blank"
+
+
+def required_missing(dataset: Dataset, config: MechanismConfig, normalised: dict[str, list[float | None]]) -> list[list[str]]:
+    """Per row, one `required_missing: <column> (<reason>)` per enabled required criterion without a usable value:
+    a blank or unparseable cell (its normalised value is None), or a column the table lacks."""
+    required = [c.column for c in config.criteria if c.required and c.enabled]
+    out: list[list[str]] = []
+    for i, row in enumerate(dataset.rows):
+        missing = [c for c in required if c not in normalised or normalised[c][i] is None]
+        out.append([f"required_missing: {c} ({_cell_reason(row, c)})" for c in missing])
+    return out
+
+
+def _with_sources(contributions, row: dict, normalised: dict[str, list[float | None]], i: int, *, zero: bool):
+    """Each contribution with the authoritative value it read (`<column>__value_id`) and, when the value was
+    missing, why (`<column>__reason`, else `blank`)."""
+    out = []
+    for c in contributions:
+        value_id = (row.get(f"{c.column}__value_id") or "").strip()
+        missing = c.column not in normalised or normalised[c.column][i] is None
+        out.append(c.model_copy(update={
+            "value_id": int(value_id) if value_id.isdigit() else None,
+            "missing_reason": _cell_reason(row, c.column) if missing else None,
+            **({"contribution": 0.0} if zero else {}),
+        }))
+    return out
+
+
+def _without_no_score_rows(dataset: Dataset, config: MechanismConfig, audit: list[AuditEntry], reasons: list[list[str]],
+                           *, with_stability: bool) -> DecisionResult:
+    """no_score_rows = "exclude": score the other rows among themselves, then put the no_score rows back in their
+    places (publishing lines entities up with dataset rows). The rule graph already ran on `dataset`."""
+    plain = config.model_copy(update={"rule_graph": None, "no_score_rows": "include"})
+    keep = [i for i, r in enumerate(reasons) if not r]
+    sub = dataset.model_copy(update={"rows": [dataset.rows[i] for i in keep]})
+    result = _apply_config(sub, plain, audit, with_stability=with_stability, overrides=None)
+    full = _apply_config(dataset, plain, [], with_stability=False, overrides=None)  # its no_score rows, unscored
+    scored = iter(result.entities)
+    result.entities = [full.entities[i] if reasons[i] else next(scored) for i in range(len(reasons))]
+    audit.append(AuditEntry(stage="Sufficiency", item=f"{len(reasons) - len(keep)} rows with no score",
+                            decision="left out of normalisation", why="the framework's no_score_rows setting is exclude"))
+    return result
 
 
 def _cuts_fallback_reason(config: MechanismConfig, eligible: list[float | None]) -> str:
