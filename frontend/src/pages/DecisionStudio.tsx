@@ -400,6 +400,7 @@ export function DecisionStudio({ initialSource, initialRunId }: { initialSource?
           column,
           dimension_id: dimension.id,
           weight: 1,
+          required: false,
           enabled: true,
           direction: proposal?.direction ?? "higher",
         },
