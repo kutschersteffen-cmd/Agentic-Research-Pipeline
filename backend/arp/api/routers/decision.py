@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from arp.api.auth import ROLE_RANK, Principal, current_user
-from arp.api.deps import get_decision_store, get_portfolio_store, get_run_store, settings_dep
+from arp.api.deps import authoritative_store_dep, get_decision_store, get_portfolio_store, get_run_store, settings_dep
 from arp.authoritative.evaluate import check_outputs
 from arp.authoritative.source_values import SourcePick
 from arp.config import Settings
@@ -20,6 +20,7 @@ from arp.decision.compare import compare_datasets
 from arp.decision.dataset import Dataset, build_dataset
 from arp.decision.diffing import describe_changes
 from arp.decision.indicator_list import build_framework, parse_indicator_list
+from arp.decision.lineage import lineage_csv, row_lineage
 from arp.decision.mechanism import apply_mechanism, derive_mechanism
 from arp.decision.parsing import load_table
 from arp.decision.profiling import profile_dataset
@@ -825,6 +826,51 @@ def post_publish(
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     return store.save_published(snapshot)
+
+
+def _published_or_404(snapshot_id: str, store: DecisionStore) -> PublishedDecision:
+    try:
+        snapshot = store.get_published(snapshot_id)
+    except ValueError:  # not a valid snapshot id
+        snapshot = None
+    if snapshot is None:
+        raise HTTPException(404, f"Unknown published decision: {snapshot_id}")
+    return snapshot
+
+
+def _all_lineage(snapshot: PublishedDecision, values) -> list[dict]:
+    return [row_lineage(snapshot, r.entity_id, values=values) for r in snapshot.rows]
+
+
+@router.get("/published/{snapshot_id}/rows/{entity_id}/lineage")
+def published_row_lineage(
+    snapshot_id: str, entity_id: str, store: DecisionStore = Depends(get_decision_store),
+    values=Depends(authoritative_store_dep),
+) -> dict:
+    """How one published row's score, rank and tier came about: each criterion, the authoritative value it read,
+    that value's inputs and the document citations behind them."""
+    try:
+        return row_lineage(_published_or_404(snapshot_id, store), entity_id, values=values)
+    except KeyError as exc:
+        raise HTTPException(404, f"{snapshot_id} has no row for {entity_id}") from exc
+
+
+@router.get("/published/{snapshot_id}/lineage.json")
+def published_lineage_json(
+    snapshot_id: str, store: DecisionStore = Depends(get_decision_store), values=Depends(authoritative_store_dep)
+) -> list[dict]:
+    return _all_lineage(_published_or_404(snapshot_id, store), values)
+
+
+@router.get("/published/{snapshot_id}/lineage.csv", response_class=PlainTextResponse)
+def published_lineage_csv(
+    snapshot_id: str, store: DecisionStore = Depends(get_decision_store), values=Depends(authoritative_store_dep)
+) -> PlainTextResponse:
+    snapshot = _published_or_404(snapshot_id, store)
+    return PlainTextResponse(
+        lineage_csv(_all_lineage(snapshot, values)), media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="lineage-{snapshot_id}.csv"'},
+    )
 
 
 @router.get("/published", response_model=list[PublishedDecision])

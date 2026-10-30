@@ -716,6 +716,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/decision/published/{snapshot_id}/lineage.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Published Lineage Csv */
+        get: operations["published_lineage_csv_api_decision_published__snapshot_id__lineage_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decision/published/{snapshot_id}/lineage.json": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Published Lineage Json */
+        get: operations["published_lineage_json_api_decision_published__snapshot_id__lineage_json_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decision/published/{snapshot_id}/rows/{entity_id}/lineage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Published Row Lineage
+         * @description How one published row's score, rank and tier came about: each criterion, the authoritative value it read,
+         *     that value's inputs and the document citations behind them.
+         */
+        get: operations["published_row_lineage_api_decision_published__snapshot_id__rows__entity_id__lineage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/decision/runs/{run_id}/decision": {
         parameters: {
             query?: never;
@@ -11486,11 +11541,21 @@ export interface components {
              */
             company_ids?: string[] | null;
             /**
+             * Framework Id
+             * @description authoritative: the authoritative framework to read.
+             */
+            framework_id?: string | null;
+            /**
              * Include Indicators
              * @description transition_plan_run: one Yes/No column per indicator.
              * @default false
              */
             include_indicators: boolean;
+            /**
+             * Outputs
+             * @description authoritative: the outputs to include (default all).
+             */
+            outputs?: string[] | null;
             /**
              * Picks
              * @description source_values: the fields to read, with optional aliases.
@@ -18491,6 +18556,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublishedDecision"][];
+                };
+            };
+        };
+    };
+    published_lineage_csv_api_decision_published__snapshot_id__lineage_csv_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    published_lineage_json_api_decision_published__snapshot_id__lineage_json_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    published_row_lineage_api_decision_published__snapshot_id__rows__entity_id__lineage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                snapshot_id: string;
+                entity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -9862,11 +9862,38 @@
       "description": "source_values: registry company ids, one row each.",
       "title": "Company Ids"
      },
+     "framework_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "authoritative: the authoritative framework to read.",
+      "title": "Framework Id"
+     },
      "include_indicators": {
       "default": false,
       "description": "transition_plan_run: one Yes/No column per indicator.",
       "title": "Include Indicators",
       "type": "boolean"
+     },
+     "outputs": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "authoritative: the outputs to include (default all).",
+      "title": "Outputs"
      },
      "picks": {
       "anyOf": [
@@ -25313,6 +25340,149 @@
      }
     },
     "summary": "List Published",
+    "tags": [
+     "decision"
+    ]
+   }
+  },
+  "/api/decision/published/{snapshot_id}/lineage.csv": {
+   "get": {
+    "operationId": "published_lineage_csv_api_decision_published__snapshot_id__lineage_csv_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "snapshot_id",
+      "required": true,
+      "schema": {
+       "title": "Snapshot Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "text/plain": {
+        "schema": {
+         "type": "string"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Published Lineage Csv",
+    "tags": [
+     "decision"
+    ]
+   }
+  },
+  "/api/decision/published/{snapshot_id}/lineage.json": {
+   "get": {
+    "operationId": "published_lineage_json_api_decision_published__snapshot_id__lineage_json_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "snapshot_id",
+      "required": true,
+      "schema": {
+       "title": "Snapshot Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response Published Lineage Json Api Decision Published  Snapshot Id  Lineage Json Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Published Lineage Json",
+    "tags": [
+     "decision"
+    ]
+   }
+  },
+  "/api/decision/published/{snapshot_id}/rows/{entity_id}/lineage": {
+   "get": {
+    "description": "How one published row's score, rank and tier came about: each criterion, the authoritative value it read,\nthat value's inputs and the document citations behind them.",
+    "operationId": "published_row_lineage_api_decision_published__snapshot_id__rows__entity_id__lineage_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "snapshot_id",
+      "required": true,
+      "schema": {
+       "title": "Snapshot Id",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "entity_id",
+      "required": true,
+      "schema": {
+       "title": "Entity Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Published Row Lineage Api Decision Published  Snapshot Id  Rows  Entity Id  Lineage Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Published Row Lineage",
     "tags": [
      "decision"
     ]
