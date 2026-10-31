@@ -1,7 +1,7 @@
 # Extraction quick wins: typed answers, two format gaps, a share check, a quieter row-label check
 
 Date: 2026-10-31
-Status: draft, awaiting owner approval
+Status: approved by the owner, 2026-10-31
 Source: the 30–31 October model tests (transition-plan questions and green capex on RWE, Siemens and BASF:
 Sonnet + Opus, Haiku + Sonnet, Haiku + Haiku, Gemini) and the owner's choice "quick code wins first".
 
