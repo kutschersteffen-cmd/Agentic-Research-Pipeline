@@ -59,6 +59,6 @@ acceptance tests and the evaluator see the code as it would land.
 
 ## 6. Review findings
 
-In a `Code review (factory)` comment, fix or answer only confirmed blocking findings. Findings marked
-`unverified, optional` may be ignored or answered; they never count as a fix round and never justify
-`factory:blocked`.
+In a `Code review (factory)` comment, fix or answer every finding under `blocking`: those are the
+confirmed ones, and only confirmed blocking findings block. Findings marked `unverified, optional` may
+be ignored or answered; they never justify `factory:blocked`.

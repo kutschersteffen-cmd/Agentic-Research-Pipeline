@@ -77,7 +77,8 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
      re-runs or re-reads the proof and answers `confirmed` or `not confirmed` (proof it cannot re-run
      or re-read is `not confirmed`). Keep confirmed ones blocking and list the rest as `unverified,
      optional`; never drop one. Post one PR comment headed `Code review (factory)` listing each
-     finding with file:line and blocking or `unverified, optional` or optional, or 'No findings'.
+     finding with file:line under `blocking` (confirmed only), `unverified, optional` (not
+     confirmed) or `optional` (non-blocking from the start), or 'No findings'.
      Don't push or approve."*
      The implementing session fixes or answers each confirmed blocking finding (steward rules); a push that
      changes code re-runs this review once CI is green again, at most three rounds per PR.
