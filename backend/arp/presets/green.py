@@ -94,7 +94,8 @@ def _metric_fields(m: str) -> list[FieldDefinition]:
             field_id=f"green_{m}_share_pct", name=f"Green {word} share", data_type=FieldDataType.PERCENTAGE, unit="%",
             description=f"Green {word} as a percentage of total {word}.",
             extraction_instructions=f"{common} The share as the company reports it.",
-            seed_keywords=[f"share of green {m}", f"green {m} %"], required=False, high_risk=True, version=2,
+            seed_keywords=[f"share of green {m}", f"green {m} %"], required=False, high_risk=True,
+            version=3, check_config=CheckConfig(ratio_of=[gtotal, total]),  # v3: share must fit green/total
         ),
         _money(f"transition_{m}_total", f"Transition {word}",
                f"{word.capitalize()} from transition activities, kept separate from green and never added to it.",

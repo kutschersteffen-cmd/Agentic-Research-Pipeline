@@ -198,7 +198,7 @@ class _Recording:
         from arp.llm.base import LLMUsage
 
         self.prompts.append(prompt)
-        out = self._draft if output_model is ExtractionDraft else VerifierOutput(agrees=True, confidence=0.9, notes="ok")
+        out = self._draft if issubclass(output_model, ExtractionDraft) else VerifierOutput(agrees=True, confidence=0.9, notes="ok")
         return out, LLMUsage(input_tokens=1, output_tokens=1, provider="fake")
 
 

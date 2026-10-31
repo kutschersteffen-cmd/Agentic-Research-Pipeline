@@ -23,6 +23,7 @@ class ReasonCode(StrEnum):
     UNVERIFIED_LIST_ITEM = "unverified_list_item"  # a plan list row: no verifier pass, so never auto-accepted
     AUTO_CORRECTED = "auto_corrected"
     PERIOD_MISSING = "period_missing"
+    EXTRACTION_FAILED = "extraction_failed"  # the model's answer never fit the field type
 
 
 class DecisionKind(StrEnum):

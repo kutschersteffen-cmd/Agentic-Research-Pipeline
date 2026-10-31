@@ -381,3 +381,18 @@ async def test_realtime_request_params_unchanged(tmp_path):
     assert call["max_tokens"] == 123
     assert call["tool_choice"] == {"type": "auto"}
     assert call["messages"] == [{"role": "user", "content": "prompt"}]
+
+
+def test_tnfd_metric_with_bad_value_is_still_dropped():  # quick-wins review: only a draft's `values` are retried
+    import pydantic
+
+    from arp.extraction.tnfd_extractor_agent import TNFDExtractionDraft
+    from arp.llm.langchain_client import _drop_invalid_list_items
+
+    raw = {"core_global_metrics": [{"value": "Not disclosed"}], "confidence": 0.5}
+    try:
+        TNFDExtractionDraft.model_validate(raw)
+    except pydantic.ValidationError as exc:
+        err = exc
+    instance, dropped = _drop_invalid_list_items(TNFDExtractionDraft, raw, err)
+    assert instance is not None and dropped == 1 and instance.core_global_metrics == []

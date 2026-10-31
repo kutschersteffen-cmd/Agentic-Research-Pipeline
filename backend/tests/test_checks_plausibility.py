@@ -120,3 +120,68 @@ def test_percentage_boundaries_and_zero_sign_pass():
     spec = _spec("p", FieldDataType.PERCENTAGE)
     assert [_run(check_percentage, spec, _field("p", v)).outcome for v in (0, 100)] == ["pass", "pass"]
     assert _run(check_sign, _spec("n", non_negative=True), _field("n", 0)).outcome == "pass"
+
+
+# Spec 2026-10-31-extraction-quick-wins, AC-11 to AC-14b
+from arp.checks.plausibility import check_ratio  # noqa: E402
+from arp.presets.green import build_green_schema  # noqa: E402
+
+_SHARE = _spec("share", FieldDataType.PERCENTAGE, ratio_of=["green", "total"])
+
+
+def _share(v, green=396.0, total=1000.0, green_unit="EUR", green_period="2024-12-31"):
+    others = [_field("total", total, unit="EUR")]
+    if green is not None:
+        others.append(_field("green", green, unit=green_unit, period=green_period))
+    return _run(check_ratio, _SHARE, _field("share", v, unit="%"), others)
+
+
+def test_ac11_share_fits():
+    assert _share(39.6).outcome == "pass"
+
+
+def test_ac12_share_off():
+    r = _share(94.0)
+    assert (r.outcome, r.severity, r.detail) == ("fail", "warn", "share 94 vs 396/1000 = 39.6 %")
+
+
+def test_ac12b_one_point_passes():
+    assert _share(40.6).outcome == "pass"
+
+
+def test_ac12c_beyond_one_point_fails():
+    assert _share(40.7).outcome == "fail"
+
+
+def test_ac13_numerator_other_period():
+    assert _share(39.6, green_period="2023-12-31").outcome == "not_applicable"
+
+
+def test_ac13b_units_differ():
+    assert _share(39.6, green_unit="USD").outcome == "not_applicable"
+
+
+def test_ac13c_zero_denominator():
+    assert _share(39.6, total=0.0).outcome == "not_applicable"
+
+
+def test_ac13d_numerator_not_numeric():
+    others = [_field("total", 1000.0, unit="EUR"),
+              ExtractedField(field_id="green", field_name="green", value="n/a", confidence=0.9, value_state="found",
+                             canonical_unit="EUR", period_end="2024-12-31")]
+    assert _run(check_ratio, _SHARE, _field("share", 39.6, unit="%"), others).outcome == "not_applicable"
+
+
+def test_ratio_negative_denominator_no_crash():
+    assert _share(39.6, total=-1000.0).outcome == "fail"
+
+
+def test_ac14_green_preset_ratio_of():
+    fields = {f.field_id: f for f in build_green_schema().fields}
+    for m in ("capex", "revenue", "opex"):
+        assert fields[f"green_{m}_share_pct"].check_config.ratio_of == [f"green_{m}_total", f"{m}_total"]
+
+
+def test_ac14b_only_share_fields_bumped():
+    for f in build_green_schema().fields:
+        assert f.version == (3 if f.field_id.endswith("_share_pct") else 2), f.field_id

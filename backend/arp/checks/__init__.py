@@ -9,6 +9,7 @@ from arp.checks.plausibility import (
     check_part_of_whole,
     check_percentage,
     check_range,
+    check_ratio,
     check_sign,
     check_sum_identity,
     check_sum_to_target,
@@ -19,6 +20,6 @@ from arp.transition_alignment.action_check import check_action_id
 
 runner.LAYERS[1] = [runner.check_format, check_action_id]
 runner.LAYERS[2] = [check_number_in_span, check_caption_scale, check_row_label]
-runner.LAYERS[3] = [check_range, check_sign, check_percentage, check_part_of_whole, check_sum_identity, check_less_or_equal, check_sum_to_target, check_round_trip]
+runner.LAYERS[3] = [check_range, check_sign, check_percentage, check_part_of_whole, check_sum_identity, check_less_or_equal, check_sum_to_target, check_ratio, check_round_trip]
 runner.LAYERS[4] = [check_comparative_jump, check_last_decided, check_last_rejected, check_entity, check_period]
 runner.LAYERS[5] = [check_cross_source]

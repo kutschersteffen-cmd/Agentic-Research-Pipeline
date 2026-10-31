@@ -5,6 +5,8 @@ import logging
 from datetime import date
 from typing import TypedDict
 
+from pydantic import ValidationError
+
 from arp.config import Settings
 from arp.extraction.adjudicator import AdjudicatorOutput, adjudicate, disagreement
 from arp.extraction.aggregator import build_extracted_fields, no_evidence_field
@@ -54,6 +56,7 @@ class FieldState(TypedDict):
     needs_review: bool
     facts: FactSource | None
     grouped: tuple[ExtractionDraft, list[DocumentChunk], LLMUsage] | None  # draft, evidence and usage of a group call
+    extract_failed: bool  # the answer never fit the field type: stored as not found, routed to review
     seen: dict | None  # walkthrough trace only: model answers the state does not keep (blind draft, page reading)
 
 
@@ -196,14 +199,22 @@ async def _extract(state: FieldState) -> dict:
     if state.get("grouped"):  # extracted by the group call; its usage is counted once, by the caller
         draft, _, usage = state["grouped"]
         return {"draft": draft, "extractor_usage": usage}
-    draft, usage = await extract_field(
-        state["company_name"], state["field"], state["evidence"], state["llm"], state["planned_periods"]
-    )
+    try:
+        draft, usage = await extract_field(
+            state["company_name"], state["field"], state["evidence"], state["llm"], state["planned_periods"]
+        )
+    except ValidationError:
+        # shortcut: the failed calls' token usage is not counted (the error carries none); count it if cost tracking needs it
+        logger.warning("extraction of %s never fit the field type", state["field"].field_id)
+        return {"draft": ExtractionDraft(confidence=0.0), "extract_failed": True}
     return {"draft": draft, "usages": state["usages"] + [usage], "extractor_usage": usage}
 
 
 async def _verify(state: FieldState) -> dict:
     seen = state["seen"]
+    if state.get("extract_failed"):  # nothing to verify: the field stays not found, in review
+        return {"verifier": VerifierOutput(agrees=True, confidence=0.0, notes="Not verified: the extraction failed."),
+                "verifier_usage": None}
     if state["field"].high_risk:  # E38: re-extract without seeing the draft
         verifier, usage = await blind_verify(
             state["company_name"], state["field"], state["evidence"], state["draft"], state["verifier_llm"],
@@ -266,6 +277,9 @@ async def _aggregate(state: FieldState) -> dict:
             if f.value_state == ValueState.NOT_FOUND else f
             for f in extracted
         ]
+    if state.get("extract_failed"):
+        extracted = [f.model_copy(update={"review_reasons": [*f.review_reasons, ReasonCode.EXTRACTION_FAILED]})
+                     for f in extracted]
     usages = state["usages"]
     if state["settings"] and state["settings"].vision_fallback_enabled:
         passages = {c.chunk_id: c for c in state["evidence"]}
@@ -398,6 +412,7 @@ async def extract_one_field(
         "needs_review": False,
         "facts": facts,
         "grouped": grouped,
+        "extract_failed": False,
         "seen": None if trace_sink is None else {},
     }
     final_state = await run_graph(_COMPILED_GRAPH, initial)
