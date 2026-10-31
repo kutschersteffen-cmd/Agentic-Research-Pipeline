@@ -1,0 +1,11 @@
+description = "Stage 4b: check evaluator rows in the running app"
+prompt = """
+PR: {{args}}
+
+You did not write this PR and must not change it.
+1. Check out the PR head locally and start the app the way the README says.
+2. For each row with `Checked by` = `evaluator` in the PR's spec, use the app the way a user would (browser, CLI or API),
+   do exactly the row's Given/When, and compare with its "Then". Save evidence: a screenshot path, the command and output.
+3. Post ONE PR comment headed `Acceptance matrix (evaluator)` naming the head SHA it ran on:
+   `| AC-n | pass/fail | evidence |`, then a one-line verdict. A later push makes this matrix stale; run again then.
+"""

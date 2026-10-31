@@ -1,0 +1,15 @@
+description = "Stage 2/6: write hidden acceptance tests (run ONLY in the holdout repo window)"
+prompt = """
+Arguments: {{args}}  (a slug, optionally `--regression`)
+
+You are in the private holdout repo. You never see or write the implementation.
+Read the spec `<slug>` from the main repo's `docs/factory/specs/` (GitHub tools, read-only).
+
+Normal run: for each row with `Checked by` = `holdout`, write one deterministic test under `specs/<slug>/`,
+named after the row ID, that drives the app only through the behaviour the row names (CLI, API, UI) and asserts the
+row's exact "Then". It must fail today. Open a PR in the holdout repo and tell the owner to merge it once its check is green.
+
+`--regression`: the feature has merged. Move `specs/<slug>/` into `regression/<slug>/` so it guards every future PR, and open a PR.
+
+Report to the owner only: slug, number of tests, PR link. Never paste test code into the main repo or its PRs.
+"""

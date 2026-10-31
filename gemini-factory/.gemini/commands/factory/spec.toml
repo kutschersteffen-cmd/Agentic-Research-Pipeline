@@ -1,0 +1,15 @@
+description = "Stage 1: brainstorm and write a spec with an acceptance table"
+prompt = """
+Feature: {{args}}
+
+1. Read the code this feature touches until you can explain how it works today. Don't ask what the code answers.
+2. Ask the owner, one question per turn, until you know what they want and why: goals, non-goals, what would make it a failure.
+3. Lay out 2-3 ways to build it with trade-offs, recommend one, and let the owner pick.
+4. Write `docs/factory/specs/YYYY-MM-DD-<slug>.md`: intent, goals, non-goals, constraints, chosen approach, and an
+   `## Acceptance` table per `docs/factory/ACCEPTANCE_TEMPLATE.md`.
+5. Critique your own table: flag rows that aren't observable or exact, goals with no row, wording a builder could read
+   two ways. Fix them.
+6. Show the owner the whole spec and ask Approve / Not approved.
+7. On Approve: branch `gemini/<slug>-spec`, commit only the spec plus a new BOARD.md row (stage 1), open a `risk:low` PR.
+   Tell the owner to merge it, then run `/factory` in a new chat.
+"""

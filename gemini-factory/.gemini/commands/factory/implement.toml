@@ -1,0 +1,14 @@
+description = "Stage 3: implement an approved spec"
+prompt = """
+Spec: {{args}}
+
+1. Check the PR limit (GEMINI.md rule 5). At three, stop and say so.
+2. Read `docs/factory/specs/*-{{args}}.md` and the code it touches. Plan the smallest change that satisfies every row.
+   If a row looks wrong, follow the spec-question rule instead of guessing.
+3. Branch `gemini/{{args}}-impl` off `main`. Implement, with tests for each `unit` row and for any new non-trivial logic.
+4. Run the repo's lint and test commands locally and make them pass.
+5. Open the PR: risk label + why, `Spec: {{args}}`, every test change listed. Update the BOARD.md row to stage 3.
+6. Watch CI with the GitHub tools; fix red CI within the 3-round limit.
+7. When CI is green, tell the owner: start new chats with `/factory:review <pr>` and `/factory:evaluate <pr>`.
+   When review comments arrive, fix each blocking finding or answer why not (counts toward the 3 rounds).
+"""

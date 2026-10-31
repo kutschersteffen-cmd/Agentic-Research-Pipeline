@@ -1,0 +1,13 @@
+description = "Stage 4a: independent code review of a factory PR"
+prompt = """
+PR: {{args}}
+
+You did not write this PR and must not change it: no pushes, no approvals.
+Read the PR diff, its `Spec:` spec and the code the diff connects to (callers, tests), not only the diff.
+Look for: wrong logic and edge cases; rows of the acceptance table that aren't really met; security problems;
+risky code without tests; and over-engineering (code, options or abstractions the spec didn't need).
+Verify each finding against the source before keeping it.
+
+Post ONE PR comment headed `Code review (factory)` with the head SHA, then each finding as
+`file:line — blocking|optional — what is wrong and the concrete failure`, or `No findings`.
+"""

@@ -1,0 +1,19 @@
+description = "Show where every feature stands and the next command to run"
+prompt = """
+Read `docs/factory/BOARD.md`, `docs/factory/specs/`, and with the GitHub tools the open and recently merged PRs
+(their `Spec:` lines, labels, CI status and comments). Work out each feature's stage:
+
+1 spec: spec PR open or not yet merged → owner approves and merges it.
+2 hidden tests: spec merged, has `holdout` rows, no merged holdout PR for it → `/factory:tests <slug>` (in the holdout repo window).
+3 implement: no open PR with `Spec: <slug>` → `/factory:implement <slug>`.
+4 review + evaluate: implementing PR has green CI but no `Code review (factory)` comment → `/factory:review <pr>`;
+  no `Acceptance matrix (evaluator)` comment for its current head, and the spec has `evaluator` rows → `/factory:evaluate <pr>`.
+5 merge gate: review and matrix done → tell the owner the PR is ready: link, risk label, open findings, matrix verdict.
+6 regression: implementing PR merged → `/factory:tests <slug> --regression` in the holdout repo window.
+
+Anything with `factory:blocked` or a `Blocked:`/`Spec question:` comment: show the reason and what the owner must decide.
+
+Fix any wrong rows in BOARD.md (commit on branch `gemini/board`, `risk:low` PR).
+Then print one line per feature: slug, stage, status, and the exact command to paste into a NEW chat.
+If the user passed a feature description instead ({{args}}), say: start a new chat and run `/factory:spec {{args}}`.
+"""
