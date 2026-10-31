@@ -80,7 +80,7 @@ or instruction text is added to any query.
 | AC-4   | 1 case whose gold text differs from the document only by line breaks, an en dash and curly quotes; that chunk ranks 0 | cases mode, `--no-hybrid` | stdout starts `1 gold span(s) over 1 field(s): recall@5 100.0%` | holdout |
 | AC-5   | Both `--cases` and `--run-id` passed | the command runs | Exit 2; stderr contains `Pass exactly one of --cases or --run-id.` | holdout |
 | AC-5b  | Neither passed | the command runs | Exit 2; stderr contains `Pass exactly one of --cases or --run-id.` | holdout |
-| AC-6   | The run-mode fixture used by `tests/test_retrieval_eval.py` (needs `ARP_TEST_POSTGRES_DSN`) | `--run-id` mode | stdout and JSON report are byte-identical to `main`'s for the same fixture | holdout |
+| AC-6   | The run-mode fixture of `test_run_replays_field_evidence_and_reports_recall` in `backend/tests/test_retrieval_eval.py` (stand-in run store, no Postgres) | `--run-id` mode | stdout and JSON report are byte-identical to `main`'s for the same fixture | holdout |
 | AC-7   | The committed `backend/tests/golden/retrieval/cases.json` | loaded | It names ≥ 2 distinct documents, each existing under `documents/<company_id>/` | holdout |
 | AC-7b  | Same | loaded | ≥ 40 gold spans across ≥ 20 distinct `field_id`s, all from schema `transition_plan_indicators` | holdout |
 | AC-7c  | Same | loaded | Every case has `labelled_by`; ≥ 10 cases have `spot_checked: true` | holdout |
