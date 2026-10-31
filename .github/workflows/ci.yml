@@ -249,7 +249,7 @@ jobs:
 
   # Recall of the committed retrieval gold set (spec retrieval-gold-set-and-question-queries). Default settings
   # (hybrid on, rerank off), no model calls, no API key. The floor is main's recall@12 when this shipped minus
-  # 0.02; raise it by hand when retrieval gets better.
+  # 0.02 (main 0.588 with hybrid on); raise it by hand when retrieval gets better.
   retrieval-recall:
     name: Retrieval recall
     needs: retrieval-scope
@@ -302,7 +302,7 @@ jobs:
         run: |
           set -o pipefail
           arp db init-postgres
-          arp golden-set retrieval --cases tests/golden/retrieval/cases.json --min-recall __FLOOR__ \
+          arp golden-set retrieval --cases tests/golden/retrieval/cases.json --min-recall 0.568 \
             | tee -a "$GITHUB_STEP_SUMMARY"
 
   secret-scan:
