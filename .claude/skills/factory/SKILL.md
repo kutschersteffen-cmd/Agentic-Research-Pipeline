@@ -71,9 +71,16 @@ session `<dispatcher id>` with `send_message`: `<slug> <stage>: <PR url | blocke
    skill; put `Spec: <slug>` in the PR description. Never attach the holdout repo."*
 4. **Review and evaluator**, two sessions started together once that PR's CI is green:
    - **Review:** *"Review PR #<n> against spec `<slug>`. You did not write it. Run `/code-review` on the
-     PR, then `/ponytail:ponytail-review`. Post one PR comment headed `Code review (factory)` listing
-     each finding with file:line and blocking or optional, or 'No findings'. Don't push or approve."*
-     The implementing session fixes or answers each blocking finding (steward rules); a push that
+     PR, then `/ponytail:ponytail-review`. Give every blocking finding a `Proof:` line: a failing test
+     or command plus its output, or a `path:line` trace. Before posting, hand each blocking finding to a
+     fresh subagent with only the finding, its proof and the PR diff, not the reviewer's reasoning; it
+     re-runs or re-reads the proof and answers `confirmed` or `not confirmed` (proof it cannot re-run
+     or re-read is `not confirmed`). Keep confirmed ones blocking and list the rest as `unverified,
+     optional`; never drop one. Post one PR comment headed `Code review (factory)` listing each
+     finding with file:line under `blocking` (confirmed only), `unverified, optional` (not
+     confirmed) or `optional` (non-blocking from the start), or 'No findings'.
+     Don't push or approve."*
+     The implementing session fixes or answers each confirmed blocking finding (steward rules); a push that
      changes code re-runs this review once CI is green again, at most three rounds per PR.
    - **Evaluator** (skip if no `evaluator` rows): *"Run the evaluator skill on PR #<n>."*
      A later push that changes `backend/arp/` or `frontend/src/` re-runs it once CI is green again:
