@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_serializer, model_validator
 
 from arp.schemas.common import Citation, DocType, ProvenanceInfo, new_id, now_iso
 from arp.schemas.review import ReasonCode
@@ -83,6 +83,14 @@ class CheckConfig(BaseModel):
     ratio_of: list[str] = Field(default_factory=list, description="Share fields only: [numerator, denominator] field_ids; the share must be within 1 point of their ratio.")
     prior_change_max: float | None = Field(default=0.5, description="Relative jump vs. prior value that warns.")
     cross_source_tolerance: float = Field(default=0.01, description="Relative difference vs. another source that warns.")
+
+    @model_serializer(mode="wrap")
+    def _omit_empty_ratio(self, handler):
+        # an unset ratio_of stays out of the dump, so stored field definitions keep their content hash
+        out = handler(self)
+        if not self.ratio_of:
+            out.pop("ratio_of", None)
+        return out
 
 
 class ApplicabilityRules(BaseModel):

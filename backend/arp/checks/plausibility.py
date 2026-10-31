@@ -75,7 +75,9 @@ def check_part_of_whole(spec: FieldDefinition, field: ExtractedField, ctx) -> li
 
 def check_ratio(spec: FieldDefinition, field: ExtractedField, ctx) -> list[CheckResult]:
     cid, share = "plausibility.ratio", numeric_of(field)
-    if share is None or len(spec.check_config.ratio_of) != 2:
+    if len(spec.check_config.ratio_of) != 2:
+        return []  # not configured: no result at all, so rows of other fields keep their check list
+    if share is None:
         return _result(cid, Severity.WARN, _NA)
     num_f, den_f = (_same_period(ctx, fid, field.period_end) for fid in spec.check_config.ratio_of)
     num, den = (numeric_of(f) if f else None for f in (num_f, den_f))
