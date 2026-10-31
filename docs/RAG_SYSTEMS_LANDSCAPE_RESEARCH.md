@@ -181,6 +181,8 @@ Evidence tags:
 - **Maturity.** MIT, 39.9k stars (2026-10-31).
 - **Best fit.** Long, well-structured financial and regulatory reports. This is the closest match to this
   repo's inputs. [ours]
+- **Deep dive.** Code walkthrough, the exact FinanceBench setup, costs and a fit proposal are in
+  [Appendix A](#appendix-a-pageindex-deep-dive).
 
 ---
 
@@ -353,3 +355,160 @@ Considered and not recommended now:
   pages. The vision check already covers verification.
 
 `openwiki/` needs no update: this note changes no behaviour.
+
+---
+
+## Appendix A: PageIndex deep dive
+
+Read on 2026-10-31 from a shallow clone of https://github.com/VectifyAI/PageIndex at `2e0f4dd` (2026-10-30, package version 0.2.10 in
+`pyproject.toml`), the Mafin 2.5 results repo https://github.com/VectifyAI/Mafin2.5-FinanceBench, and the
+docs at https://docs.pageindex.ai. The code was read, not run. Paths below are relative to the PageIndex repo.
+
+### A.1 Indexing, end to end
+
+- **Two local modes.** `submit_document(mode=...)` defaults to `"flash"` locally; `"standard"` is the
+  "full LLM-built tree" (`pageindex/client.py` ~L806). Flash uses the PDF's embedded bookmarks when they look
+  trustworthy (`use_embedded_toc`, default True) and then refines the tree (`optimize="full"`: deterministic
+  merge plus model "expand") (`pageindex/client.py` ~L457). [verified]
+- **PDF parsing.** Text-only, per page, with PyPDF2 by default or PyMuPDF (`get_page_tokens`,
+  `pageindex/utils.py` ~L738). Each page becomes `(text, token_count)`. No OCR or layout model in the open
+  source path. [verified]
+- **TOC detection (standard mode).** `check_toc` scans the first `toc_check_page_num` pages (default 20,
+  `pageindex/config.yaml`) with one LLM yes/no call per page (`toc_detector_single_page`), extracts the TOC text,
+  and asks the LLM whether page numbers are given (`detect_page_index`) (`pageindex/page_index_classic.py`
+  L176-L295, L857). [verified]
+- **Three fallback paths.** `meta_processor` tries `process_toc_with_page_numbers` (map printed page numbers to
+  physical pages via an offset, `calculate_page_offset`), then `process_toc_no_page_numbers` (LLM locates each
+  TOC title in page groups), then `process_no_toc` (LLM *generates* a TOC from ~20k-token page groups with
+  one page overlap, `generate_toc_init`/`generate_toc_continue`, `page_list_to_group_text`). After each path,
+  `verify_toc` has the LLM check that titles really start on the claimed pages; accuracy 1.0 is accepted,
+  >0.6 triggers up to 3 rounds of `fix_incorrect_toc`, otherwise it drops to the next path, and the last
+  path raises `Processing failed` (`pageindex/page_index_classic.py` L1134-L1173). [verified]
+- **Large nodes are split recursively.** A leaf spanning more than `max_page_num_each_node` (10) pages *and*
+  at least `max_token_num_each_node` (20,000) tokens is re-indexed with `process_no_toc` over its own pages
+  (`process_large_node_recursively`, L1175). [verified]
+- **Page boundaries.** Nodes are page ranges (`start_index`/`end_index`, physical pages), not character spans.
+  `check_title_appearance_in_start` asks the LLM whether a section starts at the top of its page, which
+  decides whether the previous section shares that page; "intro" nodes cover a parent's pages before its
+  first child (`add_intro_nodes`). Sub-page precision is not modelled. [verified]
+- **Node JSON.** Output is `{doc_name, [doc_description], structure}`; each node is ordered as
+  `title, node_id, start_index, end_index, key_items, summary, text, nodes` (`format_structure` call in
+  `page_index_main`, L1249-L1300). `node_id` and `summary` are on by default, `text` and
+  `doc_description` off (`pageindex/config.yaml`). [verified]
+- **Summaries.** `summarize_tree` runs bottom-up with concurrency 64: a parent's summary is built from its
+  children's summaries plus pages no child covers; small leaves reuse their raw text instead of an LLM call;
+  the prompt asks for "the main points covered in the partial document" (`pageindex/utils.py` L934, L1450).
+  [verified]
+- **Prompt-injection hardening.** Document text is wrapped/sanitised (`_wrap_doc_text`, `_secure_doc_text`) and
+  some prompts get a `_SYSTEM_HARDENING` prefix (`page_index_classic.py` L25-L91). [verified]
+- **Tree optimizer.** `pageindex/tree_optimize.py` merges or expands nodes to minimise worst-case search cost
+  measured in pages (routing cost 1 page per visited node). This is a deterministic cost model, not learning.
+  [verified]
+
+### A.2 Retrieval
+
+- **LLM tool use over the tree, not MCTS.** The README cites AlphaGo as inspiration (README "Inspired by
+  AlphaGo"), but the open-source retrieval is an agent with tools: `get_document_structure()` returns the tree
+  (split into `part`s when too big), and `get_page_content(pages=...)` returns raw pages
+  (`pageindex/agent_tools.py` L191-L239, L910, L1011). The chat model decides which nodes to open. No Monte
+  Carlo search, value function or rollouts appear in the code (grep for `MCTS`/`Monte` returns nothing).
+  [verified]
+- **Vectors.** No embeddings in the per-document path. Cloud `browse_documents` offers `sort="relevance"`
+  ("semantic relevance to `query`") across documents (`agent_tools.py` ~L122), and the Oct '26 Page Search API
+  is a separate hosted retriever ("about a second", README L33) whose method is not in this repo. [verified;
+  Page Search claims are vendor claim]
+
+### A.3 Models, cost and latency
+
+- **LLM access via LiteLLM.** Any provider (`"anthropic/claude-sonnet-5-5"` style names); defaults
+  `DEFAULT_INDEX_MODEL = "gpt-6-luna"`, `DEFAULT_CHAT_MODEL = "gpt-6-sol"` (`pageindex/utils.py` L1576).
+  Optional extras for the Claude Agent SDK / Anthropic SDK and `claude-code/` subscription models (flash mode
+  only) (`pyproject.toml`, `page_index_main`). [verified]
+- **Indexing cost.** "About $0.001 per page" with `gpt-5.6-luna`; 9 to 1,098 page PDFs took ~13 s to 4.5 min
+  (README "Local indexing cost and time"). [vendor claim]
+- **Query cost.** Native whole-PDF input costs 2.1x more at 52 pages and 16.6x at 420 pages than PageIndex
+  retrieval (README "Cost per query vs. native PDF input"). [vendor claim]
+- **Call count (standard mode).** Up to ~20 TOC-detection calls, 1-3 TOC extraction/transform calls, one
+  verification call per TOC entry, fix rounds, one start-of-page check per entry, plus one summary per
+  non-trivial node. For a 300-page report with ~150 headings that is roughly 300-500 calls. [ours, from the
+  code paths above] A third-party estimate gives ~137 calls per document (secondary:
+  https://towardsdatascience.com/proxy-pointer-rag-achieving-vectorless-accuracy-at-vector-rag-scale-and-cost/).
+
+### A.4 The 98.7% FinanceBench number [vendor claim]
+
+- **System.** Mafin 2.5, Vectify's commercial financial-QA product built *on* PageIndex, not the open-source
+  library alone (https://github.com/VectifyAI/Mafin2.5-FinanceBench README). [verified]
+- **Subset.** The FinanceBench public set; `result_gpt4o.json` and `result_deepseekv3.json` each hold 150
+  questions (the open-source sample of https://arxiv.org/abs/2311.11944), with all documents in one database.
+  Same 98.7% with GPT-4o and DeepSeek V3 as answer models. [verified]
+- **Judge.** An LLM answer-equivalence judge, `gpt-4o-2024-11-20` (`check_answer_equivalence` in `eval.py`),
+  plus vendor-run human re-evaluation of ambiguous or invalid questions (`human_evaluations/*.csv`). So the
+  grader is the vendor's own LLM judge plus the vendor's own annotators. [verified]
+- **Baselines.** Competitor numbers (Fintool 98% on 66.7% coverage, Perplexity 45%, ChatGPT-4o+Search 31%) are
+  copied from other sources, not re-run, and the "vector RAG ~50%" bar has no published setup in either repo.
+  [verified that they are not re-run; the figures themselves are vendor claim]
+
+### A.5 Limits
+
+- **No TOC:** handled by LLM TOC generation (`process_no_toc`), the most expensive and least reliable path
+  (accuracy-gated fallbacks above). [verified]
+- **Scanned / image PDFs:** not handled locally; README's Local vs Cloud table lists "Text-based PDFs" locally
+  and OCR/image understanding as Cloud-only. [verified]
+- **Input types:** `page_index_main` raises on non-PDF input; Markdown has a separate `page_index_md.py`.
+  [verified]
+- **Many documents:** per-document trees; corpus-level search ("PageIndex File System") is Cloud-only
+  (README "More About PageIndex Cloud"). Secondary reviews advise against it for broad search over many short
+  documents (https://rubinlake.com/en/technology-radar/ai-and-data-engineering/pageindex). [verified / secondary]
+- **Latency per query:** several sequential tool calls with a strong model; no published p50. [ours]
+
+### A.6 License, hosting, pricing, releases
+
+- MIT, "Copyright (c) 2025 Vectify AI" (`LICENSE`). [verified]
+- Cloud: hosted indexing with OCR, storage, API, MCP server (https://docs.pageindex.ai/mcp) (README table).
+  Pricing: $0.01/page one-time indexing, $0.001/active page/month (first 1,000 free), no retrieval fee,
+  LLM inference billed by your own provider, $10 free credits (https://docs.pageindex.ai/pricing). [verified]
+- Releases: SDK with local and cloud modes (Aug '26), Page Search API (Oct '26) (README updates list);
+  latest commit 2026-10-30 (#622, reasoning/caching fixes for Claude routes). [verified]
+
+### A.7 Independent comments (secondary)
+
+- The FinanceBench comparison pits a specialised product against general-purpose LLMs and should be replicated
+  (https://dev.to/andrew-ooo/pageindex-review-vectorless-rag-that-hit-987-accuracy-2fm6).
+- Indexing cost grows linearly with corpus size; a hybrid "proxy-pointer" design is proposed as cheaper
+  (https://towardsdatascience.com/proxy-pointer-rag-achieving-vectorless-accuracy-at-vector-rag-scale-and-cost/).
+- No peer-reviewed paper or independent benchmark of the open-source library was found. [ours]
+
+### A.8 Fit for this repo [ours]
+
+What exists: `field_evidence` (`backend/arp/extraction/field_graph.py` ~L124) chunks routed documents
+(`chunk_document`, `backend/arp/ingestion/parsing.py`), applies a substring `section_filter` on configured
+section names (`backend/arp/planning/doc_routing.py`), then ranks with BM25 (optionally hybrid + rerank) and
+keeps `evidence_max_chunks` (12) per field. `DocumentChunk.section` already carries the heading.
+
+Proposal, smallest version:
+
+1. **Tree without an LLM.** Build a heading tree per document from the PDF outline when present, else from the
+   distinct `chunk.section` values in order, with page ranges. Cache it per `doc_id` beside the span cache.
+   This is PageIndex's flash idea without its LLM refinement.
+2. **One section-selection call per field group, not per field.** Give Claude (a small model, prompt-cached
+   tree) the tree plus the group's field labels/definitions; it returns `node_id`s per field. Replace the
+   substring `section_filter` with "chunks whose page range overlaps the chosen nodes", keeping the current
+   fallback (`r.fallback` / `field.high_risk` -> all chunks) when the selection is empty.
+3. **BM25 unchanged inside the selection.** Grounding stays on original text, so `grounding.py` is untouched.
+   Gate behind a setting (e.g. `section_selection_enabled`, default off) so it enters `input_hash` run settings.
+
+Cost per report: a 300-page report tree with ~200 headings and no summaries is ~4-6k tokens; cached after the
+first call. With ~10 field groups that is ~10 calls of ~6k input / ~300 output tokens, roughly $0.01-0.05 per
+report on a Haiku-class model, versus ~$0.30 (vendor $0.001/page) or several hundred calls for a full PageIndex
+standard-mode build. Adding node summaries would add one call per node and is the first thing to skip.
+
+Testing:
+
+- **Retrieval first, no extraction LLM:** `arp golden-set retrieval` (`backend/arp/golden_set/retrieval.py`)
+  replays `field_evidence` and measures recall of reviewer-approved spans. Run it with the setting off and
+  on; the selection call is the only LLM cost. Adopt only if recall rises without a drop on any field family.
+- **Then end to end:** `arp golden-set run` with the setting on; it must keep every case passing (CI gate for
+  `arp/extraction` changes). Record misses where the selected section excluded the gold span.
+- Watch for reports whose outline is missing or flat (sections all `None`): the tree falls back to page
+  groups and the step should switch itself off for that document.
+
