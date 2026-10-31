@@ -154,6 +154,10 @@ class DocumentChunk(BaseModel):
     section: str | None = None
     speaker: str | None = None
     unit_note: str | None = None  # a table passage's unit caption, e.g. "in EUR millions"
+    caption: str | None = None  # a whole-table passage's caption
+    page: int | None = None
+    section_tags: list[str] = Field(default_factory=list)  # arp.ingestion.section_tags of the outline entry it starts in
+    table_id: str | None = None  # set on whole-table passages
     text: str
     char_start: int
     char_end: int

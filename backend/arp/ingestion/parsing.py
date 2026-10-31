@@ -7,6 +7,7 @@ from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.schema import Document as LlamaDocument
 
 from arp.ingestion.chunk_spans import ChunkSpan, get_span_cache
+from arp.ingestion.outline import outline
 from arp.schemas.common import DocType, DocumentChunk, SourceDocument
 
 _SPEAKER_LINE = re.compile(r"^\s*([A-Z][A-Za-z.'\-]+(?:\s[A-Z][A-Za-z.'\-]+){0,3})\s*[:\-]\s*$")
@@ -85,12 +86,17 @@ def _compute_spans(doc: SourceDocument, chunk_chars: int, overlap_chars: int) ->
     # 10-K ITEM/PART header lines and markdown headings: a chunk's section is the last one at or before it
     headings = sorted((m.start(), m.group(1).strip()) for p in (_SECTION_HEADER, _MD_HEADING) for m in p.finditer(doc.full_text))
     starts = [h[0] for h in headings]
+    entries = outline(doc)
+    entry_starts = [e.char_start for e in entries]
     spans = []
     for start, end in _sentence_aware_split(doc.full_text, chunk_chars, overlap_chars):
         i = bisect.bisect_right(starts, start)
         section = None if is_transcript or not i else headings[i - 1][1]
         speaker = detect_speaker(doc.full_text, start) if is_transcript else None
-        spans.append(ChunkSpan(char_start=start, char_end=end, section=section, speaker=speaker))
+        j = bisect.bisect_right(entry_starts, start)
+        spans.append(ChunkSpan(char_start=start, char_end=end, section=section, speaker=speaker,
+                               page=bisect.bisect_right(doc.page_breaks, start) if doc.page_breaks else None,
+                               section_tags=tuple(entries[j - 1].tags) if j else ()))
     return tuple(spans)
 
 
@@ -130,21 +136,30 @@ def chunk_document(
                 doc_type=doc.doc_type,
                 section=s.section,
                 speaker=s.speaker,
+                page=s.page,
+                section_tags=list(s.section_tags),
                 text=span_text,
                 char_start=s.char_start,
                 char_end=s.char_end,
                 keyword_hits=find_keyword_hits(span_text, keywords),
             )
         )
-    for t in doc.table_spans:  # each whole table as one passage too, labelled by its caption
+    entries = outline(doc) if doc.table_spans else []
+    entry_starts = [e.char_start for e in entries]
+    for t in doc.table_spans:  # each whole table as one passage too, labelled by the heading it sits under
         span_text = doc.full_text[t.char_start : t.char_end]
+        j = bisect.bisect_right(entry_starts, t.char_start)
         chunks.append(
             DocumentChunk(
                 chunk_id=f"chk_{doc.doc_id}_table_{t.char_start}_{t.char_end}",
                 doc_id=doc.doc_id,
                 company_id=doc.company_id,
                 doc_type=doc.doc_type,
-                section=t.caption,
+                section=t.heading_path[-1] if t.heading_path else t.caption,
+                caption=t.caption,
+                page=t.page,
+                section_tags=entries[j - 1].tags if j else [],
+                table_id=t.table_id,
                 unit_note=t.unit_note,
                 text=span_text,
                 char_start=t.char_start,

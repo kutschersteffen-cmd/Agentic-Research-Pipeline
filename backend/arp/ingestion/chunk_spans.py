@@ -11,7 +11,7 @@ from arp.schemas.common import DocType
 # changed algorithm never returns a stale span computed under the old one
 # -- the same "a changed input orphans old entries" idiom as
 # arp/llm/cache.py::DiskLLMCache.make_key, just for an in-process cache.
-_SPAN_ALGO_VERSION = 3  # 2: markdown headings as sections; 3: ITEM/PART headers across the document
+_SPAN_ALGO_VERSION = 4  # 2: markdown headings as sections; 3: ITEM/PART headers across the document; 4: page, section tags
 
 _MAX_CACHED_DOCUMENTS = 256
 
@@ -27,6 +27,8 @@ class ChunkSpan:
     char_end: int
     section: str | None
     speaker: str | None
+    page: int | None = None
+    section_tags: tuple[str, ...] = ()  # the tags of the outline entry the chunk starts in
 
 
 class ChunkSpanCache:
