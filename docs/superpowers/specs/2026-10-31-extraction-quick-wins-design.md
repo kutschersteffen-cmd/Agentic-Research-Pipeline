@@ -63,7 +63,7 @@ A helper builds the draft model for one field. `PeriodValue.value` gets the fiel
 | `boolean` | `true`, `false` or null |
 | `number`, `currency_amount`, `percentage` | a number or null |
 | `enum` | one of the field's `allowed_values`, or null |
-| `string`, `date` | text or null |
+| `string`, `date` | text, a number (stored as its text, e.g. `11115` → `"11115"`), or null |
 
 Everything else in `PeriodValue` and `ExtractionDraft` stays as it is. `extract_field` and `blind_verify` (its
 blind draft) use the typed model; the result is handled as an `ExtractionDraft` exactly as today. An answer that does
@@ -93,7 +93,7 @@ Detail texts: `string field holds a bare number 11115`, `currency_amount field h
 missing, not numeric, the two have different `canonical_unit`, or the denominator is 0. It fails when
 `|share − 100 × numerator / denominator| > 1` (percentage points; exactly 1 passes), detail
 `share <v> vs <num>/<den> = <ratio> %`, numbers printed with Python's `:g` (no trailing `.0`), the ratio rounded to
-one decimal first.
+one decimal first. The comparison uses that rounded ratio: fail when `abs(share − ratio) > 1 + 1e-9`.
 
 The green preset sets `ratio_of=[green_<m>_total, <m>_total]` on `green_<m>_share_pct` for revenue, capex and opex.
 `check_config` counts as field content (`arp/db/fields.py`: only status, version and effective_from do not), so these
@@ -117,8 +117,10 @@ default 2, so 3 calls).
 | AC-1b | Same | `extract_field` runs | The stand-in received exactly 2 calls | unit |
 | AC-2 | A boolean field; stand-in answers `value: "Not disclosed"` on every call | `extract_field` runs | It raises `pydantic.ValidationError` after exactly 3 calls | unit |
 | AC-3 | An enum field, `allowed_values=["eu_taxonomy","other"]`; stand-in answers `value: "EU Taxonomy"`, then `value: "eu_taxonomy"` | `extract_field` runs | `values[0].value` is `"eu_taxonomy"` | unit |
-| AC-3b | Same field; stand-in answers `value: null`, `state: "not_found"` | `extract_field` runs | `values[0].value` is `None`, 1 call | unit |
-| AC-4 | A high-risk boolean field, draft `value: false`; stand-in verifier answers `value: "YES"`, then `value: false` | `blind_verify` runs | The returned `VerifierOutput.agrees` is `True`, and the stand-in received exactly 2 calls | unit |
+| AC-3b | Same field; stand-in answers `value: null`, `state: "not_found"` | `extract_field` runs | `values[0].value` is `None` | unit |
+| AC-3c | Same | `extract_field` runs | The stand-in received exactly 1 call | unit |
+| AC-4 | A high-risk boolean field, draft `value: false`; stand-in verifier answers `value: "YES"`, then `value: false` | `blind_verify` runs | The returned `VerifierOutput.agrees` is `True` | unit |
+| AC-4b | Same | `blind_verify` runs | The stand-in received exactly 2 calls | unit |
 | AC-5 | A currency field; stand-in answers `value: 11887` | `extract_field` runs | `values[0].value == 11887.0` | unit |
 | AC-5b | Same | `extract_field` runs | The stand-in received exactly 1 call | unit |
 | AC-5c | A percentage field; stand-in answers `value: "39.6%"`, then `value: 39.6` | `extract_field` runs | `values[0].value == 39.6` | unit |
@@ -142,19 +144,30 @@ default 2, so 3 calls).
 | AC-13 | Same, but `green_capex_total` exists only for a different period | checks run on the share row | `plausibility.ratio` is `not_applicable` | unit |
 | AC-13b | Same period, but the two amounts have different `canonical_unit` | checks run on the share row | `plausibility.ratio` is `not_applicable` | unit |
 | AC-13c | Same period, `capex_total` 0 | checks run on the share row | `plausibility.ratio` is `not_applicable` | unit |
+| AC-13d | Same period, `green_capex_total` value `"n/a"` | checks run on the share row | `plausibility.ratio` is `not_applicable` | unit |
 | AC-14 | The green preset | built | `green_capex_share_pct`, `green_revenue_share_pct`, `green_opex_share_pct` each have `check_config.ratio_of == ["green_<m>_total", "<m>_total"]` | unit |
 | AC-14b | The green preset | built | Those three fields have `version == 3`; every other green field's `version` equals its value on `main` | unit |
 | AC-15 | A `boolean` row grounded on a prose quote containing two numbers | checks run | `numeric.row_label` is `not_applicable` | unit |
 | AC-15b | The same for an `enum`, a `string` and a `date` row | checks run | `numeric.row_label` is `not_applicable` for each | unit |
 | AC-16 | A `currency_amount` row grounded on a table line whose label does not match the field | checks run | `numeric.row_label` is `fail` | unit |
 | AC-17 | A `boolean` row holding `220221` | checks run | `format.data_type` is `fail`, severity `block` (unchanged) | unit |
-| AC-18 | A non-high-risk boolean field extracted through `extract_group`; stand-in answers `value: "yes"` for it | the group call runs | It is accepted with 1 call; the row's value is `"yes"` (group calls keep the loose format) | unit |
-| AC-19 | One company, a 2-field schema (a boolean and a currency field); stand-in answers `"Not disclosed"` on every call for the boolean, `11887` for the currency | `execute_extraction_run` runs | The run status is `completed`, 1 of 1 companies done; the currency row has value `11887.0`; the boolean row has `value_state` `not_found`, route `review` and `extraction_failed` in `review_reasons` | unit |
-| AC-19b | A high-risk boolean field, draft `value: true`; stand-in verifier answers `"YES"` on every call | the field's graph runs | The row has route `review`, and its verifier result has `disagreement_type` `not_disclosed` | unit |
+| AC-18 | A non-high-risk boolean field extracted through `extract_group`; stand-in answers `value: "yes"` for it | the group call runs | The row's value is `"yes"` (group calls keep the loose format) | unit |
+| AC-18b | Same | the group call runs | The stand-in received exactly 1 call | unit |
+| AC-19 | One company, a 2-field schema (a boolean and a currency field); stand-in answers `"Not disclosed"` on every call for the boolean, `11887` for the currency | `execute_extraction_run` runs | The run status is `completed`, 1 of 1 companies done | unit |
+| AC-19c | Same | `execute_extraction_run` runs | The currency row has value `11887.0` | unit |
+| AC-19d | Same | `execute_extraction_run` runs | The boolean row has `value_state` `not_found`, route `review`, and `extraction_failed` in `review_reasons` | unit |
+| AC-19b | A high-risk boolean field, draft `value: true`; stand-in verifier answers `"YES"` on every call | the field's graph runs | The row has route `review` | unit |
+| AC-19e | Same | the field's graph runs | Its verifier result has `disagreement_type` `not_disclosed` | unit |
+| AC-22 | `extract_plan` (plan actions preset `sch_transition_plan_actions`, field `ta_action_text`); a recorded stand-in answer fixture, the same file on `main` and on the PR | the extraction runs on `main` and on the PR | the plan row stored on the PR equals the one stored on `main` | unit |
+| AC-22-calls | Same | Same | The stand-in received the same number of calls on the PR as on `main` | unit |
+| AC-22b | `extract_financials` (Financials record, `capex` section); a recorded stand-in answer fixture, the same file on `main` and on the PR | the extraction runs on `main` and on the PR | the `capex` section stored on the PR equals the one stored on `main` | unit |
+| AC-22b-calls | Same | Same | The stand-in received the same number of calls on the PR as on `main` | unit |
+| AC-22c | `extract_tnfd` (TNFD record, `general_requirements` section); a recorded stand-in answer fixture, the same file on `main` and on the PR | the extraction runs on `main` and on the PR | the `general_requirements` section stored on the PR equals the one stored on `main` | unit |
+| AC-22c-calls | Same | Same | The stand-in received the same number of calls on the PR as on `main` | unit |
 | AC-20 | The backend suite | `pytest` runs | It passes. The PR lists every changed test; the only allowed changes are tests expecting `numeric.row_label` to fail on non-numeric fields | evaluator |
 | AC-21 | The golden set | `arp golden-set run` in CI | Exits 0 with every case passing. A missing `ARP_ANTHROPIC_API_KEY` (the job warns and passes) counts as fail for this row | golden |
 
-Must not change: AC-16, AC-17, AC-18 and AC-20 (existing behaviour), AC-21 (extraction quality on the golden set).
+Must not change: AC-16, AC-17, AC-18, AC-18b, AC-20, AC-22, AC-22b, AC-22c and their `-calls` rows (existing behaviour), AC-21 (extraction quality on the golden set).
 
 ## Left to the builder
 
