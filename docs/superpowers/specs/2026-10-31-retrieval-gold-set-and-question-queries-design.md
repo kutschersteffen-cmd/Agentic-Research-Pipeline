@@ -46,20 +46,20 @@ Spec slug: `retrieval-gold-set-and-question-queries`. Items #1 and #3 of the RAG
    settings (hybrid on, rerank off) and `--min-recall` set to a floor stored in the workflow file:
    the recall@12 measured on `main` when this ships, minus 0.02. Raising the floor is a manual edit. No API key is needed.
 
-### Part B: search with the question
+### Part B: richer keywords for the transition-plan indicators
 
-1. **`FieldDefinition.retrieval_query: str | None = None`**: a natural-language query for the embedding
-   ranking. When set and hybrid retrieval is on, the vector ranking in `select_relevant_chunks` and the
-   reranker (when on) use it instead of the joined keywords. BM25 keeps using `seed_keywords` (+ German).
-   When it is `None`, behaviour is exactly today's.
-2. **Transition-plan preset:** every `tp_a_*` field sets `retrieval_query` to its indicator's `question`.
-   The eight `tp_h_*` helper fields leave it `None`.
-3. **Guideline include-terms:** a one-off, reviewed edit of `transition_plan_keywords.json` adds the
+*Changed 2026-10-31 (owner decision after measuring on the gold set).* Using each indicator's question as the
+embedding query was measured and dropped: recall@5 fell from 45.6% to 41.2% (recall@12 58.8% → 60.3%). The
+keyword edit alone gave 47.1% / 60.3%. `FieldDefinition.retrieval_query` is not added; questions as queries may
+come back with HyDE (plan 3b) or a stronger embedding model (plan #4).
+
+1. **Guideline include-terms:** a one-off, reviewed edit of `transition_plan_keywords.json` adds the
    concepts each guideline says count as a YES (for example "net zero", "carbon neutrality" and "return to
    2020 levels" for `A_headline_1`). Exclusion phrases ("intensity targets are not ...") are **not** added;
    they belong to plan item #12.
-4. **No field version bumps.** Retrieval inputs change, the question each field answers does not.
-5. **API contract:** the schema response gains `retrieval_query`. Regenerate `openapi` and the frontend types.
+2. **Field versions:** every field whose `seed_keywords` change goes up one version, like any other change to a
+   released field. The released-field guard in `arp/db/fields.py` is not loosened.
+3. No API contract change.
 
 ### Out of scope
 
@@ -98,22 +98,24 @@ or instruction text is added to any query.
 | AC-8c  | A `Retrieval recall` run | finished | The job summary contains the CLI's `gold span(s) over` line | evaluator |
 | AC-8d  | The workflow file | read | Its `--min-recall` equals the `main` recall@12 stated in the PR description minus 0.02 | evaluator |
 | AC-8e  | The repo without `ARP_ANTHROPIC_API_KEY` | `Retrieval recall` runs | It passes or fails on recall only, never on a missing key | evaluator |
-| AC-9   | A field with `retrieval_query="Does the company report X?"`, hybrid on, recording `embed_texts` | evidence is selected | The query string passed to `embed_texts` is exactly `Does the company report X?` | holdout |
-| AC-10  | The same field with `retrieval_query=None` | evidence is selected | The query string passed to `embed_texts` is `" ".join(with_german(seed_keywords))` | holdout |
-| AC-11  | A field with `retrieval_query` set, hybrid off | evidence is selected | Returned chunk_ids and order equal those for the same field with `retrieval_query=None` | holdout |
-| AC-12  | Rerank on, `retrieval_query` set, recording `rerank` | evidence is selected | `rerank`'s query argument is exactly the `retrieval_query` text | holdout |
-| AC-13  | `build_transition_plan_schema()` | built | There are exactly 64 `tp_a_*` fields, each with `retrieval_query` equal to its indicator's `question` in `indicators.json` | holdout |
-| AC-13b | Same | built | Every non-`tp_a_*` field has `retrieval_query` `None` | holdout |
-| AC-13c | Same | built | Every field's `version` equals its value on `main` | holdout |
-| AC-14  | The transition-plan schema through the API | `GET` | `tp_a_a_headline_1.retrieval_query` is `Does the company report an absolute GHG emission reduction target for the company?`; `tp_h_target_pct.retrieval_query` is `null` | holdout |
-| AC-14b | The generated frontend API types | `cd frontend && npx tsc -b` | Exit 0, and the field type has `retrieval_query?: string \| null` | unit |
+| ~~AC-9~~ | A field with `retrieval_query="Does the company report X?"`, hybrid on, recording `embed_texts` | evidence is selected | The query string passed to `embed_texts` is exactly `Does the company report X?` | retired 2026-10-31: question-as-query dropped (Part B) |
+| AC-10  | A transition-plan field, hybrid on, recording `embed_texts` | evidence is selected | The query string passed to `embed_texts` is `" ".join(with_german(seed_keywords))` | holdout |
+| ~~AC-11~~ | A field with `retrieval_query` set, hybrid off | evidence is selected | Returned chunk_ids and order equal those for the same field with `retrieval_query=None` | retired 2026-10-31: question-as-query dropped (Part B) |
+| ~~AC-12~~ | Rerank on, `retrieval_query` set, recording `rerank` | evidence is selected | `rerank`'s query argument is exactly the `retrieval_query` text | retired 2026-10-31: question-as-query dropped (Part B) |
+| ~~AC-13~~ | `build_transition_plan_schema()` | built | There are exactly 64 `tp_a_*` fields, each with `retrieval_query` equal to its indicator's `question` in `indicators.json` | retired 2026-10-31: question-as-query dropped (Part B) |
+| ~~AC-13b~~ | Same | built | Every non-`tp_a_*` field has `retrieval_query` `None` | retired 2026-10-31: question-as-query dropped (Part B) |
+| ~~AC-13c~~ | Same | built | Every field's `version` equals its value on `main` | retired 2026-10-31: versions now go up (Part B.2); see AC-13d |
+| AC-13d | `build_transition_plan_schema()` vs `main` | built | Each field whose `seed_keywords` differ from `main` has `version` = `main` + 1; every other field's `version` equals `main`'s | holdout |
+| AC-13e | `arp/db/fields.py` | released preset with changed `seed_keywords` released again without a version change | Refused, as on `main` (the guard is unchanged) | holdout |
+| ~~AC-14~~ | The transition-plan schema through the API | `GET` | `tp_a_a_headline_1.retrieval_query` is `Does the company report an absolute GHG emission reduction target for the company?`; `tp_h_target_pct.retrieval_query` is `null` | retired 2026-10-31: question-as-query dropped (Part B) |
+| ~~AC-14b~~ | The generated frontend API types | `cd frontend && npx tsc -b` | Exit 0, and the field type has `retrieval_query?: string \| null` | retired 2026-10-31: question-as-query dropped (Part B) |
 | AC-15  | `presets/data/transition_plan_keywords.json` | read | `A_headline_1` contains `net zero`, `carbon neutrality` and `return to 2020 levels` | holdout |
 | AC-15b | Same | read | No keyword list contains `intensity target` for `A_headline_1` | holdout |
 | AC-16  | The committed gold set, default settings | cases mode on the PR and on `main` | PR recall@12 ≥ `main` recall@12 | golden |
 | AC-16b | Same | Same | PR recall@5 ≥ `main` recall@5 | golden |
 | AC-17  | The bundled extraction golden set | `arp golden-set run` | Every case passes, as on `main` | golden |
 
-Must not change: the run mode of `golden-set retrieval` (AC-6); retrieval for fields without
-`retrieval_query` (AC-10); BM25-only retrieval (AC-11); field versions (AC-13c); extraction golden set (AC-17).
+Must not change: the run mode of `golden-set retrieval` (AC-6); the embedding query (AC-10); the released-field
+guard (AC-13e); extraction golden set (AC-17).
 
 PR checklist (not ACs): the PR description lists `main`'s and the PR's recall@5 and recall@12.
