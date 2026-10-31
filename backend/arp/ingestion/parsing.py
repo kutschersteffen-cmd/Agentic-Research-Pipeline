@@ -160,6 +160,7 @@ def chunk_document(
                 page=t.page,
                 section_tags=entries[j - 1].tags if j else [],
                 table_id=t.table_id,
+                table=t.model_copy(update={"cells": []}),
                 unit_note=t.unit_note,
                 text=span_text,
                 char_start=t.char_start,

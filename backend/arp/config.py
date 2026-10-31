@@ -160,6 +160,9 @@ class Settings(BaseSettings):
         default=None, description="Absolute path to the arp-client service-account JSON key."
     )
     evidence_max_chunks: int = Field(default=12, description="Chunks of evidence handed to the extractor per field.")
+    evidence_table_max_chars: int = Field(
+        default=12_000, description="A selected passage inside a table up to this long is swapped for the whole table."
+    )
     extraction_group_size: int = Field(
         default=0, ge=0,
         description="Opt-in: extract this many non-high-risk fields per model call, over their merged evidence (at most "

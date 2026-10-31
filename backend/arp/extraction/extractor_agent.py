@@ -44,13 +44,22 @@ BOOLEAN_RULE = (
 )
 
 
-def format_evidence(chunks: list[DocumentChunk], header: tuple[str, ...] = ("doc_id", "passage_id", "doc_type", "section", "unit_note")) -> str:
+_OPTIONAL = ("section", "speaker", "unit_note", "page", "table", "caption", "unit", "scale", "columns")
+
+
+def format_evidence(
+    chunks: list[DocumentChunk],
+    header: tuple[str, ...] = ("doc_id", "passage_id", "doc_type", "section", "unit_note", "page", "table", "caption", "unit", "scale", "columns"),
+) -> str:
     """Chunks as prompt evidence, each under a `[name=value | ...]` line of
-    the `header` fields asked for, in that order; section, speaker and unit_note only when set."""
+    the `header` fields asked for, in that order; all but the ids and doc_type only when set."""
     blocks = []
     for c in chunks:
-        values = {"doc_id": c.doc_id, "passage_id": c.chunk_id, "doc_type": c.doc_type.value, "section": c.section, "speaker": c.speaker, "unit_note": c.unit_note}
-        fields = " | ".join(f"{name}={values[name]}" for name in header if name not in ("section", "speaker", "unit_note") or values[name])
+        t = c.table
+        values = {"doc_id": c.doc_id, "passage_id": c.chunk_id, "doc_type": c.doc_type.value, "section": c.section, "speaker": c.speaker, "unit_note": c.unit_note,
+                  "page": c.page, "table": t and (t.kind or t.table_id), "caption": c.caption and f'"{c.caption}"',
+                  "unit": t and t.unit, "scale": t and t.scale, "columns": t and " | ".join(t.column_headers)}
+        fields = " | ".join(f"{name}={values[name]}" for name in header if name not in _OPTIONAL or values[name])
         blocks.append(f"[{fields}]\n{c.text}")
     return "\n\n---\n\n".join(blocks)
 

@@ -152,7 +152,7 @@ def field_evidence(
             "max_chunks": settings.evidence_max_chunks,
             "rerank_candidates": settings.rerank_candidates if settings.rerank_enabled else None,
         }
-    return select_relevant_chunks(
+    selected = select_relevant_chunks(
         all_chunks,
         keywords,
         doc_type_filter=None if field.document_routing else field.source_doc_types or None,
@@ -164,6 +164,19 @@ def field_evidence(
         on_unranked_fallback=on_unranked_fallback,
         **limits,
     )
+    return swap_tables(selected, all_chunks, (settings or Settings()).evidence_table_max_chars)
+
+
+def swap_tables(selected: list[DocumentChunk], all_chunks: list[DocumentChunk], max_chars: int) -> list[DocumentChunk]:
+    """Each selected passage that overlaps a table becomes that table's whole-table passage (at most
+    `max_chars` long), in rank order and once; never refilled, so a swap can only shorten the list."""
+    tables = [c for c in all_chunks if c.table_id is not None and len(c.text) <= max_chars]
+    out: dict[str, DocumentChunk] = {}
+    for c in selected:
+        if c.table_id is None:
+            c = next((t for t in tables if t.doc_id == c.doc_id and t.char_start < c.char_end and c.char_start < t.char_end), c)
+        out.setdefault(c.chunk_id, c)
+    return list(out.values())
 
 
 def merge_evidence(rankings: list[list[DocumentChunk]], cap: int) -> list[DocumentChunk]:

@@ -158,6 +158,7 @@ class DocumentChunk(BaseModel):
     page: int | None = None
     section_tags: list[str] = Field(default_factory=list)  # arp.ingestion.section_tags of the outline entry it starts in
     table_id: str | None = None  # set on whole-table passages
+    table: TableSpan | None = None  # a whole-table passage's metadata, without its cells
     text: str
     char_start: int
     char_end: int
