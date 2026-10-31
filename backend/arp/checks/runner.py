@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from dataclasses import field as dc_field
@@ -27,6 +28,8 @@ if TYPE_CHECKING:
     from arp.extraction.history import RunHistory
 
 _NUMERIC = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
+_BARE_NUMBER = re.compile(r"^[+-]?\d[\d,.' ]*$")
+_CURRENCY = re.compile(r"\b[A-Z]{3}\b|[€$£]")
 
 
 @dataclass
@@ -60,9 +63,18 @@ def check_format(spec: FieldDefinition, field: ExtractedField, ctx: CheckContext
         ]
     v, dt = field.value, spec.data_type
     bad = ""
+    units = [u for u in (field.unit, field.canonical_unit) if u]
     if dt in _NUMERIC:
         if isinstance(v, bool) or not isinstance(v, (int, float)):
             bad = f"{dt} field holds non-numeric value {v!r}"
+        elif dt != FieldDataType.PERCENTAGE and "%" in units:
+            bad = f"{dt} field holds a percentage (unit %)"
+        elif dt == FieldDataType.PERCENTAGE and (u := next((u for u in units if _CURRENCY.search(u)), None)):
+            bad = f"{dt} field holds a currency amount (unit {u})"
+    elif dt == FieldDataType.STRING:
+        text = f"{v:g}" if isinstance(v, float) else str(v)
+        if isinstance(v, (int, float)) or _BARE_NUMBER.match(text.strip()):
+            bad = f"{dt} field holds a bare number {text.strip()}"
     elif dt == FieldDataType.BOOLEAN:
         if not isinstance(v, bool):
             bad = f"boolean field holds non-boolean value {v!r}"
