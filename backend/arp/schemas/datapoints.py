@@ -143,6 +143,9 @@ class FieldDefinition(BaseModel):
     seed_keywords: list[str] = Field(
         default_factory=list, description="Seed keywords driving evidence-chunk retrieval for this field."
     )
+    retrieval_query: str | None = Field(
+        default=None, description="Natural-language query for the embedding ranking and reranker; BM25 keeps seed_keywords."
+    )
     version: int = 1
     effective_from: str | None = Field(default=None, description="ISO date the definition took effect.")
     status: FieldStatus = FieldStatus.DRAFT

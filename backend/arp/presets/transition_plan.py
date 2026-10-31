@@ -113,7 +113,7 @@ def build_transition_plan_schema() -> DataPointSchema:
             FieldDefinition(
                 field_id="tp_" + i.identifier.lower().replace(" ", "_"), name=i.identifier, description=i.question,
                 data_type=FieldDataType.BOOLEAN, extraction_instructions=i.guideline,
-                seed_keywords=keywords[i.identifier], required=False, high_risk=True,
+                seed_keywords=keywords[i.identifier], retrieval_query=i.question, required=False, high_risk=True,
                 version=_VERSIONS.get(i.identifier, 1), rules=rules.get(i.identifier, []),
             )
             for i in load_indicators()

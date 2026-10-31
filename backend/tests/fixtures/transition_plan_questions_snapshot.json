@@ -12,7 +12,9 @@
       "net zero",
       "carbon neutral",
       "reduce absolute emissions",
-      "scope 1 and 2 target"
+      "scope 1 and 2 target",
+      "carbon neutrality",
+      "return to 2020 levels"
     ],
     "required": false,
     "high_risk": true,
@@ -79,7 +81,9 @@
       "company-wide net zero",
       "net zero commitment",
       "net zero alliance",
-      "Net Zero Asset Managers"
+      "Net Zero Asset Managers",
+      "carbon neutrality target",
+      "carbon neutral"
     ],
     "required": false,
     "high_risk": true,
@@ -178,7 +182,9 @@
       "absolute scope 1 emissions target",
       "direct emissions reduction target",
       "reduce scope 1 emissions by",
-      "scope 1 target year"
+      "scope 1 target year",
+      "direct emissions from production processes",
+      "on-site heat and energy production"
     ],
     "required": false,
     "high_risk": true,
@@ -211,7 +217,8 @@
       "absolute scope 2 emissions target",
       "market-based scope 2 target",
       "reduce scope 2 emissions by",
-      "purchased electricity emissions target"
+      "purchased electricity emissions target",
+      "purchased energy for electricity, heating or cooling"
     ],
     "required": false,
     "high_risk": true,
@@ -244,7 +251,10 @@
       "absolute scope 3 emissions target",
       "value chain emissions target",
       "reduce scope 3 emissions by",
-      "scope 3 target coverage"
+      "scope 3 target coverage",
+      "purchased goods and services",
+      "use of sold products",
+      "upstream and downstream emissions"
     ],
     "required": false,
     "high_risk": true,
@@ -278,7 +288,8 @@
       "2030 interim target",
       "milestone emission reduction targets",
       "intermediate GHG target",
-      "near-term targets"
+      "near-term targets",
+      "interim goals"
     ],
     "required": false,
     "high_risk": true,
@@ -411,7 +422,10 @@
       "board climate committee",
       "sustainability committee of the board",
       "climate responsibility executive level",
-      "climate transition governance"
+      "climate transition governance",
+      "board-level committee climate",
+      "climate representative executive board",
+      "team responsible for climate"
     ],
     "required": false,
     "high_risk": true,
@@ -644,7 +658,9 @@
       "third-party verification transition plan",
       "second party opinion",
       "SBTi validated target",
-      "independent assurance statement"
+      "independent assurance statement",
+      "validated by the Science Based Targets initiative",
+      "third-party validation"
     ],
     "required": false,
     "high_risk": true,
@@ -777,7 +793,9 @@
       "IEA net zero scenario",
       "scenario envelope",
       "sensitivity analysis climate targets",
-      "NGFS scenarios"
+      "NGFS scenarios",
+      "model ensembles",
+      "multiple scenarios"
     ],
     "required": false,
     "high_risk": true,
@@ -810,7 +828,10 @@
       "key assumptions underlying transition plan",
       "carbon price assumption",
       "assumptions on technology and policy",
-      "consumer preference assumptions"
+      "consumer preference assumptions",
+      "input prices",
+      "sector policies",
+      "economic development"
     ],
     "required": false,
     "high_risk": true,
@@ -844,7 +865,9 @@
       "renewable capacity build-out",
       "power purchase agreements renewable",
       "share of renewable energy consumption",
-      "100% renewable electricity"
+      "100% renewable electricity",
+      "renewable energy procurement",
+      "renewable energy consumption"
     ],
     "required": false,
     "high_risk": true,
@@ -878,7 +901,9 @@
       "climate technology R&D",
       "early-stage climate solutions",
       "decarbonization technology acquisition",
-      "clean technology capital projects"
+      "clean technology capital projects",
+      "research and development",
+      "acquisitions climate solutions"
     ],
     "required": false,
     "high_risk": true,
@@ -1111,7 +1136,8 @@
       "engagement with policy makers",
       "public policy positions climate",
       "lobbying for carbon pricing",
-      "government engagement net zero policies"
+      "government engagement net zero policies",
+      "public positioning climate policy"
     ],
     "required": false,
     "high_risk": true,
@@ -1144,7 +1170,9 @@
       "trade association policy alignment",
       "industry group membership net zero",
       "association lobbying climate",
-      "leading industry initiative decarbonization"
+      "leading industry initiative decarbonization",
+      "chairing a committee",
+      "steering committee"
     ],
     "required": false,
     "high_risk": true,
@@ -1177,7 +1205,10 @@
       "consequences ineffective engagement",
       "divest if engagement fails",
       "supplier contract termination climate",
-      "leave industry association"
+      "leave industry association",
+      "no renewal of business relations",
+      "leaving an industry organisation",
+      "divesting"
     ],
     "required": false,
     "high_risk": true,
@@ -1211,7 +1242,8 @@
       "coal phase-out commitment",
       "no new coal projects",
       "end financing of new fossil fuel supply",
-      "no new fossil fuel expansion"
+      "no new fossil fuel expansion",
+      "coal, oil and gas"
     ],
     "required": false,
     "high_risk": true,
@@ -1277,7 +1309,9 @@
       "internal combustion engine phase-out",
       "gas boiler phase-out",
       "end sale of fossil fuel vehicles",
-      "fossil fuel consuming products"
+      "fossil fuel consuming products",
+      "combustion engine cars",
+      "manufacturing equipment"
     ],
     "required": false,
     "high_risk": true,
@@ -1310,7 +1344,9 @@
       "impact on workforce of transition",
       "affected workers and communities",
       "reskilling workers decarbonization",
-      "monitoring social impacts of transition"
+      "monitoring social impacts of transition",
+      "fair and equitable transition",
+      "local communities"
     ],
     "required": false,
     "high_risk": true,
@@ -1343,7 +1379,9 @@
       "dialogue with affected workers",
       "social dialogue trade unions transition",
       "community consultation plant closure",
-      "stakeholder engagement just transition"
+      "stakeholder engagement just transition",
+      "fair and equitable transition",
+      "affected workers and local communities"
     ],
     "required": false,
     "high_risk": true,
@@ -1608,7 +1646,9 @@
       "use of sold products emissions",
       "scope 3 categories excluded",
       "GHG Protocol scope 3 category coverage",
-      "financed emissions category 15"
+      "financed emissions category 15",
+      "capital goods",
+      "fuel- and energy-related activities"
     ],
     "required": false,
     "high_risk": true,

@@ -5,8 +5,8 @@ from collections.abc import Callable
 
 import numpy as np
 
+from arp.retrieval import rerank as rerank_module
 from arp.retrieval.index_cache import INDEX_CACHE
-from arp.retrieval.rerank import rerank
 from arp.schemas.common import DocType, DocumentChunk
 from arp.storage.document_store import DocumentContentStore
 
@@ -99,6 +99,7 @@ def select_relevant_chunks(
     opensearch_client=None,
     rerank_candidates: int | None = None,
     on_unranked_fallback: Callable[[], None] | None = None,
+    semantic_query: str | None = None,
 ) -> list[DocumentChunk]:
     """BM25-ranked evidence selection applied before any extraction/
     matching LLM call, so a call's context stays small (higher precision,
@@ -154,6 +155,8 @@ def select_relevant_chunks(
     - `on_unranked_fallback`: called when `fallback_to_all` returns candidates
       that nothing ranked (no keyword hit, no vector ranking, no reranker), i.e.
       the first chunks in document order.
+    - `semantic_query`: when set, the vector ranking and the reranker use it
+      instead of the joined `query_terms`; BM25 keeps `query_terms`.
     """
     candidates = chunks
     if doc_type_filter:
@@ -165,11 +168,12 @@ def select_relevant_chunks(
         return candidates[:max_chunks]
 
     query_text = " ".join(query_terms)
+    semantic_text = semantic_query or query_text
 
     def finish(ranked: list[DocumentChunk]) -> list[DocumentChunk]:
         if rerank_candidates is None:
             return ranked[:max_chunks]
-        return rerank(query_text, ranked[:rerank_candidates], max_chunks)
+        return rerank_module.rerank(semantic_text, ranked[:rerank_candidates], max_chunks)
 
     use_opensearch_bm25 = retrieval_backend == "opensearch" and opensearch_client is not None
     if use_opensearch_bm25:
@@ -193,7 +197,7 @@ def select_relevant_chunks(
         return finish([by_id[chunk_id] for chunk_id, _ in scored])
 
     bm25_ranking = [chunk_id for chunk_id, _ in scored]
-    vector_ranking = _vector_ranking(candidates, query_text, content_store)
+    vector_ranking = _vector_ranking(candidates, semantic_text, content_store)
     fused = _rrf_fuse([bm25_ranking, vector_ranking])
     if not fused and fallback_to_all:
         return finish(candidates)

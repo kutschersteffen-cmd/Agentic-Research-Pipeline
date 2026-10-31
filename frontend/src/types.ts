@@ -251,6 +251,7 @@ export interface FieldDefinition {
   required: boolean;
   source_doc_types: DocType[];
   seed_keywords: string[];
+  retrieval_query?: string | null;
   status?: "draft" | "released" | "retired";
   rules?: FieldRule[];
 }

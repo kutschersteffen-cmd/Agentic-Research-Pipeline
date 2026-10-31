@@ -14,7 +14,7 @@ from arp.config import get_settings
 from arp.extraction.pipeline import load_run_schema
 from arp.golden_set.export import export_cases
 from arp.golden_set.precision import load_record_cases, run_precision
-from arp.golden_set.retrieval import run_retrieval_eval
+from arp.golden_set.retrieval import run_cases_retrieval_eval, run_retrieval_eval
 from arp.golden_set.role_runner import load_role_cases as load_role_golden_set_cases
 from arp.golden_set.role_runner import run_role_golden_set
 from arp.golden_set.runner import load_cases as load_golden_set_cases
@@ -203,26 +203,40 @@ def golden_set_export_labels(
 
 @golden_set_app.command("retrieval")
 def golden_set_retrieval(
-    run_id: str = typer.Option(..., "--run-id", help="Reviewed extraction run whose approved citations are the gold spans."),
-    documents_dir: Path = typer.Option(None, "--documents-dir", help="Directory holding <company_id>/ document folders. Defaults to the app's."),
+    run_id: str = typer.Option(None, "--run-id", help="Reviewed extraction run whose approved citations are the gold spans."),
+    cases_file: Path = typer.Option(None, "--cases", help="Committed retrieval cases file (gold spans as text); no Postgres needed."),
+    documents_dir: Path = typer.Option(
+        None, "--documents-dir",
+        help="Directory holding <company_id>/ document folders. Defaults to the app's, or the cases file's documents/ sibling.",
+    ),
+    min_recall: float = typer.Option(None, "--min-recall", min=0.0, max=1.0, help="Exit 1 if recall@evidence_max_chunks is below this."),
     hybrid: bool = typer.Option(None, "--hybrid/--no-hybrid", help="Override hybrid_retrieval_enabled."),
     rerank: bool = typer.Option(None, "--rerank/--no-rerank", help="Override rerank_enabled."),
     rerank_candidates: int = typer.Option(None, "--rerank-candidates", min=1, help="Override rerank_candidates."),
     out: Path = typer.Option(None, "--out", help="Also write the JSON report here."),
 ) -> None:
     """Replays each reviewed field's evidence selection and reports how often it contains the span a
-    reviewer approved (recall@5 and @evidence_max_chunks), plus seconds per field. No LLM calls."""
+    reviewer approved (recall@5 and @evidence_max_chunks), plus seconds per field. No LLM calls.
+    With --cases, the gold spans come from a committed cases file instead of a reviewed run."""
+    if (run_id is None) == (cases_file is None):
+        typer.echo("Pass exactly one of --cases or --run-id.", err=True)
+        raise typer.Exit(2)
     settings = get_settings()
     overrides = {"hybrid_retrieval_enabled": hybrid, "rerank_enabled": rerank, "rerank_candidates": rerank_candidates}
     settings = settings.model_copy(update={k: v for k, v in overrides.items() if v is not None})
-    run_store = _run_store()
     try:
-        report = asyncio.run(
-            run_retrieval_eval(
-                run_store, run_id, _decisions(run_store, run_id),
-                documents_dir=documents_dir or settings.documents_dir, settings=settings,
+        if cases_file is not None:
+            report = asyncio.run(run_cases_retrieval_eval(
+                cases_file, documents_dir=documents_dir or cases_file.parent / "documents", settings=settings,
+            ))
+        else:
+            run_store = _run_store()
+            report = asyncio.run(
+                run_retrieval_eval(
+                    run_store, run_id, _decisions(run_store, run_id),
+                    documents_dir=documents_dir or settings.documents_dir, settings=settings,
+                )
             )
-        )
     except ValueError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(1) from exc
@@ -239,3 +253,6 @@ def golden_set_retrieval(
         f"recall@{k} {report[f'recall_at_{k}']:.1%}; {report['median_seconds_per_field']:.2f}s median, "
         f"{report['max_seconds_per_field']:.2f}s max per field."
     )
+    if min_recall is not None and report[f"recall_at_{k}"] < min_recall:
+        typer.echo(f"recall@{k} {report[f'recall_at_{k}']:.1%} is below the minimum {min_recall:.1%}.", err=True)
+        raise typer.Exit(1)

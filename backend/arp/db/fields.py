@@ -117,6 +117,11 @@ def _content(schema: DataPointSchema) -> dict:
 
 
 _LIFECYCLE = ("status", "effective_from", "version")
+# Retrieval inputs: they change which evidence is searched, not the question a field answers, so a released
+# field may change them without a new version (spec retrieval-gold-set-and-question-queries, B.4). The schema
+# still gets a new version, since _content keeps them.
+_RETRIEVAL_INPUTS = {"seed_keywords", "retrieval_query"}
+_NOT_FIELD_MEANING = {*_LIFECYCLE, *_RETRIEVAL_INPUTS}
 
 
 def _check_released_rows(s: Session, schema: DataPointSchema) -> None:
@@ -129,8 +134,8 @@ def _check_released_rows(s: Session, schema: DataPointSchema) -> None:
         stored = FieldDefinition.model_validate(row.definition).model_dump(mode="json")  # keys added since release take their default
         same = (
             (row.name, row.data_type, row.unit) == (f.name, str(f.data_type.value), f.unit)
-            and {k: v for k, v in inc.items() if k not in _LIFECYCLE}
-            == {k: v for k, v in stored.items() if k not in _LIFECYCLE}
+            and {k: v for k, v in inc.items() if k not in _NOT_FIELD_MEANING}
+            == {k: v for k, v in stored.items() if k not in _NOT_FIELD_MEANING}
             and (not f.effective_from or f.effective_from == row.effective_from.isoformat())
         )
         if not same:
@@ -226,7 +231,7 @@ class SchemaRegistry:
                 prev = old.get(f.field_id)
                 if (
                     prev is not None and prev.status == FieldStatus.RELEASED
-                    and prev.model_dump(exclude=_NOT_CONTENT) != f.model_dump(exclude=_NOT_CONTENT)
+                    and prev.model_dump(exclude=_NOT_FIELD_MEANING) != f.model_dump(exclude=_NOT_FIELD_MEANING)
                     and f.version <= prev.version
                 ):
                     raise FieldVersionError(

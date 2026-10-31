@@ -11374,6 +11374,11 @@ export interface components {
              */
             required: boolean;
             /**
+             * Retrieval Query
+             * @description Natural-language query for the embedding ranking and reranker; BM25 keeps seed_keywords.
+             */
+            retrieval_query?: string | null;
+            /**
              * Rules
              * @description Typed conditions on this field's extracted value.
              */
