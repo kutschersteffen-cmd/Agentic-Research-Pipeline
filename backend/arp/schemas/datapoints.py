@@ -80,6 +80,7 @@ class CheckConfig(BaseModel):
     sum_target_field: str | None = Field(
         default=None, description="The `sum_of` parts plus this field equal this sibling's value (same period and unit)."
     )
+    ratio_of: list[str] = Field(default_factory=list, description="Share fields only: [numerator, denominator] field_ids; the share must be within 1 point of their ratio.")
     prior_change_max: float | None = Field(default=0.5, description="Relative jump vs. prior value that warns.")
     cross_source_tolerance: float = Field(default=0.01, description="Relative difference vs. another source that warns.")
 
