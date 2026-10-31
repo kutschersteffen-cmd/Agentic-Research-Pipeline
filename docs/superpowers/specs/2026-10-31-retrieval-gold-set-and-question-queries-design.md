@@ -110,7 +110,7 @@ or instruction text is added to any query.
 | AC-15  | `presets/data/transition_plan_keywords.json` | read | `A_headline_1` contains `net zero`, `carbon neutrality` and `return to 2020 levels` | holdout |
 | AC-15b | Same | read | No keyword list contains `intensity target` for `A_headline_1` | holdout |
 | AC-16  | The committed gold set, default settings | cases mode on the PR and on `main` | PR recall@12 ≥ `main` recall@12 | golden |
-| AC-16b | Same | Same | PR recall@5 ≥ `main` recall@5 | golden |
+| AC-16b | Same | Same | PR recall@5 ≥ `main` recall@5 − 0.05 (owner, 2026-10-31: the question query trades recall@5 for recall@12) | golden |
 | AC-17  | The bundled extraction golden set | `arp golden-set run` | Every case passes, as on `main` | golden |
 
 Must not change: the run mode of `golden-set retrieval` (AC-6); retrieval for fields without
