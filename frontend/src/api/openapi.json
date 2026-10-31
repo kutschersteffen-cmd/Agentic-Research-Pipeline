@@ -7727,12 +7727,28 @@
       "title": "Fallback",
       "type": "boolean"
      },
+     "section_tags": {
+      "description": "Outline tags (arp.ingestion.section_tags) to look in first.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Section Tags",
+      "type": "array"
+     },
      "sections": {
       "description": "Section-heading substrings, case-insensitive.",
       "items": {
        "type": "string"
       },
       "title": "Sections",
+      "type": "array"
+     },
+     "table_kinds": {
+      "description": "Table kinds (arp.ingestion.table_kinds) to look in first.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Table Kinds",
       "type": "array"
      }
     },
@@ -19588,6 +19604,28 @@
        }
       ],
       "title": "Col Label"
+     },
+     "kind": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kind"
+     },
+     "page": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page"
      },
      "row_label": {
       "anyOf": [

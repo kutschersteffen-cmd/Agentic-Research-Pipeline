@@ -19,7 +19,7 @@ from arp.ingestion.xbrl import FactSource, XbrlFact
 from arp.llm.base import LLMClient, LLMUsage
 from arp.normalise.value import typed_value
 from arp.orchestration.step_tally import run_graph
-from arp.planning.doc_routing import route_documents, section_filter
+from arp.planning.doc_routing import route_documents, section_filter_with_report
 from arp.retrieval.keywords_de import with_german
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import DocumentChunk, ProvenanceInfo, SourceDocument
@@ -45,6 +45,7 @@ class FieldState(TypedDict):
     confidence_review_threshold: float
     evidence: list[DocumentChunk]
     evidence_unranked: bool
+    routing: dict | None  # walkthrough trace: the section filter's routing report
     draft: ExtractionDraft | None
     verifier: VerifierOutput | None
     adjudicator: AdjudicatorOutput | None
@@ -124,15 +125,19 @@ def _route_after_tagged(state: FieldState) -> str:
 
 
 def field_evidence(
-    field: FieldDefinition, documents: list[SourceDocument], settings: Settings | None, on_unranked_fallback=None
+    field: FieldDefinition, documents: list[SourceDocument], settings: Settings | None, on_unranked_fallback=None,
+    on_routing=None,
 ) -> list[DocumentChunk]:
     """The ranked evidence one field's extraction sees. Blocking (BM25/embedding/rerank are
-    CPU-bound); `golden-set retrieval` replays it, so the eval measures exactly this path."""
+    CPU-bound); `golden-set retrieval` replays it, so the eval measures exactly this path.
+    `on_routing` gets the section filter's routing report (None when the field routes by no tag or kind)."""
     keywords = with_german(field.seed_keywords)
     all_chunks: list[DocumentChunk] = []
     for doc in route_documents(field, documents):
         all_chunks.extend(chunk_document(doc, keywords=keywords))
-    all_chunks = section_filter(field, all_chunks)
+    all_chunks, routing = section_filter_with_report(field, all_chunks)
+    if on_routing is not None:
+        on_routing(routing)
 
     content_store = None
     if settings is not None and settings.hybrid_retrieval_enabled:
@@ -193,10 +198,12 @@ async def _gather_evidence(state: FieldState) -> dict:
     if state.get("grouped"):
         return {"evidence": state["grouped"][1], "evidence_unranked": False}
     unranked: list[bool] = []
+    routing: list[dict | None] = [None]
     evidence = await asyncio.to_thread(  # keep the CPU-bound ranking off the event loop
-        field_evidence, state["field"], state["documents"], state["settings"], lambda: unranked.append(True)
+        field_evidence, state["field"], state["documents"], state["settings"], lambda: unranked.append(True),
+        lambda report: routing.__setitem__(0, report),
     )
-    return {"evidence": evidence, "evidence_unranked": bool(unranked)}
+    return {"evidence": evidence, "evidence_unranked": bool(unranked), "routing": routing[0]}
 
 
 def _route_after_evidence(state: FieldState) -> str:
@@ -352,6 +359,7 @@ def _trace_entry(state: FieldState, grouped: bool) -> dict:
         verifier=verifier,
         adjudicator=trace.call(state["adjudicator_usage"], state["adjudicator"]),
         vision=trace.call(seen.get("vision_usage"), seen.get("reading")),
+        routing=state.get("routing"),
     )
 
 
@@ -414,6 +422,7 @@ async def extract_one_field(
         "planned_periods": planned_periods,
         "evidence": [],
         "evidence_unranked": False,
+        "routing": None,
         "draft": None,
         "verifier": None,
         "adjudicator": None,

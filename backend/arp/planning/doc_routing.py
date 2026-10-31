@@ -21,12 +21,26 @@ def route_documents(field: FieldDefinition, documents: list[SourceDocument]) -> 
 
 
 def section_filter(field: FieldDefinition, chunks: list[DocumentChunk]) -> list[DocumentChunk]:
+    return section_filter_with_report(field, chunks)[0]
+
+
+def section_filter_with_report(field: FieldDefinition, chunks: list[DocumentChunk]) -> tuple[list[DocumentChunk], dict | None]:
+    """The chunks under the field's section headings, outline tags or table kinds, and, when it routes by tags
+    or kinds, the trace's `routing` report: whether anything matched, and how many of how many chunks were kept."""
     r = field.document_routing
-    if r is None or not r.sections:
-        return chunks
+    if r is None or not (r.sections or r.section_tags or r.table_kinds):
+        return chunks, None
     needles = [s.lower() for s in r.sections]
-    kept = [c for c in chunks if c.section and any(n in c.section.lower() for n in needles)]
-    return kept or (chunks if r.fallback else [])
+    tags, kinds = set(r.section_tags), set(r.table_kinds)
+    kept = [
+        c for c in chunks
+        if (c.section and any(n in c.section.lower() for n in needles))
+        or tags.intersection(c.section_tags) or (c.table is not None and c.table.kind in kinds)
+    ]
+    report = None
+    if r.section_tags or r.table_kinds:
+        report = {"matched": bool(kept), "tags": r.section_tags, "table_kinds": r.table_kinds, "kept": len(kept), "of": len(chunks)}
+    return kept or (chunks if r.fallback else []), report
 
 
 def input_hash(

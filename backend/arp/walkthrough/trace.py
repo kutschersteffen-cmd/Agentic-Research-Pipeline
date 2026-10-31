@@ -55,6 +55,7 @@ def field_entry(
     verifier: dict | None = None,
     adjudicator: dict | None = None,
     vision: dict | None = None,
+    routing: dict | None = None,
 ) -> dict:
     return {
         "field_id": field_id,
@@ -65,6 +66,7 @@ def field_entry(
         "verifier": verifier,
         "adjudicator": adjudicator,
         "vision": vision,
+        "routing": routing,
     }
 
 

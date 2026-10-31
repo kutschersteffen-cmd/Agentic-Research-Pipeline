@@ -10806,10 +10806,20 @@ export interface components {
              */
             fallback: boolean;
             /**
+             * Section Tags
+             * @description Outline tags (arp.ingestion.section_tags) to look in first.
+             */
+            section_tags?: string[];
+            /**
              * Sections
              * @description Section-heading substrings, case-insensitive.
              */
             sections?: string[];
+            /**
+             * Table Kinds
+             * @description Table kinds (arp.ingestion.table_kinds) to look in first.
+             */
+            table_kinds?: string[];
         };
         /** DossierCreate */
         DossierCreate: {
@@ -15705,6 +15715,10 @@ export interface components {
             caption?: string | null;
             /** Col Label */
             col_label?: string | null;
+            /** Kind */
+            kind?: string | null;
+            /** Page */
+            page?: number | null;
             /** Row Label */
             row_label?: string | null;
             /** Table Id */

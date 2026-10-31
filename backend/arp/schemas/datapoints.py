@@ -104,6 +104,8 @@ class ApplicabilityRules(BaseModel):
 class DocumentRouting(BaseModel):
     doc_types: list[DocType] = Field(default_factory=list, description="Document types in preference order.")
     sections: list[str] = Field(default_factory=list, description="Section-heading substrings, case-insensitive.")
+    section_tags: list[str] = Field(default_factory=list, description="Outline tags (arp.ingestion.section_tags) to look in first.")
+    table_kinds: list[str] = Field(default_factory=list, description="Table kinds (arp.ingestion.table_kinds) to look in first.")
     fallback: bool = True
 
 
