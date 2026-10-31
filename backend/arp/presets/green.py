@@ -127,7 +127,9 @@ def _metric_fields(m: str) -> list[FieldDefinition]:
         ),
     ]
     routing = DocumentRouting(table_kinds=[_TABLE_KIND[m]], section_tags=["eu_taxonomy"])
-    return [f.model_copy(update={"document_routing": routing, "version": f.version + 1}) for f in fields]  # +1: routing
+    # only fields read from the taxonomy table are routed; framework and definition text lives elsewhere
+    return [f if f.field_id.endswith(("_framework", "_definition"))
+            else f.model_copy(update={"document_routing": routing, "version": f.version + 1}) for f in fields]  # +1: routing
 
 
 def build_green_schema() -> DataPointSchema:

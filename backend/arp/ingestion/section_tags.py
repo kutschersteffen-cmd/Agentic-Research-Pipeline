@@ -1,4 +1,5 @@
 """Keyword rules that tag an outline heading, e.g. "EU Taxonomy" -> eu_taxonomy."""
+# Changing these rules changes chunk tags: bump _SPAN_ALGO_VERSION in arp/ingestion/chunk_spans.py.
 
 from __future__ import annotations
 

@@ -12,8 +12,18 @@ from arp.transition_plan.indicators import load_indicators
 _MAIN = json.loads((Path(__file__).parent / "fixtures" / "table_routing_presets_main.json").read_text())
 
 
+_TEXT = ("_framework", "_definition")  # owner decision 2026-10-31: only taxonomy-table fields are routed
+
+
 def _green(m: str):
-    return [f for f in build_green_schema().fields if f.field_id.startswith((f"{m}_", f"green_{m}_", f"transition_{m}_"))]
+    return [f for f in build_green_schema().fields
+            if f.field_id.startswith((f"{m}_", f"green_{m}_", f"transition_{m}_")) and not f.field_id.endswith(_TEXT)]
+
+
+def test_green_text_fields_are_not_routed():
+    for f in build_green_schema().fields:
+        if f.field_id.endswith(_TEXT):
+            assert f.document_routing is None, f.field_id
 
 
 def test_ac19_green_capex_fields_route_to_the_capex_table():
@@ -32,9 +42,12 @@ def test_ac19f_green_opex_fields_route_to_the_opex_table():
 
 def test_ac19c_transition_capex_routing():
     fields = {f.field_id: f for f in build_transition_capex_schema().fields}
+    table = {"tc_lowcarbon_capex", "tc_lowcarbon_capex_share_pct", "tc_capex_denominator"}
     for f in fields.values():
-        if f.data_type in (FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE, FieldDataType.ENUM):
+        if f.field_id in table:
             assert f.document_routing.table_kinds == ["eu_taxonomy_capex"], f.field_id
+        elif f.data_type != FieldDataType.BOOLEAN:
+            assert f.document_routing is None, f.field_id  # R&D, planned, carbon-intensive, total capex
     assert BOOLEAN_FIELDS == ("tc_new_unabated_coal", "tc_new_blast_furnace", "tc_new_oil_gas_project")
     for fid in BOOLEAN_FIELDS:
         assert fields[fid].document_routing.section_tags == ["transition_plan", "climate_targets"]

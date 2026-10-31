@@ -103,7 +103,7 @@ header line. Swapping does not refill: three passages collapsing into one table 
 its `section_tags` or its table's `kind` intersect them (in addition to today's heading substrings); with `fallback`
 (default true) an empty result keeps every chunk, as today.
 
-Presets: green capex fields → `table_kinds=["eu_taxonomy_capex"]`, `section_tags=["eu_taxonomy"]`; revenue/opex
+Presets (amended 2026-10-31 by the owner: only fields read from the taxonomy table are routed; framework, definition, R&D, planned, carbon-intensive and total-capex fields search the whole report): green capex fields → `table_kinds=["eu_taxonomy_capex"]`, `section_tags=["eu_taxonomy"]`; revenue/opex
 analogues; transition capex likewise; transition-plan indicators → `section_tags` by category (target and tracking
 → `climate_targets`, `ghg_emissions`, `transition_plan`; governance → `governance`, `remuneration`; strategy →
 `transition_plan`, `climate_targets`, `biodiversity`, `water`, `workforce`). Changing `document_routing` is field
@@ -171,10 +171,10 @@ run the real Docling parse on a 2-page PDF fixture committed under `tests/fixtur
 | AC-16 | Same field, a document with no such table and no tagged section | `field_evidence` | the chunk ids and order equal those for the same field with `document_routing` unset | unit |
 | AC-17 | Same as AC-15 | the field graph runs with a trace sink | the field's trace entry has `routing == {"matched": true, "tags": ["eu_taxonomy"], "table_kinds": ["eu_taxonomy_capex"], "kept": 3, "of": 6}` | unit |
 | AC-18 | Same as AC-16 | the field graph runs with a trace sink | `routing.matched == false` | unit |
-| AC-19 | The green preset | built | each capex field (`capex_total`, `green_capex_*`, `transition_capex_total`) has `document_routing.table_kinds == ["eu_taxonomy_capex"]` | unit |
+| AC-19 | The green preset | built | each capex field except `green_capex_framework` and `green_capex_definition` has `document_routing.table_kinds == ["eu_taxonomy_capex"]`; those two have no `document_routing` (owner decision 2026-10-31: only taxonomy-table fields are routed) | unit |
 | AC-19e | Same | built | the revenue fields have `table_kinds == ["eu_taxonomy_turnover"]` | unit |
 | AC-19f | Same | built | the opex fields have `table_kinds == ["eu_taxonomy_opex"]` | unit |
-| AC-19c | The transition capex preset | built | fields of data type `currency_amount`, `percentage` or `enum` have `table_kinds == ["eu_taxonomy_capex"]`; the three `boolean` fields (`tc_new_unabated_coal`, `tc_new_blast_furnace`, `tc_new_oil_gas_project`) have `section_tags == ["transition_plan", "climate_targets"]` | unit |
+| AC-19c | The transition capex preset | built | `tc_lowcarbon_capex`, `tc_lowcarbon_capex_share_pct` and `tc_capex_denominator` have `table_kinds == ["eu_taxonomy_capex"]`; the three `boolean` fields have `section_tags == ["transition_plan", "climate_targets"]`; every other field (R&D, planned, carbon-intensive, total capex) has no `document_routing` | unit |
 | AC-19d | The transition-plan preset | built | target and tracking questions have `section_tags == ["climate_targets", "ghg_emissions", "transition_plan"]`; governance `["governance", "remuneration"]`; strategy `["transition_plan", "climate_targets", "biodiversity", "water", "workforce"]` | unit |
 | AC-19g | The green, transition capex and transition-plan presets | built | every field whose `document_routing` differs from `main` has a `version` one higher than on `main`; every other field's version is unchanged | unit |
 | AC-20 | Two high-risk fields with `table_group="g"`; a stand-in | the company is extracted | the stand-in receives exactly 1 `GroupDraft` call | unit (PR 2) |

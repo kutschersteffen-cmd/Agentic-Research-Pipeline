@@ -184,4 +184,5 @@ def test_ac14_green_preset_ratio_of():
 
 def test_ac14b_only_share_fields_bumped():
     for f in build_green_schema().fields:
-        assert f.version == (3 if f.field_id.endswith("_share_pct") else 2) + 1, f.field_id  # +1: table routing (2026-10-31)
+        routed = not f.field_id.endswith(("_framework", "_definition"))  # +1: table routing (2026-10-31)
+        assert f.version == (3 if f.field_id.endswith("_share_pct") else 2) + routed, f.field_id

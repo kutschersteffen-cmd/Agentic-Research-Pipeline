@@ -64,6 +64,7 @@ _FIELDS = [
      "The company approved a new long-lead-time conventional oil or gas project after 2023 (Yes or No).", "", None, ["new oil and gas project", "final investment decision", "sanctioned", "long-lead-time project", "FID"]),
 ]
 FIELD_IDS = tuple(f[0] for f in _FIELDS)
+_TAXONOMY_TABLE_FIELDS = {"tc_lowcarbon_capex", "tc_lowcarbon_capex_share_pct", "tc_capex_denominator"}
 AMOUNT_FIELDS = tuple(f[0] for f in _FIELDS if f[2] == T.CURRENCY_AMOUNT)  # preset field order
 
 
@@ -86,14 +87,15 @@ def _field(spec: tuple, prefixes: list[str]) -> FieldDefinition:
         kw.update(unit="%", check_config=CheckConfig(min_value=0, max_value=100))
     elif dtype == T.ENUM:
         kw["allowed_values"] = allowed
+    routing = None  # R&D, planned, carbon-intensive and total capex sit outside the taxonomy table
     if dtype == T.BOOLEAN:
         routing = DocumentRouting(section_tags=["transition_plan", "climate_targets"])
-    else:
+    elif fid in _TAXONOMY_TABLE_FIELDS:
         routing = DocumentRouting(table_kinds=["eu_taxonomy_capex"], section_tags=["eu_taxonomy"])
     return FieldDefinition(
         field_id=fid, name=name, description=definition, data_type=dtype,
         extraction_instructions=f"{definition} {_COMMON}{extra}", seed_keywords=keywords,
-        required=False, high_risk=True, version=2, planned_field_id=_PLANNED_OF.get(fid),  # v2: document routing
+        required=False, high_risk=True, version=2 if routing else 1, planned_field_id=_PLANNED_OF.get(fid),  # v2: document routing
         document_routing=routing,
         applicability_rules=ApplicabilityRules(sector_codes=prefixes), **kw,
     )

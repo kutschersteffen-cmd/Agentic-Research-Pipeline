@@ -30,7 +30,8 @@ def test_ac47_existing_presets_unchanged():
             fields = [{**f, "version": f["version"] + f["field_id"].startswith("tp_a_")} for f in fields]
         if pid == "sch_green_lowcarbon":  # the three share fields moved to version 3 (spec 2026-10-31-extraction-quick-wins)
             fields = [{**f, "version": 3 if f["field_id"].endswith("_share_pct") else f["version"]} for f in fields]
-            fields = [{**f, "version": f["version"] + 1} for f in fields]  # routed to the EU Taxonomy tables (2026-10-31)
+            fields = [{**f, "version": f["version"] + (not f["field_id"].endswith(("_framework", "_definition")))}
+                      for f in fields]  # table fields routed to the EU Taxonomy tables (2026-10-31)
         assert [_shape(f) for f in PRESETS[pid]().fields] == fields
     assert set(PRESETS) == set(snap) | {"sch_transition_capex", "sch_transition_plan_actions", "sch_transition_delivery_kpis"}
 

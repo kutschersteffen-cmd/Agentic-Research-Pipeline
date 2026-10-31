@@ -178,7 +178,7 @@ def table_spans_from_docling(doc, text: str) -> list[TableSpan]:
         out_cells: list[TableCell] = []
         for c in cells:
             r, k, t = c.start_row_offset_idx, c.start_col_offset_idx, c.text.replace("\n", " ").strip()
-            if not t or c.row_header or c.column_header or r == 0 or k == 0:
+            if not t or c.row_header or c.column_header or r < header_rows or k == 0:
                 continue
             li = r - header_rows + 2  # markdown prints every header row as line 0; line 1 is the |---| separator
             if li >= len(lines):
