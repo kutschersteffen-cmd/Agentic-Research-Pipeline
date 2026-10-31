@@ -80,7 +80,7 @@ built from the markdown headings already used for chunk sections (`parsing.py` `
 `doc.page_breaks`; `char_end` is the next heading's start. Tags come from `arp/ingestion/section_tags.py`, keyword
 rules like the table kinds: `eu_taxonomy`, `climate_targets`, `transition_plan`, `ghg_emissions`, `governance`,
 `remuneration`, `biodiversity`, `water`, `workforce`. Derived from `full_text` on load and cached with the chunk
-spans (no cache schema change).
+spans (no cache schema change). The cache is a speed measure only and is not gated by an acceptance row.
 
 `DocumentChunk` gains `page: int | None`, `section_tags: list[str]` (the tags of the outline entry it starts in) and
 `table_id: str | None` (set on whole-table passages). A whole-table passage's `section` becomes its heading path's
@@ -156,39 +156,48 @@ run the real Docling parse on a 2-page PDF fixture committed under `tests/fixtur
 | AC-7 | A document with headings "E1 Climate change", "Targets", "EU Taxonomy" on pages 3, 4, 7 | `outline(doc)` | 3 entries with those titles and pages; each `char_end` equals the next `char_start`; the last equals `len(full_text)` | unit |
 | AC-8 | Same | `outline(doc)` | the "Targets" entry's `tags` contain `climate_targets` | unit |
 | AC-8b | Same | `outline(doc)` | the "EU Taxonomy" entry's `tags` contain `eu_taxonomy` | unit |
-| AC-8c | Same document, `outline(doc)` called twice | second call | returns an equal list and does not recompute (the span cache reports a hit) | unit |
+| AC-8c | Same document, `outline(doc)` called twice | second call | returns an equal list | unit |
 | AC-9 | A chunk starting under "EU Taxonomy" on page 7 | `chunk_document` | its `section_tags` contain `eu_taxonomy` | unit |
 | AC-9b | Same | `chunk_document` | its `page == 7` | unit |
-| AC-9c | A table under heading path ["E1", "EU Taxonomy"] with caption "CapEx KPI" | `chunk_document` | its whole-table chunk has `section == "EU Taxonomy"`, `caption == "CapEx KPI"` and `table_id` set to the span's id | unit |
+| AC-9c | A table under heading path ["E1", "EU Taxonomy"] with caption "CapEx KPI" | `chunk_document` | its whole-table chunk has `section == "EU Taxonomy"` | unit |
+| AC-9d | Same | `chunk_document` | that chunk has `caption == "CapEx KPI"` | unit |
+| AC-9e | Same | `chunk_document` | that chunk's `table_id` equals the span's `table_id` | unit |
 | AC-10 | A field whose top-ranked passage overlaps table T (8,000 chars) | `field_evidence` | T's whole-table passage is at rank 1 and the overlapping text passage is absent | unit |
 | AC-11 | Same, T is 20,000 chars, `evidence_table_max_chars` 12,000 | `field_evidence` | the text passage stays at rank 1; T's passage is absent | unit |
 | AC-12 | Two selected passages overlap the same table | `field_evidence` | the table passage appears exactly once | unit |
 | AC-13 | `evidence_max_chunks` 12; 12 selected passages, of which ranks 2, 5 and 9 overlap one table | `field_evidence` | exactly 10 passages: the table passage at rank 2, then the other 9 in rank order | unit |
 | AC-14 | A table passage of kind `eu_taxonomy_capex`, page 102, caption "CapEx KPI", unit "€", scale "million", columns "A", "B" | `format_evidence` | its header line contains `page=102`, `table=eu_taxonomy_capex`, `caption="CapEx KPI"`, `unit=€`, `scale=million` and `columns=A | B` | unit |
-| AC-15 | A field with `table_kinds=["eu_taxonomy_capex"]`, `section_tags=["eu_taxonomy"]`; a document with such a table, 2 chunks tagged `eu_taxonomy` and 3 other chunks | `field_evidence` | every returned passage is that table's passage or a chunk tagged `eu_taxonomy` | unit |
+| AC-15 | A field with `table_kinds=["eu_taxonomy_capex"]`, `section_tags=["eu_taxonomy"]`; a fixture document whose chunking yields exactly 6 candidates: 1 whole-table passage of that kind, 2 text chunks tagged `eu_taxonomy` and 3 untagged text chunks (the table grid lies in no text chunk) | `field_evidence` | every returned passage is that table's passage or a chunk tagged `eu_taxonomy` | unit |
 | AC-16 | Same field, a document with no such table and no tagged section | `field_evidence` | the chunk ids and order equal those for the same field with `document_routing` unset | unit |
 | AC-17 | Same as AC-15 | the field graph runs with a trace sink | the field's trace entry has `routing == {"matched": true, "tags": ["eu_taxonomy"], "table_kinds": ["eu_taxonomy_capex"], "kept": 3, "of": 6}` | unit |
 | AC-18 | Same as AC-16 | the field graph runs with a trace sink | `routing.matched == false` | unit |
 | AC-19 | The green preset | built | each capex field (`capex_total`, `green_capex_*`, `transition_capex_total`) has `document_routing.table_kinds == ["eu_taxonomy_capex"]` | unit |
-| AC-19b | Same | built | those fields' `version` is one higher than on `main`; the revenue and opex fields carry `eu_taxonomy_turnover` / `eu_taxonomy_opex` and are also one higher | unit |
-| AC-19c | The transition capex preset | built | every field has `table_kinds == ["eu_taxonomy_capex"]` (amount fields) or `section_tags == ["transition_plan", "climate_targets"]` (yes/no fields), version one higher | unit |
-| AC-19d | The transition-plan preset | built | target and tracking questions have `section_tags == ["climate_targets", "ghg_emissions", "transition_plan"]`; governance `["governance", "remuneration"]`; strategy `["transition_plan", "climate_targets", "biodiversity", "water", "workforce"]`; each version one higher | unit |
+| AC-19e | Same | built | the revenue fields have `table_kinds == ["eu_taxonomy_turnover"]` | unit |
+| AC-19f | Same | built | the opex fields have `table_kinds == ["eu_taxonomy_opex"]` | unit |
+| AC-19c | The transition capex preset | built | fields of data type `currency_amount`, `percentage` or `enum` have `table_kinds == ["eu_taxonomy_capex"]`; the three `boolean` fields (`tc_new_unabated_coal`, `tc_new_blast_furnace`, `tc_new_oil_gas_project`) have `section_tags == ["transition_plan", "climate_targets"]` | unit |
+| AC-19d | The transition-plan preset | built | target and tracking questions have `section_tags == ["climate_targets", "ghg_emissions", "transition_plan"]`; governance `["governance", "remuneration"]`; strategy `["transition_plan", "climate_targets", "biodiversity", "water", "workforce"]` | unit |
+| AC-19g | The green, transition capex and transition-plan presets | built | every field whose `document_routing` differs from `main` has a `version` one higher than on `main`; every other field's version is unchanged | unit |
 | AC-20 | Two high-risk fields with `table_group="g"`; a stand-in | the company is extracted | the stand-in receives exactly 1 `GroupDraft` call | unit (PR 2) |
 | AC-20b | Same | extracted | the stand-in receives exactly 2 blind-verify `ExtractionDraft` calls | unit (PR 2) |
 | AC-20c | Same | extracted | each field's row has its own citations and its own `checks` list | unit (PR 2) |
-| AC-20d | One low-risk and one high-risk field with `table_group="g"`, `extraction_group_size` 0 | extracted | exactly 1 `GroupDraft` call | unit (PR 2) |
+| AC-20d | One low-risk and one high-risk field with `table_group="g"`, `extraction_group_size` 1 (no grouping by size) | extracted | exactly 1 `GroupDraft` call | unit (PR 2) |
 | AC-21 | Same as AC-20, the group answer leaves out field 2 | extracted | field 2 gets its own `ExtractionDraft` call | unit (PR 2) |
 | AC-22 | Same as AC-20, the group call raises | extracted | each field gets its own `ExtractionDraft` call | unit (PR 2) |
 | AC-22b | Same | extracted | the run status is `completed`, 1 of 1 companies | unit (PR 2) |
 | AC-22c | Two non-high-risk fields without `table_group`, `extraction_group_size` 2 | extracted | exactly 1 `GroupDraft` call, as on `main` | unit (PR 2) |
 | AC-23 | A grounded quote inside a whole-table passage | grounding | `Citation.table_ref.page` and `Citation.table_ref.kind` equal the table's | unit |
-| AC-23b | The same quote taken from the overlapping text passage on `main` and from the whole-table passage here | grounding | `grounded`, `char_start` and `char_end` are equal | unit |
+| AC-23b | One quote grounded once against a text passage that holds it and once against the whole-table passage that holds it (same build) | grounding | `grounded`, `char_start` and `char_end` are equal | unit |
 | AC-23c | The existing check and routing fixtures (`tests/test_checks_*.py`, `tests/test_routing.py`) | run | unchanged outcomes, severities and routes | unit |
-| AC-24 | The PR | CI | the "Backend (lint + tests)" job is green | unit |
+| AC-28 | A 4-card scoring fixture: truth "100 million" / answer "100.9 million"; truth "100 million" / answer "102 million"; truth "YES" / answer "yes"; truth "NO" / answer "not found" | `answer_check_score.py` runs | prints `correct 2/4 · not_found_on_yes_no 1` | unit |
+| AC-28b | Same, `--min-correct 3` | runs | exits 1 | unit |
+| AC-28c | Same, `--min-correct 2 --max-not-found 1` | runs | exits 0 | unit |
+| AC-28d | The 4-card fixture plus a fifth card with truth "120 million" that the run did not answer | runs | prints `correct 2/5 · not_found_on_yes_no 1` | unit |
+| AC-28e | The 5 cards plus a sixth with truth "not in report" and answer "not found" | runs | prints `correct 3/6 · not_found_on_yes_no 1` | unit |
+| AC-24 | The PR | CI | the "Backend (lint + tests)" job is green | CI |
 | AC-25 | The golden set | `arp golden-set run` | exits 0 with every case passing | golden |
-| AC-26 | Approved green-capex cards; a Haiku + Sonnet run of the green capex schema on RWE, Siemens, BASF | `answer_check_score.py --schema green-capex --min-correct 30` | exits 0 (baseline 17/45) | golden |
-| AC-27 | Approved transition-plan cards; a Haiku + Sonnet run on the three companies | `answer_check_score.py --schema transition-plan --min-correct 169` | exits 0 | golden |
-| AC-27b | Same | `answer_check_score.py --schema transition-plan --max-not-found 8` | exits 0 (baseline 16) | golden |
+| AC-26 | Approved green-capex cards; a Haiku + Sonnet run of the green capex schema on RWE, Siemens, BASF | `answer_check_score.py --truth tests/golden/answer_check/approved.json --run <that run's id> --schema green-capex --min-correct 30` | exits 0 (baseline 17/45) | golden |
+| AC-27 | Approved transition-plan cards; a Haiku + Sonnet run on the three companies | `answer_check_score.py --truth tests/golden/answer_check/approved.json --run <that run's id> --schema transition-plan --min-correct 169` | exits 0 | golden |
+| AC-27b | Same | `answer_check_score.py --truth tests/golden/answer_check/approved.json --run <that run's id> --schema transition-plan --max-not-found 8` | exits 0 (baseline 16) | golden |
 
 Must not change: AC-16, AC-18, AC-22, AC-22b, AC-22c, AC-23b, AC-23c, AC-25. Every changed existing test is listed in the PR.
 
