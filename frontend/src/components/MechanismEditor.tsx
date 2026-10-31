@@ -99,6 +99,19 @@ export function MechanismEditor({
             ))}
           </select>
           <p className="help-text">{note(MISSING, config.missing)}</p>
+          {config.mode !== "levels" && (
+            <label className="field-label">
+              Companies with no score (a required criterion is missing)
+              <select
+                aria-label="Companies with no score"
+                value={config.no_score_rows ?? "include"}
+                onChange={(e) => set({ no_score_rows: e.target.value as "include" | "exclude" })}
+              >
+                <option value="include">include: still count in normalisation</option>
+                <option value="exclude">exclude: the others are compared among themselves</option>
+              </select>
+            </label>
+          )}
           <label className="field-label">
             Minimum weight covered (%)
             <input type="number" min={0} max={100} step={5} value={config.min_coverage_pct} onChange={(e) => set({ min_coverage_pct: Number(e.target.value) })} />
@@ -215,6 +228,17 @@ export function MechanismEditor({
                             onChange={(e) => setCriterion(criterion.column, { enabled: e.target.checked })}
                             aria-label={`Include ${criterion.column}`}
                           />
+                          {config.mode !== "levels" && (
+                            <label className="checkbox-label">
+                              <input
+                                type="checkbox"
+                                checked={!!criterion.required}
+                                onChange={(e) => setCriterion(criterion.column, { required: e.target.checked })}
+                                aria-label={`${criterion.column} is required`}
+                              />
+                              required
+                            </label>
+                          )}
                         </td>
                         <td>
                           <select

@@ -9,7 +9,7 @@ re-score. Entities are matched to issuers by an id column, not by name.
 from __future__ import annotations
 
 from arp.decision.dataset import Dataset
-from arp.schemas.decision import DecisionResult, MechanismConfig, PublishedDecision, PublishedRow
+from arp.schemas.decision import DecisionResult, MechanismConfig, PublishedCriterion, PublishedDecision, PublishedRow
 
 ID_COLUMNS = ("company_id", "issuer_id", "entity_id", "id")
 
@@ -71,6 +71,12 @@ def publish(
             rank_min=e.rank_min,
             rank_max=e.rank_max,
             status=e.status,
+            reasons=e.reasons,
+            criteria=[
+                PublishedCriterion(column=c.column, contribution=c.contribution, imputed=c.imputed,
+                                   value_id=c.value_id, missing_reason=c.missing_reason)
+                for c in e.contributions
+            ],
         )
         for row, e in zip(dataset.rows, result.entities, strict=True)
         if str(row.get(column) or "").strip()
@@ -88,6 +94,8 @@ def publish(
         cut_points=list(result.effective_cuts),
         cuts_held_from=cuts_held_from,
         rows=rows,
+        source=dataset.source,
+        source_ref=dataset.source_ref,
     )
 
 
@@ -98,13 +106,15 @@ def field_prefix(snapshot: PublishedDecision) -> str:
 def as_fields(snapshot: PublishedDecision) -> dict[str, dict[str, float | int | str | None]]:
     """entity id -> flat company fields, the form every consumer reads."""
     p = field_prefix(snapshot)
-    return {
-        r.entity_id: {
+    out: dict[str, dict[str, float | int | str | None]] = {}
+    for r in snapshot.rows:
+        # A no_score row has no score family at all, so a rule reading .tier meets its own missing-value policy.
+        scored = {} if r.status == "no_score" else {
             f"{p}.score": r.score,
             f"{p}.tier": r.tier,
             f"{p}.tier_name": r.tier_name,
             f"{p}.rank": r.rank,
             f"{p}.rank_max": r.rank_max,
         }
-        for r in snapshot.rows
-    }
+        out[r.entity_id] = {**scored, f"{p}.status": r.status, f"{p}.reasons": "; ".join(r.reasons)}
+    return out

@@ -41,7 +41,11 @@ def profile_column(dataset: Dataset, column: str) -> ColumnProfile:
 
     coverage = len(present) / n if n else 0.0
 
-    if present and len(booleans) / len(present) >= 0.95 and len(unique) <= 3:
+    if column.endswith("__value_id"):  # authoritative value ids and reasons: lineage, never a criterion
+        col_type = "identifier"
+    elif column.endswith("__reason"):
+        col_type = "text"
+    elif present and len(booleans) / len(present) >= 0.95 and len(unique) <= 3:
         col_type = "boolean"
     elif present and len(numbers) / len(present) >= 0.8:
         all_int = all(float(x).is_integer() for x in numbers)

@@ -1,8 +1,10 @@
 import { Fragment, useState } from "react";
+import { publishedEntityId } from "../lib/lineage";
+import { EntityLineage } from "./LineagePanel";
 import { LevelOverrides } from "./LevelOverrides";
 import { activatable } from "../lib/activatable";
 import { Pager } from "./XbrlFactsTable";
-import type { DecisionResult, EntityDecision, LevelOverride, MechanismConfig } from "../types";
+import type { DecisionResult, EntityDecision, LevelOverride, MechanismConfig, PublishedDecision } from "../types";
 
 const PAGE = 100;
 
@@ -17,6 +19,9 @@ function StatusCell({ entity }: { entity: EntityDecision }) {
   if (entity.status === "scored") {
     return <span className={tierClass(entity.tier)}>{entity.tier_name ?? `Tier ${entity.tier}`}</span>;
   }
+  if (entity.status === "no_score") {
+    return <span className="badge badge-low" title={(entity.reasons ?? []).join("; ")}>no score</span>;
+  }
   return <span className={entity.status === "excluded" ? "badge badge-low" : "badge badge-neutral"}>{entity.status}</span>;
 }
 
@@ -28,6 +33,7 @@ export function DecisionResultsTable({
   onExplain,
   onSetOverride,
   onRemoveOverride,
+  published,
 }: {
   result: DecisionResult;
   config: MechanismConfig;
@@ -37,6 +43,8 @@ export function DecisionResultsTable({
   /** Levels mode: a reviewer sets or removes one criterion's level for one entity. */
   onSetOverride?: (override: LevelOverride) => Promise<void>;
   onRemoveOverride?: (entityKey: string, criterionId: string, reviewer: string, reason: string) => Promise<void>;
+  /** The publication of this result, if any: its lineage carries the document citations. */
+  published?: PublishedDecision | null;
 }) {
   const [filter, setFilter] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -168,6 +176,12 @@ export function DecisionResultsTable({
                         </tbody>
                       </table>
                       )}
+                      <h4>Where the numbers come from</h4>
+                      <EntityLineage
+                        entity={entity}
+                        snapshotId={published?.snapshot_id}
+                        entityId={published ? publishedEntityId(published.rows, entity.name) : undefined}
+                      />
                     </td>
                   </tr>
                 )}
