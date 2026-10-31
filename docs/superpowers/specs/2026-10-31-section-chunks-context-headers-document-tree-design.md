@@ -59,7 +59,7 @@ once the `Retrieval recall` gate shows recall@12 on the PR ≥ `main`.
    (`DocumentSourceRegistry.fetch_all`, so also `arp documents warm`) with `doc_tree_enabled` on; a later fetch,
    run, field or schema reads the stored tree. Public seam for tests: `build_doc_tree(doc, settings) -> DocTree`,
    which reads or builds and stores the tree.
-2. **Structure (no LLM):** an unnamed root (`node_id` `"root"`, never printed) whose children are the top-level
+2. **Structure (no LLM):** an unnamed root (`node_id` `"root"`, never printed, no summary, never sent to the model) whose children are the top-level
    nodes. One node per outline heading, nested by heading level, plus one leaf per whole table
    (child of the section it sits in). Each node: `node_id`, `title`, `heading_path`, `level`, `page_start`,
    `page_end`, `char_start`, `char_end`, `table_id` (tables only), `summary`, `key_terms`, `children`.
@@ -112,8 +112,8 @@ Conventions:
 | AC-7   | `chunking_a` (no headings) | `chunk_document` with the setting on | Spans equal the `main` snapshot | holdout |
 | AC-8   | `chunking_a`, `_b`, `_c`, setting off | `chunk_document` | Spans equal the `main` snapshots | holdout |
 | AC-9   | `chunking_c`, setting on | `chunk_document` | Whole-table passages (`table_id` set) equal those with the setting off | holdout |
-| AC-9b  | `chunking_b`, setting on | `chunk_document` | Every `chunk_id` matches `^chk_<doc_id>_\d+_\d+$` | holdout |
-| AC-9c  | Spans for `chunking_b` cached by a `chunk_document` call with the setting off in the same process | setting switched on, `chunk_document` again | The result satisfies AC-1/AC-2's rule for `chunking_b` (no chunk crosses a heading) | holdout |
+| AC-9b  | `chunking_b`, setting on | `chunk_document` | Every `chunk_id` matches `^chk_<doc_id>_\d+_\d+$` (today's format, `ingestion/parsing.py` on `main`) | holdout |
+| AC-9c  | Spans for `chunking_b` computed by `chunk_document` with the setting off, still in the in-process span cache | setting switched on, `chunk_document` again | Spans equal those `chunk_document` returns with the setting on after `get_span_cache().clear()` | holdout |
 | AC-10  | `title="Siemens Annual Report 2025"`, `fiscal_period="FY2025"`, chunk under `# Sustainability` › `## Scope 3`, `context_headers_enabled` on | `index_text` | Returns `Siemens Annual Report 2025 · FY2025 · Sustainability › Scope 3\n` + `chunk.text` | holdout |
 | AC-11  | Same, `fiscal_period=None` | `index_text` | Returns `Siemens Annual Report 2025 · Sustainability › Scope 3\n` + `chunk.text` | holdout |
 | AC-11b | Setting off | `index_text` | Returns `chunk.text` | holdout |
@@ -122,7 +122,7 @@ Conventions:
 | AC-12c | Headers on, `retrieval_backend=opensearch` (test container) | chunks indexed | The indexed document's `text` field equals `index_text(chunk)` | holdout |
 | AC-13  | Headers on | evidence handed to the extractor | Each passage's text equals `chunk.text`; no header line appears in the prompt | holdout |
 | AC-14  | Headers on, a citation whose quote is `Sustainability › Scope 3` (header-only text) | grounding | `grounded` is `false` | holdout |
-| AC-15  | Hybrid and headers on, recording `embed_texts` stand-in | evidence selected twice for the same field | The second selection embeds only the query, no chunk text | holdout |
+| AC-15  | Hybrid and headers on, recording `embed_texts` stand-in | evidence selected twice for the same field | No chunk's index text is passed to `embed_texts` in the second selection | holdout |
 | AC-15b | Same chunks embedded once with headers off | headers switched on, evidence selected | Each chunk's index text is embedded once | holdout |
 | AC-16  | `chunking_b`, headers off, hybrid on | evidence selected | Chunk texts passed to `embed_texts` equal the `main` snapshot | holdout |
 | AC-17  | `# A` (p.1), `## A1` (p.2) containing one table, `## A2` (p.3), `# B` (p.4–5); stand-in answers for every node | `build_doc_tree` | Root children `[A, B]`; A's children `[A1, A2]`; A1 has one child with `table_id` set | holdout |
