@@ -56,3 +56,9 @@ unrelated fix in, open its own PR or suggest it as a task.
 
 Merge `main` into the branch (a merge commit, never a rebase of someone else's branch) so hidden
 acceptance tests and the evaluator see the code as it would land.
+
+## 6. Review findings
+
+In a `Code review (factory)` comment, fix or answer only confirmed blocking findings. Findings marked
+`unverified, optional` may be ignored or answered; they never count as a fix round and never justify
+`factory:blocked`.
