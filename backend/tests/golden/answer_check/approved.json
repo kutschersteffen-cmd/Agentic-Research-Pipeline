@@ -1,0 +1,2135 @@
+[
+ {
+  "company": "basf",
+  "kind": "green-capex",
+  "item": "capex_total",
+  "period": "2025-12-31",
+  "value": "4.0 EUR billion",
+  "page": "56",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "green-capex",
+  "item": "green_capex_clean_transport",
+  "period": "2025-12-31",
+  "value": "4 EUR million",
+  "page": "240",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "green-capex",
+  "item": "green_capex_definition",
+  "period": "2025-12-31",
+  "value": "EU Taxonomy-aligned CapEx (Regulation (EU) 2020/852 and delegated acts); no own definition; CCM 4.30 gas cogeneration not aligned",
+  "page": "237, 240",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "green-capex",
+  "item": "green_capex_eu_aligned",
+  "period": "2025-12-31",
+  "value": "22 EUR million",
+  "page": "240",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "green-capex",
+  "item": "green_capex_framework",
+  "period": "2025-12-31",
+  "value": "eu_taxonomy",
+  "page": "237, 240",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "green-capex",
+  "item": "green_capex_hydrogen",
+  "period": "2025-12-31",
+  "value": "6 EUR million",
+  "page": "240",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "green-capex",
+  "item": "green_capex_low_carbon_materials",
+  "period": "2025-12-31",
+  "value": "12 EUR million",
+  "page": "240",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "green-capex",
+  "item": "green_capex_share_pct",
+  "period": "2025-12-31",
+  "value": "0.5 %",
+  "page": "237, 240",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "green-capex",
+  "item": "green_capex_total",
+  "period": "2025-12-31",
+  "value": "22 EUR million",
+  "page": "240",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "green-capex",
+  "item": "transition_capex_total",
+  "period": "2025-12-31",
+  "value": "77 EUR million",
+  "page": "175",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_headline_1",
+  "period": "",
+  "value": "YES",
+  "page": "27",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_headline_2",
+  "period": "",
+  "value": "NO",
+  "page": "184",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_ambition_3",
+  "period": "",
+  "value": "YES",
+  "page": "183",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_ambition_4",
+  "period": "",
+  "value": "YES",
+  "page": "186",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_ambition_5",
+  "period": "",
+  "value": "NO",
+  "page": "27",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_coverage_6",
+  "period": "",
+  "value": "NO",
+  "page": "27",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_coverage_7",
+  "period": "",
+  "value": "NO",
+  "page": "27",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_coverage_8",
+  "period": "",
+  "value": "NO",
+  "page": "27",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_pathway_11",
+  "period": "",
+  "value": "YES",
+  "page": "183",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_pathway_12",
+  "period": "",
+  "value": "NO",
+  "page": "183",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_offsetting_13",
+  "period": "",
+  "value": "YES",
+  "page": "186",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_offsetting_14",
+  "period": "",
+  "value": "NO",
+  "page": "186",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_structure_15",
+  "period": "",
+  "value": "YES",
+  "page": "173",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_skills_17",
+  "period": "",
+  "value": "YES",
+  "page": "126",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_skills_18",
+  "period": "",
+  "value": "NO",
+  "page": "",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_skills_19",
+  "period": "",
+  "value": "NO",
+  "page": "171",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_accountability_21",
+  "period": "",
+  "value": "YES",
+  "page": "175",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_accountability_22",
+  "period": "",
+  "value": "NO",
+  "page": "123",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_incentives_26",
+  "period": "",
+  "value": "NO",
+  "page": "127",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_transparency_29",
+  "period": "",
+  "value": "YES",
+  "page": "183",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_transparency_30",
+  "period": "",
+  "value": "YES",
+  "page": "188",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_management_32",
+  "period": "",
+  "value": "NO",
+  "page": "175",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_management_33",
+  "period": "",
+  "value": "YES",
+  "page": "183",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_management_34",
+  "period": "",
+  "value": "NO",
+  "page": "174",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_management_35",
+  "period": "",
+  "value": "YES",
+  "page": "175",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_production_39",
+  "period": "",
+  "value": "YES",
+  "page": "178",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_production_40",
+  "period": "",
+  "value": "YES",
+  "page": "13",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_planning_41",
+  "period": "",
+  "value": "NO",
+  "page": "177",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_planning_42",
+  "period": "",
+  "value": "YES",
+  "page": "175",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_planning_43",
+  "period": "",
+  "value": "NO",
+  "page": "13",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_planning_44",
+  "period": "",
+  "value": "NO",
+  "page": "96",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_45",
+  "period": "",
+  "value": "YES",
+  "page": "181",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_46",
+  "period": "",
+  "value": "NO",
+  "page": "176",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_47",
+  "period": "",
+  "value": "NO",
+  "page": "96",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_48",
+  "period": "",
+  "value": "NO",
+  "page": "156",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_49",
+  "period": "",
+  "value": "NO",
+  "page": "156",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_fossil_fuels_50",
+  "period": "",
+  "value": "NO",
+  "page": "148",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_fossil_fuels_51",
+  "period": "",
+  "value": "NO",
+  "page": "",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_fossil_fuels_52",
+  "period": "",
+  "value": "NO",
+  "page": "229",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_just_transition_53",
+  "period": "",
+  "value": "NO",
+  "page": "269",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_just_transition_54",
+  "period": "",
+  "value": "NO",
+  "page": "153",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_biosphere_55",
+  "period": "",
+  "value": "NO",
+  "page": "220,224",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_biosphere_56",
+  "period": "",
+  "value": "NO",
+  "page": "222",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_biosphere_57",
+  "period": "",
+  "value": "NO",
+  "page": "220",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_biosphere_58",
+  "period": "",
+  "value": "YES",
+  "page": "212,214,218",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_emissions_59",
+  "period": "",
+  "value": "YES",
+  "page": "189",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_emissions_60",
+  "period": "",
+  "value": "YES",
+  "page": "188",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_emissions_61",
+  "period": "",
+  "value": "YES",
+  "page": "187",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_emissions_62",
+  "period": "",
+  "value": "YES",
+  "page": "188",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_66",
+  "period": "",
+  "value": "YES",
+  "page": "184",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_67",
+  "period": "",
+  "value": "NO",
+  "page": "188",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_68",
+  "period": "",
+  "value": "NO",
+  "page": "188",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_69",
+  "period": "",
+  "value": "NO",
+  "page": "187",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_70",
+  "period": "",
+  "value": "NO",
+  "page": "189",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_71",
+  "period": "",
+  "value": "NO",
+  "page": "189",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_72",
+  "period": "",
+  "value": "NO",
+  "page": "185",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_73",
+  "period": "",
+  "value": "NO",
+  "page": "184",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_74",
+  "period": "",
+  "value": "YES",
+  "page": "224",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_capex_75",
+  "period": "",
+  "value": "YES",
+  "page": "240",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_capex_77",
+  "period": "",
+  "value": "NO",
+  "page": "240",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_revenues_81",
+  "period": "",
+  "value": "YES",
+  "page": "239",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_revenues_83",
+  "period": "",
+  "value": "NO",
+  "page": "239",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_86",
+  "period": "",
+  "value": "YES",
+  "page": "156",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "basf",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_87",
+  "period": "",
+  "value": "not in report",
+  "page": "",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "capex_total",
+  "period": "2024-12-31",
+  "value": "12017 EUR million",
+  "page": "99",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "capex_total",
+  "period": "2025-12-31",
+  "value": "11887 EUR million",
+  "page": "99",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_definition",
+  "period": "2024-12-31",
+  "value": "EU Taxonomy-aligned CapEx (Regulation (EU) 2020/852 and delegated acts); no own definition; excludes coal and gas",
+  "page": "99, 103",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_definition",
+  "period": "2025-12-31",
+  "value": "EU Taxonomy-aligned CapEx (Regulation (EU) 2020/852 and delegated acts); no own definition; excludes coal and gas",
+  "page": "99, 103",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_eu_aligned",
+  "period": "2024-12-31",
+  "value": "11238 EUR million",
+  "page": "99, 103",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_eu_aligned",
+  "period": "2025-12-31",
+  "value": "11115 EUR million",
+  "page": "99, 103",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_eu_eligible_not_aligned",
+  "period": "2024-12-31",
+  "value": "846 EUR million",
+  "page": "103",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_eu_eligible_not_aligned",
+  "period": "2025-12-31",
+  "value": "230 EUR million",
+  "page": "103",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_framework",
+  "period": "2024-12-31",
+  "value": "eu_taxonomy",
+  "page": "99, 107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_framework",
+  "period": "2025-12-31",
+  "value": "eu_taxonomy",
+  "page": "99, 107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_grids_storage",
+  "period": "2024-12-31",
+  "value": "743 EUR million",
+  "page": "107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_grids_storage",
+  "period": "2025-12-31",
+  "value": "687 EUR million",
+  "page": "107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_hydrogen",
+  "period": "2024-12-31",
+  "value": "339 EUR million",
+  "page": "107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_hydrogen",
+  "period": "2025-12-31",
+  "value": "374 EUR million",
+  "page": "107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_renewable_energy",
+  "period": "2024-12-31",
+  "value": "10156 EUR million",
+  "page": "107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_renewable_energy",
+  "period": "2025-12-31",
+  "value": "10053 EUR million",
+  "page": "107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_share_pct",
+  "period": "2024-12-31",
+  "value": "94 %",
+  "page": "99",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_share_pct",
+  "period": "2025-12-31",
+  "value": "94 %",
+  "page": "99, 107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_total",
+  "period": "2024-12-31",
+  "value": "11238 EUR million",
+  "page": "99, 107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "green-capex",
+  "item": "green_capex_total",
+  "period": "2025-12-31",
+  "value": "11115 EUR million",
+  "page": "99, 107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_headline_1",
+  "period": "",
+  "value": "YES",
+  "page": "110",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_headline_2",
+  "period": "",
+  "value": "YES",
+  "page": "112",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_ambition_3",
+  "period": "",
+  "value": "YES",
+  "page": "110",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_ambition_4",
+  "period": "",
+  "value": "YES",
+  "page": "110",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_ambition_5",
+  "period": "",
+  "value": "NO",
+  "page": "110",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_coverage_6",
+  "period": "",
+  "value": "NO",
+  "page": "110",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_coverage_7",
+  "period": "",
+  "value": "NO",
+  "page": "110",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_coverage_8",
+  "period": "",
+  "value": "YES",
+  "page": "110",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_pathway_11",
+  "period": "",
+  "value": "YES",
+  "page": "110",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_pathway_12",
+  "period": "",
+  "value": "YES",
+  "page": "110",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_offsetting_13",
+  "period": "",
+  "value": "YES",
+  "page": "110",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_offsetting_14",
+  "period": "",
+  "value": "NO",
+  "page": "110",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_structure_15",
+  "period": "",
+  "value": "YES",
+  "page": "90",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_skills_17",
+  "period": "",
+  "value": "YES",
+  "page": "91",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_skills_18",
+  "period": "",
+  "value": "NO",
+  "page": "",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_skills_19",
+  "period": "",
+  "value": "NO",
+  "page": "",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_accountability_21",
+  "period": "",
+  "value": "YES",
+  "page": "107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_accountability_22",
+  "period": "",
+  "value": "NO",
+  "page": "12",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_incentives_26",
+  "period": "",
+  "value": "NO",
+  "page": "92",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_transparency_29",
+  "period": "",
+  "value": "YES",
+  "page": "110",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_transparency_30",
+  "period": "",
+  "value": "NO",
+  "page": "73",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_management_32",
+  "period": "",
+  "value": "NO",
+  "page": "106",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_management_33",
+  "period": "",
+  "value": "YES",
+  "page": "109",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_management_34",
+  "period": "",
+  "value": "NO",
+  "page": "86",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_management_35",
+  "period": "",
+  "value": "YES",
+  "page": "106",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_production_39",
+  "period": "",
+  "value": "YES",
+  "page": "7",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_production_40",
+  "period": "",
+  "value": "YES",
+  "page": "107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_planning_41",
+  "period": "",
+  "value": "NO",
+  "page": "99",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_planning_42",
+  "period": "",
+  "value": "YES",
+  "page": "107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_planning_43",
+  "period": "",
+  "value": "NO",
+  "page": "72",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_planning_44",
+  "period": "",
+  "value": "NO",
+  "page": "",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_45",
+  "period": "",
+  "value": "NO",
+  "page": "78",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_46",
+  "period": "",
+  "value": "NO",
+  "page": "109",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_47",
+  "period": "",
+  "value": "NO",
+  "page": "107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_48",
+  "period": "",
+  "value": "NO",
+  "page": "107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_49",
+  "period": "",
+  "value": "NO",
+  "page": "107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_fossil_fuels_50",
+  "period": "",
+  "value": "NO",
+  "page": "24",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_fossil_fuels_51",
+  "period": "",
+  "value": "NO",
+  "page": "108",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_fossil_fuels_52",
+  "period": "",
+  "value": "NO",
+  "page": "81",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_just_transition_53",
+  "period": "",
+  "value": "YES",
+  "page": "143",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_just_transition_54",
+  "period": "",
+  "value": "NO",
+  "page": "140",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_biosphere_55",
+  "period": "",
+  "value": "YES",
+  "page": "122",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_biosphere_56",
+  "period": "",
+  "value": "NO",
+  "page": "122",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_biosphere_57",
+  "period": "",
+  "value": "YES",
+  "page": "127",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_biosphere_58",
+  "period": "",
+  "value": "NO",
+  "page": "89",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_emissions_59",
+  "period": "",
+  "value": "YES",
+  "page": "116",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_emissions_60",
+  "period": "",
+  "value": "YES",
+  "page": "116",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_emissions_61",
+  "period": "",
+  "value": "YES",
+  "page": "114",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_emissions_62",
+  "period": "",
+  "value": "YES",
+  "page": "114, 118",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_66",
+  "period": "",
+  "value": "YES",
+  "page": "111",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_67",
+  "period": "",
+  "value": "NO",
+  "page": "343",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_68",
+  "period": "",
+  "value": "NO",
+  "page": "116",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_69",
+  "period": "",
+  "value": "NO",
+  "page": "114",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_70",
+  "period": "",
+  "value": "NO",
+  "page": "116",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_71",
+  "period": "",
+  "value": "NO",
+  "page": "116",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_72",
+  "period": "",
+  "value": "NO",
+  "page": "116",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_73",
+  "period": "",
+  "value": "YES",
+  "page": "115",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_74",
+  "period": "",
+  "value": "NO",
+  "page": "",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_capex_75",
+  "period": "",
+  "value": "YES",
+  "page": "107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_capex_77",
+  "period": "",
+  "value": "YES",
+  "page": "99, 102",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_revenues_81",
+  "period": "",
+  "value": "YES",
+  "page": "",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_revenues_83",
+  "period": "",
+  "value": "YES",
+  "page": "44",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_86",
+  "period": "",
+  "value": "NO",
+  "page": "107",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "rwe",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_87",
+  "period": "",
+  "value": "NO",
+  "page": "",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "green-capex",
+  "item": "green_capex_circular_economy",
+  "period": "2025-09-30",
+  "value": "2194 EUR million",
+  "page": "102",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "green-capex",
+  "item": "green_capex_clean_transport",
+  "period": "2024-09-30",
+  "value": "5.7 %",
+  "page": "102",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "green-capex",
+  "item": "green_capex_clean_transport",
+  "period": "2025-09-30",
+  "value": "216 EUR million",
+  "page": "102",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "green-capex",
+  "item": "green_capex_definition",
+  "period": "2025-09-30",
+  "value": "EU Taxonomy-aligned CapEx per Delegated Regulation (EU) 2021/2178; no own definition; no gas or nuclear activities",
+  "page": "19, 106",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "green-capex",
+  "item": "green_capex_energy_efficiency",
+  "period": "2025-09-30",
+  "value": "253 EUR million",
+  "page": "102",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "green-capex",
+  "item": "green_capex_eu_aligned",
+  "period": "2024-09-30",
+  "value": "18.2 %",
+  "page": "19, 102",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "green-capex",
+  "item": "green_capex_eu_aligned",
+  "period": "2025-09-30",
+  "value": "3183 EUR million",
+  "page": "102",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "green-capex",
+  "item": "green_capex_framework",
+  "period": "2024-09-30",
+  "value": "eu_taxonomy",
+  "page": "19, 102",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "green-capex",
+  "item": "green_capex_framework",
+  "period": "2025-09-30",
+  "value": "eu_taxonomy",
+  "page": "19",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "green-capex",
+  "item": "green_capex_green_buildings",
+  "period": "2025-09-30",
+  "value": "383 EUR million",
+  "page": "102",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "green-capex",
+  "item": "green_capex_renewable_energy",
+  "period": "2025-09-30",
+  "value": "24 EUR million",
+  "page": "102",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "green-capex",
+  "item": "green_capex_share_pct",
+  "period": "2024-09-30",
+  "value": "18.2 %",
+  "page": "19, 102",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "green-capex",
+  "item": "green_capex_share_pct",
+  "period": "2025-09-30",
+  "value": "39.6 %",
+  "page": "19, 102",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "green-capex",
+  "item": "green_capex_total",
+  "period": "2025-09-30",
+  "value": "3183 EUR million",
+  "page": "102",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "green-capex",
+  "item": "green_capex_water_pollution",
+  "period": "2025-09-30",
+  "value": "0 %",
+  "page": "106",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_headline_1",
+  "period": "",
+  "value": "YES",
+  "page": "28",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_headline_2",
+  "period": "",
+  "value": "N/A",
+  "page": "33",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_ambition_3",
+  "period": "",
+  "value": "YES",
+  "page": "28",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_ambition_4",
+  "period": "",
+  "value": "YES",
+  "page": "28",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_ambition_5",
+  "period": "",
+  "value": "NO",
+  "page": "28",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_coverage_6",
+  "period": "",
+  "value": "YES",
+  "page": "7, 28",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_coverage_7",
+  "period": "",
+  "value": "YES",
+  "page": "7, 28",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_coverage_8",
+  "period": "",
+  "value": "YES",
+  "page": "28",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_pathway_11",
+  "period": "",
+  "value": "YES",
+  "page": "28",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_pathway_12",
+  "period": "",
+  "value": "NO",
+  "page": "28",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_offsetting_13",
+  "period": "",
+  "value": "YES",
+  "page": "28, 37",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_offsetting_14",
+  "period": "",
+  "value": "NO",
+  "page": "37",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_structure_15",
+  "period": "",
+  "value": "YES",
+  "page": "14",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_skills_17",
+  "period": "",
+  "value": "YES",
+  "page": "15",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_skills_18",
+  "period": "",
+  "value": "NO",
+  "page": "",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_skills_19",
+  "period": "",
+  "value": "NO",
+  "page": "",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_accountability_21",
+  "period": "",
+  "value": "YES",
+  "page": "15",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_accountability_22",
+  "period": "",
+  "value": "NO",
+  "page": "14-15",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_incentives_26",
+  "period": "",
+  "value": "NO",
+  "page": "16",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_transparency_29",
+  "period": "",
+  "value": "YES",
+  "page": "25",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_transparency_30",
+  "period": "",
+  "value": "YES",
+  "page": "17",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_management_32",
+  "period": "",
+  "value": "NO",
+  "page": "8",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_management_33",
+  "period": "",
+  "value": "YES",
+  "page": "7, 28-30",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_management_34",
+  "period": "",
+  "value": "NO",
+  "page": "23-24",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_management_35",
+  "period": "",
+  "value": "YES",
+  "page": "24, 28",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_production_39",
+  "period": "",
+  "value": "YES",
+  "page": "30",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_production_40",
+  "period": "",
+  "value": "YES",
+  "page": "25, 31",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_planning_41",
+  "period": "",
+  "value": "YES",
+  "page": "31",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_planning_42",
+  "period": "",
+  "value": "YES",
+  "page": "31",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_planning_43",
+  "period": "",
+  "value": "NO",
+  "page": "19",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_planning_44",
+  "period": "",
+  "value": "NO",
+  "page": "25",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_45",
+  "period": "",
+  "value": "NO",
+  "page": "74",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_46",
+  "period": "",
+  "value": "YES",
+  "page": "29, 31",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_47",
+  "period": "",
+  "value": "NO",
+  "page": "88",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_48",
+  "period": "",
+  "value": "NO",
+  "page": "88",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_49",
+  "period": "",
+  "value": "NO",
+  "page": "73",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_fossil_fuels_50",
+  "period": "",
+  "value": "NO",
+  "page": "110",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_fossil_fuels_51",
+  "period": "",
+  "value": "NO",
+  "page": "30",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_fossil_fuels_52",
+  "period": "",
+  "value": "NO",
+  "page": "31",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_just_transition_53",
+  "period": "",
+  "value": "NO",
+  "page": "",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_just_transition_54",
+  "period": "",
+  "value": "NO",
+  "page": "59",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_biosphere_55",
+  "period": "",
+  "value": "YES",
+  "page": "46-48",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_biosphere_56",
+  "period": "",
+  "value": "NO",
+  "page": "47, 97",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_biosphere_57",
+  "period": "",
+  "value": "YES",
+  "page": "7, 48",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_biosphere_58",
+  "period": "",
+  "value": "YES",
+  "page": "7, 44",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_emissions_59",
+  "period": "",
+  "value": "YES",
+  "page": "33",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_emissions_60",
+  "period": "",
+  "value": "YES",
+  "page": "33",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_emissions_61",
+  "period": "",
+  "value": "YES",
+  "page": "33",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_emissions_62",
+  "period": "",
+  "value": "YES",
+  "page": "33, 35",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_66",
+  "period": "",
+  "value": "YES",
+  "page": "28",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_67",
+  "period": "",
+  "value": "NO",
+  "page": "33",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_68",
+  "period": "",
+  "value": "NO",
+  "page": "33",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_69",
+  "period": "",
+  "value": "NO",
+  "page": "33",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_70",
+  "period": "",
+  "value": "NO",
+  "page": "33",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_71",
+  "period": "",
+  "value": "NO",
+  "page": "33",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_72",
+  "period": "",
+  "value": "NO",
+  "page": "33",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_73",
+  "period": "",
+  "value": "YES",
+  "page": "28",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_progress_74",
+  "period": "",
+  "value": "NO",
+  "page": "47",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_capex_75",
+  "period": "",
+  "value": "YES",
+  "page": "31",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_capex_77",
+  "period": "",
+  "value": "NO",
+  "page": "103",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_revenues_81",
+  "period": "",
+  "value": "YES",
+  "page": "19",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_revenues_83",
+  "period": "",
+  "value": "NO",
+  "page": "106",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_86",
+  "period": "",
+  "value": "NO",
+  "page": "88",
+  "status": "proposed by Claude, not yet approved"
+ },
+ {
+  "company": "siemens",
+  "kind": "transition-plan",
+  "item": "tp_a_engagement_87",
+  "period": "",
+  "value": "NO",
+  "page": "",
+  "status": "proposed by Claude, not yet approved"
+ }
+]
