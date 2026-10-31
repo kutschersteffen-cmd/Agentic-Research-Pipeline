@@ -9174,6 +9174,11 @@ export interface components {
              */
             prior_change_max: number | null;
             /**
+             * Ratio Of
+             * @description Share fields only: [numerator, denominator] field_ids; the share must be within 1 point of their ratio.
+             */
+            ratio_of?: string[];
+            /**
              * Sum Of
              * @description This field equals the sum of these field_ids.
              */

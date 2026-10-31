@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, model_validator
+import functools
+from typing import Literal
+
+from pydantic import BaseModel, Field, StrictBool, create_model, field_validator, model_validator
 
 from arp.llm.base import LLMClient, LLMUsage
 from arp.schemas.common import Citation, DocumentChunk
@@ -104,6 +107,34 @@ def _periods(planned_periods: list[str] | None) -> str:
     )
 
 
+def _text(v):
+    # a number given for a text field is kept as its text ("11115"), so the format check can flag it
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return f"{v:g}" if isinstance(v, float) else str(v)
+    return v
+
+
+@functools.lru_cache(maxsize=256)
+def _typed_draft(data_type: FieldDataType, allowed: tuple[str, ...]) -> type[ExtractionDraft]:
+    validators = {}
+    if data_type == FieldDataType.BOOLEAN:
+        vtype = StrictBool | None  # "YES", "true" or 1 are retried, not read as yes
+    elif data_type in (FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE):
+        vtype = float | None
+    elif data_type == FieldDataType.ENUM and allowed:
+        vtype = Literal[allowed] | None
+    else:
+        vtype = str | None
+        validators["_as_text"] = field_validator("value", mode="before")(lambda cls, v: _text(v))
+    value = create_model("PeriodValue", __base__=PeriodValue, __validators__=validators, value=(vtype, None))
+    return create_model("ExtractionDraft", __base__=ExtractionDraft, values=(list[value], Field(default_factory=list)))
+
+
+def draft_model_for(field: FieldDefinition) -> type[ExtractionDraft]:
+    """The draft format for one field: `value` accepts only the field's type, so a wrong type is retried."""
+    return _typed_draft(field.data_type, tuple(field.allowed_values or ()))
+
+
 async def extract_field(
     company_name: str,
     field: FieldDefinition,
@@ -112,7 +143,7 @@ async def extract_field(
     planned_periods: list[str] | None = None,
 ) -> tuple[ExtractionDraft, LLMUsage]:
     prompt = f"Company: {company_name}\n\n{_field_spec(field)}{_periods(planned_periods)}Evidence:\n{format_evidence(chunks)}"
-    return await llm.complete_structured(system=_SYSTEM_PROMPT, prompt=prompt, output_model=ExtractionDraft)
+    return await llm.complete_structured(system=_SYSTEM_PROMPT, prompt=prompt, output_model=draft_model_for(field))
 
 
 _GROUP_RULE = """

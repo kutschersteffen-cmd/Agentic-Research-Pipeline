@@ -180,7 +180,7 @@ class FactStub:
         usage = LLMUsage(provider="fake")
         if output_model is VerifierOutput:
             return VerifierOutput(agrees=True, confidence=1.0, notes=""), usage
-        assert output_model is ExtractionDraft, output_model
+        assert issubclass(output_model, ExtractionDraft), output_model  # the per-field typed draft subclasses it
         fact = re.search(r"^Field: (.+)$", prompt, re.M)[1]
         blocks = _BLOCK.findall(prompt)
         answer = self.answers.get((fact, self.title_of(blocks[0][0]))) if blocks else None

@@ -73,6 +73,22 @@ def check_part_of_whole(spec: FieldDefinition, field: ExtractedField, ctx) -> li
     return _result(cid, Severity.WARN, CheckOutcome.PASS)
 
 
+def check_ratio(spec: FieldDefinition, field: ExtractedField, ctx) -> list[CheckResult]:
+    cid, share = "plausibility.ratio", numeric_of(field)
+    if len(spec.check_config.ratio_of) != 2:
+        return []  # not configured: no result at all, so rows of other fields keep their check list
+    if share is None:
+        return _result(cid, Severity.WARN, _NA)
+    num_f, den_f = (_same_period(ctx, fid, field.period_end) for fid in spec.check_config.ratio_of)
+    num, den = (numeric_of(f) if f else None for f in (num_f, den_f))
+    if num is None or not den or num_f.canonical_unit != den_f.canonical_unit:
+        return _result(cid, Severity.WARN, _NA)
+    ratio = round(100 * num / den, 1)
+    if abs(share - ratio) > 1 + 1e-9:
+        return _result(cid, Severity.WARN, CheckOutcome.FAIL, f"share {share:g} vs {num:g}/{den:g} = {ratio:g} %")
+    return _result(cid, Severity.WARN, CheckOutcome.PASS)
+
+
 def check_sum_identity(spec: FieldDefinition, field: ExtractedField, ctx) -> list[CheckResult]:
     cid, cfg, total = "plausibility.sum_identity", spec.check_config, numeric_of(field)
     if total is None or not cfg.sum_of or cfg.sum_target is not None or cfg.sum_target_field:

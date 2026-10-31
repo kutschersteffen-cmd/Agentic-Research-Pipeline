@@ -36,6 +36,8 @@ def call(usage: LLMUsage | None, answer: BaseModel | None) -> dict | None:
 
 def verifier_call(usage: LLMUsage | None, answer: BaseModel | None, *, blind: bool, verdict: BaseModel | None) -> dict | None:
     entry = call(usage, answer)
+    if entry is None and verdict is not None:  # a blind re-extraction that failed still has the code's verdict
+        entry = {"model": usage.model if usage else "", "prompt_version": usage.prompt_version if usage else "", "answer": None}
     if entry is None:
         return None
     entry["blind"] = blind

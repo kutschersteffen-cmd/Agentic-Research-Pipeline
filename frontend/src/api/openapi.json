@@ -3799,6 +3799,14 @@
       "description": "Relative jump vs. prior value that warns.",
       "title": "Prior Change Max"
      },
+     "ratio_of": {
+      "description": "Share fields only: [numerator, denominator] field_ids; the share must be within 1 point of their ratio.",
+      "items": {
+       "type": "string"
+      },
+      "title": "Ratio Of",
+      "type": "array"
+     },
      "sum_of": {
       "description": "This field equals the sum of these field_ids.",
       "items": {

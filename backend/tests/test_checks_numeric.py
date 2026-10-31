@@ -90,3 +90,21 @@ def test_row_label_mismatch_warns():
     assert _run(check_row_label, spec, t, "1,234", value=1234.0, raw="1,234").outcome == "pass"
     t = "Water use rose to 1,234 last year.\n"
     assert _run(check_row_label, spec, t, "1,234", value=1234.0, raw="1,234").outcome == "not_applicable"
+
+
+# Spec 2026-10-31-extraction-quick-wins, AC-15 to AC-16
+_PROSE = "Water withdrawal fell from 1,234 to 1,100 as planned.\n"
+
+
+@pytest.mark.parametrize("dt,value", [(FieldDataType.BOOLEAN, True), (FieldDataType.ENUM, "eu_taxonomy"),
+                                      (FieldDataType.STRING, "text"), (FieldDataType.DATE, "2025-12-31")])
+def test_ac15_row_label_not_applicable_for_non_numeric(dt, value):
+    spec = _spec(seed_keywords=["scope 1"]).model_copy(update={"data_type": dt, "allowed_values": ["eu_taxonomy"]})
+    r = _run(check_row_label, spec, _PROSE, "fell from 1,234 to 1,100", value=value, raw="x")
+    assert r.outcome == "not_applicable"
+
+
+def test_ac16_row_label_still_fails_on_currency():
+    spec = _spec(seed_keywords=["scope 1"]).model_copy(update={"data_type": FieldDataType.CURRENCY_AMOUNT})
+    r = _run(check_row_label, spec, "Water withdrawal  1,234  1,100\n", "1,234", value=1234.0, raw="1,234")
+    assert r.outcome == "fail"

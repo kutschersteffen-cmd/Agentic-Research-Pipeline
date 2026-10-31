@@ -1,0 +1,16 @@
+{
+  "calls": 1,
+  "result": [
+    {
+      "basis": "action:doc_fixed:None:1",
+      "field_id": "ta_action_text",
+      "grounded": false,
+      "review_reasons": [
+        "not_grounded",
+        "unverified_list_item"
+      ],
+      "value": "Close lignite units",
+      "value_state": "found"
+    }
+  ]
+}

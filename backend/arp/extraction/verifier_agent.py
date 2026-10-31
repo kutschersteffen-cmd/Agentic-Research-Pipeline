@@ -4,7 +4,7 @@ import math
 from collections.abc import Callable
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue, extract_field, format_evidence
 from arp.llm.base import LLMClient, LLMUsage
@@ -133,7 +133,13 @@ async def blind_verify(
     """E38: the verifier client extracts the field again without seeing the
     draft; the disagreement is decided here in code, not by the model.
     `on_draft` receives the blind draft (the walkthrough trace keeps it)."""
-    blind, usage = await extract_field(company_name, field, evidence, verifier_llm, planned_periods)
+    try:
+        blind, usage = await extract_field(company_name, field, evidence, verifier_llm, planned_periods)
+    except ValidationError:
+        return VerifierOutput(
+            agrees=False, confidence=0.0, disagreement_type=DisagreementType.NOT_DISCLOSED,
+            notes="Blind re-extraction failed: the answer did not fit the field type.",
+        ), LLMUsage()
     if on_draft:
         on_draft(blind)
     kind, pv = compare(draft, blind, field, planned_periods=planned_periods, fiscal_year_end=fiscal_year_end)

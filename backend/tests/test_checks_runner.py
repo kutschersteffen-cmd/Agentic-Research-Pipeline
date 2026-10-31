@@ -128,3 +128,65 @@ def test_old_field_definition_and_row_load():
     assert d.check_config == CheckConfig()
     f = ExtractedField.model_validate({"field_id": "f", "field_name": "f", "value": 1.0, "confidence": 0.5})
     assert f.checks == []
+
+
+# Spec 2026-10-31-extraction-quick-wins, AC-6 to AC-10 and AC-17
+def _fmt(data_type, value, unit=None, canonical_unit=None):
+    spec = _spec(data_type)
+    row = _field(value, unit=unit, canonical_unit=canonical_unit)
+    return next(r for r in check_format(spec, row, _ctx(spec, [row])) if r.check_id == "format.data_type")
+
+
+def test_ac6_string_bare_number():
+    r = _fmt(FieldDataType.STRING, 11115)
+    assert (r.outcome, r.severity, r.detail) == ("fail", "block", "string field holds a bare number 11115")
+
+
+def test_ac6b_string_number_text():
+    r = _fmt(FieldDataType.STRING, "1,234.5")
+    assert (r.outcome, r.detail) == ("fail", "string field holds a bare number 1,234.5")
+
+
+def test_ac6c_string_year():
+    assert _fmt(FieldDataType.STRING, "2020").outcome == "fail"
+
+
+def test_ac6d_string_exponent_passes():
+    assert _fmt(FieldDataType.STRING, "1e3").outcome == "pass"
+
+
+def test_ac7_string_prose_passes():
+    assert _fmt(FieldDataType.STRING, "EU Taxonomy definition (Regulation (EU) 2020/852)").outcome == "pass"
+
+
+def test_ac8_currency_with_percent():
+    r = _fmt(FieldDataType.CURRENCY_AMOUNT, 27.3, unit="%")
+    assert (r.outcome, r.detail) == ("fail", "currency_amount field holds a percentage (unit %)")
+
+
+def test_ac8b_number_with_percent():
+    r = _fmt(FieldDataType.NUMBER, 5, unit="%")
+    assert (r.outcome, r.detail) == ("fail", "number field holds a percentage (unit %)")
+
+
+def test_ac8c_canonical_percent():
+    assert _fmt(FieldDataType.CURRENCY_AMOUNT, 27.3, unit="percent", canonical_unit="%").outcome == "fail"
+
+
+def test_ac9_percentage_with_currency_code():
+    r = _fmt(FieldDataType.PERCENTAGE, 39.6, unit="EUR million")
+    assert (r.outcome, r.detail) == ("fail", "percentage field holds a currency amount (unit EUR million)")
+
+
+def test_ac9b_percentage_with_currency_sign():
+    r = _fmt(FieldDataType.PERCENTAGE, 39.6, unit="€")
+    assert (r.outcome, r.detail) == ("fail", "percentage field holds a currency amount (unit €)")
+
+
+def test_ac10_percentage_with_percent_passes():
+    assert _fmt(FieldDataType.PERCENTAGE, 39.6, unit="%").outcome == "pass"
+
+
+def test_ac17_boolean_number_still_blocks():
+    r = _fmt(FieldDataType.BOOLEAN, 220221)
+    assert (r.outcome, r.severity) == ("fail", "block")
