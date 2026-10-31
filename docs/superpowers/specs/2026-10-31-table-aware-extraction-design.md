@@ -1,7 +1,7 @@
 # Table-aware extraction: table metadata, a document outline, whole tables as evidence, one table read
 
 Date: 2026-10-31
-Status: draft, awaiting owner approval
+Status: approved by the owner, 2026-10-31
 Source: the Docling investigation of 2026-10-31 and the Claude-proposed answer set for RWE, Siemens and BASF
 (sheet https://claude.ai/artifact/NWaSvVmWwoXBJ3afzWputo). The owner asked for all four recommendations plus
 metadata on the tables.
