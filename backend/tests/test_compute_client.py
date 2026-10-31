@@ -305,4 +305,4 @@ def test_unset_settings_make_no_requests(tmp_path, transport, monkeypatch):  # A
 
 
 def test_parser_version_unchanged():  # AC-27
-    assert parser_version() == "logic=3|docling=2.140.0|docling-core=2.101.1|trafilatura=2.3.1|openpyxl=3.1.5"
+    assert parser_version() == "logic=4|docling=2.140.0|docling-core=2.101.1|trafilatura=2.3.1|openpyxl=3.1.5"

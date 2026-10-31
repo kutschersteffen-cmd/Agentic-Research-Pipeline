@@ -95,6 +95,13 @@ class TableSpan(BaseModel):
     caption: str | None = None
     unit_note: str | None = None
     cells: list[TableCell] = Field(default_factory=list)
+    page: int | None = None
+    heading_path: list[str] = Field(default_factory=list)
+    column_headers: list[str] = Field(default_factory=list)  # one per column, every header row joined " – "
+    row_labels: list[str] = Field(default_factory=list)
+    scale: str | None = None
+    unit: str | None = None
+    kind: str | None = None  # arp.ingestion.table_kinds, e.g. "eu_taxonomy_capex"
 
 
 class TableRef(BaseModel):
@@ -103,6 +110,8 @@ class TableRef(BaseModel):
     col_label: str | None = None
     caption: str | None = None
     unit_note: str | None = None
+    page: int | None = None
+    kind: str | None = None
 
 
 class SourceDocument(BaseModel):

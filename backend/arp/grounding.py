@@ -224,6 +224,7 @@ def _table_ref_for_offset(doc: SourceDocument, char_start: int, char_end: int | 
             return TableRef(
                 table_id=t.table_id, row_label=cell.row_label if cell else None,
                 col_label=cell.col_label if cell else None, caption=t.caption, unit_note=t.unit_note,
+                page=t.page, kind=t.kind,
             )
     return None
 

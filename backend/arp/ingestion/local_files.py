@@ -17,6 +17,8 @@ from arp.ingestion.doc_identity import CORRECTION_MARKERS, assign_identity, publ
 from arp.ingestion.html_text import extract_html_text
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.intake import IntakeResult, IntakeState, append_intake, check_intake
+from arp.ingestion.outline import heading_path
+from arp.ingestion.table_kinds import table_kind
 from arp.normalise.locale import decimal_for, detect_language
 from arp.normalise.units import lookup_scale
 from arp.schemas.common import CompanyRef, DocType, SourceDocument, TableCell, TableSpan
@@ -35,7 +37,7 @@ _DOCX_SUFFIXES = {".docx"}
 # `cursor += len(text) + 2` page-join arithmetic in _extract_pdf_text --
 # since that silently changes what a cached page_breaks means without
 # changing any package version.
-_PARSER_LOGIC_VERSION = 3  # bumped: table spans from Docling's table structure (E45)
+_PARSER_LOGIC_VERSION = 4  # bumped: table metadata (page, headings, header paths, scale, kind)
 
 
 @functools.lru_cache(maxsize=1)
@@ -113,6 +115,16 @@ def _unit_note(caption: str | None) -> str | None:
     return None
 
 
+def _scale_unit(phrase: str) -> tuple[str, str | None] | None:
+    """(scale word, unit) of the first "in € million" phrase in `phrase`; unit is None when only a scale is named."""
+    if (note := _unit_note(phrase)) is None:
+        return None
+    words = note.split()[1:]
+    scale = next(w.strip(".") for w in words if lookup_scale(w.strip(".")))
+    rest = [w for w in words if w.strip(".") != scale]
+    return scale, " ".join(rest) or None
+
+
 def _caption_before(text: str, start: int) -> str | None:
     """The last non-empty line before a table, for a table Docling found no caption for."""
     lines = [ln.strip() for ln in text[:start].splitlines() if ln.strip()]
@@ -142,14 +154,23 @@ def table_spans_from_docling(doc, text: str) -> list[TableSpan]:
         cursor = found + len(md)
         start, md = found + grid_at, md[grid_at:]
         cells = sorted(table.data.table_cells, key=lambda c: (c.start_row_offset_idx, c.start_col_offset_idx))
+        header_rows = max((c.start_row_offset_idx for c in cells if c.column_header), default=0) + 1
+        n_cols = max((getattr(c, "end_col_offset_idx", c.start_col_offset_idx + 1) for c in cells), default=0)
         row_labels: dict[int, str] = {}
-        col_labels: dict[int, str] = {}
+        col_paths: list[list[str]] = [[] for _ in range(n_cols)]
+        header_scales: list[tuple[str, str | None]] = []
         for c in cells:
             r, k, t = c.start_row_offset_idx, c.start_col_offset_idx, c.text.strip()
             if t and (c.row_header or k == 0):
                 row_labels.setdefault(r, t)
-            if t and (c.column_header or r == 0):
-                col_labels[k] = t  # the lowest header row wins
+            if t and (c.column_header or r < header_rows):
+                if (found_scale := _scale_unit(t)) and _UNIT_NOTE.fullmatch(t):
+                    header_scales.append(found_scale)  # "in € million" is a unit note, not a column label
+                    continue
+                for col in range(k, getattr(c, "end_col_offset_idx", k + 1)):  # a spanning header labels each column
+                    if t not in col_paths[col]:
+                        col_paths[col].append(t)
+        col_labels = {k: " – ".join(p) for k, p in enumerate(col_paths) if p}
         lines = md.split("\n")
         line_starts = [0]
         for ln in lines:
@@ -159,7 +180,7 @@ def table_spans_from_docling(doc, text: str) -> list[TableSpan]:
             r, k, t = c.start_row_offset_idx, c.start_col_offset_idx, c.text.replace("\n", " ").strip()
             if not t or c.row_header or c.column_header or r == 0 or k == 0:
                 continue
-            li = r + 1  # line 1 is the |---| separator
+            li = r - header_rows + 2  # markdown prints every header row as line 0; line 1 is the |---| separator
             if li >= len(lines):
                 continue
             pipes = [j for j, ch in enumerate(lines[li]) if ch == "|"]
@@ -171,8 +192,20 @@ def table_spans_from_docling(doc, text: str) -> list[TableSpan]:
             a = start + line_starts[li] + off
             out_cells.append(TableCell(row_label=row_labels.get(r), col_label=col_labels.get(k), char_start=a, char_end=a + len(t)))
         caption = table.caption_text(doc).strip() or _caption_before(text, start)
+        column_headers = [col_labels.get(k, "") for k in range(n_cols)]
+        headings = heading_path(text, start)
+        prov = getattr(table, "prov", None)
+        scale, unit = _scale_unit(caption or "") or (header_scales[0] if header_scales else (None, None))
+        if unit is None:
+            unit_col = next((k for k, h in enumerate(column_headers) if h.lower() in ("unit", "einheit")), None)
+            unit = next((c.text.strip() for c in cells if c.start_col_offset_idx == unit_col
+                         and c.start_row_offset_idx >= header_rows and c.text.strip()), None)
         spans.append(TableSpan(table_id=f"table_{i}", char_start=start, char_end=cursor, caption=caption,
-                               unit_note=_unit_note(caption), cells=out_cells))
+                               unit_note=_unit_note(caption), cells=out_cells,
+                               page=prov[0].page_no if prov else None, heading_path=headings,
+                               column_headers=column_headers,
+                               row_labels=[t for r, t in sorted(row_labels.items()) if r >= header_rows],
+                               scale=scale, unit=unit, kind=table_kind(caption, headings, column_headers)))
     return spans
 
 
