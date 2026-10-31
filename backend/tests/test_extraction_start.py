@@ -292,7 +292,7 @@ def test_unreleased_preset_version_is_refused_unless_trial_then_released_starts(
     params = api.store.load_manifest(ok.json()["run_id"]).params
     schema_id, version = params["schema_version"].split(":v")
     field = {f.field_id: f for f in reg.get(schema_id, int(version)).fields}["tp_a_headline_2"]
-    assert field.version == 2 and "tp_r_req_headline_2" in [r.rule_id for r in field.rules]
+    assert field.version == 3 and "tp_r_req_headline_2" in [r.rule_id for r in field.rules]  # v2 requires rule, v3 section-tag routing
 
 
 def test_transition_plan_pipeline_shape_equals_custom(api):  # AC-33
