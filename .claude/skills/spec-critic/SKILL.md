@@ -16,7 +16,10 @@ For each row of the spec's `## Acceptance` table:
    "fast", "handles errors" fail unless a number or message follows.
 3. **One behaviour:** a row with "and" joining two outcomes should be two rows.
 4. **Checkable as typed:** `holdout` rows must be deterministic. AI output (extraction, ranking,
-   summaries) belongs in a `golden` row with a threshold, not an exact `Then`.
+   summaries) belongs in a `golden` row with a threshold, not an exact `Then`. `holdout` and
+   `evaluator` rows drive the app started by `backend/scripts/e2e_stack.sh up`, so a "Given" that app
+   cannot be in (a required setting unset, so it won't start; a file it reads only at startup) fails:
+   make the row `unit`.
 5. **Two readings:** write down any phrase two competent builders could implement differently, with
    both readings.
 
