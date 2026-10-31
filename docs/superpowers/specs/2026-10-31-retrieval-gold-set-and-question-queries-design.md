@@ -20,8 +20,13 @@ Spec slug: `retrieval-gold-set-and-question-queries`. Items #1 and #3 of the RAG
 
 1. **Cases file** `backend/tests/golden/retrieval/cases.json`, a list of:
    `{case_id, schema_id, field_id, company_id, document, gold: [{span_text}], labelled_by: "agent"|"owner", spot_checked: bool}`.
-   `document` is a filename under `backend/tests/golden/retrieval/documents/<company_id>/`. Gold is stored as
-   text, not offsets, so a parser upgrade does not invalidate it.
+   `document` is a filename. The PDFs are **not committed** (no redistribution licence): a sibling file
+   `backend/tests/golden/retrieval/documents.json` lists each one as `{company_id, document, url, sha256}`.
+   Gold is stored as text, not offsets, so a parser upgrade does not invalidate it.
+1b. **Fetching documents.** In cases mode, a document missing from `<documents-dir>/<company_id>/<document>` is
+   downloaded from its `url` into that path before parsing; the file's SHA-256 must equal `sha256`, otherwise the
+   command exits 1 with `Document <document> does not match its recorded hash.` and nothing is evaluated. A file
+   already present is checked against the hash the same way. `documents/` is git-ignored.
 2. **Hit rule.** A gold span is hit at rank *r* when the evidence chunk at rank *r* contains the span text
    after `grounding.py`'s normalisation (whitespace, dashes, quotes, ligatures, hyphen breaks). A span whose
    text is not found in the parsed document is *stale*: it is left out and counted, as in the run mode today.
@@ -30,7 +35,8 @@ Spec slug: `retrieval-gold-set-and-question-queries`. Items #1 and #3 of the RAG
    `documents/` sibling in cases mode. `--min-recall` applies to recall@`evidence_max_chunks`. Output line
    and JSON report are the same shape as the run mode.
 4. **Labelling** (done in a separate session, not by the implementer): two public sustainability reports,
-   with a public, redistributable licence or explicit permission recorded in `backend/tests/golden/retrieval/LABELS.md`.
+   each with its publisher URL and the date it was downloaded recorded in `backend/tests/golden/retrieval/LABELS.md`.
+   Owner choice (2026-10-31): SSAB Annual and Sustainability Report 2024 (EN) and Heidelberg Materials 2024 (DE).
    Claude labels, for each transition-plan indicator the report answers YES to, the shortest passage(s)
    that answer it. Indicators answered NO get no case. The owner then spot-checks 10 random cases; those get
    `spot_checked: true`, and any rejected one is fixed or removed before commit.
@@ -81,10 +87,12 @@ or instruction text is added to any query.
 | AC-5   | Both `--cases` and `--run-id` passed | the command runs | Exit 2; stderr contains `Pass exactly one of --cases or --run-id.` | holdout |
 | AC-5b  | Neither passed | the command runs | Exit 2; stderr contains `Pass exactly one of --cases or --run-id.` | holdout |
 | AC-6   | The run-mode fixture of `test_run_replays_field_evidence_and_reports_recall` in `backend/tests/test_retrieval_eval.py` (stand-in run store, no Postgres) | `--run-id` mode | stdout and JSON report are byte-identical to `main`'s for the same fixture | holdout |
-| AC-7   | The committed `backend/tests/golden/retrieval/cases.json` | loaded | It names ≥ 2 distinct documents, each existing under `documents/<company_id>/` | holdout |
+| AC-7   | The committed `backend/tests/golden/retrieval/cases.json` | loaded | It names ≥ 2 distinct documents, each listed in `documents.json` with a `url` and a 64-hex-digit `sha256` | holdout |
 | AC-7b  | Same | loaded | ≥ 40 gold spans across ≥ 20 distinct `field_id`s, all from schema `transition_plan_indicators` | holdout |
 | AC-7c  | Same | loaded | Every case has `labelled_by`; ≥ 10 cases have `spot_checked: true` | holdout |
-| AC-7d  | Same and `LABELS.md` | read | `LABELS.md` names each document in `cases.json` with its licence or the permission given | evaluator |
+| AC-7d  | Same and `LABELS.md` | read | `LABELS.md` names each document in `cases.json` with its publisher URL and download date | evaluator |
+| AC-7e  | A cases file whose `documents.json` entry has a `sha256` that does not match the served file (local HTTP server in the test) | cases mode | Exit 1; stderr contains `Document <document> does not match its recorded hash.` | holdout |
+| AC-7f  | Same, with the matching `sha256` and an empty documents dir | cases mode | The file is downloaded to `<documents-dir>/<company_id>/<document>` and the run completes with exit 0 | holdout |
 | AC-8   | A PR changing only `backend/arp/retrieval/select_evidence.py` | CI runs | A check named `Retrieval recall` runs | evaluator |
 | AC-8b  | A PR changing only files under `frontend/` | CI runs | No `Retrieval recall` check runs (or it reports skipped) | evaluator |
 | AC-8c  | A `Retrieval recall` run | finished | The job summary contains the CLI's `gold span(s) over` line | evaluator |
