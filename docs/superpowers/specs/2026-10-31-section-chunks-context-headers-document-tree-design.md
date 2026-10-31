@@ -44,11 +44,15 @@ once the `Retrieval recall` gate shows recall@12 on the PR ≥ `main`.
    on it returns the chunk's **index text**; when off it returns `chunk.text`. When on, each chunk's index text is: a one-line header, a newline, then the chunk text. The header is
    `" · ".join` of the non-empty values of: document `title`, `fiscal_period`, and the chunk's heading path
    joined with `" › "`. Example: `Siemens Annual Report 2025 · FY2025 · Sustainability › Climate › Scope 3`.
-2. BM25 (in-memory and OpenSearch) and the embedding ranking index the **index text**. Everything else uses
+2. **Table passages** (`table_id` set) get a second header line before the chunk text:
+   `"Table: " + " · ".join` of the non-empty values of the table's `caption`, `unit`, and its `column_headers`
+   joined with `" | "`. Example: `Table: GHG emissions · tCO2e · Scope 1 | Scope 2 | Scope 3 | 2024 | 2025`.
+   This lets BM25 and embeddings find a table by what it measures, not by its numbers.
+3. BM25 (in-memory and OpenSearch) and the embedding ranking index the **index text**. Everything else uses
    `chunk.text` unchanged: the extractor's evidence block, `grounding.py`, citations, offsets, the UI.
-3. Embedding cache entries are keyed by chunk id **and** a hash of the exact text embedded, so switching headers on
+4. Embedding cache entries are keyed by chunk id **and** a hash of the exact text embedded, so switching headers on
    or off never reuses a vector computed for the other text.
-4. A quote that matches only header text is not grounded (it never appears in `full_text`, so this holds by
+5. A quote that matches only header text is not grounded (it never appears in `full_text`, so this holds by
    construction; a row checks it).
 
 ### Part C (5c): the document tree — `doc_tree_enabled: bool = False`
@@ -117,6 +121,9 @@ Conventions:
 | AC-10  | `title="Siemens Annual Report 2025"`, `fiscal_period="FY2025"`, chunk under `# Sustainability` › `## Scope 3`, `context_headers_enabled` on | `index_text` | Returns `Siemens Annual Report 2025 · FY2025 · Sustainability › Scope 3\n` + `chunk.text` | holdout |
 | AC-11  | Same, `fiscal_period=None` | `index_text` | Returns `Siemens Annual Report 2025 · Sustainability › Scope 3\n` + `chunk.text` | holdout |
 | AC-11b | Setting off | `index_text` | Returns `chunk.text` | holdout |
+| AC-11c | Headers on, a table passage under `## Emissions` whose table has `caption="GHG emissions"`, `unit="tCO2e"`, `column_headers=["Scope 1","Scope 2"]`, doc title `R` and no `fiscal_period` | `index_text` | Returns `R · Emissions\nTable: GHG emissions · tCO2e · Scope 1 | Scope 2\n` + `chunk.text` | holdout |
+| AC-11d | Same table with `caption=None`, `unit=None` | `index_text` | The second line is `Table: Scope 1 | Scope 2` | holdout |
+| AC-11e | Headers on, BM25 only, 5 passages; the table passage's text holds only numbers, and the query terms are `["GHG emissions"]` | evidence selected | The table passage is returned at rank 0 | holdout |
 | AC-12  | 5 chunks, only one under heading `## Scope 3` and none containing "Scope 3" in its text, hybrid off (`ARP_HYBRID_RETRIEVAL_ENABLED=false`), in-memory BM25, query terms `["Scope 3"]`, `require_hit` on | evidence selected with headers on | That chunk is returned at rank 0 | holdout |
 | AC-12b | Same, headers off | evidence selected | That chunk is not returned | holdout |
 | AC-12c | Headers on, `retrieval_backend=opensearch` (test container) | chunks indexed | The indexed document's `text` field equals `index_text(chunk)` | holdout |
