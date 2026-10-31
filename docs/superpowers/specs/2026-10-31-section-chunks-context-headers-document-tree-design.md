@@ -4,9 +4,10 @@ Spec slug: `section-chunks-context-headers-document-tree`. Items 2a, 5b and 5c o
 (https://claude.ai/artifact/RnMhVmhQNmJPwY8UCaY38t). Research: `docs/RAG_SYSTEMS_LANDSCAPE_RESEARCH.md`
 (§3.15 and Appendix A on PageIndex; the Contextual Retrieval rows).
 
-**Depends on:** table-aware extraction (#282, for `ingestion/outline.py`, `heading_path`, `DocumentChunk.page`
-and `section_tags`) and the retrieval gold set (spec `retrieval-gold-set-and-question-queries`, for the
-`Retrieval recall` gate). Implementation starts after both are on `main`.
+**Depends on:** the retrieval gold set (spec `retrieval-gold-set-and-question-queries`, for the
+`Retrieval recall` gate). It does **not** depend on table-aware extraction (#282, closed and paused on
+2026-10-31 after section-tag routing as a hard filter lowered transition-plan accuracy 141 → 115 of 192).
+The document outline that work had is built here instead (Part 0), without any routing or filtering.
 
 ## Why
 
@@ -24,6 +25,15 @@ and `section_tags`) and the retrieval gold set (spec `retrieval-gold-set-and-que
 
 All three parts sit behind settings that default to **off**. Each is switched on by a separate one-line PR
 once the `Retrieval recall` gate shows recall@12 on the PR ≥ `main`.
+
+### Part 0: document outline (no setting; used by Parts A–C)
+
+1. New `arp/ingestion/outline.py`: `outline(doc) -> list[OutlineEntry]` with `title`, `level`, `page`,
+   `char_start`, `char_end` (the next heading's start, or the end of the text), from the markdown heading lines
+   of `full_text`. A `#` line inside a table span is not a heading. `page` comes from `page_breaks`.
+2. `heading_path(doc, offset) -> list[str]`: the headings above `offset`, outermost first; a heading replaces
+   every open heading of its level or deeper.
+3. Nothing filters, routes or drops chunks by outline or heading. This part only describes the document.
 
 ### Part A (5b): section-bounded chunking — `section_chunking_enabled: bool = False`
 
@@ -45,8 +55,8 @@ once the `Retrieval recall` gate shows recall@12 on the PR ≥ `main`.
    `" · ".join` of the non-empty values of: document `title`, `fiscal_period`, and the chunk's heading path
    joined with `" › "`. Example: `Siemens Annual Report 2025 · FY2025 · Sustainability › Climate › Scope 3`.
 2. **Table passages** (`table_id` set) get a second header line before the chunk text:
-   `"Table: " + " · ".join` of the non-empty values of the table's `caption`, `unit`, and its `column_headers`
-   joined with `" | "`. Example: `Table: GHG emissions · tCO2e · Scope 1 | Scope 2 | Scope 3 | 2024 | 2025`.
+   `"Table: " + " · ".join` of the non-empty values of the table's `caption`, `unit_note`, and its column
+   headers (the distinct non-empty `col_label`s of its `cells`, in first-seen order) joined with `" | "`. Example: `Table: GHG emissions · tCO2e · Scope 1 | Scope 2 | Scope 3 | 2024 | 2025`.
    This lets BM25 and embeddings find a table by what it measures, not by its numbers.
 3. BM25 (in-memory and OpenSearch) and the embedding ranking index the **index text**. Everything else uses
    `chunk.text` unchanged: the extractor's evidence block, `grounding.py`, citations, offsets, the UI.
@@ -95,7 +105,7 @@ once the `Retrieval recall` gate shows recall@12 on the PR ≥ `main`.
 Conventions:
 - Test documents are `SourceDocument`s built in the test: markdown `full_text` with `#`/`##`/`###` heading lines,
   `page_breaks` set explicitly (offsets where pages 2, 3, … start), `table_spans` where a row says so.
-- Seams named in this spec and nothing else: `chunk_document`, `index_text`, `build_doc_tree`, `TREE_VERSION`
+- Seams named in this spec and nothing else: `outline`, `heading_path`, `chunk_document`, `index_text`, `build_doc_tree`, `TREE_VERSION`
   (monkeypatched to raise it), the `embed_texts` stand-in from the first retrieval spec, `ARP_STANDINS_DIR`.
 - A section's length counts from its heading line's first character to the next heading's.
 - `chunk_chars`/`overlap_chars` are 3,500/300 and `section_min_chars` 800 unless a row says otherwise.
@@ -105,6 +115,9 @@ Conventions:
 
 | ID     | Given | When | Then (observable, exact) | Checked by |
 |--------|-------|------|--------------------------|------------|
+| AC-0   | `# A` at p.1, `## A1` at p.2, a `## X` line inside a table span, `# B` at p.4 | `outline` | Entries in order: `(A, 1, 1)`, `(A1, 2, 2)`, `(B, 1, 4)` as `(title, level, page)`; no entry for `X` | holdout |
+| AC-0b  | Same | `heading_path` at an offset inside A1 | `["A", "A1"]`; at an offset inside B: `["B"]` | holdout |
+| AC-0c  | `section_chunking_enabled`, `context_headers_enabled`, `doc_tree_enabled` all off, `chunking_b` | evidence selected for a field | The same chunk ids are returned, in the same order, as on `main` (snapshot) | holdout |
 | AC-1   | `## A` (2,000 chars of body) then `## B` (2,000 chars), `section_chunking_enabled` on | `chunk_document` | No chunk contains the `## B` line's offset unless it starts exactly there | holdout |
 | AC-2   | Same | Same | Chunks starting before `## B` have `section == "A"`; chunks starting at or after it have `section == "B"` | holdout |
 | AC-3   | `## A` with 9,000 chars of body, then `## B`, setting on | `chunk_document` | Section A yields ≥ 3 chunks, each ≤ 3,500 chars, all inside `[offset of ## A, offset of ## B)` | holdout |
@@ -121,8 +134,8 @@ Conventions:
 | AC-10  | `title="Siemens Annual Report 2025"`, `fiscal_period="FY2025"`, chunk under `# Sustainability` › `## Scope 3`, `context_headers_enabled` on | `index_text` | Returns `Siemens Annual Report 2025 · FY2025 · Sustainability › Scope 3\n` + `chunk.text` | holdout |
 | AC-11  | Same, `fiscal_period=None` | `index_text` | Returns `Siemens Annual Report 2025 · Sustainability › Scope 3\n` + `chunk.text` | holdout |
 | AC-11b | Setting off | `index_text` | Returns `chunk.text` | holdout |
-| AC-11c | Headers on, a table passage under `## Emissions` whose table has `caption="GHG emissions"`, `unit="tCO2e"`, `column_headers=["Scope 1","Scope 2"]`, doc title `R` and no `fiscal_period` | `index_text` | Returns `R · Emissions\nTable: GHG emissions · tCO2e · Scope 1 | Scope 2\n` + `chunk.text` | holdout |
-| AC-11d | Same table with `caption=None`, `unit=None` | `index_text` | The second line is `Table: Scope 1 | Scope 2` | holdout |
+| AC-11c | Headers on, a table passage under `## Emissions` whose table has `caption="GHG emissions"`, `unit_note="tCO2e"`, cells with `col_label`s `Scope 1, Scope 2, Scope 1`, doc title `R` and no `fiscal_period` | `index_text` | Returns `R · Emissions\nTable: GHG emissions · tCO2e · Scope 1 | Scope 2\n` + `chunk.text` | holdout |
+| AC-11d | Same table with `caption=None`, `unit_note=None` | `index_text` | The second line is `Table: Scope 1 | Scope 2` | holdout |
 | AC-11e | Headers on, BM25 only, 5 passages; the table passage's text holds only numbers, and the query terms are `["GHG emissions"]` | evidence selected | The table passage is returned at rank 0 | holdout |
 | AC-12  | 5 chunks, only one under heading `## Scope 3` and none containing "Scope 3" in its text, hybrid off (`ARP_HYBRID_RETRIEVAL_ENABLED=false`), in-memory BM25, query terms `["Scope 3"]`, `require_hit` on | evidence selected with headers on | That chunk is returned at rank 0 | holdout |
 | AC-12b | Same, headers off | evidence selected | That chunk is not returned | holdout |
