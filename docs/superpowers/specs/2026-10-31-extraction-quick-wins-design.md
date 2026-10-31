@@ -158,12 +158,12 @@ default 2, so 3 calls).
 | AC-19d | Same | `execute_extraction_run` runs | The boolean row has `value_state` `not_found`, route `review`, and `extraction_failed` in `review_reasons` | unit |
 | AC-19b | A high-risk boolean field, draft `value: true`; stand-in verifier answers `"YES"` on every call | the field's graph runs | The row has route `review` | unit |
 | AC-19e | Same | the field's graph runs | Its verifier result has `disagreement_type` `not_disclosed` | unit |
-| AC-22 | `extract_plan` (plan actions preset `sch_transition_plan_actions`, field `ta_action_text`); a recorded stand-in answer fixture, the same file on `main` and on the PR | the extraction runs on `main` and on the PR | the plan row stored on the PR equals the one stored on `main` | unit |
-| AC-22-calls | Same | Same | The stand-in received the same number of calls on the PR as on `main` | unit |
-| AC-22b | `extract_financials` (Financials record, `capex` section); a recorded stand-in answer fixture, the same file on `main` and on the PR | the extraction runs on `main` and on the PR | the `capex` section stored on the PR equals the one stored on `main` | unit |
-| AC-22b-calls | Same | Same | The stand-in received the same number of calls on the PR as on `main` | unit |
-| AC-22c | `extract_tnfd` (TNFD record, `general_requirements` section); a recorded stand-in answer fixture, the same file on `main` and on the PR | the extraction runs on `main` and on the PR | the `general_requirements` section stored on the PR equals the one stored on `main` | unit |
-| AC-22c-calls | Same | Same | The stand-in received the same number of calls on the PR as on `main` | unit |
+| AC-22 | `extract_plan` (plan actions preset `sch_transition_plan_actions`, field `ta_action_text`); a recorded stand-in answer fixture that includes at least one value the typed format would reject (`value: "Not disclosed"` for a numeric or yes/no item), with the stored result captured from `main` at spec approval and kept as a snapshot beside the test | the extraction runs on the PR | the plan row stored on the PR equals the snapshot | unit |
+| AC-22-calls | Same | Same | The stand-in received the number of calls recorded in the snapshot | unit |
+| AC-22b | `extract_financials` (Financials record, `capex` section); a recorded stand-in answer fixture that includes at least one value the typed format would reject (`value: "Not disclosed"` for a numeric or yes/no item), with the stored result captured from `main` at spec approval and kept as a snapshot beside the test | the extraction runs on the PR | the `capex` section stored on the PR equals the snapshot | unit |
+| AC-22b-calls | Same | Same | The stand-in received the number of calls recorded in the snapshot | unit |
+| AC-22c | `extract_tnfd` (TNFD record, `general_requirements` section); a recorded stand-in answer fixture that includes at least one value the typed format would reject (`value: "Not disclosed"` for a numeric or yes/no item), with the stored result captured from `main` at spec approval and kept as a snapshot beside the test | the extraction runs on the PR | the `general_requirements` section stored on the PR equals the snapshot | unit |
+| AC-22c-calls | Same | Same | The stand-in received the number of calls recorded in the snapshot | unit |
 | AC-20 | The backend suite | `pytest` runs | It passes. The PR lists every changed test; the only allowed changes are tests expecting `numeric.row_label` to fail on non-numeric fields | evaluator |
 | AC-21 | The golden set | `arp golden-set run` in CI | Exits 0 with every case passing. A missing `ARP_ANTHROPIC_API_KEY` (the job warns and passes) counts as fail for this row | golden |
 
