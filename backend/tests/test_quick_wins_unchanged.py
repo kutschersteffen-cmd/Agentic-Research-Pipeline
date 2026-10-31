@@ -18,7 +18,7 @@ from arp.schemas.datapoints import FieldDataType, FieldDefinition
 from arp.transition_alignment.plan_extraction import extract_plan
 
 _SNAP = Path(__file__).parent / "fixtures" / "quick_wins"
-_DOC = SourceDocument(company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="Report", full_text="Text.")
+_DOC = SourceDocument(doc_id="doc_fixed", company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="Report", full_text="Text.")
 
 
 class _Validating:
