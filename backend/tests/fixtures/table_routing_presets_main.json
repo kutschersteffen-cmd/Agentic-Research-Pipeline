@@ -1,0 +1,584 @@
+{
+ "sch_green_lowcarbon": {
+  "capex_total": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_capex_ccus": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_capex_circular_economy": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_capex_clean_transport": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_capex_definition": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_capex_energy_efficiency": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_capex_eu_aligned": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_capex_eu_eligible_not_aligned": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_capex_eu_not_covered": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_capex_framework": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_capex_green_buildings": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_capex_grids_storage": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_capex_hydrogen": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_capex_low_carbon_materials": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_capex_renewable_energy": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_capex_share_pct": {
+   "document_routing": null,
+   "version": 3
+  },
+  "green_capex_total": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_capex_water_pollution": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_opex_ccus": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_opex_circular_economy": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_opex_clean_transport": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_opex_definition": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_opex_energy_efficiency": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_opex_eu_aligned": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_opex_eu_eligible_not_aligned": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_opex_eu_not_covered": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_opex_framework": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_opex_green_buildings": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_opex_grids_storage": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_opex_hydrogen": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_opex_low_carbon_materials": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_opex_renewable_energy": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_opex_share_pct": {
+   "document_routing": null,
+   "version": 3
+  },
+  "green_opex_total": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_opex_water_pollution": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_revenue_ccus": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_revenue_circular_economy": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_revenue_clean_transport": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_revenue_definition": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_revenue_energy_efficiency": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_revenue_eu_aligned": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_revenue_eu_eligible_not_aligned": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_revenue_eu_not_covered": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_revenue_framework": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_revenue_green_buildings": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_revenue_grids_storage": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_revenue_hydrogen": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_revenue_low_carbon_materials": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_revenue_renewable_energy": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_revenue_share_pct": {
+   "document_routing": null,
+   "version": 3
+  },
+  "green_revenue_total": {
+   "document_routing": null,
+   "version": 2
+  },
+  "green_revenue_water_pollution": {
+   "document_routing": null,
+   "version": 2
+  },
+  "opex_total": {
+   "document_routing": null,
+   "version": 2
+  },
+  "revenue_total": {
+   "document_routing": null,
+   "version": 2
+  },
+  "transition_capex_total": {
+   "document_routing": null,
+   "version": 2
+  },
+  "transition_opex_total": {
+   "document_routing": null,
+   "version": 2
+  },
+  "transition_revenue_total": {
+   "document_routing": null,
+   "version": 2
+  }
+ },
+ "sch_transition_capex": {
+  "tc_capex_denominator": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tc_capex_total": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tc_capex_total_planned": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tc_carbon_intensive_capex": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tc_lowcarbon_capex": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tc_lowcarbon_capex_planned": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tc_lowcarbon_capex_share_pct": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tc_lowcarbon_capex_share_pct_planned": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tc_lowcarbon_rnd": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tc_lowcarbon_rnd_early": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tc_lowcarbon_rnd_share_pct": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tc_new_blast_furnace": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tc_new_oil_gas_project": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tc_new_unabated_coal": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tc_rnd_total": {
+   "document_routing": null,
+   "version": 1
+  }
+ },
+ "transition_plan_indicators": {
+  "tp_a_accountability_21": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_accountability_22": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_ambition_3": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_ambition_4": {
+   "document_routing": null,
+   "version": 2
+  },
+  "tp_a_ambition_5": {
+   "document_routing": null,
+   "version": 3
+  },
+  "tp_a_biosphere_55": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_biosphere_56": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_biosphere_57": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_biosphere_58": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_capex_75": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_capex_77": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_coverage_6": {
+   "document_routing": null,
+   "version": 3
+  },
+  "tp_a_coverage_7": {
+   "document_routing": null,
+   "version": 2
+  },
+  "tp_a_coverage_8": {
+   "document_routing": null,
+   "version": 2
+  },
+  "tp_a_emissions_59": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_emissions_60": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_emissions_61": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_emissions_62": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_engagement_45": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_engagement_46": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_engagement_47": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_engagement_48": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_engagement_49": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_engagement_86": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_engagement_87": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_fossil_fuels_50": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_fossil_fuels_51": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_fossil_fuels_52": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_headline_1": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_headline_2": {
+   "document_routing": null,
+   "version": 2
+  },
+  "tp_a_incentives_26": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_just_transition_53": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_just_transition_54": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_management_32": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_management_33": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_management_34": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_management_35": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_offsetting_13": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_offsetting_14": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_pathway_11": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_pathway_12": {
+   "document_routing": null,
+   "version": 2
+  },
+  "tp_a_planning_41": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_planning_42": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_planning_43": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_planning_44": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_production_39": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_production_40": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_progress_66": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_progress_67": {
+   "document_routing": null,
+   "version": 3
+  },
+  "tp_a_progress_68": {
+   "document_routing": null,
+   "version": 3
+  },
+  "tp_a_progress_69": {
+   "document_routing": null,
+   "version": 3
+  },
+  "tp_a_progress_70": {
+   "document_routing": null,
+   "version": 2
+  },
+  "tp_a_progress_71": {
+   "document_routing": null,
+   "version": 2
+  },
+  "tp_a_progress_72": {
+   "document_routing": null,
+   "version": 2
+  },
+  "tp_a_progress_73": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_progress_74": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_revenues_81": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_revenues_83": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_skills_17": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_skills_18": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_skills_19": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_structure_15": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_transparency_29": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_a_transparency_30": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_h_scope1_emissions": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_h_scope1_intensity": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_h_scope2_emissions": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_h_scope2_intensity": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_h_scope3_emissions": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_h_scope3_intensity": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_h_target_pct": {
+   "document_routing": null,
+   "version": 1
+  },
+  "tp_h_target_year": {
+   "document_routing": null,
+   "version": 1
+  }
+ }
+}

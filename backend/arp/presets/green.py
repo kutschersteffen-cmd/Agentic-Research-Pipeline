@@ -12,7 +12,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-from arp.schemas.datapoints import CheckConfig, DataPointSchema, FieldDataType, FieldDefinition
+from arp.schemas.datapoints import CheckConfig, DataPointSchema, DocumentRouting, FieldDataType, FieldDefinition
 
 GREEN_TABLE = "green_categories_v1"
 SCHEMA_ID = "sch_green_lowcarbon"
@@ -64,6 +64,9 @@ def _money(field_id: str, name: str, description: str, instructions: str, keywor
         extraction_instructions=instructions, seed_keywords=keywords, required=False, high_risk=True, version=2,
         check_config=CheckConfig(non_negative=True, **checks),
     )
+
+
+_TABLE_KIND = {"revenue": "eu_taxonomy_turnover", "capex": "eu_taxonomy_capex", "opex": "eu_taxonomy_opex"}
 
 
 def _metric_fields(m: str) -> list[FieldDefinition]:
@@ -123,7 +126,8 @@ def _metric_fields(m: str) -> list[FieldDefinition]:
             seed_keywords=[*kw, "we define", "definition"], required=False, high_risk=True, version=2,
         ),
     ]
-    return fields
+    routing = DocumentRouting(table_kinds=[_TABLE_KIND[m]], section_tags=["eu_taxonomy"])
+    return [f.model_copy(update={"document_routing": routing, "version": f.version + 1}) for f in fields]  # +1: routing
 
 
 def build_green_schema() -> DataPointSchema:

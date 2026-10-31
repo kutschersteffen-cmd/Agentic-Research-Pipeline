@@ -26,8 +26,11 @@ def test_ac47_existing_presets_unchanged():
     for pid, fields in snap.items():
         if pid == "transition_plan_indicators":  # the 10 contradiction-rule children moved up one version (spec 2026-10-21)
             fields = [{**f, "version": f["version"] + (f["field_id"] in REQUIRES_YES)} for f in fields]
+            # every question moved up one more for its section-tag routing (spec 2026-10-31-table-aware-extraction)
+            fields = [{**f, "version": f["version"] + f["field_id"].startswith("tp_a_")} for f in fields]
         if pid == "sch_green_lowcarbon":  # the three share fields moved to version 3 (spec 2026-10-31-extraction-quick-wins)
             fields = [{**f, "version": 3 if f["field_id"].endswith("_share_pct") else f["version"]} for f in fields]
+            fields = [{**f, "version": f["version"] + 1} for f in fields]  # routed to the EU Taxonomy tables (2026-10-31)
         assert [_shape(f) for f in PRESETS[pid]().fields] == fields
     assert set(PRESETS) == set(snap) | {"sch_transition_capex", "sch_transition_plan_actions", "sch_transition_delivery_kpis"}
 

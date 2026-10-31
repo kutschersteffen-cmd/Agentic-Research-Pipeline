@@ -12,8 +12,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
+from arp.schemas.datapoints import DataPointSchema, DocumentRouting, FieldDataType, FieldDefinition
 from arp.schemas.rules import Condition, RequiresRule, SeriesRule, ThresholdRule
+from arp.schemas.transition_plan import IndicatorCategory
 from arp.transition_plan.indicators import load_indicators
 
 SCHEMA_ID = "transition_plan_indicators"
@@ -31,6 +32,13 @@ _VERSIONS = {
     **{f"A_progress_{q}": 3 for q in range(67, 70)},
     **{f"A_progress_{q}": 2 for q in range(70, 73)},
     **{f"A_{n}": 2 for n in ("headline_2", "ambition_4", "coverage_7", "coverage_8", "pathway_12")},  # requires rule
+}
+
+_SECTION_TAGS = {  # where each category's questions are answered (spec 2026-10-31-table-aware-extraction)
+    IndicatorCategory.TARGET: ["climate_targets", "ghg_emissions", "transition_plan"],
+    IndicatorCategory.TRACKING: ["climate_targets", "ghg_emissions", "transition_plan"],
+    IndicatorCategory.GOVERNANCE: ["governance", "remuneration"],
+    IndicatorCategory.STRATEGY: ["transition_plan", "climate_targets", "biodiversity", "water", "workforce"],
 }
 
 _SERIES_INSTRUCTIONS = (
@@ -114,7 +122,8 @@ def build_transition_plan_schema() -> DataPointSchema:
                 field_id="tp_" + i.identifier.lower().replace(" ", "_"), name=i.identifier, description=i.question,
                 data_type=FieldDataType.BOOLEAN, extraction_instructions=i.guideline,
                 seed_keywords=keywords[i.identifier], required=False, high_risk=True,
-                version=_VERSIONS.get(i.identifier, 1), rules=rules.get(i.identifier, []),
+                version=_VERSIONS.get(i.identifier, 1) + 1, rules=rules.get(i.identifier, []),  # +1: routed by section tags
+                document_routing=DocumentRouting(section_tags=_SECTION_TAGS[i.category]),
             )
             for i in load_indicators()
         ] + _helpers(),

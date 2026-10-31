@@ -88,6 +88,7 @@ def test_versions():  # AC-4
     fields = _fields()
     for s in _SNAPSHOT:
         want = (2 if s["field_id"] in _RULES else s["version"]) + (s["field_id"] in REQUIRES_YES)  # +1 for the requires rule
+        want += 1  # section-tag routing (spec 2026-10-31-table-aware-extraction)
         assert fields[s["field_id"]].version == want, s["field_id"]
     assert all(fields[h[0]].version == 1 for h in _HELPERS)
 

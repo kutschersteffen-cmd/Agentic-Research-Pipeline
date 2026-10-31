@@ -47,7 +47,7 @@ def test_scope_1_target_guideline_asks_about_scope_1():
     f = next(f for f in build_transition_plan_schema().fields if f.name == "A_coverage_6")
     assert "reported for scope 1 emissions" in f.extraction_instructions
     assert "scope 2 emissions of the company" not in f.extraction_instructions
-    assert f.version == 3  # the guideline changed (v2), then the requires rule (v3); a released version can't be overwritten
+    assert f.version == 4  # the guideline changed (v2), the requires rule (v3), section-tag routing (v4); a released version can't be overwritten
 
 
 # --- contradiction rules (spec 2026-10-21-retire-transition-plan-pipeline-design, section 2) ---
@@ -95,7 +95,7 @@ def test_rule_bearing_fields_are_exactly_13():  # AC-9
 
 def test_versions():  # AC-10
     for fid, f in _built().items():
-        assert f.version == _MAIN[fid]["version"] + (fid in _PAIRS), fid
+        assert f.version == _MAIN[fid]["version"] + (fid in _PAIRS) + (f.document_routing is not None), fid  # +1: routing
 
 
 def test_everything_else_unchanged():  # AC-26
@@ -104,6 +104,8 @@ def test_everything_else_unchanged():  # AC-26
     for f in got:
         want = _MAIN[f["field_id"]]
         skip = {"rules", "version"} if f["field_id"] in _PAIRS else set()
+        if f["document_routing"] is not None:  # section-tag routing (spec 2026-10-31-table-aware-extraction): AC-19d, test_versions
+            skip |= {"version", "document_routing"}
         assert {k: v for k, v in f.items() if k not in skip} == {k: v for k, v in want.items() if k not in skip}
 
 

@@ -11,6 +11,7 @@ from arp.schemas.datapoints import (
     ApplicabilityRules,
     CheckConfig,
     DataPointSchema,
+    DocumentRouting,
     FieldDefinition,
 )
 from arp.schemas.datapoints import (
@@ -85,10 +86,15 @@ def _field(spec: tuple, prefixes: list[str]) -> FieldDefinition:
         kw.update(unit="%", check_config=CheckConfig(min_value=0, max_value=100))
     elif dtype == T.ENUM:
         kw["allowed_values"] = allowed
+    if dtype == T.BOOLEAN:
+        routing = DocumentRouting(section_tags=["transition_plan", "climate_targets"])
+    else:
+        routing = DocumentRouting(table_kinds=["eu_taxonomy_capex"], section_tags=["eu_taxonomy"])
     return FieldDefinition(
         field_id=fid, name=name, description=definition, data_type=dtype,
         extraction_instructions=f"{definition} {_COMMON}{extra}", seed_keywords=keywords,
-        required=False, high_risk=True, version=1, planned_field_id=_PLANNED_OF.get(fid),
+        required=False, high_risk=True, version=2, planned_field_id=_PLANNED_OF.get(fid),  # v2: document routing
+        document_routing=routing,
         applicability_rules=ApplicabilityRules(sector_codes=prefixes), **kw,
     )
 
