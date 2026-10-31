@@ -48,7 +48,7 @@ def _droppable_list_indices(errors: list[dict]) -> dict[str, set[int]] | None:
         loc = err["loc"]
         if len(loc) < 2 or not isinstance(loc[0], str) or not isinstance(loc[1], int):
             return None
-        if loc[2:3] == ("value",):  # a wrongly typed answer value is retried, never dropped into "not disclosed"
+        if loc[0] == "values" and loc[2:3] == ("value",):  # a draft's wrongly typed answer is retried, never dropped into "not disclosed"
             return None
         droppable.setdefault(loc[0], set()).add(loc[1])
     return droppable

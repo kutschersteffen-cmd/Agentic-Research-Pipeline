@@ -117,3 +117,23 @@ async def test_ac19e_blind_failure_is_not_disclosed():
 
 def test_extract_failure_draft_is_empty():
     assert ExtractionDraft(confidence=0.0).values == []
+
+
+class _CountingFails:
+    """Every extraction answer is text for a yes/no field; counts calls."""
+
+    def __init__(self):
+        self.calls = 0
+
+    async def complete_structured(self, *, system, prompt, output_model, **_):
+        self.calls += 1
+        return output_model.model_validate({"values": [{"value": "Not disclosed"}], "confidence": 0.9}), LLMUsage()
+
+
+async def test_failed_extraction_skips_the_verifier():  # review finding: no value may come back via the verifier
+    llm, verifier = _CountingFails(), _CountingFails()
+    fields, _, _ = await extract_one_field("Acme", BOOL, documents=[DOC], documents_by_id={DOC.doc_id: DOC},
+                                           llm=llm, verifier_llm=verifier, fuzzy_threshold=0.9,
+                                           confidence_review_threshold=0.6)
+    assert (fields[0].value_state, verifier.calls) == ("not_found", 0)
+    assert "extraction_failed" in fields[0].review_reasons

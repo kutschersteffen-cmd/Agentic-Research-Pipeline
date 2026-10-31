@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 _NUMERIC = {FieldDataType.NUMBER, FieldDataType.CURRENCY_AMOUNT, FieldDataType.PERCENTAGE}
 _BARE_NUMBER = re.compile(r"^[+-]?\d[\d,.' ]*$")
-_CURRENCY = re.compile(r"\b[A-Z]{3}\b|[€$£]")
+_CURRENCY = re.compile(r"^\s*[A-Z]{3}\b|[€$£]")  # an ISO code leads the unit ("EUR million"); "% of GHG" is not one
 
 
 @dataclass
@@ -73,7 +73,7 @@ def check_format(spec: FieldDefinition, field: ExtractedField, ctx: CheckContext
             bad = f"{dt} field holds a currency amount (unit {u})"
     elif dt == FieldDataType.STRING:
         text = f"{v:g}" if isinstance(v, float) else str(v)
-        if isinstance(v, (int, float)) or _BARE_NUMBER.match(text.strip()):
+        if (isinstance(v, (int, float)) and not isinstance(v, bool)) or _BARE_NUMBER.match(text.strip()):
             bad = f"{dt} field holds a bare number {text.strip()}"
     elif dt == FieldDataType.BOOLEAN:
         if not isinstance(v, bool):

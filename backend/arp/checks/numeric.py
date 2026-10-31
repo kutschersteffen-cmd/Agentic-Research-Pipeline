@@ -123,7 +123,7 @@ def check_row_label(spec: FieldDefinition, field: ExtractedField, ctx) -> list[C
     cid, na = "numeric.row_label", CheckOutcome.NOT_APPLICABLE
     if spec.data_type in (FieldDataType.BOOLEAN, FieldDataType.ENUM, FieldDataType.STRING, FieldDataType.DATE):
         return _result(cid, Severity.WARN, na)  # prose quotes for these have no table row to match
-    cits =[c for c in _grounded(field) if c.char_start is not None and c.char_end is not None]
+    cits = [c for c in _grounded(field) if c.char_start is not None and c.char_end is not None]
     doc = ctx.documents_by_id.get(cits[0].doc_id) if cits else None
     if doc is None:
         return _result(cid, Severity.WARN, na)

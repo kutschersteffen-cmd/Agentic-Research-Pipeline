@@ -204,6 +204,7 @@ async def _extract(state: FieldState) -> dict:
             state["company_name"], state["field"], state["evidence"], state["llm"], state["planned_periods"]
         )
     except ValidationError:
+        # shortcut: the failed calls' token usage is not counted (the error carries none); count it if cost tracking needs it
         logger.warning("extraction of %s never fit the field type", state["field"].field_id)
         return {"draft": ExtractionDraft(confidence=0.0), "extract_failed": True}
     return {"draft": draft, "usages": state["usages"] + [usage], "extractor_usage": usage}
@@ -211,6 +212,9 @@ async def _extract(state: FieldState) -> dict:
 
 async def _verify(state: FieldState) -> dict:
     seen = state["seen"]
+    if state.get("extract_failed"):  # nothing to verify: the field stays not found, in review
+        return {"verifier": VerifierOutput(agrees=True, confidence=0.0, notes="Not verified: the extraction failed."),
+                "verifier_usage": None}
     if state["field"].high_risk:  # E38: re-extract without seeing the draft
         verifier, usage = await blind_verify(
             state["company_name"], state["field"], state["evidence"], state["draft"], state["verifier_llm"],
