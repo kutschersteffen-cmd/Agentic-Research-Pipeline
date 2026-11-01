@@ -45,20 +45,21 @@ Step functions:
 {{stubs}}
 
 Every step returns a Result with fields: id (str), run_id (str or None), companies (a list; each company
-has id, exposure, has_xbrl). Pass one step's id to the next (e.g. universe_id=u.id).
+has id, name, included (bool), exposure: one of "pure_play", "significant", "minor", "none").
+universe_build starts every plan; pass its run_id on (e.g. universe_run_id=u.run_id).
 Return only the script."""
 
 
-async def draft_plan(brief: str, llm: LLMClient, store: PlanStore) -> str:
+async def draft_plan(brief: str, llm: LLMClient, store: PlanStore, context: str = "") -> str:
     """Store the planner's script as a draft plan and return its id. Raises PlanRejected."""
     system = SYSTEM.replace("{stubs}", step_stubs())
-    prompt = f"Research brief:\n{brief}"
+    prompt = f"Research brief:\n{brief}" + (f"\n\n{context}" if context else "")
     errors: list[str] = []
     for _ in range(2):
         out, _usage = await llm.complete_structured(system=system, prompt=prompt, output_model=PlanScript)
         errors = check_script(out.script)
         if not errors:
             return store.create(brief, out.script)
-        prompt = (f"Research brief:\n{brief}\n\nYour previous script:\n{out.script}\n\n"
+        prompt = (f"Research brief:\n{brief}" + (f"\n\n{context}" if context else "") + f"\n\nYour previous script:\n{out.script}\n\n"
                   "The checker rejected it:\n" + "\n".join(errors) + "\nFix every error.")
     raise PlanRejected("\n".join(errors))

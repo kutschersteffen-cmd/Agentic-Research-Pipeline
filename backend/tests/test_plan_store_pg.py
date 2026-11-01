@@ -5,8 +5,8 @@ import pytest
 
 from arp.orchestration.plan_store import PlanNotFound, PlanStore
 
-SCRIPT = 'u = universe_build(theme="grid storage")\n'
-TWO = SCRIPT + 'universe_build(theme="batteries")\n'
+SCRIPT = 'u = universe_build(taxonomy_id="t_grid storage", source="u.csv")\n'
+TWO = SCRIPT + 'universe_build(taxonomy_id="t_batteries", source="u.csv")\n'
 
 
 @pytest.fixture

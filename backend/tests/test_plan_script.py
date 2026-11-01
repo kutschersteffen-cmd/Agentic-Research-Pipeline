@@ -39,10 +39,10 @@ def test_check_rejects_long_script(tmp_path):  # AC-6
     assert "script exceeds 200 lines" in result.stdout
 
 
-VALID = """u = universe_build(theme="grid storage", region="EU")
+VALID = """u = universe_build(taxonomy_id="t_grid storage", source="u.csv")
 for c in u.companies:
     if c.exposure >= 0.1:
-        extraction(universe_id=u.id, schema_id="green_capex", companies=[c.id])
+        extraction(universe_run_id=u.run_id, schema_id="green_capex", companies=[c.id])
 """
 
 
@@ -61,7 +61,7 @@ def test_check_rejects_other_constructs():
 
 def _stubs(companies):
     def universe_build(**_):
-        return {"id": "u_1", "companies": companies}
+        return {"id": "u_1", "run_id": "u_1", "companies": companies}
 
     def extraction(**kw):
         return {"id": "e", "run_id": "r"}
@@ -70,7 +70,7 @@ def _stubs(companies):
 
 
 def test_step_limit():  # AC-8
-    src = "for i in range(501):\n    universe_build(theme=\"x\")\n"
+    src = "for i in range(501):\n    universe_build(taxonomy_id=\"t\", source=\"u.csv\")\n"
     with pytest.raises(StepLimitExceeded, match="step limit 500 exceeded"):
         run_script(src, _stubs([]))
 
@@ -79,7 +79,7 @@ def test_dry_run_with_stubs():  # AC-9
     comps = [{"id": "a", "exposure": 0.2}, {"id": "b", "exposure": 0.05}, {"id": "c", "exposure": 0.5}]
     calls = run_script(VALID, _stubs(comps))
     assert [(c["seq"], c["kind"]) for c in calls] == [(1, "universe_build"), (2, "extraction"), (3, "extraction")]
-    assert calls[1]["params"]["universe_id"] == "u_1"
+    assert calls[1]["params"]["universe_run_id"] == "u_1"
 
 
 def test_dry_run_placeholders():  # AC-10

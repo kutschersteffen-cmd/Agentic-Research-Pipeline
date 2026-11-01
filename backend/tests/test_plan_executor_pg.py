@@ -9,8 +9,8 @@ import pytest
 from arp.orchestration.plan_executor import PlanNotRunnable, cancel_plan, run_plan
 from arp.orchestration.plan_store import PlanStore
 
-CHAIN = """u = universe_build(theme="grid storage")
-e = extraction(universe_id=u.id, schema_id="green_capex")
+CHAIN = """u = universe_build(taxonomy_id="t_grid storage", source="u.csv")
+e = extraction(universe_run_id=u.run_id, schema_id="green_capex")
 d = decision_score(source_run_id=e.run_id)
 """
 
@@ -31,7 +31,7 @@ class Stubs:
             self.counter += 1
             out = {"id": f"{kind[0]}_{self.counter}", "run_id": f"r_{self.counter}", "companies": []}
             if kind == "universe_build":
-                out["id"] = "u_1"
+                out["id"] = out["run_id"] = "u_1"
             if kind == self.gate_kind:
                 out["gate"] = True
             return out
@@ -65,7 +65,7 @@ def test_refs_resolved_order_and_done(store):  # AC-18, AC-19, AC-20
     plan_id = _approved(store)
     assert run_plan(plan_id, store, Stubs().all(), lambda c: True, poll_seconds=0.01) == "done"
     calls = store.calls(plan_id)
-    assert calls[1]["params"]["universe_id"] == "u_1"
+    assert calls[1]["params"]["universe_run_id"] == "u_1"
     assert [c["seq"] for c in sorted(calls, key=lambda c: c["started_at"])] == [1, 2, 3]
     assert store.get(plan_id)["status"] == "done"
 

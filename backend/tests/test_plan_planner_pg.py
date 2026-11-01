@@ -8,7 +8,7 @@ from arp.cli import plan as plan_cli
 from arp.orchestration.plan_planner import PlanScript, draft_plan, step_stubs
 from arp.orchestration.plan_store import PlanStore
 
-GOOD = PlanScript(script='u = universe_build(theme="grid storage")\n')
+GOOD = PlanScript(script='u = universe_build(taxonomy_id="t_grid storage", source="u.csv")\n')
 BAD = PlanScript(script="import os\n")
 BAD2 = PlanScript(script="w = x * 2\n")
 
@@ -39,7 +39,7 @@ def test_cli_draft_prints_plan(pg, fake_llm, monkeypatch):
 
 def test_stubs_list_every_step():
     stubs = step_stubs()
-    assert "def extraction(*, universe_id: str, schema_id: str, companies: list[str] | None = None)" in stubs
+    assert "def extraction(*, universe_run_id: str, schema_id: str, companies: list[str] | None = None)" in stubs
     assert stubs.count("def ") == 8
 
 

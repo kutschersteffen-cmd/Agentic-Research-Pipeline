@@ -13,30 +13,29 @@ class _Step(BaseModel):
 
 
 class UniverseBuild(_Step):
-    theme: str
-    region: str | None = None
-    taxonomy_id: str | None = None
+    taxonomy_id: str  # a ratified Taxonomy Library entry whose schema is released
+    source: str  # the starting company universe: a CSV or JSON file path
 
 
 class DocumentDiscovery(_Step):
-    universe_id: str
+    universe_run_id: str
     doc_types: list[str] | None = None
     companies: list[str] | None = None
 
 
 class Extraction(_Step):
-    universe_id: str
+    universe_run_id: str
     schema_id: str
     companies: list[str] | None = None
 
 
 class FinancialsExtraction(_Step):
-    universe_id: str
+    universe_run_id: str
     companies: list[str] | None = None
 
 
 class XbrlFacts(_Step):
-    universe_id: str
+    universe_run_id: str
     companies: list[str] | None = None
     market: str = "auto"
 
@@ -67,6 +66,7 @@ STEPS: dict[str, type[_Step]] = {
     "report_render": ReportRender,
 }
 
-# Fields a step result exposes to the script. Each company carries id, exposure, has_xbrl.
+# Fields a step result exposes to the script. Each company carries id, name, included (bool) and exposure
+# (pure_play | significant | minor | none, the best across the theme's activities).
 RESULT_FIELDS = ("id", "run_id", "companies")
 BUILTINS = ("len", "min", "max", "sorted", "sum", "range")
