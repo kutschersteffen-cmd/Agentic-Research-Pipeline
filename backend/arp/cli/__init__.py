@@ -18,6 +18,7 @@ from arp.cli.holdings import holdings_app
 from arp.cli.identity import identity_app
 from arp.cli.index import index_app
 from arp.cli.io_tables import io_app
+from arp.cli.plan import plan_app
 from arp.cli.portfolio import portfolio_app
 from arp.cli.project import project_app
 from arp.cli.publish import publish_app
@@ -110,5 +111,6 @@ app.add_typer(snapshots_app, name="snapshots")
 app.add_typer(holdings_app, name="holdings")
 app.add_typer(retention_app, name="retention")
 app.add_typer(xbrl_app, name="xbrl")
+app.add_typer(plan_app, name="plan")
 app.add_typer(io_app, name="io")
 app.add_typer(rfp_app, name="rfp")

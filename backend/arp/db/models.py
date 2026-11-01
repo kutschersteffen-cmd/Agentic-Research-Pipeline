@@ -724,3 +724,4 @@ class RfpQuestion(Base):
     last_editor: Mapped[str | None] = mapped_column(Text)
 
 import arp.authoritative.models  # noqa: E402,F401  (registers the authoritative layer tables on Base)
+import arp.orchestration.plan_models  # noqa: E402,F401  (registers the research plan tables on Base)
