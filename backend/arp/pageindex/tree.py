@@ -104,14 +104,16 @@ async def build_tree(pages: list[str], llm: LLMClient) -> tuple[list[Node], list
     return tree, usages
 
 
-async def load_or_build_tree(pdf: Path, llm: LLMClient) -> tuple[list[Node], list[LLMUsage]]:
+async def load_or_build_tree(
+    pdf: Path, llm: LLMClient, pages: list[str] | None = None
+) -> tuple[list[Node], list[LLMUsage]]:
     cache = pdf.parent / f"{pdf.name}.pageindex.json"
     sha = hashlib.sha256(pdf.read_bytes()).hexdigest()
     if cache.exists():
         data = json.loads(cache.read_text())
         if data.get("sha256") == sha and data.get("prompt_version") == PROMPT_VERSION:
             return [Node.model_validate(n) for n in data["tree"]], []
-    tree, usages = await build_tree(page_texts(pdf), llm)
+    tree, usages = await build_tree(pages if pages is not None else page_texts(pdf), llm)
     cache.write_text(json.dumps({"sha256": sha, "prompt_version": PROMPT_VERSION,
                                  "tree": [n.model_dump() for n in tree]}, indent=1))
     return tree, usages
