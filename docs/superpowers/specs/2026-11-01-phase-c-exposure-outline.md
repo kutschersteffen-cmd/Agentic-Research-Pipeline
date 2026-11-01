@@ -1,10 +1,10 @@
 # Phase C outline: asset-level risk, buy decisions, supply chain, research front end
 
 Spec slug: `phase-c-exposure-outline`. **Outline, not for implementation.** Each workstream gets its own detailed
-
-Status: outline approved by the owner, 2026-11-01 (scope and order).
 spec after Phase B. Parent: `2026-11-01-model-stack-design.md`. Action plan:
 `docs/MARKET_EXPOSURE_APPROACHES_RESEARCH.md`, section 6.
+
+Status: outline approved by the owner, 2026-11-01 (scope and order).
 
 ## Why
 
