@@ -192,7 +192,7 @@ async def test_plan_documents_recorded(tmp_path, fake_llm):  # AC-41, AC-66
     entry = trace["plans"]["P1"]
     assert entry["passages"] and all(set(p) == KEYS for p in entry["passages"])
     assert entry["extractor"]["answer"] == plan.model_dump(mode="json")
-    assert set(entry["extractor"]) == {"model", "prompt_version", "answer"}
+    assert set(entry["extractor"]) == {"model", "prompt_version", "answer", "input_tokens", "output_tokens", "cost_usd"}  # usage: step-timing spec
     assert llm.calls.count("PlanDraft") == 1
 
 

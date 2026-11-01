@@ -5,7 +5,7 @@ import { correctionLine } from "../lib/corrections";
 import { valueLabel } from "../lib/fieldValue";
 import { listAllRuns } from "../lib/poll";
 import { runTypeLabel } from "../lib/runs";
-import { allCitations, fmt, markQuotes, notRecordedNote, passageFor, parseWalkthroughParams, pickRow, planBasis, retrievalLine, scoreText, scoresMissing, steps, walkthroughHref, type Step } from "../lib/walkthrough";
+import { allCitations, fmt, markQuotes, notRecordedNote, passageFor, parseWalkthroughParams, pickRow, planBasis, retrievalLine, scoreText, scoresMissing, stepTiming, steps, timingTotal, walkthroughHref, type Step } from "../lib/walkthrough";
 import type { Correction, ExtractedField, RunManifest, Walkthrough, WalkthroughPassage } from "../types";
 
 type Obj = Record<string, unknown>;
@@ -143,6 +143,7 @@ function WalkthroughView({ w, periodEnd, basis, needsReview }: { w: Walkthrough;
         {isSection ? <SectionResult w={w} /> : <RowResult w={w} row={row} basis={basis} />}
       </section>
       {w.trace_run_id !== w.run_id && <p className="help-text">Reused from run {w.trace_run_id}; the steps show that run.</p>}
+      {!basis && timingTotal(w) && <p className="mono wt-timing">Total · {timingTotal(w)}</p>}
       <ol className="wt-steps" aria-label="Steps">
         {steps(w, { periodEnd, basis }).map((s) => (
           <li key={s.n} className="card">
@@ -151,6 +152,7 @@ function WalkthroughView({ w, periodEnd, basis, needsReview }: { w: Walkthrough;
               <h3>{s.name}</h3>
               <span className="mono wt-kind">{s.kind === "llm" ? (s.model ? `LLM · ${s.model}` : "LLM") : "code"}</span>
               <span className="wt-label">{s.label}</span>
+              {!basis && stepTiming(w, s.name) && <span className="mono wt-timing">· {stepTiming(w, s.name)}</span>}
             </div>
             {s.recorded ? <StepBody s={s} w={w} row={row} quotes={quotes} needsReview={needsReview} /> : <p className="wt-nr">not recorded</p>}
           </li>

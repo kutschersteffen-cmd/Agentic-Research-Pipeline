@@ -31,8 +31,11 @@ with its elapsed time. Improved on: RAGFlow hides tokens and cost until a row is
      cost with 4 dp; a cost that rounds to `$0.0000` shows as `cached`) when `input_tokens` is present and above 0.
    - one mono line under the step list header: `{total time} · {total tokens} tokens · ${total cost}` over the
      recorded nodes and calls; absent when `seconds` is `{}`.
-   - old traces and seeded known-answer items (built without running the graph, so no `seconds` and zero tokens):
-     no time, token or total parts (no extra note).
+   - old traces: no time, token or total parts (no extra note).
+5. **Seeded known-answer items** (owner decision during implementation): they must look like real items, so a
+   seeded item borrows the step seconds and token counts of a real data-point field from the latest 10 non-trial
+   extraction runs (`review/quality.py` `_recent_timings`), or typical values when none exist; its
+   `gather_evidence` time is measured for real. Cost follows from the borrowed tokens.
    Signal Room rules: mono, ink, tabular figures; no colour for slow or costly steps.
 
 ## Out of scope
