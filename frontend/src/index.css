@@ -2243,6 +2243,9 @@ a.vc-box:hover { border-color: var(--text); }
 .wt-line { margin: var(--s-3) 0 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
 .wt-lines { margin: var(--s-3) 0 0; padding-left: var(--s-4); font-size: var(--text-sm); overflow-wrap: anywhere; }
 .wt-passages { list-style: none; padding: 0; margin: 0 0 var(--s-2); }
+.wt-scores { font-variant-numeric: tabular-nums; }
+.wt-near { margin-top: var(--s-2); }
+.wt-near > summary { cursor: pointer; font-family: var(--font-mono); font-size: var(--text-sm); }
 .wt-passage { margin: var(--s-1) 0 0; padding: var(--s-2) var(--s-3); background: var(--well); max-height: 14rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); }
 .wt-passage mark { background: var(--panel); color: inherit; font-weight: 600; border-bottom: 2px solid var(--text); }
 .wt-tabs { margin-top: var(--s-3); }

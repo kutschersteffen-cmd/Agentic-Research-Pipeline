@@ -144,7 +144,7 @@ async def test_recorded_field(tmp_path, fake_llm):  # AC-3
     assert body["rows"] == rows
     entry = _trace(store, run_id)["fields"][FIELD_ID]
     assert body["passages"]
-    assert [{k: p[k] for k in ("doc_id", "char_start", "char_end", "section")} for p in body["passages"]] == entry["passages"]
+    assert [{k: p[k] for k in ("doc_id", "char_start", "char_end", "section", "scores")} for p in body["passages"]] == entry["passages"]  # scores: why-this-evidence spec
     for i, p in enumerate(body["passages"]):
         assert p["rank"] == i + 1
         assert p["text"] == TEXT[p["char_start"]:p["char_end"]]
@@ -497,3 +497,43 @@ def test_seeded_and_real_look_alike(qenv, monkeypatch):  # noqa: F811  # AC-20
     assert set(_paths(strip(a))) == set(_paths(strip(b)))
     for step in ("extractor", "verifier"):
         assert (a[step]["model"], a[step]["prompt_version"]) == (b[step]["model"], b[step]["prompt_version"])
+
+
+# --- why-this-evidence spec: retrieval scores and near-misses ---
+
+def _scored_run(store, run_id, entry):
+    store.save_manifest(RunManifest(run_id=run_id, run_type="extraction"))
+    schema = DataPointSchema(schema_id="sch_hand", name="Hand", fields=[F1])
+    (store.run_dir(run_id) / "schema.json").write_text(schema.model_dump_json())
+    store.append_result(run_id, {"company_id": "c1", "name": "Acme Corp", "schema_id": "sch_hand", "run_id": run_id,
+                                 "fields": [_row()], "documents": [{"doc_id": KDOC.doc_id, "title": "ESG",
+                                 "content_key": KDOC.content_key, "parser_version": KDOC.parser_version}]})
+    trace.write_trace(store, run_id, "c1", {"fields": {"f1": entry}})
+
+
+def _span(start, end, scores=None):
+    return {"doc_id": KDOC.doc_id, "char_start": start, "char_end": end, "section": None,
+            **({} if scores is None else {"scores": scores})}
+
+
+def test_scores_and_near_misses_pass_through(tmp_path, pg):  # AC-19, AC-20, AC-21
+    store = RunStore(pg, tmp_path / "runs")
+    retrieval = {"method": "hybrid", "reranked": True, "candidates": 9}
+    passages = [_span(0, 10, {"bm25": 2.5, "vector_rank": 1, "rrf": 0.03, "rerank": 0.9}), _span(10, 20, {"bm25": 1.0})]
+    near = [_span(20, 30, {"bm25": 0.5}), _span(30, 40, {"vector_rank": 4}), _span(40, 50, {})]
+    _scored_run(store, "extraction_scored", _entry(passages=passages, retrieval=retrieval, near_misses=near))
+    body = _ok(store, "extraction_scored", "f1", content=_content(tmp_path), period_end="2025-12-31")
+    assert body["retrieval"] == retrieval
+    assert [p["scores"] for p in body["passages"]] == [p["scores"] for p in passages]
+    assert [n["rank"] for n in body["near_misses"]] == [3, 4, 5]
+    assert all(n["doc_title"] == "ESG" and n["text"] is not None for n in body["near_misses"])
+
+
+def test_old_trace_without_scores(tmp_path, pg):  # AC-22, AC-23
+    store = RunStore(pg, tmp_path / "runs")
+    old = _entry(passages=[_span(0, 10)])
+    del old["retrieval"], old["near_misses"]  # as written before the why-this-evidence spec
+    _scored_run(store, "extraction_unscored", old)
+    body = _ok(store, "extraction_unscored", "f1", content=_content(tmp_path), period_end="2025-12-31")
+    assert body["retrieval"] is None and body["near_misses"] == []
+    assert body["passages"] == [{"rank": 1, **_span(0, 10), "doc_title": "ESG", "text": KDOC.full_text[0:10]}]
