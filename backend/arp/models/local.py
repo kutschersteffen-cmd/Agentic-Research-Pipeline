@@ -31,3 +31,21 @@ def nli_scores(e: RegistryEntry, texts: list[str], labels: list[str], hypothesis
 def tag_scores(e: RegistryEntry, texts: list[str], **kwargs) -> list[dict]:
     pipe = _get("text-classification", e, **kwargs)
     return [{"label": r["label"], "score": float(r["score"])} for r in pipe(texts, truncation=True)]
+
+
+def _gliner(e: RegistryEntry, device: str | None):
+    from gliner import GLiNER
+
+    model = GLiNER.from_pretrained(e.hf_id, revision=e.revision)
+    return model.to(device) if device else model
+
+
+def span_scores(e: RegistryEntry, texts: list[str], labels: list[str], threshold: float,
+                device: str | None = None) -> list[list[dict]]:
+    with _lock:
+        if e.key not in _pipes:
+            _pipes[e.key] = _gliner(e, device)
+        model = _pipes[e.key]
+    return [[{"label": s["label"], "text": s["text"], "start": int(s["start"]), "end": int(s["end"]),
+              "score": float(s["score"])} for s in model.predict_entities(t, labels, threshold=threshold)]
+            for t in texts]

@@ -307,3 +307,12 @@ def tag_result(key: str, texts: list[str], model_header: str) -> list[dict] | No
         return [{"label": str(r["label"]), "score": float(r["score"])} for r in _rows(body, "results", len(texts))]
 
     return _models_call("/tag", {"key": key, "texts": texts}, model_header, read)
+
+
+def spans_result(texts: list[str], labels: list[str], threshold: float, model_header: str) -> list[list[dict]] | None:
+    """GLiNER spans from arp-models, one list of {label, text, start, end, score} per text, or None to compute locally."""
+    def read(body):
+        return [[{"label": str(s["label"]), "text": str(s["text"]), "start": int(s["start"]), "end": int(s["end"]),
+                  "score": float(s["score"])} for s in row] for row in _rows(body, "spans", len(texts))]
+
+    return _models_call("/spans", {"texts": texts, "labels": labels, "threshold": threshold}, model_header, read)

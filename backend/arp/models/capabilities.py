@@ -39,3 +39,22 @@ def tag(model_key: str, texts: list[str]) -> tuple[list[dict], dict]:
 
     res = cached(e, texts, None, compute) if texts else []
     return res, provenance(e, where[0])
+
+
+def spans(texts: list[str], labels: list[str], threshold: float = 0.5) -> tuple[list[list[dict]], dict]:
+    e = entry("gliner")
+    labs = sorted(set(labels))
+    where = ["cloud"] if client.models_configured() else ["local"]
+
+    def compute(ts):
+        if where[0] == "cloud":
+            r = client.spans_result(ts, labs, threshold, model_header(e))
+            if r is not None:
+                return r
+            where[0] = "local"
+        return local.span_scores(e, ts, labs, threshold)
+
+    res = cached(e, texts, (*labs, str(threshold)), compute) if texts else []
+    # a span whose offsets do not select its own text is dropped, from the cache as well
+    res = [[sp for sp in found if t[sp["start"]:sp["end"]] == sp["text"]] for t, found in zip(texts, res, strict=True)]
+    return res, provenance(e, where[0])

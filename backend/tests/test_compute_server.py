@@ -153,3 +153,8 @@ def test_classify_model_mismatch_409(c):  # spec AC-9
 def test_tag_model_mismatch_409(c):  # spec AC-11
     r = c.post("/tag", json={"key": "climate_detector", "texts": ["a"]}, headers={"x-arp-model": "wrong"})
     assert r.status_code == 409
+
+
+def test_spans_model_mismatch_409(c):  # spec AC-10
+    r = c.post("/spans", json={"texts": ["a"], "labels": ["x"], "threshold": 0.5}, headers={"x-arp-model": "wrong"})
+    assert r.status_code == 409

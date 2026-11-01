@@ -143,6 +143,12 @@ class ClassifyRequest(BaseModel):
     hypothesis: str
 
 
+class SpansRequest(BaseModel):
+    texts: list[str] = Field(max_length=MAX_EMBED_TEXTS)
+    labels: list[str]
+    threshold: float = 0.5
+
+
 class TagRequest(BaseModel):
     key: str
     texts: list[str] = Field(max_length=MAX_EMBED_TEXTS)
@@ -154,6 +160,14 @@ def classify(request: ClassifyRequest, x_arp_model: str | None = Header(default=
     _check_model(x_arp_model, model_header(e))
     _torch_model("nli")
     return {"scores": local.nli_scores(e, request.texts, request.labels, request.hypothesis, device=0)}
+
+
+@app.post("/spans")
+def spans(request: SpansRequest, x_arp_model: str | None = Header(default=None)) -> dict:
+    e = entry("gliner")
+    _check_model(x_arp_model, model_header(e))
+    _torch_model("gliner")
+    return {"spans": local.span_scores(e, request.texts, request.labels, request.threshold, device="cuda")}
 
 
 @app.post("/tag")
