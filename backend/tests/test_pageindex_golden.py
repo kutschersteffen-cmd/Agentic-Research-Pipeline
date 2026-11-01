@@ -74,3 +74,19 @@ def test_fetch_failure(monkeypatch, tmp_path):
     r = _golden(cases, tmp_path)
     assert r.exit_code == 1
     assert r.stderr.strip() == "Could not fetch d.pdf: down"
+
+
+def test_document_not_listed(monkeypatch, tmp_path):
+    cases = _setup(monkeypatch, tmp_path)
+    (tmp_path / "documents.json").write_text("[]")
+    r = _golden(cases, tmp_path)
+    assert r.exit_code == 1
+    assert r.stderr.strip() == "Document d.pdf is not listed in documents.json."
+
+
+def test_bad_download_not_written(monkeypatch, tmp_path):
+    cases = _setup(monkeypatch, tmp_path, present=False)
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: httpx.Response(200, content=b"wrong", request=httpx.Request("GET", "https://x")))
+    r = _golden(cases, tmp_path)
+    assert r.exit_code == 1
+    assert not (tmp_path / "dir" / "ssab" / "d.pdf").exists()

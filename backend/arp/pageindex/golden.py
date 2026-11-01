@@ -16,19 +16,26 @@ class GoldenError(Exception):
 
 def ensure_document(cases_file: Path, documents_dir: Path, company_id: str, document: str) -> Path:
     """The document from documents.json beside the cases file, downloaded if missing, hash-checked always."""
-    entries = json.loads((cases_file.parent / "documents.json").read_text())
-    entry = next(e for e in entries if e["company_id"] == company_id and e["document"] == document)
+    listing = cases_file.parent / "documents.json"
+    entries = json.loads(listing.read_text()) if listing.exists() else []
+    entry = next((e for e in entries if e["company_id"] == company_id and e["document"] == document), None)
+    if entry is None:
+        raise GoldenError(f"Document {document} is not listed in documents.json.")
     path = documents_dir / company_id / document
-    if not path.exists():
+    if path.exists():
+        data = path.read_bytes()
+    else:
         try:
             resp = httpx.get(entry["url"], follow_redirects=True, timeout=120)
             resp.raise_for_status()
         except httpx.HTTPError as exc:
             raise GoldenError(f"Could not fetch {document}: {exc}") from exc
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(resp.content)
-    if hashlib.sha256(path.read_bytes()).hexdigest() != entry["sha256"]:
+        data = resp.content
+    if hashlib.sha256(data).hexdigest() != entry["sha256"]:
         raise GoldenError(f"Document {document} does not match its recorded hash.")
+    if not path.exists():  # written only once verified, so a bad download is fetched again next run
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
     return path
 
 
