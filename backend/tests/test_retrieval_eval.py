@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
 from arp.config import Settings
 from arp.golden_set import retrieval
 from arp.golden_set.retrieval import GoldSpan, gold_spans, hit_rank, recall_at, run_retrieval_eval
 from arp.schemas.common import CompanyRef, DocType, DocumentChunk, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
 from arp.schemas.review import DecisionKind, DecisionReason, ReviewDecision, field_item_key
+from arp.storage.document_store import DocumentContentStore, derive_doc_id
+from tests.postgres_helpers import pg_dsn
 
 ISSUER = "lei:ACME:1"
 
@@ -107,3 +111,16 @@ def test_run_replays_field_evidence_and_reports_recall(tmp_path, monkeypatch):
     assert report["recall_at_5"] == 0.5  # the keyword chunk is found; the span in filler text is not
     assert [(m["char_start"], m["char_end"]) for m in report["misses"]] == [(100, 140)]
     assert report["settings"]["hybrid_retrieval_enabled"] is False
+
+
+@pytest.mark.usefixtures("pg")
+def test_cases_mode_parses_once_with_the_same_doc_id(tmp_path, monkeypatch):
+    path = tmp_path / "acme" / "report.txt"
+    path.parent.mkdir()
+    path.write_text("Scope 1 emissions were 1,234 tonnes CO2e in 2025.")
+    calls = []
+    monkeypatch.setattr(retrieval, "parse_file_to_text_with_pages", lambda p: calls.append(p) or (p.read_text(), [], []))
+    store = DocumentContentStore(tmp_path / "store", dsn=pg_dsn())
+    first, second = (retrieval._parse(path, "acme", store) for _ in range(2))
+    assert first.doc_id == second.doc_id == derive_doc_id("acme", "sustainability_report", store.content_key_for_file(path))
+    assert len(calls) == 1  # the repeat run reads the content store
