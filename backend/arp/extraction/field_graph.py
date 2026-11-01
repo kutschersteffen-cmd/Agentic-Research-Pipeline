@@ -438,9 +438,10 @@ async def extract_one_field(
     }
     final_state = await run_graph(_COMPILED_GRAPH, initial)
     rows = final_state["extracted"]
-    if rows and all(f.value_state == ValueState.NOT_FOUND for f in rows):
+    if any(f.value_state == ValueState.NOT_FOUND for f in rows):  # every not-found period row, not only all-missing
         reason = "passages_silent" if final_state["evidence"] else "no_passage"
-        final_state["extracted"] = [f.model_copy(update={"not_found_reason": reason}) for f in rows]
+        final_state["extracted"] = [f.model_copy(update={"not_found_reason": reason})
+                                    if f.value_state == ValueState.NOT_FOUND else f for f in rows]
     if trace_sink is not None:
         try:
             trace_sink[field.field_id] = _trace_entry(final_state, grouped is not None)

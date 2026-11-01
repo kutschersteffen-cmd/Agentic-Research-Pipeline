@@ -251,3 +251,19 @@ async def test_recording_changes_no_value(fake_llm, monkeypatch):  # AC-34
     monkeypatch.setattr(field_graph, "select_relevant_chunks", lambda *a, **kw: real(*a, **{**kw, "explain": None}))
     plain, _, _ = await _run_long(_agreeing_llm(fake_llm), {})
     assert [f.model_dump() for f in recorded] == [f.model_dump() for f in plain]
+
+
+async def test_ac_a3_not_found_period_row_gets_a_reason_when_another_period_is_found(fake_llm, monkeypatch):
+    # code review on #297: a field with one found and one missing period labels the missing row
+    from arp.extraction import field_graph
+    from arp.schemas.datapoints import ExtractedField, ValueState
+
+    async def fake_graph(graph, state):
+        rows = [ExtractedField(field_id="scope1", field_name="s", value=1.0, confidence=0.9, period_end="2024-12-31"),
+                ExtractedField(field_id="scope1", field_name="s", value=None, confidence=0.0,
+                               value_state=ValueState.NOT_FOUND, period_end="2023-12-31")]
+        return {**state, "extracted": rows, "evidence": ["passage"], "needs_review": False, "usages": []}
+
+    monkeypatch.setattr(field_graph, "run_graph", fake_graph)
+    rows, _, _ = await _run(fake_llm({}), _field())
+    assert [r.not_found_reason for r in rows] == [None, "passages_silent"]
