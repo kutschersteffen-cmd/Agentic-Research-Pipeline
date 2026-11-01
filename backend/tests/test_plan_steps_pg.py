@@ -37,3 +37,17 @@ def test_all_eight_kinds_present_and_unwired_ones_fail_clearly(run_store):
     assert len(steps) == 8
     with pytest.raises(StepNotWired, match="index_construct is not wired"):
         steps["index_construct"](decision_id="d")
+
+
+def test_report_gate_until_storyline_approved(run_store, monkeypatch):
+    from types import SimpleNamespace as NS
+
+    import arp.api.deps as deps
+    from arp.schemas.reporting import ReportStatus
+
+    status = {"s": ReportStatus.STORYLINE_READY}
+    monkeypatch.setattr(deps, "get_reporting_store", lambda: NS(load_manifest=lambda _id: NS(status=status["s"])))
+    reviewed = build_reviewed(run_store)
+    assert reviewed({"result_ref": "report:rep_1"}) is False
+    status["s"] = ReportStatus.COMPLETED
+    assert reviewed({"result_ref": "report:rep_1"}) is True

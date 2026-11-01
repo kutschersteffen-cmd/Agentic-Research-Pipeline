@@ -114,6 +114,41 @@ def build_steps(settings: Settings, run_store: RunStore) -> dict[str, Any]:
                                      market=market))
         return _result(run_id, run_store)
 
+    def decision_score(*, source_run_id: str, framework_id: str | None = None) -> dict[str, Any]:
+        from arp.api.deps import get_decision_store
+        from arp.decision import templates
+
+        if framework_id is not None:
+            config = get_decision_store().latest_ratified(framework_id)
+            if config is None:
+                raise ValueError(f"framework {framework_id} has no ratified version")
+            templates.attach_to_run(run_store, source_run_id, config)
+        stored = templates.score_run(run_store, source_run_id)  # None: no framework pinned on the run
+        if stored is None:
+            raise ValueError(f"run {source_run_id} has no decision framework attached; pass framework_id")
+        if stored.get("error"):
+            raise RuntimeError(f"the rules step failed: {stored['error']}")
+        return {"id": source_run_id, "run_id": None, "result_ref": f"decision:{source_run_id}", "companies": []}
+
+    def report_render(*, source_ids: list[str], template_id: str | None = None) -> dict[str, Any]:
+        from arp.api.deps import get_reporting_store
+        from arp.reporting.service import ReportingService
+        from arp.schemas.reporting import ReportRequest, ReportStatus, RunRef
+
+        service = ReportingService(get_reporting_store())
+        request = ReportRequest(title="Research plan report", qualitative_notes="", template_id=template_id,
+                                run_refs=[RunRef(kind="run", ref_id=i) for i in source_ids])
+
+        async def _go():
+            manifest = await service.create_and_plan(request, build_llm_client(settings))
+            # A house deck stops at its storyline for a person to approve (its own gate); others render now.
+            return manifest if manifest.status == ReportStatus.STORYLINE_READY else await service.render_from_plan(
+                manifest.report_id)
+
+        manifest = asyncio.run(_go())
+        return {"id": manifest.report_id, "run_id": None, "result_ref": f"report:{manifest.report_id}",
+                "companies": [], "gate": manifest.status == ReportStatus.STORYLINE_READY}
+
     def not_wired(kind: str):
         def fn(**_: Any) -> dict[str, Any]:
             raise StepNotWired(f"{kind} is not wired to a run type yet")
@@ -125,15 +160,23 @@ def build_steps(settings: Settings, run_store: RunStore) -> dict[str, Any]:
         "extraction": extraction,
         "financials_extraction": financials_extraction,
         "xbrl_facts": xbrl_facts,
-        # shortcut: synchronous kinds without a run id; wired in the next commit of plan task 7.
-        "decision_score": not_wired("decision_score"),
+        "decision_score": decision_score,
+        # shortcut: an index review needs candidate market data a plan cannot supply; wire once candidates have a source.
         "index_construct": not_wired("index_construct"),
-        "report_render": not_wired("report_render"),
+        "report_render": report_render,
     }
 
 
 def build_reviewed(run_store: RunStore):
-    """A gated call is reviewed once its run has no pending review item left."""
+    """A gated run is reviewed once it has no pending review item left; a gated report once its storyline is
+    approved."""
     def reviewed(call: dict[str, Any]) -> bool:
+        ref = call.get("result_ref") or ""
+        if ref.startswith("report:"):
+            from arp.api.deps import get_reporting_store
+            from arp.schemas.reporting import ReportStatus
+
+            manifest = get_reporting_store().load_manifest(ref.removeprefix("report:"))
+            return manifest is not None and manifest.status != ReportStatus.STORYLINE_READY
         return not call.get("run_id") or not _has_pending_review(run_store, call["run_id"])
     return reviewed

@@ -49,6 +49,16 @@ def _llm():
     return build_llm_client(get_settings())
 
 
+def _context() -> str:
+    from arp.api.deps import get_decision_store
+    from arp.config import get_settings
+    from arp.orchestration.plan_planner import planner_context
+    from arp.storage.taxonomy_store import TaxonomyStore
+
+    return planner_context(TaxonomyStore(get_settings().taxonomies_dir).list_all(),
+                           get_decision_store().list_frameworks())
+
+
 def _print_steps(calls: list[dict]) -> None:
     for c in calls:
         dep = f"  (depends on {c['depends_on']})" if c["depends_on"] else ""
@@ -60,7 +70,7 @@ def draft(brief: str) -> None:
     """Have the planner write a plan script for a research brief; stores it as a draft."""
     store = _store()
     try:
-        plan_id = asyncio.run(draft_plan(brief, _llm(), store))
+        plan_id = asyncio.run(draft_plan(brief, _llm(), store, _context()))
     except PlanRejected as exc:
         typer.echo(str(exc))
         raise typer.Exit(1) from exc
