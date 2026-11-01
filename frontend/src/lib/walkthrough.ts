@@ -221,7 +221,7 @@ const METHOD_LABEL: Record<WalkthroughRetrieval["method"], string> = {
 
 /** The "Find evidence" line above the passages: how they were ranked. */
 export function retrievalLine(r: WalkthroughRetrieval): string {
-  return `${METHOD_LABEL[r.method] ?? r.method}${r.reranked ? ", re-ranked" : ""} · ${r.candidates.toLocaleString("en-US")} candidates`;
+  return `${METHOD_LABEL[r.method] ?? r.method}${r.reranked ? ", re-ranked" : ""} · ${plural(r.candidates, "candidate").replace(String(r.candidates), r.candidates.toLocaleString("en-US"))}`;
 }
 
 /** One passage's scores, only those computed: "BM25 7.42 · vector #3 · RRF 0.033 · rerank 0.91". */

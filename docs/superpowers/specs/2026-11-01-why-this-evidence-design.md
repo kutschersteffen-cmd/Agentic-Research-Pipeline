@@ -85,7 +85,7 @@ store the existing hybrid tests in `tests/` use. **OS** = the stub OpenSearch cl
 | AC-21 | As AC-19 | Same | `near_misses` items have `rank` == len(passages)+1 … +3, each with `doc_title` and non-null `text` | unit |
 | AC-22 | Trace written before this change (no `scores`, no `retrieval`) | `GET` walkthrough | `retrieval` is null and `near_misses == []` | unit |
 | AC-23 | As AC-22 | Same | Passages are byte-equal to the response `main` returns for the same trace | unit |
-| AC-24 | `seeded-scored` in the e2e stack | Reviewer opens its Walkthrough, "Find evidence" step | The line above the passages reads `BM25 + vectors (RRF) · {n} candidates` with n = the trace's `candidates` (no `, re-ranked`: re-ranking is off in the stack) | evaluator |
+| AC-24 | `seeded-scored` in the e2e stack | Reviewer opens its Walkthrough, "Find evidence" step | The line above the passages reads `BM25 + vectors (RRF) · {n} candidates` (`1 candidate` when n = 1) with n = the trace's `candidates` (no `, re-ranked`: re-ranking is off in the stack) | evaluator |
 | AC-25 | As AC-24 | Same view | Each passage line ends with ` · BM25 x.xx · vector #n · RRF x.xxx`, numbers matching the trace (BM25 part absent where the trace has no `bm25`) | evaluator |
 | AC-26 | As AC-24, if its trace has near-misses (n ≤ 3) | Page loads | `Just missed (n)` is shown and collapsed (no near-miss text visible) | evaluator |
 | AC-27 | As AC-24 | Reviewer clicks `Just missed (n)` | n rows appear with ranks last-passage+1 … +3, each with document, section, characters, scores and text | evaluator |

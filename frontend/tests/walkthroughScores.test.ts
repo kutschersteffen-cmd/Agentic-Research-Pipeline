@@ -10,6 +10,7 @@ test("method line names the method, re-ranking and candidates", () => {
   assert.equal(retrievalLine({ method: "hybrid", reranked: true, candidates: 214 }), "BM25 + vectors (RRF), re-ranked · 214 candidates");
   assert.equal(retrievalLine({ method: "bm25", reranked: false, candidates: 1200 }), "BM25 · 1,200 candidates");
   assert.equal(retrievalLine({ method: "unranked", reranked: false, candidates: 3 }), "No keyword hit: first passages in document order · 3 candidates");
+  assert.equal(retrievalLine({ method: "hybrid", reranked: false, candidates: 1 }), "BM25 + vectors (RRF) · 1 candidate");
 });
 
 test("score text shows only the computed scores, in order", () => {
