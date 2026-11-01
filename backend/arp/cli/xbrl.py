@@ -160,3 +160,34 @@ def verify(
         raise typer.Exit(1) from exc
     counts = Counter(r.outcome for r in rows)
     typer.echo(f"{len(rows)} comparison(s): " + "  ".join(f"{k}={v}" for k, v in sorted(counts.items())))
+
+
+def _key_for(store: XbrlStore, company_id: str) -> str | None:
+    return next((k for k in store.ciks() if company_id in store.company_ids(k)), None)
+
+
+@xbrl_app.command("segments")
+def segments(company_id: str) -> None:
+    """Segment rows (revenue, capex, opex, ...) of a company's latest annual filing."""
+    store = _store()
+    key = _key_for(store, company_id)
+    if key is None:
+        typer.echo(f"No XBRL data for {company_id}", err=True)
+        raise typer.Exit(1)
+    typer.echo("year  segment  metric  value  unit  concept  sum_check")
+    for r in store.read_segments(key):
+        value = int(r.value) if r.value.is_integer() else r.value
+        typer.echo(f"{r.fiscal_year}  {r.segment}  {r.metric}  {value}  {r.unit}  {r.concept}  "
+                   f"{str(r.sum_matches_total).lower()}")
+
+
+@xbrl_app.command("segment-note")
+def segment_note(company_id: str) -> None:
+    """The segment note text of a company's latest annual filing."""
+    store = _store()
+    key = _key_for(store, company_id)
+    note = store.read_segment_note(key) if key else None
+    if note is None:
+        typer.echo(f"No segment note for {company_id}", err=True)
+        raise typer.Exit(1)
+    typer.echo(note)

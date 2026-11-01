@@ -239,3 +239,39 @@ def test_screen_prints_routes_and_summary(env):
 def test_screen_does_not_write_runs(env):
     assert _invoke("screen", "--universe", str(_screen_universe(env))).exit_code == 0
     assert not (env / "runs").exists() or not list((env / "runs").iterdir())
+
+
+def _seed_segments(env, note=None):
+    from arp.xbrl_pipeline.segments import sec_segments, store_segments
+    from tests.segment_fixture import fixture_s, ixbrl
+
+    store = XbrlStore(env / "xbrl")
+    store.set_meta(CIK, source_sha="abc", tags=None, company_id="s1", company_name="S1", fact_count=1)
+    rows, found = sec_segments(ixbrl(fixture_s(note=note)), company_id="s1", accession="a1")
+    store_segments(store, CIK, rows, found)
+
+
+def test_ac_18_segments_prints_rows(env):
+    _seed_segments(env)
+    result = _invoke("segments", "s1")
+    assert result.exit_code == 0, result.output
+    lines = result.stdout.splitlines()
+    assert lines[0] == "year  segment  metric  value  unit  concept  sum_check" and len(lines) == 4
+    assert all(s in lines[1] for s in ("2025", "Alpha", "revenue", "300", "USD", "true"))
+
+
+def test_ac_19_segments_unknown_company(env):
+    result = _invoke("segments", "zz")
+    assert result.exit_code == 1 and "No XBRL data for zz" in result.output
+
+
+def test_ac_32_segment_note_prints(env):
+    _seed_segments(env, note="Alpha sells widgets. Beta sells gadgets.")
+    result = _invoke("segment-note", "s1")
+    assert result.exit_code == 0 and result.stdout.strip() == "Alpha sells widgets. Beta sells gadgets."
+
+
+def test_ac_33_segment_note_missing(env):
+    _seed_segments(env)
+    result = _invoke("segment-note", "s1")
+    assert result.exit_code == 1 and "No segment note for s1" in result.output
