@@ -95,10 +95,14 @@ def test_versions():  # AC-4
 
 def test_question_fields_match_main():  # AC-14
     fields = build_transition_plan_schema().fields[:64]
-    keys = [k for k in _SNAPSHOT[0] if k not in ("version", "seed_keywords")]  # keywords: guideline include-terms
-    assert [{k: f.model_dump(mode="json")[k] for k in keys} for f in fields] == [
-        {k: s[k] for k in keys} for s in _SNAPSHOT
-    ]
+    keys = [k for k in _SNAPSHOT[0] if k != "version"]
+    got = [{k: f.model_dump(mode="json")[k] for k in keys} for f in fields]
+    want = [{k: s[k] for k in keys} for s in _SNAPSHOT]
+    for g, w in zip(got, want, strict=True):
+        if g["seed_keywords"] != w["seed_keywords"]:  # guideline include-terms are added after main's keywords
+            assert g["seed_keywords"][:len(w["seed_keywords"])] == w["seed_keywords"], g["field_id"]
+            g["seed_keywords"] = w["seed_keywords"]
+    assert got == want
 
 
 # --- saving ---

@@ -86,6 +86,12 @@ def test_documents_are_downloaded_and_hash_checked(tmp_path):
         url = f"http://127.0.0.1:{server.server_port}/report.txt"
         documents = tmp_path / "documents.json"
 
+        documents.write_text(json.dumps([{"company_id": "a", "document": "report.txt", "url": url + ".gone", "sha256": "0" * 64}]))
+        result = _run("--cases", str(cases_file), "--no-hybrid", "--no-rerank")
+        assert result.exit_code == 1  # a 404 is a clear error, not a traceback
+        assert "Could not download report.txt" in result.stderr
+        assert not list((tmp_path / "documents" / "a").glob("*"))  # no .part file left behind
+
         documents.write_text(json.dumps([{"company_id": "a", "document": "report.txt", "url": url, "sha256": "0" * 64}]))
         result = _run("--cases", str(cases_file), "--no-hybrid", "--no-rerank")
         assert result.exit_code == 1

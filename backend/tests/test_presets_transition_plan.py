@@ -108,8 +108,9 @@ def test_everything_else_unchanged():  # AC-26
     for f in got:
         want = _MAIN[f["field_id"]]
         skip = {"rules", "version"} if f["field_id"] in _PAIRS else set()
-        if f["field_id"] in _KEYWORDS_CHANGED:  # keywords: test_every_indicator_has_3_to_8_keywords; version: test_versions
+        if f["field_id"] in _KEYWORDS_CHANGED:  # include-terms are added after main's keywords; version: test_versions
             skip |= {"seed_keywords", "version"}
+            assert f["seed_keywords"][:len(want["seed_keywords"])] == want["seed_keywords"], f["field_id"]
         assert {k: v for k, v in f.items() if k not in skip} == {k: v for k, v in want.items() if k not in skip}
 
 

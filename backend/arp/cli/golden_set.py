@@ -204,7 +204,7 @@ def golden_set_export_labels(
 @golden_set_app.command("retrieval")
 def golden_set_retrieval(
     run_id: str = typer.Option(None, "--run-id", help="Reviewed extraction run whose approved citations are the gold spans."),
-    cases_file: Path = typer.Option(None, "--cases", help="Committed retrieval cases file (gold spans as text); no Postgres needed."),
+    cases_file: Path = typer.Option(None, "--cases", help="Committed retrieval cases file (gold spans as text) instead of a reviewed run."),
     documents_dir: Path = typer.Option(
         None, "--documents-dir",
         help="Directory holding <company_id>/ document folders. Defaults to the app's, or the cases file's documents/ sibling.",
@@ -245,7 +245,8 @@ def golden_set_retrieval(
     if report["stale_spans"]:
         typer.echo(f"Left out {report['stale_spans']} span(s) whose text no longer matches the current parse.", err=True)
     if not report["gold_spans"]:
-        typer.echo("No approved, grounded citations that match the current parse: review some items first.", err=True)
+        typer.echo("No gold spans match the current parse." if cases_file else
+                   "No approved, grounded citations that match the current parse: review some items first.", err=True)
         raise typer.Exit(1)
     k = settings.evidence_max_chunks
     typer.echo(

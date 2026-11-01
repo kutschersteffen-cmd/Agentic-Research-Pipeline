@@ -163,8 +163,12 @@ def ensure_documents(cases: list[dict], documents_file: Path, documents_dir: Pat
         if not path.exists():
             path.parent.mkdir(parents=True, exist_ok=True)
             tmp = path.with_name(path.name + ".part")
-            with urllib.request.urlopen(entry["url"], timeout=300) as response:  # noqa: S310 -- urls come from the committed documents.json
-                tmp.write_bytes(response.read())
+            try:
+                with urllib.request.urlopen(entry["url"], timeout=300) as response:  # noqa: S310 -- urls come from the committed documents.json
+                    tmp.write_bytes(response.read())
+            except (OSError, ValueError) as exc:  # URLError/HTTPError/timeouts are OSErrors
+                tmp.unlink(missing_ok=True)
+                raise ValueError(f"Could not download {document} from {entry['url']}: {exc}") from exc
             if _sha256(tmp) != entry["sha256"]:
                 tmp.unlink()
                 raise ValueError(f"Document {document} does not match its recorded hash.")
