@@ -50,7 +50,7 @@ New package `backend/arp/risk_view/`; one CLI registration line in `arp/cli/__in
 | Step | How | Model |
 |---|---|---|
 | 1. Text | PDF: `parse_file_to_text_with_pages` (existing). 10-K: the primary HTML, bold/italic spans marked as headings | none |
-| 2. Section | PDF: first page whose heading matches `Risk and opportunity report`, `Principal risks`, `Risk report`, `Risikobericht` (case-insensitive) up to the next top-level heading. 10-K: from `Item 1A` body to `Item 1B`/`Item 1C`. Not found: status `no_section`, exit 0, no model call | none |
+| 2. Section | PDF: first page whose heading matches `Risk and opportunity report`, `Principal risks`, `Risk report`, `Risikobericht` (case-insensitive), up to the first later heading from the stop list in `risk_view/data/section_stops.json` (`Outlook`, `Forecast`, `Prognosebericht`, `Corporate governance`, `Remuneration report`, `Consolidated financial statements`). 10-K: from `Item 1A` body to `Item 1B`/`Item 1C`. Not found: status `no_section`, exit 0, no model call | none |
 | 3. Risks | One risk per heading inside the section, longer than 40 characters, with the text up to the next heading as its body. Category sub-headings (10-K "Industry Risk Factors") are carried as `category` | none |
 | 4. Mitigations | One LLM call per risk body through `arp/llm` (model from `ARP_LLM_MODEL`, Batch API when the CLI runs over a list): "list the actions the company says it takes to reduce this risk, each as an exact quote; empty list if none" | LLM |
 | 5. Grounding | Each quote checked with `grounding.is_grounded` against the risk body; ungrounded quotes are dropped and counted in `dropped_quotes` | none |
@@ -123,7 +123,7 @@ All `unit` rows replace the LLM, `embed_texts` and the NLI model with stand-ins.
 | AC-6  | A PDF fixture whose section heading is on page 2 and whose only risk heading is on page 3 | `arp risk-view run` | That risk has `"page": 3` | unit |
 | AC-7  | A PDF fixture with one heading and body B; LLM stand-in returns quote Q1 (in B) and Q2 (not in B) | `arp risk-view run` | The risk's `mitigations` has exactly 1 entry, with `quote` = Q1 | unit |
 | AC-8  | Same input as AC-7 | `arp risk-view run` | Output has `"dropped_quotes": 1` | unit |
-| AC-9  | An input document with 5 risks, a prior JSON, and an `embed_texts` stand-in giving best one-to-one similarities 0.95, 0.85, 0.70, 0.60, 0.40, with one prior risk left unmatched | `arp risk-view run --prior <json>` | `change` values in order: `same`, `same`, `reworded`, `reworded`, `new` | unit |
+| AC-9  | An input document with risks r1..r5 (in document order), a prior JSON, and an `embed_texts` stand-in giving r1..r5 best one-to-one similarities 0.95, 0.85, 0.70, 0.60, 0.40, with one prior risk left unmatched | `arp risk-view run --prior <json>` | The `change` values of r1..r5, in document order, are `same`, `same`, `reworded`, `reworded`, `new` | unit |
 | AC-10 | Same input as AC-9 | `arp risk-view run --prior <json>` | Exactly one extra risk with `"change": "dropped"`, whose `heading` equals the unmatched prior heading | unit |
 | AC-11 | Two current risks whose best prior match is the same prior risk P (similarities 0.95 and 0.90), no other prior risks | `arp risk-view run --prior <json>` | The 0.95 risk has `prior_id` = P's id and `change` `same`; the 0.90 risk has `change` `new` | unit |
 | AC-12 | One risk; NLI stand-in scores `climate_transition` 0.8, every other theme ≤ 0.3 | `arp risk-view run` | That risk has `"theme": "climate_transition"` | unit |
@@ -142,5 +142,12 @@ All `unit` rows replace the LLM, `embed_texts` and the NLI model with stand-ins.
 | AC-25 | A PDF fixture whose extracted text yields heading H, and `grounding.is_grounded` stubbed to return false for H | `arp risk-view run` | Output has no risk with `heading` = H | unit |
 | AC-26 | A 10-K fixture with a 30-character heading inside Item 1A | `arp risk-view run` | No risk has that heading | unit |
 | AC-27 | A 10-K fixture with category heading `Industry Risk Factors` followed by one risk heading | `arp risk-view run` | No risk has heading `Industry Risk Factors`; the following risk has `"category": "Industry Risk Factors"` | unit |
+
+| AC-28 | A PDF fixture whose only mitigation quote is on page 4 | `arp risk-view run` (LLM stand-in returns that quote) | That mitigation has `"page": 4` | unit |
+| AC-29 | The AC-3 input, LLM stand-in returning one grounded quote per risk | `arp risk-view run` | Every mitigation has `"section": "Item 1A"` and no `page` key | unit |
+| AC-30 | Same input as AC-9 | `arp risk-view run --prior <json>` | r5 (the `new` risk) has `"prior_id": null` | unit |
+| AC-31 | Same input as AC-9 | `arp risk-view run --prior <json>` | The `dropped` entry has `prior_id` equal to the unmatched prior risk's `id` and `"mitigations": []` | unit |
+| AC-32 | A PDF fixture with the risk section on pages 2–3 and the heading `Outlook` (in the stop list) on page 4 | `arp risk-view run` | No risk has `page` ≥ 4 | unit |
+| AC-33 | The AC-3 input without `--prior` | `arp risk-view run` | Every risk has `"change": null` | unit |
 
 Must not change: existing extraction, retrieval, transition-plan and stewardship behaviour (AC-20, AC-21).
