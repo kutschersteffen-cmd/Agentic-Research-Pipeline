@@ -290,13 +290,18 @@ jobs:
       - name: Private NLTK data (nltk >= 3.10.4 refuses shared dirs)
         run: . "$GITHUB_WORKSPACE/.github/scripts/private_nltk_data.sh"
 
-      - name: Cache gold-set PDFs and models
-        uses: actions/cache@v4
+      # Everything cached is a function of the key's files (documents, parser and its pinned versions, embed
+      # model), so a hit is never re-saved and a key exists once per content, not once per racing job.
+      - name: Restore gold-set PDFs, models and parses
+        id: cache
+        uses: actions/cache/restore@v4
         with:
           path: |
             backend/tests/golden/retrieval/documents
+            backend/.document_store
             ~/.cache/huggingface
-          key: retrieval-recall-${{ hashFiles('backend/tests/golden/retrieval/documents.json') }}
+          key: retrieval-recall-${{ hashFiles('backend/tests/golden/retrieval/documents.json', 'backend/pyproject.toml', 'backend/arp/ingestion/local_files.py', 'backend/arp/retrieval/embeddings.py') }}
+          restore-keys: retrieval-recall-
 
       - name: Run the retrieval gold set
         run: |
@@ -304,6 +309,16 @@ jobs:
           arp db init-postgres
           arp golden-set retrieval --cases tests/golden/retrieval/cases.json --min-recall 0.568 \
             | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Save gold-set PDFs, models and parses
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            backend/tests/golden/retrieval/documents
+            backend/.document_store
+            ~/.cache/huggingface
+          key: ${{ steps.cache.outputs.cache-primary-key }}
 
   secret-scan:
     name: Secret scan (gitleaks)
