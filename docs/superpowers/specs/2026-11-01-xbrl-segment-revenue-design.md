@@ -1,6 +1,6 @@
 # XBRL segment financials (SEC + ESEF)
 
-Status: draft, awaiting owner approval.
+Status: approved by owner 2026-11-01.
 
 ## Why
 
