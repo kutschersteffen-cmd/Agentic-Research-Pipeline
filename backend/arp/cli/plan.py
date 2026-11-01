@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 import typer
 
 from arp.orchestration.plan_check import check_script
 from arp.orchestration.plan_interp import PlanScriptError, StepLimitExceeded, dry_run
+from arp.orchestration.plan_planner import PlanRejected, draft_plan
+from arp.orchestration.plan_store import PlanStore
 
 plan_app = typer.Typer(help="Research Orchestrator: check and dry-run plan scripts.")
 
@@ -29,6 +32,37 @@ def dry_run_cmd(path: Path) -> None:
     except (PlanScriptError, StepLimitExceeded) as exc:
         typer.echo(str(exc))
         raise typer.Exit(1) from exc
+    _print_steps(calls)
+
+
+def _store() -> PlanStore:
+    from arp.config import get_settings
+    from arp.db.session import require_dsn
+
+    return PlanStore(require_dsn(get_settings()))
+
+
+def _llm():
+    from arp.config import get_settings
+    from arp.llm.factory import build_llm_client
+
+    return build_llm_client(get_settings())
+
+
+def _print_steps(calls: list[dict]) -> None:
     for c in calls:
         dep = f"  (depends on {c['depends_on']})" if c["depends_on"] else ""
         typer.echo(f"{c['seq']} {c['kind']} {c['params']}{dep}")
+
+
+@plan_app.command("draft")
+def draft(brief: str) -> None:
+    """Have the planner write a plan script for a research brief; stores it as a draft."""
+    store = _store()
+    try:
+        plan_id = asyncio.run(draft_plan(brief, _llm(), store))
+    except PlanRejected as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1) from exc
+    typer.echo(plan_id)
+    _print_steps(store.get(plan_id)["dry_run"])
