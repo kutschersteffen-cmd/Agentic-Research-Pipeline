@@ -27,6 +27,22 @@ from arp.schemas.review import ReviewDecision
 
 golden_set_app = typer.Typer(help="Golden-set regression testing for the extraction pipeline -- run before every prompt/model change reaches a real batch.")
 
+exposure_app = typer.Typer(help="Exposure golden sets (activity / risk labels) under tests/golden/exposure/<set_id>/.")
+golden_set_app.add_typer(exposure_app, name="exposure")
+
+
+@exposure_app.command("validate")
+def exposure_validate(set_dir: Path = typer.Option(..., "--set", help="Set directory holding cases.json.")) -> None:
+    """Checks cases.json against the exposure-set schema; prints each problem and exits 1 if any."""
+    from arp.golden_set.exposure import validate_set
+
+    problems = validate_set(set_dir)
+    for problem in problems:
+        typer.echo(problem)
+    if problems:
+        raise typer.Exit(1)
+    typer.echo("OK")
+
 
 @golden_set_app.command("run")
 def golden_set_run(
