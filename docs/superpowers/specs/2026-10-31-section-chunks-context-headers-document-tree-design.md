@@ -75,7 +75,8 @@ once the `Retrieval recall` gate shows recall@12 on the PR ≥ `main`.
    which reads or builds and stores the tree.
 2. **Structure (no LLM):** an unnamed root (`node_id` `"root"`, never printed, no summary, never sent to the model) whose children are the top-level
    nodes. One node per outline heading, nested by heading level, plus one leaf per whole table
-   (child of the section it sits in). Each node: `node_id`, `title`, `heading_path`, `level`, `page_start`,
+   (child of the section it sits in). **Node ids** (owner decision 2026-11-01): the root is `"root"`; every other
+   node, tables included, gets a 4-digit zero-padded pre-order number in document order: `0000`, `0001`, … Each node: `node_id`, `title`, `heading_path`, `level`, `page_start`,
    `page_end`, `char_start`, `char_end`, `table_id` (tables only), `summary`, `key_terms`, `children`.
    A document with fewer than 3 headings gets page-window nodes of 5 pages each instead (titles `Pages 1–5`, …).
 3. **Summaries and key terms (LLM):** `summary` is 2–3 sentences; `key_terms` are 5–10 terms (metric names,
