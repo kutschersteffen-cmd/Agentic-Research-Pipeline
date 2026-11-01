@@ -13,6 +13,7 @@ import logging
 import math
 import random
 import re
+import time
 from collections import defaultdict
 from dataclasses import dataclass
 from itertools import takewhile
@@ -108,9 +109,38 @@ def _prompt_version(system: str) -> str:
     return hashlib.sha256(system.encode()).hexdigest()[:12]  # as the model client stamps it
 
 
+# Typical step times and token counts of a data-point field, for a seeded item when no real run has recorded any.
+_TYPICAL_TIMING = {
+    "seconds": {"try_tagged": 0.01, "gather_evidence": 0.4, "extract": 3.6, "verify": 2.4, "aggregate": 0.05},
+    "extractor": {"input_tokens": 4200, "output_tokens": 160}, "verifier": {"input_tokens": 4400, "output_tokens": 70},
+}
+
+
+def _recent_timings(run_store: RunStore, max_runs: int = 10) -> list[dict]:
+    """Step times and token counts of real data-point fields in the latest extraction runs: a seeded item borrows
+    one, so its walkthrough looks like a real item's (step-timing spec; the known-answer check stays blind)."""
+    out = []
+    runs = sorted(run_store.list_runs("extraction"), key=lambda m: m.created_at, reverse=True)
+    for manifest in [m for m in runs if not m.params.get("trial")][:max_runs]:
+        folder = run_store.run_dir(manifest.run_id) / "traces"
+        for path in sorted(folder.glob("*.json")) if folder.is_dir() else []:
+            try:
+                fields = json.loads(path.read_text()).get("fields", {})
+            except (OSError, ValueError):
+                continue
+            out += [{"seconds": e["seconds"], "extractor": e["extractor"], "verifier": e["verifier"]}
+                    for e in fields.values()
+                    if e.get("seconds") and (e.get("extractor") or {}).get("input_tokens") and e.get("verifier")]
+    return out
+
+
+def _with_tokens(usage: LLMUsage, call: dict) -> LLMUsage:
+    return usage.model_copy(update={"input_tokens": call.get("input_tokens", 0), "output_tokens": call.get("output_tokens", 0)})
+
+
 async def _record(
     company: CompanyRef, case: GoldenSetCase, value, schema: DataPointSchema, spec: FieldDefinition,
-    settings: Settings, rng: random.Random, trace_sink: dict | None = None,
+    settings: Settings, rng: random.Random, trace_sink: dict | None = None, timing: dict | None = None,
 ) -> ExtractionRecord:
     """One company's record, built by the real aggregate -> checks -> routing steps from a fixed draft."""
     text = case.document_text
@@ -146,15 +176,21 @@ async def _record(
     )
     if trace_sink is not None:  # built as a real run's is; never fails the item
         try:
-            usage_e = LLMUsage(model=provenance.extractor_model, prompt_version=provenance.extractor_prompt_version)
-            usage_v = LLMUsage(model=provenance.verifier_model, prompt_version=provenance.verifier_prompt_version)
+            timing = timing or _TYPICAL_TIMING
+            usage_e = _with_tokens(LLMUsage(model=provenance.extractor_model, prompt_version=provenance.extractor_prompt_version),
+                                   timing["extractor"])
+            usage_v = _with_tokens(LLMUsage(model=provenance.verifier_model, prompt_version=provenance.verifier_prompt_version),
+                                   timing["verifier"])
             explain: dict = {}
+            started = time.monotonic()
             evidence = field_evidence(spec, [doc], settings, None, explain)
+            seconds = {**timing["seconds"], "gather_evidence": time.monotonic() - started}  # evidence is really found
             scores = explain.get("scores", {})
             trace_sink.setdefault("fields", {})[spec.field_id] = trace.field_entry(
                 spec.field_id, passages=[trace.passage(c, scores.get(c.chunk_id, {})) for c in evidence],
                 retrieval=trace.retrieval(explain),
                 near_misses=[trace.passage(c, scores.get(c.chunk_id, {})) for c in explain.get("near_miss_chunks", [])],
+                seconds=seconds,
                 extractor=trace.call(usage_e, draft),
                 verifier=trace.verifier_call(
                     usage_v, draft if spec.high_risk else verifier, blind=spec.high_risk,
@@ -212,12 +248,14 @@ def seed_known_answers(run_store: RunStore, settings: Settings, *, count: int, s
     specs = {f.name: f for f in schema.fields}
     planned = {c.company_id: (case, p) for c, (case, p) in zip(companies, plan, strict=True)}
     known: list[dict] = []
+    timings = _recent_timings(run_store)
 
     async def _worker(company: CompanyRef) -> ExtractionRecordResult:
         case, perturbed = planned[company.company_id]
         value = _perturb(case.expected_value) if perturbed else case.expected_value
         traces: dict = {}
-        record = await _record(company, case, value, schema, specs[case.field.name], settings, rng, trace_sink=traces)
+        record = await _record(company, case, value, schema, specs[case.field.name], settings, rng, trace_sink=traces,
+                               timing=rng.choice(timings) if timings else None)
         trace.write_trace(run_store, run_id, company.company_id, traces)
         record.run_id = run_id
         known.extend({"item_key": field_item_key(record.issuer_key, f.field_id, period_key(f)), "run_id": run_id,

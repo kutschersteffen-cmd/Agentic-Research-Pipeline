@@ -537,3 +537,13 @@ def test_old_trace_without_scores(tmp_path, pg):  # AC-22, AC-23
     body = _ok(store, "extraction_unscored", "f1", content=_content(tmp_path), period_end="2025-12-31")
     assert body["retrieval"] is None and body["near_misses"] == []
     assert body["passages"] == [{"rank": 1, **_span(0, 10), "doc_title": "ESG", "text": KDOC.full_text[0:10]}]
+
+
+def test_seconds_pass_through(tmp_path, pg):  # step-timing AC-7, AC-8
+    store = RunStore(pg, tmp_path / "runs")
+    _scored_run(store, "extraction_timed", _entry(passages=[_span(0, 10)], seconds={"extract": 1.5}))
+    assert _ok(store, "extraction_timed", "f1", content=_content(tmp_path), period_end="2025-12-31")["seconds"] == {"extract": 1.5}
+    old = _entry(passages=[_span(0, 10)])
+    del old["seconds"]
+    _scored_run(store, "extraction_untimed", old)
+    assert _ok(store, "extraction_untimed", "f1", content=_content(tmp_path), period_end="2025-12-31")["seconds"] == {}

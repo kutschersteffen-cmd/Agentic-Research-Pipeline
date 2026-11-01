@@ -120,3 +120,12 @@ def test_long_loops_are_bounded():
         dry_run("for i in range(10000000000):\n    pass\n")
     with pytest.raises(PlanScriptError, match="operation limit"):
         dry_run("for i in range(10000):\n    for j in range(10000):\n        pass\n")
+
+
+def test_exactly_max_lines_is_allowed():  # mutation gap: the limit is inclusive
+    assert check_script("a = 1\n" * 200) == []
+
+
+def test_every_error_is_reported_not_just_the_first():  # mutation gap: no early stop
+    errors = check_script("import os\nw = x * 2\nimport sys\ny = a * b\n")
+    assert {e.split(":")[0] for e in errors} == {"line 1", "line 2", "line 3", "line 4"}
