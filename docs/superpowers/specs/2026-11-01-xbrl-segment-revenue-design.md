@@ -33,7 +33,7 @@ The earlier specs (`2026-10-09-xbrl-pipeline-design.md`, `2026-10-09-xbrl-esef-d
 | `sga` | SEC: `us-gaap:SellingGeneralAndAdministrativeExpense`. ESEF: `ifrs-full:SellingGeneralAndAdministrativeExpense`. |
 | Concept names | New names (not already in the code) are confirmed against the stored US-GAAP / IFRS taxonomy snapshots before use; a name not in the schema is dropped, not guessed (as in the ESEF spec). |
 | Segment axes | SEC: `us-gaap:StatementBusinessSegmentsAxis`. ESEF: `ifrs-full:SegmentsAxis`. Product (`srt:ProductOrServiceAxis`) and geography (`srt:StatementGeographicalAxis`) are non-goals. |
-| Fact shape kept | Full-year duration (350–380 days, as `_full_year`), numeric, exactly one explicit dimension and it is the segment axis. Facts with a second dimension (e.g. `srt:ConsolidationItemsAxis`) are not kept, so intersegment eliminations and subtotals never appear as segments. |
+| Fact shape kept | Full-year duration (350–380 days, as `_full_year`), numeric, and its explicit dimensions are the segment axis alone, or the segment axis plus `srt:ConsolidationItemsAxis=us-gaap:OperatingSegmentsMember` (Apple's 10-K tags every segment fact this way). Facts with a second dimension (e.g. `srt:ConsolidationItemsAxis`) are not kept, so intersegment eliminations and subtotals never appear as segments. |
 | Segment name | The member QName (e.g. `aapl:AmericasSegmentMember`) and a readable name derived from it: local name, trailing `Member` removed, then trailing `Segment` removed, CamelCase split (`AmericasSegmentMember` → `Americas`, `CloudServicesMember` → `Cloud Services`). Label linkbases are not read. |
 | Sum check | Each row carries `sum_matches_total`: true when `abs(sum - total) / total <= 0.01`, where `sum` is that year's segment values of one metric and `total` the non-dimensional fact of the same concept and year. No total fact gives `false`. For expense metrics `false` is common (unallocated corporate costs); it is information, not an error. |
 | Output | New file `segments.jsonl` per company in the existing XBRL store, one row per segment per metric. `meta.json` gets `segment_count`. |
@@ -105,6 +105,7 @@ non-dimensional total 1000; segment axis members `x:AlphaSegmentMember`=300, `x:
 | AC-36 | AC-24's facts plus a non-dimensional `us-gaap:OperatingExpenses` total of 300 | fetch runs | Every `opex` row has `sum_matches_total: false`; every revenue row has `sum_matches_total: true` | unit |
 | AC-37 | ESEF fixture with only IFRS 8 additions segment facts (2 members), no `IFRS_CAPEX_TAGS` segment facts | fetch runs | 2 rows with `metric` `capex` and that additions concept | unit |
 | AC-38 | Any ESEF fixture (AC-13, AC-28, AC-37) | fetch runs | No row has `metric` `opex` and `market` `esef` | unit |
+| AC-39 | Fixture S where each segment fact also carries `srt:ConsolidationItemsAxis=us-gaap:OperatingSegmentsMember` | fetch runs | `segments.jsonl` has the same 3 revenue rows as AC-1 | unit |
 
 Must not change: non-dimensional facts, required rows, `skipped_dimensional` (AC-20); default `parse_ixbrl`
 output (AC-21); company fetch status when the segment step finds nothing or fails (AC-16, AC-17).
