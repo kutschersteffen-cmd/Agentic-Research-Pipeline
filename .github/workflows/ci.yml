@@ -253,8 +253,10 @@ jobs:
   retrieval-recall:
     name: Retrieval recall
     needs: retrieval-scope
-    # also on push to main (scope is skipped there), so main saves the cache every PR can restore
+    # also on push to main (scope is skipped there), so main saves the cache every PR can restore; there it only
+    # seeds the cache, so a download hiccup can't turn main red and make Main guard revert an unrelated merge
     if: ${{ !cancelled() && (github.event_name == 'push' || needs.retrieval-scope.outputs.run == 'true') }}
+    continue-on-error: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -307,7 +309,7 @@ jobs:
             backend/tests/golden/retrieval/documents
             backend/.document_store
             ~/.cache/huggingface
-          key: retrieval-recall-${{ hashFiles('backend/tests/golden/retrieval/documents.json', 'backend/.retrieval-cache-deps.txt', 'backend/arp/ingestion/local_files.py', 'backend/arp/retrieval/embeddings.py') }}
+          key: retrieval-recall-${{ hashFiles('backend/tests/golden/retrieval/documents.json', 'backend/pyproject.toml', 'backend/.retrieval-cache-deps.txt', 'backend/arp/ingestion/local_files.py', 'backend/arp/retrieval/embeddings.py') }}
 
       - name: Run the retrieval gold set
         run: |
