@@ -46,8 +46,11 @@ class DecisionScore(_Step):
 
 
 class IndexConstruct(_Step):
-    decision_id: str
-    methodology_id: str | None = None
+    calibration_id: str  # an approved Index Construction calibration; the version in force on review_date is used
+    candidates: str  # JSON file: the IndexCandidate list (prices, shares, sector, country, metrics)
+    review_date: str  # YYYY-MM-DD
+    index_id: str = "plan_index"
+    decision_snapshot_ids: list[str] | None = None  # published Decision Studio results to join as fields
 
 
 class ReportRender(_Step):

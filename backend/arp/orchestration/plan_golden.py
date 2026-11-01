@@ -19,8 +19,8 @@ Ratified decision frameworks (decision_score framework_id):
 
 Universe source files: data/universes/eu_listed.csv, data/universes/us_listed.csv
 Extraction schemas: green_capex, transition_plan_indicators
-
-index_construct is not available yet; do not use it."""
+Index calibrations (index_construct calibration_id): cal_eu_pab
+Candidate files: data/index/candidates_eu.json"""
 
 
 class _MemoryStore:
