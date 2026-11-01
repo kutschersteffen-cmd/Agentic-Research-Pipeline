@@ -70,7 +70,7 @@ guideline, the tree (titles, page ranges, summaries) and the pages opened so far
 - `answer`: `{answer: "YES"|"NO", pages: [int], quotes: [str], reasoning: str}`.
 
 `steps` counts every LLM call for the indicator, the answer call included. Call 6 is always forced to answer, so
-`steps` ≤ 6. Budget: at most 12 distinct pages opened per indicator, recorded in `pages_opened`. Once the budget
+`steps` ≤ 6. A forced call sends a response schema that allows only `answer`. Budget: at most 12 distinct pages opened per indicator, recorded in `pages_opened`. Once the budget
 is reached, the next call is forced to answer. A node that would go over the budget opens only its first pages,
 up to the budget. A retry (see Failure handling) does not count as a step.
 Indicators run concurrently, 8 at a time. Model: the default from `arp/llm` factory and `arp/config.py`.
@@ -87,7 +87,7 @@ Indicators run concurrently, 8 at a time. Model: the default from `arp/llm` fact
   does), then prints `PageIndex golden: recall <r> (<hit>/<total>), yes-rate <y>, stale <s>`.
   **Hit:** the indicator's case was answered YES *and* a cited page contains the gold span after
   `grounding.py` normalisation. Stale spans (not in the parsed text) are left out and counted. Exit 1 if
-  recall < `--min-recall`. Only the indicators that have cases are run. `yes-rate` = YES answers ÷ cases run.
+  recall < `--min-recall`. Only the indicators that have cases are run. `yes-rate` = YES answers ÷ cases run. Stale cases are still run and count in yes-rate; they are left out of recall only.
   Recall and yes-rate have 2 decimals. When there are 0 non-stale cases, recall is `0.00`. `--documents-dir`
   defaults to the cases file's `documents/` sibling.
 
@@ -104,7 +104,7 @@ Prompt wording, the Pydantic models, the module layout inside `arp/pageindex/`, 
 ## Acceptance
 
 `HOLDOUT_TOKEN` status was not checked when this was written, so deterministic rows are `unit`. If the token is
-set, AC-1 to AC-19 move to `holdout`. Otherwise the PR lists them as owed.
+set, AC-1 to AC-19, AC-21, AC-22 and AC-24 to AC-28 move to `holdout`. Otherwise the PR lists them as owed.
 
 Common stand-in **S**: a 3-page PDF `f.pdf`. For tree calls S returns one level-1 section per page, titled
 `P1`..`P3`. For every navigation call S returns `answer` YES citing page 1 with quote `q`. S costs $0.
@@ -118,21 +118,36 @@ Common stand-in **S**: a 3-page PDF `f.pdf`. For tree calls S returns one level-
 | AC-5 | S | `... --indicator A_headline_1` | `results` has exactly 1 entry, with `identifier`=`A_headline_1` | unit |
 | AC-6 | S, run once; then S changed to raise on any tree call | second run | Exit 0, 64 results | unit |
 | AC-7 | S, after a run | read `f.pdf.pageindex.json` | Its `sha256` equals `sha256sum f.pdf` | unit |
-| AC-8 | S, after a run; PDF content changed; tree calls now return titles `Changed` | run again | Cache `sha256` equals the new file's; every tree node title is `Changed` | unit |
+| AC-8 | S, after a run; PDF content changed | run again | Cache `sha256` equals the new file's | unit |
+| AC-25 | As AC-8, tree calls now return titles `Changed` | run again | Every tree node title is `Changed` | unit |
 | AC-9 | S, after a run; cache `prompt_version` edited to `old`; tree calls now return titles `Changed` | run again | Every tree node title is `Changed` | unit |
-| AC-10 | S, with the first section starting on page 2 | run | The tree has a node titled `Front matter` covering pages 1–1; leaf page ranges cover 1..3 with no overlap | unit |
-| AC-11 | 20-page PDF; navigation stand-in always returns `open` of the next unopened node | `--indicator A_headline_1` | That result has `steps`=6 and `answer` in {YES, NO} | unit |
+| AC-10 | S, with the first section starting on page 2 | run | The tree has a node titled `Front matter` covering pages 1–1 | unit |
+| AC-26 | Same as AC-10 | run | Leaf page ranges cover pages 1..3 with no overlap | unit |
+| AC-11 | 20-page PDF; tree stand-in returns 20 one-page level-1 sections; navigation stand-in returns `open` of the next unopened node, or `answer` NO when the call is forced | `--indicator A_headline_1` | That result has `steps`=6 and `answer`=`NO` | unit |
 | AC-12 | 20-page PDF; tree has a 10-page node N1 (pp 1–10) and a 5-page node N2 (pp 11–15); stand-in opens N1, then N2, then answers | `--indicator A_headline_1` | `pages_opened` = [1..10, 11, 12] | unit |
-| AC-13 | S, but navigation raises `RuntimeError('x')` on every call for `A_headline_1` | run | That result has `answer`=`ERROR` and `error`=`x`; the other 63 are YES | unit |
+| AC-13 | S, but navigation raises `RuntimeError('x')` on every call for `A_headline_1` | run | That result has `answer`=`ERROR` and `error`=`x` | unit |
+| AC-27 | Same as AC-13 | run | The other 63 results have `answer`=`YES` | unit |
 | AC-14 | Same as AC-13 | run | Exit 0, stdout ends with `, 1 errors` | unit |
 | AC-15 | S, but navigation raises once for `A_headline_1`, then behaves as S | `--indicator A_headline_1` | `answer`=YES, `steps`=1 | unit |
 | AC-16 | S, but the first tree call raises `RuntimeError('boom')` | `run --out o.json` | Exit 1, stderr equals `Could not build page tree: boom`, `o.json` does not exist | unit |
 | AC-17 | `c.json` with one case for `d.pdf` (in `dir/<company_id>/`, sha256 matches), gold span only on page 2; stand-in answers YES citing page 2 | `arp pageindex golden --cases c.json --documents-dir dir --min-recall 1` | Exit 0, stdout equals `PageIndex golden: recall 1.00 (1/1), yes-rate 1.00, stale 0` | unit |
 | AC-18 | As AC-17, but citing page 3 | same | Exit 1, stdout equals `PageIndex golden: recall 0.00 (0/1), yes-rate 1.00, stale 0` | unit |
 | AC-19 | As AC-17, but the gold span text is not in the parsed PDF | same with `--min-recall 0` | Exit 0, stdout equals `PageIndex golden: recall 0.00 (0/0), yes-rate 1.00, stale 1` | unit |
-| AC-20 | The real gold set and the real model | `arp pageindex golden --cases backend/tests/golden/retrieval/cases.json --min-recall 0.30` | Exit 0. The PR also reports the measured recall next to today's recall@12 (~0.60) | golden |
-| AC-21 | The repo after the change | `grep -rniE 'embed|bm25|rerank|select_evidence|index_cache' backend/arp/pageindex` | Exits 1 (no match) | unit |
-| AC-22 | The repo after the change | `grep -rE '^(import|from) pageindex' backend/arp` exits 1, and `grep -i pageindex backend/pyproject.toml` | Both exit 1 | unit |
+| AC-20 | The real gold set and the real model | `arp pageindex golden --cases backend/tests/golden/retrieval/cases.json --min-recall 0.30` | Exit 0 | golden |
+| AC-21 | The repo after the change | Command 1 below | Exits 1 (no match) | unit |
+| AC-22 | The repo after the change | Command 2 below | Exits 1 | unit |
+| AC-28 | The repo after the change | `grep -i pageindex backend/pyproject.toml` | Exits 1 | unit |
+
+Commands for AC-21 and AC-22:
+
+```
+# 1
+grep -rniE 'embed|bm25|rerank|select_evidence|index_cache' backend/arp/pageindex
+# 2
+grep -rE '^(import|from) pageindex' backend/arp
+```
+
+The PR reports AC-20's measured recall next to today's recall@12 (~0.60).
 
 AC-20's floor of 0.30 only catches a broken pipeline. It is not a claim that PageIndex wins: the number itself is the
 experiment's result. *(My call; raise it once a real number exists.)*
@@ -141,5 +156,5 @@ Must not change:
 
 | ID    | Given | When | Then | Checked by |
 |-------|-------|------|------|------------|
-| AC-23 | The existing retrieval gold set | `arp golden-set retrieval --cases backend/tests/golden/retrieval/cases.json` on the PR and on `main` | Same stdout line on both | unit |
+| AC-23 | The existing retrieval gold set | `arp golden-set retrieval --cases backend/tests/golden/retrieval/cases.json` on the PR and on `main` | recall@12 on the PR ≥ the value on `main` minus 0.02 | golden |
 | AC-24 | The PR diff | `git diff --name-status origin/main` | Only `A` entries under `backend/arp/pageindex/`, `backend/tests/` and `docs/`, plus `M backend/arp/cli/__init__.py` | unit |
