@@ -106,6 +106,7 @@ async def test_a_success_resets_the_count():  # AC-13
 ])
 async def test_skips(kw, evidence, reason):
     stub = Stub(GateAnswer(keep=[1]))
+    kw = dict(kw)  # parametrize shares this dict between runs: never change it
     f = kw.pop("field", _field())
     r = await _gate(stub).apply(f, evidence, **kw)
     assert stub.calls == 0
