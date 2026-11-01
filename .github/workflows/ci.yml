@@ -274,6 +274,7 @@ jobs:
           --health-retries 5
     env:
       ARP_POSTGRES_DSN: postgresql+psycopg://arp:arp@localhost:5432/arp_test
+      FASTEMBED_CACHE_PATH: /home/runner/.cache/huggingface/fastembed  # default is $TMPDIR, outside the cache
     steps:
       - uses: actions/checkout@v4
 
@@ -285,13 +286,17 @@ jobs:
           cache-dependency-path: backend/pyproject.toml
 
       - name: Install backend package
-        run: pip install -e ".[postgres]"
+        run: |
+          pip install -e ".[postgres]"
+          # pyproject only has ranges: key the cache on what resolved, since parses and embeddings depend on it
+          pip show docling docling-core docling-ibm-models fastembed onnxruntime tokenizers \
+            | grep -E '^(Name|Version):' >.retrieval-cache-deps.txt
 
       - name: Private NLTK data (nltk >= 3.10.4 refuses shared dirs)
         run: . "$GITHUB_WORKSPACE/.github/scripts/private_nltk_data.sh"
 
-      # Everything cached is a function of the key's files (documents, parser and its pinned versions, embed
-      # model), so a hit is never re-saved and a key exists once per content, not once per racing job. No
+      # Everything cached is a function of the key's files (documents, parser and embedding library versions as
+      # installed, embed model), so a hit is never re-saved and a key exists once per content, not once per racing job. No
       # restore-keys: embeddings are keyed on chunk offsets, not parser version, so an older cache could skew recall.
       - name: Restore gold-set PDFs, models and parses
         id: cache
@@ -301,7 +306,7 @@ jobs:
             backend/tests/golden/retrieval/documents
             backend/.document_store
             ~/.cache/huggingface
-          key: retrieval-recall-${{ hashFiles('backend/tests/golden/retrieval/documents.json', 'backend/pyproject.toml', 'backend/arp/ingestion/local_files.py', 'backend/arp/retrieval/embeddings.py') }}
+          key: retrieval-recall-${{ hashFiles('backend/tests/golden/retrieval/documents.json', 'backend/.retrieval-cache-deps.txt', 'backend/arp/ingestion/local_files.py', 'backend/arp/retrieval/embeddings.py') }}
 
       - name: Run the retrieval gold set
         run: |

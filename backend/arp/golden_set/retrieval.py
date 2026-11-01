@@ -200,7 +200,8 @@ def _contains(chunk_text: str, span_text: str) -> bool:
 
 
 async def run_cases_retrieval_eval(cases_file: Path, *, documents_dir: Path, settings: Settings) -> dict:
-    """Cases mode: gold spans are text in a committed cases file, so CI can run it without Postgres.
+    """Cases mode: gold spans are text in a committed cases file, so CI can run it without a reviewed run (Postgres
+    is still needed: the content store opens its document registry there, and hybrid retrieval keeps embeddings there).
     A span is hit at the first evidence chunk of its document that contains it after grounding's
     normalisation; a span not found in its parsed document is stale (left out and counted)."""
     cases = json.loads(cases_file.read_text())
