@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import bisect
 import mimetypes
 from pathlib import Path
 
@@ -9,8 +10,9 @@ from pydantic import BaseModel
 
 from arp.api.deps import get_document_content_store, settings_dep
 from arp.config import Settings
+from arp.ingestion.parsing import DEFAULT_CHUNK_CHARS, DEFAULT_OVERLAP_CHARS, chunk_document
 from arp.ingestion.pdf_page import find_boxes, render_page
-from arp.schemas.common import CompanyRef, DocType
+from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.storage.document_store import DocumentContentStore, files_on_disk
 from arp.storage.safe_path import UnsafeIdentifierError, safe_filename, safe_id
 from arp.universe import load_company_universe
@@ -185,6 +187,65 @@ def get_cached_document_text(row_id: int, store: DocumentContentStore = Depends(
         raise HTTPException(404, "Cached document not found")
     enriched = _enrich_cached_rows([{"content_key": content.content_key}], store)[0]
     return {**enriched, "full_text": content.full_text, "page_breaks": content.page_breaks, "text_sha256": content.text_sha256}
+
+
+SHORT_PASSAGE_CHARS = 200
+
+
+class Passage(BaseModel):
+    index: int
+    char_start: int
+    char_end: int
+    chars: int
+    page_start: int | None
+    page_end: int | None
+    section: str | None
+    speaker: str | None
+
+
+class PassageSummary(BaseModel):
+    passages: int
+    short: int
+    no_section: int
+    empty_pages: list[int]
+
+
+class DocumentPassages(BaseModel):
+    chunk_chars: int
+    overlap_chars: int
+    page_count: int | None
+    passages: list[Passage]
+    summary: PassageSummary
+
+
+@router.get("/cache/{row_id}/passages", response_model=DocumentPassages)
+def get_cached_document_passages(row_id: int, store: DocumentContentStore = Depends(get_document_content_store)) -> DocumentPassages:
+    """The passages retrieval searches for this cached text (chunk_document with default settings), computed on
+    request, with a parse-quality summary: so a bad parse shows before it becomes a wrong or missing value."""
+    content = store.get_cached_text(row_id)
+    if content is None:
+        raise HTTPException(404, "Cached document not found")
+    doc_type = _enrich_cached_rows([{"content_key": content.content_key}], store)[0]["doc_type"] or DocType.ANNUAL_REPORT_10K
+    text, breaks = content.full_text, content.page_breaks or []
+    doc = SourceDocument(company_id="cache", doc_type=doc_type, title="", full_text=text)
+    page = (lambda offset: bisect.bisect_right(breaks, offset) + 1) if breaks else (lambda offset: None)
+    passages = [
+        Passage(index=i, char_start=c.char_start, char_end=c.char_end, chars=c.char_end - c.char_start,
+                page_start=page(c.char_start), page_end=page(max(c.char_start, c.char_end - 1)),
+                section=c.section, speaker=c.speaker)
+        for i, c in enumerate(chunk_document(doc), start=1)
+    ]
+    bounds = [0, *breaks, len(text)]
+    empty = [n for n in range(1, len(bounds)) if breaks and not text[bounds[n - 1]:bounds[n]].strip()]
+    transcript = doc_type == DocType.EARNINGS_TRANSCRIPT
+    return DocumentPassages(
+        chunk_chars=DEFAULT_CHUNK_CHARS, overlap_chars=DEFAULT_OVERLAP_CHARS,
+        page_count=len(breaks) + 1 if breaks else None, passages=passages,
+        summary=PassageSummary(
+            passages=len(passages), short=sum(p.chars < SHORT_PASSAGE_CHARS for p in passages),
+            no_section=0 if transcript else sum(p.section is None for p in passages), empty_pages=empty,
+        ),
+    )
 
 
 @router.get("/{company_id}")

@@ -16,7 +16,7 @@ from arp.schemas.datapoints import FieldDataType, FieldDefinition
 
 _TEXT = "Acme annual report. Scope 1 emissions were 120 tonnes in 2024. Intensity was 2.8 per unit."
 _DOC = SourceDocument(company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG", full_text=_TEXT)
-_KEYS = {"doc_id", "char_start", "char_end", "section"}
+_KEYS = {"doc_id", "char_start", "char_end", "section", "scores"}  # scores: why-this-evidence spec
 
 
 def _field(**kw) -> FieldDefinition:
@@ -162,3 +162,67 @@ async def test_vision_answer_recorded(fake_llm, pdf_doc):
 async def test_no_vision_when_fallback_off(fake_llm, pdf_doc):
     entry, _ = await _vision_entry(fake_llm, pdf_doc, enabled=False)
     assert entry["vision"] is None
+
+
+# --- why-this-evidence spec: how the evidence was ranked ---
+
+_LONG = "\n\n".join(f"Section {i}. " + "Scope 1 emissions were reported for the year. " * (75 - i * 3) for i in range(16))
+_LONG_DOC = SourceDocument(company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG", full_text=_LONG)
+
+
+async def _run_long(llm, sink):
+    return await extract_one_field(
+        "Acme", _field(), documents=[_LONG_DOC], documents_by_id={_LONG_DOC.doc_id: _LONG_DOC}, llm=llm,
+        verifier_llm=llm, fuzzy_threshold=0.9, confidence_review_threshold=0.6, trace_sink=sink,
+    )
+
+
+async def test_entry_records_retrieval(fake_llm):  # AC-14, AC-15
+    sink = {}
+    await _run(_agreeing_llm(fake_llm), _field(), sink=sink)
+    e = sink["scope1"]
+    assert set(e["retrieval"]) == {"method", "reranked", "candidates"}
+    assert all(isinstance(p["scores"], dict) for p in e["passages"])
+
+
+async def test_entry_records_three_near_misses(fake_llm):  # AC-16
+    assert len(chunk_document(_LONG_DOC, keywords=["emissions"])) > 13
+    sink = {}
+    await _run_long(_agreeing_llm(fake_llm), sink)
+    near = sink["scope1"]["near_misses"]
+    assert len(near) == 3
+    assert all(set(n) == _KEYS for n in near)
+
+
+async def test_grouped_entry_keeps_source_scores(fake_llm):  # AC-17, AC-18
+    from arp.llm.base import LLMUsage
+
+    chunks = chunk_document(_DOC, keywords=["emissions"])
+    explain = {"method": "bm25", "reranked": False, "candidates": 1, "near_miss_chunks": [],
+               "scores": {c.chunk_id: {"bm25": 1.5} for c in chunks}}
+    llm, sink = _agreeing_llm(fake_llm), {}
+    await _run(llm, _field(), sink=sink, grouped=(_draft(120, "120 tonnes"), chunks, LLMUsage(model="m")),
+               grouped_explain=explain)
+    e = sink["scope1"]
+    assert [p["scores"] for p in e["passages"]] == [{"bm25": 1.5}] * len(chunks)
+    assert e["near_misses"] == []
+
+
+def test_merge_evidence_records_each_chunks_source():  # AC-17: the ranking a shared passage came from
+    from arp.extraction.field_graph import merge_evidence
+
+    a, b = chunk_document(_DOC), chunk_document(_LONG_DOC)[:2]
+    source: dict = {}
+    merged = merge_evidence([a, b], 10, source)
+    assert merged == merge_evidence([a, b], 10)
+    assert {c.chunk_id: source[c.chunk_id] for c in merged} == {**{c.chunk_id: 0 for c in a}, **{c.chunk_id: 1 for c in b}}
+
+
+async def test_recording_changes_no_value(fake_llm, monkeypatch):  # AC-34
+    from arp.extraction import field_graph
+
+    recorded, _, _ = await _run_long(_agreeing_llm(fake_llm), {})
+    real = field_graph.select_relevant_chunks
+    monkeypatch.setattr(field_graph, "select_relevant_chunks", lambda *a, **kw: real(*a, **{**kw, "explain": None}))
+    plain, _, _ = await _run_long(_agreeing_llm(fake_llm), {})
+    assert [f.model_dump() for f in recorded] == [f.model_dump() for f in plain]

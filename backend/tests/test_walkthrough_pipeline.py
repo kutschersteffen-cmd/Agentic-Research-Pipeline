@@ -97,7 +97,7 @@ async def test_run_writes_one_trace_file_per_company(tmp_path, fake_llm):  # AC-
     assert (e["grouped"], e["skipped"], e["vision"], e["adjudicator"]) == (False, None, None, None)
     assert (e["verifier"]["blind"], e["verifier"]["verdict"]) == (False, None)
     assert e["extractor"]["answer"]["values"][0]["value"] == 120
-    assert e["passages"] and all(set(p) == KEYS for p in e["passages"])
+    assert e["passages"] and all(set(p) == KEYS | {"scores"} for p in e["passages"])  # scores: why-this-evidence spec
     positions = [llm.prompts[0].index(TEXT[p["char_start"]:p["char_end"]]) for p in e["passages"]]
     assert positions == sorted(positions)
 

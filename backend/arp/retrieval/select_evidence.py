@@ -16,7 +16,7 @@ _RRF_K = 60
 _EMBED_LOCK = threading.Lock()
 
 
-def _rrf_fuse(rankings: list[list[str]], k: int = _RRF_K) -> list[str]:
+def _rrf_fuse(rankings: list[list[str]], k: int = _RRF_K, scores_out: dict[str, float] | None = None) -> list[str]:
     """Reciprocal rank fusion: each ranking contributes 1/(k + rank) to a
     chunk_id's score (0 if absent from that ranking -- not a penalty),
     summed across rankings, highest-score-first."""
@@ -24,6 +24,8 @@ def _rrf_fuse(rankings: list[list[str]], k: int = _RRF_K) -> list[str]:
     for ranking in rankings:
         for rank, chunk_id in enumerate(ranking):
             scores[chunk_id] = scores.get(chunk_id, 0.0) + 1.0 / (k + rank + 1)
+    if scores_out is not None:
+        scores_out.update(scores)
     return sorted(scores, key=lambda cid: scores[cid], reverse=True)
 
 
@@ -114,6 +116,7 @@ def select_relevant_chunks(
     rerank_candidates: int | None = None,
     on_unranked_fallback: Callable[[], None] | None = None,
     index_texts: dict[str, str] | None = None,
+    explain: dict | None = None,
 ) -> list[DocumentChunk]:
     """BM25-ranked evidence selection applied before any extraction/
     matching LLM call, so a call's context stays small (higher precision,
@@ -172,23 +175,48 @@ def select_relevant_chunks(
     - `index_texts`: chunk_id -> the text BM25 and the embedding ranking index (see
       arp/retrieval/index_text.py); a chunk not in it is indexed by its own text. Never changes the
       chunks returned, only their ranking.
+    - `explain`: when given, filled with why these chunks were picked (the Argus
+      Walkthrough shows it): `method`, `reranked`, `candidates`, per-chunk `scores`
+      (`bm25`, `vector_rank`, `rrf`, `rerank`, each only when computed) for the
+      returned chunks and `near_misses`, the up to 3 chunk ids ranked right after
+      the cut. The return value is the same with or without it.
     """
+    scores: dict[str, dict] = {}
     candidates = chunks
     if doc_type_filter:
         candidates = [c for c in candidates if c.doc_type in doc_type_filter]
     if not candidates:
         return []
 
+    def record(method: str, picked: list[DocumentChunk], rest: list[DocumentChunk], reranked: bool = False) -> list[DocumentChunk]:
+        if explain is not None:
+            near = [c.chunk_id for c in rest[:3]]
+            keep = [c.chunk_id for c in picked] + near
+            explain.update(
+                method=method, reranked=reranked, candidates=len(candidates),
+                scores={cid: scores[cid] for cid in keep if scores.get(cid)}, near_misses=near,
+            )
+        return picked
+
     if not query_terms:
-        return candidates[:max_chunks]
+        return record("none", candidates[:max_chunks], [])
 
     query_text = " ".join(query_terms)
     texts = {c.chunk_id: (index_texts or {}).get(c.chunk_id, c.text) for c in candidates}
 
-    def finish(ranked: list[DocumentChunk]) -> list[DocumentChunk]:
+    def finish(ranked: list[DocumentChunk], method: str) -> list[DocumentChunk]:
         if rerank_candidates is None:
-            return ranked[:max_chunks]
-        return rerank(query_text, ranked[:rerank_candidates], max_chunks)
+            return record(method, ranked[:max_chunks], ranked[max_chunks:])
+        pool = ranked[:rerank_candidates]
+        rerank_scores: dict[str, float] | None = {} if explain is not None else None
+        picked = rerank(query_text, pool, max_chunks, scores_out=rerank_scores)
+        if not rerank_scores:  # not recording, or the model did not score
+            return record(method, picked, pool[max_chunks:])
+        for cid, score in rerank_scores.items():
+            scores.setdefault(cid, {})["rerank"] = score
+        chosen = {c.chunk_id for c in picked}
+        rest = sorted((c for c in pool if c.chunk_id not in chosen), key=lambda c: rerank_scores[c.chunk_id], reverse=True)
+        return record(method, picked, rest, reranked=True)
 
     use_opensearch_bm25 = retrieval_backend == "opensearch" and opensearch_client is not None
     if use_opensearch_bm25:
@@ -202,21 +230,29 @@ def select_relevant_chunks(
 
     if require_hit:
         scored = [(chunk_id, score) for chunk_id, score in scored if score > 0.0]
+    for chunk_id, score in scored:
+        scores.setdefault(chunk_id, {})["bm25"] = float(score)
+    bm25_method = "opensearch" if use_opensearch_bm25 else "bm25"
 
     use_hybrid = hybrid_retrieval_enabled and content_store is not None
     if not use_hybrid:
         if require_hit and not scored and fallback_to_all:
             if on_unranked_fallback is not None and rerank_candidates is None:
                 on_unranked_fallback()
-            return finish(candidates)
-        return finish([by_id[chunk_id] for chunk_id, _ in scored])
+            return finish(candidates, "unranked")
+        return finish([by_id[chunk_id] for chunk_id, _ in scored], bm25_method)
 
     bm25_ranking = [chunk_id for chunk_id, _ in scored]
     vector_ranking = (
         _vector_ranking(candidates, query_text, content_store, texts=texts) if index_texts
         else _vector_ranking(candidates, query_text, content_store)
     )
-    fused = _rrf_fuse([bm25_ranking, vector_ranking])
+    rrf: dict[str, float] = {}
+    fused = _rrf_fuse([bm25_ranking, vector_ranking], scores_out=rrf)
+    for rank, chunk_id in enumerate(vector_ranking, start=1):
+        scores.setdefault(chunk_id, {})["vector_rank"] = rank
+    for chunk_id, score in rrf.items():
+        scores.setdefault(chunk_id, {})["rrf"] = score
     if not fused and fallback_to_all:
-        return finish(candidates)
-    return finish([by_id[chunk_id] for chunk_id in fused])
+        return finish(candidates, "unranked")
+    return finish([by_id[chunk_id] for chunk_id in fused], "hybrid" if bm25_method == "bm25" else "opensearch_hybrid")
