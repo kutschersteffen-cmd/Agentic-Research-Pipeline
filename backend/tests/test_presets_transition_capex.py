@@ -9,7 +9,7 @@ from arp.presets.transition_capex import (
     build_transition_capex_schema,
     bundled_prefixes,
 )
-from arp.presets.transition_plan import REQUIRES_YES
+from arp.presets.transition_plan import _KEYWORDS_CHANGED, REQUIRES_YES
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import FieldDataType, ValueState
 
@@ -26,6 +26,9 @@ def test_ac47_existing_presets_unchanged():
     for pid, fields in snap.items():
         if pid == "transition_plan_indicators":  # the 10 contradiction-rule children moved up one version (spec 2026-10-21)
             fields = [{**f, "version": f["version"] + (f["field_id"] in REQUIRES_YES)} for f in fields]
+            # guideline include-terms in seed_keywords moved these up one version (spec retrieval-gold-set-and-question-queries)
+            keywords = {"tp_" + i.lower().replace(" ", "_") for i in _KEYWORDS_CHANGED}
+            fields = [{**f, "version": f["version"] + (f["field_id"] in keywords)} for f in fields]
         if pid == "sch_green_lowcarbon":  # the three share fields moved to version 3 (spec 2026-10-31-extraction-quick-wins)
             fields = [{**f, "version": 3 if f["field_id"].endswith("_share_pct") else f["version"]} for f in fields]
         assert [_shape(f) for f in PRESETS[pid]().fields] == fields
