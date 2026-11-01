@@ -20,7 +20,6 @@ def _ifrs(*names: str) -> list[str]:
 
 
 # Every name not already in the code was checked against the us-gaap 2026 / ifrs-full 2025 snapshots.
-# The IFRS 8 additions concept named in the spec is not in ifrs-full 2025, so ESEF capex has no fallback.
 SEC_METRICS: list[tuple[str, list[str]]] = [
     ("revenue", _us(*REVENUE_TAGS)),
     ("capex", _us(*CAPEX_TAGS)),
@@ -31,7 +30,7 @@ SEC_METRICS: list[tuple[str, list[str]]] = [
 ]
 ESEF_METRICS: list[tuple[str, list[str]]] = [  # no opex: IFRS has no total operating expense concept
     ("revenue", _ifrs(*IFRS_REVENUE_TAGS)),
-    ("capex", _ifrs(*IFRS_CAPEX_TAGS)),
+    ("capex", _ifrs(*IFRS_CAPEX_TAGS, "AdditionsToNoncurrentAssets")),  # IFRS 8 additions as fallback
     ("rnd", _ifrs("ResearchAndDevelopmentExpense")),
     ("cost_of_revenue", _ifrs("CostOfSales")),
     ("sga", _ifrs("SellingGeneralAndAdministrativeExpense")),

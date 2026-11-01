@@ -26,7 +26,7 @@ The earlier specs (`2026-10-09-xbrl-pipeline-design.md`, `2026-10-09-xbrl-esef-d
 | Scope | Revenue, CapEx, operating expenses (total, cost of revenue, SG&A) and R&D by reportable/operating segment, both markets. Only the latest annual filing, and only its own fiscal year (prior-year comparatives in it are not kept). |
 | Metrics and concepts | Each row has a `metric`. Per metric, the first concept in the list that has segment facts wins, per company. |
 | `revenue` | SEC: existing `REVENUE_TAGS`. ESEF: existing IFRS revenue candidates. |
-| `capex` | SEC: existing `CAPEX_TAGS` (segment notes usually use `PaymentsToAcquireProductiveAssets`). ESEF: existing `IFRS_CAPEX_TAGS`, then `ifrs-full:AdditionsToNoncurrentAssetsOtherThanFinancialInstrumentsDeferredTaxAssetsNetDefinedBenefitAssetsAndRightsArisingUnderInsuranceContracts` (IFRS 8 additions). |
+| `capex` | SEC: existing `CAPEX_TAGS` (segment notes usually use `PaymentsToAcquireProductiveAssets`). ESEF: existing `IFRS_CAPEX_TAGS`, then `ifrs-full:AdditionsToNoncurrentAssets` (IFRS 8 additions). |
 | `rnd` | SEC: existing `RND_TAGS`. ESEF: `ifrs-full:ResearchAndDevelopmentExpense`. |
 | `opex` | SEC: `us-gaap:OperatingExpenses`, `us-gaap:CostsAndExpenses`. ESEF: none. IFRS has no single total-operating-expense concept, so ESEF `opex` rows are not produced. |
 | `cost_of_revenue` | SEC: `us-gaap:CostOfRevenue`, `us-gaap:CostOfGoodsAndServicesSold`. ESEF: `ifrs-full:CostOfSales`. |

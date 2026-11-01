@@ -69,3 +69,8 @@ async def test_ac_38_no_esef_opex(tmp_path):
              *_two("ifrs-full:CostOfSales"), *_two("ifrs-full:SellingGeneralAndAdministrativeExpense")]
     _, _, rows = await _fetch(tmp_path, *facts)
     assert len(rows) == 8 and not any(r.metric == "opex" for r in rows)
+
+
+async def test_ac_37_esef_capex_ifrs8_additions_fallback(tmp_path):
+    _, _, rows = await _fetch(tmp_path, *_two("ifrs-full:AdditionsToNoncurrentAssets"))
+    assert [(r.metric, r.concept) for r in rows] == [("capex", "ifrs-full:AdditionsToNoncurrentAssets")] * 2
