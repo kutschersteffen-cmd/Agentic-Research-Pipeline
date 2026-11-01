@@ -9,7 +9,7 @@ import { reviewCounts, type ReviewTileCounts } from "../../lib/stagedFlow";
 import type { CompanyFinancialsRecord, ExtractionRecord, ReviewDecision, ReviewStates, TnfdRecord, TransitionPlanAssessmentRecord } from "../../types";
 import { BatchSpendChart } from "./BatchSpendChart";
 import { ResultsTable } from "./ResultsTable";
-import { isTrialRun } from "../../lib/runs";
+import { isTrialRun, notFoundLine } from "../../lib/runs";
 import { useRunManifest } from "./useRunManifest";
 
 type Decisions = Record<string, ReviewDecision>;
@@ -81,6 +81,7 @@ export function JobReview(p: {
   const report = useRef(onPending);
   report.current = onPending;
   useEffect(() => report.current?.(tiles.pending), [tiles.pending]);
+  const notFound = mode === "custom" ? notFoundLine(extractionResults) : null;
   const openSource = (s: ActiveSource) => {
     setActiveSource(s);
     onSourceOpen(s);
@@ -90,6 +91,7 @@ export function JobReview(p: {
     <>
       {/* TNFD has no review decisions, so no tiles. */}
       {mode && mode !== "tnfd" && <ReviewTiles counts={tiles} active={tileFilter} onSelect={setTileFilter} />}
+      {notFound && <p className="muted">{notFound}</p>}
       {mode === "financials" && financialsResults.length > 0 && <BatchSpendChart results={financialsResults} />}
       {mode === "transition_plan" && transitionResults.length > 0 && <TransitionPlanBatchOverview results={transitionResults} />}
 

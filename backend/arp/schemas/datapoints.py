@@ -285,6 +285,7 @@ class ExtractedField(BaseModel):
         default=None, description="Which extractor/verifier model+prompt version produced this field."
     )
     value_state: ValueState = ValueState.NOT_FOUND
+    not_found_reason: Literal["no_passage", "passages_silent", "held"] | None = None
     unit: str | None = Field(default=None, description="The unit as reported.")
     canonical_value: float | None = None
     canonical_unit: str | None = None

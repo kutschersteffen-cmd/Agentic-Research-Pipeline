@@ -292,6 +292,8 @@ export interface ExtractedField {
   alternatives?: { value: unknown; raw_value_text: string | null; source: string; citations: Citation[] }[];
   conflicting_sources: boolean;
   value_state?: "found" | "not_found" | "not_applicable" | "zero";
+  /** Why a not-found row was not found; absent on runs from before A3. */
+  not_found_reason?: "no_passage" | "passages_silent" | "held" | null;
   unit?: string | null;
   canonical_value?: string | number | null;
   canonical_unit?: string | null;

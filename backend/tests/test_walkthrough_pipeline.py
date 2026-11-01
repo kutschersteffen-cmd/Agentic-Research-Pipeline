@@ -171,6 +171,14 @@ async def test_derived_and_held_entries(tmp_path, fake_llm, monkeypatch):  # AC-
         f.field_id: "documents_held" for f in SCHEMA.fields}
 
 
+async def test_ac_a3d_held_reason(tmp_path, fake_llm):
+    held = SourceDocument(company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT,
+                          title="Acme Energy GmbH Sustainability Report 2025", full_text=TEXT)
+    store, run_id = await _run(tmp_path, fake_llm({}), docs=(held,))
+    trace = json.loads(_trace_file(store, run_id).read_text())
+    assert {k: e["not_found_reason"] for k, e in trace["fields"].items()} == {f.field_id: "held" for f in SCHEMA.fields}
+
+
 async def test_not_applicable_entry(tmp_path, fake_llm):
     ruled_out = _num_field("mfg_only", applicability_rules=ApplicabilityRules(sector_codes=["24"]))
     schema = DataPointSchema(name="S", fields=[ruled_out])
