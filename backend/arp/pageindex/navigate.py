@@ -106,9 +106,9 @@ async def answer_indicator(
 
 
 async def run_document(
-    pdf: Path, indicators: list[TransitionPlanIndicator], llm: LLMClient, model: str
+    pdf: Path, indicators: list[TransitionPlanIndicator], llm: LLMClient, model: str, pages: list[str] | None = None
 ) -> tuple[dict, list[LLMUsage]]:
-    pages = tree_mod.page_texts(pdf)  # parsed once: the cached tree and the loop share it
+    pages = pages if pages is not None else tree_mod.page_texts(pdf)  # parsed once: the cached tree and the loop share it
     try:
         tree, usages = await tree_mod.load_or_build_tree(pdf, llm, pages)
     except Exception as exc:
