@@ -2267,3 +2267,11 @@ a.vc-box:hover { border-color: var(--text); }
 /* Waiting is on a person: the one place the signal colour appears. */
 .dossier-waiting { color: var(--hi-ink); border-color: var(--hi); font-weight: 600; }
 .dossier-not-built { border-style: dashed; }
+
+/* Data Library → Parsed documents → Passages (passage-view spec) */
+.passage-summary { margin: var(--s-2) 0; font-size: var(--text-sm); }
+.passage-list ol { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--s-0_5); }
+.passage-row { display: flex; align-items: center; gap: var(--s-2); width: 100%; text-align: left; font: inherit; font-size: var(--text-sm); font-variant-numeric: tabular-nums; color: var(--text); background: none; border: 0; border-bottom: 1px solid var(--panel-border); padding: var(--s-1_5) 0; cursor: pointer; }
+.passage-row:hover:not(:disabled) { background: var(--well); }
+.passage-text { white-space: pre-wrap; max-height: 16rem; overflow-y: auto; margin: var(--s-1_5) 0; padding: var(--s-2) var(--s-3); background: var(--well); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.passage-row .chip { background: none; } /* a hint, not a status: outline only */

@@ -7712,6 +7712,48 @@
     "title": "DocType",
     "type": "string"
    },
+   "DocumentPassages": {
+    "properties": {
+     "chunk_chars": {
+      "title": "Chunk Chars",
+      "type": "integer"
+     },
+     "overlap_chars": {
+      "title": "Overlap Chars",
+      "type": "integer"
+     },
+     "page_count": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page Count"
+     },
+     "passages": {
+      "items": {
+       "$ref": "#/components/schemas/Passage"
+      },
+      "title": "Passages",
+      "type": "array"
+     },
+     "summary": {
+      "$ref": "#/components/schemas/PassageSummary"
+     }
+    },
+    "required": [
+     "chunk_chars",
+     "overlap_chars",
+     "page_count",
+     "passages",
+     "summary"
+    ],
+    "title": "DocumentPassages",
+    "type": "object"
+   },
    "DocumentRouting": {
     "properties": {
      "doc_types": {
@@ -12832,6 +12874,113 @@
      "history"
     ],
     "title": "OverridesView",
+    "type": "object"
+   },
+   "Passage": {
+    "properties": {
+     "char_end": {
+      "title": "Char End",
+      "type": "integer"
+     },
+     "char_start": {
+      "title": "Char Start",
+      "type": "integer"
+     },
+     "chars": {
+      "title": "Chars",
+      "type": "integer"
+     },
+     "index": {
+      "title": "Index",
+      "type": "integer"
+     },
+     "page_end": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page End"
+     },
+     "page_start": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page Start"
+     },
+     "section": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Section"
+     },
+     "speaker": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Speaker"
+     }
+    },
+    "required": [
+     "index",
+     "char_start",
+     "char_end",
+     "chars",
+     "page_start",
+     "page_end",
+     "section",
+     "speaker"
+    ],
+    "title": "Passage",
+    "type": "object"
+   },
+   "PassageSummary": {
+    "properties": {
+     "empty_pages": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Empty Pages",
+      "type": "array"
+     },
+     "no_section": {
+      "title": "No Section",
+      "type": "integer"
+     },
+     "passages": {
+      "title": "Passages",
+      "type": "integer"
+     },
+     "short": {
+      "title": "Short",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "passages",
+     "short",
+     "no_section",
+     "empty_pages"
+    ],
+    "title": "PassageSummary",
     "type": "object"
    },
    "PhaseoutOut": {
@@ -26295,6 +26444,49 @@
      }
     },
     "summary": "Get Cached Document Text",
+    "tags": [
+     "documents"
+    ]
+   }
+  },
+  "/api/documents/cache/{row_id}/passages": {
+   "get": {
+    "description": "The passages retrieval searches for this cached text (chunk_document with default settings), computed on\nrequest, with a parse-quality summary: so a bad parse shows before it becomes a wrong or missing value.",
+    "operationId": "get_cached_document_passages_api_documents_cache__row_id__passages_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "row_id",
+      "required": true,
+      "schema": {
+       "title": "Row Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DocumentPassages"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Cached Document Passages",
     "tags": [
      "documents"
     ]

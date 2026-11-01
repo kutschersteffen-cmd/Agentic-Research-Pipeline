@@ -1088,6 +1088,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/documents/cache/{row_id}/passages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cached Document Passages
+         * @description The passages retrieval searches for this cached text (chunk_document with default settings), computed on
+         *     request, with a parse-quality summary: so a bad parse shows before it becomes a wrong or missing value.
+         */
+        get: operations["get_cached_document_passages_api_documents_cache__row_id__passages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/documents/readiness": {
         parameters: {
             query?: never;
@@ -10793,6 +10814,18 @@ export interface components {
          * @enum {string}
          */
         DocType: "10-K" | "DEF-14A" | "sustainability_report" | "earnings_transcript" | "investor_presentation" | "product_page" | "research_paper" | "transition_plan" | "other";
+        /** DocumentPassages */
+        DocumentPassages: {
+            /** Chunk Chars */
+            chunk_chars: number;
+            /** Overlap Chars */
+            overlap_chars: number;
+            /** Page Count */
+            page_count: number | null;
+            /** Passages */
+            passages: components["schemas"]["Passage"][];
+            summary: components["schemas"]["PassageSummary"];
+        };
         /** DocumentRouting */
         DocumentRouting: {
             /**
@@ -12967,6 +13000,36 @@ export interface components {
             }[];
             /** Overrides */
             overrides: components["schemas"]["LevelOverride"][];
+        };
+        /** Passage */
+        Passage: {
+            /** Char End */
+            char_end: number;
+            /** Char Start */
+            char_start: number;
+            /** Chars */
+            chars: number;
+            /** Index */
+            index: number;
+            /** Page End */
+            page_end: number | null;
+            /** Page Start */
+            page_start: number | null;
+            /** Section */
+            section: string | null;
+            /** Speaker */
+            speaker: string | null;
+        };
+        /** PassageSummary */
+        PassageSummary: {
+            /** Empty Pages */
+            empty_pages: number[];
+            /** No Section */
+            no_section: number;
+            /** Passages */
+            passages: number;
+            /** Short */
+            short: number;
         };
         /** PhaseoutOut */
         PhaseoutOut: {
@@ -19209,6 +19272,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_cached_document_passages_api_documents_cache__row_id__passages_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                row_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentPassages"];
                 };
             };
             /** @description Validation Error */

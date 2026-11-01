@@ -54,8 +54,10 @@ Turning passages on or off, editing passages, page images with drawn boxes, tabl
 
 Fixtures: **T1** = a cached text of 3 PDF pages (`page_breaks` given), 9,000 characters, a markdown heading `# Risk`
 at offset 0 and page 3 empty after stripping. **T2** = the same text without `page_breaks`. **T3** = an
-`earnings_transcript` cached text of 8,000 characters starting with the line `Jane Doe:` and with `John Roe:` after 5,000
-characters. The speaker of a passage is the one in effect at its `char_start`.
+`earnings_transcript` cached text of alternating short `Jane Doe:` / `John Roe:` turns. A passage's speaker is what
+`chunk_document` reports: the last speaker line within 400 characters before its `char_start` (`detect_speaker`), so
+the first passage has none. (Amended during implementation: the spec first said "in effect at `char_start`", which
+the unchanged chunker does not do.)
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
@@ -67,7 +69,7 @@ characters. The speaker of a passage is the one in effect at its `char_start`.
 | AC-6 | T1 | Same | The first passage's `section == "Risk"` | unit |
 | AC-7 | T1 | Same | `summary.short` equals the number of passages with `chars < 200`; `summary.no_section` equals the number with `section` null | unit |
 | AC-8 | T2 | Same | Every passage has `page_start` and `page_end` null; `page_count` is null; `summary.empty_pages == []` | unit |
-| AC-9 | T3 (registered as `earnings_transcript`) | Same | Passage 1 has `speaker == "Jane Doe"`; the first passage starting after offset 5,000 has `speaker == "John Roe"` | unit |
+| AC-9 | T3 (registered as `earnings_transcript`) | Same | Every passage's `speaker` equals `detect_speaker(text, char_start)`; passage 2's is `Jane Doe` or `John Roe` | unit |
 | AC-26 | As AC-9 | Same | Every passage has `section` null | unit |
 | AC-27 | As AC-9 | Same | `summary.no_section == 0` | unit |
 | AC-10 | Cached row with no registered document | Same | 200; `char_start`/`char_end` equal `chunk_document` on that text with `doc_type=annual_report_10k` and default settings | unit |
