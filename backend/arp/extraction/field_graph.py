@@ -58,6 +58,7 @@ class FieldState(TypedDict):
     grouped: tuple[ExtractionDraft, list[DocumentChunk], LLMUsage] | None  # draft, evidence and usage of a group call
     extract_failed: bool  # the answer never fit the field type: stored as not found, routed to review
     seen: dict | None  # walkthrough trace only: model answers the state does not keep (blind draft, page reading)
+    explain: dict | None  # walkthrough trace only: how the evidence was ranked (select_relevant_chunks' explain)
 
 
 def _tagged_field(state: FieldState, fact: XbrlFact, period_end: str) -> ExtractedField:
@@ -124,7 +125,8 @@ def _route_after_tagged(state: FieldState) -> str:
 
 
 def field_evidence(
-    field: FieldDefinition, documents: list[SourceDocument], settings: Settings | None, on_unranked_fallback=None
+    field: FieldDefinition, documents: list[SourceDocument], settings: Settings | None, on_unranked_fallback=None,
+    explain: dict | None = None,
 ) -> list[DocumentChunk]:
     """The ranked evidence one field's extraction sees. Blocking (BM25/embedding/rerank are
     CPU-bound); `golden-set retrieval` replays it, so the eval measures exactly this path."""
@@ -152,7 +154,7 @@ def field_evidence(
             "max_chunks": settings.evidence_max_chunks,
             "rerank_candidates": settings.rerank_candidates if settings.rerank_enabled else None,
         }
-    return select_relevant_chunks(
+    picked = select_relevant_chunks(
         all_chunks,
         keywords,
         doc_type_filter=None if field.document_routing else field.source_doc_types or None,
@@ -162,17 +164,25 @@ def field_evidence(
         opensearch_client=opensearch_client,
         fallback_to_all=field.high_risk,
         on_unranked_fallback=on_unranked_fallback,
+        explain=explain,
         **limits,
     )
+    if explain is not None:  # the walkthrough shows the near-misses' text, so keep their positions
+        by_id = {c.chunk_id: c for c in all_chunks}
+        explain["near_miss_chunks"] = [by_id[cid] for cid in explain.get("near_misses", []) if cid in by_id]
+    return picked
 
 
-def merge_evidence(rankings: list[list[DocumentChunk]], cap: int) -> list[DocumentChunk]:
-    """Several fields' ranked evidence as one list: round-robin, so each field's best passages make the cut."""
+def merge_evidence(rankings: list[list[DocumentChunk]], cap: int, source_out: dict[str, int] | None = None) -> list[DocumentChunk]:
+    """Several fields' ranked evidence as one list: round-robin, so each field's best passages make the cut.
+    `source_out`, when given, gets each kept chunk id -> the index of the ranking it was taken from."""
     seen: dict[str, DocumentChunk] = {}
     for rank in range(max(map(len, rankings), default=0)):
-        for r in rankings:
-            if rank < len(r) and len(seen) < cap:
-                seen.setdefault(r[rank].chunk_id, r[rank])
+        for i, r in enumerate(rankings):
+            if rank < len(r) and len(seen) < cap and r[rank].chunk_id not in seen:
+                seen[r[rank].chunk_id] = r[rank]
+                if source_out is not None:
+                    source_out[r[rank].chunk_id] = i
     return list(seen.values())
 
 
@@ -180,10 +190,11 @@ async def _gather_evidence(state: FieldState) -> dict:
     if state.get("grouped"):
         return {"evidence": state["grouped"][1], "evidence_unranked": False}
     unranked: list[bool] = []
+    explain = None if state.get("seen") is None else {}  # recorded only for the walkthrough trace
     evidence = await asyncio.to_thread(  # keep the CPU-bound ranking off the event loop
-        field_evidence, state["field"], state["documents"], state["settings"], lambda: unranked.append(True)
+        field_evidence, state["field"], state["documents"], state["settings"], lambda: unranked.append(True), explain
     )
-    return {"evidence": evidence, "evidence_unranked": bool(unranked)}
+    return {"evidence": evidence, "evidence_unranked": bool(unranked), "explain": explain}
 
 
 def _route_after_evidence(state: FieldState) -> str:
@@ -318,6 +329,8 @@ _COMPILED_GRAPH = build_extract_verify_graph(
 
 def _trace_entry(state: FieldState, grouped: bool) -> dict:
     extracted, seen = state["extracted"], state["seen"]
+    explain = state.get("explain")
+    scores = (explain or {}).get("scores", {})
     if extracted and extracted[0].method == "tagged":
         skipped = "tagged"
     elif not state["evidence"]:
@@ -334,11 +347,15 @@ def _trace_entry(state: FieldState, grouped: bool) -> dict:
         state["field"].field_id,
         grouped=grouped,
         skipped=skipped,
-        passages=[trace.passage(c) for c in state["evidence"]],
+        passages=[trace.passage(c, scores.get(c.chunk_id, {}) if explain else None) for c in state["evidence"]],
+        retrieval=trace.retrieval(explain),
+        seconds=(seen or {}).get("seconds"),
+        near_misses=[trace.passage(c, scores.get(c.chunk_id, {})) for c in (explain or {}).get("near_miss_chunks", [])],
         extractor=trace.call(state["extractor_usage"], state["draft"]),
         verifier=verifier,
         adjudicator=trace.call(state["adjudicator_usage"], state["adjudicator"]),
         vision=trace.call(seen.get("vision_usage"), seen.get("reading")),
+        not_found_reason=next((f.not_found_reason for f in extracted), None),
     )
 
 
@@ -359,6 +376,7 @@ async def extract_one_field(
     facts: FactSource | None = None,
     grouped: tuple[ExtractionDraft, list[DocumentChunk], LLMUsage] | None = None,
     trace_sink: dict | None = None,
+    grouped_explain: dict | None = None,
 ) -> tuple[list[ExtractedField], bool, list[LLMUsage]]:
     """Runs one field's evidence-gather -> extract -> independent-verify ->
     adjudicate (typed disagreements only) -> programmatic-grounding-check -> aggregate flow as a LangGraph graph.
@@ -382,6 +400,9 @@ async def extract_one_field(
     `grouped` (draft, evidence, usage): the field was already extracted by a group call
     (extractor_agent.extract_group); its evidence and draft are used as given, and verification,
     adjudication and grounding run on it as on any field. The usage is not added again.
+
+    `grouped_explain`: for a grouped field, the shared evidence's retrieval and per-passage scores (each from
+    the field ranking the passage was taken from), shown in the walkthrough trace.
 
     `trace_sink`, when supplied, gets `trace_sink[field.field_id]` = the field's walkthrough entry
     (passages and model answers), built from what the graph already holds: no extra model call.
@@ -414,8 +435,14 @@ async def extract_one_field(
         "grouped": grouped,
         "extract_failed": False,
         "seen": None if trace_sink is None else {},
+        "explain": grouped_explain if trace_sink is not None and grouped is not None else None,
     }
     final_state = await run_graph(_COMPILED_GRAPH, initial)
+    rows = final_state["extracted"]
+    if any(f.value_state == ValueState.NOT_FOUND for f in rows):  # every not-found period row, not only all-missing
+        reason = "passages_silent" if final_state["evidence"] else "no_passage"
+        final_state["extracted"] = [f.model_copy(update={"not_found_reason": reason})
+                                    if f.value_state == ValueState.NOT_FOUND else f for f in rows]
     if trace_sink is not None:
         try:
             trace_sink[field.field_id] = _trace_entry(final_state, grouped is not None)

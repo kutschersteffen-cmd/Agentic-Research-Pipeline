@@ -15,13 +15,33 @@ from arp.storage.safe_path import safe_id
 logger = logging.getLogger(__name__)
 
 
-def passage(chunk: DocumentChunk) -> dict:
-    return {
+def passage(chunk: DocumentChunk, scores: dict | None = None) -> dict:
+    out = {
         "doc_id": chunk.doc_id,
         "char_start": chunk.char_start,
         "char_end": chunk.char_end,
         "section": chunk.section,
     }
+    if scores is not None:  # retrieval scores (select_relevant_chunks' explain); absent in traces before they existed
+        out["scores"] = scores
+    return out
+
+
+def retrieval(explain: dict | None) -> dict | None:
+    """How a field's evidence was ranked, for the walkthrough's "Find evidence" step."""
+    if not explain or "method" not in explain:
+        return None
+    return {k: explain[k] for k in ("method", "reranked", "candidates")}
+
+
+def _usage(usage: LLMUsage | None) -> dict:
+    """Tokens and cost of one call, for the walkthrough's step timing; nothing when there is no usage."""
+    if usage is None:
+        return {}
+    from arp.orchestration.cost_tracker import estimate_cost_usd
+
+    return {"input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens,
+            "cost_usd": round(estimate_cost_usd(usage.model, usage), 6)}
 
 
 def call(usage: LLMUsage | None, answer: BaseModel | None) -> dict | None:
@@ -31,13 +51,15 @@ def call(usage: LLMUsage | None, answer: BaseModel | None) -> dict | None:
         "model": usage.model if usage else "",
         "prompt_version": usage.prompt_version if usage else "",
         "answer": answer.model_dump(mode="json"),
+        **_usage(usage),
     }
 
 
 def verifier_call(usage: LLMUsage | None, answer: BaseModel | None, *, blind: bool, verdict: BaseModel | None) -> dict | None:
     entry = call(usage, answer)
     if entry is None and verdict is not None:  # a blind re-extraction that failed still has the code's verdict
-        entry = {"model": usage.model if usage else "", "prompt_version": usage.prompt_version if usage else "", "answer": None}
+        entry = {"model": usage.model if usage else "", "prompt_version": usage.prompt_version if usage else "", "answer": None,
+                 **_usage(usage)}
     if entry is None:
         return None
     entry["blind"] = blind
@@ -55,16 +77,24 @@ def field_entry(
     verifier: dict | None = None,
     adjudicator: dict | None = None,
     vision: dict | None = None,
+    retrieval: dict | None = None,
+    near_misses: list[dict] = (),
+    not_found_reason: str | None = None,
+    seconds: dict[str, float] | None = None,
 ) -> dict:
     return {
         "field_id": field_id,
         "grouped": grouped,
         "skipped": skipped,
+        "not_found_reason": not_found_reason,
         "passages": list(passages),
         "extractor": extractor,
         "verifier": verifier,
         "adjudicator": adjudicator,
         "vision": vision,
+        "retrieval": retrieval,
+        "near_misses": list(near_misses),
+        "seconds": {node: round(s, 2) for node, s in (seconds or {}).items()},
     }
 
 

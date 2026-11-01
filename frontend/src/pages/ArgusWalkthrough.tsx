@@ -5,7 +5,7 @@ import { correctionLine } from "../lib/corrections";
 import { valueLabel } from "../lib/fieldValue";
 import { listAllRuns } from "../lib/poll";
 import { runTypeLabel } from "../lib/runs";
-import { allCitations, fmt, markQuotes, notRecordedNote, passageFor, parseWalkthroughParams, pickRow, planBasis, steps, walkthroughHref, type Step } from "../lib/walkthrough";
+import { allCitations, fmt, markQuotes, notRecordedNote, passageFor, parseWalkthroughParams, pickRow, planBasis, retrievalLine, scoreText, scoresMissing, stepTiming, steps, timingTotal, walkthroughHref, type Step } from "../lib/walkthrough";
 import type { Correction, ExtractedField, RunManifest, Walkthrough, WalkthroughPassage } from "../types";
 
 type Obj = Record<string, unknown>;
@@ -143,6 +143,7 @@ function WalkthroughView({ w, periodEnd, basis, needsReview }: { w: Walkthrough;
         {isSection ? <SectionResult w={w} /> : <RowResult w={w} row={row} basis={basis} />}
       </section>
       {w.trace_run_id !== w.run_id && <p className="help-text">Reused from run {w.trace_run_id}; the steps show that run.</p>}
+      {!basis && timingTotal(w) && <p className="mono wt-timing wt-total">Total · {timingTotal(w)}</p>}
       <ol className="wt-steps" aria-label="Steps">
         {steps(w, { periodEnd, basis }).map((s) => (
           <li key={s.n} className="card">
@@ -151,6 +152,7 @@ function WalkthroughView({ w, periodEnd, basis, needsReview }: { w: Walkthrough;
               <h3>{s.name}</h3>
               <span className="mono wt-kind">{s.kind === "llm" ? (s.model ? `LLM · ${s.model}` : "LLM") : "code"}</span>
               <span className="wt-label">{s.label}</span>
+              {!basis && stepTiming(w, s.name) && <span className="mono wt-timing">· {stepTiming(w, s.name)}</span>}
             </div>
             {s.recorded ? <StepBody s={s} w={w} row={row} quotes={quotes} needsReview={needsReview} /> : <p className="wt-nr">not recorded</p>}
           </li>
@@ -189,7 +191,7 @@ function SectionResult({ w }: { w: Walkthrough }) {
 function StepBody({ s, w, row, quotes, needsReview }: { s: Step; w: Walkthrough; row: Obj; quotes: string[]; needsReview?: boolean }) {
   switch (s.name) {
     case "Find evidence":
-      return w.passages.length ? <Passages passages={w.passages} quotes={quotes} /> : null;
+      return w.passages.length ? <Evidence w={w} quotes={quotes} /> : null;
     case "Extract":
     case "Extract plan":
     case "Adjudicate":
@@ -244,25 +246,51 @@ function StepBody({ s, w, row, quotes, needsReview }: { s: Step; w: Walkthrough;
   }
 }
 
+/** Find evidence: how the passages were ranked, the passages with their scores, and the ones just below the cut. */
+function Evidence({ w, quotes }: { w: Walkthrough; quotes: string[] }) {
+  const near = w.near_misses ?? [];
+  return (
+    <>
+      {w.retrieval && <p className="wt-line mono wt-scores">{retrievalLine(w.retrieval)}</p>}
+      {scoresMissing(w) && <p className="wt-line muted">Scores were not recorded for this run.</p>}
+      <Passages passages={w.passages} quotes={quotes} />
+      {near.length > 0 && (
+        <details className="wt-near">
+          <summary>Just missed ({near.length})</summary>
+          <ol className="wt-passages">
+            {near.map((p) => <PassageItem key={p.rank} p={p} quotes={[]} />)}
+          </ol>
+        </details>
+      )}
+    </>
+  );
+}
+
+function PassageItem({ p, quotes }: { p: WalkthroughPassage; quotes: string[] }) {
+  const scores = scoreText(p.scores);
+  return (
+    <li>
+      <p className="wt-line mono wt-scores">
+        {p.rank} · {p.doc_title ?? p.doc_id} · {p.section ?? "no section"} · characters {p.char_start.toLocaleString("en-US")}–{p.char_end.toLocaleString("en-US")}
+        {scores && ` · ${scores}`}
+      </p>
+      {p.text == null ? (
+        <p className="wt-line muted">Text not available</p>
+      ) : (
+        <blockquote className="wt-passage">
+          {markQuotes(p.text, quotes).map((x, i) => (x.mark ? <mark key={i}>{x.text}</mark> : <span key={i}>{x.text}</span>))}
+        </blockquote>
+      )}
+    </li>
+  );
+}
+
 function Passages({ passages, quotes }: { passages: WalkthroughPassage[]; quotes: string[] }) {
   const [all, setAll] = useState(false);
   return (
     <>
       <ol className="wt-passages">
-        {(all ? passages : passages.slice(0, 2)).map((p) => (
-          <li key={p.rank}>
-            <p className="wt-line mono">
-              {p.rank} · {p.doc_title ?? p.doc_id} · {p.section ?? "no section"} · characters {p.char_start.toLocaleString("en-US")}–{p.char_end.toLocaleString("en-US")}
-            </p>
-            {p.text == null ? (
-              <p className="wt-line muted">Text not available</p>
-            ) : (
-              <blockquote className="wt-passage">
-                {markQuotes(p.text, quotes).map((x, i) => (x.mark ? <mark key={i}>{x.text}</mark> : <span key={i}>{x.text}</span>))}
-              </blockquote>
-            )}
-          </li>
-        ))}
+        {(all ? passages : passages.slice(0, 2)).map((p) => <PassageItem key={p.rank} p={p} quotes={quotes} />)}
       </ol>
       {!all && passages.length > 2 && (
         <button type="button" className="link-button" onClick={() => setAll(true)}>Show the other {passages.length - 2} passages</button>

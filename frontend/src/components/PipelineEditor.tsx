@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
-import ReactFlow, { Controls, Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "reactflow";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import ReactFlow, { Controls, MarkerType, Position, type Edge, type Node, type NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
 import { api } from "../api/client";
 import { COARSE_POINTER, layoutPipeline } from "../lib/pipelineLayout";
@@ -16,6 +16,8 @@ import type {
 } from "../types";
 import { pollAfter } from "../lib/poll";
 import { modeOf, withMode } from "../lib/runModes";
+import { DotGrid, FlowHandle, LinkedHandles } from "./flowCanvas";
+import { flowIcon } from "./flowIcons";
 
 const CARD_W = 214;
 const PILL_W = 170;
@@ -25,76 +27,6 @@ const ROW_H = 210;
 type Value = StepSettings[StepSettingKey];
 type Status = "idle" | "pending" | "running" | "done" | "skipped" | "failed";
 
-const ICON = { width: 15, height: 15, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-const STEP_ICONS: Record<string, ReactElement> = {
-  gather_evidence: (
-    <svg {...ICON}>
-      <circle cx="10.5" cy="10.5" r="6.5" />
-      <path d="M15.3 15.3 20.5 20.5" />
-    </svg>
-  ),
-  extract: (
-    <svg {...ICON}>
-      <path d="M4 20h4L19 9l-4-4L4 16z" />
-      <path d="m13.5 6.5 4 4" />
-    </svg>
-  ),
-  verify: (
-    <svg {...ICON}>
-      <circle cx="12" cy="12" r="8.5" />
-      <path d="m8.5 12 2.5 2.5 4.5-5" />
-    </svg>
-  ),
-  aggregate: (
-    <svg {...ICON}>
-      <path d="M12 3 4.5 6v5.5c0 4.5 3.2 8 7.5 9.5 4.3-1.5 7.5-5 7.5-9.5V6z" />
-    </svg>
-  ),
-  company: (
-    <svg {...ICON}>
-      <path d="m12 3 9 5-9 5-9-5z" />
-      <path d="m3 13 9 5 9-5" />
-    </svg>
-  ),
-  rules: (
-    <svg {...ICON}>
-      <path d="M12 4v16M6 20h12M4 8h16M6 8l-3 6a3 3 0 0 0 6 0zM18 8l-3 6a3 3 0 0 0 6 0z" />
-    </svg>
-  ),
-  finalize: (
-    <svg {...ICON}>
-      <circle cx="12" cy="12" r="8.5" />
-      <path d="M8.5 12h7" />
-    </svg>
-  ),
-};
-STEP_ICONS.answer = STEP_ICONS.extract;
-STEP_ICONS.identity = (
-  <svg {...ICON}>
-    <rect x="3" y="5" width="18" height="14" rx="2" />
-    <circle cx="9" cy="11" r="2.2" />
-    <path d="M5.8 16c.6-1.6 1.8-2.4 3.2-2.4s2.6.8 3.2 2.4M14.5 10h4M14.5 13.5h3" />
-  </svg>
-);
-STEP_ICONS.content_search = (
-  <svg {...ICON}>
-    <circle cx="12" cy="12" r="8.5" />
-    <path d="M3.5 12h17M12 3.5c2.4 2.4 3.5 5.2 3.5 8.5s-1.1 6.1-3.5 8.5c-2.4-2.4-3.5-5.2-3.5-8.5S9.6 5.9 12 3.5z" />
-  </svg>
-);
-STEP_ICONS.document_mgmt = (
-  <svg {...ICON}>
-    <path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" />
-  </svg>
-);
-STEP_ICONS.parse_index = (
-  <svg {...ICON}>
-    <path d="M6 3.5h8l4 4v13H6z" />
-    <path d="M9 11h6M9 14.5h6M9 18h4" />
-  </svg>
-);
-
-const iconFor = (id: string) => STEP_ICONS[id] ?? (id.startsWith("finalize") ? STEP_ICONS.finalize : null);
 
 function show(value: Value): string {
   if (value === null || value === undefined) return "—";
@@ -128,18 +60,18 @@ function StepCard({ data }: NodeProps<CardData>) {
   if (data.kind === "pill") {
     return (
       <>
-        <Handle type="target" position={Position.Left} />
+        <FlowHandle type="target" position={Position.Left} />
         <button className={`pipeline-pill status-${data.status}${data.selected ? " selected" : ""}`} style={{ width: PILL_W }} onClick={() => data.onSelect(data.id)}>
           <span className="pipeline-pill-label">{data.label}</span>
           {data.footer && <span className="pipeline-pill-sub">{data.footer}</span>}
         </button>
-        <Handle type="source" position={Position.Right} />
+        <FlowHandle type="source" position={Position.Right} />
       </>
     );
   }
   return (
     <>
-      <Handle type="target" position={Position.Left} />
+      <FlowHandle type="target" position={Position.Left} />
       <button
         className={`pipeline-card status-${data.status}${data.selected ? " selected" : ""}${data.id.startsWith("finalize") ? " exit" : ""}`}
         style={{ width: CARD_W }}
@@ -148,7 +80,7 @@ function StepCard({ data }: NodeProps<CardData>) {
       >
         <span className="pipeline-card-head">
           <span className="pipeline-card-icon" aria-hidden>
-            {iconFor(data.id)}
+            {flowIcon(data.id)}
           </span>
           <span className="pipeline-card-title">{data.label}</span>
           {data.status === "running" && <span className="pipeline-card-spinner" aria-label="running" />}
@@ -172,7 +104,7 @@ function StepCard({ data }: NodeProps<CardData>) {
         )}
         {data.footer && <span className="pipeline-card-footer">{data.footer}</span>}
       </button>
-      <Handle type="source" position={Position.Right} />
+      <FlowHandle type="source" position={Position.Right} />
     </>
   );
 }
@@ -530,6 +462,7 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
       <div className="chart-scroll">
       {/* Touch: the canvas does not pan, so it is drawn wide enough for every step at the 0.9 zoom below and the page scrolls it sideways. */}
       <div className="flow-rf pipeline-rf" style={COARSE_POINTER ? { minWidth: Math.max(0, ...nodes.map((n) => n.position.x)) * 0.9 + CARD_W + 48 } : undefined}>
+        <LinkedHandles edges={edges}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -547,8 +480,10 @@ export function PipelineEditor({ profile, value = {}, onChange, runId, onRestart
           minZoom={0.3}
           maxZoom={1.4}
         >
-          <Controls showInteractive={false} />
+          <DotGrid />
+          <Controls showInteractive={false} position="bottom-center" />
         </ReactFlow>
+        </LinkedHandles>
       </div>
       </div>
       <p className="help-text">

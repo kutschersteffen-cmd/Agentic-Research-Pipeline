@@ -228,6 +228,112 @@ jobs:
 
   # --- Corporate Readiness Plan, Phase 0 (docs/CORPORATE_READINESS_PLAN.md) ---
 
+  retrieval-scope:
+    name: Retrieval recall scope
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.diff.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          changed=$(git diff --name-only "origin/$BASE...HEAD" -- backend/arp/retrieval backend/arp/ingestion \
+            backend/arp/planning/doc_routing.py backend/arp/extraction/field_graph.py backend/arp/presets backend/arp/golden_set/retrieval.py \
+            backend/tests/golden/retrieval .github/workflows/ci.yml)
+          if [ -n "$changed" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; else echo "run=false" >>"$GITHUB_OUTPUT"; fi
+
+  # Recall of the committed retrieval gold set (spec retrieval-gold-set-and-question-queries). Default settings
+  # (hybrid on, rerank off), no model calls, no API key. The floor is main's recall@12 when this shipped minus
+  # 0.02 (main 0.588 with hybrid on); raise it by hand when retrieval gets better.
+  retrieval-recall:
+    name: Retrieval recall
+    needs: retrieval-scope
+    # also on push to main (scope is skipped there), so main saves the cache every PR can restore; there it only
+    # seeds the cache, so a download hiccup can't turn main red and make Main guard revert an unrelated merge
+    if: ${{ !cancelled() && (github.event_name == 'push' || needs.retrieval-scope.outputs.run == 'true') }}
+    continue-on-error: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:  # the arp CLI needs its system of record; hybrid retrieval caches embeddings there
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: arp
+          POSTGRES_PASSWORD: arp
+          POSTGRES_DB: arp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      ARP_POSTGRES_DSN: postgresql+psycopg://arp:arp@localhost:5432/arp_test
+      FASTEMBED_CACHE_PATH: /home/runner/.cache/huggingface/fastembed  # default is $TMPDIR, outside the cache
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install backend package
+        run: |
+          pip install -e ".[postgres]"
+          # pyproject only has ranges: key the cache on what resolved, since parses and embeddings depend on it
+          pip show docling docling-core docling-ibm-models fastembed onnxruntime tokenizers \
+            | grep -E '^(Name|Version):' >.retrieval-cache-deps.txt
+
+      - name: Private NLTK data (nltk >= 3.10.4 refuses shared dirs)
+        run: . "$GITHUB_WORKSPACE/.github/scripts/private_nltk_data.sh"
+
+      # Everything cached is a function of the key's files (documents, parser and embedding library versions as
+      # installed, embed model), so a hit is never re-saved and a key exists once per content, not once per racing job. No
+      # restore-keys: embeddings are keyed on chunk offsets, not parser version, so an older cache could skew recall.
+      - name: Restore gold-set PDFs, models and parses
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            backend/tests/golden/retrieval/documents
+            backend/.document_store
+            ~/.cache/huggingface
+          key: retrieval-recall-${{ hashFiles('backend/tests/golden/retrieval/documents.json', 'backend/pyproject.toml', 'backend/.retrieval-cache-deps.txt', 'backend/arp/ingestion/local_files.py', 'backend/arp/retrieval/embeddings.py') }}
+
+      - name: Run the retrieval gold set
+        run: |
+          set -o pipefail
+          arp db init-postgres
+          pg=postgresql://arp:arp@localhost:5432/arp_test
+          # the service database starts empty each run: carry the hybrid embeddings over in the cache
+          if [ -f .document_store/chunk_embeddings.csv ]; then
+            psql "$pg" -qc "\copy chunk_embeddings from '.document_store/chunk_embeddings.csv' csv"
+          fi
+          arp golden-set retrieval --cases tests/golden/retrieval/cases.json --min-recall 0.568 \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+          psql "$pg" -qc "\copy chunk_embeddings to '.document_store/chunk_embeddings.csv' csv"
+
+      - name: Save gold-set PDFs, models and parses
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            backend/tests/golden/retrieval/documents
+            backend/.document_store
+            ~/.cache/huggingface
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+
   secret-scan:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest

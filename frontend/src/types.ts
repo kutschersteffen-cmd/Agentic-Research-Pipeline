@@ -19,6 +19,8 @@ export type DocType =
 export type JobStatus = "pending" | "running" | "completed" | "partially_completed" | "failed" | "cancelled";
 
 export type RunFailure = Served<S["RunFailure"]>;
+export type DocumentPassages = Served<S["DocumentPassages"]>;
+export type DocumentPassage = DocumentPassages["passages"][number];
 export type ArgusFlow = Served<S["ArgusFlowView"]>;
 export type ArgusDraft = Served<S["ArgusFlow"]>; // as GET /api/argus/flows lists it, without rows
 export type FlowRow = Served<S["FlowRow"]>;
@@ -290,6 +292,8 @@ export interface ExtractedField {
   alternatives?: { value: unknown; raw_value_text: string | null; source: string; citations: Citation[] }[];
   conflicting_sources: boolean;
   value_state?: "found" | "not_found" | "not_applicable" | "zero";
+  /** Why a not-found row was not found; absent on runs from before A3. */
+  not_found_reason?: "no_passage" | "passages_silent" | "held" | null;
   unit?: string | null;
   canonical_value?: string | number | null;
   canonical_unit?: string | null;
@@ -343,7 +347,8 @@ export interface ExtractionRecord {
 }
 
 /** One model call in a walkthrough: the answer exactly as the run recorded it. */
-export interface WalkthroughCall { model: string; prompt_version: string; answer: unknown }
+/** input_tokens/output_tokens/cost_usd: what the call used; absent in traces written before they were recorded. */
+export interface WalkthroughCall { model: string; prompt_version: string; answer: unknown; input_tokens?: number; output_tokens?: number; cost_usd?: number }
 export interface WalkthroughPassage {
   rank: number;
   doc_id: string;
@@ -353,7 +358,13 @@ export interface WalkthroughPassage {
   char_end: number;
   /** null when the document text is not available. */
   text: string | null;
+  /** How retrieval scored it; only the scores that were computed. Absent in traces before they were recorded. */
+  scores?: WalkthroughScores;
 }
+
+export interface WalkthroughScores { bm25?: number; vector_rank?: number; rrf?: number; rerank?: number }
+export type RetrievalMethod = "bm25" | "hybrid" | "opensearch" | "opensearch_hybrid" | "unranked" | "none";
+export interface WalkthroughRetrieval { method: RetrievalMethod; reranked: boolean; candidates: number }
 
 /** GET /api/walkthrough/runs/{run}/companies/{company}: how one stored row was found (no response model). */
 export interface Walkthrough {
@@ -368,6 +379,12 @@ export interface Walkthrough {
   /** Data-point rows (every period) or the Financials/TNFD section's entries. */
   rows: Record<string, unknown>[];
   passages: WalkthroughPassage[];
+  /** How the passages were ranked; null for traces written before it was recorded. */
+  retrieval?: WalkthroughRetrieval | null;
+  /** Seconds per graph node of a data-point field; {} when not recorded. */
+  seconds?: Record<string, number>;
+  /** The passages ranked right after the cut, ranks continuing after the passages. */
+  near_misses?: WalkthroughPassage[];
   extractor: WalkthroughCall | null;
   /** blind: answer is the model's re-extracted draft and verdict the code's comparison. */
   verifier: (WalkthroughCall & { blind?: boolean; verdict?: unknown }) | null;

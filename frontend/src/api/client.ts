@@ -1,4 +1,5 @@
 import { clearToken, getToken } from "../lib/auth";
+import type { Plan } from "../lib/plans";
 import { filenameFromDisposition, inlineSafe } from "../lib/files";
 import { profileEmbedParams } from "../lib/biEmbed";
 import type { RowLineage } from "../lib/lineage";
@@ -126,7 +127,7 @@ import type {
   StandardsView,
 } from "../types";
 import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, Walkthrough } from "../types";
-import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
+import type { DecisionInput, DocType, DocumentPassages, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
 import type { BIChartPlan, BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
 import type { Finding, QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, Storyline, TemplateStyleProfile } from "../types";
@@ -251,6 +252,12 @@ const step5 = (dossierId: string, path: string) => `/api/dossiers/${encodeURICom
 const jsonBody = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 
 export const api = {
+  listPlans: () => request<Plan[]>("/api/plans"),
+  getPlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}`),
+  draftPlan: (brief: string) => request<Plan>("/api/plans", jsonBody("POST", { brief })),
+  approvePlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}/approve`, { method: "POST" }),
+  runPlan: (id: string) => request<{ plan_id: string; status: string }>(`/api/plans/${encodeURIComponent(id)}/run`, { method: "POST" }),
+  cancelPlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
   listRfpLibrary: () => request<RfpLibraryEntry[]>("/api/rfp/library"),
   importRfpLibrary: (files: File[]) => {
     const form = new FormData();
@@ -511,6 +518,7 @@ export const api = {
     ),
   listCachedDocuments: (offset = 0, limit = 25) => request(`/api/documents/cache?offset=${offset}&limit=${limit}`),
   getCachedDocumentText: (rowId: number) => request(`/api/documents/cache/${rowId}`),
+  getCachedDocumentPassages: (rowId: number) => request<DocumentPassages>(`/api/documents/cache/${rowId}/passages`),
 
   // Discovery
   startDiscoveryRun: (body: unknown) =>

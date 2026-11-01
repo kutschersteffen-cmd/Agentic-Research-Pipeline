@@ -97,7 +97,7 @@ async def test_run_writes_one_trace_file_per_company(tmp_path, fake_llm):  # AC-
     assert (e["grouped"], e["skipped"], e["vision"], e["adjudicator"]) == (False, None, None, None)
     assert (e["verifier"]["blind"], e["verifier"]["verdict"]) == (False, None)
     assert e["extractor"]["answer"]["values"][0]["value"] == 120
-    assert e["passages"] and all(set(p) == KEYS for p in e["passages"])
+    assert e["passages"] and all(set(p) == KEYS | {"scores"} for p in e["passages"])  # scores: why-this-evidence spec
     positions = [llm.prompts[0].index(TEXT[p["char_start"]:p["char_end"]]) for p in e["passages"]]
     assert positions == sorted(positions)
 
@@ -171,6 +171,14 @@ async def test_derived_and_held_entries(tmp_path, fake_llm, monkeypatch):  # AC-
         f.field_id: "documents_held" for f in SCHEMA.fields}
 
 
+async def test_ac_a3d_held_reason(tmp_path, fake_llm):
+    held = SourceDocument(company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT,
+                          title="Acme Energy GmbH Sustainability Report 2025", full_text=TEXT)
+    store, run_id = await _run(tmp_path, fake_llm({}), docs=(held,))
+    trace = json.loads(_trace_file(store, run_id).read_text())
+    assert {k: e["not_found_reason"] for k, e in trace["fields"].items()} == {f.field_id: "held" for f in SCHEMA.fields}
+
+
 async def test_not_applicable_entry(tmp_path, fake_llm):
     ruled_out = _num_field("mfg_only", applicability_rules=ApplicabilityRules(sector_codes=["24"]))
     schema = DataPointSchema(name="S", fields=[ruled_out])
@@ -192,7 +200,7 @@ async def test_plan_documents_recorded(tmp_path, fake_llm):  # AC-41, AC-66
     entry = trace["plans"]["P1"]
     assert entry["passages"] and all(set(p) == KEYS for p in entry["passages"])
     assert entry["extractor"]["answer"] == plan.model_dump(mode="json")
-    assert set(entry["extractor"]) == {"model", "prompt_version", "answer"}
+    assert set(entry["extractor"]) == {"model", "prompt_version", "answer", "input_tokens", "output_tokens", "cost_usd"}  # usage: step-timing spec
     assert llm.calls.count("PlanDraft") == 1
 
 

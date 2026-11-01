@@ -71,15 +71,15 @@ def _document(content_store, doc_id: str) -> dict:
     return {"title": ref.title, "content_key": ref.content_key, "parser_version": parser_version()} if ref else {}
 
 
-def _passages(entry: dict, record: dict, content_store) -> list[dict]:
+def _passages(entry: dict, record: dict, content_store, key: str = "passages", first_rank: int = 1) -> list[dict]:
     docs = {d.get("doc_id"): d for d in record.get("documents", [])}
     out, loaded = [], {}  # per request: each document's text is loaded once, not once per passage
-    for i, p in enumerate(entry.get("passages", [])):
+    for i, p in enumerate(entry.get(key) or []):
         if p["doc_id"] not in loaded:
             doc = docs.get(p["doc_id"]) or _document(content_store, p["doc_id"])
             loaded[p["doc_id"]] = doc, _text(content_store, doc)
         doc, t = loaded[p["doc_id"]]
-        out.append({"rank": i + 1, **p, "doc_title": doc.get("title"),
+        out.append({"rank": i + first_rank, **p, "doc_title": doc.get("title"),
                     "text": t.full_text[p["char_start"]:p["char_end"]] if t else None})
     return out
 
@@ -147,6 +147,10 @@ def build_walkthrough(run_store, content_store, settings, *, run_id: str, compan
         "trace_run_id": trace_run_id,
         "rows": rows,
         "passages": _passages(entry, trace_record, content_store),
+        "retrieval": entry.get("retrieval"),
+        "seconds": entry.get("seconds") or {},
+        # near-misses rank on from the last passage: 12 passages -> 13, 14, 15
+        "near_misses": _passages(entry, trace_record, content_store, "near_misses", len(entry.get("passages", [])) + 1),
         **{k: entry.get(k) for k in ("extractor", "verifier", "adjudicator", "vision", "skipped")},
         "not_recorded_reason": None if recorded else _not_recorded_reason(run_store, settings, trace_run_id, company_id),
     }

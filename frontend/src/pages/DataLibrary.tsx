@@ -11,6 +11,7 @@ import type {
   CompanyDirectoryEntry,
   CompanyDocumentRow,
   CompanyFinancialsRecord,
+  DocumentPassages,
   ExtractionRecord,
   ReviewDecision,
   ReviewStates,
@@ -22,6 +23,7 @@ import { useMe } from "../lib/reviewer";
 import { SignedInAs } from "../components/SignedInAs";
 import { WalkthroughLink } from "../components/WalkthroughLink";
 import { recordWalkthroughHref, rowWalkthroughHref } from "../lib/walkthrough";
+import { passageLabel, passageSummary } from "../lib/passages";
 
 const SUB_TABS = [
   { id: "results", label: "Run results" },
@@ -346,12 +348,44 @@ function CompanyResultsView() {
 
 const PAGE_SIZE = 25;
 
+/** How a document was cut into the passages retrieval searches, with what looks like a bad parse. */
+function PassageList({ cut, text, rawUrl }: { cut: DocumentPassages; text: string; rawUrl: string | null }) {
+  const [open, setOpen] = useState<number | null>(null);
+  return (
+    <div className="passage-list">
+      <p className="mono passage-summary">{passageSummary(cut.summary)}</p>
+      <ol>
+        {cut.passages.map((p) => (
+          <li key={p.index}>
+            <button type="button" className="passage-row" aria-expanded={open === p.index} onClick={() => setOpen(open === p.index ? null : p.index)}>
+              <span className="mono">{passageLabel(p)}</span>
+              {p.chars < 200 && <span className="chip">short</span>}
+            </button>
+            {open === p.index && (
+              <>
+                <pre className="passage-text">{text.slice(p.char_start, p.char_end)}</pre>
+                {rawUrl && p.page_start != null && (
+                  <FileLink open url={`${rawUrl}#page=${p.page_start}`} name={`page ${p.page_start}`}>
+                    Open page {p.page_start}
+                  </FileLink>
+                )}
+              </>
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 function ParsedDocumentsView() {
   const [rows, setRows] = useState<CachedDocumentRow[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<CachedDocumentDetail | null>(null);
+  const [passages, setPassages] = useState<DocumentPassages | null>(null);
+  const [showPassages, setShowPassages] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
@@ -378,8 +412,14 @@ function ParsedDocumentsView() {
     }
     setExpandedId(row.id);
     setDetail(null);
-    const res = (await api.getCachedDocumentText(row.id)) as CachedDocumentDetail;
+    setPassages(null);
+    setShowPassages(false);
+    const [res, cut] = await Promise.all([
+      api.getCachedDocumentText(row.id) as Promise<CachedDocumentDetail>,
+      api.getCachedDocumentPassages(row.id).catch(() => null),
+    ]);
     setDetail(res);
+    setPassages(cut);
   }
 
   return (
@@ -427,8 +467,25 @@ function ParsedDocumentsView() {
                         ) : (
                           <p className="muted">Source document not separately registered — showing cached text only.</p>
                         )}
+                        {passages && (
+                          <div className="toolbar">
+                            <button className={showPassages ? "nav-tab" : "nav-tab active"} aria-pressed={!showPassages} onClick={() => setShowPassages(false)}>
+                              Text
+                            </button>
+                            <button className={showPassages ? "nav-tab active" : "nav-tab"} aria-pressed={showPassages} onClick={() => setShowPassages(true)}>
+                              Passages ({passages.summary.passages})
+                            </button>
+                          </div>
+                        )}
                         {detail === null ? (
                           <p className="muted">Loading...</p>
+                        ) : showPassages && passages ? (
+                          <PassageList
+                            cut={passages}
+                            text={detail.full_text}
+                            rawUrl={row.company_id && row.doc_type && row.filename?.toLowerCase().endsWith(".pdf")
+                              ? api.documentRawUrl(row.company_id, row.doc_type, row.filename) : null}
+                          />
                         ) : (
                           <pre className="review-json" style={{ maxHeight: 400, overflow: "auto" }}>
                             {detail.full_text}

@@ -74,8 +74,8 @@ def _check_record(trace: dict) -> None:
     rec = trace["record"]
     assert set(rec) == {"passages", "extractor", "verifier"}
     assert rec["passages"] and all(set(p) == KEYS for p in rec["passages"])
-    assert set(rec["extractor"]) == {"model", "prompt_version", "answer"}
-    assert set(rec["verifier"]) == {"model", "prompt_version", "answer"}
+    assert set(rec["extractor"]) == {"model", "prompt_version", "answer", "input_tokens", "output_tokens", "cost_usd"}  # usage: step-timing spec
+    assert set(rec["verifier"]) == {"model", "prompt_version", "answer", "input_tokens", "output_tokens", "cost_usd"}  # usage: step-timing spec
     assert rec["extractor"]["answer"] and rec["verifier"]["answer"]
 
 

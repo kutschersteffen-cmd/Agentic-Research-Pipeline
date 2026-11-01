@@ -1,4 +1,4 @@
-import type { ReviewableRunKind, RunManifest } from "../types";
+import type { ExtractionRecord, ReviewableRunKind, RunManifest } from "../types";
 
 // Shared by the Dashboard and the start page, so a run reads the same in both.
 export const ACTIVE_STATUSES = new Set(["running", "pending"]);
@@ -109,4 +109,16 @@ export function ballotRows(runs: RunManifest[]): { runId: string; count: number;
       what: `Proxy voting run ${r.run_id}: ${r.review_count === 1 ? "1 ballot" : `${r.review_count} ballots`} to decide`,
       href: `#/voting/${encodeURIComponent(r.run_id)}`,
     }));
+}
+
+const NOT_FOUND_LABELS = { no_passage: "no passage", passages_silent: "passages silent", held: "held" } as const;
+
+/** "Not found: 3 no passage · 2 passages silent", reasons with no rows left out; null when there are none. */
+export function notFoundLine(records: ExtractionRecord[]): string | null {
+  const rows = records.flatMap((r) => r.fields);
+  const parts = Object.entries(NOT_FOUND_LABELS)
+    .map(([reason, label]) => [rows.filter((f) => f.not_found_reason === reason).length, label] as const)
+    .filter(([n]) => n > 0)
+    .map(([n, label]) => `${n} ${label}`);
+  return parts.length ? `Not found: ${parts.join(" · ")}` : null;
 }

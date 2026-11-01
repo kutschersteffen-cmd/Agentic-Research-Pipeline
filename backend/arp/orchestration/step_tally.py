@@ -116,7 +116,8 @@ async def run_graph(graph: Any, state: dict) -> dict:
     time is measured from the previous node's finish, which holds because
     each item walks its graph one node at a time."""
     tally = _current.get()
-    if tally is None:
+    seen = state.get("seen") if isinstance(state, dict) else None  # a walkthrough sink: time each node for the trace too
+    if tally is None and not isinstance(seen, dict):
         return await graph.ainvoke(state)
     company_id = _company.get()
     final = state
@@ -125,7 +126,11 @@ async def run_graph(graph: Any, state: dict) -> dict:
         if mode == "updates":
             now = time.monotonic()
             for node in chunk:
-                tally.add(company_id, node, now - started)
+                if tally is not None:
+                    tally.add(company_id, node, now - started)
+                if isinstance(seen, dict):
+                    node_seconds = seen.setdefault("seconds", {})
+                    node_seconds[node] = node_seconds.get(node, 0.0) + now - started
             started = now
         else:
             final = chunk

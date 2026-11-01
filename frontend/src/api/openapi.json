@@ -7712,6 +7712,48 @@
     "title": "DocType",
     "type": "string"
    },
+   "DocumentPassages": {
+    "properties": {
+     "chunk_chars": {
+      "title": "Chunk Chars",
+      "type": "integer"
+     },
+     "overlap_chars": {
+      "title": "Overlap Chars",
+      "type": "integer"
+     },
+     "page_count": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page Count"
+     },
+     "passages": {
+      "items": {
+       "$ref": "#/components/schemas/Passage"
+      },
+      "title": "Passages",
+      "type": "array"
+     },
+     "summary": {
+      "$ref": "#/components/schemas/PassageSummary"
+     }
+    },
+    "required": [
+     "chunk_chars",
+     "overlap_chars",
+     "page_count",
+     "passages",
+     "summary"
+    ],
+    "title": "DocumentPassages",
+    "type": "object"
+   },
    "DocumentRouting": {
     "properties": {
      "doc_types": {
@@ -8065,6 +8107,19 @@
      "steps"
     ],
     "title": "DossierView",
+    "type": "object"
+   },
+   "DraftRequest": {
+    "properties": {
+     "brief": {
+      "title": "Brief",
+      "type": "string"
+     }
+    },
+    "required": [
+     "brief"
+    ],
+    "title": "DraftRequest",
     "type": "object"
    },
    "DraftSchemaRequest": {
@@ -12832,6 +12887,113 @@
      "history"
     ],
     "title": "OverridesView",
+    "type": "object"
+   },
+   "Passage": {
+    "properties": {
+     "char_end": {
+      "title": "Char End",
+      "type": "integer"
+     },
+     "char_start": {
+      "title": "Char Start",
+      "type": "integer"
+     },
+     "chars": {
+      "title": "Chars",
+      "type": "integer"
+     },
+     "index": {
+      "title": "Index",
+      "type": "integer"
+     },
+     "page_end": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page End"
+     },
+     "page_start": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Page Start"
+     },
+     "section": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Section"
+     },
+     "speaker": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Speaker"
+     }
+    },
+    "required": [
+     "index",
+     "char_start",
+     "char_end",
+     "chars",
+     "page_start",
+     "page_end",
+     "section",
+     "speaker"
+    ],
+    "title": "Passage",
+    "type": "object"
+   },
+   "PassageSummary": {
+    "properties": {
+     "empty_pages": {
+      "items": {
+       "type": "integer"
+      },
+      "title": "Empty Pages",
+      "type": "array"
+     },
+     "no_section": {
+      "title": "No Section",
+      "type": "integer"
+     },
+     "passages": {
+      "title": "Passages",
+      "type": "integer"
+     },
+     "short": {
+      "title": "Short",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "passages",
+     "short",
+     "no_section",
+     "empty_pages"
+    ],
+    "title": "PassageSummary",
     "type": "object"
    },
    "PhaseoutOut": {
@@ -17667,6 +17829,19 @@
      "dataset_id"
     ],
     "title": "ScoreRequest",
+    "type": "object"
+   },
+   "ScriptRequest": {
+    "properties": {
+     "script": {
+      "title": "Script",
+      "type": "string"
+     }
+    },
+    "required": [
+     "script"
+    ],
+    "title": "ScriptRequest",
     "type": "object"
    },
    "SearchAnswer": {
@@ -26300,6 +26475,49 @@
     ]
    }
   },
+  "/api/documents/cache/{row_id}/passages": {
+   "get": {
+    "description": "The passages retrieval searches for this cached text (chunk_document with default settings), computed on\nrequest, with a parse-quality summary: so a bad parse shows before it becomes a wrong or missing value.",
+    "operationId": "get_cached_document_passages_api_documents_cache__row_id__passages_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "row_id",
+      "required": true,
+      "schema": {
+       "title": "Row Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/DocumentPassages"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Cached Document Passages",
+    "tags": [
+     "documents"
+    ]
+   }
+  },
   "/api/documents/readiness": {
    "post": {
     "description": "Splits a company list into `ready` (documents already on disk or\nregistered, so identity resolution and discovery can be skipped) and\n`onboard`. Read-only.",
@@ -31783,6 +32001,301 @@
     "summary": "List Outputs",
     "tags": [
      "outputs"
+    ]
+   }
+  },
+  "/api/plans": {
+   "get": {
+    "operationId": "list_plans_api_plans_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response List Plans Api Plans Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Plans",
+    "tags": [
+     "plans"
+    ]
+   },
+   "post": {
+    "operationId": "create_plan_api_plans_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DraftRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Create Plan Api Plans Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Plan",
+    "tags": [
+     "plans"
+    ]
+   }
+  },
+  "/api/plans/{plan_id}": {
+   "get": {
+    "operationId": "get_plan_api_plans__plan_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "plan_id",
+      "required": true,
+      "schema": {
+       "title": "Plan Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Plan Api Plans  Plan Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Plan",
+    "tags": [
+     "plans"
+    ]
+   },
+   "put": {
+    "operationId": "edit_plan_api_plans__plan_id__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "plan_id",
+      "required": true,
+      "schema": {
+       "title": "Plan Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ScriptRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Edit Plan Api Plans  Plan Id  Put",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Edit Plan",
+    "tags": [
+     "plans"
+    ]
+   }
+  },
+  "/api/plans/{plan_id}/approve": {
+   "post": {
+    "operationId": "approve_plan_api_plans__plan_id__approve_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "plan_id",
+      "required": true,
+      "schema": {
+       "title": "Plan Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Approve Plan Api Plans  Plan Id  Approve Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Approve Plan",
+    "tags": [
+     "plans"
+    ]
+   }
+  },
+  "/api/plans/{plan_id}/cancel": {
+   "post": {
+    "operationId": "cancel_api_plans__plan_id__cancel_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "plan_id",
+      "required": true,
+      "schema": {
+       "title": "Plan Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Cancel Api Plans  Plan Id  Cancel Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Cancel",
+    "tags": [
+     "plans"
+    ]
+   }
+  },
+  "/api/plans/{plan_id}/run": {
+   "post": {
+    "operationId": "start_plan_api_plans__plan_id__run_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "plan_id",
+      "required": true,
+      "schema": {
+       "title": "Plan Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Start Plan Api Plans  Plan Id  Run Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Start Plan",
+    "tags": [
+     "plans"
     ]
    }
   },

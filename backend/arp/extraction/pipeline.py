@@ -196,9 +196,11 @@ async def _extract_company(
         if d.match_status == MatchStatus.MISMATCH
     ]
 
-    def _skipped(field_id: str, reason: str) -> None:
+    def _skipped(field_id: str, reason: str, not_found_reason: str | None = None) -> None:
         if traces is not None:
-            traces.setdefault("fields", {})[field_id] = trace.field_entry(field_id, skipped=reason)
+            traces.setdefault("fields", {})[field_id] = trace.field_entry(
+                field_id, skipped=reason, not_found_reason=not_found_reason
+            )
 
     usages: list[LLMUsage] = []
     to_extract, fields = plan_fields(schema, company)
@@ -207,9 +209,11 @@ async def _extract_company(
     to_extract = [f for f in to_extract if not f.derived_rule]  # derived fields never reach the LLM graph
     all_held = bool(documents) and not kept
     if all_held:  # nothing left to extract from: every field is a held no-evidence row
-        to_extract, fields = [], [no_evidence_field(f)[0] for f in schema.fields]
+        fields = [no_evidence_field(f)[0].model_copy(update={"not_found_reason": None if f.derived_rule else "held"})
+                  for f in schema.fields]
+        to_extract = []
         for f in schema.fields:  # no facts are fetched for an all-held company, so none is tagged
-            _skipped(f.field_id, "derived" if f.derived_rule else "documents_held")
+            _skipped(f.field_id, "derived" if f.derived_rule else "documents_held", None if f.derived_rule else "held")
     key, scheme = issuer_key(company, identifier_map)
     recorded = history.recorded_periods(key) if history else set()
     for d in kept:
@@ -235,7 +239,7 @@ async def _extract_company(
 
     limit = field_limit or asyncio.Semaphore(settings.max_concurrent_llm_calls)
 
-    async def _extract(field: FieldDefinition, h: str | None, slot: list[ExtractedField], grouped=None) -> list[LLMUsage]:
+    async def _extract(field: FieldDefinition, h: str | None, slot: list[ExtractedField], grouped=None, grouped_explain=None) -> list[LLMUsage]:
         async with limit:
             extracted, _needs_review, field_usages = await extract_one_field(
                 company.name,
@@ -253,6 +257,7 @@ async def _extract_company(
                 facts=facts,
                 grouped=grouped,
                 trace_sink=None if traces is None else traces.setdefault("fields", {}),
+                grouped_explain=grouped_explain,
             )
         slot.extend(f.model_copy(update={"input_hash": h}) for f in extracted)
         return field_usages
@@ -261,8 +266,16 @@ async def _extract_company(
         """One extract call for the group over its fields' merged evidence; each field is then verified,
         adjudicated and grounded on its own. A field the group call left out, or a failed group call,
         falls back to the field's own extract call."""
-        evidence = await asyncio.gather(*(asyncio.to_thread(field_evidence, f, kept, settings) for f, _, _ in items))
-        shared = merge_evidence(evidence, settings.evidence_max_chunks * 2)
+        explains = [None if traces is None else {} for _ in items]  # recorded only for the walkthrough trace
+        evidence = await asyncio.gather(*(asyncio.to_thread(field_evidence, f, kept, settings, None, ex)
+                                          for (f, _, _), ex in zip(items, explains, strict=True)))
+        source: dict[str, int] = {}
+        shared = merge_evidence(evidence, settings.evidence_max_chunks * 2, source)
+        shared_explain = None
+        if traces is not None:  # each passage keeps the scores of the field ranking it was taken from; no near-misses
+            first = next((ex for ex in explains if ex and "method" in ex), None)
+            shared_explain = {**(first or {}), "near_miss_chunks": [],
+                              "scores": {cid: explains[i].get("scores", {}).get(cid, {}) for cid, i in source.items()}}
         drafts, usage = {}, None
         if sum(1 for e in evidence if e) > 1:
             try:
@@ -273,8 +286,8 @@ async def _extract_company(
                     )
             except Exception as exc:  # noqa: BLE001 -- any failure: extract each field on its own, as without grouping
                 logger.warning("Group extraction failed for %s, extracting fields one by one: %s", company.company_id, exc)
-        calls = [_extract(f, h, slot, (drafts[f.field_id], shared, usage) if f.field_id in drafts else None)
-                 for f, h, slot in items]
+        calls = [_extract(f, h, slot, (drafts[f.field_id], shared, usage), shared_explain) if f.field_id in drafts
+                 else _extract(f, h, slot) for f, h, slot in items]
         return [*([usage] if usage else []), *(u for us in await asyncio.gather(*calls) for u in us)]
 
     async def _extract_plans(defs: list[FieldDefinition]) -> list[LLMUsage]:

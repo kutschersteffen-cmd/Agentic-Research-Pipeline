@@ -88,6 +88,7 @@ def test_versions():  # AC-4
     fields = _fields()
     for s in _SNAPSHOT:
         want = (2 if s["field_id"] in _RULES else s["version"]) + (s["field_id"] in REQUIRES_YES)  # +1 for the requires rule
+        want += fields[s["field_id"]].seed_keywords != s["seed_keywords"]  # +1 for the guideline include-terms
         assert fields[s["field_id"]].version == want, s["field_id"]
     assert all(fields[h[0]].version == 1 for h in _HELPERS)
 
@@ -95,9 +96,13 @@ def test_versions():  # AC-4
 def test_question_fields_match_main():  # AC-14
     fields = build_transition_plan_schema().fields[:64]
     keys = [k for k in _SNAPSHOT[0] if k != "version"]
-    assert [{k: f.model_dump(mode="json")[k] for k in keys} for f in fields] == [
-        {k: s[k] for k in keys} for s in _SNAPSHOT
-    ]
+    got = [{k: f.model_dump(mode="json")[k] for k in keys} for f in fields]
+    want = [{k: s[k] for k in keys} for s in _SNAPSHOT]
+    for g, w in zip(got, want, strict=True):
+        if g["seed_keywords"] != w["seed_keywords"]:  # guideline include-terms are added after main's keywords
+            assert g["seed_keywords"][:len(w["seed_keywords"])] == w["seed_keywords"], g["field_id"]
+            g["seed_keywords"] = w["seed_keywords"]
+    assert got == want
 
 
 # --- saving ---

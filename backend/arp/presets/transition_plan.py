@@ -32,6 +32,13 @@ _VERSIONS = {
     **{f"A_progress_{q}": 2 for q in range(70, 73)},
     **{f"A_{n}": 2 for n in ("headline_2", "ambition_4", "coverage_7", "coverage_8", "pathway_12")},  # requires rule
 }
+# Guideline include-terms added to seed_keywords (spec retrieval-gold-set-and-question-queries, B.2): one version up.
+_KEYWORDS_CHANGED = {
+    "A_headline_1", "A_ambition_3", "A_coverage_6", "A_coverage_7", "A_coverage_8", "A_pathway_11", "A_structure_15",
+    "A_transparency_29", "A_management_34", "A_management_35", "A_production_39", "A_production_40", "A_engagement_47",
+    "A_engagement_48", "A_engagement_49", "A_fossil fuels_50", "A_fossil fuels_52", "A_just transition_53",
+    "A_just transition_54", "A_emissions_62",
+}
 
 _SERIES_INSTRUCTIONS = (
     "Report one value per fiscal year the document gives, for as many of the most recent years as it shows. "
@@ -114,7 +121,7 @@ def build_transition_plan_schema() -> DataPointSchema:
                 field_id="tp_" + i.identifier.lower().replace(" ", "_"), name=i.identifier, description=i.question,
                 data_type=FieldDataType.BOOLEAN, extraction_instructions=i.guideline,
                 seed_keywords=keywords[i.identifier], required=False, high_risk=True,
-                version=_VERSIONS.get(i.identifier, 1), rules=rules.get(i.identifier, []),
+                version=_VERSIONS.get(i.identifier, 1) + (i.identifier in _KEYWORDS_CHANGED), rules=rules.get(i.identifier, []),
             )
             for i in load_indicators()
         ] + _helpers(),
