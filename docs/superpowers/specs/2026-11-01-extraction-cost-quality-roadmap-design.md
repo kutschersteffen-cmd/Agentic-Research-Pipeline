@@ -2,7 +2,7 @@
 
 Spec slug: `extraction-cost-quality-roadmap`.
 Date: 2026-11-01
-Status: draft, awaiting owner approval
+Status: approved by the owner, 2026-11-01
 Source: the 30–31 October model tests on RWE, Siemens and BASF (transition plan and green capex), the answer-check
 sheet (https://claude.ai/artifact/NWaSvVmWwoXBJ3afzWputo), the merged quick wins (PR #279) and the paused
 table-aware branch (`table-aware-extraction`).
