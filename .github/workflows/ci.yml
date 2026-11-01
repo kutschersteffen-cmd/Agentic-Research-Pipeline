@@ -291,7 +291,8 @@ jobs:
         run: . "$GITHUB_WORKSPACE/.github/scripts/private_nltk_data.sh"
 
       # Everything cached is a function of the key's files (documents, parser and its pinned versions, embed
-      # model), so a hit is never re-saved and a key exists once per content, not once per racing job.
+      # model), so a hit is never re-saved and a key exists once per content, not once per racing job. No
+      # restore-keys: embeddings are keyed on chunk offsets, not parser version, so an older cache could skew recall.
       - name: Restore gold-set PDFs, models and parses
         id: cache
         uses: actions/cache/restore@v4
@@ -301,14 +302,19 @@ jobs:
             backend/.document_store
             ~/.cache/huggingface
           key: retrieval-recall-${{ hashFiles('backend/tests/golden/retrieval/documents.json', 'backend/pyproject.toml', 'backend/arp/ingestion/local_files.py', 'backend/arp/retrieval/embeddings.py') }}
-          restore-keys: retrieval-recall-
 
       - name: Run the retrieval gold set
         run: |
           set -o pipefail
           arp db init-postgres
+          pg=postgresql://arp:arp@localhost:5432/arp_test
+          # the service database starts empty each run: carry the hybrid embeddings over in the cache
+          if [ -f .document_store/chunk_embeddings.csv ]; then
+            psql "$pg" -qc "\copy chunk_embeddings from '.document_store/chunk_embeddings.csv' csv"
+          fi
           arp golden-set retrieval --cases tests/golden/retrieval/cases.json --min-recall 0.568 \
             | tee -a "$GITHUB_STEP_SUMMARY"
+          psql "$pg" -qc "\copy chunk_embeddings to '.document_store/chunk_embeddings.csv' csv"
 
       - name: Save gold-set PDFs, models and parses
         if: steps.cache.outputs.cache-hit != 'true'
