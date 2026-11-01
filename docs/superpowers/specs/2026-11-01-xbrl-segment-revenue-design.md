@@ -1,4 +1,4 @@
-# XBRL segment revenue (SEC + ESEF)
+# XBRL segment financials (SEC + ESEF)
 
 Status: draft, awaiting owner approval.
 
@@ -17,27 +17,34 @@ already downloads the files that contain them. It just throws the dimensional fa
   (comment: "carry dimensions if a field needs them").
 
 The earlier specs (`2026-10-09-xbrl-pipeline-design.md`, `2026-10-09-xbrl-esef-design.md`) left this as
-"per-filing iXBRL parsing later". This spec is that later step, for revenue by segment only.
+"per-filing iXBRL parsing later". This spec is that later step, for revenue, CapEx, operating expenses and R&D by segment.
 
 ## Decisions
 
 | Topic | Decision |
 |---|---|
-| Scope | Revenue by reportable/operating segment, both markets. Only the latest annual filing, and only its own fiscal year (prior-year comparatives in it are not kept). |
-| Revenue concepts | SEC: the existing `REVENUE_TAGS` order. ESEF: the existing IFRS revenue candidates. First concept that has segment facts wins, per company. |
+| Scope | Revenue, CapEx, operating expenses (total, cost of revenue, SG&A) and R&D by reportable/operating segment, both markets. Only the latest annual filing, and only its own fiscal year (prior-year comparatives in it are not kept). |
+| Metrics and concepts | Each row has a `metric`. Per metric, the first concept in the list that has segment facts wins, per company. |
+| `revenue` | SEC: existing `REVENUE_TAGS`. ESEF: existing IFRS revenue candidates. |
+| `capex` | SEC: existing `CAPEX_TAGS` (segment notes usually use `PaymentsToAcquireProductiveAssets`). ESEF: existing IFRS CapEx candidates, then the IFRS 8 "additions to non-current assets" concept. |
+| `rnd` | SEC: existing `RND_TAGS`. ESEF: `ifrs-full:ResearchAndDevelopmentExpense`. |
+| `opex` | SEC: `us-gaap:OperatingExpenses`, `us-gaap:CostsAndExpenses`. ESEF: IFRS operating-expense concept. |
+| `cost_of_revenue` | SEC: `us-gaap:CostOfRevenue`, `us-gaap:CostOfGoodsAndServicesSold`. ESEF: `ifrs-full:CostOfSales`. |
+| `sga` | SEC: `us-gaap:SellingGeneralAndAdministrativeExpense`. ESEF: `ifrs-full:SellingGeneralAndAdministrativeExpense`. |
+| Concept names | New names (not already in the code) are confirmed against the stored US-GAAP / IFRS taxonomy snapshots before use; a name not in the schema is dropped, not guessed (as in the ESEF spec). |
 | Segment axes | SEC: `us-gaap:StatementBusinessSegmentsAxis`. ESEF: `ifrs-full:SegmentsAxis`. Product (`srt:ProductOrServiceAxis`) and geography (`srt:StatementGeographicalAxis`) are non-goals. |
 | Fact shape kept | Full-year duration (350–380 days, as `_full_year`), numeric, exactly one explicit dimension and it is the segment axis. Facts with a second dimension (e.g. `srt:ConsolidationItemsAxis`) are not kept, so intersegment eliminations and subtotals never appear as segments. |
 | Segment name | The member QName (e.g. `aapl:AmericasSegmentMember`) and a readable name derived from it: local name, trailing `Member` removed, then trailing `Segment` removed, CamelCase split (`AmericasSegmentMember` → `Americas`, `CloudServicesMember` → `Cloud Services`). Label linkbases are not read. |
-| Sum check | Each row carries `sum_matches_total`: true when `abs(sum - total) / total <= 0.01`, where `sum` is that year's segment values and `total` the non-dimensional fact of the same concept and year. No total fact gives `false`. |
-| Output | New file `segments.jsonl` per company in the existing XBRL store, one row per segment per fiscal year. `meta.json` gets `segment_count`. |
+| Sum check | Each row carries `sum_matches_total`: true when `abs(sum - total) / total <= 0.01`, where `sum` is that year's segment values of one metric and `total` the non-dimensional fact of the same concept and year. No total fact gives `false`. For expense metrics `false` is common (unallocated corporate costs); it is information, not an error. |
+| Output | New file `segments.jsonl` per company in the existing XBRL store, one row per segment per metric. `meta.json` gets `segment_count`. |
 | SEC parsing | Extend `arp/ingestion/esef.py` iXBRL parsing (10-K inline XBRL is the same format) to optionally return facts whose context has explicit members, with axis and member. The default behaviour of `parse_ixbrl` does not change. |
-| CLI | `arp xbrl segments <company_id>` prints a header `year  segment  value  unit  concept  sum_check` and one line per row. |
+| CLI | `arp xbrl segments <company_id>` prints a header `year  segment  metric  value  unit  concept  sum_check` and one line per row. |
 | LLM fallback | Out of scope here. A follow-up wires the financials pipeline to use `segments.jsonl` and call the LLM only for companies with zero rows or `sum_matches_total: false`. |
 
 ## Row format (`segments.jsonl`)
 
 ```json
-{"company_id": "apple", "market": "sec", "fiscal_year": 2025, "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+{"company_id": "apple", "market": "sec", "fiscal_year": 2025, "metric": "revenue", "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
  "axis": "us-gaap:StatementBusinessSegmentsAxis", "member": "aapl:AmericasSegmentMember", "segment": "Americas",
  "value": 167045000000, "unit": "USD", "period_start": "2024-09-29", "period_end": "2025-09-27",
  "accession": "0000320193-25-000079", "sum_matches_total": true}
@@ -46,6 +53,7 @@ The earlier specs (`2026-10-09-xbrl-pipeline-design.md`, `2026-10-09-xbrl-esef-d
 ## Non-goals
 
 - Product, geography and other axes. Segment income, assets.
+- Qualitative segment descriptions (stay with the LLM extractor).
 - History beyond the latest annual filing.
 - Label linkbase lookup for display names.
 - Wiring into the financials/LLM pipeline (follow-up spec).
@@ -75,10 +83,17 @@ non-dimensional total 1000; segment axis members `x:AlphaSegmentMember`=300, `x:
 | AC-15 | Same as AC-14 | read `meta.json` | `segment_count` is 0 | unit |
 | AC-16 | Same as AC-14 | fetch runs | The company's fetch status is `ok` (the value it gets today) | unit |
 | AC-17 | Fixture S with a malformed segment context (axis attribute missing) | fetch runs | Exit code 0; company status `ok`; `segments.jsonl` is empty | unit |
-| AC-18 | AC-1 done | `arp xbrl segments s1` | Exit code 0; header `year  segment  value  unit  concept  sum_check`; 3 lines, the first containing `2025`, `Alpha`, `300`, `USD`, `true` | unit |
+| AC-18 | AC-1 done | `arp xbrl segments s1` | Exit code 0; header `year  segment  value  unit  concept  sum_check`; 3 lines, the first containing `2025`, `Alpha`, `revenue`, `300`, `USD`, `true` | unit |
 | AC-19 | No company `zz` in the store | `arp xbrl segments zz` | Exit code 1, message `No XBRL data for zz` | unit |
 | AC-20 | The existing tests under `backend/tests/` for `esef_json`, `fetch_esef` and `xbrl_pipeline` | run | They pass with no edits to them | unit |
 | AC-21 | The existing `parse_ixbrl` tests | run | They pass with no edits to them | unit |
+| AC-22 | Fixture S plus `us-gaap:PaymentsToAcquireProductiveAssets` segment facts Alpha=50, Beta=70 | fetch runs | 2 rows with `metric` `capex`, values 50 and 70; the 3 revenue rows are unchanged | unit |
+| AC-23 | Fixture S plus `us-gaap:ResearchAndDevelopmentExpense` segment facts Alpha=20, Beta=30 | fetch runs | 2 rows with `metric` `rnd`, values 20 and 30 | unit |
+| AC-24 | Fixture S plus `us-gaap:OperatingExpenses` segment facts Alpha=100, Beta=120 | fetch runs | 2 rows with `metric` `opex`, values 100 and 120 | unit |
+| AC-25 | Fixture S plus `us-gaap:CostOfRevenue` segment fact Alpha=150 | fetch runs | 1 row with `metric` `cost_of_revenue`, value 150 | unit |
+| AC-26 | Fixture S plus `us-gaap:SellingGeneralAndAdministrativeExpense` segment fact Beta=60 | fetch runs | 1 row with `metric` `sga`, value 60 | unit |
+| AC-27 | Fixture S plus AC-22's CapEx facts | read `meta.json` | `segment_count` is 5 (rows across all metrics) | unit |
+| AC-28 | ESEF fixture with 2 `ifrs-full:ResearchAndDevelopmentExpense` facts on `ifrs-full:SegmentsAxis` | fetch runs | 2 rows with `metric` `rnd` and `market` `esef` | unit |
 
 Must not change: non-dimensional facts, required rows, `skipped_dimensional` (AC-20); default `parse_ixbrl`
 output (AC-21); company fetch status when the segment step finds nothing or fails (AC-16, AC-17).
