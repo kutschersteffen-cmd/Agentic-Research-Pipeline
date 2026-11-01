@@ -87,3 +87,68 @@ Script: kept in the session scratchpad, not committed (exploration only).
    finding 1, and makes sources comparable).
 2. Add the second NLI hypothesis for operators (finding 2).
 3. Grow the set to about 60 companies, including private makers if relevant, and fix thresholds on a held-out half.
+
+---
+
+# Rerun on full annual reports, with an operator test (2026-11-01)
+
+Changes from run 1: one full document per company (FY2025 annual report or URD as PDF; 10-K / 20-F / 40-F for
+US filers; McPhy's 2023 URD, its last), 467–2,491 passages each. Step 2 reranks the 25 most similar passages,
+step 3 runs on the best 6. New second hypothesis: "This company buys or operates electrolysers made by another
+company". Found = cross-encoder > 1.5 **and** "makes" > 0.8 **and** "makes" beats "operates" on the same passage.
+Green Hydrogen Systems is out (no report published). About 60 min on CPU.
+
+| Company | Label | Sim | Cross-enc. | Makes | Operates | Found |
+|---|---|---|---|---|---|---|
+| Nel ASA | core | 0.71 | 6.45 | 1.00 | 0.00 | ✅ |
+| ITM Power | core | 0.65 | 4.97 | 0.99 | 0.00 | ✅ |
+| thyssenkrupp nucera | core | 0.71 | 4.45 | 0.99 | 0.00 | ✅ |
+| HydrogenPro | core | 0.75 | 5.34 | 0.99 | 0.00 | ✅ |
+| Enapter | core | 0.68 | 7.75 | 1.00 | 0.01 | ✅ |
+| Plug Power | core | 0.77 | 6.49 | 0.98 | 0.00 | ✅ |
+| McPhy Energy | core (historic) | 0.76 | 5.02 | 1.00 | 0.00 | ✅ |
+| Siemens Energy | peripheral | 0.56 | −0.12 | 0.94 | 0.02 | ❌ |
+| LONGi Green Energy | peripheral | 0.73 | 3.70 | 0.98 | 0.01 | ✅ |
+| Sungrow Power | peripheral | 0.77 | 3.79 | 0.99 | 0.02 | ✅ |
+| Bloom Energy | peripheral | 0.69 | 3.77 | 0.99 | 0.03 | ✅ |
+| Ceres Power | peripheral | 0.66 | 3.22 | 0.94 | 0.01 | ✅ |
+| GTT (Elogen) | peripheral | 0.68 | 5.25 | 1.00 | 0.00 | ✅ |
+| Cummins (Accelera) | not (exited) | 0.62 | −0.20 | 1.00 | 0.01 | ✅ rejected |
+| **Johnson Matthey** | not | 0.76 | 2.86 | 0.98 | 0.01 | ❌ false positive |
+| Burckhardt Compression | not | 0.61 | −1.59 | 0.63 | 0.21 | ✅ rejected |
+| Hexagon Purus | not | 0.65 | −2.76 | 0.17 | 0.04 | ✅ rejected |
+| Linde | not | 0.60 | −0.91 | 0.04 | 0.01 | ✅ rejected |
+| **Air Liquide** | not | 0.80 | 4.20 | 0.95 | 0.02 | ❌ false positive |
+| Air Products | not | 0.71 | −1.10 | 0.42 | 0.10 | ✅ rejected |
+| RWE | not | 0.60 | −0.59 | 0.12 | 0.05 | ✅ rejected |
+| Shell | not | 0.69 | 1.49 | 0.97 | **0.94** | ✅ rejected |
+| Ballard Power | not | 0.62 | −0.34 | 0.98 | 0.01 | ✅ rejected |
+| Daimler Truck | not | 0.60 | −5.32 | 0.28 | 0.04 | ✅ rejected |
+| Heidelberg Materials | not | 0.50 | −6.13 | 0.05 | 0.00 | ✅ rejected |
+| Martin Marietta | not | 0.44 | −7.38 | 0.00 | 0.01 | ✅ rejected |
+
+**Summary:** core 7/7 found (run 1: 6/6), peripheral **5/6** found (run 1: 0/6), not 11/13 rejected (run 1: 12/13).
+
+## What changed and why
+
+1. **Full reports fix the peripheral misses.** LONGi ("our alkaline water electrolysis system for hydrogen
+   production supports Central Asia's first … green-ammonia project"), Sungrow, Bloom, Ceres and GTT are now
+   found from their own reports. Siemens Energy is still missed: its best passage is a generic segment list,
+   because the electrolyser business sits inside a larger segment and is barely described.
+2. **The operator test works where the text says "operates".** Shell scores 0.97 on "makes" but 0.94 on
+   "operates" for its REFHYNE II electrolyser passage, so it is rejected. Without the test it would be a false
+   positive.
+3. **New false positives come from suppliers and competitor lists.** Johnson Matthey: "Electrolyser sales doubled
+   … driven by higher catalyst sales", a component supplier whose own words say "electrolyser sales". Air Liquide:
+   a passage listing hydrogen-technology competitors. A third hypothesis ("supplies components for
+   electrolysers") and the LLM debate (step 6) are the fix; revenue sizing then shows these are small.
+4. **Ceres is now found.** Its report describes its electrolyser technology at length; the licensing nuance only
+   shows in other passages. The label "peripheral (licensor)" stays a judgement call for the debate.
+5. **Cost of full documents:** about 2 minutes per report on CPU (passage embedding dominates). On the L4 GPU,
+   or with a section filter (business review, segments) instead of the whole report, this drops to seconds.
+
+## Next steps (updated)
+
+1. Add the supplier hypothesis; re-run.
+2. Restrict passages to business-description and segment sections to cut noise and run time.
+3. Grow the set to about 60 companies with a held-out half before fixing thresholds.
