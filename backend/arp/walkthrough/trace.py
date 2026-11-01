@@ -15,13 +15,23 @@ from arp.storage.safe_path import safe_id
 logger = logging.getLogger(__name__)
 
 
-def passage(chunk: DocumentChunk) -> dict:
-    return {
+def passage(chunk: DocumentChunk, scores: dict | None = None) -> dict:
+    out = {
         "doc_id": chunk.doc_id,
         "char_start": chunk.char_start,
         "char_end": chunk.char_end,
         "section": chunk.section,
     }
+    if scores is not None:  # retrieval scores (select_relevant_chunks' explain); absent in traces before they existed
+        out["scores"] = scores
+    return out
+
+
+def retrieval(explain: dict | None) -> dict | None:
+    """How a field's evidence was ranked, for the walkthrough's "Find evidence" step."""
+    if not explain or "method" not in explain:
+        return None
+    return {k: explain[k] for k in ("method", "reranked", "candidates")}
 
 
 def call(usage: LLMUsage | None, answer: BaseModel | None) -> dict | None:
@@ -55,6 +65,8 @@ def field_entry(
     verifier: dict | None = None,
     adjudicator: dict | None = None,
     vision: dict | None = None,
+    retrieval: dict | None = None,
+    near_misses: list[dict] = (),
 ) -> dict:
     return {
         "field_id": field_id,
@@ -65,6 +77,8 @@ def field_entry(
         "verifier": verifier,
         "adjudicator": adjudicator,
         "vision": vision,
+        "retrieval": retrieval,
+        "near_misses": list(near_misses),
     }
 
 

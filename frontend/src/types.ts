@@ -353,7 +353,13 @@ export interface WalkthroughPassage {
   char_end: number;
   /** null when the document text is not available. */
   text: string | null;
+  /** How retrieval scored it; only the scores that were computed. Absent in traces before they were recorded. */
+  scores?: WalkthroughScores;
 }
+
+export interface WalkthroughScores { bm25?: number; vector_rank?: number; rrf?: number; rerank?: number }
+export type RetrievalMethod = "bm25" | "hybrid" | "opensearch" | "opensearch_hybrid" | "unranked" | "none";
+export interface WalkthroughRetrieval { method: RetrievalMethod; reranked: boolean; candidates: number }
 
 /** GET /api/walkthrough/runs/{run}/companies/{company}: how one stored row was found (no response model). */
 export interface Walkthrough {
@@ -368,6 +374,10 @@ export interface Walkthrough {
   /** Data-point rows (every period) or the Financials/TNFD section's entries. */
   rows: Record<string, unknown>[];
   passages: WalkthroughPassage[];
+  /** How the passages were ranked; null for traces written before it was recorded. */
+  retrieval?: WalkthroughRetrieval | null;
+  /** The passages ranked right after the cut, ranks continuing after the passages. */
+  near_misses?: WalkthroughPassage[];
   extractor: WalkthroughCall | null;
   /** blind: answer is the model's re-extracted draft and verdict the code's comparison. */
   verifier: (WalkthroughCall & { blind?: boolean; verdict?: unknown }) | null;

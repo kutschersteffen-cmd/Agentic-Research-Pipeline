@@ -148,8 +148,13 @@ async def _record(
         try:
             usage_e = LLMUsage(model=provenance.extractor_model, prompt_version=provenance.extractor_prompt_version)
             usage_v = LLMUsage(model=provenance.verifier_model, prompt_version=provenance.verifier_prompt_version)
+            explain: dict = {}
+            evidence = field_evidence(spec, [doc], settings, None, explain)
+            scores = explain.get("scores", {})
             trace_sink.setdefault("fields", {})[spec.field_id] = trace.field_entry(
-                spec.field_id, passages=[trace.passage(c) for c in field_evidence(spec, [doc], settings)],
+                spec.field_id, passages=[trace.passage(c, scores.get(c.chunk_id, {})) for c in evidence],
+                retrieval=trace.retrieval(explain),
+                near_misses=[trace.passage(c, scores.get(c.chunk_id, {})) for c in explain.get("near_miss_chunks", [])],
                 extractor=trace.call(usage_e, draft),
                 verifier=trace.verifier_call(
                     usage_v, draft if spec.high_risk else verifier, blind=spec.high_risk,

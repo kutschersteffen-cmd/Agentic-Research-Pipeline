@@ -1,4 +1,4 @@
-import type { Walkthrough } from "../types";
+import type { WalkthroughRetrieval, WalkthroughScores, Walkthrough } from "../types";
 
 // The Argus walkthrough screen (#/argusWalkthrough/<run>/<company>/<item>[/<period_end>][?basis=]): its route and
 // the steps one stored row went through, built from GET /api/walkthrough (argus-walkthrough spec, "The screen").
@@ -209,3 +209,31 @@ export function markQuotes(text: string, quotes: string[]): { text: string; mark
   if (at < text.length || !out.length) out.push({ text: text.slice(at), mark: false });
   return out;
 }
+
+const METHOD_LABEL: Record<WalkthroughRetrieval["method"], string> = {
+  bm25: "BM25",
+  hybrid: "BM25 + vectors (RRF)",
+  opensearch: "BM25 (OpenSearch)",
+  opensearch_hybrid: "BM25 (OpenSearch) + vectors (RRF)",
+  unranked: "No keyword hit: first passages in document order",
+  none: "No query terms: first passages in document order",
+};
+
+/** The "Find evidence" line above the passages: how they were ranked. */
+export function retrievalLine(r: WalkthroughRetrieval): string {
+  return `${METHOD_LABEL[r.method] ?? r.method}${r.reranked ? ", re-ranked" : ""} · ${r.candidates.toLocaleString("en-US")} candidates`;
+}
+
+/** One passage's scores, only those computed: "BM25 7.42 · vector #3 · RRF 0.033 · rerank 0.91". */
+export function scoreText(s: WalkthroughScores | undefined): string {
+  if (!s) return "";
+  return [
+    s.bm25 != null && `BM25 ${s.bm25.toFixed(2)}`,
+    s.vector_rank != null && `vector #${s.vector_rank}`,
+    s.rrf != null && `RRF ${s.rrf.toFixed(3)}`,
+    s.rerank != null && `rerank ${s.rerank.toFixed(2)}`,
+  ].filter(Boolean).join(" · ");
+}
+
+/** A recorded field with passages but no retrieval record: its run predates the scores. */
+export const scoresMissing = (w: Walkthrough) => w.recorded && w.passages.length > 0 && !w.retrieval;

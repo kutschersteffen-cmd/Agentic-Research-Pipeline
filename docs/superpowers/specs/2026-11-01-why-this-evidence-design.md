@@ -40,9 +40,12 @@ hybrid, term and vector similarity per passage.
      near-misses with ranks continuing after the last passage (passages 1–12 → near-misses 13, 14, 15), in the same
      line layout as passages (rank · document · section · characters · scores) and their text;
    - old traces: one muted line `Scores were not recorded for this run.` above the passages.
-5. **Seed.** The e2e stack's seeded walkthrough items are written through the same `extract_one_field` path, so they
-   carry scores; the implementer makes sure at least one seeded item has hybrid retrieval, re-ranking and 3 near-misses
-   (named `seeded-scored` below).
+5. **Seed.** Seeded known-answer items (`arp golden-set seed-known-answers`, `review/quality.py`) build their trace with
+   the same `field_evidence(..., explain)` call, so they carry scores. The e2e stack does not seed them (it would put
+   items in the review queue that `tests/e2e/test_argus_start.py` expects to be empty), so the evaluator runs
+   `arp golden-set seed-known-answers --count 2 --seed 1` against the running stack first; the first seeded item is
+   `seeded-scored` below. The stack runs with default settings: hybrid retrieval on, re-ranking off. (Amended during
+   implementation; owner to confirm.)
 
 Signal Room rules: scores are ink mono text at 13px, no status or signal colour; numbers use tabular figures.
 
@@ -82,10 +85,10 @@ store the existing hybrid tests in `tests/` use. **OS** = the stub OpenSearch cl
 | AC-21 | As AC-19 | Same | `near_misses` items have `rank` == len(passages)+1 … +3, each with `doc_title` and non-null `text` | unit |
 | AC-22 | Trace written before this change (no `scores`, no `retrieval`) | `GET` walkthrough | `retrieval` is null and `near_misses == []` | unit |
 | AC-23 | As AC-22 | Same | Passages are byte-equal to the response `main` returns for the same trace | unit |
-| AC-24 | `seeded-scored` in the e2e stack | Reviewer opens its Walkthrough, "Find evidence" step | The line above the passages reads `BM25 + vectors (RRF), re-ranked · {n} candidates` with n = the trace's `candidates` | evaluator |
-| AC-25 | As AC-24 | Same view | Each passage line ends with ` · BM25 x.xx · vector #n · RRF x.xxx · rerank x.xx`, numbers matching the trace (BM25 part absent where the trace has no `bm25`) | evaluator |
-| AC-26 | As AC-24 | Page loads | `Just missed (3)` is shown and collapsed (no near-miss text visible) | evaluator |
-| AC-27 | As AC-24 | Reviewer clicks `Just missed (3)` | 3 rows appear with ranks last-passage+1 … +3, each with document, section, characters, scores and text | evaluator |
+| AC-24 | `seeded-scored` in the e2e stack | Reviewer opens its Walkthrough, "Find evidence" step | The line above the passages reads `BM25 + vectors (RRF) · {n} candidates` with n = the trace's `candidates` (no `, re-ranked`: re-ranking is off in the stack) | evaluator |
+| AC-25 | As AC-24 | Same view | Each passage line ends with ` · BM25 x.xx · vector #n · RRF x.xxx`, numbers matching the trace (BM25 part absent where the trace has no `bm25`) | evaluator |
+| AC-26 | As AC-24, if its trace has near-misses (n ≤ 3) | Page loads | `Just missed (n)` is shown and collapsed (no near-miss text visible) | evaluator |
+| AC-27 | As AC-24 | Reviewer clicks `Just missed (n)` | n rows appear with ranks last-passage+1 … +3, each with document, section, characters, scores and text | evaluator |
 | AC-28 | Walkthrough of a trace without scores (frontend test fixture) | Step renders | Shows `Scores were not recorded for this run.` | unit |
 | AC-29 | As AC-28 | Step renders | Passage lines render the same as on `main` (snapshot of the existing test) | unit |
 | AC-30 | As AC-24, Graphite and Night | Same view | Score text computed `font-size` ≥ 13px | evaluator |

@@ -32,11 +32,12 @@ def _score(query: str, texts: list[str]) -> list[float]:
     return [float(s) for s in _get_model().rerank(query, texts)]
 
 
-def rerank(query: str, chunks: list[DocumentChunk], top_n: int) -> list[DocumentChunk]:
+def rerank(query: str, chunks: list[DocumentChunk], top_n: int, scores_out: dict[str, float] | None = None) -> list[DocumentChunk]:
     """At most `top_n` of `chunks`, best cross-encoder score first. If the
     model can't load or score, returns `chunks[:top_n]` unchanged, warns once
     and skips every later call in this process (no per-field reload retries)
-    -- reranking is a precision boost, never a hard dependency."""
+    -- reranking is a precision boost, never a hard dependency. `scores_out`, when given, receives
+    each chunk's score, and stays empty when the model did not score."""
     global _unavailable
     if not chunks:
         return []
@@ -53,5 +54,7 @@ def rerank(query: str, chunks: list[DocumentChunk], top_n: int) -> list[Document
             _unavailable = True
             logger.warning("Reranker unavailable (%s: %s); keeping retrieval order.", type(exc).__name__, exc)
             return chunks[:top_n]
+    if scores_out is not None:
+        scores_out.update({c.chunk_id: float(scores[i]) for i, c in enumerate(chunks)})
     order = sorted(range(len(chunks)), key=lambda i: scores[i], reverse=True)  # stable on ties
     return [chunks[i] for i in order[:top_n]]
