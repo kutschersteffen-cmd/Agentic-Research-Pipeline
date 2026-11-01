@@ -355,6 +355,7 @@ def _trace_entry(state: FieldState, grouped: bool) -> dict:
         skipped=skipped,
         passages=[trace.passage(c, scores.get(c.chunk_id, {}) if explain else None) for c in state["evidence"]],
         retrieval=trace.retrieval(explain),
+        seconds=(seen or {}).get("seconds"),
         near_misses=[trace.passage(c, scores.get(c.chunk_id, {})) for c in (explain or {}).get("near_miss_chunks", [])],
         extractor=trace.call(state["extractor_usage"], state["draft"]),
         verifier=verifier,
