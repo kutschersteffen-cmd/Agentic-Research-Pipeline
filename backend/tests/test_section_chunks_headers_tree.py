@@ -79,7 +79,7 @@ def test_long_section_splits_inside_its_bounds(sections_on):
     [
         ([("## A", 200), ("## B", 300), ("# C", 2000)], 2),  # stops before the shallower # C
         ([("## A", 200), ("### A.1", 700), ("## B", 2000)], 2),  # joins the deeper heading, then reaches 800
-        ([("## A", 200), ("## B", 2000)], 2),  # A+B fits one chunk
+        ([("## A", 200), ("## B", 2000)], 1),  # B is >= 800 on its own, so it keeps its own label
         ([("## A", 200), ("# Z", 2000)], 1),
     ],
 )
@@ -88,6 +88,13 @@ def test_short_sections_join_forward(sections_on, parts, expect_end):
     doc = _doc(texts)
     end = len("".join(texts[:expect_end]))
     assert (0, end, "A") in _spans(doc)
+
+
+def test_large_section_after_a_short_one_keeps_its_label(sections_on):
+    gov, rem = _section("## Governance", 200), _section("### Remuneration report", 19500)
+    spans = _spans(_doc([gov, rem]))
+    assert (0, len(gov), "Governance") in spans
+    assert {sec for s, _, sec in spans if s >= len(gov)} == {"Remuneration report"}
 
 
 def test_settings_off_and_few_headings_chunk_as_before(monkeypatch):

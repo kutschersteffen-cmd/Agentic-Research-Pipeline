@@ -84,8 +84,9 @@ def find_keyword_hits(text: str, keywords: list[str]) -> list[str]:
 
 def _section_segments(doc: SourceDocument, min_chars: int) -> list[tuple[int, int, str | None]] | None:
     """(start, end, first heading) per section, short sections joined with the ones after them while the
-    joined span is under `min_chars` and the next heading is not shallower than the first. None when the
-    document has fewer than 2 headings (it chunks as before)."""
+    joined span is under `min_chars`, the next heading is not shallower than the first, and the next section
+    is itself under `min_chars` (a large section keeps its own label). None when the document has fewer than
+    2 headings (it chunks as before)."""
     entries = outline(doc)
     if len(entries) < 2:
         return None
@@ -96,7 +97,10 @@ def _section_segments(doc: SourceDocument, min_chars: int) -> list[tuple[int, in
     while i < len(entries):
         first, end = entries[i], entries[i].char_end
         i += 1
-        while end - first.char_start < min_chars and i < len(entries) and entries[i].level >= first.level:
+        while (
+            end - first.char_start < min_chars and i < len(entries) and entries[i].level >= first.level
+            and entries[i].char_end - entries[i].char_start < min_chars
+        ):
             end = entries[i].char_end
             i += 1
         segments.append((first.char_start, end, first.title))
