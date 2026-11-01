@@ -143,7 +143,7 @@ function WalkthroughView({ w, periodEnd, basis, needsReview }: { w: Walkthrough;
         {isSection ? <SectionResult w={w} /> : <RowResult w={w} row={row} basis={basis} />}
       </section>
       {w.trace_run_id !== w.run_id && <p className="help-text">Reused from run {w.trace_run_id}; the steps show that run.</p>}
-      {!basis && timingTotal(w) && <p className="mono wt-timing">Total · {timingTotal(w)}</p>}
+      {!basis && timingTotal(w) && <p className="mono wt-timing wt-total">Total · {timingTotal(w)}</p>}
       <ol className="wt-steps" aria-label="Steps">
         {steps(w, { periodEnd, basis }).map((s) => (
           <li key={s.n} className="card">

@@ -2245,6 +2245,7 @@ a.vc-box:hover { border-color: var(--text); }
 .wt-passages { list-style: none; padding: 0; margin: 0 0 var(--s-2); }
 .wt-scores { font-variant-numeric: tabular-nums; }
 .wt-timing { font-variant-numeric: tabular-nums; font-size: var(--text-sm); color: var(--text); margin: 0; }
+.wt-total { margin: var(--s-4) 0 var(--s-2); }
 .wt-near { margin-top: var(--s-2); }
 .wt-near > summary { cursor: pointer; font-family: var(--font-mono); font-size: var(--text-sm); }
 .wt-passage { margin: var(--s-1) 0 0; padding: var(--s-2) var(--s-3); background: var(--well); max-height: 14rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-sm); }
