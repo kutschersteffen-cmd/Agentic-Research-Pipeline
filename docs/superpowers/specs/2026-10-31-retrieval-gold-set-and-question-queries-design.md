@@ -20,8 +20,13 @@ Spec slug: `retrieval-gold-set-and-question-queries`. Items #1 and #3 of the RAG
 
 1. **Cases file** `backend/tests/golden/retrieval/cases.json`, a list of:
    `{case_id, schema_id, field_id, company_id, document, gold: [{span_text}], labelled_by: "agent"|"owner", spot_checked: bool}`.
-   `document` is a filename under `backend/tests/golden/retrieval/documents/<company_id>/`. Gold is stored as
-   text, not offsets, so a parser upgrade does not invalidate it.
+   `document` is a filename. The PDFs are **not committed** (no redistribution licence): a sibling file
+   `backend/tests/golden/retrieval/documents.json` lists each one as `{company_id, document, url, sha256}`.
+   Gold is stored as text, not offsets, so a parser upgrade does not invalidate it.
+1b. **Fetching documents.** In cases mode, a document missing from `<documents-dir>/<company_id>/<document>` is
+   downloaded from its `url` into that path before parsing; the file's SHA-256 must equal `sha256`, otherwise the
+   command exits 1 with `Document <document> does not match its recorded hash.` and nothing is evaluated. A file
+   already present is checked against the hash the same way. `documents/` is git-ignored.
 2. **Hit rule.** A gold span is hit at rank *r* when the evidence chunk at rank *r* contains the span text
    after `grounding.py`'s normalisation (whitespace, dashes, quotes, ligatures, hyphen breaks). A span whose
    text is not found in the parsed document is *stale*: it is left out and counted, as in the run mode today.
@@ -30,7 +35,8 @@ Spec slug: `retrieval-gold-set-and-question-queries`. Items #1 and #3 of the RAG
    `documents/` sibling in cases mode. `--min-recall` applies to recall@`evidence_max_chunks`. Output line
    and JSON report are the same shape as the run mode.
 4. **Labelling** (done in a separate session, not by the implementer): two public sustainability reports,
-   with a public, redistributable licence or explicit permission recorded in `backend/tests/golden/retrieval/LABELS.md`.
+   each with its publisher URL and the date it was downloaded recorded in `backend/tests/golden/retrieval/LABELS.md`.
+   Owner choice (2026-10-31): SSAB Annual and Sustainability Report 2024 (EN) and Heidelberg Materials 2024 (DE).
    Claude labels, for each transition-plan indicator the report answers YES to, the shortest passage(s)
    that answer it. Indicators answered NO get no case. The owner then spot-checks 10 random cases; those get
    `spot_checked: true`, and any rejected one is fixed or removed before commit.
@@ -40,20 +46,20 @@ Spec slug: `retrieval-gold-set-and-question-queries`. Items #1 and #3 of the RAG
    settings (hybrid on, rerank off) and `--min-recall` set to a floor stored in the workflow file:
    the recall@12 measured on `main` when this ships, minus 0.02. Raising the floor is a manual edit. No API key is needed.
 
-### Part B: search with the question
+### Part B: richer keywords for the transition-plan indicators
 
-1. **`FieldDefinition.retrieval_query: str | None = None`**: a natural-language query for the embedding
-   ranking. When set and hybrid retrieval is on, the vector ranking in `select_relevant_chunks` and the
-   reranker (when on) use it instead of the joined keywords. BM25 keeps using `seed_keywords` (+ German).
-   When it is `None`, behaviour is exactly today's.
-2. **Transition-plan preset:** every `tp_a_*` field sets `retrieval_query` to its indicator's `question`.
-   The eight `tp_h_*` helper fields leave it `None`.
-3. **Guideline include-terms:** a one-off, reviewed edit of `transition_plan_keywords.json` adds the
+*Changed 2026-10-31 (owner decision after measuring on the gold set).* Using each indicator's question as the
+embedding query was measured and dropped: recall@5 fell from 45.6% to 41.2% (recall@12 58.8% → 60.3%). The
+keyword edit alone gave 47.1% / 60.3%. `FieldDefinition.retrieval_query` is not added; questions as queries may
+come back with HyDE (plan 3b) or a stronger embedding model (plan #4).
+
+1. **Guideline include-terms:** a one-off, reviewed edit of `transition_plan_keywords.json` adds the
    concepts each guideline says count as a YES (for example "net zero", "carbon neutrality" and "return to
    2020 levels" for `A_headline_1`). Exclusion phrases ("intensity targets are not ...") are **not** added;
    they belong to plan item #12.
-4. **No field version bumps.** Retrieval inputs change, the question each field answers does not.
-5. **API contract:** the schema response gains `retrieval_query`. Regenerate `openapi` and the frontend types.
+2. **Field versions:** every field whose `seed_keywords` change goes up one version, like any other change to a
+   released field. The released-field guard in `arp/db/fields.py` is not loosened.
+3. No API contract change.
 
 ### Out of scope
 
@@ -81,31 +87,35 @@ or instruction text is added to any query.
 | AC-5   | Both `--cases` and `--run-id` passed | the command runs | Exit 2; stderr contains `Pass exactly one of --cases or --run-id.` | holdout |
 | AC-5b  | Neither passed | the command runs | Exit 2; stderr contains `Pass exactly one of --cases or --run-id.` | holdout |
 | AC-6   | The run-mode fixture of `test_run_replays_field_evidence_and_reports_recall` in `backend/tests/test_retrieval_eval.py` (stand-in run store, no Postgres) | `--run-id` mode | stdout and JSON report are byte-identical to `main`'s for the same fixture | holdout |
-| AC-7   | The committed `backend/tests/golden/retrieval/cases.json` | loaded | It names ≥ 2 distinct documents, each existing under `documents/<company_id>/` | holdout |
+| AC-7   | The committed `backend/tests/golden/retrieval/cases.json` | loaded | It names ≥ 2 distinct documents, each listed in `documents.json` with a `url` and a 64-hex-digit `sha256` | holdout |
 | AC-7b  | Same | loaded | ≥ 40 gold spans across ≥ 20 distinct `field_id`s, all from schema `transition_plan_indicators` | holdout |
 | AC-7c  | Same | loaded | Every case has `labelled_by`; ≥ 10 cases have `spot_checked: true` | holdout |
-| AC-7d  | Same and `LABELS.md` | read | `LABELS.md` names each document in `cases.json` with its licence or the permission given | evaluator |
+| AC-7d  | Same and `LABELS.md` | read | `LABELS.md` names each document in `cases.json` with its publisher URL and download date | evaluator |
+| AC-7e  | A cases file whose `documents.json` entry has a `sha256` that does not match the served file (local HTTP server in the test) | cases mode | Exit 1; stderr contains `Document <document> does not match its recorded hash.` | holdout |
+| AC-7f  | Same, with the matching `sha256` and an empty documents dir | cases mode | The file is downloaded to `<documents-dir>/<company_id>/<document>` and the run completes with exit 0 | holdout |
 | AC-8   | A PR changing only `backend/arp/retrieval/select_evidence.py` | CI runs | A check named `Retrieval recall` runs | evaluator |
 | AC-8b  | A PR changing only files under `frontend/` | CI runs | No `Retrieval recall` check runs (or it reports skipped) | evaluator |
 | AC-8c  | A `Retrieval recall` run | finished | The job summary contains the CLI's `gold span(s) over` line | evaluator |
 | AC-8d  | The workflow file | read | Its `--min-recall` equals the `main` recall@12 stated in the PR description minus 0.02 | evaluator |
 | AC-8e  | The repo without `ARP_ANTHROPIC_API_KEY` | `Retrieval recall` runs | It passes or fails on recall only, never on a missing key | evaluator |
-| AC-9   | A field with `retrieval_query="Does the company report X?"`, hybrid on, recording `embed_texts` | evidence is selected | The query string passed to `embed_texts` is exactly `Does the company report X?` | holdout |
-| AC-10  | The same field with `retrieval_query=None` | evidence is selected | The query string passed to `embed_texts` is `" ".join(with_german(seed_keywords))` | holdout |
-| AC-11  | A field with `retrieval_query` set, hybrid off | evidence is selected | Returned chunk_ids and order equal those for the same field with `retrieval_query=None` | holdout |
-| AC-12  | Rerank on, `retrieval_query` set, recording `rerank` | evidence is selected | `rerank`'s query argument is exactly the `retrieval_query` text | holdout |
-| AC-13  | `build_transition_plan_schema()` | built | There are exactly 64 `tp_a_*` fields, each with `retrieval_query` equal to its indicator's `question` in `indicators.json` | holdout |
-| AC-13b | Same | built | Every non-`tp_a_*` field has `retrieval_query` `None` | holdout |
-| AC-13c | Same | built | Every field's `version` equals its value on `main` | holdout |
-| AC-14  | The transition-plan schema through the API | `GET` | `tp_a_a_headline_1.retrieval_query` is `Does the company report an absolute GHG emission reduction target for the company?`; `tp_h_target_pct.retrieval_query` is `null` | holdout |
-| AC-14b | The generated frontend API types | `cd frontend && npx tsc -b` | Exit 0, and the field type has `retrieval_query?: string \| null` | unit |
+| ~~AC-9~~ | A field with `retrieval_query="Does the company report X?"`, hybrid on, recording `embed_texts` | evidence is selected | The query string passed to `embed_texts` is exactly `Does the company report X?` | retired 2026-10-31: question-as-query dropped (Part B) |
+| AC-10  | A transition-plan field, hybrid on, recording `embed_texts` | evidence is selected | The query string passed to `embed_texts` is `" ".join(with_german(seed_keywords))` | holdout |
+| ~~AC-11~~ | A field with `retrieval_query` set, hybrid off | evidence is selected | Returned chunk_ids and order equal those for the same field with `retrieval_query=None` | retired 2026-10-31: question-as-query dropped (Part B) |
+| ~~AC-12~~ | Rerank on, `retrieval_query` set, recording `rerank` | evidence is selected | `rerank`'s query argument is exactly the `retrieval_query` text | retired 2026-10-31: question-as-query dropped (Part B) |
+| ~~AC-13~~ | `build_transition_plan_schema()` | built | There are exactly 64 `tp_a_*` fields, each with `retrieval_query` equal to its indicator's `question` in `indicators.json` | retired 2026-10-31: question-as-query dropped (Part B) |
+| ~~AC-13b~~ | Same | built | Every non-`tp_a_*` field has `retrieval_query` `None` | retired 2026-10-31: question-as-query dropped (Part B) |
+| ~~AC-13c~~ | Same | built | Every field's `version` equals its value on `main` | retired 2026-10-31: versions now go up (Part B.2); see AC-13d |
+| AC-13d | `build_transition_plan_schema()` vs `main` | built | Each field whose `seed_keywords` differ from `main` has `version` = `main` + 1; every other field's `version` equals `main`'s | holdout |
+| AC-13e | `arp/db/fields.py` | released preset with changed `seed_keywords` released again without a version change | Refused, as on `main` (the guard is unchanged) | holdout |
+| ~~AC-14~~ | The transition-plan schema through the API | `GET` | `tp_a_a_headline_1.retrieval_query` is `Does the company report an absolute GHG emission reduction target for the company?`; `tp_h_target_pct.retrieval_query` is `null` | retired 2026-10-31: question-as-query dropped (Part B) |
+| ~~AC-14b~~ | The generated frontend API types | `cd frontend && npx tsc -b` | Exit 0, and the field type has `retrieval_query?: string \| null` | retired 2026-10-31: question-as-query dropped (Part B) |
 | AC-15  | `presets/data/transition_plan_keywords.json` | read | `A_headline_1` contains `net zero`, `carbon neutrality` and `return to 2020 levels` | holdout |
 | AC-15b | Same | read | No keyword list contains `intensity target` for `A_headline_1` | holdout |
 | AC-16  | The committed gold set, default settings | cases mode on the PR and on `main` | PR recall@12 ≥ `main` recall@12 | golden |
 | AC-16b | Same | Same | PR recall@5 ≥ `main` recall@5 | golden |
 | AC-17  | The bundled extraction golden set | `arp golden-set run` | Every case passes, as on `main` | golden |
 
-Must not change: the run mode of `golden-set retrieval` (AC-6); retrieval for fields without
-`retrieval_query` (AC-10); BM25-only retrieval (AC-11); field versions (AC-13c); extraction golden set (AC-17).
+Must not change: the run mode of `golden-set retrieval` (AC-6); the embedding query (AC-10); the released-field
+guard (AC-13e); extraction golden set (AC-17).
 
 PR checklist (not ACs): the PR description lists `main`'s and the PR's recall@5 and recall@12.
