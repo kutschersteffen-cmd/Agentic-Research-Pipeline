@@ -14,11 +14,8 @@
    "net zero",
    "carbon neutral",
    "reduce absolute emissions",
-   "scope 1 and 2 target",
-   "carbon neutrality",
-   "return to 2020 levels"
+   "scope 1 and 2 target"
   ],
-  "retrieval_query": "Does the company report an absolute GHG emission reduction target for the company?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -61,7 +58,6 @@
    "intensity reduction target",
    "absolute and intensity targets"
   ],
-  "retrieval_query": "If the company communicates GHG emission intensity targets, does the company show that the company's intensity targets are in line with its absolute emission targets?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -103,11 +99,8 @@
    "company-wide net zero",
    "net zero commitment",
    "net zero alliance",
-   "Net Zero Asset Managers",
-   "carbon neutrality target",
-   "carbon neutral"
+   "Net Zero Asset Managers"
   ],
-  "retrieval_query": "Does the company report a company-wide net zero GHG emissions target?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -150,7 +143,6 @@
    "achieve net zero no later than",
    "net zero timeframe"
   ],
-  "retrieval_query": "Does the company state explicitly that it plans to achieve its net zero target until 2040 or 2050 at the latest?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -193,7 +185,6 @@
    "2030 emissions reduction target",
    "reduce greenhouse gas emissions 50%"
   ],
-  "retrieval_query": "Does the company state explicitly that it plans to cut its absolute GHG emissions by 50% (by half) until 2030 at the latest?",
   "version": 2,
   "effective_from": null,
   "status": "draft",
@@ -252,11 +243,8 @@
    "absolute scope 1 emissions target",
    "direct emissions reduction target",
    "reduce scope 1 emissions by",
-   "scope 1 target year",
-   "direct emissions from production processes",
-   "on-site heat and energy production"
+   "scope 1 target year"
   ],
-  "retrieval_query": "Does the company report its absolute emission target for the company's scope 1 GHG emissions?",
   "version": 2,
   "effective_from": null,
   "status": "draft",
@@ -297,10 +285,8 @@
    "absolute scope 2 emissions target",
    "market-based scope 2 target",
    "reduce scope 2 emissions by",
-   "purchased electricity emissions target",
-   "purchased energy for electricity, heating or cooling"
+   "purchased electricity emissions target"
   ],
-  "retrieval_query": "Does the company report its absolute emission target for the company's scope 2 GHG emissions?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -341,12 +327,8 @@
    "absolute scope 3 emissions target",
    "value chain emissions target",
    "reduce scope 3 emissions by",
-   "scope 3 target coverage",
-   "purchased goods and services",
-   "use of sold products",
-   "upstream and downstream emissions"
+   "scope 3 target coverage"
   ],
-  "retrieval_query": "Does the company report its absolute emission target for the company's scope 3 GHG emissions?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -388,10 +370,8 @@
    "2030 interim target",
    "milestone emission reduction targets",
    "intermediate GHG target",
-   "near-term targets",
-   "interim goals"
+   "near-term targets"
   ],
-  "retrieval_query": "Does the company report its GHG emission reduction interim targets for achieving the overall goal?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -435,7 +415,6 @@
    "Science Based Targets initiative",
    "limited overshoot"
   ],
-  "retrieval_query": "Does the company state explicitly that the interim targets are in line with specific 1.5 degrees orderly sector transition pathways, which are based on frontloaded activities and no or limited emission overshoot?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -478,7 +457,6 @@
    "beyond value chain mitigation",
    "no offsets to meet targets"
   ],
-  "retrieval_query": "If carbon credits and offsets are reported to be used by the company, does the company explicitly state that it will use them exclusively for residual unabatable emissions or beyond value chain mitigation support?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -521,7 +499,6 @@
    "offset quality criteria",
    "emission reductions sustained permanently"
   ],
-  "retrieval_query": "If carbon credits and offsets are reported to be used by the company, does the company state explicitly that carbon credits and offsets will be only used when the company can ensure that the emission reduction or emission avoidance is sustained permanently?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -562,12 +539,8 @@
    "board climate committee",
    "sustainability committee of the board",
    "climate responsibility executive level",
-   "climate transition governance",
-   "board-level committee climate",
-   "climate representative executive board",
-   "team responsible for climate"
+   "climate transition governance"
   ],
-  "retrieval_query": "Does the company explain its governance structure for managing the climate transition?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -610,7 +583,6 @@
    "skills matrix climate",
    "board oversight skills transition plan"
   ],
-  "retrieval_query": "Does the company explain how it ensures that the board members have the required skills to sign off and oversee the climate transition plan implementation?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -653,7 +625,6 @@
    "climate expertise workforce",
    "talent required for decarbonization"
   ],
-  "retrieval_query": "Does the company report its available inhouse skills and additional capacity needs to implement the climate transition plan?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -696,7 +667,6 @@
    "green skills training programme",
    "capacity building transition plan"
   ],
-  "retrieval_query": "Does the company report a strategy on how it aims to fill the additional skill and capacity needs required to implement its climate transition plan?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -739,7 +709,6 @@
    "board oversight climate transition",
    "climate transition plan implementation oversight"
   ],
-  "retrieval_query": "Does the company report how its board oversees the climate transition plan implementation?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -782,7 +751,6 @@
    "progress against transition plan targets board",
    "regular climate briefing board"
   ],
-  "retrieval_query": "Does the company report that it ensures that the company's board is informed at least quaterly about the progress against achieving the climate transition plan targets?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -826,7 +794,6 @@
    "share of bonus linked to emissions reduction",
    "long-term incentive climate metrics"
   ],
-  "retrieval_query": "Does the company provide a higher share of remuneration and bonuses that are linked to the successful implementation of the climate transition plan interim targets compared to the general part of variable compensation for executives and managers?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -868,11 +835,8 @@
    "third-party verification transition plan",
    "second party opinion",
    "SBTi validated target",
-   "independent assurance statement",
-   "validated by the Science Based Targets initiative",
-   "third-party validation"
+   "independent assurance statement"
   ],
-  "retrieval_query": "Does the company report that the climate transition plan targets and information contained in the report have been subject to external assurance and validation?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -915,7 +879,6 @@
    "same boundary as financial statements",
    "target boundary financial control"
   ],
-  "retrieval_query": "Does the company state explicitly that it uses the same organizational boundaries for setting and achieving its climate targets as it does for financial accounting?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -958,7 +921,6 @@
    "climate strategy asset decommissioning",
    "transition plan embedded in operations"
   ],
-  "retrieval_query": "Does the company provide comprehensive evidence that it fully and completely integrates its climate strategy into its business strategy, product development, operations, financial and human resources, asset management and asset decommissioning?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1001,7 +963,6 @@
    "decarbonization levers quantified",
    "targets by division emissions"
   ],
-  "retrieval_query": "Does the company report quantitative or quantifiable subtargets in line with their climate targets and their climate key performance indicators?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1043,11 +1004,8 @@
    "IEA net zero scenario",
    "scenario envelope",
    "sensitivity analysis climate targets",
-   "NGFS scenarios",
-   "model ensembles",
-   "multiple scenarios"
+   "NGFS scenarios"
   ],
-  "retrieval_query": "Does the company report the use of scenario envelopes to set targets and perform sensitivity analysis?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1088,12 +1046,8 @@
    "key assumptions underlying transition plan",
    "carbon price assumption",
    "assumptions on technology and policy",
-   "consumer preference assumptions",
-   "input prices",
-   "sector policies",
-   "economic development"
+   "consumer preference assumptions"
   ],
-  "retrieval_query": "Has the company reported its key assumptions that form the basis of its transition plan?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1135,11 +1089,8 @@
    "renewable capacity build-out",
    "power purchase agreements renewable",
    "share of renewable energy consumption",
-   "100% renewable electricity",
-   "renewable energy procurement",
-   "renewable energy consumption"
+   "100% renewable electricity"
   ],
-  "retrieval_query": "Does the company report a renewable energy strategy and activities, covering renewable energy build out, procurement and consumption?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1181,11 +1132,8 @@
    "climate technology R&D",
    "early-stage climate solutions",
    "decarbonization technology acquisition",
-   "clean technology capital projects",
-   "research and development",
-   "acquisitions climate solutions"
+   "clean technology capital projects"
   ],
-  "retrieval_query": "Does the company report a strategy and activities for the expansion of and investments in climate solutions and climate solution technologies?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1228,7 +1176,6 @@
    "opex shift to low-carbon",
    "climate opex planning"
   ],
-  "retrieval_query": "Does the company report its opex planning to ensure it meets its climate interim targets?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1272,7 +1219,6 @@
    "capex shift to low-carbon",
    "taxonomy-aligned capex target"
   ],
-  "retrieval_query": "Does the company report its capex planning to ensure it meets its climate interim targets?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1315,7 +1261,6 @@
    "low-carbon products revenue share",
    "climate solutions revenue"
   ],
-  "retrieval_query": "Does the company report its strategy and activities towards net zero aligned (or green) revenues?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1358,7 +1303,6 @@
    "net zero R&D strategy",
    "innovation spending decarbonization"
   ],
-  "retrieval_query": "Does the company report its strategy and activities to align all its Research and Development (R&D) activties with net zero targets?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1402,7 +1346,6 @@
    "upstream value chain engagement",
    "supplier climate requirements"
   ],
-  "retrieval_query": "Does the company report a strategy with specific activities and metrics of success for net zero engagement with its upstream value chain, i.e. with its suppliers?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1445,7 +1388,6 @@
    "client decarbonization support",
    "customer emissions reduction programme"
   ],
-  "retrieval_query": "Does the company report a strategy with specific activities and metrics of success for net zero engagement with its downstream value chain, i.e. with its customers or investees?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1486,10 +1428,8 @@
    "engagement with policy makers",
    "public policy positions climate",
    "lobbying for carbon pricing",
-   "government engagement net zero policies",
-   "public positioning climate policy"
+   "government engagement net zero policies"
   ],
-  "retrieval_query": "Does the company report an engagement strategy and activities with specific climate policies that it directly advocates for with policy makers?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1530,11 +1470,8 @@
    "trade association policy alignment",
    "industry group membership net zero",
    "association lobbying climate",
-   "leading industry initiative decarbonization",
-   "chairing a committee",
-   "steering committee"
+   "leading industry initiative decarbonization"
   ],
-  "retrieval_query": "Does the company report a strategy and activities with specific activities and engagement goals for net zero policies with industry associations?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1575,12 +1512,8 @@
    "consequences ineffective engagement",
    "divest if engagement fails",
    "supplier contract termination climate",
-   "leave industry association",
-   "no renewal of business relations",
-   "leaving an industry organisation",
-   "divesting"
+   "leave industry association"
   ],
-  "retrieval_query": "Does the company report serious consequences and escalation strategies if net zero engagement is ineffective at upstream, downstream, policy maker and industry association level?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1622,10 +1555,8 @@
    "coal phase-out commitment",
    "no new coal projects",
    "end financing of new fossil fuel supply",
-   "no new fossil fuel expansion",
-   "coal, oil and gas"
+   "no new fossil fuel expansion"
   ],
-  "retrieval_query": "Does the company state explicitly that it stopped or will immediately stop any support or activities in new additional fossil fuel exploration and extention of fossil fuel supply?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1668,7 +1599,6 @@
    "close fossil fuel assets",
    "phase out fossil fuel production"
   ],
-  "retrieval_query": "Does the company report a strategy and activities for the decommissioning and canceling of planned or existing fossil fuel exploration and supply infrastructure?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1709,11 +1639,8 @@
    "internal combustion engine phase-out",
    "gas boiler phase-out",
    "end sale of fossil fuel vehicles",
-   "fossil fuel consuming products",
-   "combustion engine cars",
-   "manufacturing equipment"
+   "fossil fuel consuming products"
   ],
-  "retrieval_query": "Does the company report a strategy and activities to phase out its use and support of fossil fuel consuming products and technologies?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1754,11 +1681,8 @@
    "impact on workforce of transition",
    "affected workers and communities",
    "reskilling workers decarbonization",
-   "monitoring social impacts of transition",
-   "fair and equitable transition",
-   "local communities"
+   "monitoring social impacts of transition"
   ],
-  "retrieval_query": "Does the company report a strategy  for a just transition, including monitoring and activities to mitigate adverse impacts of the net zero transition on its own workforce and indirectly affected workers and local communities?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1799,11 +1723,8 @@
    "dialogue with affected workers",
    "social dialogue trade unions transition",
    "community consultation plant closure",
-   "stakeholder engagement just transition",
-   "fair and equitable transition",
-   "affected workers and local communities"
+   "stakeholder engagement just transition"
   ],
-  "retrieval_query": "Does the company report that it develops specific just transition plans with its own climate transition affected workforce, local communities and relevant stakeholders?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1846,7 +1767,6 @@
    "natural capital impacts",
    "ecosystem services mitigation"
   ],
-  "retrieval_query": "Does the company report a strategy and activities to mitigate adverse impacts on the natural environment and the provision of ecosystem services?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1889,7 +1809,6 @@
    "halt and reverse deforestation",
    "forest-risk commodities"
   ],
-  "retrieval_query": "Does the company report a strategy and activities to halt and reverse deforestation by 2025?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1932,7 +1851,6 @@
    "biodiversity targets",
    "no net loss of biodiversity"
   ],
-  "retrieval_query": "Does the company report a strategy and activities to halt and reverse biodiversity loss by 2030?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -1975,7 +1893,6 @@
    "water withdrawal reduction",
    "wastewater discharge targets"
   ],
-  "retrieval_query": "Does the company report a strategy and activities to significantly reduce water consumption and pollution?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -2018,7 +1935,6 @@
    "scope 1 emissions 2023",
    "scope 1 emissions table"
   ],
-  "retrieval_query": "Does the company report its scope 1 GHG emissions for the past year?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -2061,7 +1977,6 @@
    "indirect emissions purchased electricity",
    "total scope 2 emissions"
   ],
-  "retrieval_query": "Does the company report its scope 2 GHG emissions for the past year?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -2104,7 +2019,6 @@
    "indirect emissions upstream and downstream",
    "scope 3 emissions 2023"
   ],
-  "retrieval_query": "Does the company report its scope 3 GHG emissions for the past year?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -2146,11 +2060,8 @@
    "use of sold products emissions",
    "scope 3 categories excluded",
    "GHG Protocol scope 3 category coverage",
-   "financed emissions category 15",
-   "capital goods",
-   "fuel- and energy-related activities"
+   "financed emissions category 15"
   ],
-  "retrieval_query": "Does the company report the coverage of scope 3 categories included, and reasons for the exclusion of categories?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -2193,7 +2104,6 @@
    "progress against net zero target",
    "annual emissions reduction progress"
   ],
-  "retrieval_query": "Does the company report its annual progress of reducing GHG emissions to achieve its emission reduction or net zero targets?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -2236,7 +2146,6 @@
    "scope 1 emissions by year",
    "scope 1 emissions 2019 to 2023"
   ],
-  "retrieval_query": "Does the company report its absolute scope 1 GHG emissions for the past 5 years?",
   "version": 2,
   "effective_from": null,
   "status": "draft",
@@ -2288,7 +2197,6 @@
    "scope 2 emissions by year",
    "scope 2 emissions 2019 to 2023"
   ],
-  "retrieval_query": "Does the company report its absolute scope 2 GHG emissions for the past 5 years?",
   "version": 2,
   "effective_from": null,
   "status": "draft",
@@ -2340,7 +2248,6 @@
    "scope 3 emissions by year",
    "scope 3 emissions 2019 to 2023"
   ],
-  "retrieval_query": "Does the company report its absolute scope 3 GHG emissions for the past 5 years?",
   "version": 2,
   "effective_from": null,
   "status": "draft",
@@ -2392,7 +2299,6 @@
    "scope 1 intensity per unit of production",
    "scope 1 emissions intensity five-year"
   ],
-  "retrieval_query": "Does the company report a decline in its scope 1 GHG emission intensity for the past 5 years?",
   "version": 2,
   "effective_from": null,
   "status": "draft",
@@ -2444,7 +2350,6 @@
    "scope 2 intensity per unit of production",
    "scope 2 emissions intensity five-year"
   ],
-  "retrieval_query": "Does the company report a decline in its scope 2 GHG intensity for the past 5 years?",
   "version": 2,
   "effective_from": null,
   "status": "draft",
@@ -2496,7 +2401,6 @@
    "scope 3 intensity per unit of production",
    "scope 3 emissions intensity five-year"
   ],
-  "retrieval_query": "Does the company report a decline in its scope 3 GHG intensity for the past 5 years?",
   "version": 2,
   "effective_from": null,
   "status": "draft",
@@ -2549,7 +2453,6 @@
    "factors behind emission reduction",
    "divestments and acquisitions emissions change"
   ],
-  "retrieval_query": "Does the company report the specific drivers and reasons for the company's observed actual GHG emission changes?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -2592,7 +2495,6 @@
    "deforestation target progress",
    "traceability to origin forest-risk commodities"
   ],
-  "retrieval_query": "Does the company report annual progress against its deforestation targets?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -2636,7 +2538,6 @@
    "taxonomy-aligned capex",
    "capex supporting transition"
   ],
-  "retrieval_query": "Does the company report the amount of climate aligned capex that supports its net zero transition?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -2679,7 +2580,6 @@
    "capex not aligned with net zero",
    "high-carbon capital expenditure"
   ],
-  "retrieval_query": "Does the company report the amount of climate transition misaligned capex?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -2723,7 +2623,6 @@
    "taxonomy-aligned revenue",
    "revenue from climate solutions"
   ],
-  "retrieval_query": "Does the company report the amount of climate transition aligned revenues that support the global net zero transition?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -2766,7 +2665,6 @@
    "revenue from carbon-intensive activities",
    "revenue not aligned with net zero"
   ],
-  "retrieval_query": "Does the company report the amount of climate transition misaligned revenues?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -2809,7 +2707,6 @@
    "misaligned association positions",
    "policy engagement consistency with climate targets"
   ],
-  "retrieval_query": "Does the company assess and report the alignment of its transition plan with its policy positions and its trade association's policy positions and lobbying?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -2853,7 +2750,6 @@
    "stewardship engagement net zero",
    "engagement with companies in portfolio"
   ],
-  "retrieval_query": "Does the company report its engagement activities with the companies it invests in its own financial portfolio (including voting and proxy voting) undertaken in the relevant reporting period?",
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -2897,7 +2793,6 @@
    "% reduction",
    "2030 target"
   ],
-  "retrieval_query": null,
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -2940,7 +2835,6 @@
    "reduction target",
    "baseline"
   ],
-  "retrieval_query": null,
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -2983,7 +2877,6 @@
    "tCO2e",
    "emissions table"
   ],
-  "retrieval_query": null,
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -3026,7 +2919,6 @@
    "location-based",
    "tCO2e"
   ],
-  "retrieval_query": null,
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -3068,7 +2960,6 @@
    "indirect emissions",
    "tCO2e"
   ],
-  "retrieval_query": null,
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -3110,7 +3001,6 @@
    "tCO2e per",
    "intensity"
   ],
-  "retrieval_query": null,
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -3152,7 +3042,6 @@
    "tCO2e per",
    "intensity"
   ],
-  "retrieval_query": null,
   "version": 1,
   "effective_from": null,
   "status": "draft",
@@ -3194,7 +3083,6 @@
    "tCO2e per",
    "intensity"
   ],
-  "retrieval_query": null,
   "version": 1,
   "effective_from": null,
   "status": "draft",

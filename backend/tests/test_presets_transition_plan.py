@@ -47,7 +47,7 @@ def test_scope_1_target_guideline_asks_about_scope_1():
     f = next(f for f in build_transition_plan_schema().fields if f.name == "A_coverage_6")
     assert "reported for scope 1 emissions" in f.extraction_instructions
     assert "scope 2 emissions of the company" not in f.extraction_instructions
-    assert f.version == 3  # the guideline changed (v2), then the requires rule (v3); a released version can't be overwritten
+    assert f.version == 4  # guideline (v2), requires rule (v3), guideline include-terms in seed_keywords (v4)
 
 
 # --- contradiction rules (spec 2026-10-21-retire-transition-plan-pipeline-design, section 2) ---
@@ -67,6 +67,10 @@ _RULE_BEARING = set(_PAIRS) | {"tp_a_progress_70", "tp_a_progress_71", "tp_a_pro
 
 def _built():
     return {f.field_id: f for f in build_transition_plan_schema().fields}
+
+
+# seed_keywords changed since the fixture (spec retrieval-gold-set-and-question-queries, B.2): one version up each.
+_KEYWORDS_CHANGED = {fid for fid, f in _built().items() if f.seed_keywords != _MAIN[fid]["seed_keywords"]}
 
 
 def test_requires_yes_lists_the_ten_pairs():
@@ -95,7 +99,7 @@ def test_rule_bearing_fields_are_exactly_13():  # AC-9
 
 def test_versions():  # AC-10
     for fid, f in _built().items():
-        assert f.version == _MAIN[fid]["version"] + (fid in _PAIRS), fid
+        assert f.version == _MAIN[fid]["version"] + (fid in _PAIRS) + (fid in _KEYWORDS_CHANGED), fid
 
 
 def test_everything_else_unchanged():  # AC-26
@@ -104,6 +108,8 @@ def test_everything_else_unchanged():  # AC-26
     for f in got:
         want = _MAIN[f["field_id"]]
         skip = {"rules", "version"} if f["field_id"] in _PAIRS else set()
+        if f["field_id"] in _KEYWORDS_CHANGED:  # keywords: test_every_indicator_has_3_to_8_keywords; version: test_versions
+            skip |= {"seed_keywords", "version"}
         assert {k: v for k, v in f.items() if k not in skip} == {k: v for k, v in want.items() if k not in skip}
 
 

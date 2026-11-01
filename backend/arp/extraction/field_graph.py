@@ -162,7 +162,6 @@ def field_evidence(
         opensearch_client=opensearch_client,
         fallback_to_all=field.high_risk,
         on_unranked_fallback=on_unranked_fallback,
-        semantic_query=field.retrieval_query,
         **limits,
     )
 
