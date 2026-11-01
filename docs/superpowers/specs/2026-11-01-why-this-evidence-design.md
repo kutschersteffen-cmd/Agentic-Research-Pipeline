@@ -27,7 +27,8 @@ hybrid, term and vector similarity per passage.
    adds `retrieval: {method, reranked, candidates}` and `near_misses` (same shape as passages, with scores).
    Grouped fields keep each passage's scores from the field ranking it came from and record no near-misses.
 3. **API.** `build_walkthrough` passes `retrieval`, per-passage `scores` and `near_misses` (with text, like passages)
-   through. Old traces without them return `retrieval: null`, `near_misses: []`, and passages without `scores`.
+   through; each near-miss item gets `rank` = passage count + i (1-based, so ranks continue after the passages),
+   `doc_title` and `text`, like passages. Old traces without them return `retrieval: null`, `near_misses: []`, and passages without `scores`.
 4. **UI.** In the "Find evidence" step:
    - one mono line above the list: `{method label}{", re-ranked" if reranked} · {candidates} candidates`, with labels
      `bm25` → `BM25`, `hybrid` → `BM25 + vectors (RRF)`, `opensearch` → `BM25 (OpenSearch)`,
@@ -60,17 +61,17 @@ store the existing hybrid tests in `tests/` use. **OS** = the stub OpenSearch cl
 |------|-------|------|--------------------------|------------|
 | AC-1 | F1, `explain={}` | `select_relevant_chunks` runs | Returns the same 5 chunks in the same order as the same call without `explain` | unit |
 | AC-2 | F1 | Call returns | `explain["method"] == "bm25"` | unit |
-| AC-3 | F1 | Call returns | `explain["reranked"] is False` and `explain["candidates"] == 20` | unit |
+| AC-3 | F1 | Call returns | `explain["reranked"] is False` | unit |
 | AC-4 | F1 | Call returns | Each returned chunk has `scores[id]["bm25"] > 0`, and the values are non-increasing in return order | unit |
 | AC-5 | F1 | Call returns | `explain["near_misses"]` equals the ids at ranks 6, 7, 8, in that order | unit |
 | AC-6 | F1 + VS (hybrid) | Call returns | `explain["method"] == "hybrid"` | unit |
 | AC-7 | F1 + VS | Call returns | Every returned chunk has a float `rrf` and an int `vector_rank` ≥ 1 | unit |
-| AC-8 | F1 + RR, `rerank_candidates=10` | Call returns | `explain["reranked"] is True` and every returned chunk has a float `rerank` | unit |
+| AC-8 | F1 + RR, `rerank_candidates=10` | Call returns | `explain["reranked"] is True` | unit |
 | AC-9 | F1 + an RR that keeps the input order | Call returns | `explain["reranked"] is True` | unit |
 | AC-10 | F1 + OS | Call returns | `explain["method"] == "opensearch"` | unit |
 | AC-11 | F1 + OS + VS | Call returns | `explain["method"] == "opensearch_hybrid"` | unit |
-| AC-12 | Chunks with no keyword hit, `fallback_to_all=True`, BM25 only | Call returns | `explain["method"] == "unranked"` and no returned chunk has a `bm25` key | unit |
-| AC-13 | F1 with `query_terms=[]` | Call returns | `explain["method"] == "none"` and `explain["scores"] == {}` | unit |
+| AC-12 | Chunks with no keyword hit, `fallback_to_all=True`, BM25 only | Call returns | `explain["method"] == "unranked"` | unit |
+| AC-13 | F1 with `query_terms=[]` | Call returns | `explain["method"] == "none"` | unit |
 | AC-14 | DOCS, one ungrouped field | Trace entry is written | `retrieval` has exactly the keys `method`, `reranked`, `candidates` | unit |
 | AC-15 | As AC-14 | Trace entry is written | Every passage has a `scores` object | unit |
 | AC-16 | As AC-14, fixture with ≥ 3 near-misses | Trace entry is written | `near_misses` has exactly 3 items, each with `doc_id`, `char_start`, `char_end`, `section`, `scores` | unit |
@@ -78,7 +79,7 @@ store the existing hybrid tests in `tests/` use. **OS** = the stub OpenSearch cl
 | AC-18 | As AC-17 | Trace entry is written | `near_misses == []` | unit |
 | AC-19 | Trace written by new code | `GET` walkthrough for that field | Response `retrieval` equals the trace's `retrieval` | unit |
 | AC-20 | As AC-19 | Same | Each response passage carries the trace passage's `scores` | unit |
-| AC-21 | As AC-19 | Same | Each `near_misses` item carries `rank`, `doc_title` and non-null `text` | unit |
+| AC-21 | As AC-19 | Same | `near_misses` items have `rank` == len(passages)+1 … +3, each with `doc_title` and non-null `text` | unit |
 | AC-22 | Trace written before this change (no `scores`, no `retrieval`) | `GET` walkthrough | `retrieval` is null and `near_misses == []` | unit |
 | AC-23 | As AC-22 | Same | Passages are byte-equal to the response `main` returns for the same trace | unit |
 | AC-24 | `seeded-scored` in the e2e stack | Reviewer opens its Walkthrough, "Find evidence" step | The line above the passages reads `BM25 + vectors (RRF), re-ranked · {n} candidates` with n = the trace's `candidates` | evaluator |
@@ -91,10 +92,15 @@ store the existing hybrid tests in `tests/` use. **OS** = the stub OpenSearch cl
 | AC-31 | As AC-30 | Same view | Score text contrast ≥ 4.5:1 against its background | evaluator |
 | AC-32 | As AC-30 | Same view | Score text colour is not the signal colour (`--hi`) | evaluator |
 | AC-33 | As AC-30 | Same view | Score text has `font-variant-numeric: tabular-nums` | evaluator |
-| AC-34 | DOCS, full field extraction | Run with `explain` recording vs. the same run with recording forced off | Extracted values and grounding results are equal | unit |
+| AC-34 | DOCS, full field extraction | Run on this branch vs. the same run with `select_relevant_chunks` monkeypatched to be called with `explain=None` | Extracted values and grounding results are equal | unit |
 | AC-35 | TNFD, financials and research `select_relevant_chunks` callers' existing fixtures | Their existing tests run | Same chunks as on `main` (existing assertions pass unchanged) | unit |
 | AC-36 | Golden set | CI golden-set job (`arp golden-set run`) | Exits 0 with 0 failing cases | golden |
 | AC-37 | Existing backend and frontend suites | CI | All existing tests pass unchanged | unit |
+| AC-38 | F1 | Call returns | `explain["candidates"] == 20` | unit |
+| AC-39 | F1 + RR, `rerank_candidates=10` | Call returns | Every returned chunk has a float `rerank` | unit |
+| AC-40 | As AC-12 | Call returns | No returned chunk has a `bm25` key | unit |
+| AC-41 | As AC-13 | Call returns | `explain["scores"] == {}` | unit |
+| AC-42 | Walkthrough field with `near_misses == []` (frontend fixture) | Step renders | No `Just missed` element is rendered | unit |
 
 Must not change: which evidence is chosen and its order (AC-1, AC-34, AC-36), callers without `explain` (AC-35,
 AC-37), old traces (AC-22, AC-23, AC-28, AC-29).
