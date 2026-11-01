@@ -1,4 +1,5 @@
 import { clearToken, getToken } from "../lib/auth";
+import type { Plan } from "../lib/plans";
 import { filenameFromDisposition, inlineSafe } from "../lib/files";
 import { profileEmbedParams } from "../lib/biEmbed";
 import type { RowLineage } from "../lib/lineage";
@@ -251,6 +252,12 @@ const step5 = (dossierId: string, path: string) => `/api/dossiers/${encodeURICom
 const jsonBody = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 
 export const api = {
+  listPlans: () => request<Plan[]>("/api/plans"),
+  getPlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}`),
+  draftPlan: (brief: string) => request<Plan>("/api/plans", jsonBody("POST", { brief })),
+  approvePlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}/approve`, { method: "POST" }),
+  runPlan: (id: string) => request<{ plan_id: string; status: string }>(`/api/plans/${encodeURIComponent(id)}/run`, { method: "POST" }),
+  cancelPlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
   listRfpLibrary: () => request<RfpLibraryEntry[]>("/api/rfp/library"),
   importRfpLibrary: (files: File[]) => {
     const form = new FormData();

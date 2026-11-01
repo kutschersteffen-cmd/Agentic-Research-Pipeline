@@ -15,7 +15,7 @@ export const NAV_GROUPS: { label: string | null; ids: readonly string[] }[] = [
  * route, so deep links and Processes steps still land. */
 export const HUBS: { label: string; tabs: [string, string][] }[] = [
   { label: "Library", tabs: [["library", "Data Library"], ["search", "Search"]] },
-  { label: "Runs", tabs: [["history", "Run history"], ["backgroundAgents", "Standing agents"]] },
+  { label: "Runs", tabs: [["history", "Run history"], ["plans", "Research plans"], ["backgroundAgents", "Standing agents"]] },
 ];
 
 // Removed screens and the screen that now does their job.
