@@ -156,7 +156,7 @@ async def _vision_entry(fake_llm, pdf_doc, *, enabled):
 async def test_vision_answer_recorded(fake_llm, pdf_doc):
     entry, reading = await _vision_entry(fake_llm, pdf_doc, enabled=True)
     assert entry["vision"]["answer"] == reading.model_dump(mode="json")
-    assert set(entry["vision"]) == {"model", "prompt_version", "answer"}
+    assert set(entry["vision"]) == {"model", "prompt_version", "answer", "input_tokens", "output_tokens", "cost_usd"}  # usage: step-timing spec
 
 
 async def test_no_vision_when_fallback_off(fake_llm, pdf_doc):
@@ -226,3 +226,68 @@ async def test_recording_changes_no_value(fake_llm, monkeypatch):  # AC-34
     monkeypatch.setattr(field_graph, "select_relevant_chunks", lambda *a, **kw: real(*a, **{**kw, "explain": None}))
     plain, _, _ = await _run_long(_agreeing_llm(fake_llm), {})
     assert [f.model_dump() for f in recorded] == [f.model_dump() for f in plain]
+
+
+# --- step-timing spec: time per node and usage per call ---
+
+async def test_entry_records_node_seconds(fake_llm):  # AC-1
+    sink = {}
+    await _run(_agreeing_llm(fake_llm), _field(), sink=sink)
+    seconds = sink["scope1"]["seconds"]
+    assert set(seconds) == {"try_tagged", "gather_evidence", "extract", "verify", "aggregate"}
+    assert all(isinstance(s, float) and s >= 0 and round(s, 2) == s for s in seconds.values())
+
+
+async def test_calls_record_usage(fake_llm):  # AC-3, AC-4, AC-5 (the fake client reports 10 in / 10 out)
+    from arp.llm.base import LLMUsage
+    from arp.orchestration.cost_tracker import estimate_cost_usd
+
+    sink = {}
+    await _run(_agreeing_llm(fake_llm), _field(), sink=sink)
+    for step in ("extractor", "verifier"):
+        call = sink["scope1"][step]
+        assert (call["input_tokens"], call["output_tokens"]) == (10, 10)
+        assert call["cost_usd"] == round(estimate_cost_usd(call["model"], LLMUsage(input_tokens=10, output_tokens=10)), 6)
+
+
+async def test_timing_changes_no_value(fake_llm):  # AC-6
+    with_sink, _, _ = await _run(_agreeing_llm(fake_llm), _field(), sink={})
+    without, _, _ = await _run(_agreeing_llm(fake_llm), _field())
+    assert [f.model_dump() for f in with_sink] == [f.model_dump() for f in without]
+
+
+async def test_tally_counts_unchanged_by_the_sink(fake_llm, monkeypatch):  # AC-2
+    from arp.orchestration import step_tally
+
+    def counted(sink):
+        tally = step_tally._Tally()
+        monkeypatch.setattr(step_tally, "_current", step_tally.ContextVar("t", default=tally))
+        return tally
+
+    a = counted(None)
+    await _run(_agreeing_llm(fake_llm), _field(), sink={})
+    b = counted(None)
+    await _run(_agreeing_llm(fake_llm), _field())
+    assert a.counts == b.counts and a.counts
+
+
+async def test_a_node_run_twice_adds_up(monkeypatch):  # AC-19
+    import pytest
+
+    from arp.orchestration import step_tally
+    from arp.walkthrough.trace import field_entry
+
+    class Graph:
+        async def astream(self, state, stream_mode):
+            for node in ("verify", "verify"):
+                yield "updates", {node: {}}
+            yield "values", state
+
+    import itertools
+
+    clock = itertools.chain([0.0, 0.3, 0.7], itertools.repeat(0.7))  # time is global: the event loop reads it too
+    monkeypatch.setattr(step_tally.time, "monotonic", lambda: next(clock))
+    seen: dict = {}
+    await step_tally.run_graph(Graph(), {"seen": seen})
+    assert seen["seconds"]["verify"] == pytest.approx(0.7)
+    assert field_entry("f", seconds=seen["seconds"])["seconds"]["verify"] == 0.7

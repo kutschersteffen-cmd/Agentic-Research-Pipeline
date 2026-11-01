@@ -34,6 +34,16 @@ def retrieval(explain: dict | None) -> dict | None:
     return {k: explain[k] for k in ("method", "reranked", "candidates")}
 
 
+def _usage(usage: LLMUsage | None) -> dict:
+    """Tokens and cost of one call, for the walkthrough's step timing; nothing when there is no usage."""
+    if usage is None:
+        return {}
+    from arp.orchestration.cost_tracker import estimate_cost_usd
+
+    return {"input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens,
+            "cost_usd": round(estimate_cost_usd(usage.model, usage), 6)}
+
+
 def call(usage: LLMUsage | None, answer: BaseModel | None) -> dict | None:
     if answer is None:
         return None
@@ -41,13 +51,15 @@ def call(usage: LLMUsage | None, answer: BaseModel | None) -> dict | None:
         "model": usage.model if usage else "",
         "prompt_version": usage.prompt_version if usage else "",
         "answer": answer.model_dump(mode="json"),
+        **_usage(usage),
     }
 
 
 def verifier_call(usage: LLMUsage | None, answer: BaseModel | None, *, blind: bool, verdict: BaseModel | None) -> dict | None:
     entry = call(usage, answer)
     if entry is None and verdict is not None:  # a blind re-extraction that failed still has the code's verdict
-        entry = {"model": usage.model if usage else "", "prompt_version": usage.prompt_version if usage else "", "answer": None}
+        entry = {"model": usage.model if usage else "", "prompt_version": usage.prompt_version if usage else "", "answer": None,
+                 **_usage(usage)}
     if entry is None:
         return None
     entry["blind"] = blind
@@ -67,6 +79,7 @@ def field_entry(
     vision: dict | None = None,
     retrieval: dict | None = None,
     near_misses: list[dict] = (),
+    seconds: dict[str, float] | None = None,
 ) -> dict:
     return {
         "field_id": field_id,
@@ -79,6 +92,7 @@ def field_entry(
         "vision": vision,
         "retrieval": retrieval,
         "near_misses": list(near_misses),
+        "seconds": {node: round(s, 2) for node, s in (seconds or {}).items()},
     }
 
 

@@ -1,4 +1,4 @@
-import type { WalkthroughRetrieval, WalkthroughScores, Walkthrough } from "../types";
+import type { WalkthroughCall, WalkthroughRetrieval, WalkthroughScores, Walkthrough } from "../types";
 
 // The Argus walkthrough screen (#/argusWalkthrough/<run>/<company>/<item>[/<period_end>][?basis=]): its route and
 // the steps one stored row went through, built from GET /api/walkthrough (argus-walkthrough spec, "The screen").
@@ -237,3 +237,46 @@ export function scoreText(s: WalkthroughScores | undefined): string {
 
 /** A recorded field with passages but no retrieval record: its run predates the scores. */
 export const scoresMissing = (w: Walkthrough) => w.recorded && w.passages.length > 0 && !w.retrieval;
+
+// --- Step timing (step-timing spec): time per graph node, tokens and cost per model call.
+
+const STEP_NODE: Record<string, string> = {
+  "Tagged data first": "try_tagged", "Find evidence": "gather_evidence", Extract: "extract", Verify: "verify",
+  "Verify, blind": "verify", Adjudicate: "adjudicate", "Ground every quote": "aggregate",
+};
+const STEP_CALL: Record<string, "extractor" | "verifier" | "adjudicator"> = {
+  Extract: "extractor", Verify: "verifier", "Verify, blind": "verifier", Adjudicate: "adjudicator",
+};
+
+export const stepNode = (step: string): string | null => STEP_NODE[step] ?? null;
+
+export function formatSeconds(s: number): string {
+  return s < 0.01 ? "< 0.01 s" : s < 10 ? `${s.toFixed(2)} s` : `${s.toFixed(1)} s`;
+}
+
+const cost = (usd: number) => (usd.toFixed(4) === "0.0000" ? "cached" : `$${usd.toFixed(4)}`);
+
+/** "3,410 → 212 tokens · $0.0123"; null when the call recorded no tokens. */
+export function usageText(c: Partial<WalkthroughCall> | null | undefined): string | null {
+  if (!c?.input_tokens) return null;
+  return `${c.input_tokens.toLocaleString("en-US")} → ${(c.output_tokens ?? 0).toLocaleString("en-US")} tokens · ${cost(c.cost_usd ?? 0)}`;
+}
+
+const timed = (w: Walkthrough) => w.run_type === "extraction" && Object.keys(w.seconds ?? {}).length > 0;
+
+/** What follows a step's label: its time, then for a model step its tokens and cost; "" when nothing was recorded. */
+export function stepTiming(w: Walkthrough, step: string): string {
+  if (!timed(w)) return "";
+  const node = stepNode(step);
+  const call = STEP_CALL[step] ? usageText(w[STEP_CALL[step]]) : null;
+  return [node != null && w.seconds![node] != null ? formatSeconds(w.seconds![node]) : null, call].filter(Boolean).join(" · ");
+}
+
+/** "4.20 s · 5,120 tokens · $0.0210" over the recorded nodes and calls; null when nothing was timed. */
+export function timingTotal(w: Walkthrough): string | null {
+  if (!timed(w)) return null;
+  const calls = [w.extractor, w.verifier, w.adjudicator, w.vision].filter((c): c is WalkthroughCall => !!c?.input_tokens);
+  const seconds = Object.values(w.seconds!).reduce((a, b) => a + b, 0);
+  const tokens = calls.reduce((a, c) => a + (c.input_tokens ?? 0) + (c.output_tokens ?? 0), 0);
+  return `${formatSeconds(seconds)} · ${tokens.toLocaleString("en-US")} tokens · ${cost(calls.reduce((a, c) => a + (c.cost_usd ?? 0), 0))}`;
+}

@@ -345,7 +345,8 @@ export interface ExtractionRecord {
 }
 
 /** One model call in a walkthrough: the answer exactly as the run recorded it. */
-export interface WalkthroughCall { model: string; prompt_version: string; answer: unknown }
+/** input_tokens/output_tokens/cost_usd: what the call used; absent in traces written before they were recorded. */
+export interface WalkthroughCall { model: string; prompt_version: string; answer: unknown; input_tokens?: number; output_tokens?: number; cost_usd?: number }
 export interface WalkthroughPassage {
   rank: number;
   doc_id: string;
@@ -378,6 +379,8 @@ export interface Walkthrough {
   passages: WalkthroughPassage[];
   /** How the passages were ranked; null for traces written before it was recorded. */
   retrieval?: WalkthroughRetrieval | null;
+  /** Seconds per graph node of a data-point field; {} when not recorded. */
+  seconds?: Record<string, number>;
   /** The passages ranked right after the cut, ranks continuing after the passages. */
   near_misses?: WalkthroughPassage[];
   extractor: WalkthroughCall | null;
