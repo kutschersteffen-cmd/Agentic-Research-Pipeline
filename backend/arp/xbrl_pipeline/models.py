@@ -134,3 +134,20 @@ class VerifyRow(BaseModel):
     unit: str | None  # the XBRL unit for found XBRL values
     run_unit: str | None = None
     detail: str
+
+
+class SegmentRow(BaseModel):
+    company_id: str
+    market: Market
+    fiscal_year: int
+    metric: str
+    concept: str
+    axis: str
+    member: str
+    segment: str
+    value: float
+    unit: str | None
+    period_start: str | None
+    period_end: str
+    accession: str | None
+    sum_matches_total: bool
