@@ -123,5 +123,6 @@ def test_cli_approve_run_show(client, store, gate):
     assert runner.invoke(plan_cli.plan_app, ["approve", plan_id, "--user", "bob"]).exit_code == 0
     result = runner.invoke(plan_cli.plan_app, ["run", plan_id])
     assert result.exit_code == 0 and result.stdout.strip() == "done"
+    assert "2 extraction" in runner.invoke(plan_cli.plan_app, ["dry-run", plan_id]).stdout
     shown = runner.invoke(plan_cli.plan_app, ["show", plan_id]).stdout
     assert "done  approved by bob" in shown and "call 2 extraction done r_1" in shown

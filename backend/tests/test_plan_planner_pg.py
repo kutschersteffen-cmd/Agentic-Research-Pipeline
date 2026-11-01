@@ -59,3 +59,11 @@ def test_stubs_list_every_step():
 @pytest.fixture(autouse=True)
 def _no_real_llm(monkeypatch):
     monkeypatch.setenv("ARP_ANTHROPIC_API_KEY", "")
+
+
+async def test_dry_run_error_is_retried(pg, fake_llm):  # review: dry-run failures get the one retry
+    undefined = PlanScript(script='extraction(universe_run_id=nope.run_id, schema_id="s")\n')
+    llm = fake_llm({"PlanScript": [undefined, GOOD]})
+    plan_id = await draft_plan("b", llm, PlanStore(pg))
+    assert "name nope is not defined" in llm.prompts[1]
+    assert PlanStore(pg).get(plan_id)["status"] == "draft"

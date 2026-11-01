@@ -24,9 +24,12 @@ def check(path: Path) -> None:
 
 
 @plan_app.command("dry-run")
-def dry_run_cmd(path: Path) -> None:
-    """List the steps a plan script will take, without starting any run."""
-    # shortcut: takes a script file; `dry-run <plan_id>` arrives with plan storage (plan task 5).
+def dry_run_cmd(target: str) -> None:
+    """List the steps a plan script (a file) or a stored plan (its id) will take, without starting any run."""
+    path = Path(target)
+    if not path.exists():
+        _print_steps(_plan_or_exit(_store(), target)["dry_run"])
+        return
     try:
         calls = dry_run(path.read_text())
     except (PlanScriptError, StepLimitExceeded) as exc:

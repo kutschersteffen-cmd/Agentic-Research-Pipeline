@@ -156,3 +156,33 @@ def test_cancel_lets_current_step_finish(store):  # AC-32
     calls = store.calls(plan_id)
     assert calls[1]["status"] == "done"
     assert [c["seq"] for c in calls] == [1, 2]
+
+
+def test_cancel_while_awaiting_review_is_kept(store):  # review: reviewed+cancel must not resume
+    plan_id = _approved(store)
+    reviewed = threading.Event()
+    t = threading.Thread(target=run_plan, args=(plan_id, store, Stubs(gate_kind="extraction").all(),
+                                                lambda c: reviewed.is_set()), kwargs={"poll_seconds": 0.2})
+    t.start()
+    _wait_for(lambda: store.get(plan_id)["status"] == "awaiting_review")
+    cancel_plan(plan_id, store)
+    reviewed.set()
+    t.join(5)
+    assert store.get(plan_id)["status"] == "cancelled"
+    assert [c["seq"] for c in store.calls(plan_id)] == [1, 2]
+
+
+def test_plan_left_running_by_dead_worker_can_resume(store):  # review: no stuck plans
+    from arp.orchestration.plan_executor import claim_plan
+
+    plan_id = _approved(store)
+    store.set_status(plan_id, "running")  # as if the worker died mid-run
+    claim_plan(store, plan_id)
+    assert run_plan(plan_id, store, Stubs().all(), lambda c: True) == "done"
+
+
+def test_edit_clears_old_calls(store):  # review: an edited plan must not reuse old results
+    plan_id = _approved(store)
+    run_plan(plan_id, store, Stubs().all(), lambda c: True)
+    store.update_script(plan_id, CHAIN)
+    assert store.calls(plan_id) == []

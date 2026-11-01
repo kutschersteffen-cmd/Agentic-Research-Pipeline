@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -9,10 +10,11 @@ from pydantic import BaseModel
 from arp.api.auth import Principal, current_user
 from arp.config import Settings, get_settings
 from arp.db.session import require_dsn
-from arp.orchestration.plan_executor import PlanNotRunnable, cancel_plan, run_plan
+from arp.orchestration.plan_executor import PlanNotRunnable, cancel_plan, claim_plan, run_plan
 from arp.orchestration.plan_planner import PlanRejected, draft_plan
 from arp.orchestration.plan_store import PlanNotFound, PlanStore
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/plans", tags=["plans"])
 _running: set[asyncio.Task] = set()  # strong refs: a running plan's task is never garbage-collected
 
@@ -92,16 +94,22 @@ def approve_plan(plan_id: str, store: PlanStore = Depends(plan_store),
 
 @router.post("/{plan_id}/run", status_code=202)
 async def start_plan(plan_id: str, store: PlanStore = Depends(plan_store)) -> dict:
-    status = _get(store, plan_id)["status"]
-    if status in {"running", "awaiting_review"}:
-        raise HTTPException(409, "plan is already running")
-    if status not in {"approved", "failed"}:
-        raise HTTPException(409, "plan is not approved")
+    _get(store, plan_id)
+    try:
+        await asyncio.to_thread(claim_plan, store, plan_id)
+    except PlanNotRunnable as exc:
+        raise HTTPException(409, str(exc)) from exc
     steps, reviewed = build_runtime(get_settings())
     task = asyncio.create_task(asyncio.to_thread(run_plan, plan_id, store, steps, reviewed))
     _running.add(task)
-    task.add_done_callback(_running.discard)
+    task.add_done_callback(_done)
     return {"plan_id": plan_id, "status": "running"}
+
+
+def _done(task: asyncio.Task) -> None:
+    _running.discard(task)
+    if not task.cancelled() and task.exception() is not None:
+        logger.error("plan worker failed", exc_info=task.exception())
 
 
 @router.post("/{plan_id}/cancel")

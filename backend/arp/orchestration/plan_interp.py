@@ -12,9 +12,11 @@ from collections.abc import Callable
 from typing import Any
 
 from arp.orchestration.plan_api import BUILTINS, STEPS
-from arp.orchestration.plan_check import check_script
+from arp.orchestration.plan_check import check_script, placeholder
 
 MAX_STEPS = 500
+MAX_OPS = 100_000  # statements and loop iterations: bounds scripts that never call a step
+MAX_RANGE = 10_000
 
 
 class StepLimitExceeded(RuntimeError):
@@ -46,12 +48,19 @@ class _Interp:
         self.steps = steps
         self.env: dict[str, Any] = {}
         self.calls: list[dict] = []
+        self.ops = 0
         self.deps: list[int] = []  # seqs of unknowns the current branch/loop depends on
 
     # statements
     def run(self, body: list[ast.stmt]) -> None:
         for stmt in body:
+            self.tick()
             self.stmt(stmt)
+
+    def tick(self) -> None:
+        self.ops += 1
+        if self.ops > MAX_OPS:
+            raise PlanScriptError(f"operation limit {MAX_OPS} exceeded")
 
     def stmt(self, node: ast.stmt) -> None:
         if isinstance(node, ast.Assign):
@@ -104,6 +113,8 @@ class _Interp:
             case ast.List(elts=elts) | ast.Tuple(elts=elts):
                 return [self.expr(e) for e in elts]
             case ast.Dict(keys=keys, values=values):
+                if None in keys:
+                    raise PlanScriptError(f"line {node.lineno}: ** unpacking not allowed")
                 return {self.expr(k): self.expr(v) for k, v in zip(keys, values, strict=True)}
             case ast.Attribute(value=obj, attr=attr):
                 return self.field(self.expr(obj), attr, node.lineno)
@@ -157,6 +168,7 @@ class _Interp:
     def listcomp(self, elt: ast.expr, gen: ast.comprehension) -> Any:
         out = []
         for item, dep in self.iterate(self.expr(gen.iter)):
+            self.tick()
             self.assign(gen.target, item)
             conds = [self.expr(c) for c in gen.ifs]
             unknown = dep or next((c.seq for c in conds if isinstance(c, Unknown)), None)
@@ -173,14 +185,20 @@ class _Interp:
         if name in BUILTINS:
             if any(isinstance(a, Unknown) for a in args):
                 return next(a for a in args if isinstance(a, Unknown))
+            if name == "range" and len(range(*args)) > MAX_RANGE:
+                raise PlanScriptError(f"line {node.lineno}: range longer than {MAX_RANGE}")
             return getattr(builtins, name)(*args, **kwargs)
         if len(self.calls) >= MAX_STEPS:
             raise StepLimitExceeded(f"step limit {MAX_STEPS} exceeded")
         seq = len(self.calls) + 1
         found = [v.seq for v in _flatten(kwargs.values()) if isinstance(v, Unknown)]
         depends_on = (self.deps[-1] if self.deps else None) or (found[0] if found else None)
-        params = _jsonable(kwargs)
-        STEPS[name].model_validate(params)
+        model = STEPS[name]
+        # A value only the real run knows is checked by type here and for real when the step runs.
+        model.model_validate({k: placeholder(model, k) if isinstance(v, Unknown) else _jsonable(v)
+                              for k, v in kwargs.items()})
+        params = {k: ([repr(v)] if isinstance(placeholder(model, k), list) else repr(v)) if isinstance(v, Unknown)
+                  else _jsonable(v) for k, v in kwargs.items()}
         self.calls.append({"seq": seq, "kind": name, "params": params, "depends_on": depends_on})
         return self.steps[name](seq=seq, **params)
 

@@ -68,5 +68,4 @@ STEPS: dict[str, type[_Step]] = {
 
 # Fields a step result exposes to the script. Each company carries id, name, included (bool) and exposure
 # (pure_play | significant | minor | none, the best across the theme's activities).
-RESULT_FIELDS = ("id", "run_id", "companies")
 BUILTINS = ("len", "min", "max", "sorted", "sum", "range")

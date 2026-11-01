@@ -68,7 +68,7 @@ def _check_call(node: ast.Call, where: str) -> list[str]:
     literals = {k.arg: ast.literal_eval(k.value) for k in node.keywords if _is_literal(k.value)}
     dynamic = {k.arg for k in node.keywords} - literals.keys()
     try:
-        model.model_validate({**{f: _placeholder(model, f) for f in dynamic}, **literals})
+        model.model_validate({**{f: placeholder(model, f) for f in dynamic}, **literals})
     except ValidationError as exc:
         return [f"{where}{func}: {e['loc'][0] if e['loc'] else ''} {e['msg']}".rstrip() for e in exc.errors()]
     return []
@@ -77,12 +77,12 @@ def _check_call(node: ast.Call, where: str) -> list[str]:
 def _is_literal(node: ast.expr) -> bool:
     try:
         ast.literal_eval(node)
-    except ValueError:
+    except Exception:  # noqa: BLE001 - literal_eval raises ValueError, TypeError, SyntaxError, RecursionError
         return False
     return True
 
 
-def _placeholder(model, field: str):
+def placeholder(model, field: str):
     """A value of the field's type, standing in for an argument only known at run time."""
     ann = str(model.model_fields[field].annotation)
     return ["x"] if "list" in ann else "x"

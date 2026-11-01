@@ -29,6 +29,27 @@ class _Cancelled(Exception):
 
 
 _STARTABLE = {"approved", "failed"}  # failed: `resume` re-runs from the top, reusing finished calls
+_ACTIVE = {"running", "awaiting_review"}
+
+
+def plan_alive(store: PlanStore, plan_id: str) -> bool:
+    """A worker holds the plan's lease. A plan left `running` by a dead worker is not alive and may be run again."""
+    try:
+        with run_lease(store, f"plan:{plan_id}"):
+            return False
+    except RunBusy:
+        return True
+
+
+def claim_plan(store: PlanStore, plan_id: str) -> None:
+    """Mark the plan running before its worker starts, so a caller sees `running` at once and a second claim fails.
+    Raises PlanNotRunnable."""
+    if store.claim(plan_id, _STARTABLE, "running"):
+        return
+    status = store.get(plan_id)["status"]
+    if status in _ACTIVE and not plan_alive(store, plan_id):
+        return  # its worker died; the new worker takes over and resumes
+    raise PlanNotRunnable("plan is already running" if status in _ACTIVE else "plan is not approved")
 
 
 def run_plan(plan_id: str, store: PlanStore, steps: dict[str, StepFn], reviewed: ReviewedFn,
@@ -43,10 +64,9 @@ def run_plan(plan_id: str, store: PlanStore, steps: dict[str, StepFn], reviewed:
 
 
 def _run(plan_id: str, store: PlanStore, steps: dict[str, StepFn], reviewed: ReviewedFn, poll: float) -> str:
+    # We hold the lease, so a plan marked running or awaiting review has no other live worker: take it over.
     plan = store.get(plan_id)
-    if plan["status"] in {"running", "awaiting_review"}:
-        raise PlanNotRunnable("plan is already running")
-    if plan["status"] not in _STARTABLE:
+    if plan["status"] not in _STARTABLE | _ACTIVE:
         raise PlanNotRunnable("plan is not approved")
     previous = {c["seq"]: c for c in store.calls(plan_id)}
     store.set_status(plan_id, "running")
@@ -77,7 +97,9 @@ def _run(plan_id: str, store: PlanStore, steps: dict[str, StepFn], reviewed: Rev
                     store.update_call(plan_id, seq, status="cancelled")
                     raise _Cancelled
                 time.sleep(poll)
-            store.set_status(plan_id, "running")
+            if not store.claim(plan_id, {"awaiting_review"}, "running"):  # cancelled while it waited
+                store.update_call(plan_id, seq, status="done", **ids)
+                raise _Cancelled
         store.update_call(plan_id, seq, status="done", **ids)
         return result
 

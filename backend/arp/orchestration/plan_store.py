@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from arp.orchestration.plan_check import check_script
@@ -21,7 +21,10 @@ def _checked_dry_run(script: str) -> list[dict]:
     errors = check_script(script)
     if errors:
         raise ValueError("\n".join(errors))
-    return dry_run(script)
+    try:
+        return dry_run(script)
+    except Exception as exc:  # noqa: BLE001 - any dry-run failure is a script error the author must fix
+        raise ValueError(str(exc)) from exc
 
 
 def _row(obj) -> dict[str, Any]:
@@ -59,9 +62,18 @@ class PlanStore:
         """An edit always returns the plan to draft and clears its approval."""
         steps = _checked_dry_run(script)
         self._set(plan_id, script=script, dry_run=steps, status="draft", approved_by=None, approved_at=None)
+        with Session(self.engine) as s, s.begin():  # a new script must not reuse an old script's results
+            s.execute(delete(ResearchPlanCall).where(ResearchPlanCall.plan_id == plan_id))
 
     def approve(self, plan_id: str, user: str) -> None:
         self._set(plan_id, status="approved", approved_by=user, approved_at=datetime.now(UTC))
+
+    def claim(self, plan_id: str, from_statuses: set[str], to: str) -> bool:
+        """Atomically move the plan to `to` if it is in one of `from_statuses`; False when it was not."""
+        with Session(self.engine) as s, s.begin():
+            done = s.execute(update(ResearchPlan).where(ResearchPlan.id == plan_id,
+                                                        ResearchPlan.status.in_(from_statuses)).values(status=to))
+            return done.rowcount == 1
 
     def set_status(self, plan_id: str, status: str, error: str | None = None) -> None:
         self._set(plan_id, status=status, error=error)

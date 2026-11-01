@@ -94,3 +94,29 @@ def test_dry_run_cli(tmp_path):
     result = runner.invoke(plan_app, ["dry-run", str(path)])
     assert result.exit_code == 0
     assert "2 extraction" in result.stdout and "depends on 1" in result.stdout
+
+
+def test_dry_run_list_field_from_comprehension():  # review: an unknown list argument must not fail validation
+    src = ('u = universe_build(taxonomy_id="t", source="u.csv")\n'
+           "document_discovery(universe_run_id=u.run_id, companies=[c.id for c in u.companies if c.included])\n")
+    calls = dry_run(src)
+    assert calls[1]["params"]["companies"] == ["<from step 1>"]
+    assert calls[1]["depends_on"] == 1
+
+
+def test_checker_survives_unhashable_literal(pg):
+    from arp.orchestration.plan_store import PlanStore
+
+    src = 'extraction(universe_run_id={[1]: 2}, schema_id="s")\n'
+    assert check_script(src) == []  # no crash; the dry run rejects it
+    with pytest.raises(ValueError, match="unhashable"):
+        PlanStore(pg).create("b", src)
+
+
+def test_long_loops_are_bounded():
+    from arp.orchestration.plan_interp import PlanScriptError
+
+    with pytest.raises(PlanScriptError, match="range longer than"):
+        dry_run("for i in range(10000000000):\n    pass\n")
+    with pytest.raises(PlanScriptError, match="operation limit"):
+        dry_run("for i in range(10000):\n    for j in range(10000):\n        pass\n")

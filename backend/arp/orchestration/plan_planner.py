@@ -1,11 +1,13 @@
 """The planner: one LLM call turns a research brief into a plan script; one retry with the checker's errors."""
 from __future__ import annotations
 
+import asyncio
+
 from pydantic import BaseModel, Field
 
 from arp.llm.base import LLMClient
 from arp.orchestration.plan_api import BUILTINS, STEPS
-from arp.orchestration.plan_check import MAX_LINES, check_script
+from arp.orchestration.plan_check import MAX_LINES
 from arp.orchestration.plan_store import PlanStore
 
 
@@ -62,13 +64,15 @@ def planner_context(taxonomies, frameworks) -> str:
 async def draft_plan(brief: str, llm: LLMClient, store: PlanStore, context: str = "") -> str:
     """Store the planner's script as a draft plan and return its id. Raises PlanRejected."""
     system = SYSTEM.replace("{stubs}", step_stubs())
-    prompt = f"Research brief:\n{brief}" + (f"\n\n{context}" if context else "")
+    base = f"Research brief:\n{brief}" + (f"\n\n{context}" if context else "")
+    prompt = base
     errors: list[str] = []
     for _ in range(2):
         out, _usage = await llm.complete_structured(system=system, prompt=prompt, output_model=PlanScript)
-        errors = check_script(out.script)
-        if not errors:
-            return store.create(brief, out.script)
-        prompt = (f"Research brief:\n{brief}" + (f"\n\n{context}" if context else "") + f"\n\nYour previous script:\n{out.script}\n\n"
-                  "The checker rejected it:\n" + "\n".join(errors) + "\nFix every error.")
+        try:  # checks the script, then dry-runs it off the event loop
+            return await asyncio.to_thread(store.create, brief, out.script)
+        except ValueError as exc:
+            errors = str(exc).splitlines()
+        prompt = (f"{base}\n\nYour previous script:\n{out.script}\n\n"
+                  "It was rejected:\n" + "\n".join(errors) + "\nFix every error.")
     raise PlanRejected("\n".join(errors))
