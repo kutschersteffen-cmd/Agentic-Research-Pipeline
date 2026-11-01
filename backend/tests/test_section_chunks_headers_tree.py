@@ -95,11 +95,14 @@ def test_settings_off_and_few_headings_chunk_as_before(monkeypatch):
     off = _spans(doc)
     one_heading = _doc([_section("## A", 9000)])
     one_off = _spans(one_heading)
+    no_heading = _doc([_section("plain text", 9000)])
+    no_off = _spans(no_heading)
     monkeypatch.setenv("ARP_SECTION_CHUNKING_ENABLED", "true")
     get_settings.cache_clear()
     try:
         assert _spans(doc) != off  # the setting is read, and the span cache does not hand back the old spans
         assert _spans(one_heading) == one_off
+        assert _spans(no_heading) == no_off
         get_span_cache().clear()
         on = _spans(doc)
     finally:

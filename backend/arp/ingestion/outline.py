@@ -47,7 +47,7 @@ def _outline(text: str, tables: tuple[tuple[int, int], ...], starts: tuple[int, 
         for m in _MD_HEADING.finditer(text)
         if not any(s <= m.start() < e for s, e in tables)
     ]
-    ends = [f[0] for f in found[1:]] + [len(text)]
+    ends = [f[0] for f in found[1:]] + ([len(text)] if found else [])
     return tuple(
         OutlineEntry(title=title, level=level, page=page_at(list(starts), start), char_start=start, char_end=end)
         for (start, title, level), end in zip(found, ends, strict=True)
