@@ -12,9 +12,11 @@ function isReviewable(runType: string): runType is ReviewableRunKind {
 
 interface Props {
   onOpenReview?: (kind: ReviewableRunKind, runId: string) => void;
+  /** A run linked to from elsewhere (`#/history/<run id>`): scrolled to and marked. */
+  focusRunId?: string | null;
 }
 
-export function RunHistory({ onOpenReview }: Props = {}) {
+export function RunHistory({ onOpenReview, focusRunId = null }: Props = {}) {
   const [runs, setRuns] = useState<RunManifest[]>([]);
   const [filter, setFilter] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +26,10 @@ export function RunHistory({ onOpenReview }: Props = {}) {
   // The reload after a resume must use the filter current when it runs, not the click's render.
   const filterRef = useRef(filter);
   filterRef.current = filter;
+
+  useEffect(() => {
+    if (loaded && focusRunId) document.getElementById(`run-${focusRunId}`)?.scrollIntoView({ block: "center" });
+  }, [loaded, focusRunId]);
 
   async function load() {
     setError(null);
@@ -112,7 +118,7 @@ export function RunHistory({ onOpenReview }: Props = {}) {
                 const runType = r.run_type;
                 return (
                   <Fragment key={r.run_id}>
-                  <tr>
+                  <tr id={`run-${r.run_id}`} aria-current={r.run_id === focusRunId ? "true" : undefined}>
                     <td className="mono">{r.run_id}</td>
                     <td>{runTypeLabel(runType)}</td>
                     <td>

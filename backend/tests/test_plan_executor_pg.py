@@ -186,3 +186,11 @@ def test_edit_clears_old_calls(store):  # review: an edited plan must not reuse 
     run_plan(plan_id, store, Stubs().all(), lambda c: True)
     store.update_script(plan_id, CHAIN)
     assert store.calls(plan_id) == []
+
+
+def test_claim_marks_running_before_any_worker(store):  # mutation gap: claim must set "running"
+    from arp.orchestration.plan_executor import claim_plan
+
+    plan_id = _approved(store)
+    claim_plan(store, plan_id)
+    assert store.get(plan_id)["status"] == "running"
