@@ -426,7 +426,8 @@ class EsefDocumentSource(DocumentSource):
                             byte_size=len(text.encode("utf-8")), text=text, page_breaks=[])
             if self._indexing_config is not None:
                 try:
-                    self._index_and_archive(kwargs["doc_id"], company.company_id, title, content_key, text, raw, url, path)
+                    self._index_and_archive(kwargs["doc_id"], company.company_id, title, content_key, text, raw, url, path,
+                                            kwargs["fiscal_period"])
                 except CaptureStoreError as exc:  # not collected: no verified copy of the original bytes
                     logger.warning("ESEF filing %s not collected: %s", url, exc)
                     return []
@@ -450,7 +451,8 @@ class EsefDocumentSource(DocumentSource):
         return await download_capped(client, url, self._max_bytes)
 
     def _index_and_archive(
-        self, doc_id: str, company_id: str, title: str, content_key: str, text: str, raw: bytes, url: str, path: Path
+        self, doc_id: str, company_id: str, title: str, content_key: str, text: str, raw: bytes, url: str, path: Path,
+        fiscal_period: str | None = None,
     ) -> None:
         """Mirrors EdgarDocumentSource._index_and_archive; the blob key is the content_key (sha256 of the bytes)."""
         from arp.retrieval.search_indexer import index_document_if_enabled
@@ -458,6 +460,8 @@ class EsefDocumentSource(DocumentSource):
 
         cfg = self._indexing_config
         doc_type = DocType.ANNUAL_REPORT_10K
-        index_document_if_enabled(cfg, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=text)
+        index_document_if_enabled(
+            cfg, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=text, fiscal_period=fiscal_period
+        )
         storage_uri = upload_or_fail(blob_store_for(cfg), content_key, raw)
         self._content_store.set_storage_uri(doc_id, storage_uri)

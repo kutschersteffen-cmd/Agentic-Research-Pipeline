@@ -120,6 +120,8 @@ def input_settings(settings: Settings) -> dict:
         **({"extraction_group_size": settings.extraction_group_size} if settings.extraction_group_size > 1 else {}),
         # only when on, so turning it on doesn't change every existing hash
         **({"vision_fallback_enabled": True} if settings.vision_fallback_enabled else {}),
+        **({"section_chunking_enabled": True} if settings.section_chunking_enabled else {}),
+        **({"context_headers_enabled": True} if settings.context_headers_enabled else {}),
     }
 
 

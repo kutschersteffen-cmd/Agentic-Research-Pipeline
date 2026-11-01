@@ -70,7 +70,7 @@ class TreeSummaries(BaseModel):
 # --- structure (no model) -------------------------------------------------
 
 
-def _node(doc: SourceDocument, starts: list[int], title: str, path: list[str], level: int, start: int, end: int, **kw) -> TreeNode:
+def _node(starts: list[int], title: str, path: list[str], level: int, start: int, end: int, **kw) -> TreeNode:
     return TreeNode(
         node_id="", title=title, heading_path=path, level=level, page_start=page_at(starts, start),
         page_end=page_at(starts, max(start, end - 1)), char_start=start, char_end=end, **kw,
@@ -85,7 +85,7 @@ def _walk(node: TreeNode):
 
 def _structure(doc: SourceDocument) -> TreeNode:
     starts = page_starts(doc)
-    root = _node(doc, starts, "", [], 0, 0, len(doc.full_text))
+    root = _node(starts, "", [], 0, 0, len(doc.full_text))
     root.node_id = "root"
     entries = outline(doc)
     if len(entries) < _MIN_HEADINGS:
@@ -94,7 +94,7 @@ def _structure(doc: SourceDocument) -> TreeNode:
         for first in range(1, n + 1, _WINDOW_PAGES):
             last = min(first + _WINDOW_PAGES - 1, n)
             title = f"Pages {first}–{last}"
-            root.children.append(_node(doc, starts, title, [title], 1, bounds[first - 1], bounds[last]))
+            root.children.append(_node(starts, title, [title], 1, bounds[first - 1], bounds[last]))
     else:
         stack: list[tuple[OutlineEntry, TreeNode]] = []
         for i, e in enumerate(entries):
@@ -103,7 +103,7 @@ def _structure(doc: SourceDocument) -> TreeNode:
             while stack and stack[-1][0].level >= e.level:
                 stack.pop()
             parent = stack[-1][1] if stack else root
-            node = _node(doc, starts, e.title, [*parent.heading_path, e.title], e.level, e.char_start, end)
+            node = _node(starts, e.title, [*parent.heading_path, e.title], e.level, e.char_start, end)
             parent.children.append(node)
             stack.append((e, node))
     for t in doc.table_spans:  # a leaf in the deepest node holding the table
@@ -112,7 +112,7 @@ def _structure(doc: SourceDocument) -> TreeNode:
             parent = inner
         title = t.caption or f"Table {t.table_id}"
         parent.children.append(
-            _node(doc, starts, title, list(parent.heading_path), parent.level + 1, t.char_start, t.char_end, table_id=t.table_id)
+            _node(starts, title, list(parent.heading_path), parent.level + 1, t.char_start, t.char_end, table_id=t.table_id)
         )
         parent.children.sort(key=lambda c: c.char_start)
     for i, node in enumerate(n for n in _walk(root) if n is not root):

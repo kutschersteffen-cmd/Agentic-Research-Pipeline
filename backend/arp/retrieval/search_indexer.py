@@ -23,24 +23,31 @@ logger = logging.getLogger(__name__)
 
 
 def index_document_if_enabled(
-    config: IndexingConfig, *, doc_id: str, company_id: str, doc_type: DocType, title: str, full_text: str
+    config: IndexingConfig, *, doc_id: str, company_id: str, doc_type: DocType, title: str, full_text: str,
+    fiscal_period: str | None = None, table_spans: list | None = None,
 ) -> None:
     if not config.opensearch_enabled:
         return
     try:
-        index_document(config, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=full_text)
+        index_document(
+            config, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=full_text,
+            fiscal_period=fiscal_period, table_spans=table_spans,
+        )
     except Exception:
         logger.warning("OpenSearch live indexing failed for doc_id=%s", doc_id, exc_info=True)
 
 
 def index_document(
-    config: IndexingConfig, *, doc_id: str, company_id: str, doc_type: DocType, title: str, full_text: str
+    config: IndexingConfig, *, doc_id: str, company_id: str, doc_type: DocType, title: str, full_text: str,
+    fiscal_period: str | None = None, table_spans: list | None = None,
 ) -> None:
     """Unconditional (no enabled-flag check, no exception handling) --
     `index_document_if_enabled` is the guarded wrapper every live-ingestion
     hook uses; this is exposed separately for `arp db reindex opensearch`,
     which wants a real exception on failure to count against its own
-    indexed/failed tally rather than a silently swallowed log line."""
+    indexed/failed tally rather than a silently swallowed log line.
+    `fiscal_period` and `table_spans` (TableSpan models or their dicts) feed the context headers, so the
+    indexed text equals `index_text(chunk, doc)` for the fetched document."""
     from opensearchpy.helpers import bulk
 
     from arp.config import get_settings
@@ -48,7 +55,10 @@ def index_document(
     from arp.storage.opensearch_client import get_client
 
     client = get_client(config.opensearch_url)
-    doc = SourceDocument(doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=full_text)
+    doc = SourceDocument(
+        doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=full_text,
+        fiscal_period=fiscal_period, table_spans=table_spans or [],
+    )
     chunks = chunk_document(doc)
     settings = get_settings()
     texts = [index_text(chunk, doc, settings) for chunk in chunks]  # what BM25 ranks; `text` with headers off

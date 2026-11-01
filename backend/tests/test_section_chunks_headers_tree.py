@@ -285,3 +285,36 @@ def test_doc_tree_page_windows_and_batches(standins):
     doc_tree.build_doc_tree(many, get_settings())
     sizes = [sum(f"node_id: {i:04d}\n" in c["prompt"] for i in range(46)) for c in _calls(standins)[before:]]
     assert sizes == [20, 20, 5, 1]
+
+
+def test_opensearch_indexes_the_same_index_text(monkeypatch):
+    """Headers on: the arp-chunks `text` field is index_text(chunk, doc), fiscal period and table line included."""
+    pytest.importorskip("opensearchpy")
+    import numpy as np
+
+    from arp.ingestion.indexing_config import IndexingConfig
+    from arp.retrieval import search_indexer
+
+    head, table = "## Emissions\n", "| 1 | 2 |\n"
+    span = TableSpan(table_id="t1", char_start=len(head), char_end=len(head + table), caption="GHG",
+                     cells=[TableCell(col_label="Scope 1", char_start=0, char_end=1)])
+    doc = _doc([head, table], tables=[span], title="Siemens Annual Report 2025", fiscal_period="FY2025")
+    bulk_calls = []
+    monkeypatch.setattr("arp.storage.opensearch_client.get_client", lambda url: "fake-client")
+    monkeypatch.setattr("opensearchpy.helpers.bulk", lambda client, actions: bulk_calls.append(list(actions)))
+    monkeypatch.setattr("arp.retrieval.embeddings.embed_texts", lambda texts: np.zeros((len(texts), 384), dtype=np.float32))
+    monkeypatch.setenv("ARP_CONTEXT_HEADERS_ENABLED", "true")
+    get_settings.cache_clear()
+    try:
+        search_indexer.index_document(
+            IndexingConfig(opensearch_url="http://x", search_live_indexing_enabled=True),
+            doc_id=doc.doc_id, company_id=doc.company_id, doc_type=doc.doc_type, title=doc.title,
+            full_text=doc.full_text, fiscal_period=doc.fiscal_period, table_spans=[t.model_dump() for t in doc.table_spans],
+        )
+        expected = {c.chunk_id: index_text(c, doc, get_settings()) for c in chunk_document(doc)}
+    finally:
+        monkeypatch.delenv("ARP_CONTEXT_HEADERS_ENABLED")
+        get_settings.cache_clear()
+    indexed = {a["_id"]: a["_source"]["text"] for a in bulk_calls[0] if a["_index"] == "arp-chunks"}
+    assert indexed == expected
+    assert indexed["chk_d1_table_13_23"].startswith("Siemens Annual Report 2025 · FY2025 · Emissions\nTable: GHG · Scope 1\n")
