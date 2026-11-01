@@ -243,7 +243,7 @@ jobs:
           BASE: ${{ github.base_ref }}
         run: |
           changed=$(git diff --name-only "origin/$BASE...HEAD" -- backend/arp/retrieval backend/arp/ingestion \
-            backend/arp/planning/doc_routing.py backend/arp/extraction/field_graph.py backend/arp/presets \
+            backend/arp/planning/doc_routing.py backend/arp/extraction/field_graph.py backend/arp/presets backend/arp/golden_set/retrieval.py \
             backend/tests/golden/retrieval)
           if [ -n "$changed" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; else echo "run=false" >>"$GITHUB_OUTPUT"; fi
 
