@@ -59,9 +59,11 @@ jobs:
         env:
           BASE: ${{ github.base_ref }}
         run: |
-          if [ -z "$BASE" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; echo "rfp=true" >>"$GITHUB_OUTPUT"; exit 0; fi
+          if [ -z "$BASE" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; echo "rfp=true" >>"$GITHUB_OUTPUT"; echo "gate=true" >>"$GITHUB_OUTPUT"; exit 0; fi
           rfp=$(git diff --name-only "origin/$BASE...HEAD" -- arp/rfp)
           if [ -n "$rfp" ]; then echo "rfp=true" >>"$GITHUB_OUTPUT"; else echo "rfp=false" >>"$GITHUB_OUTPUT"; fi
+          gate=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction/evidence_gate.py)
+          if [ -n "$gate" ]; then echo "gate=true" >>"$GITHUB_OUTPUT"; else echo "gate=false" >>"$GITHUB_OUTPUT"; fi
           other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py arp/transition_barrier/extraction.py arp/transition_barrier/golden.py arp/transition_barrier/fetching.py arp/transition_barrier/rule_book.py arp/transition_barrier/data tests/golden/transition_barrier arp/rfp)
           model=$(git diff -U0 "origin/$BASE...HEAD" -- arp/config.py | grep -E '^[+-] .*(llm_|_api_key|grounding_|confidence_review)' || true)
           if [ -n "$other$model" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; else echo "run=false" >>"$GITHUB_OUTPUT"; echo "Only unrelated config.py lines changed; golden set not needed."; fi
@@ -101,6 +103,19 @@ jobs:
           set -o pipefail
           arp db init-postgres
           arp golden-set run | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Compare the golden set with the evidence gate on and off
+        # evidence-gate spec AC-31 to AC-33: both pass, and the gate cuts extractor input by at least 10%
+        if: steps.key.outputs.present == 'true' && steps.scope.outputs.gate == 'true'
+        env:
+          ARP_ANTHROPIC_API_KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
+        run: |
+          set -o pipefail
+          arp golden-set run --gate off | tee off.txt | tee -a "$GITHUB_STEP_SUMMARY"
+          arp golden-set run --gate on | tee on.txt | tee -a "$GITHUB_STEP_SUMMARY"
+          off=$(tail -1 off.txt | grep -oE '[0-9]+$'); on=$(tail -1 on.txt | grep -oE '[0-9]+$')
+          echo "extractor input tokens: gate off $off, gate on $on" | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "$((on * 10))" -le "$((off * 9))" ] || { echo "The gate cut extractor input by less than 10%." | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; }
 
       - name: Run the transition-barrier golden set
         if: steps.key.outputs.present == 'true'

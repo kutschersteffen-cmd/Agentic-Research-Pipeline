@@ -362,7 +362,8 @@ export interface WalkthroughPassage {
 
 export interface WalkthroughScores { bm25?: number; vector_rank?: number; rrf?: number; rerank?: number }
 export type RetrievalMethod = "bm25" | "hybrid" | "opensearch" | "opensearch_hybrid" | "unranked" | "none";
-export interface WalkthroughRetrieval { method: RetrievalMethod; reranked: boolean; candidates: number }
+export interface WalkthroughGate { kept: number; of: number; failed: boolean; skipped: string | null }
+export interface WalkthroughRetrieval { method?: RetrievalMethod; reranked?: boolean; candidates?: number; gate?: WalkthroughGate }
 
 /** GET /api/walkthrough/runs/{run}/companies/{company}: how one stored row was found (no response model). */
 export interface Walkthrough {
@@ -381,6 +382,9 @@ export interface Walkthrough {
   retrieval?: WalkthroughRetrieval | null;
   /** Seconds per graph node of a data-point field; {} when not recorded. */
   seconds?: Record<string, number>;
+  /** The evidence gate's call and the passages it dropped (evidence-gate spec); absent when no gate ran. */
+  gate?: WalkthroughCall | null;
+  gate_dropped?: WalkthroughPassage[];
   /** The passages ranked right after the cut, ranks continuing after the passages. */
   near_misses?: WalkthroughPassage[];
   extractor: WalkthroughCall | null;

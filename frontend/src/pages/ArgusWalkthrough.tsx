@@ -5,7 +5,7 @@ import { correctionLine } from "../lib/corrections";
 import { valueLabel } from "../lib/fieldValue";
 import { listAllRuns } from "../lib/poll";
 import { runTypeLabel } from "../lib/runs";
-import { allCitations, fmt, markQuotes, notRecordedNote, passageFor, parseWalkthroughParams, pickRow, planBasis, retrievalLine, scoreText, scoresMissing, stepTiming, steps, timingTotal, walkthroughHref, type Step } from "../lib/walkthrough";
+import { allCitations, fmt, markQuotes, notRecordedNote, passageFor, parseWalkthroughParams, pickRow, planBasis, gateLine, retrievalLine, scoreText, scoresMissing, stepTiming, steps, timingTotal, walkthroughHref, type Step } from "../lib/walkthrough";
 import type { Correction, ExtractedField, RunManifest, Walkthrough, WalkthroughPassage } from "../types";
 
 type Obj = Record<string, unknown>;
@@ -251,9 +251,18 @@ function Evidence({ w, quotes }: { w: Walkthrough; quotes: string[] }) {
   const near = w.near_misses ?? [];
   return (
     <>
-      {w.retrieval && <p className="wt-line mono wt-scores">{retrievalLine(w.retrieval)}</p>}
+      {w.retrieval && retrievalLine(w.retrieval) && <p className="wt-line mono wt-scores">{retrievalLine(w.retrieval)}</p>}
+      {gateLine(w.retrieval?.gate) && <p className="wt-line mono wt-scores">{gateLine(w.retrieval?.gate)}</p>}
       {scoresMissing(w) && <p className="wt-line muted">Scores were not recorded for this run.</p>}
       <Passages passages={w.passages} quotes={quotes} />
+      {(w.gate_dropped ?? []).length > 0 && (
+        <details className="wt-near">
+          <summary>Dropped by the gate ({w.gate_dropped!.length})</summary>
+          <ol className="wt-passages">
+            {w.gate_dropped!.map((p) => <PassageItem key={`g${p.rank}`} p={p} quotes={[]} />)}
+          </ol>
+        </details>
+      )}
       {near.length > 0 && (
         <details className="wt-near">
           <summary>Just missed ({near.length})</summary>

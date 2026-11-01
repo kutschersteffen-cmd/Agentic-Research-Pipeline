@@ -11,6 +11,7 @@ from arp.api.auth import Principal
 from arp.bi.eval import load_bi_cases, run_bi_set
 from arp.cli._shared import _run_store
 from arp.config import get_settings
+from arp.extraction.evidence_gate import gate_run
 from arp.extraction.pipeline import load_run_schema
 from arp.golden_set.export import export_cases
 from arp.golden_set.precision import load_record_cases, run_precision
@@ -36,6 +37,9 @@ def golden_set_run(
     fail_on_regression: bool = typer.Option(
         True, help="Exit with a non-zero status if any case fails -- for wiring into CI before a prompt/model change ships."
     ),
+    gate: str = typer.Option(
+        None, "--gate", help="on|off: run with the evidence gate forced on or off, and print the extractor input tokens.",
+    ),
 ) -> None:
     """Runs the golden set (manually verified extractions) through the real
     extractor -> independent-verifier -> programmatic-grounding pipeline
@@ -48,15 +52,27 @@ def golden_set_run(
     verifier_llm = build_verifier_llm_client(settings)
     cases = load_golden_set_cases(cases_file)
     typer.echo(f"Running {len(cases)} golden-set case(s) against {settings.llm_model} / verifier {settings.llm_verifier_model}...")
-    report = asyncio.run(
-        run_golden_set(
-            cases,
-            llm=llm,
-            verifier_llm=verifier_llm,
-            fuzzy_threshold=settings.grounding_fuzzy_threshold,
-            confidence_review_threshold=settings.confidence_review_threshold,
-        )
-    )
+    if gate not in (None, "on", "off"):
+        raise typer.BadParameter("--gate takes on or off")
+
+    async def run():
+        with gate_run(settings, "golden-set", enabled=gate == "on" if gate else None):
+            return await run_golden_set(
+                cases,
+                llm=llm,
+                verifier_llm=verifier_llm,
+                fuzzy_threshold=settings.grounding_fuzzy_threshold,
+                confidence_review_threshold=settings.confidence_review_threshold,
+            )
+
+    report = asyncio.run(run())
+    if gate:  # the evidence-gate comparison reads these lines: one per case, the token total last
+        for result in report.results:
+            typer.echo(f"{result.case_id}: {'pass' if result.passed else 'fail'}")
+        typer.echo(f"extractor input tokens: {report.extractor_input_tokens}")
+        if fail_on_regression and not report.all_passed:
+            raise typer.Exit(1)
+        return
     for result in report.results:
         status = "PASS" if result.passed else "FAIL"
         typer.echo(f"[{status}] {result.case_id}: {result.description}")

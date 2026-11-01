@@ -80,6 +80,8 @@ def field_entry(
     retrieval: dict | None = None,
     near_misses: list[dict] = (),
     seconds: dict[str, float] | None = None,
+    gate: dict | None = None,
+    gate_dropped: list[dict] = (),
 ) -> dict:
     return {
         "field_id": field_id,
@@ -93,6 +95,8 @@ def field_entry(
         "retrieval": retrieval,
         "near_misses": list(near_misses),
         "seconds": {node: round(s, 2) for node, s in (seconds or {}).items()},
+        "gate": gate,
+        "gate_dropped": list(gate_dropped),
     }
 
 

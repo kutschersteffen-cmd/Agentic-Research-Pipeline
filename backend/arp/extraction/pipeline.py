@@ -14,6 +14,7 @@ from arp.db.fields import SchemaRegistry, UnreleasedFieldError
 from arp.extraction.aggregator import no_evidence_field
 from arp.extraction.corrections import apply_corrections
 from arp.extraction.derived import evaluate_derived
+from arp.extraction.evidence_gate import gate_run
 from arp.extraction.extractor_agent import extract_group
 from arp.extraction.field_graph import MAX_END_DRIFT_DAYS, days_apart, extract_one_field, field_evidence, merge_evidence
 from arp.extraction.history import RunHistory
@@ -120,6 +121,7 @@ def input_settings(settings: Settings) -> dict:
         **({"extraction_group_size": settings.extraction_group_size} if settings.extraction_group_size > 1 else {}),
         # only when on, so turning it on doesn't change every existing hash
         **({"vision_fallback_enabled": True} if settings.vision_fallback_enabled else {}),
+        **({"evidence_gate_model": settings.evidence_gate_model} if settings.evidence_gate_enabled else {}),
     }
 
 
@@ -552,16 +554,17 @@ async def execute_extraction_run(
         open_restatement_candidates(run_store, run_id, result.record, history)
         return result
 
-    await run_company_batch(
-        run_id,
-        companies,
-        run_store=run_store,
-        worker=_worker,
-        result_to_json=lambda r: r.record.model_dump(mode="json"),
-        review_items=review_items,
-        cost_usd=lambda r: r.cost_usd,
-        concurrency=settings.max_concurrent_llm_calls,
-    )
+    with gate_run(settings, run_id):  # the evidence gate, when on: one per run, so its breaker spans the run
+        await run_company_batch(
+            run_id,
+            companies,
+            run_store=run_store,
+            worker=_worker,
+            result_to_json=lambda r: r.record.model_dump(mode="json"),
+            review_items=review_items,
+            cost_usd=lambda r: r.cost_usd,
+            concurrency=settings.max_concurrent_llm_calls,
+        )
     return run_id
 
 
