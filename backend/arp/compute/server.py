@@ -176,6 +176,8 @@ def tag(request: TagRequest, x_arp_model: str | None = Header(default=None)) -> 
         e = entry(request.key)
     except KeyError as exc:
         raise HTTPException(404, f"unknown model key: {request.key}") from exc
+    if e.capability != "tag":
+        raise HTTPException(404, f"not a tag model: {request.key}")
     _check_model(x_arp_model, model_header(e))
     _torch_model(request.key)
     return {"results": local.tag_scores(e, request.texts, device=0)}
