@@ -44,8 +44,10 @@ updates while a run is going.
 
 Fixtures: **DOCS** = the fixture document and stub LLM of `tests/test_walkthrough_field_graph.py`, with stub usages
 `input_tokens=1200, output_tokens=80, model="claude-sonnet-5-5"` for every call; DOCS's field agrees, so it is not
-adjudicated. **RUN** = an extraction run started in the e2e stack with `ARP_ANTHROPIC_API_KEY` set (seeded
-known-answer items are built without the graph and carry no timing, so they cannot serve the evaluator rows).
+adjudicated. **RUN** = an extraction run started against the e2e stack with `ARP_ANTHROPIC_API_KEY` set:
+`arp extract run --schema <any installed preset schema> --universe <a one-company universe with one uploaded
+document>`, then the Walkthrough of one of its data-point rows. Seeded known-answer items are built without the graph
+and carry no timing, so they cannot serve. If the key is unset, AC-20 to AC-24 are reported as blocked, not passed.
 
 | ID   | Given | When | Then (observable, exact) | Checked by |
 |------|-------|------|--------------------------|------------|
@@ -67,7 +69,7 @@ known-answer items are built without the graph and carry no timing, so they cann
 | AC-16 | Frontend helper, a call without `input_tokens`, and one with `input_tokens == 0` | Usage is formatted | null for both | unit |
 | AC-17 | Frontend helper, an old walkthrough (`seconds == {}`, calls without usage) | Step suffixes are built for every step | All empty | unit |
 | AC-18 | Frontend helper, a `financials` walkthrough with `seconds` set | Step suffixes and total are built | All empty and total null | unit |
-| AC-19 | Two runs of the same node, 0.3 s and 0.4 s (stub clock) | Node seconds recorded | `seconds[node] == 0.7` | unit |
+| AC-19 | Two runs of the same node, 0.3 s and 0.4 s (stub clock) | Node seconds recorded | `seen["seconds"][node] == pytest.approx(0.7)` and the trace entry's `seconds[node] == 0.7` | unit |
 | AC-20 | RUN, a recorded data-point field | Reviewer opens its Walkthrough | The Find evidence line ends with ` · ` + the AC-9 format of the API's `gather_evidence` | evaluator |
 | AC-21 | As AC-20 | Same | A total line appears directly under the step list header | evaluator |
 | AC-22 | As AC-20 | Same | The total line's time text equals the AC-9 format of the sum of the API's raw `seconds` values | evaluator |
