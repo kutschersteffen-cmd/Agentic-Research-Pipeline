@@ -8067,6 +8067,19 @@
     "title": "DossierView",
     "type": "object"
    },
+   "DraftRequest": {
+    "properties": {
+     "brief": {
+      "title": "Brief",
+      "type": "string"
+     }
+    },
+    "required": [
+     "brief"
+    ],
+    "title": "DraftRequest",
+    "type": "object"
+   },
    "DraftSchemaRequest": {
     "properties": {
      "criteria_text": {
@@ -17667,6 +17680,19 @@
      "dataset_id"
     ],
     "title": "ScoreRequest",
+    "type": "object"
+   },
+   "ScriptRequest": {
+    "properties": {
+     "script": {
+      "title": "Script",
+      "type": "string"
+     }
+    },
+    "required": [
+     "script"
+    ],
+    "title": "ScriptRequest",
     "type": "object"
    },
    "SearchAnswer": {
@@ -31783,6 +31809,301 @@
     "summary": "List Outputs",
     "tags": [
      "outputs"
+    ]
+   }
+  },
+  "/api/plans": {
+   "get": {
+    "operationId": "list_plans_api_plans_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "additionalProperties": true,
+          "type": "object"
+         },
+         "title": "Response List Plans Api Plans Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "List Plans",
+    "tags": [
+     "plans"
+    ]
+   },
+   "post": {
+    "operationId": "create_plan_api_plans_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DraftRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Create Plan Api Plans Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Create Plan",
+    "tags": [
+     "plans"
+    ]
+   }
+  },
+  "/api/plans/{plan_id}": {
+   "get": {
+    "operationId": "get_plan_api_plans__plan_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "plan_id",
+      "required": true,
+      "schema": {
+       "title": "Plan Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Get Plan Api Plans  Plan Id  Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Plan",
+    "tags": [
+     "plans"
+    ]
+   },
+   "put": {
+    "operationId": "edit_plan_api_plans__plan_id__put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "plan_id",
+      "required": true,
+      "schema": {
+       "title": "Plan Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ScriptRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Edit Plan Api Plans  Plan Id  Put",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Edit Plan",
+    "tags": [
+     "plans"
+    ]
+   }
+  },
+  "/api/plans/{plan_id}/approve": {
+   "post": {
+    "operationId": "approve_plan_api_plans__plan_id__approve_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "plan_id",
+      "required": true,
+      "schema": {
+       "title": "Plan Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Approve Plan Api Plans  Plan Id  Approve Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Approve Plan",
+    "tags": [
+     "plans"
+    ]
+   }
+  },
+  "/api/plans/{plan_id}/cancel": {
+   "post": {
+    "operationId": "cancel_api_plans__plan_id__cancel_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "plan_id",
+      "required": true,
+      "schema": {
+       "title": "Plan Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Cancel Api Plans  Plan Id  Cancel Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Cancel",
+    "tags": [
+     "plans"
+    ]
+   }
+  },
+  "/api/plans/{plan_id}/run": {
+   "post": {
+    "operationId": "start_plan_api_plans__plan_id__run_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "plan_id",
+      "required": true,
+      "schema": {
+       "title": "Plan Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Start Plan Api Plans  Plan Id  Run Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Start Plan",
+    "tags": [
+     "plans"
     ]
    }
   },

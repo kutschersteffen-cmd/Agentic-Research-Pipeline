@@ -51,6 +51,10 @@ class PlanStore:
                 raise PlanNotFound(plan_id)
             return _row(plan)
 
+    def list(self) -> list[dict[str, Any]]:
+        with Session(self.engine) as s:
+            return [_row(p) for p in s.scalars(select(ResearchPlan).order_by(ResearchPlan.created_at.desc()))]
+
     def update_script(self, plan_id: str, script: str) -> None:
         """An edit always returns the plan to draft and clears its approval."""
         steps = _checked_dry_run(script)

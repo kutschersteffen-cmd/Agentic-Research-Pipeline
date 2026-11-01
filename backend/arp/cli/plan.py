@@ -10,7 +10,7 @@ from arp.orchestration.plan_interp import PlanScriptError, StepLimitExceeded, dr
 from arp.orchestration.plan_planner import PlanRejected, draft_plan
 from arp.orchestration.plan_store import PlanStore
 
-plan_app = typer.Typer(help="Research Orchestrator: check and dry-run plan scripts.")
+plan_app = typer.Typer(help="Research Orchestrator: draft, check, approve and run plan scripts.")
 
 
 @plan_app.command("check")
@@ -76,3 +76,82 @@ def draft(brief: str) -> None:
         raise typer.Exit(1) from exc
     typer.echo(plan_id)
     _print_steps(store.get(plan_id)["dry_run"])
+
+
+def _plan_or_exit(store: PlanStore, plan_id: str) -> dict:
+    from arp.orchestration.plan_store import PlanNotFound
+
+    try:
+        return store.get(plan_id)
+    except PlanNotFound as exc:
+        typer.echo(f"Unknown plan: {plan_id}")
+        raise typer.Exit(1) from exc
+
+
+@plan_app.command("show")
+def show(plan_id: str) -> None:
+    """Show a plan's status, script, dry run and the calls its run made."""
+    store = _store()
+    plan = _plan_or_exit(store, plan_id)
+    typer.echo(f"{plan['id']}  {plan['status']}" + (f"  approved by {plan['approved_by']}" if plan["approved_by"] else ""))
+    typer.echo(plan["script"])
+    _print_steps(plan["dry_run"])
+    for c in store.calls(plan_id):
+        typer.echo(f"call {c['seq']} {c['kind']} {c['status']} {c['run_id'] or c['result_ref'] or ''}".rstrip())
+
+
+@plan_app.command("approve")
+def approve(plan_id: str, user: str = typer.Option(..., "--user", help="Who approves the plan.")) -> None:
+    store = _store()
+    if _plan_or_exit(store, plan_id)["status"] != "draft":
+        typer.echo("only a draft plan can be approved")
+        raise typer.Exit(1)
+    store.approve(plan_id, user)
+    typer.echo("approved")
+
+
+def _runtime():
+    from arp.api.routers.plans import build_runtime
+    from arp.config import get_settings
+
+    return build_runtime(get_settings())
+
+
+@plan_app.command("run")
+def run(plan_id: str) -> None:
+    """Run an approved plan in the foreground until it ends."""
+    from arp.orchestration.plan_executor import PlanNotRunnable, run_plan
+
+    store = _store()
+    _plan_or_exit(store, plan_id)
+    steps, reviewed = _runtime()
+    try:
+        status = run_plan(plan_id, store, steps, reviewed)
+    except PlanNotRunnable as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1) from exc
+    typer.echo(status)
+    if status == "failed":
+        typer.echo(store.get(plan_id)["error"] or "")
+        raise typer.Exit(1)
+
+
+@plan_app.command("resume")
+def resume(plan_id: str) -> None:
+    """Run a failed plan again; steps that already finished are not repeated."""
+    run(plan_id)
+
+
+@plan_app.command("cancel")
+def cancel(plan_id: str) -> None:
+    """The step in progress finishes; no later step starts."""
+    from arp.orchestration.plan_executor import PlanNotRunnable, cancel_plan
+
+    store = _store()
+    _plan_or_exit(store, plan_id)
+    try:
+        cancel_plan(plan_id, store)
+    except PlanNotRunnable as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1) from exc
+    typer.echo("cancelled")
