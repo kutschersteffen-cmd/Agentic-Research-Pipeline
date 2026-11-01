@@ -6,7 +6,9 @@ import re
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.schema import Document as LlamaDocument
 
+from arp.config import get_settings
 from arp.ingestion.chunk_spans import ChunkSpan, get_span_cache
+from arp.ingestion.outline import outline
 from arp.schemas.common import DocType, DocumentChunk, SourceDocument
 
 _SPEAKER_LINE = re.compile(r"^\s*([A-Z][A-Za-z.'\-]+(?:\s[A-Z][A-Za-z.'\-]+){0,3})\s*[:\-]\s*$")
@@ -80,17 +82,56 @@ def find_keyword_hits(text: str, keywords: list[str]) -> list[str]:
     return [kw for kw in keywords if kw.lower() in lowered]
 
 
-def _compute_spans(doc: SourceDocument, chunk_chars: int, overlap_chars: int) -> tuple[ChunkSpan, ...]:
+def _section_segments(doc: SourceDocument, min_chars: int) -> list[tuple[int, int, str | None]] | None:
+    """(start, end, first heading) per section, short sections joined with the ones after them while the
+    joined span is under `min_chars` and the next heading is not shallower than the first. None when the
+    document has fewer than 2 headings (it chunks as before)."""
+    entries = outline(doc)
+    if len(entries) < 2:
+        return None
+    segments: list[tuple[int, int, str | None]] = []
+    if entries[0].char_start > 0:
+        segments.append((0, entries[0].char_start, None))  # text before the first heading
+    i = 0
+    while i < len(entries):
+        first, end = entries[i], entries[i].char_end
+        i += 1
+        while end - first.char_start < min_chars and i < len(entries) and entries[i].level >= first.level:
+            end = entries[i].char_end
+            i += 1
+        segments.append((first.char_start, end, first.title))
+    return segments
+
+
+def _compute_spans(
+    doc: SourceDocument, chunk_chars: int, overlap_chars: int, section_min_chars: int | None = None
+) -> tuple[ChunkSpan, ...]:
+    """`section_min_chars` set = section-bounded chunking (`section_chunking_enabled`)."""
     is_transcript = doc.doc_type == DocType.EARNINGS_TRANSCRIPT
     # 10-K ITEM/PART header lines and markdown headings: a chunk's section is the last one at or before it
     headings = sorted((m.start(), m.group(1).strip()) for p in (_SECTION_HEADER, _MD_HEADING) for m in p.finditer(doc.full_text))
     starts = [h[0] for h in headings]
-    spans = []
-    for start, end in _sentence_aware_split(doc.full_text, chunk_chars, overlap_chars):
+
+    def last_heading(start: int) -> str | None:
         i = bisect.bisect_right(starts, start)
-        section = None if is_transcript or not i else headings[i - 1][1]
+        return headings[i - 1][1] if i else None
+
+    segments = None if section_min_chars is None else _section_segments(doc, section_min_chars)
+    if segments is None:
+        pieces = [(start, end, last_heading(start)) for start, end in _sentence_aware_split(doc.full_text, chunk_chars, overlap_chars)]
+    else:
+        pieces = []
+        for seg_start, seg_end, title in segments:
+            if seg_end - seg_start <= chunk_chars:  # whole section in one chunk, boundaries exact
+                inner = [(0, seg_end - seg_start)]
+            else:  # overlap stays inside the section
+                inner = _sentence_aware_split(doc.full_text[seg_start:seg_end], chunk_chars, overlap_chars)
+            for start, end in inner:
+                pieces.append((seg_start + start, seg_start + end, title if title is not None else last_heading(seg_start + start)))
+    spans = []
+    for start, end, section in pieces:
         speaker = detect_speaker(doc.full_text, start) if is_transcript else None
-        spans.append(ChunkSpan(char_start=start, char_end=end, section=section, speaker=speaker))
+        spans.append(ChunkSpan(char_start=start, char_end=end, section=None if is_transcript else section, speaker=speaker))
     return tuple(spans)
 
 
@@ -115,9 +156,11 @@ def chunk_document(
     stably across calls.
     """
     keywords = keywords or []
+    settings = get_settings()
+    section_min_chars = settings.section_min_chars if settings.section_chunking_enabled else None
     cache = get_span_cache()
-    key = cache.make_key(doc.full_text, doc.doc_type, chunk_chars, overlap_chars)
-    spans = cache.get_or_compute(key, lambda: _compute_spans(doc, chunk_chars, overlap_chars))
+    key = cache.make_key(doc.full_text, doc.doc_type, chunk_chars, overlap_chars, section_min_chars, doc.table_spans)
+    spans = cache.get_or_compute(key, lambda: _compute_spans(doc, chunk_chars, overlap_chars, section_min_chars))
 
     chunks: list[DocumentChunk] = []
     for s in spans:
@@ -141,6 +184,7 @@ def chunk_document(
         chunks.append(
             DocumentChunk(
                 chunk_id=f"chk_{doc.doc_id}_table_{t.char_start}_{t.char_end}",
+                table_id=t.table_id,
                 doc_id=doc.doc_id,
                 company_id=doc.company_id,
                 doc_type=doc.doc_type,

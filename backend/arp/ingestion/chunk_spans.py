@@ -11,7 +11,7 @@ from arp.schemas.common import DocType
 # changed algorithm never returns a stale span computed under the old one
 # -- the same "a changed input orphans old entries" idiom as
 # arp/llm/cache.py::DiskLLMCache.make_key, just for an in-process cache.
-_SPAN_ALGO_VERSION = 3  # 2: markdown headings as sections; 3: ITEM/PART headers across the document
+_SPAN_ALGO_VERSION = 4  # 2: markdown headings as sections; 3: ITEM/PART headers across the document; 4: section-bounded option
 
 _MAX_CACHED_DOCUMENTS = 256
 
@@ -66,8 +66,14 @@ class ChunkSpanCache:
         self._computing: dict[tuple, threading.Lock] = {}
 
     @staticmethod
-    def make_key(text: str, doc_type: DocType, chunk_chars: int, overlap_chars: int) -> tuple:
-        return (_SPAN_ALGO_VERSION, doc_type.value, len(text), hash(text), chunk_chars, overlap_chars)
+    def make_key(
+        text: str, doc_type: DocType, chunk_chars: int, overlap_chars: int, section_min_chars: int | None = None,
+        table_spans: list | None = None,
+    ) -> tuple:
+        """`section_min_chars`: None unless section-bounded chunking is on. With it on, table spans decide which
+        `#` lines are headings, so they are part of the key."""
+        tables = tuple((t.char_start, t.char_end) for t in table_spans or ()) if section_min_chars is not None else ()
+        return (_SPAN_ALGO_VERSION, doc_type.value, len(text), hash(text), chunk_chars, overlap_chars, section_min_chars, tables)
 
     def get_or_compute(self, key: tuple, compute: Callable[[], tuple[ChunkSpan, ...]]) -> tuple[ChunkSpan, ...]:
         with self._lock:

@@ -43,11 +43,15 @@ def index_document(
     indexed/failed tally rather than a silently swallowed log line."""
     from opensearchpy.helpers import bulk
 
+    from arp.config import get_settings
+    from arp.retrieval.index_text import index_text
     from arp.storage.opensearch_client import get_client
 
     client = get_client(config.opensearch_url)
     doc = SourceDocument(doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=full_text)
     chunks = chunk_document(doc)
+    settings = get_settings()
+    texts = [index_text(chunk, doc, settings) for chunk in chunks]  # what BM25 ranks; `text` with headers off
 
     # Populate the arp-chunks knn_vector field so retrieval_backend="opensearch"
     # (arp/retrieval/select_evidence.py) can eventually be combined with real
@@ -56,7 +60,7 @@ def index_document(
     # already uses, so a chunk's vector is identical either way.
     from arp.retrieval.embeddings import embed_texts
 
-    embeddings = embed_texts([chunk.text for chunk in chunks]) if chunks else []
+    embeddings = embed_texts(texts) if chunks else []
 
     actions = [
         {
@@ -74,7 +78,7 @@ def index_document(
                 "doc_id": chunk.doc_id,
                 "company_id": chunk.company_id,
                 "doc_type": chunk.doc_type.value,
-                "text": chunk.text,
+                "text": texts[i],
                 "char_start": chunk.char_start,
                 "char_end": chunk.char_end,
                 "embedding": embeddings[i].tolist(),

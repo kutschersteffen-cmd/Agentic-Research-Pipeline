@@ -143,6 +143,27 @@ class Settings(BaseSettings):
         "English-only default couldn't meaningfully rank. Set false to fall back to pure BM25 (the old default), "
         "e.g. to reproduce prior runs exactly.",
     )
+    section_chunking_enabled: bool = Field(
+        default=False,
+        description="Split a document at its markdown headings before the sentence-aware split, so no chunk "
+        "crosses a heading (arp/ingestion/parsing.py). Off until the retrieval recall gate shows it helps.",
+    )
+    section_min_chars: int = Field(
+        default=800, description="With section_chunking_enabled: a shorter section is joined with the ones that follow it."
+    )
+    context_headers_enabled: bool = Field(
+        default=False,
+        description="BM25 and embeddings index each chunk with a header line (title, fiscal period, heading path; "
+        "plus a table line for table passages). Evidence, grounding and citations still use the chunk text "
+        "(arp/retrieval/index_text.py).",
+    )
+    doc_tree_enabled: bool = Field(
+        default=False,
+        description="Build and store each fetched document's section tree with model-written summaries and key "
+        "terms (arp/ingestion/doc_tree.py). Never used as evidence.",
+    )
+    tree_summary_model: str = Field(default="claude-haiku-4-5-20251001", description="Model for the document tree's summaries (the Haiku model priced in arp/orchestration/cost_tracker.py).")
+    tree_leaf_chars: int = Field(default=6000, description="Characters of a leaf's text sent for its summary.")
     rerank_enabled: bool = Field(
         default=False,
         description="Reorders the top rerank_candidates retrieved chunks per extraction field with a local "

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import threading
 from collections.abc import Callable
 
@@ -50,24 +51,37 @@ def _opensearch_bm25_ranking(candidates: list[DocumentChunk], query_text: str, c
     return [(hit["_source"]["chunk_id"], hit["_score"]) for hit in response["hits"]["hits"]]
 
 
-def _vector_ranking(candidates: list[DocumentChunk], query_text: str, content_store: DocumentContentStore) -> list[str]:
+def _embedding_key(chunk: DocumentChunk, text: str) -> str:
+    """Cache key of a chunk's vector. The chunk's own text is fixed by its id (doc + offsets), so the id alone
+    keys it, as before; any other index text (context headers) adds a hash of the exact text embedded, so
+    the two never share a vector."""
+    if text == chunk.text:
+        return chunk.chunk_id
+    return f"{chunk.chunk_id}#{hashlib.sha256(text.encode('utf-8')).hexdigest()[:16]}"
+
+
+def _vector_ranking(
+    candidates: list[DocumentChunk], query_text: str, content_store: DocumentContentStore,
+    texts: dict[str, str] | None = None,
+) -> list[str]:
     """Cosine-similarity ranking of `candidates` against `query_text`
-    using local ONNX embeddings, cached in `content_store` per chunk_id
+    using local ONNX embeddings, cached in `content_store` per chunk_id (+ text hash for index text)
     (see DocumentContentStore.lookup_embeddings/store_embeddings) -- a
     chunk's embedding is a pure function of its text, so it's computed
     once and reused by every later run/field/activity that selects from
     it, not just within this one call."""
     from arp.retrieval.embeddings import EMBED_MODEL_NAME, embed_texts
 
-    chunk_ids = [c.chunk_id for c in candidates]
-    cached = content_store.lookup_embeddings(chunk_ids, EMBED_MODEL_NAME)
-    if any(c.chunk_id not in cached for c in candidates):
+    texts = texts or {c.chunk_id: c.text for c in candidates}
+    keys = {c.chunk_id: _embedding_key(c, texts[c.chunk_id]) for c in candidates}
+    cached = content_store.lookup_embeddings(list(keys.values()), EMBED_MODEL_NAME)
+    if any(k not in cached for k in keys.values()):
         with _EMBED_LOCK:
-            cached = content_store.lookup_embeddings(chunk_ids, EMBED_MODEL_NAME)  # another field may have stored them
-            missing = [c for c in candidates if c.chunk_id not in cached]
+            cached = content_store.lookup_embeddings(list(keys.values()), EMBED_MODEL_NAME)  # another field may have stored them
+            missing = [c for c in candidates if keys[c.chunk_id] not in cached]
             if missing:
-                vectors = embed_texts([c.text for c in missing])
-                new_vectors = {c.chunk_id: vectors[i] for i, c in enumerate(missing)}
+                vectors = embed_texts([texts[c.chunk_id] for c in missing])
+                new_vectors = {keys[c.chunk_id]: vectors[i] for i, c in enumerate(missing)}
                 content_store.store_embeddings(new_vectors, EMBED_MODEL_NAME)
                 cached.update(new_vectors)
 
@@ -75,7 +89,7 @@ def _vector_ranking(candidates: list[DocumentChunk], query_text: str, content_st
     query_norm = float(np.linalg.norm(query_vec)) or 1.0
     scored: list[tuple[str, float]] = []
     for c in candidates:
-        vec = cached.get(c.chunk_id)
+        vec = cached.get(keys[c.chunk_id])
         if vec is None:
             continue
         vec_norm = float(np.linalg.norm(vec)) or 1.0
@@ -99,6 +113,7 @@ def select_relevant_chunks(
     opensearch_client=None,
     rerank_candidates: int | None = None,
     on_unranked_fallback: Callable[[], None] | None = None,
+    index_texts: dict[str, str] | None = None,
 ) -> list[DocumentChunk]:
     """BM25-ranked evidence selection applied before any extraction/
     matching LLM call, so a call's context stays small (higher precision,
@@ -154,6 +169,9 @@ def select_relevant_chunks(
     - `on_unranked_fallback`: called when `fallback_to_all` returns candidates
       that nothing ranked (no keyword hit, no vector ranking, no reranker), i.e.
       the first chunks in document order.
+    - `index_texts`: chunk_id -> the text BM25 and the embedding ranking index (see
+      arp/retrieval/index_text.py); a chunk not in it is indexed by its own text. Never changes the
+      chunks returned, only their ranking.
     """
     candidates = chunks
     if doc_type_filter:
@@ -165,6 +183,7 @@ def select_relevant_chunks(
         return candidates[:max_chunks]
 
     query_text = " ".join(query_terms)
+    texts = {c.chunk_id: (index_texts or {}).get(c.chunk_id, c.text) for c in candidates}
 
     def finish(ranked: list[DocumentChunk]) -> list[DocumentChunk]:
         if rerank_candidates is None:
@@ -176,8 +195,8 @@ def select_relevant_chunks(
         by_id = {c.chunk_id: c for c in candidates}
         scored = _opensearch_bm25_ranking(candidates, query_text, opensearch_client)
     else:
-        key = INDEX_CACHE.make_key(candidates)
-        retriever, by_id = INDEX_CACHE.get_or_build(key, candidates)
+        key = INDEX_CACHE.make_key(candidates, texts)
+        retriever, by_id = INDEX_CACHE.get_or_build(key, candidates, texts)
         results = retriever.retrieve(query_text)
         scored = [(r.node.id_, r.score or 0.0) for r in results]
 
@@ -193,7 +212,10 @@ def select_relevant_chunks(
         return finish([by_id[chunk_id] for chunk_id, _ in scored])
 
     bm25_ranking = [chunk_id for chunk_id, _ in scored]
-    vector_ranking = _vector_ranking(candidates, query_text, content_store)
+    vector_ranking = (
+        _vector_ranking(candidates, query_text, content_store, texts=texts) if index_texts
+        else _vector_ranking(candidates, query_text, content_store)
+    )
     fused = _rrf_fuse([bm25_ranking, vector_ranking])
     if not fused and fallback_to_all:
         return finish(candidates)
