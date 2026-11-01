@@ -152,3 +152,28 @@ Green Hydrogen Systems is out (no report published). About 60 min on CPU.
 1. Add the supplier hypothesis; re-run.
 2. Restrict passages to business-description and segment sections to cut noise and run time.
 3. Grow the set to about 60 companies with a held-out half before fixing thresholds.
+
+---
+
+# Run 3: supplier test added (2026-11-01)
+
+Third negative statement: "This company supplies components, materials or catalysts for electrolysers that other
+companies build." Found now also requires "makes" to beat "supplies" on the same passage. Same documents and
+passages as run 2.
+
+**Result: identical to run 2** (core 7/7, peripheral 5/6, not 11/13). The supplier test did not remove a false
+positive.
+
+| Company | Makes | Supplies | Why the test did not decide |
+|---|---|---|---|
+| Johnson Matthey (not) | 0.98 | 0.40 | Its best passage ("Electrolyser sales doubled… driven by higher catalyst sales to our strategic partners") reads as selling electrolysers to the model; "makes" still wins |
+| Air Liquide (not) | 0.95 | 0.03 | Competitor-list passage; neither the operator nor the supplier statement describes it |
+| HydrogenPro (core) | 0.99 | 0.82 | High supplier score, but "makes" still higher: no harm |
+| Ceres Power (peripheral) | 0.94 | 0.86 | Close call: the licensing model sits between maker and supplier |
+| Air Products (not) | 0.42 | 0.68 | Already rejected by the cross-encoder |
+
+**Conclusion:** sentence-level contrast statements have reached their limit on this set. The two remaining false
+positives need company-level judgement (what share of revenue, who builds the stacks), which is the job of the
+LLM debate (spec A2, step 6) and revenue sizing (B1). For A2's threshold tuning this means: keep the operator and
+supplier statements (they cost nothing and caught Shell), and expect `not` kept around 2/13 at the funnel stage,
+well inside the spec's ≤ 30% gate.
