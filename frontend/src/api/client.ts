@@ -126,7 +126,7 @@ import type {
   StandardsView,
 } from "../types";
 import type { ItemContext, ItemDecisionBody, ItemSource, ItemState, PageBox, ReviewItem, SimilarDecision, Walkthrough } from "../types";
-import type { DecisionInput, DocType, PublishedDecision, Readiness } from "../types";
+import type { DecisionInput, DocType, DocumentPassages, PublishedDecision, Readiness } from "../types";
 import { formatValidationErrors } from "../lib/projects";
 import type { BIChartPlan, BIDesignResult, BIEmbedToken, DashboardItem, ExportedDashboard, OpenedDashboard, OpenResult, ProjectSummary } from "../types";
 import type { Finding, QuantitativeDataset, ReportManifest, ReportPlan, ReportRequest, Storyline, TemplateStyleProfile } from "../types";
@@ -511,6 +511,7 @@ export const api = {
     ),
   listCachedDocuments: (offset = 0, limit = 25) => request(`/api/documents/cache?offset=${offset}&limit=${limit}`),
   getCachedDocumentText: (rowId: number) => request(`/api/documents/cache/${rowId}`),
+  getCachedDocumentPassages: (rowId: number) => request<DocumentPassages>(`/api/documents/cache/${rowId}/passages`),
 
   // Discovery
   startDiscoveryRun: (body: unknown) =>

@@ -19,6 +19,8 @@ export type DocType =
 export type JobStatus = "pending" | "running" | "completed" | "partially_completed" | "failed" | "cancelled";
 
 export type RunFailure = Served<S["RunFailure"]>;
+export type DocumentPassages = Served<S["DocumentPassages"]>;
+export type DocumentPassage = DocumentPassages["passages"][number];
 export type ArgusFlow = Served<S["ArgusFlowView"]>;
 export type ArgusDraft = Served<S["ArgusFlow"]>; // as GET /api/argus/flows lists it, without rows
 export type FlowRow = Served<S["FlowRow"]>;
