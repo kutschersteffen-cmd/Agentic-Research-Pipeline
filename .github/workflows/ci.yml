@@ -244,7 +244,7 @@ jobs:
         run: |
           changed=$(git diff --name-only "origin/$BASE...HEAD" -- backend/arp/retrieval backend/arp/ingestion \
             backend/arp/planning/doc_routing.py backend/arp/extraction/field_graph.py backend/arp/presets backend/arp/golden_set/retrieval.py \
-            backend/tests/golden/retrieval)
+            backend/tests/golden/retrieval .github/workflows/ci.yml)
           if [ -n "$changed" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; else echo "run=false" >>"$GITHUB_OUTPUT"; fi
 
   # Recall of the committed retrieval gold set (spec retrieval-gold-set-and-question-queries). Default settings
@@ -253,7 +253,8 @@ jobs:
   retrieval-recall:
     name: Retrieval recall
     needs: retrieval-scope
-    if: needs.retrieval-scope.outputs.run == 'true'
+    # also on push to main (scope is skipped there), so main saves the cache every PR can restore
+    if: ${{ !cancelled() && (github.event_name == 'push' || needs.retrieval-scope.outputs.run == 'true') }}
     runs-on: ubuntu-latest
     defaults:
       run:
