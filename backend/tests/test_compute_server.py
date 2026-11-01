@@ -143,3 +143,13 @@ def test_model_on_cpu_is_503(monkeypatch):  # final review I4
     monkeypatch.setattr(server, "_models", {})
     r = TestClient(server.app).post("/embed", json={"texts": ["a"]}, headers={"X-ARP-Model": EMBED_MODEL_NAME})
     assert r.status_code == 503 and "CPUExecutionProvider" in r.json()["detail"]
+
+
+def test_classify_model_mismatch_409(c):  # spec AC-9
+    r = c.post("/classify", json={"texts": ["a"], "labels": ["x"], "hypothesis": "{}"}, headers={"x-arp-model": "wrong"})
+    assert r.status_code == 409
+
+
+def test_tag_model_mismatch_409(c):  # spec AC-11
+    r = c.post("/tag", json={"key": "climate_detector", "texts": ["a"]}, headers={"x-arp-model": "wrong"})
+    assert r.status_code == 409

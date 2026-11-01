@@ -18,6 +18,8 @@ from pydantic import BaseModel, Field
 
 from arp.compute.client import CLOUD_RERANK_MODEL
 from arp.ingestion.local_files import parse_file_to_text_with_pages, parser_version
+from arp.models import local
+from arp.models.registry import entry, model_header
 from arp.retrieval.embeddings import EMBED_MODEL_NAME
 from arp.schemas.common import TableSpan
 
@@ -77,6 +79,13 @@ def _embedder():
     return _model("embed", _load_embedder)
 
 
+def _torch_model(key: str):
+    """The registry entry for `key`, after making sure torch sees the GPU (503 otherwise)."""
+    if not _cuda_available():
+        raise HTTPException(503, "CUDA not available")
+    return entry(key)
+
+
 def _check_model(received: str | None, expected: str) -> None:
     if received != expected:
         raise HTTPException(409, f"model mismatch: service={expected} client={received or 'missing'}")
@@ -126,6 +135,36 @@ def rerank(request: RerankRequest, x_arp_model: str | None = Header(default=None
 def embed(request: EmbedRequest, x_arp_model: str | None = Header(default=None)) -> dict:
     _check_model(x_arp_model, EMBED_MODEL_NAME)
     return {"vectors": np.asarray(list(_embedder().embed(request.texts)), dtype=np.float32).tolist()}
+
+
+class ClassifyRequest(BaseModel):
+    texts: list[str] = Field(max_length=MAX_EMBED_TEXTS)
+    labels: list[str]
+    hypothesis: str
+
+
+class TagRequest(BaseModel):
+    key: str
+    texts: list[str] = Field(max_length=MAX_EMBED_TEXTS)
+
+
+@app.post("/classify")
+def classify(request: ClassifyRequest, x_arp_model: str | None = Header(default=None)) -> dict:
+    e = entry("nli")
+    _check_model(x_arp_model, model_header(e))
+    _torch_model("nli")
+    return {"scores": local.nli_scores(e, request.texts, request.labels, request.hypothesis, device=0)}
+
+
+@app.post("/tag")
+def tag(request: TagRequest, x_arp_model: str | None = Header(default=None)) -> dict:
+    try:
+        e = entry(request.key)
+    except KeyError as exc:
+        raise HTTPException(404, f"unknown model key: {request.key}") from exc
+    _check_model(x_arp_model, model_header(e))
+    _torch_model(request.key)
+    return {"results": local.tag_scores(e, request.texts, device=0)}
 
 
 @app.get("/healthz")

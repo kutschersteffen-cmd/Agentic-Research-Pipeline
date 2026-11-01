@@ -281,3 +281,29 @@ def healthz(url: str) -> dict | None:
         return response.json() if response.is_success else None
     except Exception:  # noqa: BLE001
         return None
+
+
+def _rows(body: dict, field: str, count: int) -> list:
+    rows = body[field]
+    if not isinstance(rows, list) or len(rows) != count:
+        raise ValueError(f"{field}: expected {count} rows")
+    return rows
+
+
+def classify_scores(texts: list[str], labels: list[str], hypothesis: str, model_header: str) -> list[dict] | None:
+    """Zero-shot NLI scores from arp-models, one {label: score} per text, or None to compute locally."""
+    payload = {"texts": texts, "labels": labels, "hypothesis": hypothesis}
+
+    def read(body):
+        rows = _rows(body, "scores", len(texts))
+        return [{lab: float(r[lab]) for lab in labels} for r in rows]
+
+    return _models_call("/classify", payload, model_header, read)
+
+
+def tag_result(key: str, texts: list[str], model_header: str) -> list[dict] | None:
+    """Classifier results from arp-models, one {label, score} per text, or None to compute locally."""
+    def read(body):
+        return [{"label": str(r["label"]), "score": float(r["score"])} for r in _rows(body, "results", len(texts))]
+
+    return _models_call("/tag", {"key": key, "texts": texts}, model_header, read)
