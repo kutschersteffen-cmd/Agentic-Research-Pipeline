@@ -19,13 +19,14 @@ from arp.extraction.pipeline import load_run_schema
 from arp.golden_set.export import final_decisions
 from arp.grounding import _normalize, _normalize_with_offsets
 from arp.ingestion.indexing_config import IndexingConfig
-from arp.ingestion.local_files import LocalFileDocumentSource, parse_file_to_text_with_pages
+from arp.ingestion.local_files import LocalFileDocumentSource, parse_file_to_text_with_pages, parser_version
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.normalise.locale import decimal_for, detect_language
 from arp.presets.registry import PRESETS
 from arp.retrieval.content_store_factory import content_store_for
 from arp.schemas.common import CompanyRef, DocType, DocumentChunk, SourceDocument
 from arp.schemas.review import DecisionKind, ReviewDecision, field_item_key, period_key
+from arp.storage.document_store import DocumentContentStore, derive_doc_id
 from arp.storage.run_store import RunStore
 
 
@@ -177,16 +178,20 @@ def ensure_documents(cases: list[dict], documents_file: Path, documents_dir: Pat
             raise ValueError(f"Document {document} does not match its recorded hash.")
 
 
-def _parse(path: Path, company_id: str) -> SourceDocument | None:
+def _parse(path: Path, company_id: str, store: DocumentContentStore) -> SourceDocument | None:
     """The parser the labels were made with. Cases name files directly under `<company_id>/`, not under a
-    doc-type folder as the app's local source reads them, so the file is parsed here."""
+    doc-type folder as the app's local source reads them, so the file is parsed here -- through the content
+    store, so a repeat run skips the parse, and with the app's deterministic doc_id, so hybrid embeddings
+    (keyed on chunk ids built from it) are reused too."""
     if not path.exists():
         return None
-    text, page_breaks, table_spans = parse_file_to_text_with_pages(path)
-    language = detect_language(text)
+    parsed = store.get_or_parse(path, parser_version=parser_version(), parse=parse_file_to_text_with_pages)
+    doc_type = DocType.SUSTAINABILITY_REPORT
+    language = detect_language(parsed.full_text)
     return SourceDocument(
-        company_id=company_id, doc_type=DocType.SUSTAINABILITY_REPORT, title=path.name, local_path=str(path),
-        full_text=text, page_breaks=page_breaks, table_spans=table_spans, language=language, decimal=decimal_for(language),
+        doc_id=derive_doc_id(company_id, doc_type.value, parsed.content_key), company_id=company_id,
+        doc_type=doc_type, title=path.name, local_path=str(path), full_text=parsed.full_text,
+        page_breaks=parsed.page_breaks, table_spans=parsed.table_spans, language=language, decimal=decimal_for(language),
     )
 
 
@@ -195,7 +200,8 @@ def _contains(chunk_text: str, span_text: str) -> bool:
 
 
 async def run_cases_retrieval_eval(cases_file: Path, *, documents_dir: Path, settings: Settings) -> dict:
-    """Cases mode: gold spans are text in a committed cases file, so CI can run it without Postgres.
+    """Cases mode: gold spans are text in a committed cases file, so CI can run it without a reviewed run (Postgres
+    is still needed: the content store opens its document registry there, and hybrid retrieval keeps embeddings there).
     A span is hit at the first evidence chunk of its document that contains it after grounding's
     normalisation; a span not found in its parsed document is stale (left out and counted)."""
     cases = json.loads(cases_file.read_text())
@@ -205,12 +211,13 @@ async def run_cases_retrieval_eval(cases_file: Path, *, documents_dir: Path, set
     seconds: list[float] = []
     misses: list[dict] = []
     stale = 0
+    store = content_store_for(settings)
     by_company: dict[str, list[dict]] = {}
     for c in cases:
         by_company.setdefault(c["company_id"], []).append(c)
     for company_id, company_cases in by_company.items():
         names = dict.fromkeys(c["document"] for c in company_cases)
-        parsed = [await asyncio.to_thread(_parse, documents_dir / company_id / name, company_id) for name in names]
+        parsed = [await asyncio.to_thread(_parse, documents_dir / company_id / name, company_id, store) for name in names]
         documents = [d for d in parsed if d is not None]
         by_title = {d.title: d for d in documents}
         for c in company_cases:
