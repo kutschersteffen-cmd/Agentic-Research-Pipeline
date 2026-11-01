@@ -37,7 +37,7 @@ Consequence: `set_meta` rewrites the whole `meta.json`, so segment fields are ad
 ## Review Focus
 
 1. 10-K stored but `report` is `unchanged` on a re-fetch → segment files must still exist (they were written on the first run; the segment step reruns only when facts or report changed, never deletes).
-2. iXBRL text blocks split with `ix:continuation` → note text only from the head element; test pins that a continued block still yields the head text and does not crash.
+2. iXBRL text blocks split with `ix:continuation` → follow the `continuedAt` chain and join the head and every continuation in order (segment notes in 10-Ks often span pages, so the head alone would cut the note short); test pins a two-part block yielding both parts.
 3. Segment facts in thousands (`scale="3"`) → value scaled like `parse_ixbrl` does; one test with `scale="6"`.
 4. Duplicate facts (same concept/member/period printed twice in the 10-K) → one row, not two; test in Task 2.
 5. Total = 0 → `sum_matches_total: false`, no ZeroDivisionError; test in Task 2.
