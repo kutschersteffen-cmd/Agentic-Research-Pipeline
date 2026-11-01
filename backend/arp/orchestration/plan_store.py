@@ -32,6 +32,7 @@ class PlanStore:
     def __init__(self, dsn: str):
         from arp.storage.postgres import get_engine
 
+        self.dsn = dsn  # run_lease takes its advisory lock on this
         self.engine = get_engine(dsn)
 
     def create(self, brief: str, script: str) -> str:
