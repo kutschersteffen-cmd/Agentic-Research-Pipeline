@@ -13,6 +13,15 @@ ACME = CompanyRef(company_id="acme", name="Acme")
 BETA = CompanyRef(company_id="beta", name="Beta")
 
 
+@pytest.fixture(autouse=True)
+def _no_llm(monkeypatch):
+    """Adapters build LLM clients; the patched run types never use them, and CI has no API key."""
+    import arp.llm.factory as factory
+
+    monkeypatch.setattr(factory, "build_llm_client", lambda *a, **k: None)
+    monkeypatch.setattr(factory, "build_verifier_llm_client", lambda *a, **k: None)
+
+
 @pytest.fixture
 def universe_run(run_store):
     return JobManager(run_store).create_run("theme", {}, 2, companies=[ACME, BETA]).run_id
