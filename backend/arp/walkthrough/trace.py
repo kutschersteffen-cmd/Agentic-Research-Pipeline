@@ -67,11 +67,13 @@ def field_entry(
     vision: dict | None = None,
     retrieval: dict | None = None,
     near_misses: list[dict] = (),
+    not_found_reason: str | None = None,
 ) -> dict:
     return {
         "field_id": field_id,
         "grouped": grouped,
         "skipped": skipped,
+        "not_found_reason": not_found_reason,
         "passages": list(passages),
         "extractor": extractor,
         "verifier": verifier,

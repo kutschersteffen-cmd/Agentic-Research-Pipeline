@@ -196,9 +196,11 @@ async def _extract_company(
         if d.match_status == MatchStatus.MISMATCH
     ]
 
-    def _skipped(field_id: str, reason: str) -> None:
+    def _skipped(field_id: str, reason: str, not_found_reason: str | None = None) -> None:
         if traces is not None:
-            traces.setdefault("fields", {})[field_id] = trace.field_entry(field_id, skipped=reason)
+            traces.setdefault("fields", {})[field_id] = trace.field_entry(
+                field_id, skipped=reason, not_found_reason=not_found_reason
+            )
 
     usages: list[LLMUsage] = []
     to_extract, fields = plan_fields(schema, company)
@@ -207,9 +209,10 @@ async def _extract_company(
     to_extract = [f for f in to_extract if not f.derived_rule]  # derived fields never reach the LLM graph
     all_held = bool(documents) and not kept
     if all_held:  # nothing left to extract from: every field is a held no-evidence row
-        to_extract, fields = [], [no_evidence_field(f)[0] for f in schema.fields]
+        fields = [no_evidence_field(f)[0].model_copy(update={"not_found_reason": "held"}) for f in schema.fields]
+        to_extract = []
         for f in schema.fields:  # no facts are fetched for an all-held company, so none is tagged
-            _skipped(f.field_id, "derived" if f.derived_rule else "documents_held")
+            _skipped(f.field_id, "derived" if f.derived_rule else "documents_held", "held")
     key, scheme = issuer_key(company, identifier_map)
     recorded = history.recorded_periods(key) if history else set()
     for d in kept:

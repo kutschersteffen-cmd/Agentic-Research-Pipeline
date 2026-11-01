@@ -96,6 +96,31 @@ async def test_no_evidence_entry(fake_llm):
     assert sink["scope1"]["extractor"] is None
 
 
+async def test_ac_a3_no_passage_reason(fake_llm):
+    sink = {}
+    rows, _, _ = await _run(fake_llm({}), _field(seed_keywords=["zzzunmatched"]), sink=sink)
+    assert sink["scope1"]["not_found_reason"] == "no_passage"
+    assert [r.not_found_reason for r in rows] == ["no_passage"]
+
+
+async def test_ac_a3b_passages_silent_reason(fake_llm):
+    llm = fake_llm({
+        "ExtractionDraft": [ExtractionDraft(values=[], confidence=0.9)],
+        "VerifierOutput": [VerifierOutput(agrees=True, confidence=0.9, notes="ok")] * 2,
+    })
+    sink = {}
+    rows, _, _ = await _run(llm, _field(), sink=sink)
+    assert sink["scope1"]["passages"]
+    assert sink["scope1"]["not_found_reason"] == "passages_silent"
+    assert {r.not_found_reason for r in rows} == {"passages_silent"}
+
+
+async def test_found_field_has_no_reason(fake_llm):
+    sink = {}
+    rows, _, _ = await _run(_agreeing_llm(fake_llm), _field(), sink=sink)
+    assert sink["scope1"]["not_found_reason"] is None and rows[0].not_found_reason is None
+
+
 async def test_entry_failure_never_fails_the_field(fake_llm, monkeypatch):
     def boom(*a, **k):
         raise RuntimeError("model_dump failed")

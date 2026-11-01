@@ -354,6 +354,7 @@ def _trace_entry(state: FieldState, grouped: bool) -> dict:
         verifier=verifier,
         adjudicator=trace.call(state["adjudicator_usage"], state["adjudicator"]),
         vision=trace.call(seen.get("vision_usage"), seen.get("reading")),
+        not_found_reason=next((f.not_found_reason for f in extracted), None),
     )
 
 
@@ -436,6 +437,10 @@ async def extract_one_field(
         "explain": grouped_explain if trace_sink is not None and grouped is not None else None,
     }
     final_state = await run_graph(_COMPILED_GRAPH, initial)
+    rows = final_state["extracted"]
+    if rows and all(f.value_state == ValueState.NOT_FOUND for f in rows):
+        reason = "passages_silent" if final_state["evidence"] else "no_passage"
+        final_state["extracted"] = [f.model_copy(update={"not_found_reason": reason}) for f in rows]
     if trace_sink is not None:
         try:
             trace_sink[field.field_id] = _trace_entry(final_state, grouped is not None)
