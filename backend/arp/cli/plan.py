@@ -53,13 +53,13 @@ def _llm():
 
 
 def _context() -> str:
-    from arp.api.deps import get_decision_store
+    from arp.api.deps import get_decision_store, get_index_store
     from arp.config import get_settings
     from arp.orchestration.plan_planner import planner_context
     from arp.storage.taxonomy_store import TaxonomyStore
 
     return planner_context(TaxonomyStore(get_settings().taxonomies_dir).list_all(),
-                           get_decision_store().list_frameworks())
+                           get_decision_store().list_frameworks(), get_index_store().list_calibrations())
 
 
 def _print_steps(calls: list[dict]) -> None:
@@ -176,3 +176,25 @@ def seed_demo() -> None:
     plan_id = store.create(DEMO_BRIEF, DEMO_SCRIPT)
     typer.echo(plan_id)
     _print_steps(store.get(plan_id)["dry_run"])
+
+
+@plan_app.command("golden")
+def golden(
+    cases: Path = typer.Option(..., "--cases", help="JSONL: {id, brief, expected_kinds}."),
+    min_pass: int = typer.Option(..., "--min-pass", help="Fail unless at least this many cases pass."),
+) -> None:
+    """Run the planner on known briefs; a case passes when its script is accepted and its dry run takes the
+    expected step kinds in that order (other steps allowed in between)."""
+    from arp.orchestration.plan_golden import load_cases, run_case
+
+    async def _all() -> list[tuple[str, bool, str]]:
+        llm = _llm()
+        return [(c["id"], *(await run_case(c, llm))) for c in load_cases(cases)]
+
+    results = asyncio.run(_all())
+    for case_id, ok, detail in results:
+        typer.echo(f"{'pass' if ok else 'FAIL'}  {case_id}: {detail}")
+    passed = sum(ok for _, ok, _ in results)
+    typer.echo(f"{passed}/{len(results)} passed (need {min_pass})")
+    if passed < min_pass:
+        raise typer.Exit(1)

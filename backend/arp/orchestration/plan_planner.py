@@ -52,13 +52,14 @@ universe_build starts every plan; pass its run_id on (e.g. universe_run_id=u.run
 Return only the script."""
 
 
-def planner_context(taxonomies, frameworks) -> str:
-    """What the planner may name: ratified taxonomies (for universe_build) and decision frameworks."""
+def planner_context(taxonomies, frameworks, calibrations=()) -> str:
+    """What the planner may name: ratified taxonomies (universe_build), decision frameworks, index calibrations."""
     tax = [f"- {t.taxonomy_id}: {t.theme.name}" for t in taxonomies if t.status == "ratified"]
     fw = [f"- {f.framework_id}: {f.name}" for f in frameworks if f.ratified]
     return ("Ratified taxonomies (universe_build taxonomy_id):\n" + ("\n".join(tax) or "- none") +
             "\n\nRatified decision frameworks (decision_score framework_id):\n" + ("\n".join(fw) or "- none") +
-            "\n\nindex_construct is not available yet; do not use it.")
+            "\n\nIndex calibrations (index_construct calibration_id; it also needs a candidates JSON file the brief "
+            "names):\n" + ("\n".join(f"- {c.calibration_id}: {c.name}" for c in calibrations) or "- none"))
 
 
 async def draft_plan(brief: str, llm: LLMClient, store: PlanStore, context: str = "") -> str:

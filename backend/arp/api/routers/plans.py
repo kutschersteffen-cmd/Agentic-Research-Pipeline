@@ -49,12 +49,12 @@ def _get(store: PlanStore, plan_id: str) -> dict:
 
 @router.post("")
 async def create_plan(req: DraftRequest, store: PlanStore = Depends(plan_store)) -> dict:
-    from arp.api.deps import get_decision_store, get_llm_client
+    from arp.api.deps import get_decision_store, get_index_store, get_llm_client
     from arp.orchestration.plan_planner import planner_context
     from arp.storage.taxonomy_store import TaxonomyStore
 
     context = planner_context(TaxonomyStore(get_settings().taxonomies_dir).list_all(),
-                              get_decision_store().list_frameworks())
+                              get_decision_store().list_frameworks(), get_index_store().list_calibrations())
     try:
         plan_id = await draft_plan(req.brief, get_llm_client(), store, context)
     except PlanRejected as exc:
