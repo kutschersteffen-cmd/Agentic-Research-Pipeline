@@ -158,3 +158,21 @@ def cancel(plan_id: str) -> None:
         typer.echo(str(exc))
         raise typer.Exit(1) from exc
     typer.echo("cancelled")
+
+
+DEMO_BRIEF = "Demo: EU grid storage, green capex for significant names, scored, as a report"
+DEMO_SCRIPT = """u = universe_build(taxonomy_id="tax_demo_grid_storage", source="data/demo/universe.csv")
+e = extraction(universe_run_id=u.run_id, schema_id="green_capex",
+               companies=[c.id for c in u.companies if c.exposure in ["pure_play", "significant"]])
+d = decision_score(source_run_id=e.run_id)
+report_render(source_ids=[e.run_id])
+"""
+
+
+@plan_app.command("seed-demo")
+def seed_demo() -> None:
+    """Store a demo plan (script and dry run, no LLM call) to show the Plans page."""
+    store = _store()
+    plan_id = store.create(DEMO_BRIEF, DEMO_SCRIPT)
+    typer.echo(plan_id)
+    _print_steps(store.get(plan_id)["dry_run"])

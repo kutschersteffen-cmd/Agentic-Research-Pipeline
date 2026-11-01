@@ -126,3 +126,33 @@ def test_cli_approve_run_show(client, store, gate):
     assert "2 extraction" in runner.invoke(plan_cli.plan_app, ["dry-run", plan_id]).stdout
     shown = runner.invoke(plan_cli.plan_app, ["show", plan_id]).stdout
     assert "done  approved by bob" in shown and "call 2 extraction done r_1" in shown
+
+
+def test_seed_demo_stores_a_four_step_draft(store):  # AC-33 data
+    result = CliRunner().invoke(plan_cli.plan_app, ["seed-demo"])
+    assert result.exit_code == 0, result.stdout
+    plan = store.get(result.stdout.split()[0])
+    assert plan["status"] == "draft"
+    assert [s["kind"] for s in plan["dry_run"]] == ["universe_build", "extraction", "decision_score", "report_render"]
+
+
+def test_run_leaves_plan_running_at_once(client, store):  # mutation gap: claim must set "running"
+    plan_id = store.create("b", SCRIPT)
+    store.approve(plan_id, "alice")
+    client.post(f"/api/plans/{plan_id}/run")
+    assert store.get(plan_id)["status"] in {"running", "done"}
+
+
+def test_failed_worker_is_logged(caplog):  # mutation gap: a worker failure must be logged
+    import asyncio
+
+    async def boom():
+        raise RuntimeError("worker died")
+
+    async def go():
+        task = asyncio.ensure_future(boom())
+        await asyncio.gather(task, return_exceptions=True)
+        plans._done(task)
+
+    asyncio.run(go())
+    assert "plan worker failed" in caplog.text

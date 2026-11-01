@@ -533,6 +533,7 @@ details.help-text[open] > summary { margin-bottom: var(--s-1); }
 /* The open run in a list of runs. */
 .clickable-row[aria-current] td { background: var(--accent-tint); }
 .clickable-row[aria-current] td:first-child { font-weight: 600; }
+.table-wrap tr[aria-current] td { background: var(--accent-tint); }
 .status-text { font-size: var(--text-sm); color: var(--accent); }
 .error-text { color: var(--low); }
 /* Inline "a person must act" text: the signal colour, at text contrast. */
@@ -2275,3 +2276,5 @@ a.vc-box:hover { border-color: var(--text); }
 .passage-row:hover:not(:disabled) { background: var(--well); }
 .passage-text { white-space: pre-wrap; max-height: 16rem; overflow-y: auto; margin: var(--s-1_5) 0; padding: var(--s-2) var(--s-3); background: var(--well); font-size: var(--text-sm); overflow-wrap: anywhere; }
 .passage-row .chip { background: none; } /* a hint, not a status: outline only */
+.plan-script { overflow-x: auto; max-width: 100%; }
+.table-wrap td.plan-inputs { white-space: normal; overflow-wrap: anywhere; min-width: 12rem; }
