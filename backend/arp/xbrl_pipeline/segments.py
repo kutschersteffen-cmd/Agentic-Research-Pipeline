@@ -8,6 +8,7 @@ from arp.ingestion.esef import DimFact, parse_ixbrl_dimensional
 from arp.ingestion.xbrl import CAPEX_TAGS, REVENUE_TAGS, RND_TAGS, _full_year
 from arp.xbrl_pipeline.models import Market, SegmentRow
 from arp.xbrl_pipeline.required import IFRS_CAPEX_TAGS, IFRS_REVENUE_TAGS
+from arp.xbrl_pipeline.store import XbrlStore
 
 
 def _us(*names: str) -> list[str]:
@@ -92,3 +93,18 @@ def sec_segments(xhtml: bytes, *, company_id: str, accession: str | None) -> tup
             totals.setdefault((f.concept, int(f.period_end[:4])), f.value)
     rows = build_segments(dim_facts, totals, market="sec", company_id=company_id, accession=accession)
     return rows, texts.get(NOTE_CONCEPTS["sec"]) or None
+
+
+def store_segments(store: XbrlStore, key: str, rows: list[SegmentRow], note: str | None) -> None:
+    store.write_segments(key, rows)
+    store.write_segment_note(key, note)
+    store.update_meta(key, segment_count=len(rows), segment_note_chars=len(note or ""))
+
+
+def write_segments_sec(key: str, store: XbrlStore, company_id: str) -> None:
+    """Segments from the stored 10-K; none when it is missing or not inline XBRL."""
+    meta, path = store.report_meta(key), store.file_path(key, "report")
+    rows, note = ([], None)
+    if meta and meta.inline_xbrl and path:
+        rows, note = sec_segments(path.read_bytes(), company_id=company_id, accession=meta.accession)
+    store_segments(store, key, rows, note)
