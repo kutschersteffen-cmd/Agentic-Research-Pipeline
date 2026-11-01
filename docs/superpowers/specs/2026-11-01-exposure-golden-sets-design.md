@@ -2,6 +2,8 @@
 
 Spec slug: `exposure-golden-sets`. Parent: `2026-11-01-model-stack-design.md` (approved).
 
+Status: approved by the owner, 2026-11-01.
+
 ## Why
 
 Every model integration is switched on only after a golden-set comparison (umbrella-spec rule). The

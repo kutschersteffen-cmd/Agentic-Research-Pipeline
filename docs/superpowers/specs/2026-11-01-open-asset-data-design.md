@@ -2,6 +2,8 @@
 
 Spec slug: `open-asset-data`. Parent: `2026-11-01-model-stack-design.md` (approved).
 
+Status: approved by the owner, 2026-11-01.
+
 ## Why
 
 Market-leading risk products work on assets (plants, mines, power stations) linked to owners

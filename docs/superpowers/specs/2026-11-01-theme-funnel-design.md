@@ -2,6 +2,8 @@
 
 Spec slug: `theme-funnel`. Parent: `2026-11-01-model-stack-design.md` (approved). Needs `arp/models/` (A1).
 
+Status: approved by the owner, 2026-11-01.
+
 ## Why
 
 The Thematic Universe Builder (`arp/research/pipeline.py`, `match_graph.py`) runs the Advocate / Opposing /

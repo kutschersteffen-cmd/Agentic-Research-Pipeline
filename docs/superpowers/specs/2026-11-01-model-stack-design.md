@@ -2,6 +2,8 @@
 
 Spec slug: `model-stack`.
 
+Status: approved by the owner, 2026-11-01.
+
 ## Why
 
 Today ARP uses two model types: LLMs through `arp/llm`, and an embedding model plus an optional cross-encoder

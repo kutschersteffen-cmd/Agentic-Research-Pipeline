@@ -1,6 +1,8 @@
 # Phase B outline: revenue sizing, entities and live risk signals
 
 Spec slug: `phase-b-exposure-outline`. **Outline, not for implementation.** Each workstream below gets its own
+
+Status: outline approved by the owner, 2026-11-01 (scope and order).
 detailed spec with an acceptance table once Phase A results are in. Parent: `2026-11-01-model-stack-design.md`.
 Action plan: `docs/MARKET_EXPOSURE_APPROACHES_RESEARCH.md`, section 6.
 

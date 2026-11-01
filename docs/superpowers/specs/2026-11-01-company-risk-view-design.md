@@ -2,6 +2,8 @@
 
 Spec slug: `company-risk-view`.
 
+Status: approved by the owner, 2026-11-01.
+
 ## Why
 
 Engagement selection today ranks on a placeholder CLTI score and monitoring triggers
