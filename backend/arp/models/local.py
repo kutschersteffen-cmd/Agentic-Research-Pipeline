@@ -33,6 +33,28 @@ def tag_scores(e: RegistryEntry, texts: list[str], **kwargs) -> list[dict]:
     return [{"label": r["label"], "score": float(r["score"])} for r in pipe(texts, truncation=True)]
 
 
+def text_embedding(model_name: str):
+    """A fastembed TextEmbedding, one per model name."""
+    with _lock:
+        key = f"fastembed:{model_name}"
+        if key not in _pipes:
+            from fastembed import TextEmbedding
+
+            _pipes[key] = TextEmbedding(model_name=model_name)
+        return _pipes[key]
+
+
+def cross_encoder(model_name: str):
+    """A fastembed TextCrossEncoder, one per model name."""
+    with _lock:
+        key = f"fastembed-rerank:{model_name}"
+        if key not in _pipes:
+            from fastembed.rerank.cross_encoder import TextCrossEncoder
+
+            _pipes[key] = TextCrossEncoder(model_name=model_name)
+        return _pipes[key]
+
+
 def _gliner(e: RegistryEntry, device: str | None):
     from gliner import GLiNER
 

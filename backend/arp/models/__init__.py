@@ -1,3 +1,3 @@
-from arp.models.capabilities import classify, spans, tag
+from arp.models.capabilities import classify, embed, rerank, spans, tag
 
-__all__ = ["classify", "spans", "tag"]
+__all__ = ["classify", "embed", "rerank", "spans", "tag"]

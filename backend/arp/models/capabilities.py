@@ -1,4 +1,8 @@
-"""Public capabilities: cache -> arp-models (cloud) -> local fallback."""
+"""Public capabilities: cache -> arp-models (cloud) -> local fallback. embed and rerank skip the cache."""
+from collections.abc import Callable
+
+import numpy as np
+
 from arp.compute import client
 from arp.models import local
 from arp.models.cache import cached
@@ -58,3 +62,25 @@ def spans(texts: list[str], labels: list[str], threshold: float = 0.5) -> tuple[
     # a span whose offsets do not select its own text is dropped, from the cache as well
     res = [[sp for sp in found if t[sp["start"]:sp["end"]] == sp["text"]] for t, found in zip(texts, res, strict=True)]
     return res, provenance(e, where[0])
+
+
+def embed(texts: list[str], load: Callable | None = None) -> tuple[np.ndarray, dict]:
+    """(n, dim) float32 vectors, all from the cloud or all local. `load` overrides the local model getter."""
+    e = entry("embed")
+    remote = client.embed(texts) if texts else None
+    if remote is not None:
+        return remote, provenance(e, "cloud")
+    model = load() if load else local.text_embedding(e.hf_id)
+    return np.asarray(list(model.embed(texts)), dtype=np.float32), provenance(e, "local")
+
+
+def rerank(query: str, texts: list[str],
+           score: Callable[[str, list[str]], list[float]] | None = None) -> tuple[list[float] | None, dict]:
+    """Cross-encoder scores, one per text. With the cloud configured, None on failure: the slow local
+    model is never its fallback. Local errors propagate. `score` overrides the local scorer."""
+    e = entry("rerank")
+    if client.models_configured():
+        return client.rerank_scores(query, texts), provenance(e, "cloud")
+    if score is None:
+        return [float(s) for s in local.cross_encoder(e.hf_id).rerank(query, texts)], provenance(e, "local")
+    return score(query, texts), provenance(e, "local")
