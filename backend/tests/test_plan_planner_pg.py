@@ -67,3 +67,11 @@ async def test_dry_run_error_is_retried(pg, fake_llm):  # review: dry-run failur
     plan_id = await draft_plan("b", llm, PlanStore(pg))
     assert "name nope is not defined" in llm.prompts[1]
     assert PlanStore(pg).get(plan_id)["status"] == "draft"
+
+
+def test_context_lists_index_calibrations():
+    from types import SimpleNamespace as NS
+
+    ctx = planner_context([], [], [NS(calibration_id="cal_pab", name="EU PAB")])
+    assert "- cal_pab: EU PAB" in ctx
+    assert "not available" not in ctx
