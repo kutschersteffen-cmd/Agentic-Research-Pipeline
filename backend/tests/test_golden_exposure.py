@@ -88,3 +88,61 @@ def test_validate_bad_json(tmp_path, raw):
     assert result.exit_code == 1
     assert "invalid JSON" in result.output
     assert "Traceback" not in result.output
+
+
+def _cases(tmp_path, spec, labels=("core", "not")):
+    cfg = _set(labels=labels)
+    base = cfg["cases"][0]
+    cfg["cases"] = []
+    for cid, label, *sp in spec:
+        c = copy.deepcopy(base)
+        c.update(case_id=cid, label=label)
+        if sp:
+            c["split"] = sp[0]
+        cfg["cases"].append(c)
+    if cfg["cases"]:
+        cfg["cases"][0]["company"] = "LONGi 隆基"
+    (tmp_path / "cases.json").write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _cli(tmp_path, cmd):
+    return CliRunner().invoke(app, ["golden-set", "exposure", cmd, "--set", str(tmp_path)])
+
+
+def _splits(tmp_path):
+    return {c["case_id"]: c.get("split") for c in json.loads((tmp_path / "cases.json").read_text(encoding="utf-8"))["cases"]}
+
+
+def test_split_alternates_per_label(tmp_path):  # AC-14
+    _cases(tmp_path, [("a", "core"), ("b", "core"), ("c", "not"), ("d", "not")])
+    assert _cli(tmp_path, "split").exit_code == 0
+    assert _splits(tmp_path) == {"a": "holdout", "b": "tune", "c": "holdout", "d": "tune"}
+
+
+def test_split_keeps_existing(tmp_path):  # AC-15
+    _cases(tmp_path, [("a", "core", "tune"), ("b", "core"), ("c", "core")])
+    _cli(tmp_path, "split")
+    assert _splits(tmp_path) == {"a": "tune", "b": "tune", "c": "holdout"}
+
+
+def test_split_idempotent_mixed_and_unicode(tmp_path):  # Review Focus 2 and 3
+    _cases(tmp_path, [("a", "core", "tune"), ("b", "core"), ("c", "not"), ("d", "not", "holdout"), ("e", "not")])
+    _cli(tmp_path, "split")
+    first = (tmp_path / "cases.json").read_bytes()
+    _cli(tmp_path, "split")
+    assert (tmp_path / "cases.json").read_bytes() == first
+    assert "LONGi 隆基".encode() in first
+
+
+def test_split_invalid_does_not_write(tmp_path):
+    _cases(tmp_path, [])
+    before = (tmp_path / "cases.json").read_bytes()
+    assert _cli(tmp_path, "split").exit_code == 1
+    assert (tmp_path / "cases.json").read_bytes() == before
+
+
+def test_stats_lines(tmp_path):  # AC-16
+    _cases(tmp_path, [("a", "core"), ("b", "core"), ("c", "not"), ("d", "not")])
+    _cli(tmp_path, "split")
+    out = _cli(tmp_path, "stats").output
+    assert "core tune=1 holdout=1" in out and "not tune=1 holdout=1" in out

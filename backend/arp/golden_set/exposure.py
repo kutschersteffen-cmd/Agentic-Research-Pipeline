@@ -154,3 +154,22 @@ def load_set(set_dir: Path) -> ExposureSet:
     if data is None:
         raise ValueError(err)
     return ExposureSet.model_validate(data)
+
+
+def assign_splits(s: ExposureSet) -> ExposureSet:
+    """Fills missing splits: per label, cases sorted by case_id, even positions holdout, odd tune.
+    An existing split is kept and still occupies its position."""
+    out = s.model_copy(deep=True)
+    for label in s.labels:
+        for i, c in enumerate(sorted((c for c in out.cases if c.label == label), key=lambda c: c.case_id)):
+            if c.split is None:
+                c.split = "holdout" if i % 2 == 0 else "tune"
+    return out
+
+
+def stats_lines(s: ExposureSet) -> list[str]:
+    return [
+        f"{label} tune={sum(c.label == label and c.split == 'tune' for c in s.cases)} "
+        f"holdout={sum(c.label == label and c.split == 'holdout' for c in s.cases)}"
+        for label in s.labels
+    ]

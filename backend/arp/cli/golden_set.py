@@ -44,6 +44,40 @@ def exposure_validate(set_dir: Path = typer.Option(..., "--set", help="Set direc
     typer.echo("OK")
 
 
+@exposure_app.command("split")
+def exposure_split(set_dir: Path = typer.Option(..., "--set", help="Set directory holding cases.json.")) -> None:
+    """Assigns tune/holdout to cases without a split (alternating per label by case_id); keeps existing ones."""
+    from arp.golden_set.exposure import assign_splits, load_set, validate_set
+    from arp.storage.atomic_io import atomic_write_text
+
+    problems = validate_set(set_dir)
+    for problem in problems:
+        typer.echo(problem)
+    if problems:
+        raise typer.Exit(1)
+    assigned = {c.case_id: c.split for c in assign_splits(load_set(set_dir)).cases}
+    path = set_dir / "cases.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for case in data["cases"]:
+        case.setdefault("split", assigned[case["case_id"]])  # raw edit keeps unknown keys and order
+    atomic_write_text(path, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+    typer.echo("OK")
+
+
+@exposure_app.command("stats")
+def exposure_stats(set_dir: Path = typer.Option(..., "--set", help="Set directory holding cases.json.")) -> None:
+    """Prints tune/holdout counts per label."""
+    from arp.golden_set.exposure import load_set, stats_lines, validate_set
+
+    problems = validate_set(set_dir)
+    for problem in problems:
+        typer.echo(problem)
+    if problems:
+        raise typer.Exit(1)
+    for line in stats_lines(load_set(set_dir)):
+        typer.echo(line)
+
+
 @golden_set_app.command("run")
 def golden_set_run(
     cases_file: Path = typer.Option(
