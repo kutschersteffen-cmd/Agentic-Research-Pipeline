@@ -62,15 +62,15 @@ Definitions used below:
 | AC-8 | C1 | Page renders | Each card's first header row has an `svg` icon as first child and the title as second child; title `font-weight` 600, `font-family` = `var(--font-display)` | evaluator |
 | AC-9 | C2 | Page renders | Same as AC-8 | evaluator |
 | AC-10 | C3 | Page renders | Same as AC-8 | evaluator |
-| AC-11 | C1, C2, C3 with edges | Page renders | Every `.react-flow__edge-path` has a `d` attribute containing `C` (bezier), stroke = neutral, `stroke-width` 1.4px | evaluator |
+| AC-11 | C1, C2, C3 with edges | Page renders | Every `.react-flow__edge-path` has a `d` attribute containing `C` (bezier) | evaluator |
 | AC-12 | C1, C2, C3 with edges | Page renders | Every edge path has a `marker-end` (arrowhead) | evaluator |
 | AC-13 | C2 setup mode | User clicks step A, then step B | After the first click A's card has `outline: 2px solid` ink; after the second B has it and A has no outline | evaluator |
 | AC-14 | C3 | User clicks stage A, then stage B | Same as AC-13 | evaluator |
-| AC-15 | C1, C2, C3 | Page renders | `.react-flow__handle` on nodes with at least one edge is 7×7px, border 1px ink, fill = computed `var(--panel)`, opacity 1; on C3 nodes with no edge, opacity 0 | evaluator |
+| AC-15 | C1, C2, C3 | Page renders | `.react-flow__handle` on nodes with at least one edge is 7×7px, border 1px ink, fill = computed `var(--panel)`, opacity 1 | evaluator |
 | AC-16 | C3 with a stage that has open decisions (seeded demo case) | Page renders | That stage shows `.flow-node-badge` reading `<n> to decide` in the signal colour | evaluator |
 | AC-17 | C1, C2, C3; no stage waiting on a person (no open decisions, no `ready` stage) | Page renders | No element inside `.flow-rf` has computed `color`, `background-color`, `border-*-color` or `outline-color` equal to signal | evaluator |
 | AC-18 | C1, C2, C3 | Page renders | `.react-flow__controls` is horizontally centred at the bottom of the canvas (left and right gaps differ by ≤2px), `border-radius` 0px | evaluator |
-| AC-19 | C1 with a failed stage | Page renders | The stage shows the existing `.status-failed` pill reading `Failed`; no other red element is added to the card | evaluator |
+| AC-19 | C1 with a failed stage | Page renders | The stage shows the existing `.status-failed` pill reading `Failed` | evaluator |
 | AC-20 | C1, C2, C3; both themes | Page renders | Every text element in a card has computed `font-size` ≥ 13px | evaluator |
 | AC-21 | C1, C2, C3; both themes | Page renders | Every text element in a card has contrast ≥ 4.5:1 against its nearest opaque background | evaluator |
 | AC-22 | Viewport 390px wide | C1, C2 and the StewardIQ page render | `document.documentElement.scrollWidth` ≤ 390 | evaluator |
@@ -78,6 +78,9 @@ Definitions used below:
 | AC-24 | C1 | Page renders | Same labels, counts, status pills, `Start` / `Run again` buttons and handover toggles (Manual / Automatic / Skip) as on `main` for the same data | evaluator |
 | AC-25 | C2 setup mode | User clicks a step | The same `.pipeline-detail` settings panel opens as on `main` | evaluator |
 | AC-26 | C3 | User clicks a stage | The same stage is selected (same detail shown) as on `main` | evaluator |
+| AC-28 | C1, C2, C3 with edges | Page renders | Every `.react-flow__edge-path` has stroke = neutral and `stroke-width` 1.4px | evaluator |
+| AC-29 | C3 | Page renders | `.react-flow__handle` on nodes with no edge has opacity 0 | evaluator |
+| AC-30 | C1 with a failed stage | Page renders | The failed card has exactly 1 descendant whose computed `color`, `background-color` or `border-*-color` equals the `.status-failed` pill's colour | evaluator |
 | AC-27 | Frontend suite | `npm test` | All existing tests pass unchanged | unit |
 
 Must not change: node content and click behaviour (AC-24, AC-25, AC-26), the phone List view (AC-23), the
