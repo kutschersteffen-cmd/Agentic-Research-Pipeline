@@ -19,10 +19,11 @@ import httpx
 from arp.ingestion.esef import MAX_PACKAGE_BYTES, download_capped, latest_package_filing, list_esef_filings
 from arp.net_safety import ssrf_guard_request_hook
 from arp.schemas.common import CompanyRef
-from arp.xbrl_pipeline.esef_json import catalog_from_rows, flatten_xbrl_json
+from arp.xbrl_pipeline.esef_json import catalog_from_rows, dimensional_facts, flatten_xbrl_json
 from arp.xbrl_pipeline.fetch import FETCH_DELAY_SECONDS, _status, with_retry
 from arp.xbrl_pipeline.models import CompanyStatus, ReportMeta
 from arp.xbrl_pipeline.required import resolve_required_esef
+from arp.xbrl_pipeline.segments import NOTE_CONCEPTS, build_segments, store_segments
 from arp.xbrl_pipeline.store import XbrlStore
 
 logger = logging.getLogger(__name__)
@@ -122,7 +123,8 @@ async def fetch_company_esef(
         store.add_company_id(lei, company.company_id)
         result, count = "unchanged", meta["fact_count"]
     else:
-        rows, skipped = flatten_xbrl_json(json.loads(filing.facts_json), company_id=company.company_id, lei=lei,
+        doc = json.loads(filing.facts_json)
+        rows, skipped = flatten_xbrl_json(doc, company_id=company.company_id, lei=lei,
                                           source_sha=sha, filing=filing.attributes)
         count = store.write_facts(lei, [r for r in rows if tags is None or r.tag_id in tags])
         store.write_catalog(lei, catalog_from_rows(rows))
@@ -133,6 +135,14 @@ async def fetch_company_esef(
                        filing={"fxo_id": filing.attributes.get("fxo_id"),
                                "date_added": filing.attributes.get("date_added")})
         result = "ok"
+        try:
+            dim_facts, texts = dimensional_facts(doc)
+            totals = {(r.tag_id, r.fiscal_year): r.value for r in reversed(rows) if r.fiscal_period == "FY"}
+            seg_rows = build_segments(dim_facts, totals, market="esef", company_id=company.company_id,
+                                      accession=filing.attributes.get("fxo_id"))
+            store_segments(store, lei, seg_rows, texts.get(NOTE_CONCEPTS["esef"]) or None)
+        except Exception as exc:  # noqa: BLE001 -- a segment problem never changes the company's status
+            logger.warning("ESEF segments for %s not written: %s", lei, exc, exc_info=True)
     try:
         report = _store_report(lei, filing, store)
     except Exception as exc:  # noqa: BLE001 -- a report problem never changes the company's status
