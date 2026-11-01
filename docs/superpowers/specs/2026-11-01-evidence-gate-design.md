@@ -91,7 +91,7 @@ with one uploaded document; without the key AC-25/26 are reported as blocked.
 | AC-31 | GOLD | `arp golden-set run --gate off` | Exits 0 | golden |
 | AC-32 | GOLD | `arp golden-set run --gate on` | Exits 0 | golden |
 | AC-33 | GOLD, both runs | CI step compares the last lines | `extractor input tokens` with `--gate on` is at least 10% below `--gate off`; the step exits 1 otherwise | golden |
-| AC-34 | GOLD | `arp golden-set run --gate on` | Prints one `{case_id}: pass` or `{case_id}: fail` line per case, then `extractor input tokens: {int}` | unit |
+| AC-34 | A 2-case golden set with a stub model, case `c1` passes and `c2` fails | `arp golden-set run --gate on` | Prints `c1: pass`, `c2: fail`, then `extractor input tokens: {int}` as the last line, and exits 1 | unit |
 | AC-35 | Existing backend and frontend suites | CI | All existing tests pass unchanged, except exact-key trace assertions extended for `gate`/`gate_dropped` (listed in the PR) | unit |
 
 Must not change: behaviour with default settings (AC-1, AC-31, AC-35), blind-verified fields (AC-14).
