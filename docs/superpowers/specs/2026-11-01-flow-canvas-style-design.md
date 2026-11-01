@@ -69,7 +69,7 @@ Definitions used below:
 | AC-15 | C1, C2, C3 | Page renders | `.react-flow__handle` on nodes with at least one edge is 7×7px, border 1px ink, fill = computed `var(--panel)`, opacity 1 | evaluator |
 | AC-16 | C3 with a stage that has open decisions (seeded demo case) | Page renders | That stage shows `.flow-node-badge` reading `<n> to decide` in the signal colour | evaluator |
 | AC-17 | C1, C2, C3; no stage waiting on a person (no open decisions, no `ready` stage) | Page renders | No element inside `.flow-rf` has computed `color`, `background-color`, `border-*-color` or `outline-color` equal to signal | evaluator |
-| AC-18 | C1, C2, C3 | Page renders | `.react-flow__controls` is horizontally centred at the bottom of the canvas (left and right gaps differ by ≤2px), `border-radius` 0px | evaluator |
+| AC-18 | C2, C3 (C1 keeps bottom-left: its fitted chart is short and centred controls cover a card; amended during implementation, owner to confirm) | Page renders | `.react-flow__controls` is horizontally centred at the bottom of the canvas (left and right gaps differ by ≤2px), `border-radius` 0px | evaluator |
 | AC-19 | C1 with a failed stage | Page renders | The stage shows the existing `.status-failed` pill reading `Failed` | evaluator |
 | AC-20 | C1, C2, C3; both themes | Page renders | Every text element in a card has computed `font-size` ≥ 13px | evaluator |
 | AC-21 | C1, C2, C3; both themes | Page renders | Every text element in a card has contrast ≥ 4.5:1 against its nearest opaque background | evaluator |

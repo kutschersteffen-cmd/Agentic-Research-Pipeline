@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import ReactFlow, { Controls, Handle, MarkerType, Position, getNodesBounds, useReactFlow, useStore, type Edge, type Node, type NodeProps } from "reactflow";
+import ReactFlow, { Controls, MarkerType, Position, getNodesBounds, useReactFlow, useStore, type Edge, type Node, type NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
 import { COARSE_POINTER, layoutPipeline } from "../lib/pipelineLayout";
 import { extractInputs, type FlowAction, type FlowState, type FlowStep, type Handover, type StageId, type StageState } from "../lib/stagedFlow";
 import type { ExtractionProfile, PipelineShape } from "../types";
+import { DotGrid, FlowHandle, LinkedHandles } from "./flowCanvas";
+import { flowIcon } from "./flowIcons";
 
 const CARD_W = 214;
 const COL_W = CARD_W + 56;
@@ -56,14 +58,17 @@ interface CardData {
   onOpen: () => void;
 }
 
-function StageCard({ data }: NodeProps<CardData>) {
+function StageCard({ id, data }: NodeProps<CardData>) {
   return (
     <>
-      <Handle type="target" position={Position.Left} />
-      <Handle id="bottom-in" type="target" position={Position.Bottom} />
+      <FlowHandle type="target" position={Position.Left} />
+      <FlowHandle id="bottom-in" type="target" position={Position.Bottom} />
       <div className={`pipeline-card stage-card ${STATE_CLASS[data.state]}`} style={{ width: CARD_W }}>
         <button type="button" className="nodrag stage-card-main" onClick={data.onOpen}>
           <span className="pipeline-card-head">
+            <span className="pipeline-card-icon" aria-hidden>
+              {flowIcon(id)}
+            </span>
             <span className="pipeline-card-title">{data.label}</span>
             {data.state === "running" && <span className="pipeline-card-spinner" aria-hidden />}
           </span>
@@ -111,8 +116,8 @@ function StageCard({ data }: NodeProps<CardData>) {
           </div>
         )}
       </div>
-      <Handle type="source" position={Position.Right} />
-      <Handle id="bottom-out" type="source" position={Position.Bottom} />
+      <FlowHandle type="source" position={Position.Right} />
+      <FlowHandle id="bottom-out" type="source" position={Position.Bottom} />
     </>
   );
 }
@@ -271,7 +276,6 @@ export function StageFlowChart({ flow, profile, extract, height = 260, counts, o
         sourceHandle: "bottom-out",
         target: "extract",
         targetHandle: "bottom-in",
-        type: "smoothstep",
         label: `${reuses.count} ready`,
         className: "flow-rf-edge",
         style: { strokeDasharray: "5 4" },
@@ -288,6 +292,7 @@ export function StageFlowChart({ flow, profile, extract, height = 260, counts, o
   return (
     <div className="chart-scroll">
     <div className="flow-rf stage-rf" style={aspect ? { width: "100%", minWidth, height: "auto", aspectRatio: aspect, maxHeight: height, minHeight: 180 } : { minWidth, height }}>
+      <LinkedHandles edges={edges}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -304,9 +309,12 @@ export function StageFlowChart({ flow, profile, extract, height = 260, counts, o
         minZoom={MIN_ZOOM}
         maxZoom={1.2}
       >
+        <DotGrid />
+        {/* Bottom-left, not centred: the fitted chart is short and centred controls would cover a card. */}
         <Controls showInteractive={false} fitViewOptions={FIT} />
         <FitAspect onAspect={setAspect} />
       </ReactFlow>
+      </LinkedHandles>
     </div>
     </div>
   );

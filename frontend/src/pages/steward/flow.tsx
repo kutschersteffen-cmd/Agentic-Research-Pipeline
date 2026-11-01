@@ -1,6 +1,8 @@
 import { useMemo, type CSSProperties } from "react";
-import ReactFlow, { Controls, Handle, MarkerType, Position, type Edge, type Node, type NodeProps } from "reactflow";
+import ReactFlow, { Controls, MarkerType, Position, type Edge, type Node, type NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
+import { DotGrid, FlowHandle, LinkedHandles } from "../../components/flowCanvas";
+import { flowIcon } from "../../components/flowIcons";
 import { COARSE_POINTER } from "../../lib/pipelineLayout";
 import type { StewardshipFlow, StewardshipStage } from "../../types";
 import { SOURCE_LABEL, openCount, stageName } from "./common";
@@ -42,13 +44,13 @@ type StageNodeData = { stage: StewardshipStage; selected: boolean; onSelect: (id
 function StageFlowNode({ data }: NodeProps<StageNodeData>) {
   return (
     <>
-      <Handle id="left-in" type="target" position={Position.Left} />
-      <Handle id="right-out" type="source" position={Position.Right} />
-      <Handle id="top-in-a" type="target" position={Position.Top} style={{ left: "35%" }} />
-      <Handle id="top-out-a" type="source" position={Position.Top} style={{ left: "35%" }} />
-      <Handle id="top-out-b" type="source" position={Position.Top} style={{ left: "65%" }} />
-      <Handle id="bottom-out-a" type="source" position={Position.Bottom} style={{ left: "35%" }} />
-      <Handle id="bottom-in-b" type="target" position={Position.Bottom} style={{ left: "65%" }} />
+      <FlowHandle id="left-in" type="target" position={Position.Left} />
+      <FlowHandle id="right-out" type="source" position={Position.Right} />
+      <FlowHandle id="top-in-a" type="target" position={Position.Top} style={{ left: "35%" }} />
+      <FlowHandle id="top-out-a" type="source" position={Position.Top} style={{ left: "35%" }} />
+      <FlowHandle id="top-out-b" type="source" position={Position.Top} style={{ left: "65%" }} />
+      <FlowHandle id="bottom-out-a" type="source" position={Position.Bottom} style={{ left: "35%" }} />
+      <FlowHandle id="bottom-in-b" type="target" position={Position.Bottom} style={{ left: "65%" }} />
       <StageNode stage={data.stage} selected={data.selected} onSelect={data.onSelect} style={{ width: NODE_W, height: NODE_H }} />
     </>
   );
@@ -65,6 +67,9 @@ export function StageNode({ stage, selected, onSelect, style }: { stage: Steward
   return (
     <button className={`flow-node flow-${stage.layer}${selected ? " selected" : ""}`} style={style} title={stage.title} onClick={() => onSelect(stage.id)}>
       <span className="flow-node-head">
+        <span className="flow-node-icon" aria-hidden>
+          {flowIcon(stage.id)}
+        </span>
         <span className="flow-node-number">{stage.number}</span>
         <span className="flow-node-title">{stageName(stage)}</span>
       </span>
@@ -130,7 +135,6 @@ export function FlowChart({ flow, selected, onSelect }: { flow: StewardshipFlow;
         source: e.from,
         target: e.to,
         ...(EDGE_HANDLES[`${e.from}>${e.to}`] ?? { sourceHandle: "right-out", targetHandle: "left-in" }),
-        type: "smoothstep",
         label: e.label,
         labelBgPadding: [4, 2] as [number, number],
         className: "flow-rf-edge",
@@ -142,6 +146,7 @@ export function FlowChart({ flow, selected, onSelect }: { flow: StewardshipFlow;
   return (
     <>
       <div className="flow-rf steward-rf">
+        <LinkedHandles edges={edges}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -164,8 +169,10 @@ export function FlowChart({ flow, selected, onSelect }: { flow: StewardshipFlow;
           preventScrolling={false}
           zoomOnDoubleClick={false}
         >
-          <Controls showInteractive={false} position="bottom-left" />
+          <DotGrid />
+          <Controls showInteractive={false} position="bottom-center" />
         </ReactFlow>
+        </LinkedHandles>
       </div>
       <p className="help-text flow-rf-hint">Zoom in with the controls; the List view reads at full size.</p>
     </>
