@@ -189,10 +189,12 @@ function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | 
 
 /** The key to the step dots on the start page's workspace cards. Workspace
  * pages mark state on the step cards themselves, so they carry no legend. */
-function StateLegend() {
+function StateLegend({ waiting }: { waiting: boolean }) {
+  // The signal colour only appears when something waits (One Signal Rule), so its key does too.
+  const keys: StepState[] = waiting ? ["done", "now", "wait", "failed", "idle"] : ["done", "now", "failed", "idle"];
   return (
     <p className="muted hub-legend">
-      {(["done", "now", "wait", "failed", "idle"] as StepState[]).map((st) => (
+      {keys.map((st) => (
         <span key={st}>
           <span className={`hub-dot hub-dot-${st}`} aria-hidden />
           {STATE_LABEL[st]}
@@ -277,7 +279,8 @@ export function StartPage() {
           <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} />
         ))}
       </div>
-      <StateLegend />
+      <StateLegend waiting={known && waiting > 0} />
+      {known && (
       <nav className="hub-now" aria-label="Runs running or failed">
         <span className="hub-now-label">Now</span>
         {chips.map((r) => {
@@ -290,11 +293,12 @@ export function StartPage() {
             </a>
           );
         })}
-        {known && chips.length === 0 && <span className="muted">Nothing running or failed.</span>}
+        {chips.length === 0 && <span className="muted">Nothing running or failed.</span>}
         <a className="hub-now-all" href="#/history">
           All runs →
         </a>
       </nav>
+      )}
       <p className="hub-engagement">
         <span>{engagementLine(engagement)}</span> <a href="#/engagement">Open Engagement →</a>
       </p>

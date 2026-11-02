@@ -64,7 +64,7 @@
   /* The start page's square, ruled instrument-panel look runs through every
      page: cards, tables, inputs and buttons are square; only small badges
      keep a hint of rounding, and status/count pills stay full pills. */
-  --r-sm: 2px;
+  --r-sm: 0;
   --r-md: 0;
   --r-lg: 0;
   --r-pill: 999px;
@@ -404,7 +404,7 @@ a.nav-tab { text-decoration: none; }
 /* A label wraps its control, which is what associates the two. */
 .field-label > :is(input, select, textarea) { display: block; margin-top: var(--s-1); }
 
-input[type="text"], input:not([type]), input[type="number"], input[type="date"], textarea, select {
+input[type="text"], input[type="password"], input:not([type]), input[type="number"], input[type="date"], textarea, select {
   width: 100%;
   background: var(--panel);
   border: 1px solid var(--field-border);
@@ -414,10 +414,10 @@ input[type="text"], input:not([type]), input[type="number"], input[type="date"],
   font-size: var(--text-base);
   font-family: inherit;
 }
-input[type="text"]:focus, input:not([type]):focus, input[type="number"]:focus, input[type="date"]:focus, textarea:focus, select:focus {
-  outline: none;
+input[type="text"]:focus, input[type="password"]:focus, input:not([type]):focus, input[type="number"]:focus, input[type="date"]:focus, textarea:focus, select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-tint);
 }
 
 /* Previously only inputs had a focus style, so every button, nav tab and
@@ -1735,6 +1735,8 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .hub-now-all { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text); }
 .hub-engagement { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-3); margin: var(--s-3) 0 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--muted); }
 .hub-engagement a { color: var(--text); }
+/* Standalone links: padding lifts the hit area past 24px (WCAG 2.5.8). */
+.hub-now-all, .hub-engagement a { display: inline-block; padding-block: var(--s-1_5); }
 
 @media (max-width: 1400px) { .hub-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 1100px) { .hub-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

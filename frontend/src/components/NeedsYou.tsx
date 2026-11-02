@@ -82,7 +82,8 @@ export function NeedsYou({ runs, flow }: { runs: RunManifest[] | null; flow: Ste
       {loading ? (
         <p className="muted">Loading…</p>
       ) : rows.length === 0 ? (
-        <p className="muted">Nothing waits on you.</p>
+        // After a load error an empty list is unknown, not "nothing waits".
+        !error && <p className="muted">Nothing waits on you.</p>
       ) : (
         <ul className="needs-you-list">
           {rows.map((r) => (
