@@ -114,7 +114,7 @@ test("decisionRunType keeps the run type of an old transition_plan run", () => {
 
 test("ballotRows: one row per proxy voting run with ballots to decide", () => {
   const pv = { ...run("proxy_voting", "completed", ago(MIN)), run_id: "pv-1", review_count: 2 } as RunManifest;
-  assert.deepEqual(ballotRows([pv]), [{ runId: "pv-1", count: 2, what: "Proxy voting run pv-1: 2 ballots to decide", href: "#/voting/pv-1" }]);
-  assert.equal(ballotRows([{ ...pv, review_count: 1 }])[0].what, "Proxy voting run pv-1: 1 ballot to decide");
+  assert.deepEqual(ballotRows([pv]), [{ runId: "pv-1", count: 2, what: "Decide 2 ballots", href: "#/voting/pv-1" }]);
+  assert.equal(ballotRows([{ ...pv, review_count: 1 }])[0].what, "Decide 1 ballot");
   assert.deepEqual(ballotRows([{ ...pv, review_count: 0 }, { ...run("extraction", "completed", ago(MIN)), review_count: 3 } as RunManifest]), []);
 });

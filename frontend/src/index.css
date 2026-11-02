@@ -1688,7 +1688,7 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 
 .hub-cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s-4); }
 .hub-card {
-  display: flex; flex-direction: column; gap: 18px; min-height: 22rem; padding: 28px var(--s-6) 22px;
+  display: flex; flex-direction: column; gap: 18px; min-height: 18rem; padding: 28px var(--s-6) 22px;
   border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none;
   transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
@@ -1705,7 +1705,7 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .hub-card-purpose { color: var(--muted); line-height: 1.45; }
 .hub-card-now { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--muted); min-height: 1.4em; }
 .hub-card-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--s-2); font-family: var(--font-mono); font-size: var(--text-sm); }
-.hub-card-state { white-space: nowrap; }
+.hub-card-state { overflow-wrap: anywhere; }
 .hub-card-state.await { color: var(--hi-ink); }
 .hub-card-state.failed { color: var(--low); }
 .hub-card-go { white-space: nowrap; }
@@ -1724,12 +1724,15 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .hub-dots li.hub-dot-failed::after, .hub-dot.hub-dot-failed { background: var(--low); border-radius: var(--r-sm); transform: rotate(45deg); width: 11px; height: 11px; }
 .hub-dots li.hub-dot-idle::after, .hub-dot.hub-dot-idle { border: 2px solid var(--panel-border); }
 .hub-dots li.hub-dot-idle::before, .hub-dots li.hub-dot-failed::before { background: var(--panel-border); }
+/* Unknown (no runs loaded): a dashed ring, so it never reads as "no activity". */
+.hub-dots li.hub-dot-unknown::after { border: 2px dashed var(--muted); }
+.hub-dots li.hub-dot-unknown::before { background: var(--panel-border); }
 
 .hub-now { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); margin-top: var(--s-8); }
 .hub-now-label { font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-right: var(--s-2); }
 .hub-chip { text-transform: none; display: inline-flex; align-items: center; gap: var(--s-2); min-height: 40px; padding: 0 var(--s-3); border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none; font-family: var(--font-mono); font-size: var(--text-sm); }
 .hub-chip:hover { border-color: var(--text); }
-.hub-chip-id { color: var(--muted); }
+.hub-chip-id { color: var(--muted); white-space: nowrap; }
 .hub-chip:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 .hub-chip-wait { border-color: var(--hi); }
 .hub-now-all { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text); }
@@ -1738,7 +1741,8 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 /* Standalone links: padding lifts the hit area past 24px (WCAG 2.5.8). */
 .hub-now-all, .hub-engagement a { display: inline-block; padding-block: var(--s-1_5); }
 
-@media (max-width: 1400px) { .hub-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* Below 1400px the purpose line repeats the sidebar; drop it so the cards stop owning the fold. */
+@media (max-width: 1400px) { .hub-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .hub-card-purpose { display: none; } .hub-card { min-height: 0; } }
 @media (max-width: 1100px) { .hub-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) {
   .hub-cards { grid-template-columns: 1fr; }
@@ -1746,13 +1750,9 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
   .hub-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
   .hub-stats dd { font-size: 2rem; }
   .hub-now-all { margin-left: 0; }
-  /* On a phone what waits on you comes before the five workspace cards. */
-  .hub-start { display: flex; flex-direction: column; }
-  .hub-start .hub-now { order: -1; margin-top: 0; }
-  .hub-start .hub-hero { order: -2; }
 }
 
-.hub-legend { display: flex; flex-wrap: wrap; gap: var(--s-1_5) var(--s-4); font-size: var(--text-xs); margin-top: var(--s-3); }
+.hub-legend { display: flex; flex-wrap: wrap; gap: var(--s-1_5) var(--s-4); font-size: var(--text-xs); margin: 0 0 var(--s-3); }
 .hub-legend > span { display: inline-flex; align-items: center; gap: var(--s-1_5); }
 
 /* Start page: what waits on a person, one row per place it waits, before the workspace boxes. */
@@ -1769,6 +1769,7 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .needs-you-list a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .needs-you-count { font-family: var(--font-mono); font-weight: 600; text-align: right; color: var(--text); }
 .needs-you-meta { color: var(--muted); font-size: var(--text-sm); white-space: nowrap; }
+.needs-you-failed .needs-you-count { color: var(--low); }
 @media (max-width: 640px) {
   .needs-you-list a { grid-template-columns: 2.5rem minmax(0, 1fr); }
   .needs-you-meta { grid-column: 2; white-space: normal; }
