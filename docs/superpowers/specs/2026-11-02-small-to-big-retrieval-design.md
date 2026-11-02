@@ -70,11 +70,12 @@ Each piece has exactly one parent, a `DocumentChunk` whose offsets are `full_tex
 whole span).
 
 1. The section that holds the piece, when that section's length is at least `section_min_chars` (800) and at most
-   `chunk_chars` (3,500). Its `section` is the section's title (None for text before the first heading); its id is
+   `chunk_chars` (`DEFAULT_CHUNK_CHARS` in `arp/ingestion/parsing.py`, 3,500; a constant, not a setting). Its `section` is the section's title (None for text before the first heading); its id is
    `chk_{doc_id}_{start}_{end}`.
-2. Otherwise (shorter, longer, or a document without headings): the **earliest** chunk of
-   `chunk_document(doc)`, under the same settings, that holds the whole piece; if none holds all of it, the one
-   that overlaps it most, the earlier one on a tie.
+2. Otherwise (shorter, longer, or a document without headings): the non-table chunk of `chunk_document(doc)`
+   (under the same settings; ids without `_table_`) with the lowest `char_start` that holds the whole piece; if
+   none holds all of it, the non-table chunk that overlaps it most, lower `char_start` on a tie. Whole-table
+   passages are never a rule-2 parent.
 
 A whole-table passage is its own parent.
 
@@ -94,7 +95,7 @@ In `field_evidence`, with the setting on (and backend `bm25`):
    Without it, the top `evidence_max_chunks` parents of the (fused) ranking are kept.
 6. `fallback_to_all` with no hit returns today's chunks in document order, as with the setting off.
 7. `explain`: `scores`, `near_misses` and `near_miss_chunks` are keyed by parent ids. A parent's `bm25` is its best
-   piece's score; `vector_rank` is its rank in the collapsed vector ranking, 1-based as today; `rrf` is its fused score. `explain`
+   piece's score (a Walkthrough display detail, no AC row); `vector_rank` is its rank in the collapsed vector ranking, 1-based as today; `rrf` is its fused score. `explain`
    also gets `small_to_big: true`.
 
 Evidence passed to the extractor, grounding (`arp/grounding.py`, unchanged) and citations all use parents, whose
@@ -138,10 +139,12 @@ pieces collapse to parents per ranking before RRF; only extraction fields get th
 
 ## Acceptance
 
+Every row is `unit` or `golden`: retrieval has no API or CLI surface a holdout test could drive without importing the app's code (the `test-writer` rule), and several rows need monkeypatched stand-ins. The PR lists no holdout rows as owed.
+
 Conventions for every row: ranks count from 0, except `vector_rank` (1-based, as today). "Off" is
 `small_to_big_enabled=False`; "on" is `small_to_big_enabled=True`, set through `ARP_SMALL_TO_BIG_ENABLED` so
 `chunk_document` and `field_evidence` see the same settings. "Hybrid off" is `hybrid_retrieval_enabled=False` (BM25
-only, deterministic). `chunk_chars` 3,500, `section_min_chars` 800, `small_chunk_chars` 800,
+only, deterministic). `chunk_chars` is the constant `DEFAULT_CHUNK_CHARS` (3,500, not a setting); `section_min_chars` 800, `small_chunk_chars` 800,
 `section_chunking_enabled` off, `context_headers_enabled` on, unless a row says otherwise. Fields are not high-risk
 and have no `document_routing` unless a row says so. Tests that need the embedding ranking replace
 `arp.retrieval.embeddings.embed_texts` with a stand-in returning fixed vectors; tests that need the reranker replace
@@ -155,37 +158,42 @@ filler plus one sentence containing `net zero 2040`), `# Other` (2,000 chars of 
 
 | ID    | Given | When | Then (observable, exact) | Checked by |
 |-------|-------|------|--------------------------|------------|
-| AC-0  | Off; the documents and fields of `backend/tests/golden/retrieval/cases.json`, hybrid off | evidence for each case | The same chunk ids in the same order as on `main` (snapshot) | holdout |
+| AC-0  | Off; the documents and fields of `backend/tests/golden/retrieval/cases.json`, hybrid off | evidence for each case | The same chunk ids in the same order as on `main` (snapshot) | unit |
 | AC-1  | No env | `Settings()` | `small_to_big_enabled is False` | unit |
 | AC-17 | No env | `Settings()` | `small_chunk_chars == 800` | unit |
 | AC-18 | Env `ARP_SMALL_TO_BIG_ENABLED=true` | `Settings()` | `small_to_big_enabled is True` | unit |
-| AC-2  | `# A` with 3,000 chars of filler, then `# B` with 3,000 chars of filler | `small_pieces(doc, settings)` | Every piece has `len(text) <= 800` | holdout |
-| AC-2b | As AC-2 | `small_pieces(doc, settings)` | No piece has `char_start < offset(# B) < char_end` | holdout |
-| AC-2c | As AC-2 | `small_pieces(doc, settings)` | The union of the pieces' `[char_start, char_end)` is exactly `[0, len(full_text))` | holdout |
-| AC-2d | As AC-2 | `small_pieces(doc, settings)` | Every piece's `chunk_id == f"chk_{doc_id}_{char_start}_{char_end}"`; every piece with `char_start >= offset(# B)` has `section == "B"` | holdout |
+| AC-2  | `# A` with 3,000 chars of filler, then `# B` with 3,000 chars of filler | `small_pieces(doc, settings)` | Every piece has `len(text) <= 800` | unit |
+| AC-2b | As AC-2 | `small_pieces(doc, settings)` | No piece has `char_start < offset(# B) < char_end` | unit |
+| AC-2c | As AC-2 | `small_pieces(doc, settings)` | The union of the pieces' `[char_start, char_end)` is exactly `[0, len(full_text))` | unit |
+| AC-2d | As AC-2 | `small_pieces(doc, settings)` | Every piece's `chunk_id == f"chk_{doc_id}_{char_start}_{char_end}"` | unit |
+| AC-2e | As AC-2 | `small_pieces(doc, settings)` | Every piece with `char_start >= offset(# B)` has `section == "B"` | unit |
+| AC-2f | As AC-2, plus a table span inside `# A` | `small_pieces(doc, settings)` | The union of the pieces' `[char_start, char_end)` is exactly `[0, len(full_text))` | unit |
 | AC-22 | As AC-2 | `small_pieces` with `small_chunk_chars` 800, then with 400 | Every piece of the second call has `len(text) <= 400` | unit |
-| AC-3  | Doc T; on, hybrid off, `evidence_max_chunks` 1 | evidence | `[(c.char_start, c.char_end, c.section)] == [(*span of Targets, "Targets")]` | holdout |
-| AC-4  | Doc T, but `# Targets` is 300 chars (filler plus the `net zero 2040` sentence); on, hybrid off, `evidence_max_chunks` 1 | evidence | One chunk; its id is the id of the earliest chunk in `chunk_document(doc)` whose text contains the `net zero 2040` sentence | holdout |
-| AC-5  | Doc T, but `# Targets` is 8,000 chars with the `net zero 2040` sentence at about char 5,000 of it; on, hybrid off, `evidence_max_chunks` 1 | evidence | One chunk; its id is the id of the earliest chunk in `chunk_document(doc)` whose text contains the `net zero 2040` sentence | holdout |
-| AC-23 | No headings: 1,200 chars of filler plus one `net zero 2040` sentence, then 6,000 chars of filler; on, hybrid off, `evidence_max_chunks` 1 | evidence | One chunk; its id is `chunk_document(doc)[0].chunk_id` | holdout |
-| AC-24 | 1,200 chars of filler plus one `net zero 2040` sentence, then `# A` with 3,000 chars of filler; on, hybrid off, `evidence_max_chunks` 1 | evidence | `[(c.char_start, c.char_end, c.section)] == [(0, offset(# A), None)]` | holdout |
-| AC-6  | Filler sections, `# P` (1,500 chars: `net zero` in a sentence at its start and in one at its end), filler, `# Q` (1,500 chars: one `net zero` sentence), filler; on, hybrid off, `evidence_max_chunks` 2 | evidence | The ids, as a set, are exactly {P's section chunk, Q's section chunk} | holdout |
-| AC-25 | As AC-6, `evidence_max_chunks` 1, `explain={}` | evidence | `[c.chunk_id for c in explain["near_miss_chunks"]] == explain["near_misses"]`, and `explain["near_misses"][0]` is the id of whichever of P's or Q's section chunk is not in the evidence | holdout |
-| AC-26 | As AC-25 | evidence | `set(explain["scores"])` == {P's section chunk id, Q's section chunk id}, and each has a `bm25` value > 0 | holdout |
-| AC-7  | A doc with one table span whose caption holds `emissions`; field keyword `emissions`; on, hybrid off | evidence | Contains `chk_{doc_id}_table_{start}_{end}` for that table, with `text == full_text[start:end]` | holdout |
-| AC-8  | Title `Zephyr Report 2024`; one `# Plan` section of 1,500 chars of filler (no `zephyr` anywhere in the body); field keyword `zephyr`; on, hybrid off | evidence | `[c.chunk_id for c in evidence] == [Plan's section chunk id]` | holdout |
-| AC-19 | As AC-8, `context_headers_enabled=False` | evidence | `evidence == []` | holdout |
-| AC-9  | Only sections P, Q, R (1,500 chars each); BM25 ranks pieces `p1`, `p2` (in P), then `q1` (in Q) and nothing else; stand-in vectors put `q1`, `r1` (in R), `p1` first, in that order, ahead of every other piece; on, hybrid on | evidence | `[c.chunk_id for c in evidence] == [Q, P, R]` (section chunk ids) | holdout |
-| AC-27 | As AC-9, `explain={}` | evidence | `explain["scores"][Q]["rrf"] == 1/61 + 1/62` | holdout |
-| AC-28 | As AC-9, `explain={}` | evidence | `explain["small_to_big"] is True` | holdout |
-| AC-10 | Doc T; on, hybrid off, rerank on with a recording stand-in | evidence | The stand-in receives exactly one chunk, with `(char_start, char_end)` = span of Targets | holdout |
-| AC-11 | Doc T; on, hybrid off | evidence | For every returned chunk, `text == doc.full_text[char_start:char_end]` | holdout |
-| AC-29 | Doc T plus a field with `document_routing.sections == ["Targets"]`; on, hybrid off, `evidence_max_chunks` 3 | evidence | `[c.chunk_id for c in evidence] == [Targets' section chunk id]` | holdout |
-| AC-12 | A high-risk field (`fallback_to_all`), no keyword anywhere in the doc; on, hybrid off | evidence | The same chunk ids in the same order as with off | holdout |
+| AC-3  | Doc T; on, hybrid off, `evidence_max_chunks` 1 | evidence | `[(c.char_start, c.char_end, c.section)] == [(*span of Targets, "Targets")]` | unit |
+| AC-4  | Doc T, but `# Targets` is 300 chars (filler plus the `net zero 2040` sentence); on, hybrid off, `evidence_max_chunks` 1 | evidence | One chunk; its id is the id of the non-table chunk `c` of `chunk_document(doc)` with the lowest `char_start` such that `c.char_start <= p.char_start` and `p.char_end <= c.char_end`, where `p` is the piece of `small_pieces(doc, settings)` that contains the `net zero 2040` sentence | unit |
+| AC-5  | Doc T, but `# Targets` is 8,000 chars with the `net zero 2040` sentence at about char 5,000 of it; on, hybrid off, `evidence_max_chunks` 1 | evidence | One chunk; its id is the id of the non-table chunk `c` of `chunk_document(doc)` with the lowest `char_start` such that `c.char_start <= p.char_start` and `p.char_end <= c.char_end`, where `p` is the piece of `small_pieces(doc, settings)` that contains the `net zero 2040` sentence | unit |
+| AC-23 | No headings: 1,200 chars of filler plus one `net zero 2040` sentence, then 6,000 chars of filler; on, hybrid off, `evidence_max_chunks` 1 | evidence | One chunk; its id is `chunk_document(doc)[0].chunk_id` | unit |
+| AC-24 | 1,200 chars of filler plus one `net zero 2040` sentence, then `# A` with 3,000 chars of filler; on, hybrid off, `evidence_max_chunks` 1 | evidence | `[(c.char_start, c.char_end, c.section)] == [(0, offset(# A), None)]` | unit |
+| AC-6  | Filler sections, `# P` (1,500 chars: `net zero` in a sentence at its start and in one at its end), filler, `# Q` (1,500 chars: one `net zero` sentence), filler; on, hybrid off, `evidence_max_chunks` 2 | evidence | The ids, as a set, are exactly {P's section chunk, Q's section chunk} | unit |
+| AC-25 | As AC-6, `evidence_max_chunks` 1, `explain={}` | evidence | `[c.chunk_id for c in explain["near_miss_chunks"]] == explain["near_misses"]` | unit |
+| AC-25b | As AC-25 | evidence | `explain["near_misses"][0]` is whichever of P's and Q's section chunk ids is not in the evidence | unit |
+| AC-26 | As AC-25 | evidence | `set(explain["scores"]) == {P's section chunk id, Q's section chunk id}` | unit |
+| AC-7  | A doc with one table span whose caption holds `emissions`; field keyword `emissions`; on, hybrid off | evidence | Contains `chk_{doc_id}_table_{start}_{end}` for that table, with `text == full_text[start:end]` | unit |
+| AC-8  | Title `Zephyr Report 2024`; one `# Plan` section of 1,500 chars of filler (no `zephyr` anywhere in the body); field keyword `zephyr`; on, hybrid off | evidence | `[c.chunk_id for c in evidence] == [Plan's section chunk id]` | unit |
+| AC-19 | As AC-8, `context_headers_enabled=False` | evidence | `evidence == []` | unit |
+| AC-9  | Only sections P, Q, R (1,500 chars each); BM25 ranks pieces `p1`, `p2` (in P), then `q1` (in Q) and nothing else; stand-in vectors put `q1`, `r1` (in R), `p1` first, in that order, ahead of every other piece; on, hybrid on | evidence | `[c.chunk_id for c in evidence] == [Q, P, R]` (section chunk ids) | unit |
+| AC-27 | As AC-9, `explain={}` | evidence | `explain["scores"][Q]["rrf"] == 1/61 + 1/62` | unit |
+| AC-28 | As AC-9, `explain={}` | evidence | `explain["small_to_big"] is True` | unit |
+| AC-31 | As AC-9, `explain={}` | evidence | `explain["scores"][P]["vector_rank"] == 3` | unit |
+| AC-32 | As AC-9, `explain={}` | evidence | `explain["scores"][R]["vector_rank"] == 2` | unit |
+| AC-10 | Doc T; on, hybrid off, rerank on with a recording stand-in | evidence | The stand-in receives exactly one chunk, with `(char_start, char_end)` = span of Targets | unit |
+| AC-11 | Doc T; on, hybrid off | evidence | For every returned chunk, `text == doc.full_text[char_start:char_end]` | unit |
+| AC-29 | Doc T plus a field with `document_routing.sections == ["Targets"]`; on, hybrid off, `evidence_max_chunks` 3 | evidence | `[c.chunk_id for c in evidence] == [Targets' section chunk id]` | unit |
+| AC-12 | A high-risk field (`fallback_to_all`), no keyword anywhere in the doc; on, hybrid off | evidence | The same chunk ids in the same order as with off | unit |
 | AC-13 | `retrieval_backend="opensearch"` with a stand-in client; on | evidence | The same chunk ids in the same order as with off | unit |
 | AC-30 | Doc T; on | `select_relevant_chunks(chunk_document(doc, keywords=["net zero"]), ["net zero"], max_chunks=3)` (the call shape of every caller but `field_evidence`) | The same chunk ids in the same order as with off | unit |
-| AC-14 | `Settings(anthropic_api_key="x")` with on vs off | `input_settings(settings)` | The two dicts differ | holdout |
-| AC-21 | Off | `input_settings(Settings(anthropic_api_key="x"))` | Equals `main`'s result for the same call (no new key) | holdout |
+| AC-14 | `Settings(anthropic_api_key="x")` with on vs off | `input_settings(settings)` | The two dicts differ | unit |
+| AC-21 | Off | `input_settings(Settings(anthropic_api_key="x"))` | Equals `main`'s result for the same call (no new key) | unit |
 | AC-15 | Off, the bundled extraction golden set | `arp golden-set run` | Every case passes, as on `main` | golden |
 | AC-16 | Off, the retrieval gold set | the `Retrieval recall` CI job | Passes with the floor in the workflow file, unchanged | golden |
 
