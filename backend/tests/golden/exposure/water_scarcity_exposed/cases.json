@@ -1,0 +1,1256 @@
+{
+  "set_id": "water_scarcity_exposed",
+  "kind": "risk",
+  "subject": "Material exposure to water scarcity or water stress at own operations or key supply (financial, operational or licence risk)",
+  "labels": [
+    "exposed_disclosed",
+    "exposed_undisclosed",
+    "not_exposed"
+  ],
+  "checked_on": "2026-11-02",
+  "cases": [
+    {
+      "case_id": "coca_cola",
+      "company": "The Coca-Cola Company",
+      "isin": "US1912161007",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "10-K risk factors: 'water is a limited natural resource in many parts of the world, and our Company recognizes water availability, quality and sustainability ... as one of the key challenges'.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/21344/000162828026010047/ko-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/21344/000162828026010047/ko-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "pepsico",
+      "company": "PepsiCo, Inc.",
+      "isin": "US7134481081",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "10-K risk factor headed 'Water scarcity can adversely affect our business.'",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/77476/000007747626000007/pep-20251227.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/77476/000007747626000007/pep-20251227.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "ab_inbev",
+      "company": "Anheuser-Busch InBev SA/NV",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "20-F risk factors: 'Changes in precipitation patterns and the frequency of extreme weather events may affect our water supply and physical operations'.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1668717/000119312526088105/d65314d20f.htm"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/1668717/000119312526088105/d65314d20f.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "ambev",
+      "company": "Ambev S.A.",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "20-F risk factor: 'Scarcity or poor quality of water may negatively affect our production costs and capacity. We face risks related to water shortages.'",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1565025/000129281426000640/abevform20f_2025.htm"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/1565025/000129281426000640/abevform20f_2025.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "diageo",
+      "company": "Diageo plc",
+      "label": "exposed_disclosed",
+      "role": "water_dependent_supply",
+      "rationale": "20-F: 'a business highly dependent on water availability ... Climate-driven shifts in precipitation patterns, water scarcity, and extreme weather events pose direct risks to water security and crop yields'.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/835403/000162828026057529/deo-20260630.htm"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/835403/000162828026057529/deo-20260630.htm",
+          "fiscal_year": 2026
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "ccu",
+      "company": "Compania Cervecerias Unidas S.A.",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "20-F risk factor D.3: 'Water availability and quality could negatively impact our business', with Chile's water-scarcity regime described.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/888746/000129281426002680/ccuform20f_2025.htm"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/888746/000129281426002680/ccuform20f_2025.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "femsa",
+      "company": "Fomento Economico Mexicano, S.A.B. de C.V. (FEMSA)",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "20-F risk factor: 'Water shortages or any failure to maintain existing concessions or contracts could adversely affect Coca-Cola FEMSA's business'.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1061736/000162828026027231/fmx-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/1061736/000162828026027231/fmx-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "tsmc",
+      "company": "Taiwan Semiconductor Manufacturing Company Limited",
+      "isin": "US8740391003",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "20-F: production 'uses extensive amounts of electricity and water' and 'the droughts that Taiwan experiences from time to time, raise ongoing concerns regarding future availability'; water rationing named as a risk.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1046179/000162828026025362/tsm-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/1046179/000162828026025362/tsm-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "intel",
+      "company": "Intel Corporation",
+      "isin": "US4581401001",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "10-K: climate-driven drought 'could disrupt the availability of water necessary for the operation' of its fabs; strategy aims to 'mitigate operational risks associated with water scarcity'.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/50863/000005086326000011/intc-20251227.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/50863/000005086326000011/intc-20251227.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "umc",
+      "company": "United Microelectronics Corporation",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "20-F risk factors on Taiwan operations cite droughts and 'the potential risks that may be caused by water shortage' as potentially material.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1033767/000119312526193757/d91630d20f.htm"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/1033767/000119312526193757/d91630d20f.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "microchip",
+      "company": "Microchip Technology Incorporated",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "10-K: 'reduced availability of water could disrupt our operations ... Certain of our operations are located in arid or tropical regions'.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/827054/000082705426000016/mchp-20260331.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/827054/000082705426000016/mchp-20260331.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "nxp",
+      "company": "NXP Semiconductors N.V.",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "10-K: 'semiconductor manufacturing is a water-intensive process. Many of our manufacturing sites ... are located in semi-arid regions that may become increasingly vulnerable to prolonged droughts'.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1413447/000141344726000008/nxpi-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1413447/000141344726000008/nxpi-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "freeport_mcmoran",
+      "company": "Freeport-McMoRan Inc.",
+      "isin": "US35671D8570",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "10-K: litigation and water-rights claims 'could adversely affect our water supply for the Morenci operation' (and Safford) in Arizona.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/831259/000083125926000012/fcx-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/831259/000083125926000012/fcx-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "southern_copper",
+      "company": "Southern Copper Corporation",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "10-K discusses water supply for its Peruvian and Mexican (La Caridad, Buenavista) mines at length, including water availability as an operating risk.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1001838/000110465926021492/scco-20251231x10k.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1001838/000110465926021492/scco-20251231x10k.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "sqm",
+      "company": "Sociedad Quimica y Minera de Chile S.A.",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "20-F risk factor: 'Our water supply could be affected by geological changes or climate changes.'",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/909037/000090903726000023/sqm-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/909037/000090903726000023/sqm-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "albemarle",
+      "company": "Albemarle Corporation",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "10-K climate risk factor names 'water scarcity' and its Salar de Atacama operations in Chile.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/915913/000091591326000018/alb-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/915913/000091591326000018/alb-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "anglogold_ashanti",
+      "company": "AngloGold Ashanti plc",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "20-F: 'Water availability presents a further risk. Our operations require reliable access to water for mining and processing, and altered rainfall patterns, drought and competing demand ... may constrain supply.'",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1973832/000197383226000066/au-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/1973832/000197383226000066/au-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "sasol",
+      "company": "Sasol Limited",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "20-F: 'A significant part of our operations requires the use of large volumes of water. South Africa is generally an arid country with a highly variable climate, and prolonged periods of drought'.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/314590/000110465926104048/ssl-20260630x20f.htm"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/314590/000110465926104048/ssl-20260630x20f.htm",
+          "fiscal_year": 2026
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "heidelberg_materials",
+      "company": "Heidelberg Materials AG",
+      "isin": "DE0006047004",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "ESRS E3 in the 2025 annual and sustainability report lists as material 'Financial effects caused by increased costs associated with water scarcity and environmental regulations'.",
+      "label_sources": [
+        "https://www.heidelbergmaterials.com/system/files/2026-03/HM_ASR25_en.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual report",
+          "url": "https://www.heidelbergmaterials.com/system/files/2026-03/HM_ASR25_en.pdf",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "pinnacle_west",
+      "company": "Pinnacle West Capital Corporation",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "10-K names 'prolonged drought' as a risk and has a Water Supply section on Arizona's reduced Colorado River allocation.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/764622/000076462226000011/pnw-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/764622/000076462226000011/pnw-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "american_water_works",
+      "company": "American Water Works Company, Inc.",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "10-K risk factors: 'reduced supplies or sources of water, or restrictions on its use thereof, resulting from ... drought, overuse or other factors'.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1410636/000141063626000034/awk-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1410636/000141063626000034/awk-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "mgm_resorts",
+      "company": "MGM Resorts International",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "10-K risk factor headed 'Water scarcity could negatively impact our operations.'",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/789570/000078957026000018/mgm-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/789570/000078957026000018/mgm-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "caesars",
+      "company": "Caesars Entertainment, Inc.",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "10-K: operations 'could be negatively impacted by the duration of drought conditions, or other cause of water stress or shortages, such as those experienced in recent years in the southwest United States'.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1590895/000159089526000011/czr-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1590895/000159089526000011/czr-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "red_rock_resorts",
+      "company": "Red Rock Resorts, Inc.",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "10-K: 'The southwest United States has experienced a series of long-lasting drought phases, which has resulted in governmentally-imposed restrictions on water use'.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1653653/000165365326000004/rrr-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1653653/000165365326000004/rrr-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "diamondback_energy",
+      "company": "Diamondback Energy, Inc.",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "10-K: 'Texas has experienced extreme drought conditions. As a result of this severe drought, some local water districts have begun restricting the use of water'.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1539838/000153983826000010/fang-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1539838/000153983826000010/fang-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "eog_resources",
+      "company": "EOG Resources, Inc.",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "10-K: 'Limitations or restrictions on our ability to secure sufficient amounts of water (including ... drought) could materially and adversely impact our operations.'",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/821189/000082118926000054/eog-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/821189/000082118926000054/eog-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "teva",
+      "company": "Teva Pharmaceutical Industries Limited",
+      "label": "exposed_disclosed",
+      "role": "water_intensive_operations",
+      "rationale": "10-K: 'The consequences of climate change, such as extreme weather and water scarcity, could pose risks to our facilities and disruption of our activities'.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/818686/000119312526034532/d93612d10k.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/818686/000119312526034532/d93612d10k.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "tesla",
+      "company": "Tesla, Inc.",
+      "isin": "US88160R1014",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "Gigafactories in Gruenheide (Brandenburg, one of Germany's driest regions with groundwater-permit disputes over the plant) and Nevada; the FY2025 10-K has no mention of water scarcity, water stress, water supply or drought.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1318605/000162828026003952/tsla-20251231.htm",
+        "https://www.cleanenergywire.org/news/worries-about-water-needs-teslas-berlin-factory-not-ebbing-away"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1318605/000162828026003952/tsla-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "lucid",
+      "company": "Lucid Group, Inc.",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "Main vehicle plant in Casa Grande, Pinal County, Arizona, where ADWR projects groundwater demand to outrun supply; the FY2025 10-K has zero hits for water scarcity/stress/supply or drought.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1811210/000162828026011053/lcid-20251231.htm",
+        "https://kjzz.org/content/1242431/pinal-county-faces-100-year-water-shortage"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1811210/000162828026011053/lcid-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "micron",
+      "company": "Micron Technology, Inc.",
+      "isin": "US5951121038",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "Fabs in Taichung and Taoyuan, Taiwan, whose science-park water supply was cut during the 2021 drought, plus Boise; the FY2026 10-K has zero hits for water scarcity/stress/supply or drought.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/723125/000072312526000023/mu-20260903.htm",
+        "https://www.scmp.com/news/china/politics/article/3126888/taiwan-chip-makers-water-supplies-cut-drought-threatens-islands"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/723125/000072312526000023/mu-20260903.htm",
+          "fiscal_year": 2026
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "tower_semiconductor",
+      "company": "Tower Semiconductor Ltd.",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "Fabs in Migdal HaEmek, Israel, a country WRI Aqueduct ranks among the 25 with extremely high water stress; the FY2025 20-F has zero hits for water scarcity/stress/supply or drought.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/928876/000117891326002318/zk2635149.htm",
+        "https://www.downtoearth.org.in/water/quarter-of-global-population-faces-extremely-high-water-stress-each-year-91215"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/928876/000117891326002318/zk2635149.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "dr_reddys",
+      "company": "Dr. Reddy's Laboratories Limited",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "API and formulations plants around Hyderabad, Telangana, where groundwater is critically depleted and India is in WRI's extremely-high-stress group; the FY2026 20-F has zero hits for water scarcity/stress/supply or drought.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1135951/000157587226000381/rdy0899_20f.htm",
+        "https://www.downtoearth.org.in/water/quarter-of-global-population-faces-extremely-high-water-stress-each-year-91215",
+        "https://www.deccanchronicle.com/southern-states/telangana/hyderabad-water-crisis-deepens-with-record-15200-tanker-bookings-in-a-day-1960513"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/1135951/000157587226000381/rdy0899_20f.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "first_solar",
+      "company": "First Solar, Inc.",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "Module factory near Chennai, Tamil Nadu (Maplecroft rates Chennai extreme water-stress risk) plus US plants; the FY2025 10-K has zero hits for water scarcity/stress/supply or drought.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1274494/000127449426000021/fslr-20251231.htm",
+        "https://www.cnbc.com/2019/08/06/rapid-growth-of-indias-chennai-threatened-by-water-shortages.html"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1274494/000127449426000021/fslr-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "hershey",
+      "company": "The Hershey Company",
+      "isin": "US4278661081",
+      "label": "exposed_undisclosed",
+      "role": "water_dependent_supply",
+      "rationale": "Major plant in Monterrey, Nuevo Leon, hit by the 2022 drought declared a national-security matter, plus cocoa and sugar supply; the FY2025 10-K has zero hits for water scarcity/stress/supply or drought.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/47111/000162828026008586/hsy-20251231.htm",
+        "https://newarab.com/news/drought-hits-mexican-industrial-powerhouse"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/47111/000162828026008586/hsy-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "eagle_materials",
+      "company": "Eagle Materials Inc.",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "Cement plants include Fernley, Nevada and plants in Texas and the Mountain West; the FY2026 10-K has zero hits for water scarcity/stress/supply or drought.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/918646/000119312526230979/exp-20260331.htm",
+        "https://www.wri.org/insights/water-stress-magnifies-droughts-negative-impacts-throughout-united-states"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/918646/000119312526230979/exp-20260331.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "steel_dynamics",
+      "company": "Steel Dynamics, Inc.",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "Flat-rolled mill in Sinton, Texas, supplied from the Corpus Christi region that faced a drought water emergency with industrial curtailment in 2025-26; the FY2025 10-K has zero hits for water scarcity/stress/supply or drought.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1022671/000110465926021395/stld-20251231x10k.htm",
+        "https://insideclimatenews.org/news/23012025/corpus-christi-launches-emergency-water-projects-as-reservoirs-dwindle-and-industrial-demand-grows/"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1022671/000110465926021395/stld-20251231x10k.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "nucor",
+      "company": "Nucor Corporation",
+      "isin": "US6703461052",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "Steel mills include Kingman and Mesa, Arizona and Plymouth, Utah (Colorado/Great Basin states with high or extremely high stress); the FY2025 10-K has zero hits for water scarcity/stress/supply or drought.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/73309/000119312526071575/nue-20251231.htm",
+        "https://phys.org/news/2023-08-colorado-river-basin-world-water-stressed.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/73309/000119312526071575/nue-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "boyd_gaming",
+      "company": "Boyd Gaming Corporation",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "About a third of its properties are in Las Vegas, dependent on Colorado River water under federal shortage declarations; the FY2025 10-K has zero hits for water scarcity/stress/supply or drought.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/906553/000143774926004908/bgc20251121_10k.htm",
+        "https://www.unr.edu/nevada-today/news/2022/colorado-river-blogs"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/906553/000143774926004908/bgc20251121_10k.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "wynn_resorts",
+      "company": "Wynn Resorts, Limited",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "Wynn/Encore Las Vegas relies on Colorado River supply; the FY2025 10-K mentions 'severe drought' only once in a generic list of natural disasters, with no water-scarcity risk factor.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1174922/000117492226000013/wynn-20251231.htm",
+        "https://www.unr.edu/nevada-today/news/2022/colorado-river-blogs"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1174922/000117492226000013/wynn-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "texas_instruments",
+      "company": "Texas Instruments Incorporated",
+      "isin": "US8825081040",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "Fabs in Lehi, Utah (Colorado-compact state with high stress) and North Texas; the FY2025 10-K mentions only 'possible disruptions in power, water supply' in a generic list.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/97476/000009747626000059/txn-20251231.htm",
+        "https://phys.org/news/2023-08-colorado-river-basin-world-water-stressed.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/97476/000009747626000059/txn-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "pilgrims_pride",
+      "company": "Pilgrim's Pride Corporation",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "Poultry processing in Mexico (incl. Queretaro, Nuevo Leon) and Texas; the FY2025 10-K mentions drought only in a generic natural-disaster list.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/802481/000080248126000011/ppc-20251228.htm",
+        "https://newarab.com/news/drought-hits-mexican-industrial-powerhouse"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/802481/000080248126000011/ppc-20251228.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "tyson_foods",
+      "company": "Tyson Foods, Inc.",
+      "isin": "US9024941034",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "Beef plants in the High Plains (Amarillo, Texas; Kansas) draw on the depleting Ogallala aquifer; the FY2025 10-K mentions only 'elongated drought periods' in a generic climate sentence.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/100493/000010049325000095/tsn-20250927.htm",
+        "https://www.texastribune.org/texas-environmental-news/water-supply/drought-caused-huge-drop-texas-portion-ogallala/"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/100493/000010049325000095/tsn-20250927.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "commercial_metals",
+      "company": "Commercial Metals Company",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "Micro mill in Mesa, Arizona and mills in Texas; the FY2026 10-K mentions droughts only in a generic list of physical climate impacts.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/22444/000002244426000065/cmc-20260831.htm",
+        "https://phys.org/news/2023-08-colorado-river-basin-world-water-stressed.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/22444/000002244426000065/cmc-20260831.htm",
+          "fiscal_year": 2026
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "ternium",
+      "company": "Ternium S.A.",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "Steel complex in Monterrey area, Nuevo Leon (2022 drought emergency); the FY2025 20-F mentions Mexico's drought only as challenging access and logistics, not as a water-supply risk.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1342874/000134287426000020/tx-20251231.htm",
+        "https://newarab.com/news/drought-hits-mexican-industrial-powerhouse"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/1342874/000134287426000020/tx-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "amkor",
+      "company": "Amkor Technology, Inc.",
+      "label": "exposed_undisclosed",
+      "role": "water_intensive_operations",
+      "rationale": "Building an advanced packaging plant in Peoria, Arizona (Colorado-basin high stress); the FY2025 10-K lists droughts only among generic natural disasters.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1047127/000104712726000014/amkr-20251231.htm",
+        "https://phys.org/news/2023-08-colorado-river-basin-world-water-stressed.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1047127/000104712726000014/amkr-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "adobe",
+      "company": "Adobe Inc.",
+      "isin": "US00724F1012",
+      "label": "not_exposed",
+      "role": "low_water_dependence",
+      "rationale": "Software company with offices and leased data-centre capacity; little operational water dependence.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/796343/000079634326000003/adbe-20251128.htm"
+      ],
+      "documents": [
+        {
+          "kind": "annual report",
+          "url": "https://www.sec.gov/Archives/edgar/data/796343/000079634326000003/adbe-20251128.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "visa",
+      "company": "Visa Inc.",
+      "isin": "US92826C8394",
+      "label": "not_exposed",
+      "role": "low_water_dependence",
+      "rationale": "Payments network; FY2025 10-K has no water or drought risk mention.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1403161/000140316125000089/v-20250930.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1403161/000140316125000089/v-20250930.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "mastercard",
+      "company": "Mastercard Incorporated",
+      "isin": "US57636Q1040",
+      "label": "not_exposed",
+      "role": "low_water_dependence",
+      "rationale": "Payments network; FY2025 10-K has no water or drought risk mention.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1141391/000114139126000013/ma-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1141391/000114139126000013/ma-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "moodys",
+      "company": "Moody's Corporation",
+      "label": "not_exposed",
+      "role": "low_water_dependence",
+      "rationale": "Ratings and analytics; no material water dependence.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1059556/000162828026009136/mco-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1059556/000162828026009136/mco-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "sp_global",
+      "company": "S&P Global Inc.",
+      "label": "not_exposed",
+      "role": "low_water_dependence",
+      "rationale": "Ratings, indices and data; no material water dependence.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/64040/000006404026000013/spgi-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/64040/000006404026000013/spgi-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "paypal",
+      "company": "PayPal Holdings, Inc.",
+      "label": "not_exposed",
+      "role": "low_water_dependence",
+      "rationale": "Digital payments; no material water dependence.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1633917/000163391726000024/pypl-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1633917/000163391726000024/pypl-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "sap",
+      "company": "SAP SE",
+      "isin": "DE0007164600",
+      "label": "not_exposed",
+      "role": "low_water_dependence",
+      "rationale": "Enterprise software; 20-F has no water-scarcity risk.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1000184/000110465926020058/sap-20251231x20f.htm"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/1000184/000110465926020058/sap-20251231x20f.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "check_point",
+      "company": "Check Point Software Technologies Ltd.",
+      "label": "not_exposed",
+      "role": "low_water_dependence",
+      "rationale": "Israeli cybersecurity software firm; offices only, so Israel's water stress is immaterial.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1015922/000117891326001932/zk2634942.htm"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/1015922/000117891326001932/zk2634942.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "atlassian",
+      "company": "Atlassian Corporation",
+      "label": "not_exposed",
+      "role": "low_water_dependence",
+      "rationale": "Collaboration software on public cloud; no material water dependence.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1650372/000165037226000036/team-20260630.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1650372/000165037226000036/team-20260630.htm",
+          "fiscal_year": 2026
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "datadog",
+      "company": "Datadog, Inc.",
+      "label": "not_exposed",
+      "role": "low_water_dependence",
+      "rationale": "Monitoring software on public cloud; no material water dependence.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1561550/000162828026008819/ddog-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1561550/000162828026008819/ddog-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "docusign",
+      "company": "Docusign, Inc.",
+      "label": "not_exposed",
+      "role": "low_water_dependence",
+      "rationale": "E-signature software; no material water dependence.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1261333/000126133326000021/docu-20260131.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1261333/000126133326000021/docu-20260131.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "booking",
+      "company": "Booking Holdings Inc.",
+      "label": "not_exposed",
+      "role": "low_water_dependence",
+      "rationale": "Online travel agency; no material water dependence of its own.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1075531/000107553126000009/bkng-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1075531/000107553126000009/bkng-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "netflix",
+      "company": "Netflix, Inc.",
+      "isin": "US64110L1061",
+      "label": "not_exposed",
+      "role": "low_water_dependence",
+      "rationale": "Streaming service running on public cloud; no material water dependence.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1065280/000106528026000034/nflx-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1065280/000106528026000034/nflx-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "salesforce",
+      "company": "Salesforce, Inc.",
+      "isin": "US79466L3024",
+      "label": "not_exposed",
+      "role": "other",
+      "rationale": "Hard negative: 10-K says its offices may face 'drought, water scarcity, heat waves' among generic climate events; software with no water-intensive operations.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1108524/000110852426000060/crm-20260131.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1108524/000110852426000060/crm-20260131.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "intuit",
+      "company": "Intuit Inc.",
+      "label": "not_exposed",
+      "role": "other",
+      "rationale": "Hard negative: 10-K lists 'drought, water scarcity' among climate events affecting offices; no water-intensive operations.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/896878/000089687826000037/intu-20260731.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/896878/000089687826000037/intu-20260731.htm",
+          "fiscal_year": 2026
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "servicenow",
+      "company": "ServiceNow, Inc.",
+      "label": "not_exposed",
+      "role": "other",
+      "rationale": "Hard negative: 10-K says California headquarters may face 'drought, water scarcity, heat waves'; software only.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1373715/000137371526000007/now-20251231.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1373715/000137371526000007/now-20251231.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "autodesk",
+      "company": "Autodesk, Inc.",
+      "label": "not_exposed",
+      "role": "other",
+      "rationale": "Hard negative: 10-K lists 'drought, water security' among generic catastrophic events; software only.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/769397/000076939726000015/adsk-20260131.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/769397/000076939726000015/adsk-20260131.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "workday",
+      "company": "Workday, Inc.",
+      "label": "not_exposed",
+      "role": "other",
+      "rationale": "Hard negative: 10-K mentions drought only in a generic business-continuity list; software only.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1327811/000132781126000014/wday-20260131.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-K",
+          "url": "https://www.sec.gov/Archives/edgar/data/1327811/000132781126000014/wday-20260131.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "hdfc_bank",
+      "company": "HDFC Bank Limited",
+      "label": "not_exposed",
+      "role": "other",
+      "rationale": "Hard negative: 20-F cites 'physical risks of severe weather and water scarcity' as climate risk for an Indian bank; no water-intensive operations.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1144967/000119312526322004/d88195d20f.htm"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/1144967/000119312526322004/d88195d20f.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "icici_bank",
+      "company": "ICICI Bank Limited",
+      "label": "not_exposed",
+      "role": "other",
+      "rationale": "Hard negative: 20-F mentions droughts in India only as macroeconomic risk; banking has no water-intensive operations.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1103838/000095010326010820/dp249803_20f.htm"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/1103838/000095010326010820/dp249803_20f.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "infosys",
+      "company": "Infosys Limited",
+      "label": "not_exposed",
+      "role": "other",
+      "rationale": "Hard negative: 20-F mentions 'disruption of power and water supply to our campuses' in Indian cities; IT services with low water use.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1067491/000119312526270520/infy-20260331.htm"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/1067491/000119312526270520/infy-20260331.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "wipro",
+      "company": "Wipro Limited",
+      "label": "not_exposed",
+      "role": "other",
+      "rationale": "Hard negative: 20-F says extreme weather 'may cause intense flooding or water shortages in cities where we operate'; IT services with low water use.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/1123799/000119312526253514/wit-20260331.htm"
+      ],
+      "documents": [
+        {
+          "kind": "20-F",
+          "url": "https://www.sec.gov/Archives/edgar/data/1123799/000119312526253514/wit-20260331.htm",
+          "fiscal_year": 2025
+        }
+      ],
+      "split": "holdout"
+    }
+  ]
+}
