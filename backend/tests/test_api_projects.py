@@ -150,7 +150,7 @@ def test_open_returns_dashboards_then_all_unchanged(env, tmp_path):
     _seed(http, store, tmp_path)
     first = http.post("/api/projects/alpha/open")
     assert first.status_code == 200, first.text
-    assert [p.portfolio_id for p in pf.list_portfolios()] == ["alpha-dws-ie00testfund"]
+    assert [p.portfolio_id for p in pf.list_portfolios()] == ["alpha-portfolio-ie00testfund"]
     assert len(first.json()["dashboards"]) == 2
     second = http.post("/api/projects/alpha/open").json()
     assert [d["status"] for d in second["dashboards"]] == ["unchanged", "unchanged"]

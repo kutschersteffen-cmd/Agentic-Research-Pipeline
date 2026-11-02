@@ -46,7 +46,7 @@ def test_idempotent_open(env, tmp_path):
     second = open_project(store, pf, client, "alpha")
     assert [d.status for d in second.dashboards] == ["unchanged", "unchanged"]
     assert all(d.id is not None and d.published is False for d in second.dashboards)
-    assert [p.portfolio_id for p in pf.list_portfolios()] == ["alpha-dws-ie00testfund"]
+    assert [p.portfolio_id for p in pf.list_portfolios()] == ["alpha-portfolio-ie00testfund"]
 
 
 def test_two_projects_separate(env, tmp_path):
@@ -55,7 +55,7 @@ def test_two_projects_separate(env, tmp_path):
     _project(store, tmp_path, "beta", ("One",))
     open_project(store, pf, client, "alpha")
     open_project(store, pf, client, "beta")
-    assert {p.portfolio_id for p in pf.list_portfolios()} == {"alpha-dws-ie00testfund", "beta-dws-ie00testfund"}
+    assert {p.portfolio_id for p in pf.list_portfolios()} == {"alpha-portfolio-ie00testfund", "beta-portfolio-ie00testfund"}
     assert len(client.dashboards) == 2
 
 
