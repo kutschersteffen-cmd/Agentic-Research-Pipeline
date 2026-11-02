@@ -31,7 +31,7 @@ it is too small to set thresholds on and evaluate on the same companies.
   and threshold, reading this format.
 - Downloading documents automatically. The set lists document URLs and local paths; fetching uses the existing
   discovery and EDGAR tools.
-- Private companies.
+- ~~Private companies.~~ Allowed since 2026-11-02 (owner): private makers may be cases when they publish a report or press releases usable as `documents`; most pure-play electrolyser makers are private.
 
 ## Anti-goals
 
