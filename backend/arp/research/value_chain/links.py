@@ -14,6 +14,7 @@ from arp.research.indirect_exposure.company_mapper import lookup_isic, resolve_c
 from arp.research.indirect_exposure.factory import code_list
 from arp.research.indirect_exposure.io_import import country_regions
 from arp.research.indirect_exposure.leontief import LeontiefModel
+from arp.research.indirect_exposure.nace import isic_to_nace2, nace_sectors
 from arp.research.value_chain.model import UNITS, ValueChain, sector_name
 from arp.schemas.common import CompanyRef, now_iso
 from arp.schemas.thematic import ActivityDefinition
@@ -31,10 +32,12 @@ class LinkError(ValueError):
 
 @dataclass(frozen=True)
 class Resolution:
-    source: str  # nodes | split | code | llm | none
+    source: str  # nodes | split | nace | code | llm | none
     region: str | None
     weights: dict[int, float]  # ValueChain node index -> weight, summing to 1 (or empty)
     unresolved: list[dict]
+    code: str | None = None  # the code a `nace` link used, and its scheme (nace2 | nace21 | isic4)
+    code_scheme: str | None = None
 
 
 def company_subject(company_id: str) -> str:
@@ -113,10 +116,33 @@ def _resolve_parts(vc: ValueChain, rule: LinkRule, region: str | None) -> tuple[
     return weights, unresolved
 
 
+def company_nace(company: CompanyRef) -> tuple[str, str, str] | None:
+    """(scheme, code, rev) the `nace` source links by: the NACE code, else a 4-digit ISIC Rev. 4 class the UN table maps."""
+    if company.nace_code:
+        return ("nace21" if company.nace_rev == "2.1" else "nace2"), company.nace_code, company.nace_rev
+    isic = company.isic_code or ""
+    if len(isic) == 4 and isic.isdigit() and isic_to_nace2(isic):
+        return "isic4", isic, "2"
+    return None
+
+
+def nace_weights(vc: ValueChain, company: CompanyRef, region: str | None) -> dict[int, float]:
+    """The company's NACE set's live nodes with output, in `region` (every region when None), weighted by output."""
+    scheme, code, rev = company_nace(company)
+    codes = isic_to_nace2(code) if scheme == "isic4" else [code]
+    names = {sector_name(s) for c in codes for s in nace_sectors(c, rev)}
+    keep = vc._live & (vc._x > 0) & np.isin([n.sector for n in vc._nodes], list(names))
+    if region is not None:
+        keep &= np.array([n.region == region for n in vc._nodes])
+    return _by_output(vc, np.flatnonzero(keep))
+
+
 def company_source(company: CompanyRef, rule: LinkRule | None) -> str:
     """Which resolution step applies; needs no build, so classify_unlinked can use it."""
     if rule is not None and rule.kind in ("nodes", "split"):
         return rule.kind
+    if company_nace(company) is not None:
+        return "nace"
     if lookup_isic(company.isic_code, code_list()) is not None:
         return "code"
     return "llm" if rule is not None else "none"
@@ -129,6 +155,11 @@ def resolve_company(vc: ValueChain, company: CompanyRef, rule: LinkRule | None) 
         return Resolution(source, region, *_resolve_parts(vc, rule, region))
     if source == "none":
         return Resolution(source, region, {}, [])
+    if source == "nace":
+        scheme, code, rev = company_nace(company)
+        weights = nace_weights(vc, company, region)
+        missing = {"isic_code": code} if scheme == "isic4" else {"nace_code": code, "nace_rev": rev}
+        return Resolution(source, region, weights, [] if weights else [missing], code, scheme)
     code = lookup_isic(company.isic_code, code_list())
     weights = _code_set(vc, code, region)  # a code with no node here is reported like an llm rule's part
     return Resolution(source, region, weights, [] if weights else [{"icio_code": code, "share": 1.0}])

@@ -4884,6 +4884,18 @@
       "description": "Fiscal year end as MM-DD, e.g. 04-30.",
       "title": "Fiscal Year End"
      },
+     "gics_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "GICS code of 2, 4, 6 or 8 digits; stored, not mapped.",
+      "title": "Gics Code"
+     },
      "isic_code": {
       "anyOf": [
        {
@@ -4917,6 +4929,27 @@
        }
       ],
       "title": "Lei"
+     },
+     "nace_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "NACE code (division or class), validated on universe load.",
+      "title": "Nace Code"
+     },
+     "nace_rev": {
+      "default": "2",
+      "enum": [
+       "2",
+       "2.1"
+      ],
+      "title": "Nace Rev",
+      "type": "string"
      },
      "name": {
       "title": "Name",
@@ -13381,6 +13414,7 @@
       "enum": [
        "nodes",
        "split",
+       "nace",
        "code",
        "llm",
        "none"
@@ -21375,6 +21409,34 @@
       "title": "Caveat",
       "type": "string"
      },
+     "code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "The code a `nace` link used, e.g. 07.29 or 2710; null for other sources.",
+      "title": "Code"
+     },
+     "code_scheme": {
+      "anyOf": [
+       {
+        "enum": [
+         "nace2",
+         "nace21",
+         "isic4"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Code Scheme"
+     },
      "edition": {
       "title": "Edition",
       "type": "string"
@@ -21412,6 +21474,7 @@
       "enum": [
        "nodes",
        "split",
+       "nace",
        "code",
        "llm",
        "none"

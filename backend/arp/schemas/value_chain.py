@@ -206,11 +206,13 @@ class ValueChainLinks(BaseModel):
     edition: str
     caveat: str
     subject: str
-    source: Literal["nodes", "split", "code", "llm", "none"]
+    source: Literal["nodes", "split", "nace", "code", "llm", "none"]
     region: str | None = Field(description="The company's EXIOBASE region; null for activities.")
     nodes: list[WeightedNode]
     unresolved: list[dict] = Field(description="Rule parts the current build has no node for.")
     rule: LinkRule | None
+    code: str | None = Field(default=None, description="The code a `nace` link used, e.g. 07.29 or 2710; null for other sources.")
+    code_scheme: Literal["nace2", "nace21", "isic4"] | None = None
 
 
 class PortfolioHoldingLink(BaseModel):
@@ -219,7 +221,7 @@ class PortfolioHoldingLink(BaseModel):
     name: str
     market_value_eur: float
     weight: float
-    link_source: Literal["nodes", "split", "code", "llm", "none"]
+    link_source: Literal["nodes", "split", "nace", "code", "llm", "none"]
     top_node: WeightedNode | None
     owned_output_meur: float | None
 
