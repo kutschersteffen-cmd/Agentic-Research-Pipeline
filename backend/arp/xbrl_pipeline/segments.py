@@ -47,6 +47,10 @@ NOTE_CONCEPTS = {"sec": "us-gaap:SegmentReportingDisclosureTextBlock",
                  "esef": "ifrs-full:DisclosureOfOperatingSegmentsExplanatory"}
 # Filers like Apple tag every segment fact with this pair as well; any other second dimension is dropped.
 _OPERATING = {"srt:ConsolidationItemsAxis": "us-gaap:OperatingSegmentsMember"}
+_ELIMINATIONS = {f"{p}:{n}" for p in ("us-gaap", "srt")
+                 for n in ("ConsolidationEliminationsMember", "IntersegmentEliminationMember")}
+_RECONCILING = _ELIMINATIONS | {f"{p}:{n}" for p in ("us-gaap", "srt")
+                                for n in ("CorporateNonSegmentMember", "SegmentReconcilingItemsMember")}
 
 
 def segment_name(member: str) -> str:
@@ -59,6 +63,16 @@ def _kept(f: DimFact, axis: str) -> bool:
     rest = {a: m for a, m in f.dims.items() if a != axis}
     return (axis in f.dims and rest in ({}, _OPERATING) and bool(f.period_start)
             and _full_year({"start": f.period_start, "end": f.period_end}))
+
+
+def _reconciling(dim_facts: list[DimFact], concept: str, year: int) -> float:
+    by_member: dict[str, float] = {}
+    for f in dim_facts:
+        m = f.dims.get("srt:ConsolidationItemsAxis")
+        if (f.concept == concept and len(f.dims) == 1 and m in _RECONCILING and int(f.period_end[:4]) == year
+                and f.period_start and _full_year({"start": f.period_start, "end": f.period_end})):
+            by_member.setdefault(m, -abs(f.value) if m in _ELIMINATIONS else f.value)
+    return sum(by_member.values())
 
 
 def build_segments(dim_facts: list[DimFact], totals: dict[tuple[str, int], float], *, market: Market,
@@ -85,13 +99,15 @@ def build_segments(dim_facts: list[DimFact], totals: dict[tuple[str, int], float
                 if not groups:
                     continue
                 total = totals.get((concept, year))
+                rec = _reconciling(dim_facts, concept, year) if kind == "segment" else None
                 for level, by_member in groups.items():
-                    match = bool(total) and abs(sum(f.value for f in by_member.values()) - total) / abs(total) <= 0.01
+                    seg_sum = sum(f.value for f in by_member.values()) + (rec or 0)
+                    match = bool(total) and abs(seg_sum - total) / abs(total) <= 0.01
                     rows += [SegmentRow(
                         company_id=company_id, market=market, fiscal_year=year, metric=metric, concept=concept,
                         axis=axis, member=member, segment=segment_name(member), value=f.value, unit=f.unit,
                         period_start=f.period_start, period_end=f.period_end, accession=accession,
-                        sum_matches_total=match, axis_kind=kind, level=level,
+                        sum_matches_total=match, reconciling=rec, axis_kind=kind, level=level,
                     ) for member, f in by_member.items()]
                 break
     return rows
