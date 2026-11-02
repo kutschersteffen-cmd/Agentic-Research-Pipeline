@@ -105,7 +105,6 @@ def test_master_sector_values_apply_to_links(env):  # AC-18, AC-18c, AC-19
     assert nodes(L(client, "nw")) == [("DE.3", 1.0)]
 
 
-@pytest.mark.xfail(strict=True, reason="spec AC-18b vs Task 3 ruling: the master drops a nace_rev with no nace_code")
 def test_master_revision_alone_reinterprets_the_code(env):  # AC-18b
     client, _, master = env
     master("nr,,2,,")

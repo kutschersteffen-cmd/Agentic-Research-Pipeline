@@ -106,12 +106,12 @@ def test_empty_nace_rev_next_to_a_code_is_rev_2_and_explicit_rev_is_kept(client,
     assert upload(client, master(row("a", ISIN, rev="3"))).status_code == 422
 
 
-def test_nace_rev_without_a_code_is_ignored(client, env):
+def test_nace_rev_without_a_code_overrides_the_company_revision(client, env):
     store, idmap = env
     store.save_company(CompanyRef(company_id="nw", name="NW", nace_code="35.11", nace_rev="2"))
     assert upload(client, master(row("nw", ISIN, rev="2.1"))).status_code == 200
-    assert IssuerSectorStore(idmap.path.with_name("issuer_sectors.json")).get("nw") == {}
-    assert store.get_company("nw").nace_rev == "2"
+    assert IssuerSectorStore(idmap.path.with_name("issuer_sectors.json")).get("nw") == {"nace_rev": "2.1"}
+    assert (store.get_company("nw").nace_code, store.get_company("nw").nace_rev) == ("35.11", "2.1")
 
 
 def _pg_settings(pg, tmp_path):
