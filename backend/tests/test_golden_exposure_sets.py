@@ -8,8 +8,8 @@ import pytest
 from arp.golden_set.exposure import load_set, stats_lines, validate_set
 
 ROOT = Path(__file__).parent / "golden" / "exposure"
-READY = ["electrolyser_makers", "ai_datacentre_operators"]
-PENDING = ["water_scarcity_exposed"]  # owner-checked labels still to come
+READY = ["electrolyser_makers", "ai_datacentre_operators", "water_scarcity_exposed"]
+PENDING: list[str] = []
 SETS = [*READY, *(pytest.param(s, marks=pytest.mark.xfail(strict=True, reason="set not built yet")) for s in PENDING)]
 
 
