@@ -13,13 +13,13 @@ _DEFAULTS = {"alpha": 10.0, "min_train_months": 24}
 
 def default_embedder(model_name: str = "BAAI/bge-small-en-v1.5"):
     """A fastembed-backed embedder; the import is here so the model stack loads only when asked for."""
-    from fastembed import TextEmbedding
+    from arp.models import local
 
     class _FastEmbedder:
         name = model_name
 
         def __init__(self) -> None:
-            self._model = TextEmbedding(model_name=model_name)
+            self._model = local.text_embedding(model_name)
 
         def embed(self, texts: list[str]) -> np.ndarray:
             vecs = np.asarray(list(self._model.embed(texts)), dtype=float)

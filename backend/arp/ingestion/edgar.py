@@ -165,7 +165,9 @@ class EdgarDocumentSource(DocumentSource):
                             if raw_bytes is None and not self._has_stored_blob(content_key):
                                 # Parse-cache hit, but an earlier store attempt failed: fetch and archive again.
                                 _, raw_bytes = await self._get_and_extract_text(client, url)
-                            self._index_and_archive(kwargs["doc_id"], company.company_id, doc_type, title, content_key, text, raw_bytes, url)
+                            self._index_and_archive(
+                                kwargs["doc_id"], company.company_id, doc_type, title, content_key, text, raw_bytes, url, filing_date
+                            )
                         except (CaptureStoreError, httpx.HTTPError) as exc:
                             # Not collected: no verified copy of the original bytes.
                             logger.warning("EDGAR filing %s not collected: %s", url, exc)
@@ -193,6 +195,7 @@ class EdgarDocumentSource(DocumentSource):
         full_text: str,
         raw_bytes: bytes | None,
         source_url: str,
+        fiscal_period: str | None = None,
     ) -> None:
         """Best-effort OpenSearch indexing + object-store archival, mirrors
         LocalFileDocumentSource._index_and_archive. raw_bytes is None on a
@@ -204,7 +207,8 @@ class EdgarDocumentSource(DocumentSource):
         from arp.retrieval.search_indexer import index_document_if_enabled
 
         index_document_if_enabled(
-            self._indexing_config, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=full_text
+            self._indexing_config, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=full_text,
+            fiscal_period=fiscal_period,
         )
 
         if raw_bytes is not None:
