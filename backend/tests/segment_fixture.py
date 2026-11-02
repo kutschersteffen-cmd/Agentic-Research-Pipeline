@@ -36,7 +36,7 @@ def ixbrl(facts: list, scale: int = 0) -> bytes:
                     f'<xbrli:endDate>{end}</xbrli:endDate></xbrli:period></xbrli:context>')
         shown, sign = abs(value) / 10**scale, ' sign="-"' if value < 0 else ""
         body.append(f'<p><ix:nonFraction name="{concept}" contextRef="c{i}" unitRef="usd" decimals="0" scale="{scale}"{sign}'
-                    f' format="ixt:num-dot-decimal">{shown:g}</ix:nonFraction></p>')
+                    f' format="ixt:num-dot-decimal">{shown:.15g}</ix:nonFraction></p>')
     if not ctxs:
         ctxs.append('<xbrli:context id="c0"><xbrli:entity><xbrli:identifier scheme="s">1</xbrli:identifier>'
                     '</xbrli:entity><xbrli:period><xbrli:instant>2025-09-27</xbrli:instant></xbrli:period></xbrli:context>')

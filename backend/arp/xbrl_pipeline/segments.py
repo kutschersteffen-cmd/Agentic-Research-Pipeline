@@ -49,6 +49,9 @@ NOTE_CONCEPTS = {"sec": "us-gaap:SegmentReportingDisclosureTextBlock",
 _OPERATING = {"srt:ConsolidationItemsAxis": "us-gaap:OperatingSegmentsMember"}
 _ELIMINATIONS = {f"{p}:{n}" for p in ("us-gaap", "srt")
                  for n in ("ConsolidationEliminationsMember", "IntersegmentEliminationMember")}
+_CORPORATE_ONLY = {f"{p}:{n}" for p in ("us-gaap", "srt")
+                   for n in ("CorporateAndOtherMember", "CorporateMember", "CorporateNonSegmentMember")
+                   } | {"ifrs-full:AllOtherSegmentsMember"}
 _RECONCILING = _ELIMINATIONS | {f"{p}:{n}" for p in ("us-gaap", "srt")
                                 for n in ("CorporateNonSegmentMember", "SegmentReconcilingItemsMember")}
 
@@ -73,6 +76,16 @@ def _reconciling(dim_facts: list[DimFact], concept: str, year: int) -> float:
                 and f.period_start and _full_year({"start": f.period_start, "end": f.period_end})):
             by_member.setdefault(m, -abs(f.value) if m in _ELIMINATIONS else f.value)
     return sum(by_member.values())
+
+
+def _drop_total_and_corporate(by_member: dict[str, DimFact]) -> dict[str, DimFact]:
+    """Drop the first member equal (within 0.5%) to the sum of the others, then a lone corporate member."""
+    for m, f in by_member.items():
+        others = sum(g.value for k, g in by_member.items() if k != m)
+        if len(by_member) > 1 and abs(f.value - others) <= 0.005 * abs(others):
+            by_member = {k: g for k, g in by_member.items() if k != m}
+            break
+    return {} if list(by_member) in ([m] for m in _CORPORATE_ONLY) else by_member
 
 
 def build_segments(dim_facts: list[DimFact], totals: dict[tuple[str, int], float], *, market: Market,
@@ -101,6 +114,8 @@ def build_segments(dim_facts: list[DimFact], totals: dict[tuple[str, int], float
                 total = totals.get((concept, year))
                 rec = _reconciling(dim_facts, concept, year) if kind == "segment" else None
                 for level, by_member in groups.items():
+                    if kind == "segment":
+                        by_member = _drop_total_and_corporate(by_member)
                     seg_sum = sum(f.value for f in by_member.values()) + (rec or 0)
                     match = bool(total) and abs(seg_sum - total) / abs(total) <= 0.01
                     rows += [SegmentRow(
