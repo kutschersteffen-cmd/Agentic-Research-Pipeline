@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activityLine, cents, EU27, exposureHash, footprintTotal, homeShare, inRegion, lensLine, linkText, naceLinkLine, meur, nodeHash, nodeQuery, pct1, percent, pickerHits, portfolioHash, pricePct, recipesHash, routeText, searchable, shockHash, signed, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
+import { activityLine, cents, EU27, exposureHash, footprintTotal, homeShare, inRegion, lensLine, linkText, naceLinkLine, nodeLine, meur, nodeHash, nodeQuery, pct1, percent, pickerHits, portfolioHash, pricePct, recipesHash, routeText, searchable, shockHash, signed, tile, tonnes, unresolvedText } from "../src/lib/valueChain.ts";
 
 test("flows in cents", () => {
   assert.equal(cents(0.0738), "7.4¢"); assert.equal(cents(0.0079798, 2), "0.80¢");
@@ -82,4 +82,8 @@ test("nace link line names the code and scheme", () => {
   assert.equal(naceLinkLine({ source: "nace", code: "07.29", code_scheme: "nace2" }), "Linked by NACE 07.29");
   assert.equal(naceLinkLine({ source: "nace", code: "2710", code_scheme: "isic4" }), "Linked by ISIC 2710");
   assert.equal(naceLinkLine({ source: "code", code: "07.29", code_scheme: "nace2" }), "");
+});
+test("link panel node line and nace21 scheme", () => {
+  assert.equal(nodeLine({ region_label: "CN", sector: "Mining of copper ores and concentrates", weight: 0.7143 }), "CN · Mining of copper ores and concentrates 71.4%");
+  assert.equal(naceLinkLine({ source: "nace", code: "07.29", code_scheme: "nace21" }), "Linked by NACE 07.29");
 });

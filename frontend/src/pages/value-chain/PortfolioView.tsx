@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
 import { apiMessage } from "../../lib/projects";
-import { activityLine, cents, naceLinkLine, pct1, pickerHits, portfolioHash, searchable, unresolvedText } from "../../lib/valueChain";
+import { activityLine, cents, naceLinkLine, nodeLine, pct1, pickerHits, portfolioHash, searchable, unresolvedText } from "../../lib/valueChain";
 import type { PortfolioSummary, Taxonomy, VcIcioCode, VcLinkRuleIn, VcLinks, VcNodeRef, VcPortfolio } from "../../types";
 import { Bars } from "./NodeView";
 import { useVcQuery } from "./useVcQuery";
@@ -133,6 +133,7 @@ function LinkEditor({ subject, title, isCompany, codes, onChanged, onClose }: {
       setRows([blankRow()]);
     });
 
+  const linkedBy = links ? naceLinkLine(links) : "";
   return (
     <section ref={panel} className="card vc-editor" aria-label="Link editor">
       <div className="vc-editor-head">
@@ -151,7 +152,10 @@ function LinkEditor({ subject, title, isCompany, codes, onChanged, onClose }: {
           <p>
             Current source: <strong>{links.source}</strong>
           </p>
-          {naceLinkLine(links) && <p>{naceLinkLine(links)}</p>}
+          {linkedBy && <p>{linkedBy}</p>}
+          {links.nodes.map((n) => (
+            <p key={n.node_id}>{nodeLine(n)}</p>
+          ))}
           {(links.unresolved as Part[]).map((p) => (
             <p key={JSON.stringify(p)} className="warning-banner">
               {unresolvedText(p)}
