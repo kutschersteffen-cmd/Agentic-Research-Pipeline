@@ -145,6 +145,7 @@ class DocumentChunk(BaseModel):
     section: str | None = None
     speaker: str | None = None
     unit_note: str | None = None  # a table passage's unit caption, e.g. "in EUR millions"
+    table_id: str | None = None  # set on whole-table passages
     text: str
     char_start: int
     char_end: int

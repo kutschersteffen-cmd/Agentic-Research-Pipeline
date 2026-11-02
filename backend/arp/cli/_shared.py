@@ -81,7 +81,8 @@ def _registry() -> DocumentSourceRegistry:
             ),
             *([EsefDocumentSource(settings.esef_index_url, settings.cache_dir, content_store=_document_content_store(),
                                   indexing_config=indexing_config)] if settings.esef_enabled else []),
-        ]
+        ],
+        settings=settings,
     )
 
 

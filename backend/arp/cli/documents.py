@@ -52,6 +52,22 @@ def documents_warm(
 
 
 
+@documents_app.command("tree")
+def documents_tree(
+    doc_id: str = typer.Argument(..., help="Document whose stored tree to print."),
+    as_json: bool = typer.Option(False, "--json", help="Print the stored tree as JSON."),
+) -> None:
+    """Prints the stored document tree (built at fetch with ARP_DOC_TREE_ENABLED=true), one node per line."""
+    from arp.config import get_settings
+    from arp.ingestion.doc_tree import dumps, format_tree, stored_tree
+
+    tree = stored_tree(doc_id, get_settings())
+    if tree is None:
+        typer.echo(f"No tree stored for {doc_id}.", err=True)
+        raise typer.Exit(1)
+    typer.echo(dumps(tree) if as_json else "\n".join(format_tree(tree)))
+
+
 @documents_app.command("cache-stats")
 def documents_cache_stats() -> None:
     from arp.ingestion.edgar import _edgar_parser_version

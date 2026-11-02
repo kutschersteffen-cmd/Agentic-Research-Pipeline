@@ -336,7 +336,9 @@ class LocalFileDocumentSource(DocumentSource):
                 source_url=None,
             )
             if self._indexing_config is not None:
-                self._index_and_archive(doc_id, company_id, doc_type, file_path, parsed.content_key, parsed.full_text)
+                self._index_and_archive(
+                    doc_id, company_id, doc_type, file_path, parsed.content_key, parsed.full_text, parsed.table_spans
+                )
             return {
                 "doc_id": doc_id,
                 "full_text": parsed.full_text,
@@ -395,7 +397,8 @@ class LocalFileDocumentSource(DocumentSource):
         }
 
     def _index_and_archive(
-        self, doc_id: str, company_id: str, doc_type: DocType, file_path: Path, content_key: str, full_text: str
+        self, doc_id: str, company_id: str, doc_type: DocType, file_path: Path, content_key: str, full_text: str,
+        table_spans: list | None = None,
     ) -> None:
         """Best-effort OpenSearch indexing + mandatory blob-store archival, run
         synchronously here since this whole method (via _parse_and_identify)
@@ -405,7 +408,8 @@ class LocalFileDocumentSource(DocumentSource):
         from arp.retrieval.search_indexer import index_document_if_enabled
 
         index_document_if_enabled(
-            self._indexing_config, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=file_path.name, full_text=full_text
+            self._indexing_config, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=file_path.name, full_text=full_text,
+            table_spans=table_spans,
         )
 
         from arp.storage.document_blob_store import upload_or_fail

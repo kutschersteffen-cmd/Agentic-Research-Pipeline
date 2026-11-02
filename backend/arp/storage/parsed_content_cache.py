@@ -45,6 +45,23 @@ CREATE TABLE IF NOT EXISTS file_identity (
 );
 """
 
+# The document tree (arp/ingestion/doc_tree.py), once per document version. Unlike parsed_content a row is
+# replaced while incomplete: a later build fills the nodes whose summary call failed.
+DOC_TREE_SCHEMA = """
+CREATE TABLE IF NOT EXISTS doc_tree (
+    content_key     TEXT    NOT NULL,
+    parser_version  TEXT    NOT NULL,
+    tree_version    INTEGER NOT NULL,
+    doc_id          TEXT    NOT NULL,
+    tree_json       TEXT    NOT NULL,
+    incomplete      INTEGER NOT NULL,
+    created_at      TEXT    NOT NULL,
+    PRIMARY KEY (content_key, parser_version, tree_version)
+);
+CREATE INDEX IF NOT EXISTS ix_doc_tree_doc_id ON doc_tree (doc_id);
+"""
+SCHEMA += DOC_TREE_SCHEMA
+
 # Mirrors arp/research/taxonomy_sources/fetch.py::_MAX_ORIGINAL_BYTES --
 # don't persist anything absurdly large. A miss on an oversized document
 # just means it's parsed fresh every time instead of cached; not an error.
