@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from arp.config import Settings
 from arp.extraction.adjudicator import AdjudicatorOutput, adjudicate, disagreement
 from arp.extraction.aggregator import build_extracted_fields, no_evidence_field
+from arp.extraction.evidence_gate import GateResult, current_gate
 from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue, extract_field
 from arp.extraction.graph_shape import build_extract_verify_graph
 from arp.extraction.verifier_agent import DisagreementType, VerifierOutput, blind_verify, verify_extraction
@@ -60,6 +61,7 @@ class FieldState(TypedDict):
     extract_failed: bool  # the answer never fit the field type: stored as not found, routed to review
     seen: dict | None  # walkthrough trace only: model answers the state does not keep (blind draft, page reading)
     explain: dict | None  # walkthrough trace only: how the evidence was ranked (select_relevant_chunks' explain)
+    gate: GateResult | None  # what the evidence gate kept, when a run has one open (evidence_gate.gate_run)
 
 
 def _tagged_field(state: FieldState, fact: XbrlFact, period_end: str) -> ExtractedField:
@@ -193,14 +195,20 @@ def merge_evidence(rankings: list[list[DocumentChunk]], cap: int, source_out: di
 
 
 async def _gather_evidence(state: FieldState) -> dict:
+    gate = current_gate()
     if state.get("grouped"):
-        return {"evidence": state["grouped"][1], "evidence_unranked": False}
+        evidence = state["grouped"][1]
+        return {"evidence": evidence, "evidence_unranked": False, "gate": gate.skip(evidence, "grouped") if gate else None}
     unranked: list[bool] = []
     explain = None if state.get("seen") is None else {}  # recorded only for the walkthrough trace
     evidence = await asyncio.to_thread(  # keep the CPU-bound ranking off the event loop
         field_evidence, state["field"], state["documents"], state["settings"], lambda: unranked.append(True), explain
     )
-    return {"evidence": evidence, "evidence_unranked": bool(unranked), "explain": explain}
+    if gate is None:
+        return {"evidence": evidence, "evidence_unranked": bool(unranked), "explain": explain}
+    gated = await gate.apply(state["field"], evidence, unranked=bool(unranked))
+    return {"evidence": gated.kept, "evidence_unranked": bool(unranked), "explain": explain, "gate": gated,
+            "usages": state["usages"] + ([gated.usage] if gated.usage else [])}
 
 
 def _route_after_evidence(state: FieldState) -> str:
@@ -333,10 +341,15 @@ _COMPILED_GRAPH = build_extract_verify_graph(
 )
 
 
+def _with_gate(retrieval: dict | None, gated: GateResult | None) -> dict | None:
+    return {**(retrieval or {}), "gate": gated.info} if gated else retrieval
+
+
 def _trace_entry(state: FieldState, grouped: bool) -> dict:
     extracted, seen = state["extracted"], state["seen"]
     explain = state.get("explain")
     scores = (explain or {}).get("scores", {})
+    gated = state.get("gate")
     if extracted and extracted[0].method == "tagged":
         skipped = "tagged"
     elif not state["evidence"]:
@@ -354,13 +367,16 @@ def _trace_entry(state: FieldState, grouped: bool) -> dict:
         grouped=grouped,
         skipped=skipped,
         passages=[trace.passage(c, scores.get(c.chunk_id, {}) if explain else None) for c in state["evidence"]],
-        retrieval=trace.retrieval(explain),
+        retrieval=_with_gate(trace.retrieval(explain), gated),
+        gate=trace.call(gated.usage, gated.answer) if gated else None,
+        gate_dropped=[trace.passage(c, scores.get(c.chunk_id, {})) for c in gated.dropped] if gated else (),
         seconds=(seen or {}).get("seconds"),
         near_misses=[trace.passage(c, scores.get(c.chunk_id, {})) for c in (explain or {}).get("near_miss_chunks", [])],
         extractor=trace.call(state["extractor_usage"], state["draft"]),
         verifier=verifier,
         adjudicator=trace.call(state["adjudicator_usage"], state["adjudicator"]),
         vision=trace.call(seen.get("vision_usage"), seen.get("reading")),
+        not_found_reason=next((f.not_found_reason for f in extracted), None),
     )
 
 
@@ -441,8 +457,14 @@ async def extract_one_field(
         "extract_failed": False,
         "seen": None if trace_sink is None else {},
         "explain": grouped_explain if trace_sink is not None and grouped is not None else None,
+        "gate": None,
     }
     final_state = await run_graph(_COMPILED_GRAPH, initial)
+    rows = final_state["extracted"]
+    if any(f.value_state == ValueState.NOT_FOUND for f in rows):  # every not-found period row, not only all-missing
+        reason = "passages_silent" if final_state["evidence"] else "no_passage"
+        final_state["extracted"] = [f.model_copy(update={"not_found_reason": reason})
+                                    if f.value_state == ValueState.NOT_FOUND else f for f in rows]
     if trace_sink is not None:
         try:
             trace_sink[field.field_id] = _trace_entry(final_state, grouped is not None)

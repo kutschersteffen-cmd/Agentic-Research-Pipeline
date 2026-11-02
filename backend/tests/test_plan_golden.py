@@ -47,5 +47,5 @@ def test_shipped_cases_are_well_formed():
     from arp.orchestration.plan_golden import load_cases
 
     cases = load_cases(Path(__file__).parent / "golden" / "plans" / "plans.jsonl")
-    assert len(cases) == 10
+    assert len(cases) == 11
     assert all(set(c["expected_kinds"]) <= set(STEPS) and c["expected_kinds"][0] == "universe_build" for c in cases)

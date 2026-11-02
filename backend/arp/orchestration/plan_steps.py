@@ -16,10 +16,6 @@ from arp.schemas.common import CompanyRef
 _RANK = {"none": 0, "minor": 1, "significant": 2, "pure_play": 3}
 
 
-class StepNotWired(RuntimeError):
-    pass
-
-
 def _companies(run_store: RunStore, universe_run_id: str, ids: list[str] | None) -> list[CompanyRef]:
     refs = run_store.load_companies(universe_run_id)
     if refs is None:
@@ -149,10 +145,32 @@ def build_steps(settings: Settings, run_store: RunStore) -> dict[str, Any]:
         return {"id": manifest.report_id, "run_id": None, "result_ref": f"report:{manifest.report_id}",
                 "companies": [], "gate": manifest.status == ReportStatus.STORYLINE_READY}
 
-    def not_wired(kind: str):
-        def fn(**_: Any) -> dict[str, Any]:
-            raise StepNotWired(f"{kind} is not wired to a run type yet")
-        return fn
+    def index_construct(*, calibration_id: str, candidates: str, review_date: str, index_id: str = "plan_index",
+                        decision_snapshot_ids: list[str] | None = None) -> dict[str, Any]:
+        import json
+        from pathlib import Path
+
+        from fastapi import HTTPException
+
+        from arp.api.deps import get_decision_store, get_index_store
+        from arp.api.routers.index import RunRequest
+        from arp.api.routers.index import run as run_index_review
+        from arp.schemas.index import IndexCandidate
+
+        rows = [IndexCandidate.model_validate(r) for r in json.loads(Path(candidates).read_text())]
+        if not rows:  # an empty list would fall back to the demo universe
+            raise ValueError(f"{candidates} holds no candidates")
+        req = RunRequest(index_id=index_id, review_date=review_date, calibration_id=calibration_id, candidates=rows,
+                         decision_snapshot_ids=decision_snapshot_ids or [])
+        try:
+            # shortcut: a preview (persist=False); the owner stores the review from Index Construction, or a later
+            # version adds persist once plan-driven index reviews have been checked by hand.
+            result = run_index_review(req, get_index_store(), get_decision_store())
+        except HTTPException as exc:
+            raise RuntimeError(exc.detail) from exc
+        return {"id": f"{index_id}@{review_date}", "run_id": None, "result_ref": f"index:{index_id}@{review_date}",
+                "companies": [{"id": c.company_id, "name": c.name, "exposure": "none", "included": True}
+                              for c in result.constituents]}
 
     return {
         "universe_build": universe_build,
@@ -161,8 +179,7 @@ def build_steps(settings: Settings, run_store: RunStore) -> dict[str, Any]:
         "financials_extraction": financials_extraction,
         "xbrl_facts": xbrl_facts,
         "decision_score": decision_score,
-        # shortcut: an index review needs candidate market data a plan cannot supply; wire once candidates have a source.
-        "index_construct": not_wired("index_construct"),
+        "index_construct": index_construct,
         "report_render": report_render,
     }
 

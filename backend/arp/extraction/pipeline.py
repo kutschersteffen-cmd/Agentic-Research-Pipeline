@@ -14,6 +14,7 @@ from arp.db.fields import SchemaRegistry, UnreleasedFieldError
 from arp.extraction.aggregator import no_evidence_field
 from arp.extraction.corrections import apply_corrections
 from arp.extraction.derived import evaluate_derived
+from arp.extraction.evidence_gate import gate_run
 from arp.extraction.extractor_agent import extract_group
 from arp.extraction.field_graph import MAX_END_DRIFT_DAYS, days_apart, extract_one_field, field_evidence, merge_evidence
 from arp.extraction.history import RunHistory
@@ -122,6 +123,7 @@ def input_settings(settings: Settings) -> dict:
         **({"vision_fallback_enabled": True} if settings.vision_fallback_enabled else {}),
         **({"section_chunking_enabled": True} if settings.section_chunking_enabled else {}),
         **({"context_headers_enabled": True} if settings.context_headers_enabled else {}),
+        **({"evidence_gate_model": settings.evidence_gate_model} if settings.evidence_gate_enabled else {}),
     }
 
 
@@ -198,9 +200,11 @@ async def _extract_company(
         if d.match_status == MatchStatus.MISMATCH
     ]
 
-    def _skipped(field_id: str, reason: str) -> None:
+    def _skipped(field_id: str, reason: str, not_found_reason: str | None = None) -> None:
         if traces is not None:
-            traces.setdefault("fields", {})[field_id] = trace.field_entry(field_id, skipped=reason)
+            traces.setdefault("fields", {})[field_id] = trace.field_entry(
+                field_id, skipped=reason, not_found_reason=not_found_reason
+            )
 
     usages: list[LLMUsage] = []
     to_extract, fields = plan_fields(schema, company)
@@ -209,9 +213,11 @@ async def _extract_company(
     to_extract = [f for f in to_extract if not f.derived_rule]  # derived fields never reach the LLM graph
     all_held = bool(documents) and not kept
     if all_held:  # nothing left to extract from: every field is a held no-evidence row
-        to_extract, fields = [], [no_evidence_field(f)[0] for f in schema.fields]
+        fields = [no_evidence_field(f)[0].model_copy(update={"not_found_reason": None if f.derived_rule else "held"})
+                  for f in schema.fields]
+        to_extract = []
         for f in schema.fields:  # no facts are fetched for an all-held company, so none is tagged
-            _skipped(f.field_id, "derived" if f.derived_rule else "documents_held")
+            _skipped(f.field_id, "derived" if f.derived_rule else "documents_held", None if f.derived_rule else "held")
     key, scheme = issuer_key(company, identifier_map)
     recorded = history.recorded_periods(key) if history else set()
     for d in kept:
@@ -554,16 +560,17 @@ async def execute_extraction_run(
         open_restatement_candidates(run_store, run_id, result.record, history)
         return result
 
-    await run_company_batch(
-        run_id,
-        companies,
-        run_store=run_store,
-        worker=_worker,
-        result_to_json=lambda r: r.record.model_dump(mode="json"),
-        review_items=review_items,
-        cost_usd=lambda r: r.cost_usd,
-        concurrency=settings.max_concurrent_llm_calls,
-    )
+    with gate_run(settings, run_id):  # the evidence gate, when on: one per run, so its breaker spans the run
+        await run_company_batch(
+            run_id,
+            companies,
+            run_store=run_store,
+            worker=_worker,
+            result_to_json=lambda r: r.record.model_dump(mode="json"),
+            review_items=review_items,
+            cost_usd=lambda r: r.cost_usd,
+            concurrency=settings.max_concurrent_llm_calls,
+        )
     return run_id
 
 

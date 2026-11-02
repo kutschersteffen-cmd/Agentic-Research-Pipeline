@@ -96,6 +96,31 @@ async def test_no_evidence_entry(fake_llm):
     assert sink["scope1"]["extractor"] is None
 
 
+async def test_ac_a3_no_passage_reason(fake_llm):
+    sink = {}
+    rows, _, _ = await _run(fake_llm({}), _field(seed_keywords=["zzzunmatched"]), sink=sink)
+    assert sink["scope1"]["not_found_reason"] == "no_passage"
+    assert [r.not_found_reason for r in rows] == ["no_passage"]
+
+
+async def test_ac_a3b_passages_silent_reason(fake_llm):
+    llm = fake_llm({
+        "ExtractionDraft": [ExtractionDraft(values=[], confidence=0.9)],
+        "VerifierOutput": [VerifierOutput(agrees=True, confidence=0.9, notes="ok")] * 2,
+    })
+    sink = {}
+    rows, _, _ = await _run(llm, _field(), sink=sink)
+    assert sink["scope1"]["passages"]
+    assert sink["scope1"]["not_found_reason"] == "passages_silent"
+    assert {r.not_found_reason for r in rows} == {"passages_silent"}
+
+
+async def test_found_field_has_no_reason(fake_llm):
+    sink = {}
+    rows, _, _ = await _run(_agreeing_llm(fake_llm), _field(), sink=sink)
+    assert sink["scope1"]["not_found_reason"] is None and rows[0].not_found_reason is None
+
+
 async def test_entry_failure_never_fails_the_field(fake_llm, monkeypatch):
     def boom(*a, **k):
         raise RuntimeError("model_dump failed")
@@ -226,6 +251,22 @@ async def test_recording_changes_no_value(fake_llm, monkeypatch):  # AC-34
     monkeypatch.setattr(field_graph, "select_relevant_chunks", lambda *a, **kw: real(*a, **{**kw, "explain": None}))
     plain, _, _ = await _run_long(_agreeing_llm(fake_llm), {})
     assert [f.model_dump() for f in recorded] == [f.model_dump() for f in plain]
+
+
+async def test_ac_a3_not_found_period_row_gets_a_reason_when_another_period_is_found(fake_llm, monkeypatch):
+    # code review on #297: a field with one found and one missing period labels the missing row
+    from arp.extraction import field_graph
+    from arp.schemas.datapoints import ExtractedField, ValueState
+
+    async def fake_graph(graph, state):
+        rows = [ExtractedField(field_id="scope1", field_name="s", value=1.0, confidence=0.9, period_end="2024-12-31"),
+                ExtractedField(field_id="scope1", field_name="s", value=None, confidence=0.0,
+                               value_state=ValueState.NOT_FOUND, period_end="2023-12-31")]
+        return {**state, "extracted": rows, "evidence": ["passage"], "needs_review": False, "usages": []}
+
+    monkeypatch.setattr(field_graph, "run_graph", fake_graph)
+    rows, _, _ = await _run(fake_llm({}), _field())
+    assert [r.not_found_reason for r in rows] == [None, "passages_silent"]
 
 
 # --- step-timing spec: time per node and usage per call ---

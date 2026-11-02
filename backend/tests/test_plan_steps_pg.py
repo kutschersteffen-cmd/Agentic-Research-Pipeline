@@ -5,7 +5,7 @@ import pytest
 
 from arp.config import get_settings
 from arp.orchestration.job_manager import JobManager
-from arp.orchestration.plan_steps import StepNotWired, _companies, _result, build_reviewed, build_steps
+from arp.orchestration.plan_steps import _companies, _result, build_reviewed, build_steps
 from arp.orchestration.review_queue import queue_for_review, record_review_decision
 from arp.schemas.common import CompanyRef
 
@@ -41,11 +41,55 @@ def test_gate_until_every_item_is_decided(run_store, universe_run):
     assert reviewed({"run_id": universe_run}) is True
 
 
-def test_all_eight_kinds_present_and_unwired_ones_fail_clearly(run_store):
-    steps = build_steps(get_settings(), run_store)
-    assert len(steps) == 8
-    with pytest.raises(StepNotWired, match="index_construct is not wired"):
-        steps["index_construct"](decision_id="d")
+def test_all_eight_kinds_present(run_store):
+    assert len(build_steps(get_settings(), run_store)) == 8
+
+
+def _candidate(cid):
+    return {"company_id": cid, "name": cid.title(), "price": 10.0, "shares_outstanding": 1000.0}
+
+
+def test_index_adapter_runs_a_preview_review(run_store, monkeypatch, tmp_path):
+    import json
+    from types import SimpleNamespace as NS
+
+    import arp.api.routers.index as index_router
+
+    seen = {}
+
+    def fake_run(req, store, decisions):
+        seen.update(calibration=req.calibration_id, persist=req.persist, n=len(req.candidates), date=req.review_date)
+        return NS(constituents=[NS(company_id="acme", name="Acme")])
+
+    monkeypatch.setattr(index_router, "run", fake_run)
+    path = tmp_path / "c.json"
+    path.write_text(json.dumps([_candidate("acme"), _candidate("beta")]))
+    out = build_steps(get_settings(), run_store)["index_construct"](
+        calibration_id="cal_1", candidates=str(path), review_date="2026-10-31")
+    assert seen == {"calibration": "cal_1", "persist": False, "n": 2, "date": "2026-10-31"}
+    assert out["result_ref"] == "index:plan_index@2026-10-31" and out["run_id"] is None
+    assert [c["id"] for c in out["companies"]] == ["acme"]
+
+
+def test_index_adapter_refuses_empty_candidates_and_surfaces_api_errors(run_store, monkeypatch, tmp_path):
+    from fastapi import HTTPException
+
+    import arp.api.routers.index as index_router
+
+    empty = tmp_path / "e.json"
+    empty.write_text("[]")
+    step = build_steps(get_settings(), run_store)["index_construct"]
+    with pytest.raises(ValueError, match="holds no candidates"):  # never the demo universe
+        step(calibration_id="c", candidates=str(empty), review_date="2026-10-31")
+
+    def refuse(*_):
+        raise HTTPException(404, "No version of calibration c is in force")
+
+    monkeypatch.setattr(index_router, "run", refuse)
+    one = tmp_path / "o.json"
+    one.write_text('[{"company_id": "a", "name": "A", "price": 1, "shares_outstanding": 1}]')
+    with pytest.raises(RuntimeError, match="No version of calibration c is in force"):
+        step(calibration_id="c", candidates=str(one), review_date="2026-10-31")
 
 
 def test_report_gate_until_storyline_approved(run_store, monkeypatch):

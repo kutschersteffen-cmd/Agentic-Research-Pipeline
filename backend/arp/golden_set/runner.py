@@ -48,6 +48,7 @@ async def run_golden_set(
     4000-company scale.
     """
     results: list[GoldenSetCaseResult] = []
+    extractor_tokens = 0
     extractor_model: str | None = None
     verifier_model: str | None = None
 
@@ -59,6 +60,7 @@ async def run_golden_set(
             title=case.case_id,
             full_text=case.document_text,
         )
+        sink: dict = {}
         extracted_fields, needs_review, _usages = await extract_one_field(
             case.company_name,
             case.field,
@@ -68,7 +70,9 @@ async def run_golden_set(
             verifier_llm=verifier_llm,
             fuzzy_threshold=fuzzy_threshold,
             confidence_review_threshold=confidence_review_threshold,
+            trace_sink=sink,
         )
+        extractor_tokens += ((sink.get(case.field.field_id) or {}).get("extractor") or {}).get("input_tokens", 0)
         extracted = extracted_fields[0]  # latest period
         if extracted.provenance:
             extractor_model = extractor_model or extracted.provenance.extractor_model
@@ -98,6 +102,7 @@ async def run_golden_set(
     passed_count = sum(1 for r in results if r.passed)
     return GoldenSetReport(
         total=len(results),
+        extractor_input_tokens=extractor_tokens,
         passed=passed_count,
         failed_case_ids=[r.case_id for r in results if not r.passed],
         results=results,

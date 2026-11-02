@@ -1,4 +1,4 @@
-import type { WalkthroughCall, WalkthroughRetrieval, WalkthroughScores, Walkthrough } from "../types";
+import type { RetrievalMethod, WalkthroughCall, WalkthroughGate, WalkthroughRetrieval, WalkthroughScores, Walkthrough } from "../types";
 
 // The Argus walkthrough screen (#/argusWalkthrough/<run>/<company>/<item>[/<period_end>][?basis=]): its route and
 // the steps one stored row went through, built from GET /api/walkthrough (argus-walkthrough spec, "The screen").
@@ -210,7 +210,7 @@ export function markQuotes(text: string, quotes: string[]): { text: string; mark
   return out;
 }
 
-const METHOD_LABEL: Record<WalkthroughRetrieval["method"], string> = {
+const METHOD_LABEL: Record<RetrievalMethod, string> = {
   bm25: "BM25",
   hybrid: "BM25 + vectors (RRF)",
   opensearch: "BM25 (OpenSearch)",
@@ -220,7 +220,8 @@ const METHOD_LABEL: Record<WalkthroughRetrieval["method"], string> = {
 };
 
 /** The "Find evidence" line above the passages: how they were ranked. */
-export function retrievalLine(r: WalkthroughRetrieval): string {
+export function retrievalLine(r: WalkthroughRetrieval): string | null {
+  if (!r.method || r.candidates == null) return null;
   return `${METHOD_LABEL[r.method] ?? r.method}${r.reranked ? ", re-ranked" : ""} · ${plural(r.candidates, "candidate").replace(String(r.candidates), r.candidates.toLocaleString("en-US"))}`;
 }
 
@@ -279,4 +280,12 @@ export function timingTotal(w: Walkthrough): string | null {
   const seconds = Object.values(w.seconds!).reduce((a, b) => a + b, 0);
   const tokens = calls.reduce((a, c) => a + (c.input_tokens ?? 0) + (c.output_tokens ?? 0), 0);
   return `${formatSeconds(seconds)} · ${tokens.toLocaleString("en-US")} tokens · ${cost(calls.reduce((a, c) => a + (c.cost_usd ?? 0), 0))}`;
+}
+
+/** The evidence gate's line in Find evidence (evidence-gate spec): skipped, then failed, then what it kept. */
+export function gateLine(g: WalkthroughGate | undefined | null): string | null {
+  if (!g) return null;
+  if (g.skipped) return `Gate: off (${g.skipped})`;
+  if (g.failed) return `Gate: failed, kept all ${g.of}`;
+  return `Gate: kept ${g.kept} of ${g.of}`;
 }
