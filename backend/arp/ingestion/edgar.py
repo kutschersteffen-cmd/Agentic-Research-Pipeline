@@ -222,14 +222,14 @@ class EdgarDocumentSource(DocumentSource):
     async def fetch_latest_annual_original(
         self, cik: str, *, client: httpx.AsyncClient | None = None
     ) -> AnnualOriginal | None:
-        """The first 10-K in the recent filings, as the original bytes; None if there is none."""
+        """The first 10-K, 20-F or 40-F (no amendments) in the recent filings, as the original bytes; None if there is none."""
         if client is None:
             async with httpx.AsyncClient(headers=self._headers, timeout=30.0) as own:
                 return await self.fetch_latest_annual_original(cik, client=own)
         cik10 = cik.zfill(10)
         recent = ((await self._get_submissions(client, cik10)) or {}).get("filings", {}).get("recent", {})
         forms = recent.get("form", [])
-        idx = next((i for i, f in enumerate(forms) if f == "10-K"), None)
+        idx = next((i for i, f in enumerate(forms) if f in ANNUAL_FORMS), None)
         if idx is None:
             return None
         accession = recent["accessionNumber"][idx]
@@ -239,7 +239,7 @@ class EdgarDocumentSource(DocumentSource):
         resp = await client.get(url, headers=self._headers)
         resp.raise_for_status()
         return AnnualOriginal(
-            accession=accession, form="10-K", filing_date=recent.get("filingDate", [None] * len(forms))[idx],
+            accession=accession, form=forms[idx], filing_date=recent.get("filingDate", [None] * len(forms))[idx],
             source_url=url, primary_document=primary, content=resp.content,
         )
 
