@@ -5,9 +5,11 @@ from __future__ import annotations
 
 from arp.config import Settings
 from arp.db.session import require_dsn
+from arp.storage.issuer_sectors import IssuerSectorStore
 from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.postgres_portfolio_store import PostgresPortfolioStore
 
 
 def build_portfolio_store(settings: Settings) -> PostgresPortfolioStore:
-    return PostgresPortfolioStore(require_dsn(settings), PortfolioStore(settings.portfolios_dir))
+    sectors = IssuerSectorStore(settings.identifier_map_path.with_name("issuer_sectors.json"))
+    return PostgresPortfolioStore(require_dsn(settings), PortfolioStore(settings.portfolios_dir, sectors), sectors)

@@ -21,6 +21,7 @@ from arp.schemas.portfolio import (
 from arp.schemas.portfolio_monitoring import AlertRule
 from arp.schemas.value_chain import LinkRule
 from arp.storage.atomic_io import atomic_write_text, read_text_utf8
+from arp.storage.issuer_sectors import IssuerSectorStore, apply_master
 from arp.storage.jsonl_io import append_jsonl, read_jsonl
 from arp.storage.locks import KeyedLock
 from arp.storage.safe_path import safe_id
@@ -67,8 +68,9 @@ class PortfolioStore:
     a concurrent reader can observe the file mid-truncation.
     """
 
-    def __init__(self, portfolios_dir: Path) -> None:
+    def __init__(self, portfolios_dir: Path, sectors: IssuerSectorStore | None = None) -> None:
         self.portfolios_dir = portfolios_dir
+        self._sectors = sectors  # the security master's sector codes, applied when companies are read
         # Keyed by the file being written, and locked across processes as
         # well as threads: an `arp portfolio ...` CLI command writes the
         # same registry files as a live API process. See KeyedLock.
@@ -153,10 +155,13 @@ class PortfolioStore:
 
     def get_company(self, company_id: str) -> CompanyRef | None:
         row = self._read_json(self.companies_path()).get(company_id)
-        return CompanyRef.model_validate(row) if row else None
+        return self._with_master(CompanyRef.model_validate(row)) if row else None
 
     def list_companies(self) -> list[CompanyRef]:
-        return [CompanyRef.model_validate(v) for v in self._read_json(self.companies_path()).values()]
+        return [self._with_master(CompanyRef.model_validate(v)) for v in self._read_json(self.companies_path()).values()]
+
+    def _with_master(self, company: CompanyRef) -> CompanyRef:
+        return apply_master(company, self._sectors) if self._sectors else company
 
     # --- value-chain link rules (arp/research/value_chain/links.py) ---
 
