@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
 import { apiMessage } from "../../lib/projects";
-import { activityLine, cents, pct1, pickerHits, portfolioHash, searchable, unresolvedText } from "../../lib/valueChain";
+import { activityLine, cents, naceLinkLine, pct1, pickerHits, portfolioHash, searchable, unresolvedText } from "../../lib/valueChain";
 import type { PortfolioSummary, Taxonomy, VcIcioCode, VcLinkRuleIn, VcLinks, VcNodeRef, VcPortfolio } from "../../types";
 import { Bars } from "./NodeView";
 import { useVcQuery } from "./useVcQuery";
@@ -151,6 +151,7 @@ function LinkEditor({ subject, title, isCompany, codes, onChanged, onClose }: {
           <p>
             Current source: <strong>{links.source}</strong>
           </p>
+          {naceLinkLine(links) && <p>{naceLinkLine(links)}</p>}
           {(links.unresolved as Part[]).map((p) => (
             <p key={JSON.stringify(p)} className="warning-banner">
               {unresolvedText(p)}
