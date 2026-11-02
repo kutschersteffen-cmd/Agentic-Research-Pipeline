@@ -52,7 +52,7 @@ on `srt:StatementGeographicalAxis` `country:US`=400, `country:DE`=350, `x:RestOf
 | AC-10 | Fixture P plus one revenue fact with both `us-gaap:StatementBusinessSegmentsAxis` and `srt:ProductOrServiceAxis` members | fetch runs | Row counts stay 3 segment, 4 product, 3 geography | unit |
 | AC-11 | Fixture P plus a product fact that also carries `srt:ConsolidationItemsAxis=us-gaap:OperatingSegmentsMember` (member `x:ToolsMember`=50) | fetch runs | A product row for `x:ToolsMember` with value 50 exists | unit |
 | AC-12 | Fixture P plus a `srt:ProductOrServiceAxis` fact for `us-gaap:CostOfRevenue` | fetch runs | No product row has `metric` other than `revenue` | unit |
-| AC-13 | ESEF fixture with 2 full-year `ifrs-full:Revenue` facts on the ESEF product axis and 2 on the ESEF geography axis | fetch runs | 2 rows `axis_kind` `product` and 2 rows `axis_kind` `geography`, all `market` `esef`; each row whose member starts with `ifrs-full:` has `level` `standard` | unit |
+| AC-13 | ESEF fixture with 2 full-year `ifrs-full:Revenue` facts on the ESEF product axis and 2 on the ESEF geography axis | fetch runs | 2 rows `axis_kind` `product` and 2 rows `axis_kind` `geography`, all `market` `esef`; each product row whose member starts with `ifrs-full:` has `level` `standard` | unit |
 | AC-14 | Fixture P stored | `arp xbrl segments s1 --axis product` | Exit code 0; header `year  segment  level  metric  value  unit  concept  sum_check`, then exactly 4 data lines | unit |
 | AC-15 | Fixture P stored | `arp xbrl segments s1 --axis geography` | Exit code 0; the header used without `--axis`, then exactly 3 data lines | unit |
 | AC-16 | Fixture P stored | `arp xbrl segments s1` (no `--axis`) | Same output as the segment spec's AC-18 for the 3 segment rows | unit |
