@@ -33,3 +33,9 @@ test("only a failed plan offers Re-plan", () => {  // AC-18
     assert.equal(canReplan({ ...plan([]), status }), false);
   }
 });
+
+test("a re-planned plan lists its kept calls once, in seq order", () => {
+  const replanned = { ...plan([call(1), call(2), call(3)]), version: 2,
+    dry_run: [2, 3].map((seq) => ({ seq, kind: "extraction", params: {}, depends_on: null })) };
+  assert.deepEqual(stepRows(replanned).map((r) => r.step.seq), [1, 2, 3]);
+});
