@@ -104,7 +104,7 @@ def _checked_sectors(seen, first_row, names, errors: list[RowError]) -> dict[str
             errors.append(RowError(first_row[issuer], "nace_code" if str(e).startswith("unknown NACE") else "gics_code", str(e)))
             continue
         row = {"nace_code": c.nace_code, "isic_code": c.isic_code, "gics_code": c.gics_code}
-        if c.nace_code or rev:
+        if c.nace_code:  # a revision without a code would reinterpret the company's own code
             row["nace_rev"] = c.nace_rev  # an empty cell next to a nace_code means Rev. 2
         if row := {k: v for k, v in row.items() if v}:
             out[issuer] = row

@@ -10,6 +10,7 @@ from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.postgres_portfolio_store import PostgresPortfolioStore
 
 
-def build_portfolio_store(settings: Settings) -> PostgresPortfolioStore:
-    sectors = IssuerSectorStore(settings.identifier_map_path.with_name("issuer_sectors.json"))
+def build_portfolio_store(settings: Settings, *, merge_master: bool = True) -> PostgresPortfolioStore:
+    """`merge_master=False` reads companies as stored (the DB import must not write master values back)."""
+    sectors = IssuerSectorStore(settings.identifier_map_path.with_name("issuer_sectors.json")) if merge_master else None
     return PostgresPortfolioStore(require_dsn(settings), PortfolioStore(settings.portfolios_dir, sectors), sectors)
