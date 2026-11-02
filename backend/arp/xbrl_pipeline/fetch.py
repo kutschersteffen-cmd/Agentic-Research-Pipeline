@@ -22,6 +22,7 @@ from arp.storage.safe_path import safe_id
 from arp.xbrl_pipeline.flatten import build_catalog, flatten_company_facts
 from arp.xbrl_pipeline.models import CompanyStatus, Market, ReportMeta  # noqa: F401 -- Market stays importable from here
 from arp.xbrl_pipeline.required import resolve_required
+from arp.xbrl_pipeline.segments import write_segments_sec
 from arp.xbrl_pipeline.store import XbrlStore
 
 if TYPE_CHECKING:
@@ -140,6 +141,11 @@ async def fetch_company(
                        company_name=company.name, fact_count=count)
         result = "ok"
     report = await _fetch_report(cik10, cik, source=source, store=store, sleep=sleep)
+    if result == "ok" or report == "stored":
+        try:
+            write_segments_sec(cik10, store, company.company_id)
+        except Exception as exc:  # noqa: BLE001 -- a segment problem never changes the company's status
+            logger.warning("segments for %s not written: %s", cik10, exc, exc_info=True)
     return _status(company.company_id, result, cik10, sha, count, report)
 
 

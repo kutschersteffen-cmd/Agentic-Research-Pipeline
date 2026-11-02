@@ -5,6 +5,9 @@ from __future__ import annotations
 import math
 from datetime import date, timedelta
 
+from lxml import html
+
+from arp.ingestion.esef import DimFact, text_of
 from arp.ingestion.xbrl import _full_year
 from arp.xbrl_pipeline.models import CatalogEntry, FactRow
 
@@ -78,6 +81,32 @@ def flatten_xbrl_json(
             )
         )
     return rows, skipped
+
+
+def dimensional_facts(doc: dict) -> tuple[list[DimFact], dict[str, str]]:
+    """The numeric facts flatten_xbrl_json skips for their extra dimensions, and each text fact's
+    visible text by concept (its HTML rendered as parse_ixbrl renders text; first per concept)."""
+    out: list[DimFact] = []
+    texts: dict[str, str] = {}
+    for fact in (doc.get("facts") or {}).values():
+        dims, raw = fact.get("dimensions") or {}, fact.get("value")
+        concept, period = dims.get("concept"), dims.get("period")
+        if not isinstance(concept, str) or not isinstance(period, str):
+            continue
+        value = _number(raw)
+        if value is None:
+            if isinstance(raw, str) and raw.strip() and concept not in texts:
+                texts[concept] = text_of(html.fragment_fromstring(raw, create_parent="div"))
+            continue
+        extra = {k: v for k, v in dims.items() if k not in _PLAIN}
+        if not extra or not dims.get("unit"):
+            continue
+        try:
+            start, end = parse_period(period)
+        except ValueError:
+            continue
+        out.append(DimFact(concept, value, dims["unit"].split(":", 1)[-1], start, end, extra))
+    return out, texts
 
 
 def catalog_from_rows(rows: list[FactRow]) -> list[CatalogEntry]:
