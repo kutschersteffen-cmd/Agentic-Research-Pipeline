@@ -38,15 +38,19 @@ class BM25IndexCache:
     """
 
     def __init__(self) -> None:
-        self._entries: OrderedDict[tuple[str, ...], tuple[BM25Retriever, dict[str, DocumentChunk]]] = OrderedDict()
+        self._entries: OrderedDict[tuple, tuple[BM25Retriever, dict[str, DocumentChunk]]] = OrderedDict()
         self._lock = threading.Lock()
 
     @staticmethod
-    def make_key(candidates: list[DocumentChunk]) -> tuple[str, ...]:
-        return tuple(c.chunk_id for c in candidates)
+    def make_key(candidates: list[DocumentChunk], texts: dict[str, str] | None = None) -> tuple:
+        """`texts`: the index text per chunk_id when it differs from chunk.text (context headers)."""
+        ids = tuple(c.chunk_id for c in candidates)
+        if texts is None or all(texts[c.chunk_id] is c.text for c in candidates):
+            return ids
+        return ids + (hash(tuple(texts[c.chunk_id] for c in candidates)),)
 
     def get_or_build(
-        self, key: tuple[str, ...], candidates: list[DocumentChunk]
+        self, key: tuple, candidates: list[DocumentChunk], texts: dict[str, str] | None = None
     ) -> tuple[BM25Retriever, dict[str, DocumentChunk]]:
         with self._lock:
             cached = self._entries.get(key)
@@ -54,7 +58,7 @@ class BM25IndexCache:
                 self._entries.move_to_end(key)
                 return cached
 
-        nodes = [TextNode(id_=c.chunk_id, text=c.text) for c in candidates]
+        nodes = [TextNode(id_=c.chunk_id, text=(texts or {}).get(c.chunk_id, c.text)) for c in candidates]
         by_id = {c.chunk_id: c for c in candidates}
         retriever = BM25Retriever.from_defaults(nodes=nodes, similarity_top_k=len(nodes))
         entry = (retriever, by_id)

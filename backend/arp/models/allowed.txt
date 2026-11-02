@@ -1,0 +1,9 @@
+sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+BAAI/bge-reranker-v2-m3-int8
+MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7
+urchade/gliner_multi-v2.1
+climatebert/distilroberta-base-climate-detector
+climatebert/distilroberta-base-climate-commitment
+climatebert/distilroberta-base-climate-specificity
+yiyanghkust/finbert-fls
+yiyanghkust/finbert-esg-9-categories

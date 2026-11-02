@@ -160,20 +160,43 @@ def cancel(plan_id: str) -> None:
     typer.echo("cancelled")
 
 
-DEMO_BRIEF = "Demo: EU grid storage, green capex for significant names, scored, as a report"
-DEMO_SCRIPT = """u = universe_build(taxonomy_id="tax_demo_grid_storage", source="data/demo/universe.csv")
+DEMO_BRIEF = "Demo: build the demo index, then EU grid storage green capex as a report"
+DEMO_REVIEW_DATE = "2026-10-31"
+
+
+def _demo_script(calibration_id: str, candidates: str) -> str:
+    # Step 1 needs no model or network, so it really finishes in any environment; the later steps need a
+    # ratified taxonomy and the model, so outside a configured install they fail and show that state too.
+    return f"""i = index_construct(calibration_id="{calibration_id}", candidates="{candidates}", review_date="{DEMO_REVIEW_DATE}")
+u = universe_build(taxonomy_id="tax_demo_grid_storage", source="data/demo/universe.csv")
 e = extraction(universe_run_id=u.run_id, schema_id="green_capex",
                companies=[c.id for c in u.companies if c.exposure in ["pure_play", "significant"]])
-d = decision_score(source_run_id=e.run_id)
 report_render(source_ids=[e.run_id])
 """
 
 
 @plan_app.command("seed-demo")
 def seed_demo() -> None:
-    """Store a demo plan (script and dry run, no LLM call) to show the Plans page."""
+    """Store a demo plan (no LLM call) to show the Plans page, with a demo index calibration and candidates file so
+    its first step runs to done."""
+    import json
+
+    from arp.api.deps import get_index_store
+    from arp.config import get_settings
+    from arp.index.mock_data import demo_universe
+    from arp.index.presets import build_preset
+
+    index_store = get_index_store()
+    calibration = index_store.create_calibration("Plans demo (exclusion only)", build_preset("exclusion_only"),
+                                                 effective_from="2026-01-01", notes="Seeded by arp plan seed-demo.",
+                                                 created_by="plans-demo")
+    index_store.approve_calibration(calibration.calibration_id, "plans-demo-reviewer")
+    candidates = get_settings().indices_dir / "plans_demo_candidates.json"
+    candidates.parent.mkdir(parents=True, exist_ok=True)
+    candidates.write_text(json.dumps([c.model_dump(mode="json") for c in demo_universe()]))
+
     store = _store()
-    plan_id = store.create(DEMO_BRIEF, DEMO_SCRIPT)
+    plan_id = store.create(DEMO_BRIEF, _demo_script(calibration.calibration_id, str(candidates)))
     typer.echo(plan_id)
     _print_steps(store.get(plan_id)["dry_run"])
 
