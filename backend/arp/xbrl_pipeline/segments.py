@@ -97,15 +97,19 @@ def build_segments(dim_facts: list[DimFact], totals: dict[tuple[str, int], float
     return rows
 
 
-def sec_segments(xhtml: bytes, *, company_id: str, accession: str | None) -> tuple[list[SegmentRow], str | None]:
-    """A 10-K's segment rows and its segment note text (None when it has none)."""
+def sec_segments(xhtml: bytes, *, company_id: str, accession: str | None,
+                 form: str | None = None) -> tuple[list[SegmentRow], str | None]:
+    """An annual report's segment rows and note text (None when it has none), read with the US-GAAP or the
+    IFRS concept set, whichever yields more rows (a tie goes to US-GAAP)."""
     facts, dim_facts, texts = parse_ixbrl_dimensional(xhtml)
     totals: dict[tuple[str, int], float] = {}
     for f in facts:
         if f.period_start and _full_year({"start": f.period_start, "end": f.period_end}):
             totals.setdefault((f.concept, int(f.period_end[:4])), f.value)
-    rows = build_segments(dim_facts, totals, market="sec", company_id=company_id, accession=accession)
-    return rows, texts.get(NOTE_CONCEPTS["sec"]) or None
+    us, ifrs = (build_segments(dim_facts, totals, market=m, company_id=company_id, accession=accession)
+                for m in ("sec", "esef"))
+    win, rows = ("esef", ifrs) if len(ifrs) > len(us) else ("sec", us)
+    return [r.model_copy(update={"market": "sec", "form": form}) for r in rows], texts.get(NOTE_CONCEPTS[win]) or None
 
 
 def store_segments(store: XbrlStore, key: str, rows: list[SegmentRow], note: str | None) -> None:
@@ -117,9 +121,10 @@ def store_segments(store: XbrlStore, key: str, rows: list[SegmentRow], note: str
 
 
 def write_segments_sec(key: str, store: XbrlStore, company_id: str) -> None:
-    """Segments from the stored 10-K; none when it is missing or not inline XBRL."""
+    """Segments from the stored annual report; none when it is missing or not inline XBRL."""
     meta, path = store.report_meta(key), store.file_path(key, "report")
     rows, note = ([], None)
     if meta and meta.inline_xbrl and path:
-        rows, note = sec_segments(path.read_bytes(), company_id=company_id, accession=meta.accession)
+        rows, note = sec_segments(path.read_bytes(), company_id=company_id, accession=meta.accession,
+                                  form=meta.form)
     store_segments(store, key, rows, note)
