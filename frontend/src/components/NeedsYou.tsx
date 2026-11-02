@@ -12,6 +12,7 @@ const WORKSPACE: Record<string, string> = {
 };
 
 // `what` is the decision asked of the person; `source` names the run or place it comes from.
+export type Totals = { total: number; byWorkspace: Record<string, number> };
 type Row = { key: string; workspace: string; what: string; source: string; count: number; since: string | null; href: string; resumeRunId?: string };
 
 /** Everything waiting on a person, one row per place it waits (a run's review, a ballot run, a stewardship stage,
@@ -21,8 +22,8 @@ export function NeedsYou({ runs, flow, runsError = false, onTotal }: {
   runs: RunManifest[] | null; flow: StewardshipFlow | null;
   /** The page already shows a runs error banner; don't repeat it here. */
   runsError?: boolean;
-  /** The sum of the row counts, so the page headline counts the same things; null while loading. */
-  onTotal?: (total: number | null | "error") => void;
+  /** The row counts in total and per workspace, so the headline and cards count the same things; null while loading. */
+  onTotal?: (total: Totals | null | "error") => void;
 }) {
   const [items, setItems] = useState<ReviewItem[] | null>(null);
   const [issues, setIssues] = useState<DataIssue[] | null>(null);
@@ -82,8 +83,12 @@ export function NeedsYou({ runs, flow, runsError = false, onTotal }: {
   rows.sort((a, b) => Number(!a.resumeRunId) - Number(!b.resumeRunId) || compareSince(a.since, b.since));
 
   const loading = items === null && !error;
-  const total = error ? "error" : loading ? null : rows.reduce((n, r) => n + r.count, 0);
-  useEffect(() => onTotal?.(total), [total, onTotal]);
+  const byWorkspace: Record<string, number> = {};
+  for (const r of rows) byWorkspace[r.workspace] = (byWorkspace[r.workspace] ?? 0) + r.count;
+  const sum = rows.reduce((n, r) => n + r.count, 0);
+  // A string key so the effect fires only when a count changes, not on every render.
+  const key = error ? "error" : loading ? "" : JSON.stringify(byWorkspace);
+  useEffect(() => onTotal?.(key === "error" ? "error" : key === "" ? null : { total: sum, byWorkspace: JSON.parse(key) }), [key, sum, onTotal]);
   return (
     <section className="needs-you" aria-labelledby="needs-you-title">
       <h2 id="needs-you-title">Needs you</h2>
@@ -104,6 +109,7 @@ export function NeedsYou({ runs, flow, runsError = false, onTotal }: {
                   {r.workspace} · {r.source}
                   {r.since && ` · ${ago(r.since)}`}
                 </span>
+                <span className="needs-you-go" aria-hidden>Open →</span>
               </a>
               {r.resumeRunId && (
                 <button
