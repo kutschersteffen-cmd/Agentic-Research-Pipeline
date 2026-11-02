@@ -46,7 +46,7 @@ class OpenResult(BaseModel):
 def _import_data(store: ProjectStore, portfolio_store, project_id: str) -> list[dict]:
     out = []
     for src in store.get(project_id).data:
-        if src.kind != "dws-constituents":
+        if src.kind != "constituents":
             continue
         if "notional_eur" not in src.params:
             raise OpenError("data", "Missing notional_eur parameter for the constituent files")

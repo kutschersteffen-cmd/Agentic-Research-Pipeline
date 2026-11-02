@@ -1,4 +1,4 @@
-"""Importer for DWS "Constituent_<ISIN>.xlsx" ETF holdings files.
+"""Importer for "Constituent_<ISIN>.xlsx" ETF holdings files.
 
 The files carry WEIGHTS ONLY: a fraction of fund NAV per line, with no
 quantity, price or FX rate. Everything monetary here is therefore an

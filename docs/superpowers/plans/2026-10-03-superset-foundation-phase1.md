@@ -188,7 +188,7 @@ Tests: one file per module as in `backend/tests/test_bi_*.py`.
 
 - [ ] **Step 1: Docs:** document that hand-built dashboards opt in by setting the dashboard slug to `arp-<name>` in Superset's Properties; that `arp bi bootstrap` provisions `arp-risk-exposure`; that Pivot Explorer and Generative BI are gone and where their jobs went; the Pivot weighted-average climate pivots now live only in Standard Analytics.
 - [ ] **Step 2: Verification:** `ruff check` and `ruff format --check` on touched files; full backend suite (failures equal the Task 1 baseline set); frontend `npm test && npm run lint && npm run build`; the whole live suite once against a real Superset 5.0.0 (`pytest -m live_superset`).
-- [ ] **Step 3: End-to-end on real data:** with the four imported DWS funds in Postgres (`arp portfolio import-constituents` with `ARP_PORTFOLIO_BACKEND=postgres`), run `arp bi bootstrap`, start backend and frontend, open the Dashboards tab in Chromium, confirm `arp-risk-exposure` is the default, all charts render with ~EUR 400.6M total, a native filter changes the numbers, and an `arp-` hand-made dashboard shows in the picker; save screenshots to the scratchpad directory. Leave nothing running.
+- [ ] **Step 3: End-to-end on real data:** with the four imported funds in Postgres (`arp portfolio import-constituents` with `ARP_PORTFOLIO_BACKEND=postgres`), run `arp bi bootstrap`, start backend and frontend, open the Dashboards tab in Chromium, confirm `arp-risk-exposure` is the default, all charts render with ~EUR 400.6M total, a native filter changes the numbers, and an `arp-` hand-made dashboard shows in the picker; save screenshots to the scratchpad directory. Leave nothing running.
 - [ ] **Step 4: Commit** `docs: Superset foundation phase 1`.
 
 ---

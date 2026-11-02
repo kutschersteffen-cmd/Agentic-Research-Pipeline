@@ -10406,7 +10406,7 @@ export interface components {
              * Kind
              * @constant
              */
-            kind: "dws-constituents";
+            kind: "constituents";
             /** Params */
             params?: {
                 [key: string]: unknown;

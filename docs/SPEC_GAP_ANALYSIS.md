@@ -1,8 +1,8 @@
 # Portfolio Risk Exposure Agent — Spec Gap Analysis
 
 Compares the "Portfolio Risk Exposure Agent — Functional Requirements
-Specification" (DWS Group, Investment Intelligence & Positioning / Xtrackers
-ETF Business — Stewardship & Sustainability, September 2026) against what is
+Specification" (Investment Intelligence & Positioning / ETF Business
+— Stewardship & Sustainability, September 2026) against what is
 actually built in this repository's Portfolio Risk & Exposure Monitoring
 pillar (`backend/arp/portfolio/`, `backend/arp/api/routers/{portfolio,climate}.py`,
 `frontend/src/pages/{PortfolioRisk,ClimateAnalytics}.tsx` — see
