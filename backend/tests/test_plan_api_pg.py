@@ -128,12 +128,37 @@ def test_cli_approve_run_show(client, store, gate):
     assert "done  approved by bob" in shown and "call 2 extraction done r_1" in shown
 
 
-def test_seed_demo_stores_a_four_step_draft(store):  # AC-33 data
+@pytest.fixture
+def demo_dirs(tmp_path, monkeypatch):
+    from arp.config import get_settings
+
+    monkeypatch.setenv("ARP_INDICES_DIR", str(tmp_path / "indices"))
+    monkeypatch.setenv("ARP_TAXONOMIES_DIR", str(tmp_path / "taxonomies"))
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+def test_seed_demo_stores_a_four_step_draft(store, demo_dirs):  # AC-33 data
     result = CliRunner().invoke(plan_cli.plan_app, ["seed-demo"])
     assert result.exit_code == 0, result.stdout
     plan = store.get(result.stdout.split()[0])
     assert plan["status"] == "draft"
-    assert [s["kind"] for s in plan["dry_run"]] == ["universe_build", "extraction", "decision_score", "report_render"]
+    assert [s["kind"] for s in plan["dry_run"]] == ["index_construct", "universe_build", "extraction", "report_render"]
+
+
+def test_seeded_demo_runs_its_first_step_to_done(store, demo_dirs, run_store):  # AC-34/AC-35 data, real steps
+    from arp.config import get_settings
+    from arp.orchestration.plan_executor import run_plan
+    from arp.orchestration.plan_steps import build_reviewed, build_steps
+
+    plan_id = CliRunner().invoke(plan_cli.plan_app, ["seed-demo"]).stdout.split()[0]
+    store.approve(plan_id, "alice")
+    status = run_plan(plan_id, store, build_steps(get_settings(), run_store), build_reviewed(run_store))
+    calls = store.calls(plan_id)
+    assert calls[0]["status"] == "done" and calls[0]["result_ref"] == "index:plan_index@2026-10-31"
+    assert calls[0]["result"]["companies"]  # the review selected constituents from the demo universe
+    assert status == "failed" and calls[1]["status"] == "failed"  # no demo taxonomy: step 2 shows the failed state
 
 
 def test_run_leaves_plan_running_at_once(client, store):  # mutation gap: claim must set "running"

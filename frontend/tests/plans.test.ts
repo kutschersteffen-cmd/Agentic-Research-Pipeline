@@ -23,5 +23,6 @@ test("a step links to its run, or to the screen of a run-less result", () => {
   assert.equal(resultHref(call(1, { run_id: "run_a b" })), "#/history/run_a%20b");
   assert.equal(resultHref(call(1, { result_ref: "report:rep_1" })), "#/reporting");
   assert.equal(resultHref(call(1, { result_ref: "decision:run_x" })), "#/decision");
+  assert.equal(resultHref(call(1, { result_ref: "index:plan_index@2026-10-31" })), "#/index");
   assert.equal(resultHref(call(1)), null);
 });
