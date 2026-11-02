@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import logging
 
+from arp import models
 from arp.compute import client as compute_client
+from arp.models import local
 from arp.schemas.common import DocumentChunk
 
 logger = logging.getLogger(__name__)
@@ -15,17 +17,11 @@ logger = logging.getLogger(__name__)
 # lists (~0.57GB INT8 ONNX); the smaller ms-marco/jina-tiny models are English-only.
 RERANK_MODEL_NAME = "BAAI/bge-reranker-v2-m3-int8"
 
-_model = None
 _unavailable = False
 
 
 def _get_model():
-    global _model
-    if _model is None:
-        from fastembed.rerank.cross_encoder import TextCrossEncoder
-
-        _model = TextCrossEncoder(model_name=RERANK_MODEL_NAME)
-    return _model
+    return local.cross_encoder(RERANK_MODEL_NAME)
 
 
 def _score(query: str, texts: list[str]) -> list[float]:
@@ -43,13 +39,14 @@ def rerank(query: str, chunks: list[DocumentChunk], top_n: int, scores_out: dict
         return []
     if _unavailable:
         return chunks[:top_n]
+    texts = [c.text for c in chunks]
     if compute_client.models_configured():  # the slow local model is never the fallback for the cloud one
-        scores = compute_client.rerank_scores(query, [c.text for c in chunks])
+        scores, _ = models.rerank(query, texts)
         if scores is None:
             return chunks[:top_n]
     else:
         try:
-            scores = _score(query, [c.text for c in chunks])
+            scores, _ = models.rerank(query, texts, score=lambda q, ts: _score(q, ts))  # tests patch _score
         except Exception as exc:
             _unavailable = True
             logger.warning("Reranker unavailable (%s: %s); keeping retrieval order.", type(exc).__name__, exc)
