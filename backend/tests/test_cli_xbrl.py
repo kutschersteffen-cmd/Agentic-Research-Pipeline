@@ -275,3 +275,41 @@ def test_ac_33_segment_note_missing(env):
     _seed_segments(env)
     result = _invoke("segment-note", "s1")
     assert result.exit_code == 1 and "No segment note for s1" in result.output
+
+
+def _seed_p(env):
+    from arp.xbrl_pipeline.segments import sec_segments, store_segments
+    from tests.segment_fixture import fixture_p, ixbrl
+
+    store = XbrlStore(env / "xbrl")
+    store.set_meta(CIK, source_sha="abc", tags=None, company_id="s1", company_name="S1", fact_count=1)
+    store_segments(store, CIK, *sec_segments(ixbrl(fixture_p()), company_id="s1", accession="a1"))
+
+
+def test_ac_14_axis_product(env):
+    _seed_p(env)
+    result = _invoke("segments", "s1", "--axis", "product")
+    lines = result.stdout.splitlines()
+    assert result.exit_code == 0 and lines[0] == "year  segment  level  metric  value  unit  concept  sum_check"
+    assert len(lines) == 5 and "Widgets  company  revenue  600" in lines[1]
+
+
+def test_ac_15_axis_geography(env):
+    _seed_p(env)
+    result = _invoke("segments", "s1", "--axis", "geography")
+    lines = result.stdout.splitlines()
+    assert result.exit_code == 0 and lines[0] == "year  segment  metric  value  unit  concept  sum_check"
+    assert len(lines) == 4
+
+
+def test_ac_16_default_axis_segment(env):
+    _seed_p(env)
+    result = _invoke("segments", "s1")
+    lines = result.stdout.splitlines()
+    assert result.exit_code == 0 and lines[0] == "year  segment  metric  value  unit  concept  sum_check"
+    assert len(lines) == 4 and all(s in lines[1] for s in ("2025", "Alpha", "revenue", "300", "USD", "true"))
+
+
+def test_ac_17_axis_invalid(env):
+    _seed_p(env)
+    assert _invoke("segments", "s1", "--axis", "region").exit_code == 2

@@ -151,3 +151,5 @@ class SegmentRow(BaseModel):
     period_end: str
     accession: str | None
     sum_matches_total: bool
+    axis_kind: Literal["segment", "product", "geography"] = "segment"
+    level: Literal["standard", "company"] | None = None
