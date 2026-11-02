@@ -149,6 +149,8 @@ def build_walkthrough(run_store, content_store, settings, *, run_id: str, compan
         "passages": _passages(entry, trace_record, content_store),
         "retrieval": entry.get("retrieval"),
         "seconds": entry.get("seconds") or {},
+        "gate": entry.get("gate"),
+        "gate_dropped": _passages(entry, trace_record, content_store, "gate_dropped"),
         # near-misses rank on from the last passage: 12 passages -> 13, 14, 15
         "near_misses": _passages(entry, trace_record, content_store, "near_misses", len(entry.get("passages", [])) + 1),
         **{k: entry.get(k) for k in ("extractor", "verifier", "adjudicator", "vision", "skipped")},

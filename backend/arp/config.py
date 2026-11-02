@@ -160,6 +160,15 @@ class Settings(BaseSettings):
         default=None, description="Absolute path to the arp-client service-account JSON key."
     )
     evidence_max_chunks: int = Field(default=12, description="Chunks of evidence handed to the extractor per field.")
+    evidence_gate_enabled: bool = Field(
+        default=False,
+        description="Evidence gate (arp/extraction/evidence_gate.py): a cheap model drops retrieved passages that cannot "
+        "help answer a field before extraction. Turn on only after `arp golden-set run --gate on` passes.",
+    )
+    evidence_gate_model: str = Field(default="claude-haiku-5-5", description="Model the evidence gate asks.")
+    evidence_gate_min_keep: int = Field(default=3, ge=0, description="Top-ranked passages the gate always keeps.")
+    evidence_gate_breaker: int = Field(default=3, ge=1, description="Gate failures in a row that switch it off for the run.")
+    evidence_gate_timeout_s: float = Field(default=20.0, gt=0, description="Seconds before a gate call counts as failed.")
     extraction_group_size: int = Field(
         default=0, ge=0,
         description="Opt-in: extract this many non-high-risk fields per model call, over their merged evidence (at most "
