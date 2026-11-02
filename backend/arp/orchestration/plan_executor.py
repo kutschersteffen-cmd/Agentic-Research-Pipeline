@@ -12,7 +12,7 @@ from typing import Any
 
 from arp.orchestration.jobs import RunBusy, run_lease
 from arp.orchestration.plan_interp import run_script
-from arp.orchestration.plan_store import PlanStore
+from arp.orchestration.plan_store import PlanStore, kept_calls
 
 # A step function takes the call's params and returns the result the script sees:
 # {"id", "run_id", "companies", ...}; `"gate": True` means its run waits for human review.
@@ -68,7 +68,9 @@ def _run(plan_id: str, store: PlanStore, steps: dict[str, StepFn], reviewed: Rev
     plan = store.get(plan_id)
     if plan["status"] not in _STARTABLE | _ACTIVE:
         raise PlanNotRunnable("plan is not approved")
-    previous = {c["seq"]: c for c in store.calls(plan_id)}
+    stored = store.calls(plan_id)
+    previous = {c["seq"]: c for c in stored}
+    kept, first_seq = kept_calls(plan, stored)  # a re-planned plan: finished steps are read, never re-run
     store.set_status(plan_id, "running")
 
     def status() -> str:
@@ -105,7 +107,7 @@ def _run(plan_id: str, store: PlanStore, steps: dict[str, StepFn], reviewed: Rev
 
     bound = {kind: (lambda k: lambda **kw: call(k, **kw))(kind) for kind in steps}
     try:
-        run_script(plan["script"], bound)
+        run_script(plan["script"], bound, kept, first_seq)
     except _Cancelled:
         return "cancelled"
     except Exception as exc:  # noqa: BLE001 - recorded on the plan; the owner resumes it
