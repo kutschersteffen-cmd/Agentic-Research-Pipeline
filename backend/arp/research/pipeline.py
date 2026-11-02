@@ -25,6 +25,7 @@ from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
 from arp.schemas.review import sector_item_key
 from arp.schemas.thematic import CompanyMatch, ThemeDefinition
+from arp.storage.issuer_sectors import IssuerSectorStore, apply_master
 from arp.storage.run_store import RunStore
 from arp.universe import load_company_universe
 
@@ -137,6 +138,10 @@ def create_theme_run(
     reconstruct and re-invoke `execute_theme_run` for a run that was
     interrupted, failed, or explicitly cancelled.
     """
+    # The merged company links, overlay and classify_unlinked see; stored with the run, so a resume (and
+    # run_company_batch, which reads the stored set) gets it too. API and CLI both create runs here.
+    sectors = IssuerSectorStore(settings.identifier_map_path.with_name("issuer_sectors.json"))
+    companies = [apply_master(c, sectors) for c in companies]
     job_manager = JobManager(run_store)
     manifest = job_manager.create_run(
         "theme",
@@ -259,7 +264,6 @@ async def execute_theme_run(
     arp/research/rd_exposure/. Never short-circuits the debate the way a
     resolved revenue number does; off by default.
     """
-
     await run_company_batch(
         run_id,
         companies,

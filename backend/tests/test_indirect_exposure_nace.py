@@ -12,12 +12,14 @@ from arp.llm.base import LLMUsage
 from arp.research.indirect_exposure import nace
 from arp.research.indirect_exposure.exposure import compute_indirect_exposure
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
-from arp.research.pipeline import _match_company
+from arp.research.pipeline import _match_company, run_thematic_universe
 from arp.research.value_chain.links import classify_unlinked, company_nace
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import Holding, Portfolio, SecurityRef
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
+from arp.storage.issuer_sectors import IssuerSectorStore
 from arp.storage.portfolio_store import PortfolioStore
+from arp.storage.run_store import RunStore
 from tests.io_tier_fixture import write_fixture_v
 from tests.test_io_tier import _round, runner
 from tests.test_research_pipeline import _FixedDocSource, _settings
@@ -55,6 +57,9 @@ class _Counting:
 
 
 NACE_IDS = ["nc", "nw", "nr", "nf", "ni", "nm", "nd", "nu"]
+# nf (NACE 2.1 35.11) maps only to nodes with no output in Fixture V, so no exposure at all.
+EXPECTED_SCHEME = {"nc": "nace2", "nw": "nace2", "nr": "nace21", "nf": None, "ni": "isic4",
+                   "nm": "nace2", "nd": "nace2", "nu": "nace2"}
 
 
 def test_no_llm_call_on_the_nace_path(built, tmp_path):  # AC-11
@@ -69,7 +74,8 @@ def test_no_llm_call_on_the_nace_path(built, tmp_path):  # AC-11
             _ref(cid), theme, registry=DocumentSourceRegistry([_FixedDocSource([])]), llm=stub,
             settings=_settings(tmp_path), indirect_model=model,
         ))
-        assert result.matches[0].indirect_exposure is None or result.matches[0].indirect_exposure.code_scheme != "icio"
+        ie = result.matches[0].indirect_exposure
+        assert (ie and ie.code_scheme) == EXPECTED_SCHEME[cid], cid
     store = PortfolioStore(tmp_path / "pf")
     store.save_portfolio(Portfolio(portfolio_id="P", name="P"))
     for cid in NACE_IDS:
@@ -109,3 +115,19 @@ def test_icio_results_say_icio(built, code, core, country):  # AC-23 (values pin
     built()
     r = compute_indirect_exposure("x", code, resolve_indirect_exposure_model(Settings()), core, "e", country=country)
     assert (r.code_scheme, r.isic_code) == ("icio", code)
+
+
+def test_theme_run_sees_the_master_sectors(built, tmp_path, pg):  # Scope 5: theme runs get the merged company
+    built()
+    settings = _settings(tmp_path).model_copy(update={"identifier_map_path": tmp_path / "idmap" / "identifier_map.jsonl"})
+    IssuerSectorStore(settings.identifier_map_path.with_name("issuer_sectors.json")).replace({"nw": {"nace_code": "07.29"}})
+    activity = ActivityDefinition(name="Copper mining", in_scope_description="x", out_of_scope_description="y",
+                                  seed_keywords=["copper"], core_isic_codes=["B07"])
+    store = RunStore(pg, settings.runs_dir)
+    run_id = asyncio.run(run_thematic_universe(
+        ThemeDefinition(name="T", description="t", activities=[activity]), [CompanyRef(company_id="nw", name="NW")],
+        llm=_Counting(), registry=DocumentSourceRegistry([_FixedDocSource([])]), settings=settings, run_store=store,
+        indirect_model=resolve_indirect_exposure_model(Settings()),
+    ))
+    ie = store.read_results(run_id)[0]["company_matches"][0]["indirect_exposure"]
+    assert (ie["code_scheme"], ie["isic_code"]) == ("nace2", "07.29")
