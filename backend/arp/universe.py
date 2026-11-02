@@ -4,7 +4,32 @@ import csv
 import json
 from pathlib import Path
 
+from arp.research.indirect_exposure.nace import nace_known, normalise_nace
 from arp.schemas.common import CompanyRef
+
+
+class UniverseRejected(ValueError):
+    """A universe file holds a sector code that is not valid; `str(e)` is the user-facing message."""
+
+
+def check_sector_codes(company: CompanyRef) -> CompanyRef:
+    """Normalises `nace_code` and validates it and `gics_code`; blank codes count as absent."""
+    update: dict[str, str | None] = {}
+    if company.nace_code is not None:
+        raw = company.nace_code.strip()
+        code = normalise_nace(raw) if raw else None
+        # "7.29" would normalise to "72.9"; the message shows what the user wrote.
+        if code is not None and not nace_known(code, company.nace_rev):
+            raise UniverseRejected(
+                f"unknown NACE Rev. {company.nace_rev} code '{raw}' for company '{company.company_id}'"
+            )
+        update["nace_code"] = code
+    if company.gics_code is not None:
+        raw = company.gics_code.strip()
+        if raw and not (raw.isascii() and raw.isdigit() and len(raw) in (2, 4, 6, 8)):
+            raise UniverseRejected(f"bad GICS code '{raw}' for company '{company.company_id}'")
+        update["gics_code"] = raw or None
+    return company.model_copy(update=update)
 
 
 def load_company_universe(path: str | Path) -> list[CompanyRef]:
@@ -29,7 +54,12 @@ def load_company_universe(path: str | Path) -> list[CompanyRef]:
     companies: list[CompanyRef] = []
     for row in rows:
         clean = {k: (v if v not in ("", None) else None) for k, v in row.items()}
-        companies.append(CompanyRef(**clean))
+        if clean.get("nace_rev") is None:
+            clean.pop("nace_rev", None)  # blank -> default "2"
+        for k in ("nace_code", "nace_rev", "gics_code"):  # JSON numbers (7.29) are validated as text
+            if clean.get(k) is not None:
+                clean[k] = str(clean[k])
+        companies.append(check_sector_codes(CompanyRef(**clean)))
     return companies
 
 

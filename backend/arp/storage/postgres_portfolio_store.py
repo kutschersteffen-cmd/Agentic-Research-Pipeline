@@ -220,6 +220,7 @@ class PostgresPortfolioStore:
                 CompanyModel(
                     company_id=company.company_id, name=company.name, ticker=company.ticker, website=company.website,
                     cik=company.cik, country=company.country, sector=company.sector, isic_code=company.isic_code,
+                    nace_code=company.nace_code, nace_rev=company.nace_rev, gics_code=company.gics_code,
                 )
             )
             session.commit()
@@ -555,6 +556,7 @@ def _company_from_row(row) -> CompanyRef:
     return CompanyRef(
         company_id=row.company_id, name=row.name, ticker=row.ticker, website=row.website, cik=row.cik,
         country=row.country, sector=row.sector, isic_code=row.isic_code,
+        nace_code=row.nace_code, nace_rev=row.nace_rev or "2", gics_code=row.gics_code,
     )
 
 

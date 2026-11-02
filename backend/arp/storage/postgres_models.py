@@ -58,6 +58,9 @@ class CompanyModel(Base):
     country: Mapped[str | None] = mapped_column(String, nullable=True)
     sector: Mapped[str | None] = mapped_column(String, nullable=True)
     isic_code: Mapped[str | None] = mapped_column(String, nullable=True)
+    nace_code: Mapped[str | None] = mapped_column(String, nullable=True)
+    nace_rev: Mapped[str | None] = mapped_column(String, nullable=True)
+    gics_code: Mapped[str | None] = mapped_column(String, nullable=True)
 
 
 class LinkRuleModel(Base):
