@@ -6651,7 +6651,7 @@
       "type": "array"
      },
      "kind": {
-      "const": "dws-constituents",
+      "const": "constituents",
       "title": "Kind",
       "type": "string"
      },

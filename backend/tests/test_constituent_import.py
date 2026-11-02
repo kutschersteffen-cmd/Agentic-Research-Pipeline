@@ -54,8 +54,8 @@ def test_import(tmp_path):
     assert p["skipped_no_weight"] == [{"name": "Dead Co", "isin": "GB00DEAD0001", "weighting": "N/A"}]
     assert p["weight_sum"] == pytest.approx(0.61)
     assert s["untranslated"] == ["Atlantis"] and s["other_asset_classes"] == ["Gizmo"]
-    assert store.get_portfolio("dws_ie00testfund").name == "DWS ETF IE00TESTFUND"
-    h = {x.security_id: x for x in store.load_snapshot("dws_ie00testfund", "2026-10-02")}
+    assert store.get_portfolio("portfolio_ie00testfund").name == "Portfolio IE00TESTFUND"
+    h = {x.security_id: x for x in store.load_snapshot("portfolio_ie00testfund", "2026-10-02")}
     assert h["US0378331005"].market_value_eur == 50 and h["US0378331005"].weight_pct == 50
     assert h["CASH_EUR"].market_value_eur == -1  # negative kept
     assert store.get_security("CASH_EUR").asset_class == "cash"
@@ -81,9 +81,9 @@ def test_idempotent(tmp_path):
     store = PortfolioStore(tmp_path / "store")
     path = _xlsx(tmp_path, ROWS)
     import_constituent_files(store, [path], 100.0)
-    first = store.load_snapshot("dws_ie00testfund", "2026-10-02")
+    first = store.load_snapshot("portfolio_ie00testfund", "2026-10-02")
     import_constituent_files(store, [path], 100.0)
-    assert store.load_snapshot("dws_ie00testfund", "2026-10-02") == first
+    assert store.load_snapshot("portfolio_ie00testfund", "2026-10-02") == first
     assert len(store.list_portfolios()) == 1
 
 
@@ -103,7 +103,7 @@ def test_bad_file_name(tmp_path):
 def test_notional_tag_is_plain_digits(tmp_path):
     store = PortfolioStore(tmp_path / "store")
     import_constituent_files(store, [_xlsx(tmp_path, ROWS[:1])], 1e8)
-    assert "sizing:assumed-notional-eur-100000000" in store.get_portfolio("dws_ie00testfund").tags
+    assert "sizing:assumed-notional-eur-100000000" in store.get_portfolio("portfolio_ie00testfund").tags
 
 
 def test_missing_security_type_is_not_reported_as_none(tmp_path):
@@ -118,9 +118,9 @@ def test_two_projects_get_disjoint_tagged_portfolios(tmp_path):
     for proj in ("alpha", "beta"):
         import_constituent_files(store, [path], 100.0, project_id=proj)
     ps = {p.portfolio_id: p for p in store.list_portfolios()}
-    assert set(ps) == {"alpha-dws-ie00testfund", "beta-dws-ie00testfund"}
-    assert "project:alpha" in ps["alpha-dws-ie00testfund"].tags and "project:beta" not in ps["alpha-dws-ie00testfund"].tags
-    assert "project:beta" in ps["beta-dws-ie00testfund"].tags
+    assert set(ps) == {"alpha-portfolio-ie00testfund", "beta-portfolio-ie00testfund"}
+    assert "project:alpha" in ps["alpha-portfolio-ie00testfund"].tags and "project:beta" not in ps["alpha-portfolio-ie00testfund"].tags
+    assert "project:beta" in ps["beta-portfolio-ie00testfund"].tags
     assert len(store.list_companies()) == 4  # shared across projects, not duplicated
 
 
@@ -128,7 +128,7 @@ def test_no_project_keeps_old_id_and_no_project_tag(tmp_path):
     store = PortfolioStore(tmp_path / "store")
     import_constituent_files(store, [_xlsx(tmp_path, ROWS)], 100.0)
     (p,) = store.list_portfolios()
-    assert p.portfolio_id == "dws_ie00testfund"
+    assert p.portfolio_id == "portfolio_ie00testfund"
     assert not any(t.startswith("project:") for t in p.tags)
 
 
@@ -137,8 +137,8 @@ def test_project_reimport_overwrites(tmp_path):
     path = _xlsx(tmp_path, ROWS)
     for _ in range(2):
         import_constituent_files(store, [path], 100.0, project_id="alpha")
-    assert [p.portfolio_id for p in store.list_portfolios()] == ["alpha-dws-ie00testfund"]
-    assert store.list_snapshot_dates("alpha-dws-ie00testfund") == ["2026-10-02"]
+    assert [p.portfolio_id for p in store.list_portfolios()] == ["alpha-portfolio-ie00testfund"]
+    assert store.list_snapshot_dates("alpha-portfolio-ie00testfund") == ["2026-10-02"]
 
 
 @pytest.mark.parametrize("bad", ["Alpha", "-a", "a_b", "../x"])
