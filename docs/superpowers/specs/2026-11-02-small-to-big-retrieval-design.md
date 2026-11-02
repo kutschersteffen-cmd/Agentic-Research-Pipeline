@@ -148,7 +148,8 @@ only, deterministic). `chunk_chars` is the constant `DEFAULT_CHUNK_CHARS` (3,500
 `section_chunking_enabled` off, `context_headers_enabled` on, unless a row says otherwise. Fields are not high-risk
 and have no `document_routing` unless a row says so. Tests that need the embedding ranking replace
 `arp.retrieval.embeddings.embed_texts` with a stand-in returning fixed vectors; tests that need the reranker replace
-`arp.retrieval.rerank.rerank` with a recording stand-in (monkeypatch). "Evidence" is `field_evidence(field,
+`arp.retrieval.rerank._score` with a recording stand-in, with `rerank._unavailable=False` and
+`compute_client.models_configured` returning False (as `tests/test_select_evidence_explain.py` does). "Evidence" is `field_evidence(field,
 documents, settings)`. A filler sentence is a distinct sentence of about 80 characters with none of the field's
 keywords and none of the document title's words. "Section X's span" is (offset of the `# X` line, offset of the
 next heading line or the end of the text).
@@ -170,8 +171,8 @@ filler plus one sentence containing `net zero 2040`), `# Other` (2,000 chars of 
 | AC-2f | As AC-2, plus a table span inside `# A` | `small_pieces(doc, settings)` | The union of the pieces' `[char_start, char_end)` is exactly `[0, len(full_text))` | unit |
 | AC-22 | As AC-2 | `small_pieces` with `small_chunk_chars` 800, then with 400 | Every piece of the second call has `len(text) <= 400` | unit |
 | AC-3  | Doc T; on, hybrid off, `evidence_max_chunks` 1 | evidence | `[(c.char_start, c.char_end, c.section)] == [(*span of Targets, "Targets")]` | unit |
-| AC-4  | Doc T, but `# Targets` is 300 chars (filler plus the `net zero 2040` sentence); on, hybrid off, `evidence_max_chunks` 1 | evidence | One chunk; its id is the id of the non-table chunk `c` of `chunk_document(doc)` with the lowest `char_start` such that `c.char_start <= p.char_start` and `p.char_end <= c.char_end`, where `p` is the piece of `small_pieces(doc, settings)` that contains the `net zero 2040` sentence | unit |
-| AC-5  | Doc T, but `# Targets` is 8,000 chars with the `net zero 2040` sentence at about char 5,000 of it; on, hybrid off, `evidence_max_chunks` 1 | evidence | One chunk; its id is the id of the non-table chunk `c` of `chunk_document(doc)` with the lowest `char_start` such that `c.char_start <= p.char_start` and `p.char_end <= c.char_end`, where `p` is the piece of `small_pieces(doc, settings)` that contains the `net zero 2040` sentence | unit |
+| AC-4  | Doc T, but `# Targets` is 300 chars (filler plus the `net zero 2040` sentence); on, hybrid off, `evidence_max_chunks` 1 | evidence | One chunk; its id is the id of the non-table chunk `c` of `chunk_document(doc)` with the lowest `char_start` such that `c.char_start <= p.char_start` and `p.char_end <= c.char_end`; if no chunk satisfies that, the non-table chunk with the largest `min(c.char_end, p.char_end) - max(c.char_start, p.char_start)`, lower `char_start` on a tie; where `p` is the piece of `small_pieces(doc, settings)` that contains the `net zero 2040` sentence | unit |
+| AC-5  | Doc T, but `# Targets` is 8,000 chars with the `net zero 2040` sentence at about char 5,000 of it; on, hybrid off, `evidence_max_chunks` 1 | evidence | One chunk; its id is the id of the non-table chunk `c` of `chunk_document(doc)` with the lowest `char_start` such that `c.char_start <= p.char_start` and `p.char_end <= c.char_end`; if no chunk satisfies that, the non-table chunk with the largest `min(c.char_end, p.char_end) - max(c.char_start, p.char_start)`, lower `char_start` on a tie; where `p` is the piece of `small_pieces(doc, settings)` that contains the `net zero 2040` sentence | unit |
 | AC-23 | No headings: 1,200 chars of filler plus one `net zero 2040` sentence, then 6,000 chars of filler; on, hybrid off, `evidence_max_chunks` 1 | evidence | One chunk; its id is `chunk_document(doc)[0].chunk_id` | unit |
 | AC-24 | 1,200 chars of filler plus one `net zero 2040` sentence, then `# A` with 3,000 chars of filler; on, hybrid off, `evidence_max_chunks` 1 | evidence | `[(c.char_start, c.char_end, c.section)] == [(0, offset(# A), None)]` | unit |
 | AC-6  | Filler sections, `# P` (1,500 chars: `net zero` in a sentence at its start and in one at its end), filler, `# Q` (1,500 chars: one `net zero` sentence), filler; on, hybrid off, `evidence_max_chunks` 2 | evidence | The ids, as a set, are exactly {P's section chunk, Q's section chunk} | unit |
@@ -186,7 +187,7 @@ filler plus one sentence containing `net zero 2040`), `# Other` (2,000 chars of 
 | AC-28 | As AC-9, `explain={}` | evidence | `explain["small_to_big"] is True` | unit |
 | AC-31 | As AC-9, `explain={}` | evidence | `explain["scores"][P]["vector_rank"] == 3` | unit |
 | AC-32 | As AC-9, `explain={}` | evidence | `explain["scores"][R]["vector_rank"] == 2` | unit |
-| AC-10 | Doc T; on, hybrid off, rerank on with a recording stand-in | evidence | The stand-in receives exactly one chunk, with `(char_start, char_end)` = span of Targets | unit |
+| AC-10 | Doc T; on, hybrid off, rerank on with the recording stand-in | evidence | The stand-in receives exactly one text, equal to `doc.full_text[start:end]` for the span of Targets | unit |
 | AC-11 | Doc T; on, hybrid off | evidence | For every returned chunk, `text == doc.full_text[char_start:char_end]` | unit |
 | AC-29 | Doc T plus a field with `document_routing.sections == ["Targets"]`; on, hybrid off, `evidence_max_chunks` 3 | evidence | `[c.chunk_id for c in evidence] == [Targets' section chunk id]` | unit |
 | AC-12 | A high-risk field (`fallback_to_all`), no keyword anywhere in the doc; on, hybrid off | evidence | The same chunk ids in the same order as with off | unit |
