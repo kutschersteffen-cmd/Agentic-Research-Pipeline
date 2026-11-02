@@ -25,6 +25,7 @@ class LeontiefModel:
     isic_divisions: dict[str, list[str]] = field(default_factory=dict)
     nace_classes: dict[str, list[str]] = field(default_factory=dict)
     prompt_codes: list[str] | None = None  # codes offered to the LLM; None = all of `codes`
+    sectors: np.ndarray | None = None  # EXIOBASE sector name per node (no " (31)" suffix); for the NACE route
 
     def index_of(self, code: str) -> int | None:
         try:

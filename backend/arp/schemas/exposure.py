@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from arp.schemas.common import now_iso
@@ -25,6 +27,9 @@ class IndirectExposureResult(BaseModel):
     company_id: str
     isic_code: str
     isic_label: str | None = None
+    code_scheme: Literal["nace2", "nace21", "isic4", "icio"] = Field(
+        default="icio", description="Scheme of isic_code: an ICIO code, or the company's NACE Rev. 2 / Rev. 2.1 or ISIC Rev. 4 code."
+    )
     upstream_exposure: float = Field(
         ge=0.0, le=1.0, description="Share of this industry's total input requirement traceable to core sectors."
     )

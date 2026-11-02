@@ -15,6 +15,7 @@ from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.matcher_agents import run_adjudicator, run_advocate, run_opposing
 from arp.research.rd_exposure.resolver import RDResolverContext, resolve_company_activity_rd_exposure
 from arp.research.revenue_exposure.resolver import RevenueResolverContext, band_exposure, resolve_company_activity_exposure
+from arp.research.value_chain.links import company_nace
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import CompanyRef, DocumentChunk, SourceDocument
 from arp.schemas.exposure import IndirectExposureResult
@@ -65,10 +66,11 @@ async def _compute_indirect(state: MatchState) -> dict:
     company_isic = state["company_isic"]
     activity = state["activity"]
     indirect = None
-    if indirect_model is not None and company_isic and activity.core_isic_codes:
+    nace = company_nace(state["company"])
+    if indirect_model is not None and (company_isic or nace) and activity.core_isic_codes:
         indirect = compute_indirect_exposure(
-            state["company"].company_id, company_isic, indirect_model, set(activity.core_isic_codes), indirect_model.edition_label,
-            country=state["company"].country,
+            state["company"].company_id, company_isic or "", indirect_model, set(activity.core_isic_codes), indirect_model.edition_label,
+            country=state["company"].country, nace=nace,
         )
     return {"indirect": indirect}
 
