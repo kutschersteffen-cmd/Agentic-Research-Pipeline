@@ -42,8 +42,10 @@ once the `Retrieval recall` gate shows recall@12 on the PR ≥ `main`.
    reaches across a heading.
 2. **Merging short sections:** a section shorter than `section_min_chars` (default 800) is joined with the
    section(s) that follow it, one at a time, while the joined span is still < `section_min_chars` and the next
-   heading is at the same or a deeper level. Joining stops before a shallower heading. A joined chunk's
-   `section` is its first heading.
+   heading is at the same or a deeper level. Joining stops before a shallower heading, and before a section
+   that is itself ≥ `section_min_chars` (owner decision 2026-11-01: a large section keeps its own label, so
+   section routing never loses it to a short heading in front of it). A joined chunk's `section` is its first
+   heading.
 3. **Unchanged:** whole-table passages; the coverage guarantee (`_fill_coverage_gaps`: every character is in at
    least one chunk); documents with fewer than 2 headings (they chunk exactly as today); `chunk_id` format.
 4. `_SPAN_ALGO_VERSION` goes up by one, so cached spans from the old algorithm are not reused. No re-parse.
@@ -124,7 +126,8 @@ Conventions:
 | AC-3   | `## A` with 9,000 chars of body, then `## B`, setting on | `chunk_document` | Section A yields ≥ 3 chunks, each ≤ 3,500 chars, all inside `[offset of ## A, offset of ## B)` | holdout |
 | AC-4   | `## A` (200 chars), `## B` (300 chars), `# C` (2,000 chars), setting on | `chunk_document` | One chunk is exactly `[0, offset of # C)` with `section == "A"` | holdout |
 | AC-4b  | `## A` (200), `### A.1` (700), `## B` (2,000), setting on | `chunk_document` | One chunk is exactly `[0, offset of ## B)` with `section == "A"` | holdout |
-| AC-4c  | `## A` (200), `## B` (2,000), setting on | `chunk_document` | One chunk is exactly `[0, len(full_text))` with `section == "A"` (A joined with B, and A+B fits one chunk) | holdout |
+| AC-4c  | `## A` (200), `## B` (2,000), setting on | `chunk_document` | One chunk is exactly `[0, offset of ## B)` with `section == "A"`, and the chunks from `## B` on have `section == "B"` (B is not joined into A: it is ≥ 800 on its own) | holdout |
+| AC-4d  | `## Governance` (200), `### Remuneration report` (19,500), setting on | `chunk_document` | Every chunk that starts at or after the `### Remuneration report` offset has `section == "Remuneration report"` | holdout |
 | AC-5   | `## A` (200 chars) then `# Z` (2,000 chars), setting on | `chunk_document` | A's chunk is exactly `[0, offset of # Z)` | holdout |
 | AC-6   | Fixtures `chunking_a`, `_b`, `_c`, setting on | `chunk_document` | Every offset 0…len−1 lies in at least one chunk | holdout |
 | AC-7   | `chunking_a` (no headings) | `chunk_document` with the setting on | Spans equal the `main` snapshot | holdout |
