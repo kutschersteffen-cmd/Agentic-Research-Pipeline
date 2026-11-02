@@ -7,7 +7,7 @@ import typer
 
 from arp.orchestration.plan_check import check_script
 from arp.orchestration.plan_interp import PlanScriptError, StepLimitExceeded, dry_run
-from arp.orchestration.plan_planner import PlanRejected, draft_plan
+from arp.orchestration.plan_planner import PlanRejected, draft_plan, replan_plan
 from arp.orchestration.plan_store import PlanStore
 
 plan_app = typer.Typer(help="Research Orchestrator: draft, check, approve and run plan scripts.")
@@ -139,6 +139,23 @@ def run(plan_id: str) -> None:
         raise typer.Exit(1)
 
 
+@plan_app.command("replan")
+def replan(plan_id: str, user: str | None = typer.Option(None, "--user", help="Who asks for the re-plan.")) -> None:
+    """Have the planner rewrite a failed plan's remaining work; finished steps are kept. Stores it as a draft."""
+    from arp.orchestration.plan_store import PlanNotReplannable
+
+    store = _store()
+    _plan_or_exit(store, plan_id)
+    try:
+        asyncio.run(replan_plan(plan_id, _llm(), store, _context(), user))
+    except (PlanRejected, PlanNotReplannable) as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(1) from exc
+    plan = store.get(plan_id)
+    typer.echo(f"version {plan['version']}")
+    _print_steps(plan["dry_run"])
+
+
 @plan_app.command("resume")
 def resume(plan_id: str) -> None:
     """Run a failed plan again; steps that already finished are not repeated."""
@@ -175,10 +192,20 @@ report_render(source_ids=[e.run_id])
 """
 
 
+DEMO_REPLANNED_BRIEF = "Demo (re-planned): build the demo index, then EU grid storage green capex as a report"
+DEMO_OLD_SCRIPT = """u = universe_build(taxonomy_id="tax_demo_grid_storage_v0", source="data/demo/universe.csv")
+e = extraction(universe_run_id=u.run_id, schema_id="green_capex")
+report_render(source_ids=[e.run_id])
+"""
+DEMO_OLD_ERROR = "step 1 universe_build failed: taxonomy tax_demo_grid_storage_v0 is not ratified"
+
+
 @plan_app.command("seed-demo")
-def seed_demo() -> None:
+def seed_demo(replanned: bool = typer.Option(False, "--replanned",
+                                             help="Store the plan already re-planned once (version 2).")) -> None:
     """Store a demo plan (no LLM call) to show the Plans page, with a demo index calibration and candidates file so
-    its first step runs to done."""
+    its first step runs to done. With --replanned the plan is at version 2, its failed first script under previous
+    versions."""
     import json
 
     from arp.api.deps import get_index_store
@@ -196,7 +223,13 @@ def seed_demo() -> None:
     candidates.write_text(json.dumps([c.model_dump(mode="json") for c in demo_universe()]))
 
     store = _store()
-    plan_id = store.create(DEMO_BRIEF, _demo_script(calibration.calibration_id, str(candidates)))
+    script = _demo_script(calibration.calibration_id, str(candidates))
+    if replanned:
+        old = {"version": 1, "script": DEMO_OLD_SCRIPT, "error": DEMO_OLD_ERROR, "replanned_at": "2026-10-31T09:00:00+00:00",
+               "replanned_by": "plans-demo"}
+        plan_id = store.create(DEMO_REPLANNED_BRIEF, script, previous_scripts=[old])
+    else:
+        plan_id = store.create(DEMO_BRIEF, script)
     typer.echo(plan_id)
     _print_steps(store.get(plan_id)["dry_run"])
 

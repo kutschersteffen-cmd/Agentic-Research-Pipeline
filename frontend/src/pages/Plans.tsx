@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
-import { ACTIVE, resultHref, stepRows, type Plan } from "../lib/plans";
+import { ACTIVE, canReplan, resultHref, stepRows, type Plan } from "../lib/plans";
 
 const POLL_MS = 3000;
 
@@ -93,7 +93,8 @@ export function Plans({ selectedId, onSelect }: { selectedId: string | null; onS
       {plan && (
         <section className="card" aria-labelledby="plan-title">
           <h2 id="plan-title">
-            {plan.brief} <span className={`status-pill status-${plan.status}`}>{plan.status}</span>
+            {plan.brief} <span className={`status-pill status-${plan.status}`}>{plan.status}</span>{" "}
+            <span className="muted">version {plan.version}</span>
           </h2>
           {plan.approved_by && <p className="muted">Approved by {plan.approved_by}.</p>}
           {plan.error && <p className="error-text">{plan.error}</p>}
@@ -101,6 +102,9 @@ export function Plans({ selectedId, onSelect }: { selectedId: string | null; onS
             {plan.status === "draft" && <button disabled={busy} onClick={() => act(() => api.approvePlan(plan.id))}>Approve</button>}
             {(plan.status === "approved" || plan.status === "failed") && (
               <button disabled={busy} onClick={() => act(() => api.runPlan(plan.id))}>{plan.status === "failed" ? "Resume" : "Run"}</button>
+            )}
+            {canReplan(plan) && (
+              <button disabled={busy} onClick={() => act(() => api.replanPlan(plan.id))}>Re-plan</button>
             )}
             {ACTIVE.has(plan.status) && (
               <button className="danger" disabled={busy} onClick={() => act(() => api.cancelPlan(plan.id))}>Cancel</button>
@@ -135,6 +139,21 @@ export function Plans({ selectedId, onSelect }: { selectedId: string | null; onS
               </tbody>
             </table>
           </div>
+
+          {plan.previous_scripts.length > 0 && (
+            <>
+              <h3 className="section-heading">Previous versions</h3>
+              <ul>
+                {plan.previous_scripts.map((p) => (
+                  <li key={p.version}>
+                    <p>Version {p.version}{p.replanned_by && <span className="muted"> (re-planned by {p.replanned_by})</span>}</p>
+                    <pre className="mono plan-script" aria-label={`Script version ${p.version}`}>{p.script}</pre>
+                    {p.error && <p className="error-text">{p.error}</p>}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </section>
       )}
     </div>

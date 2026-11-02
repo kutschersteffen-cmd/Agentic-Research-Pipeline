@@ -257,6 +257,7 @@ export const api = {
   draftPlan: (brief: string) => request<Plan>("/api/plans", jsonBody("POST", { brief })),
   approvePlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}/approve`, { method: "POST" }),
   runPlan: (id: string) => request<{ plan_id: string; status: string }>(`/api/plans/${encodeURIComponent(id)}/run`, { method: "POST" }),
+  replanPlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}/replan`, { method: "POST" }),
   cancelPlan: (id: string) => request<Plan>(`/api/plans/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
   listRfpLibrary: () => request<RfpLibraryEntry[]>("/api/rfp/library"),
   importRfpLibrary: (files: File[]) => {

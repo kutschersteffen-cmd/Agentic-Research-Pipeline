@@ -3,6 +3,7 @@ export type PlanStatus = "draft" | "approved" | "running" | "awaiting_review" | 
 export type CallStatus = "pending" | "running" | "awaiting_review" | "done" | "failed" | "cancelled";
 
 export interface DryRunStep { seq: number; kind: string; params: Record<string, unknown>; depends_on: number | null }
+export interface PreviousScript { version: number; script: string; error: string | null; replanned_at: string; replanned_by: string | null }
 export interface PlanCall { seq: number; kind: string; params: Record<string, unknown>; status: CallStatus; run_id: string | null; result_ref: string | null }
 export interface Plan {
   id: string;
@@ -13,10 +14,15 @@ export interface Plan {
   approved_by: string | null;
   approved_at: string | null;
   error: string | null;
+  version: number;
+  previous_scripts: PreviousScript[];
   calls?: PlanCall[];
 }
 
 export const ACTIVE: ReadonlySet<PlanStatus> = new Set(["running", "awaiting_review"]);
+
+/** Re-planning is offered only on a failed plan, and only when the owner asks. */
+export const canReplan = (plan: Plan): boolean => plan.status === "failed";
 
 /** One row per planned step: the stored call once the run reached it, else `pending`. */
 export function stepRows(plan: Plan): { step: DryRunStep; status: CallStatus; call: PlanCall | null }[] {
