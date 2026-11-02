@@ -61,7 +61,7 @@ def test_add_data_file_appends_and_merges(store):
     store.add_data_file("p", "A.XLSX", b"1", {"a": 1})
     p = store.add_data_file("p", "b.xlsx", b"2", {"b": 2})
     assert len(p.data) == 1
-    assert p.data[0].kind == "dws-constituents"
+    assert p.data[0].kind == "constituents"
     assert p.data[0].files == ["A.XLSX", "b.xlsx"]
     assert p.data[0].params == {"a": 1, "b": 2}
     assert store.file_path("p", "data", "b.xlsx").read_bytes() == b"2"

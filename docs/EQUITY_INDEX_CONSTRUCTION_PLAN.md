@@ -20,7 +20,7 @@ backtester, no governance workflow, and no file distribution. The rest of
 this document describes the target design; section 21 says what to do next.
 
 This document reviews the submitted draft *"Implementation Plan — A Python-Native Equity Index Construction
-System"* (DWS, Investment Intelligence & Positioning), keeps what holds up,
+System"*, keeps what holds up,
 fixes what doesn't, and fills the gaps that would otherwise be discovered
 mid-build. It is written to be implementable against *this* repository —
 see §1 for the build-vs-integrate recommendation.
@@ -209,8 +209,8 @@ The draft's "parameters are data, not code" needs one addition or it
 silently rewrites history:
 
 ```yaml
-# configs/methodologies/dws_electrification.yaml
-methodology_id: dws_electrification
+# configs/methodologies/electrification.yaml
+methodology_id: electrification
 version: 4
 effective_from: 2025-06-20      # first review this version governs
 effective_to: null              # open-ended

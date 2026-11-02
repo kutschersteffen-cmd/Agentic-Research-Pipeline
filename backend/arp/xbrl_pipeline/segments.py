@@ -35,7 +35,14 @@ ESEF_METRICS: list[tuple[str, list[str]]] = [  # no opex: IFRS has no total oper
     ("cost_of_revenue", _ifrs("CostOfSales")),
     ("sga", _ifrs("SellingGeneralAndAdministrativeExpense")),
 ]
-AXES: dict[str, str] = {"sec": "us-gaap:StatementBusinessSegmentsAxis", "esef": "ifrs-full:SegmentsAxis"}
+# ESEF product/geography axes checked against full_ifrs-cor_2025-03-27.xsd.
+AXES: dict[str, dict[str, str]] = {
+    "sec": {"segment": "us-gaap:StatementBusinessSegmentsAxis", "product": "srt:ProductOrServiceAxis",
+            "geography": "srt:StatementGeographicalAxis"},
+    "esef": {"segment": "ifrs-full:SegmentsAxis", "product": "ifrs-full:ProductsAndServicesAxis",
+             "geography": "ifrs-full:GeographicalAreasAxis"},
+}
+_STANDARD_PREFIXES = ("us-gaap:", "srt:", "ifrs-full:")
 NOTE_CONCEPTS = {"sec": "us-gaap:SegmentReportingDisclosureTextBlock",
                  "esef": "ifrs-full:DisclosureOfOperatingSegmentsExplanatory"}
 # Filers like Apple tag every segment fact with this pair as well; any other second dimension is dropped.
@@ -57,53 +64,67 @@ def _kept(f: DimFact, axis: str) -> bool:
 def build_segments(dim_facts: list[DimFact], totals: dict[tuple[str, int], float], *, market: Market,
                    company_id: str, accession: str | None, fiscal_year: int | None = None) -> list[SegmentRow]:
     """`totals`: (concept, fiscal year) -> the non-dimensional full-year value."""
-    axis = AXES[market]
-    kept = [f for f in dim_facts if _kept(f, axis)]
-    if not kept:
+    kept = {kind: [f for f in dim_facts if _kept(f, axis)] for kind, axis in AXES[market].items()}
+    if not any(kept.values()):
         return []
-    year = fiscal_year or max(int(f.period_end[:4]) for f in kept)
-    kept = [f for f in kept if int(f.period_end[:4]) == year]
+    # one year per filing, so product and geography rows never disagree with segment rows
+    year = fiscal_year or max(int(f.period_end[:4]) for f in kept["segment"] or sum(kept.values(), []))
+    metrics = SEC_METRICS if market == "sec" else ESEF_METRICS
     rows = []
-    for metric, concepts in SEC_METRICS if market == "sec" else ESEF_METRICS:
-        for concept in concepts:
-            by_member: dict[str, DimFact] = {}
-            for f in kept:
-                if f.concept == concept:
-                    by_member.setdefault(f.dims[axis], f)  # a fact printed twice is one row
-            if not by_member:
-                continue
-            total = totals.get((concept, year))
-            match = bool(total) and abs(sum(f.value for f in by_member.values()) - total) / abs(total) <= 0.01
-            rows += [SegmentRow(
-                company_id=company_id, market=market, fiscal_year=year, metric=metric, concept=concept, axis=axis,
-                member=member, segment=segment_name(member), value=f.value, unit=f.unit, period_start=f.period_start,
-                period_end=f.period_end, accession=accession, sum_matches_total=match,
-            ) for member, f in by_member.items()]
-            break
+    for kind, axis in AXES[market].items():
+        facts = [f for f in kept[kind] if int(f.period_end[:4]) == year]
+        for metric, concepts in metrics if kind == "segment" else metrics[:1]:  # revenue only off-segment
+            for concept in concepts:
+                groups: dict[str | None, dict[str, DimFact]] = {}
+                for f in facts:
+                    if f.concept == concept:
+                        member = f.dims[axis]
+                        level = None if kind != "product" else (
+                            "standard" if member.startswith(_STANDARD_PREFIXES) else "company")
+                        groups.setdefault(level, {}).setdefault(member, f)  # a fact printed twice is one row
+                if not groups:
+                    continue
+                total = totals.get((concept, year))
+                for level, by_member in groups.items():
+                    match = bool(total) and abs(sum(f.value for f in by_member.values()) - total) / abs(total) <= 0.01
+                    rows += [SegmentRow(
+                        company_id=company_id, market=market, fiscal_year=year, metric=metric, concept=concept,
+                        axis=axis, member=member, segment=segment_name(member), value=f.value, unit=f.unit,
+                        period_start=f.period_start, period_end=f.period_end, accession=accession,
+                        sum_matches_total=match, axis_kind=kind, level=level,
+                    ) for member, f in by_member.items()]
+                break
     return rows
 
 
-def sec_segments(xhtml: bytes, *, company_id: str, accession: str | None) -> tuple[list[SegmentRow], str | None]:
-    """A 10-K's segment rows and its segment note text (None when it has none)."""
+def sec_segments(xhtml: bytes, *, company_id: str, accession: str | None,
+                 form: str | None = None) -> tuple[list[SegmentRow], str | None]:
+    """An annual report's segment rows and note text (None when it has none), read with the US-GAAP or the
+    IFRS concept set, whichever yields more rows (a tie goes to US-GAAP)."""
     facts, dim_facts, texts = parse_ixbrl_dimensional(xhtml)
     totals: dict[tuple[str, int], float] = {}
     for f in facts:
         if f.period_start and _full_year({"start": f.period_start, "end": f.period_end}):
             totals.setdefault((f.concept, int(f.period_end[:4])), f.value)
-    rows = build_segments(dim_facts, totals, market="sec", company_id=company_id, accession=accession)
-    return rows, texts.get(NOTE_CONCEPTS["sec"]) or None
+    us, ifrs = (build_segments(dim_facts, totals, market=m, company_id=company_id, accession=accession)
+                for m in ("sec", "esef"))
+    win, rows = ("esef", ifrs) if len(ifrs) > len(us) else ("sec", us)
+    return [r.model_copy(update={"market": "sec", "form": form}) for r in rows], texts.get(NOTE_CONCEPTS[win]) or None
 
 
 def store_segments(store: XbrlStore, key: str, rows: list[SegmentRow], note: str | None) -> None:
     store.write_segments(key, rows)
     store.write_segment_note(key, note)
-    store.update_meta(key, segment_count=len(rows), segment_note_chars=len(note or ""))
+    counts = {k: sum(r.axis_kind == k for r in rows) for k in ("segment", "product", "geography")}
+    store.update_meta(key, segment_count=counts["segment"], product_count=counts["product"],
+                      geography_count=counts["geography"], segment_note_chars=len(note or ""))
 
 
 def write_segments_sec(key: str, store: XbrlStore, company_id: str) -> None:
-    """Segments from the stored 10-K; none when it is missing or not inline XBRL."""
+    """Segments from the stored annual report; none when it is missing or not inline XBRL."""
     meta, path = store.report_meta(key), store.file_path(key, "report")
     rows, note = ([], None)
     if meta and meta.inline_xbrl and path:
-        rows, note = sec_segments(path.read_bytes(), company_id=company_id, accession=meta.accession)
+        rows, note = sec_segments(path.read_bytes(), company_id=company_id, accession=meta.accession,
+                                  form=meta.form)
     store_segments(store, key, rows, note)

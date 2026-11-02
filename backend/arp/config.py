@@ -152,7 +152,7 @@ class Settings(BaseSettings):
         default=800, description="With section_chunking_enabled: a shorter section is joined with the ones that follow it."
     )
     context_headers_enabled: bool = Field(
-        default=False,
+        default=True,
         description="BM25 and embeddings index each chunk with a header line (title, fiscal period, heading path; "
         "plus a table line for table passages). Evidence, grounding and citations still use the chunk text "
         "(arp/retrieval/index_text.py).",

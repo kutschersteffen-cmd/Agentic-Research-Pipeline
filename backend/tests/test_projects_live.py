@@ -97,7 +97,7 @@ def _make_project(store, tmp_path, cleanup, pid, tag, notional, w1, w2):
     fund = f"IE00{tag}".upper()
     sec = [r[1] for r in _rows(tag, w1, w2)]
     isins.extend(sec)
-    portfolios.append(f"{pid}-dws-{fund.lower()}")
+    portfolios.append(f"{pid}-portfolio-{fund.lower()}")
     (tmp_path / pid).mkdir()
     path = _xlsx(tmp_path / pid, _rows(tag, w1, w2), isin=fund)
     store.create(pid, pid)
@@ -110,7 +110,7 @@ def _make_project(store, tmp_path, cleanup, pid, tag, notional, w1, w2):
     t = plan_to_template(pid, f"Live {pid}", plan)
     store.save_dashboard(pid, t.slug, t.title, "template", t.model_dump_json().encode())
     slugs.append(t.slug)
-    return t.slug, f"DWS ETF {fund}"
+    return t.slug, f"Portfolio {fund}"
 
 
 def test_projects_end_to_end(settings, client, cleanup, tmp_path):

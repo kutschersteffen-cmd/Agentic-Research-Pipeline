@@ -23,6 +23,10 @@ class ResearchPlan(Base):
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Re-planning: rows created before these columns existed read NULL, which PlanStore reads as 1 and [].
+    version: Mapped[int | None] = mapped_column(Integer, nullable=True, default=1)
+    previous_scripts: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=list)  # [{version, script,
+    # error, replanned_at, replanned_by}]
 
 
 class ResearchPlanCall(Base):

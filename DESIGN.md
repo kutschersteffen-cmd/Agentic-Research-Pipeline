@@ -59,7 +59,7 @@ typography:
     fontWeight: 500
     lineHeight: 1.3
 rounded:
-  sm: "2px"
+  sm: "0"
   md: "0"
   lg: "0"
   pill: "999px"
@@ -196,7 +196,7 @@ The system is flat. Depth comes from tonal layering (ground → panel → well) 
 
 ## Shapes
 
-Square, like the start page, on every screen: cards, framed tables, inputs and buttons have square corners; small badges keep a 2px hint; status and count badges stay full pills. Page titles use the start page's display voice (tight tracking, one step below its hero), table headers and section labels are small uppercase mono, and stat tiles show a big tabular number over a mono label. Borders are always 1px hairlines; a 1.5px dashed edge marks a switched-off or pending pipeline step.
+Square, like the start page, on every screen: cards, framed tables, inputs, buttons and small badges have square corners; status and count badges stay full pills; state dots are circles. Three shapes, no in-between radius. Page titles use the start page's display voice (tight tracking, one step below its hero), table headers and section labels are small uppercase mono, and stat tiles show a big tabular number over a mono label. Borders are always 1px hairlines; a 1.5px dashed edge marks a switched-off or pending pipeline step.
 
 ## Components
 

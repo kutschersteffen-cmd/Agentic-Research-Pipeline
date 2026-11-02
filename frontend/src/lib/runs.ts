@@ -99,6 +99,14 @@ export function batchWaitText(wait: NonNullable<RunManifest["batch_wait"]>): str
   return `Waiting on batch · ${wait.request_count.toLocaleString("en-US")} requests · submitted ${hhmm} · Anthropic usually finishes within an hour`;
 }
 
+/** "5 min ago", "3 h ago", "2 days ago". */
+export function ago(iso: string): string {
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 60) return `${Math.max(min, 1)} min ago`;
+  if (min < 48 * 60) return `${Math.round(min / 60)} h ago`;
+  return `${Math.round(min / 1440)} days ago`;
+}
+
 /** One row per proxy voting run with ballots waiting on a person, for the start page's Needs you list. */
 export function ballotRows(runs: RunManifest[]): { runId: string; count: number; what: string; href: string }[] {
   return runs
@@ -106,7 +114,7 @@ export function ballotRows(runs: RunManifest[]): { runId: string; count: number;
     .map((r) => ({
       runId: r.run_id,
       count: r.review_count,
-      what: `Proxy voting run ${r.run_id}: ${r.review_count === 1 ? "1 ballot" : `${r.review_count} ballots`} to decide`,
+      what: `Decide ${r.review_count === 1 ? "1 ballot" : `${r.review_count} ballots`}`,
       href: `#/voting/${encodeURIComponent(r.run_id)}`,
     }));
 }

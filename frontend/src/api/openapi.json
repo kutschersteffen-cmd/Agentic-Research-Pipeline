@@ -6684,7 +6684,7 @@
       "type": "array"
      },
      "kind": {
-      "const": "dws-constituents",
+      "const": "constituents",
       "title": "Kind",
       "type": "string"
      },
@@ -32313,6 +32313,51 @@
      }
     },
     "summary": "Cancel",
+    "tags": [
+     "plans"
+    ]
+   }
+  },
+  "/api/plans/{plan_id}/replan": {
+   "post": {
+    "description": "The planner writes a script for the failed plan's remaining work; it comes back as a draft to approve.",
+    "operationId": "replan_api_plans__plan_id__replan_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "plan_id",
+      "required": true,
+      "schema": {
+       "title": "Plan Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "title": "Response Replan Api Plans  Plan Id  Replan Post",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Replan",
     "tags": [
      "plans"
     ]

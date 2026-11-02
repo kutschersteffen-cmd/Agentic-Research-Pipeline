@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useReducer, useState, type ReactElement } from "react";
 import { api } from "../api/client";
 import type { EngagementRecord, RunManifest, StewardshipFlow } from "../types";
-import { ACTIVE_STATUSES, decisionRunType, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
+import { ACTIVE_STATUSES, ago, decisionRunType, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
 import { listAllRuns, usePoll } from "../lib/poll";
-import { DECISION_STAGES, PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
+import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { openCount } from "./steward/common";
 import { useMe } from "../lib/reviewer";
-import { NeedsYou } from "../components/NeedsYou";
+import { NeedsYou, type Totals } from "../components/NeedsYou";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
 import { engagementCounts, engagementLine, type EngagementCounts } from "../lib/engagement";
@@ -79,8 +79,6 @@ function useRuns() {
   return { runs, error, retry: load };
 }
 
-/** Open decisions across the Steward Workflow stages the processes own. */
-const stageDecisions = (flow: StewardshipFlow | null) => DECISION_STAGES.reduce((n, id) => n + openCount(flow?.stages.find((x) => x.id === id)), 0);
 
 /** The house stewardship flow, loaded once: its stages carry StewardIQ's numbers. */
 function useHouseFlow() {
@@ -118,11 +116,12 @@ const processState = (p: Process, runs: RunManifest[] | null, flow: StewardshipF
 
 /** The one line a workspace box leads with: what waits on a person first, then
  * failures, then what is running. */
-function headline(w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null): { tone: string; text: string } {
+function headline(w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null, counted?: number): { tone: string; text: string } {
   if (!runs) return { tone: "", text: "Status unknown" };
   const mine = runs.filter((r) => w.runTypes.includes(r.run_type));
   const stages = new Set(w.processes.flatMap((p) => p.steps.map((s) => s.stage).filter(Boolean)));
-  const waiting = mine.reduce((n, r) => n + waitingCount(r), 0) + [...stages].reduce((n, id) => n + openCount(flow?.stages.find((x) => x.id === id)), 0);
+  // Prefer the Needs you count for this workspace, so the cards add up to the headline.
+  const waiting = counted ?? mine.reduce((n, r) => n + waitingCount(r), 0) + [...stages].reduce((n, id) => n + openCount(flow?.stages.find((x) => x.id === id)), 0);
   const failed = mine.filter((r) => r.status === "failed").length;
   const running = mine.filter((r) => ACTIVE_STATUSES.has(r.status)).length;
   if (waiting > 0) return { tone: "await", text: `${waiting} waiting on you${failed > 0 ? ` · ${failed} failed` : ""}` };
@@ -143,19 +142,12 @@ const WEEK_MS = 7 * 24 * 3600 * 1000;
 const isToday = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
 const recent = (iso: string) => Date.now() - new Date(iso).getTime() < WEEK_MS;
 
-function ago(iso: string): string {
-  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  if (min < 60) return `${Math.max(min, 1)} min ago`;
-  if (min < 48 * 60) return `${Math.round(min / 60)} h ago`;
-  return `${Math.round(min / 1440)} days ago`;
-}
-
 const STATE_LABEL: Record<StepState, string> = { done: "has a finished run", now: "running", wait: "waiting on a person", failed: "last run failed", idle: "no activity yet" };
 
 /** A workspace as a card: icon, purpose, one dot per process, and one line
  * naming the process that matters now. */
-function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
-  const h = headline(w, runs, flow);
+function WorkspaceCard({ w, runs, flow, counted }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null; counted?: number }) {
+  const h = headline(w, runs, flow, counted);
   const last = runs?.filter((r) => w.runTypes.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
   const states = w.processes.map((p) => processState(p, runs, flow));
   // The process named is the one a person should look at: a wait first, then running or failed.
@@ -167,13 +159,14 @@ function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | 
       {ICONS[w.id]}
       <span className="hub-card-text">
         <span className="hub-card-name">{w.name}</span>
-        <span className="hub-card-purpose">{w.purpose}</span>
+        <span className="hub-card-purpose" title={w.purpose}>{w.purpose}</span>
       </span>
       <ol className="hub-dots">
         {w.processes.map((p, i) => (
-          <li key={p.id} className={`hub-dot-${states[i]}`}>
+          // Before runs load (or when the backend is down) the state is unknown, not idle.
+          <li key={p.id} className={`hub-dot-${runs ? states[i] : "unknown"}`}>
             <span className="visually-hidden">
-              {p.title}: {STATE_LABEL[states[i]]}
+              {p.title}: {runs ? STATE_LABEL[states[i]] : "status unknown"}
             </span>
           </li>
         ))}
@@ -189,10 +182,12 @@ function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | 
 
 /** The key to the step dots on the start page's workspace cards. Workspace
  * pages mark state on the step cards themselves, so they carry no legend. */
-function StateLegend() {
+function StateLegend({ waiting }: { waiting: boolean }) {
+  // The signal colour only appears when something waits (One Signal Rule), so its key does too.
+  const keys: StepState[] = waiting ? ["done", "now", "wait", "failed", "idle"] : ["done", "now", "failed", "idle"];
   return (
     <p className="muted hub-legend">
-      {(["done", "now", "wait", "failed", "idle"] as StepState[]).map((st) => (
+      {keys.map((st) => (
         <span key={st}>
           <span className={`hub-dot hub-dot-${st}`} aria-hidden />
           {STATE_LABEL[st]}
@@ -210,6 +205,8 @@ export function StartPage() {
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const name = reviewer.trim();
   // Loaded once: the line is a glance, the Engagement screen has the live list.
+  // The one waiting total: the sum of the Needs you rows (null while loading, "error" if they could not load).
+  const [needsTotal, setNeedsTotal] = useState<Totals | null | "error">(null);
   const [engagement, setEngagement] = useState<EngagementCounts | null | "error">(null);
   useEffect(() => {
     api.listEngagementRecords().then(
@@ -221,33 +218,38 @@ export function StartPage() {
   const known = runs !== null;
   const all = runs ?? [];
   const active = all.filter((r) => ACTIVE_STATUSES.has(r.status));
-  const waitingRuns = all.filter((r) => waitingCount(r) > 0);
-  // Same count the cards add up: waiting run items plus open stewardship decisions.
-  const decisions = stageDecisions(flow);
-  const waiting = waitingRuns.reduce((n, r) => n + waitingCount(r), 0) + decisions;
+  const totals = known && needsTotal !== null && needsTotal !== "error" ? needsTotal : null;
+  const waiting = totals ? totals.total : null;
   const failed = all.filter((r) => r.status === "failed" && recent(r.updated_at));
   const today = all.filter((r) => DONE.has(r.status) && isToday(r.updated_at));
-  // What waits on a person is listed in "Needs you" above; this row is what is running, then what failed.
-  const rank = (r: RunManifest) => (ACTIVE_STATUSES.has(r.status) ? 0 : 1);
-  const chips = [...new Set([...active, ...failed])].sort((a, b) => rank(a) - rank(b) || (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 6);
+  // Failed runs wait on a person (Resume), so they are listed in "Needs you"; this row is only what is running.
+  const chips = [...active].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 6);
   const n = (v: number) => (known ? v : "—");
 
   return (
     <div className="page hub hub-start">
       <header className="hub-hero">
+        <div>
         <h1>
           <span className="hub-hero-greet">
             {greeting}
             {name ? `, ${name}` : ""}.
           </span>
           <span>
-            {!known ? (error ? "Runs could not be loaded." : "Loading runs…") : waiting > 0 ? waiting === 1 ? "1 decision waits on you." : `${waiting} decisions wait on you.` : "Nothing waits on you."}
+            {!known ? (error ? "Runs could not be loaded." : "Loading runs…") : needsTotal === "error" ? "What waits on you could not be loaded." : waiting === null ? "Loading what waits on you…" : waiting > 0 ? waiting === 1 ? "1 decision waits on you." : `${waiting} decisions wait on you.` : "Nothing waits on you."}
           </span>
         </h1>
+        {waiting !== null && (
+          <details className="hub-counts">
+            <summary>What counts?</summary>
+            Review items, ballots, open stewardship decisions, failed runs to resume and blocking data issues. Each is a row under Needs you.
+          </details>
+        )}
+        </div>
         <dl className="hub-stats">
-          <div className={known && waiting > 0 ? "you" : undefined}>
+          <div className={waiting ? "you" : undefined}>
             <dt>waiting on you</dt>
-            <dd>{n(waiting)}</dd>
+            <dd>{waiting ?? "—"}</dd>
           </div>
           <div>
             <dt>running</dt>
@@ -271,14 +273,15 @@ export function StartPage() {
           </button>
         </p>
       )}
-      <NeedsYou runs={runs} flow={flow} />
+      <NeedsYou runs={runs} flow={flow} runsError={!!error} onTotal={setNeedsTotal} />
+      <StateLegend waiting={!!waiting} />
       <div className="hub-cards">
         {WORKSPACES.map((w) => (
-          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} />
+          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} counted={totals ? (totals.byWorkspace[w.name] ?? 0) : undefined} />
         ))}
       </div>
-      <StateLegend />
-      <nav className="hub-now" aria-label="Runs running or failed">
+      {known && (
+      <nav className="hub-now" aria-label="Runs running">
         <span className="hub-now-label">Now</span>
         {chips.map((r) => {
           const state = ACTIVE_STATUSES.has(r.status) ? "now" : "failed";
@@ -290,11 +293,12 @@ export function StartPage() {
             </a>
           );
         })}
-        {known && chips.length === 0 && <span className="muted">Nothing running or failed.</span>}
+        {chips.length === 0 && <span className="muted">Nothing running.</span>}
         <a className="hub-now-all" href="#/history">
           All runs →
         </a>
       </nav>
+      )}
       <p className="hub-engagement">
         <span>{engagementLine(engagement)}</span> <a href="#/engagement">Open Engagement →</a>
       </p>

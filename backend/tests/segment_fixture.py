@@ -48,3 +48,15 @@ def ixbrl(facts: list, scale: int = 0) -> bytes:
         '<xbrli:unit id="usd"><xbrli:measure>iso4217:USD</xbrli:measure></xbrli:unit></ix:resources></ix:header></div>'
         f'{"".join(body)}</body></html>'
     ).encode()
+
+
+PROD, GEO = "srt:ProductOrServiceAxis", "srt:StatementGeographicalAxis"
+
+
+def fixture_p(extra: list | None = None) -> list:
+    """Fixture P: Fixture S plus revenue on the product and geography axes."""
+    prod = [(REV, {PROD: m}, v, FY25) for m, v in
+            (("x:WidgetsMember", 600), ("x:GadgetsMember", 300), ("us-gaap:ProductMember", 900),
+             ("us-gaap:ServiceMember", 100))]
+    geo = [(REV, {GEO: m}, v, FY25) for m, v in (("country:US", 400), ("country:DE", 350), ("x:RestOfWorldMember", 250))]
+    return fixture_s(extra=[*prod, *geo, *(extra or [])])

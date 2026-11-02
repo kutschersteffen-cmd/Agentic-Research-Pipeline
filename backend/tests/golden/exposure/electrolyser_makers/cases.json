@@ -1,0 +1,1245 @@
+{
+  "set_id": "electrolyser_makers",
+  "kind": "activity",
+  "subject": "Manufactures and sells electrolysers or electrolyser stacks for producing hydrogen from water",
+  "labels": [
+    "core",
+    "peripheral",
+    "not"
+  ],
+  "checked_on": "2026-11-02",
+  "cases": [
+    {
+      "case_id": "nel",
+      "company": "Nel ASA",
+      "isin": "NO0010081235",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "Pure-play maker of alkaline and PEM electrolysers.",
+      "label_sources": [
+        "https://96e597bb58d206f85397.b-cdn.net/wp-content/uploads/2026/02/Annual-Report-2025.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://96e597bb58d206f85397.b-cdn.net/wp-content/uploads/2026/02/Annual-Report-2025.pdf"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "itm_power",
+      "company": "ITM Power plc",
+      "isin": "GB00B0130H42",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "Pure-play PEM electrolyser stack and system maker.",
+      "label_sources": [
+        "https://itm-power-assets.s3.eu-west-2.amazonaws.com/ITM_Power_plc_Annual_Report_2025_Interactive_pdf_2ecea7ebba.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://itm-power-assets.s3.eu-west-2.amazonaws.com/ITM_Power_plc_Annual_Report_2025_Interactive_pdf_2ecea7ebba.pdf"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "thyssenkrupp_nucera",
+      "company": "thyssenkrupp nucera AG & Co. KGaA",
+      "isin": "DE000NCA0001",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "Alkaline water electrolysis is one of its two main businesses next to chlor-alkali, on shared technology.",
+      "label_sources": [
+        "https://investors.thyssenkrupp-nucera.com/media/document/2a73a3f9-d7b2-428d-99c4-caa6fd9f284a/assets/thyssenkrupp_nucera___Annual_Report___2024-2025.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://investors.thyssenkrupp-nucera.com/media/document/2a73a3f9-d7b2-428d-99c4-caa6fd9f284a/assets/thyssenkrupp_nucera___Annual_Report___2024-2025.pdf"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "hydrogenpro",
+      "company": "HydrogenPro ASA",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "Small pure-play maker of pressurised alkaline electrolysers.",
+      "label_sources": [
+        "https://storage.mfn.se/c/aHR0cHM6Ly9hcGkzLm9zbG8ub3Nsb2JvcnMubm8vdjEvbmV3c3JlYWRlci9hdHRhY2htZW50P21lc3NhZ2VJZD02Njk1MjcmYXR0YWNobWVudElkPTMyMjM1Mw/final-annual-report-2025.pdf?news-id=daf344fd-76d5-5629-97fe-8e5a68c765dd"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://storage.mfn.se/c/aHR0cHM6Ly9hcGkzLm9zbG8ub3Nsb2JvcnMubm8vdjEvbmV3c3JlYWRlci9hdHRhY2htZW50P21lc3NhZ2VJZD02Njk1MjcmYXR0YWNobWVudElkPTMyMjM1Mw/final-annual-report-2025.pdf?news-id=daf344fd-76d5-5629-97fe-8e5a68c765dd"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "enapter",
+      "company": "Enapter AG",
+      "isin": "DE000A255G02",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "AEM electrolyser modules are its whole business; since Aug 2026 stacks are made by a partner in China.",
+      "label_sources": [
+        "https://enapterag.de/wp-content/uploads/2026/04/2026-04-30-Consolidated-Financial-Statement-2025-Enapter-AG.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://enapterag.de/wp-content/uploads/2026/04/2026-04-30-Consolidated-Financial-Statement-2025-Enapter-AG.pdf"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "plug_power",
+      "company": "Plug Power Inc.",
+      "isin": "US72919P2020",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "Sells PEM electrolysers as a main product line next to fuel cells and hydrogen supply.",
+      "label_sources": [
+        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=PLUG&type=10-K"
+      ],
+      "documents": [
+        {
+          "kind": "10-k",
+          "fiscal_year": 2025,
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=PLUG&type=10-K&dateb=&owner=include&count=10"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "mcphy_energy",
+      "company": "McPhy Energy SA",
+      "isin": "FR0011742329",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "Alkaline electrolyser maker until judicial liquidation in July 2025; assets sold to John Cockerill.",
+      "label_sources": [
+        "https://companiesmarketcap.com/universal-registration-documents/46418.urd.en.2023.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "universal_registration_document",
+          "fiscal_year": 2023,
+          "url": "https://companiesmarketcap.com/universal-registration-documents/46418.urd.en.2023.pdf"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "green_hydrogen_systems",
+      "company": "Green Hydrogen Systems A/S",
+      "isin": "DK0061540341",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "Alkaline electrolyser maker declared bankrupt in June 2025.",
+      "label_sources": [
+        "https://mfn.se/ind/a/green-hydrogen-systems/green-hydrogen-systems-a-s-to-file-for-bankruptcy-9c04f73d"
+      ],
+      "documents": [
+        {
+          "kind": "company_announcement",
+          "fiscal_year": 2024,
+          "url": "https://cdn.financialreports.eu/financialreports/media/filings/3401/2025/ISS/3401_iss_2025-03-25_518da647-15db-4a5b-aa30-cbd0b51089ab.pdf"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "next_hydrogen",
+      "company": "Next Hydrogen Solutions Inc.",
+      "isin": "CA65345D1087",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "TSXV-listed developer and seller of alkaline electrolysers; first commercial NH150 unit running since Aug 2025.",
+      "label_sources": [
+        "https://www.stocktitan.net/news/NXHSF/next-hydrogen-solutions-inc-reports-q4-2025-and-fiscal-2025-exun4d6fwr2y.html"
+      ],
+      "documents": [
+        {
+          "kind": "md&a",
+          "fiscal_year": 2025,
+          "url": "https://financialreports.eu/filings/next-hydrogen-solutions-inc/management-reports/2025/32357727/"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "siemens_energy",
+      "company": "Siemens Energy AG",
+      "isin": "DE000ENER6Y0",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "Makes PEM electrolysers (Berlin gigafactory) but they are a small part of a large power-equipment group.",
+      "label_sources": [
+        "https://assets.siemens-energy.com/dam/32b27e9a-af91-4915-8b51-b3af012d0d98/A-Siemens_Energy_Annual_Report_2025-pdf_Original%20file.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://assets.siemens-energy.com/dam/32b27e9a-af91-4915-8b51-b3af012d0d98/A-Siemens_Energy_Annual_Report_2025-pdf_Original%20file.pdf"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "longi_green_energy",
+      "company": "LONGi Green Energy Technology Co., Ltd.",
+      "isin": "CNE100001FR6",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "Alkaline electrolysers via LONGi Hydrogen, a small unit inside a solar group.",
+      "label_sources": [
+        "https://static.longi.com/LON_Gi_Annual_Report_2025_e3b7a9abb1.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://static.longi.com/LON_Gi_Annual_Report_2025_e3b7a9abb1.pdf"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "sungrow_power",
+      "company": "Sungrow Power Supply Co., Ltd.",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "Alkaline and PEM electrolysers via Sungrow Hydrogen, a small unit inside an inverter and storage group.",
+      "label_sources": [
+        "https://static.cninfo.com.cn/finalpage/2026-06-08/1225358186.PDF"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://static.cninfo.com.cn/finalpage/2026-06-08/1225358186.PDF"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "bloom_energy",
+      "company": "Bloom Energy Corporation",
+      "isin": "US0937121079",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "Sells solid oxide electrolysers next to its main fuel-cell business.",
+      "label_sources": [
+        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=BE&type=10-K"
+      ],
+      "documents": [
+        {
+          "kind": "10-k",
+          "fiscal_year": 2025,
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=BE&type=10-K&dateb=&owner=include&count=10"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "ceres_power",
+      "company": "Ceres Power Holdings plc",
+      "isin": "GB00BG5KQW09",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "Licenses SOEC/SOFC technology; licensees build the stacks.",
+      "label_sources": [
+        "https://www.ceres.tech/media/lponbtjc/ceres_annual-report_2025.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.ceres.tech/media/lponbtjc/ceres_annual-report_2025.pdf"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "gtt",
+      "company": "Gaztransport & Technigaz SA (Elogen)",
+      "isin": "FR0011726835",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "PEM electrolysers via subsidiary Elogen inside an LNG containment group.",
+      "label_sources": [
+        "https://www.gtt.fr/sites/default/files/GTT%20-%202025%20Universal%20Registration%20Document%202_0.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "universal_registration_document",
+          "fiscal_year": 2025,
+          "url": "https://www.gtt.fr/sites/default/files/GTT%20-%202025%20Universal%20Registration%20Document%202_0.pdf"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "clean_power_hydrogen",
+      "company": "Clean Power Hydrogen plc",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "AIM-listed developer of membrane-free electrolysers that in 2026 pivoted from manufacturing to licensing its IP after its MFE220 unit was damaged.",
+      "label_sources": [
+        "https://www.lse.co.uk/rns/final-results-mmh9oafa9rtkjun.html"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report_announcement",
+          "fiscal_year": 2025,
+          "url": "https://www.investegate.co.uk/announcement/rns/clean-power-hydrogen--cph2/posting-of-annual-report-and-notice-of-agm/9650698"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "fusion_fuel",
+      "company": "Fusion Fuel Green plc",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "Former PEM electrolyser maker whose business is now mainly LPG distribution (Al Shola Gas), with a small electrolyser unit (BrightHy).",
+      "label_sources": [
+        "https://app.edgar.tools/companies/HTOO"
+      ],
+      "documents": [
+        {
+          "kind": "20-f",
+          "fiscal_year": 2025,
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=HTOO&type=20-F&dateb=&owner=include&count=10"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "shuangliang_eco_energy",
+      "company": "Shuangliang Eco-Energy Systems Co., Ltd.",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "Makes 1,000-3,000 Nm3/h alkaline electrolysers (Shuangliang Hydrogen) next to chillers, heat exchangers and polysilicon equipment.",
+      "label_sources": [
+        "https://www.hydrogeninsight.com/electrolysers/chinese-manufacturer-unveils-world-s-largest-alkaline-hydrogen-electrolyser-with-market-leading-efficiency/2-1-1727320"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "http://www.cninfo.com.cn/new/disclosure/stock?stockCode=600481"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "asahi_kasei",
+      "company": "Asahi Kasei Corporation",
+      "isin": "JP3111200006",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "Makes Aqualyzer alkaline electrolysers and stacks (supplied FH2R in Fukushima) inside a large chemicals group.",
+      "label_sources": [
+        "https://www.asahi-kasei.com/news/2024/e241218"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.asahi-kasei.com/ir/library/asahikasei_report/"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "kanadevia",
+      "company": "Kanadevia Corporation (formerly Hitachi Zosen)",
+      "isin": "JP3789000001",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "Sells HYDROSPRING PEM water electrolysis hydrogen generators inside an environmental and plant engineering group.",
+      "label_sources": [
+        "https://www.kanadevia.com/english/business/field/electrolytic-hydrogen/hydrogen-generator.html"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.kanadevia.com/english/ir/library/"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "larsen_toubro",
+      "company": "Larsen & Toubro Limited",
+      "isin": "INE018A01030",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "Builds pressurised alkaline electrolysers at Hazira through L&T Electrolysers under McPhy licence, a tiny part of an engineering conglomerate.",
+      "label_sources": [
+        "https://www.larsentoubro.com/pressreleases/2024-03-01-lt-commissions-first-indigenously-manufactured-hydrogen-electrolyser-at-hazira/"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://investors.larsentoubro.com/AnnualReports.aspx"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "industrie_de_nora",
+      "company": "Industrie De Nora S.p.A.",
+      "isin": "IT0005186371",
+      "label": "peripheral",
+      "role": "supply_components",
+      "rationale": "Supplies electrodes and electrolyser components (Energy Transition, ~13% of 2025 revenue) and is launching its own Dragonfly alkaline electrolyser in 2026.",
+      "label_sources": [
+        "https://denora.com/zh/newsroom/press-releases/2026/the-board-of-directors-approves-the-consolidated-results-as-of-31-december-2025",
+        "https://www.hydrogeninsight.com/electrolysers/parts-supplier-de-nora-in-final-stages-of-field-testing-for-new-turnkey-pressurised-alkaline-electrolysis-system/2-1-1852956"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://denora.com/investor-relations/financial-documents.html"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "guofu_hydrogen",
+      "company": "Jiangsu Guofu Hydrogen Energy Equipment Co., Ltd.",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "HK-listed maker of hydrogen storage, transport and refuelling equipment that also supplies electrolysers (e.g. 22 sets for Hami Tonghuide).",
+      "label_sources": [
+        "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0427/2026042703014.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0427/2026042703014.pdf"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "thermax",
+      "company": "Thermax Limited",
+      "isin": "INE152A01029",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "Licensed to make Ceres SOEC stack modules and partners with HydrogenPro on alkaline systems, a small unit of an energy-equipment group.",
+      "label_sources": [
+        "https://www.biofuelsdigest.com/thermax-and-ceres-partner-on-green-hydrogen-electrolysis-in-india/",
+        "https://mfn.se/a/hydrogenpro/hydrogenpro-asa-and-thermax-partner-to-indigenise-alkaline-water-electrolysis-solution-for-large-scale-h2-projects"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.thermaxglobal.com/investors/"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "shanghai_electric",
+      "company": "Shanghai Electric Group Co., Ltd.",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "Makes alkaline (C-series) and PEM electrolysers inside a large power-equipment group.",
+      "label_sources": [
+        "https://www.shanghai-electric.com/group_en/c/2025-05-16/588239.shtml"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.shanghai-electric.com/group_en/investor/"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "mingyang_smart_energy",
+      "company": "Ming Yang Smart Energy Group Ltd.",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "Wind-turbine maker whose unit Mingyang Hydrogen makes and ships alkaline electrolysers.",
+      "label_sources": [
+        "https://www.naturalgasworld.com/chinas-mingyang-rolls-out-alkaline-electrolysis-system-for-hydrogen-production-115074",
+        "https://news.metal.com/newscontent/103732147/mingyang-hydrogen-energy-ships-125-cubic-meter-alkaline-electrolyzer-to-kunming"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "http://www.cninfo.com.cn/new/disclosure/stock?stockCode=601615"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "trina_solar",
+      "company": "Trina Solar Co., Ltd.",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "Solar group whose subsidiary Trina Green Hydrogen makes alkaline electrolysers on a 1 GW line.",
+      "label_sources": [
+        "https://www.trinasolar.com/au/resources/newsroom/autrinasolar-reveals-revolutionary-green-hydrogen-solution-all-energy-australia/"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "http://www.cninfo.com.cn/new/disclosure/stock?stockCode=688599"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "sany_heavy_industry",
+      "company": "Sany Heavy Industry Co., Ltd.",
+      "isin": "CNE000001F70",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "Construction-machinery group whose unit Sany Hydrogen makes alkaline and PEM electrolysers.",
+      "label_sources": [
+        "https://www.h2-tech.com/news/2023/12-2023/sany-introduces-integrated-gigawatt-grade-hydrogen-production-solution/"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "http://www.cninfo.com.cn/new/disclosure/stock?stockCode=600031"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "thyssenkrupp",
+      "company": "thyssenkrupp AG",
+      "isin": "DE0007500001",
+      "label": "peripheral",
+      "role": "make_electrolysers",
+      "rationale": "Consolidates majority-owned thyssenkrupp nucera, whose electrolysers are a small part of the group.",
+      "label_sources": [
+        "https://www.thyssenkrupp.com/en/investors/reporting-and-publications"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.thyssenkrupp.com/_binary/UCPthyssenkruppAG/f45393e4-83ee-4bef-aa50-4b743d2db1e4/Annual_report_2024_2025_of_thyssenkrupp_AG_WEB.pdf"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "cummins",
+      "company": "Cummins Inc.",
+      "isin": "US2310211063",
+      "label": "not",
+      "role": "other",
+      "rationale": "Accelera halted new electrolyser sales in Feb 2026 and only fulfils existing orders.",
+      "label_sources": [
+        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=CMI&type=10-K"
+      ],
+      "documents": [
+        {
+          "kind": "10-k",
+          "fiscal_year": 2025,
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=CMI&type=10-K&dateb=&owner=include&count=10"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "johnson_matthey",
+      "company": "Johnson Matthey plc",
+      "label": "not",
+      "role": "supply_components",
+      "rationale": "Supplies catalyst-coated membranes for electrolysers, not electrolysers.",
+      "label_sources": [
+        "https://matthey.com/documents/161599/7603892/JMA017_Interactive-260608.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://matthey.com/documents/161599/7603892/JMA017_Interactive-260608.pdf"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "burckhardt_compression",
+      "company": "Burckhardt Compression Holding AG",
+      "isin": "CH0025536027",
+      "label": "not",
+      "role": "supply_components",
+      "rationale": "Supplies hydrogen compressors.",
+      "label_sources": [
+        "https://www.burckhardtcompression.com/fileadmin/uploads/burckhardt/documents/reports/archive/annual-report-2025-burckhardt-compression-260624-en.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.burckhardtcompression.com/fileadmin/uploads/burckhardt/documents/reports/archive/annual-report-2025-burckhardt-compression-260624-en.pdf"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "hexagon_purus",
+      "company": "Hexagon Purus ASA",
+      "label": "not",
+      "role": "supply_components",
+      "rationale": "Supplies hydrogen storage tanks.",
+      "label_sources": [
+        "https://d2unncwr0d5wwb.cloudfront.net/purus/Hexagon-Purus-Annual-report-2025.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://d2unncwr0d5wwb.cloudfront.net/purus/Hexagon-Purus-Annual-report-2025.pdf"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "linde",
+      "company": "Linde plc",
+      "isin": "IE000S9YS762",
+      "label": "not",
+      "role": "produce_hydrogen",
+      "rationale": "Hydrogen producer and plant builder that buys electrolysers (ITM partnership).",
+      "label_sources": [
+        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=LIN&type=10-K"
+      ],
+      "documents": [
+        {
+          "kind": "10-k",
+          "fiscal_year": 2025,
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=LIN&type=10-K&dateb=&owner=include&count=10"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "air_liquide",
+      "company": "L'Air Liquide S.A.",
+      "isin": "FR0000120073",
+      "label": "not",
+      "role": "produce_hydrogen",
+      "rationale": "Hydrogen producer that buys and operates electrolysers.",
+      "label_sources": [
+        "https://www.airliquide.com/sites/airliquide.com/files/2026-03/air-liquide-2025-universal-registration-document-interactive.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "universal_registration_document",
+          "fiscal_year": 2025,
+          "url": "https://www.airliquide.com/sites/airliquide.com/files/2026-03/air-liquide-2025-universal-registration-document-interactive.pdf"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "air_products",
+      "company": "Air Products and Chemicals, Inc.",
+      "isin": "US0091581068",
+      "label": "not",
+      "role": "produce_hydrogen",
+      "rationale": "Hydrogen producer and developer of large green-hydrogen projects.",
+      "label_sources": [
+        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=APD&type=10-K"
+      ],
+      "documents": [
+        {
+          "kind": "10-k",
+          "fiscal_year": 2025,
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=APD&type=10-K&dateb=&owner=include&count=10"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "rwe",
+      "company": "RWE AG",
+      "isin": "DE0007037129",
+      "label": "not",
+      "role": "produce_hydrogen",
+      "rationale": "Utility operating electrolysis plants built by others.",
+      "label_sources": [
+        "https://www.rwe.com/-/media/RWE/documents/05-investor-relations/finanzkalendar-und-veroeffentlichungen/2025-GJ/RWE-Annual-Report-2025.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.rwe.com/-/media/RWE/documents/05-investor-relations/finanzkalendar-und-veroeffentlichungen/2025-GJ/RWE-Annual-Report-2025.pdf"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "shell",
+      "company": "Shell plc",
+      "isin": "GB00BP6MXD84",
+      "label": "not",
+      "role": "produce_hydrogen",
+      "rationale": "Oil major operating electrolysers (REFHYNE) built by others.",
+      "label_sources": [
+        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=SHEL&type=20-F"
+      ],
+      "documents": [
+        {
+          "kind": "20-f",
+          "fiscal_year": 2025,
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=SHEL&type=20-F&dateb=&owner=include&count=10"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "ballard_power",
+      "company": "Ballard Power Systems Inc.",
+      "isin": "CA0585861085",
+      "label": "not",
+      "role": "fuel_cells",
+      "rationale": "Fuel-cell maker, not electrolysers.",
+      "label_sources": [
+        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=BLDP&type=40-F"
+      ],
+      "documents": [
+        {
+          "kind": "40-f",
+          "fiscal_year": 2025,
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=BLDP&type=40-F&dateb=&owner=include&count=10"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "daimler_truck",
+      "company": "Daimler Truck Holding AG",
+      "isin": "DE000DTR0CK8",
+      "label": "not",
+      "role": "fuel_cells",
+      "rationale": "Truck maker developing fuel-cell trucks.",
+      "label_sources": [
+        "https://www.daimlertruck.com/fileadmin/user_upload/documents/investors/reports/annual-reports/2025/daimler-truck-ir-annual-report-2025-incl-combined-management-report-dth-ag.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.daimlertruck.com/fileadmin/user_upload/documents/investors/reports/annual-reports/2025/daimler-truck-ir-annual-report-2025-incl-combined-management-report-dth-ag.pdf"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "heidelberg_materials",
+      "company": "Heidelberg Materials AG",
+      "isin": "DE0006047004",
+      "label": "not",
+      "role": "other",
+      "rationale": "Cement maker; mentions hydrogen only as a fuel.",
+      "label_sources": [
+        "https://www.heidelbergmaterials.com/system/files/2026-03/HM_ASR25_en.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.heidelbergmaterials.com/system/files/2026-03/HM_ASR25_en.pdf"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "martin_marietta",
+      "company": "Martin Marietta Materials, Inc.",
+      "isin": "US5732841060",
+      "label": "not",
+      "role": "other",
+      "rationale": "Aggregates producer with no hydrogen activity.",
+      "label_sources": [
+        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=MLM&type=10-K"
+      ],
+      "documents": [
+        {
+          "kind": "10-k",
+          "fiscal_year": 2025,
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=MLM&type=10-K&dateb=&owner=include&count=10"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "fortescue",
+      "company": "Fortescue Ltd",
+      "isin": "AU000000FMG4",
+      "label": "not",
+      "role": "other",
+      "rationale": "Built PEM stacks at Gladstone but cancelled the factory in July 2025 citing a strategic shift away from electrolysers.",
+      "label_sources": [
+        "https://www.mining-technology.com/news/fortescue-settles-queensland-dispute-over-gladstone-electrolyser-facility/",
+        "https://www.hydrogeninsight.com/electrolysers/fortescue-mulling-closure-of-2gw-gladstone-hydrogen-pem-electrolyser-factory/2-1-1819420"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.fortescue.com/en/investors/reports-and-presentations"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "fuelcell_energy",
+      "company": "FuelCell Energy, Inc.",
+      "label": "not",
+      "role": "fuel_cells",
+      "rationale": "Fuel-cell maker that offered solid oxide electrolysers but ceased most solid oxide development in its 2025 restructuring.",
+      "label_sources": [
+        "https://www.sec.gov/Archives/edgar/data/886128/000155837025008463/fcel-20250430x10q.htm"
+      ],
+      "documents": [
+        {
+          "kind": "10-k",
+          "fiscal_year": 2025,
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=FCEL&type=10-K&dateb=&owner=include&count=10"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "reliance_industries",
+      "company": "Reliance Industries Limited",
+      "isin": "INE002A01018",
+      "label": "not",
+      "role": "produce_hydrogen",
+      "rationale": "Building an electrolyser gigafactory (Nel licence) for captive green hydrogen, due end-2026; no electrolyser sales yet.",
+      "label_sources": [
+        "https://www.hydronews.it/en/lindiana-reliance-punta-a-produrre-3-milioni-di-tonnellate-annue-di-idrogeno-green-entro-il-2032-realizzando-in-house-gli-elettrolizzatori/?amp=1"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.ril.com/investors/financial-reporting"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "chemours",
+      "company": "The Chemours Company",
+      "isin": "US1638511089",
+      "label": "not",
+      "role": "supply_components",
+      "rationale": "Supplies Nafion ion-exchange membranes used in PEM electrolysers.",
+      "label_sources": [
+        "https://www.h2-view.com/story/chemours-to-make-200m-investment-in-france-to-support-growing-hydrogen-demand/"
+      ],
+      "documents": [
+        {
+          "kind": "10-k",
+          "fiscal_year": 2025,
+          "url": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=CC&type=10-K&dateb=&owner=include&count=10"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "umicore",
+      "company": "Umicore SA",
+      "isin": "BE0974320526",
+      "label": "not",
+      "role": "supply_components",
+      "rationale": "Supplies platinum and iridium catalysts for fuel cells and PEM electrolysis.",
+      "label_sources": [
+        "https://www.umicore.com/en/media/newsroom/umicore-fuel-cell-catalysts/"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.umicore.com/en/investors/reports/"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "toray",
+      "company": "Toray Industries, Inc.",
+      "isin": "JP3621000003",
+      "label": "not",
+      "role": "supply_components",
+      "rationale": "Supplies hydrocarbon electrolyte membranes and CCMs (Greenerity) for PEM electrolysers.",
+      "label_sources": [
+        "https://www.toray.com/global/news/details/20230316154844.html"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.toray.com/global/ir/library/"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "atlas_copco",
+      "company": "Atlas Copco AB",
+      "isin": "SE0017486889",
+      "label": "not",
+      "role": "supply_components",
+      "rationale": "Supplies hydrogen compressors (H2P) sized for electrolysis modules.",
+      "label_sources": [
+        "https://www.atlascopco.com/en-uk/compressors/news-and-stories/atlas-copco-at-hydro-tech-expo-2023"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.atlascopcogroup.com/en/investors/reports-and-presentations"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "iberdrola",
+      "company": "Iberdrola, S.A.",
+      "isin": "ES0144580Y14",
+      "label": "not",
+      "role": "produce_hydrogen",
+      "rationale": "Utility operating the 20 MW Puertollano plant with a Nel PEM electrolyser.",
+      "label_sources": [
+        "https://iberdrola.com/about-us/what-we-do/green-hydrogen/puertollano-green-hydrogen-plant"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.iberdrola.com/shareholders-investors/annual-reports"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "uniper",
+      "company": "Uniper SE",
+      "isin": "DE000UNSE018",
+      "label": "not",
+      "role": "produce_hydrogen",
+      "rationale": "Utility developing electrolysis projects with Electric Hydrogen and Plug Power electrolysers.",
+      "label_sources": [
+        "https://eh2.com/uniper-selects-electric-hydrogen-for-green-wilhelmshaven-project/"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.uniper.energy/investor-relations/reports-and-presentations"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "lhyfe",
+      "company": "Lhyfe SA",
+      "isin": "FR0014009YQ1",
+      "label": "not",
+      "role": "produce_hydrogen",
+      "rationale": "Green hydrogen producer that buys and operates electrolysers.",
+      "label_sources": [
+        "https://live.euronext.com/sites/default/files/company_press_releases/attachments/2026/03/31/cpr05_actus_97296_FR0014009YQ1.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report_announcement",
+          "fiscal_year": 2025,
+          "url": "https://live.euronext.com/sites/default/files/company_press_releases/attachments/2026/04/30/cpr05_actus_97901_FR0014009YQ1.pdf"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "powercell",
+      "company": "PowerCell Sweden AB",
+      "isin": "SE0006425815",
+      "label": "not",
+      "role": "fuel_cells",
+      "rationale": "Makes fuel-cell stacks and systems, not electrolysers.",
+      "label_sources": [
+        "https://storage.mfn.se/ef23ad34-7d4d-48ea-8860-b7913cffab62/powercell-ar2025-eng.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://storage.mfn.se/ef23ad34-7d4d-48ea-8860-b7913cffab62/powercell-ar2025-eng.pdf"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "sfc_energy",
+      "company": "SFC Energy AG",
+      "isin": "DE0007568578",
+      "label": "not",
+      "role": "fuel_cells",
+      "rationale": "Makes methanol and hydrogen fuel cells, not electrolysers.",
+      "label_sources": [
+        "https://www.sfc.com/en/investors/"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.sfc.com/en/investors/"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "afc_energy",
+      "company": "AFC Energy plc",
+      "isin": "GB00B18S7B29",
+      "label": "not",
+      "role": "fuel_cells",
+      "rationale": "Makes alkaline fuel cells and ammonia crackers, not electrolysers.",
+      "label_sources": [
+        "https://www.afcenergy.com/investors/"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://www.afcenergy.com/investors/"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "arcelormittal",
+      "company": "ArcelorMittal S.A.",
+      "isin": "LU1598757687",
+      "label": "not",
+      "role": "produce_hydrogen",
+      "rationale": "Steelmaker planning hydrogen-based DRI that would buy hydrogen or electrolysers.",
+      "label_sources": [
+        "https://corporate.arcelormittal.com/investors/annual-reports"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://corporate.arcelormittal.com/investors/annual-reports"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "kawasaki_heavy_industries",
+      "company": "Kawasaki Heavy Industries, Ltd.",
+      "isin": "JP3224200000",
+      "label": "not",
+      "role": "other",
+      "rationale": "Builds liquefied-hydrogen carriers, tanks and hydrogen turbines, not electrolysers.",
+      "label_sources": [
+        "https://global.kawasaki.com/en/stories/hydrogen/"
+      ],
+      "documents": [
+        {
+          "kind": "annual_report",
+          "fiscal_year": 2025,
+          "url": "https://global.kawasaki.com/en/corp/ir/library/"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "sunfire",
+      "company": "Sunfire GmbH",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "Private German maker of pressurised alkaline and solid oxide electrolysers.",
+      "label_sources": [
+        "https://sunfire.de/en/news/sunfire-receives-purchase-order-for-100-mw-pressurized-alkaline-electrolyzer"
+      ],
+      "documents": [
+        {
+          "kind": "press_release",
+          "fiscal_year": 2024,
+          "url": "https://sunfire.de/en/news/sunfire-receives-purchase-order-for-100-mw-pressurized-alkaline-electrolyzer"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "john_cockerill_hydrogen",
+      "company": "John Cockerill Hydrogen SA",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "Private hydrogen subsidiary of the John Cockerill group that builds pressurised alkaline electrolyser stacks in Belgium and France.",
+      "label_sources": [
+        "https://johncockerill.com/wp-content/uploads/2026/07/20260710-john-cockerill-cp-m0-belfort-aspach-fr.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "press_release",
+          "fiscal_year": 2026,
+          "url": "https://johncockerill.com/wp-content/uploads/2026/07/20260710-john-cockerill-cp-m0-belfort-aspach-fr.pdf"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "quest_one",
+      "company": "Quest One GmbH",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "PEM electrolyser stack and system maker (formerly H-TEC Systems), owned by MAN Energy Solutions (now Everllence).",
+      "label_sources": [
+        "https://www.man-es.com/company/press-releases/press-details/2025/01/24/quest-one-and-man-energy-solutions-building-demonstration-plant-for-large-scale-electrolyzer"
+      ],
+      "documents": [
+        {
+          "kind": "press_release",
+          "fiscal_year": 2025,
+          "url": "https://www.man-es.com/company/press-releases/press-details/2025/01/24/quest-one-and-man-energy-solutions-building-demonstration-plant-for-large-scale-electrolyzer"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "electric_hydrogen",
+      "company": "Electric Hydrogen Co.",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "Private US maker of the 100 MW HYPRPlant PEM electrolyser system.",
+      "label_sources": [
+        "https://eh2.com/wp-content/uploads/2025/07/HYPRPlant-SpecSheet-Web-July-2025.pdf"
+      ],
+      "documents": [
+        {
+          "kind": "website",
+          "fiscal_year": 2025,
+          "url": "https://eh2.com/wp-content/uploads/2025/07/HYPRPlant-SpecSheet-Web-July-2025.pdf"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "hystar",
+      "company": "Hystar AS",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "Private Norwegian maker of high-efficiency PEM electrolysers.",
+      "label_sources": [
+        "https://hystar.com/"
+      ],
+      "documents": [
+        {
+          "kind": "website",
+          "url": "https://hystar.com/"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "hysata",
+      "company": "Hysata Pty Ltd",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "Private Australian maker of capillary-fed electrolysers, scaling manufacturing at Port Kembla.",
+      "label_sources": [
+        "https://www.cefc.com.au/media/media-release/hysata-breaks-new-ground-with-port-kembla-facility/"
+      ],
+      "documents": [
+        {
+          "kind": "press_release",
+          "url": "https://hysata.com/"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "stargate_hydrogen",
+      "company": "Stargate Hydrogen Solutions OÜ",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "Private Estonian maker of pressurised alkaline electrolyser stacks and systems.",
+      "label_sources": [
+        "https://stargatehydrogen.com/"
+      ],
+      "documents": [
+        {
+          "kind": "website",
+          "url": "https://stargatehydrogen.com/"
+        }
+      ],
+      "split": "tune"
+    },
+    {
+      "case_id": "ohmium",
+      "company": "Ohmium International, Inc.",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "Private maker of modular PEM electrolysers with factories in the US and India.",
+      "label_sources": [
+        "https://ohmium.com/"
+      ],
+      "documents": [
+        {
+          "kind": "website",
+          "url": "https://ohmium.com/"
+        }
+      ],
+      "split": "holdout"
+    },
+    {
+      "case_id": "h2pro",
+      "company": "H2Pro Ltd",
+      "label": "core",
+      "role": "make_electrolysers",
+      "rationale": "Private Israeli developer and maker of decoupled (E-TAC) water electrolysis systems.",
+      "label_sources": [
+        "https://www.h2pro.co/"
+      ],
+      "documents": [
+        {
+          "kind": "website",
+          "url": "https://www.prnewswire.com/il/news-releases/h2pro-and-doral-hydrogen-partner-on-worlds-first-entirely-off-grid-solar-to-hydrogen-project-for-gas-grid-blending-in-spain-302710864.html"
+        }
+      ],
+      "split": "tune"
+    }
+  ]
+}

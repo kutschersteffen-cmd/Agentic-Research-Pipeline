@@ -1269,7 +1269,7 @@ function CalibrationsTab({
         <div className="inline-fields">
           <label className="field-label" style={{ flex: 2 }}>
             Name
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="DWS Electrification PAB" />
+            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Electrification PAB" />
           </label>
           <label className="field-label" style={{ flex: 1 }}>
             Effective from

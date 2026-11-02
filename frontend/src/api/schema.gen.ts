@@ -3174,6 +3174,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plans/{plan_id}/replan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Replan
+         * @description The planner writes a script for the failed plan's remaining work; it comes back as a draft to approve.
+         */
+        post: operations["replan_api_plans__plan_id__replan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/plans/{plan_id}/run": {
         parameters: {
             query?: never;
@@ -10422,7 +10442,7 @@ export interface components {
              * Kind
              * @constant
              */
-            kind: "dws-constituents";
+            kind: "constituents";
             /** Params */
             params?: {
                 [key: string]: unknown;
@@ -23345,6 +23365,39 @@ export interface operations {
         };
     };
     cancel_api_plans__plan_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replan_api_plans__plan_id__replan_post: {
         parameters: {
             query?: never;
             header?: never;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { ballotRows, compareSince, needsAttentionRuns, runTypeLabel } from "../lib/runs";
+import { ago, ballotRows, compareSince, needsAttentionRuns, runTypeLabel } from "../lib/runs";
 import { useResume } from "../lib/useResume";
 import { STAGE_TABS, openCount } from "../pages/steward/common";
 import type { DataIssue, ReviewItem, RunManifest, StewardshipFlow } from "../types";
@@ -11,12 +11,20 @@ const WORKSPACE: Record<string, string> = {
   theme: "R&D Lab", holdings: "Data Hub", proxy_voting: "StewardIQ",
 };
 
-type Row = { key: string; workspace: string; what: string; count: number; since: string | null; href: string; resumeRunId?: string };
+// `what` is the decision asked of the person; `source` names the run or place it comes from.
+export type Totals = { total: number; byWorkspace: Record<string, number> };
+type Row = { key: string; workspace: string; what: string; source: string; count: number; since: string | null; href: string; resumeRunId?: string };
 
 /** Everything waiting on a person, one row per place it waits (a run's review, a ballot run, a stewardship stage,
  * blocking data issues), oldest first, each linking to where it is decided. Counts come from the same sources the
  * Review Queue's sidebar badge uses; nothing is stored. */
-export function NeedsYou({ runs, flow }: { runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+export function NeedsYou({ runs, flow, runsError = false, onTotal }: {
+  runs: RunManifest[] | null; flow: StewardshipFlow | null;
+  /** The page already shows a runs error banner; don't repeat it here. */
+  runsError?: boolean;
+  /** The row counts in total and per workspace, so the headline and cards count the same things; null while loading. */
+  onTotal?: (total: Totals | null | "error") => void;
+}) {
   const [items, setItems] = useState<ReviewItem[] | null>(null);
   const [issues, setIssues] = useState<DataIssue[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,18 +46,18 @@ export function NeedsYou({ runs, flow }: { runs: RunManifest[] | null; flow: Ste
     const type = run?.run_type ?? items!.find((i) => i.run_id === runId)!.run_type;
     rows.push({
       key: `review/${runId}`, workspace: WORKSPACE[type] ?? "Review", count, since: run?.updated_at ?? null,
-      what: `${runTypeLabel(type)} run ${runId}: ${count === 1 ? "1 item" : `${count} items`} to review`,
+      what: `Review ${count === 1 ? "1 item" : `${count} items`}`, source: `${runTypeLabel(type)} ${runId}`,
       href: `#/review/${type}/${encodeURIComponent(runId)}`,
     });
   }
   for (const b of ballotRows(runs ?? [])) {
-    rows.push({ key: `ballots/${b.runId}`, workspace: "StewardIQ", count: b.count, since: byRun.get(b.runId)!.updated_at, what: b.what, href: b.href });
+    rows.push({ key: `ballots/${b.runId}`, workspace: "StewardIQ", count: b.count, since: byRun.get(b.runId)!.updated_at, what: b.what, source: `Proxy voting ${b.runId}`, href: b.href });
   }
   for (const r of needsAttentionRuns(runs ?? [], new Date())) {
     const done = r.company_count > 0 ? ` (${r.completed_count}/${r.company_count} companies done)` : "";
     rows.push({
       key: `failed/${r.run_id}`, workspace: WORKSPACE[r.run_type] ?? "Review", count: 1, since: r.updated_at,
-      what: `${runTypeLabel(r.run_type)} run ${r.run_id}: ${r.status === "failed" ? "failed" : "partially completed"}${done}`,
+      what: `Resume ${r.status === "failed" ? "failed" : "partially completed"} run${done}`, source: `${runTypeLabel(r.run_type)} ${r.run_id}`,
       href: "#/history", resumeRunId: r.run_id,
     });
   }
@@ -59,7 +67,7 @@ export function NeedsYou({ runs, flow }: { runs: RunManifest[] | null; flow: Ste
       const tab = STAGE_TABS.find((t) => t.id === s.id);
       rows.push({
         key: `stage/${s.id}`, workspace: "StewardIQ", count: n, since: null,
-        what: `Steward · ${tab?.label ?? s.title}: ${n === 1 ? "1 decision" : `${n} decisions`} open`,
+        what: `Decide ${n === 1 ? "1 open decision" : `${n} open decisions`}`, source: `Stewardship · ${tab?.label ?? s.title}`,
         href: `#/stewardship/${s.id}`,
       });
     }
@@ -68,32 +76,40 @@ export function NeedsYou({ runs, flow }: { runs: RunManifest[] | null; flow: Ste
   if (blocking.length > 0) {
     rows.push({
       key: "issues", workspace: "Data Hub", count: blocking.length, since: null,
-      what: `${blocking.length === 1 ? "1 blocking data issue" : `${blocking.length} blocking data issues`}`, href: "#/issues",
+      what: `Resolve ${blocking.length === 1 ? "1 blocking data issue" : `${blocking.length} blocking data issues`}`, source: "Data issues", href: "#/issues",
     });
   }
-  // Oldest waiting first; places without a date (stages, data issues) after them.
-  rows.sort((a, b) => compareSince(a.since, b.since));
+  // Failed runs first (work stopped until someone acts), then oldest waiting; undated places after them.
+  rows.sort((a, b) => Number(!a.resumeRunId) - Number(!b.resumeRunId) || compareSince(a.since, b.since));
 
   const loading = items === null && !error;
+  const byWorkspace: Record<string, number> = {};
+  for (const r of rows) byWorkspace[r.workspace] = (byWorkspace[r.workspace] ?? 0) + r.count;
+  const sum = rows.reduce((n, r) => n + r.count, 0);
+  // A string key so the effect fires only when a count changes, not on every render.
+  const key = error ? "error" : loading ? "" : JSON.stringify(byWorkspace);
+  useEffect(() => onTotal?.(key === "error" ? "error" : key === "" ? null : { total: sum, byWorkspace: JSON.parse(key) }), [key, sum, onTotal]);
   return (
     <section className="needs-you" aria-labelledby="needs-you-title">
       <h2 id="needs-you-title">Needs you</h2>
-      {error && <p className="error-text" role="alert">Review items could not be loaded: {error}</p>}
+      {error && (runsError ? <p className="muted">Unknown until the backend responds.</p> : <p className="error-text" role="alert">Review items could not be loaded: {error}</p>)}
       {loading ? (
         <p className="muted">Loading…</p>
       ) : rows.length === 0 ? (
-        <p className="muted">Nothing waits on you.</p>
+        // After a load error an empty list is unknown, not "nothing waits".
+        !error && <p className="muted">Nothing waits on you.</p>
       ) : (
         <ul className="needs-you-list">
           {rows.map((r) => (
-            <li key={r.key}>
+            <li key={r.key} className={r.resumeRunId ? "needs-you-failed" : undefined}>
               <a href={r.href}>
                 <span className="needs-you-count">{r.count}</span>
                 <span className="needs-you-what">{r.what}</span>
                 <span className="needs-you-meta">
-                  {r.workspace}
-                  {r.since && ` · waiting since ${new Date(r.since).toLocaleDateString()}`}
+                  {r.workspace} · {r.source}
+                  {r.since && ` · ${ago(r.since)}`}
                 </span>
+                <span className="needs-you-go" aria-hidden>Open →</span>
               </a>
               {r.resumeRunId && (
                 <button

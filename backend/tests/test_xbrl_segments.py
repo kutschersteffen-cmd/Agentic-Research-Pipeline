@@ -27,7 +27,8 @@ def test_ac_3_intersegment_elimination_dropped():
 
 
 def test_ac_4_product_axis_dropped():
-    rows = _rows(fixture_s(extra=[(REV, {"srt:ProductOrServiceAxis": "x:PhoneMember"}, 500, FY25)]))
+    rows = [r for r in _rows(fixture_s(extra=[(REV, {"srt:ProductOrServiceAxis": "x:PhoneMember"}, 500, FY25)]))
+            if r.axis_kind == "segment"]  # product rows are kept since the product/geography spec
     assert len(rows) == 3 and all(r.axis != "srt:ProductOrServiceAxis" for r in rows)
 
 
