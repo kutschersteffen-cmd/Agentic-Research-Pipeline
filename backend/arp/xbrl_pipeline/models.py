@@ -151,6 +151,7 @@ class SegmentRow(BaseModel):
     period_end: str
     accession: str | None
     sum_matches_total: bool
+    reconciling: float | None = None  # segment rows: corporate/elimination amount in the sum check
     axis_kind: Literal["segment", "product", "geography"] = "segment"
     level: Literal["standard", "company"] | None = None
     form: str | None = None  # SEC rows only: 10-K, 20-F or 40-F
