@@ -6,7 +6,7 @@ import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { openCount } from "./steward/common";
 import { useMe } from "../lib/reviewer";
-import { NeedsYou } from "../components/NeedsYou";
+import { NeedsYou, type Totals } from "../components/NeedsYou";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
 import { engagementCounts, engagementLine, type EngagementCounts } from "../lib/engagement";
@@ -116,11 +116,12 @@ const processState = (p: Process, runs: RunManifest[] | null, flow: StewardshipF
 
 /** The one line a workspace box leads with: what waits on a person first, then
  * failures, then what is running. */
-function headline(w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null): { tone: string; text: string } {
+function headline(w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null, counted?: number): { tone: string; text: string } {
   if (!runs) return { tone: "", text: "Status unknown" };
   const mine = runs.filter((r) => w.runTypes.includes(r.run_type));
   const stages = new Set(w.processes.flatMap((p) => p.steps.map((s) => s.stage).filter(Boolean)));
-  const waiting = mine.reduce((n, r) => n + waitingCount(r), 0) + [...stages].reduce((n, id) => n + openCount(flow?.stages.find((x) => x.id === id)), 0);
+  // Prefer the Needs you count for this workspace, so the cards add up to the headline.
+  const waiting = counted ?? mine.reduce((n, r) => n + waitingCount(r), 0) + [...stages].reduce((n, id) => n + openCount(flow?.stages.find((x) => x.id === id)), 0);
   const failed = mine.filter((r) => r.status === "failed").length;
   const running = mine.filter((r) => ACTIVE_STATUSES.has(r.status)).length;
   if (waiting > 0) return { tone: "await", text: `${waiting} waiting on you${failed > 0 ? ` · ${failed} failed` : ""}` };
@@ -145,8 +146,8 @@ const STATE_LABEL: Record<StepState, string> = { done: "has a finished run", now
 
 /** A workspace as a card: icon, purpose, one dot per process, and one line
  * naming the process that matters now. */
-function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
-  const h = headline(w, runs, flow);
+function WorkspaceCard({ w, runs, flow, counted }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null; counted?: number }) {
+  const h = headline(w, runs, flow, counted);
   const last = runs?.filter((r) => w.runTypes.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
   const states = w.processes.map((p) => processState(p, runs, flow));
   // The process named is the one a person should look at: a wait first, then running or failed.
@@ -158,7 +159,7 @@ function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | 
       {ICONS[w.id]}
       <span className="hub-card-text">
         <span className="hub-card-name">{w.name}</span>
-        <span className="hub-card-purpose">{w.purpose}</span>
+        <span className="hub-card-purpose" title={w.purpose}>{w.purpose}</span>
       </span>
       <ol className="hub-dots">
         {w.processes.map((p, i) => (
@@ -205,7 +206,7 @@ export function StartPage() {
   const name = reviewer.trim();
   // Loaded once: the line is a glance, the Engagement screen has the live list.
   // The one waiting total: the sum of the Needs you rows (null while loading, "error" if they could not load).
-  const [needsTotal, setNeedsTotal] = useState<number | null | "error">(null);
+  const [needsTotal, setNeedsTotal] = useState<Totals | null | "error">(null);
   const [engagement, setEngagement] = useState<EngagementCounts | null | "error">(null);
   useEffect(() => {
     api.listEngagementRecords().then(
@@ -217,7 +218,8 @@ export function StartPage() {
   const known = runs !== null;
   const all = runs ?? [];
   const active = all.filter((r) => ACTIVE_STATUSES.has(r.status));
-  const waiting = known && typeof needsTotal === "number" ? needsTotal : null;
+  const totals = known && needsTotal !== null && needsTotal !== "error" ? needsTotal : null;
+  const waiting = totals ? totals.total : null;
   const failed = all.filter((r) => r.status === "failed" && recent(r.updated_at));
   const today = all.filter((r) => DONE.has(r.status) && isToday(r.updated_at));
   // Failed runs wait on a person (Resume), so they are listed in "Needs you"; this row is only what is running.
@@ -227,6 +229,7 @@ export function StartPage() {
   return (
     <div className="page hub hub-start">
       <header className="hub-hero">
+        <div>
         <h1>
           <span className="hub-hero-greet">
             {greeting}
@@ -236,6 +239,13 @@ export function StartPage() {
             {!known ? (error ? "Runs could not be loaded." : "Loading runs…") : needsTotal === "error" ? "What waits on you could not be loaded." : waiting === null ? "Loading what waits on you…" : waiting > 0 ? waiting === 1 ? "1 decision waits on you." : `${waiting} decisions wait on you.` : "Nothing waits on you."}
           </span>
         </h1>
+        {waiting !== null && (
+          <details className="hub-counts">
+            <summary>What counts?</summary>
+            Review items, ballots, open stewardship decisions, failed runs to resume and blocking data issues. Each is a row under Needs you.
+          </details>
+        )}
+        </div>
         <dl className="hub-stats">
           <div className={waiting ? "you" : undefined}>
             <dt>waiting on you</dt>
@@ -267,7 +277,7 @@ export function StartPage() {
       <StateLegend waiting={!!waiting} />
       <div className="hub-cards">
         {WORKSPACES.map((w) => (
-          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} />
+          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} counted={totals ? (totals.byWorkspace[w.name] ?? 0) : undefined} />
         ))}
       </div>
       {known && (

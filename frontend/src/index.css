@@ -500,7 +500,8 @@ button.secondary:hover:not(:disabled) { background: var(--accent-tint); border-c
    same name; an empty one is flagged because nothing can be decided yet. */
 .reviewer-field { display: grid; gap: var(--s-1); font-size: var(--text-sm); color: var(--muted); }
 .reviewer-field input { font-size: var(--text-base); }
-.reviewer-field input[aria-invalid] { border-color: var(--mid); background: color-mix(in srgb, var(--mid) 6%, var(--panel)); }
+/* Neutral, not amber: from across a room amber reads as the signal colour. Dashed marks "still needed". */
+.reviewer-field input[aria-invalid] { border-style: dashed; }
 .reviewer-field-compact { display: inline-flex; align-items: center; gap: var(--s-2); margin-left: auto; }
 .reviewer-field-compact input { width: 12rem; }
 .reviewer-hint { font-size: var(--text-xs); color: var(--muted); line-height: 1.4; }
@@ -1688,7 +1689,7 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 
 .hub-cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s-4); }
 .hub-card {
-  display: flex; flex-direction: column; gap: 18px; min-height: 18rem; padding: 28px var(--s-6) 22px;
+  display: flex; flex-direction: column; gap: var(--s-3); padding: var(--s-6) var(--s-6) var(--s-4);
   border: 1px solid var(--panel-border); background: var(--panel); color: inherit; text-decoration: none;
   transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
@@ -1702,7 +1703,8 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .hub-card-await .hub-ico .hi-fill { fill: var(--hi); stroke: var(--hi); }
 .hub-card-text { display: flex; flex-direction: column; gap: var(--s-2); }
 .hub-card-name { font-size: 1.5rem; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; }
-.hub-card-purpose { color: var(--muted); line-height: 1.45; }
+/* Three lines at most: the longest purpose set every card's height and pushed Now below the fold. */
+.hub-card-purpose { color: var(--muted); line-height: 1.45; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .hub-card-now { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--muted); min-height: 1.4em; }
 .hub-card-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--s-2); font-family: var(--font-mono); font-size: var(--text-sm); }
 .hub-card-state { overflow-wrap: anywhere; }
@@ -1764,15 +1766,20 @@ button.palette-trigger:hover:not(:disabled) { background: var(--accent-tint); bo
 .needs-you-list li > button { margin: 0 var(--s-3); }
 .needs-you-list li > p { flex-basis: 100%; margin: 0; padding: 0 var(--s-3) var(--s-2); }
 .needs-you-list li + li { border-top: 1px solid var(--panel-border); }
-.needs-you-list a { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr) auto; align-items: baseline; gap: var(--s-3); padding: var(--s-2) var(--s-3); color: inherit; text-decoration: none; }
+.needs-you-list a { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr) auto auto; align-items: baseline; gap: var(--s-3); padding: var(--s-2) var(--s-3); color: inherit; text-decoration: none; }
 .needs-you-list a:hover { background: var(--well); }
 .needs-you-list a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .needs-you-count { font-family: var(--font-mono); font-weight: 600; text-align: right; color: var(--text); }
 .needs-you-meta { color: var(--muted); font-size: var(--text-sm); white-space: nowrap; }
 .needs-you-failed .needs-you-count { color: var(--low); }
+.needs-you-go { font-family: var(--font-mono); font-size: var(--text-sm); white-space: nowrap; }
+.needs-you-list a:hover .needs-you-go { text-decoration: underline; text-underline-offset: 0.2em; }
+.hub-counts { margin-top: var(--s-2); max-width: 60ch; font-size: var(--text-sm); color: var(--muted); }
+.hub-counts summary { cursor: pointer; color: var(--text); width: fit-content; }
 @media (max-width: 640px) {
   .needs-you-list a { grid-template-columns: 2.5rem minmax(0, 1fr); }
   .needs-you-meta { grid-column: 2; white-space: normal; }
+  .needs-you-go { display: none; }
 }
 .hub-run { margin: 0 0 var(--s-3); }
 /* On a phone the note goes under the button instead of wrapping around it. */
