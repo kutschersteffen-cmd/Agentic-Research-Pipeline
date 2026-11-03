@@ -18,7 +18,7 @@ class SectorCode(BaseModel):
     origin: Literal["source", "map_standards", "exiobase"]
 
 
-class Criterion(BaseModel):
+class ActivityCriterion(BaseModel):
     text: str
     citations: list[SourceCitation] = Field(default_factory=list)
 

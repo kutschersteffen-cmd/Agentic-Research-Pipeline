@@ -7850,6 +7850,13 @@ export interface components {
              */
             rationale: string;
         };
+        /** ActivityCriterion */
+        ActivityCriterion: {
+            /** Citations */
+            citations?: components["schemas"]["SourceCitation"][];
+            /** Text */
+            text: string;
+        };
         /**
          * ActivityDefinition
          * @description A concrete, checkable business activity within a macro theme.
@@ -7869,7 +7876,7 @@ export interface components {
              */
             core_isic_codes?: string[];
             /** Criteria */
-            criteria?: components["schemas"]["arp__schemas__authority_taxonomy__Criterion"][];
+            criteria?: components["schemas"]["ActivityCriterion"][];
             /**
              * Criticality Flag
              * @description Set when this activity represents a scarce or geopolitically concentrated input whose importance a pure input-output linkage-strength ranking would understate (e.g. a USGS/IEA-flagged critical mineral). Populated by the criticality overlay, not by hand.
@@ -10462,6 +10469,36 @@ export interface components {
              */
             use_sample_io: boolean;
         };
+        /** Criterion */
+        Criterion: {
+            /** Column */
+            column: string;
+            /** Dimension Id */
+            dimension_id: string;
+            /**
+             * Direction
+             * @default higher
+             * @enum {string}
+             */
+            direction: "higher" | "lower";
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Required
+             * @description Relative mode: a company without a usable value here gets no score, with the reason, instead of a filled-in value. Applies whatever its weight; a disabled criterion is never required.
+             * @default false
+             */
+            required: boolean;
+            /**
+             * Weight
+             * @description Relative share of its dimension's weight. 0 parks it without deleting it.
+             * @default 1
+             */
+            weight: number;
+        };
         /** CriterionContribution */
         CriterionContribution: {
             /** Column */
@@ -12707,7 +12744,7 @@ export interface components {
             /** Created At */
             created_at?: string;
             /** Criteria */
-            criteria?: components["schemas"]["arp__schemas__decision__Criterion"][];
+            criteria?: components["schemas"]["Criterion"][];
             /**
              * Cut Mode
              * @default quantile
@@ -17595,43 +17632,6 @@ export interface components {
             title: string;
             /** Viz Type */
             viz_type: string;
-        };
-        /** Criterion */
-        arp__schemas__authority_taxonomy__Criterion: {
-            /** Citations */
-            citations?: components["schemas"]["SourceCitation"][];
-            /** Text */
-            text: string;
-        };
-        /** Criterion */
-        arp__schemas__decision__Criterion: {
-            /** Column */
-            column: string;
-            /** Dimension Id */
-            dimension_id: string;
-            /**
-             * Direction
-             * @default higher
-             * @enum {string}
-             */
-            direction: "higher" | "lower";
-            /**
-             * Enabled
-             * @default true
-             */
-            enabled: boolean;
-            /**
-             * Required
-             * @description Relative mode: a company without a usable value here gets no score, with the reason, instead of a filled-in value. Applies whatever its weight; a disabled criterion is never required.
-             * @default false
-             */
-            required: boolean;
-            /**
-             * Weight
-             * @description Relative share of its dimension's weight. 0 parks it without deleting it.
-             * @default 1
-             */
-            weight: number;
         };
         /** ChartSpec */
         arp__schemas__reporting__ChartSpec: {

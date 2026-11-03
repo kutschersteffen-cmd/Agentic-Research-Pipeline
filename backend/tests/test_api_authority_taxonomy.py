@@ -94,3 +94,16 @@ def test_select_no_sources_422(client):
 
 def test_unknown_run_404(client):
     assert client.get(f"{BASE}/nope").status_code == 404
+
+
+def test_files_confined(client, tmp_path):
+    rid = _start(client).json()["id"]
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "ok.txt").write_text("text")
+    (tmp_path / "secret.txt").write_text("x")
+    for bad in ["/etc/passwd", str(docs / ".." / "secret.txt"), str(docs)]:
+        res = client.post(f"{BASE}/{rid}/sources", json={"urls": [], "files": [bad]})
+        assert res.status_code == 422 and res.json()["detail"].startswith("file not allowed")
+    res = client.post(f"{BASE}/{rid}/sources", json={"urls": [], "files": [str(docs / "ok.txt")]})
+    assert res.status_code == 200

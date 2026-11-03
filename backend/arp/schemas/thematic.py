@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 from arp.schemas.arbitration import ArbitrationResult
-from arp.schemas.authority_taxonomy import Criterion, Definition, SectorCode, SourceCitation, Technology, Threshold
+from arp.schemas.authority_taxonomy import ActivityCriterion, Definition, SectorCode, SourceCitation, Technology, Threshold
 from arp.schemas.common import Citation, new_id, now_iso
 from arp.schemas.exposure import IndirectExposureResult
 from arp.schemas.rd_exposure import RDExposureResult
@@ -102,7 +102,7 @@ class ActivityDefinition(BaseModel):
         "Requires a source_citation and a substantive in_scope_description; see the validator below.",
     )
     value_chain_role: Literal["core", "upstream", "enabling"] = "core"
-    criteria: list[Criterion] = Field(default_factory=list)
+    criteria: list[ActivityCriterion] = Field(default_factory=list)
     citations: list[SourceCitation] = Field(default_factory=list)
     out_of_scope_citations: list[SourceCitation] = Field(default_factory=list)
     sector_codes: list[SectorCode] = Field(default_factory=list)

@@ -43,13 +43,17 @@ def _state(run_id: str, run_store) -> run.RunState:
         raise HTTPException(404, "run not found") from None
 
 
+def _http(e: Exception) -> HTTPException:
+    if isinstance(e, run.WrongStage):
+        return HTTPException(409, f"run is at stage {e.stage}")
+    return HTTPException(422, str(e))
+
+
 def _guard(fn, *args, **kwargs):
     try:
         return fn(*args, **kwargs)
-    except run.WrongStage as e:
-        raise HTTPException(409, f"run is at stage {e.stage}") from None
-    except ValueError as e:
-        raise HTTPException(422, str(e)) from None
+    except (run.WrongStage, ValueError) as e:
+        raise _http(e) from None
 
 
 @router.post("/runs", status_code=201, response_model=AuthorityRunStarted)
@@ -76,17 +80,26 @@ async def select_sources(
 ) -> run.RunState:
     if not req.urls and not req.files:
         raise HTTPException(422, "select at least one source")
+    root = settings.documents_dir.resolve()
+    paths = []
+    for f in req.files:
+        try:
+            path = Path(f).resolve()
+            ok = path.is_relative_to(root) and path.is_file()
+        except (OSError, ValueError):  # ValueError: NUL byte in the path
+            ok = False
+        if not ok:
+            raise HTTPException(422, f"file not allowed: {Path(f).name}")
+        paths.append(path)
     state = _state(run_id, run_store)
     model = resolve_indirect_exposure_model(settings) if state.value_chain else None
     try:
         return await run.select_sources(
-            run_id, req.urls, [Path(f) for f in req.files], run_store=run_store, llm=llm, settings=settings,
+            run_id, req.urls, paths, run_store=run_store, llm=llm, settings=settings,
             user_agent=settings.discovery_user_agent, value_chain_model=model,
         )
-    except run.WrongStage as e:
-        raise HTTPException(409, f"run is at stage {e.stage}") from None
-    except ValueError as e:
-        raise HTTPException(422, str(e)) from None
+    except (run.WrongStage, ValueError, OSError) as e:
+        raise _http(e) from None
 
 
 @router.get("/runs/{run_id}/draft", response_model=ThemeDefinition)

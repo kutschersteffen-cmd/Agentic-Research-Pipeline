@@ -369,6 +369,26 @@
     "title": "ActivityCatalogueMapping",
     "type": "object"
    },
+   "ActivityCriterion": {
+    "properties": {
+     "citations": {
+      "items": {
+       "$ref": "#/components/schemas/SourceCitation"
+      },
+      "title": "Citations",
+      "type": "array"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "title": "ActivityCriterion",
+    "type": "object"
+   },
    "ActivityDefinition": {
     "description": "A concrete, checkable business activity within a macro theme.\n\nMirrors MSCI's plain-language in-scope/out-of-scope framing so the\nboundary of the theme is explicit and auditable rather than implicit\nin a keyword list.",
     "properties": {
@@ -393,7 +413,7 @@
      },
      "criteria": {
       "items": {
-       "$ref": "#/components/schemas/arp__schemas__authority_taxonomy__Criterion"
+       "$ref": "#/components/schemas/ActivityCriterion"
       },
       "title": "Criteria",
       "type": "array"
@@ -6570,6 +6590,51 @@
     "title": "CreateTaxonomyRequest",
     "type": "object"
    },
+   "Criterion": {
+    "properties": {
+     "column": {
+      "title": "Column",
+      "type": "string"
+     },
+     "dimension_id": {
+      "title": "Dimension Id",
+      "type": "string"
+     },
+     "direction": {
+      "default": "higher",
+      "enum": [
+       "higher",
+       "lower"
+      ],
+      "title": "Direction",
+      "type": "string"
+     },
+     "enabled": {
+      "default": true,
+      "title": "Enabled",
+      "type": "boolean"
+     },
+     "required": {
+      "default": false,
+      "description": "Relative mode: a company without a usable value here gets no score, with the reason, instead of a filled-in value. Applies whatever its weight; a disabled criterion is never required.",
+      "title": "Required",
+      "type": "boolean"
+     },
+     "weight": {
+      "default": 1.0,
+      "description": "Relative share of its dimension's weight. 0 parks it without deleting it.",
+      "minimum": 0.0,
+      "title": "Weight",
+      "type": "number"
+     }
+    },
+    "required": [
+     "column",
+     "dimension_id"
+    ],
+    "title": "Criterion",
+    "type": "object"
+   },
    "CriterionContribution": {
     "properties": {
      "column": {
@@ -11931,7 +11996,7 @@
      },
      "criteria": {
       "items": {
-       "$ref": "#/components/schemas/arp__schemas__decision__Criterion"
+       "$ref": "#/components/schemas/Criterion"
       },
       "title": "Criteria",
       "type": "array"
@@ -23871,71 +23936,6 @@
      "metrics"
     ],
     "title": "ChartSpec",
-    "type": "object"
-   },
-   "arp__schemas__authority_taxonomy__Criterion": {
-    "properties": {
-     "citations": {
-      "items": {
-       "$ref": "#/components/schemas/SourceCitation"
-      },
-      "title": "Citations",
-      "type": "array"
-     },
-     "text": {
-      "title": "Text",
-      "type": "string"
-     }
-    },
-    "required": [
-     "text"
-    ],
-    "title": "Criterion",
-    "type": "object"
-   },
-   "arp__schemas__decision__Criterion": {
-    "properties": {
-     "column": {
-      "title": "Column",
-      "type": "string"
-     },
-     "dimension_id": {
-      "title": "Dimension Id",
-      "type": "string"
-     },
-     "direction": {
-      "default": "higher",
-      "enum": [
-       "higher",
-       "lower"
-      ],
-      "title": "Direction",
-      "type": "string"
-     },
-     "enabled": {
-      "default": true,
-      "title": "Enabled",
-      "type": "boolean"
-     },
-     "required": {
-      "default": false,
-      "description": "Relative mode: a company without a usable value here gets no score, with the reason, instead of a filled-in value. Applies whatever its weight; a disabled criterion is never required.",
-      "title": "Required",
-      "type": "boolean"
-     },
-     "weight": {
-      "default": 1.0,
-      "description": "Relative share of its dimension's weight. 0 parks it without deleting it.",
-      "minimum": 0.0,
-      "title": "Weight",
-      "type": "number"
-     }
-    },
-    "required": [
-     "column",
-     "dimension_id"
-    ],
-    "title": "Criterion",
     "type": "object"
    },
    "arp__schemas__reporting__ChartSpec": {

@@ -7,7 +7,15 @@ from pydantic import ValidationError
 from typer.testing import CliRunner
 
 from arp.cli.taxonomy import taxonomy_app
-from arp.schemas.authority_taxonomy import Criterion, Definition, SectorCode, SourceCitation, Technology, Threshold, merge_key
+from arp.schemas.authority_taxonomy import (
+    ActivityCriterion,
+    Definition,
+    SectorCode,
+    SourceCitation,
+    Technology,
+    Threshold,
+    merge_key,
+)
 from arp.schemas.taxonomy import Taxonomy
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 from arp.storage.taxonomy_store import TaxonomyStore
@@ -37,7 +45,7 @@ def test_new_fields_round_trip():
     cite = SourceCitation(quote="q", source_url="https://e.org")
     activity = ActivityDefinition(
         name="A", in_scope_description="x", out_of_scope_description="y", value_chain_role="upstream",
-        criteria=[Criterion(text="c", citations=[cite])], citations=[cite], out_of_scope_citations=[cite],
+        criteria=[ActivityCriterion(text="c", citations=[cite])], citations=[cite], out_of_scope_citations=[cite],
         sector_codes=[SectorCode(system="NACE", code="C28", origin="source")],
     )
     theme = ThemeDefinition(

@@ -9,7 +9,15 @@ from arp.ingestion.parsing import chunk_document
 from arp.llm.base import LLMClient, LLMUsage
 from arp.research.authority_taxonomy.checklist import AUTHORITY_CHECKLIST
 from arp.retrieval.select_evidence import select_relevant_chunks
-from arp.schemas.authority_taxonomy import Criterion, Definition, SectorCode, SourceCitation, Technology, Threshold, merge_key
+from arp.schemas.authority_taxonomy import (
+    ActivityCriterion,
+    Definition,
+    SectorCode,
+    SourceCitation,
+    Technology,
+    Threshold,
+    merge_key,
+)
 from arp.schemas.common import Citation, DocType, SourceDocument
 from arp.schemas.thematic import ActivityDefinition
 
@@ -217,5 +225,5 @@ def _attach_boundary(b: _BoundaryItem, activities: list[ActivityDefinition], cit
         target.out_of_scope_description = " ".join(filter(None, [target.out_of_scope_description, b.text]))
         target.out_of_scope_citations += cites
     else:
-        target.criteria.append(Criterion(text=b.text, citations=cites))
+        target.criteria.append(ActivityCriterion(text=b.text, citations=cites))
     return True

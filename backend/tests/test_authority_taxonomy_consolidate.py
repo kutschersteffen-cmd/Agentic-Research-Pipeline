@@ -62,10 +62,10 @@ async def test_value_chain_role_present(tmp_path):
 
 
 async def test_input_extractions_unchanged(tmp_path):
-    from arp.schemas.authority_taxonomy import Criterion
+    from arp.schemas.authority_taxonomy import ActivityCriterion
     a = SourceExtraction(url="A", activities=[_act("Stacks", "A")])
     b = SourceExtraction(url="B", activities=[_act("stacks", "B")])
-    b.activities[0].criteria = [Criterion(text="c"), Criterion(text="c")]
+    b.activities[0].criteria = [ActivityCriterion(text="c"), ActivityCriterion(text="c")]
     b.activities[0].seed_keywords = ["k"]
     before = [a.model_dump(), b.model_dump()]
     theme, _ = await _run([a, b], tmp_path)
