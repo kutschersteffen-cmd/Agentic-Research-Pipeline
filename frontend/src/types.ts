@@ -1622,7 +1622,7 @@ export type DatasetSummary = Served<S["DatasetSummary"]>;
 
 export type Dimension = Served<S["Dimension"]>;
 
-export type Criterion = Served<S["Criterion"]>;
+export type Criterion = Served<S["arp__schemas__decision__Criterion"]>;
 
 export type GateRule = Served<S["GateRule"]>;
 

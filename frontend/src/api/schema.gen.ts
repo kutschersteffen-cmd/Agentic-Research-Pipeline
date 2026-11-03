@@ -142,6 +142,93 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/authority-taxonomy/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start */
+        post: operations["start_api_authority_taxonomy_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/authority-taxonomy/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Run */
+        get: operations["get_run_api_authority_taxonomy_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        /** Cancel */
+        delete: operations["cancel_api_authority_taxonomy_runs__run_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/authority-taxonomy/runs/{run_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept */
+        post: operations["accept_api_authority_taxonomy_runs__run_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/authority-taxonomy/runs/{run_id}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Draft */
+        get: operations["get_draft_api_authority_taxonomy_runs__run_id__draft_get"];
+        /** Put Draft */
+        put: operations["put_draft_api_authority_taxonomy_runs__run_id__draft_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/authority-taxonomy/runs/{run_id}/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Select Sources */
+        post: operations["select_sources_api_authority_taxonomy_runs__run_id__sources_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bi/ask": {
         parameters: {
             query?: never;
@@ -7666,6 +7753,11 @@ export interface components {
              */
             type: "absolute_threshold";
         };
+        /** AcceptResponse */
+        AcceptResponse: {
+            /** Taxonomy Id */
+            taxonomy_id: string;
+        };
         /**
          * AccessPattern
          * @description How a source can actually be retrieved. Only the six values that appear
@@ -7769,11 +7861,15 @@ export interface components {
         ActivityDefinition: {
             /** Activity Id */
             activity_id?: string;
+            /** Citations */
+            citations?: components["schemas"]["SourceCitation"][];
             /**
              * Core Isic Codes
              * @description ISIC Rev.4 industry codes that make up this activity's core value-chain sectors, used for input-output-based indirect exposure scoring. Empty means the indirect-exposure tier is skipped for this activity. Populate via `arp theme classify-sectors` or supply by hand.
              */
             core_isic_codes?: string[];
+            /** Criteria */
+            criteria?: components["schemas"]["arp__schemas__authority_taxonomy__Criterion"][];
             /**
              * Criticality Flag
              * @description Set when this activity represents a scarce or geopolitically concentrated input whose importance a pure input-output linkage-strength ranking would understate (e.g. a USGS/IEA-flagged critical mineral). Populated by the criticality overlay, not by hand.
@@ -7795,11 +7891,15 @@ export interface components {
             lifecycle_stage?: components["schemas"]["LifecycleStage"] | null;
             /** Name */
             name: string;
+            /** Out Of Scope Citations */
+            out_of_scope_citations?: components["schemas"]["SourceCitation"][];
             /**
              * Out Of Scope Description
              * @description Plain-language description of adjacent activities that do NOT count, to stop scope creep.
              */
             out_of_scope_description: string;
+            /** Sector Codes */
+            sector_codes?: components["schemas"]["SectorCode"][];
             /**
              * Seed Keywords
              * @description Seed keywords/bigrams for evidence-chunk retrieval (Sautner et al. style).
@@ -7814,6 +7914,12 @@ export interface components {
              * @default core
              */
             tier: components["schemas"]["ActivityTier"];
+            /**
+             * Value Chain Role
+             * @default core
+             * @enum {string}
+             */
+            value_chain_role: "core" | "upstream" | "enabling";
         };
         /** ActivityDuplicateCandidate */
         ActivityDuplicateCandidate: {
@@ -8362,6 +8468,35 @@ export interface components {
             valid_to?: string | null;
             /** Value */
             value?: unknown;
+        };
+        /** AuthorityRunRequest */
+        AuthorityRunRequest: {
+            /**
+             * Guidance
+             * @default
+             */
+            guidance: string;
+            /**
+             * Scope
+             * @default
+             */
+            scope: string;
+            /** Theme Key */
+            theme_key?: string | null;
+            /** Theme Name */
+            theme_name: string;
+            /**
+             * Value Chain
+             * @default false
+             */
+            value_chain: boolean;
+        };
+        /** AuthorityRunStarted */
+        AuthorityRunStarted: {
+            /** Id */
+            id: string;
+            /** Stage */
+            stage: string;
         };
         /** B02Out */
         B02Out: {
@@ -9147,6 +9282,28 @@ export interface components {
             interval_hours: number;
             /** Last Run Id */
             last_run_id?: string | null;
+        };
+        /** Candidate */
+        Candidate: {
+            /** Covers */
+            covers: string[];
+            /** Fetchable */
+            fetchable: boolean;
+            /** From Library */
+            from_library: boolean;
+            /** Reason */
+            reason: string;
+            /**
+             * Source Type
+             * @enum {string}
+             */
+            source_type: "regulatory_taxonomy" | "agency_report" | "index_methodology" | "standards_body" | "statistical_classification" | "engineering_paper";
+            /** Summary */
+            summary: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
         };
         /** CapexOut */
         CapexOut: {
@@ -10305,36 +10462,6 @@ export interface components {
              */
             use_sample_io: boolean;
         };
-        /** Criterion */
-        Criterion: {
-            /** Column */
-            column: string;
-            /** Dimension Id */
-            dimension_id: string;
-            /**
-             * Direction
-             * @default higher
-             * @enum {string}
-             */
-            direction: "higher" | "lower";
-            /**
-             * Enabled
-             * @default true
-             */
-            enabled: boolean;
-            /**
-             * Required
-             * @description Relative mode: a company without a usable value here gets no score, with the reason, instead of a filled-in value. Applies whatever its weight; a disabled criterion is never required.
-             * @default false
-             */
-            required: boolean;
-            /**
-             * Weight
-             * @description Relative share of its dimension's weight. 0 parks it without deleting it.
-             * @default 1
-             */
-            weight: number;
-        };
         /** CriterionContribution */
         CriterionContribution: {
             /** Column */
@@ -10741,6 +10868,15 @@ export interface components {
             description: string;
             /** Name */
             name: string;
+        };
+        /** Definition */
+        Definition: {
+            /** Citations */
+            citations?: components["schemas"]["SourceCitation"][];
+            /** Term */
+            term: string;
+            /** Text */
+            text: string;
         };
         /**
          * DeflatedSharpeAssessment
@@ -12571,7 +12707,7 @@ export interface components {
             /** Created At */
             created_at?: string;
             /** Criteria */
-            criteria?: components["schemas"]["Criterion"][];
+            criteria?: components["schemas"]["arp__schemas__decision__Criterion"][];
             /**
              * Cut Mode
              * @default quantile
@@ -14973,6 +15109,45 @@ export interface components {
             /** Run Id */
             run_id: string;
         };
+        /** RunState */
+        RunState: {
+            /** Candidates */
+            candidates?: components["schemas"]["Candidate"][];
+            draft?: components["schemas"]["ThemeDefinition"] | null;
+            /**
+             * Guidance
+             * @default
+             */
+            guidance: string;
+            /**
+             * Notes
+             * @default
+             */
+            notes: string;
+            /** Run Id */
+            run_id: string;
+            /**
+             * Scope
+             * @default
+             */
+            scope: string;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "awaiting_sources" | "awaiting_review" | "accepted" | "cancelled";
+            /** Taxonomy Id */
+            taxonomy_id?: string | null;
+            /** Theme Key */
+            theme_key?: string | null;
+            /** Theme Name */
+            theme_name: string;
+            /**
+             * Value Chain
+             * @default false
+             */
+            value_chain: boolean;
+        };
         /**
          * SanityCheckAssessment
          * @description A qualitative, LLM-generated second opinion on an already-computed
@@ -15208,6 +15383,21 @@ export interface components {
             /** Sector */
             sector: string;
         };
+        /** SectorCode */
+        SectorCode: {
+            /** Code */
+            code: string;
+            /**
+             * Origin
+             * @enum {string}
+             */
+            origin: "source" | "map_standards" | "exiobase";
+            /**
+             * System
+             * @enum {string}
+             */
+            system: "ISIC" | "NACE" | "NAICS" | "SIC" | "GICS";
+        };
         /** SectorWeight */
         SectorWeight: {
             /** Sector */
@@ -15411,6 +15601,18 @@ export interface components {
          * @enum {string}
          */
         SourceCandidateType: "authority" | "thematic_fund";
+        /** SourceCitation */
+        SourceCitation: {
+            /**
+             * Location
+             * @default
+             */
+            location: string;
+            /** Quote */
+            quote: string;
+            /** Source Url */
+            source_url: string;
+        };
         /** SourceCreate */
         SourceCreate: {
             /**
@@ -15451,6 +15653,19 @@ export interface components {
             field_id: string;
             /** Portfolio Source */
             portfolio_source?: string | null;
+        };
+        /** SourcesRequest */
+        SourcesRequest: {
+            /**
+             * Files
+             * @default []
+             */
+            files: string[];
+            /**
+             * Urls
+             * @default []
+             */
+            urls: string[];
         };
         /**
          * StageTrace
@@ -16067,6 +16282,13 @@ export interface components {
          * @enum {string}
          */
         TaxonomyStatus: "draft" | "ratified";
+        /** Technology */
+        Technology: {
+            /** Citations */
+            citations?: components["schemas"]["SourceCitation"][];
+            /** Name */
+            name: string;
+        };
         /** TemplateMatch */
         TemplateMatch: {
             config: components["schemas"]["MechanismConfig"];
@@ -16103,14 +16325,31 @@ export interface components {
         ThemeDefinition: {
             /** Activities */
             activities?: components["schemas"]["ActivityDefinition"][];
+            /** Checklist Report */
+            checklist_report?: {
+                [key: string]: {
+                    [key: string]: "found" | "not_in_source";
+                };
+            };
             /** Created At */
             created_at?: string;
+            /** Definitions */
+            definitions?: components["schemas"]["Definition"][];
             /** Description */
             description: string;
             /** Name */
             name: string;
+            /**
+             * Scope
+             * @default
+             */
+            scope: string;
+            /** Technologies */
+            technologies?: components["schemas"]["Technology"][];
             /** Theme Id */
             theme_id?: string;
+            /** Thresholds */
+            thresholds?: components["schemas"]["Threshold"][];
         };
         /** ThemeLayerRow */
         ThemeLayerRow: {
@@ -16155,6 +16394,13 @@ export interface components {
             /** Run Id */
             run_id: string;
             weights: components["schemas"]["LayerWeights"];
+        };
+        /** Threshold */
+        Threshold: {
+            /** Citations */
+            citations?: components["schemas"]["SourceCitation"][];
+            /** Text */
+            text: string;
         };
         /** ThresholdRule */
         ThresholdRule: {
@@ -17350,6 +17596,43 @@ export interface components {
             /** Viz Type */
             viz_type: string;
         };
+        /** Criterion */
+        arp__schemas__authority_taxonomy__Criterion: {
+            /** Citations */
+            citations?: components["schemas"]["SourceCitation"][];
+            /** Text */
+            text: string;
+        };
+        /** Criterion */
+        arp__schemas__decision__Criterion: {
+            /** Column */
+            column: string;
+            /** Dimension Id */
+            dimension_id: string;
+            /**
+             * Direction
+             * @default higher
+             * @enum {string}
+             */
+            direction: "higher" | "lower";
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Required
+             * @description Relative mode: a company without a usable value here gets no score, with the reason, instead of a filled-in value. Applies whatever its weight; a disabled criterion is never required.
+             * @default false
+             */
+            required: boolean;
+            /**
+             * Weight
+             * @description Relative share of its dimension's weight. 0 parks it without deleting it.
+             * @default 1
+             */
+            weight: number;
+        };
         /** ChartSpec */
         arp__schemas__reporting__ChartSpec: {
             /**
@@ -17696,6 +17979,231 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuthoritativeValueOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_api_authority_taxonomy_runs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AuthorityRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthorityRunStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_run_api_authority_taxonomy_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_api_authority_taxonomy_runs__run_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_api_authority_taxonomy_runs__run_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_draft_api_authority_taxonomy_runs__run_id__draft_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThemeDefinition"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_draft_api_authority_taxonomy_runs__run_id__draft_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ThemeDefinition"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunState"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    select_sources_api_authority_taxonomy_runs__run_id__sources_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourcesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunState"];
                 };
             };
             /** @description Validation Error */

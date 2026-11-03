@@ -87,6 +87,19 @@
     "title": "AbsoluteThreshold",
     "type": "object"
    },
+   "AcceptResponse": {
+    "properties": {
+     "taxonomy_id": {
+      "title": "Taxonomy Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "taxonomy_id"
+    ],
+    "title": "AcceptResponse",
+    "type": "object"
+   },
    "AccessPattern": {
     "description": "How a source can actually be retrieved. Only the six values that appear\nin source_registry.json -- deliberately not aspirational.",
     "enum": [
@@ -363,12 +376,26 @@
       "title": "Activity Id",
       "type": "string"
      },
+     "citations": {
+      "items": {
+       "$ref": "#/components/schemas/SourceCitation"
+      },
+      "title": "Citations",
+      "type": "array"
+     },
      "core_isic_codes": {
       "description": "ISIC Rev.4 industry codes that make up this activity's core value-chain sectors, used for input-output-based indirect exposure scoring. Empty means the indirect-exposure tier is skipped for this activity. Populate via `arp theme classify-sectors` or supply by hand.",
       "items": {
        "type": "string"
       },
       "title": "Core Isic Codes",
+      "type": "array"
+     },
+     "criteria": {
+      "items": {
+       "$ref": "#/components/schemas/arp__schemas__authority_taxonomy__Criterion"
+      },
+      "title": "Criteria",
       "type": "array"
      },
      "criticality_flag": {
@@ -403,10 +430,24 @@
       "title": "Name",
       "type": "string"
      },
+     "out_of_scope_citations": {
+      "items": {
+       "$ref": "#/components/schemas/SourceCitation"
+      },
+      "title": "Out Of Scope Citations",
+      "type": "array"
+     },
      "out_of_scope_description": {
       "description": "Plain-language description of adjacent activities that do NOT count, to stop scope creep.",
       "title": "Out Of Scope Description",
       "type": "string"
+     },
+     "sector_codes": {
+      "items": {
+       "$ref": "#/components/schemas/SectorCode"
+      },
+      "title": "Sector Codes",
+      "type": "array"
      },
      "seed_keywords": {
       "description": "Seed keywords/bigrams for evidence-chunk retrieval (Sautner et al. style).",
@@ -442,6 +483,16 @@
       "$ref": "#/components/schemas/ActivityTier",
       "default": "core",
       "description": "core (the theme's own activities), enabling (supports core activities without being the theme itself), or critical_input (a scarce/bottleneck input core activities depend on)."
+     },
+     "value_chain_role": {
+      "default": "core",
+      "enum": [
+       "core",
+       "upstream",
+       "enabling"
+      ],
+      "title": "Value Chain Role",
+      "type": "string"
      }
     },
     "required": [
@@ -1729,6 +1780,63 @@
      "valid_from"
     ],
     "title": "AuthoritativeValueOut",
+    "type": "object"
+   },
+   "AuthorityRunRequest": {
+    "properties": {
+     "guidance": {
+      "default": "",
+      "title": "Guidance",
+      "type": "string"
+     },
+     "scope": {
+      "default": "",
+      "title": "Scope",
+      "type": "string"
+     },
+     "theme_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Theme Key"
+     },
+     "theme_name": {
+      "title": "Theme Name",
+      "type": "string"
+     },
+     "value_chain": {
+      "default": false,
+      "title": "Value Chain",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "theme_name"
+    ],
+    "title": "AuthorityRunRequest",
+    "type": "object"
+   },
+   "AuthorityRunStarted": {
+    "properties": {
+     "id": {
+      "title": "Id",
+      "type": "string"
+     },
+     "stage": {
+      "title": "Stage",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "stage"
+    ],
+    "title": "AuthorityRunStarted",
     "type": "object"
    },
    "B02Out": {
@@ -3404,6 +3512,65 @@
      }
     },
     "title": "CalibrationScheduleConfig",
+    "type": "object"
+   },
+   "Candidate": {
+    "properties": {
+     "covers": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Covers",
+      "type": "array"
+     },
+     "fetchable": {
+      "title": "Fetchable",
+      "type": "boolean"
+     },
+     "from_library": {
+      "title": "From Library",
+      "type": "boolean"
+     },
+     "reason": {
+      "title": "Reason",
+      "type": "string"
+     },
+     "source_type": {
+      "enum": [
+       "regulatory_taxonomy",
+       "agency_report",
+       "index_methodology",
+       "standards_body",
+       "statistical_classification",
+       "engineering_paper"
+      ],
+      "title": "Source Type",
+      "type": "string"
+     },
+     "summary": {
+      "title": "Summary",
+      "type": "string"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "url": {
+      "title": "Url",
+      "type": "string"
+     }
+    },
+    "required": [
+     "url",
+     "title",
+     "source_type",
+     "summary",
+     "reason",
+     "fetchable",
+     "covers",
+     "from_library"
+    ],
+    "title": "Candidate",
     "type": "object"
    },
    "CapexOut": {
@@ -6403,51 +6570,6 @@
     "title": "CreateTaxonomyRequest",
     "type": "object"
    },
-   "Criterion": {
-    "properties": {
-     "column": {
-      "title": "Column",
-      "type": "string"
-     },
-     "dimension_id": {
-      "title": "Dimension Id",
-      "type": "string"
-     },
-     "direction": {
-      "default": "higher",
-      "enum": [
-       "higher",
-       "lower"
-      ],
-      "title": "Direction",
-      "type": "string"
-     },
-     "enabled": {
-      "default": true,
-      "title": "Enabled",
-      "type": "boolean"
-     },
-     "required": {
-      "default": false,
-      "description": "Relative mode: a company without a usable value here gets no score, with the reason, instead of a filled-in value. Applies whatever its weight; a disabled criterion is never required.",
-      "title": "Required",
-      "type": "boolean"
-     },
-     "weight": {
-      "default": 1.0,
-      "description": "Relative share of its dimension's weight. 0 parks it without deleting it.",
-      "minimum": 0.0,
-      "title": "Weight",
-      "type": "number"
-     }
-    },
-    "required": [
-     "column",
-     "dimension_id"
-    ],
-    "title": "Criterion",
-    "type": "object"
-   },
    "CriterionContribution": {
     "properties": {
      "column": {
@@ -7267,6 +7389,31 @@
      "name"
     ],
     "title": "DecomposeRequest",
+    "type": "object"
+   },
+   "Definition": {
+    "properties": {
+     "citations": {
+      "items": {
+       "$ref": "#/components/schemas/SourceCitation"
+      },
+      "title": "Citations",
+      "type": "array"
+     },
+     "term": {
+      "title": "Term",
+      "type": "string"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "term",
+     "text"
+    ],
+    "title": "Definition",
     "type": "object"
    },
    "DeflatedSharpeAssessment": {
@@ -11784,7 +11931,7 @@
      },
      "criteria": {
       "items": {
-       "$ref": "#/components/schemas/Criterion"
+       "$ref": "#/components/schemas/arp__schemas__decision__Criterion"
       },
       "title": "Criteria",
       "type": "array"
@@ -17578,6 +17725,94 @@
     "title": "RunStarted",
     "type": "object"
    },
+   "RunState": {
+    "properties": {
+     "candidates": {
+      "items": {
+       "$ref": "#/components/schemas/Candidate"
+      },
+      "title": "Candidates",
+      "type": "array"
+     },
+     "draft": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/ThemeDefinition"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "guidance": {
+      "default": "",
+      "title": "Guidance",
+      "type": "string"
+     },
+     "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+     },
+     "run_id": {
+      "title": "Run Id",
+      "type": "string"
+     },
+     "scope": {
+      "default": "",
+      "title": "Scope",
+      "type": "string"
+     },
+     "stage": {
+      "enum": [
+       "awaiting_sources",
+       "awaiting_review",
+       "accepted",
+       "cancelled"
+      ],
+      "title": "Stage",
+      "type": "string"
+     },
+     "taxonomy_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Taxonomy Id"
+     },
+     "theme_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Theme Key"
+     },
+     "theme_name": {
+      "title": "Theme Name",
+      "type": "string"
+     },
+     "value_chain": {
+      "default": false,
+      "title": "Value Chain",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "run_id",
+     "stage",
+     "theme_name"
+    ],
+    "title": "RunState",
+    "type": "object"
+   },
    "SanityCheckAssessment": {
     "description": "A qualitative, LLM-generated second opinion on an already-computed\nReplicationComparisonReport -- advisory only. This is deliberately NOT\ngrounded/verified the way an extraction elsewhere in this codebase is:\nthere is no source document to check a quote against, only an opinion\nabout whether a set of numbers looks statistically plausible. Never\ntreat `plausible=True` as validation, or `plausible=False` as proof of\na bug -- it's a prompt for a human to look closer, nothing more.",
     "properties": {
@@ -18186,6 +18421,41 @@
     "title": "SectorBenchmarksOut",
     "type": "object"
    },
+   "SectorCode": {
+    "properties": {
+     "code": {
+      "title": "Code",
+      "type": "string"
+     },
+     "origin": {
+      "enum": [
+       "source",
+       "map_standards",
+       "exiobase"
+      ],
+      "title": "Origin",
+      "type": "string"
+     },
+     "system": {
+      "enum": [
+       "ISIC",
+       "NACE",
+       "NAICS",
+       "SIC",
+       "GICS"
+      ],
+      "title": "System",
+      "type": "string"
+     }
+    },
+    "required": [
+     "system",
+     "code",
+     "origin"
+    ],
+    "title": "SectorCode",
+    "type": "object"
+   },
    "SectorWeight": {
     "properties": {
      "sector": {
@@ -18638,6 +18908,29 @@
     "title": "SourceCandidateType",
     "type": "string"
    },
+   "SourceCitation": {
+    "properties": {
+     "location": {
+      "default": "",
+      "title": "Location",
+      "type": "string"
+     },
+     "quote": {
+      "title": "Quote",
+      "type": "string"
+     },
+     "source_url": {
+      "title": "Source Url",
+      "type": "string"
+     }
+    },
+    "required": [
+     "quote",
+     "source_url"
+    ],
+    "title": "SourceCitation",
+    "type": "object"
+   },
    "SourceCreate": {
     "properties": {
      "category": {
@@ -18748,6 +19041,28 @@
      "field_id"
     ],
     "title": "SourcePick",
+    "type": "object"
+   },
+   "SourcesRequest": {
+    "properties": {
+     "files": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Files",
+      "type": "array"
+     },
+     "urls": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Urls",
+      "type": "array"
+     }
+    },
+    "title": "SourcesRequest",
     "type": "object"
    },
    "StageTrace": {
@@ -20223,6 +20538,26 @@
     "title": "TaxonomyStatus",
     "type": "string"
    },
+   "Technology": {
+    "properties": {
+     "citations": {
+      "items": {
+       "$ref": "#/components/schemas/SourceCitation"
+      },
+      "title": "Citations",
+      "type": "array"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "Technology",
+    "type": "object"
+   },
    "TemplateMatch": {
     "properties": {
      "config": {
@@ -20307,9 +20642,30 @@
       "title": "Activities",
       "type": "array"
      },
+     "checklist_report": {
+      "additionalProperties": {
+       "additionalProperties": {
+        "enum": [
+         "found",
+         "not_in_source"
+        ],
+        "type": "string"
+       },
+       "type": "object"
+      },
+      "title": "Checklist Report",
+      "type": "object"
+     },
      "created_at": {
       "title": "Created At",
       "type": "string"
+     },
+     "definitions": {
+      "items": {
+       "$ref": "#/components/schemas/Definition"
+      },
+      "title": "Definitions",
+      "type": "array"
      },
      "description": {
       "title": "Description",
@@ -20319,9 +20675,28 @@
       "title": "Name",
       "type": "string"
      },
+     "scope": {
+      "default": "",
+      "title": "Scope",
+      "type": "string"
+     },
+     "technologies": {
+      "items": {
+       "$ref": "#/components/schemas/Technology"
+      },
+      "title": "Technologies",
+      "type": "array"
+     },
      "theme_id": {
       "title": "Theme Id",
       "type": "string"
+     },
+     "thresholds": {
+      "items": {
+       "$ref": "#/components/schemas/Threshold"
+      },
+      "title": "Thresholds",
+      "type": "array"
      }
     },
     "required": [
@@ -20483,6 +20858,26 @@
      "rows"
     ],
     "title": "ThemeLayers",
+    "type": "object"
+   },
+   "Threshold": {
+    "properties": {
+     "citations": {
+      "items": {
+       "$ref": "#/components/schemas/SourceCitation"
+      },
+      "title": "Citations",
+      "type": "array"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "title": "Threshold",
     "type": "object"
    },
    "ThresholdRule": {
@@ -23478,6 +23873,71 @@
     "title": "ChartSpec",
     "type": "object"
    },
+   "arp__schemas__authority_taxonomy__Criterion": {
+    "properties": {
+     "citations": {
+      "items": {
+       "$ref": "#/components/schemas/SourceCitation"
+      },
+      "title": "Citations",
+      "type": "array"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "text"
+    ],
+    "title": "Criterion",
+    "type": "object"
+   },
+   "arp__schemas__decision__Criterion": {
+    "properties": {
+     "column": {
+      "title": "Column",
+      "type": "string"
+     },
+     "dimension_id": {
+      "title": "Dimension Id",
+      "type": "string"
+     },
+     "direction": {
+      "default": "higher",
+      "enum": [
+       "higher",
+       "lower"
+      ],
+      "title": "Direction",
+      "type": "string"
+     },
+     "enabled": {
+      "default": true,
+      "title": "Enabled",
+      "type": "boolean"
+     },
+     "required": {
+      "default": false,
+      "description": "Relative mode: a company without a usable value here gets no score, with the reason, instead of a filled-in value. Applies whatever its weight; a disabled criterion is never required.",
+      "title": "Required",
+      "type": "boolean"
+     },
+     "weight": {
+      "default": 1.0,
+      "description": "Relative share of its dimension's weight. 0 parks it without deleting it.",
+      "minimum": 0.0,
+      "title": "Weight",
+      "type": "number"
+     }
+    },
+    "required": [
+     "column",
+     "dimension_id"
+    ],
+    "title": "Criterion",
+    "type": "object"
+   },
    "arp__schemas__reporting__ChartSpec": {
     "properties": {
      "category_column": {
@@ -24021,6 +24481,308 @@
     "summary": "Get Value",
     "tags": [
      "authoritative"
+    ]
+   }
+  },
+  "/api/authority-taxonomy/runs": {
+   "post": {
+    "operationId": "start_api_authority_taxonomy_runs_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AuthorityRunRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AuthorityRunStarted"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Start",
+    "tags": [
+     "authority-taxonomy"
+    ]
+   }
+  },
+  "/api/authority-taxonomy/runs/{run_id}": {
+   "delete": {
+    "operationId": "cancel_api_authority_taxonomy_runs__run_id__delete",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Cancel",
+    "tags": [
+     "authority-taxonomy"
+    ]
+   },
+   "get": {
+    "operationId": "get_run_api_authority_taxonomy_runs__run_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RunState"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Run",
+    "tags": [
+     "authority-taxonomy"
+    ]
+   }
+  },
+  "/api/authority-taxonomy/runs/{run_id}/accept": {
+   "post": {
+    "operationId": "accept_api_authority_taxonomy_runs__run_id__accept_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AcceptResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Accept",
+    "tags": [
+     "authority-taxonomy"
+    ]
+   }
+  },
+  "/api/authority-taxonomy/runs/{run_id}/draft": {
+   "get": {
+    "operationId": "get_draft_api_authority_taxonomy_runs__run_id__draft_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ThemeDefinition"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Draft",
+    "tags": [
+     "authority-taxonomy"
+    ]
+   },
+   "put": {
+    "operationId": "put_draft_api_authority_taxonomy_runs__run_id__draft_put",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/ThemeDefinition"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RunState"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Put Draft",
+    "tags": [
+     "authority-taxonomy"
+    ]
+   }
+  },
+  "/api/authority-taxonomy/runs/{run_id}/sources": {
+   "post": {
+    "operationId": "select_sources_api_authority_taxonomy_runs__run_id__sources_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "run_id",
+      "required": true,
+      "schema": {
+       "title": "Run Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SourcesRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/RunState"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Select Sources",
+    "tags": [
+     "authority-taxonomy"
     ]
    }
   },
