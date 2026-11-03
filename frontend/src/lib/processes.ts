@@ -94,7 +94,7 @@ export const WORKSPACES: Workspace[] = [
   {
     id: "argus",
     name: "Argus",
-    purpose: "Extract data points from disclosures, each cited to its source, and score them.",
+    purpose: "Extract cited data points from disclosures and score them.",
     // xbrl_fetch counts for the Argus card but is not in REVIEWABLE: it has nothing to review.
     runTypes: [...EXTRACTION_RUNS, "xbrl_fetch"],
     screens: [
@@ -183,7 +183,7 @@ export const WORKSPACES: Workspace[] = [
   {
     id: "rdLab",
     name: "R&D Lab",
-    purpose: "Spot themes and test strategies, score them, and turn them into indices.",
+    purpose: "Spot themes, test strategies and turn them into indices.",
     runTypes: ["emerging_themes", "taxonomy_research", "theme", "calibration"],
     screens: [
       ["#/themes", "Theme dossiers"],
@@ -254,7 +254,7 @@ export const WORKSPACES: Workspace[] = [
   {
     id: "dataHub",
     name: "Data Hub",
-    purpose: "Input feeds and stored data; the security master maps every security to its issuer, once, for the whole tool.",
+    purpose: "Input feeds, stored data and the security master.",
     runTypes: [],
     screens: [
       ["#/feeds", "Feeds"],
