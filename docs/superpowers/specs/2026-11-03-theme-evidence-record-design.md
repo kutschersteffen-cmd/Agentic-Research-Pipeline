@@ -56,7 +56,7 @@ evidence: list[EvidenceRef] = Field(default_factory=list)
 ```
 
 - `evidence_status` is `None` only when evidence selection did not run: the revenue path
-  (`finalize_from_revenue`, debate skipped by a hard number) and pairs built outside the match graph.
+  (`_finalize_from_revenue`, debate skipped by a hard number) and pairs built outside the match graph.
 - `evidence` lists the chunks `select_relevant_chunks` returned, in the order it returned them. Empty when
   `evidence_status` is not `selected`.
 
@@ -75,7 +75,7 @@ Names do not clash with A2's `funnel` field. Old run JSON without these fields l
   - Verdict (`exclude`), confidence and `flagged_for_review` are computed as today in both cases.
 - The adjudicator path (`_run_adjudicator_node`) sets `evidence_status="selected"` and fills `evidence` from
   `state["evidence"]`.
-- `finalize_from_revenue` sets neither field.
+- `_finalize_from_revenue` sets neither field.
 
 With the A2 funnel on, pairs that pass the funnel reach the match graph as today and get these fields. A2's spec
 keeps "No documents → unchanged (`finalize_no_evidence`)", which this spec refines without changing the verdict.
@@ -92,32 +92,59 @@ Where `EvidenceRef` is declared inside `thematic.py`; whether the no-documents o
 
 ## Acceptance
 
-Rows use a stand-in LLM that returns a fixed advocate, opposing and adjudicator answer and counts calls, and
-fixture theme `T` with one activity `a1` whose seed keyword is `electrolyser`. No revenue resolver,
-indirect model or R&D resolver unless a row says so. Funnel setting off unless a row says so.
+All rows are `unit`: they need a fixture theme, fixture documents and a stand-in LLM fed straight into the match
+graph. The e2e stack's `ARP_STANDINS_DIR` covers the LLM only, not a fixture theme, documents or an indirect
+model; the test-writer may move rows to `holdout` if it finds a path for those.
 
-| ID    | Given | When | Then (observable, exact) | Checked by |
-|-------|-------|------|--------------------------|------------|
-| AC-1  | Company A with zero documents | theme run on `T` | A's match for `a1` has `evidence_status` `"no_documents"` | holdout |
-| AC-2  | Same as AC-1 | theme run on `T` | A's `adjudicator_rationale` starts with `No documents were available for this company.` | holdout |
-| AC-3  | Same as AC-1 | theme run on `T` | A's `advocate.rationale` and `opposing.rationale` both equal `No documents were available for this company.` | holdout |
-| AC-4  | Same as AC-1 | theme run on `T` | A's `evidence` is `[]` | holdout |
-| AC-5  | Company B with one document whose text never contains `electrolyser` | theme run on `T` | B's match has `evidence_status` `"no_matching_chunks"` | holdout |
-| AC-6  | Same as AC-5 | theme run on `T` | B's `adjudicator_rationale` equals `No evidence of this activity was found in the available documents.` | holdout |
-| AC-7  | Same as AC-5 | theme run on `T` | B's `advocate.rationale` equals `No document chunks matched this activity's seed keywords in the available disclosures.` | holdout |
-| AC-8  | Company C with one document `d1` containing `electrolyser` in 3 separate chunks | theme run on `T` | C's match has `evidence_status` `"selected"` | holdout |
-| AC-9  | Same as AC-8 | theme run on `T` | C's `evidence` has 3 entries, each `doc_id` is `d1`, and the `chunk_id` list equals the ids of the chunks the stand-in advocate received, in the same order | holdout |
-| AC-10 | Same as AC-8 | read the run JSON | Each entry of C's `evidence` has exactly the keys `chunk_id` and `doc_id` | holdout |
-| AC-11 | Company D with documents containing `electrolyser` in 20 chunks | theme run on `T` | D's `evidence` has 12 entries | holdout |
-| AC-12 | Company E with a revenue catalogue entry that resolves `a1` to a hard percentage | theme run on `T` with the revenue resolver | E's match has `evidence_status` `null` and `evidence` `[]` | holdout |
-| AC-13 | Company A as in AC-1, with an indirect model giving structural exposure above `indirect_exposure_review_threshold` | theme run on `T` | A's `adjudicator_rationale` starts with `No documents were available for this company.` and contains `input-output propagation shows structural exposure` | holdout |
-| AC-14 | Companies A, B and C as above | theme run on `T`, once on `main` and once on this branch | For each company, `verdict`, `confidence`, `flagged_for_review` and `citations` are equal between the two runs | holdout |
-| AC-15 | A run JSON written on `main` (no `evidence_status`, no `evidence`) | load it as `CompanyMatch` | Loads without error; `evidence_status` is `null` and `evidence` is `[]` | holdout |
-| AC-16 | Funnel setting on, stand-in models making C pass the funnel | theme run on `T` | C's match has `evidence_status` `"selected"` and a non-null `funnel` record | unit |
-| AC-17 | The regenerated `openapi.json` | inspect the `CompanyMatch` schema | It lists `evidence_status` and `evidence` | unit |
-| AC-18 | The existing backend test suite on `main` | `python3 -m pytest backend/tests` on this branch, excluding files added by this change | Same pass/fail result per test as on `main` | unit |
+Fixtures used by the rows:
 
-Must not change: verdicts, confidence, review flags and citations (AC-14); the no-matching-chunks wording (AC-6,
-AC-7); loading old runs (AC-15); the existing suite (AC-18).
+- Theme `T`: one activity `a1`, seed keyword `electrolyser`, no contrast statements.
+- Stand-in LLM: advocate and opposing return a fixed opinion; the adjudicator returns verdict `include`,
+  exposure `high`, confidence `0.8`, `citations` `[]`.
+- Settings: `hybrid_retrieval_enabled` false, `section_chunking_enabled` false, funnel off, no revenue
+  resolver, indirect model or R&D resolver, unless a row says otherwise.
+- Document `d1`: exactly three paragraphs separated by one blank line, each 3,000 characters, nothing else.
+  `chunk_document` with the default 3,500-character chunks yields exactly 3 chunks `k1`, `k2`, `k3`, one per
+  paragraph. `k1` contains `electrolyser` 3 times, `k2` 2 times, `k3` once; the rest is filler without it.
+  The test first asserts that `chunk_document(d1)` returns these 3 chunks.
+- "The run's results" means `GET /api/runs/{run_id}/results` (`backend/arp/api/routers/runs.py:180`), field
+  `matches`.
+
+| ID     | Given | When | Then (observable, exact) | Checked by |
+|--------|-------|------|--------------------------|------------|
+| AC-1   | Company A with zero documents | theme run on `T` | A's match for `a1` has `evidence_status` `"no_documents"` | unit |
+| AC-2   | Same as AC-1 | theme run on `T` | A's `adjudicator_rationale` starts with `No documents were available for this company.` | unit |
+| AC-3   | Same as AC-1 | theme run on `T` | A's `advocate.rationale` equals `No documents were available for this company.` | unit |
+| AC-3b  | Same as AC-1 | theme run on `T` | A's `opposing.rationale` equals `No documents were available for this company.` | unit |
+| AC-4   | Same as AC-1 | theme run on `T` | A's `evidence` is `[]` | unit |
+| AC-5   | Company B with one document whose text never contains `electrolyser` | theme run on `T` | B's match has `evidence_status` `"no_matching_chunks"` | unit |
+| AC-6   | Same as AC-5 | theme run on `T` | B's `adjudicator_rationale` equals `No evidence of this activity was found in the available documents.` | unit |
+| AC-7   | Same as AC-5 | theme run on `T` | B's `advocate.rationale` equals `No document chunks matched this activity's seed keywords in the available disclosures.` | unit |
+| AC-7b  | Same as AC-5 | theme run on `T` | B's `opposing.rationale` equals `No document chunks matched this activity's seed keywords in the available disclosures.` | unit |
+| AC-8   | Company C with document `d1` only | theme run on `T` | C's match has `evidence_status` `"selected"` | unit |
+| AC-9   | Same as AC-8 | read the run's results | C's `evidence` has 3 entries | unit |
+| AC-9b  | Same as AC-8 | read the run's results | Every entry of C's `evidence` has `doc_id` equal to `d1`'s doc_id | unit |
+| AC-9c  | Same as AC-8 | read the run's results | C's `evidence` `chunk_id` list is `[k1, k2, k3]` in that order | unit |
+| AC-10  | Same as AC-8 | read the run's results | Each entry of C's `evidence` has exactly the keys `chunk_id` and `doc_id` | unit |
+| AC-11  | Company D with documents yielding 20 chunks that contain `electrolyser` | theme run on `T` | D's `evidence` has 12 entries | unit |
+| AC-12  | Company E with a revenue catalogue entry that resolves `a1` to a hard percentage | theme run on `T` with the revenue resolver | E's `evidence_status` is `null` | unit |
+| AC-12b | Same as AC-12 | theme run on `T` with the revenue resolver | E's `evidence` is `[]` | unit |
+| AC-13  | Company A as in AC-1, with an indirect model giving `max(upstream, downstream)` ≥ `indirect_exposure_review_threshold` | theme run on `T` | A's `adjudicator_rationale` starts with `No documents were available for this company.` | unit |
+| AC-13b | Same as AC-13 | theme run on `T` | A's `adjudicator_rationale` contains `input-output propagation shows structural exposure` | unit |
+| AC-13c | Company B as in AC-5, with the AC-13 indirect model | theme run on `T` | B's `adjudicator_rationale` equals `No evidence of this activity was found in the available documents.` followed directly by the existing structural sentence starting ` However, input-output propagation shows structural exposure` | unit |
+| AC-14  | Companies A and B as above | theme run on `T` | For both: `verdict` `exclude`, `confidence` `1.0`, `flagged_for_review` `false`, `citations` `[]` | unit |
+| AC-14b | Company C as above | theme run on `T` | C's `verdict` is `include`, `confidence` `0.8`, `citations` `[]` (the stand-in adjudicator's outputs) | unit |
+| AC-15  | A stored theme run whose `results.jsonl` rows were written on `main` (no `evidence_status`, no `evidence`) | `GET /api/runs/{run_id}/results` | Status 200 | unit |
+| AC-15b | Same as AC-15 | `GET /api/runs/{run_id}/results` | Every match has `evidence_status` `null` and `evidence` `[]` | unit |
+| AC-16  | Funnel setting on, stand-in models making C pass the funnel | theme run on `T` | C's match has `evidence_status` `"selected"` | unit |
+| AC-17  | The regenerated `openapi.json` | inspect the `CompanyMatch` schema | It lists `evidence_status` and `evidence` | unit |
+| AC-18  | The backend test suite on `main` | `python3 -m pytest backend/tests` on this branch | Every test on `main` that the PR does not list as changed passes; each changed test is listed in the PR description with the AC row that requires it | unit |
+
+Must not change: verdicts, confidence, review flags and citations (AC-14, AC-14b); the no-matching-chunks wording
+with and without the structural sentence (AC-6, AC-7, AC-7b, AC-13c); loading old runs (AC-15, AC-15b); the
+existing suite (AC-18).
+
+Existing tests asserting today's no-evidence wording: none found (`grep -rn "No evidence" backend/tests` finds
+only a fixture value `"No evidence."` in `tests/test_runs_export.py:63`, which this change does not affect).
 
 AC-16 depends on A2's `theme-funnel` being merged; until then it is owed and listed as such in the PR.
