@@ -1,0 +1,15 @@
+{
+  "unique_to_a": [
+    "act_fixed2"
+  ],
+  "unique_to_b": [
+    "act_fixed4"
+  ],
+  "likely_duplicates": [
+    {
+      "activity_a_id": "act_fixed1",
+      "activity_b_id": "act_fixed3",
+      "similarity_note": "Both EV manufacturing."
+    }
+  ]
+}

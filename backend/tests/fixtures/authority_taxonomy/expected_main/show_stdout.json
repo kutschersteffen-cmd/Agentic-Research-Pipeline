@@ -1,0 +1,48 @@
+{
+  "taxonomy_id": "tax_a",
+  "name": "A",
+  "version": 1,
+  "theme": {
+    "theme_id": "theme_a",
+    "name": "A",
+    "description": "d",
+    "activities": [
+      {
+        "activity_id": "act_fixed1",
+        "name": "EV manufacturing",
+        "in_scope_description": "x",
+        "out_of_scope_description": "y",
+        "seed_keywords": [],
+        "core_isic_codes": [],
+        "source_citation": null,
+        "standards_mapping": null,
+        "tier": "core",
+        "lifecycle_stage": null,
+        "criticality_flag": false,
+        "human_approved": false
+      },
+      {
+        "activity_id": "act_fixed2",
+        "name": "Grid modernization",
+        "in_scope_description": "x",
+        "out_of_scope_description": "y",
+        "seed_keywords": [],
+        "core_isic_codes": [],
+        "source_citation": null,
+        "standards_mapping": null,
+        "tier": "core",
+        "lifecycle_stage": null,
+        "criticality_flag": false,
+        "human_approved": false
+      }
+    ],
+    "created_at": "<TS>"
+  },
+  "derivation_method": "llm_draft",
+  "source_notes": "seed",
+  "status": "draft",
+  "ratified_by": null,
+  "ratified_at": null,
+  "based_on_version": null,
+  "created_at": "<TS>"
+}
