@@ -16,13 +16,14 @@ flow (first ~20k characters, one quote per activity, no review step), which the 
 1. One screen in the Taxonomy Library that drives a run through its three checkpoints:
    1. **Start:** theme name, theme key (one of the 10 library themes, or none), scope text, source guidance,
       value-chain toggle.
-   2. **Sources** (stage `awaiting_sources`): list candidates with title, summary, reason, fetchable flag, checklist
-      coverage (`covers`) and a "from library" marker; tick candidates; add URLs; upload documents.
+   2. **Sources** (stage `awaiting_sources`): list candidates with title, source type, summary, reason, fetchable
+      flag, checklist coverage (`covers`) and a "from library" marker; tick candidates; add URLs; upload documents.
    3. **Review** (stage `awaiting_review`): view and edit the draft taxonomy document, save, then accept or cancel.
 2. The slow steps (discovery, fetch and extraction) run in the background; the screen shows progress by polling and
    never fails on a proxy timeout.
-3. A run survives a closed tab: the run id is in the URL, and opening the URL resumes at the current stage.
-4. Uploaded documents land under `settings.documents_dir`, so the API accepts their paths.
+3. A run survives a closed tab: the run id is in the URL, and opening the URL resumes at the current stage, with the
+   last source selection restored.
+4. Uploaded documents land under `settings.documents_dir`, so the run accepts their paths.
 5. It **replaces** the old `authority_source` create flow in `TaxonomyLibrary.tsx` (owner, 2026-11-03).
 
 ## Non-goals
@@ -31,26 +32,34 @@ flow (first ~20k characters, one quote per activity, no review step), which the 
 - Editing or adding quotes. Citations are shown read-only; they are verbatim, grounding-checked text.
 - Managing the authority-source library (`arp authority-library propose|approve|reject` stays CLI-only).
 - Changing the other derivation methods, `compare`/`merge`, ratification or the theme run.
-- Showing a run's progress per source (only the stage is reported).
+- Progress per source (only the stage is reported).
+- A role check on the authority-taxonomy API. The router has none, like `taxonomies.py`; the UI follows the API.
 
 ## Anti-goals
 
 - A user edit that silently drops a citation, or lets an activity reach accept without one.
 - A taxonomy saved without the user pressing Accept.
-- A spinner that waits forever: a failed background step must show its error and let the user act.
+- A spinner that waits forever: a failed or interrupted background step must show its error and let the user act.
 - An uploaded file written outside `documents_dir`, or a run that reads one.
 
 ## Constraints
 
-- Frontend: React + TypeScript in `frontend/src`, hash routing (`navigate(tab, ...params)` in `App.tsx`), API calls
-  through `frontend/src/api/client.ts`, types from the generated `frontend/src/api/schema.gen.ts`.
+- Frontend: React + TypeScript in `frontend/src`, hash routing (`navigate(tab, ...params)` in `App.tsx`, the
+  Taxonomy Library tab id is `taxonomy`), API calls through `frontend/src/api/client.ts`, types from the generated
+  `frontend/src/api/schema.gen.ts`.
 - nginx (`frontend/nginx.conf`) sets no proxy timeout, so requests longer than the 60 s default fail with 504.
-- The API from #325: `POST /api/authority-taxonomy/runs`, `GET /runs/{id}`, `POST /runs/{id}/sources`,
-  `GET|PUT /runs/{id}/draft`, `POST /runs/{id}/accept`, `DELETE /runs/{id}`.
-- `PUT /draft` rejects any activity with no citations (422).
-- `POST /sources` accepts only file paths under `settings.documents_dir` (422 otherwise).
+- The API from #325: `POST /api/authority-taxonomy/runs`, `GET /runs/{id}`, `POST /runs/{id}/sources` (body
+  `{"urls": [...], "files": [...]}`), `GET|PUT /runs/{id}/draft`, `POST /runs/{id}/accept`, `DELETE /runs/{id}`.
+- `PUT /draft` rejects any activity with no citations (422 `activity <name> has no citation`).
+- `POST /sources` accepts only file paths under `settings.documents_dir` (422 `file not allowed: <name>`).
+- `POST /api/documents/upload` cannot be reused: its `safe_id` check (`backend/arp/storage/safe_path.py`) rejects a
+  `company_id` starting with `_`, and a plain id would read as a company to the per-company document code.
+- The in-process job launcher loses background work on a process restart; `run_alive` (`orchestration/jobs.py`)
+  tells whether a run's worker still holds its lease.
 
-## Approaches (slow steps)
+## Approaches
+
+### Slow steps
 
 Discovery and extraction can take minutes, which is longer than the 60 s nginx default.
 
@@ -63,147 +72,198 @@ Discovery and extraction can take minutes, which is longer than the 60 s nginx d
 3. Synchronous, but recover by re-reading the run on timeout. Does not work: `POST /runs` returns the run id only
    when discovery has finished.
 
+### Uploads
+
+1. **Own endpoint `POST /api/authority-taxonomy/uploads` (chosen by the owner, 2026-11-03).** Part of the same
+   backend follow-up; touches neither the shared id check nor company folders.
+2. Reuse `/api/documents/upload` with a plain id like `authority-sources`. No backend change, but the folder reads
+   as a company and could clash with a real one.
+3. Loosen `safe_id` to allow a leading `_`. Smallest diff, but changes a security check every file store uses.
+
 ## Design
 
 ### Backend change (follow-up PR after #325)
 
-- `Stage` gains `discovering` and `extracting`. `RunState` gains `error: str | None = None`.
+- `Stage` gains `discovering`, `extracting` and `failed`. `RunState` gains `error: str | None = None` and
+  `selection: SourcesRequest | None = None` (the last `{urls, files}` sent to `POST /sources`).
 - `POST /runs` saves a state at `discovering`, schedules discovery in the background, and returns
   `{id, stage: "discovering"}` (still 201). When discovery finishes, the state moves to `awaiting_sources`.
 - `POST /runs/{id}/sources` validates the request (non-empty, file paths under `documents_dir`, stage
-  `awaiting_sources`) synchronously as today, then saves `extracting` and returns the state. When extraction
-  finishes, the state moves to `awaiting_review`.
-- A background failure keeps the run at the stage it came from (`awaiting_sources` for an extraction failure) with
-  `error` set, so the user can change the selection and retry. A discovery failure moves the run to `failed` with
-  `error`, since there is nothing to retry from; the UI offers "start again" with the same inputs. The next
-  successful step clears `error`.
-- `cancel` also accepts `discovering` and `extracting`; a background step that finishes after a cancel does not
+  `awaiting_sources`) synchronously as today, then saves `extracting` with `selection` set and returns the state.
+  When extraction finishes, the state moves to `awaiting_review`.
+- Failures:
+  - Discovery raises: stage `failed`, `error` = the exception message. Nothing to retry from; the UI offers "Start a
+    new run" with the same inputs.
+  - Extraction raises (including "no selected source could be read"): stage back to `awaiting_sources`, `error` = the
+    message, `selection` kept, so the user can change it and retry.
+  - The next successful step clears `error`.
+- Interrupted work (author's call, using the existing pattern): `GET /runs/{id}` on a run at `discovering` or
+  `extracting` whose `run_alive` is false applies the failure rule above with `error` =
+  `interrupted by a server restart`, saves it, and returns it.
+- `cancel` also accepts `discovering` and `extracting`. A background step that finishes after a cancel does not
   overwrite the `cancelled` state.
+- `POST /api/authority-taxonomy/uploads` (multipart `file`): accepts `.pdf`, `.txt`, `.md` (else 422
+  `unsupported file type`), respects `max_upload_bytes` (else 413), passes the name through `safe_filename`, writes to
+  `documents_dir/_authority/`, never overwrites (`-2`, `-3` suffix as in `documents.py`), returns
+  `{"path": "<absolute path>"}`.
 - The CLI keeps its synchronous behaviour (it calls the run functions directly).
-- Regenerate `openapi.json` and `schema.gen.ts`.
-
-### Upload
-
-The screen reuses `POST /api/documents/upload` with `company_id = "_authority"` and `doc_type = "other"`. Files
-land in `documents_dir/_authority/other/`, never overwrite, and respect `max_upload_bytes`. The returned `path`
-goes into the `files` list of `POST /sources`. Accepted file types in the picker are `.pdf`, `.txt` and `.md`,
-which are the types the run can read. No backend change.
+- Regenerate `openapi.json` and `schema.gen.ts`; add the new requests to `frontend/src/api/contract.ts`.
 
 ### Routing
 
 - `#/taxonomy/authority` opens the start form.
 - `#/taxonomy/authority/<runId>` loads the run and shows the screen for its stage.
-- The old "Authority source" option in the Taxonomy Library create flow is removed. Its slot links to the new
-  screen. Components only the old flow used are deleted. `SourceDiscoveryPanel` stays if the thematic-fund
-  discovery still uses it.
+- The "Authority source" option is removed from the Taxonomy Library create flow; a "Build from authority sources"
+  entry in the Taxonomy Library opens `#/taxonomy/authority`. Components and client calls only the old flow used are
+  deleted. `SourceDiscoveryPanel` stays while thematic-fund discovery uses it.
 
 ### Screen per stage
 
-- **Start form.** Theme name (required), theme key (a select of the 10 keys from `library.THEME_KEYS` plus "none",
-  hard-coded in the frontend with readable labels), scope (textarea), source guidance (textarea), value-chain
-  checkbox. Submitting calls `POST /runs` and navigates to `#/taxonomy/authority/<id>`.
-- **discovering / extracting.** A progress message with the theme name and what is happening, plus a Cancel button.
-  Poll `GET /runs/{id}` every 3 s while the tab is visible. Stop polling when the stage changes.
-- **awaiting_sources.** A card per candidate: title (linked to the URL, opens in a new tab), source type, summary,
-  reason, a "from library" badge, a "not fetchable" warning when `fetchable` is false, and checklist coverage as 8
-  chips (`theme_description`, `activities`, `boundaries`, `technologies`, `definitions`, `sector_codes`,
-  `value_chain`, `thresholds`), filled when the item is in `covers`. A candidate starts ticked when it is both
-  `from_library` and `fetchable`; all others start unticked. Below the list: "Add URL" (input plus list of added URLs, removable) and
-  "Upload document" (file input, list of uploaded files, removable from the selection). "Build draft" is disabled
-  until at least one source is selected and no upload is in progress. If `error` is set, show it above the list.
+- **Start form.** Theme name (required; empty shows the inline text `Theme name is required` and sends nothing),
+  theme key (a select of the 10 keys from `library.THEME_KEYS` plus "None", hard-coded in the frontend with readable
+  labels), scope (textarea), source guidance (textarea), value-chain checkbox, Start button. Start calls
+  `POST /runs` and navigates to `#/taxonomy/authority/<id>`.
+- **discovering / extracting.** A message containing the theme name and what is happening, plus a Cancel button.
+  Poll `GET /runs/{id}` every 3 s while `document.visibilityState` is `visible`; poll once on becoming visible again.
+  Stop polling when the stage is neither `discovering` nor `extracting`.
+- **awaiting_sources.** If `error` is set, it is shown above the list. A card per candidate: title (link to the URL,
+  `target="_blank"`), source type, summary, reason, a "From library" badge when `from_library`, a "Not fetchable"
+  warning when `fetchable` is false, and 8 checklist chips (`theme_description`, `activities`, `boundaries`,
+  `technologies`, `definitions`, `sector_codes`, `value_chain`, `thresholds`), marked covered when the key is in
+  `covers`. Initial selection: if `selection` is set, it is restored (ticks for candidate URLs in it, the rest as
+  added URLs and uploaded files); otherwise a candidate starts ticked when it is both `from_library` and `fetchable`.
+  Below the list: "Add URL" (input plus removable list) and "Upload document" (file input with
+  `accept=".pdf,.txt,.md"`, removable list of uploaded files). "Build draft" is disabled when nothing is selected or
+  an upload is in progress. It sends `{"urls": [ticked candidate URLs, then added URLs], "files": [upload paths]}`.
 - **awaiting_review.** The draft document, editable, with Save, Accept and Cancel. See below.
-- **accepted.** A confirmation with a link to the new taxonomy in the Taxonomy Library (`taxonomy_id`).
-- **cancelled / failed.** A message (and `error` for failed) with "Start a new run", which opens the start form
-  prefilled with this run's inputs.
+- **accepted.** A confirmation with the taxonomy id and a link to the Taxonomy Library.
+- **cancelled / failed.** A message (and `error` when set) with "Start a new run", which opens the start form
+  prefilled with this run's theme name, theme key, scope, guidance and value-chain value.
 
 ### Review screen
 
-Sections, in order:
+Sections, in this order:
 
 1. **Theme description**: editable textarea. Read-only scope shown above it.
-2. **Technologies**: list of name plus citations; name editable; item removable.
+2. **Technologies**: name editable; citations shown; item removable.
 3. **Definitions**: term and text editable; citations shown; item removable.
 4. **Activities**: one block per activity with name, in-scope and out-of-scope description, criteria (text
-   editable, citations shown, removable), seed keywords (chip editor: add/remove), value-chain role (select: core,
-   upstream, enabling), sector codes (list of `system code` with an origin badge `source` / `map_standards` /
-   `exiobase`; removable, not addable, since the schema has no origin for a hand-added code: builder-chosen
-   default), citations, and out-of-scope citations. Activities are removable; there is no "add activity",
-   since a new activity has no quote and the API would reject it.
-5. **Thresholds**: separate section, text editable, citations shown, removable. Labelled as not used for activity
-   matching.
-6. **Citations**: each citation shows the quote, the source URL (linked) and the location, wherever it appears.
-7. **Checklist report**: a table, one row per source (URL or file name), one column per checklist item, showing
-   found / not in source.
-8. **Notes**: run notes (`notes`, for example "Could not read: …"), read-only.
+   editable, citations shown, removable), seed keywords (chips: add, remove), value-chain role (select: core,
+   upstream, enabling), sector codes (`system code` with an origin badge `source`, `map_standards` or `exiobase`;
+   removable, not addable, because the schema has no origin for a hand-added code: author's call), citations, and
+   out-of-scope citations. Activities are removable. There is no "add activity", since a new activity has no quote
+   and the API rejects it.
+5. **Thresholds**: text editable, citations shown, removable. Labelled as not used for activity matching.
+6. **Checklist report**: one row per source (URL or file name), one column per checklist item, each cell
+   `found` or `not in source`.
+7. **Notes**: run notes (`notes`), read-only.
+
+Every citation, wherever it appears, shows its quote (not editable), its source URL as a link, and its location.
+Editing a text never changes the citations of that item.
 
 Behaviour:
 
-- Edits are local until Save, which calls `PUT /draft`. A 422 shows the server message. Leaving the page with
-  unsaved edits asks for confirmation.
-- Accept saves first if there are unsaved edits, then calls `POST /accept`.
+- Edits are local until Save, which calls `PUT /draft`. A 422 shows the server message and keeps the edits.
+- In-app navigation away with unsaved edits asks for confirmation; reload or close triggers the browser's
+  `beforeunload` prompt.
+- Accept: if there are unsaved edits, Save first; if that save fails, stop and show the message. Then
+  `POST /accept`.
 - Cancel asks for confirmation, then calls `DELETE /runs/{id}`.
-- A 409 (wrong stage, for example another tab accepted) reloads the run and shows its current stage.
+- A 409 from any call reloads the run and shows its current stage.
 
 ## Testing
 
-- Backend follow-up: unit tests for the new stages, background failure (`error` set, stage kept), cancel during a
-  background step, and the API returning before the work finishes.
-- Frontend: component tests in the existing `frontend/tests` style for each stage view, the coverage chips, the
-  upload-then-select path, Save/Accept/Cancel calls and the 409 reload, with the API client mocked.
-- One end-to-end walk in the running app with a stubbed LLM, through start → sources → review → accept.
+- Backend: unit tests for the new stages, failures, interrupted runs, cancel during a background step, the API
+  returning before the work finishes, and the upload endpoint.
+- Frontend: component tests in the existing `frontend/tests` style with the API client mocked.
+- E2E: one walk in the app from `backend/scripts/e2e_stack.sh up` with `ARP_STANDINS_DIR` pointing at a fixture
+  folder `backend/tests/fixtures/authority_taxonomy_ui/standins/` (search results, fetched texts and model answers),
+  through start → sources → review → accept.
 
 ## Left to the builder
 
-- Layout, styling and copy within the existing design system (`DESIGN.md`).
+- Layout, styling and copy within the existing design system (`DESIGN.md`), except the texts quoted above.
 - Readable labels for the 10 theme keys.
 - Component split and file names.
-
-## Open points
-
-1. Who may accept: the authority-taxonomy router has no role check, like `taxonomies.py`. The UI follows the API
-   (builder-chosen default; a role check is a separate change).
+- The stand-in fixture contents, as long as they produce the evaluator Givens below.
 
 ## Acceptance
 
-All rows are `unit` until `HOLDOUT_TOKEN` is set (owed to `holdout`). Backend rows use a stubbed LLM and search
-client; UI rows run in the app started by `backend/scripts/e2e_stack.sh up` with stubbed model calls.
+Rows marked `unit` are owed to `holdout` once `HOLDOUT_TOKEN` is set. Backend `unit` rows use a stubbed search
+client and LLM. Frontend `unit` rows use a mocked API client and fake timers. `evaluator` rows run in the app from
+`backend/scripts/e2e_stack.sh up` with `ARP_STANDINS_DIR` set to the fixture folder named in Testing, whose stand-ins
+make discovery for theme name `Hydrogen` return two candidates: `EU Taxonomy hydrogen` (`from_library: true,
+fetchable: true`, `covers: ["activities", "thresholds"]`) and `Blocked report` (`from_library: false, fetchable:
+false`); and make extraction of `EU Taxonomy hydrogen` produce a draft with 2 activities (activity 1 with one sector
+code of origin `exiobase`), 1 threshold and a checklist report for that one source.
+
+### Backend
 
 | ID    | Given | When | Then (observable, exact) | Checked by |
 |-------|-------|------|--------------------------|------------|
-| AC-1  | A discovery stub that blocks until released | `POST /api/authority-taxonomy/runs` with a valid body | Response 201 with `stage == "discovering"` arrives before the stub is released | unit |
-| AC-2  | A run at `discovering` whose discovery finishes with 2 candidates | `GET /runs/{id}` | 200, `stage == "awaiting_sources"`, `candidates` has 2 items, `error` is null | unit |
+| AC-1  | A discovery stub that blocks until released | `POST /api/authority-taxonomy/runs` with a valid body | 201 with `stage == "discovering"`, received before the stub is released | unit |
+| AC-2  | A run at `discovering` whose discovery finishes with 2 candidates | `GET /runs/{id}` | 200, `stage == "awaiting_sources"`, 2 `candidates`, `error` null | unit |
 | AC-3  | A run whose discovery raises `RuntimeError("boom")` | `GET /runs/{id}` | 200, `stage == "failed"`, `error` contains `boom` | unit |
-| AC-4  | A run at `awaiting_sources`, extraction stub blocks until released | `POST /runs/{id}/sources` with one URL | Response 200 with `stage == "extracting"` arrives before the stub is released | unit |
-| AC-5  | A run at `awaiting_sources` | `POST /runs/{id}/sources` with a file path outside `documents_dir` | 422, `detail` starts with `file not allowed:`; `GET /runs/{id}` still shows `awaiting_sources` | unit |
-| AC-6  | A run whose extraction reads no source | `GET /runs/{id}` after the step ends | `stage == "awaiting_sources"`, `error` contains `no selected source could be read` | unit |
-| AC-7  | A run at `extracting` | `DELETE /runs/{id}`, then extraction finishes | DELETE returns 204; `GET /runs/{id}` shows `stage == "cancelled"` and `draft` null | unit |
-| AC-8  | A run at `awaiting_review` after a failed earlier extraction | `GET /runs/{id}` | `error` is null | unit |
-| AC-9  | The app is open | Open `#/taxonomy/authority` | A form with fields Theme name, Theme key (11 options: 10 themes plus "None"), Scope, Source guidance, a Value chain checkbox and a Start button | evaluator |
-| AC-10 | The start form with Theme name empty | Click Start | No request is sent; the Theme name field shows a required-field message | evaluator |
-| AC-11 | The start form filled in | Click Start | The URL becomes `#/taxonomy/authority/<runId>` and a progress message with the theme name and a Cancel button is shown | evaluator |
-| AC-12 | A run at `awaiting_sources` with one candidate `from_library: true, fetchable: true` and one `from_library: false, fetchable: false` | Open its URL | 2 cards; the first is ticked and shows a library badge; the second is unticked and shows a "not fetchable" warning | evaluator |
-| AC-13 | A candidate with `covers == ["activities", "thresholds"]` | Its card is shown | 8 checklist chips, exactly 2 of them (activities, thresholds) marked as covered | evaluator |
-| AC-14 | A run at `awaiting_sources` | Upload `note.txt` via Upload document | The file is listed as selected; the request to `/api/documents/upload` sends `company_id=_authority` and the returned path starts with the `documents_dir/_authority/other/` path | unit |
-| AC-15 | Upload finished, file selected, all candidates unticked, one URL added | Click Build draft | `POST /sources` body is `{"urls": [<added url>], "files": [<upload path>]}` | unit |
-| AC-16 | A run at `awaiting_sources` with nothing ticked, no URL, no file | The sources screen is shown | Build draft is disabled | evaluator |
-| AC-17 | A run at `awaiting_review` with a draft of 2 activities, 1 threshold and a checklist report for 2 sources | Open its URL | Sections Theme description, Technologies, Definitions, Activities (2 blocks), Thresholds (1 item), Checklist report (2 rows × 8 columns), Notes | evaluator |
-| AC-18 | The review screen | Look at any citation | Its quote, a link to its source URL, and its location are shown; the quote is not editable | evaluator |
-| AC-19 | The review screen | Look at a sector code with `origin == "exiobase"` | It shows its system, code and an `exiobase` origin badge; there is no control to add a sector code | evaluator |
-| AC-20 | The review screen | Look for an "add activity" control | None exists | evaluator |
-| AC-21 | The review screen, activity 1's value-chain role changed to `upstream` | Click Save | `PUT /draft` is sent; reloading the page shows `upstream` for activity 1 | evaluator |
-| AC-22 | The review screen, `PUT /draft` answers 422 `activity X has no citation` | Click Save | That message is shown on the screen; the edits stay in the form | unit |
-| AC-23 | The review screen with unsaved edits | Click Accept | `PUT /draft` is sent before `POST /accept`; then a confirmation with a link to taxonomy `<taxonomy_id>` is shown | unit |
-| AC-24 | The review screen | Click Cancel, then confirm | `DELETE /runs/{id}` is sent; the screen shows the cancelled message and a "Start a new run" button | evaluator |
-| AC-25 | A cancelled run | Click "Start a new run" | The start form opens with that run's theme name, theme key, scope, guidance and value-chain value filled in | evaluator |
-| AC-26 | The review screen open in two tabs, accepted in tab 1 | Click Save in tab 2 | Tab 2 shows the accepted confirmation (409 handled by reloading the run) | unit |
-| AC-27 | A run at `discovering` | The screen polls | `GET /runs/{id}` is called every 3 s ± 0.5 s and stops once the stage is `awaiting_sources` | unit |
-| AC-28 | The review screen with unsaved edits | Navigate to another tab of the app | A confirmation prompt appears; dismissing it keeps the review screen | evaluator |
-| AC-29 | The Taxonomy Library create flow | Open it | No "Authority source" option inside the old create flow; an entry opens `#/taxonomy/authority` | evaluator |
+| AC-4  | A run at `awaiting_sources`, extraction stub blocks until released | `POST /runs/{id}/sources` with one URL | 200 with `stage == "extracting"` and `selection.urls == [that URL]`, received before the stub is released | unit |
+| AC-5  | A run at `awaiting_sources` | `POST /runs/{id}/sources` with a file path outside `documents_dir` | 422, `detail` starts with `file not allowed:` | unit |
+| AC-6  | Same as AC-5 | `GET /runs/{id}` afterwards | `stage == "awaiting_sources"` | unit |
+| AC-7  | A run whose extraction reads no source | `GET /runs/{id}` after the step ends | `stage == "awaiting_sources"`, `error` contains `no selected source could be read`, `selection` equals the request sent | unit |
+| AC-8  | A run at `extracting` | `DELETE /runs/{id}`, then extraction finishes | DELETE 204; `GET` shows `stage == "cancelled"`, `draft` null | unit |
+| AC-9  | A run at `discovering` | `DELETE /runs/{id}`, then discovery finishes | DELETE 204; `GET` shows `stage == "cancelled"`, `candidates` empty | unit |
+| AC-10 | A run that failed extraction once, then succeeded | `GET /runs/{id}` | `stage == "awaiting_review"`, `error` null | unit |
+| AC-11 | A run saved at `discovering` with no live worker (`run_alive` false) | `GET /runs/{id}` | `stage == "failed"`, `error == "interrupted by a server restart"` | unit |
+| AC-12 | A run saved at `extracting` with no live worker | `GET /runs/{id}` | `stage == "awaiting_sources"`, `error == "interrupted by a server restart"` | unit |
+| AC-13 | A run at `awaiting_review` | `PUT /runs/{id}/draft` with a valid edited draft | 200; `stage == "awaiting_review"`, `taxonomy_id` null; the taxonomy store's count is unchanged | unit |
+| AC-14 | — | `POST /api/authority-taxonomy/uploads` with `note.txt` | 200, `path` is `<documents_dir>/_authority/note.txt` and the file has the uploaded bytes | unit |
+| AC-15 | `note.txt` already uploaded once | Upload `note.txt` again | `path` ends with `_authority/note-2.txt`; the first file is unchanged | unit |
+| AC-16 | — | Upload `x.docx` | 422, `detail == "unsupported file type"`; nothing written | unit |
+| AC-17 | A path returned by AC-14 and a run at `awaiting_sources` | `POST /runs/{id}/sources` with `files == [that path]` | 200 | unit |
 
-Must not change:
+### Frontend (component)
 
 | ID    | Given | When | Then (observable, exact) | Checked by |
 |-------|-------|------|--------------------------|------------|
-| AC-30 | The CLI | `arp taxonomy author start …` then `select` with a stub LLM | The command returns only after the step finishes and prints the same output as on #325 | unit |
-| AC-31 | The other create methods in the Taxonomy Library | Create a taxonomy with each remaining method | Same requests and results as on `main` before this change | unit |
-| AC-32 | `POST /api/documents/upload` | Upload with any `company_id` | Same response and file location as on `main` | unit |
+| AC-18 | The start form with Theme name empty | Click Start | No `POST /runs` is sent; the text `Theme name is required` is shown | unit |
+| AC-19 | `GET /runs/{id}` returns `stage: "discovering"`, theme name `Hydrogen` | Open `#/taxonomy/authority/<id>` | A message containing `Hydrogen` and a Cancel button are shown | unit |
+| AC-20 | `GET /runs/{id}` returns `discovering` twice, then `awaiting_sources` | Advance fake timers by 12 s | Exactly 3 `GET /runs/{id}` calls, 3 s apart, none after `awaiting_sources` | unit |
+| AC-21 | A run at `discovering`, `document.visibilityState == "hidden"` | Advance fake timers by 10 s | No `GET /runs/{id}` is sent | unit |
+| AC-22 | A run at `awaiting_sources` | Choose `note.txt` in Upload document | The request goes to `POST /api/authority-taxonomy/uploads`; `note.txt` is then listed as selected | unit |
+| AC-23 | A run at `awaiting_sources` | Inspect the file input | Its `accept` attribute is `.pdf,.txt,.md` | unit |
+| AC-24 | An upload whose request has not answered yet | The sources screen is shown | Build draft is disabled | unit |
+| AC-25 | One upload done (path P), all candidates unticked, URLs `u1` and `u2` added, then `u2` removed | Click Build draft | `POST /sources` body is exactly `{"urls": ["u1"], "files": ["P"]}` | unit |
+| AC-26 | A run at `awaiting_sources` with `error: "x"` and `selection: {"urls": ["<candidate A url>", "u9"], "files": []}` | Open its URL | `x` is shown above the list; candidate A is ticked; `u9` is listed as an added URL | unit |
+| AC-27 | A run at `failed` with `error: "boom"` | Open its URL | `boom` and a "Start a new run" button are shown | unit |
+| AC-28 | The review screen; criterion 1 of activity 1 has citations C | Edit criterion 1's text, click Save | The `PUT /draft` body has criterion 1 with the new text and citations equal to C | unit |
+| AC-29 | The review screen; `PUT /draft` answers 422 `activity X has no citation` | Click Save | `activity X has no citation` is shown; the edited values are still in the form | unit |
+| AC-30 | Unsaved edits; `PUT /draft` answers 200 | Click Accept | `PUT /draft` is sent, then `POST /accept`; a confirmation with the returned `taxonomy_id` is shown | unit |
+| AC-31 | Unsaved edits; `PUT /draft` answers 422 | Click Accept | No `POST /accept` is sent; the 422 message is shown | unit |
+| AC-32 | `PUT /draft` answers 409, the next `GET /runs/{id}` returns `stage: "accepted"`, `taxonomy_id: "T"` | Click Save | The accepted confirmation with `T` is shown | unit |
+| AC-33 | The review screen with unsaved edits | Fire `beforeunload` | The handler calls `preventDefault()` on the event | unit |
+
+### In the running app
+
+| ID    | Given | When | Then (observable, exact) | Checked by |
+|-------|-------|------|--------------------------|------------|
+| AC-34 | The app is open | Open `#/taxonomy/authority` | Fields Theme name, Theme key (11 options: 10 themes plus "None"), Scope, Source guidance, a Value chain checkbox and a Start button | evaluator |
+| AC-35 | The start form with Theme name `Hydrogen` | Click Start | The URL becomes `#/taxonomy/authority/<runId>` | evaluator |
+| AC-36 | The run from AC-35 at `awaiting_sources` | Look at the cards | `EU Taxonomy hydrogen` is ticked and shows a "From library" badge; `Blocked report` is unticked and shows a "Not fetchable" warning | evaluator |
+| AC-37 | Same | Look at the `EU Taxonomy hydrogen` card | Title links to its URL in a new tab; source type, summary and reason are shown; 8 checklist chips, exactly `activities` and `thresholds` marked covered | evaluator |
+| AC-38 | Same, with everything unticked | Look at Build draft | Disabled | evaluator |
+| AC-39 | Same, `EU Taxonomy hydrogen` ticked | Click Build draft, wait for the review screen | Sections in this order: Theme description, Technologies, Definitions, Activities (2 blocks), Thresholds (1 item), Checklist report (1 row × 8 columns), Notes | evaluator |
+| AC-40 | The review screen from AC-39 | Look at any citation | Quote, a link to its source URL, and location are shown; the quote is not editable | evaluator |
+| AC-41 | Same | Look at activity 1's sector codes | Its code shows system, code and an `exiobase` badge; no control to add a sector code exists | evaluator |
+| AC-42 | Same | Look for an "add activity" control | None exists | evaluator |
+| AC-43 | Same | Set activity 1's value-chain role to `upstream`, Save, reload the page | Activity 1 shows `upstream` | evaluator |
+| AC-44 | Same, with an unsaved edit | Click another app tab, then dismiss the confirmation | The review screen stays, with the edit | evaluator |
+| AC-45 | Same | Click Cancel and confirm | The cancelled message and a "Start a new run" button are shown | evaluator |
+| AC-46 | The cancelled run from AC-45 | Click "Start a new run" | The start form shows `Hydrogen` and the same theme key, scope, guidance and value-chain value | evaluator |
+| AC-47 | The Taxonomy Library | Open its create flow | No "Authority source" option in it; a "Build from authority sources" entry opens `#/taxonomy/authority` | evaluator |
+
+### Must not change
+
+| ID    | Given | When | Then (observable, exact) | Checked by |
+|-------|-------|------|--------------------------|------------|
+| AC-48 | The CLI with stub LLM and search | `arp taxonomy author start …`, then `select` | Each command returns only after its step finishes; output equals #325's for the same stubs | unit |
+| AC-49 | The Taxonomy Library's remaining create methods (all except `authority_source`) | Create with each, mocked API | The request body for each equals the one `main` sends for the same inputs | unit |
+| AC-50 | Thematic-fund source discovery | Run it, mocked API | Same request and the same candidate cards as on `main` | unit |
+| AC-51 | `POST /api/documents/upload` | Upload with `company_id=acme`, `doc_type=other` | Same response and file location as on `main` | unit |
