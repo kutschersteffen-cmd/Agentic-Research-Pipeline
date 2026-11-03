@@ -213,3 +213,22 @@ async def test_no_keyword_evidence_unchanged(tmp_path, fake_llm, monkeypatch):
     assert match.adjudicator_rationale.startswith("No evidence of this activity")
     assert match.funnel is None
     assert m.calls == 0
+
+
+async def test_warmed_store_means_one_embed_per_activity(tmp_path, fake_llm, monkeypatch):  # AC-30
+    m = Models(monkeypatch, PASS_ROWS)
+    store = {}
+
+    class Store:
+        def lookup_embeddings(self, ids, model):
+            return {k: store[k] for k in ids if k in store}
+
+        def store_embeddings(self, vectors, model):
+            store.update(vectors)
+
+    monkeypatch.setattr(match_graph, "_funnel_content_store", lambda settings: Store())
+    docs = [_doc("c1", P_PASS)]
+    funnel.passage_vectors(funnel.chunks_for(docs), Store())  # what `documents warm --embed` does
+    m.calls = 0
+    await _run(tmp_path, _debate_script(fake_llm), docs)
+    assert m.calls == 3  # embed (the in-scope statement only), rerank, classify
