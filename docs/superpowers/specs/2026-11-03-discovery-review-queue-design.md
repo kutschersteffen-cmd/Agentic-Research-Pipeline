@@ -117,7 +117,7 @@ items. No change to `restart_run`; its docstring line about discovery counting w
 ### Seed script for the evaluator
 
 `backend/scripts/seed_discovery_review.py` (new) writes one discovery run into the configured run store, with
-no network: run type `discovery`, the three result rows of the AC-9 fixture, and their three review items, plus the
+no network: run type `discovery`, the two result rows of the AC-9 fixture (C1, C2) and their three review items, plus the
 two PDF working copies under `<documents_dir>/C2/10-K/` and matching manifest entries. It prints the run id.
 
 ## Left to the builder
