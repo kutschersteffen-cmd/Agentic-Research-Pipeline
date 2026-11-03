@@ -65,6 +65,22 @@ def exposure_split(set_dir: Path = typer.Option(..., "--set", help="Set director
     typer.echo("OK")
 
 
+@exposure_app.command("universe")
+def exposure_universe(
+    set_dir: Path = typer.Option(..., "--set", help="Set directory holding cases.json."),
+    split: str = typer.Option("all", "--split", help="tune, holdout or all."),
+    out: Path = typer.Option(..., "--out", help="Where to write the universe JSON (company_id = case_id)."),
+) -> None:
+    """The set's companies as a universe, for `arp universe narrow --cases`."""
+    from arp.golden_set.exposure import load_set
+
+    s = load_set(set_dir)
+    rows = [{"company_id": c.case_id, "name": c.company, "isin": c.isin, "nace_code": c.nace_code}
+            for c in s.cases if split == "all" or c.split == split]
+    out.write_text(json.dumps(rows, indent=2))
+    typer.echo(f"Wrote {len(rows)} companies to {out}")
+
+
 @exposure_app.command("stats")
 def exposure_stats(set_dir: Path = typer.Option(..., "--set", help="Set directory holding cases.json.")) -> None:
     """Prints tune/holdout counts per label."""
