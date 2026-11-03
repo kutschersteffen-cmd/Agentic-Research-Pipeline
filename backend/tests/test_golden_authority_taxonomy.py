@@ -37,7 +37,14 @@ def test_golden_pass_exit0(monkeypatch, tmp_path):
     result = _invoke(monkeypatch, tmp_path, list(QUOTES))
     assert result.exit_code == 0, result.output
     assert "grounded_rate=1.00 recall=1.00" in result.output
+    assert result.output.startswith("WARNING: excerpt written from memory")
     assert not (tmp_path / "runs").exists()  # nothing saved
+
+
+def test_golden_two_of_three_passes(monkeypatch, tmp_path):
+    result = _invoke(monkeypatch, tmp_path, list(QUOTES)[:2])
+    assert result.exit_code == 0, result.output
+    assert "recall=0.67" in result.output
 
 
 def test_golden_low_recall_exit1(monkeypatch, tmp_path):

@@ -95,6 +95,8 @@ def golden_set_authority_taxonomy(
 
     folder = cases_dir / case
     spec = json.loads((folder / "case.json").read_text(encoding="utf-8"))
+    if spec.get("source_note"):
+        typer.echo(f"WARNING: {spec['source_note']}")
     text = (folder / "source.txt").read_text(encoding="utf-8")
     settings = get_settings()
     llm = build_llm_client(settings)
@@ -115,7 +117,7 @@ def golden_set_authority_taxonomy(
     expected = spec["expected_activities"]
     recall = sum(merge_key(n) in keys for n in expected) / len(expected)
     typer.echo(f"grounded_rate={grounded_rate:.2f} recall={recall:.2f}")
-    if grounded_rate != 1.0 or recall < spec["min_recall"]:
+    if grounded_rate != 1.0 or round(recall, 2) < spec["min_recall"]:  # 2/3 must pass 0.67
         raise typer.Exit(1)
 
 
