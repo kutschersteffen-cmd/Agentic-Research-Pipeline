@@ -61,7 +61,7 @@ async def create_plan(req: DraftRequest, store: PlanStore = Depends(plan_store))
     from arp.api.deps import get_llm_client
 
     try:
-        plan_id = await draft_plan(req.brief, get_llm_client(), store, _context())
+        plan_id = await draft_plan(req.brief, get_llm_client(), store, await asyncio.to_thread(_context))
     except PlanRejected as exc:
         raise HTTPException(422, str(exc)) from exc
     return _get(store, plan_id)
@@ -106,7 +106,8 @@ async def replan(plan_id: str, store: PlanStore = Depends(plan_store),
     if _get(store, plan_id)["status"] != "failed":
         raise HTTPException(409, "only a failed plan can be re-planned")
     try:
-        await replan_plan(plan_id, get_llm_client(), store, _context(), principal.user_id)
+        await replan_plan(plan_id, get_llm_client(), store, await asyncio.to_thread(_context),
+                          principal.user_id)
     except PlanNotReplannable as exc:
         raise HTTPException(409, str(exc)) from exc
     except PlanRejected as exc:

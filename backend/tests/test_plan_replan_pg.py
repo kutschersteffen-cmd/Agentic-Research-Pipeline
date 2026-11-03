@@ -136,6 +136,20 @@ def test_replan_twice_keeps_all_done_calls(store, fake_llm, monkeypatch):
     assert [e["version"] for e in plan["previous_scripts"]] == [1, 2]
 
 
+def test_edit_replanned_plan_keeps_done_calls(store, fake_llm, monkeypatch):
+    plan_id = _failed(store)
+    _replan(store, plan_id, fake_llm, monkeypatch)
+    store.update_script(plan_id, store.get(plan_id)["script"])  # reads `previous`: must not be rejected
+    plan = store.get(plan_id)
+    assert (plan["version"], plan["dry_run"][0]["seq"]) == (2, 2)
+    assert [(c["seq"], c["status"]) for c in store.calls(plan_id)] == [(1, "done")]
+    store.approve(plan_id, "alice")
+    stubs = Stubs()
+    assert run_plan(plan_id, store, stubs.all(), lambda c: True) == "done"
+    assert [k for k, _ in stubs.started] == ["extraction", "decision_score"]  # seq 1 not re-run
+    assert stubs.started[0][1]["universe_run_id"] == "r_1"
+
+
 def test_cli_rejected_twice_leaves_plan(store, fake_llm, monkeypatch):  # AC-13
     plan_id = _failed(store)
     result, _ = _replan(store, plan_id, fake_llm, monkeypatch, [BAD, BAD2])

@@ -31,11 +31,12 @@ export function stepRows(plan: Plan): { step: DryRunStep; status: CallStatus; ca
     const call = bySeq.get(step.seq) ?? null;
     return { step, status: call?.status ?? ("pending" as CallStatus), call };
   });
-  // A data-dependent loop can make more calls than the dry run showed: list those too.
+  // Calls the dry run doesn't show (a data-dependent loop, or steps kept at re-planning): list those too.
+  const planned = new Set(plan.dry_run.map((s) => s.seq));
   for (const call of plan.calls ?? []) {
-    if (call.seq > plan.dry_run.length) rows.push({ step: { seq: call.seq, kind: call.kind, params: call.params, depends_on: null }, status: call.status, call });
+    if (!planned.has(call.seq)) rows.push({ step: { seq: call.seq, kind: call.kind, params: call.params, depends_on: null }, status: call.status, call });
   }
-  return rows;
+  return rows.sort((a, b) => a.step.seq - b.step.seq);
 }
 
 /** Where a finished step's result is shown: its run in Run History, or the screen that owns a run-less result. */
