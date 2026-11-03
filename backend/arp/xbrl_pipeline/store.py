@@ -101,6 +101,11 @@ class XbrlStore:
         atomic_write_text(d / "report.json", meta.model_dump_json(indent=2))
         return path
 
+    def save_labels(self, cik10: str, accession: str, content: bytes) -> Path:
+        path = self.company_dir(cik10) / f"labels-{safe_id(accession, label='accession')}.xml"
+        atomic_write_bytes(path, content)
+        return path
+
     def report_meta(self, cik10: str) -> ReportMeta | None:
         path = self.company_dir(cik10) / "report.json"
         return ReportMeta.model_validate_json(path.read_text(encoding="utf-8")) if path.exists() else None
@@ -152,6 +157,9 @@ class XbrlStore:
         if kind == "report":
             meta = self.report_meta(cik10)
             path = self.company_dir(cik10) / meta.filename if meta else None
+        elif kind == "labels":
+            meta = self.report_meta(cik10)
+            path = self.company_dir(cik10) / f"labels-{meta.accession}.xml" if meta else None
         elif kind in _FILES:
             path = self.company_dir(cik10) / _FILES[kind]
         else:
