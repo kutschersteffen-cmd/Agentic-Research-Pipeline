@@ -127,9 +127,29 @@ async def test_scope_excludes_operation():
         ]),
     )
     out = await _extract("eu_310.txt", llm)
-    assert not any("operat" in a.name.lower() for a in out.activities)
     assert [c.quote for c in out.activities[0].out_of_scope_citations] == [OP]
     assert out.activities[0].out_of_scope_description == "Operating electrolysers"
+    assert out.report["boundaries"] == "found"
+
+
+@pytest.mark.asyncio
+async def test_unmatched_grounded_boundary_dropped():
+    llm = _llm(
+        _ActivitiesDraft=_ActivitiesDraft(activities=[_act("Electrolyser manufacturing", EU_ACT)]),
+        _BoundariesDraft=_BoundariesDraft(boundaries=[
+            {"activity_name": "Hydrogen operation", "kind": "exclude", "text": "Operating electrolysers", "quote": OP},
+        ]),
+    )
+    out = await _extract("eu_310.txt", llm)
+    assert all(a.out_of_scope_citations == [] and a.out_of_scope_description == "" for a in out.activities)
+    assert out.report["boundaries"] == "not_in_source"
+
+
+@pytest.mark.asyncio
+async def test_scope_in_every_prompt():
+    llm = _llm()
+    await _extract("eu_310.txt", llm, value_chain=True)
+    assert llm.prompts and all(SCOPE in p for p in llm.prompts)
 
 
 @pytest.mark.asyncio
@@ -160,11 +180,17 @@ async def test_value_chain_on_sets_role():
 @pytest.mark.asyncio
 async def test_threshold_not_in_activities():
     llm = _llm(
-        _ActivitiesDraft=_ActivitiesDraft(activities=[_act("Electrolyser manufacturing", EU_ACT)]),
+        _ActivitiesDraft=_ActivitiesDraft(activities=[
+            _act("Electrolyser manufacturing", EU_ACT),
+            {"name": "Pure-play hydrogen", "in_scope_description": f"Companies with {R} activities", "quote": R},
+        ]),
+        _BoundariesDraft=_BoundariesDraft(boundaries=[
+            {"activity_name": "Electrolyser manufacturing", "kind": "include", "text": f"Only {R}", "quote": EU_ACT},
+            {"activity_name": "Electrolyser manufacturing", "kind": "include", "text": "Water electrolysis", "quote": EU_ACT},
+        ]),
         _ThresholdsDraft=_ThresholdsDraft(thresholds=[{"text": "50 % revenue", "quote": R}]),
     )
     out = await _extract("eu_310.txt", llm)
     assert any(c.quote == R for t in out.thresholds for c in t.citations)
-    for a in out.activities:
-        assert R not in a.in_scope_description
-        assert not any(R in c.text for c in a.criteria)
+    assert [a.name for a in out.activities] == ["Electrolyser manufacturing"]
+    assert [c.text for c in out.activities[0].criteria] == ["Water electrolysis"]

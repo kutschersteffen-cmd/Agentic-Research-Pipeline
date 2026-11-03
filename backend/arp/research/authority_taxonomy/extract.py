@@ -153,7 +153,7 @@ async def extract_source(
             excerpts = "\n\n---\n\n".join(f"[excerpt {i + 1}]\n{c.text}" for i, c in enumerate(selected))
             system = _SYSTEM_PROMPT.format(theme_name=theme_name, scope=scope or "(none given)", question=item.question)
             draft, usage = await llm.complete_structured(
-                system=system, prompt=f"Source: {url}\n\nExcerpts:\n{excerpts}", output_model=_DRAFTS[item.key]
+                system=system, prompt=f"Source: {url}\nScope: {scope or '(none given)'}\n\nExcerpts:\n{excerpts}", output_model=_DRAFTS[item.key]
             )
             out.usage.input_tokens += usage.input_tokens
             out.usage.output_tokens += usage.output_tokens
@@ -161,8 +161,14 @@ async def extract_source(
         out.report[item.key] = "found" if found else "not_in_source"
 
     # Boundaries run before the activities they refer to may exist (value_chain comes later), so attach at the end.
-    for b in boundaries:
-        _attach_boundary(b, out.activities, ground(b.quote))
+    if "boundaries" in out.report:
+        attached = [b for b in boundaries if _attach_boundary(b, out.activities, ground(b.quote))]
+        out.report["boundaries"] = "found" if attached else "not_in_source"
+    # Thresholds are theme-level eligibility rules; never let one leak into an activity's scope or criteria.
+    rules = [c.quote for t in out.thresholds for c in t.citations]
+    out.activities = [a for a in out.activities if not any(r in a.in_scope_description for r in rules)]
+    for a in out.activities:
+        a.criteria = [c for c in a.criteria if not any(r in c.text for r in rules)]
     return out
 
 
@@ -203,12 +209,13 @@ def _count(out: SourceExtraction) -> int:
     return len(out.activities) + len(out.technologies) + len(out.definitions) + len(out.sector_codes) + len(out.thresholds)
 
 
-def _attach_boundary(b: _BoundaryItem, activities: list[ActivityDefinition], cites: list[SourceCitation]) -> None:
-    if not activities:
-        return
-    target = next((a for a in activities if merge_key(a.name) == merge_key(b.activity_name)), activities[0])
+def _attach_boundary(b: _BoundaryItem, activities: list[ActivityDefinition], cites: list[SourceCitation]) -> bool:
+    target = next((a for a in activities if merge_key(a.name) == merge_key(b.activity_name)), None)
+    if target is None:
+        return False
     if b.kind == "exclude":
         target.out_of_scope_description = " ".join(filter(None, [target.out_of_scope_description, b.text]))
         target.out_of_scope_citations += cites
     else:
         target.criteria.append(Criterion(text=b.text, citations=cites))
+    return True
