@@ -99,7 +99,9 @@ Discovery and extraction can take minutes, which is longer than the 60 s nginx d
   - The next successful step clears `error`.
 - Interrupted work (author's call, using the existing pattern): `GET /runs/{id}` on a run at `discovering` or
   `extracting` whose `run_alive` is false applies the failure rule above with `error` =
-  `interrupted by a server restart`, saves it, and returns it.
+  `interrupted by a server restart`, saves it, and returns it. A step that started less than the lease grace period
+  ago counts as alive, measured from the step's own start (not the run's creation, which is old by the time
+  extraction starts), so the UI's first poll never flips a healthy run.
 - `cancel` also accepts `discovering` and `extracting`. A background step that finishes after a cancel does not
   overwrite the `cancelled` state.
 - `POST /api/authority-taxonomy/uploads` (multipart `file`): accepts `.pdf`, `.txt`, `.md` (else 422
@@ -113,8 +115,9 @@ Discovery and extraction can take minutes, which is longer than the 60 s nginx d
 
 - `#/taxonomy/authority` opens the start form.
 - `#/taxonomy/authority/<runId>` loads the run and shows the screen for its stage.
-- The "Authority source" option is removed from the Taxonomy Library create flow; a "Build from authority sources"
-  entry in the Taxonomy Library opens `#/taxonomy/authority`. Components and client calls only the old flow used are
+- The "Authority source" option is removed from the Taxonomy Library create flow. A "Build from authority sources"
+  button sits in the Taxonomy Library page header, next to the existing create controls, and opens
+  `#/taxonomy/authority`. Components and client calls only the old flow used are
   deleted. `SourceDiscoveryPanel` stays while thematic-fund discovery uses it.
 
 ### Screen per stage
@@ -194,8 +197,10 @@ client and LLM. Frontend `unit` rows use a mocked API client and fake timers. `e
 `backend/scripts/e2e_stack.sh up` with `ARP_STANDINS_DIR` set to the fixture folder named in Testing, whose stand-ins
 make discovery for theme name `Hydrogen` return two candidates: `EU Taxonomy hydrogen` (`from_library: true,
 fetchable: true`, `covers: ["activities", "thresholds"]`) and `Blocked report` (`from_library: false, fetchable:
-false`); and make extraction of `EU Taxonomy hydrogen` produce a draft with 2 activities (activity 1 with one sector
-code of origin `exiobase`), 1 threshold and a checklist report for that one source.
+false`); and make extraction of `EU Taxonomy hydrogen` produce a draft with 2 activities (activity 1 with value-chain
+role `core` and one sector code of origin `exiobase`), 1 threshold, and a checklist report for that one source with
+`activities` and `thresholds` `found` and the other 6 items `not_in_source`. The evaluator start form (AC-35) is:
+Theme name `Hydrogen`, theme key `hydrogen`, scope `S1`, guidance `G1`, value chain ticked.
 
 ### Backend
 
@@ -209,7 +214,7 @@ code of origin `exiobase`), 1 threshold and a checklist report for that one sour
 | AC-6  | Same as AC-5 | `GET /runs/{id}` afterwards | `stage == "awaiting_sources"` | unit |
 | AC-7  | A run whose extraction reads no source | `GET /runs/{id}` after the step ends | `stage == "awaiting_sources"`, `error` contains `no selected source could be read`, `selection` equals the request sent | unit |
 | AC-8  | A run at `extracting` | `DELETE /runs/{id}`, then extraction finishes | DELETE 204; `GET` shows `stage == "cancelled"`, `draft` null | unit |
-| AC-9  | A run at `discovering` | `DELETE /runs/{id}`, then discovery finishes | DELETE 204; `GET` shows `stage == "cancelled"`, `candidates` empty | unit |
+| AC-9  | A run at `discovering` | `DELETE /runs/{id}`, then discovery finishes | DELETE 204; `GET` shows `stage == "cancelled"`, `candidates == []` | unit |
 | AC-10 | A run that failed extraction once, then succeeded | `GET /runs/{id}` | `stage == "awaiting_review"`, `error` null | unit |
 | AC-11 | A run saved at `discovering` with no live worker (`run_alive` false) | `GET /runs/{id}` | `stage == "failed"`, `error == "interrupted by a server restart"` | unit |
 | AC-12 | A run saved at `extracting` with no live worker | `GET /runs/{id}` | `stage == "awaiting_sources"`, `error == "interrupted by a server restart"` | unit |
@@ -218,6 +223,10 @@ code of origin `exiobase`), 1 threshold and a checklist report for that one sour
 | AC-15 | `note.txt` already uploaded once | Upload `note.txt` again | `path` ends with `_authority/note-2.txt`; the first file is unchanged | unit |
 | AC-16 | — | Upload `x.docx` | 422, `detail == "unsupported file type"`; nothing written | unit |
 | AC-17 | A path returned by AC-14 and a run at `awaiting_sources` | `POST /runs/{id}/sources` with `files == [that path]` | 200 | unit |
+| AC-52 | — | Upload with filename `../../x.txt` | 200, `path` is under `<documents_dir>/_authority/`; no file is written outside that folder | unit |
+| AC-53 | — | Upload a file one byte larger than `max_upload_bytes` | 413; nothing is written | unit |
+| AC-54 | A discovery stub that blocks until released | `POST /runs`, then `GET /runs/{id}` at once | `stage == "discovering"`, `error` null | unit |
+| AC-55 | A run created over an hour ago, at `awaiting_sources`; an extraction stub that blocks until released | `POST /runs/{id}/sources`, then `GET /runs/{id}` at once | `stage == "extracting"`, `error` null | unit |
 
 ### Frontend (component)
 
@@ -225,14 +234,16 @@ code of origin `exiobase`), 1 threshold and a checklist report for that one sour
 |-------|-------|------|--------------------------|------------|
 | AC-18 | The start form with Theme name empty | Click Start | No `POST /runs` is sent; the text `Theme name is required` is shown | unit |
 | AC-19 | `GET /runs/{id}` returns `stage: "discovering"`, theme name `Hydrogen` | Open `#/taxonomy/authority/<id>` | A message containing `Hydrogen` and a Cancel button are shown | unit |
-| AC-20 | `GET /runs/{id}` returns `discovering` twice, then `awaiting_sources` | Advance fake timers by 12 s | Exactly 3 `GET /runs/{id}` calls, 3 s apart, none after `awaiting_sources` | unit |
-| AC-21 | A run at `discovering`, `document.visibilityState == "hidden"` | Advance fake timers by 10 s | No `GET /runs/{id}` is sent | unit |
+| AC-20 | The screen opened at t=0; `GET /runs/{id}` returns `discovering` three times, then `awaiting_sources` | Advance fake timers by 15 s | Exactly 4 `GET /runs/{id}` calls in total, at 0, 3, 6 and 9 s | unit |
+| AC-21 | A run at `discovering`, loaded once, then `document.visibilityState` set to `hidden` | Advance fake timers by 10 s | No `GET /runs/{id}` after the initial load | unit |
+| AC-56 | Same as AC-21 after the 10 s | Fire `visibilitychange` with state `visible` | Exactly 1 `GET /runs/{id}` is sent at once | unit |
 | AC-22 | A run at `awaiting_sources` | Choose `note.txt` in Upload document | The request goes to `POST /api/authority-taxonomy/uploads`; `note.txt` is then listed as selected | unit |
 | AC-23 | A run at `awaiting_sources` | Inspect the file input | Its `accept` attribute is `.pdf,.txt,.md` | unit |
-| AC-24 | An upload whose request has not answered yet | The sources screen is shown | Build draft is disabled | unit |
+| AC-24 | A run at `awaiting_sources` with one candidate ticked and an upload whose request has not answered yet | The sources screen is shown | Build draft is disabled | unit |
 | AC-25 | One upload done (path P), all candidates unticked, URLs `u1` and `u2` added, then `u2` removed | Click Build draft | `POST /sources` body is exactly `{"urls": ["u1"], "files": ["P"]}` | unit |
-| AC-26 | A run at `awaiting_sources` with `error: "x"` and `selection: {"urls": ["<candidate A url>", "u9"], "files": []}` | Open its URL | `x` is shown above the list; candidate A is ticked; `u9` is listed as an added URL | unit |
+| AC-26 | A run at `awaiting_sources` with candidates A (`from_library: false`) and B (`from_library: true, fetchable: true`), `error: "x"`, `selection: {"urls": ["<A url>", "u9"], "files": []}` | Open its URL | `x` is shown above the list; A is ticked; B is unticked; `u9` is listed as an added URL | unit |
 | AC-27 | A run at `failed` with `error: "boom"` | Open its URL | `boom` and a "Start a new run" button are shown | unit |
+| AC-57 | Start form: Theme name `Hydrogen`, theme key `hydrogen`, scope `S1`, guidance `G1`, value chain ticked | Click Start | `POST /runs` body is exactly `{"theme_name": "Hydrogen", "theme_key": "hydrogen", "scope": "S1", "guidance": "G1", "value_chain": true}` | unit |
 | AC-28 | The review screen; criterion 1 of activity 1 has citations C | Edit criterion 1's text, click Save | The `PUT /draft` body has criterion 1 with the new text and citations equal to C | unit |
 | AC-29 | The review screen; `PUT /draft` answers 422 `activity X has no citation` | Click Save | `activity X has no citation` is shown; the edited values are still in the form | unit |
 | AC-30 | Unsaved edits; `PUT /draft` answers 200 | Click Accept | `PUT /draft` is sent, then `POST /accept`; a confirmation with the returned `taxonomy_id` is shown | unit |
@@ -245,19 +256,20 @@ code of origin `exiobase`), 1 threshold and a checklist report for that one sour
 | ID    | Given | When | Then (observable, exact) | Checked by |
 |-------|-------|------|--------------------------|------------|
 | AC-34 | The app is open | Open `#/taxonomy/authority` | Fields Theme name, Theme key (11 options: 10 themes plus "None"), Scope, Source guidance, a Value chain checkbox and a Start button | evaluator |
-| AC-35 | The start form with Theme name `Hydrogen` | Click Start | The URL becomes `#/taxonomy/authority/<runId>` | evaluator |
+| AC-35 | The start form filled as in the preamble | Click Start | The URL becomes `#/taxonomy/authority/<runId>` | evaluator |
 | AC-36 | The run from AC-35 at `awaiting_sources` | Look at the cards | `EU Taxonomy hydrogen` is ticked and shows a "From library" badge; `Blocked report` is unticked and shows a "Not fetchable" warning | evaluator |
 | AC-37 | Same | Look at the `EU Taxonomy hydrogen` card | Title links to its URL in a new tab; source type, summary and reason are shown; 8 checklist chips, exactly `activities` and `thresholds` marked covered | evaluator |
 | AC-38 | Same, with everything unticked | Look at Build draft | Disabled | evaluator |
-| AC-39 | Same, `EU Taxonomy hydrogen` ticked | Click Build draft, wait for the review screen | Sections in this order: Theme description, Technologies, Definitions, Activities (2 blocks), Thresholds (1 item), Checklist report (1 row × 8 columns), Notes | evaluator |
+| AC-39 | Same, `EU Taxonomy hydrogen` ticked | Click Build draft, wait for the review screen | Sections in this order: Theme description, Technologies, Definitions, Activities (2 blocks), Thresholds (1 item), Checklist report, Notes. The checklist report has 1 row (the source) with 8 checklist cells: `activities` and `thresholds` show `found`, the other 6 `not in source` | evaluator |
 | AC-40 | The review screen from AC-39 | Look at any citation | Quote, a link to its source URL, and location are shown; the quote is not editable | evaluator |
 | AC-41 | Same | Look at activity 1's sector codes | Its code shows system, code and an `exiobase` badge; no control to add a sector code exists | evaluator |
 | AC-42 | Same | Look for an "add activity" control | None exists | evaluator |
-| AC-43 | Same | Set activity 1's value-chain role to `upstream`, Save, reload the page | Activity 1 shows `upstream` | evaluator |
+| AC-43 | Same | Set activity 1's value-chain role from `core` to `upstream`, Save, reload the page | Activity 1 shows `upstream`, not `core` | evaluator |
 | AC-44 | Same, with an unsaved edit | Click another app tab, then dismiss the confirmation | The review screen stays, with the edit | evaluator |
 | AC-45 | Same | Click Cancel and confirm | The cancelled message and a "Start a new run" button are shown | evaluator |
-| AC-46 | The cancelled run from AC-45 | Click "Start a new run" | The start form shows `Hydrogen` and the same theme key, scope, guidance and value-chain value | evaluator |
-| AC-47 | The Taxonomy Library | Open its create flow | No "Authority source" option in it; a "Build from authority sources" entry opens `#/taxonomy/authority` | evaluator |
+| AC-46 | The cancelled run from AC-45 | Click "Start a new run" | The start form shows `Hydrogen`, theme key `hydrogen`, scope `S1`, guidance `G1`, value chain ticked | evaluator |
+| AC-47 | The Taxonomy Library | Open its create flow | No "Authority source" option in it | evaluator |
+| AC-58 | The Taxonomy Library | Click "Build from authority sources" in the page header | The URL becomes `#/taxonomy/authority` | evaluator |
 
 ### Must not change
 
