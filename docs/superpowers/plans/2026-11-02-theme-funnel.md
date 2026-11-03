@@ -8,6 +8,8 @@
 
 **Tech Stack:** Python 3.11, pydantic v2, LangGraph, numpy, Typer, pytest; the shared model layer `arp/models/` (on `main`).
 
+**Status:** approved by the owner, 2026-11-03. Answers: Q1 = A (AC-23 on `not` cases only), Q2 = companies without codes are kept, Q3 = ISIC division width.
+
 **Spec:** `docs/superpowers/specs/2026-11-01-theme-funnel-design.md` (approved 2026-11-01). This plan changes two things in it at the owner's request; see **Spec amendments**.
 
 ## Changes from the first draft (owner corrections)
