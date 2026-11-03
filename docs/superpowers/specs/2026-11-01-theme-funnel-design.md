@@ -62,7 +62,7 @@ Negatives = `out_of_scope_description` + `contrast_statements`. Thresholds `k1`,
 
 ### Integration
 
-In `_match_company`, after documents are fetched and before `match_company_activity`:
+In `match_company_activity`'s graph (`arp/research/match_graph.py`), as a node between `gather_evidence` and `run_advocate` (amended 2026-11-03, owner): revenue-resolved and no-evidence pairs never reach it.
 
 - **pass** → the pair goes to the debate as today.
 - **screened out** → no LLM call for that pair; the pair gets `MatchVerdict.EXCLUDE` with
@@ -78,16 +78,37 @@ and screened-out pairs.
 
 ### CLI
 
-`arp theme funnel --theme <theme.json> --cases <golden cases.json> --documents-dir <dir> [--out <json>]`:
+`arp theme funnel --taxonomy <id> [--taxonomy-version N] [--taxonomies-dir <dir>] --cases <golden cases.json> --documents-dir <dir> [--out <json>]`:
 runs only the funnel (no LLM), prints one line per company (label, scores, pass/screened), then one line per
 label in the form `<label>: <kept>/<total>`. Options: `--split tune|holdout|all` (default `all`),
 `--min-kept-positive <x>` (exit 1 if core + peripheral kept / total < x), `--max-kept-negative <x>` (exit 1 if
 `not` kept / total > x). Golden-set format comes from A3.
 
-`arp theme funnel-compare --theme … --cases … --documents-dir … [--split …] [--max-call-ratio x]
+`arp theme funnel-compare --taxonomy … [--taxonomy-version …] [--taxonomies-dir …] --cases … --documents-dir … [--split …] [--negatives-only] [--max-call-ratio x]
 [--max-precision-drop x]`: runs the full theme run on the golden companies twice (setting off, setting on),
 prints LLM call counts and the precision of `include` verdicts against the golden labels (core and peripheral
 count as positive) for both, and exits 1 if a given limit is broken.
+
+### Contrast statements come from a taxonomy version (amended 2026-11-03, owner)
+
+Both commands read the activity, including `contrast_statements`, from a saved taxonomy version
+(`TaxonomyStore`, `--taxonomies-dir` defaults to the configured store). `--theme` is refused with the same message
+as `arp theme run`. A draft version is accepted: the commands evaluate, they publish nothing.
+
+### Narrowing the universe (amended 2026-11-03, owner)
+
+`arp universe narrow --universe <in> --taxonomy <id> [--taxonomy-version N] [--taxonomies-dir <dir>] --out <universe.json>
+[--keep <company_id> ...] [--cases <golden cases.json>]` writes a universe reduced to companies whose `isic_code` or
+`nace_code` shares an ISIC division (first 2 digits) with any activity's `core_isic_codes` or ISIC/NACE `sector_codes`.
+Companies without a known ISIC/NACE code are kept. Every dropped company is written to `<out stem>.dropped.json`
+with its codes and reason; `--keep` overrides a drop. Discovery, `documents warm` and the theme run then work on the
+smaller list; the theme run and the funnel do not narrow.
+
+### Precomputing chunk embeddings (amended 2026-11-03, owner)
+
+The funnel reads passage vectors from the `chunk_embeddings` store (key `chunk_id`, the hybrid-retrieval embedding
+model) and stores the ones it computes. `arp documents warm --embed` fills the store for every chunk of every
+fetched document, so a run only embeds the activity statements.
 
 ## Left to the builder
 
@@ -123,8 +144,16 @@ that counts calls. Company names A–H refer to fixture companies with one activ
 | AC-20 | Golden cases where `not` kept is 0.40 | `arp theme funnel --max-kept-negative 0.30` | Exit code 1 | unit |
 | AC-21 | Electrolyser golden set, `holdout` half (A3), real models | `arp theme funnel --split holdout --min-kept-positive 0.95` | Exit code 0 | golden |
 | AC-22 | Same | `arp theme funnel --split holdout --max-kept-negative 0.30` | Exit code 0 | golden |
-| AC-23 | Electrolyser golden set, `holdout` half, real models and LLM | `arp theme funnel-compare --split holdout --max-call-ratio 0.5` | Exit code 0 (LLM calls with the setting on ≤ 0.5 × calls with it off) | golden |
+| AC-23 | Electrolyser golden set, `holdout` half, real models and LLM | `arp theme funnel-compare --split holdout --max-call-ratio 0.5` | Exit code 0 (LLM calls on `not` cases with the setting on ≤ 0.5 × calls on `not` cases with it off; `--negatives-only`; amended 2026-11-03, owner) | golden |
 | AC-24 | Same | `arp theme funnel-compare --split holdout --max-precision-drop 0.02` | Exit code 0 (precision of `include` verdicts against the golden labels, core and peripheral counted as positive, drops by ≤ 0.02 with the setting on) | golden |
 | AC-25 | The existing backend test suite on `main` | `python3 -m pytest backend/tests` on this branch, excluding files added by this change | Same pass/fail result per test as on `main` | unit |
+
+| AC-26 | Taxonomy with one activity, codes `["2790"]`; universe with company X `isic_code "2610"` | `arp universe narrow` | X is not in `--out`; `<out stem>.dropped.json` has X with reason `no sector match (company 26, taxonomy 27)` | unit |
+| AC-27 | Company with no known ISIC/NACE code | `arp universe narrow` | Kept in `--out` | unit |
+| AC-28 | Activity `"2790"`, company `"2711"` | `arp universe narrow` | Kept (division width) | unit |
+| AC-29 | Taxonomy whose activities have no codes | `arp universe narrow` | `--out` equals the input universe; prints `Taxonomy has no sector codes; nothing narrowed.` | unit |
+| AC-30 | `arp documents warm --embed` ran over the universe | theme run, setting on | 1 `embed` call per activity, none for passages | unit |
+| AC-31 | X dropped as in AC-26 | `arp universe narrow --keep X` | X is in `--out` and not in the dropped file | unit |
+| AC-32 | Electrolyser golden set, `holdout` half, `nace_code` per case | `arp universe narrow --cases …` | Prints `core dropped: <n>/9`; the PR states n | golden |
 
 Must not change: theme runs with the setting off (AC-1, AC-25).

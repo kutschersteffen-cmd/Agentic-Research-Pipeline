@@ -12,6 +12,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
+from arp.research.funnel_thresholds import thresholds_for
 from arp.research.indirect_exposure.company_mapper import resolve_company_isic
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.indirect_exposure.leontief import LeontiefModel
@@ -84,6 +85,7 @@ async def _match_company(
         company_isic, u_isic = await resolve_company_isic(company, isic_model, llm)
         usages.append(u_isic)
 
+    funnel_thresholds = thresholds_for(theme.theme_id) if settings.models_universe_funnel_enabled else None
     for activity in theme.activities:
         match, activity_usages = await match_company_activity(
             company,
@@ -97,6 +99,7 @@ async def _match_company(
             revenue_resolver=revenue_resolver,
             rd_resolver=rd_resolver,
             company_isic=company_isic,
+            funnel_thresholds=funnel_thresholds,
         )
         matches.append(match)
         usages.extend(activity_usages)

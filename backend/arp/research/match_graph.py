@@ -10,6 +10,7 @@ from arp.ingestion.parsing import chunk_document
 from arp.llm.base import LLMClient, LLMUsage
 from arp.research.arbitration import compute_arbitration
 from arp.research.company_role import derive_company_role
+from arp.research.funnel import score_pair
 from arp.research.indirect_exposure.exposure import compute_indirect_exposure
 from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.matcher_agents import run_adjudicator, run_advocate, run_opposing
@@ -21,7 +22,7 @@ from arp.schemas.common import CompanyRef, DocumentChunk, SourceDocument
 from arp.schemas.exposure import IndirectExposureResult
 from arp.schemas.rd_exposure import RDExposureResult
 from arp.schemas.revenue_exposure import RevenueExposureResult
-from arp.schemas.thematic import ActivityDefinition, AgentOpinion, CompanyMatch, ExposureEstimate, MatchVerdict
+from arp.schemas.thematic import ActivityDefinition, AgentOpinion, CompanyMatch, ExposureEstimate, FunnelRecord, MatchVerdict
 
 _MAX_EVIDENCE_CHUNKS_PER_CALL = 12
 
@@ -55,6 +56,8 @@ class MatchState(TypedDict):
     revenue_exposure: RevenueExposureResult | None
     rd_exposure: RDExposureResult | None
     evidence: list[DocumentChunk]
+    funnel_thresholds: dict[str, float] | None
+    funnel: FunnelRecord | None
     advocate: AgentOpinion | None
     opposing: AgentOpinion | None
     usages: list[LLMUsage]
@@ -195,7 +198,36 @@ async def _gather_evidence(state: MatchState) -> dict:
 
 
 def _route_after_evidence(state: MatchState) -> str:
-    return "run_advocate" if state["evidence"] else "finalize_no_evidence"
+    if not state["evidence"]:
+        return "finalize_no_evidence"
+    return "run_advocate" if state["funnel_thresholds"] is None else "funnel"
+
+
+def _funnel_content_store(settings: Settings):
+    """The chunk-embeddings store the funnel reads precomputed vectors from (None without Postgres)."""
+    if not settings.postgres_dsn:
+        return None
+    from arp.retrieval.content_store_factory import build_hybrid_content_store
+
+    return build_hybrid_content_store(settings)
+
+
+async def _funnel(state: MatchState) -> dict:
+    record = score_pair(
+        state["documents"], state["activity"], state["funnel_thresholds"], _funnel_content_store(state["settings"])
+    )
+    return {"funnel": record}
+
+
+def _route_after_funnel(state: MatchState) -> str:
+    return "run_advocate" if state["funnel"].passed else "finalize_screened_out"
+
+
+async def _finalize_screened_out(state: MatchState) -> dict:
+    match = (await _finalize_no_evidence(state))["match"]
+    return {"match": match.model_copy(update={
+        "adjudicator_rationale": "screened out by funnel", "advocate": None, "opposing": None, "funnel": state["funnel"],
+    })}
 
 
 async def _finalize_no_evidence(state: MatchState) -> dict:
@@ -295,6 +327,7 @@ async def _run_adjudicator_node(state: MatchState) -> dict:
         arbitration=arbitration,
         company_role=company_role,
         flagged_for_review=flagged or arbitration.methods_disagree or arbitration.mid_band,
+        funnel=state["funnel"],
     )
     return {"match": match, "usages": state["usages"] + [usage]}
 
@@ -307,6 +340,8 @@ def _build_graph():
     graph.add_node("finalize_from_revenue", _finalize_from_revenue)
     graph.add_node("gather_evidence", _gather_evidence)
     graph.add_node("finalize_no_evidence", _finalize_no_evidence)
+    graph.add_node("funnel", _funnel)
+    graph.add_node("finalize_screened_out", _finalize_screened_out)
     graph.add_node("run_advocate", _run_advocate_node)
     graph.add_node("run_opposing", _run_opposing_node)
     graph.add_node("run_adjudicator", _run_adjudicator_node)
@@ -319,9 +354,14 @@ def _build_graph():
     )
     graph.add_edge("finalize_from_revenue", END)
     graph.add_conditional_edges(
-        "gather_evidence", _route_after_evidence, {"run_advocate": "run_advocate", "finalize_no_evidence": "finalize_no_evidence"}
+        "gather_evidence", _route_after_evidence,
+        {"run_advocate": "run_advocate", "finalize_no_evidence": "finalize_no_evidence", "funnel": "funnel"},
     )
     graph.add_edge("finalize_no_evidence", END)
+    graph.add_conditional_edges(
+        "funnel", _route_after_funnel, {"run_advocate": "run_advocate", "finalize_screened_out": "finalize_screened_out"}
+    )
+    graph.add_edge("finalize_screened_out", END)
     graph.add_edge("run_advocate", "run_opposing")
     graph.add_edge("run_opposing", "run_adjudicator")
     graph.add_edge("run_adjudicator", END)
@@ -347,6 +387,7 @@ async def match_company_activity(
     revenue_resolver: RevenueResolverContext | None = None,
     rd_resolver: RDResolverContext | None = None,
     company_isic: str | None = None,
+    funnel_thresholds: dict[str, float] | None = None,
 ) -> tuple[CompanyMatch, list[LLMUsage]]:
     """Runs the full per-(company, activity) matching decision as a
     LangGraph graph: the zero-LLM indirect-exposure computation, the
@@ -358,7 +399,10 @@ async def match_company_activity(
     followed by the programmatic grounding check. rd_exposure never
     short-circuits the debate the way a resolved revenue number does --
     it's a supplementary signal, always attached to the final match
-    regardless of which branch produced it. Returns the final CompanyMatch
+    regardless of which branch produced it. With `funnel_thresholds` set
+    (the theme funnel is on), a pair with evidence is scored by
+    arp/research/funnel.py first and only goes to the debate if it passes.
+    Returns the final CompanyMatch
     plus every LLMUsage collected along the way.
     """
     initial: MatchState = {
@@ -377,6 +421,8 @@ async def match_company_activity(
         "revenue_exposure": None,
         "rd_exposure": None,
         "evidence": [],
+        "funnel_thresholds": funnel_thresholds,
+        "funnel": None,
         "advocate": None,
         "opposing": None,
         "usages": [],
