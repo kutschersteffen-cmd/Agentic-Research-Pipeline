@@ -123,13 +123,17 @@ by the golden command (expected activities against the draft). `Match` = left in
 
 1. **Exact:** equal merge key (name lower-cased, whitespace and punctuation removed) → match, `method=exact`, no
    model call.
-2. **Keyword candidates:** each activity's keywords are the content words of its name plus its `seed_keywords`,
-   lower-cased, stop words and generic words (`manufacture`, `manufacturing`, `production`, `equipment`, `of`,
-   `and`, `other`, …) removed, each cut to its first 6 letters. A pair is a candidate when it shares ≥ 1 keyword.
-   Pairs with no shared keyword are never matched and never sent to the model.
+2. **Keyword candidates:** each activity's keywords come from its name plus its `seed_keywords`: lower-case, split on
+   anything that is not a letter or digit, drop words in the constant `IGNORED_WORDS` (exactly: `a, an, and, as,
+   at, by, for, from, in, into, of, on, or, other, the, to, with, manufacture, manufacturing, manufacturer,
+   production, producing, equipment, products, activities, activity`), drop words shorter than 3 letters, then cut
+   each word to its first 6 letters (shorter words stay whole; no other stemming). So `electrolysers` and
+   `electrolysis` both give `electr`. A pair is a candidate when it shares ≥ 1 keyword. Pairs with no shared keyword
+   are never matched and never sent to the model.
 3. **Model review:** all candidate pairs go to one structured LLM call (with the scope), which returns per pair
    `same_activity: bool` and a one-sentence `reason`. Only `same_activity=true` pairs match, `method=model`.
-4. Each activity matches at most one other; when several are judged the same, the pair seen first wins.
+4. Each activity matches at most one other. Pairs are taken in order of left index, then right index; the first
+   matching pair (exact or `same_activity=true`) for an activity wins and both sides are then used up.
 
 Matching never invents an activity; an unmatched activity stays separate (consolidation) or counts as missed
 (golden).
@@ -176,10 +180,15 @@ so rows are `unit` and listed as owed to `holdout` in the PR.
 | AC-7b | A fixture source defining term T and naming technology G | extract | `theme.definitions` has an entry with `term == T` and ≥ 1 citation | unit |
 | AC-7c | As AC-7b | extract | `theme.technologies` has an entry with name G | unit |
 | AC-7d | A fixture source containing threshold rule R | extract | `checklist_report[<url>].thresholds == "found"` and `theme.thresholds` has an entry quoting R | unit |
-| AC-8 | Two sources A and B each yield "Electrolyser stack manufacturing" (one written "electrolyser-stack manufacturing") | consolidate | Exactly one activity has that merge key; its `citations` has 2 entries with URLs A and B; no matcher LLM call was made | unit |
-| AC-8b | Source A yields "Fuel cell manufacturing", source B "Manufacture of fuel cells and other hydrogen-to-power equipment"; the fake LLM judges them the same | consolidate | Exactly one fuel-cell activity, with citations from A and B | unit |
-| AC-8c | As AC-8b, but the fake LLM judges them different | consolidate | Two fuel-cell activities | unit |
-| AC-8d | Source A yields "Manufacture of electrolysers", source B "Hydrogen storage tanks" (no shared keyword) | consolidate | Two activities; the matcher made no LLM call | unit |
+| AC-8 | Two sources A and B each yield "Electrolyser stack manufacturing" (one written "electrolyser-stack manufacturing") | consolidate | Exactly one activity has that merge key; its `citations` has 2 entries with URLs A and B | unit |
+| AC-8a | As AC-8 | consolidate | The fake LLM received 0 matcher calls | unit |
+| AC-8b | Source A yields "Fuel cell manufacturing", source B "Manufacture of fuel cells and other hydrogen-to-power equipment", both with empty `seed_keywords`; the fake matcher returns `same_activity=true` for that pair | consolidate | Exactly one activity named "Fuel cell manufacturing", with 2 citations (URLs A and B) | unit |
+| AC-8b2 | As AC-8b | consolidate | The fake LLM received exactly 1 matcher call, and its prompt contains the scope text | unit |
+| AC-8c | As AC-8b, but the fake matcher returns `same_activity=false` | consolidate | 2 activities, named "Fuel cell manufacturing" and "Manufacture of fuel cells and other hydrogen-to-power equipment", each with 1 citation | unit |
+| AC-8d | Source A yields "Manufacture of electrolysers", source B "Hydrogen storage tanks", both with empty `seed_keywords` | consolidate | 2 activities, each with 1 citation; the fake LLM received 0 matcher calls | unit |
+| AC-8e | Source A yields "Electrolyser stacks", source B yields "Electrolysis systems" and "Electrolyser modules"; the fake matcher returns `same_activity=true` for both pairs | consolidate | 2 activities: "Electrolyser stacks" with citations from A and B's "Electrolysis systems", and "Electrolyser modules" with 1 citation | unit |
+| AC-8f | As AC-8e | consolidate | The fake LLM received exactly 1 matcher call containing both pairs | unit |
+| AC-8g | Source A yields "Stack assembly" with `seed_keywords` ["electrolyser"], source B "Electrolyser production" with empty `seed_keywords`; the fake matcher returns `same_activity=true` | consolidate | Exactly one activity, with citations from A and B | unit |
 | AC-9 | Scope "manufacture of electrolysers only"; a source passage O describes operating electrolysers to produce hydrogen | extract | No activity name contains "operat" | unit |
 | AC-9b | As AC-9 | extract | Some activity's `out_of_scope_citations` contains a quote equal to O | unit |
 | AC-10 | `value_chain=true`; the bundled sample IO model; a source with a bill of materials | consolidate | ≥ 1 activity has `value_chain_role` `upstream` or `enabling` | unit |
@@ -206,9 +215,11 @@ so rows are `unit` and listed as owed to `holdout` in the PR.
 | AC-19d | A taxonomy saved by accept (status `draft`) | `arp taxonomy ratify <id> --by owner` | Status becomes `ratified` with `ratified_by=owner`, as on `main` | unit |
 | AC-20 | The CLI flow | `author start`, `select`, `review`, `accept` | Each exits 0 and prints, in order, `stage: awaiting_sources`, `stage: awaiting_review`, `stage: awaiting_review`, `stage: accepted` | unit |
 | AC-21 | The backend suite on `main` | CI on this branch | Every test passing on `main` passes here | unit |
-| AC-22 | The real model; golden case `hydrogen_eu_taxonomy` (EU Taxonomy Delegated Act Annex I, activity 3.2) with 3 expected activities; scope "manufacture of electrolysers" | `arp golden-set authority-taxonomy --case hydrogen_eu_taxonomy` | Exit 0: grounded rate = 1.0 and recall ≥ 0.67, recall computed with the activity matcher | golden |
-| AC-22b | Fake LLM; a draft with "Manufacture of fuel cells and other hydrogen-to-power/heat equipment" and expected "Manufacture of fuel cells"; the fake judge says same | golden command | Output contains `FOUND Manufacture of fuel cells = Manufacture of fuel cells and other hydrogen-to-power/heat equipment (model:` | unit |
-| AC-22c | Fake LLM; an expected activity with no produced match | golden command | Output contains `MISSED <expected name>` | unit |
+| AC-22 | The real model; golden case `hydrogen_eu_taxonomy` (EU Taxonomy Delegated Act Annex I, activity 3.2) with 3 expected activities and `min_recall` 0.67; scope "manufacture of equipment for the production and use of hydrogen" | `arp golden-set authority-taxonomy --case hydrogen_eu_taxonomy` | Exit 0; the last line is `grounded_rate=1.00 recall=<r>` with r ≥ 0.67 | golden |
+| AC-22b | Fake LLM; the draft has "Manufacture of fuel cells and other hydrogen-to-power/heat equipment"; expected "Manufacture of fuel cells"; the fake matcher returns `same_activity=true` with reason "same product" | golden command | Output contains the line `FOUND Manufacture of fuel cells = Manufacture of fuel cells and other hydrogen-to-power/heat equipment (model: same product)` | unit |
+| AC-22c | Fake LLM; expected "Manufacture of hydrogen compressors"; the draft has only "Manufacture of electrolysers"; `min_recall` 0.67 | golden command | Output contains `MISSED Manufacture of hydrogen compressors` and `recall=0.00`; exit 1 | unit |
+| AC-22d | Fake LLM; every returned activity quote fails grounding, so the draft has 0 activities | golden command | Last line `grounded_rate=0.00 recall=0.00`; exit 1 | unit |
+| AC-22e | Fake LLM; draft and expected both "Manufacture of electrolysers" | golden command | Output contains `FOUND Manufacture of electrolysers = Manufacture of electrolysers (exact: equal names)`; every produced activity name is printed before the FOUND/MISSED lines | unit |
 
 Must not change: the existing derivation methods, `compare`/`merge`, ratification and taxonomies already saved
 (AC-18, AC-19, AC-19b, AC-19c, AC-19d, AC-21).
