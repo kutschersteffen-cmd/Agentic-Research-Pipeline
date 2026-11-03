@@ -103,6 +103,12 @@ It is stored in the per-company manifest like every other field (`arp/discovery/
 - A downloaded document whose sha256 equals a rejected known entry's sha256 is not written to the working folder
   and is not returned.
 
+### Seed script for the evaluator
+
+`backend/scripts/seed_discovery_review.py` (new) writes one discovery run into the configured run store, with
+no network: run type `discovery`, the three result rows of the AC-9 fixture, and their three review items, plus the
+two PDF working copies under `<documents_dir>/C2/10-K/` and matching manifest entries. It prints the run id.
+
 ## Left to the builder
 
 Where the item-building helper lives; frontend labels other than those in the Acceptance table; how the
@@ -110,43 +116,62 @@ Where the item-building helper lives; frontend labels other than those in the Ac
 
 ## Acceptance
 
-`holdout` rows run discovery with a stand-in search client and an `httpx.MockTransport` (as
-`tests/test_known_reports.py` does) and read the run store, the manifest and the documents folder.
+Rows marked `unit` run in-process: discovery with a stand-in search client and an `httpx.MockTransport` (as
+`tests/test_known_reports.py` does), and the review API through FastAPI's `TestClient`. The e2e app cannot take
+those stand-ins, so these rows cannot be `holdout`. Decisions are posted to
+`POST /api/review/runs/{run_id}/items/{item_key}/decision`, with the `etag` from
+`GET /api/review/runs/{run_id}/items/{item_key}/context` as `context_etag`. Unless a row says otherwise,
+`second_review_sample_rate` is 0.
+
+**Fixture.** C1: no source returns any document. C2: the crawl finds two PDFs at different URLs,
+`https://c2.example/report-a.pdf` (bytes B1, sha256 S1) and `https://c2.example/report-b.pdf` (bytes B2, sha256 S2,
+B2 ≠ B1); neither names C2 or its LEI/ISIN (`company_match` `none`), both classified `10-K`. C3: one PDF with under
+200 characters of text (`company_match` `no_text`), sha256 S3. C4: one PDF at `https://c4.example/annual-report-2025.pdf`,
+3 pages, naming C4, PDF title "Annual Report 2025", sha256 S4. C5: only an EDGAR 10-K. All runs are started by hand
+unless a row says otherwise.
+
+**DRUN** = the e2e stack (`backend/scripts/e2e_stack.sh up`) after `python backend/scripts/seed_discovery_review.py`.
 
 | ID    | Given | When | Then (observable, exact) | Checked by |
 |-------|-------|------|--------------------------|------------|
-| AC-1  | Universe with company C1; no source returns any document; run started by hand | `run_discovery` | The run's review queue holds exactly one item for C1, key `no_documents:C1` | holdout |
-| AC-2  | Same as AC-1 | read item `no_documents:C1` via `GET /api/review/items?run_id=<run>` | Its `kind` is `no_documents` | holdout |
-| AC-3  | Same as AC-1 | read the item's payload | `reason_codes` is `["no_documents"]` | holdout |
-| AC-4  | Same as AC-1, but `triggered_by="schedule"` | `run_discovery` | The run's review queue is empty | holdout |
-| AC-5  | Company C2; the crawl downloads one PDF whose text names neither C2 nor its LEI/ISIN (`company_match` `none`), sha256 S | `run_discovery` | The queue holds item `discovered:C2:S` with `kind` `discovered_document` | holdout |
-| AC-6  | Same as AC-5 | read the item's payload | `reason_codes` is `["match_ambiguous"]` | holdout |
-| AC-7  | Company C3; one downloaded PDF with under 200 characters of text (`company_match` `no_text`) | `run_discovery` | That document's item has `reason_codes` `["check_failed"]` | holdout |
-| AC-8  | Company C4; one downloaded PDF that names C4 (`company_match` `name`) | `run_discovery` | The queue holds no item whose key starts with `discovered:C4:` | holdout |
-| AC-9  | Universe: C1 as in AC-1 and C2 with two failing PDFs; run by hand | `run_discovery` | The run manifest's `review_count` is 3 | holdout |
-| AC-10 | Same as AC-9 | `arp discover run --universe <file>` | Output contains the line `3 items queued for review (open the Review page)` | holdout |
-| AC-11 | Item `discovered:C2:S` from AC-5 | `reject` with reason `wrong_entity`, reaching a final state | The file at the payload's `local_path` no longer exists | holdout |
-| AC-12 | Same as AC-11 | list `<documents_dir>/_rejected/C2/<doc_type>/` | It contains a file with the same name and sha256 S | holdout |
-| AC-13 | Same as AC-11 | read `<discovery_state_dir>/C2.json` | The entry for the document's URL has `"review": "rejected"` | holdout |
-| AC-14 | Same as AC-11 | `LocalFileDocumentSource.fetch(C2)` | Returns no document with sha256 S | holdout |
-| AC-15 | Same as AC-11; a second run whose crawl finds the same URL | `run_discovery` | The mock transport receives 0 requests for that URL | holdout |
-| AC-16 | Same as AC-11; a second run finds the same bytes (S) at a new URL | `run_discovery` | No file with sha256 S exists under `<documents_dir>/C2/` | holdout |
-| AC-17 | Same as AC-16 | read the second run's queue | It holds no item `discovered:C2:S` | holdout |
-| AC-18 | Item `discovered:C2:S` | `approve`, reaching a final state | The manifest entry for its URL has `"review": "approved"` | holdout |
-| AC-19 | Same as AC-18 | check the payload's `local_path` | The file still exists | holdout |
-| AC-20 | Same as AC-18; a second run returns the same URL with the same bytes | `run_discovery` | The second run's queue holds no item for that document | holdout |
-| AC-21 | Same as AC-18; a second run returns the same URL with new bytes (sha256 T) | `run_discovery` | The second run's queue holds item `discovered:C2:T` | holdout |
-| AC-22 | Item `discovered:C2:S` with the second-review sample rate set to 1.0 | first reviewer rejects | The file at `local_path` still exists and the manifest entry has no `review` key, or `"review": null` | holdout |
-| AC-23 | Item `no_documents:C1` | `reject` | `422` with message `reject is not a decision for a no_documents item` | holdout |
-| AC-24 | Item `no_documents:C1` | `approve` | State is final; no file under `<documents_dir>` or `<discovery_state_dir>` changes | holdout |
-| AC-25 | A discovery run with items from AC-9, the app running | open the Review page | The three items are listed, each labelled `Document discovery`, two as `Found document` and one as `No documents` | evaluator |
-| AC-26 | Same as AC-25 | open a `Found document` item | Its URL and `company_match` value are shown | evaluator |
-| AC-27 | Same as AC-25 | reject a `Found document` item on the page | The item shows a final rejected state after reload | evaluator |
-| AC-28 | Company C5 whose only document is an EDGAR 10-K | `run_discovery` | The queue holds no item for C5 | holdout |
-| AC-29 | A run where every company gets documents that name it | `run_discovery` | Each result row's `documents_found` equals the same run on `main`, apart from the new `review` field being `null` | holdout |
-| AC-30 | Identity run with one flagged company | `arp identity review` approve, then `enriched-universe` | Same output as on `main` | holdout |
-| AC-31 | The existing backend test suite on `main` | `python3 -m pytest backend/tests` on this branch, excluding files added by this change | Same pass/fail result per test as on `main` | unit |
-| AC-32 | The existing frontend checks | `npm run lint && npx tsc -b && npm test` | Exit code 0 | unit |
+| AC-1  | Universe [C1] | `run_discovery` | The run's review queue holds exactly one item, key `no_documents:C1` | unit |
+| AC-2  | Same as AC-1 | `GET /api/review/items?run_id=<run>` | The item `no_documents:C1` has `kind` `no_documents` | unit |
+| AC-3  | Same as AC-1 | `GET /api/review/items?run_id=<run>` | The item's `payload.reason_codes` is `["no_documents"]` | unit |
+| AC-4  | Universe [C1], `triggered_by="schedule"` | `run_discovery` | The run's review queue is empty | unit |
+| AC-5  | Universe [C2] | `run_discovery` | The queue holds items `discovered:C2:S1` and `discovered:C2:S2`, both `kind` `discovered_document` | unit |
+| AC-6  | Same as AC-5 | `GET /api/review/items?run_id=<run>` | Item `discovered:C2:S1` has `payload.reason_codes` `["match_ambiguous"]` | unit |
+| AC-7  | Universe [C3] | `run_discovery` | The queue holds item `discovered:C3:S3` with `payload.reason_codes` `["check_failed"]` | unit |
+| AC-8  | Universe [C4] | `run_discovery` | The queue holds no item whose key starts with `discovered:C4:` | unit |
+| AC-9  | Universe [C1, C2] | `run_discovery` | The run manifest's `review_count` is 3 | unit |
+| AC-10 | Same stand-ins as AC-9 | `arp discover run --universe <file>` through typer's `CliRunner`, in-process | Output contains the line `3 items queued for review (open the Review page)` | unit |
+| AC-11 | Universe [C2] after `run_discovery`, item `discovered:C2:S1` | POST decision `reject`, reason `wrong_entity` | The response's `state` is `final` | unit |
+| AC-12 | Same as AC-11 | check the item payload's `local_path` | No file exists there | unit |
+| AC-13 | Same as AC-11 | list `<documents_dir>/_rejected/C2/10-K/` | It holds one file, with sha256 S1 | unit |
+| AC-14 | Same as AC-11 | read `<discovery_state_dir>/C2.json` | The entry for `https://c2.example/report-a.pdf` has `"review": "rejected"` | unit |
+| AC-15 | Same as AC-11 | `LocalFileDocumentSource.fetch(C2)` | No returned document has content sha256 S1 | unit |
+| AC-16 | Same as AC-11 | count blob store objects with key S1, and lines in the capture log, before and after the decision | The blob store still holds S1; the capture log line count is unchanged | unit |
+| AC-17 | Same as AC-11; a second run whose crawl finds `https://c2.example/report-a.pdf` again | `run_discovery` | The mock transport receives 0 requests for that URL | unit |
+| AC-18 | Same as AC-11; a second run finds bytes B1 at `https://c2.example/copy.pdf` | `run_discovery` | No file with sha256 S1 exists under `<documents_dir>/C2/` | unit |
+| AC-19 | Same as AC-18 | read the second run's queue | It holds no item with key `discovered:C2:S1` | unit |
+| AC-20 | Universe [C2] after `run_discovery`, item `discovered:C2:S1` | POST decision `approve`, reason `confirmed` | The manifest entry for `https://c2.example/report-a.pdf` has `"review": "approved"` | unit |
+| AC-21 | Same as AC-20 | check the item payload's `local_path` | The file exists | unit |
+| AC-22 | Same as AC-20; a second run returns the same URL with bytes B1 | `run_discovery` | The second run's queue holds no item with key `discovered:C2:S1` | unit |
+| AC-23 | Same as AC-20; a second run returns the same URL with new bytes B3 (sha256 S6) | `run_discovery` | The second run's queue holds item `discovered:C2:S6` | unit |
+| AC-24 | Universe [C2] after `run_discovery`, `second_review_sample_rate` 1.0 | POST decision `reject` for `discovered:C2:S1` (first reviewer) | The file at the payload's `local_path` exists | unit |
+| AC-25 | Same as AC-24 | read `<discovery_state_dir>/C2.json` | The entry for `https://c2.example/report-a.pdf` has `"review": null` | unit |
+| AC-26 | Universe [C2] after `run_discovery`, no decision on `discovered:C2:S1` | check the payload's `local_path` | The file exists | unit |
+| AC-27 | Same as AC-26 | read `<discovery_state_dir>/C2.json` | The entry for `https://c2.example/report-a.pdf` has `"review": null` | unit |
+| AC-28 | Universe [C1] after `run_discovery` | POST decision `reject` for `no_documents:C1` | `422` with detail `reject is not a decision for a no_documents item` | unit |
+| AC-29 | Same as AC-28 | POST decision `approve` for `no_documents:C1` | The response's `state` is `final` | unit |
+| AC-30 | Same as AC-29 | compare content and mtime of every file under `<documents_dir>` and `<discovery_state_dir>` before and after the decision | None changed | unit |
+| AC-31 | DRUN | open the Review page | Three items of the seeded run are listed, each labelled `Document discovery`, two as `Found document` and one as `No documents` | evaluator |
+| AC-32 | DRUN | open the `Found document` item for `https://c2.example/report-a.pdf` | Its URL and the `company_match` value `none` are shown | evaluator |
+| AC-33 | DRUN | reject that item on the page, then reload | The item shows the state `final` with decision `reject` | evaluator |
+| AC-34 | Universe [C5] | `run_discovery` | The queue holds no item | unit |
+| AC-35 | Universe [C4] | `run_discovery` | The result row's `documents_found` has one entry with `company_id` `C4`, `doc_type` `10-K`, `url` `https://c4.example/annual-report-2025.pdf`, `sha256` S4, `company_match` `name`, `page_count` 3, `reporting_year` 2025, `alias_of` null, `review` null | unit |
+| AC-36 | Names file with company I1, name `Acme Corp`, website `https://acme.example` | `arp identity resolve`, then `arp identity enriched-universe` | The output is a list of one object with `company_id` `I1`, `name` `Acme Corp`, `website` `https://acme.example`, `cik` null | unit |
+| AC-37 | The existing backend test suite on `main` | `python3 -m pytest backend/tests` on this branch, excluding files added by this change | Same pass/fail result per test as on `main` | unit |
+| AC-38 | The existing frontend checks | `npm run lint && npx tsc -b && npm test` | Exit code 0 | unit |
 
-Must not change: discovery results for documents that pass the check (AC-29), EDGAR/ESEF documents (AC-28),
-identity review (AC-30), the existing suites (AC-31, AC-32).
+Must not change: discovery results for documents that pass the check (AC-35), EDGAR/ESEF documents (AC-34),
+identity resolution export (AC-36), the existing suites (AC-37, AC-38).

@@ -46,7 +46,8 @@ but sustainability reports only in English (`crawler.py:29-32`), and the web sea
 
 - A change to which documents are downloaded for a US company with default settings, other than new
   `transition_plan` links.
-- An existing English link changing its classification.
+- An existing link changing its classification, unless it contains a transition term and was `other` or unclassified
+  before.
 
 ## Design
 
@@ -84,8 +85,10 @@ WARNING: <n>/<total> companies have no annual or sustainability report from <cut
   <company_id>: latest <year or none>
 ```
 
-to stderr, where `<cutoff> = (today.year - 1) - discovery_report_max_age_years`. One line per stale company, in run
-order. Nothing is printed when no company is stale.
+to stderr, where `<cutoff> = (date.today().year - 1) - discovery_report_max_age_years`, computed in
+`arp/cli/discovery.py` with the same `date.today()` the run used. The block comes after the unreachable block. One
+line per stale company, in the order `run_store.read_results(run_id)` returns the rows (the order the unreachable
+block already uses). Nothing is printed when no company is stale.
 
 ### Keywords (`arp/discovery/crawler.py`)
 
@@ -103,10 +106,12 @@ The `SUSTAINABILITY_REPORT` tuple keeps its English terms and adds:
 | da | `bæredygtighedsrapport`, `baeredygtighedsrapport` |
 | fi | `vastuullisuusraportti`, `kestävyysraportti`, `kestavyysraportti` |
 
-A new entry `(DocType.TRANSITION_PLAN, (...))` goes directly after the sustainability entry, with
+A new entry `(DocType.TRANSITION_PLAN, (...))` goes **last** in `_DOC_TYPE_PATTERNS`, after the investor
+presentation entry, with
 `transition plan`, `transitionsplan`, `plan de transition`, `plan de transición`, `plan de transicion`,
-`transitieplan`, `piano di transizione`, `omställningsplan`, `omstallningsplan`. Because the sustainability entry is
-checked first, "Sustainability report and transition plan" stays a sustainability report.
+`transitieplan`, `piano di transizione`, `omställningsplan`, `omstallningsplan`. Because every existing entry is checked
+first, a link that already matched an existing class keeps it: "Sustainability report and transition plan" stays a
+sustainability report and "Investor presentation: transition plan" stays an investor presentation.
 
 Transition plans are same-site crawl candidates like earnings transcripts: they are kept by `select_candidates`
 as "every other crawled type" (`report_finding.py:79`) and downloaded to `documents_dir/<company>/transition_plan/`.
@@ -147,45 +152,59 @@ transports.
    comparison (adds one filing fetch per extra year per company).
 2. Default age limit 1 year past the expected year (a 2023 report is stale in 2026), or 0 (only the expected year
    or the one before counts).
+3. Read only ISO alpha-2 country codes for the local query (this spec), or also full country names. Either way it
+   fires only once G1 keeps `country` in `enriched-universe`.
 
 ## Acceptance
 
-`holdout` rows use stand-in HTTP transports for EDGAR, ESEF, search and crawl, and a fixed `today` of 2026-11-03. In rows AC-23 to AC-28 the company has a supplied `website`, no CIK and no LEI,
-so the search client is used only for report queries.
+All rows are `unit`: they need stand-in transports and a fixed date, which the e2e app cannot be given.
+
+- **Pipeline rows** (AC-1 to AC-13, AC-21 to AC-24, AC-26 to AC-28, AC-30, AC-33) call
+  `EdgarDocumentSource.fetch` with a stand-in transport, or `execute_discovery_run(..., search_client=<recording
+  stand-in>, edgar_source=<stand-in>, esef_source=<stand-in>, transport=<stand-in>, today=date(2026, 11, 3))`.
+  The stand-in transport serves each fixture PDF with the title metadata and first-page text the row gives.
+- **CLI rows** (AC-14 to AC-16, AC-34) call `discover_run` in-process (Typer `CliRunner`), with
+  `arp.cli.discovery.run_discovery` replaced by a stand-in that records the given `DiscoveryCompanyResult` rows in
+  the run store in the given order, and `date` in `arp.cli.discovery` patched so `date.today()` is 2026-11-03.
+- In AC-23 to AC-28 and AC-33 the company is `Muster AG` with a supplied `website` whose stand-in homepage has no
+  links, no CIK and no LEI, so the search client is used only for report queries.
 
 | ID    | Given | When | Then (observable, exact) | Checked by |
 |-------|-------|------|--------------------------|------------|
-| AC-1  | Stand-in submissions: latest `10-K` with `reportDate` `2025-12-31`, `filingDate` `2026-02-20` | `EdgarDocumentSource.fetch` | The 10-K `SourceDocument.fiscal_period` is `2025-12-31` | holdout |
-| AC-2  | Same as AC-1 | `EdgarDocumentSource.fetch` | The 10-K title is `<name> 10-K (2026-02-20)` | holdout |
-| AC-3  | Latest `10-K` with `reportDate` `""`, `filingDate` `2026-02-20` | `EdgarDocumentSource.fetch` | `fiscal_period` is `2026-02-20` | holdout |
-| AC-4  | Submissions JSON without a `reportDate` key | `EdgarDocumentSource.fetch` | `fiscal_period` equals the filing's `filingDate` | holdout |
-| AC-5  | Company with a CIK, AC-1's submissions | discovery run | The 10-K `DiscoveredDocument.reporting_year` is `2025` | holdout |
-| AC-6  | Company with an LEI, stand-in ESEF filing with period end `2025-03-31` | discovery run | That document's `reporting_year` is `2025` | holdout |
-| AC-7  | Documents found: a 10-K with year 2025 and a sustainability PDF with year 2024 | discovery run | `latest_report_year` is `2025` | holdout |
-| AC-8  | Same as AC-7 | discovery run | `report_stale` is `false` | holdout |
-| AC-9  | Only a sustainability PDF with `reporting_year` 2023, default setting | discovery run | `report_stale` is `true` | holdout |
-| AC-10 | Only a sustainability PDF with `reporting_year` 2024, default setting | discovery run | `report_stale` is `false` | holdout |
-| AC-11 | Same as AC-10, `ARP_DISCOVERY_REPORT_MAX_AGE_YEARS=0` | discovery run | `report_stale` is `true` | holdout |
-| AC-12 | Only an earnings transcript, and a 10-K PDF whose `reporting_year` is `None` | discovery run | `latest_report_year` is `null` | holdout |
-| AC-13 | Same as AC-12 | discovery run | `report_stale` is `true` | holdout |
-| AC-14 | Universe of 2; company `acme` stale with latest 2023, the other current | `arp discover run` | stderr contains the line `WARNING: 1/2 companies have no annual or sustainability report from 2024 or later:` followed by the line `  acme: latest 2023` | holdout |
-| AC-15 | Universe of 1; a stale company with no year | `arp discover run` | stderr contains the line `  <company_id>: latest none` | holdout |
-| AC-16 | Universe where no company is stale | `arp discover run` | stderr contains no line starting `WARNING:` with `annual or sustainability report` | holdout |
-| AC-17 | Each term in the *Keywords* sustainability table, as link text `<Term> 2025` on `https://x.example/r.pdf` | `classify_link(url, text)` | Returns `sustainability_report` for every term | holdout |
-| AC-18 | Link text `Climate Transition Plan 2025`, url `https://x.example/ctp.pdf` | `classify_link` | Returns `transition_plan` | holdout |
-| AC-19 | Each transition term in *Keywords*, as link text `<Term>` on `https://x.example/t.pdf` | `classify_link` | Returns `transition_plan` for every term | holdout |
-| AC-20 | Link text `Sustainability report and transition plan` | `classify_link` | Returns `sustainability_report` | holdout |
-| AC-21 | Stand-in homepage with a same-site link `Climate Transition Plan` to a PDF | discovery run | `documents_found` has one document with `doc_type` `transition_plan` | holdout |
-| AC-22 | Same as AC-21 | discovery run | That document's `local_path` is under `<documents_dir>/<company_id>/transition_plan/` | holdout |
-| AC-23 | Company `country` `de`, name `Muster AG`, stand-in search client recording queries | discovery run | The recorded queries for sustainability are, in order, `"Muster AG" sustainability report 2025 filetype:pdf` and `"Muster AG" Nachhaltigkeitsbericht 2025 filetype:pdf` | holdout |
-| AC-24 | Same as AC-23, the local query returns one PDF hit | discovery run | That hit is a candidate with `doc_type` `sustainability_report` | holdout |
-| AC-25 | Same as AC-23 | discovery run | Exactly one recorded query contains `annual report` and none contains a local annual term | holdout |
-| AC-26 | Company `country` `Germany` | discovery run | Exactly 2 queries are recorded: the English annual and the English sustainability query | holdout |
-| AC-27 | Company `country` `US` | discovery run | Exactly 2 queries are recorded: the English annual and the English sustainability query | holdout |
-| AC-28 | Company `country` `FR`; the local query raises in the stand-in | discovery run | The English sustainability query's hits are still candidates; the company result has no `crawl_error` from it | holdout |
-| AC-29 | Links `Annual Report 2025`, `Sustainability Report 2025`, `Proxy statement`, `Q3 earnings call transcript`, `Investor presentation` | `classify_link` | Returns `10-K`, `sustainability_report`, `DEF-14A`, `earnings_transcript`, `investor_presentation` | holdout |
-| AC-30 | Stand-in US company site and search hits with no transition-plan link, default settings | discovery run on this branch and on `main` | Same `documents_found` URLs and doc types | holdout |
-| AC-31 | The existing backend test suite on `main` | `python3 -m pytest backend/tests` on this branch, excluding files added by this change | Same pass/fail result per test as on `main` | unit |
+| AC-1  | Stand-in submissions: latest `10-K` with `reportDate` `2025-12-31`, `filingDate` `2026-02-20` | `EdgarDocumentSource.fetch` | The 10-K `SourceDocument.fiscal_period` is `2025-12-31` | unit |
+| AC-2  | Same as AC-1 | `EdgarDocumentSource.fetch` | The 10-K title is `<name> 10-K (2026-02-20)` | unit |
+| AC-3  | Latest `10-K` with `reportDate` `""`, `filingDate` `2026-02-20` | `EdgarDocumentSource.fetch` | `fiscal_period` is `2026-02-20` | unit |
+| AC-4  | Submissions JSON without a `reportDate` key, latest `10-K` `filingDate` `2026-02-20` | `EdgarDocumentSource.fetch` | `fiscal_period` is `2026-02-20` | unit |
+| AC-5  | Company with a CIK, AC-1's submissions | discovery run | The 10-K `DiscoveredDocument.reporting_year` is `2025` | unit |
+| AC-6  | Company with an LEI, stand-in ESEF filing with period end `2025-03-31` | discovery run | That document's `reporting_year` is `2025` | unit |
+| AC-7  | Company with a CIK and AC-1's submissions; homepage links one same-site PDF whose title metadata and first page read `Sustainability Report 2024` | discovery run | `latest_report_year` is `2025` | unit |
+| AC-8  | Same as AC-7 | discovery run | `report_stale` is `false` | unit |
+| AC-9  | No CIK, no LEI; search returns nothing; homepage links one same-site PDF whose title metadata and first page read `Sustainability Report 2023`; default setting | discovery run | `report_stale` is `true` | unit |
+| AC-10 | Same as AC-9 with `Sustainability Report 2024` | discovery run | `report_stale` is `false` | unit |
+| AC-11 | Same as AC-10, with `Settings(discovery_report_max_age_years=0)` passed to the run | discovery run | `report_stale` is `true` | unit |
+| AC-12 | No CIK, no LEI; search returns nothing; homepage links `Q3 earnings call transcript` to a PDF whose first page reads `Earnings call transcript 2026`, and `Annual Report` to a PDF with no year in its title metadata or text. `documents_found` is exactly these two | discovery run | `latest_report_year` is `null` | unit |
+| AC-13 | Same as AC-12 | discovery run | `report_stale` is `true` | unit |
+| AC-14 | Stand-in rows: `acme` stale with latest 2023, then `beta2` current with latest 2025 | `arp discover run` | stderr contains the line `WARNING: 1/2 companies have no annual or sustainability report from 2024 or later:` directly followed by the line `  acme: latest 2023` | unit |
+| AC-15 | Stand-in rows: only `beta`, stale, `latest_report_year` `null` | `arp discover run` | stderr contains the line `WARNING: 1/1 companies have no annual or sustainability report from 2024 or later:` directly followed by the line `  beta: latest none` | unit |
+| AC-16 | Stand-in rows: two companies, both `report_stale` `false` | `arp discover run` | No stderr line contains `annual or sustainability report` | unit |
+| AC-17 | Each term in the *Keywords* sustainability table, as link text `<Term> 2025` on `https://x.example/r.pdf` | `classify_link(url, text)` | Returns `sustainability_report` for every term | unit |
+| AC-18 | Link text `Climate Transition Plan 2025`, url `https://x.example/ctp.pdf` | `classify_link` | Returns `transition_plan` | unit |
+| AC-19 | Each transition term in *Keywords*, as link text `<Term>` on `https://x.example/t.pdf` | `classify_link` | Returns `transition_plan` for every term | unit |
+| AC-20 | Link text `Sustainability report and transition plan`, url `https://x.example/s.pdf` | `classify_link` | Returns `sustainability_report` | unit |
+| AC-21 | Homepage `https://acme.example/` with a same-site link `Climate Transition Plan` to `https://acme.example/ctp.pdf` | discovery run | `documents_found` has one document with `doc_type` `transition_plan` and url `https://acme.example/ctp.pdf` | unit |
+| AC-22 | Same as AC-21 | discovery run | That document's `local_path` is under `<documents_dir>/<company_id>/transition_plan/` | unit |
+| AC-23 | `Muster AG`, `country` `de` | discovery run | The recorded queries are exactly, in order: `"Muster AG" annual report 2025 filetype:pdf`, `"Muster AG" sustainability report 2025 filetype:pdf`, `"Muster AG" Nachhaltigkeitsbericht 2025 filetype:pdf` | unit |
+| AC-24 | Same as AC-23; only the third query returns one hit, `https://muster.example/nb-2025.pdf` titled `Nachhaltigkeitsbericht 2025` | discovery run | `documents_found` contains url `https://muster.example/nb-2025.pdf` with `doc_type` `sustainability_report` | unit |
+| ~~AC-25~~ | ~~Retired: AC-23 now gives the full ordered query list, which covers it.~~ | | | |
+| AC-26 | `Muster AG`, `country` `Germany` | discovery run | The recorded queries are exactly, in order: `"Muster AG" annual report 2025 filetype:pdf`, `"Muster AG" sustainability report 2025 filetype:pdf` | unit |
+| AC-27 | `Muster AG`, `country` `US` | discovery run | The recorded queries are exactly, in order: `"Muster AG" annual report 2025 filetype:pdf`, `"Muster AG" sustainability report 2025 filetype:pdf` | unit |
+| AC-28 | `Muster AG`, `country` `FR`; the English sustainability query returns `https://x.example/sr-2025.pdf` titled `Sustainability Report 2025`; the local query raises in the stand-in | discovery run | `documents_found` contains url `https://x.example/sr-2025.pdf` with `doc_type` `sustainability_report` | unit |
+| AC-29 | Links `Annual Report 2025`, `Sustainability Report 2025`, `Proxy statement`, `Q3 earnings call transcript`, `Investor presentation` | `classify_link` | Returns `10-K`, `sustainability_report`, `DEF-14A`, `earnings_transcript`, `investor_presentation` | unit |
+| AC-30 | US company, `country` `US`, website `https://acme.example/`, no CIK, no LEI, default settings. Homepage links `Annual Report 2025` → `https://acme.example/ar-2025.pdf` and `Q3 earnings call transcript` → `https://acme.example/q3.pdf`. The annual query returns nothing; the sustainability query returns `https://cdn.example/acme-sustainability-report-2025.pdf` titled `Acme Sustainability Report 2025` | discovery run on this branch and on `main` | On both, the set of (`url`, `doc_type`) in `documents_found` is exactly {(`https://acme.example/ar-2025.pdf`, `10-K`), (`https://cdn.example/acme-sustainability-report-2025.pdf`, `sustainability_report`), (`https://acme.example/q3.pdf`, `earnings_transcript`)} | unit |
+| AC-31 | The existing backend test suite on `main`. A grep of `backend/tests` found no test asserting an EDGAR document's `fiscal_period` or an EDGAR document's index header, so no test is expected to change | `python3 -m pytest backend/tests` on this branch, excluding files added by this change | Same pass/fail result per test as on `main` | unit |
+| AC-32 | Link text `Investor presentation: transition plan`, url `https://x.example/ip.pdf` | `classify_link` | Returns `investor_presentation` | unit |
+| AC-33 | `Muster AG`, `country` given as ` <code> ` (lower case, one space each side) for each code in the *Local-language search* table | discovery run | For each code, the last recorded query is `"Muster AG" <term> 2025 filetype:pdf` with that code's term from the table | unit |
+| AC-34 | Stand-in rows in this order: `u` with `homepage_unreachable` `true`, `crawl_error` `timeout`, latest 2025, not stale; `b` stale, latest 2022; `a` stale, latest `null` | `arp discover run` | stderr ends with exactly these five lines in this order: `WARNING: 1/3 companies' homepage could not be reached (not the same as "no documents found"):`, `  u: timeout`, `WARNING: 2/3 companies have no annual or sustainability report from 2024 or later:`, `  b: latest 2022`, `  a: latest none` | unit |
 
-Must not change: English classifications (AC-29), US discovery with default settings (AC-30), EDGAR titles (AC-2),
-the existing test suite (AC-31).
+Must not change: English classifications (AC-29, AC-32), US discovery with default settings (AC-30), EDGAR titles
+(AC-2), the existing test suite (AC-31).
