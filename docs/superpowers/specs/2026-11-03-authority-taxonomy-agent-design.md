@@ -122,7 +122,7 @@ by the golden command (expected activities against the draft). `Match` = left in
 (`exact` | `model`), `reason`.
 
 1. **Exact:** equal merge key (name lower-cased, whitespace and punctuation removed) → match, `method=exact`, no
-   model call.
+   model call, `reason` is `equal merge key`.
 2. **Keyword candidates:** each activity's keywords come from its name plus its `seed_keywords`: lower-case, split on
    anything that is not a letter or digit, drop words in the constant `IGNORED_WORDS` (exactly: `a, an, and, as,
    at, by, for, from, in, into, of, on, or, other, the, to, with, manufacture, manufacturing, manufacturer,
@@ -135,14 +135,14 @@ by the golden command (expected activities against the draft). `Match` = left in
 4. Each activity matches at most one other. Pairs are taken in order of left index, then right index; the first
    matching pair (exact or `same_activity=true`) for an activity wins and both sides are then used up.
 
-Matching never invents an activity; an unmatched activity stays separate (consolidation) or counts as missed
+A merged activity keeps the left activity's name and gets the citations of both. Matching never invents an activity; an unmatched activity stays separate (consolidation) or counts as missed
 (golden).
 
 ### Golden command
 
 `arp golden-set authority-taxonomy --case <id>` runs a full run on the case's stored source and scope, accepts the
 draft in memory (nothing saved), prints every produced activity name, then one line per expected activity
-(`FOUND <expected> = <produced> (<method>: <reason>)` or `MISSED <expected>`), then `grounded_rate=<x> recall=<y>`.
+(`FOUND <expected> = <produced> (<method>: <reason>)` or `MISSED <expected>`), then `grounded_rate=<x> recall=<y>`, both with 2 decimals (0 activities gives `grounded_rate=0.00`).
 Recall uses the activity matcher. It exits 0 when every activity is grounded and recall ≥ the case's `min_recall`
 (rounded to 2 decimals); else 1.
 Cases live in `backend/tests/golden/authority_taxonomy/`.
@@ -183,12 +183,12 @@ so rows are `unit` and listed as owed to `holdout` in the PR.
 | AC-8 | Two sources A and B each yield "Electrolyser stack manufacturing" (one written "electrolyser-stack manufacturing") | consolidate | Exactly one activity has that merge key; its `citations` has 2 entries with URLs A and B | unit |
 | AC-8a | As AC-8 | consolidate | The fake LLM received 0 matcher calls | unit |
 | AC-8b | Source A yields "Fuel cell manufacturing", source B "Manufacture of fuel cells and other hydrogen-to-power equipment", both with empty `seed_keywords`; the fake matcher returns `same_activity=true` for that pair | consolidate | Exactly one activity named "Fuel cell manufacturing", with 2 citations (URLs A and B) | unit |
-| AC-8b2 | As AC-8b | consolidate | The fake LLM received exactly 1 matcher call, and its prompt contains the scope text | unit |
+| AC-8b2 | As AC-8b, with scope "hydrogen equipment" | consolidate | The fake LLM received exactly 1 matcher call, and its prompt contains `hydrogen equipment` | unit |
 | AC-8c | As AC-8b, but the fake matcher returns `same_activity=false` | consolidate | 2 activities, named "Fuel cell manufacturing" and "Manufacture of fuel cells and other hydrogen-to-power equipment", each with 1 citation | unit |
 | AC-8d | Source A yields "Manufacture of electrolysers", source B "Hydrogen storage tanks", both with empty `seed_keywords` | consolidate | 2 activities, each with 1 citation; the fake LLM received 0 matcher calls | unit |
-| AC-8e | Source A yields "Electrolyser stacks", source B yields "Electrolysis systems" and "Electrolyser modules"; the fake matcher returns `same_activity=true` for both pairs | consolidate | 2 activities: "Electrolyser stacks" with citations from A and B's "Electrolysis systems", and "Electrolyser modules" with 1 citation | unit |
+| AC-8e | Source A yields "Electrolyser stacks", source B yields "Electrolysis systems" and "Electrolyser modules"; the fake matcher returns `same_activity=true` for both pairs | consolidate | 2 activities: "Electrolyser stacks" with citations from A and B's "Electrolysis systems", and "Electrolyser modules" with 1 citation (not merged, because "Electrolyser stacks" is already used) | unit |
 | AC-8f | As AC-8e | consolidate | The fake LLM received exactly 1 matcher call containing both pairs | unit |
-| AC-8g | Source A yields "Stack assembly" with `seed_keywords` ["electrolyser"], source B "Electrolyser production" with empty `seed_keywords`; the fake matcher returns `same_activity=true` | consolidate | Exactly one activity, with citations from A and B | unit |
+| AC-8g | Source A yields "Stack assembly" with `seed_keywords` ["electrolyser"], source B "Electrolyser production" with empty `seed_keywords`; the fake matcher returns `same_activity=true` | consolidate | Exactly one activity named "Stack assembly", with 2 citations (URLs A and B) | unit |
 | AC-9 | Scope "manufacture of electrolysers only"; a source passage O describes operating electrolysers to produce hydrogen | extract | No activity name contains "operat" | unit |
 | AC-9b | As AC-9 | extract | Some activity's `out_of_scope_citations` contains a quote equal to O | unit |
 | AC-10 | `value_chain=true`; the bundled sample IO model; a source with a bill of materials | consolidate | ≥ 1 activity has `value_chain_role` `upstream` or `enabling` | unit |
@@ -219,7 +219,8 @@ so rows are `unit` and listed as owed to `holdout` in the PR.
 | AC-22b | Fake LLM; the draft has "Manufacture of fuel cells and other hydrogen-to-power/heat equipment"; expected "Manufacture of fuel cells"; the fake matcher returns `same_activity=true` with reason "same product" | golden command | Output contains the line `FOUND Manufacture of fuel cells = Manufacture of fuel cells and other hydrogen-to-power/heat equipment (model: same product)` | unit |
 | AC-22c | Fake LLM; expected "Manufacture of hydrogen compressors"; the draft has only "Manufacture of electrolysers"; `min_recall` 0.67 | golden command | Output contains `MISSED Manufacture of hydrogen compressors` and `recall=0.00`; exit 1 | unit |
 | AC-22d | Fake LLM; every returned activity quote fails grounding, so the draft has 0 activities | golden command | Last line `grounded_rate=0.00 recall=0.00`; exit 1 | unit |
-| AC-22e | Fake LLM; draft and expected both "Manufacture of electrolysers" | golden command | Output contains `FOUND Manufacture of electrolysers = Manufacture of electrolysers (exact: equal names)`; every produced activity name is printed before the FOUND/MISSED lines | unit |
+| AC-22e | Fake LLM; draft and expected both "Manufacture of electrolysers" | golden command | Output contains `FOUND Manufacture of electrolysers = Manufacture of electrolysers (exact: equal merge key)` | unit |
+| AC-22f | As AC-22e | golden command | Every produced activity name is printed before the first `FOUND`/`MISSED` line | unit |
 
 Must not change: the existing derivation methods, `compare`/`merge`, ratification and taxonomies already saved
 (AC-18, AC-19, AC-19b, AC-19c, AC-19d, AC-21).
