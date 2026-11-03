@@ -79,6 +79,46 @@ def exposure_stats(set_dir: Path = typer.Option(..., "--set", help="Set director
         typer.echo(line)
 
 
+@golden_set_app.command("authority-taxonomy")
+def golden_set_authority_taxonomy(
+    case: str = typer.Option(..., "--case", help="Case folder name under tests/golden/authority_taxonomy/."),
+    cases_dir: Path = typer.Option(
+        Path(__file__).resolve().parents[2] / "tests" / "golden" / "authority_taxonomy", "--cases-dir", hidden=True
+    ),
+) -> None:
+    """Extracts and consolidates the case's stored source text with the real model (nothing saved) and prints
+    grounded_rate (activities with a citation / activities) and recall of the expected activity names.
+    Exits 1 unless grounded_rate is 1.0 and recall reaches the case's min_recall."""
+    from arp.research.authority_taxonomy.consolidate import consolidate
+    from arp.research.authority_taxonomy.extract import extract_source
+    from arp.schemas.authority_taxonomy import merge_key
+
+    folder = cases_dir / case
+    spec = json.loads((folder / "case.json").read_text(encoding="utf-8"))
+    text = (folder / "source.txt").read_text(encoding="utf-8")
+    settings = get_settings()
+    llm = build_llm_client(settings)
+
+    async def run():
+        ext = await extract_source(
+            spec["source_url"], text, theme_name=spec["theme_name"], scope=spec["scope"], value_chain=False, llm=llm
+        )
+        return await consolidate(
+            [ext], theme_name=spec["theme_name"], scope=spec["scope"], value_chain=False,
+            settings=settings, llm=llm, value_chain_model=None,
+        )
+
+    theme, _notes = asyncio.run(run())
+    acts = theme.activities
+    grounded_rate = sum(bool(a.citations) for a in acts) / len(acts) if acts else 0.0
+    keys = {merge_key(a.name) for a in acts}
+    expected = spec["expected_activities"]
+    recall = sum(merge_key(n) in keys for n in expected) / len(expected)
+    typer.echo(f"grounded_rate={grounded_rate:.2f} recall={recall:.2f}")
+    if grounded_rate != 1.0 or recall < spec["min_recall"]:
+        raise typer.Exit(1)
+
+
 @golden_set_app.command("run")
 def golden_set_run(
     cases_file: Path = typer.Option(
