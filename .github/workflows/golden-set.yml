@@ -105,7 +105,8 @@ jobs:
           arp golden-set run | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Compare the golden set with the evidence gate on and off
-        # evidence-gate spec AC-31 to AC-33: both pass, and the gate cuts extractor input by at least 10%
+        # evidence-gate spec AC-31, AC-32: both pass. Tokens are printed, not gated: the golden cases are too short
+        # for the gate to drop anything (AC-33 retired; owner decision 2026-11-02)
         if: steps.key.outputs.present == 'true' && steps.scope.outputs.gate == 'true'
         env:
           ARP_ANTHROPIC_API_KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
@@ -115,7 +116,6 @@ jobs:
           arp golden-set run --gate on | tee on.txt | tee -a "$GITHUB_STEP_SUMMARY"
           off=$(tail -1 off.txt | grep -oE '[0-9]+$'); on=$(tail -1 on.txt | grep -oE '[0-9]+$')
           echo "extractor input tokens: gate off $off, gate on $on" | tee -a "$GITHUB_STEP_SUMMARY"
-          [ "$((on * 10))" -le "$((off * 9))" ] || { echo "The gate cut extractor input by less than 10%." | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; }
 
       - name: Run the transition-barrier golden set
         if: steps.key.outputs.present == 'true'

@@ -90,7 +90,7 @@ with one uploaded document; without the key AC-25/26 are reported as blocked.
 | AC-30 | Frontend helper, no `gate` in retrieval | Gate line built | null | unit |
 | AC-31 | GOLD | `arp golden-set run --gate off` | Exits 0 | golden |
 | AC-32 | GOLD | `arp golden-set run --gate on` | Exits 0 | golden |
-| AC-33 | GOLD, both runs | CI step compares the last lines | `extractor input tokens` with `--gate on` is at least 10% below `--gate off`; the step exits 1 otherwise | golden |
+| ~~AC-33~~ | ~~GOLD, both runs~~ | ~~CI step compares the last lines~~ | ~~`extractor input tokens` with `--gate on` is at least 10% below `--gate off`; the step exits 1 otherwise~~ Retired 2026-11-02 (owner): the golden cases yield 3 passages or fewer, so the gate never filters them (16,595 vs 16,601 tokens). CI keeps AC-31/32 and prints both totals. | golden |
 | AC-34 | A 2-case golden set with a stub model, case `c1` passes and `c2` fails | `arp golden-set run --gate on` | Prints `c1: pass`, `c2: fail`, then `extractor input tokens: {int}` as the last line, and exits 1 | unit |
 | AC-35 | Existing backend and frontend suites | CI | All existing tests pass unchanged, except exact-key trace assertions extended for `gate`/`gate_dropped` (listed in the PR) | unit |
 
