@@ -52,13 +52,15 @@ async def consolidate(
     groups: dict[str, ActivityDefinition] = {}
     for ext in extractions:
         for act in ext.activities:
-            act = act.model_copy(update={"sector_codes": act.sector_codes + ext.sector_codes})
+            act = act.model_copy(update={"sector_codes": act.sector_codes + ext.sector_codes}, deep=True)
             kept = groups.setdefault(merge_key(act.name), act)
             if kept is act:
                 continue
             kept.citations += act.citations
             kept.out_of_scope_citations += act.out_of_scope_citations
-            kept.criteria += [c for c in act.criteria if c.text not in {k.text for k in kept.criteria}]
+            for crit in act.criteria:
+                if crit.text not in {k.text for k in kept.criteria}:
+                    kept.criteria.append(crit)
             kept.seed_keywords += [k for k in act.seed_keywords if k not in kept.seed_keywords]
             for code in act.sector_codes:
                 _add(kept.sector_codes, code)
@@ -75,7 +77,9 @@ async def consolidate(
     )
     theme, _usage = await map_theme_to_standards(theme, settings, llm)
 
-    io = value_chain_model or resolve_indirect_exposure_model(settings)  # labels map_standards' ICIO codes as ISIC
+    io = value_chain_model  # labels map_standards' ICIO codes as ISIC; loaded only when there are codes to label
+    if io is None and any(a.core_isic_codes for a in theme.activities):
+        io = resolve_indirect_exposure_model(settings)
     notes: list[str] = []
     if value_chain and value_chain_model is None:
         notes.append("no IO model: sector codes not widened with EXIOBASE upstream industries")

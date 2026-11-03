@@ -54,9 +54,29 @@ async def test_merge_keeps_both_citations(tmp_path):
 
 
 async def test_value_chain_role_present(tmp_path):
-    ext = SourceExtraction(url="A", activities=[_act("Stacks", "A"), _act("Membranes", "A", role="upstream")])
-    theme, _ = await _run([ext], tmp_path, value_chain=True, model=resolve_indirect_exposure_model(_settings(tmp_path), use_sample=True))
-    assert any(a.value_chain_role in ("upstream", "enabling") for a in theme.activities)
+    a = SourceExtraction(url="A", activities=[_act("Stacks", "A"), _act("Membranes", "A", role="upstream")])
+    b = SourceExtraction(url="B", activities=[_act("Power electronics", "B", role="enabling"), _act("stacks", "B")])
+    theme, _ = await _run([a, b], tmp_path, value_chain=True, model=resolve_indirect_exposure_model(_settings(tmp_path), use_sample=True))
+    roles = {x.name: x.value_chain_role for x in theme.activities}
+    assert roles == {"Stacks": "core", "Membranes": "upstream", "Power electronics": "enabling"}
+
+
+async def test_input_extractions_unchanged(tmp_path):
+    from arp.schemas.authority_taxonomy import Criterion
+    a = SourceExtraction(url="A", activities=[_act("Stacks", "A")])
+    b = SourceExtraction(url="B", activities=[_act("stacks", "B")])
+    b.activities[0].criteria = [Criterion(text="c"), Criterion(text="c")]
+    b.activities[0].seed_keywords = ["k"]
+    before = [a.model_dump(), b.model_dump()]
+    theme, _ = await _run([a, b], tmp_path)
+    assert [a.model_dump(), b.model_dump()] == before
+    assert [c.text for c in theme.activities[0].criteria] == ["c"]
+
+
+async def test_no_model_keeps_raw_isic_code(tmp_path):
+    ext = SourceExtraction(url="A", activities=[_act("Power", "A", isic=["D"])])
+    theme, _ = await _run([ext], tmp_path)
+    assert [c.code for c in theme.activities[0].sector_codes if c.system == "ISIC"] == ["D"]
 
 
 async def test_exiobase_top5(tmp_path):
