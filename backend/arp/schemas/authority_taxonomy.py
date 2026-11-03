@@ -40,5 +40,5 @@ class Definition(BaseModel):
 
 
 def merge_key(name: str) -> str:
-    """Case- and punctuation-insensitive key for matching the same activity across sources."""
-    return " ".join(re.sub(r"[\W_]+", " ", name.lower()).split())
+    """Case-, whitespace- and punctuation-insensitive key for matching the same activity across sources."""
+    return re.sub(r"[\W_]+", "", name.lower())

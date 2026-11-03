@@ -2,11 +2,14 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+from pydantic import ValidationError
 from typer.testing import CliRunner
 
 from arp.cli.taxonomy import taxonomy_app
-from arp.schemas.authority_taxonomy import merge_key
+from arp.schemas.authority_taxonomy import Criterion, Definition, SectorCode, SourceCitation, Technology, Threshold, merge_key
 from arp.schemas.taxonomy import Taxonomy
+from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 from arp.storage.taxonomy_store import TaxonomyStore
 
 FIXTURES = Path(__file__).parent / "fixtures" / "authority_taxonomy"
@@ -27,6 +30,27 @@ def test_old_taxonomy_json_loads():
 
 def test_merge_key():
     assert merge_key("Electrolyser stack manufacturing") == merge_key("electrolyser-stack  manufacturing")
+    assert merge_key("Co-generation") == merge_key("Cogeneration")
+
+
+def test_new_fields_round_trip():
+    cite = SourceCitation(quote="q", source_url="https://e.org")
+    activity = ActivityDefinition(
+        name="A", in_scope_description="x", out_of_scope_description="y", value_chain_role="upstream",
+        criteria=[Criterion(text="c", citations=[cite])], citations=[cite], out_of_scope_citations=[cite],
+        sector_codes=[SectorCode(system="NACE", code="C28", origin="source")],
+    )
+    theme = ThemeDefinition(
+        name="T", description="d", activities=[activity], scope="s", technologies=[Technology(name="n", citations=[cite])],
+        definitions=[Definition(term="t", text="x", citations=[cite])], thresholds=[Threshold(text="t")],
+        checklist_report={"a": {"b": "found"}},
+    )
+    assert ThemeDefinition.model_validate_json(theme.model_dump_json()) == theme
+
+
+def test_invalid_value_chain_role_raises():
+    with pytest.raises(ValidationError):
+        ActivityDefinition(name="A", in_scope_description="x", out_of_scope_description="y", value_chain_role="downstream")
 
 
 def test_show_unchanged(tmp_path):
