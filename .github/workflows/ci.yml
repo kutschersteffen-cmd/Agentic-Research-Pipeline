@@ -249,7 +249,7 @@ jobs:
 
   # Recall of the committed retrieval gold set (spec retrieval-gold-set-and-question-queries). Default settings
   # (hybrid on, rerank off), no model calls, no API key. The floor is main's recall@12 when this shipped minus
-  # 0.02 (main 0.647 with hybrid on and context headers on); raise it by hand when retrieval gets better.
+  # 0.02 (0.721 with hybrid, context headers and small-to-big on); raise it by hand when retrieval gets better.
   retrieval-recall:
     name: Retrieval recall
     needs: retrieval-scope
@@ -320,7 +320,7 @@ jobs:
           if [ -f .document_store/chunk_embeddings.csv ]; then
             psql "$pg" -qc "\copy chunk_embeddings from '.document_store/chunk_embeddings.csv' csv"
           fi
-          arp golden-set retrieval --cases tests/golden/retrieval/cases.json --min-recall 0.627 \
+          arp golden-set retrieval --cases tests/golden/retrieval/cases.json --min-recall 0.701 \
             | tee -a "$GITHUB_STEP_SUMMARY"
           psql "$pg" -qc "\copy chunk_embeddings to '.document_store/chunk_embeddings.csv' csv"
 

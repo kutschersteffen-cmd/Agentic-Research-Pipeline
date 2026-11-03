@@ -107,14 +107,14 @@ def rule2_parent(doc: SourceDocument) -> str:
 
 def test_defaults_and_env(monkeypatch):  # AC-1, AC-17, AC-18
     monkeypatch.delenv("ARP_SMALL_TO_BIG_ENABLED", raising=False)
-    assert Settings().small_to_big_enabled is False
+    assert Settings().small_to_big_enabled is True
     assert Settings().small_chunk_chars == 800
     monkeypatch.setenv("ARP_SMALL_TO_BIG_ENABLED", "true")
     assert Settings().small_to_big_enabled is True
 
 
 def test_input_settings():  # AC-14, AC-21
-    off = input_settings(Settings(anthropic_api_key="x"))
+    off = input_settings(Settings(anthropic_api_key="x", small_to_big_enabled=False))
     assert input_settings(Settings(anthropic_api_key="x", small_to_big_enabled=True)) != off
     assert "small_to_big_enabled" not in off
 
