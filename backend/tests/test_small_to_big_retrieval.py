@@ -175,6 +175,22 @@ def test_long_section_gets_todays_chunk(on):  # AC-5
     assert [c.chunk_id for c in ev] == [rule2_parent(doc)]
 
 
+def test_second_field_reuses_piece_parents(on, monkeypatch):
+    from arp.ingestion import parsing
+    from arp.ingestion.chunk_spans import get_span_cache
+
+    get_span_cache().clear()
+    calls = []
+    real = parsing._parent_picks
+    monkeypatch.setattr(parsing, "_parent_picks", lambda *a: calls.append(1) or real(*a))
+    doc = doc_t(_sec("Targets", 8000, KEY, at=5000 / 8000) + _sec("Plan", 1500, "Capex 2040 is planned."))
+    first = field_evidence(_field("net zero"), [doc], _settings(evidence_max_chunks=1))
+    second = field_evidence(_field("2040"), [doc], _settings(evidence_max_chunks=2))
+    assert calls == [1]
+    assert [c.chunk_id for c in first] == [rule2_parent(doc)]
+    assert section_id(doc, "Plan") in [c.chunk_id for c in second]
+
+
 def test_no_headings(on):  # AC-23
     doc = _doc(_filler(1200, "x") + " " + KEY + " " + _filler(6000, "y"))
     ev = field_evidence(_field(), [doc], _settings(evidence_max_chunks=1))
