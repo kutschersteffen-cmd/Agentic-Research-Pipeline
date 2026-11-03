@@ -1,6 +1,6 @@
 # Authority taxonomy agent
 
-Spec slug: `authority-taxonomy-agent`. Status: draft, for owner approval.
+Spec slug: `authority-taxonomy-agent`. Status: approved by the owner, 2026-11-03.
 
 ## Why
 
