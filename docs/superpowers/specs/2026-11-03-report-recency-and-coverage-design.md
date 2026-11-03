@@ -46,8 +46,8 @@ but sustainability reports only in English (`crawler.py:29-32`), and the web sea
 
 - A change to which documents are downloaded for a US company with default settings, other than new
   `transition_plan` links.
-- An existing link changing its classification, unless it contains a transition term and was `other` or unclassified
-  before.
+- An existing link changing its classification, unless it was `other` or unclassified before and now contains a new
+  sustainability or transition term.
 
 ## Design
 
@@ -85,14 +85,16 @@ WARNING: <n>/<total> companies have no annual or sustainability report from <cut
   <company_id>: latest <year or none>
 ```
 
-to stderr, where `<cutoff> = (date.today().year - 1) - discovery_report_max_age_years`, computed in
+to stderr, where `<total>` is `len(companies)` from `--universe`, the same count the unreachable line uses, and
+`<cutoff> = (date.today().year - 1) - discovery_report_max_age_years`, computed in
 `arp/cli/discovery.py` with the same `date.today()` the run used. The block comes after the unreachable block. One
 line per stale company, in the order `run_store.read_results(run_id)` returns the rows (the order the unreachable
 block already uses). Nothing is printed when no company is stale.
 
 ### Keywords (`arp/discovery/crawler.py`)
 
-The `SUSTAINABILITY_REPORT` tuple keeps its English terms and adds:
+The existing `SUSTAINABILITY_REPORT` entry keeps its English terms unchanged. A second `SUSTAINABILITY_REPORT`
+entry goes after the investor presentation entry, holding these terms:
 
 | Language | Terms |
 |---|---|
@@ -106,12 +108,12 @@ The `SUSTAINABILITY_REPORT` tuple keeps its English terms and adds:
 | da | `bæredygtighedsrapport`, `baeredygtighedsrapport` |
 | fi | `vastuullisuusraportti`, `kestävyysraportti`, `kestavyysraportti` |
 
-A new entry `(DocType.TRANSITION_PLAN, (...))` goes **last** in `_DOC_TYPE_PATTERNS`, after the investor
-presentation entry, with
+A new entry `(DocType.TRANSITION_PLAN, (...))` goes **last** in `_DOC_TYPE_PATTERNS`, after the second
+sustainability entry, with
 `transition plan`, `transitionsplan`, `plan de transition`, `plan de transición`, `plan de transicion`,
 `transitieplan`, `piano di transizione`, `omställningsplan`, `omstallningsplan`. Because every existing entry is checked
 first, a link that already matched an existing class keeps it: "Sustainability report and transition plan" stays a
-sustainability report and "Investor presentation: transition plan" stays an investor presentation.
+sustainability report and "Investor presentation: transition plan" stays an investor presentation, and so does "Investor presentation Nachhaltigkeitsbericht".
 
 Transition plans are same-site crawl candidates like earnings transcripts: they are kept by `select_candidates`
 as "every other crawled type" (`report_finding.py:79`) and downloaded to `documents_dir/<company>/transition_plan/`.
@@ -150,8 +152,8 @@ transports.
 
 1. Keep only the latest EDGAR annual filing (this spec) or add a setting to keep the last N for prior-year
    comparison (adds one filing fetch per extra year per company).
-2. Default age limit 1 year past the expected year (a 2023 report is stale in 2026), or 0 (only the expected year
-   or the one before counts).
+2. Default age limit 1 (in 2026 a 2024 or 2025 report is current, 2023 is stale), or 0 (only the expected year
+   counts: in 2026 a 2025 report is current, 2024 is stale).
 3. Read only ISO alpha-2 country codes for the local query (this spec), or also full country names. Either way it
    fires only once G1 keeps `country` in `enriched-universe`.
 
@@ -165,7 +167,8 @@ All rows are `unit`: they need stand-in transports and a fixed date, which the e
   The stand-in transport serves each fixture PDF with the title metadata and first-page text the row gives.
 - **CLI rows** (AC-14 to AC-16, AC-34) call `discover_run` in-process (Typer `CliRunner`), with
   `arp.cli.discovery.run_discovery` replaced by a stand-in that records the given `DiscoveryCompanyResult` rows in
-  the run store in the given order, and `date` in `arp.cli.discovery` patched so `date.today()` is 2026-11-03.
+  the run store in the given order, a `--universe` file listing exactly those rows' companies in the same order,
+  and `date` in `arp.cli.discovery` patched so `date.today()` is 2026-11-03.
 - In AC-23 to AC-28 and AC-33 the company is `Muster AG` with a supplied `website` whose stand-in homepage has no
   links, no CIK and no LEI, so the search client is used only for report queries.
 
@@ -205,6 +208,7 @@ All rows are `unit`: they need stand-in transports and a fixed date, which the e
 | AC-32 | Link text `Investor presentation: transition plan`, url `https://x.example/ip.pdf` | `classify_link` | Returns `investor_presentation` | unit |
 | AC-33 | `Muster AG`, `country` given as ` <code> ` (lower case, one space each side) for each code in the *Local-language search* table | discovery run | For each code, the last recorded query is `"Muster AG" <term> 2025 filetype:pdf` with that code's term from the table | unit |
 | AC-34 | Stand-in rows in this order: `u` with `homepage_unreachable` `true`, `crawl_error` `timeout`, latest 2025, not stale; `b` stale, latest 2022; `a` stale, latest `null` | `arp discover run` | stderr ends with exactly these five lines in this order: `WARNING: 1/3 companies' homepage could not be reached (not the same as "no documents found"):`, `  u: timeout`, `WARNING: 2/3 companies have no annual or sustainability report from 2024 or later:`, `  b: latest 2022`, `  a: latest none` | unit |
+| AC-35 | Link text `Investor presentation Nachhaltigkeitsbericht`, url `https://x.example/ipn.pdf` | `classify_link` | Returns `investor_presentation` | unit |
 
-Must not change: English classifications (AC-29, AC-32), US discovery with default settings (AC-30), EDGAR titles
+Must not change: English classifications (AC-29, AC-32, AC-35), US discovery with default settings (AC-30), EDGAR titles
 (AC-2), the existing test suite (AC-31).

@@ -103,6 +103,17 @@ It is stored in the per-company manifest like every other field (`arp/discovery/
 - A downloaded document whose sha256 equals a rejected known entry's sha256 is not written to the working folder
   and is not returned.
 
+### Writing items with the result, and resume
+
+`execute_discovery_run` passes `run_batch` a `write_result` that stores the company's result row and its review
+items in one call to `run_store.record_company_result(run_id, row, observations=[], review_items=items,
+company=company)`, as `run_company_batch` does (`arp/orchestration/batch_runner.py:164-180`). A crash can no
+longer keep a result while losing its items. `_on_success` then records `review_delta=len(items)`.
+
+Resume (`arp/orchestration/jobs.py:228-241`) keeps the stored `review_count` and skips companies already in the
+results, so their items are neither queued nor counted again. `review_count` therefore equals the number of queued
+items. No change to `restart_run`; its docstring line about discovery counting without queue rows is updated.
+
 ### Seed script for the evaluator
 
 `backend/scripts/seed_discovery_review.py` (new) writes one discovery run into the configured run store, with
@@ -130,7 +141,8 @@ B2 ≠ B1); neither names C2 or its LEI/ISIN (`company_match` `none`), both clas
 3 pages, naming C4, PDF title "Annual Report 2025", sha256 S4. C5: only an EDGAR 10-K. All runs are started by hand
 unless a row says otherwise.
 
-**DRUN** = the e2e stack (`backend/scripts/e2e_stack.sh up`) after `python backend/scripts/seed_discovery_review.py`.
+**DRUN** = first `backend/scripts/e2e_stack.sh up`, then `python backend/scripts/seed_discovery_review.py` run with the
+stack's environment, so it writes to the same run store, `documents_dir` and `discovery_state_dir` the app reads.
 
 | ID    | Given | When | Then (observable, exact) | Checked by |
 |-------|-------|------|--------------------------|------------|
@@ -149,15 +161,17 @@ unless a row says otherwise.
 | AC-13 | Same as AC-11 | list `<documents_dir>/_rejected/C2/10-K/` | It holds one file, with sha256 S1 | unit |
 | AC-14 | Same as AC-11 | read `<discovery_state_dir>/C2.json` | The entry for `https://c2.example/report-a.pdf` has `"review": "rejected"` | unit |
 | AC-15 | Same as AC-11 | `LocalFileDocumentSource.fetch(C2)` | No returned document has content sha256 S1 | unit |
-| AC-16 | Same as AC-11 | count blob store objects with key S1, and lines in the capture log, before and after the decision | The blob store still holds S1; the capture log line count is unchanged | unit |
+| AC-16 | Same as AC-11 | look up key S1 in the blob store after the decision | The blob store holds S1 | unit |
+| AC-16b | Same as AC-11 | count lines in `<documents_dir>/_captures.jsonl` (the capture log) before and after the decision | The count is unchanged | unit |
 | AC-17 | Same as AC-11; a second run whose crawl finds `https://c2.example/report-a.pdf` again | `run_discovery` | The mock transport receives 0 requests for that URL | unit |
 | AC-18 | Same as AC-11; a second run finds bytes B1 at `https://c2.example/copy.pdf` | `run_discovery` | No file with sha256 S1 exists under `<documents_dir>/C2/` | unit |
 | AC-19 | Same as AC-18 | read the second run's queue | It holds no item with key `discovered:C2:S1` | unit |
 | AC-20 | Universe [C2] after `run_discovery`, item `discovered:C2:S1` | POST decision `approve`, reason `confirmed` | The manifest entry for `https://c2.example/report-a.pdf` has `"review": "approved"` | unit |
 | AC-21 | Same as AC-20 | check the item payload's `local_path` | The file exists | unit |
 | AC-22 | Same as AC-20; a second run returns the same URL with bytes B1 | `run_discovery` | The second run's queue holds no item with key `discovered:C2:S1` | unit |
-| AC-23 | Same as AC-20; a second run returns the same URL with new bytes B3 (sha256 S6) | `run_discovery` | The second run's queue holds item `discovered:C2:S6` | unit |
-| AC-24 | Universe [C2] after `run_discovery`, `second_review_sample_rate` 1.0 | POST decision `reject` for `discovered:C2:S1` (first reviewer) | The file at the payload's `local_path` exists | unit |
+| AC-23 | Same as AC-20; a second run returns the same URL with new bytes B3 (sha256 S6) that do not name C2 or its LEI/ISIN (`company_match` `none`) | `run_discovery` | The second run's queue holds item `discovered:C2:S6` | unit |
+| AC-24 | Universe [C2] after `run_discovery`, `second_review_sample_rate` 1.0 | POST decision `approve`, reason `confirmed`, for `discovered:C2:S1` (first reviewer) | The response's `state` is `first_done` | unit |
+| AC-24b | Same as AC-24 | check the payload's `local_path` | The file exists | unit |
 | AC-25 | Same as AC-24 | read `<discovery_state_dir>/C2.json` | The entry for `https://c2.example/report-a.pdf` has `"review": null` | unit |
 | AC-26 | Universe [C2] after `run_discovery`, no decision on `discovered:C2:S1` | check the payload's `local_path` | The file exists | unit |
 | AC-27 | Same as AC-26 | read `<discovery_state_dir>/C2.json` | The entry for `https://c2.example/report-a.pdf` has `"review": null` | unit |
@@ -165,13 +179,16 @@ unless a row says otherwise.
 | AC-29 | Same as AC-28 | POST decision `approve` for `no_documents:C1` | The response's `state` is `final` | unit |
 | AC-30 | Same as AC-29 | compare content and mtime of every file under `<documents_dir>` and `<discovery_state_dir>` before and after the decision | None changed | unit |
 | AC-31 | DRUN | open the Review page | Three items of the seeded run are listed, each labelled `Document discovery`, two as `Found document` and one as `No documents` | evaluator |
-| AC-32 | DRUN | open the `Found document` item for `https://c2.example/report-a.pdf` | Its URL and the `company_match` value `none` are shown | evaluator |
+| AC-32 | DRUN | open the `Found document` item for `https://c2.example/report-a.pdf` | The URL `https://c2.example/report-a.pdf` is shown | evaluator |
+| AC-32b | Same as AC-32 | look at the item's fields | The company match value `none` is shown | evaluator |
 | AC-33 | DRUN | reject that item on the page, then reload | The item shows the state `final` with decision `reject` | evaluator |
 | AC-34 | Universe [C5] | `run_discovery` | The queue holds no item | unit |
 | AC-35 | Universe [C4] | `run_discovery` | The result row's `documents_found` has one entry with `company_id` `C4`, `doc_type` `10-K`, `url` `https://c4.example/annual-report-2025.pdf`, `sha256` S4, `company_match` `name`, `page_count` 3, `reporting_year` 2025, `alias_of` null, `review` null | unit |
-| AC-36 | Names file with company I1, name `Acme Corp`, website `https://acme.example` | `arp identity resolve`, then `arp identity enriched-universe` | The output is a list of one object with `company_id` `I1`, `name` `Acme Corp`, `website` `https://acme.example`, `cik` null | unit |
+| AC-36 | An identity run for company I1, name `Acme Corp`, with the identity agents stubbed to return verdict `resolved`, not flagged, `resolved_website` `https://acme.example`, `resolved_cik` null | `arp identity enriched-universe <run_id> --out <file>` | `<file>` holds a JSON list of length 1 whose object has `company_id` `I1`, `name` `Acme Corp`, `website` `https://acme.example`, `cik` null | unit |
+| AC-39 | Universe [C1, C2]; the run is stopped after C1's result is stored (1 item queued), then resumed with `resume_run` | resume finishes | The run manifest's `review_count` is 3 | unit |
+| AC-39b | Same as AC-39 | read the run's review queue | It holds exactly 3 items: `no_documents:C1`, `discovered:C2:S1`, `discovered:C2:S2` | unit |
 | AC-37 | The existing backend test suite on `main` | `python3 -m pytest backend/tests` on this branch, excluding files added by this change | Same pass/fail result per test as on `main` | unit |
 | AC-38 | The existing frontend checks | `npm run lint && npx tsc -b && npm test` | Exit code 0 | unit |
 
 Must not change: discovery results for documents that pass the check (AC-35), EDGAR/ESEF documents (AC-34),
-identity resolution export (AC-36), the existing suites (AC-37, AC-38).
+identity resolution export (AC-36), resume counts (AC-39), the existing suites (AC-37, AC-38).
