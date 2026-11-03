@@ -88,6 +88,16 @@ def test_wrong_page_is_incorrect(run_golden):
     assert out.stdout.strip() == "precision 0, coverage 1" and out.exit_code == 1
 
 
+def test_failing_rows_are_listed_on_stderr(run_golden):  # CI logs only the summary otherwise
+    cases = [case("price", "D1.pdf", 72, 5, "USD/tCO2"), case("levy", "D2.pdf", True, 3)]
+    answers = {("price", "D1.pdf"): ANSWERS[("price", "D1.pdf")]}
+    out = run_golden(cases, answers, "--min-precision", "0.5", "--min-coverage", "0.5")
+    assert out.stderr.splitlines() == [
+        "wrong STL-R1 European Union price (D1.pdf): label 72 p5; got 72.0 p12",
+        "uncounted STL-R1 European Union levy (D2.pdf): label True p3; not found",
+    ]
+
+
 def test_not_found_lowers_coverage_only(run_golden):
     answers = {k: v for k, v in ANSWERS.items() if k[0] != "levy"}
     out = run_golden(CASES, answers, "--min-precision", "0.95", "--min-coverage", "0.9")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
@@ -76,9 +77,14 @@ async def score(
                 fact, f"{sectors[case.code]}, {case.region}, {case.code}", docs[case.document], book.conversions,
                 llm=llm, verifier_llm=verifier_llm, settings=settings,
             )
+        row = f"{case.code} {case.region} {case.fact} ({case.document}): label {case.value!r} p{case.page}"
         if got is None or not got.counted:
+            print(f"uncounted {row}; {'not found' if got is None else got.reason}", file=sys.stderr)
             return False, False
-        return True, _matches(fact.type, got.value, case.value) and got.page == case.page
+        correct = _matches(fact.type, got.value, case.value) and got.page == case.page
+        if not correct:  # stderr, so the stdout summary stays one line
+            print(f"wrong {row}; got {got.value!r} p{got.page}", file=sys.stderr)
+        return True, correct
 
     results = await asyncio.gather(*(one(c) for c in cases))
     counted = [correct for is_counted, correct in results if is_counted]
