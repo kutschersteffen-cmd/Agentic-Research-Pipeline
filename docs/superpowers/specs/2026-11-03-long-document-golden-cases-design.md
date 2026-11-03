@@ -59,19 +59,20 @@ the short set, the review-queue flow for gold answers.
 | AC-4 | Each long case | Validation test | ≥ 15 passages | unit |
 | AC-5 | Each long case except `[not-disclosed]` | Validation test | `notes` has an `Answer: "<s>"` line, and `<s>` occurs in exactly 1 passage | unit |
 | AC-6 | The `[not-disclosed]` case | Validation test | `notes` has a `Near-miss: "<s>"` line, and `<s>` occurs in ≥ 1 passage | unit |
-| AC-7 | Each long case | Validation test | `notes` has a `Distractor: "<s>"` line; `<s>` occurs in ≥ 1 passage, none of which is the passage holding the answer sentence | unit |
+| AC-7 | Each long case | Validation test | `notes` has a `Distractor: "<s>"` line; `<s>` occurs in ≥ 1 passage, none of which is the passage holding the `Answer:` sentence (for `[not-disclosed]`, the `Near-miss:` sentence) | unit |
 | AC-8 | Each long case | Validation test | `notes` has a `Source:` line matching `\d{10}-\d{2}-\d{6}, Item \S+, Section: .+` | unit |
 | AC-9 | The long set | Validation test | Each `description` starts with one of `[prior-year]`, `[units]`, `[segment]`, `[table]`, `[footnote]`, `[not-disclosed]`, and each tag is used exactly once | unit |
 | AC-10 | The long set | Validation test | Exactly 1 case has `expect_not_disclosed: true`; it has `expected_value: null` and the `[not-disclosed]` tag | unit |
 | AC-11 | A stub model | `arp golden-set run --long` | Stdout has exactly 6 per-case lines, one per long case id, none for a short case id | unit |
-| AC-12 | The workflow file | Parsed in a test | The "Run the golden set" step's script runs both `arp golden-set run` and `arp golden-set run --long` under `set -o pipefail` | unit |
+| AC-12 | The workflow file | Parsed in a test | The "Run the golden set" step's script runs both `arp golden-set run` and `arp golden-set run --long`, and exits non-zero if either does (`set -eo pipefail`) | unit |
 | AC-13 | Real models (CI, key set) | `arp golden-set run --long` | Exits 0 | golden |
 | AC-14 | Real models | `arp golden-set run --long --gate off` | Exits 0 | golden |
 | AC-15 | Real models | `arp golden-set run --long --gate on` | Exits 0 | golden |
-| AC-16 | Real models, the two long gate runs | CI reads `extractor input tokens: N` from each run's last line | Gate-on N ≤ 0.9 × gate-off N; the step exits 1 otherwise | golden |
+| AC-16 | Real models, the two long gate runs | CI reads `extractor input tokens: N` from each run's last line | Gate-on N ≤ 0.9 × gate-off N | golden |
 | AC-17 | Real models | `arp golden-set run` (short set) | Exits 0 | golden |
 | AC-18 | The workflow file | Parsed in a test | The short-set gate comparison has no token threshold (as on `main`) | unit |
 | AC-19 | The PR | Owner review | For each case the owner confirms the quoted Answer/Near-miss and Distractor sentences against EDGAR at the given accession number, and approves the expected value | evaluator |
+| AC-21 | The long-set comparison script, given two fixture last lines with gate-on/gate-off ratio 0.95 and then 0.85 | Run | Exits 1, then exits 0 | unit |
 | AC-20 | Existing suites | CI | No existing test function is removed or changed (`git diff origin/main -- backend/tests` adds only), and the suite passes | unit |
 
 Must not change: the short set (AC-2, AC-17), the short-set gate check (AC-18), existing tests (AC-20).
