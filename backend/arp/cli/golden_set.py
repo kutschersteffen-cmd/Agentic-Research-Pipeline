@@ -87,11 +87,13 @@ def golden_set_authority_taxonomy(
     ),
 ) -> None:
     """Extracts and consolidates the case's stored source text with the real model (nothing saved) and prints
-    grounded_rate (activities with a citation / activities) and recall of the expected activity names.
+    every activity name, FOUND/MISSED per expected activity (via match_activities), then
+    grounded_rate (activities with a citation / activities) and recall.
     Exits 1 unless grounded_rate is 1.0 and recall reaches the case's min_recall."""
     from arp.research.authority_taxonomy.consolidate import consolidate
     from arp.research.authority_taxonomy.extract import extract_source
-    from arp.schemas.authority_taxonomy import merge_key
+    from arp.research.authority_taxonomy.matching import match_activities
+    from arp.schemas.thematic import ActivityDefinition
 
     folder = cases_dir / case
     spec = json.loads((folder / "case.json").read_text(encoding="utf-8"))
@@ -105,17 +107,24 @@ def golden_set_authority_taxonomy(
         ext = await extract_source(
             spec["source_url"], text, theme_name=spec["theme_name"], scope=spec["scope"], value_chain=False, llm=llm
         )
-        return await consolidate(
+        theme, _notes = await consolidate(
             [ext], theme_name=spec["theme_name"], scope=spec["scope"], value_chain=False,
             settings=settings, llm=llm, value_chain_model=None,
         )
+        wanted = [ActivityDefinition(name=n, in_scope_description="", out_of_scope_description="") for n in expected]
+        return theme, await match_activities(wanted, theme.activities, scope=spec["scope"], llm=llm)
 
-    theme, _notes = asyncio.run(run())
+    expected = spec["expected_activities"]
+    theme, matches = asyncio.run(run())
     acts = theme.activities
     grounded_rate = sum(bool(a.citations) for a in acts) / len(acts) if acts else 0.0
-    keys = {merge_key(a.name) for a in acts}
-    expected = spec["expected_activities"]
-    recall = sum(merge_key(n) in keys for n in expected) / len(expected)
+    for a in acts:
+        typer.echo(a.name)
+    found = {m.left: m for m in matches}
+    for i, name in enumerate(expected):
+        m = found.get(i)
+        typer.echo(f"FOUND {name} = {acts[m.right].name} ({m.method}: {m.reason})" if m else f"MISSED {name}")
+    recall = len(found) / len(expected)
     typer.echo(f"grounded_rate={grounded_rate:.2f} recall={recall:.2f}")
     if grounded_rate != 1.0 or round(recall, 2) < spec["min_recall"]:  # 2/3 must pass 0.67
         raise typer.Exit(1)

@@ -3,6 +3,7 @@ from __future__ import annotations
 from arp.config import Settings
 from arp.llm.base import LLMClient
 from arp.research.authority_taxonomy.extract import SourceExtraction
+from arp.research.authority_taxonomy.matching import match_activities
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.standards_mapping.mapper import map_theme_to_standards
@@ -57,17 +58,22 @@ async def consolidate(
     llm: LLMClient,
     value_chain_model: LeontiefModel | None,
 ) -> tuple[ThemeDefinition, str]:
-    """Merges per-source activities by merge_key (deterministic), then attaches sector codes:
+    """Merges per-source activities source by source with match_activities, then attaches sector codes:
     source codes, map_theme_to_standards codes, and on value_chain the top-5 EXIOBASE upstream industries."""
-    groups: dict[str, ActivityDefinition] = {}
+    kept_acts: list[ActivityDefinition] = []
     for ext in extractions:
+        new: list[ActivityDefinition] = []
         for act in ext.activities:
             act = act.model_copy(update={"sector_codes": act.sector_codes + ext.sector_codes}, deep=True)
             codes = act.sector_codes
             act.sector_codes = []
             _merge(act.sector_codes, codes, lambda c: (c.system, c.code, c.origin), cites=False)
-            kept = groups.setdefault(merge_key(act.name), act)
-            if kept is act:
+            new.append(act)
+        matched = {m.right: kept_acts[m.left] for m in await match_activities(kept_acts, new, scope=scope, llm=llm)}
+        for j, act in enumerate(new):
+            kept = matched.get(j)
+            if kept is None:
+                kept_acts.append(act)
                 continue
             kept.citations += act.citations
             kept.out_of_scope_citations += act.out_of_scope_citations
@@ -88,7 +94,7 @@ async def consolidate(
         name=theme_name,
         description=next((e.theme_description for e in extractions if e.theme_description), ""),
         scope=scope,
-        activities=list(groups.values()),
+        activities=kept_acts,
         technologies=techs,
         definitions=defs,
         thresholds=thresholds,
