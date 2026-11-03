@@ -156,7 +156,8 @@ Conventions: "stand-in" = functions in `arp.compute.client`, `arp.retrieval.embe
 `arp.retrieval.rerank._score` replaced by recording fakes (monkeypatch), so no GPU, network or model download
 is used; no other seam is added. "Configured" = the stand-in plays a configured `arp-models`. Ranks count from
 0; `evidence_max_chunks` is 12. `<s>` in an expected line matches `\d+\.\d\d`. Model names in "received"
-are `hf_id@revision` from section 2.
+are `hf_id@revision` from section 2. `--no-hybrid` means BM25 only, as on main (no embeddings).
+`--min-recall` gates recall@12, and its stderr wording is main's: `recall@12 <x>% is below the minimum <y>%.`
 
 | ID     | Given | When | Then (observable, exact) | Checked by |
 |--------|-------|------|--------------------------|------------|
@@ -174,13 +175,16 @@ are `hf_id@revision` from section 2.
 | AC-8b  | AC-6 reference run and an AC-4 run over the same document, with Postgres | both have stored vectors | The set of `chunk_id`s stored for `intfloat/multilingual-e5-large` equals the set stored for `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | holdout |
 | AC-9   | `rerank_enabled=true`, `rerank_model=colbert`, configured, stand-in returns scores `[0.1, 0.9, 0.5]` for 3 candidates | rerank runs | The stand-in received model `lightonai/mLateOn@bbd883ae1fadb563056ff73b1061ae8172a3fcda`; order is candidates 1, 2, 0; trace `reranked: true`, `rerank_model: "rerank_colbert"` | holdout |
 | AC-10  | `rerank_enabled=true`, `rerank_model=colbert`, `compute_models_url` unset, `HF_HUB_OFFLINE=1`, empty `FASTEMBED_CACHE_PATH` | rerank runs on 3 candidates | Returns the 3 candidates in input order; no exception; trace `reranked: false`, `rerank_model: null` | holdout |
+| AC-10b | `rerank_enabled=true`, `rerank_model=colbert`, configured; stand-in raises `httpx.HTTPError` | rerank runs on 3 candidates | Returns the 3 candidates in input order; no exception; trace `reranked: false`, `rerank_model: null` | holdout |
 | AC-11  | `rerank_enabled=true`, `rerank_model=cross-encoder`, `compute_models_url` unset, local scorer stand-in returns `[0.2, 0.8, 0.5]` | rerank runs on 3 candidates | Order 1, 2, 0; trace `reranked: true`, `rerank_model: "rerank"` | holdout |
 | AC-12  | The compute server app, models replaced by fakes returning 1024-dim vectors | `POST /embed` with `X-ARP-Model` = the e5-large name | 200; each vector has 1024 numbers | holdout |
 | AC-12b | As AC-12 | `POST /embed` with `jinaai/jina-colbert-v2@x`; `POST /rerank` with the e5-large name | Both 409 | holdout |
+| AC-12c | As AC-12 | `POST /embed` with the bge-m3 name; `POST /rerank` with the mLateOn name, a query and 3 texts | First: 200, each vector has 1024 numbers. Second: 200 with exactly 3 scores | holdout |
 | AC-13  | The model registry | `registry.entry(k)` for `embed_e5_large`, `embed_bge_m3`, `rerank_colbert` | Each returns the hf_id and revision in section 2; `jinaai/jina-colbert-v2` is not in `allowed.txt` | holdout |
 | AC-14  | A cases file of 2 cases, configured; the stand-in returns any valid vectors and scores for every model | `arp golden-set retrieval --cases <file> --embed-model minilm,e5-large --rerank-model off,colbert` | Exit 0; stdout is exactly 4 lines, in this order, starting `embed=minilm rerank=off: 2 gold span(s)`, `embed=minilm rerank=colbert: 2 gold span(s)`, `embed=e5-large rerank=off: 2 gold span(s)`, `embed=e5-large rerank=colbert: 2 gold span(s)`; each ends `; fallback 0 field(s).` | holdout |
 | AC-15  | As AC-14 with `--out <json>`, `compute_models_url` unset, local MiniLM stand-in | the command runs | The JSON is a list of 4 objects with `fallback_fields` 0, 2, 2, 2 in AC-14's order; stdout lines end `fallback 0 field(s).`, `fallback 2 field(s).`, `fallback 2 field(s).`, `fallback 2 field(s).` | holdout |
 | AC-15b | As AC-14 with `--embed-model foo` | the command runs | Exit 2; stderr contains `--embed-model must be one of minilm, e5-large, bge-m3` | holdout |
+| AC-15d | As AC-14 with `--rerank-model foo` | the command runs | Exit 2; stderr contains `--rerank-model must be one of off, cross-encoder, colbert` | holdout |
 | AC-15c | As AC-14, with documents and stand-in vectors built so `minilm` reaches recall@12 100.0% and `e5-large` reaches 0.0% | `... --embed-model minilm,e5-large --rerank-model off --min-recall 0.9` | Exit 1; stderr contains `embed=e5-large rerank=off: recall@12 ` and `is below the minimum 90.0%` | holdout |
 | AC-16  | A cases file of 3 cases built so BM25 ranks each gold chunk at 0 | `arp golden-set retrieval --cases <file> --no-hybrid` (no new options) | stdout is exactly `3 gold span(s) over 3 field(s): recall@5 100.0%, recall@12 100.0%; <s>s median, <s>s max per field.` | holdout |
 | AC-17  | `.github/workflows/ci.yml` on the PR | the Retrieval recall job is read | The cache key hashes `backend/.retrieval-embed-model.txt` and not `backend/arp/retrieval/embeddings.py`; the install step writes that file; the run step still passes `--min-recall 0.627` | unit |
