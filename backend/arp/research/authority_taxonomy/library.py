@@ -41,6 +41,8 @@ def _path(theme_key: str, root: Path | None) -> Path:
 
 
 def load_library(theme_key: str, root: Path | None = None) -> list[LibraryEntry]:
+    if theme_key not in THEME_KEYS:
+        return []
     path = _path(theme_key, root)
     if not path.exists():
         return []
@@ -48,6 +50,8 @@ def load_library(theme_key: str, root: Path | None = None) -> list[LibraryEntry]
 
 
 def save_library(theme_key: str, entries: list[LibraryEntry], root: Path | None = None) -> None:
+    if theme_key not in THEME_KEYS:
+        raise ValueError(f"unknown theme key {theme_key!r}; expected one of {THEME_KEYS}")
     path = _path(theme_key, root)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps([e.model_dump() for e in entries], indent=2) + "\n")
