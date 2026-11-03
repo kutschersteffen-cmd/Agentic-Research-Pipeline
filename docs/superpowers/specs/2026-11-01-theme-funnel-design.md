@@ -146,7 +146,8 @@ later (the planned stage-evidence fields) reach the funnel with no funnel change
 
 The `funnel` record gains three keys: `query`, `rerank_query`, `positive` (AC-17 amended). Steps 2 and 3 of the
 table above use `funnel.query` and `funnel.rerank_query` in place of `in_scope_description`. `arp theme funnel
---out` writes, per case, the `funnel` record of its best activity under the key `funnel`.
+--out` writes, per case, the `funnel` record of its best activity under the key `funnel`: a passing activity before a
+screened one, then the higher `entail_positive`, ties to the first in taxonomy order.
 
 ## Left to the builder
 
@@ -205,9 +206,11 @@ that counts calls. Company names A–H refer to fixture companies with one activ
 | AC-42 | Draft taxonomy version with the AC-36 activity; one golden case with a document | `arp theme funnel --taxonomy … --out rows.json` | The case's `funnel.rerank_query` in `rows.json` equals the AC-37 string | unit |
 | AC-43 | Setting on; AC-33's activity; two documents, `Our pilot plant started in May.` and `Weather was mild.` | theme run, stand-ins making the pair pass | `funnel.passages_scored` is 2 | unit |
 | AC-44 | Setting on; AC-33's fixture; stand-ins make the pair pass | theme run | The Advocate stand-in's prompt contains `Our pilot plant started in May.` | unit |
-| AC-45 | Setting on; theme with technology `PEM` and definition term `stack`, text `cell assembly` (fields from PR #325; owed until it merges) | theme run, a pair with evidence | `funnel.query` contains the lines `Technologies: PEM` and `Definitions: stack: cell assembly` | unit |
+| AC-45 | Setting on; the AC-36 activity and theme plus technologies `PEM`, `SOEC` and definitions `stack` = `cell assembly`, `BoP` = `balance of plant` (fields from PR #325; owed until it merges) | theme run, a pair with evidence | `funnel.query` is exactly `Electrolysers: Makes stacks.\nGreen hydrogen.\nTechnologies: PEM, SOEC\nDefinitions: stack: cell assembly; BoP: balance of plant` | unit |
 | AC-46 | Any pair the funnel passes | read the run JSON | `funnel` has exactly the 12 keys listed in AC-17 | unit |
 | AC-47 | Setting off; activity `seed_keywords` `["electrolyser"]`; only document `Capex rose to EUR 40m.` | theme run | The match's rationale starts with `No evidence of this activity` | unit |
+| AC-48 | Draft taxonomy with two activities; stand-ins pass activity A (`entail_positive` 0.85) and B (`entail_positive` 0.95) for one golden case | `arp theme funnel --out rows.json` | The case's `funnel.query` in `rows.json` is B's query | unit |
+| AC-49 | AC-43's fixture; stand-ins make the pair pass | theme run | The Advocate stand-in's prompt does not contain `Weather was mild.` | unit |
 | AC-41 | Electrolyser golden set, case `h2pro` (its only document describes a pilot / demonstration project, no manufacturing or sales), real models | `arp theme funnel --split tune` | The `h2pro` line ends with `pass` (a one-case smoke check on the tune split, asked for by the owner) | golden |
 
-Must not change: theme runs with the setting off (AC-1, AC-25).
+Must not change: theme runs with the setting off (AC-1, AC-25, AC-34, AC-47).
