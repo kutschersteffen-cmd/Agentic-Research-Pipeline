@@ -12,7 +12,7 @@ import numpy as np
 from arp.config import Settings
 from arp.research.indirect_exposure.io_import import EXIOBASE_FD, FD_GROUPS, SPLIT_INDUSTRIES, _read_reference
 from arp.research.indirect_exposure.leontief import LeontiefModel
-from arp.research.value_chain.model import NOT_BUILT
+from arp.research.value_chain.model import NOT_BUILT, sector_name
 
 # The tier reads the same `arp io build-full` output as the Value Chain Explorer.
 # See docs/superpowers/specs/2026-10-26-io-full-resolution-tier-design.md.
@@ -92,6 +92,7 @@ def _load(directory: str, manifest_text: str) -> LeontiefModel:
         isic_divisions=codes.isic_divisions,
         nace_classes=codes.nace_classes,
         prompt_codes=codes.prompt_codes,
+        sectors=np.array([sector_name(s) for s in sectors]),
     )
 
 

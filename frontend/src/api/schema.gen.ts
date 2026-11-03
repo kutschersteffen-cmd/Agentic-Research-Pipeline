@@ -9841,6 +9841,11 @@ export interface components {
              */
             fiscal_year_end?: string | null;
             /**
+             * Gics Code
+             * @description GICS code of 2, 4, 6 or 8 digits; stored, not mapped.
+             */
+            gics_code?: string | null;
+            /**
              * Isic Code
              * @description ISIC Rev.4 industry code, if known (enables indirect/structural exposure scoring).
              */
@@ -9849,6 +9854,17 @@ export interface components {
             isin?: string | null;
             /** Lei */
             lei?: string | null;
+            /**
+             * Nace Code
+             * @description NACE code (division or class), validated on universe load.
+             */
+            nace_code?: string | null;
+            /**
+             * Nace Rev
+             * @default 2
+             * @enum {string}
+             */
+            nace_rev: "2" | "2.1";
             /** Name */
             name: string;
             /**
@@ -13446,7 +13462,7 @@ export interface components {
              * Link Source
              * @enum {string}
              */
-            link_source: "nodes" | "split" | "code" | "llm" | "none";
+            link_source: "nodes" | "split" | "nace" | "code" | "llm" | "none";
             /** Market Value Eur */
             market_value_eur: number;
             /** Name */
@@ -16815,6 +16831,13 @@ export interface components {
         ValueChainLinks: {
             /** Caveat */
             caveat: string;
+            /**
+             * Code
+             * @description The code a `nace` link used, e.g. 07.29 or 2710; null for other sources.
+             */
+            code?: string | null;
+            /** Code Scheme */
+            code_scheme?: ("nace2" | "nace21" | "isic4") | null;
             /** Edition */
             edition: string;
             /** Nodes */
@@ -16829,7 +16852,7 @@ export interface components {
              * Source
              * @enum {string}
              */
-            source: "nodes" | "split" | "code" | "llm" | "none";
+            source: "nodes" | "split" | "nace" | "code" | "llm" | "none";
             /** Subject */
             subject: string;
             /**

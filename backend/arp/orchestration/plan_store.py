@@ -80,11 +80,14 @@ class PlanStore:
             return [_plan_row(p) for p in s.scalars(select(ResearchPlan).order_by(ResearchPlan.created_at.desc()))]
 
     def update_script(self, plan_id: str, script: str) -> None:
-        """An edit always returns the plan to draft and clears its approval."""
-        steps = _checked_dry_run(script)
+        """An edit always returns the plan to draft and clears its approval. A re-planned plan keeps the calls kept at
+        re-planning: the edited script reads them as `previous` and starts after them."""
+        previous, first_seq = kept_calls(self.get(plan_id), self.calls(plan_id))
+        steps = _checked_dry_run(script, previous, first_seq)
         self._set(plan_id, script=script, dry_run=steps, status="draft", approved_by=None, approved_at=None)
         with Session(self.engine) as s, s.begin():  # a new script must not reuse an old script's results
-            s.execute(delete(ResearchPlanCall).where(ResearchPlanCall.plan_id == plan_id))
+            s.execute(delete(ResearchPlanCall).where(ResearchPlanCall.plan_id == plan_id,
+                                                     ResearchPlanCall.seq >= first_seq))
 
     def replan(self, plan_id: str, script: str, user: str | None = None) -> None:
         """Replace a failed plan's script with one for the remaining work: keeps its done calls (the new script reads

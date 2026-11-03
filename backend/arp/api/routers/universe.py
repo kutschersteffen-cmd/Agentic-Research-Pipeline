@@ -11,7 +11,7 @@ from arp.config import Settings
 from arp.research.taxonomy_sources.etf_holdings import load_universe_from_holdings
 from arp.schemas.common import CompanyRef
 from arp.storage.safe_path import UnsafeIdentifierError, safe_filename
-from arp.universe import load_company_universe
+from arp.universe import UniverseRejected, load_company_universe
 
 router = APIRouter(prefix="/api/universe", tags=["universe"])
 
@@ -32,8 +32,16 @@ async def upload_universe(file: UploadFile, settings: Settings = Depends(setting
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest_path = dest_dir / safe_name
     contents = await file.read()
+    # Parse a temp copy first, so a rejected upload leaves no file behind.
+    tmp_path = dest_dir / f".{safe_name}.part{dest_path.suffix}"
+    tmp_path.write_bytes(contents)
+    try:
+        companies = load_company_universe(tmp_path)
+    except UniverseRejected as exc:
+        raise HTTPException(422, str(exc)) from exc
+    finally:
+        tmp_path.unlink(missing_ok=True)
     dest_path.write_bytes(contents)
-    companies = load_company_universe(dest_path)
     return {"path": str(dest_path), "company_count": len(companies), "sample": [c.model_dump() for c in companies[:5]]}
 
 

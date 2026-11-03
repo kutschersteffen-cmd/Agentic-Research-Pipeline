@@ -56,6 +56,13 @@ export const portfolioHash = (id?: string): string => `#/valueChain/portfolio${i
 export const unresolvedText = (part: { icio_code?: string; region?: string; sector?: string; share: number }): string =>
   `Not in this edition: ${part.icio_code ?? `${part.region} · ${part.sector}`} ${pct1(part.share)}`;
 
+/** "Linked by NACE 07.29" / "Linked by ISIC 2710" for a nace-sourced link; "" otherwise. */
+export const naceLinkLine = (l: { source: string; code?: string | null; code_scheme?: string | null }): string =>
+  l.source === "nace" && l.code ? `Linked by ${l.code_scheme === "isic4" ? "ISIC" : "NACE"} ${l.code}` : "";
+
+/** "CN · Mining of copper ores and concentrates 71.4%". */
+export const nodeLine = (n: { region_label: string; sector: string; weight: number }): string => `${n.region_label} · ${n.sector} ${pct1(n.weight)}`;
+
 /** "Copper and nickel mining: 35.0% of NAV directly · 51.9% of upstream". */
 export const activityLine = (a: { name: string; direct_weight: number; upstream_share: number | null }): string =>
   `${a.name}: ${pct1(a.direct_weight)} of NAV directly · ${a.upstream_share === null ? "—" : pct1(a.upstream_share)} of upstream`;

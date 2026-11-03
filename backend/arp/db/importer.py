@@ -110,7 +110,7 @@ def _universe(settings: Settings, manifests: list[RunManifest]) -> list[tuple[st
     for path in dict.fromkeys(p for p in paths if p and Path(p).is_file()):
         with _source(f"universe file {path}"):
             out += [(str(path), c) for c in load_company_universe(path)]
-    for store in (PortfolioStore(settings.portfolios_dir), build_portfolio_store(settings)):
+    for store in (PortfolioStore(settings.portfolios_dir), build_portfolio_store(settings, merge_master=False)):
         out += [("portfolio_store", c) for c in store.list_companies()]
     return out
 
@@ -526,7 +526,7 @@ def _import_portfolios(settings: Settings, report: ImportReport, *, dry_run: boo
     from arp.storage.portfolio_store import PortfolioStore
     from arp.storage.portfolio_store_factory import build_portfolio_store
 
-    files, pg = PortfolioStore(settings.portfolios_dir), build_portfolio_store(settings)
+    files, pg = PortfolioStore(settings.portfolios_dir), build_portfolio_store(settings, merge_master=False)
     counts = report.counts
 
     def write(area: str, missing: bool, save) -> None:

@@ -39,7 +39,7 @@ async def test_ac_3_segment_rows_unchanged(tmp_path):
     rows, _ = await _fetch_p(tmp_path)
     common = {"company_id": "s1", "market": "sec", "fiscal_year": 2025, "metric": "revenue", "concept": REV,
               "axis": AXIS, "unit": "USD", "period_start": FY25[0], "period_end": FY25[1],
-              "sum_matches_total": True, "axis_kind": "segment", "level": None, "form": "10-K"}
+              "sum_matches_total": True, "reconciling": 0, "axis_kind": "segment", "level": None, "form": "10-K"}
     seg = [r.model_dump() for r in _kind(rows, "segment")]
     assert seg == [{**common, "member": m, "segment": s, "value": v, "accession": seg[0]["accession"]}
                    for m, s, v in (("x:AlphaSegmentMember", "Alpha", 300), ("x:BetaMember", "Beta", 400),
