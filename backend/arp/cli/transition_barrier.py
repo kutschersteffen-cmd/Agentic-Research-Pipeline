@@ -259,7 +259,7 @@ def transition_barrier_golden(
         golden.load_cases(cases), documents_dir, llm=llm, verifier_llm=verifier, settings=settings, today=today, misses=misses,
     ))
     for line in sorted(misses):
-        typer.echo(line)
+        typer.echo(line, err=True)  # stderr: stdout stays the one summary line
     typer.echo(f"precision {_show(precision, None)}, coverage {_show(coverage, None)}")
     if precision < min_precision or coverage < min_coverage:
         raise typer.Exit(code=1)
