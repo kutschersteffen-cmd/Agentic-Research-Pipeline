@@ -43,6 +43,17 @@ def _merge(kept: list, new: list, key, cites: bool = True) -> None:
             match.citations += [c for c in item.citations if c not in match.citations]
 
 
+def _fold(kept: ActivityDefinition, act: ActivityDefinition) -> None:
+    kept.citations += act.citations
+    kept.out_of_scope_citations += act.out_of_scope_citations
+    for crit in act.criteria:
+        if crit.text not in {k.text for k in kept.criteria}:
+            kept.criteria.append(crit)
+    kept.seed_keywords += [k for k in act.seed_keywords if k not in kept.seed_keywords]
+    for code in act.sector_codes:
+        _add(kept.sector_codes, code)
+
+
 def _add(codes: list[SectorCode], new: SectorCode) -> None:
     if not any((c.system, c.code) == (new.system, new.code) for c in codes):
         codes.append(new)
@@ -68,21 +79,18 @@ async def consolidate(
             codes = act.sector_codes
             act.sector_codes = []
             _merge(act.sector_codes, codes, lambda c: (c.system, c.code, c.origin), cites=False)
-            new.append(act)
+            same = next((n for n in new if merge_key(n.name) == merge_key(act.name)), None)
+            if same is None:
+                new.append(act)
+            else:  # same merge key within one source: merge before matching, no model call
+                _fold(same, act)
         matched = {m.right: kept_acts[m.left] for m in await match_activities(kept_acts, new, scope=scope, llm=llm)}
         for j, act in enumerate(new):
             kept = matched.get(j)
             if kept is None:
                 kept_acts.append(act)
                 continue
-            kept.citations += act.citations
-            kept.out_of_scope_citations += act.out_of_scope_citations
-            for crit in act.criteria:
-                if crit.text not in {k.text for k in kept.criteria}:
-                    kept.criteria.append(crit)
-            kept.seed_keywords += [k for k in act.seed_keywords if k not in kept.seed_keywords]
-            for code in act.sector_codes:
-                _add(kept.sector_codes, code)
+            _fold(kept, act)
 
     techs, defs, thresholds = [], [], []
     for e in extractions:

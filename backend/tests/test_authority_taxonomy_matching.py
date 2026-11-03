@@ -88,3 +88,11 @@ async def test_match_methods_and_reasons():
     right = [ActivityDefinition(name="stacks", in_scope_description="", out_of_scope_description="")]
     m = await match_activities(left, right, scope="", llm=FakeLLMClient({}))
     assert [(x.left, x.right, x.method, x.reason) for x in m] == [(0, 0, "exact", "equal merge key")]
+
+
+async def test_same_key_within_one_source_merged_without_model(tmp_path):
+    llm = _fake(10)
+    theme, _ = await _run([_ext("A", "Electrolyser stacks", "Electrolyser stacks")], tmp_path, llm=llm)
+    assert [a.name for a in theme.activities] == ["Electrolyser stacks"]
+    assert len(theme.activities[0].citations) == 2
+    assert _matcher_calls(llm) == []
