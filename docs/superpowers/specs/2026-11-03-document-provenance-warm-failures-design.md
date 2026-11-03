@@ -41,7 +41,7 @@ one.
 
 - A changed `doc_id` for any existing document. `derive_doc_id` stays a function of company, doc_type and bytes.
 - A changed index text or ranking. `reporting_year` must not reach `index_text` (`retrieval/index_text.py:17`).
-- A stored `source_url` overwritten with null.
+- A stored `source_url` overwritten, with null or with another URL.
 
 ## Design
 
@@ -73,14 +73,18 @@ The lists grow for the life of the object. API and theme-run registries never re
   (`golden_set/precision.py:62`, `golden_set/retrieval.py:81`) pass nothing, so they behave as today.
 - At the start of `fetch`, when `discovery_state_dir` is set, read `<discovery_state_dir>/<company_id>.json`
   once. Read it directly as JSON (as `ChangeDetector._load_manifest` does), so the source never creates the
-  directory. A missing or unreadable file means no entries. Build `local_path -> (url, reporting_year)` from
-  entries with `alias_of` null. When two entries share a `local_path`, the one with the later `discovered_at` wins.
-- Match a file by `str(file_path)` against the manifest `local_path`. A match passes `source_url=url` to
+  directory. A missing or unreadable file means no entries. Build `resolved local_path -> (url, reporting_year)`
+  from entries with `alias_of` null. When two entries share a resolved `local_path`, the one whose `discovered_at`
+  parses (`datetime.fromisoformat`) to the later instant wins; on an exact tie, the URL that sorts first wins. An
+  entry whose `discovered_at` does not parse loses to any entry whose does.
+- Match a file by `file_path.resolve()` against `Path(local_path).resolve()`, so a relative `documents_dir`
+  matches the absolute path discovery wrote. A match passes `source_url=url` to
   `register_document` and puts `source_url` and `reporting_year` on the returned `SourceDocument`. No match keeps
   today's `source_url=None` and `reporting_year=None`. Manual uploads therefore stay as they are.
 - `DocumentRegistry.register_document` (`db/documents.py:91-125`) today does not update `source_url` on conflict.
-  Add it to the `on_conflict_do_update` set as `coalesce(excluded.source_url, documents.source_url)`. A document
-  registered before this change gets its URL on its next fetch. A later fetch without a URL never clears it.
+  Add it to the `on_conflict_do_update` set as `coalesce(documents.source_url, excluded.source_url)`. A stored URL
+  is never replaced, so EDGAR and ESEF rows behave as today. Only a NULL URL gets filled: a document registered
+  before this change gets its URL on its next fetch, and a later fetch without a URL never clears it.
 
 `doc_id`, the parsed-content cache key and `parser_version` are untouched, so no re-parse happens.
 
@@ -91,33 +95,56 @@ Where the manifest lookup lives (a small function in `local_files.py` or in `cha
 
 ## Acceptance
 
-Rows use a temporary `documents_dir` and `discovery_state_dir`. Company `acme` has
-`documents_dir/acme/sustainability_report/report.pdf` (parses, has text) unless a row says otherwise. Manifest M
-is `discovery_state_dir/acme.json` with one entry: url `https://acme.example/r.pdf`,
-`local_path` = that file's path, `reporting_year` 2025, `alias_of` null.
+Shared fixtures:
+
+- `u.json`: `[{"company_id": "acme", "name": "Acme AG", "country": "DE"}]`. With no CIK and a non-US country,
+  EDGAR skips the network CIK lookup and returns no documents (`ingestion/edgar.py:111-115`).
+- Environment for every `arp documents warm` row: `ARP_ESEF_ENABLED=false`, `ARP_DOCUMENTS_DIR=<tmp>/docs`,
+  `ARP_DISCOVERY_STATE_DIR=<tmp>/state`, Postgres content store on.
+- `report.txt`: `<tmp>/docs/acme/sustainability_report/report.txt` with the text `Acme AG sustainability report.`
+  Present in every row unless the row says otherwise.
+- `bad.xyz`: `<tmp>/docs/acme/10-K/bad.xyz` with the bytes `not a document`. Intake accepts it; the parser raises
+  `ValueError: Unsupported document file type: .xyz`.
+- `blank.txt`: `<tmp>/docs/acme/10-K/blank.txt` containing only `   \n`.
+- Manifest M: `<tmp>/state/acme.json` with one entry keyed `https://acme.example/r.txt`: `company_id` `acme`,
+  `doc_type` `sustainability_report`, `url` `https://acme.example/r.txt`, `local_path` = absolute path of
+  `report.txt`, `reporting_year` 2025, `alias_of` null, `discovered_at` `2026-06-01T00:00:00+00:00`.
+- `K` = sha256 hex of the bytes of `report.txt`. `D` = `derive_doc_id("acme", "sustainability_report", K)`.
+- "The stored row" = the `documents` row with `doc_id` = D.
 
 | ID    | Given | When | Then (observable, exact) | Checked by |
 |-------|-------|------|--------------------------|------------|
-| AC-1  | Universe with `acme`; `documents_dir/acme/10-K/bad.pdf` makes the parser raise `ValueError("boom")` | `arp documents warm --universe u.json` | Exit code 1 | holdout |
-| AC-2  | Same as AC-1 | same | stderr contains the line `  acme: <path of bad.pdf>: ValueError: boom` | holdout |
+| AC-1  | `report.txt` and `bad.xyz` | `arp documents warm --universe u.json` | Exit code 1 | holdout |
+| AC-2  | Same as AC-1 | same | stderr contains the line `  acme: <absolute path of bad.xyz>: ValueError: Unsupported document file type: .xyz` | holdout |
 | AC-3  | Same as AC-1 | same | stderr contains the line `1 failures:` | holdout |
-| AC-4  | `documents_dir/acme/10-K/empty.pdf` parses to whitespace only | `arp documents warm --universe u.json` | stderr contains `  acme: <path of empty.pdf>: no text extracted`; exit code 1 | holdout |
-| AC-5  | A registry source named `edgar` whose `fetch` raises `RuntimeError("down")` for `acme` | `arp documents warm --universe u.json` | stderr contains `  acme: source edgar: RuntimeError: down`; exit code 1 | unit |
-| AC-6  | Only `report.pdf`, which parses; no source raises | `arp documents warm --universe u.json` | Exit code 0, stderr empty, stdout ends with `Warmed 1 documents across 1 companies.` | holdout |
-| AC-7  | Same as AC-1 | `registry.fetch_all(acme)` | Returns the same list of documents (by `doc_id`) as on `main` for the same files | unit |
-| AC-8  | `report.pdf` and manifest M; source built with `discovery_state_dir` | `LocalFileDocumentSource.fetch(acme)` | The returned document's `source_url` is `https://acme.example/r.pdf` | holdout |
-| AC-9  | Same as AC-8 | same | The returned document's `reporting_year` is `2025` | holdout |
-| AC-10 | Same as AC-8, content store on Postgres | same, then `resolve_document(doc_id)` | The stored row's `source_url` is `https://acme.example/r.pdf` | holdout |
-| AC-11 | `report.pdf`, no manifest file | `fetch(acme)` | `source_url` is `None` and `reporting_year` is `None`; no file is created under `discovery_state_dir` | holdout |
-| AC-12 | Manifest file with invalid JSON | `fetch(acme)` | Returns the document with `source_url` `None`; no exception | unit |
-| AC-13 | Manifest with two entries for the same `local_path`: url U1 `discovered_at` 2026-01-01, url U2 `discovered_at` 2026-06-01 | `fetch(acme)` | `source_url` is U2 | unit |
-| AC-14 | Manifest with an entry for the file that has `alias_of` set and no other entry | `fetch(acme)` | `source_url` is `None` | unit |
-| AC-15 | A row for `report.pdf` already stored with `source_url` NULL (registered before this change); manifest M | `fetch(acme)` | The stored row's `source_url` becomes `https://acme.example/r.pdf` | holdout |
-| AC-16 | Stored row with `source_url` `https://acme.example/r.pdf`; manifest file deleted | `fetch(acme)` | The stored row's `source_url` is still `https://acme.example/r.pdf` | holdout |
-| AC-17 | Same files, fetched on `main` and on this branch | `fetch(acme)` | `doc_id` is identical | holdout |
-| AC-18 | Same as AC-8, `context_headers_enabled` on | `index_text` for a chunk of the document | Identical to the result on `main` (no `2025` added) | unit |
-| AC-19 | Source built without `discovery_state_dir` (golden-set path); manifest M present | `fetch(acme)` | `source_url` is `None` | unit |
-| AC-20 | The existing backend test suite on `main` | `python3 -m pytest backend/tests` on this branch, excluding files added by this change | Same pass/fail result per test as on `main` | unit |
+| AC-4  | `report.txt` and `blank.txt` | `arp documents warm --universe u.json` | stderr contains the line `  acme: <absolute path of blank.txt>: no text extracted` | holdout |
+| AC-5  | Same as AC-4 | same | Exit code 1 | holdout |
+| AC-6  | A registry whose second source is a stand-in named `edgar` whose `fetch` raises `RuntimeError("down")` for `acme` | warm's command function with that registry | stderr contains the line `  acme: source edgar: RuntimeError: down` | unit |
+| AC-7  | Same as AC-6 | same | Exit code 1 | unit |
+| AC-8  | A registry whose `fetch_all` raises `RuntimeError("x")` for `acme` | warm's command function with that registry | stderr contains the line `  acme: x` | unit |
+| AC-9  | Same as AC-8 | same | Exit code 1 | unit |
+| AC-10 | Only `report.txt` | `arp documents warm --universe u.json` | Exit code 0 | holdout |
+| AC-11 | Same as AC-10 | same | The last stdout line is `Warmed 1 documents across 1 companies.` | holdout |
+| AC-12 | Same as AC-10 | same | stderr has no line ending in `failures:` and no line starting with two spaces | holdout |
+| AC-13 | `report.txt` and `bad.xyz`, a stand-in source list of [local files] | `registry.fetch_all(acme)` | Returns exactly one document, with `doc_id` D | unit |
+| AC-14 | `report.txt` and manifest M | `arp documents warm --universe u.json` | The stored row's `source_url` is `https://acme.example/r.txt` | holdout |
+| AC-15 | `report.txt` and manifest M, source built with `discovery_state_dir` | `LocalFileDocumentSource.fetch(acme)` | The returned document's `reporting_year` is `2025` | unit |
+| AC-16 | Same as AC-15 | same | The returned document's `source_url` is `https://acme.example/r.txt` | unit |
+| AC-17 | `report.txt`; `<tmp>/state` does not exist | `arp documents warm --universe u.json` | The stored row's `source_url` is NULL | holdout |
+| AC-18 | Same as AC-17 | same | `<tmp>/state` does not exist after the command | holdout |
+| AC-19 | `report.txt`; `<tmp>/state/acme.json` contains `{not json` | `arp documents warm --universe u.json` | Exit code 0 and the stored row's `source_url` is NULL | holdout |
+| AC-20 | Manifest with two entries for `report.txt`: U1 `https://acme.example/1.txt` with `discovered_at` `2026-06-01T00:00:00+00:00`, U2 `https://acme.example/2.txt` with `discovered_at` `2026-06-01T01:00:00+01:00` | `arp documents warm --universe u.json` | The stored row's `source_url` is U1 (U2 is the same instant; U1 sorts first) | holdout |
+| AC-21 | As AC-20, U2's `discovered_at` is `2026-06-01T00:00:01+00:00` | same | The stored row's `source_url` is U2 | holdout |
+| AC-22 | Manifest whose only entry for `report.txt` has `alias_of` `https://acme.example/other.txt` | same | The stored row's `source_url` is NULL | holdout |
+| AC-23 | `ARP_DOCUMENTS_DIR` set to the relative path `docs` (cwd = `<tmp>`); manifest M with the absolute `local_path` | same, run from `<tmp>` | The stored row's `source_url` is `https://acme.example/r.txt` | holdout |
+| AC-24 | Stored row for D with `source_url` NULL (inserted before the run); manifest M | same | The stored row's `source_url` is `https://acme.example/r.txt` | holdout |
+| AC-25 | Stored row for D with `source_url` `https://acme.example/r.txt`; no manifest file | same | The stored row's `source_url` is `https://acme.example/r.txt` | holdout |
+| AC-26 | Stored row for D with `source_url` `https://a.example/A`; manifest M (URL `https://acme.example/r.txt`) | same | The stored row's `source_url` is `https://a.example/A` | holdout |
+| AC-27 | `report.txt` and manifest M | same | A `documents` row with `doc_id` D exists and no other row has `universe_id` `acme` | holdout |
+| AC-28 | A `SourceDocument` S with title `report.txt`, `fiscal_period` None, a chunk C; `context_headers_enabled` on | `index_text(C, S with reporting_year 2025)` and `index_text(C, S with reporting_year None)` | The two strings are equal | unit |
+| AC-29 | Manifest M; source built without `discovery_state_dir` (golden-set path) | `LocalFileDocumentSource.fetch(acme)` | The returned document's `source_url` is `None` | unit |
+| AC-30 | The existing backend test suite on `main` | `python3 -m pytest backend/tests` on this branch, excluding files added by this change | Same pass/fail result per test as on `main` | unit |
 
-Must not change: what `fetch_all` returns (AC-7), `doc_id` (AC-17), index text (AC-18), golden-set fetches
-(AC-19), warm's exit code and output when nothing fails (AC-6), the rest of the suite (AC-20).
+Must not change: what `fetch_all` returns (AC-13), `doc_id` (AC-27), a stored URL (AC-25, AC-26), index text
+(AC-28), golden-set fetches (AC-29), warm's exit code and output when nothing fails (AC-10 to AC-12), the rest of the
+suite (AC-30).
