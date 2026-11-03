@@ -14,7 +14,9 @@ from arp.db.fields import SchemaRegistry
 from arp.db.session import require_dsn
 from arp.discovery.site_finder import build_web_search_client
 from arp.golden_set.exposure import ExposureSet, load_set
+from arp.ingestion.base import DocumentSource
 from arp.ingestion.local_files import parse_file_to_text_with_pages
+from arp.ingestion.registry import DocumentSourceRegistry
 from arp.llm.factory import batch_settings, build_llm_client, build_verifier_llm_client
 from arp.orchestration.jobs import resume_run
 from arp.research.activity_generator import build_theme
@@ -26,15 +28,15 @@ from arp.research.indirect_exposure.criticality import apply_criticality_overlay
 from arp.research.indirect_exposure.factory import NO_MODEL, resolve_indirect_exposure_model
 from arp.research.lifecycle_classifier import classify_theme_lifecycle_stages
 from arp.research.match_graph import _funnel_content_store
-from arp.research.pipeline import run_thematic_universe
+from arp.research.pipeline import _match_company, run_thematic_universe
 from arp.research.rd_exposure.resolver import RDResolverContext
 from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company
 from arp.research.revenue_exposure.catalogue import load_catalogue
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.research.taxonomy_schema import THEME_NOT_ALLOWED, ThemeRunRefused, released_run_schema
-from arp.schemas.common import DocType, SourceDocument
+from arp.schemas.common import CompanyRef, DocType, SourceDocument
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
-from arp.schemas.thematic import ThemeDefinition
+from arp.schemas.thematic import MatchVerdict, ThemeDefinition
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
 from arp.universe import load_company_universe
@@ -366,6 +368,89 @@ def theme_funnel(
         failed = True
     if max_kept_negative is not None and negatives and sum(r["kept"] for r in negatives) / len(negatives) > max_kept_negative:
         typer.echo(f"`not` kept above {max_kept_negative}.", err=True)
+        failed = True
+    if failed:
+        raise typer.Exit(1)
+
+
+class _CaseFiles(DocumentSource):
+    """The golden set's local files as a document source (no content store, no identity checks)."""
+
+    name = "golden_case_files"
+
+    def __init__(self, documents_dir: Path) -> None:
+        self.documents_dir = documents_dir
+
+    async def fetch(self, company, doc_types=None):
+        return _case_documents(self.documents_dir, company.company_id)
+
+
+class _CountingLLM:
+    def __init__(self, llm) -> None:
+        self._llm = llm
+        self.calls = 0
+
+    async def complete_structured(self, **kwargs):
+        self.calls += 1
+        return await self._llm.complete_structured(**kwargs)
+
+
+async def _compare_arm(theme: ThemeDefinition, cases: list, documents_dir: Path, settings: Settings) -> list[dict]:
+    """Each golden company through the theme run's per-company step; LLM calls counted per company."""
+    llm = _CountingLLM(build_llm_client(settings))
+    verifier = _CountingLLM(build_verifier_llm_client(settings))
+    registry = DocumentSourceRegistry([_CaseFiles(documents_dir)])
+    rows = []
+    for case in cases:
+        before = llm.calls + verifier.calls
+        result = await _match_company(CompanyRef(company_id=case.case_id, name=case.company), theme, registry=registry,
+                                      llm=llm, verifier_llm=verifier, settings=settings)
+        included = any(m.verdict == MatchVerdict.INCLUDE for m in result.matches)
+        rows.append({"label": case.label, "calls": llm.calls + verifier.calls - before, "include": included})
+    return rows
+
+
+def _precision(rows: list[dict]) -> float:
+    included = [r for r in rows if r["include"]]
+    return sum(r["label"] != "not" for r in included) / len(included) if included else 0.0
+
+
+@theme_app.command("funnel-compare")
+def theme_funnel_compare(
+    theme_file: Path = typer.Option(None, "--theme", help="Refused: the funnel reads a taxonomy version (--taxonomy)."),
+    taxonomy_id: str = typer.Option(None, "--taxonomy", help="The saved taxonomy to run."),
+    taxonomy_version: int = typer.Option(None, "--taxonomy-version", help="Defaults to the latest version."),
+    taxonomies_dir: Path = typer.Option(None, "--taxonomies-dir", help="Taxonomy store directory (default: configured)."),
+    cases: Path = typer.Option(..., "--cases", help="Exposure golden set cases.json."),
+    documents_dir: Path = typer.Option(..., "--documents-dir", help="Holds <case_id>/<doc_type>/<file> per case."),
+    split: str = typer.Option("all", "--split", help="tune, holdout or all."),
+    negatives_only: bool = typer.Option(False, "--negatives-only", help="Count LLM calls on `not` cases only."),
+    max_call_ratio: float = typer.Option(None, "--max-call-ratio", help="Exit 1 if calls on > x * calls off."),
+    max_precision_drop: float = typer.Option(None, "--max-precision-drop", help="Exit 1 if include precision drops by > x."),
+) -> None:
+    """Runs the theme matching on the golden companies with the funnel off, then on, and compares LLM calls and the
+    precision of `include` verdicts (core and peripheral count as positive). Writes no run."""
+    taxonomy = _funnel_taxonomy(taxonomy_id, taxonomy_version, taxonomies_dir, theme_file)
+    golden = load_set(cases.parent)
+    chosen = [c for c in golden.cases if split == "all" or c.split == split]
+    base = get_settings()
+    arms = {
+        on: asyncio.run(_compare_arm(taxonomy.theme, chosen, documents_dir,
+                                     base.model_copy(update={"models_universe_funnel_enabled": on})))
+        for on in (False, True)
+    }
+    counted = {on: sum(r["calls"] for r in rows if not negatives_only or r["label"] == "not") for on, rows in arms.items()}
+    precision = {on: _precision(rows) for on, rows in arms.items()}
+    typer.echo(f"llm_calls_off: {counted[False]}")
+    typer.echo(f"llm_calls_on: {counted[True]}")
+    typer.echo(f"precision_off: {precision[False]:.3f}")
+    typer.echo(f"precision_on: {precision[True]:.3f}")
+    failed = False
+    if max_call_ratio is not None and counted[True] > max_call_ratio * counted[False]:
+        typer.echo(f"LLM calls with the funnel exceed {max_call_ratio} x calls without.", err=True)
+        failed = True
+    if max_precision_drop is not None and precision[False] - precision[True] > max_precision_drop:
+        typer.echo(f"Include precision dropped by more than {max_precision_drop}.", err=True)
         failed = True
     if failed:
         raise typer.Exit(1)

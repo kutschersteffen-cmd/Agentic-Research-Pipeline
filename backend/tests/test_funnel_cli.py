@@ -167,3 +167,73 @@ def test_golden_taxonomy_loads():
     t = store.get("tax_electrolyser_makers")
     assert len(t.theme.activities) == 1
     assert len(t.theme.activities[0].contrast_statements) == 2
+
+
+class _AlwaysInclude:
+    """Counting stand-in LLM: every debate ends in `include`."""
+
+    def __init__(self):
+        self.calls = 0
+
+    async def complete_structured(self, *, system, prompt, output_model, **kwargs):
+        from arp.llm.base import LLMUsage
+        from arp.research.matcher_agents import AdjudicatorOutput
+        from arp.schemas.thematic import AgentOpinion, ExposureEstimate, MatchVerdict
+
+        self.calls += 1
+        if output_model is AdjudicatorOutput:
+            out = AdjudicatorOutput(verdict=MatchVerdict.INCLUDE, exposure_estimate=ExposureEstimate.PURE_PLAY,
+                                    confidence=0.9, adjudicator_rationale="ok", citations=[])
+        else:
+            out = AgentOpinion(stance="s", rationale="r", citations=[], exposure_estimate=ExposureEstimate.PURE_PLAY)
+        return out, LLMUsage(input_tokens=1, output_tokens=1, provider="fake")
+
+
+@pytest.fixture
+def llm(monkeypatch):
+    fake = _AlwaysInclude()
+    monkeypatch.setattr(theme_cli, "build_llm_client", lambda settings: fake)
+    monkeypatch.setattr(theme_cli, "build_verifier_llm_client", lambda settings: fake)
+    return fake
+
+
+def _compare(tmp_path, *extra, taxonomy_id):
+    return CliRunner().invoke(app, ["theme", "funnel-compare", "--taxonomy", taxonomy_id, "--taxonomies-dir",
+                                    str(tmp_path / "tax"), "--cases", str(tmp_path / "cases.json"),
+                                    "--documents-dir", str(tmp_path / "docs"), *extra])
+
+
+def test_compare_prints_counts(tmp_path, models, llm):
+    _, t = _taxonomy(tmp_path)
+    _set(tmp_path, FIVE)
+    r = _compare(tmp_path, taxonomy_id=t.taxonomy_id)
+    assert r.exit_code == 0, r.output
+    # off: 5 debates x 3 calls; on: the 3 kept cases debate. Every debate includes, so off precision = 3/5.
+    for line in ("llm_calls_off: 15", "llm_calls_on: 9", "precision_off: 0.600", "precision_on: 1.000"):
+        assert line in r.output
+
+
+def test_compare_call_ratio_exit(tmp_path, models, llm):
+    _, t = _taxonomy(tmp_path)
+    _set(tmp_path, FIVE)
+    assert _compare(tmp_path, "--max-call-ratio", "0.5", taxonomy_id=t.taxonomy_id).exit_code == 1  # 9/15 = 0.6
+    assert _compare(tmp_path, "--max-call-ratio", "0.6", taxonomy_id=t.taxonomy_id).exit_code == 0
+
+
+def test_compare_negatives_only_counts(tmp_path, models, llm):  # AC-23 as amended
+    _, t = _taxonomy(tmp_path)
+    _set(tmp_path, FIVE)
+    r = _compare(tmp_path, "--negatives-only", "--max-call-ratio", "0.5", taxonomy_id=t.taxonomy_id)
+    assert r.exit_code == 0, r.output
+    assert "llm_calls_off: 6" in r.output and "llm_calls_on: 0" in r.output
+
+
+def test_compare_precision_drop_exit(tmp_path, models, llm, monkeypatch):
+    _, t = _taxonomy(tmp_path)
+    # the funnel screens one core case: precision stays 1.0 on both arms -> no drop
+    _set(tmp_path, [("a", "core", "holdout", KEEP), ("b", "core", "holdout", DROP)])
+    assert _compare(tmp_path, "--max-precision-drop", "0.0", taxonomy_id=t.taxonomy_id).exit_code == 0
+    # with every case screened there are no includes: precision_on 0.0, a drop of 1.0
+    ROWS_ALL_DROP = {KEEP: (0.9, 0.1, {POS: 0.95}), DROP: ROWS[DROP]}
+    monkeypatch.setitem(ROWS, KEEP, ROWS_ALL_DROP[KEEP])
+    assert _compare(tmp_path, "--max-precision-drop", "0.02", taxonomy_id=t.taxonomy_id).exit_code == 1
