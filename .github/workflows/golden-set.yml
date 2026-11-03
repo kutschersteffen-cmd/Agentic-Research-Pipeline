@@ -137,7 +137,8 @@ jobs:
           arp rfp golden drafts --cases arp/golden_set/data/rfp_drafts.json --min-drafted 0.90 --min-blank 0.95 | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Run the authority-taxonomy golden case
-        if: steps.key.outputs.present == 'true'
+        # runs even when an earlier golden step failed, so its own result is always reported
+        if: ${{ !cancelled() && steps.key.outputs.present == 'true' }}
         env:
           ARP_ANTHROPIC_API_KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
         run: |
