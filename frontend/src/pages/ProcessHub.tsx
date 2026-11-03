@@ -116,7 +116,7 @@ const processState = (p: Process, runs: RunManifest[] | null, flow: StewardshipF
 
 /** The one line a workspace box leads with: what waits on a person first, then
  * failures, then what is running. */
-function headline(w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null, counted?: number): { tone: string; text: string } {
+function headline(w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null, counted?: number): { tone: string; text: string; failed?: string } {
   if (!runs) return { tone: "", text: "Status unknown" };
   const mine = runs.filter((r) => w.runTypes.includes(r.run_type));
   const stages = new Set(w.processes.flatMap((p) => p.steps.map((s) => s.stage).filter(Boolean)));
@@ -124,7 +124,8 @@ function headline(w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlo
   const waiting = counted ?? mine.reduce((n, r) => n + waitingCount(r), 0) + [...stages].reduce((n, id) => n + openCount(flow?.stages.find((x) => x.id === id)), 0);
   const failed = mine.filter((r) => r.status === "failed").length;
   const running = mine.filter((r) => ACTIVE_STATUSES.has(r.status)).length;
-  if (waiting > 0) return { tone: "await", text: `${waiting} waiting on you${failed > 0 ? ` · ${failed} failed` : ""}` };
+  // The failed part keeps the status colour; only "waiting on you" carries the signal.
+  if (waiting > 0) return { tone: "await", text: `${waiting} waiting on you`, failed: failed > 0 ? `${failed} failed` : undefined };
   if (failed > 0) return { tone: "failed", text: `${failed} failed` };
   if (running > 0) return { tone: "running", text: `${running} running` };
   return { tone: "", text: "Nothing waiting" };
@@ -153,9 +154,13 @@ function WorkspaceCard({ w, runs, flow, counted }: { w: Workspace; runs: RunMani
   // The process named is the one a person should look at: a wait first, then running or failed.
   const firstWait = states.indexOf("wait");
   const at = firstWait >= 0 ? firstWait : states.findIndex((st) => st === "now" || st === "failed");
-  const now = at >= 0 ? w.processes[at].title : !runs ? "" : last ? `Last run ${ago(last.updated_at)}` : "No runs yet";
+  // Something can wait here with no process dot behind it (a blocking data issue); say where it is instead of "No runs yet".
+  const now = at >= 0 ? w.processes[at].title : !runs ? "" : counted ? "Listed under Needs you" : last ? `Last run ${ago(last.updated_at)}` : "No runs yet";
+  const status = h.failed ? `${h.text}, ${h.failed}` : h.text;
+  // The link's label replaces its inner text for screen readers, so it carries each process's state too.
+  const steps = w.processes.map((p, i) => `${p.title}: ${runs ? STATE_LABEL[states[i]] : "status unknown"}`).join("; ");
   return (
-    <a className={`hub-card${h.tone ? ` hub-card-${h.tone}` : ""}`} href={`#/${w.id}`} aria-label={`${w.name}: ${h.text}${now ? `. ${now}` : ""}`}>
+    <a className={`hub-card${h.tone ? ` hub-card-${h.tone}` : ""}`} href={`#/${w.id}`} aria-label={`${w.name}: ${status}${now ? `. ${now}` : ""}. ${steps}`}>
       {ICONS[w.id]}
       <span className="hub-card-text">
         <span className="hub-card-name">{w.name}</span>
@@ -173,7 +178,10 @@ function WorkspaceCard({ w, runs, flow, counted }: { w: Workspace; runs: RunMani
       </ol>
       <span className="hub-card-now">{now}</span>
       <span className="hub-card-foot">
-        <span className={`hub-card-state ${h.tone}`}>{h.text}</span>
+        <span className="hub-card-status">
+          <span className={`hub-card-state ${h.tone}`}>{h.text}</span>
+          {h.failed && <span className="hub-card-state failed"> · {h.failed}</span>}
+        </span>
         <span className="hub-card-go">Open →</span>
       </span>
     </a>
