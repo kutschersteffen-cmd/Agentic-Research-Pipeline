@@ -6,7 +6,7 @@ from arp.research.authority_taxonomy.extract import SourceExtraction, _Activitie
 from arp.research.indirect_exposure.core_sectors import _CoreSectorSelection
 from arp.research.indirect_exposure.factory import SAMPLE_DIR, resolve_indirect_exposure_model
 from arp.research.standards_mapping.gics import _GicsSelectionList
-from arp.schemas.authority_taxonomy import SourceCitation, merge_key
+from arp.schemas.authority_taxonomy import Definition, SectorCode, SourceCitation, Technology, Threshold, merge_key
 from arp.schemas.thematic import ActivityDefinition
 from tests.conftest import FakeLLMClient
 from tests.test_authority_taxonomy_extract import _llm
@@ -111,3 +111,32 @@ async def test_no_io_model_note(tmp_path):
     theme, notes = await _run([ext], tmp_path, value_chain=True)
     assert "no IO model" in notes
     assert not any(c.origin == "exiobase" for a in theme.activities for c in a.sector_codes)
+
+
+def _c(q, url):
+    return [SourceCitation(quote=q, source_url=url)]
+
+
+async def test_theme_level_items_merged_across_sources(tmp_path):
+    a = SourceExtraction(
+        url="A", technologies=[Technology(name="PEM electrolysis", citations=_c("t", "A"))],
+        definitions=[Definition(term="Green hydrogen", text="x", citations=_c("d", "A"))],
+        thresholds=[Threshold(text="50 %", citations=_c("q", "A"))],
+    )
+    b = SourceExtraction(
+        url="B", technologies=[Technology(name="pem-electrolysis", citations=_c("t", "B"))],
+        definitions=[Definition(term="green hydrogen", text="x", citations=_c("d", "B"))],
+        thresholds=[Threshold(text="half", citations=_c("q", "B")), Threshold(text="other", citations=_c("z", "B"))],
+    )
+    theme, _ = await _run([a, b], tmp_path)
+    assert len(theme.technologies) == 1 and [c.source_url for c in theme.technologies[0].citations] == ["A", "B"]
+    assert len(theme.definitions) == 1 and [c.source_url for c in theme.definitions[0].citations] == ["A", "B"]
+    assert [t.text for t in theme.thresholds] == ["50 %", "other"]
+    assert [c.source_url for c in theme.thresholds[0].citations] == ["A", "B"]
+
+
+async def test_sector_codes_deduped_on_first_activity(tmp_path):
+    code = SectorCode(system="NACE", code="C28", origin="source")
+    a = SourceExtraction(url="A", activities=[_act("Stacks", "A")], sector_codes=[code, code.model_copy()])
+    theme, _ = await _run([a], tmp_path)
+    assert [(c.system, c.code, c.origin) for c in theme.activities[0].sector_codes if c.origin == "source"] == [("NACE", "C28", "source")]

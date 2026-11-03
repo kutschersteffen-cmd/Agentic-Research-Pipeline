@@ -112,6 +112,7 @@ def put_draft(run_id: str, draft: ThemeDefinition, run_store) -> RunState:
 
 def accept(run_id: str, run_store, taxonomy_store) -> RunState:
     state = _require(run_id, run_store, "awaiting_review")
+    # shortcut: no lock, two concurrent accepts create two taxonomies; add a run lock when multi-user
     taxonomy = taxonomy_store.create(state.theme_name, state.draft, DerivationMethod.AUTHORITY_SOURCE, state.notes)
     return _save(state.model_copy(update={"stage": "accepted", "taxonomy_id": taxonomy.taxonomy_id}), run_store)
 

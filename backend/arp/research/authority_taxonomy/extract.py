@@ -177,6 +177,8 @@ async def extract_source(
     out.activities = [a for a in out.activities if not any(r in a.in_scope_description for r in rules)]
     for a in out.activities:
         a.criteria = [c for c in a.criteria if not any(r in c.text for r in rules)]
+    if "activities" in out.report:
+        out.report["activities"] = "found" if out.activities else "not_in_source"
     return out
 
 

@@ -194,3 +194,15 @@ async def test_threshold_not_in_activities():
     assert any(c.quote == R for t in out.thresholds for c in t.citations)
     assert [a.name for a in out.activities] == ["Electrolyser manufacturing"]
     assert [c.text for c in out.activities[0].criteria] == ["Water electrolysis"]
+
+
+@pytest.mark.asyncio
+async def test_guard_removing_all_activities_reports_not_in_source():
+    llm = _llm(
+        _ActivitiesDraft=_ActivitiesDraft(activities=[
+            {"name": "Pure-play hydrogen", "in_scope_description": f"Companies with {R} activities", "quote": R},
+        ]),
+        _ThresholdsDraft=_ThresholdsDraft(thresholds=[{"text": "50 % revenue", "quote": R}]),
+    )
+    out = await _extract("eu_310.txt", llm)
+    assert out.activities == [] and out.report["activities"] == "not_in_source"

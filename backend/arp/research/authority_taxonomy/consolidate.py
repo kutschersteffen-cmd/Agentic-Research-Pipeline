@@ -32,6 +32,16 @@ def _upstream(model: LeontiefModel, code: str) -> list[str]:
     return [c for _, c in sorted(scored, key=lambda s: (-s[0], s[1]))[:_TOP_UPSTREAM]]
 
 
+def _merge(kept: list, new: list, key, cites: bool = True) -> None:
+    """Appends items of `new` whose key is unseen; for a seen key, unions the citations."""
+    for item in new:
+        match = next((k for k in kept if key(k) == key(item)), None)
+        if match is None:
+            kept.append(item)
+        elif cites:
+            match.citations += [c for c in item.citations if c not in match.citations]
+
+
 def _add(codes: list[SectorCode], new: SectorCode) -> None:
     if not any((c.system, c.code) == (new.system, new.code) for c in codes):
         codes.append(new)
@@ -53,6 +63,9 @@ async def consolidate(
     for ext in extractions:
         for act in ext.activities:
             act = act.model_copy(update={"sector_codes": act.sector_codes + ext.sector_codes}, deep=True)
+            codes = act.sector_codes
+            act.sector_codes = []
+            _merge(act.sector_codes, codes, lambda c: (c.system, c.code, c.origin), cites=False)
             kept = groups.setdefault(merge_key(act.name), act)
             if kept is act:
                 continue
@@ -65,14 +78,20 @@ async def consolidate(
             for code in act.sector_codes:
                 _add(kept.sector_codes, code)
 
+    techs, defs, thresholds = [], [], []
+    for e in extractions:
+        _merge(techs, [t.model_copy(deep=True) for t in e.technologies], lambda t: merge_key(t.name))
+        _merge(defs, [d.model_copy(deep=True) for d in e.definitions], lambda d: merge_key(d.term))
+        _merge(thresholds, [t.model_copy(deep=True) for t in e.thresholds], lambda t: t.citations[0].quote if t.citations else t.text)
+
     theme = ThemeDefinition(
         name=theme_name,
         description=next((e.theme_description for e in extractions if e.theme_description), ""),
         scope=scope,
         activities=list(groups.values()),
-        technologies=[t for e in extractions for t in e.technologies],
-        definitions=[d for e in extractions for d in e.definitions],
-        thresholds=[t for e in extractions for t in e.thresholds],
+        technologies=techs,
+        definitions=defs,
+        thresholds=thresholds,
         checklist_report={e.url: e.report for e in extractions},
     )
     theme, _usage = await map_theme_to_standards(theme, settings, llm)

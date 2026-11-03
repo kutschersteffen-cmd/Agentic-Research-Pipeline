@@ -72,7 +72,27 @@ def test_accept_201(client):
     rid = _reviewed(client)
     res = client.post(f"{BASE}/{rid}/accept")
     assert res.status_code == 201
-    assert res.json()["taxonomy_id"]
+    tid = res.json()["taxonomy_id"]
+    assert tid
+    assert client.get(f"{BASE}/{rid}").json()["stage"] == "accepted"
+    draft = client.get(f"{BASE}/{rid}/draft").json()
+    assert draft["activities"][0]["name"] == "Stacks"
+
+
+def test_accept_shows_in_cli(client, monkeypatch):
+    from typer.testing import CliRunner
+
+    from arp.cli import taxonomy as cli
+
+    rid = _reviewed(client)
+    draft = client.get(f"{BASE}/{rid}/draft").json()
+    draft["activities"][0]["name"] = "Edited stacks"
+    assert client.put(f"{BASE}/{rid}/draft", json=draft).status_code == 200
+    tid = client.post(f"{BASE}/{rid}/accept").json()["taxonomy_id"]
+    monkeypatch.setattr(cli, "_taxonomy_store", app.dependency_overrides[deps.get_taxonomy_store])
+    out = CliRunner().invoke(cli.taxonomy_app, ["show", tid])
+    assert out.exit_code == 0, out.output
+    assert all(s in out.output for s in ["Edited stacks", '"version": 1', "authority_source", "draft"])
 
 
 def test_accept_409(client):
@@ -83,6 +103,12 @@ def test_accept_409(client):
 
 def test_delete_204(client):
     rid = _start(client).json()["id"]
+    assert client.delete(f"{BASE}/{rid}").status_code == 204
+    assert client.get(f"{BASE}/{rid}").json()["stage"] == "cancelled"
+
+
+def test_delete_at_review_204(client):
+    rid = _reviewed(client)
     assert client.delete(f"{BASE}/{rid}").status_code == 204
     assert client.get(f"{BASE}/{rid}").json()["stage"] == "cancelled"
 

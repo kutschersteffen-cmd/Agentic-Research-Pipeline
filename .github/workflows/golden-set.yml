@@ -23,6 +23,8 @@ on:
       - "backend/arp/transition_barrier/data/**"
       - "backend/tests/golden/transition_barrier/**"
       - "backend/arp/rfp/**"
+      - "backend/arp/research/authority_taxonomy/**"
+      - "backend/tests/golden/authority_taxonomy/**"
   workflow_dispatch:
 
 jobs:
@@ -64,7 +66,7 @@ jobs:
           if [ -n "$rfp" ]; then echo "rfp=true" >>"$GITHUB_OUTPUT"; else echo "rfp=false" >>"$GITHUB_OUTPUT"; fi
           gate=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction/evidence_gate.py)
           if [ -n "$gate" ]; then echo "gate=true" >>"$GITHUB_OUTPUT"; else echo "gate=false" >>"$GITHUB_OUTPUT"; fi
-          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py arp/transition_barrier/extraction.py arp/transition_barrier/golden.py arp/transition_barrier/fetching.py arp/transition_barrier/rule_book.py arp/transition_barrier/data tests/golden/transition_barrier arp/rfp)
+          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py arp/transition_barrier/extraction.py arp/transition_barrier/golden.py arp/transition_barrier/fetching.py arp/transition_barrier/rule_book.py arp/transition_barrier/data tests/golden/transition_barrier arp/rfp arp/research/authority_taxonomy tests/golden/authority_taxonomy)
           model=$(git diff -U0 "origin/$BASE...HEAD" -- arp/config.py | grep -E '^[+-] .*(llm_|_api_key|grounding_|confidence_review)' || true)
           if [ -n "$other$model" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; else echo "run=false" >>"$GITHUB_OUTPUT"; echo "Only unrelated config.py lines changed; golden set not needed."; fi
 
@@ -133,3 +135,11 @@ jobs:
           set -o pipefail
           arp rfp golden questions --cases arp/golden_set/data/rfp_questions.json --min-recall 0.95 | tee -a "$GITHUB_STEP_SUMMARY"
           arp rfp golden drafts --cases arp/golden_set/data/rfp_drafts.json --min-drafted 0.90 --min-blank 0.95 | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Run the authority-taxonomy golden case
+        if: steps.key.outputs.present == 'true'
+        env:
+          ARP_ANTHROPIC_API_KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
+        run: |
+          set -o pipefail
+          arp golden-set authority-taxonomy --case hydrogen_eu_taxonomy | tee -a "$GITHUB_STEP_SUMMARY"
