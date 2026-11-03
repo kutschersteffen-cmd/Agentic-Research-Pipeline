@@ -1,0 +1,879 @@
+ticker,company,form,fiscal_year,axis,level,segment,segment_source,member,revenue,unit,sum_matches_total
+MTZ,MASTEC INC,10-K,2025,segment,,Communications,label,mtz:CommunicationsMember,3339100000.0,USD,True
+MTZ,MASTEC INC,10-K,2025,segment,,Clean Energy and Infrastructure,label,mtz:CleanEnergyAndInfrastructureMember,4699600000.0,USD,True
+MTZ,MASTEC INC,10-K,2025,segment,,Power Delivery,label,mtz:PowerDeliveryMember,4176100000.0,USD,True
+MTZ,MASTEC INC,10-K,2025,segment,,Pipeline Infrastructure,label,mtz:PipelineInfrastructureMember,2137800000.0,USD,True
+MTZ,MASTEC INC,10-K,2025,segment,,All Other Segments,derived,us-gaap:AllOtherSegmentsMember,0.0,USD,True
+MTZ,MASTEC INC,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,177200000.0,USD,False
+KO,COCA COLA CO,10-K,2025,segment,,"Europe, Middle East, Africa",label,ko:EuropeMiddleEastAfricaMember,11513000000.0,USD,True
+KO,COCA COLA CO,10-K,2025,segment,,Latin America,label,ko:LatinAmericaSegmentMember,6334000000.0,USD,True
+KO,COCA COLA CO,10-K,2025,segment,,North America,label,ko:NorthAmericaSegmentMember,19586000000.0,USD,True
+KO,COCA COLA CO,10-K,2025,segment,,A. Pacific,label,ko:A.PacificMember,5638000000.0,USD,True
+KO,COCA COLA CO,10-K,2025,segment,,Bottling investments,label,ko:BottlingInvestmentsMember,5735000000.0,USD,True
+KO,COCA COLA CO,10-K,2025,product,company,Concentrate operations,label,ko:ConcentrateOperationsMember,28462000000.0,USD,True
+KO,COCA COLA CO,10-K,2025,product,company,Finished product operations,label,ko:FinishedProductOperationsMember,19479000000.0,USD,True
+KO,COCA COLA CO,10-K,2025,geography,,US,derived,country:US,19127000000.0,USD,True
+KO,COCA COLA CO,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,28814000000.0,USD,True
+FLS,FLOWSERVE CORP,10-K,2025,segment,,FPD,label,fls:FPDMember,3230236000.0,USD,True
+FLS,FLOWSERVE CORP,10-K,2025,segment,,FCD,label,fls:FCDMember,1499024000.0,USD,True
+FLS,FLOWSERVE CORP,10-K,2025,product,company,Original Equipment,label,fls:OriginalEquipmentMember,2219582000.0,USD,True
+FLS,FLOWSERVE CORP,10-K,2025,product,company,Aftermarket Equipment,label,fls:AftermarketEquipmentMember,2509678000.0,USD,True
+FLS,FLOWSERVE CORP,10-K,2025,geography,,North America,derived,srt:NorthAmericaMember,1997290000.0,USD,False
+FLS,FLOWSERVE CORP,10-K,2025,geography,,Latin America,derived,srt:LatinAmericaMember,317136000.0,USD,False
+FLS,FLOWSERVE CORP,10-K,2025,geography,,Middle East And Africa,label,fls:MiddleEastAndAfricaMember,835809000.0,USD,False
+FLS,FLOWSERVE CORP,10-K,2025,geography,,Asia Pacific,derived,srt:AsiaPacificMember,745350000.0,USD,False
+FLS,FLOWSERVE CORP,10-K,2025,geography,,Europe,derived,srt:EuropeMember,833675000.0,USD,False
+FLS,FLOWSERVE CORP,10-K,2025,geography,,US,derived,country:US,1965150000.0,USD,False
+FLS,FLOWSERVE CORP,10-K,2025,geography,,EMEA,derived,us-gaap:EMEAMember,1616809000.0,USD,False
+FLS,FLOWSERVE CORP,10-K,2025,geography,,Asia And Australia,label,fls:AsiaAndAustraliaMember,722856000.0,USD,False
+FLS,FLOWSERVE CORP,10-K,2025,geography,,Other Segment Geographic Area,label,fls:OtherSegmentGeographicAreaMember,424445000.0,USD,False
+FELE,FRANKLIN ELECTRIC CO INC,10-K,2025,segment,,Water Systems,label,fele:WaterSystemsMember,1256400000.0,USD,True
+FELE,FRANKLIN ELECTRIC CO INC,10-K,2025,segment,,Distribution,label,fele:DistributionMember,700700000.0,USD,True
+FELE,FRANKLIN ELECTRIC CO INC,10-K,2025,segment,,Energy Systems,label,fele:EnergySystemsMember,299000000.0,USD,True
+FELE,FRANKLIN ELECTRIC CO INC,10-K,2025,geography,,US,derived,country:US,1446500000.0,USD,True
+FELE,FRANKLIN ELECTRIC CO INC,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,684800000.0,USD,True
+GPC,GENUINE PARTS CO,10-K,2025,segment,,North America Automotive,label,gpc:NorthAmericaAutomotiveMember,9520042000.0,USD,True
+GPC,GENUINE PARTS CO,10-K,2025,segment,,International Automotive,label,gpc:InternationalAutomotiveMember,5858566000.0,USD,True
+GPC,GENUINE PARTS CO,10-K,2025,segment,,Industrial Parts,label,gpc:IndustrialPartsMember,8921533000.0,USD,True
+GPC,GENUINE PARTS CO,10-K,2025,geography,,US,derived,country:US,15788840000.0,USD,False
+GPC,GENUINE PARTS CO,10-K,2025,geography,,Europe,derived,srt:EuropeMember,4010876000.0,USD,False
+GPC,GENUINE PARTS CO,10-K,2025,geography,,CA,derived,country:CA,2022110000.0,USD,False
+GPC,GENUINE PARTS CO,10-K,2025,geography,,Australasia,label,gpc:AustralasiaMember,2377182000.0,USD,False
+GPC,GENUINE PARTS CO,10-K,2025,geography,,MX,derived,country:MX,101133000.0,USD,False
+GPC,GENUINE PARTS CO,10-K,2025,geography,,North America,derived,srt:NorthAmericaMember,17912083000.0,USD,False
+NEON,Neonode Inc.,10-K,2025,product,company,License Fees,label,neon:LicenseFeesMember,1822000.0,USD,True
+NEON,Neonode Inc.,10-K,2025,product,company,Non-recurring Engineering,label,neon:NonrecurringEngineeringMember,240000.0,USD,True
+NEON,Neonode Inc.,10-K,2025,geography,,North America,derived,srt:NorthAmericaMember,425000.0,USD,False
+NEON,Neonode Inc.,10-K,2025,geography,,Asia Pacific,derived,srt:AsiaPacificMember,1294000.0,USD,False
+NEON,Neonode Inc.,10-K,2025,geography,,EMEA,derived,us-gaap:EMEAMember,343000.0,USD,False
+NEON,Neonode Inc.,10-K,2025,geography,,JP,derived,country:JP,1276000.0,USD,False
+NEON,Neonode Inc.,10-K,2025,geography,,SE,derived,country:SE,300000.0,USD,False
+NEON,Neonode Inc.,10-K,2025,geography,,DE,derived,country:DE,42000.0,USD,False
+NEON,Neonode Inc.,10-K,2025,geography,,CN,derived,country:CN,16000.0,USD,False
+NEON,Neonode Inc.,10-K,2025,geography,,KR,derived,country:KR,1000.0,USD,False
+NEON,Neonode Inc.,10-K,2025,geography,,Other Foreign Countries,label,neon:OtherForeignCountriesMember,2000.0,USD,False
+NEON,Neonode Inc.,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,1637000.0,USD,False
+NEON,Neonode Inc.,10-K,2025,geography,,US,derived,country:US,425000.0,USD,False
+SHW,SHERWIN WILLIAMS CO,10-K,2025,segment,,Paint Stores Group,label,shw:PaintStoresGroupMember,13605900000.0,USD,False
+SHW,SHERWIN WILLIAMS CO,10-K,2025,segment,,Consumer Brands Group,label,shw:ConsumerBrandsGroupMember,3166400000.0,USD,False
+SHW,SHERWIN WILLIAMS CO,10-K,2025,segment,,Performance Coatings Group,label,shw:PerformanceCoatingsGroupMember,6795200000.0,USD,False
+SHW,SHERWIN WILLIAMS CO,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,4615000000.0,USD,False
+COKE,"Coca-Cola Consolidated, Inc.",10-K,2025,segment,,Nonalcoholic Beverage,label,coke:NonalcoholicBeverageSegmentMember,7183782000.0,USD,True
+COKE,"Coca-Cola Consolidated, Inc.",10-K,2025,segment,,All Other Segments,derived,us-gaap:AllOtherSegmentsMember,325969000.0,USD,True
+AMGN,AMGEN INC,10-K,2025,product,standard,Product,derived,us-gaap:ProductMember,35148000000.0,USD,True
+AMGN,AMGEN INC,10-K,2025,product,standard,Product And Service Other,derived,us-gaap:ProductAndServiceOtherMember,1603000000.0,USD,True
+AMGN,AMGEN INC,10-K,2025,product,company,Prolia,label,amgn:ProliaMember,4414000000.0,USD,False
+AMGN,AMGEN INC,10-K,2025,product,company,Repatha,label,amgn:RepathaMember,3016000000.0,USD,False
+AMGN,AMGEN INC,10-K,2025,product,company,Otezla,label,amgn:OtezlaMember,2265000000.0,USD,False
+AMGN,AMGEN INC,10-K,2025,product,company,ENBREL,label,amgn:EnbrelMember,2226000000.0,USD,False
+AMGN,AMGEN INC,10-K,2025,product,company,EVENITY,label,amgn:EVENITYMember,2100000000.0,USD,False
+AMGN,AMGEN INC,10-K,2025,product,company,XGEVA,label,amgn:XgevaMember,2084000000.0,USD,False
+AMGN,AMGEN INC,10-K,2025,product,company,TEPEZZA,label,amgn:TEPEZZAMember,1903000000.0,USD,False
+AMGN,AMGEN INC,10-K,2025,product,company,BLINCYTO,label,amgn:BLINCYTOMember,1559000000.0,USD,False
+AMGN,AMGEN INC,10-K,2025,product,company,Nplate,label,amgn:NplateMember,1524000000.0,USD,False
+AMGN,AMGEN INC,10-K,2025,product,company,TEZSPIRE,label,amgn:TEZSPIREMember,1478000000.0,USD,False
+AMGN,AMGEN INC,10-K,2025,product,company,KYPROLIS,label,amgn:KYPROLISMember,1412000000.0,USD,False
+AMGN,AMGEN INC,10-K,2025,product,company,Aranesp,label,amgn:AranespMember,1389000000.0,USD,False
+AMGN,AMGEN INC,10-K,2025,product,company,KRYSTEXXA,label,amgn:KRYSTEXXAMember,1340000000.0,USD,False
+AMGN,AMGEN INC,10-K,2025,product,company,Vectibix,label,amgn:VectibixMember,1175000000.0,USD,False
+AMGN,AMGEN INC,10-K,2025,product,company,Other Products,label,amgn:OtherProductsMember,7263000000.0,USD,False
+AMGN,AMGEN INC,10-K,2025,geography,,US,derived,country:US,26419000000.0,USD,True
+AMGN,AMGEN INC,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,10332000000.0,USD,True
+DSGR,"Distribution Solutions Group, Inc.",10-K,2025,segment,,Lawson,label,dsgr:LawsonSegmentMember,481088000.0,USD,True
+DSGR,"Distribution Solutions Group, Inc.",10-K,2025,segment,,TestEquity,label,dsgr:TestEquitySegmentMember,783237000.0,USD,True
+DSGR,"Distribution Solutions Group, Inc.",10-K,2025,segment,,Gexpro Services,label,dsgr:GexproServicesSegmentMember,496655000.0,USD,True
+DSGR,"Distribution Solutions Group, Inc.",10-K,2025,segment,,Canada Branch Division,label,dsgr:CanadaBranchDivisionSegmentMember,221426000.0,USD,True
+DSGR,"Distribution Solutions Group, Inc.",10-K,2025,product,company,Rental Program,label,dsgr:RentalProgramMember,26872000.0,USD,False
+DSGR,"Distribution Solutions Group, Inc.",10-K,2025,geography,,US,derived,country:US,1459885000.0,USD,True
+DSGR,"Distribution Solutions Group, Inc.",10-K,2025,geography,,CA,derived,country:CA,293004000.0,USD,True
+DSGR,"Distribution Solutions Group, Inc.",10-K,2025,geography,,Europe,derived,srt:EuropeMember,64711000.0,USD,True
+DSGR,"Distribution Solutions Group, Inc.",10-K,2025,geography,,Asia Pacific,derived,srt:AsiaPacificMember,32247000.0,USD,True
+DSGR,"Distribution Solutions Group, Inc.",10-K,2025,geography,,Latin America,derived,srt:LatinAmericaMember,117833000.0,USD,True
+DSGR,"Distribution Solutions Group, Inc.",10-K,2025,geography,,Other Geographical,label,dsgr:OtherGeographicalMember,14726000.0,USD,True
+AMTX,"AEMETIS, INC",10-K,2025,segment,,California Ethanol,label,amtx:CaliforniaEthanolMember,153234000.0,USD,True
+AMTX,"AEMETIS, INC",10-K,2025,segment,,California Dairy Renewable Natural Gas,label,amtx:CaliforniaDairyRenewableNaturalGasMember,14730000.0,USD,True
+AMTX,"AEMETIS, INC",10-K,2025,segment,,India Biodiesel,label,amtx:IndiaBiodieselSegmentMember,29662000.0,USD,True
+DOC,"HEALTHPEAK PROPERTIES, INC.",10-K,2025,segment,,Outpatient Medical,label,peak:OutpatientMedicalMember,1273505000.0,USD,False
+DOC,"HEALTHPEAK PROPERTIES, INC.",10-K,2025,segment,,Lab,label,peak:LabMember,860020000.0,USD,False
+DOC,"HEALTHPEAK PROPERTIES, INC.",10-K,2025,segment,,Senior Housing,label,peak:SeniorHousingMember,603989000.0,USD,False
+DWSN,DAWSON GEOPHYSICAL CO,10-K,2025,segment,,United States Operations,label,dwsn:UnitedStatesOperationsSegmentMember,59834000.0,USD,True
+DWSN,DAWSON GEOPHYSICAL CO,10-K,2025,segment,,Canada Operations,label,dwsn:CanadaOperationsSegmentMember,15791000.0,USD,True
+DWSN,DAWSON GEOPHYSICAL CO,10-K,2025,product,company,Fee Revenue,label,dwsn:FeeRevenueMember,61876000.0,USD,True
+DWSN,DAWSON GEOPHYSICAL CO,10-K,2025,product,company,Reimbursable Revenue,label,dwsn:ReimbursableRevenueMember,13749000.0,USD,True
+AXGN,"Axogen, Inc.",10-K,2025,geography,,US,derived,country:US,222435000.0,USD,True
+AXGN,"Axogen, Inc.",10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,2773000.0,USD,True
+CCL,Carnival Corp Ltd.,10-K,2025,segment,,North America,label,ccl:NorthAmericaSegmentMember,17604000000.0,USD,True
+CCL,Carnival Corp Ltd.,10-K,2025,segment,,Europe,label,ccl:EuropeSegmentMember,8467000000.0,USD,True
+CCL,Carnival Corp Ltd.,10-K,2025,segment,,Cruise,label,ccl:CruiseMember,309000000.0,USD,True
+CCL,Carnival Corp Ltd.,10-K,2025,segment,,Tour And Other,label,ccl:TourAndOtherMember,241000000.0,USD,True
+CCL,Carnival Corp Ltd.,10-K,2025,product,company,Cruise Passenger Ticket,label,ccl:CruisePassengerTicketMember,17419000000.0,USD,True
+CCL,Carnival Corp Ltd.,10-K,2025,product,company,Cruise Onboard And Other,label,ccl:CruiseOnboardAndOtherMember,9202000000.0,USD,True
+CCL,Carnival Corp Ltd.,10-K,2025,geography,,US,derived,country:US,14847000000.0,USD,True
+CCL,Carnival Corp Ltd.,10-K,2025,geography,,DE,derived,country:DE,3348000000.0,USD,True
+CCL,Carnival Corp Ltd.,10-K,2025,geography,,GB,derived,country:GB,3054000000.0,USD,True
+CCL,Carnival Corp Ltd.,10-K,2025,geography,,All Other Geographic Areas,label,ccl:AllOtherGeographicAreasMember,5374000000.0,USD,True
+MCHP,MICROCHIP TECHNOLOGY INC,10-K,2026,segment,,Semiconductor Products,label,mchp:SemiconductorProductsMember,4549300000.0,USD,True
+MCHP,MICROCHIP TECHNOLOGY INC,10-K,2026,segment,,Technology Licensing Member,label,mchp:TechnologyLicensingMember,163800000.0,USD,True
+MCHP,MICROCHIP TECHNOLOGY INC,10-K,2026,product,company,Mixed-signal Microcontrollers,label,mchp:MixedSignalMicrocontrollersMember,2355400000.0,USD,True
+MCHP,MICROCHIP TECHNOLOGY INC,10-K,2026,product,company,Analog,label,mchp:AnalogMember,1329000000.0,USD,True
+MCHP,MICROCHIP TECHNOLOGY INC,10-K,2026,product,company,Other Product Line,label,mchp:OtherProductLineMember,1028700000.0,USD,True
+TECH,BIO-TECHNE Corp,10-K,2026,segment,,Protein Sciences,label,tech:ProteinSciencesMember,874620000.0,USD,True
+TECH,BIO-TECHNE Corp,10-K,2026,segment,,Diagnostics and Spatial Biology,label,tech:DiagnosticsAndSpatialBiologyMember,336365000.0,USD,True
+TECH,BIO-TECHNE Corp,10-K,2026,product,company,Consumables,label,tech:ConsumablesMember,985115000.0,USD,False
+TECH,BIO-TECHNE Corp,10-K,2026,product,company,Instruments,label,tech:InstrumentsMember,110632000.0,USD,False
+TECH,BIO-TECHNE Corp,10-K,2026,product,company,Product and Services,label,tech:ProductAndServicesMember,1190048000.0,USD,False
+TECH,BIO-TECHNE Corp,10-K,2026,product,standard,Service,derived,us-gaap:ServiceMember,94301000.0,USD,False
+TECH,BIO-TECHNE Corp,10-K,2026,product,standard,Royalty,derived,us-gaap:RoyaltyMember,24991000.0,USD,False
+TECH,BIO-TECHNE Corp,10-K,2026,geography,,US,derived,country:US,635372000.0,USD,True
+TECH,BIO-TECHNE Corp,10-K,2026,geography,,"EMEA, excluding UK",label,tech:EMEAExcludingUKMember,294222000.0,USD,True
+TECH,BIO-TECHNE Corp,10-K,2026,geography,,GB,derived,country:GB,56284000.0,USD,True
+TECH,BIO-TECHNE Corp,10-K,2026,geography,,"APAC, excluding Greater China",label,tech:APACExcludingGreaterChinaMember,85815000.0,USD,True
+TECH,BIO-TECHNE Corp,10-K,2026,geography,,CN,derived,country:CN,104061000.0,USD,True
+TECH,BIO-TECHNE Corp,10-K,2026,geography,,Rest of World,label,tech:RestOfWorldMember,39285000.0,USD,True
+WDS,WOODSIDE ENERGY GROUP LTD,20-F,2025,geography,,Asia Pacific,derived,srt:AsiaPacificMember,7335000000.0,USD,True
+WDS,WOODSIDE ENERGY GROUP LTD,20-F,2025,geography,,Americas,derived,srt:AmericasMember,2241000000.0,USD,True
+WDS,WOODSIDE ENERGY GROUP LTD,20-F,2025,geography,,Europe,derived,srt:EuropeMember,3122000000.0,USD,True
+WDS,WOODSIDE ENERGY GROUP LTD,20-F,2025,geography,,Other Countries,label,wds:OtherCountriesMember,286000000.0,USD,True
+LFVN,Lifevantage Corp,10-K,2026,segment,,Reportable,derived,lfvn:ReportableSegmentMember,182586000.0,USD,True
+LFVN,Lifevantage Corp,10-K,2026,product,company,Protandim,derived,lfvn:ProtandimMember,81989000.0,USD,True
+LFVN,Lifevantage Corp,10-K,2026,product,company,True Science Product Line,derived,lfvn:TrueScienceProductLineMember,37853000.0,USD,True
+LFVN,Lifevantage Corp,10-K,2026,product,company,Life Vantage Product Line,derived,lfvn:LifeVantageProductLineMember,32258000.0,USD,True
+LFVN,Lifevantage Corp,10-K,2026,product,company,AXIOProduct Line,derived,lfvn:AXIOProductLineMember,15006000.0,USD,True
+LFVN,Lifevantage Corp,10-K,2026,product,company,Love Biome Product Line,derived,lfvn:LoveBiomeProductLineMember,9121000.0,USD,True
+LFVN,Lifevantage Corp,10-K,2026,product,company,Petandim Product Line,derived,lfvn:PetandimProductLineMember,1961000.0,USD,True
+LFVN,Lifevantage Corp,10-K,2026,product,company,Phys IQProduct Line,derived,lfvn:PhysIQProductLineMember,3800000.0,USD,True
+LFVN,Lifevantage Corp,10-K,2026,product,standard,Product And Service Other,derived,us-gaap:ProductAndServiceOtherMember,4398000.0,USD,False
+LFVN,Lifevantage Corp,10-K,2026,geography,,US,derived,country:US,135404000.0,USD,False
+LFVN,Lifevantage Corp,10-K,2026,geography,,JP,derived,country:JP,24148000.0,USD,False
+LFVN,Lifevantage Corp,10-K,2026,geography,,Other Foreign,derived,lfvn:OtherForeignMember,23034000.0,USD,False
+LFVN,Lifevantage Corp,10-K,2026,geography,,Non Us,derived,us-gaap:NonUsMember,47182000.0,USD,False
+CGNX,COGNEX CORP,10-K,2025,product,company,Standard Product and Services,label,cgnx:StandardProductandServicesMember,880015000.0,USD,False
+CGNX,COGNEX CORP,10-K,2025,product,company,Application of Customer Specific Solutions,label,cgnx:ApplicationofCustomerSpecificSolutionsMember,114344000.0,USD,False
+CGNX,COGNEX CORP,10-K,2025,product,company,License Fees and Transferred Inventory Revenue,label,cgnx:LicenseFeesAndTransferredInventoryRevenueMember,13000000.0,USD,False
+CGNX,COGNEX CORP,10-K,2025,product,company,License Fees Revenue,label,cgnx:LicenseFeesRevenueMember,10365000.0,USD,False
+CGNX,COGNEX CORP,10-K,2025,geography,,Americas,derived,srt:AmericasMember,407288000.0,USD,False
+CGNX,COGNEX CORP,10-K,2025,geography,,Europe,derived,srt:EuropeMember,251638000.0,USD,False
+CGNX,COGNEX CORP,10-K,2025,geography,,Greater China,label,cgnx:GreaterChinaMember,158456000.0,USD,False
+CGNX,COGNEX CORP,10-K,2025,geography,,Other Asia,label,cgnx:OtherAsiaMember,176977000.0,USD,False
+CGNX,COGNEX CORP,10-K,2025,geography,,US,derived,country:US,329125000.0,USD,False
+CGNX,COGNEX CORP,10-K,2025,geography,,Other Geographic Area,label,cgnx:OtherGeographicAreaMember,255140000.0,USD,False
+DGII,DIGI INTERNATIONAL INC,10-K,2025,segment,,IoT Products and Services,label,dgii:IoTProductsandServicesMember,317883000.0,USD,True
+DGII,DIGI INTERNATIONAL INC,10-K,2025,segment,,IoT Solutions,label,dgii:IoTSolutionsMember,112338000.0,USD,True
+DGII,DIGI INTERNATIONAL INC,10-K,2025,product,standard,Product,derived,us-gaap:ProductMember,296584000.0,USD,True
+DGII,DIGI INTERNATIONAL INC,10-K,2025,product,standard,Service,derived,us-gaap:ServiceMember,133637000.0,USD,True
+DGII,DIGI INTERNATIONAL INC,10-K,2025,geography,,North America,derived,srt:NorthAmericaMember,341904000.0,USD,True
+DGII,DIGI INTERNATIONAL INC,10-K,2025,geography,,EMEA,derived,us-gaap:EMEAMember,62887000.0,USD,True
+DGII,DIGI INTERNATIONAL INC,10-K,2025,geography,,Other locations,label,dgii:OtherlocationsMember,25430000.0,USD,True
+NTIC,NORTHERN TECHNOLOGIES INTERNATIONAL CORP,10-K,2025,segment,,ZERUST,label,ntic:ZERUSTMember,62488397.0,USD,True
+NTIC,NORTHERN TECHNOLOGIES INTERNATIONAL CORP,10-K,2025,segment,,NaturTec,label,ntic:NaturTecMember,21746077.0,USD,True
+NTIC,NORTHERN TECHNOLOGIES INTERNATIONAL CORP,10-K,2025,geography,,Inside the USA to Unaffiliated Customers,label,ntic:InsideTheUSAToUnaffiliatedCustomersMember,29547889.0,USD,False
+NTIC,NORTHERN TECHNOLOGIES INTERNATIONAL CORP,10-K,2025,geography,,Joint Ventures in Which the Company is a Shareholder Directly and Indirectly Outside the USA,label,ntic:JointVenturesInWhichTheCompanyIsAShareholderDirectlyAndIndirectlyOutsideTheUSAMember,2368099.0,USD,False
+NTIC,NORTHERN TECHNOLOGIES INTERNATIONAL CORP,10-K,2025,geography,,Unaffiliated Customers Outside the USA,label,ntic:UnaffiliatedCustomersOutsideTheUSAMember,52318486.0,USD,False
+NTIC,NORTHERN TECHNOLOGIES INTERNATIONAL CORP,10-K,2025,geography,,CN,derived,country:CN,16239889.0,USD,False
+NTIC,NORTHERN TECHNOLOGIES INTERNATIONAL CORP,10-K,2025,geography,,BR,derived,country:BR,6570850.0,USD,False
+NTIC,NORTHERN TECHNOLOGIES INTERNATIONAL CORP,10-K,2025,geography,,IN,derived,country:IN,22620639.0,USD,False
+NTIC,NORTHERN TECHNOLOGIES INTERNATIONAL CORP,10-K,2025,geography,,Other Countries,label,ntic:OtherCountriesMember,9255207.0,USD,False
+NTIC,NORTHERN TECHNOLOGIES INTERNATIONAL CORP,10-K,2025,geography,,US,derived,country:US,29547889.0,USD,False
+INOD,INNODATA INC,10-K,2025,segment,,DDS,label,inod:DdsMember,220825000.0,USD,True
+INOD,INNODATA INC,10-K,2025,segment,,Synodex,label,inod:SynodexMember,7322000.0,USD,True
+INOD,INNODATA INC,10-K,2025,segment,,Agility,label,inod:AgilityMember,23516000.0,USD,True
+INOD,INNODATA INC,10-K,2025,geography,,US,derived,country:US,212125000.0,USD,True
+INOD,INNODATA INC,10-K,2025,geography,,CA,derived,country:CA,11662000.0,USD,True
+INOD,INNODATA INC,10-K,2025,geography,,GB,derived,country:GB,10468000.0,USD,True
+INOD,INNODATA INC,10-K,2025,geography,,NL,derived,country:NL,8549000.0,USD,True
+INOD,INNODATA INC,10-K,2025,geography,,"Other European Countries principally, Germany and Belgium",label,inod:OtherEuropeanCountriesPrincipallyGermanyAndBelgiumMember,8859000.0,USD,True
+HAIN,HAIN CELESTIAL GROUP INC,10-K,2026,segment,,North America,derived,hain:NorthAmericaSegmentMember,685053000.0,USD,True
+HAIN,HAIN CELESTIAL GROUP INC,10-K,2026,segment,,International,derived,hain:InternationalSegmentMember,668376000.0,USD,True
+HAIN,HAIN CELESTIAL GROUP INC,10-K,2026,product,company,Meal Preparation,derived,hain:MealPreparationMember,620121000.0,USD,True
+HAIN,HAIN CELESTIAL GROUP INC,10-K,2026,product,company,Beverages,derived,hain:BeveragesMember,255979000.0,USD,True
+HAIN,HAIN CELESTIAL GROUP INC,10-K,2026,product,company,Baby Kids,derived,hain:BabyKidsMember,214828000.0,USD,True
+HAIN,HAIN CELESTIAL GROUP INC,10-K,2026,product,company,Snacks,derived,hain:SnacksMember,213208000.0,USD,True
+HAIN,HAIN CELESTIAL GROUP INC,10-K,2026,product,company,Personal Care,derived,hain:PersonalCareMember,49293000.0,USD,True
+HAIN,HAIN CELESTIAL GROUP INC,10-K,2026,geography,,US,derived,country:US,611402000.0,USD,True
+HAIN,HAIN CELESTIAL GROUP INC,10-K,2026,geography,,GB,derived,country:GB,479964000.0,USD,True
+HAIN,HAIN CELESTIAL GROUP INC,10-K,2026,geography,,Western Europe,derived,hain:WesternEuropeMember,188412000.0,USD,True
+HAIN,HAIN CELESTIAL GROUP INC,10-K,2026,geography,,CA,derived,country:CA,73651000.0,USD,True
+LH,LABCORP HOLDINGS INC.,10-K,2025,segment,,Diagnostics,label,lh:DiagnosticsMember,10876500000.0,USD,True
+LH,LABCORP HOLDINGS INC.,10-K,2025,segment,,Biopharma Laboratory Services,label,lh:BiopharmaLaboratoryServicesMember,3098200000.0,USD,True
+ERIE,ERIE INDEMNITY CO,10-K,2025,segment,,Management Operations,label,erie:ManagementOperationsMember,4067258000.0,USD,True
+ERIE,ERIE INDEMNITY CO,10-K,2025,product,company,Policy Issuance and Renewal Services,label,erie:PolicyIssuanceandRenewalServicesMember,3131806000.0,USD,True
+ERIE,ERIE INDEMNITY CO,10-K,2025,product,company,Administrative Services Management Fee,label,erie:AdministrativeServicesManagementFeeMember,74058000.0,USD,True
+ERIE,ERIE INDEMNITY CO,10-K,2025,product,company,Administrative Services Reimbursements,label,erie:AdministrativeServicesReimbursementsMember,836639000.0,USD,True
+ERIE,ERIE INDEMNITY CO,10-K,2025,product,company,Service Agreement,label,erie:ServiceAgreementMember,24755000.0,USD,True
+MLR,MILLER INDUSTRIES INC /TN/,10-K,2025,segment,,Single Reporting,label,mlr:SingleReportingSegmentMember,790271000.0,USD,True
+MLR,MILLER INDUSTRIES INC /TN/,10-K,2025,geography,,North America,derived,srt:NorthAmericaMember,641420000.0,USD,True
+MLR,MILLER INDUSTRIES INC /TN/,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,148851000.0,USD,True
+HSIC,HENRY SCHEIN INC,10-K,2025,segment,,Global Distribution and Value-Added Services,label,hsic:GlobalDistributionAndValueAddedServicesMember,11138000000.0,USD,True
+HSIC,HENRY SCHEIN INC,10-K,2025,segment,,Global Specialty Products,label,hsic:GlobalSpecialtyProductsMember,1544000000.0,USD,True
+HSIC,HENRY SCHEIN INC,10-K,2025,segment,,Global Technology,label,hsic:GlobalTechnologyMember,675000000.0,USD,True
+HSIC,HENRY SCHEIN INC,10-K,2025,geography,,US,derived,country:US,9096000000.0,USD,True
+HSIC,HENRY SCHEIN INC,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,4088000000.0,USD,True
+AMZN,AMAZON COM INC,10-K,2025,segment,,North America,label,amzn:NorthAmericaSegmentMember,426305000000.0,USD,True
+AMZN,AMAZON COM INC,10-K,2025,segment,,International,label,amzn:InternationalSegmentMember,161894000000.0,USD,True
+AMZN,AMAZON COM INC,10-K,2025,segment,,Amazon Web Services,label,amzn:AmazonWebServicesSegmentMember,128725000000.0,USD,True
+AMZN,AMAZON COM INC,10-K,2025,product,standard,Product,derived,us-gaap:ProductMember,296266000000.0,USD,False
+AMZN,AMAZON COM INC,10-K,2025,product,standard,Service,derived,us-gaap:ServiceMember,420658000000.0,USD,False
+AMZN,AMAZON COM INC,10-K,2025,product,standard,Advertising,derived,us-gaap:AdvertisingMember,68635000000.0,USD,False
+AMZN,AMAZON COM INC,10-K,2025,product,company,Online Stores,label,amzn:OnlineStoresMember,269287000000.0,USD,False
+AMZN,AMAZON COM INC,10-K,2025,product,company,Physical Stores,label,amzn:PhysicalStoresMember,22561000000.0,USD,False
+AMZN,AMAZON COM INC,10-K,2025,product,company,Third-Party Seller Services,label,amzn:ThirdPartySellerServicesMember,172162000000.0,USD,False
+AMZN,AMAZON COM INC,10-K,2025,product,company,Subscription Services,label,amzn:SubscriptionServicesMember,49619000000.0,USD,False
+AMZN,AMAZON COM INC,10-K,2025,product,company,Amazon Web Services,label,amzn:AmazonWebServicesMember,128725000000.0,USD,False
+AMZN,AMAZON COM INC,10-K,2025,product,company,Other Services,label,amzn:OtherServicesMember,5935000000.0,USD,False
+AMZN,AMAZON COM INC,10-K,2025,geography,,US,derived,country:US,489657000000.0,USD,True
+AMZN,AMAZON COM INC,10-K,2025,geography,,DE,derived,country:DE,45900000000.0,USD,True
+AMZN,AMAZON COM INC,10-K,2025,geography,,GB,derived,country:GB,43212000000.0,USD,True
+AMZN,AMAZON COM INC,10-K,2025,geography,,JP,derived,country:JP,30688000000.0,USD,True
+AMZN,AMAZON COM INC,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,107467000000.0,USD,True
+ANIP,ANI PHARMACEUTICALS INC,10-K,2025,segment,,Generics and Other,label,anip:GenericsAndOtherMember,399433000.0,USD,True
+ANIP,ANI PHARMACEUTICALS INC,10-K,2025,segment,,Rare Disease and Brands,label,anip:RareDiseaseAndBrandsMember,483933000.0,USD,True
+ANIP,ANI PHARMACEUTICALS INC,10-K,2025,product,company,Sales of Cortrophin Gel,label,anip:SalesOfCortrophinGelMember,347778000.0,USD,False
+ANIP,ANI PHARMACEUTICALS INC,10-K,2025,product,company,Sales of ILUVIEN and YUTIQ,label,anip:SalesOfILUVIENAndYUTIQMember,74868000.0,USD,False
+ANIP,ANI PHARMACEUTICALS INC,10-K,2025,product,company,Total Sales Of Rare Disease Pharmaceutical Products,label,anip:TotalSalesOfRareDiseasePharmaceuticalProductsMember,422646000.0,USD,False
+ANIP,ANI PHARMACEUTICALS INC,10-K,2025,product,company,Sales of Established Brands,label,anip:SalesOfEstablishedBrandsMember,61308000.0,USD,False
+ANIP,ANI PHARMACEUTICALS INC,10-K,2025,product,company,Total Sales Of Rare Disease and Brands,label,anip:TotalSalesOfRareDiseaseAndBrandsMember,483954000.0,USD,False
+ANIP,ANI PHARMACEUTICALS INC,10-K,2025,product,company,Sales of Generic Pharmaceutical Products,label,anip:SalesOfGenericPharmaceuticalProductsMember,384110000.0,USD,False
+ANIP,ANI PHARMACEUTICALS INC,10-K,2025,product,company,Sales of Royalties and Other Pharmaceutical Services,label,anip:SalesOfRoyaltiesAndOtherPharmaceuticalServicesMember,15302000.0,USD,False
+ANIP,ANI PHARMACEUTICALS INC,10-K,2025,product,company,Total Sales of Generics and Other,label,anip:TotalSalesOfGenericsAndOtherMember,399412000.0,USD,False
+ANIP,ANI PHARMACEUTICALS INC,10-K,2025,product,company,Unapproved Products,label,anip:UnapprovedProductsMember,24100000.0,USD,False
+ANIP,ANI PHARMACEUTICALS INC,10-K,2025,geography,,US,derived,country:US,852443000.0,USD,True
+ANIP,ANI PHARMACEUTICALS INC,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,30923000.0,USD,True
+ELTK,ELTEK LTD,20-F,2025,geography,,IL,derived,country:IL,35305000.0,USD,True
+ELTK,ELTEK LTD,20-F,2025,geography,,North America,derived,srt:NorthAmericaMember,4666000.0,USD,True
+ELTK,ELTEK LTD,20-F,2025,geography,,NL,derived,country:NL,4425000.0,USD,True
+ELTK,ELTEK LTD,20-F,2025,geography,,IN,derived,country:IN,3501000.0,USD,True
+ELTK,ELTEK LTD,20-F,2025,geography,,Rest Of World,label,eltk:RestOfWorldMember,3893000.0,USD,True
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,segment,,EFT Processing,label,eeft:EFTProcessingSegmentMember,1283700000.0,USD,True
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,segment,,Epay,label,eeft:EpaySegmentMember,1187600000.0,USD,True
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,segment,,Money Transfer,label,eeft:MoneyTransferSegmentMember,1782400000.0,USD,True
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,Europe,derived,srt:EuropeMember,2513800000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,North America,derived,srt:NorthAmericaMember,1067000000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,Asia Pacific,derived,srt:AsiaPacificMember,517600000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,Other geographic locations,label,eeft:OtherGeographicLocationsMember,155300000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,US,derived,country:US,993500000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,DE,derived,country:DE,756300000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,ES,derived,country:ES,290600000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,GB,derived,country:GB,173300000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,IT,derived,country:IT,214600000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,PL,derived,country:PL,139300000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,IN,derived,country:IN,203300000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,FR,derived,country:FR,228800000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,GR,derived,country:GR,261800000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,MY,derived,country:MY,86200000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,AU,derived,country:AU,59400000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,NZ,derived,country:NZ,46100000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,NL,derived,country:NL,69700000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,CA,derived,country:CA,65800000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,BR,derived,country:BR,49300000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,Other Countries,label,eeft:OtherCountriesMember,606200000.0,USD,False
+EEFT,"EURONET WORLDWIDE, INC.",10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,3250700000.0,USD,False
+HFWA,HERITAGE FINANCIAL CORP /WA/,10-K,2025,product,standard,Deposit Account,derived,us-gaap:DepositAccountMember,12005000.0,USD,False
+HFWA,HERITAGE FINANCIAL CORP /WA/,10-K,2025,product,standard,Credit And Debit Card,derived,us-gaap:CreditAndDebitCardMember,7742000.0,USD,False
+MTEX,MANNATECH INC,10-K,2025,product,standard,Product,derived,us-gaap:ProductMember,106000000.0,USD,True
+MTEX,MANNATECH INC,10-K,2025,product,standard,Product And Service Other,derived,us-gaap:ProductAndServiceOtherMember,1600000.0,USD,True
+MTEX,MANNATECH INC,10-K,2025,product,company,Associate Service Fees,label,mtex:AssociateServiceFeesMember,400000.0,USD,False
+CTSH,COGNIZANT TECHNOLOGY SOLUTIONS CORP,10-K,2025,segment,,Health Sciences,label,ctsh:HealthSciencesMember,6347000000.0,USD,True
+CTSH,COGNIZANT TECHNOLOGY SOLUTIONS CORP,10-K,2025,segment,,Financial Services,label,ctsh:FinancialServicesMember,6173000000.0,USD,True
+CTSH,COGNIZANT TECHNOLOGY SOLUTIONS CORP,10-K,2025,segment,,Products and Resources,label,ctsh:ProductsandResourcesMember,5285000000.0,USD,True
+CTSH,COGNIZANT TECHNOLOGY SOLUTIONS CORP,10-K,2025,segment,,"Communications, Media and Technology",label,ctsh:CommunicationsMediaandTechnologyMember,3303000000.0,USD,True
+CTSH,COGNIZANT TECHNOLOGY SOLUTIONS CORP,10-K,2025,product,company,Consulting And Technology Services,label,ctsh:ConsultingAndTechnologyServicesMember,13533000000.0,USD,True
+CTSH,COGNIZANT TECHNOLOGY SOLUTIONS CORP,10-K,2025,product,company,Outsourcing Services,label,ctsh:OutsourcingServicesMember,7575000000.0,USD,True
+CTSH,COGNIZANT TECHNOLOGY SOLUTIONS CORP,10-K,2025,geography,,North America,derived,srt:NorthAmericaMember,15780000000.0,USD,False
+CTSH,COGNIZANT TECHNOLOGY SOLUTIONS CORP,10-K,2025,geography,,GB,derived,country:GB,1922000000.0,USD,False
+CTSH,COGNIZANT TECHNOLOGY SOLUTIONS CORP,10-K,2025,geography,,"Europe, excluding United Kingdom",label,ctsh:EuropeexcludingUnitedKingdomMember,2090000000.0,USD,False
+CTSH,COGNIZANT TECHNOLOGY SOLUTIONS CORP,10-K,2025,geography,,Europe,derived,srt:EuropeMember,4012000000.0,USD,False
+CTSH,COGNIZANT TECHNOLOGY SOLUTIONS CORP,10-K,2025,geography,,Rest of World,label,ctsh:RestofWorldMember,1316000000.0,USD,False
+BTU,PEABODY ENERGY CORP,10-K,2025,segment,,Seaborne Thermal Mining,label,btu:SeaborneThermalMiningMember,908500000.0,USD,True
+BTU,PEABODY ENERGY CORP,10-K,2025,segment,,Seaborne Metallurgical Mining,label,btu:SeaborneMetallurgicalMiningMember,1036600000.0,USD,True
+BTU,PEABODY ENERGY CORP,10-K,2025,segment,,Powder River Basin Mining,label,btu:PowderRiverBasinMiningMember,1153000000.0,USD,True
+BTU,PEABODY ENERGY CORP,10-K,2025,segment,,Other U.S. Thermal Mining,label,btu:OtherUSThermalMiningMember,707300000.0,USD,True
+BTU,PEABODY ENERGY CORP,10-K,2025,segment,,Corporate And Other,derived,us-gaap:CorporateAndOtherMember,56100000.0,USD,True
+BTU,PEABODY ENERGY CORP,10-K,2025,product,company,Thermal Coal,label,btu:ThermalCoalMember,2768300000.0,USD,False
+BTU,PEABODY ENERGY CORP,10-K,2025,product,company,Metallurgical Coal,label,btu:MetallurgicalCoalMember,1034800000.0,USD,False
+BTU,PEABODY ENERGY CORP,10-K,2025,product,standard,Product And Service Other,derived,us-gaap:ProductAndServiceOtherMember,58400000.0,USD,False
+IX,ORIX CORP,20-F,2026,segment,,Corporate Financial Services And Maintenance Leasing,derived,ck0001070304:CorporateFinancialServicesAndMaintenanceLeasingMember,115928000000.0,JPY,True
+IX,ORIX CORP,20-F,2026,segment,,Real Estates,derived,ck0001070304:RealEstatesMember,450491000000.0,JPY,True
+IX,ORIX CORP,20-F,2026,segment,,Pe Investment And Concession,derived,ck0001070304:PeInvestmentAndConcessionMember,387985000000.0,JPY,True
+IX,ORIX CORP,20-F,2026,segment,,Environment And Energy,derived,ck0001070304:EnvironmentAndEnergyMember,172444000000.0,JPY,True
+IX,ORIX CORP,20-F,2026,segment,,Insurance,derived,ck0001070304:InsuranceMember,0.0,JPY,True
+IX,ORIX CORP,20-F,2026,segment,,Banking And Credit,derived,ck0001070304:BankingAndCreditMember,2884000000.0,JPY,True
+IX,ORIX CORP,20-F,2026,segment,,Aircraft And Ships,derived,ck0001070304:AircraftAndShipsMember,23064000000.0,JPY,True
+IX,ORIX CORP,20-F,2026,segment,,ORIXUsa,derived,ck0001070304:ORIXUsaMember,49728000000.0,JPY,True
+IX,ORIX CORP,20-F,2026,segment,,Orix Europe,derived,ck0001070304:OrixEuropeMember,273857000000.0,JPY,True
+IX,ORIX CORP,20-F,2026,segment,,Asia And Australia,derived,ck0001070304:AsiaAndAustraliaMember,24579000000.0,JPY,True
+IX,ORIX CORP,20-F,2026,product,standard,Product,derived,us-gaap:ProductMember,320653000000.0,JPY,False
+IX,ORIX CORP,20-F,2026,product,standard,Real Estate,derived,us-gaap:RealEstateMember,121933000000.0,JPY,False
+IX,ORIX CORP,20-F,2026,product,standard,Product And Service Other,derived,us-gaap:ProductAndServiceOtherMember,127531000000.0,JPY,False
+IX,ORIX CORP,20-F,2026,product,company,Asset Management And Servicing,derived,ck0001070304:AssetManagementAndServicingMember,297626000000.0,JPY,False
+IX,ORIX CORP,20-F,2026,product,company,Automobile Services,derived,ck0001070304:AutomobileServicesMember,93011000000.0,JPY,False
+IX,ORIX CORP,20-F,2026,product,company,Facilities Operation,derived,ck0001070304:FacilitiesOperationMember,102956000000.0,JPY,False
+IX,ORIX CORP,20-F,2026,product,company,Environmental And Energy,derived,ck0001070304:EnvironmentalAndEnergyMember,169047000000.0,JPY,False
+IX,ORIX CORP,20-F,2026,product,company,Real Estate Managment And Brokerage,derived,ck0001070304:RealEstateManagmentAndBrokerageMember,107010000000.0,JPY,False
+IX,ORIX CORP,20-F,2026,product,company,Real Estate Contract Work,derived,ck0001070304:RealEstateContractWorkMember,164262000000.0,JPY,False
+PLUG,PLUG POWER INC,10-K,2025,segment,,Single Reportable,label,plug:SingleReportableSegmentMember,709919000.0,USD,True
+PLUG,PLUG POWER INC,10-K,2025,product,company,Sales of Equipment and Related Infrastructure,label,plug:SalesOfEquipmentAndRelatedInfrastructureMember,371081000.0,USD,False
+PLUG,PLUG POWER INC,10-K,2025,product,company,Services Performed On Fuel Cell Systems And Related Infrastructure,label,plug:ServicesPerformedOnFuelCellSystemsAndRelatedInfrastructureMember,94462000.0,USD,False
+PLUG,PLUG POWER INC,10-K,2025,product,company,Power Purchase Agreements,label,plug:PowerPurchaseAgreementsMember,107572000.0,USD,False
+PLUG,PLUG POWER INC,10-K,2025,product,company,Fuel Delivered To Customers And Related Equipment,label,plug:FuelDeliveredToCustomersAndRelatedEquipmentMember,133411000.0,USD,False
+PLUG,PLUG POWER INC,10-K,2025,product,company,Other Product And Services,label,plug:OtherProductAndServicesMember,3393000.0,USD,False
+PLUG,PLUG POWER INC,10-K,2025,product,company,Sales Of Fuel Cell Systems,label,plug:SalesOfFuelCellSystemsMember,54012000.0,USD,False
+PLUG,PLUG POWER INC,10-K,2025,product,company,Sale Of Hydrogen Infrastructure,label,plug:SaleOfHydrogenInfrastructureMember,26750000.0,USD,False
+PLUG,PLUG POWER INC,10-K,2025,product,company,Sale Of Electrolyzers,label,plug:SaleOfElectrolyzersMember,187780000.0,USD,False
+PLUG,PLUG POWER INC,10-K,2025,product,company,Sale Of Engineered Equipment,label,plug:SaleOfEngineeredEquipmentMember,6854000.0,USD,False
+PLUG,PLUG POWER INC,10-K,2025,product,company,Sale Of Cryogenic Equipment,label,plug:SaleOfCryogenicEquipmentMember,95685000.0,USD,False
+PLUG,PLUG POWER INC,10-K,2025,geography,,US,derived,country:US,535936000.0,USD,True
+PLUG,PLUG POWER INC,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,173983000.0,USD,True
+BGC,"BGC Group, Inc.",10-K,2025,segment,,Reportable,label,bgcg:ReportableSegmentMember,2941460000.0,USD,True
+BGC,"BGC Group, Inc.",10-K,2025,product,company,Commissions,label,bgcg:CommissionsMember,2257553000.0,USD,False
+BGC,"BGC Group, Inc.",10-K,2025,product,company,Data Software And Post Trade,label,bgcg:DataSoftwareAndPostTradeMember,138980000.0,USD,False
+BGC,"BGC Group, Inc.",10-K,2025,product,company,Fees From Related Parties,label,bgcg:FeesFromRelatedPartiesMember,18713000.0,USD,False
+BGC,"BGC Group, Inc.",10-K,2025,product,standard,Product And Service Other,derived,us-gaap:ProductAndServiceOtherMember,26745000.0,USD,False
+BGC,"BGC Group, Inc.",10-K,2025,geography,,EMEA,derived,us-gaap:EMEAMember,1539879000.0,USD,False
+BGC,"BGC Group, Inc.",10-K,2025,geography,,Americas,derived,srt:AmericasMember,1060560000.0,USD,False
+BGC,"BGC Group, Inc.",10-K,2025,geography,,Asia Pacific,derived,srt:AsiaPacificMember,341021000.0,USD,False
+BGC,"BGC Group, Inc.",10-K,2025,geography,,GB,derived,country:GB,1057500000.0,USD,False
+BGC,"BGC Group, Inc.",10-K,2025,geography,,US,derived,country:US,986500000.0,USD,False
+MET,METLIFE INC,10-K,2025,segment,,Group Benefits,label,met:GroupBenefitsSegmentMember,26881000000.0,USD,False
+MET,METLIFE INC,10-K,2025,segment,,Retirement and Income Solutions,label,met:RetirementAndIncomeSolutionsSegmentMember,21036000000.0,USD,False
+MET,METLIFE INC,10-K,2025,segment,,Asia,label,met:AsiaSegmentMember,11955000000.0,USD,False
+MET,METLIFE INC,10-K,2025,segment,,Latin America,label,met:LatinAmericaSegmentMember,8304000000.0,USD,False
+MET,METLIFE INC,10-K,2025,segment,,EMEA,label,met:EMEASegmentMember,3154000000.0,USD,False
+MET,METLIFE INC,10-K,2025,segment,,MetLife Investment Management,label,met:MetLifeInvestmentManagementSegmentMember,938000000.0,USD,False
+MET,METLIFE INC,10-K,2025,product,company,Vision fee for service arrangements,label,met:VisionFeeForServiceArrangementsMember,561000000.0,USD,False
+MET,METLIFE INC,10-K,2025,product,company,Prepaid legal plans and administrative-only contracts,label,met:PrepaidlegalplansandadministrativeonlycontractsMember,637000000.0,USD,False
+MET,METLIFE INC,10-K,2025,product,company,Fee-based investment management services,label,met:FeebasedinvestmentmanagementservicesMember,369000000.0,USD,False
+MET,METLIFE INC,10-K,2025,product,company,Other revenue from service contracts from customers,label,met:OtherrevenuefromservicecontractsfromcustomersMember,432000000.0,USD,False
+MET,METLIFE INC,10-K,2025,product,standard,Administrative Service,derived,us-gaap:AdministrativeServiceMember,295000000.0,USD,False
+MET,METLIFE INC,10-K,2025,product,standard,Distribution Service,derived,us-gaap:DistributionServiceMember,142000000.0,USD,False
+NI,NISOURCE INC.,10-K,2025,segment,,Columbia Operations,label,nix:ColumbiaOperationsMember,3324800000.0,USD,True
+NI,NISOURCE INC.,10-K,2025,segment,,Corporate And Other,derived,us-gaap:CorporateAndOtherMember,0.0,USD,True
+NI,NISOURCE INC.,10-K,2025,segment,,NIPSCO Operations,label,nix:NIPSCOOperationsMember,3198000000.0,USD,True
+PI,IMPINJ INC,10-K,2025,product,company,Endpoint ICs,derived,pi:EndpointICsMember,299806000.0,USD,True
+PI,IMPINJ INC,10-K,2025,product,company,Systems,derived,pi:SystemsMember,61269000.0,USD,True
+PI,IMPINJ INC,10-K,2025,geography,,Americas,derived,srt:AmericasMember,124944000.0,USD,False
+PI,IMPINJ INC,10-K,2025,geography,,Asia Pacific,derived,srt:AsiaPacificMember,209927000.0,USD,False
+PI,IMPINJ INC,10-K,2025,geography,,EMEA,derived,us-gaap:EMEAMember,26204000.0,USD,False
+PI,IMPINJ INC,10-K,2025,geography,,US,derived,country:US,75100000.0,USD,False
+PI,IMPINJ INC,10-K,2025,geography,,MX,derived,country:MX,41300000.0,USD,False
+PI,IMPINJ INC,10-K,2025,geography,,CN,derived,country:CN,159200000.0,USD,False
+ENSG,"ENSIGN GROUP, INC",10-K,2025,segment,,Skilled Services,label,ensg:SkilledServicesSegmentMember,4837809000.0,USD,True
+ENSG,"ENSIGN GROUP, INC",10-K,2025,segment,,Standard Bearer,label,ensg:StandardBearerSegmentMember,0.0,USD,True
+LRN,"Stride, Inc.",10-K,2026,product,company,Primary Obligor,label,lrn:PrimaryObligorMember,683600000.0,USD,False
+LRN,"Stride, Inc.",10-K,2026,product,company,General Education,label,lrn:GeneralEducationMember,1417785000.0,USD,False
+LRN,"Stride, Inc.",10-K,2026,product,company,Middle - High School,label,lrn:MiddleHighSchoolMember,1043726000.0,USD,False
+LRN,"Stride, Inc.",10-K,2026,product,company,Adult,label,lrn:AdultMember,56570000.0,USD,False
+LRN,"Stride, Inc.",10-K,2026,product,company,Career Learning,label,lrn:CareerLearningMember,1100296000.0,USD,False
+AAOI,"APPLIED OPTOELECTRONICS, INC.",10-K,2025,product,company,CATV,label,aaoi:CATVMember,245124000.0,USD,True
+AAOI,"APPLIED OPTOELECTRONICS, INC.",10-K,2025,product,company,Data Center,label,aaoi:DataCenterMember,195651000.0,USD,True
+AAOI,"APPLIED OPTOELECTRONICS, INC.",10-K,2025,product,company,Telecom,label,aaoi:TelecomMember,13729000.0,USD,True
+AAOI,"APPLIED OPTOELECTRONICS, INC.",10-K,2025,product,company,FTTH and Other,label,aaoi:FtthAndOtherMember,1211000.0,USD,True
+AAOI,"APPLIED OPTOELECTRONICS, INC.",10-K,2025,geography,,US,derived,country:US,19378000.0,USD,True
+AAOI,"APPLIED OPTOELECTRONICS, INC.",10-K,2025,geography,,TW,derived,country:TW,174197000.0,USD,True
+AAOI,"APPLIED OPTOELECTRONICS, INC.",10-K,2025,geography,,CN,derived,country:CN,262140000.0,USD,True
+CCOI,"COGENT COMMUNICATIONS HOLDINGS, INC.",10-K,2025,product,company,On-net,label,ccoi:OnNetServicesMember,531509000.0,USD,True
+CCOI,"COGENT COMMUNICATIONS HOLDINGS, INC.",10-K,2025,product,company,Off-net,label,ccoi:OffNetServicesMember,397470000.0,USD,True
+CCOI,"COGENT COMMUNICATIONS HOLDINGS, INC.",10-K,2025,product,company,Wavelength Services,label,ccoi:WavelengthServicesMember,38453000.0,USD,True
+CCOI,"COGENT COMMUNICATIONS HOLDINGS, INC.",10-K,2025,product,company,Non-core,label,ccoi:NonCoreServicesMember,8334000.0,USD,True
+CCOI,"COGENT COMMUNICATIONS HOLDINGS, INC.",10-K,2025,geography,,North America,derived,srt:NorthAmericaMember,819523000.0,USD,True
+CCOI,"COGENT COMMUNICATIONS HOLDINGS, INC.",10-K,2025,geography,,Europe,derived,srt:EuropeMember,122011000.0,USD,True
+CCOI,"COGENT COMMUNICATIONS HOLDINGS, INC.",10-K,2025,geography,,Oceania,label,ccoi:OceaniaMember,24836000.0,USD,True
+CCOI,"COGENT COMMUNICATIONS HOLDINGS, INC.",10-K,2025,geography,,South America,derived,srt:SouthAmericaMember,8808000.0,USD,True
+CCOI,"COGENT COMMUNICATIONS HOLDINGS, INC.",10-K,2025,geography,,Africa,derived,srt:AfricaMember,588000.0,USD,True
+DB,DEUTSCHE BANK AKTIENGESELLSCHAFT,20-F,2025,segment,,Corporate Bank,label,db:CorporateBankMember,7400000000.0,EUR,True
+DB,DEUTSCHE BANK AKTIENGESELLSCHAFT,20-F,2025,segment,,Investment Bank,label,db:InvestmentBankMember,11541000000.0,EUR,True
+DB,DEUTSCHE BANK AKTIENGESELLSCHAFT,20-F,2025,segment,,Private Bank,label,db:PrivateBankMember,9665000000.0,EUR,True
+DB,DEUTSCHE BANK AKTIENGESELLSCHAFT,20-F,2025,segment,,Asset Management,label,db:AssetManagementMember,3077000000.0,EUR,True
+DB,DEUTSCHE BANK AKTIENGESELLSCHAFT,20-F,2025,segment,,Corporate And Other1,label,db:CorporateAndOther1Member,-249000000.0,EUR,True
+DB,DEUTSCHE BANK AKTIENGESELLSCHAFT,20-F,2025,geography,,DE,derived,country:DE,12226000000.0,EUR,True
+DB,DEUTSCHE BANK AKTIENGESELLSCHAFT,20-F,2025,geography,,GB,derived,country:GB,4959000000.0,EUR,True
+DB,DEUTSCHE BANK AKTIENGESELLSCHAFT,20-F,2025,geography,,Rest of Europe,label,db:RestOfEuropeMember,3926000000.0,EUR,True
+DB,DEUTSCHE BANK AKTIENGESELLSCHAFT,20-F,2025,geography,,Americas,derived,srt:AmericasMember,6691000000.0,EUR,True
+DB,DEUTSCHE BANK AKTIENGESELLSCHAFT,20-F,2025,geography,,Asia Pacific Middle East Africa,label,db:AsiaPacificMiddleEastAfricaMember,3881000000.0,EUR,True
+LQDT,LIQUIDITY SERVICES INC,10-K,2025,segment,,Gov Deals,derived,lqdt:GovDealsMember,87404000.0,USD,True
+LQDT,LIQUIDITY SERVICES INC,10-K,2025,segment,,RSCG,derived,lqdt:RSCGMember,330291000.0,USD,True
+LQDT,LIQUIDITY SERVICES INC,10-K,2025,segment,,CAG,derived,lqdt:CAGMember,39296000.0,USD,True
+LQDT,LIQUIDITY SERVICES INC,10-K,2025,segment,,Machinio And Software Solutions Corporation,derived,lqdt:MachinioAndSoftwareSolutionsCorporationMember,19746000.0,USD,True
+LQDT,LIQUIDITY SERVICES INC,10-K,2025,product,standard,Product,derived,us-gaap:ProductMember,310538000.0,USD,False
+LQDT,LIQUIDITY SERVICES INC,10-K,2025,product,company,Consignment And Other Fee Revenues,derived,lqdt:ConsignmentAndOtherFeeRevenuesMember,166131000.0,USD,False
+LQDT,LIQUIDITY SERVICES INC,10-K,2025,geography,,US,derived,country:US,433258000.0,USD,True
+LQDT,LIQUIDITY SERVICES INC,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,43411000.0,USD,True
+BLKB,BLACKBAUD INC,10-K,2025,product,company,Contractual Recurring,label,blkb:ContractualRecurringMember,721820000.0,USD,False
+BLKB,BLACKBAUD INC,10-K,2025,product,company,Transactional Recurring,label,blkb:TransactionalRecurringMember,384341000.0,USD,False
+BLKB,BLACKBAUD INC,10-K,2025,product,company,Recurring,label,blkb:RecurringMember,1106161000.0,USD,False
+BLKB,BLACKBAUD INC,10-K,2025,product,company,One-time Services and Other,label,blkb:OneTimeServicesAndOtherMember,22204000.0,USD,False
+BLKB,BLACKBAUD INC,10-K,2025,geography,,US,derived,country:US,953044000.0,USD,True
+BLKB,BLACKBAUD INC,10-K,2025,geography,,GB,derived,country:GB,108750000.0,USD,True
+BLKB,BLACKBAUD INC,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,66571000.0,USD,True
+TMUS,"T-Mobile US, Inc.",10-K,2025,segment,,Wireless,label,tmus:WirelessMember,88309000000.0,USD,True
+TMUS,"T-Mobile US, Inc.",10-K,2025,product,company,Branded Postpaid Revenue,label,tmus:BrandedPostpaidRevenueMember,57932000000.0,USD,False
+TMUS,"T-Mobile US, Inc.",10-K,2025,product,company,Branded Prepaid Revenue,label,tmus:BrandedPrepaidRevenueMember,10497000000.0,USD,False
+TMUS,"T-Mobile US, Inc.",10-K,2025,product,company,Wholesale and Other Service Revenue,label,tmus:WholesaleAndOtherServiceRevenueMember,2877000000.0,USD,False
+TMUS,"T-Mobile US, Inc.",10-K,2025,product,company,"Product, Equipment",label,tmus:ProductEquipmentMember,15972000000.0,USD,False
+TMUS,"T-Mobile US, Inc.",10-K,2025,product,company,"Branded Postpaid Revenue, Phone",label,tmus:BrandedPostpaidRevenuePhoneMember,49443000000.0,USD,False
+TMUS,"T-Mobile US, Inc.",10-K,2025,product,company,"Branded Postpaid Revenue, Other",label,tmus:BrandedPostpaidRevenueOtherMember,8489000000.0,USD,False
+TMUS,"T-Mobile US, Inc.",10-K,2025,product,standard,Service,derived,us-gaap:ServiceMember,71306000000.0,USD,False
+TMUS,"T-Mobile US, Inc.",10-K,2025,product,standard,Product And Service Other,derived,us-gaap:ProductAndServiceOtherMember,1031000000.0,USD,False
+PBH,Prestige Consumer Healthcare Inc.,10-K,2026,segment,,North American OTC Healthcare,label,pbh:NorthAmericanOTCHealthcareMember,913576000.0,USD,True
+PBH,Prestige Consumer Healthcare Inc.,10-K,2026,segment,,International OTC Healthcare,label,pbh:InternationalOTCHealthcareMember,175129000.0,USD,True
+PBH,Prestige Consumer Healthcare Inc.,10-K,2026,product,standard,Product,derived,us-gaap:ProductMember,1084744000.0,USD,True
+PBH,Prestige Consumer Healthcare Inc.,10-K,2026,product,standard,Product And Service Other,derived,us-gaap:ProductAndServiceOtherMember,3961000.0,USD,True
+PBH,Prestige Consumer Healthcare Inc.,10-K,2026,product,company,Analgesics,label,pbh:AnalgesicsMember,113936000.0,USD,True
+PBH,Prestige Consumer Healthcare Inc.,10-K,2026,product,company,Cough and Cold,label,pbh:CoughAndColdMember,101909000.0,USD,True
+PBH,Prestige Consumer Healthcare Inc.,10-K,2026,product,company,Women's Health,label,pbh:WomensHealthMember,227765000.0,USD,True
+PBH,Prestige Consumer Healthcare Inc.,10-K,2026,product,company,Gastrointestinal,label,pbh:GastrointestinalMember,259788000.0,USD,True
+PBH,Prestige Consumer Healthcare Inc.,10-K,2026,product,company,Eye and Ear Care,label,pbh:EyeAndEarCareMember,142939000.0,USD,True
+PBH,Prestige Consumer Healthcare Inc.,10-K,2026,product,company,Dermatologicals,label,pbh:DermatologicalsMember,125931000.0,USD,True
+PBH,Prestige Consumer Healthcare Inc.,10-K,2026,product,company,Oral Care,label,pbh:OralCareMember,101051000.0,USD,True
+PBH,Prestige Consumer Healthcare Inc.,10-K,2026,product,company,Other OTC,label,pbh:OtherOtcMember,15386000.0,USD,True
+PBH,Prestige Consumer Healthcare Inc.,10-K,2026,geography,,US,derived,country:US,850414000.0,USD,True
+PBH,Prestige Consumer Healthcare Inc.,10-K,2026,geography,,Non Us,derived,us-gaap:NonUsMember,238291000.0,USD,True
+NCTY,The9 LTD,20-F,2025,segment,,Cryptocurrency Mining,label,ncty:CryptocurrencyMiningMember,56352000.0,CNY,True
+NCTY,The9 LTD,20-F,2025,segment,,Online Game Services Items Member,label,ncty:OnlineGameServicesItemsMember,51546000.0,CNY,True
+NCTY,The9 LTD,20-F,2025,product,company,Cryptocurrency Mining Revenue,label,ncty:CryptocurrencyMiningRevenueMember,56352000.0,CNY,False
+NCTY,The9 LTD,20-F,2025,geography,,CN,derived,country:CN,35431000.0,CNY,True
+NCTY,The9 LTD,20-F,2025,geography,,Asia and Eastern Europe,label,ncty:AsiaAndEasternEuropeMember,64394000.0,CNY,True
+NCTY,The9 LTD,20-F,2025,geography,,North America,derived,srt:NorthAmericaMember,8073000.0,CNY,True
+BLDR,"Builders FirstSource, Inc.",10-K,2025,product,company,Manufactured Products,derived,bldr:ManufacturedProductsMember,3410492000.0,USD,True
+BLDR,"Builders FirstSource, Inc.",10-K,2025,product,company,Windows Doors And Millwork,derived,bldr:WindowsDoorsAndMillworkMember,3836204000.0,USD,True
+BLDR,"Builders FirstSource, Inc.",10-K,2025,product,company,Specialty Building Products And Services,derived,bldr:SpecialtyBuildingProductsAndServicesMember,4068074000.0,USD,True
+BLDR,"Builders FirstSource, Inc.",10-K,2025,product,company,Lumber And Lumber Sheet Goods,derived,bldr:LumberAndLumberSheetGoodsMember,3875868000.0,USD,True
+UAA,"Under Armour, Inc.",10-K,2026,product,company,Apparel,label,ua:ApparelMember,3395053000.0,USD,False
+UAA,"Under Armour, Inc.",10-K,2026,product,company,Footwear,label,ua:FootwearMember,1076383000.0,USD,False
+UAA,"Under Armour, Inc.",10-K,2026,product,company,Accessories,label,ua:AccessoriesMember,414466000.0,USD,False
+UAA,"Under Armour, Inc.",10-K,2026,product,standard,Product,derived,us-gaap:ProductMember,4885902000.0,USD,True
+UAA,"Under Armour, Inc.",10-K,2026,product,standard,License,derived,us-gaap:LicenseMember,107353000.0,USD,True
+UAA,"Under Armour, Inc.",10-K,2026,geography,,North America,derived,srt:NorthAmericaMember,2859420000.0,USD,False
+UAA,"Under Armour, Inc.",10-K,2026,geography,,EMEA,derived,us-gaap:EMEAMember,1180510000.0,USD,False
+UAA,"Under Armour, Inc.",10-K,2026,geography,,Asia Pacific,derived,srt:AsiaPacificMember,719134000.0,USD,False
+UAA,"Under Armour, Inc.",10-K,2026,geography,,Latin America,derived,srt:LatinAmericaMember,234191000.0,USD,False
+UAA,"Under Armour, Inc.",10-K,2026,geography,,US,derived,country:US,2570647000.0,USD,False
+UAA,"Under Armour, Inc.",10-K,2026,geography,,Non Us,derived,us-gaap:NonUsMember,2422608000.0,USD,False
+HIMX,"Himax Technologies, Inc.",20-F,2025,segment,,Driver IC,label,himx:DriverIcSegmentMember,238158000.0,USD,False
+HIMX,"Himax Technologies, Inc.",20-F,2025,segment,,Non-driver Products,label,himx:NonDriverSegmentMember,26702000.0,USD,False
+HIMX,"Himax Technologies, Inc.",20-F,2025,product,company,Driver IC,label,himx:DriverICMember,665797000.0,USD,True
+HIMX,"Himax Technologies, Inc.",20-F,2025,product,company,Non-driver products,label,himx:NonDriverICMember,166376000.0,USD,True
+HIMX,"Himax Technologies, Inc.",20-F,2025,geography,,CN,derived,country:CN,613818000.0,USD,True
+HIMX,"Himax Technologies, Inc.",20-F,2025,geography,,TW,derived,country:TW,122526000.0,USD,True
+HIMX,"Himax Technologies, Inc.",20-F,2025,geography,,KR,derived,country:KR,49588000.0,USD,True
+HIMX,"Himax Technologies, Inc.",20-F,2025,geography,,JP,derived,country:JP,14959000.0,USD,True
+HIMX,"Himax Technologies, Inc.",20-F,2025,geography,,Americas,derived,srt:AmericasMember,21345000.0,USD,True
+HIMX,"Himax Technologies, Inc.",20-F,2025,geography,,MX,derived,country:MX,4847000.0,USD,True
+HIMX,"Himax Technologies, Inc.",20-F,2025,geography,,Others,label,himx:OthersMember,5090000.0,USD,True
+EVR,Evercore Inc.,10-K,2025,segment,,Investment Banking and Equities,label,evr:InvestmentBankingAndEquitiesMember,3689419000.0,USD,False
+EVR,Evercore Inc.,10-K,2025,segment,,Investment Management,label,evr:InvestmentManagementMember,87356000.0,USD,False
+AEYE,AUDIOEYE INC,10-K,2025,product,company,Partner and Marketplace,label,aeye:PartnerAndMarketplaceMember,22233000.0,USD,True
+AEYE,AUDIOEYE INC,10-K,2025,product,company,Enterprise,label,aeye:EnterpriseMember,18078000.0,USD,True
+CZWI,Citizens Community Bancorp Inc.,10-K,2025,segment,,Reportable,label,czwi:ReportableSegmentMember,98773000.0,USD,False
+CLNE,Clean Energy Fuels Corp.,10-K,2025,segment,,Single Reportable,label,clne:SingleReportableSegmentMember,424833000.0,USD,True
+CLNE,Clean Energy Fuels Corp.,10-K,2025,product,standard,Product,derived,us-gaap:ProductMember,365467000.0,USD,True
+CLNE,Clean Energy Fuels Corp.,10-K,2025,product,standard,Service,derived,us-gaap:ServiceMember,59366000.0,USD,True
+CLNE,Clean Energy Fuels Corp.,10-K,2025,product,company,Fuel Sales,label,clne:VolumeRelatedFuelSalesMember,287661000.0,USD,False
+CLNE,Clean Energy Fuels Corp.,10-K,2025,product,company,RIN Credits,label,clne:VolumeRelatedRenewableIdentificationNumberCreditsMember,32234000.0,USD,False
+CLNE,Clean Energy Fuels Corp.,10-K,2025,product,company,LCFS Credits,label,clne:VolumeRelatedLowCarbonFuelStandardCreditsMember,13054000.0,USD,False
+CLNE,Clean Energy Fuels Corp.,10-K,2025,product,company,Federal Alternative Fuels Tax Credit,label,clne:FederalAlternativeFuelsTaxCreditMember,198000.0,USD,False
+CLNE,Clean Energy Fuels Corp.,10-K,2025,product,company,Total volume-related product revenue,label,clne:VolumeRelatedProductRevenueMember,331483000.0,USD,False
+CLNE,Clean Energy Fuels Corp.,10-K,2025,product,company,Station construction sales,label,clne:StationConstructionSalesMember,33984000.0,USD,False
+CLNE,Clean Energy Fuels Corp.,10-K,2025,product,company,"Volume-related, O&M services",label,clne:VolumeRelatedOperationsAndMaintenanceServiceRevenueMember,56732000.0,USD,False
+CLNE,Clean Energy Fuels Corp.,10-K,2025,product,company,Other services,label,clne:OtherServiceRevenueSourceMember,2634000.0,USD,False
+CLNE,Clean Energy Fuels Corp.,10-K,2025,geography,,US,derived,country:US,417825000.0,USD,True
+CLNE,Clean Energy Fuels Corp.,10-K,2025,geography,,CA,derived,country:CA,7008000.0,USD,True
+SBH,"Sally Beauty Holdings, Inc.",10-K,2025,segment,,Sally Beauty Supply,derived,sbh:SallyBeautySupplyMember,2094363000.0,USD,True
+SBH,"Sally Beauty Holdings, Inc.",10-K,2025,segment,,Beauty Systems Group,derived,sbh:BeautySystemsGroupMember,1607061000.0,USD,True
+SBH,"Sally Beauty Holdings, Inc.",10-K,2025,geography,,US,derived,country:US,3029089000.0,USD,True
+SBH,"Sally Beauty Holdings, Inc.",10-K,2025,geography,,Other Countries,derived,sbh:OtherCountriesMember,672335000.0,USD,True
+XWEL,"XWELL, Inc.",10-K,2025,segment,,XpresSpa,label,xwel:XpresspaMember,18649000.0,USD,True
+XWEL,"XWELL, Inc.",10-K,2025,segment,,XpresTest,label,xwel:XprestestMember,8249000.0,USD,True
+XWEL,"XWELL, Inc.",10-K,2025,segment,,Naples Wax,label,xwel:NaplesWaxMember,2312000.0,USD,True
+XWEL,"XWELL, Inc.",10-K,2025,product,standard,Service,derived,us-gaap:ServiceMember,26268000.0,USD,True
+XWEL,"XWELL, Inc.",10-K,2025,product,standard,Product,derived,us-gaap:ProductMember,2942000.0,USD,True
+XWEL,"XWELL, Inc.",10-K,2025,geography,,US,derived,country:US,23420000.0,USD,True
+XWEL,"XWELL, Inc.",10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,5790000.0,USD,True
+AMC,"AMC ENTERTAINMENT HOLDINGS, INC.",10-K,2025,segment,,US Markets,label,amch:UsMarketsMember,3706100000.0,USD,True
+AMC,"AMC ENTERTAINMENT HOLDINGS, INC.",10-K,2025,segment,,International Markets,label,amch:InternationalMarketsMember,1142800000.0,USD,True
+AMC,"AMC ENTERTAINMENT HOLDINGS, INC.",10-K,2025,product,standard,Admission,derived,us-gaap:AdmissionMember,2652800000.0,USD,True
+AMC,"AMC ENTERTAINMENT HOLDINGS, INC.",10-K,2025,product,standard,Food And Beverage,derived,us-gaap:FoodAndBeverageMember,1671300000.0,USD,True
+AMC,"AMC ENTERTAINMENT HOLDINGS, INC.",10-K,2025,product,standard,Advertising,derived,us-gaap:AdvertisingMember,152100000.0,USD,True
+AMC,"AMC ENTERTAINMENT HOLDINGS, INC.",10-K,2025,product,standard,Product And Service Other,derived,us-gaap:ProductAndServiceOtherMember,372700000.0,USD,True
+AMC,"AMC ENTERTAINMENT HOLDINGS, INC.",10-K,2025,product,company,Total Other Product And Service,label,amch:TotalOtherProductAndServiceMember,524800000.0,USD,False
+AMC,"AMC ENTERTAINMENT HOLDINGS, INC.",10-K,2025,geography,,US,derived,country:US,3706100000.0,USD,True
+AMC,"AMC ENTERTAINMENT HOLDINGS, INC.",10-K,2025,geography,,GB,derived,country:GB,428500000.0,USD,True
+AMC,"AMC ENTERTAINMENT HOLDINGS, INC.",10-K,2025,geography,,ES,derived,country:ES,153400000.0,USD,True
+AMC,"AMC ENTERTAINMENT HOLDINGS, INC.",10-K,2025,geography,,SE,derived,country:SE,122500000.0,USD,True
+AMC,"AMC ENTERTAINMENT HOLDINGS, INC.",10-K,2025,geography,,IT,derived,country:IT,147300000.0,USD,True
+AMC,"AMC ENTERTAINMENT HOLDINGS, INC.",10-K,2025,geography,,DE,derived,country:DE,124300000.0,USD,True
+AMC,"AMC ENTERTAINMENT HOLDINGS, INC.",10-K,2025,geography,,FI,derived,country:FI,84700000.0,USD,True
+AMC,"AMC ENTERTAINMENT HOLDINGS, INC.",10-K,2025,geography,,IE,derived,country:IE,33100000.0,USD,True
+AMC,"AMC ENTERTAINMENT HOLDINGS, INC.",10-K,2025,geography,,Other Countries,label,amch:OtherCountriesMember,49000000.0,USD,True
+HLNE,Hamilton Lane INC,10-K,2026,product,company,Management And Advisory Fee Revenue,label,hlne:ManagementAndAdvisoryFeeRevenueMember,584216000.0,USD,False
+HLNE,Hamilton Lane INC,10-K,2026,product,company,"Management And Advisory Fee Revenue, Specialized Funds",label,hlne:ManagementAndAdvisoryFeeRevenueSpecializedFundsMember,374405000.0,USD,False
+HLNE,Hamilton Lane INC,10-K,2026,product,company,"Management And Advisory Fee Revenue, Customized Separate Accounts",label,hlne:ManagementAndAdvisoryFeeRevenueCustomizedSeparateAccountsMember,141535000.0,USD,False
+HLNE,Hamilton Lane INC,10-K,2026,product,company,"Management And Advisory Fee Revenue, Advisory",label,hlne:ManagementAndAdvisoryFeeRevenueAdvisoryMember,20473000.0,USD,False
+HLNE,Hamilton Lane INC,10-K,2026,product,company,"Management And Advisory Fee Revenue, Reporting And Other",label,hlne:ManagementAndAdvisoryFeeRevenueReportingAndOtherMember,35766000.0,USD,False
+HLNE,Hamilton Lane INC,10-K,2026,product,company,"Management And Advisory Fee Revenue, Distribution Management",label,hlne:ManagementAndAdvisoryFeeRevenueDistributionManagementMember,2170000.0,USD,False
+HLNE,Hamilton Lane INC,10-K,2026,product,company,"Management And Advisory Fee Revenue, Fund Reimbursement Revenue",label,hlne:ManagementAndAdvisoryFeeRevenueFundReimbursementRevenueMember,9867000.0,USD,False
+HLNE,Hamilton Lane INC,10-K,2026,product,company,"Incentive Fee Revenue, Specialized Funds",label,hlne:IncentiveFeeRevenueSpecializedFundsMember,146293000.0,USD,False
+HLNE,Hamilton Lane INC,10-K,2026,product,company,"Incentive Fee Revenue, Customized Separate Accounts",label,hlne:IncentiveFeeRevenueCustomizedSeparateAccountsMember,24282000.0,USD,False
+HLNE,Hamilton Lane INC,10-K,2026,product,company,"Incentive Fee Revenue, Including Consolidated VIEs",label,hlne:IncentiveFeeRevenueIncludingConsolidatedVIEsMember,174777000.0,USD,False
+HLNE,Hamilton Lane INC,10-K,2026,geography,,US,derived,country:US,310354000.0,USD,True
+HLNE,Hamilton Lane INC,10-K,2026,geography,,Non Us,derived,us-gaap:NonUsMember,448639000.0,USD,True
+VRSK,"Verisk Analytics, Inc.",10-K,2025,geography,,US,derived,country:US,2522300000.0,USD,True
+VRSK,"Verisk Analytics, Inc.",10-K,2025,geography,,GB,derived,country:GB,250100000.0,USD,True
+VRSK,"Verisk Analytics, Inc.",10-K,2025,geography,,Other Countries,label,vrsk:OtherCountriesMember,300300000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,segment,,Capital Markets,label,rily:CapitalMarketsSegmentMember,150021000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,segment,,Wealth Management,label,rily:WealthManagementSegmentMember,135952000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,segment,,Lingo,label,rily:LingoMember,164148000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,segment,,Magic Jack,label,rily:MagicJackMember,37934000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,segment,,Marconi Wireless,label,rily:MarconiWirelessMember,34784000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,segment,,UOL,label,rily:UOLMember,13145000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,segment,,Consumer Products,label,rily:ConsumerProductsMember,181540000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,product,company,Corporate Finance Consulting And Investment Banking Fees,label,rily:CorporateFinanceConsultingAndInvestmentBankingFeesMember,130628000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,product,company,Wealth And Asset Management Fees,label,rily:WealthAndAssetManagementFeesMember,134077000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,product,company,Commissions Fees And Reimbursed Expenses,label,rily:CommissionsFeesAndReimbursedExpensesMember,28417000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,product,company,Subscription Services,label,rily:SubscriptionServicesMember,241155000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,product,company,Sale Of Goods,label,rily:SaleOfGoodsMember,191114000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,product,company,Advertising And Other,label,rily:AdvertisingAndOtherMember,63596000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,geography,,North America,derived,srt:NorthAmericaMember,875415000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,geography,,AU,derived,country:AU,9905000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,geography,,"Europe, Middle East, and Africa",label,rily:EuropeMiddleEastAndAfricaMember,52235000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,geography,,Asia,derived,srt:AsiaMember,22582000.0,USD,True
+RILY,"BRC Group Holdings, Inc.",10-K,2025,geography,,Latin America,derived,srt:LatinAmericaMember,7462000.0,USD,True
+TDOC,"Teladoc Health, Inc.",10-K,2025,segment,,Teladoc Health Integrated Care,label,tdoc:TeladocHealthIntegratedCareMember,1579610000.0,USD,True
+TDOC,"Teladoc Health, Inc.",10-K,2025,segment,,BetterHelp,label,tdoc:BetterHelpMember,950367000.0,USD,True
+TDOC,"Teladoc Health, Inc.",10-K,2025,product,company,Access Fees Revenue,label,tdoc:AccessFeesRevenueMember,2091941000.0,USD,True
+TDOC,"Teladoc Health, Inc.",10-K,2025,product,company,Other,label,tdoc:OtherMember,438036000.0,USD,True
+TDOC,"Teladoc Health, Inc.",10-K,2025,geography,,US,derived,country:US,2071739000.0,USD,True
+TDOC,"Teladoc Health, Inc.",10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,458238000.0,USD,True
+LVO,"LiveOne, Inc.",10-K,2026,segment,,PodcastOne,label,lvo:PodcastoneMember,61671000.0,USD,True
+LVO,"LiveOne, Inc.",10-K,2026,segment,,Slacker,label,lvo:SlackerMember,11830000.0,USD,True
+LVO,"LiveOne, Inc.",10-K,2026,segment,,Media Operations,label,lvo:MediaOperationsMember,3643000.0,USD,True
+LVO,"LiveOne, Inc.",10-K,2026,product,company,Barter Transactions,label,lvo:BarterTransactionsMember,28000000.0,USD,False
+LVO,"LiveOne, Inc.",10-K,2026,product,company,Paid User Services,label,lvo:PaidUserServicesMember,11972000.0,USD,False
+LVO,"LiveOne, Inc.",10-K,2026,product,company,Merchandising Revenue,label,lvo:MerchandisingRevenueMember,3556000.0,USD,False
+LVO,"LiveOne, Inc.",10-K,2026,product,company,Sponsorship and Licensing,label,lvo:SponsorshipAndLicensingMember,0.0,USD,False
+LVO,"LiveOne, Inc.",10-K,2026,product,company,Ticket or Event Revenue,label,lvo:TicketOrEventRevenueMember,0.0,USD,False
+LVO,"LiveOne, Inc.",10-K,2026,product,standard,Advertising,derived,us-gaap:AdvertisingMember,61616000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Ethanol,label,agro:EthanolMember,337550000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Sugar,label,agro:SugarMember,265687000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Energy,label,agro:EnergyMember,41090000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Urea,label,agro:UreaMember,24066000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Peanut,label,agro:PeanutMember,59947000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Sunflower,label,agro:SunflowerMember,6933000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Cotton,label,agro:CottonMember,4896000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Rice,label,agro:RiceMember,182259000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Fluid Milk (UHT),label,agro:FluidMilkUHTMember,115328000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Powder Milk,label,agro:PowderMilkMember,53321000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Other Dairy Products,label,agro:OtherDairyProductsMember,84326000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Services,label,agro:ServicesMember,10375000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Rental Income,label,agro:RentalIncomeMember,1570000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Other Products and Services,label,agro:OtherProductsandServicesMember,51498000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Manufactured Products And Services Rendered,label,agro:ManufacturedProductsAndServicesRenderedMember,1238846000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Mwh Of Energy Produced By Third Parties,label,agro:MwhOfEnergyProducedByThirdPartiesMember,5100000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Rice Produced By Third Parties,label,agro:RiceProducedByThirdPartiesMember,13200000.0,USD,False
+AGRO,Adecoagro S.A.,20-F,2025,product,company,Power Milk Produced By Third Parties,label,agro:PowerMilkProducedByThirdPartiesMember,300000.0,USD,False
+WRBY,Warby Parker Inc.,10-K,2025,product,company,Eyewear Products,label,wrby:EyewearProductsMember,719061000.0,USD,True
+WRBY,Warby Parker Inc.,10-K,2025,product,company,Contacts Products,label,wrby:ContactsProductsMember,97153000.0,USD,True
+WRBY,Warby Parker Inc.,10-K,2025,product,company,Services And Other,label,wrby:ServicesAndOtherMember,55691000.0,USD,True
+WRBY,Warby Parker Inc.,10-K,2025,product,standard,Shipping And Handling,derived,us-gaap:ShippingAndHandlingMember,3700000.0,USD,False
+BAND,Bandwidth Inc.,10-K,2025,product,company,Cloud Communications,label,band:CloudCommunicationsMember,561379000.0,USD,False
+BAND,Bandwidth Inc.,10-K,2025,product,company,Messaging Surcharges,label,band:MessagingSurchargesMember,192438000.0,USD,False
+BAND,Bandwidth Inc.,10-K,2025,product,company,"CPaaS, Usage-Based Fees",label,band:CPaaSUsageBasedFeesMember,414500000.0,USD,False
+BAND,Bandwidth Inc.,10-K,2025,product,company,"CPaaS, Service Fees",label,band:CPaaSServiceFeesMember,146900000.0,USD,False
+BAND,Bandwidth Inc.,10-K,2025,geography,,US,derived,country:US,653973000.0,USD,True
+BAND,Bandwidth Inc.,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,99844000.0,USD,True
+RARE,Ultragenyx Pharmaceutical Inc.,10-K,2025,product,standard,Product,derived,us-gaap:ProductMember,369000000.0,USD,True
+RARE,Ultragenyx Pharmaceutical Inc.,10-K,2025,product,standard,Royalty,derived,us-gaap:RoyaltyMember,304000000.0,USD,True
+RARE,Ultragenyx Pharmaceutical Inc.,10-K,2025,product,company,Collaboration And License,derived,rare:CollaborationAndLicenseMember,0.0,USD,False
+RARE,Ultragenyx Pharmaceutical Inc.,10-K,2025,geography,,North America,derived,srt:NorthAmericaMember,377000000.0,USD,True
+RARE,Ultragenyx Pharmaceutical Inc.,10-K,2025,geography,,Latin America,derived,srt:LatinAmericaMember,170000000.0,USD,True
+RARE,Ultragenyx Pharmaceutical Inc.,10-K,2025,geography,,EMEA,derived,us-gaap:EMEAMember,108000000.0,USD,True
+RARE,Ultragenyx Pharmaceutical Inc.,10-K,2025,geography,,Asia Pacific,derived,srt:AsiaPacificMember,18000000.0,USD,True
+VSTM,"Verastem, Inc.",10-K,2025,product,standard,Product,derived,us-gaap:ProductMember,30914000.0,USD,False
+NPCE,NeuroPace Inc,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,900000.0,USD,False
+ABNB,"Airbnb, Inc.",10-K,2025,segment,,Reportable,label,abnb:ReportableSegmentMember,12241000000.0,USD,True
+ABNB,"Airbnb, Inc.",10-K,2025,geography,,North America,derived,srt:NorthAmericaMember,5196000000.0,USD,False
+ABNB,"Airbnb, Inc.",10-K,2025,geography,,EMEA,derived,us-gaap:EMEAMember,4729000000.0,USD,False
+ABNB,"Airbnb, Inc.",10-K,2025,geography,,Latin America,derived,srt:LatinAmericaMember,1160000000.0,USD,False
+ABNB,"Airbnb, Inc.",10-K,2025,geography,,Asia Pacific,derived,srt:AsiaPacificMember,1156000000.0,USD,False
+ABNB,"Airbnb, Inc.",10-K,2025,geography,,US,derived,country:US,4814000000.0,USD,False
+ABNB,"Airbnb, Inc.",10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,7427000000.0,USD,False
+RNXT,"RenovoRx, Inc.",10-K,2025,segment,,All Other Segments,derived,us-gaap:AllOtherSegmentsMember,1123000.0,USD,True
+TANH,TANTECH HOLDINGS LTD,20-F,2025,geography,,Revenue From China,label,tanh:RevenueFromChinaMember,35789798.0,USD,True
+TANH,TANTECH HOLDINGS LTD,20-F,2025,geography,,Foreign Countries,label,tanh:ForeignCountriesMember,2569365.0,USD,True
+PANL,Pangaea Logistics Solutions Ltd.,10-K,2025,segment,,Seaborne Dry Bulk Logistics And Transportation Services,label,panl:SeaborneDryBulkLogisticsAndTransportationServicesSegmentMember,616806000.0,USD,False
+PANL,Pangaea Logistics Solutions Ltd.,10-K,2025,product,company,Voyage,label,panl:VoyageMember,577547000.0,USD,True
+PANL,Pangaea Logistics Solutions Ltd.,10-K,2025,product,company,Charter,label,panl:CharterMember,39258000.0,USD,True
+PANL,Pangaea Logistics Solutions Ltd.,10-K,2025,product,company,Terminal & Stevedore Revenue,label,panl:TerminalStevedoreRevenueMember,15236000.0,USD,True
+PANL,Pangaea Logistics Solutions Ltd.,10-K,2025,geography,,US,derived,country:US,177651000.0,USD,True
+PANL,Pangaea Logistics Solutions Ltd.,10-K,2025,geography,,CA,derived,country:CA,65025000.0,USD,True
+PANL,Pangaea Logistics Solutions Ltd.,10-K,2025,geography,,country_Germany [Domain],label,panl:Country_GermanyDomain,59434000.0,USD,True
+PANL,Pangaea Logistics Solutions Ltd.,10-K,2025,geography,,country_Singapore [Domain],label,panl:Country_SingaporeDomain,59166000.0,USD,True
+PANL,Pangaea Logistics Solutions Ltd.,10-K,2025,geography,,GB,derived,country:GB,48005000.0,USD,True
+PANL,Pangaea Logistics Solutions Ltd.,10-K,2025,geography,,Other,label,panl:OtherMember,222850000.0,USD,True
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,standard,Deposit Account,derived,us-gaap:DepositAccountMember,1539000.0,USD,False
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,standard,Bank Servicing,derived,us-gaap:BankServicingMember,386000.0,USD,False
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,standard,Debit Card,derived,us-gaap:DebitCardMember,510000.0,USD,False
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,standard,Financial Service Other,derived,us-gaap:FinancialServiceOtherMember,1011000.0,USD,False
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,standard,Credit Card Merchant Discount,derived,us-gaap:CreditCardMerchantDiscountMember,67000.0,USD,False
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,standard,Credit And Debit Card,derived,us-gaap:CreditAndDebitCardMember,577000.0,USD,False
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,standard,Mortgage Banking,derived,us-gaap:MortgageBankingMember,788000.0,USD,False
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,standard,Banking,derived,us-gaap:BankingMember,3687000.0,USD,False
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,company,Insufficient Funds Fees Deposit Account,derived,pbhc:InsufficientFundsFeesDepositAccountMember,874000.0,USD,False
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,company,Deposit Related Fees Deposit Account,derived,pbhc:DepositRelatedFeesDepositAccountMember,580000.0,USD,False
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,company,ATMFees Deposit Account,derived,pbhc:ATMFeesDepositAccountMember,85000.0,USD,False
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,company,Insurance Commissions,derived,pbhc:InsuranceCommissionsMember,0.0,USD,False
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,company,Investment Services Revenue,derived,pbhc:InvestmentServicesRevenueMember,139000.0,USD,False
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,company,ATMFees Surcharge,derived,pbhc:ATMFeesSurchargeMember,272000.0,USD,False
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,company,Banking House Rents Collected,derived,pbhc:BankingHouseRentsCollectedMember,372000.0,USD,False
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,company,Fee Income,derived,pbhc:FeeIncomeMember,783000.0,USD,False
+PBHC,"Pathfinder Bancorp, Inc.",10-K,2025,product,company,Net Gains Losses On Sale Of Loans And Foreclosed Real Estate,derived,pbhc:NetGainsLossesOnSaleOfLoansAndForeclosedRealEstateMember,402000.0,USD,False
+KEN,Kenon Holdings Ltd.,20-F,2025,segment,,Opc Member,label,ken:OpcMember,674618000.0,USD,True
+KEN,Kenon Holdings Ltd.,20-F,2025,segment,,CPV Group,label,ken:CPVGroupMember,197311000.0,USD,True
+KEN,Kenon Holdings Ltd.,20-F,2025,segment,,All Other Segments,derived,ifrs-full:AllOtherSegmentsMember,0.0,USD,True
+KEN,Kenon Holdings Ltd.,20-F,2025,geography,,IL,derived,country:IL,674618000.0,USD,True
+KEN,Kenon Holdings Ltd.,20-F,2025,geography,,US,derived,country:US,197311000.0,USD,True
+UE,Urban Edge Properties,10-K,2025,segment,,Properties,label,ue:PropertiesMember,453783000.0,USD,False
+UE,Urban Edge Properties,10-K,2025,product,company,Rental Revenue,label,ue:RentalRevenueMember,470689000.0,USD,False
+UE,Urban Edge Properties,10-K,2025,product,standard,Product And Service Other,derived,us-gaap:ProductAndServiceOtherMember,1246000.0,USD,False
+JRVR,"James River Group Holdings, Inc.",10-K,2025,segment,,Excess And Surplus Lines,label,jrvr:ExcessAndSurplusLinesMember,625505000.0,USD,True
+JRVR,"James River Group Holdings, Inc.",10-K,2025,segment,,Specialty Admitted Insurance,label,jrvr:SpecialtyAdmittedInsuranceMember,60286000.0,USD,True
+SLE,"Super League Enterprise, Inc.",10-K,2025,product,company,Advertising and Sponsorships,label,sle:AdvertisingAndSponsorshipsMember,5601000.0,USD,True
+SLE,"Super League Enterprise, Inc.",10-K,2025,product,company,Publishing and Content Studio,label,sle:PublishingAndContentStudioMember,5428000.0,USD,True
+SLE,"Super League Enterprise, Inc.",10-K,2025,product,company,Direct to Consumer,label,sle:DirectToConsumerMember,313000.0,USD,True
+DEA,"Easterly Government Properties, Inc.",10-K,2025,product,company,Tenant Reimbursements,derived,dea:TenantReimbursementsMember,5855000.0,USD,False
+DEA,"Easterly Government Properties, Inc.",10-K,2025,product,standard,Real Estate Other,derived,us-gaap:RealEstateOtherMember,6031000.0,USD,False
+CWD,CaliberCos Inc.,10-K,2025,segment,,Reportable,label,cwd:ReportableSegmentMember,14418000.0,USD,False
+CABO,"Cable One, Inc.",10-K,2025,product,company,"Residential, Data",label,cabo:ResidentialDataMember,901696000.0,USD,False
+CABO,"Cable One, Inc.",10-K,2025,product,company,"Residential, Video",label,cabo:ResidentialVideoMember,187068000.0,USD,False
+CABO,"Cable One, Inc.",10-K,2025,product,company,"Residential, Voice",label,cabo:ResidentialVoiceMember,26866000.0,USD,False
+CABO,"Cable One, Inc.",10-K,2025,product,company,"Business Services, Data",label,cabo:BusinessServicesDataMember,228995000.0,USD,False
+CABO,"Cable One, Inc.",10-K,2025,product,company,"Business Services, Other",label,cabo:BusinessServicesOtherMember,63113000.0,USD,False
+CABO,"Cable One, Inc.",10-K,2025,product,company,Fees Imposed by Various Governmental Authorities Passed Through to Customer,label,cabo:FeesImposedByVariousGovernmentalAuthoritiesPassedThroughToCustomerMember,16900000.0,USD,False
+CABO,"Cable One, Inc.",10-K,2025,product,standard,Product And Service Other,derived,us-gaap:ProductAndServiceOtherMember,93685000.0,USD,False
+LITE,Lumentum Holdings Inc.,10-K,2026,segment,,Systems,label,lite:SystemsMember,2005600000.0,USD,True
+LITE,Lumentum Holdings Inc.,10-K,2026,segment,,Components,label,lite:ComponentsMember,1008400000.0,USD,True
+LITE,Lumentum Holdings Inc.,10-K,2026,geography,,US,derived,country:US,627900000.0,USD,False
+LITE,Lumentum Holdings Inc.,10-K,2026,geography,,MX,derived,country:MX,443700000.0,USD,False
+LITE,Lumentum Holdings Inc.,10-K,2026,geography,,Americas Excluding United States And Mexico,label,lite:AmericasExcludingUnitedStatesAndMexicoMember,13200000.0,USD,False
+LITE,Lumentum Holdings Inc.,10-K,2026,geography,,Americas,derived,srt:AmericasMember,1084800000.0,USD,False
+LITE,Lumentum Holdings Inc.,10-K,2026,geography,,TH,derived,country:TH,626600000.0,USD,False
+LITE,Lumentum Holdings Inc.,10-K,2026,geography,,HK,derived,country:HK,519300000.0,USD,False
+LITE,Lumentum Holdings Inc.,10-K,2026,geography,,CN,derived,country:CN,284800000.0,USD,False
+LITE,Lumentum Holdings Inc.,10-K,2026,geography,,JP,derived,country:JP,104600000.0,USD,False
+LITE,Lumentum Holdings Inc.,10-K,2026,geography,,Other Asia Pacific Not Individually Identified,label,lite:OtherAsiaPacificNotIndividuallyIdentifiedMember,216900000.0,USD,False
+LITE,Lumentum Holdings Inc.,10-K,2026,geography,,Asia Pacific,derived,srt:AsiaPacificMember,1752200000.0,USD,False
+LITE,Lumentum Holdings Inc.,10-K,2026,geography,,EMEA,derived,us-gaap:EMEAMember,177000000.0,USD,False
+RACE,Ferrari N.V.,20-F,2025,product,company,Cars and Spare Parts,label,race:CarsandSparePartsMember,6005243000.0,EUR,True
+RACE,Ferrari N.V.,20-F,2025,product,company,"Sponsorship, Commercial and Brand",label,race:SponsorshipCommercialandBrandMember,819551000.0,EUR,True
+RACE,Ferrari N.V.,20-F,2025,product,company,Other Revenues,label,race:OtherRevenuesMember,320974000.0,EUR,True
+RACE,Ferrari N.V.,20-F,2025,geography,,IT,derived,country:IT,527727000.0,EUR,False
+RACE,Ferrari N.V.,20-F,2025,geography,,EMEA Excluding Italy,label,race:EMEAExcludingItalyMember,2996719000.0,EUR,False
+RACE,Ferrari N.V.,20-F,2025,geography,,GB,derived,country:GB,617361000.0,EUR,False
+RACE,Ferrari N.V.,20-F,2025,geography,,DE,derived,country:DE,576371000.0,EUR,False
+RACE,Ferrari N.V.,20-F,2025,geography,,Americas,derived,srt:AmericasMember,2252780000.0,EUR,False
+RACE,Ferrari N.V.,20-F,2025,geography,,US,derived,country:US,1981359000.0,EUR,False
+RACE,Ferrari N.V.,20-F,2025,geography,,"Mainland China, Hong Kong And Taiwan",label,race:MainlandChinaHongKongAndTaiwanMember,491285000.0,EUR,False
+RACE,Ferrari N.V.,20-F,2025,geography,,CN,derived,country:CN,311732000.0,EUR,False
+RACE,Ferrari N.V.,20-F,2025,geography,,APAC Excluding China,label,race:APACExcludingChinaMember,877257000.0,EUR,False
+RACE,Ferrari N.V.,20-F,2025,geography,,NL,derived,country:NL,118811000.0,EUR,False
+NGVT,Ingevity Corp,10-K,2025,segment,,Performance Materials,label,ngvt:PerformanceMaterialsMember,606900000.0,USD,True
+NGVT,Ingevity Corp,10-K,2025,segment,,Performance Chemicals,label,ngvt:PerformanceChemicalsMember,400500000.0,USD,True
+NGVT,Ingevity Corp,10-K,2025,segment,,Advanced Polymer Technologies,label,ngvt:AdvancedPolymerTechnologiesSegmentMember,160200000.0,USD,True
+NGVT,Ingevity Corp,10-K,2025,geography,,North America,derived,srt:NorthAmericaMember,665100000.0,USD,False
+NGVT,Ingevity Corp,10-K,2025,geography,,Asia Pacific,derived,srt:AsiaPacificMember,298500000.0,USD,False
+NGVT,Ingevity Corp,10-K,2025,geography,,EMEA,derived,us-gaap:EMEAMember,158900000.0,USD,False
+NGVT,Ingevity Corp,10-K,2025,geography,,South America,derived,srt:SouthAmericaMember,45100000.0,USD,False
+NGVT,Ingevity Corp,10-K,2025,geography,,US,derived,country:US,585000000.0,USD,False
+NGVT,Ingevity Corp,10-K,2025,geography,,CN,derived,country:CN,153100000.0,USD,False
+PR,Permian Resources Corp,10-K,2025,product,standard,Crude Oil,derived,srt:CrudeOilMember,4251193000.0,USD,True
+PR,Permian Resources Corp,10-K,2025,product,standard,Natural Gas Liquids Reserves,derived,srt:NaturalGasLiquidsReservesMember,658515000.0,USD,True
+PR,Permian Resources Corp,10-K,2025,product,standard,Natural Gas Reserves,derived,srt:NaturalGasReservesMember,131663000.0,USD,True
+PR,Permian Resources Corp,10-K,2025,product,standard,Oil And Gas Purchased,derived,us-gaap:OilAndGasPurchasedMember,23840000.0,USD,True
+COE,51Talk Online Education Group,20-F,2025,segment,,One Operating,label,coe:OneOperatingSegmentMember,95601000.0,USD,True
+PHUN,"Phunware, Inc.",10-K,2025,segment,,Software Subscriptions And Serices,derived,phun:SoftwareSubscriptionsAndSericesMember,2271000.0,USD,True
+PHUN,"Phunware, Inc.",10-K,2025,segment,,Advertising,derived,phun:AdvertisingSegmentMember,282000.0,USD,True
+PHUN,"Phunware, Inc.",10-K,2025,segment,,Corporate,derived,us-gaap:CorporateMember,0.0,USD,True
+PHUN,"Phunware, Inc.",10-K,2025,product,company,Software Subscriptions And Services,derived,phun:SoftwareSubscriptionsAndServicesMember,2271000.0,USD,False
+PHUN,"Phunware, Inc.",10-K,2025,product,standard,Advertising,derived,us-gaap:AdvertisingMember,282000.0,USD,False
+PHUN,"Phunware, Inc.",10-K,2025,geography,,US,derived,country:US,2508000.0,USD,True
+PHUN,"Phunware, Inc.",10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,45000.0,USD,True
+AIP,"Arteris, Inc.",10-K,2025,product,standard,License And Maintenance,derived,us-gaap:LicenseAndMaintenanceMember,63859000.0,USD,True
+AIP,"Arteris, Inc.",10-K,2025,product,standard,Royalty,derived,us-gaap:RoyaltyMember,6596000.0,USD,True
+AIP,"Arteris, Inc.",10-K,2025,product,standard,Service Other,derived,us-gaap:ServiceOtherMember,124000.0,USD,True
+AIP,"Arteris, Inc.",10-K,2025,product,company,Variable Royalties And Other,label,aip:VariableRoyaltiesAndOtherMember,6720000.0,USD,False
+AIP,"Arteris, Inc.",10-K,2025,geography,,Americas,derived,srt:AmericasMember,29309000.0,USD,False
+AIP,"Arteris, Inc.",10-K,2025,geography,,Asia Pacific,derived,srt:AsiaPacificMember,33598000.0,USD,False
+AIP,"Arteris, Inc.",10-K,2025,geography,,Europe And Middle East,label,aip:EuropeAndMiddleEastMember,7672000.0,USD,False
+AIP,"Arteris, Inc.",10-K,2025,geography,,US,derived,country:US,28006000.0,USD,False
+AIP,"Arteris, Inc.",10-K,2025,geography,,Other Americas,label,aip:OtherAmericasMember,1303000.0,USD,False
+AIP,"Arteris, Inc.",10-K,2025,geography,,CN,derived,country:CN,17266000.0,USD,False
+AIP,"Arteris, Inc.",10-K,2025,geography,,KR,derived,country:KR,8570000.0,USD,False
+AIP,"Arteris, Inc.",10-K,2025,geography,,Other Asia,label,aip:OtherAsiaMember,7762000.0,USD,False
+ZDGE,"Zedge, Inc.",10-K,2026,segment,,Zedge Marketplace Member,label,zdge:ZedgeMarketplaceMember,29665000.0,USD,True
+ZDGE,"Zedge, Inc.",10-K,2026,segment,,Guru Shots Member,label,zdge:GuruShotsMember,1961000.0,USD,True
+ZDGE,"Zedge, Inc.",10-K,2026,product,standard,Advertising,derived,us-gaap:AdvertisingMember,21169000.0,USD,False
+ZDGE,"Zedge, Inc.",10-K,2026,product,standard,Subscription And Circulation,derived,us-gaap:SubscriptionAndCirculationMember,6599000.0,USD,False
+ZDGE,"Zedge, Inc.",10-K,2026,product,company,Other Revenues Member,label,zdge:OtherRevenuesMember,1897000.0,USD,False
+ZDGE,"Zedge, Inc.",10-K,2026,product,company,Zedge Marketplace Member,label,zdge:ZedgeMarketplaceMember,29665000.0,USD,False
+ZDGE,"Zedge, Inc.",10-K,2026,product,company,Digital Goods And Services Member,label,zdge:DigitalGoodsAndServicesMember,1961000.0,USD,False
+URGN,UroGen Pharma Ltd.,10-K,2025,product,company,Jelmyto,label,urgn:JelmytoMember,93989000.0,USD,True
+URGN,UroGen Pharma Ltd.,10-K,2025,product,company,Zusduri,label,urgn:ZusduriMember,15799000.0,USD,True
+KNSL,"Kinsale Capital Group, Inc.",10-K,2025,segment,,Excess and Surplus Lines,label,knsl:ExcessAndSurplusLinesSegmentMember,1873987000.0,USD,True
+HGV,Hilton Grand Vacations Inc.,10-K,2025,segment,,Real Estate Sales And Financing,label,hgv:RealEstateSalesAndFinancingSegmentMember,2989000000.0,USD,False
+HGV,Hilton Grand Vacations Inc.,10-K,2025,segment,,Resort Operations And Club Management,label,hgv:ResortOperationsAndClubManagementSegmentMember,1524000000.0,USD,False
+HGV,Hilton Grand Vacations Inc.,10-K,2025,product,company,Sales Of Vacation Ownership Intervals Net,label,hgv:SalesOfVacationOwnershipIntervalsNetMember,1812000000.0,USD,True
+HGV,Hilton Grand Vacations Inc.,10-K,2025,product,company,"Fee-For-Services Commissions, Package Sales And Other Fees",label,hgv:FeeForServicesCommissionsPackageSalesAndOtherFeesMember,664000000.0,USD,True
+HGV,Hilton Grand Vacations Inc.,10-K,2025,product,company,Financing,label,hgv:FinancingMember,513000000.0,USD,True
+HGV,Hilton Grand Vacations Inc.,10-K,2025,product,company,Resort And Club Management,label,hgv:ResortAndClubManagementMember,778000000.0,USD,True
+HGV,Hilton Grand Vacations Inc.,10-K,2025,product,company,Rental And Ancillary Service,label,hgv:RentalAndAncillaryServiceMember,746000000.0,USD,True
+HGV,Hilton Grand Vacations Inc.,10-K,2025,product,company,Cost Reimbursements,label,hgv:CostReimbursementsMember,534000000.0,USD,True
+SSII,"SS Innovations International, Inc.",10-K,2025,product,company,System Sales Member,label,ssii:SystemSalesMember,38353048.0,USD,True
+SSII,"SS Innovations International, Inc.",10-K,2025,product,company,Instruments Sale Member,label,ssii:InstrumentsSaleMember,3183757.0,USD,True
+SSII,"SS Innovations International, Inc.",10-K,2025,product,company,Warranty Sale Member,label,ssii:WarrantySaleMember,877033.0,USD,True
+SSII,"SS Innovations International, Inc.",10-K,2025,product,company,Lease Income Member,label,ssii:LeaseIncomeMember,70909.0,USD,True
+SSII,"SS Innovations International, Inc.",10-K,2025,geography,,IN,derived,country:IN,36790658.0,USD,True
+SSII,"SS Innovations International, Inc.",10-K,2025,geography,,PH,derived,country:PH,2247832.0,USD,True
+SSII,"SS Innovations International, Inc.",10-K,2025,geography,,ID,derived,country:ID,1015221.0,USD,True
+SSII,"SS Innovations International, Inc.",10-K,2025,geography,,South America,derived,srt:SouthAmericaMember,1007103.0,USD,True
+SSII,"SS Innovations International, Inc.",10-K,2025,geography,,IQ,derived,country:IQ,766256.0,USD,True
+SSII,"SS Innovations International, Inc.",10-K,2025,geography,,CY,derived,country:CY,522329.0,USD,True
+SSII,"SS Innovations International, Inc.",10-K,2025,geography,,OM,derived,country:OM,85382.0,USD,True
+SSII,"SS Innovations International, Inc.",10-K,2025,geography,,AE,derived,country:AE,31256.0,USD,True
+SSII,"SS Innovations International, Inc.",10-K,2025,geography,,NP,derived,country:NP,18710.0,USD,True
+VIVO,VivoPower PLC,20-F,2025,segment,,Electric vehicles segment [member],label,VVPR:ElectricVehiclesSegmentMember,53000.0,USD,True
+VIVO,VivoPower PLC,20-F,2025,segment,,Digital Assets,label,VVPR:DigitalAssetsMember,8000.0,USD,True
+VIVO,VivoPower PLC,20-F,2025,product,company,Digital Asset Revenue,label,VVPR:DigitalAssetRevenueMember,8000.0,USD,True
+VIVO,VivoPower PLC,20-F,2025,product,company,Vehicle spec conversion [member],label,VVPR:VehicleSpecConversionMember,50000.0,USD,True
+VIVO,VivoPower PLC,20-F,2025,product,company,Conversion kits [member],label,VVPR:ConversionKitsMember,3000.0,USD,True
+VIVO,VivoPower PLC,20-F,2025,geography,,AU,derived,country:AU,53000.0,USD,True
+VIVO,VivoPower PLC,20-F,2025,geography,,US,derived,country:US,8000.0,USD,True
+NMRK,"NEWMARK GROUP, INC.",10-K,2025,segment,,Reportable,label,nmrk:ReportableSegmentMember,3300000000.0,USD,True
+NMRK,"NEWMARK GROUP, INC.",10-K,2025,product,company,Leasing And Other Commissions,label,nmrk:LeasingAndOtherCommissionsMember,1002562000.0,USD,False
+NMRK,"NEWMARK GROUP, INC.",10-K,2025,product,company,Mortgage Brokerage And Debt Placement,label,nmrk:MortgageBrokerageAndDebtPlacementMember,254250000.0,USD,False
+NMRK,"NEWMARK GROUP, INC.",10-K,2025,product,company,Management Services,label,nmrk:ManagementServicesMember,954098000.0,USD,False
+NMRK,"NEWMARK GROUP, INC.",10-K,2025,product,standard,Investment Advice,derived,us-gaap:InvestmentAdviceMember,559392000.0,USD,False
+NMRK,"NEWMARK GROUP, INC.",10-K,2025,geography,,US,derived,country:US,2871998000.0,USD,True
+NMRK,"NEWMARK GROUP, INC.",10-K,2025,geography,,GB,derived,country:GB,234827000.0,USD,True
+NMRK,"NEWMARK GROUP, INC.",10-K,2025,geography,,Other Geographical Areas,label,nmrk:OtherGeographicalAreasMember,187199000.0,USD,True
+WHD,"Cactus, Inc.",10-K,2025,segment,,Pressure Control,label,whd:PressureControlSegmentMember,710806000.0,USD,True
+WHD,"Cactus, Inc.",10-K,2025,segment,,Spoolable Technologies,label,whd:SpoolableTechnologiesMember,368245000.0,USD,True
+WHD,"Cactus, Inc.",10-K,2025,product,standard,Product,derived,us-gaap:ProductMember,825471000.0,USD,False
+WHD,"Cactus, Inc.",10-K,2025,product,standard,Product And Service Other,derived,us-gaap:ProductAndServiceOtherMember,168340000.0,USD,False
+WHD,"Cactus, Inc.",10-K,2025,product,company,Rental Revenue,label,whd:RentalRevenueMember,85240000.0,USD,False
+SMPL,Simply Good Foods Co,10-K,2026,geography,,North America,derived,srt:NorthAmericaMember,1326166000.0,USD,True
+SMPL,Simply Good Foods Co,10-K,2026,geography,,"International, Excluding North America",label,atk:InternationalExcludingNorthAmericaMember,30333000.0,USD,True
+CTOS,"Custom Truck One Source, Inc.",10-K,2025,segment,,Equipment Rental Solutions,label,ctos:EquipmentRentalSolutionsSegmentMember,701045000.0,USD,True
+CTOS,"Custom Truck One Source, Inc.",10-K,2025,segment,,Truck And Equipment Sales,label,ctos:TruckAndEquipmentSalesSegmentMember,1095228000.0,USD,True
+CTOS,"Custom Truck One Source, Inc.",10-K,2025,segment,,Aftermarket Parts and Services,label,ctos:AftermarketPartsAndServicesSegmentMember,147684000.0,USD,True
+CTOS,"Custom Truck One Source, Inc.",10-K,2025,product,company,"Rental Revenue, Excluding Shipping And Handling",label,ctos:RentalRevenueExcludingShippingAndHandlingMember,0.0,USD,False
+CTOS,"Custom Truck One Source, Inc.",10-K,2025,product,company,"Rental Revenue, Shipping And Handling",label,ctos:RentalRevenueShippingAndHandlingMember,25604000.0,USD,False
+CTOS,"Custom Truck One Source, Inc.",10-K,2025,product,company,Rental Revenue,label,ctos:RentalRevenueMember,25604000.0,USD,False
+CTOS,"Custom Truck One Source, Inc.",10-K,2025,product,company,"Sales and Services, Equipment Sales",label,ctos:SalesAndServicesEquipmentSalesMember,1298494000.0,USD,False
+CTOS,"Custom Truck One Source, Inc.",10-K,2025,product,company,"Sales And Services, Parts And Services",label,ctos:SalesAndServicesPartsAndServicesMember,122277000.0,USD,False
+CTOS,"Custom Truck One Source, Inc.",10-K,2025,product,company,Sales And Services,label,ctos:SalesAndServicesMember,1420771000.0,USD,False
+CTOS,"Custom Truck One Source, Inc.",10-K,2025,geography,,US,derived,country:US,1904355000.0,USD,True
+CTOS,"Custom Truck One Source, Inc.",10-K,2025,geography,,CA,derived,country:CA,39602000.0,USD,True
+GHG,GreenTree Hospitality Group Ltd.,20-F,2025,segment,,Revenue From External Customers Member,label,ghg:RevenueFromExternalCustomersMember,1097353393.0,CNY,False
+GHG,GreenTree Hospitality Group Ltd.,20-F,2025,segment,,Intersegment Revenue Member,label,ghg:IntersegmentRevenueMember,1243983.0,CNY,False
+GHG,GreenTree Hospitality Group Ltd.,20-F,2025,product,company,Leased And Operated Revenues Member,label,ghg:LeasedAndOperatedRevenuesMember,488174353.0,CNY,False
+GHG,GreenTree Hospitality Group Ltd.,20-F,2025,product,company,Franchise And Managed Revenues Member,label,ghg:FranchiseAndManagedRevenuesMember,534451868.0,CNY,False
+GHG,GreenTree Hospitality Group Ltd.,20-F,2025,product,company,Wholesale And Others Revenue Member,label,ghg:WholesaleAndOthersRevenueMember,74727172.0,CNY,False
+GHG,GreenTree Hospitality Group Ltd.,20-F,2025,product,company,Franchised And Managed Hotels Member,label,ghg:FranchisedAndManagedHotelsMember,534451868.0,CNY,False
+GHG,GreenTree Hospitality Group Ltd.,20-F,2025,product,company,Wholesales And Others Revenue Member,label,ghg:WholesalesAndOthersRevenueMember,74727172.0,CNY,False
+DUO,Fangdd Network Group Ltd.,20-F,2025,product,company,Base Commission From Transactions Member,label,duo:BaseCommissionFromTransactionsMember,331623000.0,CNY,True
+DUO,Fangdd Network Group Ltd.,20-F,2025,product,company,Innovation Initiatives And Other Value Added Services Member,label,duo:InnovationInitiativesAndOtherValueAddedServicesMember,23200000.0,CNY,True
+PAVS,Paranovus Entertainment Technology Ltd.,20-F,2026,product,company,Offline product sales,label,pavs:OfflineProductSalesMember,9238266.0,USD,True
+PAVS,Paranovus Entertainment Technology Ltd.,20-F,2026,product,company,Online store sales,label,pavs:OnlineStoreSalesMember,2743795.0,USD,True
+PAVS,Paranovus Entertainment Technology Ltd.,20-F,2026,product,company,Service revenue,label,pavs:ServiceRevenueMember,2620308.0,USD,True
+MIRM,"Mirum Pharmaceuticals, Inc.",10-K,2025,segment,,Reportable,label,mirm:ReportableSegmentMember,521312000.0,USD,True
+MIRM,"Mirum Pharmaceuticals, Inc.",10-K,2025,product,standard,Product,derived,us-gaap:ProductMember,521312000.0,USD,True
+MIRM,"Mirum Pharmaceuticals, Inc.",10-K,2025,product,company,License and Other Revenue,label,mirm:LicenseAndOtherRevenueMember,0.0,USD,True
+MIRM,"Mirum Pharmaceuticals, Inc.",10-K,2025,product,company,Livmarli,label,mirm:LivmarliMember,360006000.0,USD,True
+MIRM,"Mirum Pharmaceuticals, Inc.",10-K,2025,product,company,Bile Acid Medicines,label,mirm:BileAcidMedicinesMember,161306000.0,USD,True
+CDTG,CDT Environmental Technology Investment Holdings Ltd,20-F,2025,product,company,Sewage Treatment Systems,label,CDTG:SewageTreatmentSystemsMember,17279031.0,USD,True
+CDTG,CDT Environmental Technology Investment Holdings Ltd,20-F,2025,product,company,Sewage Treatment Services And Others,label,CDTG:SewageTreatmentServicesAndOthersMember,946788.0,USD,True
+PRFX,PRF Technologies Ltd.,20-F,2025,segment,,Solar By Business Segments,label,prfx:SolarByBusinessSegmentsMember,17000.0,USD,True
+PRFX,PRF Technologies Ltd.,20-F,2025,segment,,Clinical Development By Business Segments,label,prfx:ClinicalDevelopmentByBusinessSegmentsMember,0.0,USD,True
+EBC,"Eastern Bankshares, Inc.",10-K,2025,product,company,Investment Advisory Fees,label,ebc:InvestmentAdvisoryFeesMember,69921000.0,USD,True
+EBC,"Eastern Bankshares, Inc.",10-K,2025,product,company,Service Charge On Deposit Accounts,label,ebc:ServiceChargeOnDepositAccountsMember,35035000.0,USD,True
+EBC,"Eastern Bankshares, Inc.",10-K,2025,product,company,Card Income,label,ebc:CardIncomeMember,18260000.0,USD,True
+EBC,"Eastern Bankshares, Inc.",10-K,2025,product,company,Other Non-interest Income,label,ebc:OtherNonInterestIncomeMember,10875000.0,USD,True
+ABX,"Abacus Global Management, Inc.",10-K,2025,segment,,Asset Management,label,abl:AssetManagementSegmentMember,33845393.0,USD,True
+ABX,"Abacus Global Management, Inc.",10-K,2025,segment,,Life Solutions,label,abl:LifeSolutionsSegmentMember,200675058.0,USD,True
+ABX,"Abacus Global Management, Inc.",10-K,2025,segment,,Technology Services,label,abl:TechnologyServicesSegmentMember,717185.0,USD,True
+ABX,"Abacus Global Management, Inc.",10-K,2025,product,standard,Asset Management1,derived,us-gaap:AssetManagement1Member,33845393.0,USD,False
+ABX,"Abacus Global Management, Inc.",10-K,2025,product,standard,Technology Service,derived,us-gaap:TechnologyServiceMember,717185.0,USD,False
+ABX,"Abacus Global Management, Inc.",10-K,2025,product,company,Origination,label,abl:OriginationMember,5656476.0,USD,False
+ABX,"Abacus Global Management, Inc.",10-K,2025,geography,,US,derived,country:US,202360482.0,USD,True
+ABX,"Abacus Global Management, Inc.",10-K,2025,geography,,LU,derived,country:LU,29928823.0,USD,True
+ABX,"Abacus Global Management, Inc.",10-K,2025,geography,,Other Geographical Location,label,abl:OtherGeographicalLocationMember,2948331.0,USD,True
+QTI,"QT IMAGING HOLDINGS, INC.",10-K,2025,segment,,Reportable,label,qti:ReportableSegmentMember,18925000.0,USD,True
+QTI,"QT IMAGING HOLDINGS, INC.",10-K,2025,product,standard,Product,derived,us-gaap:ProductMember,18750000.0,USD,True
+QTI,"QT IMAGING HOLDINGS, INC.",10-K,2025,product,standard,Service,derived,us-gaap:ServiceMember,175000.0,USD,True
+QTI,"QT IMAGING HOLDINGS, INC.",10-K,2025,geography,,US,derived,country:US,18883000.0,USD,True
+QTI,"QT IMAGING HOLDINGS, INC.",10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,42000.0,USD,True
+MOBX,"MOBIX LABS, INC",10-K,2025,product,standard,Product,derived,us-gaap:ProductMember,5996000.0,USD,True
+MOBX,"MOBIX LABS, INC",10-K,2025,product,standard,Service,derived,us-gaap:ServiceMember,3916000.0,USD,True
+MOBX,"MOBIX LABS, INC",10-K,2025,geography,,US,derived,country:US,9152000.0,USD,True
+MOBX,"MOBIX LABS, INC",10-K,2025,geography,,Other,label,MOBX:OtherMember,760000.0,USD,True
+DOUG,Douglas Elliman Inc.,10-K,2025,segment,,Single Reportable,label,doug:SingleReportableSegmentMember,1033055000.0,USD,True
+DOUG,Douglas Elliman Inc.,10-K,2025,product,company,Commissions And Other Brokerage Income,label,doug:CommissionsAndOtherBrokerageIncomeMember,989842000.0,USD,True
+DOUG,Douglas Elliman Inc.,10-K,2025,product,company,Property Management,label,doug:PropertyManagementMember,31592000.0,USD,True
+DOUG,Douglas Elliman Inc.,10-K,2025,product,company,Other Ancillary Services,label,doug:OtherAncillaryServicesMember,11621000.0,USD,True
+DOUG,Douglas Elliman Inc.,10-K,2025,geography,,New York City Standard Metropolitan Statistical Area,label,doug:NewYorkCityStandardMetropolitanStatisticalAreaMember,331785000.0,USD,True
+DOUG,Douglas Elliman Inc.,10-K,2025,geography,,Northeast Region,derived,us-gaap:NortheastRegionMember,208083000.0,USD,True
+DOUG,Douglas Elliman Inc.,10-K,2025,geography,,Southeast Region,derived,us-gaap:SoutheastRegionMember,296042000.0,USD,True
+DOUG,Douglas Elliman Inc.,10-K,2025,geography,,West Region,derived,us-gaap:WestRegionMember,197095000.0,USD,True
+DOUG,Douglas Elliman Inc.,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,50000.0,USD,True
+DKNG,DraftKings Inc.,10-K,2025,segment,,Reportable,label,dkng:ReportableSegmentMember,6054525000.0,USD,True
+DKNG,DraftKings Inc.,10-K,2025,product,company,Sportsbook,label,dkng:SportsbookMember,3827091000.0,USD,False
+DKNG,DraftKings Inc.,10-K,2025,product,company,iGaming,label,dkng:IGamingMember,1804613000.0,USD,False
+DKNG,DraftKings Inc.,10-K,2025,product,company,"Product And Service, Other, Interest Income",label,dkng:ProductAndServiceOtherInterestIncomeMember,25600000.0,USD,False
+DKNG,DraftKings Inc.,10-K,2025,product,standard,Product And Service Other,derived,us-gaap:ProductAndServiceOtherMember,422821000.0,USD,False
+DKNG,DraftKings Inc.,10-K,2025,geography,,US,derived,country:US,5895465000.0,USD,True
+DKNG,DraftKings Inc.,10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,159060000.0,USD,True
+LVWR,"LiveWire Group, Inc.",10-K,2025,segment,,Electric Motorcycle,label,lvwr:ElectricMotorcycleSegmentMember,6064000.0,USD,False
+LVWR,"LiveWire Group, Inc.",10-K,2025,segment,,STACYC,label,lvwr:STACYCSegmentMember,19608000.0,USD,False
+LVWR,"LiveWire Group, Inc.",10-K,2025,segment,,Electronic Motor Cycle,label,lvwr:ElectronicMotorCycleSegmentMember,6064000.0,USD,False
+LVWR,"LiveWire Group, Inc.",10-K,2025,geography,,US,derived,country:US,19054000.0,USD,True
+LVWR,"LiveWire Group, Inc.",10-K,2025,geography,,AT,derived,country:AT,457000.0,USD,True
+LVWR,"LiveWire Group, Inc.",10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,6161000.0,USD,True
+TGL,TREASURE GLOBAL INC,10-K,2026,segment,,ZCITYPlatform One Member,label,tgl:ZCITYPlatformOneMember,5169784.0,USD,True
+TGL,TREASURE GLOBAL INC,10-K,2026,product,company,Gift Card EVoucher Revenue Member,label,tgl:GiftCardEVoucherRevenueMember,5094944.0,USD,True
+TGL,TREASURE GLOBAL INC,10-K,2026,product,company,Health Care Products Computer Products And Food And Beverage Products Revenue Member,label,tgl:HealthCareProductsComputerProductsAndFoodAndBeverageProductsRevenueMember,45056.0,USD,True
+TGL,TREASURE GLOBAL INC,10-K,2026,product,company,Loyalty Program Revenue Member,label,tgl:LoyaltyProgramRevenueMember,17597.0,USD,True
+TGL,TREASURE GLOBAL INC,10-K,2026,product,company,Transaction Revenue Member,label,tgl:TransactionRevenueMember,12187.0,USD,True
+TGL,TREASURE GLOBAL INC,10-K,2026,geography,,MY,derived,country:MY,5169784.0,USD,True
+GMEX,GMEX Robotics Corp,20-F,2025,segment,,Gym Equipment,label,FTEL:GymEquipmentMember,5200138.0,USD,True
+GMEX,GMEX Robotics Corp,20-F,2025,product,company,Merchandise Revenue,label,FTEL:MerchandiseRevenueMember,5200138.0,USD,True
+MBC,"MasterBrand, Inc.",10-K,2025,segment,,Reportable,label,mbc:ReportableSegmentMember,2734700000.0,USD,True
+MBC,"MasterBrand, Inc.",10-K,2025,product,company,Dealers,label,mbc:DealersMember,1500400000.0,USD,False
+MBC,"MasterBrand, Inc.",10-K,2025,product,company,Builders,label,mbc:BuildersMember,355900000.0,USD,False
+MBC,"MasterBrand, Inc.",10-K,2025,product,standard,Retail,derived,us-gaap:RetailMember,878400000.0,USD,False
+MBC,"MasterBrand, Inc.",10-K,2025,geography,,US,derived,country:US,2622200000.0,USD,True
+MBC,"MasterBrand, Inc.",10-K,2025,geography,,CA,derived,country:CA,97900000.0,USD,True
+MBC,"MasterBrand, Inc.",10-K,2025,geography,,MX,derived,country:MX,14600000.0,USD,True
+BDMD,Baird Medical Investment Holdings Ltd,20-F,2025,product,company,Microwave Ablation Devices,label,bdmd:MicrowaveAblationDevicesMember,22537016.0,USD,False
+BDMD,Baird Medical Investment Holdings Ltd,20-F,2025,product,company,Microwave Ablation Needles,label,bdmd:MicrowaveAblationNeedlesMember,17214751.0,USD,False
+BDMD,Baird Medical Investment Holdings Ltd,20-F,2025,product,company,Microwave Ablation Therapeutic Apparatus,label,bdmd:MicrowaveAblationTherapeuticApparatusMember,5322265.0,USD,False
+BDMD,Baird Medical Investment Holdings Ltd,20-F,2025,geography,,CN,derived,country:CN,13495375.0,USD,True
+BDMD,Baird Medical Investment Holdings Ltd,20-F,2025,geography,,HK,derived,country:HK,7988415.0,USD,True
+BDMD,Baird Medical Investment Holdings Ltd,20-F,2025,geography,,US,derived,country:US,938745.0,USD,True
+BDMD,Baird Medical Investment Holdings Ltd,20-F,2025,geography,,MY,derived,country:MY,106002.0,USD,True
+BDMD,Baird Medical Investment Holdings Ltd,20-F,2025,geography,,NP,derived,country:NP,8479.0,USD,True
+RMSG,Real Messenger Corp,20-F,2026,product,standard,Service,derived,us-gaap:ServiceMember,30000.0,USD,False
+TE,T1 Energy Inc.,10-K,2025,segment,,Reportable,label,t1:ReportableSegmentMember,755295000.0,USD,True
+CUPR,Cuprina Holdings (Cayman) LTD,20-F,2025,segment,,Maggot Debridement Therapy Product,label,CUPR:MaggotDebridementTherapyProductMember,44204.0,SGD,True
+CUPR,Cuprina Holdings (Cayman) LTD,20-F,2025,segment,,Cosmeceutical Product,label,CUPR:CosmeceuticalProductMember,5690.0,SGD,True
+AMTM,"Amentum Holdings, Inc.",10-K,2025,segment,,Digital Solutions,label,amtm:DigitalSolutionsSegmentMember,5543000000.0,USD,True
+AMTM,"Amentum Holdings, Inc.",10-K,2025,segment,,Global Engineering Solutions,label,amtm:GlobalEngineeringSolutionsSegmentMember,8850000000.0,USD,True
+AMTM,"Amentum Holdings, Inc.",10-K,2025,geography,,US,derived,country:US,10746000000.0,USD,True
+AMTM,"Amentum Holdings, Inc.",10-K,2025,geography,,Non Us,derived,us-gaap:NonUsMember,3647000000.0,USD,True
+FDSB,"Fifth District Bancorp, Inc.",10-K,2025,product,company,Deposit Service and Account Maintenance and Insufficient Funds Fees,label,fdsb:DepositServiceAndAccountMaintenanceAndInsufficientFundsFeesMember,212000.0,USD,False
+FDSB,"Fifth District Bancorp, Inc.",10-K,2025,product,company,ATM and Check Card Fees,label,fdsb:AtmAndCheckCardFeesMember,393000.0,USD,False
+FDSB,"Fifth District Bancorp, Inc.",10-K,2025,product,company,Deposit Service and Account Maintenance Fees,label,fdsb:DepositServiceAndAccountMaintenanceFeesMember,51000.0,USD,False
+FDSB,"Fifth District Bancorp, Inc.",10-K,2025,product,company,Insufficient Funds Fees,label,fdsb:InsufficientFundsFeesMember,161000.0,USD,False
+BMHL,Bluemount Holdings Ltd,20-F,2026,segment,,Security Related Service,label,CIK0002027815:SecurityRelatedServiceMember,14678.0,HKD,True
+BMHL,Bluemount Holdings Ltd,20-F,2026,segment,,Tradingoftimepieces,label,CIK0002027815:TradingoftimepiecesMember,47381.0,HKD,True
+ELWT,"Elauwit Connection, Inc.",10-K,2025,segment,,Single Reportable,label,elwt:SingleReportableSegmentMember,21618000.0,USD,True
+ELWT,"Elauwit Connection, Inc.",10-K,2025,product,company,Network Design And Installation,label,elwt:NetworkDesignAndInstallationMember,18796000.0,USD,True
+ELWT,"Elauwit Connection, Inc.",10-K,2025,product,company,Internet Network Services And Hardware And Internet Service,label,elwt:InternetNetworkServicesAndHardwareAndInternetServiceMember,2822000.0,USD,True

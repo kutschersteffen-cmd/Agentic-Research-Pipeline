@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import xml.etree.ElementTree as ET
 
 from arp.ingestion.esef import DimFact, parse_ixbrl_dimensional
 from arp.ingestion.xbrl import CAPEX_TAGS, REVENUE_TAGS, RND_TAGS, _full_year
@@ -128,8 +129,51 @@ def build_segments(dim_facts: list[DimFact], totals: dict[tuple[str, int], float
     return rows
 
 
+_XL, _LINK = "{http://www.w3.org/1999/xlink}", "{http://www.xbrl.org/2003/linkbase}"
+_STD_LABEL = "http://www.xbrl.org/2003/role/label"
+_STANDARD_PREFIXES = ("us-gaap:", "srt:", "ifrs-full:", "country:")
+
+
+def _clean_label(text: str) -> str:
+    text = re.sub(r"\s*\[Member\]$", "", text.strip())
+    return re.sub(r"\s+Segment$", "", text, flags=re.IGNORECASE).strip()
+
+
+def label_map(xml: bytes) -> dict[str, str]:
+    """Concept (x:AlphaMember) -> cleaned standard English label from a label linkbase; en-US beats other en*."""
+    try:
+        root = ET.fromstring(xml)
+    except ET.ParseError:
+        return {}  # a broken label file leaves every row derived
+    locs = {e.get(f"{_XL}label"): e.get(f"{_XL}href", "").partition("#")[2].replace("_", ":", 1)
+            for e in root.iter(f"{_LINK}loc")}
+    to_concepts: dict[str, list[str]] = {}
+    for arc in root.iter(f"{_LINK}labelArc"):
+        if arc.get(f"{_XL}from") in locs:
+            to_concepts.setdefault(arc.get(f"{_XL}to"), []).append(locs[arc.get(f"{_XL}from")])
+    out: dict[str, str] = {}
+    exact: set[str] = set()
+    for e in root.iter(f"{_LINK}label"):
+        lang = e.get("{http://www.w3.org/XML/1998/namespace}lang", "")
+        if e.get(f"{_XL}role") != _STD_LABEL or not lang.lower().startswith("en"):
+            continue
+        for concept in to_concepts.get(e.get(f"{_XL}label"), []):
+            if concept not in exact and (lang == "en-US" or concept not in out):
+                out[concept] = _clean_label(e.text or "")
+                if lang == "en-US":
+                    exact.add(concept)
+    return out
+
+
+def _labelled(r: SegmentRow, labels: dict[str, str] | None) -> dict:
+    label = (labels or {}).get(r.member)
+    if not label or r.member.startswith(_STANDARD_PREFIXES):
+        return {}
+    return {"segment": label, "segment_source": "label"}
+
+
 def sec_segments(xhtml: bytes, *, company_id: str, accession: str | None,
-                 form: str | None = None) -> tuple[list[SegmentRow], str | None]:
+                 form: str | None = None, labels: dict[str, str] | None = None) -> tuple[list[SegmentRow], str | None]:
     """An annual report's segment rows and note text (None when it has none), read with the US-GAAP or the
     IFRS concept set, whichever yields more rows (a tie goes to US-GAAP)."""
     facts, dim_facts, texts = parse_ixbrl_dimensional(xhtml)
@@ -140,7 +184,7 @@ def sec_segments(xhtml: bytes, *, company_id: str, accession: str | None,
     us, ifrs = (build_segments(dim_facts, totals, market=m, company_id=company_id, accession=accession)
                 for m in ("sec", "esef"))
     win, rows = ("esef", ifrs) if len(ifrs) > len(us) else ("sec", us)
-    return [r.model_copy(update={"market": "sec", "form": form}) for r in rows], texts.get(NOTE_CONCEPTS[win]) or None
+    return [r.model_copy(update={"market": "sec", "form": form, **_labelled(r, labels)}) for r in rows], texts.get(NOTE_CONCEPTS[win]) or None
 
 
 def store_segments(store: XbrlStore, key: str, rows: list[SegmentRow], note: str | None) -> None:
@@ -156,6 +200,7 @@ def write_segments_sec(key: str, store: XbrlStore, company_id: str) -> None:
     meta, path = store.report_meta(key), store.file_path(key, "report")
     rows, note = ([], None)
     if meta and meta.inline_xbrl and path:
+        lab = store.file_path(key, "labels")
         rows, note = sec_segments(path.read_bytes(), company_id=company_id, accession=meta.accession,
-                                  form=meta.form)
+                                  form=meta.form, labels=label_map(lab.read_bytes()) if lab else None)
     store_segments(store, key, rows, note)
