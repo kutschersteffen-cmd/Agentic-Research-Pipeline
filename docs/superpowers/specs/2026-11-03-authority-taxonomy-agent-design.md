@@ -114,6 +114,13 @@ title, source type (`regulatory_taxonomy`, `agency_report`, `index_methodology`,
 The 10 themes (owner-approved, 2026-11-03): `hydrogen`, `renewable_power`, `energy_storage`, `electric_vehicles`,
 `grid_electrification`, `ai_datacentres`, `water`, `ccus`, `critical_minerals_circular`, `building_efficiency`.
 
+### Golden command
+
+`arp golden-set authority-taxonomy --case <id>` runs a full run on the case's stored source and scope, accepts the
+draft in memory (nothing saved), and prints `grounded_rate=<x> recall=<y>`. It exits 0 when every citation is
+grounded and recall of the case's expected activity names (merge key match) is ≥ the case's `min_recall`; else 1.
+Cases live in `backend/tests/golden/authority_taxonomy/`.
+
 ### Pausing (builder's choice of mechanism)
 
 The repository has no LangGraph checkpointer. Stages are stored in the run record and each API call runs the next
@@ -144,20 +151,23 @@ so rows are `unit` and listed as owed to `holdout` in the PR.
 | AC-6 | The fake LLM returns an activity whose quote is not in the source | extract | That activity name is absent from the draft | unit |
 | AC-6b | The fake LLM returns a definition and a threshold whose quotes are not in the source | extract | `theme.definitions` and `theme.thresholds` are empty | unit |
 | AC-7 | A fixture source with no thresholds | extract | `checklist_report[<url>].thresholds == "not_in_source"` | unit |
-| AC-7b | A fixture source defining term T and naming technology G | extract | `theme.definitions` has an entry with `term == T` and ≥ 1 citation; `theme.technologies` has an entry with name G | unit |
+| AC-7b | A fixture source defining term T and naming technology G | extract | `theme.definitions` has an entry with `term == T` and ≥ 1 citation | unit |
+| AC-7c | As AC-7b | extract | `theme.technologies` has an entry with name G | unit |
+| AC-7d | A fixture source containing threshold rule R | extract | `checklist_report[<url>].thresholds == "found"` and `theme.thresholds` has an entry quoting R | unit |
 | AC-8 | Two sources A and B each yield "Electrolyser stack manufacturing" (one written "electrolyser-stack manufacturing") | consolidate | Exactly one activity has that merge key; its `citations` has 2 entries with URLs A and B | unit |
 | AC-9 | Scope "manufacture of electrolysers only"; a source passage O describes operating electrolysers to produce hydrogen | extract | No activity name contains "operat" | unit |
 | AC-9b | As AC-9 | extract | Some activity's `out_of_scope_citations` contains a quote equal to O | unit |
 | AC-10 | `value_chain=true`; the bundled sample IO model; a source with a bill of materials | consolidate | ≥ 1 activity has `value_chain_role` `upstream` or `enabling` | unit |
 | AC-10b | As AC-10, an activity with core ISIC code C | consolidate | That activity has exactly 5 `sector_codes` entries with `origin=exiobase` | unit |
-| AC-10c | Any run | consolidate | ≥ 1 activity has a `sector_codes` entry with `origin=map_standards` | unit |
+| AC-10c | Fixture `power_gen.txt` whose activity `map-standards` maps to ISIC D35 | consolidate | That activity has a `sector_codes` entry `{system: ISIC, code: D35, origin: map_standards}` | unit |
 | AC-11 | `value_chain=false` | extract | Every activity has `value_chain_role == "core"` | unit |
 | AC-11b | As AC-11 | extract | No `checklist_report` entry has a `value_chain` key | unit |
 | AC-12 | A source with the rule R "at least 50 % of revenue from hydrogen" | extract | `theme.thresholds` has an entry with a citation quote equal to R | unit |
 | AC-12b | As AC-12 | extract | No activity's in-scope text or criteria contain R | unit |
 | AC-13 | A run at `awaiting_review` | `PUT /runs/{id}/draft` with one activity renamed to N | 200; `GET /runs/{id}/draft` shows N | unit |
-| AC-13b | As AC-13, after the PUT | `POST /runs/{id}/accept` | 201; `arp taxonomy show <new id>` prints N, `v1`, `authority_source`, `draft`; the run shows `stage=accepted` | unit |
-| AC-13c | A run at `awaiting_review` (not accepted) | `arp taxonomy list` | No taxonomy for this run is listed | unit |
+| AC-13b | As AC-13, after the PUT | `POST /runs/{id}/accept` | 201; `arp taxonomy show <new id>` prints N, `v1`, `authority_source`, `draft` | unit |
+| AC-13e | As AC-13b, after accept | `GET /runs/{id}` | `stage` is `accepted` | unit |
+| AC-13c | A run at `awaiting_review` (not accepted) | `arp taxonomy list` | The row count equals the count before the run started | unit |
 | AC-13d | A run with a local file F added at source choice | extract | The draft has ≥ 1 citation whose source is F | unit |
 | AC-14 | A run at `awaiting_sources` | `POST /runs/{id}/accept` | 409; `detail` contains `awaiting_sources` | unit |
 | AC-15 | A run at `awaiting_sources`, and one at `awaiting_review` | `DELETE /runs/{id}` on each | 204; `GET` then shows `stage=cancelled` | unit |
@@ -167,9 +177,11 @@ so rows are `unit` and listed as owed to `holdout` in the PR.
 | AC-18 | A saved taxonomy JSON without the new fields | `arp taxonomy show` | Exit 0; output identical to `main` | unit |
 | AC-19 | `arp taxonomy create --method authority_source` with the fake LLM | run | Same output and stored taxonomy as on `main` | unit |
 | AC-19b | Two saved taxonomies | `arp taxonomy compare` with the fake LLM | Same output as on `main` | unit |
+| AC-19c | Two saved taxonomies | `arp taxonomy merge` with the fake LLM | Same output and stored taxonomy as on `main` | unit |
+| AC-19d | A taxonomy saved by accept (status `draft`) | `arp taxonomy ratify <id> --by owner` | Status becomes `ratified` with `ratified_by=owner`, as on `main` | unit |
 | AC-20 | The CLI flow | `author start`, `select`, `review`, `accept` | Each exits 0 and prints, in order, `stage: awaiting_sources`, `stage: awaiting_review`, `stage: awaiting_review`, `stage: accepted` | unit |
 | AC-21 | The backend suite on `main` | CI on this branch | Every test passing on `main` passes here | unit |
-| AC-22 | The real model; golden case `hydrogen_eu_taxonomy` (EU Taxonomy Delegated Act Annex I, activity 3.2) with 3 expected activities; scope "manufacture of electrolysers" | `arp golden-set authority-taxonomy --case hydrogen_eu_taxonomy` | Grounded-citation rate = 1.0; expected-activity recall ≥ 0.67 | golden |
+| AC-22 | The real model; golden case `hydrogen_eu_taxonomy` (EU Taxonomy Delegated Act Annex I, activity 3.2) with 3 expected activities; scope "manufacture of electrolysers" | `arp golden-set authority-taxonomy --case hydrogen_eu_taxonomy` | Exit 0: grounded rate = 1.0 and recall ≥ 0.67 | golden |
 
 Must not change: the existing derivation methods, `compare`/`merge`, ratification and taxonomies already saved
-(AC-18, AC-19, AC-19b, AC-21).
+(AC-18, AC-19, AC-19b, AC-19c, AC-19d, AC-21).
