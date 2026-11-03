@@ -100,8 +100,8 @@ export function batchWaitText(wait: NonNullable<RunManifest["batch_wait"]>): str
 }
 
 /** "5 min ago", "3 h ago", "2 days ago". */
-export function ago(iso: string): string {
-  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+export function ago(iso: string, now: Date = new Date()): string {
+  const min = Math.round((now.getTime() - new Date(iso).getTime()) / 60000);
   if (min < 60) return `${Math.max(min, 1)} min ago`;
   if (min < 48 * 60) return `${Math.round(min / 60)} h ago`;
   return `${Math.round(min / 1440)} days ago`;
