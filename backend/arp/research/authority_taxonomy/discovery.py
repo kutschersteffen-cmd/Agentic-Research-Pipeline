@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 from arp.discovery.site_finder import WebSearchClient
 from arp.llm.base import LLMClient
-from arp.research.authority_taxonomy.library import SourceType, load_library
+from arp.research.authority_taxonomy.library import LibraryEntry, SourceType, load_library, save_library
 from arp.research.taxonomy_sources.discovery import _AUTHORITY_QUERY_TEMPLATES, _run_queries
 from arp.research.taxonomy_sources.fetch import fetch_source_text
 from arp.schemas.taxonomy_sources import SourceCandidateType
@@ -118,3 +118,21 @@ async def discover_candidates(
             )
         )
     return candidates
+
+
+async def propose(
+    theme_key: str, *, search_client: WebSearchClient, llm: LLMClient, user_agent: str, root: Path | None = None
+) -> int:
+    """Appends discovered sources not yet in the library as `proposed`; returns how many were added."""
+    entries = load_library(theme_key, root)
+    known = {e.url for e in entries}
+    found = await discover_candidates(
+        theme_key.replace("_", " "), theme_key, "", search_client=search_client, llm=llm, user_agent=user_agent, use_library=False
+    )
+    new = [
+        LibraryEntry(**c.model_dump(include=set(LibraryEntry.model_fields) - {"checked_on", "status"}), status="proposed")
+        for c in found
+        if c.url not in known
+    ]
+    save_library(theme_key, entries + new, root)
+    return len(new)

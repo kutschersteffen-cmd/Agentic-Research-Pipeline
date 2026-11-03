@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 from typing import Literal
 
@@ -55,3 +56,20 @@ def save_library(theme_key: str, entries: list[LibraryEntry], root: Path | None 
     path = _path(theme_key, root)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps([e.model_dump() for e in entries], indent=2) + "\n")
+
+
+def approve(theme_key: str, url: str, today: date, root: Path | None = None) -> None:
+    entries = load_library(theme_key, root)
+    match = next((e for e in entries if e.url == url), None)
+    if match is None:
+        raise KeyError(url)
+    match.status, match.checked_on = "approved", today.isoformat()
+    save_library(theme_key, entries, root)
+
+
+def reject(theme_key: str, url: str, root: Path | None = None) -> None:
+    entries = load_library(theme_key, root)
+    kept = [e for e in entries if e.url != url]
+    if len(kept) == len(entries):
+        raise KeyError(url)
+    save_library(theme_key, kept, root)
