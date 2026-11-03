@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import TypedDict
 
 from langgraph.graph import END, StateGraph
@@ -213,8 +214,9 @@ def _funnel_content_store(settings: Settings):
 
 
 async def _funnel(state: MatchState) -> dict:
-    record = score_pair(
-        state["documents"], state["activity"], state["funnel_thresholds"], _funnel_content_store(state["settings"])
+    record = await asyncio.to_thread(  # sync model inference must not block the batch runner's event loop
+        score_pair, state["documents"], state["activity"], state["funnel_thresholds"],
+        _funnel_content_store(state["settings"]),
     )
     return {"funnel": record}
 

@@ -89,3 +89,15 @@ def test_warm_embed_without_dsn_exits_1(env, monkeypatch):
     r = _warm(universe, "--embed")
     assert r.exit_code == 1
     assert "--embed needs ARP_POSTGRES_DSN" in r.output
+
+
+def test_warm_embed_failure_is_reported_not_fatal(env, monkeypatch):  # review: embed error aborted the whole warm
+    _, _, universe = env
+
+    def boom(texts, load=None):
+        raise RuntimeError("model down")
+
+    monkeypatch.setattr(funnel.models, "embed", boom)
+    r = _warm(universe, "--embed")
+    assert "c1: embedding: model down" in r.output
+    assert "Warmed 2 documents across 1 companies." in r.output

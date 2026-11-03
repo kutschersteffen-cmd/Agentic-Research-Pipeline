@@ -237,3 +237,13 @@ def test_compare_precision_drop_exit(tmp_path, models, llm, monkeypatch):
     ROWS_ALL_DROP = {KEEP: (0.9, 0.1, {POS: 0.95}), DROP: ROWS[DROP]}
     monkeypatch.setitem(ROWS, KEEP, ROWS_ALL_DROP[KEEP])
     assert _compare(tmp_path, "--max-precision-drop", "0.02", taxonomy_id=t.taxonomy_id).exit_code == 1
+
+
+def test_case_documents_get_distinct_content_ids(tmp_path):  # review: same file stem in two doc_type dirs
+    for sub, text in (("10-K", "Annual text."), ("other", "Other text.")):
+        (tmp_path / "c" / sub).mkdir(parents=True)
+        (tmp_path / "c" / sub / "2023.txt").write_text(text)
+    docs = theme_cli._case_documents(tmp_path, "c")
+    assert len({d.doc_id for d in docs}) == 2
+    (tmp_path / "c" / "other" / "2023.txt").write_text("Changed text.")
+    assert theme_cli._case_documents(tmp_path, "c")[1].doc_id != docs[1].doc_id

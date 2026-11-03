@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import csv
+import hashlib
 import json
 from pathlib import Path
 
@@ -305,7 +306,8 @@ def _case_documents(documents_dir: Path, case_id: str) -> list[SourceDocument]:
     for path in sorted(p for p in (documents_dir / case_id).glob("*/*") if p.is_file()):
         text, page_breaks, tables = parse_file_to_text_with_pages(path)
         doc_type = DocType(path.parent.name) if path.parent.name in DocType._value2member_map_ else DocType.OTHER
-        docs.append(SourceDocument(doc_id=f"{case_id}_{path.stem}", company_id=case_id, doc_type=doc_type,
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()[:16]  # content-addressed: chunk ids key stored vectors
+        docs.append(SourceDocument(doc_id=f"{case_id}_{digest}", company_id=case_id, doc_type=doc_type,
                                    title=path.name, local_path=str(path), full_text=text, page_breaks=page_breaks,
                                    table_spans=tables))
     return docs
@@ -319,7 +321,11 @@ def funnel_report(theme: ThemeDefinition, cases: ExposureSet, documents_dir: Pat
     for case in cases.cases:
         if split != "all" and case.split != split:
             continue
-        docs = _case_documents(documents_dir, case.case_id)
+        try:
+            docs = _case_documents(documents_dir, case.case_id)
+        except Exception as exc:  # noqa: BLE001 - one unparseable file must not end the golden run
+            typer.echo(f"{case.case_id}: could not parse its document: {exc}", err=True)
+            docs = []
         if not docs:
             rows.append({"case_id": case.case_id, "label": case.label, "kept": False, "rerank_max": None,
                          "entail_positive": None, "document": False})

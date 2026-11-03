@@ -50,9 +50,13 @@ def documents_warm(
                 failures.append(f"{company.company_id}: {exc}")
                 return 0
         if store is not None:  # sync and outside the semaphore: one company's chunks embed at a time
-            chunks = chunks_for(docs)
-            known = len(store.lookup_embeddings([c.chunk_id for c in chunks], EMBED_MODEL_NAME))
-            passage_vectors(chunks, store)
+            try:
+                chunks = chunks_for(docs)
+                known = len(store.lookup_embeddings([c.chunk_id for c in chunks], EMBED_MODEL_NAME))
+                passage_vectors(chunks, store)
+            except Exception as exc:  # noqa: BLE001 - isolate one company's failure from the rest
+                failures.append(f"{company.company_id}: embedding: {exc}")
+                return len(docs)
             embedded["new"] += len(chunks) - known
             embedded["stored"] += known
         return len(docs)

@@ -164,3 +164,20 @@ def test_no_content_store_still_scores(monkeypatch):
     rows = {"P1 text.": (0.9, 3.0, {POS: 0.9})}
     stub(monkeypatch, rows)
     assert funnel.score_pair(docs(rows), ACT, TH, None).passed is True
+
+
+def test_no_store_passages_embedded_once_across_activities(monkeypatch):  # review: no per-company cache without Postgres
+    rows = {"Memo A text.": (0.9, 3.0, {POS: 0.9}), "Memo B text.": (0.8, 3.0, {POS: 0.9})}
+    calls = stub(monkeypatch, rows)
+    other = ActivityDefinition(name="o", in_scope_description=POS, out_of_scope_description=NEG)
+    funnel.score_pair(docs(rows), ACT, TH, None)
+    funnel.score_pair(docs(rows), other, TH, None)
+    assert sorted(t for t in calls.embedded if t != POS) == ["Memo A text.", "Memo B text."]
+
+
+def test_memo_keyed_by_text_not_only_chunk_id(monkeypatch):
+    rows = {"First text.": (0.9, 3.0, {POS: 0.9}), "Second text.": (0.1, 3.0, {POS: 0.9})}
+    stub(monkeypatch, rows)
+    a = funnel.passage_vectors(funnel.chunks_for([_doc(0, "First text.")]), None)
+    b = funnel.passage_vectors(funnel.chunks_for([_doc(0, "Second text.")]), None)
+    assert not np.allclose(next(iter(a.values())), next(iter(b.values())))
