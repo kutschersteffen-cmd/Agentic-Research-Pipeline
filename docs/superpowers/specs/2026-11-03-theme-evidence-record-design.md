@@ -98,7 +98,12 @@ model; the test-writer may move rows to `holdout` if it finds a path for those.
 
 Fixtures used by the rows:
 
-- Theme `T`: one activity `a1`, seed keyword `electrolyser`, no contrast statements.
+- Theme `T`: one activity `a1`, seed keyword `electrolyser`, no contrast statements, `core_isic_codes` `["2790"]`.
+- Indirect model `M` (only where a row names it): companies A and B carry `isic_code` `"2790"`, and `M` gives
+  `max(upstream_exposure, downstream_exposure)` ≥ `indirect_exposure_review_threshold` for them. `_compute_indirect`
+  (`match_graph.py:70`) runs only with a company ISIC or NACE code and a non-empty `core_isic_codes`.
+- The structural sentence is the existing text ` However, input-output propagation shows structural exposure to this activity's core sectors above the review threshold -- routed for a second look rather than excluded outright.`
+  appended by `_finalize_no_evidence`.
 - Stand-in LLM: advocate and opposing return a fixed opinion; the adjudicator returns verdict `include`,
   exposure `high`, confidence `0.8`, `citations` `[]`.
 - Settings: `hybrid_retrieval_enabled` false, `section_chunking_enabled` false, funnel off, no revenue
@@ -113,7 +118,7 @@ Fixtures used by the rows:
 | ID     | Given | When | Then (observable, exact) | Checked by |
 |--------|-------|------|--------------------------|------------|
 | AC-1   | Company A with zero documents | theme run on `T` | A's match for `a1` has `evidence_status` `"no_documents"` | unit |
-| AC-2   | Same as AC-1 | theme run on `T` | A's `adjudicator_rationale` starts with `No documents were available for this company.` | unit |
+| AC-2   | Same as AC-1 | theme run on `T` | A's `adjudicator_rationale` equals `No documents were available for this company.` | unit |
 | AC-3   | Same as AC-1 | theme run on `T` | A's `advocate.rationale` equals `No documents were available for this company.` | unit |
 | AC-3b  | Same as AC-1 | theme run on `T` | A's `opposing.rationale` equals `No documents were available for this company.` | unit |
 | AC-4   | Same as AC-1 | theme run on `T` | A's `evidence` is `[]` | unit |
@@ -129,18 +134,27 @@ Fixtures used by the rows:
 | AC-11  | Company D with documents yielding 20 chunks that contain `electrolyser` | theme run on `T` | D's `evidence` has 12 entries | unit |
 | AC-12  | Company E with a revenue catalogue entry that resolves `a1` to a hard percentage | theme run on `T` with the revenue resolver | E's `evidence_status` is `null` | unit |
 | AC-12b | Same as AC-12 | theme run on `T` with the revenue resolver | E's `evidence` is `[]` | unit |
-| AC-13  | Company A as in AC-1, with an indirect model giving `max(upstream, downstream)` ≥ `indirect_exposure_review_threshold` | theme run on `T` | A's `adjudicator_rationale` starts with `No documents were available for this company.` | unit |
-| AC-13b | Same as AC-13 | theme run on `T` | A's `adjudicator_rationale` contains `input-output propagation shows structural exposure` | unit |
-| AC-13c | Company B as in AC-5, with the AC-13 indirect model | theme run on `T` | B's `adjudicator_rationale` equals `No evidence of this activity was found in the available documents.` followed directly by the existing structural sentence starting ` However, input-output propagation shows structural exposure` | unit |
-| AC-14  | Companies A and B as above | theme run on `T` | For both: `verdict` `exclude`, `confidence` `1.0`, `flagged_for_review` `false`, `citations` `[]` | unit |
-| AC-14b | Company C as above | theme run on `T` | C's `verdict` is `include`, `confidence` `0.8`, `citations` `[]` (the stand-in adjudicator's outputs) | unit |
+| AC-13  | Company A as in AC-1, with indirect model `M` | theme run on `T` | A's `adjudicator_rationale` equals `No documents were available for this company.` followed directly by the structural sentence | unit |
+| AC-13b | Same as AC-13 | theme run on `T` | A's `evidence_status` is `"no_documents"` | unit |
+| AC-13c | Company B as in AC-5, with indirect model `M` | theme run on `T` | B's `adjudicator_rationale` equals `No evidence of this activity was found in the available documents.` followed directly by the structural sentence | unit |
+| AC-14  | A as in AC-1, B as in AC-5 (no indirect model) | theme run on `T` | A's and B's `verdict` are `exclude` | unit |
+| AC-14d | Same as AC-14 | theme run on `T` | A's and B's `confidence` are `1.0` | unit |
+| AC-14e | Same as AC-14 | theme run on `T` | A's and B's `flagged_for_review` are `false` | unit |
+| AC-14f | Same as AC-14 | theme run on `T` | A's and B's `citations` are `[]` | unit |
+| AC-14c | A as in AC-13, B as in AC-13c | theme run on `T` | A's and B's `verdict` are `exclude` | unit |
+| AC-14g | Same as AC-14c | theme run on `T` | A's and B's `confidence` are `0.5` | unit |
+| AC-14h | Same as AC-14c | theme run on `T` | A's and B's `flagged_for_review` are `true` | unit |
+| AC-14b | Company C as above | theme run on `T` | C's `verdict` is `include` | unit |
+| AC-14i | Same as AC-14b | theme run on `T` | C's `confidence` is `0.8` | unit |
+| AC-14j | Same as AC-14b | theme run on `T` | C's `citations` are `[]` | unit |
+| AC-14k | Same as AC-14b | theme run on `T` | C's `flagged_for_review` is `true` | unit |
 | AC-15  | A stored theme run whose `results.jsonl` rows were written on `main` (no `evidence_status`, no `evidence`) | `GET /api/runs/{run_id}/results` | Status 200 | unit |
 | AC-15b | Same as AC-15 | `GET /api/runs/{run_id}/results` | Every match has `evidence_status` `null` and `evidence` `[]` | unit |
 | AC-16  | Funnel setting on, stand-in models making C pass the funnel | theme run on `T` | C's match has `evidence_status` `"selected"` | unit |
 | AC-17  | The regenerated `openapi.json` | inspect the `CompanyMatch` schema | It lists `evidence_status` and `evidence` | unit |
 | AC-18  | The backend test suite on `main` | `python3 -m pytest backend/tests` on this branch | Every test on `main` that the PR does not list as changed passes; each changed test is listed in the PR description with the AC row that requires it | unit |
 
-Must not change: verdicts, confidence, review flags and citations (AC-14, AC-14b); the no-matching-chunks wording
+Must not change: verdicts, confidence, review flags and citations (AC-14 to AC-14k); the no-matching-chunks wording
 with and without the structural sentence (AC-6, AC-7, AC-7b, AC-13c); loading old runs (AC-15, AC-15b); the
 existing suite (AC-18).
 
