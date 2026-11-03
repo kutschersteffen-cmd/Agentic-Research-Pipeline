@@ -79,8 +79,8 @@ A run is a stored record (`RunStore`, run type `authority_taxonomy`) moving thro
    per item. Every returned item carries a verbatim quote; quotes failing `ground_citations` are dropped. The user
    scope is in every prompt. The fetch cap is raised from 60,000 to 400,000 characters for this path only.
 5. **Consolidation**: items from all sources are merged into one document. A merged item keeps the quotes and
-   source URLs of every item it came from. Merge key: activity name lower-cased with whitespace and punctuation
-   removed; items with the same key become one. Sector codes come from the sources plus `map-standards`; with
+   source URLs of every item it came from. Which items are "the same activity" is decided by the activity matcher
+   (below). Sector codes come from the sources plus `map-standards`; with
    `value_chain` on, the core ISIC codes are widened with the top-5 upstream industries per code from the Value
    Chain Explorer's `links`, marked `exiobase` as their origin.
 6. **Draft review** (`GET /runs/{id}/draft`, `PUT /runs/{id}/draft`, `arp taxonomy author review`): the user reads
@@ -114,11 +114,33 @@ title, source type (`regulatory_taxonomy`, `agency_report`, `index_methodology`,
 The 10 themes (owner-approved, 2026-11-03): `hydrogen`, `renewable_power`, `energy_storage`, `electric_vehicles`,
 `grid_electrification`, `ai_datacentres`, `water`, `ccus`, `critical_minerals_circular`, `building_efficiency`.
 
+### Activity matcher (amended 2026-11-03, owner: "key words plus some model review")
+
+One function, `match_activities(left, right, *, scope, llm) -> list[Match]`, in
+`arp/research/authority_taxonomy/matching.py`, used by consolidation (activities of source A against source B) and
+by the golden command (expected activities against the draft). `Match` = left index, right index, `method`
+(`exact` | `model`), `reason`.
+
+1. **Exact:** equal merge key (name lower-cased, whitespace and punctuation removed) → match, `method=exact`, no
+   model call.
+2. **Keyword candidates:** each activity's keywords are the content words of its name plus its `seed_keywords`,
+   lower-cased, stop words and generic words (`manufacture`, `manufacturing`, `production`, `equipment`, `of`,
+   `and`, `other`, …) removed, each cut to its first 6 letters. A pair is a candidate when it shares ≥ 1 keyword.
+   Pairs with no shared keyword are never matched and never sent to the model.
+3. **Model review:** all candidate pairs go to one structured LLM call (with the scope), which returns per pair
+   `same_activity: bool` and a one-sentence `reason`. Only `same_activity=true` pairs match, `method=model`.
+4. Each activity matches at most one other; when several are judged the same, the pair seen first wins.
+
+Matching never invents an activity; an unmatched activity stays separate (consolidation) or counts as missed
+(golden).
+
 ### Golden command
 
 `arp golden-set authority-taxonomy --case <id>` runs a full run on the case's stored source and scope, accepts the
-draft in memory (nothing saved), and prints `grounded_rate=<x> recall=<y>`. It exits 0 when every citation is
-grounded and recall of the case's expected activity names (merge key match) is ≥ the case's `min_recall`; else 1.
+draft in memory (nothing saved), prints every produced activity name, then one line per expected activity
+(`FOUND <expected> = <produced> (<method>: <reason>)` or `MISSED <expected>`), then `grounded_rate=<x> recall=<y>`.
+Recall uses the activity matcher. It exits 0 when every activity is grounded and recall ≥ the case's `min_recall`
+(rounded to 2 decimals); else 1.
 Cases live in `backend/tests/golden/authority_taxonomy/`.
 
 ### Pausing (builder's choice of mechanism)
@@ -154,7 +176,10 @@ so rows are `unit` and listed as owed to `holdout` in the PR.
 | AC-7b | A fixture source defining term T and naming technology G | extract | `theme.definitions` has an entry with `term == T` and ≥ 1 citation | unit |
 | AC-7c | As AC-7b | extract | `theme.technologies` has an entry with name G | unit |
 | AC-7d | A fixture source containing threshold rule R | extract | `checklist_report[<url>].thresholds == "found"` and `theme.thresholds` has an entry quoting R | unit |
-| AC-8 | Two sources A and B each yield "Electrolyser stack manufacturing" (one written "electrolyser-stack manufacturing") | consolidate | Exactly one activity has that merge key; its `citations` has 2 entries with URLs A and B | unit |
+| AC-8 | Two sources A and B each yield "Electrolyser stack manufacturing" (one written "electrolyser-stack manufacturing") | consolidate | Exactly one activity has that merge key; its `citations` has 2 entries with URLs A and B; no matcher LLM call was made | unit |
+| AC-8b | Source A yields "Fuel cell manufacturing", source B "Manufacture of fuel cells and other hydrogen-to-power equipment"; the fake LLM judges them the same | consolidate | Exactly one fuel-cell activity, with citations from A and B | unit |
+| AC-8c | As AC-8b, but the fake LLM judges them different | consolidate | Two fuel-cell activities | unit |
+| AC-8d | Source A yields "Manufacture of electrolysers", source B "Hydrogen storage tanks" (no shared keyword) | consolidate | Two activities; the matcher made no LLM call | unit |
 | AC-9 | Scope "manufacture of electrolysers only"; a source passage O describes operating electrolysers to produce hydrogen | extract | No activity name contains "operat" | unit |
 | AC-9b | As AC-9 | extract | Some activity's `out_of_scope_citations` contains a quote equal to O | unit |
 | AC-10 | `value_chain=true`; the bundled sample IO model; a source with a bill of materials | consolidate | ≥ 1 activity has `value_chain_role` `upstream` or `enabling` | unit |
@@ -181,7 +206,9 @@ so rows are `unit` and listed as owed to `holdout` in the PR.
 | AC-19d | A taxonomy saved by accept (status `draft`) | `arp taxonomy ratify <id> --by owner` | Status becomes `ratified` with `ratified_by=owner`, as on `main` | unit |
 | AC-20 | The CLI flow | `author start`, `select`, `review`, `accept` | Each exits 0 and prints, in order, `stage: awaiting_sources`, `stage: awaiting_review`, `stage: awaiting_review`, `stage: accepted` | unit |
 | AC-21 | The backend suite on `main` | CI on this branch | Every test passing on `main` passes here | unit |
-| AC-22 | The real model; golden case `hydrogen_eu_taxonomy` (EU Taxonomy Delegated Act Annex I, activity 3.2) with 3 expected activities; scope "manufacture of electrolysers" | `arp golden-set authority-taxonomy --case hydrogen_eu_taxonomy` | Exit 0: grounded rate = 1.0 and recall ≥ 0.67 | golden |
+| AC-22 | The real model; golden case `hydrogen_eu_taxonomy` (EU Taxonomy Delegated Act Annex I, activity 3.2) with 3 expected activities; scope "manufacture of electrolysers" | `arp golden-set authority-taxonomy --case hydrogen_eu_taxonomy` | Exit 0: grounded rate = 1.0 and recall ≥ 0.67, recall computed with the activity matcher | golden |
+| AC-22b | Fake LLM; a draft with "Manufacture of fuel cells and other hydrogen-to-power/heat equipment" and expected "Manufacture of fuel cells"; the fake judge says same | golden command | Output contains `FOUND Manufacture of fuel cells = Manufacture of fuel cells and other hydrogen-to-power/heat equipment (model:` | unit |
+| AC-22c | Fake LLM; an expected activity with no produced match | golden command | Output contains `MISSED <expected name>` | unit |
 
 Must not change: the existing derivation methods, `compare`/`merge`, ratification and taxonomies already saved
 (AC-18, AC-19, AC-19b, AC-19c, AC-19d, AC-21).
