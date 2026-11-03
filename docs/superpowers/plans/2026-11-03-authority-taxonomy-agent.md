@@ -13,6 +13,8 @@ No LangGraph checkpointer. Existing `authority_source` derivation stays untouche
 **Tech Stack:** Python 3.12, pydantic, FastAPI, typer, existing `chunk_document`, `select_relevant_chunks`,
 `ground_citations`, `map_theme_to_standards`, `load_value_chain(...).links`.
 
+**Status:** approved by the owner, 2026-11-03 (subagent-driven).
+
 **Spec:** `docs/superpowers/specs/2026-11-03-authority-taxonomy-agent-design.md` (approved 2026-11-03).
 
 ## Global Constraints
