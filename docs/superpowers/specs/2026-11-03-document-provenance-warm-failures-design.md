@@ -100,7 +100,11 @@ Shared fixtures:
 - `u.json`: `[{"company_id": "acme", "name": "Acme AG", "country": "DE"}]`. With no CIK and a non-US country,
   EDGAR skips the network CIK lookup and returns no documents (`ingestion/edgar.py:111-115`).
 - Environment for every `arp documents warm` row: `ARP_ESEF_ENABLED=false`, `ARP_DOCUMENTS_DIR=<tmp>/docs`,
-  `ARP_DISCOVERY_STATE_DIR=<tmp>/state`, Postgres content store on.
+  `ARP_DISCOVERY_STATE_DIR=<tmp>/state`, `ARP_POSTGRES_DSN` set to the test database and `ARP_DOCUMENT_CACHE_ENABLED=true`
+  (the default), so the content store registers rows in Postgres. `get_settings()` creates `<tmp>/state`, so warm
+  rows always run with an existing state directory.
+- AC-6 to AC-9 call warm's command function with `arp.cli._shared._registry` (as imported by `arp.cli.documents`)
+  patched to return the stand-in registry.
 - `report.txt`: `<tmp>/docs/acme/sustainability_report/report.txt` with the text `Acme AG sustainability report.`
   Present in every row unless the row says otherwise.
 - `bad.xyz`: `<tmp>/docs/acme/10-K/bad.xyz` with the bytes `not a document`. Intake accepts it; the parser raises
@@ -130,9 +134,9 @@ Shared fixtures:
 | AC-14 | `report.txt` and manifest M | `arp documents warm --universe u.json` | The stored row's `source_url` is `https://acme.example/r.txt` | holdout |
 | AC-15 | `report.txt` and manifest M, source built with `discovery_state_dir` | `LocalFileDocumentSource.fetch(acme)` | The returned document's `reporting_year` is `2025` | unit |
 | AC-16 | Same as AC-15 | same | The returned document's `source_url` is `https://acme.example/r.txt` | unit |
-| AC-17 | `report.txt`; `<tmp>/state` does not exist | `arp documents warm --universe u.json` | The stored row's `source_url` is NULL | holdout |
-| AC-18 | Same as AC-17 | same | `<tmp>/state` does not exist after the command | holdout |
-| AC-19 | `report.txt`; `<tmp>/state/acme.json` contains `{not json` | `arp documents warm --universe u.json` | Exit code 0 and the stored row's `source_url` is NULL | holdout |
+| AC-17 | `report.txt`; no `<tmp>/state/acme.json` | `arp documents warm --universe u.json` | The stored row's `source_url` is NULL | holdout |
+| AC-18 | `report.txt`; source built with `discovery_state_dir=<tmp>/state`, which does not exist | `LocalFileDocumentSource.fetch(acme)` | `<tmp>/state` does not exist after the call | unit |
+| AC-19 | `report.txt`; `<tmp>/state/acme.json` contains `{not json` | `arp documents warm --universe u.json` | Exit code 0 | holdout |
 | AC-20 | Manifest with two entries for `report.txt`: U1 `https://acme.example/1.txt` with `discovered_at` `2026-06-01T00:00:00+00:00`, U2 `https://acme.example/2.txt` with `discovered_at` `2026-06-01T01:00:00+01:00` | `arp documents warm --universe u.json` | The stored row's `source_url` is U1 (U2 is the same instant; U1 sorts first) | holdout |
 | AC-21 | As AC-20, U2's `discovered_at` is `2026-06-01T00:00:01+00:00` | same | The stored row's `source_url` is U2 | holdout |
 | AC-22 | Manifest whose only entry for `report.txt` has `alias_of` `https://acme.example/other.txt` | same | The stored row's `source_url` is NULL | holdout |
@@ -143,6 +147,7 @@ Shared fixtures:
 | AC-27 | `report.txt` and manifest M | same | A `documents` row with `doc_id` D exists and no other row has `universe_id` `acme` | holdout |
 | AC-28 | A `SourceDocument` S with title `report.txt`, `fiscal_period` None, a chunk C; `context_headers_enabled` on | `index_text(C, S with reporting_year 2025)` and `index_text(C, S with reporting_year None)` | The two strings are equal | unit |
 | AC-29 | Manifest M; source built without `discovery_state_dir` (golden-set path) | `LocalFileDocumentSource.fetch(acme)` | The returned document's `source_url` is `None` | unit |
+| AC-31 | Same as AC-19 | same | The stored row's `source_url` is NULL | holdout |
 | AC-30 | The existing backend test suite on `main` | `python3 -m pytest backend/tests` on this branch, excluding files added by this change | Same pass/fail result per test as on `main` | unit |
 
 Must not change: what `fetch_all` returns (AC-13), `doc_id` (AC-27), a stored URL (AC-25, AC-26), index text
