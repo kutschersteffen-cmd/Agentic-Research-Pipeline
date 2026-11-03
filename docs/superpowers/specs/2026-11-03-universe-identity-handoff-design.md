@@ -3,7 +3,7 @@
 Spec slug: `universe-identity-handoff`. Gaps G1, G2, G8, G9 and G10 of the universe-to-documents review
 (https://claude.ai/artifact/FH7Q7fWJVUpxTRbjyKLx5a).
 
-Status: draft.
+Status: approved by the owner, 2026-11-03.
 
 ## Why
 

@@ -3,7 +3,7 @@
 Spec slug: `theme-evidence-record`. Gaps G13 and G14 of the universe-to-documents review
 (https://claude.ai/artifact/FH7Q7fWJVUpxTRbjyKLx5a). Works alongside spec `theme-funnel` (A2, approved).
 
-Status: draft.
+Status: approved by the owner, 2026-11-03.
 
 ## Why
 
