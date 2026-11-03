@@ -117,6 +117,7 @@ def select_relevant_chunks(
     on_unranked_fallback: Callable[[], None] | None = None,
     index_texts: dict[str, str] | None = None,
     explain: dict | None = None,
+    parents: dict[str, DocumentChunk] | None = None,
 ) -> list[DocumentChunk]:
     """BM25-ranked evidence selection applied before any extraction/
     matching LLM call, so a call's context stays small (higher precision,
@@ -180,6 +181,9 @@ def select_relevant_chunks(
       (`bm25`, `vector_rank`, `rrf`, `rerank`, each only when computed) for the
       returned chunks and `near_misses`, the up to 3 chunk ids ranked right after
       the cut. The return value is the same with or without it.
+    - `parents`: small-to-big (candidate id -> the chunk returned in its place). Each ranking becomes a
+      ranking of parents before fusion: a parent takes its best candidate's rank (and BM25 score), its other
+      candidates drop out. Scores, near-misses and the reranker then see parents.
     """
     scores: dict[str, dict] = {}
     candidates = chunks
@@ -230,6 +234,12 @@ def select_relevant_chunks(
 
     if require_hit:
         scored = [(chunk_id, score) for chunk_id, score in scored if score > 0.0]
+    if parents:
+        best: dict[str, float] = {}
+        for chunk_id, score in scored:  # highest first, so the first piece seen is the parent's best
+            best.setdefault(parents[chunk_id].chunk_id, score)
+        scored = list(best.items())
+        by_id = {p.chunk_id: p for p in parents.values()}
     for chunk_id, score in scored:
         scores.setdefault(chunk_id, {})["bm25"] = float(score)
     bm25_method = "opensearch" if use_opensearch_bm25 else "bm25"
@@ -247,6 +257,8 @@ def select_relevant_chunks(
         _vector_ranking(candidates, query_text, content_store, texts=texts) if index_texts
         else _vector_ranking(candidates, query_text, content_store)
     )
+    if parents:
+        vector_ranking = list(dict.fromkeys(parents[chunk_id].chunk_id for chunk_id in vector_ranking))
     rrf: dict[str, float] = {}
     fused = _rrf_fuse([bm25_ranking, vector_ranking], scores_out=rrf)
     for rank, chunk_id in enumerate(vector_ranking, start=1):
