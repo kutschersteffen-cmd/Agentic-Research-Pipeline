@@ -36,7 +36,7 @@
         "human_approved": false
       }
     ],
-    "created_at": "<TS>"
+    "created_at": "2026-01-01T00:00:00+00:00"
   },
   "derivation_method": "llm_draft",
   "source_notes": "seed",
@@ -44,5 +44,5 @@
   "ratified_by": null,
   "ratified_at": null,
   "based_on_version": null,
-  "created_at": "<TS>"
+  "created_at": "2026-01-01T00:00:00+00:00"
 }
