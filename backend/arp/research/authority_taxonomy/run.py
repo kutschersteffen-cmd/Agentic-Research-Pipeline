@@ -12,7 +12,7 @@ from arp.orchestration.job_manager import JobManager
 from arp.research.authority_taxonomy.consolidate import consolidate
 from arp.research.authority_taxonomy.discovery import Candidate, discover_candidates
 from arp.research.authority_taxonomy.extract import extract_source
-from arp.research.taxonomy_sources.fetch import _extract_pdf_text, fetch_source_text
+from arp.research.taxonomy_sources.fetch import extract_pdf_text, fetch_source_text
 from arp.schemas.taxonomy import DerivationMethod
 from arp.schemas.thematic import ThemeDefinition
 
@@ -75,7 +75,7 @@ async def start_run(
 
 def _read_file(path: Path) -> str | None:
     # .pdf via fetch.py's pypdf extraction; anything else is read as UTF-8 text (.txt/.md)
-    text = _extract_pdf_text(path.read_bytes()) if path.suffix.lower() == ".pdf" else path.read_text(errors="replace")
+    text = extract_pdf_text(path.read_bytes()) if path.suffix.lower() == ".pdf" else path.read_text(errors="replace")
     return text[:_MAX_CHARS] if text else None
 
 
@@ -90,11 +90,15 @@ async def select_sources(
         await extract_source(src, text, theme_name=state.theme_name, scope=state.scope, value_chain=state.value_chain, llm=llm)
         for src, text in sources if text
     ]
+    if not extractions:
+        raise ValueError("no selected source could be read")
     draft, notes = await consolidate(
         extractions, theme_name=state.theme_name, scope=state.scope, value_chain=state.value_chain,
         settings=settings, llm=llm, value_chain_model=value_chain_model,
     )
     draft.scope = state.scope
+    if unread := [src for src, text in sources if not text]:
+        notes = "\n".join(filter(None, [notes, f"Could not read: {', '.join(unread)}"]))
     return _save(state.model_copy(update={"stage": "awaiting_review", "draft": draft, "notes": notes}), run_store)
 
 

@@ -55,7 +55,7 @@ async def fetch_source_text_or_empty(
     content_type = resp.headers.get("content-type", "").split(";")[0].strip().lower()
     text: str | None
     if content_type == "application/pdf" or url.lower().endswith(".pdf"):
-        text = _extract_pdf_text(resp.content)
+        text = extract_pdf_text(resp.content)
     else:
         text = extract_html_text(resp.text)
     return (text or "")[:max_chars]
@@ -113,7 +113,7 @@ async def fetch_source_original(url: str, user_agent: str, cache_dir: Path, time
     return resp.content, content_type
 
 
-def _extract_pdf_text(content: bytes) -> str | None:
+def extract_pdf_text(content: bytes) -> str | None:
     from pypdf import PdfReader
 
     try:

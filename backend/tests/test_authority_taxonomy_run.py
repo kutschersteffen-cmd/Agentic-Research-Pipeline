@@ -18,7 +18,7 @@ def env(monkeypatch, tmp_path):
 
     async def fake_fetch(url, user_agent, timeout=20.0, max_chars=0):
         assert max_chars == 400_000
-        return "text"
+        return None if "bad" in url else "text"
 
     async def fake_extract(url, text, **kw):
         return SourceExtraction(url=url, activities=[_act("Stacks", url)])
@@ -53,7 +53,7 @@ def test_put_and_accept(env):
     done = run.accept(state.run_id, store, tax)
     assert done.stage == "accepted"
     t = tax.get(done.taxonomy_id)
-    assert (t.theme.activities[0].name, t.version, t.derivation_method) == ("N", 1, "authority_source")
+    assert (t.theme.activities[0].name, t.version, t.derivation_method, t.status) == ("N", 1, "authority_source", "draft")
 
 
 def test_nothing_saved_before_accept(env):
@@ -92,3 +92,18 @@ def test_draft_without_citation_rejected(env):
     draft.activities[0].citations = []
     with pytest.raises(ValueError, match="activity Stacks has no citation"):
         run.put_draft(state.run_id, draft, store)
+
+
+def test_unreadable_source_in_notes(env):
+    store, _, deps, _ = env
+    state = _start(store)
+    state = asyncio.run(run.select_sources(state.run_id, ["https://a.org", "https://bad.org"], [], run_store=store, **deps))
+    assert "Could not read: https://bad.org" in state.notes
+
+
+def test_all_unreadable_keeps_stage(env):
+    store, _, deps, _ = env
+    state = _start(store)
+    with pytest.raises(ValueError, match="no selected source could be read"):
+        asyncio.run(run.select_sources(state.run_id, ["https://bad.org"], [], run_store=store, **deps))
+    assert run.load_state(state.run_id, store) == state
