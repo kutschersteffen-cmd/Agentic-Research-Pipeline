@@ -1,6 +1,6 @@
 # Authority taxonomy UI
 
-Spec slug: `authority-taxonomy-ui`. Status: draft, awaiting owner approval.
+Spec slug: `authority-taxonomy-ui`. Status: approved by the owner, 2026-11-03.
 Depends on: PR #325 (`authority-taxonomy-agent`, spec `2026-11-03-authority-taxonomy-agent-design.md`). Nothing
 here is built before #325 is merged.
 
