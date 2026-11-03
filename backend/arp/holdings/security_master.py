@@ -13,14 +13,17 @@ from datetime import date
 from arp.holdings.file_source import Mapping, read_rows
 from arp.holdings.validate import RowError, isin_is_valid, iso_date
 from arp.portfolio.loads import LoadRecord, record_load
-from arp.schemas.common import now_iso
+from arp.schemas.common import CompanyRef, now_iso
 from arp.schemas.issuer import IdentifierMap, lei_is_valid, normalise_lei
 from arp.storage.atomic_io import atomic_write_text
 from arp.storage.identifier_map import IdentifierMapStore, normalise_identifier
+from arp.storage.issuer_sectors import IssuerSectorStore
+from arp.universe import UniverseRejected, check_sector_codes
 
 # Column -> identifier scheme. The first four identify a security, the last three its issuer (PermID: Refinitiv's).
 SCHEMES = {"isin": "ISIN", "cusip": "CUSIP", "sedol": "SEDOL", "figi": "FIGI", "lei": "LEI", "cik": "CIK", "permid": "PERMID"}
-COLUMNS = ("issuer_id", "issuer_name", *SCHEMES, "valid_from", "valid_to")
+SECTOR_COLUMNS = ("nace_code", "nace_rev", "isic_code", "gics_code")
+COLUMNS = ("issuer_id", "issuer_name", *SCHEMES, "valid_from", "valid_to", *SECTOR_COLUMNS)
 _MAPPING = Mapping(provider="security_master", columns={c: c for c in COLUMNS})
 
 
@@ -38,10 +41,18 @@ def _format_error(scheme: str, value: str) -> str | None:
 
 
 def parse(data: bytes, filename: str) -> tuple[list[IdentifierMap], list[RowError]]:
+    rows, errors, _ = parse_with_sectors(data, filename)
+    return rows, errors
+
+
+def parse_with_sectors(data: bytes, filename: str) -> tuple[list[IdentifierMap], list[RowError], dict[str, dict[str, str]]]:
     """Rows of the master file as identifier-map rows, or every problem found. One file row is one security (or one
     issuer with only issuer identifiers); each identifier on it becomes a row pointing at its `issuer_id`."""
     out: list[IdentifierMap] = []
     errors: list[RowError] = []
+    seen: dict[str, dict[str, str]] = {}  # issuer -> column -> first value
+    first_row: dict[str, int] = {}
+    names: dict[str, str] = {}
     for r in read_rows(data, filename, _MAPPING):
         n = r["_row"]
         issuer = str(r.get("issuer_id") or "").strip()
@@ -53,6 +64,12 @@ def parse(data: bytes, filename: str) -> tuple[list[IdentifierMap], list[RowErro
         errors += [RowError(n, c, "must be YYYY-MM-DD") for c in bad_dates]
         if not bad_dates and valid_from and valid_to and valid_from >= valid_to:
             errors.append(RowError(n, "valid_to", "must be after valid_from"))
+        first_row.setdefault(issuer, n)
+        names.setdefault(issuer, str(r.get("issuer_name") or "").strip())
+        for col in SECTOR_COLUMNS:
+            v = str(r.get(col) or "").strip()
+            if v and seen.setdefault(issuer, {}).setdefault(col, v) != v:
+                errors.append(RowError(n, col, f"issuer '{issuer}' has two different {col} values"))
         ids = 0
         for col, scheme in SCHEMES.items():
             raw = str(r.get(col) or "").strip()
@@ -66,7 +83,32 @@ def parse(data: bytes, filename: str) -> tuple[list[IdentifierMap], list[RowErro
             out.append(IdentifierMap(issuer_key=issuer, scheme=scheme, value=value, valid_from=valid_from, valid_to=valid_to))
         if ids == 0 and not any(e.row == n for e in errors):
             errors.append(RowError(n, None, "no identifier: give at least one of " + ", ".join(SCHEMES)))
-    return _dedupe(out), errors + _conflicts(out)
+    sectors = _checked_sectors(seen, first_row, names, errors)
+    return _dedupe(out), errors + _conflicts(out), sectors
+
+
+def _checked_sectors(seen, first_row, names, errors: list[RowError]) -> dict[str, dict[str, str]]:
+    """Each issuer's sector codes, normalised and validated like a universe file's; problems join `errors`."""
+    out: dict[str, dict[str, str]] = {}
+    for issuer, cols in seen.items():
+        if any(e.message.startswith(f"issuer '{issuer}' has two") for e in errors):  # already reported
+            continue
+        rev = cols.get("nace_rev", "")
+        if rev and rev not in ("2", "2.1"):
+            errors.append(RowError(first_row[issuer], "nace_rev", "must be 2 or 2.1"))
+            continue
+        try:
+            c = check_sector_codes(CompanyRef(company_id=issuer, name=names[issuer], nace_code=cols.get("nace_code"),
+                                              nace_rev=rev or "2", isic_code=cols.get("isic_code"), gics_code=cols.get("gics_code")))
+        except UniverseRejected as e:
+            errors.append(RowError(first_row[issuer], "nace_code" if str(e).startswith("unknown NACE") else "gics_code", str(e)))
+            continue
+        row = {"nace_code": c.nace_code, "isic_code": c.isic_code, "gics_code": c.gics_code}
+        if c.nace_code or rev:  # an empty cell next to a nace_code means Rev. 2; a rev alone overrides (spec Scope 5)
+            row["nace_rev"] = c.nace_rev
+        if row := {k: v for k, v in row.items() if v}:
+            out[issuer] = row
+    return out
 
 
 def _dedupe(rows: list[IdentifierMap]) -> list[IdentifierMap]:
@@ -100,7 +142,7 @@ def _conflicts(rows: list[IdentifierMap]) -> list[RowError]:
 def load(store, idmap: IdentifierMapStore, data: bytes, filename: str) -> dict:
     """Replaces the identifier map with the file's rows, or changes nothing and raises ValueError listing the
     problems. The previous master is kept next to it, named by load time."""
-    rows, errors = parse(data, filename)
+    rows, errors, sectors = parse_with_sectors(data, filename)
     digest = hashlib.sha256(data).hexdigest()
     if errors or not rows:
         record_load(store, LoadRecord(kind="security_master", source_id="file", month=date.today().isoformat()[:7],
@@ -109,6 +151,7 @@ def load(store, idmap: IdentifierMapStore, data: bytes, filename: str) -> dict:
     if idmap.path.exists():
         shutil.copy2(idmap.path, idmap.path.with_name(f"{idmap.path.stem}.{now_iso().replace(':', '')}.jsonl"))
     atomic_write_text(idmap.path, "".join(json.dumps(m.model_dump(mode="json")) + "\n" for m in rows))
+    IssuerSectorStore(idmap.path.with_name("issuer_sectors.json")).replace(sectors)
     issuers = len({m.issuer_key for m in rows})
     record_load(store, LoadRecord(kind="security_master", source_id="file", month=date.today().isoformat()[:7], status="ok",
                                   content_hash=digest, detail=f"{len(rows)} identifiers, {issuers} issuers"))

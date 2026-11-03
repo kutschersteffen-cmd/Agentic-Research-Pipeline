@@ -21,6 +21,7 @@ from arp.schemas.portfolio import (
 )
 from arp.schemas.portfolio_monitoring import AlertRule
 from arp.schemas.value_chain import LinkRule
+from arp.storage.issuer_sectors import IssuerSectorStore, apply_master
 from arp.storage.portfolio_store import PortfolioStore
 from arp.storage.postgres import get_engine
 
@@ -45,13 +46,14 @@ class PostgresPortfolioStore:
     file-backed, only the file store itself reads its paths.
     """
 
-    def __init__(self, dsn: str, file_store: PortfolioStore) -> None:
+    def __init__(self, dsn: str, file_store: PortfolioStore, sectors: IssuerSectorStore | None = None) -> None:
         from sqlalchemy.orm import Session
 
         self._dsn = dsn
         self._engine = get_engine(dsn)
         self._Session = Session
         self._files = file_store
+        self._sectors = sectors  # the security master's sector codes, applied when companies are read
 
     def _session(self):
         return self._Session(self._engine)
@@ -220,6 +222,7 @@ class PostgresPortfolioStore:
                 CompanyModel(
                     company_id=company.company_id, name=company.name, ticker=company.ticker, website=company.website,
                     cik=company.cik, country=company.country, sector=company.sector, isic_code=company.isic_code,
+                    nace_code=company.nace_code, nace_rev=company.nace_rev, gics_code=company.gics_code,
                 )
             )
             session.commit()
@@ -229,7 +232,7 @@ class PostgresPortfolioStore:
 
         with self._session() as session:
             row = session.get(CompanyModel, company_id)
-            return None if row is None else _company_from_row(row)
+            return None if row is None else self._with_master(_company_from_row(row))
 
     def list_companies(self) -> list[CompanyRef]:
         from sqlalchemy import select
@@ -238,7 +241,10 @@ class PostgresPortfolioStore:
 
         with self._session() as session:
             rows = session.scalars(select(CompanyModel).order_by(CompanyModel.company_id)).all()
-            return [_company_from_row(r) for r in rows]
+            return [self._with_master(_company_from_row(r)) for r in rows]
+
+    def _with_master(self, company: CompanyRef) -> CompanyRef:
+        return apply_master(company, self._sectors) if self._sectors else company
 
     # --- value-chain link rules -------------------------------------------
 
@@ -555,6 +561,7 @@ def _company_from_row(row) -> CompanyRef:
     return CompanyRef(
         company_id=row.company_id, name=row.name, ticker=row.ticker, website=row.website, cik=row.cik,
         country=row.country, sector=row.sector, isic_code=row.isic_code,
+        nace_code=row.nace_code, nace_rev=row.nace_rev or "2", gics_code=row.gics_code,
     )
 
 
