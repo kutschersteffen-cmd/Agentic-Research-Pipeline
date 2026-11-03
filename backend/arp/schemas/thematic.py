@@ -93,6 +93,11 @@ class ActivityDefinition(BaseModel):
         "importance a pure input-output linkage-strength ranking would understate (e.g. a USGS/IEA-flagged "
         "critical mineral). Populated by the criticality overlay, not by hand.",
     )
+    contrast_statements: list[str] = Field(
+        default_factory=list,
+        description="Extra negative statements for the theme funnel's NLI step (next to out_of_scope_description), "
+        "e.g. 'The company buys or operates electrolysers made by another company'.",
+    )
     human_approved: bool = Field(
         default=False,
         description="Per-activity curation sign-off, distinct from the taxonomy-level Taxonomy.status/"
@@ -164,6 +169,20 @@ class AgentOpinion(BaseModel):
     exposure_estimate: ExposureEstimate = ExposureEstimate.NONE
 
 
+class FunnelRecord(BaseModel):
+    """Why the theme funnel passed or screened out one company x activity pair (arp/research/funnel.py)."""
+
+    passed: bool
+    rerank_max: float | None = Field(description="Best cross-encoder score; None when the rerank service failed.")
+    entail_positive: float
+    entail_negatives: dict[str, float] = Field(default_factory=dict)
+    best_passage: str
+    best_doc_id: str
+    passages_scored: int
+    thresholds: dict[str, float]
+    models: list[dict] = Field(default_factory=list)
+
+
 class CompanyMatch(BaseModel):
     company_id: str
     ticker: str | None = None
@@ -219,5 +238,6 @@ class CompanyMatch(BaseModel):
             "scope for this activity."
         ),
     )
+    funnel: FunnelRecord | None = Field(default=None, description="Theme-funnel scores, when the funnel ran.")
     flagged_for_review: bool = False
     generated_at: str = Field(default_factory=now_iso)
