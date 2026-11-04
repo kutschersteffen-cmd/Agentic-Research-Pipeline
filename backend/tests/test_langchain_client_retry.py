@@ -396,3 +396,17 @@ def test_tnfd_metric_with_bad_value_is_still_dropped():  # quick-wins review: on
         err = exc
     instance, dropped = _drop_invalid_list_items(TNFDExtractionDraft, raw, err)
     assert instance is not None and dropped == 1 and instance.core_global_metrics == []
+
+
+async def test_retry_caches_only_the_newest_turn(tmp_path):
+    """Retries resend the full prompt; a breakpoint on the newest turn lets the
+    next retry read it from cache. Only one moving marker per request."""
+    client, fake = _client_with_responses(
+        tmp_path, [_message("tu_1", {"wrong_field": 1}), _message("tu_2", {"wrong_field": 2}), _message("tu_3", {"value": 3})]
+    )
+    await client.complete_structured(system="sys", prompt="prompt", output_model=_Target)
+
+    for call in fake.messages.calls[1:]:
+        marked = [b for m in call["messages"] if isinstance(m["content"], list) for b in m["content"] if "cache_control" in b]
+        assert len(marked) == 1
+        assert call["messages"][-1]["content"][-1]["cache_control"] == {"type": "ephemeral"}
