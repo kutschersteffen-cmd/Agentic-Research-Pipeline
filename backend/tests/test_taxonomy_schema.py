@@ -20,6 +20,7 @@ from arp.orchestration.jobs import NotResumable, check_resumable
 from arp.research.revenue_exposure.resolver import RevenueResolverContext, resolve_company_activity_exposure
 from arp.research.taxonomy_schema import build_taxonomy_schema
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
+from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyStatus
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 from arp.storage.run_store import RunStore
@@ -249,3 +250,19 @@ def test_industry_anchored_taxonomy_needs_an_input_output_model(api):
     res = client.post("/api/taxonomies", json={"name": "t", "derivation_method": "industry_anchored", "use_sample_io": False})
     assert (res.status_code, res.json()["detail"]) == (
         400, "No input-output data available: run arp io build-full and set ARP_VALUE_CHAIN_DIR, or set use_sample_io.")
+
+
+def test_registered_schema_unchanged_until_regenerated(api):
+    """Stage-evidence spec AC-10/AC-10b: a schema registered before the change keeps its fields; a new POST adds a version."""
+    client, tid, registry, _ = api
+    store_taxonomy = client.get(f"/api/taxonomies/{tid}").json()
+    assert store_taxonomy  # v1 exists and is ratified (fixture)
+    first = client.post(f"/api/taxonomies/{tid}/versions/1/schema").json()
+    old_shape = DataPointSchema.model_validate(first).model_copy(
+        update={"fields": [f for f in DataPointSchema.model_validate(first).fields if f.field_id.endswith("_pct")]}
+    )
+    old = registry.save(old_shape)
+    got = client.get(f"/api/taxonomies/{tid}/versions/1/schema").json()
+    assert got["version"] == old.version and len(got["fields"]) == 8
+    regenerated = client.post(f"/api/taxonomies/{tid}/versions/1/schema").json()
+    assert len(regenerated["fields"]) == 32 and regenerated["version"] == old.version + 1
