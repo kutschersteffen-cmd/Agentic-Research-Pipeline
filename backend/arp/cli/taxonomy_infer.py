@@ -8,13 +8,9 @@ import typer
 
 from arp.cli._shared import _registry, _run_store
 from arp.config import get_settings
-from arp.extraction.pipeline import _extract_company
 from arp.llm.factory import build_llm_client, build_verifier_llm_client
 from arp.research.stock_inference import run as infer_run
-from arp.research.stock_inference.clusters import cluster_points
-from arp.research.stock_inference.profile import discover_missing
 from arp.research.stock_inference.schemas import InferRun
-from arp.retrieval.embeddings import embed_texts
 
 infer_app = typer.Typer(help="Infer a taxonomy from a set of stocks: start, then show.")
 
@@ -39,8 +35,7 @@ def infer_start(
         run = asyncio.run(infer_run.start(
             stocks, methodology=methodology, segments_path=segments, benchmark_path=benchmark, name=name,
             run_store=_run_store(), settings=settings, llm=build_llm_client(settings),
-            verifier_llm=build_verifier_llm_client(settings), registry=_registry(), discover=discover_missing,
-            extract=_extract_company, cluster=cluster_points, embed=embed_texts,
+            verifier_llm=build_verifier_llm_client(settings), registry=_registry(),
         ))
     except infer_run.InferFailed as e:
         typer.echo(f"Run {e.run.run_id}")

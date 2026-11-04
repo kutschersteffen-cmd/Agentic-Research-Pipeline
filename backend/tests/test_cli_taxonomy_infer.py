@@ -9,12 +9,14 @@ from arp.cli import taxonomy_infer as cli
 from arp.config import get_settings
 from arp.db.runs import RunStore
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.research.stock_inference import run as infer_run
 from arp.research.stock_inference.run import WrongStage
 from arp.research.stock_inference.themes import ProposedTheme, Support, ThemeProposals
 from tests.test_stock_inference_profile import _doc, _extract, _FixedDocSource
 
 RUN_KEYS = {"run_id", "stage", "name", "extractor_model", "verifier_model", "selection", "profiles", "clusters",
             "themes", "outliers", "index_rules", "taxonomy_id", "activities", "mapping", "coverage"}
+_DEFAULTS = infer_run.start.__kwdefaults__  # the CLI relies on start()'s defaults, so fakes replace those
 
 
 class _NoCalls:
@@ -37,8 +39,8 @@ def env(pg, tmp_path, monkeypatch, fake_llm):
     get_settings.cache_clear()
     monkeypatch.setattr(cli, "_run_store", lambda: RunStore(pg, tmp_path / "runs"))  # a fresh instance per command
     monkeypatch.setattr(cli, "build_verifier_llm_client", lambda s: _NoCalls())
-    monkeypatch.setattr(cli, "cluster_points", lambda e: np.full(len(e), -1))
-    monkeypatch.setattr(cli, "embed_texts", lambda texts: np.zeros((len(texts), 4)))
+    monkeypatch.setitem(_DEFAULTS, "cluster", lambda e: np.full(len(e), -1))
+    monkeypatch.setitem(_DEFAULTS, "embed", lambda texts: np.zeros((len(texts), 4)))
 
     class Env:
         llm = None
@@ -53,8 +55,8 @@ def env(pg, tmp_path, monkeypatch, fake_llm):
             self.llm = fake_llm({"ThemeProposals": list(replies)})
             monkeypatch.setattr(cli, "_registry", lambda: DocumentSourceRegistry([source]))
             monkeypatch.setattr(cli, "build_llm_client", lambda s: self.llm)
-            monkeypatch.setattr(cli, "discover_missing", discover)
-            monkeypatch.setattr(cli, "_extract_company", _extract(behaviour or {}))
+            monkeypatch.setitem(_DEFAULTS, "discover", discover)
+            monkeypatch.setitem(_DEFAULTS, "extract", _extract(behaviour or {}))
             path = tmp_path / "fund.csv"
             path.write_text("company_id,name\n" + "".join(f"{c},Stock {c}\n" for c in ids))
             return path
