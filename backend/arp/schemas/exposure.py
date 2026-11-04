@@ -27,8 +27,10 @@ class IndirectExposureResult(BaseModel):
     company_id: str
     isic_code: str
     isic_label: str | None = None
-    code_scheme: Literal["nace2", "nace21", "isic4", "icio"] = Field(
-        default="icio", description="Scheme of isic_code: an ICIO code, or the company's NACE Rev. 2 / Rev. 2.1 or ISIC Rev. 4 code."
+    code_scheme: Literal["exiobase", "nace2", "nace21", "isic4", "icio"] = Field(
+        default="icio",
+        description="Scheme of isic_code: an EXIOBASE sector name, the company's NACE Rev. 2 / Rev. 2.1 or ISIC Rev. 4 "
+        "code, or (past results) an ICIO code.",
     )
     upstream_exposure: float = Field(
         ge=0.0, le=1.0, description="Share of this industry's total input requirement traceable to core sectors."
@@ -39,7 +41,7 @@ class IndirectExposureResult(BaseModel):
     core_sector: bool = Field(description="True if the company's own industry is itself one of the theme's core sectors.")
     critical_input: bool = Field(
         default=False,
-        description="True if isic_code is one of the bundled USGS/IEA-flagged critical-mineral ISIC divisions "
+        description="True if the company's sectors include one of the bundled USGS/IEA-flagged critical-mineral ISIC divisions' sectors "
         "(see arp.research.indirect_exposure.criticality) -- a coarse division-level heuristic, independent of "
         "the upstream/downstream Leontief exposure math.",
     )

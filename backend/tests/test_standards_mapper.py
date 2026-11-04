@@ -26,10 +26,10 @@ def _sample_tables():
     return nace, naics, sic, gics_ref
 
 
-async def test_map_activity_standards_with_known_isic_code(fake_llm):
+async def test_map_activity_standards_with_known_sector(fake_llm):
     nace, naics, sic, gics_ref = _sample_tables()
     activity = ActivityDefinition(
-        name="EV manufacturing", in_scope_description="Assembly of electric vehicles.", out_of_scope_description="", core_isic_codes=["29"]
+        name="EV manufacturing", in_scope_description="Assembly of electric vehicles.", out_of_scope_description="", core_sectors=["Manufacture of motor vehicles, trailers and semi-trailers"]
     )
     draft = _GicsSelectionList(matches=[_GicsSelection(code="25", rationale="Automobile manufacturing.")])
     llm = fake_llm({_GicsSelectionList.__name__: [draft]})
@@ -39,24 +39,24 @@ async def test_map_activity_standards_with_known_isic_code(fake_llm):
     assert [m.code for m in mapping.naics_codes] == ["3361"]
     assert [m.code for m in mapping.sic_codes] == ["3711"]
     assert [m.code for m in mapping.gics] == ["25"]
-    assert mapping.unmapped_isic_codes == []
+    assert mapping.unmapped_sectors == []
 
 
-async def test_map_activity_standards_unmapped_isic_code(fake_llm):
+async def test_map_activity_standards_unmapped_sector(fake_llm):
     nace, naics, sic, gics_ref = _sample_tables()
-    activity = ActivityDefinition(name="Unknown", in_scope_description="x", out_of_scope_description="", core_isic_codes=["99"])
+    activity = ActivityDefinition(name="Unknown", in_scope_description="x", out_of_scope_description="", core_sectors=["Extra-territorial organizations and bodies"])
     llm = fake_llm({_GicsSelectionList.__name__: [_GicsSelectionList(matches=[])]})
 
     mapping, _usage = await map_activity_standards(activity, nace, naics, sic, gics_ref, llm)
     assert mapping.nace_codes == []
-    assert mapping.unmapped_isic_codes == ["99"]
+    assert mapping.unmapped_sectors == ["Extra-territorial organizations and bodies"]
 
 
 async def test_map_theme_to_standards_uses_sample_data_when_requested(tmp_path, fake_llm):
     settings = _settings(tmp_path)
     theme = ThemeDefinition(
         name="Electrification", description="",
-        activities=[ActivityDefinition(name="EV manufacturing", in_scope_description="x", out_of_scope_description="", core_isic_codes=["29"])],
+        activities=[ActivityDefinition(name="EV manufacturing", in_scope_description="x", out_of_scope_description="", core_sectors=["Manufacture of motor vehicles, trailers and semi-trailers"])],
     )
     llm = fake_llm({_GicsSelectionList.__name__: [_GicsSelectionList(matches=[])]})
 
@@ -67,29 +67,31 @@ async def test_map_theme_to_standards_uses_sample_data_when_requested(tmp_path, 
 
 
 async def test_map_theme_to_standards_use_sample_io(tmp_path, fake_llm):
-    """use_sample_io resolves the bundled sample model: supplied core codes
-    are kept when they are among its ICIO codes (C29), and the mapping still
-    completes normally. The sample crosswalks are keyed on ISIC divisions
-    (`29`), so the ICIO code C29 comes back unmapped."""
+    """use_sample_io resolves the bundled sample model: supplied core
+    sectors are kept when they are among its sectors, others ("29") are
+    dropped, and the mapping still completes normally. The sector reaches the
+    division-keyed sample crosswalks through NACE 29 -> ISIC 29xx, so nothing
+    comes back unmapped."""
     settings = _settings(tmp_path)
     theme = ThemeDefinition(
         name="Electrification", description="",
-        activities=[ActivityDefinition(name="EV manufacturing", in_scope_description="x", out_of_scope_description="", core_isic_codes=["C29", "29"])],
+        activities=[ActivityDefinition(name="EV manufacturing", in_scope_description="x", out_of_scope_description="", core_sectors=["Manufacture of motor vehicles, trailers and semi-trailers", "29"])],
     )
     llm = fake_llm({_GicsSelectionList.__name__: [_GicsSelectionList(matches=[])]})
 
     updated, _usage = await map_theme_to_standards(theme, settings, llm, use_sample_io=True, use_sample_standards=True)
     activity = updated.activities[0]
-    assert activity.core_isic_codes == ["C29"]
+    assert activity.core_sectors == ["Manufacture of motor vehicles, trailers and semi-trailers"]
     assert activity.standards_mapping is not None
-    assert activity.standards_mapping.unmapped_isic_codes == ["C29"]
+    assert [m.code for m in activity.standards_mapping.nace_codes] == ["29"]
+    assert activity.standards_mapping.unmapped_sectors == []
 
 
 async def test_map_theme_to_standards_no_tables_configured_skips_gracefully(tmp_path, fake_llm):
     settings = _settings(tmp_path)
     theme = ThemeDefinition(
         name="Electrification", description="",
-        activities=[ActivityDefinition(name="EV manufacturing", in_scope_description="x", out_of_scope_description="", core_isic_codes=["29"])],
+        activities=[ActivityDefinition(name="EV manufacturing", in_scope_description="x", out_of_scope_description="", core_sectors=["Manufacture of motor vehicles, trailers and semi-trailers"])],
     )
     llm = fake_llm({})  # no GICS call expected: empty reference list short-circuits
 
@@ -97,7 +99,7 @@ async def test_map_theme_to_standards_no_tables_configured_skips_gracefully(tmp_
     mapping = updated.activities[0].standards_mapping
     assert mapping is not None
     assert mapping.nace_codes == mapping.naics_codes == mapping.sic_codes == mapping.gics == []
-    assert mapping.unmapped_isic_codes == []  # no table was loaded, so "unmapped" can't be determined
+    assert mapping.unmapped_sectors == []  # no table was loaded, so "unmapped" can't be determined
     assert llm.calls == []
 
 
@@ -108,7 +110,7 @@ def test_format_standards_csv():
         name="Electrification", description="",
         activities=[
             ActivityDefinition(
-                name="EV manufacturing", in_scope_description="x", out_of_scope_description="", core_isic_codes=["29"],
+                name="EV manufacturing", in_scope_description="x", out_of_scope_description="", core_sectors=["Manufacture of motor vehicles, trailers and semi-trailers"],
                 standards_mapping=ActivityStandardsMapping(
                     nace_codes=[StandardCodeMatch(code="29", label="Motor vehicles")],
                     naics_codes=[StandardCodeMatch(code="3361", label="Motor Vehicle Manufacturing")],
@@ -125,3 +127,23 @@ def test_format_standards_csv():
     assert rows[1][4] == "3361"  # naics_codes
     assert rows[1][6] == "25"  # gics_codes
     assert "Auto manufacturing." in rows[1][8]  # gics_rationale
+
+
+async def _map_one(sector: str, fake_llm):
+    nace, naics, sic, _ = _sample_tables()
+    activity = ActivityDefinition(name="a", in_scope_description="x", out_of_scope_description="", core_sectors=[sector])
+    mapping, _ = await map_activity_standards(activity, nace, naics, sic, [], fake_llm({}))
+    return mapping
+
+
+async def test_copper_production_maps_through_nace_and_isic(fake_llm):  # AC-39, AC-40
+    mapping = await _map_one("Copper production", fake_llm)
+    assert [m.code for m in mapping.nace_codes] == ["24"]
+    assert [m.code for m in mapping.naics_codes] == ["331"]
+    assert [m.code for m in mapping.sic_codes] == ["33"]
+    assert mapping.unmapped_sectors == []
+
+
+async def test_wheat_is_unmapped(fake_llm):  # AC-41
+    mapping = await _map_one("Cultivation of wheat", fake_llm)
+    assert mapping.unmapped_sectors == ["Cultivation of wheat"]

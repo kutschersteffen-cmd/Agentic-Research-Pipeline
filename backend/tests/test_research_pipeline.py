@@ -9,6 +9,7 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import resume_run
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
+from arp.research.indirect_exposure.migrate import icio_sectors
 from arp.research.matcher_agents import AdjudicatorOutput
 from arp.research.pipeline import _match_company, create_theme_run
 from arp.research.rd_exposure.resolver import RDResolverContext
@@ -149,10 +150,10 @@ async def test_match_company_no_evidence_with_high_structural_exposure_is_flagge
     of a flat, unreviewed exclude."""
     doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
     theme, activity = _theme()
-    activity.core_isic_codes = ["C27"]
-    company = CompanyRef(company_id="c1", name="Acme Electricals", ticker="ACME", isic_code="C27")
+    activity.core_sectors = icio_sectors("C27")
+    company = CompanyRef(company_id="c1", name="Acme Electricals", ticker="ACME", isic_code="27")
 
-    llm = fake_llm({})  # company_isic is supplied and matches the model, so no LLM call should occur
+    llm = fake_llm({})  # the ISIC division links through NACE, so no LLM call should occur
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
     model = resolve_indirect_exposure_model(Settings(), use_sample=True)
 
@@ -167,12 +168,30 @@ async def test_match_company_no_evidence_with_high_structural_exposure_is_flagge
     assert llm.calls == []
 
 
+async def test_llm_picked_sector_feeds_the_indirect_tier(tmp_path, fake_llm):
+    """A company with no NACE/ISIC code: the LLM-picked sector is the company's sector, reported for review."""
+    from arp.research.indirect_exposure.company_mapper import _CompanySectorClassification
+
+    machinery = icio_sectors("C27")[0]
+    doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
+    theme, activity = _theme()
+    activity.core_sectors = [machinery]
+    llm = fake_llm({_CompanySectorClassification.__name__: [_CompanySectorClassification(sector=machinery, rationale="r")]})
+    result = await _match_company(
+        CompanyRef(company_id="c1", name="Acme Electricals"), theme, registry=DocumentSourceRegistry([_FixedDocSource([doc])]),
+        llm=llm, settings=_settings(tmp_path), indirect_model=resolve_indirect_exposure_model(Settings(), use_sample=True),
+    )
+    ie = result.matches[0].indirect_exposure
+    assert (ie.code_scheme, ie.isic_code, ie.core_sector) == ("exiobase", machinery, True)
+    assert (result.isic_code, result.isic_from_model) == (machinery, True)
+
+
 async def test_match_company_no_evidence_with_low_structural_exposure_not_flagged(tmp_path, fake_llm):
     doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
     theme, activity = _theme()
-    activity.core_isic_codes = ["C27"]
-    # retail trade (G) has low structural linkage to electrical equipment (C27) in the sample model
-    company = CompanyRef(company_id="c1", name="Acme Retail", ticker="ACME", isic_code="G")
+    activity.core_sectors = icio_sectors("C27")
+    # retail trade (ISIC 47) has low structural linkage to electrical equipment (C27) in the sample model
+    company = CompanyRef(company_id="c1", name="Acme Retail", ticker="ACME", isic_code="47")
 
     llm = fake_llm({})
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
@@ -401,8 +420,8 @@ async def test_match_company_arbitration_disagreement_flags_review_when_base_fla
     shows strongly diverging structural exposure for the same company,
     arbitration's disagreement flag should still route it to review."""
     theme, activity = _theme()
-    activity.core_isic_codes = ["C27"]
-    company = CompanyRef(company_id="c1", name="Acme Electricals", ticker="ACME", isic_code="C27")
+    activity.core_sectors = icio_sectors("C27")
+    company = CompanyRef(company_id="c1", name="Acme Electricals", ticker="ACME", isic_code="27")
     doc = SourceDocument(company_id="c1", doc_type=DocType.ANNUAL_REPORT_10K, title="10-K", full_text="We sell shoes.")
     registry = DocumentSourceRegistry([_FixedDocSource([doc])])
 
@@ -495,8 +514,8 @@ async def test_resume_run_stored_with_legacy_sample_flag_uses_sample(tmp_path, f
     settings = _settings(tmp_path)
     store = RunStore(pg, settings.runs_dir)
     theme, activity = _theme()
-    activity.core_isic_codes = ["C27"]
-    company = CompanyRef(company_id="c1", name="Acme Electricals", isic_code="C27")
+    activity.core_sectors = icio_sectors("C27")
+    company = CompanyRef(company_id="c1", name="Acme Electricals", isic_code="27")
     run_id = create_theme_run(theme, [company], settings, store, extraction_schema=registered_schema(*theme.activities))
     manifest = store.load_manifest(run_id)
     del manifest.params["use_sample_io"]

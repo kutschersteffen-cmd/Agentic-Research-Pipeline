@@ -106,7 +106,7 @@ def taxonomy_create(
             typer.echo(f"{NO_MODEL}, or pass --use-sample-io.", err=True)
             raise typer.Exit(1)
         theme, _usage = asyncio.run(build_theme_industry_anchored(name, description, model.industry_reference_list(), llm))
-        notes = f"Anchored against {model.edition_label} ({len(model.industry_reference_list())} industries)."
+        notes = f"Anchored against {model.edition_label} ({len(model.industry_reference_list())} EXIOBASE sectors)."
 
     elif method == DerivationMethod.AUTHORITY_SOURCE:
         if not authority_url:
@@ -245,14 +245,14 @@ def taxonomy_merge(
 def taxonomy_map_standards(
     ref: str,
     use_sample_io: bool = typer.Option(
-        False, "--use-sample-io", help="Classify any activity missing core_isic_codes using the bundled sample input-output model first."
+        False, "--use-sample-io", help="Classify any activity missing core_sectors using the bundled sample input-output model first."
     ),
     use_sample_standards: bool = typer.Option(
         False, help="Use the bundled illustrative NACE/NAICS/SIC/GICS reference data instead of configured ARP_*_PATH files."
     ),
     no_save: bool = typer.Option(False, "--no-save", help="Print the mapping without saving a new taxonomy version."),
 ) -> None:
-    """Cross-references every activity's core_isic_codes into NACE, NAICS,
+    """Cross-references every activity's core_sectors into NACE, NAICS,
     SIC (deterministic crosswalk) and GICS (closed-list LLM classification,
     since no official ISIC->GICS correspondence table exists). Saves the
     result as a new taxonomy version unless --no-save is passed."""

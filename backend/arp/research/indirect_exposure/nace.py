@@ -78,6 +78,13 @@ def nace_sectors(code: str, rev: str) -> set[str]:
     }
 
 
+def code_set_sectors(scheme: str, code: str, rev: str) -> set[str]:
+    """Sector names (suffix-free) of a value_chain.links.company_nace triple: a 4-digit ISIC Rev.4 class
+    through the UN table, anything else (NACE code, 2-digit ISIC division) as a NACE code."""
+    codes = isic_to_nace2(code) if scheme == "isic4" and len(code) == 4 else [code]
+    return {sector_name(s) for c in codes for s in nace_sectors(c, rev)}
+
+
 def division_sectors(division: str) -> set[str]:
     return nace_sectors(division, "2")
 

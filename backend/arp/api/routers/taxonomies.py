@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response, StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from starlette.concurrency import run_in_threadpool
 
 from arp.api.auth import Principal, current_user
@@ -160,7 +160,7 @@ async def create_taxonomy(
 
     elif method == DerivationMethod.INDUSTRY_ANCHORED:
         theme, _usage = await build_theme_industry_anchored(req.name, req.description, model.industry_reference_list(), llm)
-        notes = f"Anchored against {model.edition_label} ({len(model.industry_reference_list())} industries)."
+        notes = f"Anchored against {model.edition_label} ({len(model.industry_reference_list())} EXIOBASE sectors)."
 
     elif method == DerivationMethod.AUTHORITY_SOURCE:
         try:
@@ -215,7 +215,10 @@ def list_taxonomies(store: TaxonomyStore = Depends(get_taxonomy_store)) -> dict:
 def get_taxonomy(
     taxonomy_id: str, version: int | None = None, store: TaxonomyStore = Depends(get_taxonomy_store)
 ) -> Taxonomy:
-    taxonomy = store.get(taxonomy_id, version)
+    try:
+        taxonomy = store.get(taxonomy_id, version)
+    except ValidationError as exc:  # e.g. an unmigrated core_isic_codes activity
+        raise HTTPException(422, str(exc)) from exc
     if taxonomy is None:
         raise HTTPException(404, "Taxonomy not found")
     return taxonomy
@@ -353,7 +356,7 @@ async def map_standards(
     settings: Settings = Depends(settings_dep),
     store: TaxonomyStore = Depends(get_taxonomy_store),
 ) -> Taxonomy:
-    """Cross-references every activity's core_isic_codes into NACE, NAICS,
+    """Cross-references every activity's core_sectors into NACE, NAICS,
     SIC (deterministic crosswalk) and GICS (closed-list LLM classification)
     and saves the result as a new taxonomy version. See
     docs/METHODOLOGY.md for why GICS alone needs an LLM call.

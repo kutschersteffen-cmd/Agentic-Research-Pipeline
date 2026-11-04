@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from arp.api.auth import Principal, current_user
 from arp.api.deps import get_portfolio_store, get_taxonomy_store, resolve
 from arp.config import Settings
-from arp.research.indirect_exposure.factory import code_list
+from arp.research.indirect_exposure.factory import sectors
 from arp.research.value_chain import links as vc_links
 from arp.research.value_chain import revenue
 from arp.research.value_chain.model import (
@@ -27,7 +27,6 @@ from arp.schemas.common import now_iso
 from arp.schemas.value_chain import (
     Exposure,
     ExposureItem,
-    IcioCode,
     LinkRuleIn,
     PriceShockFocus,
     PriceShockNode,
@@ -40,6 +39,7 @@ from arp.schemas.value_chain import (
     RecipeOut,
     RevenueRoute,
     RevenueRoutes,
+    Sector,
     ShockedNode,
     ShockIndicators,
     ValueChainFootprint,
@@ -263,10 +263,9 @@ def shock_price(
 
 
 @router.get("/codes")
-def icio_codes() -> list[IcioCode]:
-    """The ICIO codes a revenue split may name: the 50 industries, then the five electricity split codes."""
-    codes = code_list()
-    return [IcioCode(code=c, label=codes.labels[c]) for c in codes.codes]
+def sector_list() -> list[Sector]:
+    """The EXIOBASE sectors a revenue split may name, in exiobase_nace.csv order."""
+    return [Sector(name=s) for s in sectors()]
 
 
 def _snapshot(store, portfolio_id: str, as_of: str | None) -> tuple[str, list]:

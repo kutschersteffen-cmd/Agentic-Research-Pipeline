@@ -11,7 +11,8 @@ from arp.api.deps import get_portfolio_store, get_taxonomy_store
 from arp.api.main import app
 from arp.cli import app as cli_app
 from arp.llm.base import LLMUsage
-from arp.research.indirect_exposure.factory import load_model
+from arp.research.indirect_exposure.factory import load_model, sectors
+from arp.research.indirect_exposure.migrate import icio_sectors as S
 from arp.research.value_chain.links import classify_unlinked
 from arp.schemas.common import CompanyRef
 from arp.schemas.portfolio import DataPointObservation, Holding, Portfolio, SecurityRef
@@ -24,7 +25,7 @@ from tests.io_tier_fixture import SECTORS, write_fixture_v
 BASE = "/api/value-chain"
 COPPER, NICKEL = "Mining of copper ores and concentrates", "Mining of nickel ores and concentrates"
 MACHINERY = "Manufacture of electrical machinery and apparatus n.e.c."
-SX_SPLIT = {"kind": "split", "parts": [{"icio_code": "C27", "share": 0.5}, {"icio_code": "B07", "share": 0.5}]}
+SX_SPLIT = {"kind": "split", "parts": [{"sectors": S("C27"), "share": 0.5}, {"sectors": S("B07"), "share": 0.5}]}
 NX_NODES = {"kind": "nodes", "parts": [{"region": "WA", "sector": COPPER, "share": 1}]}
 runner = CliRunner()
 
@@ -32,7 +33,8 @@ runner = CliRunner()
 def _store(root) -> tuple[PortfolioStore, TaxonomyStore]:
     """Store S of the spec's Acceptance."""
     store = PortfolioStore(root / "portfolios")
-    for cid, country, code in [("cm", "CN", "C27"), ("sx", "CN", "C27"), ("nx", "DE", None), ("us", "US", "C27"), ("dz", "DE", None)]:
+    # ISIC 27 links through NACE 27 to MACHINERY, the one sector the old ICIO code C27 had in Fixture V
+    for cid, country, code in [("cm", "CN", "27"), ("sx", "CN", "27"), ("nx", "DE", None), ("us", "US", "27"), ("dz", "DE", None)]:
         store.save_company(CompanyRef(company_id=cid, name=cid.upper(), country=country, isic_code=code))
     for cid in ("cm", "sx", "nx"):
         store.save_security(SecurityRef(security_id=f"s_{cid}", name=f"Sec {cid}", asset_class="equity", currency="EUR", company_id=cid))
@@ -52,7 +54,7 @@ def _store(root) -> tuple[PortfolioStore, TaxonomyStore]:
             ))
     taxonomies = TaxonomyStore(root / "taxonomies")
     activity = ActivityDefinition(activity_id="a1", name="Copper and nickel mining", in_scope_description="x",
-                                  out_of_scope_description="y", core_isic_codes=["B07"])
+                                  out_of_scope_description="y", core_sectors=S("B07"))
     taxonomies._write_new_version(Taxonomy(taxonomy_id="T", name="T", derivation_method=DerivationMethod.MANUAL,
                                            theme=ThemeDefinition(name="T", description="t", activities=[activity])))
     return store, taxonomies
@@ -92,7 +94,7 @@ def r4(pairs):
 def test_company_links(linked):  # AC-1 to AC-5
     client, _ = linked
     cm = client.get(f"{BASE}/links/company/cm").json()
-    assert (cm["source"], cm["region"], nodes(cm), cm["unresolved"], cm["rule"]) == ("code", "CN", [("CN.4", 1.0)], [], None)
+    assert (cm["source"], cm["region"], nodes(cm), cm["unresolved"], cm["rule"]) == ("nace", "CN", [("CN.4", 1.0)], [], None)
     sx = client.get(f"{BASE}/links/company/sx").json()
     assert (sx["source"], nodes(sx), sx["rule"]["kind"]) == ("split", [("CN.4", 0.5), ("CN.1", 0.3571), ("CN.2", 0.1429)], "split")
     assert sx["rule"]["set_by"] and sx["rule"]["set_at"]
@@ -100,16 +102,16 @@ def test_company_links(linked):  # AC-1 to AC-5
     assert (nx["source"], nx["region"], nodes(nx)) == ("nodes", "DE", [("WA.1", 1.0)])
     assert (nx["nodes"][0]["sector"], nx["nodes"][0]["region_label"]) == (COPPER, "RoW Asia-Pacific")
     us = client.get(f"{BASE}/links/company/us").json()
-    assert (us["source"], us["region"], nodes(us)) == ("code", None, [("CN.4", 0.6154), ("DE.4", 0.3077), ("WA.4", 0.0769)])
+    assert (us["source"], us["region"], nodes(us)) == ("nace", None, [("CN.4", 0.6154), ("DE.4", 0.3077), ("WA.4", 0.0769)])
     dz = client.get(f"{BASE}/links/company/dz").json()
     assert (dz["source"], dz["region"], dz["nodes"]) == ("none", "DE", [])
 
 
 def test_code_with_no_node_in_the_region_is_unresolved(env):
     client, store = env
-    store.save_company(CompanyRef(company_id="ag", name="AG", country="DE", isic_code="A01"))  # V has no agriculture
+    store.save_company(CompanyRef(company_id="ag", name="AG", country="DE", isic_code="01"))  # V has no agriculture
     body = client.get(f"{BASE}/links/company/ag").json()
-    assert (body["source"], body["nodes"], body["unresolved"]) == ("code", [], [{"icio_code": "A01", "share": 1.0}])
+    assert (body["source"], body["nodes"], body["unresolved"]) == ("nace", [], [{"isic_code": "01"}])
 
 
 def test_lookup_caches_go_with_their_build(env):
@@ -124,7 +126,7 @@ def test_lookup_caches_go_with_their_build(env):
 
     folder = Path(os.environ["ARP_VALUE_CHAIN_DIR"])
     vc = ValueChain(folder, json.loads((folder / "manifest.json").read_text()))
-    assert links.company_region(vc, "CN") == "CN" and len(links._code_nodes(vc)["C27"]) == 3
+    assert links.company_region(vc, "CN") == "CN" and len(links._sector_nodes(vc)[MACHINERY]) == 3
     gone = weakref.ref(vc)
     del vc
     gc.collect()
@@ -133,27 +135,38 @@ def test_lookup_caches_go_with_their_build(env):
 
 def test_split_renormalises_unresolved_parts(env):  # AC-6, AC-7
     client, _ = env
-    res = client.put(f"{BASE}/links/company/dz", json={"kind": "split", "parts": [{"icio_code": "A01", "share": 0.4}, {"icio_code": "C27", "share": 0.6}]})
+    # Review Focus 2: a part with no live node is reported as stored
+    res = client.put(f"{BASE}/links/company/dz", json={"kind": "split", "parts": [{"sectors": S("A01"), "share": 0.4}, {"sectors": S("C27"), "share": 0.6}]})
     assert res.status_code == 200
-    assert (nodes(res.json()), res.json()["unresolved"]) == ([("DE.4", 1.0)], [{"icio_code": "A01", "share": 0.4}])
-    res = client.put(f"{BASE}/links/company/dz", json={"kind": "split", "parts": [{"icio_code": "B07", "share": 0.5}, {"icio_code": "D_GEN_REN", "share": 0.5}]})
+    assert (nodes(res.json()), res.json()["unresolved"]) == ([("DE.4", 1.0)], [{"sectors": S("A01"), "share": 0.4}])
+    res = client.put(f"{BASE}/links/company/dz", json={"kind": "split", "parts": [{"sectors": S("B07"), "share": 0.5}, {"sectors": S("D_GEN_REN"), "share": 0.5}]})
     assert nodes(res.json()) == [("DE.1", 0.5), ("DE.3", 0.5)]
-    # D and D_GEN_REN both cover wind: those two parts land on one node and add up
-    parts = [{"icio_code": "D", "share": 0.25}, {"icio_code": "D_GEN_REN", "share": 0.25}, {"icio_code": "B07", "share": 0.5}]
+    # D covers wind among many sectors V lacks: the part's share lands on wind alone. (Overlapping parts,
+    # as D and D_GEN_REN were, are now refused: test_validation's duplicate sector.)
+    parts = [{"sectors": S("D"), "share": 0.5}, {"sectors": S("B07"), "share": 0.5}]
     res = client.put(f"{BASE}/links/company/dz", json={"kind": "split", "parts": parts})
     assert (nodes(res.json()), res.json()["unresolved"]) == ([("DE.1", 0.5), ("DE.3", 0.5)], [])
 
 
 @pytest.mark.parametrize(("body", "detail"), [
     ({"kind": "split", "parts": []}, "1 to 20 parts"),
-    ({"kind": "split", "parts": [{"icio_code": "C27", "share": 0.5}] * 2}, "duplicate part"),
-    ({"kind": "split", "parts": [{"icio_code": "C27", "share": 0}, {"icio_code": "B07", "share": 1}]}, "share must be > 0"),
-    ({"kind": "split", "parts": [{"icio_code": "C27", "share": 0.5}, {"icio_code": "B07", "share": 0.4}]}, "shares must sum to 1"),
-    ({"kind": "split", "parts": [{"icio_code": "ZZ", "share": 1}]}, "unknown code 'ZZ'"),
+    ({"kind": "split", "parts": [{"sectors": [MACHINERY], "share": 0.5}] * 2}, f"duplicate sector '{MACHINERY}'"),
+    ({"kind": "split", "parts": [{"sectors": [MACHINERY], "share": 0}, {"sectors": S("B07"), "share": 1}]}, "share must be > 0"),
+    ({"kind": "split", "parts": [{"sectors": [MACHINERY], "share": 0.5}, {"sectors": S("B07"), "share": 0.4}]}, "shares must sum to 1"),
+    ({"kind": "split", "parts": [{"sectors": ["ZZ"], "share": 1}]}, "unknown sector 'ZZ'"),
     ({"kind": "nodes", "parts": [{"region": "DE", "sector": NICKEL, "share": 1}]}, f"unknown node 'DE · {NICKEL}'"),
-    ({"kind": "split", "parts": [{"icio_code": f"C{n}", "share": 1 / 21} for n in range(10, 31)]}, "1 to 20 parts"),
-    ({"kind": "split", "parts": [{"icio_code": "C27", "share": True}]}, "each part needs icio_code and a numeric share"),
-    ({"kind": "split", "parts": [{"code": "C27", "share": 1}]}, "each part needs icio_code and a numeric share"),
+    ({"kind": "split", "parts": [{"sectors": [s], "share": 1 / 21} for s in sectors()[:21]]}, "1 to 20 parts"),  # AC-64
+    ({"kind": "split", "parts": [{"sectors": [MACHINERY], "share": True}]}, "each part needs sectors and a numeric share"),
+    ({"kind": "split", "parts": [{"code": "C27", "share": 1}]}, "each part needs sectors and a numeric share"),
+    ({"kind": "split", "parts": [{"sectors": ["Not a sector"], "share": 1}]}, "unknown sector 'Not a sector'"),  # AC-23
+    ({"kind": "split", "parts": [{"sectors": [], "share": 1}]}, "sectors must not be empty"),  # AC-24
+    ({"kind": "split", "parts": [{"sectors": ["Copper production"], "share": 0.5}] * 2}, "duplicate sector 'Copper production'"),  # AC-25
+    ({"kind": "split", "parts": [{"sectors": ["Copper production"] * 2, "share": 1}]}, "duplicate sector 'Copper production'"),  # AC-63
+    ({"kind": "split", "parts": [{"icio_code": "B07", "share": 1}]}, "each part needs sectors and a numeric share"),  # AC-26
+    ({"kind": "split", "parts": [{"sectors": "Copper production", "share": 1}]}, "each part needs sectors and a numeric share"),
+    ({"kind": "split", "parts": [{"sectors": ["Copper production"], "share": 0}, {"sectors": [MACHINERY], "share": 1}]},
+     "share must be > 0"),  # AC-65
+    ({"kind": "split", "parts": [{"sectors": ["Copper production"], "share": 0.5}]}, "shares must sum to 1"),  # AC-66
     ({"kind": "nodes", "parts": [{"region": "DE", "share": 1}]}, "each part needs region, sector and a numeric share"),
 ])
 def test_validation(env, body, detail):  # AC-8
@@ -164,8 +177,8 @@ def test_validation(env, body, detail):  # AC-8
 
 
 def test_twenty_parts_is_the_limit(env):
-    codes = [c["code"] for c in TestClient(app).get(f"{BASE}/codes").json()][:20]
-    res = env[0].put(f"{BASE}/links/company/dz", json={"kind": "split", "parts": [{"icio_code": c, "share": 0.05} for c in codes]})
+    names = [c["name"] for c in TestClient(app).get(f"{BASE}/codes").json()][:20]
+    res = env[0].put(f"{BASE}/links/company/dz", json={"kind": "split", "parts": [{"sectors": [n], "share": 0.05} for n in names]})
     assert res.status_code == 200 and len(res.json()["rule"]["parts"]) == 20
 
 
@@ -175,9 +188,9 @@ def test_viewer_cannot_write(linked):  # AC-9, AC-9b
     saved = app.dependency_overrides.pop(authorize)
     app.dependency_overrides[current_user] = lambda: viewer
     try:
-        assert client.put(f"{BASE}/links/company/cm", json={"kind": "split", "parts": [{"icio_code": "C27", "share": 1}]}).status_code == 403
+        assert client.put(f"{BASE}/links/company/cm", json={"kind": "split", "parts": [{"sectors": [MACHINERY], "share": 1}]}).status_code == 403
         body = client.get(f"{BASE}/links/company/cm").json()
-        assert (body["source"], body["rule"]) == ("code", None)
+        assert (body["source"], body["rule"]) == ("nace", None)
     finally:
         app.dependency_overrides[authorize] = saved
 
@@ -187,7 +200,7 @@ def test_delete_and_unknown(linked):  # AC-10, AC-11
     assert client.delete(f"{BASE}/links/company/sx").status_code == 204
     assert client.delete(f"{BASE}/links/company/sx").status_code == 204
     sx = client.get(f"{BASE}/links/company/sx").json()
-    assert (sx["source"], nodes(sx), sx["rule"]) == ("code", [("CN.4", 1.0)], None)
+    assert (sx["source"], nodes(sx), sx["rule"]) == ("nace", [("CN.4", 1.0)], None)
     res = client.get(f"{BASE}/links/company/zz")
     assert (res.status_code, res.json()["detail"]) == (404, "unknown company 'zz'")
 
@@ -213,7 +226,7 @@ def test_activity_links(env):  # AC-14 to AC-16
     assert nodes(body) == [("CN.1", 0.3704), ("WA.1", 0.2222), ("DE.1", 0.1852), ("CN.2", 0.1481), ("WA.2", 0.0741)]
     res = client.put(f"{BASE}/links/activity/T/a1", json={"kind": "nodes", "parts": [{"region": "CN", "sector": COPPER, "share": 1}]})
     assert (res.json()["source"], nodes(res.json())) == ("nodes", [("CN.1", 1.0)])
-    res = client.put(f"{BASE}/links/activity/T/a1", json={"kind": "split", "parts": [{"icio_code": "ZZ", "share": 2}]})
+    res = client.put(f"{BASE}/links/activity/T/a1", json={"kind": "split", "parts": [{"sectors": ["ZZ"], "share": 2}]})
     assert (res.status_code, res.json()["detail"]) == (422, "split is for companies only")
     assert client.delete(f"{BASE}/links/activity/T/a1").status_code == 204
     assert nodes(client.get(f"{BASE}/links/activity/T/a1").json())[0] == ("CN.1", 0.3704)
@@ -229,7 +242,7 @@ def test_overlay(linked):  # AC-17 to AC-22, AC-24
         (h["security_id"], round(h["weight"], 4), h["link_source"], h["top_node"] and (h["top_node"]["node_id"], h["top_node"]["weight"]),
          h["owned_output_meur"] and round(h["owned_output_meur"], 4))
         for h in o["holdings"]
-    ] == [("s_cm", 0.4, "code", ("CN.4", 1.0), 0.2), ("s_sx", 0.3, "split", ("CN.4", 0.5), 0.15),
+    ] == [("s_cm", 0.4, "nace", ("CN.4", 1.0), 0.2), ("s_sx", 0.3, "split", ("CN.4", 0.5), 0.15),
           ("s_nx", 0.2, "nodes", ("WA.1", 1.0), None), ("s_cash", 0.1, "none", None, None)]
     assert [h["name"] for h in o["holdings"]] == ["Sec cm", "Sec sx", "Sec nx", "Cash"]
     assert nodes(o) == [("CN.4", 0.55), ("WA.1", 0.2), ("CN.1", 0.1071), ("CN.2", 0.0429)]
@@ -305,7 +318,7 @@ def test_overlay_of_an_unknown_security_with_no_value(env):
     _, store = env
     vc = load_value_chain(Settings().value_chain_dir)
     activity = ActivityDefinition(activity_id="a1", name="A", in_scope_description="x", out_of_scope_description="y",
-                                                   core_isic_codes=["B07"])
+                                                   core_sectors=S("B07"))
     ghost = Holding(holder_id="P", security_id="s_ghost", as_of_date="2026-09-30", market_value=0, market_value_eur=0)
     o = overlay(vc, store, [ghost], "2026-09-30", indicator="ghg", top=6,
                 activity=("T", activity, resolve_activity(vc, activity, None)))
@@ -313,7 +326,7 @@ def test_overlay_of_an_unknown_security_with_no_value(env):
                               "weight": 0.0, "link_source": "none", "top_node": None, "owned_output_meur": None}]
     assert (o["nav_eur"], o["linked_weight"], o["upstream_total"], o["nodes"], o["direct_by_region"]) == (0, 0, 0, [], [])
     assert (o["footprint"]["per_meur_invested"], o["activity"]["direct_weight"], o["activity"]["upstream_share"]) == (None, 0, None)
-    nowhere = activity.model_copy(update={"core_isic_codes": ["ZZ"]})  # codes outside the list are ignored
+    nowhere = activity.model_copy(update={"core_sectors": ["ZZ"]})  # sectors outside the list are ignored
     assert resolve_activity(vc, nowhere, None) == Resolution("none", None, {}, [])
     assert company_region(vc, None) is None and company_region(vc, "th") == "WA"
 
@@ -334,12 +347,35 @@ def test_not_built(env, monkeypatch):  # AC-25g
 def test_csv_import(env, tmp_path):  # AC-32
     client, _ = env
     path = tmp_path / "splits.csv"
-    path.write_text("company_id,icio_code,share\nsx,C27,0.5\nsx,B07,0.5\ndz,C27,0.7\nzz,C27,1\n")
+    path.write_text(f"company_id,sector,share\nsx,{MACHINERY},0.5\nsx,{COPPER},0.5\ndz,{MACHINERY},0.7\nzz,{MACHINERY},1\n")
     res = runner.invoke(cli_app, ["io", "links", "import", str(path)])
     assert res.exit_code == 1
     assert res.stdout == "linked: 1, rejected: 2\n"
     assert res.stderr.splitlines() == ["dz: shares must sum to 1", "zz: unknown company 'zz'"]
     assert client.get(f"{BASE}/links/company/sx").json()["source"] == "split"
+
+
+@pytest.mark.parametrize(("rows", "parts"), [
+    (["c3,Copper production,1"], [{"sectors": ["Copper production"], "share": 1.0}]),  # AC-45
+    (["c3,Copper production,0.5", "c3,Cultivation of wheat,0.5"],
+     [{"sectors": ["Copper production"], "share": 0.5}, {"sectors": ["Cultivation of wheat"], "share": 0.5}]),  # AC-67
+])
+def test_csv_import_one_part_per_row(env, tmp_path, rows, parts):
+    _, store = env
+    store.save_company(CompanyRef(company_id="c3", name="C3"))
+    path = tmp_path / "splits.csv"
+    path.write_text("\n".join(["company_id,sector,share", *rows]) + "\n")
+    res = runner.invoke(cli_app, ["io", "links", "import", str(path)])
+    assert res.exit_code == 0, res.output
+    rule = store.get_link_rule("company:c3")
+    assert (rule.kind, rule.parts) == ("split", parts)
+
+
+def test_csv_import_old_header(env, tmp_path):  # AC-46
+    path = tmp_path / "splits.csv"
+    path.write_text("company_id,icio_code,share\nsx,C27,1\n")
+    res = runner.invoke(cli_app, ["io", "links", "import", str(path)])
+    assert (res.exit_code, res.stderr) == (1, "header must be company_id,sector,share\n")
 
 
 class _StubLLM:
@@ -348,7 +384,7 @@ class _StubLLM:
 
     async def complete_structured(self, *, system, prompt, output_model, **kwargs):
         self.calls.append(prompt)
-        return output_model(isic_code=self.code, rationale="stub"), LLMUsage()
+        return output_model(sector=self.code, rationale="stub"), LLMUsage()
 
 
 @pytest.mark.parametrize(("args", "detail"), [
@@ -368,13 +404,13 @@ def test_classify_unlinked(env, monkeypatch):  # AC-33, AC-34, AC-34b, AC-35
     none = _StubLLM(None)
     assert asyncio.run(classify_unlinked(store, "P", "2026-09-30", model, none)) == (0, 1)
     assert client.get(f"{BASE}/links/company/nx").json()["rule"] is None
-    llm = _StubLLM("C27")
+    llm = _StubLLM(MACHINERY)
     assert asyncio.run(classify_unlinked(store, "P", "2026-09-30", model, llm)) == (1, 0)
     assert len(llm.calls) == 1 and "Company: NX" in llm.calls[0]
     nx = client.get(f"{BASE}/links/company/nx").json()
     assert (nx["source"], nodes(nx), nx["rule"]["set_by"]) == ("llm", [("DE.4", 1.0)], "llm")
     client.put(f"{BASE}/links/company/nx", json=NX_NODES)
-    again = _StubLLM("C27")
+    again = _StubLLM(MACHINERY)
     assert asyncio.run(classify_unlinked(store, "P", "2026-09-30", model, again)) == (0, 0) and again.calls == []
 
     # a second portfolio Q holds two unlinked companies; classifying P never reaches them
@@ -386,13 +422,13 @@ def test_classify_unlinked(env, monkeypatch):  # AC-33, AC-34, AC-34b, AC-35
                                             for s in ("s_dz", "s_zx")])
     assert asyncio.run(classify_unlinked(store, "P", "2026-09-30", model, _StubLLM(None))) == (0, 0)
     assert asyncio.run(classify_unlinked(store, "Q", "2026-09-30", model, _StubLLM(None))) == (0, 2)
-    assert asyncio.run(classify_unlinked(store, "Q", "2026-09-30", model, _StubLLM("C27"))) == (2, 0)
+    assert asyncio.run(classify_unlinked(store, "Q", "2026-09-30", model, _StubLLM(MACHINERY))) == (2, 0)
 
     store.save_company(CompanyRef(company_id="cm", name="CM", country="CN"))
-    assert asyncio.run(classify_unlinked(store, "P", "2026-09-30", model, _StubLLM("B07"))) == (1, 0)
-    store.save_company(CompanyRef(company_id="cm", name="CM", country="CN", isic_code="C27"))
+    assert asyncio.run(classify_unlinked(store, "P", "2026-09-30", model, _StubLLM(COPPER))) == (1, 0)
+    store.save_company(CompanyRef(company_id="cm", name="CM", country="CN", isic_code="27"))
     cm = client.get(f"{BASE}/links/company/cm").json()
-    assert (cm["source"], nodes(cm), cm["rule"]["kind"]) == ("code", [("CN.4", 1.0)], "llm")
+    assert (cm["source"], nodes(cm), cm["rule"]["kind"]) == ("nace", [("CN.4", 1.0)], "llm")
 
 
 def test_esg_template_has_revenue_after_evic(env):  # AC-36
@@ -400,9 +436,24 @@ def test_esg_template_has_revenue_after_evic(env):  # AC-36
     assert header[header.index("climate_evic_eur_m") + 1] == "climate_revenue_eur_m"
 
 
-def test_codes_lists_the_split_codes_last():
+def test_codes_lists_the_sectors():  # AC-22
     codes = TestClient(app).get(f"{BASE}/codes").json()
-    assert len(codes) == 55 and [c["code"] for c in codes[-5:]] == ["D_GEN_FOS", "D_GEN_NUC", "D_GEN_REN", "D_TD", "D_GAS"]
+    assert len(codes) == 163 and codes[0] == {"name": "Cultivation of paddy rice"}
+
+
+def test_valid_split_round_trips(env):  # AC-27
+    client, store = env
+    body = {"kind": "split", "parts": [{"sectors": S("B07"), "share": 1.0}]}
+    assert client.put(f"{BASE}/links/company/dz", json=body).status_code == 200
+    assert client.get(f"{BASE}/links/company/dz").json()["rule"]["parts"] == body["parts"]
+    assert store.get_link_rule("company:dz").parts == body["parts"]
+
+
+@pytest.mark.parametrize(("isic_code", "source"), [("07", "nace"), ("C26", "none")])  # AC-32, AC-33
+def test_company_source_of_isic_codes(isic_code, source):
+    from arp.research.value_chain.links import company_source
+
+    assert company_source(CompanyRef(company_id="x", name="X", isic_code=isic_code), None) == source
 
 
 # --- Scope 8: the shocks' portfolio lens ---------------------------------------

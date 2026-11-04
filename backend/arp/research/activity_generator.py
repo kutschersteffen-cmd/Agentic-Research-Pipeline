@@ -61,9 +61,9 @@ async def build_theme(name: str, description: str, llm: LLMClient) -> tuple[Them
 
 
 # --- Industry-anchored derivation: grounds the draft against a real,
-# closed industry classification (e.g. the ISIC list from a loaded
+# closed industry classification (the EXIOBASE sectors of the loaded
 # input-output model) instead of letting the model invent categories
-# freely. Populates core_isic_codes directly, since the same reference
+# freely. Populates core_sectors directly, since the same reference
 # list is what `arp/research/indirect_exposure/core_sectors.py` would
 # otherwise classify against as a separate step. ---
 
@@ -79,10 +79,10 @@ For each activity, write the in-scope and out-of-scope descriptions in \
 plain, checkable language, in the style used by systematic thematic index \
 providers, and give a short seed keyword/bigram list for evidence \
 retrieval. Additionally, select which of the reference industries (by \
-code) are this activity's core sectors -- industries whose output IS the \
+name, exactly as listed) are this activity's core sectors -- industries whose output IS the \
 activity, not merely a plausible supplier or customer of it. If no \
 reference industry is a good direct match for an activity, leave its \
-core_isic_codes empty rather than forcing the closest-sounding one; not \
+core_sectors empty rather than forcing the closest-sounding one; not \
 every real activity in a theme needs to map onto this particular \
 reference list.
 
@@ -94,21 +94,21 @@ class _AnchoredActivityDraft(BaseModel):
     in_scope_description: str
     out_of_scope_description: str
     seed_keywords: list[str] = Field(default_factory=list)
-    core_isic_codes: list[str] = Field(default_factory=list)
+    core_sectors: list[str] = Field(default_factory=list)
 
 
 class _AnchoredActivityDraftList(BaseModel):
     activities: list[_AnchoredActivityDraft]
 
 
-def _format_anchor_industries(anchor_industries: list[tuple[str, str]]) -> str:
-    return "\n".join(f"{code}: {label}" for code, label in anchor_industries)
+def _format_anchor_industries(anchor_industries: list[str]) -> str:
+    return "\n".join(anchor_industries)
 
 
 async def generate_activities_industry_anchored(
     theme_name: str,
     theme_description: str,
-    anchor_industries: list[tuple[str, str]],
+    anchor_industries: list[str],
     llm: LLMClient,
 ) -> tuple[list[ActivityDefinition], LLMUsage]:
     prompt = (
@@ -120,14 +120,14 @@ async def generate_activities_industry_anchored(
     draft, usage = await llm.complete_structured(
         system=_ANCHORED_SYSTEM_PROMPT, prompt=prompt, output_model=_AnchoredActivityDraftList
     )
-    known_codes = {code for code, _ in anchor_industries}
+    known = set(anchor_industries)
     activities = [
         ActivityDefinition(
             name=a.name,
             in_scope_description=a.in_scope_description,
             out_of_scope_description=a.out_of_scope_description,
             seed_keywords=a.seed_keywords,
-            core_isic_codes=[c for c in a.core_isic_codes if c in known_codes],
+            core_sectors=list(dict.fromkeys(c for c in a.core_sectors if c in known)),
         )
         for a in draft.activities
     ]
@@ -135,7 +135,7 @@ async def generate_activities_industry_anchored(
 
 
 async def build_theme_industry_anchored(
-    name: str, description: str, anchor_industries: list[tuple[str, str]], llm: LLMClient
+    name: str, description: str, anchor_industries: list[str], llm: LLMClient
 ) -> tuple[ThemeDefinition, LLMUsage]:
     activities, usage = await generate_activities_industry_anchored(name, description, anchor_industries, llm)
     return ThemeDefinition(name=name, description=description, activities=activities), usage

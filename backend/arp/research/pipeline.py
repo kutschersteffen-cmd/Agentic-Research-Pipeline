@@ -12,7 +12,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.orchestration.batch_runner import run_company_batch
 from arp.orchestration.cost_tracker import combine_usage, estimate_cost_usd
 from arp.orchestration.job_manager import JobManager
-from arp.research.indirect_exposure.company_mapper import resolve_company_isic
+from arp.research.indirect_exposure.company_mapper import resolve_company_sector
 from arp.research.indirect_exposure.factory import resolve_indirect_exposure_model
 from arp.research.indirect_exposure.leontief import LeontiefModel
 from arp.research.match_graph import match_company_activity
@@ -20,6 +20,7 @@ from arp.research.rd_exposure.resolver import RDResolverContext
 from arp.research.revenue_exposure.catalogue import by_company as catalogue_by_company
 from arp.research.revenue_exposure.catalogue import load_catalogue
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
+from arp.research.value_chain.links import company_nace_sectors
 from arp.schemas.common import CompanyRef
 from arp.schemas.datapoints import DataPointSchema
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping
@@ -78,11 +79,12 @@ async def _match_company(
     # the indirect-exposure tier, the revenue-exposure resolver's, and the
     # rd-exposure resolver's sector-relevance gates, so enabling more than
     # one doesn't force a redundant classification call.
-    company_isic: str | None = None
+    company_sector: str | None = None
     isic_model = indirect_model or (revenue_resolver.isic_model if revenue_resolver else None) or (rd_resolver.isic_model if rd_resolver else None)
     if isic_model is not None:
-        company_isic, u_isic = await resolve_company_isic(company, isic_model, llm)
-        usages.append(u_isic)
+        company_sector, u_sector = await resolve_company_sector(company, isic_model, llm)
+        usages.append(u_sector)
+    company_sectors = company_nace_sectors(company) or ({company_sector} if company_sector else set())
 
     for activity in theme.activities:
         match, activity_usages = await match_company_activity(
@@ -96,7 +98,7 @@ async def _match_company(
             indirect_model=indirect_model,
             revenue_resolver=revenue_resolver,
             rd_resolver=rd_resolver,
-            company_isic=company_isic,
+            company_sectors=company_sectors,
         )
         matches.append(match)
         usages.extend(activity_usages)
@@ -106,9 +108,9 @@ async def _match_company(
     # resolution) and llm_verifier_model (the revenue-exposure resolver's
     # path-2 extraction fallback) calls within one company.
     cost = sum(estimate_cost_usd(u.model or settings.llm_model, u) for u in usages)
-    isic_from_model = company_isic is not None and company.isic_code != company_isic
+    isic_from_model = company_sector is not None
     return CompanyMatchesResult(
-        matches, combine_usage(*usages) if usages else LLMUsage(), cost, isic_code=company_isic, isic_from_model=isic_from_model,
+        matches, combine_usage(*usages) if usages else LLMUsage(), cost, isic_code=company_sector, isic_from_model=isic_from_model,
     )
 
 
