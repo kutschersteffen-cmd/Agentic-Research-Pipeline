@@ -295,3 +295,20 @@ def test_golden_taxonomy_loads(): ...             # the committed store dir load
 - AC-26…AC-32 (owner additions) → Tasks 7 and 8.
 - Rulings made in this plan: a rerank outage skips the rerank threshold instead of screening pairs out (spec silent); funnel commands accept a draft taxonomy version (evaluation only); thresholds stay keyed by `theme_id` as the spec says.
 - The funnel only runs where a debate would have run, so revenue-path LLM calls (extraction fallback) are not reduced by it. The golden runs use no revenue resolver, so AC-23 measures debate calls only.
+
+---
+
+## Amendment B tasks (approved 2026-11-04: wider debate evidence; both positive statements)
+
+Spec: amendment B section and AC-17, AC-33…AC-51.
+
+### Task 9: Funnel inputs from the whole taxonomy and its schema
+
+**Files:** `backend/arp/research/taxonomy_schema.py` (`activity_fields(activity, taxonomy_id, version) -> list[FieldDefinition]`, used by `build_taxonomy_schema`; no ratification check), `backend/arp/research/funnel.py` (`STAGE_WORDS`, `FunnelQuery`, `funnel_query(theme, activity) -> FunnelQuery`; `score_pair(..., query: FunnelQuery, ...)` with two positives; record keys `query`, `rerank_query`, `positive`, `positives`), `backend/arp/schemas/thematic.py` (`FunnelRecord` keys), `backend/arp/research/match_graph.py` (`MatchState.funnel_query`; `_gather_evidence` uses `funnel_query.keywords` when set), `backend/arp/research/pipeline.py` (passes `funnel_query(theme, activity)` when the setting is on), `backend/arp/cli/theme.py` (`funnel_report` passes the query; `--out` rows carry `funnel`).
+**Tests:** AC-17, AC-33…AC-40, AC-42…AC-51 in `test_funnel.py`, `test_funnel_integration.py`, `test_funnel_cli.py`; existing stand-ins in those files map any positive statement to the fixture's positive score.
+- [ ] Write the failing rows → run → FAIL
+- [ ] Implement → run all funnel suites → PASS; `ruff check .`
+- [ ] Commit `feat(theme): the whole taxonomy version and schema feed the funnel`
+
+### Task 10: Golden smoke check (AC-41)
+- [ ] `arp theme funnel --split tune` with real models; the `h2pro` line ends with `pass`. Owed in this container (torch/torchvision mismatch); record it in the PR.

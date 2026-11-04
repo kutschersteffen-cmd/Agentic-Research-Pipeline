@@ -110,7 +110,7 @@ The funnel reads passage vectors from the `chunk_embeddings` store (key `chunk_i
 model) and stores the ones it computes. `arp documents warm --embed` fills the store for every chunk of every
 fetched document, so a run only embeds the activity statements.
 
-### The whole taxonomy version feeds the funnel (amendment B, 2026-11-03, owner; awaiting approval)
+### The whole taxonomy version feeds the funnel (amendment B, approved by the owner 2026-11-04)
 
 Why: the funnel must not drop early-stage evidence (research programmes, pilot plants, demonstrators, capex,
 R&D) before extraction. So every part of the taxonomy version, and the extraction schema generated from it, feeds
@@ -140,11 +140,16 @@ later (the planned stage-evidence fields) reach the funnel with no funnel change
 3. **Rerank query** (`funnel.rerank_query`): the embedding query plus one more line,
    `Evidence: <field name>; <field name>; …` (the `name` of every schema field of the activity, in schema order). One rerank call per
    pair scores each passage against this combined query; `t_rerank` applies to that score.
-4. **NLI.** Negatives are unchanged (`out_of_scope_description` + `contrast_statements`). The positive statement
-   (`funnel.positive`) is `The company researches, develops, pilots, manufactures or sells <activity name>.`
-   The pass rule is unchanged, with this positive in place of `in_scope_description`.
+4. **NLI.** Negatives are unchanged (`out_of_scope_description` + `contrast_statements`). There are two positive
+   statements (`funnel.positives`, in this order; owner's answer "both"):
+   `The company researches, develops, pilots, manufactures or sells <activity name>.` and
+   `The company researches, develops, pilots, manufactures or sells the following: <in_scope_description>`.
+   The pass rule is unchanged except that it holds when **either** positive meets it on a passage (≥ `t_entail` and
+   strictly greater than every negative there). `funnel.positive` is the statement that met it (the first in
+   `positives` order when both do); for a screened-out pair, the statement with the highest entailment on
+   `best_passage`. `entail_positive` is that statement's score on `best_passage`.
 
-The `funnel` record gains three keys: `query`, `rerank_query`, `positive` (AC-17 amended). Steps 2 and 3 of the
+The `funnel` record gains four keys: `query`, `rerank_query`, `positive`, `positives` (AC-17 amended). Steps 2 and 3 of the
 table above use `funnel.query` and `funnel.rerank_query` in place of `in_scope_description`. `arp theme funnel
 --out` writes, per case, the `funnel` record of its best activity under the key `funnel`: a passing activity before a
 screened one, then the higher `entail_positive`, ties to the first in taxonomy order.
@@ -177,7 +182,7 @@ that counts calls. Company names A–H refer to fixture companies with one activ
 | AC-14 | `funnel_thresholds.json` without theme `t2` and `default.t_rerank` 5.0; company G as in AC-13 | theme run for `t2` | G's verdict is `exclude` | unit |
 | AC-15 | `funnel_thresholds.json` with `default.k2` 1; company H with 10 passages | theme run | H's `funnel.passages_scored` is 1 | unit |
 | AC-16 | A theme JSON without `contrast_statements` | load | Loads without error; the activity's `contrast_statements` is `[]` | unit |
-| AC-17 | Any screened-out pair | read the run JSON | `funnel` has exactly the keys `passed`, `rerank_max`, `entail_positive`, `entail_negatives`, `best_passage`, `best_doc_id`, `passages_scored`, `thresholds`, `models`, `query`, `rerank_query`, `positive` (last three added by amendment B) | unit |
+| AC-17 | Any screened-out pair | read the run JSON | `funnel` has exactly the keys `passed`, `rerank_max`, `entail_positive`, `entail_negatives`, `best_passage`, `best_doc_id`, `passages_scored`, `thresholds`, `models`, `query`, `rerank_query`, `positive`, `positives` (last four added by amendment B) | unit |
 | AC-18 | Golden cases: 2 core and 1 peripheral that pass, 2 `not` that are screened out (stand-ins) | `arp theme funnel` | The last three output lines are `core: 2/2`, `peripheral: 1/1`, `not: 0/2` | unit |
 | AC-19 | Golden cases where core+peripheral kept is 0.90 | `arp theme funnel --min-kept-positive 0.95` | Exit code 1 | unit |
 | AC-20 | Golden cases where `not` kept is 0.40 | `arp theme funnel --max-kept-negative 0.30` | Exit code 1 | unit |
@@ -200,17 +205,19 @@ that counts calls. Company names A–H refer to fixture companies with one activ
 | AC-35 | Setting on; activity `seed_keywords` `["electrolyser"]` (so the generated CapEx field's `seed_keywords` are `["electrolyser", "capex"]`); the company's only document is `Capex rose to EUR 40m.` | theme run | The match has a `funnel` record (not null) | unit |
 | AC-36 | Activity name `Electrolysers`, `in_scope_description` `Makes stacks.`, `out_of_scope_description` `Buys power.`; theme `description` `Green hydrogen.`; no technologies or definitions | theme run, setting on, a pair with evidence | `funnel.query` is `Electrolysers: Makes stacks.\nGreen hydrogen.` | unit |
 | AC-37 | Same as AC-36 | theme run, setting on | `funnel.rerank_query` is `funnel.query` + `\nEvidence: Electrolysers: revenue share; Electrolysers: CapEx share; Electrolysers: OpEx share; Electrolysers: R&D intensity` | unit |
-| AC-38 | Same as AC-36 | theme run, setting on | `funnel.positive` is `The company researches, develops, pilots, manufactures or sells Electrolysers.` | unit |
+| AC-38 | Same as AC-36 | theme run, setting on | `funnel.positives` is `["The company researches, develops, pilots, manufactures or sells Electrolysers.", "The company researches, develops, pilots, manufactures or sells the following: Makes stacks."]` | unit |
 | AC-39 | Same as AC-36 with contrast statement `Buys stacks.` | theme run, setting on | `funnel.entail_negatives` has exactly the keys `Buys power.` and `Buys stacks.` | unit |
 | AC-40 | A draft (not ratified) taxonomy version, a golden set with one case and its document | `arp theme funnel --taxonomy …` | Exit code 0 | unit |
 | AC-42 | Draft taxonomy version with the AC-36 activity; one golden case with a document | `arp theme funnel --taxonomy … --out rows.json` | The case's `funnel.rerank_query` in `rows.json` equals the AC-37 string | unit |
 | AC-43 | Setting on; AC-33's activity; two documents, `Our pilot plant started in May.` and `Weather was mild.` | theme run, stand-ins making the pair pass | `funnel.passages_scored` is 2 | unit |
 | AC-44 | Setting on; AC-33's fixture; stand-ins make the pair pass | theme run | The Advocate stand-in's prompt contains `Our pilot plant started in May.` | unit |
 | AC-45 | Setting on; the AC-36 activity and theme plus technologies `PEM`, `SOEC` and definitions `stack` = `cell assembly`, `BoP` = `balance of plant` (fields from PR #325; owed until it merges) | theme run, a pair with evidence | `funnel.query` is exactly `Electrolysers: Makes stacks.\nGreen hydrogen.\nTechnologies: PEM, SOEC\nDefinitions: stack: cell assembly; BoP: balance of plant` | unit |
-| AC-46 | Any pair the funnel passes | read the run JSON | `funnel` has exactly the 12 keys listed in AC-17 | unit |
+| AC-46 | Any pair the funnel passes | read the run JSON | `funnel` has exactly the 13 keys listed in AC-17 | unit |
 | AC-47 | Setting off; activity `seed_keywords` `["electrolyser"]`; only document `Capex rose to EUR 40m.` | theme run | The match's rationale starts with `No evidence of this activity` | unit |
 | AC-48 | Draft taxonomy with two activities; stand-ins pass activity A (`entail_positive` 0.85) and B (`entail_positive` 0.95) for one golden case | `arp theme funnel --out rows.json` | The case's `funnel.query` in `rows.json` is B's query | unit |
 | AC-49 | AC-43's fixture; stand-ins make the pair pass | theme run | The Advocate stand-in's prompt does not contain `Weather was mild.` | unit |
+| AC-50 | AC-36's activity; rerank 3.0; one passage where only the second positive scores 0.90 (first 0.10) and every negative ≤ 0.2 | theme run, setting on | `funnel.passed` is `true` | unit |
+| AC-51 | Same as AC-50 | theme run, setting on | `funnel.positive` is the second statement of `funnel.positives` | unit |
 | AC-41 | Electrolyser golden set, case `h2pro` (its only document describes a pilot / demonstration project, no manufacturing or sales), real models | `arp theme funnel --split tune` | The `h2pro` line ends with `pass` (a one-case smoke check on the tune split, asked for by the owner) | golden |
 
 Must not change: theme runs with the setting off (AC-1, AC-25, AC-34, AC-47).
