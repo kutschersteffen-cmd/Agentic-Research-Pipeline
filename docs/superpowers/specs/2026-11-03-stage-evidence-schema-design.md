@@ -1,6 +1,6 @@
 # Stage evidence in the taxonomy schema
 
-Spec slug: `stage-evidence-schema`. Status: draft, for owner approval.
+Spec slug: `stage-evidence-schema`. Status: approved by the owner, 2026-11-04.
 
 ## Why
 
