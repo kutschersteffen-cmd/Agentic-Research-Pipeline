@@ -62,7 +62,7 @@ def infer_show(run_id: str, as_json: bool = typer.Option(False, "--json")) -> No
         typer.echo(e.args[0], err=True)
         raise typer.Exit(1) from None
     if as_json:
-        data = infer_run._round(run.model_dump(mode="json"))
+        data = infer_run.dump(run)
         for p in data["profiles"]:
             if p["citation"]:
                 p["citation"] = {k: p["citation"][k] for k in ("doc_id", "page", "quote")}

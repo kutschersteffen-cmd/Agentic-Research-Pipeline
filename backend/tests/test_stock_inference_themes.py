@@ -82,3 +82,20 @@ async def test_grounded_methodology_quote_is_kept(fake_llm):
 async def test_no_methodology_means_not_stated(fake_llm):
     themes, _ = await _propose(fake_llm, [_theme("H2", ["p1"], stated_in_methodology=True, methodology_quote="x")])
     assert themes[0].stated_in_methodology is False and themes[0].methodology_quote is None
+
+
+async def test_fuzzy_threshold_reaches_grounding(fake_llm, monkeypatch):
+    from arp.research.stock_inference import themes as mod
+
+    seen = []
+    real = mod.ground_citations
+
+    def spy(citations, docs, fuzzy_threshold=0.92, **kw):
+        seen.append(fuzzy_threshold)
+        return real(citations, docs, fuzzy_threshold, **kw)
+
+    monkeypatch.setattr(mod, "ground_citations", spy)
+    llm = fake_llm({"ThemeProposals": [ThemeProposals(themes=[_theme("H2", ["p1"], stated_in_methodology=True,
+                                                                     methodology_quote="x")])]})
+    await propose_themes(_profiles(), [], None, [METHODOLOGY], llm, fuzzy_threshold=0.5)
+    assert seen == [0.5]

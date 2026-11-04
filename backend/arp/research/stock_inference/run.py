@@ -28,9 +28,9 @@ _MAX_CHARS = 400_000
 
 
 class WrongStage(Exception):
-    def __init__(self, stage: str) -> None:
-        super().__init__(f"run is at stage {stage}")
-        self.stage = stage
+    def __init__(self, run_id: str, stage: str, command: str, needed: str) -> None:
+        super().__init__(f"Run {run_id} is at stage '{stage}'; '{command}' needs '{needed}'.")
+        self.run_id, self.stage, self.command, self.needed = run_id, stage, command, needed
 
 
 class InferFailed(Exception):
@@ -58,8 +58,17 @@ def _round(v):
     return v
 
 
+def dump(run: InferRun) -> dict:
+    """The run JSON: numbers rounded to 4 decimals; a profile's `error` is absent on success."""
+    data = _round(run.model_dump(mode="json"))
+    for p in data["profiles"]:
+        if p["error"] is None:
+            del p["error"]
+    return data
+
+
 def _save(run: InferRun, run_store) -> InferRun:
-    run_store.save_snapshot(run.run_id, _SNAPSHOT, _round(run.model_dump(mode="json")))
+    run_store.save_snapshot(run.run_id, _SNAPSHOT, dump(run))
     return run
 
 
@@ -136,7 +145,8 @@ async def start(
         run = run.model_copy(update={"clusters": clusters})
         # stated_theme comes from layer 1 (PR 3); methodology documents are used for quote grounding only
         themes, outliers = await propose_themes(profiles, clusters, None, methodology_docs, llm,
-                                                samples=_samples(clusters, chunks))
+                                                samples=_samples(clusters, chunks),
+                                                fuzzy_threshold=settings.grounding_fuzzy_threshold)
         if not themes:
             raise fail("No common theme is supported by the profiled stocks.")
         return _save(run.model_copy(update={"stage": "themes_ready", "themes": themes, "outliers": outliers}),

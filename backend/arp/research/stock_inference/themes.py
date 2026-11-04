@@ -49,16 +49,17 @@ def _prompt(described: list[StockProfile], clusters: list[Cluster], samples: dic
     return json.dumps(payload, indent=1)
 
 
-def _grounded(quote: str | None, docs: list[SourceDocument]) -> bool:
+def _grounded(quote: str | None, docs: list[SourceDocument], fuzzy_threshold: float) -> bool:
     if not quote or not docs:
         return False
     cites = [Citation(doc_id=d.doc_id, doc_type=d.doc_type, quote=quote) for d in docs]
-    return any(c.grounded for c in ground_citations(cites, {d.doc_id: d for d in docs}))
+    return any(c.grounded for c in ground_citations(cites, {d.doc_id: d for d in docs}, fuzzy_threshold))
 
 
 async def propose_themes(
     profiles: list[StockProfile], clusters: list[Cluster], stated_theme: str | None,
     methodology_docs: list[SourceDocument], llm, *, samples: dict[int, list[str]] | None = None,
+    fuzzy_threshold: float = 0.92,
 ) -> tuple[list[Theme], list[str]]:
     described = {p.company_id: p for p in profiles if p.description}
     weighted = any(p.weight is not None for p in described.values())
@@ -72,7 +73,7 @@ async def propose_themes(
         ids = sorted({s.company_id for s in t.supporting} & described.keys())
         if not ids:
             continue
-        stated = t.stated_in_methodology and _grounded(t.methodology_quote, methodology_docs)
+        stated = t.stated_in_methodology and _grounded(t.methodology_quote, methodology_docs, fuzzy_threshold)
         weight_share = (round(sum(described[i].weight or 0.0 for i in ids) / total_weight, 4)
                         if weighted and total_weight else None)
         kept.append(Theme(

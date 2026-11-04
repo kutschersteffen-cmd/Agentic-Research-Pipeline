@@ -9,6 +9,7 @@ from arp.cli import taxonomy_infer as cli
 from arp.config import get_settings
 from arp.db.runs import RunStore
 from arp.ingestion.registry import DocumentSourceRegistry
+from arp.research.stock_inference.run import WrongStage
 from arp.research.stock_inference.themes import ProposedTheme, Support, ThemeProposals
 from tests.test_stock_inference_profile import _doc, _extract, _FixedDocSource
 
@@ -123,6 +124,39 @@ def test_show_json_has_exactly_the_spec_keys(env):
     assert run["name"] == "Hydrogen set"
     assert set(run["profiles"][0]["citation"]) == {"doc_id", "page", "quote"}
     assert run["outliers"] == ["s2"]
+    assert all("error" not in p for p in run["profiles"])  # absent on success
+
+
+def test_failed_profile_keeps_its_error(env):
+    path = env.setup(2, [_reply(("T1", ["s1"]))], behaviour={"s2": RuntimeError("boom")})
+    run = _show(_run_id(_invoke("start", "--stocks", str(path))))
+    by_id = {p["company_id"]: p for p in run["profiles"]}
+    assert "error" not in by_id["s1"] and by_id["s2"]["error"] == "RuntimeError: boom"
+
+
+def test_settings_threshold_reaches_theme_grounding(env, monkeypatch):
+    from arp.research.stock_inference import themes as themes_mod
+
+    monkeypatch.setenv("ARP_GROUNDING_FUZZY_THRESHOLD", "0.77")
+    get_settings.cache_clear()
+    seen = []
+    real = themes_mod.ground_citations
+    monkeypatch.setattr(themes_mod, "ground_citations",
+                        lambda c, d, t=0.92, **kw: seen.append(t) or real(c, d, t, **kw))
+    path = env.setup(2, [_reply(("T1", ["s1"]))])
+    meth = path.parent / "rules.txt"
+    meth.write_text("Some rules.")
+    reply = ThemeProposals(themes=[ProposedTheme(name="T1", description="d", supporting=[Support(company_id="s1",
+                           reason="r")], stated_in_methodology=True, methodology_quote="Some rules.")])
+    env.llm._script["ThemeProposals"] = [reply]
+    assert _invoke("start", "--stocks", str(path), "--methodology", str(meth)).exit_code == 0
+    assert seen == [0.77]
+
+
+def test_wrong_stage_message():
+    e = WrongStage("r1", "drafted", "pick", "themes_ready")
+    assert str(e) == "Run r1 is at stage 'drafted'; 'pick' needs 'themes_ready'."
+    assert (e.run_id, e.stage, e.command, e.needed) == ("r1", "drafted", "pick", "themes_ready")
 
 
 def test_show_makes_no_model_call(env, monkeypatch):
