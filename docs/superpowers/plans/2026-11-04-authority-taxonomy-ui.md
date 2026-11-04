@@ -1,5 +1,7 @@
 # Authority Taxonomy UI Implementation Plan
 
+Status: approved by the owner, 2026-11-04. Execution: factory implement session.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A Taxonomy Library screen that drives the authority-taxonomy run (start → sources → review → accept/cancel), with discovery and extraction moved to background tasks.
