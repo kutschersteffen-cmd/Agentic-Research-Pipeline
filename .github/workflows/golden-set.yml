@@ -81,9 +81,9 @@ jobs:
         run: |
           # With an ARP_GEMINI_API_KEY secret, every golden step runs on Gemini instead of Anthropic.
           if [ -n "$ARP_GEMINI_API_KEY" ]; then
-            { echo "ARP_LLM_MODEL=gemini-4-argon"; echo "ARP_LLM_VERIFIER_MODEL=gemini-3.8-flash"
+            { echo "ARP_LLM_MODEL=gemini-3.8-flash"; echo "ARP_LLM_VERIFIER_MODEL=gemini-3.8-flash"
               echo "ARP_EVIDENCE_GATE_MODEL=gemini-3.8-flash"; echo "ARP_TREE_SUMMARY_MODEL=gemini-3.8-flash"; } >>"$GITHUB_ENV"
-            echo "::notice title=Golden set on Gemini::ARP_GEMINI_API_KEY is set, so the golden set runs on gemini-4-argon / gemini-3.8-flash."
+            echo "::notice title=Golden set on Gemini::ARP_GEMINI_API_KEY is set, so the golden set runs on gemini-3.8-flash."
             echo "present=true" >>"$GITHUB_OUTPUT"
           elif [ -n "$KEY" ]; then echo "present=true" >>"$GITHUB_OUTPUT"; else
             echo "present=false" >>"$GITHUB_OUTPUT"
