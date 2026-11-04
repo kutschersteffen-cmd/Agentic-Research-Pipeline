@@ -195,7 +195,7 @@
 
 **Interfaces:**
 - Consumes: everything above. The fixture must produce the spec's evaluator preamble exactly (two candidates `EU Taxonomy hydrogen` / `Blocked report`; draft with 2 activities, activity 1 role `core` with one `exiobase` code, 1 threshold, checklist `activities`+`thresholds` found, the other 6 `not_in_source`).
-- Library entry for `EU Taxonomy hydrogen` (`from_library: true`): put it in `backend/arp/data/authority_library/hydrogen.json` only if #325's library has no approved hydrogen entry; otherwise point the stand-in search at the existing entry's URL.
+- Library entry for `EU Taxonomy hydrogen` (`from_library: true`): the library on `main` is empty, and #325's spec forbids an agent adding an entry without a user step. Before writing fixtures, ask the owner (button mode) to approve one `hydrogen` entry via `arp authority-library propose` then `approve`. If declined, stop and mark the PR `factory:blocked` on AC-36's "From library" part.
 
 - [ ] **Step 1:** write the walk test: start form as in the preamble → sources → tick → review → set activity 1 role to `upstream`, Save, reload → `upstream` (AC-43) → Accept → confirmation.
 - [ ] **Step 2:** run with `ARP_STANDINS_DIR=backend/tests/fixtures/authority_taxonomy_ui/standins bash backend/scripts/e2e_stack.sh up` → FAIL until fixtures are complete.
