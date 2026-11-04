@@ -183,3 +183,66 @@ def test_show_unknown_run_exits_1(env):
     env.setup(1)
     res = _invoke("show", "nope")
     assert res.exit_code == 1 and res.stderr.strip()
+
+
+def _runs(pg, tmp_path):
+    return len(RunStore(pg, tmp_path / "runs").list_runs("stock_inference"))
+
+
+def test_missing_extra_fails_before_any_run(env, pg, tmp_path, monkeypatch):  # F11
+    import importlib.util
+
+    real = importlib.util.find_spec
+    monkeypatch.setattr(importlib.util, "find_spec", lambda n, *a: None if n == "hdbscan" else real(n, *a))
+    path = env.setup(2, [_reply(("T1", ["s1"]))])
+    before = _runs(pg, tmp_path)
+    res = _invoke("start", "--stocks", str(path))
+    assert res.exit_code == 1 and not res.stdout.startswith("Run ")
+    assert res.stderr.strip() == 'Clustering needs the emerging_themes extra: pip install -e ".[emerging_themes]"'
+    assert _runs(pg, tmp_path) == before
+
+
+def test_no_stocks_fails_before_any_run(env, pg, tmp_path):  # F12
+    env.setup(1)
+    path = tmp_path / "empty.csv"
+    path.write_text("Ticker,Name,Weight\n")
+    before = _runs(pg, tmp_path)
+    res = _invoke("start", "--stocks", str(path))
+    assert res.exit_code == 1 and not res.stdout.startswith("Run ")
+    assert res.stderr.strip() == f"No stocks found in {path}."
+    assert _runs(pg, tmp_path) == before
+
+
+def test_manifest_is_finished(env, pg, tmp_path):  # F13
+    from arp.schemas.common import JobStatus
+
+    store = RunStore(pg, tmp_path / "runs")
+    path = env.setup(2, [_reply(("T1", ["s1"]))])
+    ok = store.load_manifest(_run_id(_invoke("start", "--stocks", str(path))))
+    assert ok.status == JobStatus.COMPLETED
+    path = env.setup(2, [_reply(("T2", ["x1"]))])
+    bad = store.load_manifest(_run_id(_invoke("start", "--stocks", str(path))))
+    assert bad.status == JobStatus.FAILED and bad.error == "No common theme is supported by the profiled stocks."
+
+
+@pytest.mark.asyncio
+async def test_benchmark_fetches_are_bounded(tmp_path):  # F10
+    import asyncio
+
+    from arp.research.stock_inference import run as run_mod
+
+    class _Registry:
+        live = peak = 0
+
+        async def fetch_all(self, ref):
+            self.live += 1
+            self.peak = max(self.peak, self.live)
+            await asyncio.sleep(0.01)
+            self.live -= 1
+            return []
+
+    path = tmp_path / "bench.csv"
+    path.write_text("company_id,name\n" + "".join(f"b{i},B{i}\n" for i in range(20)))
+    reg = _Registry()
+    assert await run_mod._benchmark_chunks(path, reg, 3) == []
+    assert reg.peak == 3

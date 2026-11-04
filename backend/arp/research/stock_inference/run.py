@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import random
 from pathlib import Path
 
@@ -85,11 +86,17 @@ async def read_methodology(sources: list[str], user_agent: str) -> list[SourceDo
     return docs
 
 
-async def _benchmark_chunks(path: Path, registry: DocumentSourceRegistry) -> list[DocumentChunk]:
+async def _benchmark_chunks(path: Path, registry: DocumentSourceRegistry, limit: int) -> list[DocumentChunk]:
     refs = sorted(load_company_universe(path), key=lambda c: c.company_id)
     if len(refs) > _MAX_BENCHMARK:
         refs = random.Random(0).sample(refs, _MAX_BENCHMARK)
-    docs = await asyncio.gather(*(registry.fetch_all(r) for r in refs))  # documents on hand only: no discovery
+    gate = asyncio.Semaphore(limit)
+
+    async def fetch(ref):
+        async with gate:
+            return await registry.fetch_all(ref)
+
+    docs = await asyncio.gather(*(fetch(r) for r in refs))  # documents on hand only: no discovery
     return [c for d in docs if d for c in description_chunks(d)]
 
 
@@ -109,8 +116,12 @@ async def start(
     registry: DocumentSourceRegistry, discover=discover_missing, extract=_extract_company,
     cluster=cluster_points, embed=embed_texts,
 ) -> InferRun:
+    if any(importlib.util.find_spec(m) is None for m in ("umap", "hdbscan", "sklearn")):
+        raise ValueError('Clustering needs the emerging_themes extra: pip install -e ".[emerging_themes]"')
     stocks_path = Path(stocks_path)
     stocks, total_weight = load_stocks(stocks_path)
+    if not stocks:
+        raise ValueError(f"No stocks found in {stocks_path}.")
     selected, selection = select(stocks, total_weight)
     segments = load_segments(segments_path) if segments_path else {}
     methodology_docs = await read_methodology(list(methodology), settings.discovery_user_agent)
@@ -118,12 +129,14 @@ async def start(
     params = {"stocks": str(stocks_path), "methodology": list(methodology), "name": name,
               "segments": str(segments_path) if segments_path else None,
               "benchmark": str(benchmark_path) if benchmark_path else None}
-    manifest = JobManager(run_store).create_run("stock_inference", params, len(selected), model=settings.llm_model,
+    jobs = JobManager(run_store)
+    manifest = jobs.create_run("stock_inference", params, len(selected), model=settings.llm_model,
                                                 verifier_model=settings.llm_verifier_model)
     run = _save(InferRun(run_id=manifest.run_id, stage="started", name=name, extractor_model=settings.llm_model,
                          verifier_model=settings.llm_verifier_model, selection=selection), run_store)
 
     def fail(message: str) -> InferFailed:
+        jobs.finish_run(run.run_id, error=message)
         return InferFailed(_save(run.model_copy(update={"stage": "failed"}), run_store), message)
 
     try:
@@ -138,7 +151,7 @@ async def start(
             raise fail(f"No stock could be profiled: {len(profiles) - no_doc} failed, {no_doc} had no document.")
         run = _save(run.model_copy(update={"stage": "profiled"}), run_store)
 
-        bench = await _benchmark_chunks(Path(benchmark_path), registry) if benchmark_path else []
+        bench = await _benchmark_chunks(Path(benchmark_path), registry, settings.max_concurrent_downloads) if benchmark_path else []
         chunks = {p.company_id: chunks_by_stock.get(p.company_id, []) for p in described}
         clusters = build_clusters(chunks, {p.company_id: p.weight for p in described}, bench,
                                   cluster=cluster, embed=embed)
@@ -149,6 +162,7 @@ async def start(
                                                 fuzzy_threshold=settings.grounding_fuzzy_threshold)
         if not themes:
             raise fail("No common theme is supported by the profiled stocks.")
+        jobs.finish_run(run.run_id)
         return _save(run.model_copy(update={"stage": "themes_ready", "themes": themes, "outliers": outliers}),
                      run_store)
     except InferFailed:
