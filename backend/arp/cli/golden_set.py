@@ -365,7 +365,7 @@ def golden_set_retrieval(
         raise typer.Exit(1) from exc
     if out:
         out.write_text(json.dumps(report, indent=2))
-    if report["tree_nodes"] is not None:
+    if "tree_nodes" in report:
         typer.echo(f"Tree context: {report['tree_nodes_without_summary']} of {report['tree_nodes']} nodes have no summary.", err=True)
     if report["stale_spans"]:
         typer.echo(f"Left out {report['stale_spans']} span(s) whose text no longer matches the current parse.", err=True)

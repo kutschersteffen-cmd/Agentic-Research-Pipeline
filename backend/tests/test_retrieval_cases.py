@@ -127,9 +127,12 @@ def test_tree_context_builds_trees_and_reports_unsummarised_nodes(tmp_path, monk
         path = folder / "calls.jsonl"
         return [line for line in path.read_text().splitlines() if '"TreeSummaries"' in line] if path.exists() else []
 
-    off = _run("--cases", str(cases_file), "--no-hybrid", "--no-rerank")
+    out = tmp_path / "off.json"
+    off = _run("--cases", str(cases_file), "--no-hybrid", "--no-rerank", "--out", str(out))
     assert off.exit_code == 0, off.output
     assert "Tree context:" not in off.stderr and calls() == []
+    report = json.loads(out.read_text())  # off: same keys as before tree context
+    assert "tree_nodes" not in report and "tree_context_enabled" not in report["settings"]
     on = _run("--cases", str(cases_file), "--no-hybrid", "--no-rerank", "--tree-context")
     assert on.exit_code == 0, on.output
     assert "Tree context: 1 of 3 nodes have no summary." in on.stderr and calls()

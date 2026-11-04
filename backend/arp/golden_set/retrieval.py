@@ -156,11 +156,11 @@ async def run_retrieval_eval(
 def _report(run_id: str | None, settings: Settings, ranks: list[int | None], stale: int, seconds: list[float],
             misses: list[dict], trees: _TreeCount) -> dict:
     k = settings.evidence_max_chunks
-    return {
+    report = {
         "run_id": run_id,
         "settings": {"hybrid_retrieval_enabled": settings.hybrid_retrieval_enabled, "rerank_enabled": settings.rerank_enabled,
                      "rerank_candidates": settings.rerank_candidates, "evidence_max_chunks": k,
-                     "retrieval_backend": settings.retrieval_backend, "tree_context_enabled": settings.tree_context_enabled},
+                     "retrieval_backend": settings.retrieval_backend},
         "gold_spans": len(ranks),
         "stale_spans": stale,
         "fields_ranked": len(seconds),
@@ -169,9 +169,11 @@ def _report(run_id: str | None, settings: Settings, ranks: list[int | None], sta
         "median_seconds_per_field": statistics.median(seconds) if seconds else None,
         "max_seconds_per_field": max(seconds) if seconds else None,
         "misses": misses,
-        "tree_nodes": trees.nodes if settings.tree_context_enabled else None,
-        "tree_nodes_without_summary": trees.unsummarised if settings.tree_context_enabled else None,
     }
+    if settings.tree_context_enabled:  # off: the report stays byte-identical to before tree context
+        report["settings"]["tree_context_enabled"] = True
+        report.update(tree_nodes=trees.nodes, tree_nodes_without_summary=trees.unsummarised)
+    return report
 
 
 def _sha256(path: Path) -> str:
