@@ -138,6 +138,7 @@ def golden_set_run(
     fail_on_regression: bool = typer.Option(
         True, help="Exit with a non-zero status if any case fails -- for wiring into CI before a prompt/model change ships."
     ),
+    long: bool = typer.Option(False, "--long", help="Run the long-document cases (real filing excerpts with distractors)."),
     gate: str = typer.Option(
         None, "--gate", help="on|off: run with the evidence gate forced on or off, and print the extractor input tokens.",
     ),
@@ -151,7 +152,7 @@ def golden_set_run(
     settings = get_settings()
     llm = build_llm_client(settings)
     verifier_llm = build_verifier_llm_client(settings)
-    cases = load_golden_set_cases(cases_file)
+    cases = load_golden_set_cases(cases_file, long=long)
     typer.echo(f"Running {len(cases)} golden-set case(s) against {settings.llm_model} / verifier {settings.llm_verifier_model}...")
     if gate not in (None, "on", "off"):
         raise typer.BadParameter("--gate takes on or off")
