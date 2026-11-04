@@ -31,7 +31,8 @@ def retrieval(explain: dict | None) -> dict | None:
     """How a field's evidence was ranked, for the walkthrough's "Find evidence" step."""
     if not explain or "method" not in explain:
         return None
-    return {k: explain[k] for k in ("method", "reranked", "candidates")}
+    out = {k: explain[k] for k in ("method", "reranked", "candidates")}
+    return out | {k: explain[k] for k in ("embed_model", "rerank_model") if k in explain}  # absent in older traces
 
 
 def _usage(usage: LLMUsage | None) -> dict:

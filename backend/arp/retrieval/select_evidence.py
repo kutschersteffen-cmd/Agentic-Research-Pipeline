@@ -1,19 +1,25 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import threading
 from collections.abc import Callable
 
 import numpy as np
 
+from arp.compute import client as compute_client
+from arp.models.registry import entry, model_header
 from arp.retrieval.index_cache import INDEX_CACHE
-from arp.retrieval.rerank import rerank
+from arp.retrieval.rerank import RERANK_KEYS, rerank
 from arp.schemas.common import DocType, DocumentChunk
 from arp.storage.document_store import DocumentContentStore
 
 _RRF_K = 60
 # Concurrent fields (worker threads) share a document's chunks: one embeds the missing ones, the rest reuse them.
 _EMBED_LOCK = threading.Lock()
+_FALLBACK_WARNING = "arp-models unavailable; embedding with MiniLM"
+
+logger = logging.getLogger(__name__)
 
 
 def _rrf_fuse(rankings: list[list[str]], k: int = _RRF_K, scores_out: dict[str, float] | None = None) -> list[str]:
@@ -87,7 +93,12 @@ def _vector_ranking(
                 content_store.store_embeddings(new_vectors, EMBED_MODEL_NAME)
                 cached.update(new_vectors)
 
-    query_vec = embed_texts([query_text])[0]
+    return _cosine_ranking(candidates, keys, cached, embed_texts([query_text])[0])
+
+
+def _cosine_ranking(
+    candidates: list[DocumentChunk], keys: dict[str, str], cached: dict[str, np.ndarray], query_vec: np.ndarray
+) -> list[str]:
     query_norm = float(np.linalg.norm(query_vec)) or 1.0
     scored: list[tuple[str, float]] = []
     for c in candidates:
@@ -99,6 +110,47 @@ def _vector_ranking(
         scored.append((c.chunk_id, similarity))
     scored.sort(key=lambda pair: pair[1], reverse=True)
     return [chunk_id for chunk_id, _ in scored]
+
+
+def _model_vector_ranking(
+    candidates: list[DocumentChunk], query_text: str, content_store: DocumentContentStore,
+    texts: dict[str, str], key: str,
+) -> list[str] | None:
+    """_vector_ranking with registry embed model `key` on arp-models: vectors cached under the same keys as
+    MiniLM's, with the model's hf_id. None when arp-models is not configured or any call fails or answers
+    vectors of the wrong size, so the caller ranks the whole field with MiniLM; vectors that did come back
+    stay stored."""
+    from arp.retrieval.embeddings import PREFIXES
+
+    if not compute_client.models_configured():
+        return None
+    e = entry(key)
+    query_prefix, passage_prefix = PREFIXES.get(key, ("", ""))
+
+    def remote(batch: list[str]) -> np.ndarray | None:
+        try:
+            vectors = compute_client.embed(batch, model_header(e), e.dim)
+        except Exception as exc:  # noqa: BLE001 - an outage costs the better model, never the run
+            logger.warning("arp-models embed failed (%s: %s).", type(exc).__name__, exc)
+            return None
+        vectors = None if vectors is None else np.asarray(vectors, dtype=np.float32)
+        return vectors if vectors is not None and vectors.shape == (len(batch), e.dim) else None
+
+    keys = {c.chunk_id: _embedding_key(c, texts[c.chunk_id]) for c in candidates}
+    cached = content_store.lookup_embeddings(list(keys.values()), e.hf_id)
+    if any(k not in cached for k in keys.values()):
+        with _EMBED_LOCK:
+            cached = content_store.lookup_embeddings(list(keys.values()), e.hf_id)
+            missing = [c for c in candidates if keys[c.chunk_id] not in cached]
+            if missing:
+                vectors = remote([passage_prefix + texts[c.chunk_id] for c in missing])
+                if vectors is None:
+                    return None
+                new_vectors = {keys[c.chunk_id]: vectors[i] for i, c in enumerate(missing)}
+                content_store.store_embeddings(new_vectors, e.hf_id)
+                cached.update(new_vectors)
+    query_vec = remote([query_prefix + query_text])
+    return None if query_vec is None else _cosine_ranking(candidates, keys, cached, query_vec[0])
 
 
 def select_relevant_chunks(
@@ -118,6 +170,8 @@ def select_relevant_chunks(
     index_texts: dict[str, str] | None = None,
     explain: dict | None = None,
     parents: dict[str, DocumentChunk] | None = None,
+    embed_model: str = "minilm",
+    rerank_model: str = "cross-encoder",
 ) -> list[DocumentChunk]:
     """BM25-ranked evidence selection applied before any extraction/
     matching LLM call, so a call's context stays small (higher precision,
@@ -184,8 +238,12 @@ def select_relevant_chunks(
     - `parents`: small-to-big (candidate id -> the chunk returned in its place). Each ranking becomes a
       ranking of parents before fusion: a parent takes its best candidate's rank (and BM25 score), its other
       candidates drop out. Scores, near-misses and the reranker then see parents.
+    - `embed_model` / `rerank_model`: Settings.embed_model / rerank_model. A model other than minilm that
+      can't run (no arp-models, or a failed call) ranks the field with MiniLM; colbert that can't run keeps
+      the order. `explain` gets `embed_model` and `rerank_model`: the registry key that ranked, else None.
     """
     scores: dict[str, dict] = {}
+    ran: dict[str, str | None] = {"embed_model": None, "rerank_model": None}
     candidates = chunks
     if doc_type_filter:
         candidates = [c for c in candidates if c.doc_type in doc_type_filter]
@@ -198,7 +256,7 @@ def select_relevant_chunks(
             keep = [c.chunk_id for c in picked] + near
             explain.update(
                 method=method, reranked=reranked, candidates=len(candidates),
-                scores={cid: scores[cid] for cid in keep if scores.get(cid)}, near_misses=near,
+                scores={cid: scores[cid] for cid in keep if scores.get(cid)}, near_misses=near, **ran,
             )
         return picked
 
@@ -213,9 +271,10 @@ def select_relevant_chunks(
             return record(method, ranked[:max_chunks], ranked[max_chunks:])
         pool = ranked[:rerank_candidates]
         rerank_scores: dict[str, float] | None = {} if explain is not None else None
-        picked = rerank(query_text, pool, max_chunks, scores_out=rerank_scores)
+        picked = rerank(query_text, pool, max_chunks, scores_out=rerank_scores, model=rerank_model)
         if not rerank_scores:  # not recording, or the model did not score
             return record(method, picked, pool[max_chunks:])
+        ran["rerank_model"] = RERANK_KEYS[rerank_model]
         for cid, score in rerank_scores.items():
             scores.setdefault(cid, {})["rerank"] = score
         chosen = {c.chunk_id for c in picked}
@@ -253,10 +312,22 @@ def select_relevant_chunks(
         return finish([by_id[chunk_id] for chunk_id, _ in scored], bm25_method)
 
     bm25_ranking = [chunk_id for chunk_id, _ in scored]
+    from arp.retrieval.embeddings import EMBED_KEYS
+
+    embed_key = EMBED_KEYS[embed_model]
     vector_ranking = (
-        _vector_ranking(candidates, query_text, content_store, texts=texts) if index_texts
-        else _vector_ranking(candidates, query_text, content_store)
+        _model_vector_ranking(candidates, query_text, content_store, texts, embed_key) if embed_key != "embed" else None
     )
+    if vector_ranking is None:
+        if embed_key != "embed" and _FALLBACK_WARNING not in compute_client._warned:  # once per process
+            compute_client._warned.add(_FALLBACK_WARNING)
+            logger.warning(_FALLBACK_WARNING)
+        embed_key = "embed"
+        vector_ranking = (
+            _vector_ranking(candidates, query_text, content_store, texts=texts) if index_texts
+            else _vector_ranking(candidates, query_text, content_store)
+        )
+    ran["embed_model"] = embed_key
     if parents:
         vector_ranking = list(dict.fromkeys(parents[chunk_id].chunk_id for chunk_id in vector_ranking))
     rrf: dict[str, float] = {}
