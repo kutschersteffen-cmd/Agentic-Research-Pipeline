@@ -185,6 +185,16 @@ class Settings(BaseSettings):
         "(~0.57 GB) and scoring 40 chunks took ~47 s on a 4-core CPU; if it can't load, retrieval order is kept.",
     )
     rerank_candidates: int = Field(default=40, description="How many top-ranked chunks the reranker rescoring sees.")
+    embed_model: Literal["minilm", "e5-large", "bge-m3"] = Field(
+        default="minilm",
+        description="Embedder of hybrid retrieval's vector ranking. e5-large and bge-m3 run only on arp-models "
+        "(compute_models_url); without it, or when it fails, a field is ranked with minilm (arp/retrieval/select_evidence.py).",
+    )
+    rerank_model: Literal["cross-encoder", "colbert"] = Field(
+        default="cross-encoder",
+        description="Which reranker runs when rerank_enabled: the bge-reranker cross-encoder (arp-models, else local "
+        "CPU) or mLateOn ColBERT (arp-models only; without it retrieval order is kept).",
+    )
     # Cloud Run GPU services (arp/compute/), set up by scripts/gcp/setup_compute.sh. Empty = compute locally.
     compute_parse_url: str | None = Field(default=None, description="arp-parse service URL: PDF parsing on a GPU.")
     compute_models_url: str | None = Field(default=None, description="arp-models service URL: rerank and embeddings.")

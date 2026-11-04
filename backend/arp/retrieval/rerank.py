@@ -9,6 +9,7 @@ import logging
 from arp import models
 from arp.compute import client as compute_client
 from arp.models import local
+from arp.models.registry import entry, model_header
 from arp.schemas.common import DocumentChunk
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,9 @@ logger = logging.getLogger(__name__)
 # Multilingual (EN/DE) cross-encoder, the smallest multilingual one fastembed
 # lists (~0.57GB INT8 ONNX); the smaller ms-marco/jina-tiny models are English-only.
 RERANK_MODEL_NAME = "BAAI/bge-reranker-v2-m3-int8"
+
+# Settings.rerank_model -> registry key
+RERANK_KEYS = {"cross-encoder": "rerank", "colbert": "rerank_colbert"}
 
 _unavailable = False
 
@@ -28,19 +32,38 @@ def _score(query: str, texts: list[str]) -> list[float]:
     return [float(s) for s in _get_model().rerank(query, texts)]
 
 
-def rerank(query: str, chunks: list[DocumentChunk], top_n: int, scores_out: dict[str, float] | None = None) -> list[DocumentChunk]:
-    """At most `top_n` of `chunks`, best cross-encoder score first. If the
-    model can't load or score, returns `chunks[:top_n]` unchanged, warns once
+def _cloud_scores(query: str, texts: list[str], key: str) -> list[float] | None:
+    """`key`'s scores from arp-models, or None when it is not configured, fails or answers a wrong count.
+    No local model is ever loaded for it."""
+    if not compute_client.models_configured():
+        return None
+    try:
+        scores = compute_client.rerank_scores(query, texts, model_header(entry(key)))
+    except Exception as exc:  # noqa: BLE001 - a reranker outage keeps the retrieval order, never stops a run
+        logger.warning("Reranker %s unavailable (%s: %s); keeping retrieval order.", key, type(exc).__name__, exc)
+        return None
+    return scores if scores is not None and len(scores) == len(texts) else None
+
+
+def rerank(query: str, chunks: list[DocumentChunk], top_n: int, scores_out: dict[str, float] | None = None,
+           model: str = "cross-encoder") -> list[DocumentChunk]:
+    """At most `top_n` of `chunks`, best score of `model` (a Settings.rerank_model) first. If the
+    cross-encoder can't load or score locally, returns `chunks[:top_n]` unchanged, warns once
     and skips every later call in this process (no per-field reload retries)
-    -- reranking is a precision boost, never a hard dependency. `scores_out`, when given, receives
+    -- reranking is a precision boost, never a hard dependency. colbert runs only on arp-models, and
+    keeps the retrieval order without it. `scores_out`, when given, receives
     each chunk's score, and stays empty when the model did not score."""
     global _unavailable
     if not chunks:
         return []
-    if _unavailable:
-        return chunks[:top_n]
     texts = [c.text for c in chunks]
-    if compute_client.models_configured():  # the slow local model is never the fallback for the cloud one
+    if model == "colbert":
+        scores = _cloud_scores(query, texts, RERANK_KEYS[model])
+        if scores is None:
+            return chunks[:top_n]
+    elif _unavailable:
+        return chunks[:top_n]
+    elif compute_client.models_configured():  # the slow local model is never the fallback for the cloud one
         scores, _ = models.rerank(query, texts)
         if scores is None:
             return chunks[:top_n]
