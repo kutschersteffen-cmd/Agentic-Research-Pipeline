@@ -52,6 +52,7 @@ jobs:
           --health-retries 5
     env:
       ARP_POSTGRES_DSN: postgresql+psycopg://arp:arp@localhost:5432/arp_test
+      ARP_GEMINI_API_KEY: ${{ secrets.ARP_GEMINI_API_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -78,7 +79,13 @@ jobs:
         env:
           KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
         run: |
-          if [ -n "$KEY" ]; then echo "present=true" >>"$GITHUB_OUTPUT"; else
+          # With an ARP_GEMINI_API_KEY secret, every golden step runs on Gemini instead of Anthropic.
+          if [ -n "$ARP_GEMINI_API_KEY" ]; then
+            { echo "ARP_LLM_MODEL=gemini-4-argon"; echo "ARP_LLM_VERIFIER_MODEL=gemini-3.8-flash"
+              echo "ARP_EVIDENCE_GATE_MODEL=gemini-3.8-flash"; echo "ARP_TREE_SUMMARY_MODEL=gemini-3.8-flash"; } >>"$GITHUB_ENV"
+            echo "::notice title=Golden set on Gemini::ARP_GEMINI_API_KEY is set, so the golden set runs on gemini-4-argon / gemini-3.8-flash."
+            echo "present=true" >>"$GITHUB_OUTPUT"
+          elif [ -n "$KEY" ]; then echo "present=true" >>"$GITHUB_OUTPUT"; else
             echo "present=false" >>"$GITHUB_OUTPUT"
             echo "::warning title=Golden set not run::Add the ARP_ANTHROPIC_API_KEY repository secret so AI changes are checked against the golden set."
           fi
