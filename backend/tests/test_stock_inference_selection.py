@@ -58,3 +58,29 @@ def test_twelve_unweighted_all(tmp_path):
     stocks, total = load_stocks(p)
     picked, sel = select(stocks, total)
     assert len(picked) == 12 and sel.cutoff_reason == "all"
+
+
+def test_unweighted_duplicate_ticker_stays_unweighted(tmp_path):  # F2
+    stocks, total = load_stocks(_csv(tmp_path, ["AAA,A Co", "AAA,A Co", "BBB,B Co", "CCC,C Co"], "Ticker,Name"))
+    picked, sel = select(stocks, total)
+    assert total is None and sel.cutoff_reason == "all"
+    assert [s.company_id for s in picked] == ["AAA", "BBB", "CCC"]
+
+
+def test_bom_universe_csv_is_a_universe(tmp_path):  # F7
+    p = tmp_path / "u.csv"
+    p.write_text("﻿company_id,name\nc1,One\nc2,Two\n", encoding="utf-8")
+    stocks, total = load_stocks(p)
+    assert [s.company_id for s in stocks] == ["c1", "c2"] and total is None
+
+
+def test_nace_rev_reaches_nace_sectors(tmp_path, monkeypatch):  # F3
+    from arp.research.stock_inference import stored
+
+    p = tmp_path / "u.csv"
+    p.write_text("company_id,name,nace_code,nace_rev\nc1,One,20.1,2.1\n")
+    stocks, _ = load_stocks(p)
+    seen = []
+    monkeypatch.setattr(stored, "nace_sectors", lambda code, rev: seen.append((code, rev)) or set())
+    stored.stored_data(None, stocks[0], None, {})
+    assert seen == [("20.1", "2.1")]

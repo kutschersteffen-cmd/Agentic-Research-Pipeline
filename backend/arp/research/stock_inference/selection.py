@@ -15,7 +15,7 @@ WEIGHT_CUTOFF = 0.8
 def _is_universe(path: Path) -> bool:
     if path.suffix.lower() == ".json":
         return True
-    with path.open(newline="") as f:
+    with path.open(newline="", encoding="utf-8-sig") as f:
         return "company_id" in [h.strip() for h in next(csv.reader(f), [])]
 
 
@@ -26,7 +26,8 @@ def load_stocks(path: Path) -> tuple[list[InferStock], float | None]:
         stocks = [
             InferStock(
                 company_id=c.company_id, name=c.name, ticker=c.ticker, isin=c.isin, lei=c.lei, cik=c.cik,
-                codes={k: v for k, v in (("isic", c.isic_code), ("nace", c.nace_code), ("gics", c.gics_code)) if v},
+                codes={k: v for k, v in (("isic", c.isic_code), ("nace_rev2.1" if c.nace_rev == "2.1" else "nace", c.nace_code),
+                                         ("gics", c.gics_code)) if v},
             )
             for c in load_company_universe(path)
         ]
@@ -36,7 +37,8 @@ def load_stocks(path: Path) -> tuple[list[InferStock], float | None]:
         cid = h.ticker.strip()
         if cid in merged:
             prev = merged[cid]
-            merged[cid] = prev.model_copy(update={"weight": (prev.weight or 0.0) + (h.weight or 0.0)})
+            weight = None if prev.weight is None and h.weight is None else (prev.weight or 0.0) + (h.weight or 0.0)
+            merged[cid] = prev.model_copy(update={"weight": weight})
         else:
             merged[cid] = InferStock(
                 company_id=cid, name=h.name or cid, ticker=h.ticker.strip(), weight=h.weight,
