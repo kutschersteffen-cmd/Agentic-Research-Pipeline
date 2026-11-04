@@ -247,3 +247,70 @@ async def test_benchmark_fetches_are_bounded(tmp_path):  # F10
     reg = _Registry()
     assert await run_mod._benchmark_chunks(path, reg, 3) == []
     assert reg.peak == 3
+
+
+@pytest.fixture
+def picked(env, monkeypatch, tmp_path):
+    """A run at themes_ready with 2 themes; `pick` runs with every later step faked."""
+    from arp.research.stock_inference import pick as pick_mod
+    from tests.test_stock_inference_pick import fake_steps
+
+    monkeypatch.setenv("ARP_TAXONOMIES_DIR", str(tmp_path / "tax"))
+    get_settings.cache_clear()
+    real = pick_mod.pick
+    monkeypatch.setattr(pick_mod, "pick", lambda *a, **k: real(*a, **{**fake_steps(), **k}))
+    path = env.setup(3, [_reply(("Hydrogen", ["s1", "s2"]), ("Fuel", ["s3"]))])
+    return _run_id(_invoke("start", "--stocks", str(path)))
+
+
+def test_ac29_pick_drafts(picked):
+    res = _invoke("pick", picked, "--theme", "1")
+    assert res.exit_code == 0, res.output
+    lines = res.stdout.splitlines()
+    run = _show(picked)
+    assert run["stage"] == "drafted" and run["taxonomy_id"]
+    assert lines[:2] == [f"Run {picked}", f"Drafted taxonomy {run['taxonomy_id']}"]
+
+
+def test_ac30_taxonomy_is_a_stock_inference_draft(picked):
+    assert _invoke("pick", picked, "--theme", "1").exit_code == 0
+    res = CliRunner().invoke(taxonomy_cli.taxonomy_app, ["show", _show(picked)["taxonomy_id"]])
+    assert res.exit_code == 0, res.output
+    assert '"derivation_method": "stock_inference"' in res.stdout and '"status": "draft"' in res.stdout
+
+
+def test_ac28_pick_at_drafted_is_refused(picked, tmp_path):  # and Review Focus 1
+    from arp.storage.taxonomy_store import TaxonomyStore
+
+    assert _invoke("pick", picked, "--theme", "1").exit_code == 0
+    res = _invoke("pick", picked, "--theme", "1")
+    assert res.exit_code == 1
+    assert res.stderr.strip() == f"Run {picked} is at stage 'drafted'; 'pick' needs 'themes_ready'."
+    assert len(TaxonomyStore(tmp_path / "tax").list_all()) == 1
+
+
+def test_ac28a_unknown_theme(picked):
+    res = _invoke("pick", picked, "--theme", "9")
+    assert res.exit_code == 1
+    assert res.stderr.strip() == f"Run {picked} has no theme 9."
+    assert _show(picked)["stage"] == "themes_ready"
+
+
+def test_pick_unknown_run_exits_1(picked):
+    res = _invoke("pick", "nope", "--theme", "1")
+    assert res.exit_code == 1 and res.stderr.strip() == "Run nope not found."
+
+
+def test_pick_step_failure_prints_run_and_fails(picked, monkeypatch):
+    from arp.research.stock_inference import pick as pick_mod
+
+    async def boom(*a, **k):
+        raise RuntimeError("model down")
+
+    wrapped = pick_mod.pick
+    monkeypatch.setattr(pick_mod, "pick", lambda *a, **k: wrapped(*a, **{"synthesize": boom, **k}))
+    res = _invoke("pick", picked, "--theme", "1")
+    assert res.exit_code == 1
+    assert res.stdout.splitlines()[0] == f"Run {picked}"
+    assert res.stderr.strip() == "RuntimeError: model down"
+    assert _show(picked)["stage"] == "failed"
