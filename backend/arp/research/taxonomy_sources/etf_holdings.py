@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import csv
+import re
 from pathlib import Path
 
-from arp.llm.base import LLMClient, LLMUsage
-from arp.research.taxonomy_sources.corpus_synthesis import synthesize_activities_from_corpus
 from arp.schemas.common import CompanyRef
-from arp.schemas.taxonomy_sources import CorpusSnippet, CorpusSourceType, HoldingRow
-from arp.schemas.thematic import ThemeDefinition
+from arp.schemas.taxonomy_sources import HoldingRow
 
 # Column names accepted per field, in priority order -- fund providers'
 # holdings exports aren't standardized, so a few common variants are
@@ -29,66 +27,71 @@ def _first_present(row: dict, columns: tuple[str, ...]) -> str | None:
     return None
 
 
-def _parse_weight(raw: str | None) -> float | None:
-    """Normalizes a weight cell to a 0-1 fraction.
+_ID_COLUMNS = ("isin", "sedol", "lei", "cik")
+_THOUSANDS = re.compile(r"^-?\d{1,3}(,\d{3})+(\.\d+)?%?$")
+_CASH_WORDS = ("CASH", "CURRENCY", "POUND", "EURO", "DOLLAR", "YEN", "FRANC", "PAYABLE", "RECEIVABLE", "FUTURE", "SWAP")
 
-    Handles three real-world formats: an explicit percent sign in the
-    cell ("12.5%"), a bare number under a percent-labeled header with no
-    sign in the cell itself (by far the most common export format --
-    "Weight (%)" column, "12.5" value), and an already-fractional value
-    ("0.125"). A bare value > 1 is assumed to be a percent needing /100,
-    since no single holding is ever >100% of a fund.
-    """
+
+def _parse_weight(raw: str | None) -> float | None:
     if not raw:
         return None
-    has_percent_sign = "%" in raw
-    cleaned = raw.strip().rstrip("%")
+    raw = raw.strip()
+    # a comma is a thousands separator only in "31,526.89" shape; otherwise it is a decimal comma ("16,20")
+    raw = raw.replace(",", "") if _THOUSANDS.match(raw) else raw.replace(",", ".")
     try:
-        value = float(cleaned)
+        return float(raw.rstrip("%"))
     except ValueError:
         return None
-    return value / 100 if (has_percent_sign or value > 1) else value
 
 
 def _parse_holdings_rows(path: Path) -> list[dict]:
     """Shared CSV parsing for any fund/index holdings export -- every
     other function in this module is a projection of these normalized
     rows, so there's exactly one place that has to know about column-name
-    variants across fund providers.
+    variants across fund providers. Provider files may have preamble lines
+    before the header, cash/currency lines and a trailing disclaimer.
     """
+    with path.open(newline="", encoding="utf-8-sig") as f:
+        all_rows = list(csv.reader(f))
+    header_idx = next(
+        (i for i, r in enumerate(all_rows) if {c.strip().lower() for c in r} & set(_NAME_COLUMNS + _TICKER_COLUMNS)), None
+    )
+    if header_idx is None:
+        return []
+    header = all_rows[header_idx]
+    keys = {h.strip().lower() for h in header}
+    has_ticker_col = bool(keys & set(_TICKER_COLUMNS))
+    weight_col = next((h for c in _WEIGHT_COLUMNS for h in header if h.strip().lower() == c), None)
     rows: list[dict] = []
-    with path.open(newline="") as f:
-        for raw_row in csv.DictReader(f):
-            name = _first_present(raw_row, _NAME_COLUMNS)
-            ticker = _first_present(raw_row, _TICKER_COLUMNS)
-            sector = _first_present(raw_row, _SECTOR_COLUMNS)
-            description = _first_present(raw_row, _DESCRIPTION_COLUMNS)
-            weight = _parse_weight(_first_present(raw_row, _WEIGHT_COLUMNS))
-            if not (name or ticker):
-                continue
-            rows.append({"ticker": ticker, "name": name, "sector": sector, "description": description, "weight": weight})
-    return rows
-
-
-def load_holdings_corpus(path: Path) -> list[CorpusSnippet]:
-    """Loads a user-supplied fund/index holdings export into corpus
-    snippets for bottom-up taxonomy synthesis.
-
-    Fetching holdings automatically from a fund provider's site isn't
-    attempted here: provider sites vary widely in format and several
-    financial-data domains are unreachable from this environment, so a
-    user-supplied export -- what `discover_thematic_funds` points the user
-    toward downloading -- is the robust path.
-    """
-    corpus: list[CorpusSnippet] = []
-    for row in _parse_holdings_rows(path):
-        parts = [p for p in (row["name"], row["sector"], row["description"]) if p]
-        if not parts:
+    raw_weights: list[str | None] = []
+    for cells in all_rows[header_idx + 1 :]:
+        if len(cells) < len(header):
             continue
-        corpus.append(
-            CorpusSnippet(text=" -- ".join(parts), source_type=CorpusSourceType.ETF_HOLDINGS, source_ref=row["ticker"] or row["name"] or "unknown")
+        raw_row = dict(zip(header, cells, strict=False))
+        name = _first_present(raw_row, _NAME_COLUMNS)
+        ticker = _first_present(raw_row, _TICKER_COLUMNS)
+        if not (name or ticker):
+            continue
+        if not ticker and (name or "").lower() in ("total", "totals"):
+            continue
+        # name-only exports have no ticker to tell cash lines apart, so real companies like "Dollar General" stay
+        if not ticker and has_ticker_col and any(w in (name or "").upper() for w in _CASH_WORDS):
+            continue
+        rows.append(
+            {
+                "ticker": ticker,
+                "name": name,
+                "sector": _first_present(raw_row, _SECTOR_COLUMNS),
+                "description": _first_present(raw_row, _DESCRIPTION_COLUMNS),
+                **{c: _first_present(raw_row, (c,)) for c in _ID_COLUMNS},
+            }
         )
-    return corpus
+        raw_weights.append((raw_row[weight_col].strip() or None) if weight_col else None)
+    values = [_parse_weight(w) for w in raw_weights]
+    is_percent = "%" in (weight_col or "") or any("%" in w for w in raw_weights if w) or any(v is not None and v > 1 for v in values)
+    for row, v in zip(rows, values, strict=True):
+        row["weight"] = v / 100 if (is_percent and v is not None) else v
+    return rows
 
 
 def load_universe_from_holdings(path: Path) -> list[CompanyRef]:
@@ -116,18 +119,7 @@ def load_holdings_with_weights(path: Path) -> list[HoldingRow]:
         ticker = row["ticker"] or row["name"]
         if not ticker:
             continue
-        holdings.append(HoldingRow(ticker=ticker, name=row["name"], weight=row["weight"], sector=row["sector"]))
+        holdings.append(HoldingRow(
+                ticker=ticker, name=row["name"], weight=row["weight"], sector=row["sector"], **{c: row[c] for c in _ID_COLUMNS}
+            ))
     return holdings
-
-
-async def build_theme_from_holdings(
-    theme_name: str, theme_description: str, holdings_path: Path, llm: LLMClient
-) -> tuple[ThemeDefinition, str, LLMUsage]:
-    corpus = load_holdings_corpus(holdings_path)
-    if not corpus:
-        raise ValueError(f"No usable rows found in holdings file: {holdings_path}")
-
-    activities, assessment, usage = await synthesize_activities_from_corpus(theme_name, theme_description, corpus, llm)
-    theme = ThemeDefinition(name=theme_name, description=theme_description, activities=activities)
-    notes = f"Derived from {len(corpus)} fund holding(s) in {holdings_path.name}. {assessment}"
-    return theme, notes, usage

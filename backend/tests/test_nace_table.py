@@ -3,6 +3,7 @@ from pathlib import Path
 
 from arp.research.indirect_exposure.nace import (
     _SECTORS,
+    isic4_section,
     isic_to_nace2,
     nace2_to_isic4,
     nace_known,
@@ -82,3 +83,8 @@ def test_known_and_title():
 def test_sector_nace2_codes_and_isic4():
     assert sector_nace2_codes("Copper production") == ["24.44"]
     assert nace2_to_isic4("24.44") == ["2420"]
+
+
+def test_isic4_section_from_division():
+    assert (isic4_section("01"), isic4_section("24"), isic4_section("35"), isic4_section("99")) == ("A", "C", "D", "U")
+    assert isic4_section("00") is None

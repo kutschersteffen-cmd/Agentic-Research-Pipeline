@@ -35,7 +35,7 @@ export const processState = (p: Process, runs: RunManifest[] | null, flow: Stewa
 export type CardView = { dots: (StepState | "unknown")[]; now: string; footer: string; label: string; awaits: boolean };
 
 /** What a start-page workspace card shows. The card is a way in, not a status: waiting work is
- * counted once, in Needs you, so the card carries no counts. */
+ * counted once, in the start page headline, so the card carries no counts. */
 export function cardView(w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null, now: Date): CardView {
   const footer = "Open →";
   // Before runs load (or when the backend is down) every state is unknown, not idle.

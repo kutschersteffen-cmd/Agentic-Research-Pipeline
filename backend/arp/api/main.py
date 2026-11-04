@@ -24,6 +24,7 @@ from arp.api.routers import (
     argus,
     ask,
     authoritative,
+    authority_taxonomy,
     bi,
     calibration,
     climate,
@@ -150,6 +151,7 @@ app.include_router(universe.router, dependencies=[Depends(authorize)])
 app.include_router(universe_workbench.router, dependencies=[Depends(authorize)])
 app.include_router(argus.router, dependencies=[Depends(authorize)])
 app.include_router(taxonomies.router, dependencies=[Depends(authorize)])
+app.include_router(authority_taxonomy.router, dependencies=[Depends(authorize)])
 app.include_router(overlap.router, dependencies=[Depends(authorize)])
 app.include_router(revenue_catalogue.router, dependencies=[Depends(authorize)])
 app.include_router(engagement.router, dependencies=[Depends(authorize)])

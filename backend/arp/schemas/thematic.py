@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
 from arp.schemas.arbitration import ArbitrationResult
+from arp.schemas.authority_taxonomy import ActivityCriterion, Definition, SectorCode, SourceCitation, Technology, Threshold
 from arp.schemas.common import Citation, new_id, now_iso
 from arp.schemas.exposure import IndirectExposureResult
 from arp.schemas.rd_exposure import RDExposureResult
@@ -96,12 +98,22 @@ class ActivityDefinition(BaseModel):
         "importance a pure input-output linkage-strength ranking would understate (e.g. a USGS/IEA-flagged "
         "critical mineral). Populated by the criticality overlay, not by hand.",
     )
+    contrast_statements: list[str] = Field(
+        default_factory=list,
+        description="Extra negative statements for the theme funnel's NLI step (next to out_of_scope_description), "
+        "e.g. 'The company buys or operates electrolysers made by another company'.",
+    )
     human_approved: bool = Field(
         default=False,
         description="Per-activity curation sign-off, distinct from the taxonomy-level Taxonomy.status/"
         "ratified_by -- lets a reviewer approve individual activities within an otherwise-draft taxonomy. "
         "Requires a source_citation and a substantive in_scope_description; see the validator below.",
     )
+    value_chain_role: Literal["core", "upstream", "enabling"] = "core"
+    criteria: list[ActivityCriterion] = Field(default_factory=list)
+    citations: list[SourceCitation] = Field(default_factory=list)
+    out_of_scope_citations: list[SourceCitation] = Field(default_factory=list)
+    sector_codes: list[SectorCode] = Field(default_factory=list)
 
     @model_validator(mode="before")
     @classmethod
@@ -138,6 +150,11 @@ class ThemeDefinition(BaseModel):
     name: str
     description: str
     activities: list[ActivityDefinition] = Field(default_factory=list)
+    scope: str = ""
+    technologies: list[Technology] = Field(default_factory=list)
+    definitions: list[Definition] = Field(default_factory=list)
+    thresholds: list[Threshold] = Field(default_factory=list)
+    checklist_report: dict[str, dict[str, Literal["found", "not_in_source"]]] = Field(default_factory=dict)
     created_at: str = Field(default_factory=now_iso)
 
 
@@ -172,6 +189,24 @@ class AgentOpinion(BaseModel):
     rationale: str
     citations: list[Citation] = Field(default_factory=list)
     exposure_estimate: ExposureEstimate = ExposureEstimate.NONE
+
+
+class FunnelRecord(BaseModel):
+    """Why the theme funnel passed or screened out one company x activity pair (arp/research/funnel.py)."""
+
+    passed: bool
+    rerank_max: float | None = Field(description="Best cross-encoder score; None when the rerank service failed.")
+    entail_positive: float
+    entail_negatives: dict[str, float] = Field(default_factory=dict)
+    best_passage: str
+    best_doc_id: str
+    passages_scored: int
+    thresholds: dict[str, float]
+    models: list[dict] = Field(default_factory=list)
+    query: str = Field(default="", description="The embedding query built from the taxonomy version.")
+    rerank_query: str = Field(default="", description="The embedding query plus the activity's schema field names.")
+    positive: str = Field(default="", description="The positive statement that decided (see positives).")
+    positives: list[str] = Field(default_factory=list)
 
 
 class CompanyMatch(BaseModel):
@@ -229,5 +264,6 @@ class CompanyMatch(BaseModel):
             "scope for this activity."
         ),
     )
+    funnel: FunnelRecord | None = Field(default=None, description="Theme-funnel scores, when the funnel ran.")
     flagged_for_review: bool = False
     generated_at: str = Field(default_factory=now_iso)

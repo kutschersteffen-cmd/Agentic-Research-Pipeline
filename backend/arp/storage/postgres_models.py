@@ -25,8 +25,6 @@ from sqlalchemy import Float, ForeignKey, Index, String, UniqueConstraint, Uuid
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from arp.retrieval.embeddings import EMBED_DIM
-
 
 class Base(DeclarativeBase):
     pass
@@ -147,16 +145,15 @@ class HoldingModel(Base):
 class ChunkEmbeddingModel(Base):
     """The chunk-embeddings cache (pgvector; arp/storage/postgres_embeddings.py, used by
     DocumentContentStore): keyed by chunk_id + embed_model, computed once and reused by every later
-    run/field/activity that selects from this chunk. EMBED_DIM is fixed at the configured embedding
-    model's dimension (arp/retrieval/embeddings.py) -- switching to a different-dimension model
-    requires dropping and recreating this table.
+    run/field/activity that selects from this chunk. The vector is untyped, so each embed model's rows
+    keep their own dimension (384 for MiniLM, 1024 for e5-large and bge-m3).
     """
 
     __tablename__ = "chunk_embeddings"
 
     chunk_id: Mapped[str] = mapped_column(String, primary_key=True)
     embed_model: Mapped[str] = mapped_column(String, primary_key=True)
-    embedding = mapped_column(Vector(EMBED_DIM))
+    embedding = mapped_column(Vector())
 
 
 class ReleaseModel(Base):

@@ -54,6 +54,23 @@ def nace_title(code: str, rev: str) -> str | None:
     return _headings(rev).get(code)
 
 
+@cache
+def _isic4_sections() -> dict[str, str]:
+    """ISIC Rev.4 division -> section letter; the UN table lists each section row before its divisions."""
+    out, section = {}, ""
+    for r in _rows(_NACE_ISIC):
+        code = r["ISIC4code"]
+        if code.isalpha():
+            section = code
+        elif len(code) == 2:
+            out[code] = section
+    return out
+
+
+def isic4_section(division: str) -> str | None:
+    return _isic4_sections().get(division)
+
+
 def isic_to_nace2(isic4: str) -> list[str]:
     return sorted({r["NACE2code"] for r in _rows(_ISIC_NACE) if r["ISIC4code"] == isic4})
 

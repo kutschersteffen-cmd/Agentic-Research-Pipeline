@@ -50,8 +50,7 @@ async def raw_upload(file: UploadFile, settings: Settings = Depends(settings_dep
     """Saves an arbitrary file (a fund/index holdings export, in whatever
     format the provider gives it) and returns its server-side path,
     without attempting to parse it as anything -- the path can then be
-    passed as `holdings_path` to a taxonomy creation request
-    (derivation_method=etf_index_holdings) or to POST /api/etf-overlap.
+    passed to POST /api/etf-overlap.
     """
     try:
         safe_name = safe_filename(file.filename)

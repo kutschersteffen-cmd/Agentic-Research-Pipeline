@@ -1,0 +1,55 @@
+{
+  "taxonomy_id": "tax_0001",
+  "name": "Hydrogen",
+  "version": 1,
+  "theme": {
+    "theme_id": "theme_0001",
+    "name": "Hydrogen",
+    "description": "H2 theme",
+    "activities": [
+      {
+        "activity_id": "act_0001",
+        "name": "Electrolyser stack manufacturing",
+        "in_scope_description": "Building electrolyser stacks.",
+        "out_of_scope_description": "Selling hydrogen.",
+        "seed_keywords": [
+          "electrolyser"
+        ],
+        "core_sectors": [],
+        "source_citation": {
+          "doc_id": "doc_0001",
+          "doc_type": "other",
+          "quote": "electrolyser stack manufacturing, defined as building electrolyser stacks",
+          "location": "https://example.org/hydrogen.html",
+          "grounded": true,
+          "page": null,
+          "sheet": null,
+          "company_id": "https://example.org/hydrogen.html",
+          "source_filename": null,
+          "content_key": null,
+          "span_text": "electrolyser stack manufacturing, defined as building electrolyser stacks",
+          "char_start": 30,
+          "char_end": 103,
+          "match_method": "exact",
+          "match_score": 1.0,
+          "passage_id": null,
+          "table_ref": null,
+          "parser_version": null
+        },
+        "standards_mapping": null,
+        "tier": "core",
+        "lifecycle_stage": null,
+        "criticality_flag": false,
+        "human_approved": false
+      }
+    ],
+    "created_at": "<TS>"
+  },
+  "derivation_method": "authority_source",
+  "source_notes": "Grounded extraction from 1 authority source(s): https://example.org/hydrogen.html.",
+  "status": "draft",
+  "ratified_by": null,
+  "ratified_at": null,
+  "based_on_version": null,
+  "created_at": "<TS>"
+}

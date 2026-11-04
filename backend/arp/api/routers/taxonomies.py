@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response, StreamingResponse
@@ -17,12 +16,11 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.research.activity_generator import build_theme, build_theme_industry_anchored
 from arp.research.indirect_exposure.factory import NO_MODEL, resolve_indirect_exposure_model
 from arp.research.standards_mapping.mapper import format_standards_csv, map_theme_to_standards
+from arp.research.stock_inference import RETIRED, retired_message
 from arp.research.taxonomy_schema import build_taxonomy_schema, schema_id_for
 from arp.research.taxonomy_sources.authority import build_theme_from_authority_sources
 from arp.research.taxonomy_sources.compare import compare_taxonomies, merge_taxonomies
 from arp.research.taxonomy_sources.discovery import discover_authority_sources, discover_thematic_funds, rank_authority_sources
-from arp.research.taxonomy_sources.empirical import build_theme_empirical
-from arp.research.taxonomy_sources.etf_holdings import build_theme_from_holdings
 from arp.research.taxonomy_sources.fetch import fetch_source_original
 from arp.research.taxonomy_sources.news_mining import build_theme_from_news_and_transcripts
 from arp.schemas.common import CompanyRef
@@ -98,16 +96,12 @@ class CreateTaxonomyRequest(BaseModel):
     # authority_source -- URLs the user selected from /discover-sources
     authority_urls: list[str] = Field(default_factory=list)
 
-    # empirical / news_transcript_mining
+    # news_transcript_mining
     companies: list[CompanyRef] | None = None
     universe_path: str | None = None
-    sample_size: int = 25
 
     # news_transcript_mining
     mine_news: bool = True
-
-    # etf_index_holdings -- a path from /api/universe/upload (any CSV works)
-    holdings_path: str | None = None
 
     # manual / merged -- an already-drafted theme (e.g. a reviewed
     # /api/taxonomies/merge output, or a hand-authored one) to save as a
@@ -129,6 +123,8 @@ async def create_taxonomy(
     each method needs and when it's the right choice.
     """
     method = req.derivation_method
+    if method in RETIRED:
+        raise HTTPException(422, retired_message(method))
 
     # Validate each method's required inputs before touching the LLM client,
     # so a malformed request gets a precise 400 even if no API key is
@@ -143,14 +139,10 @@ async def create_taxonomy(
             raise HTTPException(400, f"{NO_MODEL}, or set use_sample_io.")
     elif method == DerivationMethod.AUTHORITY_SOURCE and not req.authority_urls:
         raise HTTPException(400, "Provide authority_urls (see POST /api/taxonomies/discover-sources).")
-    elif method == DerivationMethod.ETF_INDEX_HOLDINGS and not req.holdings_path:
-        raise HTTPException(400, "Provide holdings_path (upload via POST /api/universe/upload, then pass its path).")
     elif method in (DerivationMethod.MANUAL, DerivationMethod.MERGED) and req.theme is None:
         raise HTTPException(400, "Provide `theme` (e.g. the output of POST /api/taxonomies/merge, reviewed and edited).")
 
     companies = req.companies or (load_company_universe(req.universe_path) if req.universe_path else None)
-    if method == DerivationMethod.EMPIRICAL and not companies:
-        raise HTTPException(400, "Provide `companies` or `universe_path` for derivation_method=empirical.")
 
     llm = get_llm_client()
 
@@ -170,14 +162,6 @@ async def create_taxonomy(
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
 
-    elif method == DerivationMethod.EMPIRICAL:
-        try:
-            theme, notes, _usage = await build_theme_empirical(
-                req.name, req.description, companies, registry, llm, settings, req.sample_size
-            )
-        except ValueError as exc:
-            raise HTTPException(422, str(exc)) from exc
-
     elif method == DerivationMethod.NEWS_TRANSCRIPT_MINING:
         search_client = build_web_search_client(settings.discovery_user_agent) if req.mine_news else None
         try:
@@ -187,12 +171,6 @@ async def create_taxonomy(
                 companies=companies,
                 registry=registry if companies else None,
             )
-        except ValueError as exc:
-            raise HTTPException(422, str(exc)) from exc
-
-    elif method == DerivationMethod.ETF_INDEX_HOLDINGS:
-        try:
-            theme, notes, _usage = await build_theme_from_holdings(req.name, req.description, Path(req.holdings_path), llm)
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
 

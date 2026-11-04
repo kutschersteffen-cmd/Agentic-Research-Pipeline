@@ -3,6 +3,7 @@ from __future__ import annotations
 import typer
 from typer.core import TyperGroup
 
+from arp.cli.authority_library import authority_library_app
 from arp.cli.bi import bi_app
 from arp.cli.calibration import calibration_app
 from arp.cli.climate import climate_app
@@ -92,6 +93,7 @@ def _require_postgres(ctx: typer.Context) -> None:
 
 
 app.add_typer(theme_app, name="theme")
+app.add_typer(authority_library_app, name="authority-library")
 app.add_typer(taxonomy_app, name="taxonomy")
 app.add_typer(extract_app, name="extract")
 app.add_typer(transition_plan_app, name="transition-plan")
