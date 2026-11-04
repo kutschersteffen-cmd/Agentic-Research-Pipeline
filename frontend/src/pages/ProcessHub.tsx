@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useReducer, useState, type ReactElement } from "react";
 import { api } from "../api/client";
-import type { EngagementRecord, RunManifest, StewardshipFlow } from "../types";
-import { ACTIVE_STATUSES, ago, decisionRunType, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
+import type { RunManifest, StewardshipFlow } from "../types";
+import { ACTIVE_STATUSES, decisionRunType, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
 import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
-import { openCount } from "./steward/common";
 import { useMe } from "../lib/reviewer";
-import { NeedsYou, type Totals } from "../components/NeedsYou";
+import { useWaitingTotal } from "../lib/useWaitingTotal";
+import { DONE, STATE_LABEL, cardView, openCount, stepState, type StepState } from "../lib/workspaceCard";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
-import { engagementCounts, engagementLine, type EngagementCounts } from "../lib/engagement";
 
 // The start page, the five workspace pages and the process bar. Workspaces and
 // their processes live in lib/processes.ts; this file draws them and reads
@@ -90,47 +89,6 @@ function useHouseFlow() {
   return { flow, error };
 }
 
-type StepState = "done" | "now" | "wait" | "failed" | "idle";
-const DONE = new Set(["completed", "partially_completed"]);
-
-function stepState(step: Step, runs: RunManifest[] | null, flow: StewardshipFlow | null): StepState {
-  if (step.runTypes && runs) {
-    const mine = runs.filter((r) => step.runTypes!.includes(decisionRunType(r)));
-    // Waiting on a person outranks running: that is what the signal colour is for.
-    if (!step.reviewedElsewhere && mine.some((r) => waitingCount(r) > 0)) return "wait";
-    if (mine.some((r) => ACTIVE_STATUSES.has(r.status))) return "now";
-    const latest = mine.sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
-    if (latest?.status === "failed") return "failed";
-    if (mine.some((r) => DONE.has(r.status))) return "done";
-  }
-  if (step.stage && openCount(flow?.stages.find((s) => s.id === step.stage)) > 0) return "wait";
-  return "idle";
-}
-
-const RANK: StepState[] = ["wait", "now", "failed", "done", "idle"];
-/** A process's one state: the most urgent of its steps'. */
-const processState = (p: Process, runs: RunManifest[] | null, flow: StewardshipFlow | null): StepState => {
-  const states = p.steps.map((s) => stepState(s, runs, flow));
-  return RANK.find((r) => states.includes(r)) ?? "idle";
-};
-
-/** The one line a workspace box leads with: what waits on a person first, then
- * failures, then what is running. */
-function headline(w: Workspace, runs: RunManifest[] | null, flow: StewardshipFlow | null, counted?: number): { tone: string; text: string; failed?: string } {
-  if (!runs) return { tone: "", text: "Status unknown" };
-  const mine = runs.filter((r) => w.runTypes.includes(r.run_type));
-  const stages = new Set(w.processes.flatMap((p) => p.steps.map((s) => s.stage).filter(Boolean)));
-  // Prefer the Needs you count for this workspace, so the cards add up to the headline.
-  const waiting = counted ?? mine.reduce((n, r) => n + waitingCount(r), 0) + [...stages].reduce((n, id) => n + openCount(flow?.stages.find((x) => x.id === id)), 0);
-  const failed = mine.filter((r) => r.status === "failed").length;
-  const running = mine.filter((r) => ACTIVE_STATUSES.has(r.status)).length;
-  // The failed part keeps the status colour; only "waiting on you" carries the signal.
-  if (waiting > 0) return { tone: "await", text: `${waiting} waiting on you`, failed: failed > 0 ? `${failed} failed` : undefined };
-  if (failed > 0) return { tone: "failed", text: `${failed} failed` };
-  if (running > 0) return { tone: "running", text: `${running} running` };
-  return { tone: "", text: "Nothing waiting" };
-}
-
 /** Where a run row goes: its review, its ballot, or its process. */
 function runHref(r: RunManifest): string {
   if (r.review_count > 0 && REVIEWABLE_RUN_TYPES.has(r.run_type)) return `#/review/${r.run_type}/${encodeURIComponent(r.run_id)}`;
@@ -143,24 +101,12 @@ const WEEK_MS = 7 * 24 * 3600 * 1000;
 const isToday = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
 const recent = (iso: string) => Date.now() - new Date(iso).getTime() < WEEK_MS;
 
-const STATE_LABEL: Record<StepState, string> = { done: "has a finished run", now: "running", wait: "waiting on a person", failed: "last run failed", idle: "no activity yet" };
-
-/** A workspace as a card: icon, purpose, one dot per process, and one line
- * naming the process that matters now. */
-function WorkspaceCard({ w, runs, flow, counted }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null; counted?: number }) {
-  const h = headline(w, runs, flow, counted);
-  const last = runs?.filter((r) => w.runTypes.includes(r.run_type)).sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
-  const states = w.processes.map((p) => processState(p, runs, flow));
-  // The process named is the one a person should look at: a wait first, then running or failed.
-  const firstWait = states.indexOf("wait");
-  const at = firstWait >= 0 ? firstWait : states.findIndex((st) => st === "now" || st === "failed");
-  // Something can wait here with no process dot behind it (a blocking data issue); say where it is instead of "No runs yet".
-  const now = at >= 0 ? w.processes[at].title : !runs ? "" : counted ? "Listed under Needs you" : last ? `Last run ${ago(last.updated_at)}` : "No runs yet";
-  const status = h.failed ? `${h.text}, ${h.failed}` : h.text;
-  // The link's label replaces its inner text for screen readers, so it carries each process's state too.
-  const steps = w.processes.map((p, i) => `${p.title}: ${runs ? STATE_LABEL[states[i]] : "status unknown"}`).join("; ");
+/** A workspace as a card: a way into it. Icon, purpose, one dot per process and the
+ * process that matters now; the count lives in the headline. */
+function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
+  const v = cardView(w, runs, flow, new Date());
   return (
-    <a className={`hub-card${h.tone ? ` hub-card-${h.tone}` : ""}`} href={`#/${w.id}`} aria-label={`${w.name}: ${status}${now ? `. ${now}` : ""}. ${steps}`}>
+    <a className={`hub-card${v.awaits ? " hub-card-await" : ""}`} href={`#/${w.id}`} aria-label={v.label}>
       {ICONS[w.id]}
       <span className="hub-card-text">
         <span className="hub-card-name">{w.name}</span>
@@ -168,22 +114,11 @@ function WorkspaceCard({ w, runs, flow, counted }: { w: Workspace; runs: RunMani
       </span>
       <ol className="hub-dots">
         {w.processes.map((p, i) => (
-          // Before runs load (or when the backend is down) the state is unknown, not idle.
-          <li key={p.id} className={`hub-dot-${runs ? states[i] : "unknown"}`}>
-            <span className="visually-hidden">
-              {p.title}: {runs ? STATE_LABEL[states[i]] : "status unknown"}
-            </span>
-          </li>
+          <li key={p.id} className={`hub-dot-${v.dots[i]}`} />
         ))}
       </ol>
-      <span className="hub-card-now">{now}</span>
-      <span className="hub-card-foot">
-        <span className="hub-card-status">
-          <span className={`hub-card-state ${h.tone}`}>{h.text}</span>
-          {h.failed && <span className="hub-card-state failed"> · {h.failed}</span>}
-        </span>
-        <span className="hub-card-go">Open →</span>
-      </span>
+      <span className="hub-card-now">{v.now}</span>
+      <span className="hub-card-foot">{v.footer}</span>
     </a>
   );
 }
@@ -212,25 +147,16 @@ export function StartPage() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const name = reviewer.trim();
-  // Loaded once: the line is a glance, the Engagement screen has the live list.
-  // The one waiting total: the sum of the Needs you rows (null while loading, "error" if they could not load).
-  const [needsTotal, setNeedsTotal] = useState<Totals | null | "error">(null);
-  const [engagement, setEngagement] = useState<EngagementCounts | null | "error">(null);
-  useEffect(() => {
-    api.listEngagementRecords().then(
-      (r) => setEngagement(engagementCounts(r.records as EngagementRecord[])),
-      () => setEngagement("error"),
-    );
-  }, []);
+  // The one waiting total (null while loading, "error" if it could not load).
+  const needsTotal = useWaitingTotal(runs, flow);
 
   const known = runs !== null;
   const all = runs ?? [];
   const active = all.filter((r) => ACTIVE_STATUSES.has(r.status));
-  const totals = known && needsTotal !== null && needsTotal !== "error" ? needsTotal : null;
-  const waiting = totals ? totals.total : null;
+  const waiting = known && typeof needsTotal === "number" ? needsTotal : null;
   const failed = all.filter((r) => r.status === "failed" && recent(r.updated_at));
   const today = all.filter((r) => DONE.has(r.status) && isToday(r.updated_at));
-  // Failed runs wait on a person (Resume), so they are listed in "Needs you"; this row is only what is running.
+  // Failed runs count in the headline (they wait on a Resume); this row is only what is running.
   const chips = [...active].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 6);
   const n = (v: number) => (known ? v : "—");
 
@@ -250,7 +176,7 @@ export function StartPage() {
         {waiting !== null && (
           <details className="hub-counts">
             <summary>What counts?</summary>
-            Review items, ballots, open stewardship decisions, failed runs to resume and blocking data issues. Each is a row under Needs you.
+            Review items, ballots, open stewardship decisions, failed runs to resume and blocking data issues. The Review Queue and each workspace list them.
           </details>
         )}
         </div>
@@ -281,13 +207,12 @@ export function StartPage() {
           </button>
         </p>
       )}
-      <NeedsYou runs={runs} flow={flow} runsError={!!error} onTotal={setNeedsTotal} />
-      <StateLegend waiting={!!waiting} />
       <div className="hub-cards">
         {WORKSPACES.map((w) => (
-          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} counted={totals ? (totals.byWorkspace[w.name] ?? 0) : undefined} />
+          <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} />
         ))}
       </div>
+      <StateLegend waiting={!!waiting} />
       {known && (
       <nav className="hub-now" aria-label="Runs running">
         <span className="hub-now-label">Now</span>
@@ -302,14 +227,8 @@ export function StartPage() {
           );
         })}
         {chips.length === 0 && <span className="muted">Nothing running.</span>}
-        <a className="hub-now-all" href="#/history">
-          All runs →
-        </a>
       </nav>
       )}
-      <p className="hub-engagement">
-        <span>{engagementLine(engagement)}</span> <a href="#/engagement">Open Engagement →</a>
-      </p>
     </div>
   );
 }

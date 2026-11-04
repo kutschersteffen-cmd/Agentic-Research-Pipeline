@@ -190,6 +190,25 @@ def _load(conn: sqlite3.Connection, content_key: str, parser_version: str) -> Do
     return DocTree.model_validate_json(row[0]) if row else None
 
 
+def tree_for(doc: SourceDocument, settings: Settings) -> DocTree | None:
+    """The tree stored for this document version under the current TREE_VERSION, or None. Only reads."""
+    conn = _connect(settings)
+    try:
+        return _load(conn, *_key(doc))
+    finally:
+        conn.close()
+
+
+def node_for(tree: DocTree, char_start: int, table_id: str | None) -> TreeNode | None:
+    """A table passage's table leaf; else the deepest non-root, non-table node holding `char_start`."""
+    if table_id is not None:
+        return next((n for n in _walk(tree.root) if n.table_id == table_id), None)
+    node, found = tree.root, None
+    while (inner := next((c for c in node.children if c.table_id is None and c.char_start <= char_start < c.char_end), None)):
+        node = found = inner
+    return found
+
+
 def stored_tree(doc_id: str, settings: Settings) -> DocTree | None:
     """The latest tree stored for `doc_id`, any version."""
     conn = _connect(settings)

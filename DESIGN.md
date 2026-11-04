@@ -231,7 +231,7 @@ Square, like the start page, on every screen: cards, framed tables, inputs, butt
 - **Mobile / tablet:** below 1024px the sidebar becomes a drawer behind a top bar showing the current screen's name.
 
 ### Process Card (signature component)
-The start page's five cards (StewardIQ, Argus, Transition Intelligence Platform, R&D Lab, Data Hub): an icon from one 48-grid family, the name, a one-line purpose, the workspace's processes as dots on a line (ink = done, ring = running, signal = waiting on you, red diamond = failed, hollow = idle), one mono line naming the process that matters now, and a status in the signal colour when someone is needed.
+The start page's five cards (StewardIQ, Argus, Transition Intelligence Platform, R&D Lab, Data Hub): an icon from one 48-grid family, the name, a one-line purpose, the workspace's processes as dots on a line (ink = done, ring = running, signal = waiting on you, red diamond = failed, hollow = idle), one mono line naming the process that matters now, and "Open →". The card is a way in: it carries no counts, because waiting work is counted once, in the start page headline. The start page has no Needs you list: each waiting item lives in the Review Queue or its workspace.
 
 ## Do's and Don'ts
 

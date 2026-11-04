@@ -1,0 +1,2 @@
+Created taxonomy tax_0001 v1 (authority_source) with 1 activities.
+Grounded extraction from 1 authority source(s): https://example.org/hydrogen.html.

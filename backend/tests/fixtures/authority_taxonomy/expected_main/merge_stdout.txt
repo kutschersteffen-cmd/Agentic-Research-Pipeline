@@ -1,0 +1,3 @@
+Wrote merged draft (2 activities) to <OUT>
+Merged from: A v1, B v1. Kept both.
+Review and save with: arp taxonomy new-version <existing_id> --theme <OUT>  (or create a new taxonomy from it)

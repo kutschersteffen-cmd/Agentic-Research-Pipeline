@@ -1,0 +1,15 @@
+3.10 Manufacture of hydrogen
+
+Description of the activity: The theme covers the hydrogen economy and the equipment needed to produce clean hydrogen.
+
+Manufacture of electrolysers used for the production of hydrogen through water electrolysis.
+
+Operation of electrolysers to produce hydrogen is covered under a separate activity and is excluded here.
+
+Proton exchange membrane electrolysis is the key technology for low-carbon hydrogen production.
+
+"Low-carbon hydrogen" means hydrogen whose life-cycle emissions are below 3 tCO2e per tonne of hydrogen.
+
+The activity is classified under NACE code C28.29.
+
+A company qualifies only if at least 50 % of revenue from hydrogen activities is reported.

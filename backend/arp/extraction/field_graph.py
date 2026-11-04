@@ -15,13 +15,13 @@ from arp.extraction.extractor_agent import ExtractionDraft, PeriodValue, extract
 from arp.extraction.graph_shape import build_extract_verify_graph
 from arp.extraction.verifier_agent import DisagreementType, VerifierOutput, blind_verify, verify_extraction
 from arp.extraction.vision_check import check_on_page
-from arp.ingestion.parsing import chunk_document
+from arp.ingestion.parsing import chunk_document, piece_parents, small_pieces
 from arp.ingestion.xbrl import FactSource, XbrlFact
 from arp.llm.base import LLMClient, LLMUsage
 from arp.normalise.value import typed_value
 from arp.orchestration.step_tally import run_graph
 from arp.planning.doc_routing import route_documents, section_filter
-from arp.retrieval.index_text import index_text
+from arp.retrieval.index_text import index_texts as index_texts_for
 from arp.retrieval.keywords_de import with_german
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import DocumentChunk, ProvenanceInfo, SourceDocument
@@ -134,13 +134,23 @@ def field_evidence(
     """The ranked evidence one field's extraction sees. Blocking (BM25/embedding/rerank are
     CPU-bound); `golden-set retrieval` replays it, so the eval measures exactly this path."""
     keywords = with_german(field.seed_keywords)
+    # small-to-big: rank small pieces (and table passages), return their parents; in-memory BM25 only
+    small_to_big = bool(settings is not None and settings.small_to_big_enabled and settings.retrieval_backend == "bm25" and keywords)
     all_chunks: list[DocumentChunk] = []
+    ranked_units: list[DocumentChunk] = []
+    parents: dict[str, DocumentChunk] = {}
     index_texts: dict[str, str] = {}
     for doc in route_documents(field, documents):
         doc_chunks = chunk_document(doc, keywords=keywords)
         all_chunks.extend(doc_chunks)
+        pieces: list[DocumentChunk] = []
+        if small_to_big:
+            pieces = small_pieces(doc, settings)
+            parents.update(piece_parents(doc, pieces, doc_chunks, settings))
+            ranked_units.extend(pieces + [c for c in doc_chunks if c.table_id is not None])
         if settings is not None and settings.context_headers_enabled:
-            index_texts.update((c.chunk_id, index_text(c, doc, settings)) for c in doc_chunks)
+            units = doc_chunks + pieces
+            index_texts.update(zip((c.chunk_id for c in units), index_texts_for(units, doc, settings), strict=True))
     all_chunks = section_filter(field, all_chunks)
 
     content_store = None
@@ -161,22 +171,32 @@ def field_evidence(
             "max_chunks": settings.evidence_max_chunks,
             "rerank_candidates": settings.rerank_candidates if settings.rerank_enabled else None,
         }
-    picked = select_relevant_chunks(
-        all_chunks,
-        keywords,
-        doc_type_filter=None if field.document_routing else field.source_doc_types or None,
-        hybrid_retrieval_enabled=settings is not None and settings.hybrid_retrieval_enabled,
-        content_store=content_store,
-        retrieval_backend=settings.retrieval_backend if settings is not None else "bm25",
-        opensearch_client=opensearch_client,
-        fallback_to_all=field.high_risk,
-        on_unranked_fallback=on_unranked_fallback,
-        index_texts=index_texts or None,
-        explain=explain,
-        **limits,
-    )
+
+    def select(candidates: list[DocumentChunk], unit_parents: dict[str, DocumentChunk] | None) -> list[DocumentChunk]:
+        return select_relevant_chunks(
+            candidates,
+            keywords,
+            doc_type_filter=None if field.document_routing else field.source_doc_types or None,
+            hybrid_retrieval_enabled=settings is not None and settings.hybrid_retrieval_enabled,
+            content_store=content_store,
+            retrieval_backend=settings.retrieval_backend if settings is not None else "bm25",
+            opensearch_client=opensearch_client,
+            fallback_to_all=field.high_risk and unit_parents is None,
+            on_unranked_fallback=on_unranked_fallback,
+            index_texts=index_texts or None,
+            explain=explain,
+            parents=unit_parents,
+            **limits,
+        )
+
+    picked = select(section_filter(field, ranked_units), parents) if small_to_big else []
+    if small_to_big and (picked or not field.high_risk):
+        if explain is not None:
+            explain["small_to_big"] = True
+    else:  # off, or a high-risk field with no hit: today's chunks, as with the setting off
+        picked = select(all_chunks, None)
     if explain is not None:  # the walkthrough shows the near-misses' text, so keep their positions
-        by_id = {c.chunk_id: c for c in all_chunks}
+        by_id = {c.chunk_id: c for c in [*all_chunks, *parents.values()]}
         explain["near_miss_chunks"] = [by_id[cid] for cid in explain.get("near_misses", []) if cid in by_id]
     return picked
 

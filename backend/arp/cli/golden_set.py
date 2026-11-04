@@ -65,6 +65,22 @@ def exposure_split(set_dir: Path = typer.Option(..., "--set", help="Set director
     typer.echo("OK")
 
 
+@exposure_app.command("universe")
+def exposure_universe(
+    set_dir: Path = typer.Option(..., "--set", help="Set directory holding cases.json."),
+    split: str = typer.Option("all", "--split", help="tune, holdout or all."),
+    out: Path = typer.Option(..., "--out", help="Where to write the universe JSON (company_id = case_id)."),
+) -> None:
+    """The set's companies as a universe, for `arp universe narrow --cases`."""
+    from arp.golden_set.exposure import load_set
+
+    s = load_set(set_dir)
+    rows = [{"company_id": c.case_id, "name": c.company, "isin": c.isin, "nace_code": c.nace_code}
+            for c in s.cases if split == "all" or c.split == split]
+    out.write_text(json.dumps(rows, indent=2))
+    typer.echo(f"Wrote {len(rows)} companies to {out}")
+
+
 @exposure_app.command("stats")
 def exposure_stats(set_dir: Path = typer.Option(..., "--set", help="Set directory holding cases.json.")) -> None:
     """Prints tune/holdout counts per label."""
@@ -79,6 +95,57 @@ def exposure_stats(set_dir: Path = typer.Option(..., "--set", help="Set director
         typer.echo(line)
 
 
+@golden_set_app.command("authority-taxonomy")
+def golden_set_authority_taxonomy(
+    case: str = typer.Option(..., "--case", help="Case folder name under tests/golden/authority_taxonomy/."),
+    cases_dir: Path = typer.Option(
+        Path(__file__).resolve().parents[2] / "tests" / "golden" / "authority_taxonomy", "--cases-dir", hidden=True
+    ),
+) -> None:
+    """Extracts and consolidates the case's stored source text with the real model (nothing saved) and prints
+    every activity name, FOUND/MISSED per expected activity (via match_activities), then
+    grounded_rate (activities with a citation / activities) and recall.
+    Exits 1 unless grounded_rate is 1.0 and recall reaches the case's min_recall."""
+    from arp.research.authority_taxonomy.consolidate import consolidate
+    from arp.research.authority_taxonomy.extract import extract_source
+    from arp.research.authority_taxonomy.matching import match_activities
+    from arp.schemas.thematic import ActivityDefinition
+
+    folder = cases_dir / case
+    spec = json.loads((folder / "case.json").read_text(encoding="utf-8"))
+    if spec.get("source_note"):
+        typer.echo(f"WARNING: {spec['source_note']}")
+    text = (folder / "source.txt").read_text(encoding="utf-8")
+    settings = get_settings()
+    llm = build_llm_client(settings)
+
+    async def run():
+        ext = await extract_source(
+            spec["source_url"], text, theme_name=spec["theme_name"], scope=spec["scope"], value_chain=False, llm=llm
+        )
+        theme, _notes = await consolidate(
+            [ext], theme_name=spec["theme_name"], scope=spec["scope"], value_chain=False,
+            settings=settings, llm=llm, value_chain_model=None,
+        )
+        wanted = [ActivityDefinition(name=n, in_scope_description="", out_of_scope_description="") for n in expected]
+        return theme, await match_activities(wanted, theme.activities, scope=spec["scope"], llm=llm)
+
+    expected = spec["expected_activities"]
+    theme, matches = asyncio.run(run())
+    acts = theme.activities
+    grounded_rate = sum(bool(a.citations) for a in acts) / len(acts) if acts else 0.0
+    for a in acts:
+        typer.echo(a.name)
+    found = {m.left: m for m in matches}
+    for i, name in enumerate(expected):
+        m = found.get(i)
+        typer.echo(f"FOUND {name} = {acts[m.right].name} ({m.method}: {m.reason})" if m else f"MISSED {name}")
+    recall = len(found) / len(expected)
+    typer.echo(f"grounded_rate={grounded_rate:.2f} recall={recall:.2f}")
+    if grounded_rate != 1.0 or round(recall, 2) < spec["min_recall"]:  # 2/3 must pass 0.67
+        raise typer.Exit(1)
+
+
 @golden_set_app.command("run")
 def golden_set_run(
     cases_file: Path = typer.Option(
@@ -87,6 +154,7 @@ def golden_set_run(
     fail_on_regression: bool = typer.Option(
         True, help="Exit with a non-zero status if any case fails -- for wiring into CI before a prompt/model change ships."
     ),
+    long: bool = typer.Option(False, "--long", help="Run the long-document cases (real filing excerpts with distractors)."),
     gate: str = typer.Option(
         None, "--gate", help="on|off: run with the evidence gate forced on or off, and print the extractor input tokens.",
     ),
@@ -100,7 +168,7 @@ def golden_set_run(
     settings = get_settings()
     llm = build_llm_client(settings)
     verifier_llm = build_verifier_llm_client(settings)
-    cases = load_golden_set_cases(cases_file)
+    cases = load_golden_set_cases(cases_file, long=long)
     typer.echo(f"Running {len(cases)} golden-set case(s) against {settings.llm_model} / verifier {settings.llm_verifier_model}...")
     if gate not in (None, "on", "off"):
         raise typer.BadParameter("--gate takes on or off")
@@ -278,17 +346,23 @@ def golden_set_retrieval(
     min_recall: float = typer.Option(None, "--min-recall", min=0.0, max=1.0, help="Exit 1 if recall@evidence_max_chunks is below this."),
     hybrid: bool = typer.Option(None, "--hybrid/--no-hybrid", help="Override hybrid_retrieval_enabled."),
     rerank: bool = typer.Option(None, "--rerank/--no-rerank", help="Override rerank_enabled."),
+    tree_context: bool = typer.Option(
+        None, "--tree-context/--no-tree-context",
+        help="Override tree_context_enabled. On, each document's tree is built first (model calls unless stored).",
+    ),
     rerank_candidates: int = typer.Option(None, "--rerank-candidates", min=1, help="Override rerank_candidates."),
     out: Path = typer.Option(None, "--out", help="Also write the JSON report here."),
 ) -> None:
     """Replays each reviewed field's evidence selection and reports how often it contains the span a
-    reviewer approved (recall@5 and @evidence_max_chunks), plus seconds per field. No LLM calls.
+    reviewer approved (recall@5 and @evidence_max_chunks), plus seconds per field. No LLM calls, except
+    building document trees with --tree-context.
     With --cases, the gold spans come from a committed cases file instead of a reviewed run."""
     if (run_id is None) == (cases_file is None):
         typer.echo("Pass exactly one of --cases or --run-id.", err=True)
         raise typer.Exit(2)
     settings = get_settings()
-    overrides = {"hybrid_retrieval_enabled": hybrid, "rerank_enabled": rerank, "rerank_candidates": rerank_candidates}
+    overrides = {"hybrid_retrieval_enabled": hybrid, "rerank_enabled": rerank, "rerank_candidates": rerank_candidates,
+                 "tree_context_enabled": tree_context}
     settings = settings.model_copy(update={k: v for k, v in overrides.items() if v is not None})
     try:
         if cases_file is not None:
@@ -308,6 +382,8 @@ def golden_set_retrieval(
         raise typer.Exit(1) from exc
     if out:
         out.write_text(json.dumps(report, indent=2))
+    if "tree_nodes" in report:
+        typer.echo(f"Tree context: {report['tree_nodes_without_summary']} of {report['tree_nodes']} nodes have no summary.", err=True)
     if report["stale_spans"]:
         typer.echo(f"Left out {report['stale_spans']} span(s) whose text no longer matches the current parse.", err=True)
     if not report["gold_spans"]:
