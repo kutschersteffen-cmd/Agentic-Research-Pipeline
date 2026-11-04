@@ -38,7 +38,7 @@ ANNUAL_FORMS = ("10-K", "20-F", "40-F")
 _US_COUNTRIES = {"us", "usa", "united states"}
 
 # Bump whenever ingestion/html_text.py::extract_html_text's logic changes.
-_EDGAR_PARSER_LOGIC_VERSION = 2  # 2: full-text fallback for filings trafilatura cuts to the cover page
+_EDGAR_PARSER_LOGIC_VERSION = 3  # 2: full-text fallback for filings trafilatura cuts to the cover page; 3: iXBRL via parse_ixbrl
 
 
 @functools.lru_cache(maxsize=1)
@@ -209,7 +209,7 @@ class EdgarDocumentSource(DocumentSource):
 
         index_document_if_enabled(
             self._indexing_config, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=title, full_text=full_text,
-            fiscal_period=fiscal_period,
+            fiscal_period=fiscal_period, content_key=content_key, parser_version=_edgar_parser_version(),
         )
 
         if raw_bytes is not None:

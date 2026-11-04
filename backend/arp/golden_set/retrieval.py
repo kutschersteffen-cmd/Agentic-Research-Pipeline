@@ -1,6 +1,6 @@
 """Retrieval recall against reviewer-approved citations (run mode) or a committed cases file (cases mode):
 does the evidence a field's extraction sees contain the gold span? No LLM calls, so retrieval settings can
-be compared cheaply."""
+be compared cheaply -- except with tree_context_enabled, which builds each document's tree first (free once stored)."""
 
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from arp.extraction.field_graph import field_evidence
 from arp.extraction.pipeline import load_run_schema
 from arp.golden_set.export import final_decisions
 from arp.grounding import _normalize, _normalize_with_offsets
+from arp.ingestion.doc_tree import _walk, build_doc_tree
 from arp.ingestion.indexing_config import IndexingConfig
 from arp.ingestion.local_files import LocalFileDocumentSource, parse_file_to_text_with_pages, parser_version
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -86,6 +87,28 @@ def _registry(documents_dir: Path, settings: Settings) -> DocumentSourceRegistry
     )])
 
 
+class _TreeCount:
+    """With tree_context_enabled: builds (or reads) each document's tree once and counts its non-root nodes
+    and those without a summary; off, does nothing."""
+
+    def __init__(self, settings: Settings) -> None:
+        self.settings = settings
+        self.seen: set[str] = set()
+        self.nodes = self.unsummarised = 0
+
+    async def add(self, documents: list[SourceDocument]) -> None:
+        if not self.settings.tree_context_enabled:
+            return
+        for doc in documents:
+            if doc.doc_id in self.seen:
+                continue
+            self.seen.add(doc.doc_id)
+            tree = await asyncio.to_thread(build_doc_tree, doc, self.settings)
+            nodes = [n for n in _walk(tree.root) if n is not tree.root]
+            self.nodes += len(nodes)
+            self.unsummarised += sum(n.summary is None for n in nodes)
+
+
 async def run_retrieval_eval(
     run_store: RunStore, run_id: str, decisions: list[ReviewDecision], *, documents_dir: Path, settings: Settings
 ) -> dict:
@@ -100,11 +123,13 @@ async def run_retrieval_eval(
     seconds: list[float] = []
     misses: list[dict] = []
     stale = 0
+    trees = _TreeCount(settings)
     by_company: dict[str, list[GoldSpan]] = {}
     for g in gold:
         by_company.setdefault(g.company_id, []).append(g)
     for company_id, spans in by_company.items():
         documents = await registry.fetch_all(companies.get(company_id) or CompanyRef(company_id=company_id, name=company_id))
+        await trees.add(documents)
         texts = {d.doc_id: d.full_text for d in documents}
         by_field: dict[str, list[GoldSpan]] = {}
         for g in spans:
@@ -125,13 +150,13 @@ async def run_retrieval_eval(
                 if rank is None:
                     misses.append({"company_id": company_id, "field_id": field_id, "doc_id": g.doc_id,
                                    "char_start": g.char_start, "char_end": g.char_end})
-    return _report(run_id, settings, ranks, stale, seconds, misses)
+    return _report(run_id, settings, ranks, stale, seconds, misses, trees)
 
 
 def _report(run_id: str | None, settings: Settings, ranks: list[int | None], stale: int, seconds: list[float],
-            misses: list[dict]) -> dict:
+            misses: list[dict], trees: _TreeCount) -> dict:
     k = settings.evidence_max_chunks
-    return {
+    report = {
         "run_id": run_id,
         "settings": {"hybrid_retrieval_enabled": settings.hybrid_retrieval_enabled, "rerank_enabled": settings.rerank_enabled,
                      "rerank_candidates": settings.rerank_candidates, "evidence_max_chunks": k,
@@ -145,6 +170,10 @@ def _report(run_id: str | None, settings: Settings, ranks: list[int | None], sta
         "max_seconds_per_field": max(seconds) if seconds else None,
         "misses": misses,
     }
+    if settings.tree_context_enabled:  # off: the report stays byte-identical to before tree context
+        report["settings"]["tree_context_enabled"] = True
+        report.update(tree_nodes=trees.nodes, tree_nodes_without_summary=trees.unsummarised)
+    return report
 
 
 def _sha256(path: Path) -> str:
@@ -192,6 +221,7 @@ def _parse(path: Path, company_id: str, store: DocumentContentStore) -> SourceDo
         doc_id=derive_doc_id(company_id, doc_type.value, parsed.content_key), company_id=company_id,
         doc_type=doc_type, title=path.name, local_path=str(path), full_text=parsed.full_text,
         page_breaks=parsed.page_breaks, table_spans=parsed.table_spans, language=language, decimal=decimal_for(language),
+        content_key=parsed.content_key, parser_version=parser_version(),  # the key the app stores its tree under
     )
 
 
@@ -211,6 +241,7 @@ async def run_cases_retrieval_eval(cases_file: Path, *, documents_dir: Path, set
     seconds: list[float] = []
     misses: list[dict] = []
     stale = 0
+    trees = _TreeCount(settings)
     store = content_store_for(settings)
     by_company: dict[str, list[dict]] = {}
     for c in cases:
@@ -219,6 +250,7 @@ async def run_cases_retrieval_eval(cases_file: Path, *, documents_dir: Path, set
         names = dict.fromkeys(c["document"] for c in company_cases)
         parsed = [await asyncio.to_thread(_parse, documents_dir / company_id / name, company_id, store) for name in names]
         documents = [d for d in parsed if d is not None]
+        await trees.add(documents)
         by_title = {d.title: d for d in documents}
         for c in company_cases:
             field = schemas[c["schema_id"]][c["field_id"]]
@@ -238,4 +270,4 @@ async def run_cases_retrieval_eval(cases_file: Path, *, documents_dir: Path, set
                 if rank is None:
                     misses.append({"case_id": c["case_id"], "company_id": company_id, "field_id": field.field_id,
                                    "document": c["document"], "span_text": span})
-    return _report(None, settings, ranks, stale, seconds, misses)
+    return _report(None, settings, ranks, stale, seconds, misses, trees)

@@ -26,7 +26,7 @@ def field_id_for(schema: DataPointSchema, activity_id: str, metric: Metric) -> s
     return f"{taxonomy_id}_{activity_id}_{metric}_pct"
 
 
-def _field(taxonomy: Taxonomy, activity: ActivityDefinition, metric: Metric) -> FieldDefinition:
+def _field(taxonomy_id: str, version: int, activity: ActivityDefinition, metric: Metric) -> FieldDefinition:
     if metric == "rd":
         description = (
             f"R&D spend intensity related to the company's investment in: {activity.name} ({activity.in_scope_description})"
@@ -55,7 +55,7 @@ def _field(taxonomy: Taxonomy, activity: ActivityDefinition, metric: Metric) -> 
         )
         keywords = [*activity.seed_keywords, metric]
     return FieldDefinition(
-        field_id=f"{taxonomy.taxonomy_id}_{activity.activity_id}_{metric}_pct",
+        field_id=f"{taxonomy_id}_{activity.activity_id}_{metric}_pct",
         name=f"{activity.name}: {_NAMES[metric]}",
         description=description,
         data_type=FieldDataType.PERCENTAGE,
@@ -63,7 +63,7 @@ def _field(taxonomy: Taxonomy, activity: ActivityDefinition, metric: Metric) -> 
         extraction_instructions=instructions,
         required=False,
         seed_keywords=keywords,
-        version=taxonomy.version,
+        version=version,
     )
 
 
@@ -112,10 +112,10 @@ EVIDENCE_KEYS: tuple[str, ...] = tuple(_EVIDENCE)
 _MILESTONES = ["lab", "pilot", "demonstration", "first_commercial", "series_production"]
 
 
-def _evidence_field(taxonomy: Taxonomy, activity: ActivityDefinition, key: str) -> FieldDefinition:
+def _evidence_field(taxonomy_id: str, version: int, activity: ActivityDefinition, key: str) -> FieldDefinition:
     suffix, data_type, guidance, keywords = _EVIDENCE[key]
     return FieldDefinition(
-        field_id=f"{taxonomy.taxonomy_id}_{activity.activity_id}_{key}",
+        field_id=f"{taxonomy_id}_{activity.activity_id}_{key}",
         name=f"{activity.name}: {suffix}",
         description=f"{suffix} for: {activity.name} ({activity.in_scope_description})",
         data_type=data_type,
@@ -124,8 +124,14 @@ def _evidence_field(taxonomy: Taxonomy, activity: ActivityDefinition, key: str) 
         allowed_values=_MILESTONES if key == "milestone" else None,
         required=False,
         seed_keywords=[*activity.seed_keywords, *keywords],
-        version=taxonomy.version,
+        version=version,
     )
+
+
+def activity_fields(activity: ActivityDefinition, taxonomy_id: str, version: int) -> list[FieldDefinition]:
+    """The schema fields generated for one activity. The theme funnel reads their names and keywords too, so a
+    field added here reaches it with no funnel change."""
+    return [_field(taxonomy_id, version, activity, m) for m in METRICS]
 
 
 def build_taxonomy_schema(taxonomy: Taxonomy) -> DataPointSchema:
@@ -138,7 +144,8 @@ def build_taxonomy_schema(taxonomy: Taxonomy) -> DataPointSchema:
         description=f"Generated from taxonomy {taxonomy.taxonomy_id} v{taxonomy.version}.",
         fields=[
             f for a in taxonomy.theme.activities
-            for f in [*(_field(taxonomy, a, m) for m in METRICS), *(_evidence_field(taxonomy, a, k) for k in EVIDENCE_KEYS)]
+            for f in [*activity_fields(a, taxonomy.taxonomy_id, taxonomy.version),
+                      *(_evidence_field(taxonomy.taxonomy_id, taxonomy.version, a, k) for k in EVIDENCE_KEYS)]
         ],
     )
 

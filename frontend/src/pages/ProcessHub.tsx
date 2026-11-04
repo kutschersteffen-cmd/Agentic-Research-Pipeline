@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useReducer, useState, type ReactElement } from "react";
 import { api } from "../api/client";
-import type { EngagementRecord, RunManifest, StewardshipFlow } from "../types";
+import type { RunManifest, StewardshipFlow } from "../types";
 import { ACTIVE_STATUSES, decisionRunType, REVIEWABLE_RUN_TYPES, runTypeLabel, waitingCount } from "../lib/runs";
 import { listAllRuns, usePoll } from "../lib/poll";
 import { PROCESSES, WORKSPACES, stepHref, workspaceOfProcess, type Process, type Step, type Workspace, type WorkspaceId } from "../lib/processes";
 import { useMe } from "../lib/reviewer";
-import { NeedsYou } from "../components/NeedsYou";
+import { useWaitingTotal } from "../lib/useWaitingTotal";
 import { DONE, STATE_LABEL, cardView, openCount, stepState, type StepState } from "../lib/workspaceCard";
 import { announce } from "../lib/announce";
 import { previousMonth } from "../lib/holdings";
-import { engagementCounts, engagementLine, type EngagementCounts } from "../lib/engagement";
 
 // The start page, the five workspace pages and the process bar. Workspaces and
 // their processes live in lib/processes.ts; this file draws them and reads
@@ -103,7 +102,7 @@ const isToday = (iso: string) => new Date(iso).toDateString() === new Date().toD
 const recent = (iso: string) => Date.now() - new Date(iso).getTime() < WEEK_MS;
 
 /** A workspace as a card: a way into it. Icon, purpose, one dot per process and the
- * process that matters now; the counts live in Needs you. */
+ * process that matters now; the count lives in the headline. */
 function WorkspaceCard({ w, runs, flow }: { w: Workspace; runs: RunManifest[] | null; flow: StewardshipFlow | null }) {
   const v = cardView(w, runs, flow, new Date());
   return (
@@ -148,16 +147,8 @@ export function StartPage() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const name = reviewer.trim();
-  // Loaded once: the line is a glance, the Engagement screen has the live list.
-  // The one waiting total: the sum of the Needs you rows (null while loading, "error" if they could not load).
-  const [needsTotal, setNeedsTotal] = useState<number | null | "error">(null);
-  const [engagement, setEngagement] = useState<EngagementCounts | null | "error">(null);
-  useEffect(() => {
-    api.listEngagementRecords().then(
-      (r) => setEngagement(engagementCounts(r.records as EngagementRecord[])),
-      () => setEngagement("error"),
-    );
-  }, []);
+  // The one waiting total (null while loading, "error" if it could not load).
+  const needsTotal = useWaitingTotal(runs, flow);
 
   const known = runs !== null;
   const all = runs ?? [];
@@ -165,7 +156,7 @@ export function StartPage() {
   const waiting = known && typeof needsTotal === "number" ? needsTotal : null;
   const failed = all.filter((r) => r.status === "failed" && recent(r.updated_at));
   const today = all.filter((r) => DONE.has(r.status) && isToday(r.updated_at));
-  // Failed runs wait on a person (Resume), so they are listed in "Needs you"; this row is only what is running.
+  // Failed runs count in the headline (they wait on a Resume); this row is only what is running.
   const chips = [...active].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)).slice(0, 6);
   const n = (v: number) => (known ? v : "—");
 
@@ -185,7 +176,7 @@ export function StartPage() {
         {waiting !== null && (
           <details className="hub-counts">
             <summary>What counts?</summary>
-            Review items, ballots, open stewardship decisions, failed runs to resume and blocking data issues. Each is a row under Needs you.
+            Review items, ballots, open stewardship decisions, failed runs to resume and blocking data issues. The Review Queue and each workspace list them.
           </details>
         )}
         </div>
@@ -216,13 +207,12 @@ export function StartPage() {
           </button>
         </p>
       )}
-      <NeedsYou runs={runs} flow={flow} runsError={!!error} onTotal={setNeedsTotal} />
-      <StateLegend waiting={!!waiting} />
       <div className="hub-cards">
         {WORKSPACES.map((w) => (
           <WorkspaceCard key={w.id} w={w} runs={runs} flow={flow} />
         ))}
       </div>
+      <StateLegend waiting={!!waiting} />
       {known && (
       <nav className="hub-now" aria-label="Runs running">
         <span className="hub-now-label">Now</span>
@@ -237,14 +227,8 @@ export function StartPage() {
           );
         })}
         {chips.length === 0 && <span className="muted">Nothing running.</span>}
-        <a className="hub-now-all" href="#/history">
-          All runs →
-        </a>
       </nav>
       )}
-      <p className="hub-engagement">
-        <span>{engagementLine(engagement)}</span> <a href="#/engagement">Open Engagement →</a>
-      </p>
     </div>
   );
 }
