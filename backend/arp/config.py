@@ -188,6 +188,11 @@ class Settings(BaseSettings):
     # Cloud Run GPU services (arp/compute/), set up by scripts/gcp/setup_compute.sh. Empty = compute locally.
     compute_parse_url: str | None = Field(default=None, description="arp-parse service URL: PDF parsing on a GPU.")
     compute_models_url: str | None = Field(default=None, description="arp-models service URL: rerank and embeddings.")
+    models_universe_funnel_enabled: bool = Field(
+        default=False,
+        description="Theme runs: score each company x activity pair with embeddings -> cross-encoder -> NLI "
+        "(arp/research/funnel.py) after evidence is gathered, and skip the LLM debate for pairs it screens out.",
+    )
     compute_bucket: str | None = Field(default=None, description="Cloud Storage bucket PDFs are uploaded to for parsing.")
     # str, not Path: an empty env value must stay empty (Path("") is ".").
     compute_credentials_file: str | None = Field(

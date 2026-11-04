@@ -39,6 +39,8 @@ class ExposureCase(BaseModel):
     lei: str | None = None
     isin: str | None = None
     split: str | None = None
+    nace_code: str | None = None
+    nace_source: str | None = None
 
     @field_validator("label_sources")
     @classmethod

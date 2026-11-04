@@ -7871,6 +7871,11 @@ export interface components {
             /** Citations */
             citations?: components["schemas"]["SourceCitation"][];
             /**
+             * Contrast Statements
+             * @description Extra negative statements for the theme funnel's NLI step (next to out_of_scope_description), e.g. 'The company buys or operates electrolysers made by another company'.
+             */
+            contrast_statements?: string[];
+            /**
              * Core Isic Codes
              * @description ISIC Rev.4 industry codes that make up this activity's core value-chain sectors, used for input-output-based indirect exposure scoring. Empty means the indirect-exposure tier is skipped for this activity. Populate via `arp theme classify-sectors` or supply by hand.
              */

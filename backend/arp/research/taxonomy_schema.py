@@ -26,7 +26,7 @@ def field_id_for(schema: DataPointSchema, activity_id: str, metric: Metric) -> s
     return f"{taxonomy_id}_{activity_id}_{metric}_pct"
 
 
-def _field(taxonomy: Taxonomy, activity: ActivityDefinition, metric: Metric) -> FieldDefinition:
+def _field(taxonomy_id: str, version: int, activity: ActivityDefinition, metric: Metric) -> FieldDefinition:
     if metric == "rd":
         description = (
             f"R&D spend intensity related to the company's investment in: {activity.name} ({activity.in_scope_description})"
@@ -55,7 +55,7 @@ def _field(taxonomy: Taxonomy, activity: ActivityDefinition, metric: Metric) -> 
         )
         keywords = [*activity.seed_keywords, metric]
     return FieldDefinition(
-        field_id=f"{taxonomy.taxonomy_id}_{activity.activity_id}_{metric}_pct",
+        field_id=f"{taxonomy_id}_{activity.activity_id}_{metric}_pct",
         name=f"{activity.name}: {_NAMES[metric]}",
         description=description,
         data_type=FieldDataType.PERCENTAGE,
@@ -63,8 +63,14 @@ def _field(taxonomy: Taxonomy, activity: ActivityDefinition, metric: Metric) -> 
         extraction_instructions=instructions,
         required=False,
         seed_keywords=keywords,
-        version=taxonomy.version,
+        version=version,
     )
+
+
+def activity_fields(activity: ActivityDefinition, taxonomy_id: str, version: int) -> list[FieldDefinition]:
+    """The schema fields generated for one activity. The theme funnel reads their names and keywords too, so a
+    field added here reaches it with no funnel change."""
+    return [_field(taxonomy_id, version, activity, m) for m in METRICS]
 
 
 def build_taxonomy_schema(taxonomy: Taxonomy) -> DataPointSchema:
@@ -75,7 +81,7 @@ def build_taxonomy_schema(taxonomy: Taxonomy) -> DataPointSchema:
         schema_id=schema_id_for(taxonomy.taxonomy_id, taxonomy.version),
         name=f"{taxonomy.name} v{taxonomy.version}",
         description=f"Generated from taxonomy {taxonomy.taxonomy_id} v{taxonomy.version}.",
-        fields=[_field(taxonomy, a, m) for a in taxonomy.theme.activities for m in METRICS],
+        fields=[f for a in taxonomy.theme.activities for f in activity_fields(a, taxonomy.taxonomy_id, taxonomy.version)],
     )
 
 
