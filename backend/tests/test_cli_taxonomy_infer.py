@@ -314,3 +314,65 @@ def test_pick_step_failure_prints_run_and_fails(picked, monkeypatch):
     assert res.stdout.splitlines()[0] == f"Run {picked}"
     assert res.stderr.strip() == "RuntimeError: model down"
     assert _show(picked)["stage"] == "failed"
+
+
+def _scripted_pick_llm(llm):
+    """Pick's replies on top of `llm`: ids are read from the prompt, since activity ids are fresh per run."""
+    from arp.extraction.schema_builder import _FieldDraft, _SchemaDraft
+    from arp.research.stock_inference import pick as pick_mod
+
+    queued = llm.complete_structured
+
+    async def complete_structured(*, system, prompt, output_model, **kw):
+        if output_model is pick_mod.StockActivities:
+            return pick_mod.StockActivities(activities=[
+                pick_mod.StockActivity(name="PEM stacks", in_scope_description="Makes PEM stacks.",
+                                       out_of_scope_description="Buying stacks.", quotes=["We make PEM stacks."]),
+                pick_mod.StockActivity(name="Electrolysers", in_scope_description="Powers electrolysers.",
+                                       out_of_scope_description="Selling hydrogen.",
+                                       quotes=["They power hydrogen electrolysers for industry."])]), None
+        payload = json.loads(prompt) if output_model is not _SchemaDraft else None
+        if output_model is pick_mod.KeywordProposal:
+            return pick_mod.KeywordProposal(activities=[pick_mod.ActivityKeywords(
+                activity_id=a["activity_id"], primary=["PEM stacks", "electrolysers"], contextual=["industry"])
+                for a in payload["activities"]]), None
+        if output_model is pick_mod.StockAssignments:
+            ids = sorted((a["name"], a["activity_id"]) for a in payload["activities"])
+            return pick_mod.StockAssignments(assignments=[pick_mod.StockAssignment(
+                company_id=s["company_id"], activity_id=ids[i % 2][1], reason="r", quote="We make PEM stacks.")
+                for i, s in enumerate(payload["stocks"])]), None
+        if output_model is _SchemaDraft:
+            return _SchemaDraft(name="k", description="k", fields=[_FieldDraft(
+                name=n, description=n, data_type="number", extraction_instructions="x") for n in ("Stacks", "MW")]), None
+        return await queued(system=system, prompt=prompt, output_model=output_model, **kw)
+
+    llm.complete_structured = complete_structured
+
+
+def _normalised(run):
+    """Activity ids are uuids (new_id), so they are replaced by the activity's name before comparing."""
+    names = {a["activity_id"]: a["name"] for a in run["activities"]}
+    rest = {k: v for k, v in run.items() if k not in ("run_id", "taxonomy_id")}
+    return {**rest, "activities": sorted(({**a, "activity_id": a["name"]} for a in run["activities"]),
+                                         key=lambda a: a["name"]),
+            "mapping": [{**m, "activity_id": names.get(m["activity_id"])} for m in run["mapping"]]}
+
+
+def test_ac27_same_inputs_in_two_row_orders_give_the_same_run(env, tmp_path, monkeypatch):
+    monkeypatch.setenv("ARP_TAXONOMIES_DIR", str(tmp_path / "tax"))
+    get_settings.cache_clear()
+    weights = [20, 15, 15, 10, 10, 10, 5, 5, 5, 5]  # ties: the order must not come from the file
+    rows = [f"s{i},Stock s{i},{w}\n" for i, w in enumerate(weights, 1)]
+    runs = []
+    for order, folder in ((rows, "a"), (rows[::-1], "b")):
+        env.setup(10, [_reply(("Hydrogen", ["s4", "s1", "s2", "s6"]), ("Fuel", ["s5", "s3"]))])
+        _scripted_pick_llm(env.llm)
+        path = tmp_path / folder / "fund.csv"
+        path.parent.mkdir()
+        path.write_text("Ticker,Name,Weight\n" + "".join(order))
+        run_id = _run_id(_invoke("start", "--stocks", str(path)))
+        res = _invoke("pick", run_id, "--theme", "1")
+        assert res.exit_code == 0, res.output
+        runs.append(_show(run_id))
+    assert runs[0]["stage"] == "drafted" and len(runs[0]["mapping"]) == len(runs[0]["profiles"]) and len(runs[0]["activities"]) == 2
+    assert _normalised(runs[0]) == _normalised(runs[1])

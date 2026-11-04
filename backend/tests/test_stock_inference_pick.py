@@ -556,3 +556,53 @@ async def test_pick_unweighted_note_is_na(ctx):  # AC-34 through pick
     _save(_run(run_id), store)
     run = await pick_mod.pick(run_id, 1, **kw, **fake_steps())
     assert "Coverage: n/a of profiled weight, n/a of fund weight." in tax.get(run.taxonomy_id).source_notes
+
+
+def _kpi(name):
+    from arp.schemas.datapoints import FieldDataType, FieldDefinition
+
+    return FieldDefinition(name=name, description=name, data_type=FieldDataType.NUMBER, extraction_instructions="x")
+
+
+def _drafting(fields, seen=None):
+    async def draft(criteria_text, llm):
+        from arp.schemas.datapoints import DataPointSchema
+
+        if seen is not None:
+            seen.append(criteria_text)
+        return DataPointSchema(name="k", description="k", fields=fields), None
+    return draft
+
+
+@pytest.mark.asyncio
+async def test_pick_saves_the_drafted_kpis_in_order(ctx):  # AC-39
+    run_id, store, tax, kw = ctx
+    _save(_run(run_id), store)
+    steps = {k: v for k, v in fake_steps().items() if k != "draft_kpis"}  # the real draft_kpis
+    run = await pick_mod.pick(run_id, 1, **kw, **steps, draft=_drafting([_kpi("k1"), _kpi("k2"), _kpi("k3")]))
+    assert [f.name for f in tax.get(run.taxonomy_id).theme.kpis] == ["k1", "k2", "k3"]
+
+
+@pytest.mark.asyncio
+async def test_draft_kpis_names_theme_activities_and_methodology_and_keeps_five():
+    seen = []
+    theme = Theme(rank=1, name="Hydrogen", description="H2 economy", supporting=["s1"], count_share=1.0)
+    act = ActivityDefinition(activity_id="a1", name="PEM stacks", in_scope_description="Makes stacks",
+                             out_of_scope_description="out")
+    out = await pick_mod.draft_kpis(theme, [act], "Electrolyser capacity counts.", None,
+                                    _drafting([_kpi(f"k{i}") for i in range(7)], seen))
+    assert [f.name for f in out] == ["k0", "k1", "k2", "k3", "k4"]
+    assert all(s in seen[0] for s in ("Hydrogen", "H2 economy", "PEM stacks", "Makes stacks", "Electrolyser capacity counts."))
+
+
+@pytest.mark.asyncio
+async def test_pick_sorts_activities_by_activity_id(ctx):  # spec: `activities` by `activity_id`
+    run_id, store, _tax, kw = ctx
+    _save(_run(run_id), store)
+
+    async def synthesize(theme, profiles, chunks, llm, *, fuzzy_threshold):
+        return [ActivityDefinition(activity_id=i, name=i, in_scope_description="in", out_of_scope_description="out")
+                for i in ("b", "a")]
+
+    run = await pick_mod.pick(run_id, 1, **kw, **{**fake_steps(), "synthesize": synthesize})
+    assert [a.activity_id for a in run.activities] == ["a", "b"]

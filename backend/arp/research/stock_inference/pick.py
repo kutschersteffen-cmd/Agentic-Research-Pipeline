@@ -35,14 +35,11 @@ from arp.research.stock_inference.selection import load_stocks
 from arp.research.stock_inference.stored import _segment_rows, load_segments
 from arp.schemas.authority_taxonomy import SourceCitation
 from arp.schemas.common import Citation, DocumentChunk, SourceDocument
+from arp.schemas.datapoints import FieldDefinition
 from arp.schemas.taxonomy import DerivationMethod
 from arp.schemas.thematic import ActivityDefinition, ActivityTier, ThemeDefinition
 
 NO_ACTIVITY = "No activity could be grounded in the supporting stocks."
-
-
-async def _not_yet(*_args, **_kwargs):  # the step defaults until Tasks 3-6 implement them
-    raise NotImplementedError("This pick step is not implemented yet.")
 
 
 async def supporting_chunks(
@@ -309,11 +306,24 @@ async def tiers(theme_definition: ThemeDefinition, mapping: list[Mapping], segme
     return out
 
 
+async def draft_kpis(theme: Theme, activities: list[ActivityDefinition], methodology_text: str, llm, draft
+                     ) -> list[FieldDefinition]:
+    """Theme KPIs drafted by `draft_schema` from the theme, its activities and the methodology; at most 5 kept."""
+    acts = "\n".join(f"- {a.name}: {a.in_scope_description}" for a in activities)
+    criteria = (f"Theme-level KPIs (2 to 5 fields) for the investment theme '{theme.name}': {theme.description}\n"
+                f"Activities of the theme:\n{acts}\n"
+                "Do not propose per-activity revenue, CapEx, OpEx or R&D shares; those exist already.")
+    if methodology_text:
+        criteria += f"\nMethodology excerpts:\n{methodology_text}"
+    schema, _ = await draft(criteria, llm)
+    return schema.fields[:5]
+
+
 async def pick(
     run_id: str, rank: int, *, run_store, taxonomy_store, settings: Settings, llm, registry: DocumentSourceRegistry,
     matcher=match_activities, draft=draft_schema, mapper=suggest_catalogue_mapping, fetch=read_methodology,
     synthesize=synthesize, top_down=top_down, merge=merge, keywords=keywords, map_stocks=map_stocks, tiers=tiers,
-    draft_kpis=_not_yet,
+    draft_kpis=draft_kpis,
 ) -> InferRun:
     run = load_run(run_id, run_store)
     if run.stage != "themes_ready":
@@ -376,7 +386,7 @@ async def pick(
         notes += f" {coverage_note(cover)}"
         taxonomy = taxonomy_store.create(run.name, definition, DerivationMethod.STOCK_INFERENCE, notes)
         return _save(run.model_copy(update={"stage": "drafted", "taxonomy_id": taxonomy.taxonomy_id,
-                                            "activities": origins, "coverage": cover,
+                                            "activities": sorted(origins, key=lambda a: a.activity_id), "coverage": cover,
                                             "mapping": sorted(mapping, key=lambda m: m.company_id)}), run_store)
     except InferFailed:
         raise
