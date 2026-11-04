@@ -252,3 +252,41 @@ def test_postgres_store(tmp_path, monkeypatch):  # AC-58
         assert store.get_link_rule("company:c1").parts == [{"sectors": S("B07"), "share": 0.4}, {"sectors": S("D_GEN_REN"), "share": 0.6}]
     finally:
         reset_postgres_tables(DSN)
+
+
+@pytest.mark.parametrize("code", ["B09", "C21", "C301", "H53", "J58T60"])
+def test_icio_codes_without_sectors_map_to_nothing(code):  # owner decision 2026-11-05
+    assert icio_sectors(code) == []
+
+
+def test_activity_with_unmatched_icio_code_gets_no_sectors():
+    theme = {"activities": [{"name": "n", "core_isic_codes": ["C21"]}]}
+    assert convert_theme(theme) is True
+    assert theme["activities"][0]["core_sectors"] == []
+
+
+def test_digit_codes_convert_through_nace():  # owner decision 2026-11-05: old hand-supplied ISIC Rev.4 codes
+    assert icio_sectors("07") == [
+        "Mining of aluminium ores and concentrates", "Mining of copper ores and concentrates", "Mining of iron ores",
+        "Mining of lead, zinc and tin ores and concentrates", "Mining of nickel ores and concentrates",
+        "Mining of other non-ferrous metal ores and concentrates", "Mining of precious metal ores and concentrates",
+        "Mining of uranium and thorium ores",
+    ]
+    assert "Aluminium production" in icio_sectors("2420")
+    with pytest.raises(UnknownIcioCode):
+        icio_sectors("00")
+
+
+def test_activity_with_both_keys_keeps_the_union():
+    theme = {"activities": [{"name": "n", "core_sectors": ["Mining of iron ores", "Aluminium production"], "core_isic_codes": ["B07"]}]}
+    assert convert_theme(theme) is True
+    act = theme["activities"][0]
+    assert act["core_sectors"] == sorted({"Aluminium production", *S("B07")}) and "core_isic_codes" not in act
+
+
+def test_file_mode_non_object_json(m, tmp_path):
+    f = tmp_path / "list.json"
+    f.write_text("[1, 2]")
+    res = _run("--file", str(f))
+    assert (res.exit_code, res.stdout) == (0, "0 changed\n")
+    assert f.read_text() == "[1, 2]"

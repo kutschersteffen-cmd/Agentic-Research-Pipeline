@@ -46,8 +46,9 @@ class CompanyMatchesResult:
 
 
 def theme_review_items(company: CompanyRef, r: CompanyMatchesResult) -> list[tuple[str, dict]]:
-    """Flagged activity matches, plus the sector code when the model chose it:
-    rules before models, so a model-chosen code always goes to review."""
+    """Flagged activity matches, plus the company's sector when the model chose it:
+    rules before models, so a model-chosen sector always goes to review. The `sector_code`
+    item keeps its stored `isic_code` key, but the value is an EXIOBASE sector name."""
     rows = [(f"{company.company_id}:{m.activity_id}", m.model_dump(mode="json")) for m in r.matches if m.flagged_for_review]
     if r.isic_from_model:
         rows.append((sector_item_key(company.company_id), {

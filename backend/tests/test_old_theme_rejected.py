@@ -113,3 +113,20 @@ def test_resume_rejects(tmp_path, pg, monkeypatch):  # AC-62
     res = CliRunner().invoke(cli_theme.theme_app, ["resume", run_id])
     assert res.exit_code == 1
     assert M8 in res.stderr
+
+
+def test_cli_root_prints_m8_without_traceback(tmp_path, monkeypatch):  # any command, via the root app
+    from arp.cli import app as root_app
+    from arp.cli import taxonomy as cli_taxonomy
+
+    monkeypatch.setattr("arp.db.session.require_postgres", lambda s: None)
+    monkeypatch.setattr("arp.db.session.require_cutover", lambda s: None)
+    monkeypatch.setattr("arp.config.get_settings", lambda: object())
+    store = TaxonomyStore(tmp_path / "taxonomies")
+    theme = ThemeDefinition(name="T", description="", activities=[ActivityDefinition(name="n", in_scope_description="i", out_of_scope_description="o")])
+    tid = store.create("t", theme, DerivationMethod.MANUAL).taxonomy_id
+    _oldify(tmp_path / "taxonomies" / tid / "v1.json")
+    monkeypatch.setattr(cli_taxonomy, "_taxonomy_store", lambda: store)
+    res = CliRunner().invoke(root_app, ["taxonomy", "show", tid])
+    assert res.exit_code == 1
+    assert M8 in res.stderr and "Traceback" not in res.output

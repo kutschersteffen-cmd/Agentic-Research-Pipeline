@@ -118,6 +118,18 @@ the old format.
   `unknown ICIO code '<x>' in <taxonomy <id> v<n> | link <subject> | file <path>>`, exit 1.
 - `--dry-run`: same stdout, writes nothing.
 
+Amended 2026-11-05 (owner decision after final review):
+
+- Five ICIO codes were in `icio2025_industries.csv` but match no crosswalk row: `B09`, `C21`, `C301`,
+  `H53`, `J58T60`. Old results never used them, so `S(x)` is `[]` for these. A code that never existed
+  (e.g. `ZZZ`) still aborts (AC-9).
+- A digit-only code (an old hand-supplied ISIC Rev.4 division or class, e.g. `07`, `24`, `2420`) converts
+  through the NACE table: `S(x) = sorted(nace.code_set_sectors("isic4", x, "2"))`, the path
+  `company_nace_sectors` uses. An empty result aborts like an unknown ICIO code.
+- An activity that carries both `core_isic_codes` and `core_sectors` gets `core_sectors` = the sorted union
+  of both, so no data is dropped.
+- A `--file` JSON document that is not an object is left alone: `0 changed`, exit 0.
+
 ## Non-goals
 
 - Improving taxonomy derivation methods, NACE 4-digit anchoring (other session).
@@ -209,6 +221,9 @@ rule `company:c2` = `nodes [{region: "DE", sector: "Copper production", share: 1
 | AC-52 | Value Chain portfolio, split editor open on a company | look at a part row | A multi-select listing the 163 sector names, and a share field | evaluator |
 | AC-53 | A split part `{sectors: ["A", "B"], share: 0.4}` with no node in the build | look at the link | Text exactly `Not in this edition: A, B 40.0%` | evaluator |
 | AC-54 | ThemeBuilder showing an indirect-exposure result | look at the IO line | `Computed from <io_edition value>` | evaluator |
+
+Note on AC-50 (controller ruling): the regenerated `schema.gen.ts` and `openapi.json` contain no "icio", so
+they are not in the found set.
 
 Must not change: link weights and exposure numbers for migrated data (AC-18, AC-19); `nodes` link rules
 (AC-5); past run results still load (AC-48, AC-49); NACE-path exposure (AC-19, AC-20).

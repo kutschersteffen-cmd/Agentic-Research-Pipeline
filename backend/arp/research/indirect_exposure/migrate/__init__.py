@@ -8,6 +8,7 @@ from collections.abc import Callable
 from functools import cache
 from pathlib import Path
 
+from arp.research.indirect_exposure.nace import code_set_sectors
 from arp.research.value_chain.model import sector_name
 from arp.storage.atomic_io import atomic_write_text
 
@@ -24,9 +25,19 @@ def _crosswalk() -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
+# In icio2025_industries.csv but matched no EXIOBASE sector, so old results never used them.
+ICIO_CODES_WITHOUT_SECTORS = frozenset({"B09", "C21", "C301", "H53", "J58T60"})
+
+
 def icio_sectors(code: str) -> list[str]:
-    """S(code): sorted distinct sector names of the rows whose icio_code or split_code is `code`."""
-    out = sorted({sector_name(r["exiobase_sector"]) for r in _crosswalk() if code in (r["icio_code"], r["split_code"])})
+    """S(code): sorted distinct sector names of the rows whose icio_code or split_code is `code`; a digit-only
+    code is an old hand-supplied ISIC Rev.4 division or class and goes through the NACE table."""
+    if code in ICIO_CODES_WITHOUT_SECTORS:
+        return []
+    if code.isdigit():
+        out = sorted(code_set_sectors("isic4", code, "2"))
+    else:
+        out = sorted({sector_name(r["exiobase_sector"]) for r in _crosswalk() if code in (r["icio_code"], r["split_code"])})
     if not out:
         raise UnknownIcioCode(code)
     return out
@@ -47,8 +58,9 @@ def convert_theme(theme: dict) -> bool:
     changed = False
     for act in theme.get("activities", []):
         if "core_isic_codes" in act:
-            # rebuild so core_sectors keeps the old key's position
-            items = [("core_sectors", _union(act["core_isic_codes"])) if k == "core_isic_codes" else (k, v) for k, v in act.items()]
+            # rebuild so core_sectors keeps the old key's position; a core_sectors already there is kept in the union
+            sectors = sorted({*act.get("core_sectors", []), *_union(act["core_isic_codes"])})
+            items = [("core_sectors", sectors) if k == "core_isic_codes" else (k, v) for k, v in act.items() if k != "core_sectors"]
             act.clear()
             act.update(items)
             changed = True
@@ -82,7 +94,7 @@ def _convert_where(convert: Callable[[], bool], where: str) -> bool:
 
 def _plan_doc(path: Path, line: str, where: str) -> Plan:
     doc = json.loads(path.read_text(encoding="utf-8"))
-    if not _convert_where(lambda: convert_document(doc), where):
+    if not isinstance(doc, dict) or not _convert_where(lambda: convert_document(doc), where):
         return []
     return [(line, lambda: atomic_write_text(path, json.dumps(doc, indent=2, ensure_ascii=False)))]
 

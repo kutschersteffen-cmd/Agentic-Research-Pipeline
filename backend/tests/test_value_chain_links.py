@@ -511,3 +511,9 @@ def test_openapi_has_the_lens_parameters():  # AC-37b
     paths = TestClient(app).get("/openapi.json").json()["paths"]
     for path in ("/api/value-chain/shock/quantity", "/api/value-chain/shock/price"):
         assert {"portfolio", "as_of"} <= {p["name"] for p in paths[path]["get"]["parameters"]}
+
+
+def test_company_source_of_isic_division_without_sectors():  # "00" maps no sector: the LLM is asked instead
+    from arp.research.value_chain.links import company_source
+
+    assert company_source(CompanyRef(company_id="x", name="X", isic_code="00"), None) == "none"

@@ -15,7 +15,7 @@ from arp.research.indirect_exposure.company_mapper import resolve_company_sector
 from arp.research.indirect_exposure.factory import sectors
 from arp.research.indirect_exposure.io_import import country_regions
 from arp.research.indirect_exposure.leontief import LeontiefModel
-from arp.research.indirect_exposure.nace import code_set_sectors, isic_to_nace2
+from arp.research.indirect_exposure.nace import code_set_sectors, isic_to_nace2, nace_sectors
 from arp.research.value_chain.model import UNITS, ValueChain
 from arp.schemas.common import CompanyRef, now_iso
 from arp.schemas.thematic import ActivityDefinition
@@ -121,11 +121,11 @@ def _resolve_parts(vc: ValueChain, rule: LinkRule, region: str | None) -> tuple[
 
 def company_nace(company: CompanyRef) -> tuple[str, str, str] | None:
     """(scheme, code, rev) the `nace` source links by: the NACE code, else a 4-digit ISIC Rev. 4 class the UN
-    table maps, else a 2-digit ISIC Rev. 4 division (read as the NACE Rev. 2 division)."""
+    table maps, else a 2-digit ISIC Rev. 4 division (read as the NACE Rev. 2 division) that maps to a sector."""
     if company.nace_code:
         return ("nace21" if company.nace_rev == "2.1" else "nace2"), company.nace_code, company.nace_rev
     isic = company.isic_code or ""
-    if isic.isdigit() and (len(isic) == 2 or len(isic) == 4 and isic_to_nace2(isic)):
+    if isic.isdigit() and (len(isic) == 2 and nace_sectors(isic, "2") or len(isic) == 4 and isic_to_nace2(isic)):
         return "isic4", isic, "2"
     return None
 

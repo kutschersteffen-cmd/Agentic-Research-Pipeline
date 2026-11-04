@@ -183,13 +183,14 @@ function LinkEditor({ subject, title, isCompany, codes, onChanged, onClose }: {
                   {mode === "split" ? (
                     <label className="field-label">
                       Sectors
-                      <select multiple value={r.sectors} onChange={(e) => setRow(r.key, { sectors: Array.from(e.target.selectedOptions, (o) => o.value) })}>
+                      <select multiple size={8} aria-describedby={`vc-sectors-help-${r.key}`} value={r.sectors} onChange={(e) => setRow(r.key, { sectors: Array.from(e.target.selectedOptions, (o) => o.value) })}>
                         {codes.map((c) => (
                           <option key={c.name} value={c.name}>
                             {c.name}
                           </option>
                         ))}
                       </select>
+                      <span className="help-text" id={`vc-sectors-help-${r.key}`}>Ctrl/Cmd-click to pick several</span>
                     </label>
                   ) : (
                     <NodeSearch row={r} onPick={(n) => setRow(r.key, { region: n.region, sector: n.sector })} />
