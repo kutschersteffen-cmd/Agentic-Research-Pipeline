@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import pytest
 
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -184,3 +186,120 @@ async def test_supporting_chunk_fetches_are_bounded():  # review fix: like _benc
     reg = _Registry()
     await pick_mod.supporting_chunks(run, None, reg, limit=2)
     assert reg.peak == 2
+
+
+def _act(name, quote, url="m"):
+    from arp.schemas.authority_taxonomy import SourceCitation
+
+    return ActivityDefinition(name=name, in_scope_description="in", out_of_scope_description="out",
+                              citations=[SourceCitation(quote=quote, source_url=url)])
+
+
+@pytest.mark.asyncio
+async def test_synthesized_activities_need_a_grounded_quote(ctx, fake_llm):  # AC-31
+    run_id, store, tax, kw = ctx
+    _save(_run(run_id), store)
+    reply = pick_mod.StockActivities(activities=[
+        pick_mod.StockActivity(name="A", in_scope_description="in", out_of_scope_description="out",
+                               quotes=["We make PEM stacks."]),
+        pick_mod.StockActivity(name="B", in_scope_description="in", out_of_scope_description="out",
+                               quotes=["We mine lithium in Chile."]),
+    ])
+    llm = fake_llm({"StockActivities": [reply]})
+    steps = {k: v for k, v in fake_steps().items() if k != "synthesize"}
+    run = await pick_mod.pick(run_id, 1, **{**kw, "llm": llm}, **steps)
+    acts = tax.get(run.taxonomy_id).theme.activities
+    assert [a.name for a in acts] == ["A"]
+    assert [c.quote for c in acts[0].citations] == ["We make PEM stacks."]
+    assert "Stock s1" in llm.prompts[0] and "Stock s2" not in llm.prompts[0]  # supporting stocks only
+
+
+@pytest.mark.asyncio
+async def test_matched_pair_becomes_one_activity_from_both(ctx):  # AC-35
+    from arp.research.authority_taxonomy.matching import Match
+
+    run_id, store, tax, kw = ctx
+    _save(_run(run_id), store)
+    manifest = store.load_manifest(run_id)
+    manifest.params["methodology"] = ["https://index.example/method.pdf"]
+    store.save_manifest(manifest)
+
+    async def synthesize(theme, profiles, chunks, llm, *, fuzzy_threshold):
+        return [_act("PEM stacks", "Q1", "s1")]
+
+    async def top_down(sources, theme_name, llm, settings, fetch):
+        return [_act("Stack making", "Q2"), _act("Hydrogen storage", "Q3")]
+
+    async def matcher(left, right, *, scope, llm):
+        assert [a.name for a in left] == ["PEM stacks"] and scope == "H2"
+        return [Match(left=0, right=0, method="model", reason="same")]
+
+    steps = {**fake_steps(), "synthesize": synthesize, "top_down": top_down}
+    del steps["merge"]
+    run = await pick_mod.pick(run_id, 1, **{**kw, "matcher": matcher}, **steps)
+    acts = tax.get(run.taxonomy_id).theme.activities
+    assert [(a.name, [c.quote for c in a.citations]) for a in acts] == [
+        ("PEM stacks", ["Q1", "Q2"]), ("Hydrogen storage", ["Q3"])]
+    assert [(o.activity_id, o.name, o.origin) for o in run.activities] == [
+        (acts[0].activity_id, "PEM stacks", "both"), (acts[1].activity_id, "Hydrogen storage", "methodology")]
+
+
+@pytest.mark.asyncio
+async def test_unreachable_methodology_keeps_the_bottom_up_work(ctx):  # Review Focus 2
+    run_id, store, tax, kw = ctx
+    _save(_run(run_id), store)
+    manifest = store.load_manifest(run_id)
+    manifest.params["methodology"] = ["https://gone.example/method.pdf"]
+    store.save_manifest(manifest)
+
+    async def fetch(sources, user_agent):
+        raise OSError("connection refused")
+
+    steps = {k: v for k, v in fake_steps().items() if k != "top_down"}
+    run = await pick_mod.pick(run_id, 1, **{**kw, "fetch": fetch}, **steps)
+    assert run.stage == "drafted" and [o.origin for o in run.activities] == ["stocks"]
+    assert "https://gone.example/method.pdf" in tax.get(run.taxonomy_id).source_notes
+
+
+@pytest.mark.asyncio
+async def test_no_grounded_activity_fails_the_run(ctx):  # Review Focus 3
+    run_id, store, tax, kw = ctx
+    _save(_run(run_id), store)
+    steps = {k: v for k, v in fake_steps().items() if k != "synthesize"}
+    empty = DocumentSourceRegistry([_FixedDocSource({})])
+    with pytest.raises(pick_mod.InferFailed, match=r"^No activity could be grounded in the supporting stocks\.$"):
+        await pick_mod.pick(run_id, 1, **{**kw, "registry": empty}, **steps)  # llm=None: no model call either
+    assert pick_mod.load_run(run_id, store).stage == "failed"
+    assert store.load_manifest(run_id).error == "No activity could be grounded in the supporting stocks."
+    assert tax.list_all() == []
+
+
+@pytest.mark.asyncio
+async def test_top_down_extracts_each_document_with_the_value_chain(monkeypatch):
+    from arp.config import Settings
+    from arp.schemas.authority_taxonomy import SourceCitation
+    from arp.schemas.common import SourceDocument
+    from arp.schemas.thematic import ThemeDefinition
+
+    seen = []
+    boundary = SourceCitation(quote="Fuel retail is excluded.", source_url="u1")
+
+    async def fetch(sources, user_agent):
+        return [SourceDocument(company_id="methodology", doc_type=DocType.OTHER, title=s, source_url=s,
+                               full_text=f"text of {s}") for s in sources]
+
+    async def extract_source(url, text, *, theme_name, scope, value_chain, llm):
+        seen.append(("extract", url, text, theme_name, value_chain))
+        return SimpleNamespace(url=url)
+
+    async def consolidate(extractions, *, theme_name, scope, value_chain, settings, llm, value_chain_model):
+        seen.append(("consolidate", [e.url for e in extractions], value_chain, value_chain_model))
+        act = _act("Stacks", "Q2").model_copy(update={"out_of_scope_citations": [boundary]})
+        return ThemeDefinition(name=theme_name, description="", activities=[act]), ""
+
+    monkeypatch.setattr(pick_mod, "extract_source", extract_source)
+    monkeypatch.setattr(pick_mod, "consolidate", consolidate)
+    acts = await pick_mod.top_down(["u1", "u2"], "Hydrogen", None, Settings(anthropic_api_key="x"), fetch)
+    assert seen == [("extract", "u1", "text of u1", "Hydrogen", True), ("extract", "u2", "text of u2", "Hydrogen", True),
+                    ("consolidate", ["u1", "u2"], True, None)]
+    assert acts[0].out_of_scope_citations == [boundary]  # kept for Task 4's exclusion-keyword grounding
