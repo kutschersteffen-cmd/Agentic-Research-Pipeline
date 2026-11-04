@@ -81,9 +81,10 @@ arp taxonomy infer show <run_id> [--json]
 
 The run lives in `RunStore` with stages, like the authority agent's `run.py`:
 `started → profiled → themes_ready` (start stops here) `→ drafted` (pick), or `failed`.
-A command at the wrong stage exits 1 with `Run <run_id> is at stage '<stage>'; '<command>' needs '<needed>'.`
+`start` prints `Run <run_id>` as its first stdout line, on success and on failure. `pick --theme <rank>` with a
+rank not in `themes` exits 1 with `Run <run_id> has no theme <rank>.` A command at the wrong stage exits 1 with `Run <run_id> is at stage '<stage>'; '<command>' needs '<needed>'.`
 
-`infer show --json` prints the run record. Its keys are the observable surface for the Acceptance rows:
+`infer show --json` prints the run record with exactly the keys in this table, no others:
 
 | Key | Content |
 |---|---|
@@ -180,6 +181,7 @@ to `_extract_company`):
   `members`.
 - `members` are the described stocks with at least one chunk in the cluster; `weight_share` = their weight /
   described weight.
+- Clustering sits behind one function, `cluster_points(embeddings) -> labels` (the seam tests fake).
 - If HDBSCAN labels every point as noise, `clusters` is `[]` and the theme step runs on the profiles alone.
 
 ### Step 4: common themes
@@ -193,6 +195,8 @@ one reason each, cluster ids, and `stated_in_methodology` with a quote. Code the
 - computes `count_share` (supporting / described) and `weight_share` (supporting weight / described weight; `null`
   when unweighted), ignoring any share the model returns;
 - ranks by `weight_share` (by `count_share` when unweighted), ties by name ascending; `rank` starts at 1;
+- if no theme is left, the run goes to `failed` and `start` exits 1 with `No common theme is supported by the
+  profiled stocks.`;
 - lists `outliers`: described stocks in no theme.
 
 `start` prints the ranked table and stops at `themes_ready`.
@@ -218,7 +222,8 @@ one reason each, cluster ids, and `stated_in_methodology` with a quote. Code the
   - review frequency → `CalendarSpec.review_frequency`;
   - the currency of the first monetary threshold → `index_currency` and `index_rules.currency`.
 - `rules[]` lists every rule with `text`, `quote`, `source` (document path or URL) and `mapped_to` (a JSON path such
-  as `screens[0].min_value`, or `null`). `construction_spec` validates as `ConstructionSpec`.
+  as `screens[0].min_value`, or `null`). `construction_spec` validates as `ConstructionSpec`; every field no
+  stated rule sets keeps the model's default.
 
 ### Step 5: activities, tiers, keywords (`pick`)
 
@@ -236,7 +241,9 @@ one reason each, cluster ids, and `stated_in_methodology` with a quote. Code the
   contextual keyword must occur in at least one supporting stock's chunk; an exclusion keyword must occur in a
   non-supporting stock's chunk or in a methodology boundary quote. Others are dropped.
 - **Mapping:** one call assigns every described stock to one activity or `none`, with a reason and a quote; kept
-  only if the quote is grounded in that stock's own documents, else the stock goes to `coverage.unmapped`.
+  only if the quote is grounded in that stock's own documents, else the stock goes to `coverage.unmapped`. A
+  grounded `none` gets a `mapping[]` entry with `activity_id: null` and `tier` `unknown`; it is neither mapped
+  weight nor in `unmapped`.
 - **Company tier**, provisional, only with `--segments`: segment labels are linked to activities with the existing
   `suggest_catalogue_mapping` (`revenue_exposure/mapping.py:29`, a reviewable draft). The share of the company's
   revenue in labels linked to its mapped activity, in code: `core` when ≥ 50 %, `enabler` when ≥ 20 % and < 50 %,
@@ -268,6 +275,7 @@ generated from the cases with that id.
 - `arp taxonomy create --method etf_index_holdings|empirical` exits 1 and `POST /api/taxonomies` with
   `derivation_method` set to either answers 422; the message, and the API's `detail`, is
   `--method <m> is replaced by 'arp taxonomy infer start --stocks <file>'.`
+- The refusal comes before any other option or body validation.
 - The enum values stay, so saved taxonomies load.
 - `frontend/src/pages/TaxonomyLibrary.tsx` drops `etf_index_holdings` and `empirical` from `CREATABLE_METHODS`
   (lines 34-41) and their option panels; `METHOD_LABELS` keeps both so saved taxonomies still show a label;
@@ -340,7 +348,7 @@ Fund Holdings Data as of 11/02/2026
 | ID | Given | When | Then (observable, exact) | Checked by |
 |---|---|---|---|---|
 | AC-1 | `hydr_layout.csv` | `load_holdings_with_weights(path)` | 5 rows, tickers in order `BE`, `PLUG`, `NEL NO`, `NANO SP`, `288620 KS` | unit |
-| AC-2 | `hydr_layout.csv` | `load_holdings_with_weights(path)` | Weights `0.162`, `0.079`, `0.0512`, `0.0065`, `0.0039` | unit |
+| AC-2 | `hydr_layout.csv` | `load_holdings_with_weights(path)` | Weights equal `0.162`, `0.079`, `0.0512`, `0.0065`, `0.0039` within 1e-9 | unit |
 | AC-3 | `hydr_layout.csv` | `arp universe from-holdings <fixture> --out u.json` | Exit 0; `u.json` holds 5 companies | unit |
 | AC-4 | CSV `Ticker,Name,Weight\n,CASH,1.0\nABC,Cash Holdings Corp,2.0\n` | `load_holdings_with_weights` | 1 row: ticker `ABC`, weight `0.02` | unit |
 | AC-5 | CSV `Ticker,Name,Weight\nA,Alpha,0.6\nB,Beta,0.4\n` | `load_holdings_with_weights` | Weights `0.6` and `0.4` (as on `main`) | unit |
@@ -352,7 +360,7 @@ Fund Holdings Data as of 11/02/2026
 | AC-11 | Same as AC-10 | `infer show --json` | Profile `s3`'s `error` starts with `ValidationError: ` and it has no `description` | unit |
 | AC-12 | 5 stocks; `s3` has no document; fake discovery finds none | `infer start` | Exit 0; profile `s3` `error` `no_document` | unit |
 | AC-13 | 5 stocks; `s5` has no document; fake discovery returns document `D5` for `s5` | `infer start` | Profile `s5` has a `description` and `citation.doc_id` `D5` | unit |
-| AC-14 | 3 stocks; the fake extractor raises for `s1` and `s2`; `s3` has no document and discovery finds none | `infer start` | Exit 1; stderr `No stock could be profiled: 2 failed, 1 had no document.`; run JSON `stage` `failed` | unit |
+| AC-14 | 3 stocks; the fake extractor raises for `s1` and `s2`; `s3` has no document and discovery finds none | `infer start` | Exit 1; stdout line 1 `Run <run_id>`; stderr `No stock could be profiled: 2 failed, 1 had no document.`; run JSON for that id `stage` `failed` | unit |
 | AC-15 | `ARP_LLM_MODEL=model-a`, `ARP_LLM_VERIFIER_MODEL=model-b` | `infer start` on 2 stocks | Run JSON `extractor_model` `model-a`, `verifier_model` `model-b` | unit |
 | AC-16 | The fake extractor returns quote `We make PEM stacks.`, present in `s1`'s document `D1` | `infer start` | Profile `s1` `citation.quote` `We make PEM stacks.`, `citation.doc_id` `D1` | unit |
 | AC-17 | The fake extractor returns a value whose quote is absent from `s1`'s document | `infer start` | Profile `s1` `error` `ungrounded_quote`, no `description`, no `citation` | unit |
@@ -361,16 +369,19 @@ Fund Holdings Data as of 11/02/2026
 | AC-20 | A holdings row matching no company by ISIN, LEI, CIK or exact name; its document is a local file, so discovery does not run | `infer start` | Profile `db_match` `none`; unchanged DB | unit |
 | AC-21 | Fake theme reply supports `x1` (not profiled), `p1` (weight 0.10), `p2` (0.05); 5 described stocks with total weight 0.50; the reply also claims `weight_share` 0.9 | `infer start` | `themes[0].supporting` `["p1","p2"]`; `weight_share` `0.3`; `count_share` `0.4` | unit |
 | AC-22 | Two fake themes, `Beta` and `Alpha`, each supported by stocks weighing 0.15 of 0.50 described weight | `infer start` | `themes[0].name` `Alpha`, `themes[1].name` `Beta` | unit |
-| AC-23 | A fake theme supported only by `x1` (not profiled) | `infer start` | No theme with that name in `themes` | unit |
+| AC-23 | Fake reply: theme `T1` supported by `p1`, theme `T2` supported only by `x1` (not profiled) | `infer start` | `themes` holds only `T1` | unit |
+| AC-23a | Fake reply whose only theme is supported only by `x1` | `infer start` | Exit 1; stderr `No common theme is supported by the profiled stocks.`; `stage` `failed` | unit |
 | AC-24 | `--methodology <fixture>`; the fake theme reply quotes a sentence absent from it | `infer start` | That theme's `stated_in_methodology` `false`, `methodology_quote` `null` | unit |
-| AC-25 | 3 stocks × 8 chunks; fixture embeddings put `s1`,`s2` chunks near vector A and `s3` near vector B; each group's text has ≥ 10 distinct terms | `infer start` | `clusters` has 2 entries with 10 terms each; their `members` are `["s1","s2"]` and `["s3"]` | unit |
-| AC-26 | The fake clustering labels every point noise (-1) | `infer start` | Exit 0; `clusters` `[]`; `stage` `themes_ready` | unit |
+| AC-25 | 3 stocks × 8 chunks; fixture embeddings: `s1`,`s2` chunks = unit vector A + Gaussian noise σ 0.01, `s3` = unit vector B (orthogonal to A) + the same noise, `numpy` seed 0; each group's text holds ≥ 10 distinct non-stopword words of ≥ 3 letters | `infer start` | `clusters` has 2 entries with 10 terms each; their `members` are `["s1","s2"]` and `["s3"]` | unit |
+| AC-26 | A fake `cluster_points` returns -1 for every point | `infer start` | Exit 0; `clusters` `[]`; `stage` `themes_ready` | unit |
 | AC-27 | 10 weighted stocks, same fake replies, written in two row orders | `infer start` then `infer pick --theme 1` on each | The two run JSONs are identical except `run_id` and `taxonomy_id` | unit |
-| AC-28 | A run at `profiled` | `infer pick <run> --theme 1` | Exit 1; stderr `Run <run_id> is at stage 'profiled'; 'pick' needs 'themes_ready'.` | unit |
+| AC-28 | A run at `drafted` (after AC-29) | `infer pick <run> --theme 1` | Exit 1; stderr `Run <run_id> is at stage 'drafted'; 'pick' needs 'themes_ready'.` | unit |
+| AC-28a | A run at `themes_ready` with 2 themes | `infer pick <run> --theme 9` | Exit 1; stderr `Run <run_id> has no theme 9.` | unit |
 | AC-29 | A run at `themes_ready` | `infer pick <run> --theme 1` | Exit 0; run JSON `stage` `drafted`, `taxonomy_id` not null | unit |
 | AC-30 | Same | `arp taxonomy show <taxonomy_id>` | stdout contains `"derivation_method": "stock_inference"` and `"status": "draft"` | unit |
 | AC-31 | Fake synthesis returns activity `A` with a quote present in a supporting chunk, and `B` with an absent quote | `infer pick` | The saved taxonomy has `A`, whose `citations` hold that quote, and has no `B` | unit |
 | AC-32 | Fake mapping assigns `p3` with a quote absent from `p3`'s documents | `infer pick` | No `mapping` entry for `p3`; `p3` in `coverage.unmapped` | unit |
+| AC-32a | Fake mapping assigns `p4` to `none` with a quote grounded in `p4`'s documents | `infer pick` | `mapping` entry for `p4` with `activity_id` `null` and `tier` `unknown`; `p4` not in `coverage.unmapped` | unit |
 | AC-33 | Described weight 0.50 of `total_weight` 1.00; mapped stocks weigh 0.30 | `infer pick` | Taxonomy `source_notes` contains `Coverage: 0.60 of profiled weight, 0.30 of fund weight.` | unit |
 | AC-34 | An unweighted run | `infer pick` | `source_notes` contains `Coverage: n/a of profiled weight, n/a of fund weight.` | unit |
 | AC-35 | Methodology activity with quote `Q2`; stock activity with quote `Q1`; the fake matcher confirms them as the same | `infer pick` | One activity for the pair; run JSON `origin` `both`; its `citations` hold `Q1` and `Q2` | unit |
@@ -381,15 +392,16 @@ Fund Holdings Data as of 11/02/2026
 | AC-39 | Fake `draft_schema` returns 3 KPI fields | `infer pick` | The saved taxonomy's `theme.kpis` holds those 3, in order | unit |
 | AC-40 | A ratified taxonomy with 3 activities and no KPIs | `build_taxonomy_schema` | Fields identical to `main`'s output for the same taxonomy | unit |
 | AC-41 | Same taxonomy with 2 KPIs | `build_taxonomy_schema` | AC-40's fields followed by the 2 KPIs | unit |
-| AC-42 | Methodology fixture with "a minimum free-float market capitalisation of USD 500 million"; the fake eligibility reply returns that sentence as rule and quote | `infer start --methodology <fixture>` | `construction_spec` validates; `screens[0]` is `MetricThresholdScreen`, field `float_mcap`, `min_value` `500000000`; `index_currency` `USD`; the rule's `mapped_to` `screens[0].min_value` | unit |
+| AC-42 | Methodology fixture with "a minimum free-float market capitalisation of USD 500 million"; the fake eligibility reply returns that sentence as rule and quote | `infer start --methodology <fixture>` | `construction_spec` validates; `screens[0]` is `MetricThresholdScreen`, field `float_mcap`, `min_value` `500000000`; `index_currency` `USD`; the rule's `mapped_to` `screens[0].min_value`; every other field equals `ConstructionSpec()`'s default | unit |
 | AC-43 | Fixture with "no constituent may exceed 8 % of the index"; matching fake caps reply | `infer start --methodology <fixture>` | `constraints.single_name_cap` `0.08`; the rule's `mapped_to` `constraints.single_name_cap` | unit |
 | AC-44 | Fixture with "the index is reviewed semi-annually"; matching fake rebalance reply | `infer start --methodology <fixture>` | `calendar.review_frequency` `semi_annual`; the rule's `mapped_to` `calendar.review_frequency` | unit |
 | AC-45 | Fixture with "the index committee may exclude any company at its discretion"; matching fake eligibility reply | `infer start --methodology <fixture>` | That rule is in `index_rules.rules` with its quote and `mapped_to` `null` | unit |
 | AC-46 | A fake rule reply whose quote is absent from the document | `infer start --methodology <fixture>` | No such rule in `index_rules.rules` | unit |
-| AC-47 | Any input | `arp taxonomy create X --method empirical`, then `--method etf_index_holdings` | Each exits 1; stderr `--method <m> is replaced by 'arp taxonomy infer start --stocks <file>'.` with `<m>` filled in | unit |
-| AC-48 | API | `POST /api/taxonomies` with `derivation_method` `empirical`, then `etf_index_holdings` | Each HTTP 422; `detail` equals the AC-47 string for that method | unit |
+| AC-47 | No other options | `arp taxonomy create X --method empirical`, then `--method etf_index_holdings` | Each exits 1; stderr `--method <m> is replaced by 'arp taxonomy infer start --stocks <file>'.` with `<m>` filled in | unit |
+| AC-48 | API | `POST /api/taxonomies` with body `{"name":"X","derivation_method":"empirical"}`, then with `etf_index_holdings` | Each HTTP 422; `detail` equals the AC-47 string for that method | unit |
 | AC-49 | The running app's taxonomy library, tab "New taxonomy" | open the method choice | No option `ETF / index holdings (bottom-up)` and no option `Empirical (Extraction Engine readings)` | evaluator |
 | AC-49a | Same | open the method choice | Options, in order: `LLM draft (freeform)`, `Industry-anchored (ISIC / input-output)`, `Authority source (IEA, EU taxonomy, standards bodies, ...)`, `News & earnings-call transcript mining` | evaluator |
+| AC-49b | Saved taxonomies with `derivation_method` `empirical` and `etf_index_holdings` | open the taxonomy library | Their rows show `Empirical (Extraction Engine readings)` and `ETF / index holdings (bottom-up)` | evaluator |
 | AC-50 | Saved taxonomies from `main`, one `empirical`, one `etf_index_holdings` | `arp taxonomy show <id>` | stdout JSON equals `main`'s output for the same id, after removing keys `kpis`, `contextual_keywords`, `exclusion_keywords`, `contextual_window_words` | unit |
 | AC-51 | The authority agent's tests on `main` (`test_authority_taxonomy_*.py`, `test_golden_authority_taxonomy.py`) | `pytest` on those files | Exit 0; the files are unchanged from `main` | unit |
 | AC-52 | `tests/test_etf_holdings_universe.py`, `tests/test_overlap.py`, `tests/test_activity_generator.py`, `tests/test_authority_derivation.py`, `tests/test_news_mining_derivation.py`, `tests/test_taxonomy_store.py`, `tests/test_taxonomy_compare_merge.py`, `tests/test_cli_taxonomy_author.py` | `pytest` on those files | Exit 0 | unit |
@@ -398,6 +410,6 @@ Fund Holdings Data as of 11/02/2026
 | AC-55 | Golden: same run after `infer pick --theme <the matching rank>` | `scripts/score_stock_inference.py ... --split tune --check mapping --min-precision 0.8` | Exits 0, which it does only when ≥ 80 % of described `not` stocks are mapped to `none` or to an activity no described `core` stock is mapped to | golden (by hand) |
 | AC-56 | Golden: the holdout split, same commands as AC-54/55 with `--split holdout` | run once per PR | The script's score lines appear in a PR comment (not merge-blocking) | golden (by hand) |
 
-Must not change: AC-5, AC-40, AC-50, AC-51, AC-52.
+Must not change: AC-5, AC-40, AC-49b, AC-50, AC-51, AC-52.
 
 PR checklist (not an AC row): any change to the files in AC-52 is listed in the PR description with the reason.
