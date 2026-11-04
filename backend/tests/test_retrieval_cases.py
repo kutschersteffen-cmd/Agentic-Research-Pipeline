@@ -109,3 +109,27 @@ def test_documents_are_downloaded_and_hash_checked(tmp_path):
         assert result.exit_code == 1  # a file already present is checked too
     finally:
         server.shutdown()
+
+
+def test_tree_context_builds_trees_and_reports_unsummarised_nodes(tmp_path, monkeypatch):
+    folder = tmp_path / "standins"
+    (folder / "model").mkdir(parents=True)
+    monkeypatch.setenv("ARP_STANDINS_DIR", str(folder))
+    monkeypatch.delenv("ARP_ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("ARP_GEMINI_API_KEY", raising=False)
+    body = "# A\n" + FILLER[:3000] + "\n# B\nWe commit to a net zero target for the whole group by 2045.\n# C\nend\n"
+    cases_file = tmp_path / "cases.json"
+    cases_file.write_text(json.dumps([_write_case(tmp_path, "a", "tp_a_ambition_3", "We commit to a net zero target", body)]))
+    nodes = [{"node_id": i, "summary": "s", "key_terms": ["k"]} for i in ("0000", "0001")]  # no answer for C
+    (folder / "model" / "TreeSummaries.json").write_text(json.dumps({"output": {"nodes": nodes}}))
+
+    def calls():
+        path = folder / "calls.jsonl"
+        return [line for line in path.read_text().splitlines() if '"TreeSummaries"' in line] if path.exists() else []
+
+    off = _run("--cases", str(cases_file), "--no-hybrid", "--no-rerank")
+    assert off.exit_code == 0, off.output
+    assert "Tree context:" not in off.stderr and calls() == []
+    on = _run("--cases", str(cases_file), "--no-hybrid", "--no-rerank", "--tree-context")
+    assert on.exit_code == 0, on.output
+    assert "Tree context: 1 of 3 nodes have no summary." in on.stderr and calls()
