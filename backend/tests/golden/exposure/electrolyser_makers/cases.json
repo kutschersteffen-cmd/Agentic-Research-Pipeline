@@ -474,7 +474,7 @@
         {
           "kind": "annual_report",
           "fiscal_year": 2025,
-          "url": "https://www.shanghai-electric.com/group_en/investor/"
+          "url": "https://www.hkexnews.hk/listedco/listconews/sehk/2026/0428/2026042802547.pdf"
         }
       ],
       "split": "tune"
@@ -889,7 +889,7 @@
         {
           "kind": "annual_report",
           "fiscal_year": 2025,
-          "url": "https://www.umicore.com/en/investors/reports/"
+          "url": "https://www.lobbyregister.bundestag.de/media/a5/78/760796/Umicore-Annual-Report-2025.pdf"
         }
       ],
       "split": "holdout"
@@ -965,7 +965,7 @@
         {
           "kind": "annual_report",
           "fiscal_year": 2025,
-          "url": "https://www.uniper.energy/investor-relations/reports-and-presentations"
+          "url": "https://ir-api.eqs.com/storage/ir/e60f3b/documents/68598d82-485e-4084-b17b-213765249500/DE000UNSE026-JA-2025-EQ-E-00.pdf"
         }
       ],
       "split": "tune"
@@ -1022,7 +1022,7 @@
         {
           "kind": "annual_report",
           "fiscal_year": 2025,
-          "url": "https://www.sfc.com/en/investors/"
+          "url": "https://ir-api.eqs.com/media/document/921c1ebb-29cc-4038-b29d-8e2c056b844c/assets/DE0007568578-JA-2025-EQ-E-00.pdf"
         }
       ],
       "split": "tune"
@@ -1060,7 +1060,7 @@
         {
           "kind": "annual_report",
           "fiscal_year": 2025,
-          "url": "https://corporate.arcelormittal.com/investors/annual-reports"
+          "url": "https://www.sec.gov/Archives/edgar/data/1243429/000124342926000020/mt-20251231.htm"
         }
       ],
       "split": "tune"
