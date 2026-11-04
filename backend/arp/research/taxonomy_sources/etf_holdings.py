@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import re
 from pathlib import Path
 
 from arp.schemas.common import CompanyRef
@@ -27,14 +28,18 @@ def _first_present(row: dict, columns: tuple[str, ...]) -> str | None:
 
 
 _ID_COLUMNS = ("isin", "sedol", "lei", "cik")
+_THOUSANDS = re.compile(r"^-?\d{1,3}(,\d{3})+(\.\d+)?%?$")
 _CASH_WORDS = ("CASH", "CURRENCY", "POUND", "EURO", "DOLLAR", "YEN", "FRANC", "PAYABLE", "RECEIVABLE", "FUTURE", "SWAP")
 
 
 def _parse_weight(raw: str | None) -> float | None:
     if not raw:
         return None
+    raw = raw.strip()
+    # a comma is a thousands separator only in "31,526.89" shape; otherwise it is a decimal comma ("16,20")
+    raw = raw.replace(",", "") if _THOUSANDS.match(raw) else raw.replace(",", ".")
     try:
-        return float(raw.strip().rstrip("%").replace(",", ""))
+        return float(raw.rstrip("%"))
     except ValueError:
         return None
 
@@ -54,6 +59,9 @@ def _parse_holdings_rows(path: Path) -> list[dict]:
     if header_idx is None:
         return []
     header = all_rows[header_idx]
+    keys = {h.strip().lower() for h in header}
+    has_ticker_col = bool(keys & set(_TICKER_COLUMNS))
+    weight_col = next((h for c in _WEIGHT_COLUMNS for h in header if h.strip().lower() == c), None)
     rows: list[dict] = []
     raw_weights: list[str | None] = []
     for cells in all_rows[header_idx + 1 :]:
@@ -64,7 +72,10 @@ def _parse_holdings_rows(path: Path) -> list[dict]:
         ticker = _first_present(raw_row, _TICKER_COLUMNS)
         if not (name or ticker):
             continue
-        if not ticker and any(w in (name or "").upper() for w in _CASH_WORDS):
+        if not ticker and (name or "").lower() in ("total", "totals"):
+            continue
+        # name-only exports have no ticker to tell cash lines apart, so real companies like "Dollar General" stay
+        if not ticker and has_ticker_col and any(w in (name or "").upper() for w in _CASH_WORDS):
             continue
         rows.append(
             {
@@ -75,10 +86,9 @@ def _parse_holdings_rows(path: Path) -> list[dict]:
                 **{c: _first_present(raw_row, (c,)) for c in _ID_COLUMNS},
             }
         )
-        raw_weights.append(_first_present(raw_row, _WEIGHT_COLUMNS))
+        raw_weights.append((raw_row[weight_col].strip() or None) if weight_col else None)
     values = [_parse_weight(w) for w in raw_weights]
-    weight_header_has_pct = any("%" in h for h in header if h.strip().lower() in _WEIGHT_COLUMNS)
-    is_percent = weight_header_has_pct or any("%" in w for w in raw_weights if w) or any(v is not None and v > 1 for v in values)
+    is_percent = "%" in (weight_col or "") or any("%" in w for w in raw_weights if w) or any(v is not None and v > 1 for v in values)
     for row, v in zip(rows, values, strict=True):
         row["weight"] = v / 100 if (is_percent and v is not None) else v
     return rows

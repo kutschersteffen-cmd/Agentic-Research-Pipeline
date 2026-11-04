@@ -49,3 +49,29 @@ def test_bom_header_found(tmp_path):
 def test_ids_kept(tmp_path):
     rows = _load(tmp_path, "Ticker,Name,Weight,ISIN,SEDOL,LEI,CIK\nA,Alpha,0.5,US1,SD1,LEI1,CIK1\n")
     assert (rows[0].isin, rows[0].sedol, rows[0].lei, rows[0].cik) == ("US1", "SD1", "LEI1", "CIK1")
+
+
+def test_decimal_comma_weight(tmp_path):  # F4
+    from arp.research.taxonomy_sources.etf_holdings import _parse_weight
+
+    rows = _load(tmp_path, 'Ticker,Name,Weight (%)\nA,Alpha,"16,20"\nB,Beta,"83,80"\n')
+    assert [r.weight for r in rows] == pytest.approx([0.162, 0.838])
+    assert _parse_weight("31,526.89") == pytest.approx(31526.89)
+
+
+def test_name_only_file_keeps_cash_word_companies(tmp_path):  # F5
+    rows = _load(tmp_path, "Name,Weight\nDollar General Corp,0.5\nEuronext NV,0.5\n")
+    assert [r.ticker for r in rows] == ["Dollar General Corp", "Euronext NV"]
+    assert len(load_holdings_with_weights(FIX)) == 5
+
+
+def test_total_row_dropped(tmp_path):  # F6
+    rows = _load(tmp_path, "Ticker,Name,Weight\nA,Alpha,60\nB,Beta,40\n, Totals ,100\n")
+    assert [r.ticker for r in rows] == ["A", "B"]
+    rows = _load(tmp_path, "Name,Weight\nAlpha,0.6\nTOTAL,1.0\n")
+    assert [r.ticker for r in rows] == ["Alpha"]
+
+
+def test_percent_check_uses_the_column_read(tmp_path):  # F14
+    rows = _load(tmp_path, "Ticker,Name,Weight,Weight (%)\nA,Alpha,0.6,\nB,Beta,0.4,\n")
+    assert [r.weight for r in rows] == pytest.approx([0.6, 0.4])
