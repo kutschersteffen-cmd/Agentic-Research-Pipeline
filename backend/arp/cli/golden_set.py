@@ -266,6 +266,9 @@ def golden_set_precision(
 ) -> None:
     """Extracts whole records for hand-checked companies and reports how many auto-accepted
     values are right -- routed as if every field were released and audited."""
+    if (schema_id is None) == (schema_file is None):
+        typer.echo("Pass exactly one of --schema or --schema-file.", err=True)
+        raise typer.Exit(1)
     if schema_file is not None:
         schema = DataPointSchema.model_validate_json(schema_file.read_text(encoding="utf-8"))
     elif schema_id in PRESETS:

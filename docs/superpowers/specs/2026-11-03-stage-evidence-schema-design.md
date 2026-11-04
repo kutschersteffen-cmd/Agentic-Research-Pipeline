@@ -156,5 +156,10 @@ ratified taxonomy `tax_fx` v1 with activities `act_a` ("Electrolyser manufacturi
 | AC-13 | The existing tests `tests/test_research_pipeline.py` and `tests/test_taxonomy_schema.py::test_schema_text_and_keywords`, `::test_schema_is_deterministic_and_refuses_drafts` | CI on this branch | They pass unmodified. Only `test_schema_has_four_fields_per_activity_in_order` may change (it asserts the old field count) and is listed in the PR | unit |
 | AC-14 | As AC-1 | build | No new field has a default value, and `ActivityDefinition` gains no stage attribute (the stage exists only as extracted fields) | unit |
 
+Limit of AC-12 (found in review, 2026-11-04): `golden-set precision` scores only auto-accepted values. A value routed
+to review (for example a stage field where the model returned both true and false rows) is reported in coverage
+but does not fail the gate. AC-12 therefore guards against wrong auto-accepted values, not against missed ones; the
+command's coverage line shows the rest. It runs in the golden-set CI job.
+
 Must not change: the four `_pct` fields (AC-3), `field_id_for` (AC-11), draft refusal (AC-9), registered schemas
 (AC-10), the funnel and theme-run output (covered by AC-13).

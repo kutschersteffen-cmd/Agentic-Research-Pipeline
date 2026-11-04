@@ -25,6 +25,8 @@ on:
       - "backend/arp/rfp/**"
       - "backend/arp/research/authority_taxonomy/**"
       - "backend/tests/golden/authority_taxonomy/**"
+      - "backend/arp/research/taxonomy_schema.py"
+      - "backend/tests/golden/stage_evidence/**"
   workflow_dispatch:
 
 jobs:
@@ -66,7 +68,7 @@ jobs:
           if [ -n "$rfp" ]; then echo "rfp=true" >>"$GITHUB_OUTPUT"; else echo "rfp=false" >>"$GITHUB_OUTPUT"; fi
           gate=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction/evidence_gate.py)
           if [ -n "$gate" ]; then echo "gate=true" >>"$GITHUB_OUTPUT"; else echo "gate=false" >>"$GITHUB_OUTPUT"; fi
-          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py arp/transition_barrier/extraction.py arp/transition_barrier/golden.py arp/transition_barrier/fetching.py arp/transition_barrier/rule_book.py arp/transition_barrier/data tests/golden/transition_barrier arp/rfp arp/research/authority_taxonomy tests/golden/authority_taxonomy)
+          other=$(git diff --name-only "origin/$BASE...HEAD" -- arp/extraction arp/llm arp/golden_set arp/grounding.py arp/transition_barrier/extraction.py arp/transition_barrier/golden.py arp/transition_barrier/fetching.py arp/transition_barrier/rule_book.py arp/transition_barrier/data tests/golden/transition_barrier arp/rfp arp/research/authority_taxonomy tests/golden/authority_taxonomy arp/research/taxonomy_schema.py tests/golden/stage_evidence)
           model=$(git diff -U0 "origin/$BASE...HEAD" -- arp/config.py | grep -E '^[+-] .*(llm_|_api_key|grounding_|confidence_review)' || true)
           if [ -n "$other$model" ]; then echo "run=true" >>"$GITHUB_OUTPUT"; else echo "run=false" >>"$GITHUB_OUTPUT"; echo "Only unrelated config.py lines changed; golden set not needed."; fi
 
@@ -146,3 +148,11 @@ jobs:
         run: |
           set -o pipefail
           arp golden-set authority-taxonomy --case hydrogen_eu_taxonomy | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Run the stage-evidence golden cases
+        if: ${{ !cancelled() && steps.key.outputs.present == 'true' }}
+        env:
+          ARP_ANTHROPIC_API_KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
+        run: |
+          set -o pipefail
+          arp golden-set precision --schema-file tests/golden/stage_evidence/schema.json --cases tests/golden/stage_evidence/cases.json --documents-dir tests/golden/stage_evidence/documents --min-precision 0.9 | tee -a "$GITHUB_STEP_SUMMARY"
