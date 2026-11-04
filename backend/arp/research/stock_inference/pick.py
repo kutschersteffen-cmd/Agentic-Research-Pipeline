@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from pathlib import Path
 from typing import Literal
 
@@ -144,10 +145,65 @@ async def merge(stock_acts: list[ActivityDefinition], method_acts: list[Activity
     return out, origins
 
 
+class ActivityKeywords(BaseModel):
+    activity_id: str
+    primary: list[str] = Field(default_factory=list, description="Phrases that alone mark the activity.")
+    contextual: list[str] = Field(default_factory=list, description="Phrases that count only near a primary one.")
+    exclusion: list[str] = Field(default_factory=list, description="Phrases that mark an adjacent, out-of-scope activity.")
+
+
+class KeywordProposal(BaseModel):
+    activities: list[ActivityKeywords]
+
+
+_KEYWORD_SYSTEM = (
+    "For each activity propose a keyword dictionary in three buckets: primary (phrases that alone show the "
+    "activity), contextual (phrases that show it only near a primary phrase) and exclusion (phrases of adjacent "
+    "activities that do not count). Use phrases as they appear in the texts. Return each activity's activity_id."
+)
+
+
+def _occurring(phrases: list[str], texts: list[str]) -> list[str]:
+    """Phrases (deduplicated, in order) that occur as a case-insensitive whole-word phrase in some text."""
+    out = []
+    for ph in dict.fromkeys(p.strip() for p in phrases):
+        rx = re.compile(r"\b" + re.escape(ph) + r"\b", re.IGNORECASE)
+        if ph and any(rx.search(t) for t in texts):
+            out.append(ph)
+    return out
+
+
+async def keywords(activities: list[ActivityDefinition], chunks_supporting: dict[str, list[DocumentChunk]],
+                   chunks_other: dict[str, list[DocumentChunk]], boundary_quotes: list[str], llm
+                   ) -> list[ActivityDefinition]:
+    """One call proposes three buckets per activity; code keeps only phrases found in the stock text.
+
+    Primary and contextual must occur in a supporting stock's chunk; exclusion in another stock's chunk or a
+    methodology boundary quote. Primary goes to `seed_keywords`."""
+    if not activities:
+        return activities
+    support = [ch.text for cs in chunks_supporting.values() for ch in cs]
+    others = [ch.text for cs in chunks_other.values() for ch in cs] + list(boundary_quotes)
+    payload = {"activities": [{"activity_id": a.activity_id, "name": a.name,
+                               "in_scope_description": a.in_scope_description,
+                               "out_of_scope_description": a.out_of_scope_description} for a in activities],
+               "supporting_excerpts": support, "other_excerpts": others}
+    reply, _ = await llm.complete_structured(system=_KEYWORD_SYSTEM, prompt=json.dumps(payload, indent=1),
+                                             output_model=KeywordProposal)
+    by_id = {k.activity_id: k for k in reply.activities}
+    out = []
+    for a in activities:
+        k = by_id.get(a.activity_id) or ActivityKeywords(activity_id=a.activity_id)
+        out.append(a.model_copy(update={"seed_keywords": _occurring(k.primary, support),
+                                        "contextual_keywords": _occurring(k.contextual, support),
+                                        "exclusion_keywords": _occurring(k.exclusion, others)}))
+    return out
+
+
 async def pick(
     run_id: str, rank: int, *, run_store, taxonomy_store, settings: Settings, llm, registry: DocumentSourceRegistry,
     matcher=match_activities, draft=draft_schema, mapper=suggest_catalogue_mapping, fetch=read_methodology,
-    synthesize=synthesize, top_down=top_down, merge=merge, keywords=_not_yet, map_stocks=_not_yet, tiers=_not_yet,
+    synthesize=synthesize, top_down=top_down, merge=merge, keywords=keywords, map_stocks=_not_yet, tiers=_not_yet,
     draft_kpis=_not_yet,
 ) -> InferRun:
     run = load_run(run_id, run_store)

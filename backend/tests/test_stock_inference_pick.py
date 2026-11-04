@@ -340,3 +340,42 @@ async def test_one_unreadable_source_keeps_the_readable_one(ctx, monkeypatch):  
     assert seen == [("extract", "https://ok.example/m.pdf", "H2"), ("consolidate", ["https://ok.example/m.pdf"], "H2")]
     notes = tax.get(run.taxonomy_id).source_notes
     assert "https://gone.example/m.pdf" in notes and "https://ok.example/m.pdf" not in notes
+
+
+def _chunk(cid, text):
+    return pick_mod.DocumentChunk(doc_id=f"D{cid}", company_id=cid, doc_type=DocType.ANNUAL_REPORT_10K, text=text,
+                                  char_start=0, char_end=len(text))
+
+
+def _kw_llm(**buckets):
+    async def complete_structured(*, system, prompt, output_model):
+        return output_model(activities=[dict(activity_id="a1", **buckets)]), None
+
+    return SimpleNamespace(complete_structured=complete_structured)
+
+
+_ACT = ActivityDefinition(activity_id="a1", name="Hydrogen", in_scope_description="in", out_of_scope_description="out")
+
+
+@pytest.mark.asyncio
+async def test_keywords_primary_must_occur_as_whole_phrase_in_supporting_chunk():  # AC-37
+    llm = _kw_llm(primary=["PEM stack", "fusion reactor", "Herøya plants"])
+    [a] = await pick_mod.keywords([_ACT], {"s1": [_chunk("s1", "Our PEM stack plant in Herøya")]}, {}, [], llm)
+    assert a.seed_keywords == ["PEM stack"]
+
+
+@pytest.mark.asyncio
+async def test_keywords_contextual_and_exclusion_grounding():  # AC-38
+    llm = _kw_llm(contextual=["stack efficiency", "warp drive"], exclusion=["fuel cell", "PEM stack"])
+    [a] = await pick_mod.keywords([_ACT], {"s1": [_chunk("s1", "Stack efficiency rose to 70 %.")]},
+                                  {"s2": [_chunk("s2", "We sell fuel cell systems.")]}, [], llm)
+    assert a.contextual_keywords == ["stack efficiency"]
+    assert a.exclusion_keywords == ["fuel cell"]
+    assert a.contextual_window_words == 50
+
+
+@pytest.mark.asyncio
+async def test_keywords_exclusion_may_ground_in_boundary_quote():
+    llm = _kw_llm(exclusion=["electrolyser"])
+    [a] = await pick_mod.keywords([_ACT], {}, {}, ["Excludes electrolyser resale."], llm)
+    assert a.exclusion_keywords == ["electrolyser"]
