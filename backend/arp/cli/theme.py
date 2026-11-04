@@ -141,7 +141,11 @@ def theme_classify_lifecycle(
     """
     settings = get_settings()
     llm = build_llm_client(settings)
-    theme = ThemeDefinition.model_validate_json(theme_file.read_text())
+    try:
+        theme = ThemeDefinition.model_validate_json(theme_file.read_text())
+    except ValueError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
     updated_theme, _usage = asyncio.run(classify_theme_lifecycle_stages(theme, llm))
     out.write_text(updated_theme.model_dump_json(indent=2))
     classified = sum(1 for a in updated_theme.activities if a.lifecycle_stage is not None)

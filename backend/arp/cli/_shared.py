@@ -119,7 +119,11 @@ def _parse_taxonomy_ref(ref: str) -> TaxonomyRef:
 def _resolve_taxonomy_ref_or_exit(ref_str: str):
     store = _taxonomy_store()
     ref = _parse_taxonomy_ref(ref_str)
-    taxonomy = store.get(ref.taxonomy_id, ref.version)
+    try:
+        taxonomy = store.get(ref.taxonomy_id, ref.version)
+    except ValueError as exc:  # e.g. an unmigrated core_isic_codes version
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
     if taxonomy is None:
         typer.echo(f"Taxonomy not found: {ref_str}", err=True)
         raise typer.Exit(1)

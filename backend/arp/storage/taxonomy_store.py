@@ -7,7 +7,7 @@ from pathlib import Path
 
 from arp.schemas.common import now_iso
 from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyStatus
-from arp.schemas.thematic import ThemeDefinition
+from arp.schemas.thematic import OLD_FORMAT_MESSAGE, ThemeDefinition
 from arp.storage.atomic_io import atomic_write_text, read_text_utf8, write_text_exclusive
 from arp.storage.locks import KeyedLock
 from arp.storage.safe_path import safe_id
@@ -148,7 +148,9 @@ class TaxonomyStore:
         for p in d.glob("v*.json"):
             try:
                 versions.append(Taxonomy.model_validate_json(read_text_utf8(p)))
-            except (json.JSONDecodeError, ValueError):
+            except (json.JSONDecodeError, ValueError) as exc:
+                if OLD_FORMAT_MESSAGE in str(exc):  # an unmigrated version is an error, not a file to skip
+                    raise
                 continue
         return sorted(versions, key=lambda t: t.version)
 

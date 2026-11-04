@@ -5,14 +5,12 @@ from __future__ import annotations
 import json
 
 import pytest
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from typer.testing import CliRunner
 
 from arp.api import deps
-from arp.api.auth import current_user
-from arp.api.routers import taxonomies
+from arp.api.main import app
 from arp.cli import theme as cli_theme
 from arp.config import Settings
 from arp.ingestion.registry import DocumentSourceRegistry
@@ -23,7 +21,6 @@ from arp.schemas.thematic import OLD_FORMAT_MESSAGE as M8
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 from arp.storage.run_store import RunStore
 from arp.storage.taxonomy_store import TaxonomyStore
-from tests.conftest import PRINCIPAL
 from tests.taxonomy_schema_helpers import registered_schema
 
 OLD_ACTIVITY = {"name": "n", "in_scope_description": "i", "out_of_scope_description": "o", "core_isic_codes": ["B07"]}
@@ -44,16 +41,17 @@ def test_model_rejects():
 
 @pytest.fixture
 def api(tmp_path):
+    """The real app (its ValueError handler decides the status), with the taxonomy store on tmp_path."""
     store = TaxonomyStore(tmp_path / "taxonomies")
-    app = FastAPI()
-    app.include_router(taxonomies.router)
-    app.dependency_overrides.update({
+    overrides = {
         deps.get_taxonomy_store: lambda: store,
         deps.settings_dep: lambda: Settings(anthropic_api_key="unused", cache_dir=tmp_path / "cache"),
         deps.get_registry: lambda: None, deps.get_llm_client: lambda: None,
-        current_user: lambda: PRINCIPAL,
-    })
-    return TestClient(app), store
+    }
+    app.dependency_overrides.update(overrides)
+    yield TestClient(app), store
+    for dep in overrides:
+        app.dependency_overrides.pop(dep, None)
 
 
 def test_post_taxonomies_422(api):  # AC-14, AC-15
@@ -72,6 +70,23 @@ def test_get_unmigrated_422(api, tmp_path):  # AC-17
     _oldify(tmp_path / "taxonomies" / tid / "v1.json")
     res = client.get(f"/api/taxonomies/{tid}")
     assert res.status_code == 422 and M8 in res.text
+    for path in ("/api/taxonomies", f"/api/taxonomies/{tid}/versions"):  # the list reads too
+        res = client.get(path)
+        assert res.status_code == 422 and M8 in res.text, path
+
+
+def test_cli_taxonomy_new_version_rejects(tmp_path, monkeypatch):
+    from arp.cli import taxonomy as cli_taxonomy
+
+    store = TaxonomyStore(tmp_path / "taxonomies")
+    tid = store.create("t", ThemeDefinition(name="T", description=""), DerivationMethod.MANUAL).taxonomy_id
+    monkeypatch.setattr(cli_taxonomy, "_taxonomy_store", lambda: store)
+    theme_file = tmp_path / "old.json"
+    theme_file.write_text(json.dumps(OLD_THEME))
+    res = CliRunner().invoke(cli_taxonomy.taxonomy_app, ["new-version", tid, "--theme", str(theme_file)])
+    assert res.exit_code == 1
+    assert M8 in res.stderr
+    assert [t.version for t in store.list_versions(tid)] == [1]
 
 
 def test_cli_classify_sectors_rejects(tmp_path):  # AC-16

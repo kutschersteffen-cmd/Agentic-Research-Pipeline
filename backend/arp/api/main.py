@@ -73,6 +73,8 @@ from arp.api.routers import (
     xbrl,
 )
 from arp.db.session import require_cutover, require_postgres
+from arp.research.value_chain.links import LinkError
+from arp.schemas.thematic import OLD_FORMAT_MESSAGE
 from arp.transition_alignment.benchmarks import check_benchmarks
 from arp.transition_barrier.dataset import check_rule_book
 
@@ -213,8 +215,11 @@ async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse
     # Covers both request-shape validation raised deep in a pipeline (e.g.
     # aggregation.py's unknown group_by/metric) and safe_path.py's
     # identifier validation -- either way this is a client error, not a
-    # server fault, so it's a 400 rather than an opaque 500.
-    return JSONResponse(status_code=400, content={"detail": str(exc)})
+    # server fault, so it's a 400 rather than an opaque 500. An unmigrated
+    # core_isic_codes theme is 422 (spec 2026-11-04 decision 8) on every load path.
+    # A LinkError is a stored or sent link rule the API answers with 422.
+    status = 422 if OLD_FORMAT_MESSAGE in str(exc) or isinstance(exc, LinkError) else 400
+    return JSONResponse(status_code=status, content={"detail": str(exc)})
 
 
 @app.get("/api/health")

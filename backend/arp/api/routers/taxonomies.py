@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response, StreamingResponse
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from arp.api.auth import Principal, current_user
@@ -215,10 +215,7 @@ def list_taxonomies(store: TaxonomyStore = Depends(get_taxonomy_store)) -> dict:
 def get_taxonomy(
     taxonomy_id: str, version: int | None = None, store: TaxonomyStore = Depends(get_taxonomy_store)
 ) -> Taxonomy:
-    try:
-        taxonomy = store.get(taxonomy_id, version)
-    except ValidationError as exc:  # e.g. an unmigrated core_isic_codes activity
-        raise HTTPException(422, str(exc)) from exc
+    taxonomy = store.get(taxonomy_id, version)
     if taxonomy is None:
         raise HTTPException(404, "Taxonomy not found")
     return taxonomy

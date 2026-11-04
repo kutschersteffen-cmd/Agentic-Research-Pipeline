@@ -174,8 +174,8 @@ def taxonomy_new_version(
     theme_file: Path = typer.Option(..., "--theme", help="Edited ThemeDefinition JSON."),
     notes: str = typer.Option("Manual edit.", "--notes"),
 ) -> None:
-    theme = ThemeDefinition.model_validate_json(theme_file.read_text())
     try:
+        theme = ThemeDefinition.model_validate_json(theme_file.read_text())
         taxonomy = _taxonomy_store().new_version(taxonomy_id, theme, DerivationMethod.MANUAL, notes)
     except ValueError as exc:
         typer.echo(str(exc), err=True)

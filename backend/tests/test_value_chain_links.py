@@ -441,6 +441,15 @@ def test_codes_lists_the_sectors():  # AC-22
     assert len(codes) == 163 and codes[0] == {"name": "Cultivation of paddy rice"}
 
 
+def test_unmigrated_rule_is_a_422(env):  # a stored ICIO part, from before arp io migrate-exiobase
+    from arp.schemas.value_chain import LinkRule
+
+    client, store = env
+    store.save_link_rule("company:dz", LinkRule(kind="split", parts=[{"icio_code": "B07", "share": 1.0}], set_by="t", set_at="t"))
+    res = client.get(f"{BASE}/links/company/dz")
+    assert (res.status_code, res.json()["detail"]) == (422, "link rule uses ICIO codes; run arp io migrate-exiobase")
+
+
 def test_valid_split_round_trips(env):  # AC-27
     client, store = env
     body = {"kind": "split", "parts": [{"sectors": S("B07"), "share": 1.0}]}
