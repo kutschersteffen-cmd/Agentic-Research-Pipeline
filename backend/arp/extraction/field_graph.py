@@ -21,7 +21,7 @@ from arp.llm.base import LLMClient, LLMUsage
 from arp.normalise.value import typed_value
 from arp.orchestration.step_tally import run_graph
 from arp.planning.doc_routing import route_documents, section_filter
-from arp.retrieval.index_text import index_text
+from arp.retrieval.index_text import index_texts as index_texts_for
 from arp.retrieval.keywords_de import with_german
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import DocumentChunk, ProvenanceInfo, SourceDocument
@@ -149,7 +149,8 @@ def field_evidence(
             parents.update(piece_parents(doc, pieces, doc_chunks, settings))
             ranked_units.extend(pieces + [c for c in doc_chunks if c.table_id is not None])
         if settings is not None and settings.context_headers_enabled:
-            index_texts.update((c.chunk_id, index_text(c, doc, settings)) for c in doc_chunks + pieces)
+            units = doc_chunks + pieces
+            index_texts.update(zip((c.chunk_id for c in units), index_texts_for(units, doc, settings), strict=True))
     all_chunks = section_filter(field, all_chunks)
 
     content_store = None

@@ -409,7 +409,7 @@ class LocalFileDocumentSource(DocumentSource):
 
         index_document_if_enabled(
             self._indexing_config, doc_id=doc_id, company_id=company_id, doc_type=doc_type, title=file_path.name, full_text=full_text,
-            table_spans=table_spans,
+            table_spans=table_spans, content_key=content_key, parser_version=parser_version(),
         )
 
         from arp.storage.document_blob_store import upload_or_fail
