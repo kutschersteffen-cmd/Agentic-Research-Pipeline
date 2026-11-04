@@ -27,6 +27,7 @@ const METHOD_LABELS: Record<DerivationMethod, string> = {
   news_transcript_mining: "News & earnings-call transcript mining",
   empirical: "Empirical (Extraction Engine readings)",
   emerging_signal_discovery: "Emerging Themes Scanner (Tool 0)",
+  stock_inference: "Inferred from stocks",
   merged: "Merged from existing taxonomies",
   manual: "Manual / hand-authored",
 };

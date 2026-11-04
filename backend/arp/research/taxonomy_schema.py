@@ -81,7 +81,8 @@ def build_taxonomy_schema(taxonomy: Taxonomy) -> DataPointSchema:
         schema_id=schema_id_for(taxonomy.taxonomy_id, taxonomy.version),
         name=f"{taxonomy.name} v{taxonomy.version}",
         description=f"Generated from taxonomy {taxonomy.taxonomy_id} v{taxonomy.version}.",
-        fields=[f for a in taxonomy.theme.activities for f in activity_fields(a, taxonomy.taxonomy_id, taxonomy.version)],
+        fields=[f for a in taxonomy.theme.activities for f in activity_fields(a, taxonomy.taxonomy_id, taxonomy.version)]
+        + taxonomy.theme.kpis,
     )
 
 

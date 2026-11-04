@@ -18,8 +18,9 @@ from arp.ingestion.registry import DocumentSourceRegistry
 from arp.orchestration.job_manager import JobManager
 from arp.orchestration.jobs import NotResumable, check_resumable
 from arp.research.revenue_exposure.resolver import RevenueResolverContext, resolve_company_activity_exposure
-from arp.research.taxonomy_schema import build_taxonomy_schema
+from arp.research.taxonomy_schema import activity_fields, build_taxonomy_schema
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
+from arp.schemas.datapoints import FieldDataType, FieldDefinition
 from arp.schemas.taxonomy import DerivationMethod, Taxonomy, TaxonomyStatus
 from arp.schemas.thematic import ActivityDefinition, ThemeDefinition
 from arp.storage.run_store import RunStore
@@ -41,6 +42,33 @@ def _taxonomy(version=1, status=TaxonomyStatus.RATIFIED, keywords=None) -> Taxon
 
 
 # --- build_taxonomy_schema ---------------------------------------------------
+
+def _kpi(fid):
+    return FieldDefinition(field_id=fid, name=fid, description="d", data_type=FieldDataType.NUMBER, extraction_instructions="x")
+
+
+def _expected(t):
+    return [f for a in t.theme.activities for f in activity_fields(a, t.taxonomy_id, t.version)]
+
+
+def test_schema_without_kpis_is_activity_fields_only():  # AC-40
+    t = _taxonomy()
+    assert build_taxonomy_schema(t).fields == _expected(t)
+
+
+def test_schema_appends_theme_kpis_after_activity_fields():  # AC-41
+    t = _taxonomy()
+    t.theme.kpis = [_kpi("k1"), _kpi("k2")]
+    assert build_taxonomy_schema(t).fields == _expected(t) + t.theme.kpis
+
+
+def test_old_theme_without_new_keys_loads():
+    t = ThemeDefinition.model_validate({"name": "G", "description": "", "activities": [
+        {"name": "a", "in_scope_description": "i", "out_of_scope_description": "o"}]})
+    a = t.activities[0]
+    assert (t.kpis, a.contextual_keywords, a.exclusion_keywords, a.contextual_window_words) == ([], [], [], 50)
+    assert DerivationMethod("stock_inference") is DerivationMethod.STOCK_INFERENCE
+
 
 def test_schema_has_four_fields_per_activity_in_order():
     schema = build_taxonomy_schema(_taxonomy())

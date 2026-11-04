@@ -45,4 +45,11 @@ def test_saved_taxonomy_shows_as_on_main(m, tmp_path, monkeypatch):  # AC-50
     monkeypatch.setattr(cli, "_taxonomy_store", lambda: store)
     res = CliRunner().invoke(cli.taxonomy_app, ["show", tid])
     assert res.exit_code == 0
-    assert json.loads(res.stdout) == json.loads((FIXTURES / f"show_main_{m}.json").read_text())
+    new = {"kpis", "contextual_keywords", "exclusion_keywords", "contextual_window_words", "contrast_statements"}  # last one: fixtures predate it
+
+    def strip(x):
+        if isinstance(x, dict):
+            return {k: strip(v) for k, v in x.items() if k not in new}
+        return [strip(i) for i in x] if isinstance(x, list) else x
+
+    assert strip(json.loads(res.stdout)) == json.loads((FIXTURES / f"show_main_{m}.json").read_text())
