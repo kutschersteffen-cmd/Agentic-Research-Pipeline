@@ -746,8 +746,8 @@ fund", ...) and returns a `SourceCandidate` list -- name, URL, snippet --
 for the user to read and choose from. **Nothing is fetched or used
 automatically here**; discovery only proposes, selection is a separate,
 explicit step (`--authority-url` / `authority_urls`, or downloading a
-selected fund's holdings export and passing it as `--holdings` /
-`holdings_path`).
+selected fund's holdings export and passing it to
+`arp taxonomy infer start --stocks <file>`).
 
 Authority candidates are then scored and explained
 (`taxonomy_sources/discovery.py::rank_authority_sources`): one structured
