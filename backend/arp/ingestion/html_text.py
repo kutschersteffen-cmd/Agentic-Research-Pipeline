@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import re
+
+_IXBRL_NS = "http://www.xbrl.org/2013/inlineXBRL"
+
 
 def extract_html_text(raw_html: str) -> str:
     """HTML -> plain text for every ingestion path: EDGAR filings, local
@@ -16,6 +20,16 @@ def extract_html_text(raw_html: str) -> str:
     package. Changing this logic needs a bump of
     edgar._EDGAR_PARSER_LOGIC_VERSION.
     """
+    if _IXBRL_NS in raw_html:
+        # trafilatura drops the text of tags it doesn't know, so every ix:nonFraction figure in a table cell is lost.
+        from lxml import etree
+
+        from arp.ingestion.esef import parse_ixbrl
+
+        try:
+            return parse_ixbrl(re.sub(r"^﻿?\s*<\?xml[^>]*\?>", "", raw_html).encode())[0]
+        except (etree.XMLSyntaxError, ValueError):
+            pass  # not well-formed XML or an unreadable fact: today's path below
     import trafilatura
 
     extracted = trafilatura.extract(raw_html, favor_recall=True)
