@@ -167,7 +167,8 @@ def _occurring(phrases: list[str], texts: list[str]) -> list[str]:
     """Phrases (deduplicated, in order) that occur as a case-insensitive whole-word phrase in some text."""
     out = []
     for ph in dict.fromkeys(p.strip() for p in phrases):
-        rx = re.compile(r"\b" + re.escape(ph) + r"\b", re.IGNORECASE)
+        # (?<!\w)..(?!\w) so "C++" and "(PEM)" match; \s+ so a line break inside a phrase still matches
+        rx = re.compile(r"(?<!\w)" + r"\s+".join(map(re.escape, ph.split())) + r"(?!\w)", re.IGNORECASE)
         if ph and any(rx.search(t) for t in texts):
             out.append(ph)
     return out
@@ -194,7 +195,9 @@ async def keywords(activities: list[ActivityDefinition], chunks_supporting: dict
     out = []
     for a in activities:
         k = by_id.get(a.activity_id) or ActivityKeywords(activity_id=a.activity_id)
-        out.append(a.model_copy(update={"seed_keywords": _occurring(k.primary, support),
+        # earlier seeds survive only where the activity's own citation quotes show them
+        seeds = _occurring(a.seed_keywords, [c.quote for c in a.citations]) + _occurring(k.primary, support)
+        out.append(a.model_copy(update={"seed_keywords": list(dict.fromkeys(seeds)),
                                         "contextual_keywords": _occurring(k.contextual, support),
                                         "exclusion_keywords": _occurring(k.exclusion, others)}))
     return out

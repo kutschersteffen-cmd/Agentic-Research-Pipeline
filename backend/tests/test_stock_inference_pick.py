@@ -379,3 +379,45 @@ async def test_keywords_exclusion_may_ground_in_boundary_quote():
     llm = _kw_llm(exclusion=["electrolyser"])
     [a] = await pick_mod.keywords([_ACT], {}, {}, ["Excludes electrolyser resale."], llm)
     assert a.exclusion_keywords == ["electrolyser"]
+
+
+def _cited(quote, seeds):
+    from arp.schemas.authority_taxonomy import SourceCitation
+
+    return _ACT.model_copy(update={"seed_keywords": seeds,
+                                   "citations": [SourceCitation(quote=quote, source_url="u", location="s1")]})
+
+
+@pytest.mark.asyncio
+async def test_keywords_omitted_activity_keeps_quote_grounded_seeds():
+    act = _cited("We make PEM stacks.", ["PEM stacks", "warp drive"])
+
+    async def other(*, system, prompt, output_model):
+        return output_model(activities=[]), None
+    [a] = await pick_mod.keywords([act], {}, {}, [], SimpleNamespace(complete_structured=other))
+    assert a.seed_keywords == ["PEM stacks"]
+
+
+@pytest.mark.asyncio
+async def test_keywords_methodology_seed_found_in_its_citation_is_kept_before_new_primaries():
+    act = _cited("Electrolyser output.", ["electrolyser"])
+    llm = _kw_llm(primary=["PEM stack", "electrolyser"])
+    [a] = await pick_mod.keywords([act], {"s1": [_chunk("s1", "Our PEM stack plant")]}, {}, [], llm)
+    assert a.seed_keywords == ["electrolyser", "PEM stack"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("phrase,text,hit", [
+    ("stack", "We make stacks.", False), ("C++", "We write C++ code.", True),
+    ("PEM stack", "PEM\nstack", True), ("PEM", "a (PEM) cell", True)])
+async def test_keywords_phrase_matching(phrase, text, hit):
+    [a] = await pick_mod.keywords([_ACT], {"s1": [_chunk("s1", text)]}, {}, [], _kw_llm(primary=[phrase]))
+    assert a.seed_keywords == ([phrase] if hit else [])
+
+
+@pytest.mark.asyncio
+async def test_keywords_no_activities_makes_no_call():
+    async def boom(**k):
+        raise AssertionError("called")
+
+    assert await pick_mod.keywords([], {}, {}, [], SimpleNamespace(complete_structured=boom)) == []
