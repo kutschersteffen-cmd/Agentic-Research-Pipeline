@@ -36,7 +36,7 @@ def fake_steps(calls=None):
         return [ActivityDefinition(activity_id="a1", name=theme.name, in_scope_description="in",
                                    out_of_scope_description="out")]
 
-    async def top_down(sources, theme_name, llm, settings, fetch):
+    async def top_down(sources, theme_name, llm, settings, fetch, *, scope):
         calls.append(("top_down", sources))
         return []
 
@@ -227,7 +227,7 @@ async def test_matched_pair_becomes_one_activity_from_both(ctx):  # AC-35
     async def synthesize(theme, profiles, chunks, llm, *, fuzzy_threshold):
         return [_act("PEM stacks", "Q1", "s1")]
 
-    async def top_down(sources, theme_name, llm, settings, fetch):
+    async def top_down(sources, theme_name, llm, settings, fetch, *, scope):
         return [_act("Stack making", "Q2"), _act("Hydrogen storage", "Q3")]
 
     async def matcher(left, right, *, scope, llm):
@@ -289,17 +289,54 @@ async def test_top_down_extracts_each_document_with_the_value_chain(monkeypatch)
                                full_text=f"text of {s}") for s in sources]
 
     async def extract_source(url, text, *, theme_name, scope, value_chain, llm):
-        seen.append(("extract", url, text, theme_name, value_chain))
+        seen.append(("extract", url, text, theme_name, scope, value_chain))
         return SimpleNamespace(url=url)
 
     async def consolidate(extractions, *, theme_name, scope, value_chain, settings, llm, value_chain_model):
-        seen.append(("consolidate", [e.url for e in extractions], value_chain, value_chain_model))
+        seen.append(("consolidate", [e.url for e in extractions], scope, value_chain, value_chain_model))
         act = _act("Stacks", "Q2").model_copy(update={"out_of_scope_citations": [boundary]})
         return ThemeDefinition(name=theme_name, description="", activities=[act]), ""
 
     monkeypatch.setattr(pick_mod, "extract_source", extract_source)
     monkeypatch.setattr(pick_mod, "consolidate", consolidate)
-    acts = await pick_mod.top_down(["u1", "u2"], "Hydrogen", None, Settings(anthropic_api_key="x"), fetch)
-    assert seen == [("extract", "u1", "text of u1", "Hydrogen", True), ("extract", "u2", "text of u2", "Hydrogen", True),
-                    ("consolidate", ["u1", "u2"], True, None)]
+    acts = await pick_mod.top_down(["u1", "u2"], "Hydrogen", None, Settings(anthropic_api_key="x"), fetch,
+                                   scope="Green hydrogen")
+    assert seen == [("extract", "u1", "text of u1", "Hydrogen", "Green hydrogen", True),
+                    ("extract", "u2", "text of u2", "Hydrogen", "Green hydrogen", True),
+                    ("consolidate", ["u1", "u2"], "Green hydrogen", True, None)]
     assert acts[0].out_of_scope_citations == [boundary]  # kept for Task 4's exclusion-keyword grounding
+
+
+@pytest.mark.asyncio
+async def test_one_unreadable_source_keeps_the_readable_one(ctx, monkeypatch):  # review fix: fetch per source
+    from arp.schemas.common import SourceDocument
+    from arp.schemas.thematic import ThemeDefinition
+
+    run_id, store, tax, kw = ctx
+    _save(_run(run_id), store)
+    manifest = store.load_manifest(run_id)
+    manifest.params["methodology"] = ["https://ok.example/m.pdf", "https://gone.example/m.pdf"]
+    store.save_manifest(manifest)
+    seen = []
+
+    async def fetch(sources, user_agent):
+        if "https://gone.example/m.pdf" in sources:
+            raise OSError("connection refused")
+        return [SourceDocument(company_id="methodology", doc_type=DocType.OTHER, title=s, source_url=s,
+                               full_text="text") for s in sources]
+
+    async def extract_source(url, text, *, theme_name, scope, value_chain, llm):
+        seen.append(("extract", url, scope))
+        return SimpleNamespace(url=url)
+
+    async def consolidate(extractions, *, theme_name, scope, value_chain, settings, llm, value_chain_model):
+        seen.append(("consolidate", [e.url for e in extractions], scope))
+        return ThemeDefinition(name=theme_name, description="", activities=[]), ""
+
+    monkeypatch.setattr(pick_mod, "extract_source", extract_source)
+    monkeypatch.setattr(pick_mod, "consolidate", consolidate)
+    steps = {k: v for k, v in fake_steps().items() if k != "top_down"}
+    run = await pick_mod.pick(run_id, 1, **{**kw, "fetch": fetch}, **steps)
+    assert seen == [("extract", "https://ok.example/m.pdf", "H2"), ("consolidate", ["https://ok.example/m.pdf"], "H2")]
+    notes = tax.get(run.taxonomy_id).source_notes
+    assert "https://gone.example/m.pdf" in notes and "https://ok.example/m.pdf" not in notes

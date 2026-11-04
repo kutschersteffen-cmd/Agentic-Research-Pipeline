@@ -108,17 +108,18 @@ async def synthesize(theme: Theme, profiles: list[StockProfile], chunks: dict[st
     return out
 
 
-async def top_down(sources: list[str], theme_name: str, llm, settings: Settings, fetch) -> list[ActivityDefinition]:
+async def top_down(sources: list[str], theme_name: str, llm, settings: Settings, fetch, *,
+                   scope: str) -> list[ActivityDefinition]:
     """Methodology activities: today's authority checklist per document, consolidated with the value chain.
 
     Activities keep their `out_of_scope_citations`: the boundary quotes exclusion keywords ground in."""
     docs = await fetch(sources, settings.discovery_user_agent)
-    extractions = [await extract_source(d.source_url, d.full_text, theme_name=theme_name, scope="", value_chain=True,
-                                        llm=llm) for d in docs]
+    extractions = [await extract_source(d.source_url, d.full_text, theme_name=theme_name, scope=scope,
+                                        value_chain=True, llm=llm) for d in docs]
     if not extractions:
         return []
     model = resolve_indirect_exposure_model(settings, use_sample=False)
-    theme, _notes = await consolidate(extractions, theme_name=theme_name, scope="", value_chain=True,
+    theme, _notes = await consolidate(extractions, theme_name=theme_name, scope=scope, value_chain=True,
                                       settings=settings, llm=llm, value_chain_model=model)
     return theme.activities
 
@@ -178,15 +179,20 @@ async def pick(
             raise fail(NO_ACTIVITY)
         unread: list[str] = []
 
-        async def fetch_or_skip(srcs, user_agent):  # a methodology source that no longer answers skips top-down
-            try:
-                docs = await fetch(srcs, user_agent)
-            except Exception:
-                docs = []
-            unread.extend(s for s in srcs if s not in {d.source_url for d in docs})
+        async def fetch_or_skip(srcs, user_agent):  # per source: one that no longer answers is skipped alone
+            docs = []
+            for src in srcs:
+                try:
+                    got = await fetch([src], user_agent)
+                except Exception:
+                    got = []
+                docs += got
+                if not got:
+                    unread.append(src)
             return docs
 
-        method_acts = await top_down(sources, theme.name, llm, settings, fetch_or_skip) if sources else []
+        method_acts = (await top_down(sources, theme.name, llm, settings, fetch_or_skip, scope=theme.description)
+                       if sources else [])
         activities, origins = await merge(stock_acts, method_acts, theme.description, llm, matcher)
         boundary_quotes = [c.quote for a in method_acts for c in a.out_of_scope_citations]
         activities = await keywords(activities, supporting, other, boundary_quotes, llm)
