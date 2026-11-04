@@ -63,3 +63,10 @@ class IndirectExposureResult(BaseModel):
     )
     regional: RegionalExposure | None = Field(default=None, description="Exposure on the region-resolved model.")
     generated_at: str = Field(default_factory=now_iso)
+
+
+def upgrade_stored_exposure(row: dict) -> dict:
+    """Rename `indirect_exposure.icio_edition` to `io_edition` in a row stored before the rename."""
+    if (ie := row.get("indirect_exposure")) is not None and "icio_edition" in ie:
+        ie["io_edition"] = ie.pop("icio_edition")
+    return row

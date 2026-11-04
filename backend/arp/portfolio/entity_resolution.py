@@ -10,7 +10,7 @@ class SecurityMaster:
     """A user-supplied issuer reference table -- the same role a licensed
     security master (e.g. an OpenFIGI/Bloomberg feed) plays in production.
     Never fetched or fabricated by this system, same as every other
-    external reference dataset this codebase integrates (OECD ICIO,
+    external reference dataset this codebase integrates (OECD input-output tables,
     NACE/NAICS/SIC crosswalks, fund holdings)."""
 
     isin_to_company_id: dict[str, str]

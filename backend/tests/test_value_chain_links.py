@@ -447,7 +447,7 @@ def test_unmigrated_rule_is_a_422(env):  # a stored ICIO part, from before arp i
     client, store = env
     store.save_link_rule("company:dz", LinkRule(kind="split", parts=[{"icio_code": "B07", "share": 1.0}], set_by="t", set_at="t"))
     res = client.get(f"{BASE}/links/company/dz")
-    assert (res.status_code, res.json()["detail"]) == (422, "link rule uses ICIO codes; run arp io migrate-exiobase")
+    assert (res.status_code, res.json()["detail"]) == (422, "link rule has old-format parts; run arp io migrate-exiobase")
 
 
 def test_valid_split_round_trips(env):  # AC-27

@@ -106,7 +106,7 @@ def _resolve_parts(vc: ValueChain, rule: LinkRule, region: str | None) -> tuple[
             k = _node_at(vc).get((part["region"], part["sector"]))
             found = {} if k is None else {k: 1.0}
         elif "sectors" not in part:  # stored before the EXIOBASE switch, not migrated
-            raise LinkError("link rule uses ICIO codes; run arp io migrate-exiobase")
+            raise LinkError("link rule has old-format parts; run arp io migrate-exiobase")
         else:
             found = _sector_set(vc, part["sectors"], region)
         if not found:

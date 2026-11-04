@@ -27,6 +27,7 @@ from arp.research.revenue_exposure.catalogue import load_catalogue
 from arp.research.revenue_exposure.resolver import RevenueResolverContext
 from arp.research.taxonomy_schema import THEME_NOT_ALLOWED, ThemeRunRefused, released_run_schema
 from arp.schemas.common import CompanyRef
+from arp.schemas.exposure import upgrade_stored_exposure
 from arp.schemas.revenue_exposure import ActivityCatalogueMapping, MetricExposure
 from arp.schemas.thematic import ThemeDefinition
 from arp.storage.run_store import RunStore
@@ -187,8 +188,7 @@ def get_theme_results(
     for m in matches:  # rows stored before OpEx: the model default
         if (rev := m.get("revenue_exposure")) is not None and "opex" not in rev:
             rev["opex"] = MetricExposure().model_dump(mode="json")
-        if (ie := m.get("indirect_exposure")) is not None and "icio_edition" in ie:  # stored before the rename
-            ie["io_edition"] = ie.pop("icio_edition")
+        upgrade_stored_exposure(m)
     return {"total": len(matches), "results": matches[offset : offset + limit]}
 
 
