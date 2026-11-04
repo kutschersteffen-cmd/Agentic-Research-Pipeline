@@ -16,7 +16,7 @@ from tests.test_stock_inference_profile import _doc, _extract, _FixedDocSource
 
 RUN_KEYS = {"run_id", "stage", "name", "extractor_model", "verifier_model", "selection", "profiles", "clusters",
             "themes", "outliers", "index_rules", "taxonomy_id", "activities", "mapping", "coverage"}
-_DEFAULTS = infer_run.start.__kwdefaults__  # the CLI relies on start()'s defaults, so fakes replace those
+_REAL_START = infer_run.start  # the CLI relies on start()'s defaults, so the fixture wraps it with fakes
 
 
 class _NoCalls:
@@ -39,8 +39,8 @@ def env(pg, tmp_path, monkeypatch, fake_llm):
     get_settings.cache_clear()
     monkeypatch.setattr(cli, "_run_store", lambda: RunStore(pg, tmp_path / "runs"))  # a fresh instance per command
     monkeypatch.setattr(cli, "build_verifier_llm_client", lambda s: _NoCalls())
-    monkeypatch.setitem(_DEFAULTS, "cluster", lambda e: np.full(len(e), -1))
-    monkeypatch.setitem(_DEFAULTS, "embed", lambda texts: np.zeros((len(texts), 4)))
+    fakes = {"cluster": lambda e: np.full(len(e), -1), "embed": lambda texts: np.zeros((len(texts), 4))}
+    monkeypatch.setattr(infer_run, "start", lambda *a, **k: _REAL_START(*a, **{**fakes, **k}))
 
     class Env:
         llm = None
@@ -55,8 +55,7 @@ def env(pg, tmp_path, monkeypatch, fake_llm):
             self.llm = fake_llm({"ThemeProposals": list(replies)})
             monkeypatch.setattr(cli, "_registry", lambda: DocumentSourceRegistry([source]))
             monkeypatch.setattr(cli, "build_llm_client", lambda s: self.llm)
-            monkeypatch.setitem(_DEFAULTS, "discover", discover)
-            monkeypatch.setitem(_DEFAULTS, "extract", _extract(behaviour or {}))
+            fakes.update(discover=discover, extract=_extract(behaviour or {}))
             path = tmp_path / "fund.csv"
             path.write_text("company_id,name\n" + "".join(f"{c},Stock {c}\n" for c in ids))
             return path
