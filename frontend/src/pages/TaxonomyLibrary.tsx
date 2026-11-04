@@ -35,9 +35,7 @@ const CREATABLE_METHODS: DerivationMethod[] = [
   "llm_draft",
   "industry_anchored",
   "authority_source",
-  "etf_index_holdings",
   "news_transcript_mining",
-  "empirical",
 ];
 
 const SUB_TABS = [
@@ -293,10 +291,7 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
   const [description, setDescription] = useState("");
   const [useSampleIo, setUseSampleIo] = useState(false);
   const [mineNews, setMineNews] = useState(true);
-  const [sampleSize, setSampleSize] = useState(25);
   const [universePath, setUniversePath] = useState<string | null>(null);
-  const [holdingsPath, setHoldingsPath] = useState<string | null>(null);
-  const [holdingsStatus, setHoldingsStatus] = useState("");
 
   const [authorityCandidates, setAuthorityCandidates] = useState<SourceCandidate[]>([]);
   const [selectedAuthority, setSelectedAuthority] = useState<Set<string>>(new Set());
@@ -316,19 +311,6 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
       setError((err as Error).message);
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function onHoldingsFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setHoldingsStatus("Uploading...");
-    try {
-      const res = await api.rawUpload(file);
-      setHoldingsPath(res.path);
-      setHoldingsStatus(`Ready: ${file.name}`);
-    } catch (err) {
-      setHoldingsStatus(`Upload failed: ${(err as Error).message}`);
     }
   }
 
@@ -353,9 +335,7 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
         use_sample_io: useSampleIo,
         authority_urls: authorityUrls,
         universe_path: universePath,
-        sample_size: sampleSize,
         mine_news: mineNews,
-        holdings_path: holdingsPath,
       };
       const created = (await api.createTaxonomy(payload)) as Taxonomy;
       setDraft(created);
@@ -426,33 +406,13 @@ function NewTaxonomyWizard({ onCreated }: { onCreated: () => void }) {
           </div>
         )}
 
-        {method === "etf_index_holdings" && (
-          <>
-            <label className="field-label">
-              Fund/index holdings export (CSV)
-              <input type="file" accept=".csv" onChange={onHoldingsFile} />
-            </label>
-            {holdingsStatus && <p className="status-text">{holdingsStatus}</p>}
-          </>
-        )}
-
-        {(method === "empirical" || method === "news_transcript_mining") && (
+        {method === "news_transcript_mining" && (
           <>
             <UniversePicker onResolved={(path) => setUniversePath(path)} />
-            {method === "empirical" && (
-              <>
-                <label className="field-label">
-                  Sample size
-                  <input type="number" value={sampleSize} onChange={(e) => setSampleSize(Number(e.target.value))} />
-                </label>
-              </>
-            )}
-            {method === "news_transcript_mining" && (
-              <label className="checkbox-label">
-                <input type="checkbox" checked={mineNews} onChange={(e) => setMineNews(e.target.checked)} />
-                Also search news for activity mentions (in addition to any selected company universe)
-              </label>
-            )}
+            <label className="checkbox-label">
+              <input type="checkbox" checked={mineNews} onChange={(e) => setMineNews(e.target.checked)} />
+              Also search news for activity mentions (in addition to any selected company universe)
+            </label>
           </>
         )}
 
@@ -708,7 +668,7 @@ function UniverseBuilderView() {
           <>
             <p className="status-text">
               Built {result.company_count} companies — saved at <code>{result.path}</code>. Use this path as the
-              universe for the empirical/news-mining derivation methods or the Thematic Universe Builder.
+              universe for the news-mining derivation method or the Thematic Universe Builder.
             </p>
             <div className="table-wrap">
               <table className="data-table">

@@ -3,11 +3,8 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from arp.llm.base import LLMClient, LLMUsage
-from arp.research.taxonomy_sources.corpus_synthesis import synthesize_activities_from_corpus
 from arp.schemas.common import CompanyRef
-from arp.schemas.taxonomy_sources import CorpusSnippet, CorpusSourceType, HoldingRow
-from arp.schemas.thematic import ThemeDefinition
+from arp.schemas.taxonomy_sources import HoldingRow
 
 # Column names accepted per field, in priority order -- fund providers'
 # holdings exports aren't standardized, so a few common variants are
@@ -87,27 +84,6 @@ def _parse_holdings_rows(path: Path) -> list[dict]:
     return rows
 
 
-def load_holdings_corpus(path: Path) -> list[CorpusSnippet]:
-    """Loads a user-supplied fund/index holdings export into corpus
-    snippets for bottom-up taxonomy synthesis.
-
-    Fetching holdings automatically from a fund provider's site isn't
-    attempted here: provider sites vary widely in format and several
-    financial-data domains are unreachable from this environment, so a
-    user-supplied export -- what `discover_thematic_funds` points the user
-    toward downloading -- is the robust path.
-    """
-    corpus: list[CorpusSnippet] = []
-    for row in _parse_holdings_rows(path):
-        parts = [p for p in (row["name"], row["sector"], row["description"]) if p]
-        if not parts:
-            continue
-        corpus.append(
-            CorpusSnippet(text=" -- ".join(parts), source_type=CorpusSourceType.ETF_HOLDINGS, source_ref=row["ticker"] or row["name"] or "unknown")
-        )
-    return corpus
-
-
 def load_universe_from_holdings(path: Path) -> list[CompanyRef]:
     """Projects a holdings export into a company universe -- the Universe
     Builder's path for constructing a universe from an index/sector fund's
@@ -137,16 +113,3 @@ def load_holdings_with_weights(path: Path) -> list[HoldingRow]:
                 ticker=ticker, name=row["name"], weight=row["weight"], sector=row["sector"], **{c: row[c] for c in _ID_COLUMNS}
             ))
     return holdings
-
-
-async def build_theme_from_holdings(
-    theme_name: str, theme_description: str, holdings_path: Path, llm: LLMClient
-) -> tuple[ThemeDefinition, str, LLMUsage]:
-    corpus = load_holdings_corpus(holdings_path)
-    if not corpus:
-        raise ValueError(f"No usable rows found in holdings file: {holdings_path}")
-
-    activities, assessment, usage = await synthesize_activities_from_corpus(theme_name, theme_description, corpus, llm)
-    theme = ThemeDefinition(name=theme_name, description=theme_description, activities=activities)
-    notes = f"Derived from {len(corpus)} fund holding(s) in {holdings_path.name}. {assessment}"
-    return theme, notes, usage

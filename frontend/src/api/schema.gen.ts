@@ -10457,8 +10457,6 @@ export interface components {
              * @default
              */
             description: string;
-            /** Holdings Path */
-            holdings_path?: string | null;
             /**
              * Mine News
              * @default true
@@ -10466,11 +10464,6 @@ export interface components {
             mine_news: boolean;
             /** Name */
             name: string;
-            /**
-             * Sample Size
-             * @default 25
-             */
-            sample_size: number;
             /**
              * Source Notes
              * @default

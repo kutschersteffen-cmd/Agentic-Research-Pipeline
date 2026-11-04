@@ -6560,17 +6560,6 @@
       "title": "Description",
       "type": "string"
      },
-     "holdings_path": {
-      "anyOf": [
-       {
-        "type": "string"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "title": "Holdings Path"
-     },
      "mine_news": {
       "default": true,
       "title": "Mine News",
@@ -6579,11 +6568,6 @@
      "name": {
       "title": "Name",
       "type": "string"
-     },
-     "sample_size": {
-      "default": 25,
-      "title": "Sample Size",
-      "type": "integer"
      },
      "source_notes": {
       "default": "",

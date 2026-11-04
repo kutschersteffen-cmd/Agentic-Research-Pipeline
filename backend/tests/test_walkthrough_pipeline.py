@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
@@ -21,7 +22,8 @@ from arp.golden_set.runner import run_golden_set
 from arp.golden_set.schema import GoldenSetCase
 from arp.ingestion.registry import DocumentSourceRegistry
 from arp.research.revenue_exposure.resolver import extract_schema_fields
-from arp.research.taxonomy_sources.empirical import gather_corpus_from_extraction
+from arp.research.stock_inference.profile import profile_stock
+from arp.research.stock_inference.schemas import InferStock
 from arp.retention import cleanup
 from arp.schemas.common import Citation, CompanyRef, DocType, SourceDocument
 from arp.schemas.datapoints import (
@@ -228,8 +230,9 @@ async def test_research_callers_write_no_trace(tmp_path, fake_llm):  # AC-24
     theme = SourceDocument(company_id="c1", doc_type=DocType.SUSTAINABILITY_REPORT, title="ESG",
                            full_text="Acme Corp builds green capex projects: wind farms and solar parks.")
     llm2 = fake_llm({"ExtractionDraft": [ExtractionDraft(values=[], confidence=0.9)], "VerifierOutput": [AGREE]})
-    await gather_corpus_from_extraction("green capex", "d", [COMPANY], DocumentSourceRegistry([_FixedDocSource([theme])]),
-                                        llm2, settings)
+    await profile_stock(InferStock(company_id=COMPANY.company_id, name=COMPANY.name), documents=[theme],
+                        registry=DocumentSourceRegistry([_FixedDocSource([theme])]), llm=llm2, verifier_llm=llm2,
+                        settings=settings, field_limit=asyncio.Semaphore(1))
     assert _trace_files(tmp_path) == []
 
 
