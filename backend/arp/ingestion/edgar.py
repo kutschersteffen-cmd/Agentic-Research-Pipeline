@@ -58,6 +58,7 @@ class AnnualOriginal(BaseModel):
     source_url: str
     primary_document: str
     content: bytes
+    labels: bytes | None = None  # the filing's _lab.xml label linkbase, None when missing or failed
 
 
 class EdgarDocumentSource(DocumentSource):
@@ -220,12 +221,12 @@ class EdgarDocumentSource(DocumentSource):
                 self._content_store.set_storage_uri(doc_id, storage_uri)
 
     async def fetch_latest_annual_original(
-        self, cik: str, *, client: httpx.AsyncClient | None = None
+        self, cik: str, *, client: httpx.AsyncClient | None = None, labels: bool = False
     ) -> AnnualOriginal | None:
         """The first 10-K, 20-F or 40-F (no amendments) in the recent filings, as the original bytes; None if there is none."""
         if client is None:
             async with httpx.AsyncClient(headers=self._headers, timeout=30.0) as own:
-                return await self.fetch_latest_annual_original(cik, client=own)
+                return await self.fetch_latest_annual_original(cik, client=own, labels=labels)
         cik10 = cik.zfill(10)
         recent = ((await self._get_submissions(client, cik10)) or {}).get("filings", {}).get("recent", {})
         forms = recent.get("form", [])
@@ -241,7 +242,27 @@ class EdgarDocumentSource(DocumentSource):
         return AnnualOriginal(
             accession=accession, form=forms[idx], filing_date=recent.get("filingDate", [None] * len(forms))[idx],
             source_url=url, primary_document=primary, content=resp.content,
+            labels=await self._fetch_labels(client, url.rpartition("/")[0]) if labels else None,
         )
+
+    async def _fetch_labels(self, client: httpx.AsyncClient, folder: str) -> bytes | None:
+        """The first _lab.xml listed in the filing folder's index.json; None (logged) on any failure."""
+        try:
+            await asyncio.sleep(self._delay)
+            resp = await client.get(f"{folder}/index.json", headers=self._headers)
+            resp.raise_for_status()
+            items = resp.json()["directory"]["item"]
+            name = next((i["name"] for i in items if i["name"].endswith("_lab.xml")), None)
+            if name is None:
+                logger.info("no label file in %s", folder)
+                return None
+            await asyncio.sleep(self._delay)
+            resp = await client.get(f"{folder}/{name}", headers=self._headers)
+            resp.raise_for_status()
+            return resp.content
+        except Exception as exc:  # noqa: BLE001 -- a label problem never fails the annual report
+            logger.warning("label file in %s not fetched: %s", folder, exc)
+            return None
 
     async def _get_submissions(self, client: httpx.AsyncClient, cik10: str) -> dict | None:
         """Filings change over time, so this is TTL-bounded (unlike the

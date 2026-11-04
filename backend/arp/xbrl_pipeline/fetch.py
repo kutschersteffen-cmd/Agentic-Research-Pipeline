@@ -55,7 +55,7 @@ class _SecSource:
         return await self._facts.fetch_company_facts_raw(cik)
 
     async def fetch_latest_annual_original(self, cik: str) -> AnnualOriginal | None:
-        return await self._edgar.fetch_latest_annual_original(cik)
+        return await self._edgar.fetch_latest_annual_original(cik, labels=True)
 
 
 def build_source(settings: Settings, *, refresh: bool = False) -> SecSource:
@@ -101,6 +101,8 @@ async def _fetch_report(cik10: str, cik: str, *, source: SecSource, store: XbrlS
             filename=f"annual-{annual.accession}.htm", sha256=hashlib.sha256(annual.content).hexdigest(), size=len(annual.content),
             inline_xbrl=_INLINE_MARKER in annual.content,
         ))
+        if annual.labels:
+            store.save_labels(cik10, annual.accession, annual.labels)
         return "stored"
     except Exception as exc:  # noqa: BLE001 -- a report problem never changes the company's status
         logger.warning("annual report for %s not stored: %s", cik10, exc, exc_info=True)

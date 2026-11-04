@@ -120,12 +120,14 @@ jobs:
           echo "extractor input tokens: gate off $off, gate on $on" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Run the transition-barrier golden set
+        # warn-only until the owner has checked the labels (tests/golden/transition_barrier/LABELS.md, D2)
         if: steps.key.outputs.present == 'true'
         env:
           ARP_ANTHROPIC_API_KEY: ${{ secrets.ARP_ANTHROPIC_API_KEY }}
         run: |
           set -o pipefail
-          arp transition-barrier golden --cases tests/golden/transition_barrier/cases.json --documents-dir tests/golden/transition_barrier/documents --min-precision 0.95 --min-coverage 0.5 | tee -a "$GITHUB_STEP_SUMMARY"
+          arp transition-barrier golden --cases tests/golden/transition_barrier/cases.json --documents-dir tests/golden/transition_barrier/documents --min-precision 0.95 --min-coverage 0.5 | tee -a "$GITHUB_STEP_SUMMARY" \
+            || echo "::warning title=Transition-barrier golden below threshold::Below precision 0.95 or coverage 0.5; warn-only until the labels are checked (LABELS.md D2)."
 
       - name: Run the RFP golden checks
         if: steps.key.outputs.present == 'true' && steps.scope.outputs.rfp == 'true'

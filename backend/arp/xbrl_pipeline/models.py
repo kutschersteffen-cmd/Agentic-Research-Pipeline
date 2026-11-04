@@ -155,3 +155,4 @@ class SegmentRow(BaseModel):
     axis_kind: Literal["segment", "product", "geography"] = "segment"
     level: Literal["standard", "company"] | None = None
     form: str | None = None  # SEC rows only: 10-K, 20-F or 40-F
+    segment_source: Literal["label", "derived"] = "derived"  # label: the filer's own label linkbase wording
