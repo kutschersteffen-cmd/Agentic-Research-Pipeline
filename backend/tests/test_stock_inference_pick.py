@@ -601,8 +601,39 @@ async def test_pick_sorts_activities_by_activity_id(ctx):  # spec: `activities` 
     _save(_run(run_id), store)
 
     async def synthesize(theme, profiles, chunks, llm, *, fuzzy_threshold):
-        return [ActivityDefinition(activity_id=i, name=i, in_scope_description="in", out_of_scope_description="out")
-                for i in ("b", "a")]
+        acts = [ActivityDefinition(name=i, in_scope_description="in", out_of_scope_description="out") for i in "ab"]
+        return sorted(acts, key=lambda a: pick_mod.stable_activity_id("Hydrogen", a.name), reverse=True)
 
     run = await pick_mod.pick(run_id, 1, **kw, **{**fake_steps(), "synthesize": synthesize})
-    assert [a.activity_id for a in run.activities] == ["a", "b"]
+    ids = [a.activity_id for a in run.activities]
+    assert ids == sorted(ids) and {a.name for a in run.activities} == {"a", "b"}
+
+
+def test_stable_id_depends_only_on_theme_and_activity_name():
+    a, b = pick_mod.stable_activity_id("Hydrogen", "PEM stacks"), pick_mod.stable_activity_id("Hydrogen", "PEM stacks")
+    assert a == b and a.startswith("act_") and len(a) == 16
+    assert a != pick_mod.stable_activity_id("Fuel", "PEM stacks") != pick_mod.stable_activity_id("Hydrogen", "Other")
+
+
+@pytest.mark.asyncio
+async def test_pick_gives_activities_stable_ids_before_mapping(ctx):
+    run_id, store, tax, kw = ctx
+    _save(_run(run_id), store)
+    seen = []
+
+    async def map_stocks(profiles, activities, chunks, llm, *, fuzzy_threshold):
+        seen.extend(a.activity_id for a in activities)
+        return [_m("s1", activities[0].activity_id)], []
+
+    run = await pick_mod.pick(run_id, 1, **kw, **{**fake_steps(), "map_stocks": map_stocks})
+    want = pick_mod.stable_activity_id("Hydrogen", "Hydrogen")
+    assert seen == [want] and [a.activity_id for a in run.activities] == [want]
+    assert run.mapping[0].activity_id == want
+    assert [a.activity_id for a in tax.get(run.taxonomy_id).theme.activities] == [want]
+
+
+def test_stable_ids_keep_two_activities_with_one_name_apart():
+    acts = [ActivityDefinition(activity_id=i, name="Same", in_scope_description="in", out_of_scope_description="out")
+            for i in ("x", "y")]
+    out, origins = pick_mod._stable_ids("T", acts, [ActivityOrigin(activity_id="y", name="Same", origin="stocks")])
+    assert len({a.activity_id for a in out}) == 2 and origins[0].activity_id == out[1].activity_id

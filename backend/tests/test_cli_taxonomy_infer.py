@@ -349,15 +349,6 @@ def _scripted_pick_llm(llm):
     llm.complete_structured = complete_structured
 
 
-def _normalised(run):
-    """Activity ids are uuids (new_id), so they are replaced by the activity's name before comparing."""
-    names = {a["activity_id"]: a["name"] for a in run["activities"]}
-    rest = {k: v for k, v in run.items() if k not in ("run_id", "taxonomy_id")}
-    return {**rest, "activities": sorted(({**a, "activity_id": a["name"]} for a in run["activities"]),
-                                         key=lambda a: a["name"]),
-            "mapping": [{**m, "activity_id": names.get(m["activity_id"])} for m in run["mapping"]]}
-
-
 def test_ac27_same_inputs_in_two_row_orders_give_the_same_run(env, tmp_path, monkeypatch):
     monkeypatch.setenv("ARP_TAXONOMIES_DIR", str(tmp_path / "tax"))
     get_settings.cache_clear()
@@ -375,4 +366,5 @@ def test_ac27_same_inputs_in_two_row_orders_give_the_same_run(env, tmp_path, mon
         assert res.exit_code == 0, res.output
         runs.append(_show(run_id))
     assert runs[0]["stage"] == "drafted" and len(runs[0]["mapping"]) == len(runs[0]["profiles"]) and len(runs[0]["activities"]) == 2
-    assert _normalised(runs[0]) == _normalised(runs[1])
+    a, b = ({k: v for k, v in r.items() if k not in ("run_id", "taxonomy_id")} for r in runs)
+    assert a == b

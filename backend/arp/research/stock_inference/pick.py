@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -148,6 +149,21 @@ async def merge(stock_acts: list[ActivityDefinition], method_acts: list[Activity
             out.append(m)
             origins.append(ActivityOrigin(activity_id=m.activity_id, name=m.name, origin="methodology"))
     return out, origins
+
+
+def stable_activity_id(theme_name: str, name: str) -> str:
+    """The same theme and activity names give the same id on every run (AC-27)."""
+    return "act_" + hashlib.sha1(f"{theme_name}|{name}".encode()).hexdigest()[:12]
+
+
+def _stable_ids(theme_name: str, activities: list[ActivityDefinition], origins: list[ActivityOrigin]
+                ) -> tuple[list[ActivityDefinition], list[ActivityOrigin]]:
+    ids: dict[str, str] = {}
+    for a in activities:
+        new = stable_activity_id(theme_name, a.name)
+        ids[a.activity_id] = new if new not in ids.values() else f"{new}_{len(ids)}"  # two activities, one name
+    return ([a.model_copy(update={"activity_id": ids[a.activity_id]}) for a in activities],
+            [o.model_copy(update={"activity_id": ids[o.activity_id]}) for o in origins])
 
 
 class ActivityKeywords(BaseModel):
@@ -368,7 +384,8 @@ async def pick(
 
         method_acts = (await top_down(sources, theme.name, llm, settings, fetch_or_skip, scope=theme.description)
                        if sources else [])
-        activities, origins = await merge(stock_acts, method_acts, theme.description, llm, matcher)
+        activities, origins = _stable_ids(theme.name, *await merge(stock_acts, method_acts, theme.description, llm,
+                                                                    matcher))
         boundary_quotes = [c.quote for a in method_acts for c in a.out_of_scope_citations]
         activities = await keywords(activities, supporting, other, boundary_quotes, llm)
         mapping, unmapped = await map_stocks(run.profiles, activities, chunks, llm,
