@@ -14,8 +14,11 @@ def _division(code: str | None) -> str | None:
 
 
 def taxonomy_divisions(theme: ThemeDefinition) -> set[str]:
-    # shortcut: core_isic_codes only until PR #325 lands; then add ActivityDefinition.sector_codes (system ISIC/NACE)
-    return {d for a in theme.activities for d in map(_division, a.core_isic_codes) if d}
+    codes = [
+        *(c for a in theme.activities for c in a.core_isic_codes),
+        *(s.code for a in theme.activities for s in a.sector_codes if s.system in ("ISIC", "NACE")),
+    ]
+    return {d for d in map(_division, codes) if d}
 
 
 def narrow_universe(

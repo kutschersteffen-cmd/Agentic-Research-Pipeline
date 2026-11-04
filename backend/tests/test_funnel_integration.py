@@ -290,11 +290,12 @@ async def test_query_strings(tmp_path, fake_llm, monkeypatch):  # AC-36, AC-37, 
 
 
 async def test_query_with_technologies_and_definitions(tmp_path, fake_llm, monkeypatch):  # AC-45 (PR #325 fields)
-    from types import SimpleNamespace as NS
+    from arp.schemas.authority_taxonomy import Definition, Technology
 
-    theme = _b_theme()
-    object.__setattr__(theme, "technologies", [NS(name="PEM"), NS(name="SOEC")])  # until PR #325 adds the fields
-    object.__setattr__(theme, "definitions", [NS(term="stack", text="cell assembly"), NS(term="BoP", text="balance of plant")])
+    theme = _b_theme().model_copy(update={
+        "technologies": [Technology(name="PEM"), Technology(name="SOEC")],
+        "definitions": [Definition(term="stack", text="cell assembly"), Definition(term="BoP", text="balance of plant")],
+    })
     assert funnel.funnel_query(theme, theme.activities[0]).query == (
         "Electrolysers: Makes stacks.\nGreen hydrogen.\nTechnologies: PEM, SOEC\n"
         "Definitions: stack: cell assembly; BoP: balance of plant")

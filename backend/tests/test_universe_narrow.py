@@ -121,3 +121,15 @@ def test_golden_universe_and_cases_label_lines(tmp_path):  # AC-32 shape
     t = store.create("t", _theme("2790", "2829"), DerivationMethod.MANUAL)
     r = _narrow(tmp_path, t, tmp_path / "u.json", "--cases", str(d / "cases.json"))
     assert r.output.strip().splitlines()[-3:] == ["core dropped: 1/3", "peripheral dropped: 0/0", "not dropped: 1/1"]
+
+
+def test_narrow_reads_sector_codes():  # PR #325 sector codes: ISIC and NACE count, other systems don't
+    from arp.schemas.authority_taxonomy import SectorCode
+
+    act = ActivityDefinition(name="e", in_scope_description="i", out_of_scope_description="o", sector_codes=[
+        SectorCode(system="NACE", code="27.90", origin="source"), SectorCode(system="GICS", code="2010", origin="source")])
+    theme = ThemeDefinition(name="t", description="", activities=[act])
+    kept, dropped = narrow_universe([CompanyRef(company_id="X", name="X", isic_code="2790"),
+                                     CompanyRef(company_id="Y", name="Y", isic_code="2010")], theme)
+    assert [c.company_id for c in kept] == ["X"]
+    assert dropped[0]["reason"] == "no sector match (company 20, taxonomy 27)"

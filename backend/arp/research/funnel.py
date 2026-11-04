@@ -44,9 +44,8 @@ def funnel_query(theme: ThemeDefinition | None, activity: ActivityDefinition) ->
     for kw in [*activity.seed_keywords, *(k for f in fields for k in f.seed_keywords), *STAGE_WORDS]:
         if kw.lower() not in {k.lower() for k in keywords}:
             keywords.append(kw)
-    # shortcut: getattr until PR #325 adds ThemeDefinition.technologies / .definitions; then read them directly
-    technologies = getattr(theme, "technologies", None) or []
-    definitions = getattr(theme, "definitions", None) or []
+    technologies = theme.technologies if theme else []
+    definitions = theme.definitions if theme else []
     lines = [
         f"{activity.name}: {activity.in_scope_description}",
         theme.description if theme else "",

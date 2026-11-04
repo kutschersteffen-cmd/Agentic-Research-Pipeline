@@ -6,7 +6,7 @@ import re
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.schema import Document as LlamaDocument
 
-from arp.config import get_settings
+from arp.config import Settings, get_settings
 from arp.ingestion.chunk_spans import ChunkSpan, get_span_cache
 from arp.ingestion.outline import outline
 from arp.schemas.common import DocType, DocumentChunk, SourceDocument
@@ -107,12 +107,8 @@ def _section_segments(doc: SourceDocument, min_chars: int) -> list[tuple[int, in
     return segments
 
 
-def _compute_spans(
-    doc: SourceDocument, chunk_chars: int, overlap_chars: int, section_min_chars: int | None = None
-) -> tuple[ChunkSpan, ...]:
-    """`section_min_chars` set = section-bounded chunking (`section_chunking_enabled`)."""
-    is_transcript = doc.doc_type == DocType.EARNINGS_TRANSCRIPT
-    # 10-K ITEM/PART header lines and markdown headings: a chunk's section is the last one at or before it
+def _last_heading(doc: SourceDocument):
+    """10-K ITEM/PART header lines and markdown headings: a chunk's section is the last one at or before it."""
     headings = sorted((m.start(), m.group(1).strip()) for p in (_SECTION_HEADER, _MD_HEADING) for m in p.finditer(doc.full_text))
     starts = [h[0] for h in headings]
 
@@ -120,6 +116,15 @@ def _compute_spans(
         i = bisect.bisect_right(starts, start)
         return headings[i - 1][1] if i else None
 
+    return last_heading
+
+
+def _compute_spans(
+    doc: SourceDocument, chunk_chars: int, overlap_chars: int, section_min_chars: int | None = None
+) -> tuple[ChunkSpan, ...]:
+    """`section_min_chars` set = section-bounded chunking (`section_chunking_enabled`)."""
+    is_transcript = doc.doc_type == DocType.EARNINGS_TRANSCRIPT
+    last_heading = _last_heading(doc)
     segments = None if section_min_chars is None else _section_segments(doc, section_min_chars)
     if segments is None:
         pieces = [(start, end, last_heading(start)) for start, end in _sentence_aware_split(doc.full_text, chunk_chars, overlap_chars)]
@@ -201,3 +206,68 @@ def chunk_document(
             )
         )
     return chunks
+
+
+def _sections(doc: SourceDocument) -> list[tuple[int, int, str | None]]:
+    """(start, end, title) per outline section, plus the text before the first heading (title None)."""
+    entries = outline(doc)
+    head = [(0, entries[0].char_start if entries else len(doc.full_text), None)]
+    return [h for h in head if h[1] > 0] + [(e.char_start, e.char_end, e.title) for e in entries]
+
+
+def _piece_spans(doc: SourceDocument, size: int) -> tuple[ChunkSpan, ...]:
+    is_transcript = doc.doc_type == DocType.EARNINGS_TRANSCRIPT
+    last_heading = _last_heading(doc)
+    spans = []
+    for sec_start, sec_end, _ in _sections(doc):
+        for start, end in _sentence_aware_split(doc.full_text[sec_start:sec_end], size, 0):
+            start, end = sec_start + start, sec_start + end
+            spans.append(ChunkSpan(
+                char_start=start, char_end=end, section=None if is_transcript else last_heading(start),
+                speaker=detect_speaker(doc.full_text, start) if is_transcript else None,
+            ))
+    return tuple(spans)
+
+
+def _chunk(doc: SourceDocument, start: int, end: int, section: str | None, speaker: str | None = None) -> DocumentChunk:
+    return DocumentChunk(
+        chunk_id=f"chk_{doc.doc_id}_{start}_{end}", doc_id=doc.doc_id, company_id=doc.company_id, doc_type=doc.doc_type,
+        section=section, speaker=speaker, text=doc.full_text[start:end], char_start=start, char_end=end,
+    )
+
+
+def small_pieces(doc: SourceDocument, settings: Settings) -> list[DocumentChunk]:
+    """Small-to-big's ranked units: each outline section split into sentence-aligned pieces of at most
+    `small_chunk_chars`, no overlap, never across a heading; together they cover all of `full_text`."""
+    cache = get_span_cache()
+    # section_min_chars=0 only puts the table spans (they decide which `#` lines are headings) in the key
+    key = ("small_pieces", *cache.make_key(doc.full_text, doc.doc_type, settings.small_chunk_chars, 0, 0, doc.table_spans))
+    spans = cache.get_or_compute(key, lambda: _piece_spans(doc, settings.small_chunk_chars))
+    return [_chunk(doc, s.char_start, s.char_end, s.section, s.speaker) for s in spans]
+
+
+def piece_parents(
+    doc: SourceDocument, pieces: list[DocumentChunk], chunks: list[DocumentChunk], settings: Settings
+) -> dict[str, DocumentChunk]:
+    """Piece id -> the chunk handed to the extractor in its place: its section when that is
+    `section_min_chars`..`DEFAULT_CHUNK_CHARS` long, else the plain chunk of `chunks` (chunk_document's) with the
+    lowest start that holds it, else the one overlapping it most. Table passages in `chunks` map to themselves."""
+    parents = {c.chunk_id: c for c in chunks if c.table_id is not None}
+    plain = [c for c in chunks if c.table_id is None]
+    sections = _sections(doc) if outline(doc) else []  # a document without headings has no section parents
+    starts = [sec[0] for sec in sections]
+    made: dict[tuple, DocumentChunk] = {}
+    for p in pieces:
+        i = bisect.bisect_right(starts, p.char_start) - 1
+        sec = sections[i] if i >= 0 else None
+        if sec is not None and settings.section_min_chars <= sec[1] - sec[0] <= DEFAULT_CHUNK_CHARS:
+            parents[p.chunk_id] = made.get(sec) or made.setdefault(sec, _chunk(doc, *sec))
+            continue
+
+        def rank(c: DocumentChunk, p: DocumentChunk = p) -> tuple:
+            if c.char_start <= p.char_start and p.char_end <= c.char_end:
+                return (0, c.char_start)
+            return (1, -(min(c.char_end, p.char_end) - max(c.char_start, p.char_start)), c.char_start)
+
+        parents[p.chunk_id] = min(plain, key=rank)
+    return parents

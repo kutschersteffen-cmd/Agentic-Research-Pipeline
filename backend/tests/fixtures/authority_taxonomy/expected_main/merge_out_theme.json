@@ -1,0 +1,36 @@
+{
+  "theme_id": "theme_0001",
+  "name": "Merged",
+  "description": "",
+  "activities": [
+    {
+      "activity_id": "act_0001",
+      "name": "EV manufacturing",
+      "in_scope_description": "x",
+      "out_of_scope_description": "y",
+      "seed_keywords": [],
+      "core_isic_codes": [],
+      "source_citation": null,
+      "standards_mapping": null,
+      "tier": "core",
+      "lifecycle_stage": null,
+      "criticality_flag": false,
+      "human_approved": false
+    },
+    {
+      "activity_id": "act_0002",
+      "name": "Grid modernization",
+      "in_scope_description": "x",
+      "out_of_scope_description": "y",
+      "seed_keywords": [],
+      "core_isic_codes": [],
+      "source_citation": null,
+      "standards_mapping": null,
+      "tier": "core",
+      "lifecycle_stage": null,
+      "criticality_flag": false,
+      "human_approved": false
+    }
+  ],
+  "created_at": "<TS>"
+}

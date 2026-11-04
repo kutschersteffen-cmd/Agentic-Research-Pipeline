@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
 from arp.schemas.arbitration import ArbitrationResult
+from arp.schemas.authority_taxonomy import ActivityCriterion, Definition, SectorCode, SourceCitation, Technology, Threshold
 from arp.schemas.common import Citation, new_id, now_iso
 from arp.schemas.exposure import IndirectExposureResult
 from arp.schemas.rd_exposure import RDExposureResult
@@ -104,6 +106,11 @@ class ActivityDefinition(BaseModel):
         "ratified_by -- lets a reviewer approve individual activities within an otherwise-draft taxonomy. "
         "Requires a source_citation and a substantive in_scope_description; see the validator below.",
     )
+    value_chain_role: Literal["core", "upstream", "enabling"] = "core"
+    criteria: list[ActivityCriterion] = Field(default_factory=list)
+    citations: list[SourceCitation] = Field(default_factory=list)
+    out_of_scope_citations: list[SourceCitation] = Field(default_factory=list)
+    sector_codes: list[SectorCode] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _approved_activities_must_be_sourced(self) -> ActivityDefinition:
@@ -133,6 +140,11 @@ class ThemeDefinition(BaseModel):
     name: str
     description: str
     activities: list[ActivityDefinition] = Field(default_factory=list)
+    scope: str = ""
+    technologies: list[Technology] = Field(default_factory=list)
+    definitions: list[Definition] = Field(default_factory=list)
+    thresholds: list[Threshold] = Field(default_factory=list)
+    checklist_report: dict[str, dict[str, Literal["found", "not_in_source"]]] = Field(default_factory=dict)
     created_at: str = Field(default_factory=now_iso)
 
 
