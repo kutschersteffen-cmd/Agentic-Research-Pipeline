@@ -56,20 +56,22 @@ def _extract(behaviour):
 
 
 class _Discover:
-    def __init__(self, source=None, found=None):
-        self.calls, self.source, self.found = [], source, found or {}
+    def __init__(self, source=None, found=None, raises=None):
+        self.calls, self.source, self.found, self.raises = [], source, found or {}, raises
 
     async def __call__(self, stocks, settings):
         self.calls.append([s.company_id for s in stocks])
+        if self.raises:
+            raise self.raises
         self.source.docs.update(self.found)
 
 
 STOCKS = [InferStock(company_id=f"s{i}", name=f"Stock {i}") for i in range(1, 6)]
 
 
-async def _run(pg, tmp_path, docs, behaviour=None, found=None):
+async def _run(pg, tmp_path, docs, behaviour=None, found=None, discover_raises=None):
     source = _FixedDocSource(docs)
-    discover = _Discover(source, found)
+    discover = _Discover(source, found, discover_raises)
     profiles, chunks = await profile_all(
         STOCKS, registry=DocumentSourceRegistry([source]), llm=None, verifier_llm=None,
         settings=Settings(anthropic_api_key="unused", runs_dir=tmp_path / "runs"), discover=discover,
@@ -100,6 +102,16 @@ async def test_no_document_after_discovery(pg, tmp_path):  # AC-12
     assert by_id["s3"].error == "no_document"
     assert discover.calls == [["s3"]]
     assert chunks["s3"] == []
+
+
+@pytest.mark.asyncio
+async def test_failing_discovery_leaves_no_document_and_run_continues(pg, tmp_path):
+    docs = _all_docs()
+    del docs["s3"]
+    by_id, _, discover = await _run(pg, tmp_path, docs, discover_raises=RuntimeError("search down"))
+    assert discover.calls == [["s3"]]
+    assert by_id["s3"].error == "no_document"
+    assert all(by_id[c].description == "Makes PEM stacks." for c in ("s1", "s2", "s4", "s5"))
 
 
 @pytest.mark.asyncio
@@ -136,6 +148,13 @@ async def test_no_value_is_not_found(pg, tmp_path):  # AC-18
     by_id, _, _ = await _run(pg, tmp_path, _all_docs(), {"s4": (None, None)})
     assert by_id["s4"].error == "not_found"
     assert by_id["s4"].description is None
+
+
+@pytest.mark.asyncio
+async def test_blank_value_is_not_found(pg, tmp_path):
+    by_id, _, _ = await _run(pg, tmp_path, _all_docs(), {"s4": ("  ", "We make PEM stacks.")})
+    assert by_id["s4"].error == "not_found"
+    assert by_id["s4"].description is None and by_id["s4"].citation is None
 
 
 @pytest.mark.asyncio

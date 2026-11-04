@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from arp.config import Settings
 from arp.db.session import require_dsn, transaction
@@ -15,6 +16,8 @@ from arp.research.stock_inference.stored import match_company, stored_data
 from arp.retrieval.select_evidence import select_relevant_chunks
 from arp.schemas.common import CompanyRef, DocumentChunk, SourceDocument
 from arp.schemas.datapoints import DataPointSchema, FieldDataType, FieldDefinition
+
+logger = logging.getLogger(__name__)
 
 _KEYWORDS = ["segments", "products", "principal activities", "business overview", "services"]
 DESCRIPTION_SCHEMA = DataPointSchema(
@@ -55,7 +58,7 @@ async def profile_stock(
         result = await extract(_ref(stock), DESCRIPTION_SCHEMA, registry=registry, llm=llm, verifier_llm=verifier_llm,
                                settings=settings, documents=documents, field_limit=field_limit)
         field = result.record.fields[0]
-        if field.value is None:
+        if field.value is None or not str(field.value).strip():
             return profile.model_copy(update={"error": "not_found"}), chunks
         grounded = ground_citations(field.citations, {d.doc_id: d for d in documents},
                                     settings.grounding_fuzzy_threshold)
@@ -80,7 +83,10 @@ async def profile_all(
                     await asyncio.gather(*(registry.fetch_all(_ref(s)) for s in stocks)), strict=True))
     missing = [s for s in stocks if not docs[s.company_id]]
     if missing:
-        await discover(missing, settings)
+        try:
+            await discover(missing, settings)
+        except Exception as e:  # one failing discovery never ends the run: these stocks become no_document
+            logger.warning("Discovery failed for %d stocks: %s", len(missing), e)
         for s, found in zip(missing, await asyncio.gather(*(registry.fetch_all(_ref(s)) for s in missing)), strict=True):
             docs[s.company_id] = found
     field_limit = asyncio.Semaphore(settings.max_concurrent_llm_calls)
